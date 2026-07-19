@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../providers/appwrite_providers.dart' hide ConnectionState;
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart';
@@ -614,6 +615,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
           revenueType: selectedType,
         );
         markDataChanged();
+        unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -692,6 +694,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         // تحديث حالة الغرفة إلى شاغرة عبر المستودع الموحد
         await roomsRepo.refreshAllRoomOccupancy();
         markDataChanged();
+        unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

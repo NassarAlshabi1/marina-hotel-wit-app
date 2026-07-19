@@ -41,6 +41,7 @@ import 'salary_fix_helper.dart';
 import 'secondary_appwrite_config.dart';
 import 'sync_constants.dart';
 import 'sync_guard.dart';
+import 'sync_performance_optimizer.dart';
 import 'sync/payload_mapper.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_core/sync_error_service.dart';
@@ -151,7 +152,9 @@ class AppwriteSyncManager {
   Timer? _failedRetryTimer;
   Timer? _cleanupTimer;
   Timer? _stuckRecoveryTimer;
-  double _adaptiveBatchSize = 20;
+  double get _initialBatchSize =>
+      (SyncPerformanceOptimizer.instance.getCurrentPerformanceSettings()['batchSize'] as num?)?.toDouble() ?? 20;
+  double _adaptiveBatchSize = 20; // يُضبط في _pushAllEntities عبر _initialBatchSize
   StreamSubscription<void>? _outboxSubscription;
   Duration _debounceWindow = SyncConstants.outboxDebounceWindow;
   SyncStatus _currentStatus = SyncStatus.idle;
@@ -2352,10 +2355,12 @@ class AppwriteSyncManager {
     final maxBatchSize = constrainedNetwork ? 25 : 100;
     final entryTimeout = Duration(seconds: constrainedNetwork ? 12 : 25);
 
-    if (_adaptiveBatchSize > maxBatchSize) {
-      _adaptiveBatchSize = maxBatchSize.toDouble();
-    } else if (_adaptiveBatchSize < minBatchSize) {
-      _adaptiveBatchSize = minBatchSize.toDouble();
+    // ✅ تطبيق batchSize من SyncPerformanceOptimizer كنقطة بدء
+    final optimizerBatchSize = _initialBatchSize.round();
+    _adaptiveBatchSize = _adaptiveBatchSize.clamp(minBatchSize, maxBatchSize).toDouble();
+    // إذا اختلف optimizer عن القيمة الحالية بأكثر من 20%، حدّثها
+    if ((optimizerBatchSize - _adaptiveBatchSize).abs() / (_adaptiveBatchSize.clamp(1, double.infinity)) > 0.2) {
+      _adaptiveBatchSize = optimizerBatchSize.clamp(minBatchSize, maxBatchSize).toDouble();
     }
 
     while (true) {

@@ -667,6 +667,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
       await repo.delete(expense.id);
 
       markDataChanged();
+      unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
 
       if (mounted) {
         _refreshExpensesStream();
@@ -1001,6 +1002,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
         }
 
         markDataChanged();
+        unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
 
         // ✅ إصلاح: توسيع الفلتر تلقائياً إذا كان hotelDayKey للمصروف المحفوظ
         // يختلف عن نطاق الفلتر الحالي — لضمان ظهور المصروف الجديد دائماً

@@ -2132,6 +2132,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       // نهاية الـ Transaction — كل العمليات ناجحة أو لا شيء
       // ═══════════════════════════════════════════════════════
 
+      unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
+
       double newRemaining = totals.remaining - amount;
       if (newRemaining < 0) {
         newRemaining = 0;

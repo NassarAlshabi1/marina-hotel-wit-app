@@ -110,21 +110,21 @@ class SyncPullService {
   /// المؤشر: يُشتق من `max($updatedAt)` في الصفحة المسحوبة (سلطة الخادم)،
   /// لا من `Time.nowEpoch()` (وقت الجهاز الساحب).
   ///
-  /// نافذة الأمان: 60 ثانية (بدل 5) لتفادي انحراف الساعات بين الأجهزة.
+  /// نافذة الأمان: 15 ثانية — كافية لتفادي انحراف الساعات بين الأجهزة
+  /// دون التسبب بجلب مكرر كبير.
   ///
   /// fallback: `lastModified` يُستخدم فقط إذا كان `lastPullTs` قديماً جداً
   /// (قبل تطبيق هذا الإصلاح) — لضمان عدم فقدان السجلات القديمة.
   ///
   /// إذا كان lastPullTs <= 0 → يُعيد قائمة فارغة (سحب كامل).
+  static const int _safetyWindowSeconds = 15;
+
   Future<List<String>> buildDeltaQueries(int lastPullTs) async {
     if (lastPullTs <= 0) {
       return [];
     }
-    // ✅ نافذة أمان 60 ثانية (بدل 5) لتفادي انحراف الساعات.
-    final cutoffSeconds = lastPullTs - 60;
-    // تحويل cutoff إلى ISO 8601 (Appwrite $updatedAt بصيغة ISO string)
+    final cutoffSeconds = lastPullTs - _safetyWindowSeconds;
     final cutoffIso = DateTime.fromMillisecondsSinceEpoch(cutoffSeconds * 1000, isUtc: true).toIso8601String();
-    // الاستعلام الأساسي: $updatedAt (زمن الخادم)
     return [Query.greaterThan(r'$updatedAt', cutoffIso)];
   }
 
@@ -136,10 +136,8 @@ class SyncPullService {
   /// (لا يتأثر بوحدة الثواني/الميلي ثانية).
   List<String> bookingNightsDeltaQueries(int lastPullTs, {required bool remoteEpochIsMillis}) {
     if (lastPullTs > 0) {
-      // ✅ نافذة أمان 60 ثانية (بدل 5) لتفادي انحراف الساعات.
-      final cutoffSeconds = lastPullTs - 60;
+      final cutoffSeconds = lastPullTs - _safetyWindowSeconds;
       final cutoffIso = DateTime.fromMillisecondsSinceEpoch(cutoffSeconds * 1000, isUtc: true).toIso8601String();
-      // الاستعلام الأساسي: $updatedAt (زمن الخادم)
       return [Query.greaterThan(r'$updatedAt', cutoffIso)];
     }
     return []; // full fetch

@@ -3,7 +3,11 @@ import 'package:flutter/foundation.dart';
 /// إعدادات Appwrite المركزية
 class AppwriteConfig {
   // Appwrite Endpoint
-  static const String endpoint = 'https://fra.cloud.appwrite.io/v1';
+  // غيّره عبر --dart-define=APPWRITE_ENDPOINT=... للـ CI أو mockoon
+  static const String endpoint = String.fromEnvironment(
+    'APPWRITE_ENDPOINT',
+    defaultValue: 'https://fra.cloud.appwrite.io/v1',
+  );
 
   // Project ID - من لوحة تحكم Appwrite
   static const String projectId = '6a2b01d0000752ce97e7';
