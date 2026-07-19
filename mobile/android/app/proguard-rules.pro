@@ -33,6 +33,12 @@
 # Keep Kotlin metadata for reflection
 -keep class kotlin.Metadata { *; }
 
+# Drift / SQLite runtime (reflection-based)
+-keep class **.g.** { *; }
+-keep class **.freezed.** { *; }
+-keep class _\$** { *; }
+-dontwarn java.lang.ClassValue
+
 # Suppress warnings for optional dependencies
 -dontwarn org.jetbrains.annotations.**
 -dontwarn javax.annotation.**
