@@ -7,6 +7,11 @@
 -keep class io.flutter.plugins.** { *; }
 -keep class io.flutter.embedding.** { *; }
 
+# ✅ Play Core (referenced by FlutterPlayStoreSplitApplication)
+# R8 يفشل بدون هذه القواعد لأن Play Core classes غير موجودة في classpath
+-dontwarn com.google.android.play.core.**
+-keep class com.google.android.play.core.** { *; }
+
 # AndroidX Lifecycle (used by many plugins)
 -keep class androidx.lifecycle.DefaultLifecycleObserver
 -keep class androidx.lifecycle.FullLifecycleObserver
@@ -36,8 +41,6 @@
 # Drift / SQLite runtime (reflection-based)
 -keep class **.g.** { *; }
 -keep class **.freezed.** { *; }
-# ✅ تم إزالة "-keep class _\$** { *; }" — غير صالحة لـ R8 (تسبب Build failure)
-# ملفات Drift/Freezed مغطاة بالقواعد أعلاه
 -dontwarn java.lang.ClassValue
 
 # Suppress warnings for optional dependencies
