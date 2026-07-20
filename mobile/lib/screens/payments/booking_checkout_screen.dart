@@ -1,4 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -7,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
-import '../../providers/appwrite_providers.dart' hide ConnectionState;
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart';
@@ -19,9 +17,7 @@ import '../../utils/time.dart';
 
 class BookingCheckoutScreen extends ConsumerStatefulWidget {
 
-  const BookingCheckoutScreen({      required this.booking,
-      super.key,
-  });
+  const BookingCheckoutScreen({super.key, required this.booking});
   final Booking booking;
 
   @override
@@ -168,7 +164,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                             checkout,
                             discountStartDate,
                           );
-                          final fullNights = (actualNights - discountedNights).clamp(0, actualNights);
+                          final fullNights = (actualNights - discountedNights)
+                              .clamp(0, actualNights).toInt();
                           final discountedRate = (roomPrice - discount).clamp(
                             0.0,
                             roomPrice,
@@ -521,7 +518,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  initialValue: selectedMethod,
+                  value: selectedMethod,
                   style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                   decoration: const InputDecoration(
                     labelText: 'طريقة الدفع',
@@ -535,7 +532,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  initialValue: selectedType,
+                  value: selectedType,
                   style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                   decoration: const InputDecoration(
                     labelText: 'نوع الإيراد',
@@ -582,6 +579,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
       final parsedAmount =
           CurrencyFormatter.parseAmount(amountController.text);
       if (parsedAmount == null || parsedAmount <= 0) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('يرجى إدخال مبلغ صحيح'),
@@ -591,6 +589,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         return;
       }
       if (parsedAmount % 1 != 0) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('المبلغ يجب أن يكون بدون كسور'),
@@ -615,8 +614,10 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
           revenueType: selectedType,
         );
         markDataChanged();
-        unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
+        // ✅ مزامنة فورية بعد الحفظ
+        unawaited(syncNow());
 
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('تم إضافة الدفعة بنجاح'),
@@ -631,6 +632,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
           ),
         );
       } catch (e) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
         );
@@ -694,9 +696,11 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         // تحديث حالة الغرفة إلى شاغرة عبر المستودع الموحد
         await roomsRepo.refreshAllRoomOccupancy();
         markDataChanged();
-        unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
+        // ✅ مزامنة فورية بعد الحفظ
+        unawaited(syncNow());
 
         if (mounted) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('تم إتمام الحجز بنجاح'),
@@ -710,10 +714,12 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
               ),
             ),
           );
+          // ignore: use_build_context_synchronously
           Navigator.of(context).pop();
         }
       } catch (e) {
         if (mounted) {
+          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
           );
