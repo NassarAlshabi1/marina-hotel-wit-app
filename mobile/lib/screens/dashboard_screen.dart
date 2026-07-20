@@ -603,8 +603,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       final activeBooking = await bookingsRepo.getActiveBookingForRoom(roomNumber);
 
       if (activeBooking == null) {
-        if (mounted) {
-          // ignore: use_build_context_synchronously
+        if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('لا يوجد حجز محجوز للغرفة $roomNumber'), backgroundColor: Colors.orange),
           );
@@ -612,7 +611,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         return;
       }
 
-      if (mounted) {
+      if (context.mounted) {
         unawaited(
           Navigator.of(
             context,
@@ -620,8 +619,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         );
       }
     } catch (e) {
-      if (mounted) {
-        // ignore: use_build_context_synchronously
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red));
       }
     }
