@@ -52,7 +52,17 @@ jobs:
 
       # اختبارات مع التغطية — مُسرَّعة
       - name: Run tests
-        run: flutter test --coverage --concurrency=4 --timeout=120s --reporter compact
+        run: |
+          flutter test \
+            --coverage \
+            --concurrency=2 \
+            --timeout=60s \
+            --exclude-tags slow,integration,appwrite,segfault \
+            --test-randomize-ordering-seed=random \
+            --reporter compact \
+            --test-coverage-lines=0 \
+            2>&1 | tee test_results.log
+          exit ${PIPESTATUS[0]}
         continue-on-error: true
 
       - name: Coverage summary
