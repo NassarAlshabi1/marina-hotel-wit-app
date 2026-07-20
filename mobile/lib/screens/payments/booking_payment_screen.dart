@@ -667,26 +667,28 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
                               return Column(
                                 children: [
-                                  _buildPaymentSummaryCard(
-                                    summary,
-                                    liveBooking: booking,
-                                    roomRate: roomRate,
-                                    priceAdjustments: filteredAdjustments,
-                                    expectedNights: expectedNights,
-                                    actualNights: nightsCount,
-                                    checkin: checkin,
-                                    plannedCheckout: plannedCheckout,
-                                    actualCheckout: actualCheckout,
-                                    discount: discount,
-                                    normalNights: normalNights,
-                                    discountedNights: discountedNights,
-                                    surchargeNights: surchargeNights,
-                                    totalDiscount: totalDiscount,
-                                    totalSurcharge: totalSurcharge,
-                                    hasNotCheckedOut: hasNotCheckedOut,
-                                    nowIsAfterCutoff: nowIsAfterCutoff,
-                                    actualNightsDynamic: actualNights,
-                                    todayPaidAmount: todayPaidAmount,
+                                  RepaintBoundary(
+                                    child: _buildPaymentSummaryCard(
+                                      summary,
+                                      liveBooking: booking,
+                                      roomRate: roomRate,
+                                      priceAdjustments: filteredAdjustments,
+                                      expectedNights: expectedNights,
+                                      actualNights: nightsCount,
+                                      checkin: checkin,
+                                      plannedCheckout: plannedCheckout,
+                                      actualCheckout: actualCheckout,
+                                      discount: discount,
+                                      normalNights: normalNights,
+                                      discountedNights: discountedNights,
+                                      surchargeNights: surchargeNights,
+                                      totalDiscount: totalDiscount,
+                                      totalSurcharge: totalSurcharge,
+                                      hasNotCheckedOut: hasNotCheckedOut,
+                                      nowIsAfterCutoff: nowIsAfterCutoff,
+                                      actualNightsDynamic: actualNights,
+                                      todayPaidAmount: todayPaidAmount,
+                                    ),
                                   ),
                                   const SizedBox(height: 8),
                                   Container(
@@ -717,13 +719,17 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                                     child: TabBarView(
                                       controller: _tabController,
                                       children: [
-                                        _buildNewPaymentTab(
-                                          summary,
-                                          nights: nights,
-                                          remainingAmount: remainingAmount,
-                                          roomRate: roomRate,
+                                        RepaintBoundary(
+                                          child: _buildNewPaymentTab(
+                                            summary,
+                                            nights: nights,
+                                            remainingAmount: remainingAmount,
+                                            roomRate: roomRate,
+                                          ),
                                         ),
-                                        _buildActionsTab(summary, booking: booking, nights: nights),
+                                        RepaintBoundary(
+                                          child: _buildActionsTab(summary, booking: booking, nights: nights),
+                                        ),
                                       ],
                                     ),
                                   ),
