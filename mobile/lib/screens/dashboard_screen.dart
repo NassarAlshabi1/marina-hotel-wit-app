@@ -613,7 +613,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
 
       if (mounted) {
-        // ignore: use_build_context_synchronously
         unawaited(
           Navigator.of(
             context,
