@@ -67,27 +67,27 @@ void main() {
   group('ExpensesListScreen — عرض الشاشة الأساسية', () {
     testWidgets('يعرض عنوان المصروفات في شريط التطبيق', (tester) async {
       await tester.pumpWidget(_buildTestWidget(overrides: _baseOverrides(db, employees: [_testEmployee()])));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
       expect(find.text('المصروفات'), findsOneWidget);
     });
 
     testWidgets('يعرض أزرار المزامنة والإضافة', (tester) async {
       await tester.pumpWidget(_buildTestWidget(overrides: _baseOverrides(db, employees: [_testEmployee()])));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
       expect(find.byIcon(Icons.sync), findsOneWidget);
       expect(find.byIcon(Icons.add), findsOneWidget);
     });
 
     testWidgets('يعرض شريط البحث', (tester) async {
       await tester.pumpWidget(_buildTestWidget(overrides: _baseOverrides(db, employees: [_testEmployee()])));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
       expect(find.byType(TextField), findsWidgets);
       expect(find.text('ابحث بالوصف أو النوع...'), findsOneWidget);
     });
 
     testWidgets('يعرض رسالة عندما لا توجد مصروفات', (tester) async {
       await tester.pumpWidget(_buildTestWidget(overrides: _baseOverrides(db, employees: [_testEmployee()])));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
       expect(find.text('لا توجد مصروفات ضمن الفترة'), findsOneWidget);
     });
 
@@ -115,7 +115,7 @@ void main() {
           ],
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
       expect(find.textContaining('تعذر تحميل الموظفين'), findsOneWidget);
     });
 
@@ -129,7 +129,7 @@ void main() {
           ],
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
       // بدون مصروفات = رسالة لا توجد مصروفات (ليس خطأ)
       expect(find.text('لا توجد مصروفات ضمن الفترة'), findsOneWidget);
     });
@@ -141,7 +141,7 @@ void main() {
   group('ExpensesListScreen — التفاعل مع البحث', () {
     testWidgets('إدخال نص في حقل البحث يحدث الحالة', (tester) async {
       await tester.pumpWidget(_buildTestWidget(overrides: _baseOverrides(db, employees: [_testEmployee()])));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
 
       final searchField = find.byType(TextField).first;
       await tester.enterText(searchField, 'صيانة');
@@ -155,7 +155,7 @@ void main() {
   group('ExpensesListScreen — فلتر النوع', () {
     testWidgets('يعرض قائمة فلتر الأنواع مع "كل الأنواع"', (tester) async {
       await tester.pumpWidget(_buildTestWidget(overrides: _baseOverrides(db, employees: [_testEmployee()])));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
       expect(find.text('كل الأنواع'), findsOneWidget);
     });
   });
@@ -166,13 +166,13 @@ void main() {
   group('ExpensesListScreen — ملخص المصروفات', () {
     testWidgets('يعرض كلمة "عملية" في الملخص', (tester) async {
       await tester.pumpWidget(_buildTestWidget(overrides: _baseOverrides(db, employees: [_testEmployee()])));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
       expect(find.text('عملية'), findsOneWidget);
     });
 
     testWidgets('يعرض "0" كعدد عندما لا توجد مصروفات', (tester) async {
       await tester.pumpWidget(_buildTestWidget(overrides: _baseOverrides(db, employees: [_testEmployee()])));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
       expect(find.text('0'), findsOneWidget);
     });
   });
@@ -183,7 +183,7 @@ void main() {
   group('ExpensesListScreen — فلتر التاريخ', () {
     testWidgets('يعرض أزرار التاريخ "من" و "إلى"', (tester) async {
       await tester.pumpWidget(_buildTestWidget(overrides: _baseOverrides(db, employees: [_testEmployee()])));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
       expect(find.textContaining('من'), findsOneWidget);
       expect(find.textContaining('إلى'), findsOneWidget);
     });
@@ -195,11 +195,11 @@ void main() {
   group('ExpensesListScreen — زر الإضافة', () {
     testWidgets('الضغط على زر الإضافة يفتح حوار إضافة مصروف', (tester) async {
       await tester.pumpWidget(_buildTestWidget(overrides: _baseOverrides(db, employees: [_testEmployee()])));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
 
       // الضغط على زر الإضافة
       await tester.tap(find.byIcon(Icons.add));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
 
       // التحقق من ظهور حوار الإضافة
       expect(find.text('إضافة مصروف'), findsOneWidget);

@@ -8,7 +8,7 @@ permissions:
   pull-requests: write
 
 # ═══════════════════════════════════════════════════════════════
-# يعمل على كل الفروع — عند push أو pull_request
+# يعمل على كل الفروع
 # ═══════════════════════════════════════════════════════════════
 on:
   push:
@@ -38,43 +38,22 @@ jobs:
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
 
-      # تحليل أساسي
       - name: Flutter Analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
-      # Flutter Format (احتياطي - تحذير فقط)
       - name: Dart Format
         run: dart format --set-exit-if-changed .
         continue-on-error: true
 
       # ═══════════════════════════════════════════════════════════
-      #  اختبارات — استراتيجية مضادة للتعليق والانهيار
-      # ═══════════════════════════════════════════════════════════
-      #  مشاكل معروفة (من تحليل السجلات):
-      #  1. test/appwrite_integration_test.dart → segfault (يحتاج Appwrite server)
-      #  2. test/status_utils_test.dart → segfault (drift/native)
-      #  3. test/sync_safety_layer_test.dart → segfault (DB معقدة)
-      #  4. test/widget/expenses_list_widget_test.dart → timeout 10 دقائق
-      #  5. test/unit/password_hasher_test.dart → hang
-      #
-      #  الحل: استثناء الملفات المعروفة بالتعليق + timeout قصير
+      #  اختبارات
+      #  --exclude-tags integration: يستثني اختبارات tagged بـ @Tags(['integration'])
+      #  --concurrency=2: تقليل ضغط الذاكرة
+      #  --timeout=60s: timeout قصير لمنع التعليق
+      #  test/flutter_test_config.dart يُهيِّئ sqfliteFfiInit() تلقائياً
       # ═══════════════════════════════════════════════════════════
       - name: Run tests
-        run: |
-          flutter test \
-            --coverage \
-            --concurrency=2 \
-            --timeout=60s \
-            --exclude-tags slow,integration,appwrite,segfault \
-            --reporter compact \
-            test/ \
-            --exclude-test-file test/appwrite_integration_test.dart \
-            --exclude-test-file test/status_utils_test.dart \
-            --exclude-test-file test/sync_safety_layer_test.dart \
-            --exclude-test-file test/widget/expenses_list_widget_test.dart \
-            --exclude-test-file test/unit/password_hasher_test.dart \
-            2>&1 | tee test_results.log
-          exit ${PIPESTATUS[0]}
+        run: flutter test --coverage --concurrency=2 --timeout=60s --exclude-tags integration --reporter compact
         continue-on-error: true
 
       - name: Coverage summary
