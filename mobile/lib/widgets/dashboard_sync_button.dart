@@ -9,7 +9,6 @@ import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
 import '../providers/secondary_sync_provider.dart';
 import '../services/appwrite_health_checker.dart';
-import '../services/appwrite_realtime_sync.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/daos/sync_log_dao.dart';
 import '../services/secondary_appwrite_config.dart';
@@ -246,9 +245,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
 
       // ✅ إغلاق إشعار التحميل فور انتهاء المزامنة
       loading?.close();
-
-      // إعادة تعيين علامة "توجد تغييرات من السيرفر"
-      AppwriteRealtimeSync().resetRemoteChangesFlag();
 
       // ✅ تسجيل نجاح العملية
       stopwatch.stop();
@@ -944,26 +940,27 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
   Widget build(BuildContext context) {
     final isGoogleDriveSignedIn = ref.watch(smartSyncGoogleDriveSignInStatusProvider);
 
-    // ✅ تحسين: استخدام ValueListenableBuilder المدمج لكل من hasRemoteChanges و pendingRemoteChangesCount
-    return ValueListenableBuilder<bool>(
-      valueListenable: AppwriteRealtimeSync().hasRemoteChanges,
-      builder: (context, hasRemoteChanges, child) {
-        return ValueListenableBuilder<int>(
-          valueListenable: AppwriteRealtimeSync().pendingRemoteChangesCount,
-          builder: (context, pendingRemoteCount, child) {
-            // ✅ P3-5 (Global SyncGate): مراقبة البوّابة العامة. إذا كانت
-            // مشغولة بعملية من أي مصدر (زر آخر، سحب تلقائي، مؤقّت)،
-            // تُعطَّل الأزرار تلقائياً.
-            return ValueListenableBuilder<SyncGateState>(
-              valueListenable: SyncGate.instance.notifier,
-              builder: (context, gateState, child) {
-                final gateBusy = gateState.isBusy;
-                // إذا البوّابة مشغولة بعمل من هذه الـ widget نفسها (push/pull
-                // محلي)، فإن _isPulling/_isPushing بالفعل يُظهر التغذية
-                // الراجعة البصرية المناسبة. أما إذا كانت مشغولة بمصدر خارجي
-                // (auto_open / timer / background)، نُظهر حالة "مشغول" عامة.
-                final externalBusy = gateBusy && !_isPulling && !_isPushing;
-                final hasLocalChanges = _pendingChangesCount > 0;
+    // ✅ Appwrite Realtime معطّل في dashboard — استخدم قيمًا ثابتة بدلاً من
+    // ValueListenableBuilder على hasRemoteChanges/pendingRemoteChangesCount.
+    // قبل الإصلاح: كانت الـ widget تُعاد بناؤها كلما غيّر Realtime قيمة
+    // hasRemoteChanges أو pendingRemoteChangesCount. الآن لم تعد تعتمد على
+    // Realtime إطلاقاً — السحب يتم فقط عبر زر المستخدم أو السحب التلقائي
+    // عند فتح التطبيق.
+    const hasRemoteChanges = false;
+    const pendingRemoteCount = 0;
+
+    // ✅ P3-5 (Global SyncGate): مراقبة البوّابة العامة. إذا كانت مشغولة
+    // بعملية من أي مصدر (زر آخر، سحب تلقائي، مؤقّت)، تُعطَّل الأزرار تلقائياً.
+    return ValueListenableBuilder<SyncGateState>(
+      valueListenable: SyncGate.instance.notifier,
+      builder: (context, gateState, child) {
+        final gateBusy = gateState.isBusy;
+        // إذا البوّابة مشغولة بعمل من هذه الـ widget نفسها (push/pull محلي)،
+        // فإن _isPulling/_isPushing بالفعل يُظهر التغذية الراجعة البصرية
+        // المناسبة. أما إذا كانت مشغولة بمصدر خارجي (auto_open / timer /
+        // background)، نُظهر حالة "مشغول" عامة.
+        final externalBusy = gateBusy && !_isPulling && !_isPushing;
+        final hasLocalChanges = _pendingChangesCount > 0;
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -1028,8 +1025,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
                                     ? 'مزامنة من مصدر آخر (${gateState.operation ?? "?"})'
                                     : hasLocalChanges
                                     ? '$_pendingChangesCount تغيير محلي معلق'
-                                    : hasRemoteChanges
-                                    ? '$pendingRemoteCount تحديث من السيرفر'
+                                    // ✅ Appwrite Realtime معطّل — لا نعرض حالة
+                                    // "تحديث من السيرفر" لأن hasRemoteChanges=false دائماً.
                                     : 'محدّث',
                                 style: TextStyle(
                                   fontSize: 11,
@@ -1101,9 +1098,5 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
                 );
               },
             );
-          },
-        );
-      },
-    );
   }
 }

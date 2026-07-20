@@ -11,7 +11,6 @@ import '../providers/core_providers.dart';
 import '../providers/repository_providers.dart';
 import '../providers/room_payment_status_provider.dart';
 import '../services/analytics_service.dart';
-import '../services/appwrite_realtime_sync.dart';
 import '../services/local_db.dart';
 import '../services/remote_config_service.dart';
 import '../services/sync/sync_gate.dart';
@@ -125,9 +124,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       if (mounted) {
         loading?.close();
       }
-
-      // إعادة تعيين علامة التغييرات عن بعد
-      AppwriteRealtimeSync().resetRemoteChangesFlag();
 
       // ─── تسجيل وقت هذا السحب التلقائي ───
       await prefs.setInt(SyncConstants.lastAppOpenPullKey, DateTime.now().millisecondsSinceEpoch);

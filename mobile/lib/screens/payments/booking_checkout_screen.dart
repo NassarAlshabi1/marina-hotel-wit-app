@@ -17,7 +17,7 @@ import '../../utils/time.dart';
 
 class BookingCheckoutScreen extends ConsumerStatefulWidget {
 
-  const BookingCheckoutScreen({super.key, required this.booking});
+  const BookingCheckoutScreen({required this.booking, super.key});
   final Booking booking;
 
   @override
@@ -165,7 +165,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                             discountStartDate,
                           );
                           final fullNights = (actualNights - discountedNights)
-                              .clamp(0, actualNights).toInt();
+                              .clamp(0, actualNights);
                           final discountedRate = (roomPrice - discount).clamp(
                             0.0,
                             roomPrice,
@@ -518,7 +518,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: selectedMethod,
+                  initialValue: selectedMethod,
                   style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                   decoration: const InputDecoration(
                     labelText: 'طريقة الدفع',
@@ -532,7 +532,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: selectedType,
+                  initialValue: selectedType,
                   style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(ctx).textTheme.bodyMedium?.color),
                   decoration: const InputDecoration(
                     labelText: 'نوع الإيراد',
