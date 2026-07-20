@@ -134,7 +134,27 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
         version: Value(existing.version + 1),
       );
 
-      await update(bookings).replace(comp);
+      // ✅ إصلاح حرج: استبدال replace بـ write لتجنب InvalidDataException.
+      //
+      // السبب الجذري (مشخّص بالدليل من drift-2.31.0/lib/.../update.dart:124-130):
+      // replace() يستدعي validateIntegrity(entity, isInserting: true) — أي
+      // يفحص السلامة كأنها INSERT (يحذف الصف ويعيد إدراجه). هذا يتطلب أن تكون
+      // كل required columns بلا default حاضرة في Companion (مثل localUuid،
+      // createdAt، roomNumber، guestName، guestPhone).
+      //
+      // لكن BookingsRepository.update و sync_service.dart يستدعيان updateById
+      // بـ Companion جزئي (فقط الحقول التي تحتاج تحديثاً فعلياً)، فتكون
+      // required columns المذكورة Value.absent() → InvalidDataException عند
+      // checkout أو عند مزامنة حجز موجود من السيرفر.
+      //
+      // write() مع where(id.equals(id)) يتجاهل Value.absent() ويحدّث فقط
+      // الحقول الحاضرة — وهو السلوك المطلوب لتحديث جزئي. هذا يتوافق مع
+      // الأسلوب المعتمد في كل DAOs الأخرى (employees، cash_transactions،
+      // outbox، debts) ومع softDelete/restore في نفس bookings_dao.dart.
+      final rows = await (update(bookings)..where((t) => t.id.equals(id))).write(comp);
+      if (rows == 0) {
+        return 0;
+      }
       if (!originIsServer) {
         await _mergeOutbox(
           op: 'update',
