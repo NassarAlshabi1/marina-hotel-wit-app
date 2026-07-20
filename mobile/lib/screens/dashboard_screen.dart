@@ -1,24 +1,52 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/appwrite_providers.dart';
-import '../providers/realtime_sync_provider.dart';
-import '../providers/remote_config_provider.dart';
+import '../providers/core_providers.dart';
 import '../providers/repository_providers.dart';
-import '../providers/service_providers.dart';
-import '../providers/sync_providers.dart';
+import '../providers/room_payment_status_provider.dart';
+import '../services/analytics_service.dart';
+import '../services/appwrite_realtime_sync.dart';
 import '../services/local_db.dart';
+import '../services/remote_config_service.dart';
+import '../services/sync/sync_gate.dart';
+import '../services/sync_constants.dart';
 import '../utils/loading_snackbar.dart';
 import '../utils/performance_monitor.dart';
 import '../utils/status_utils.dart';
 import '../widgets/dashboard_conflicts_badge.dart';
 import '../widgets/dashboard_sync_button.dart';
+import 'bookings/booking_edit.dart';
+import 'payments/booking_payment_screen.dart';
+import 'reports/expenses_report_screen.dart';
 
-
+const List<String> _dashboardRoomNumbers = [
+  '101',
+  '102',
+  '103',
+  '104',
+  '201',
+  '202',
+  '203',
+  '204',
+  '301',
+  '302',
+  '303',
+  '304',
+  '401',
+  '402',
+  '403',
+  '404',
+  '501',
+  '502',
+  '503',
+  '504',
+];
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -32,7 +60,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   void initState() {
     super.initState();
     // ✅ Analytics: تتبّع مشاهدة الشاشة لفهم سلوك المستخدم
-    unawaited(ref.read(analyticsServiceProvider).logScreenView(screenName: 'dashboard', screenClass: 'DashboardScreen'));
+    unawaited(AnalyticsService().logScreenView(screenName: 'dashboard', screenClass: 'DashboardScreen'));
     // سحب البيانات من Appwrite تلقائياً عند فتح التطبيق
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _autoPullFromAppwrite();
@@ -43,7 +71,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     // ✅ P3-5 (Global SyncGate): السحب التلقائي عند الفتح يمرّ عبر البوّابة
     // العامة. إذا كان المستخدم قد ضغط زر مزامنة يدوياً، أو كان المؤقّت
     // يعمل، فإن السحب التلقائي يُلغى بصمت دون منافسة على الموارد.
-    final executed = await ref.read(syncGateProvider).runGuardedVoid(
+    final executed = await SyncGate.instance.runGuardedVoid(
       operation: 'auto_pull',
       source: 'auto_open',
       task: _autoPullFromAppwriteInner,
@@ -51,8 +79,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     if (!executed) {
       debugPrint(
         'ℹ️ [AutoPull] skipped — SyncGate busy with '
-        '${ref.read(syncGateProvider).state.operation} from '
-        '${ref.read(syncGateProvider).state.source}',
+        '${SyncGate.instance.state.operation} from '
+        '${SyncGate.instance.state.source}',
       );
     }
   }
@@ -67,11 +95,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
 
       // ─── فحص ذكي: هل مرت ساعة منذ آخر سحب تلقائي؟ ───
-      final lastPullEpochMs = prefs.getInt(ref.read(lastAppOpenPullKeyProvider));
+      final lastPullEpochMs = prefs.getInt(SyncConstants.lastAppOpenPullKey);
       if (lastPullEpochMs != null) {
         final lastPull = DateTime.fromMillisecondsSinceEpoch(lastPullEpochMs);
         final elapsed = DateTime.now().difference(lastPull);
-        if (elapsed < ref.read(appOpenSyncIntervalProvider)) {
+        if (elapsed < SyncConstants.appOpenSyncInterval) {
           return;
         }
       }
@@ -99,10 +127,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
 
       // إعادة تعيين علامة التغييرات عن بعد
-      ref.read(appwriteRealtimeSyncProvider).resetRemoteChangesFlag();
+      AppwriteRealtimeSync().resetRemoteChangesFlag();
 
       // ─── تسجيل وقت هذا السحب التلقائي ───
-      await prefs.setInt(ref.read(lastAppOpenPullKeyProvider), DateTime.now().millisecondsSinceEpoch);
+      await prefs.setInt(SyncConstants.lastAppOpenPullKey, DateTime.now().millisecondsSinceEpoch);
 
       if (mounted && pulledCount > 0) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -136,7 +164,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   /// لون الغرفة المتأخرة عن السداد — يُقرأ من Remote Config
   Color _overdueColor() {
-    final hex = ref.read(remoteConfigServiceProvider).overdueRoomColor;
+    final hex = RemoteConfigService.instance.overdueRoomColor;
     final parsed = int.tryParse('FF$hex', radix: 16);
     if (parsed == null) {
       return Colors.red; // fallback آمن
@@ -149,546 +177,527 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return PerformanceInspector(
       name: 'DashboardScreen',
       child: Scaffold(
-        backgroundColor: Colors.grey.shade100,
-        body: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _buildHeader(),
-              const SizedBox(height: 16),
-              _buildStatisticsCards(),
-              const SizedBox(height: 20),
-              _buildRoomsSection(),
-              const SizedBox(height: 12),
-              _buildColorInstructions(),
-            ],
-          ),
+      backgroundColor: Colors.grey.shade100,
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _buildHeader(),
+            const SizedBox(height: 16),
+            _buildStatisticsCards(),
+            const SizedBox(height: 20),
+            _buildRoomsSection(),
+            const SizedBox(height: 12),
+            _buildColorInstructions(),
+          ],
         ),
       ),
+    )
     );
   }
 
   Widget _buildHeader() {
-    return const Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    final versionAsync = ref.watch(appVersionProvider);
+    final versionLabel = versionAsync.valueOrNull ?? '...';
+    return Row(
       children: [
-        Text(
-          'لوحة التحكم',
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Tajawal',
-            color: Color(0xFF1A1A2E),
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [Colors.blue.shade600, Colors.blue.shade400]),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(Icons.hotel, color: Colors.white, size: 18),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('فندق مارينا', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Row(
+                children: [
+                  const Text('لوحة التحكم', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(width: 6),
+                  // ✅ رقم إصدار APK — يُقرأ ديناميكياً من package_info_plus.
+                  // يظهر للمستخدم مباشرةً في الـ header حتى يسهل التحقق من
+                  // النسخة المثبّتة دون فتح شاشة الإعدادات.
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.blue.shade200, width: 0.5),
+                    ),
+                    child: Text(
+                      'v$versionLabel',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: Colors.blue.shade700,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
-        Row(
-          children: [
-            DashboardConflictsBadge(),
-            SizedBox(width: 8),
-            DashboardSyncButton(),
-          ],
-        ),
+        const DashboardConflictsBadge(),
+        const SizedBox(width: 8),
+        const DashboardSyncButton(),
       ],
     );
   }
 
   Widget _buildStatisticsCards() {
-    return Consumer(
-      builder: (context, ref, child) {
-        final todayPayments = ref.watch(todayPaymentsProvider).valueOrNull ?? 0.0;
-        final todayExpenses = ref.watch(todayExpensesProvider).valueOrNull ?? 0.0;
-        final pendingDebts = ref.watch(pendingDebtsProvider).length;
+    final currencyFmt = NumberFormat('#,##0', 'en_US');
+    return Row(
+      children: [
+        Expanded(
+          child: Consumer(
+            builder: (context, ref, _) {
+              final incomeAsync = ref.watch(todayPaymentsProvider);
+              final expensesAsync = ref.watch(todayExpensesProvider);
 
-        return Row(
+              // التعامل مع حالة التحميل
+              final isLoading = incomeAsync.isLoading || expensesAsync.isLoading;
+              final hasError = incomeAsync.hasError || expensesAsync.hasError;
+
+              if (isLoading) {
+                return _buildStatCard('المتبقي', '...', Icons.savings, Colors.indigo);
+              }
+
+              if (hasError) {
+                return _buildStatCard('المتبقي', '--', Icons.savings, Colors.indigo);
+              }
+
+              final income = incomeAsync.valueOrNull ?? 0.0;
+              final expenses = expensesAsync.valueOrNull ?? 0.0;
+              final balance = income - expenses;
+
+              return _buildStatCard(
+                balance >= 0 ? 'المتبقي' : 'عجز',
+                currencyFmt.format(balance.abs()),
+                balance >= 0 ? Icons.savings : Icons.warning_amber_rounded,
+                balance >= 0 ? Colors.indigo : Colors.orange,
+              );
+            },
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Consumer(
+            builder: (context, ref, _) {
+              final paymentsAsync = ref.watch(todayPaymentsProvider);
+              return paymentsAsync.when(
+                loading: () => _buildStatCard('مدفوعات اليوم', '...', Icons.payments_rounded, Colors.green),
+                error: (e, _) => _buildStatCard('مدفوعات اليوم', '--', Icons.payments_rounded, Colors.green),
+                data: (total) =>
+                    _buildStatCard('مدفوعات اليوم', currencyFmt.format(total), Icons.payments_rounded, Colors.green),
+              );
+            },
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Consumer(
+            builder: (context, ref, _) {
+              final expensesAsync = ref.watch(todayExpensesProvider);
+              return expensesAsync.when(
+                loading: () => _buildStatCard('المصروفات', '...', Icons.money_off_rounded, Colors.red),
+                error: (e, _) => _buildStatCard('المصروفات', '--', Icons.money_off_rounded, Colors.red),
+                data: (total) => _buildStatCard(
+                  'المصروفات',
+                  currencyFmt.format(total),
+                  Icons.money_off_rounded,
+                  Colors.red,
+                  onTap: () => Navigator.push<void>(
+                    context,
+                    MaterialPageRoute<void>(builder: (_) => const ExpensesReportScreen()),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(String title, String value, IconData icon, Color color, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 4, offset: Offset(0, 2))],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: _StatCard(
-                title: 'المدفوعات اليوم',
-                value: NumberFormat('#,##0.00', 'ar').format(todayPayments),
-                icon: Icons.attach_money,
-                color: Colors.green,
-              ),
+            Icon(icon, color: color, size: 14),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _StatCard(
-                title: 'المصروفات اليوم',
-                value: NumberFormat('#,##0.00', 'ar').format(todayExpenses),
-                icon: Icons.money_off,
-                color: Colors.red,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _StatCard(
-                title: 'الديون المستحقة',
-                value: pendingDebts.toString(),
-                icon: Icons.warning_amber_rounded,
-                color: Colors.orange,
-              ),
-            ),
+            const SizedBox(height: 1),
+            Text(title, style: TextStyle(fontSize: 9, color: Colors.grey.shade600)),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 
   Widget _buildRoomsSection() {
     return Consumer(
-      builder: (context, ref, child) {
-        final roomsAsync = ref.watch(roomsListProvider);
-        final bookingsAsync = ref.watch(bookingsListProvider);
-        return roomsAsync.when(
-          data: (rooms) {
-            final bookingsByRoom = bookingsAsync.valueOrNull
-                ?.where((b) => b.actualCheckout == null && b.deletedAt == null)
-                .fold<Map<String, Booking>>({}, (map, b) {
-              map[b.roomNumber] = b;
-              return map;
-            }) ?? {};
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'الغرف',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Tajawal',
-                        color: Color(0xFF1A1A2E),
-                      ),
-                    ),
-                    Text(
-                      '${rooms.length} غرفة',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontFamily: 'Tajawal',
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _buildRoomsGrid(rooms, bookingsByRoom),
-              ],
+      builder: (context, ref, _) {
+        final roomsWithStatusAsync = ref.watch(roomsWithPaymentStatusProvider);
+        return roomsWithStatusAsync.when(
+          loading: () => const Padding(
+            padding: EdgeInsets.all(40),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (e, st) {
+            debugPrint('❌ Dashboard rooms error: $e');
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.red.shade400, size: 40),
+                  const SizedBox(height: 8),
+                  Text(
+                    'تعذر تحميل الغرف',
+                    style: TextStyle(color: Colors.red.shade600, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$e',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(
-            child: Text(
-              'خطأ في تحميل الغرف: $e',
-              style: const TextStyle(color: Colors.red, fontFamily: 'Tajawal'),
-            ),
-          ),
+          data: _buildRoomsCard,
         );
       },
     );
   }
 
-  Widget _buildRoomsGrid(List<Room> rooms, Map<String, Booking> bookingsByRoom) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 0.85,
-      ),
-      itemCount: rooms.length,
-      itemBuilder: (context, index) {
-        final room = rooms[index];
-        final booking = bookingsByRoom[room.roomNumber];
-        final remainingBalance = booking?.remainingBalanceCached ?? 0;
-        final isOccupied = StatusUtils.isRoomOccupied(room.status);
-        final isOverdue = isOccupied && remainingBalance > 0;
+  Widget _buildRoomsCard(List<RoomWithPaymentStatus> roomsWithStatus) {
+    final Map<String, RoomWithPaymentStatus> roomsMap = {for (final rws in roomsWithStatus) rws.room.roomNumber: rws};
 
-        return _RoomCard(
-          room: room,
-          isOverdue: isOverdue,
-          isOccupied: isOccupied,
-          overdueColor: _overdueColor(),
-          guestName: booking?.guestName ?? '',
-          checkinDate: booking?.checkinDate ?? '',
-          checkoutDate: booking?.checkoutDate ?? '',
-          remainingBalance: remainingBalance,
-          onTap: () => _navigateToRoomDetail(room),
-        );
-      },
-    );
-  }
-
-  void _navigateToRoomDetail(Room room) {
-    // الانتقال لتفاصيل الغرفة
-  }
-
-  Widget _buildColorInstructions() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.shade200),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '📋 دليل الألوان:',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Tajawal',
-              color: Color(0xFF1A1A2E),
-            ),
-          ),
-          SizedBox(height: 8),
-          Row(
-            children: [
-              _ColorDot(color: Colors.green, label: 'شاغرة'),
-              SizedBox(width: 16),
-              _ColorDot(color: Colors.blue, label: 'محجوزة'),
-              SizedBox(width: 16),
-              _ColorDot(color: Colors.orange, label: 'قيد التنظيف'),
-              SizedBox(width: 16),
-              _ColorDot(color: Colors.red, label: 'صيانة'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.15),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 4, offset: Offset(0, 2))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
+              const Text('حالة الغرف', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const Spacer(),
+              _buildLegendItem('محجوزة', Colors.red.shade600),
+              const SizedBox(width: 8),
+              _buildLegendItem('متأخر', _overdueColor()),
+              const SizedBox(width: 8),
+              _buildLegendItem('شاغرة', Colors.green.shade600),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 14,
-              fontFamily: 'Tajawal',
-              color: Colors.grey.shade600,
+          const SizedBox(height: 16),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 1.2,
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Tajawal',
-              color: color,
-            ),
+            itemCount: _dashboardRoomNumbers.length,
+            itemBuilder: (context, index) {
+              final roomNumber = _dashboardRoomNumbers[index];
+              final rws = roomsMap[roomNumber];
+              return RepaintBoundary(child: _buildRoomButton(context, roomNumber, rws));
+            },
           ),
         ],
       ),
     );
   }
-}
 
-class _RoomCard extends StatelessWidget {
-  const _RoomCard({
-    required this.room,
-    required this.isOverdue,
-    required this.isOccupied,
-    required this.overdueColor,
-    required this.onTap,
-    this.guestName = '',
-    this.checkinDate = '',
-    this.checkoutDate = '',
-    this.remainingBalance = 0,
-  });
-
-  final Room room;
-  final bool isOverdue;
-  final bool isOccupied;
-  final Color overdueColor;
-  final VoidCallback onTap;
-  final String guestName;
-  final String checkinDate;
-  final String checkoutDate;
-  final double remainingBalance;
-
-  @override
-  Widget build(BuildContext context) {
-    Color statusColor;
-    if (isOverdue) {
-      statusColor = overdueColor;
-    } else if (isOccupied) {
-      statusColor = Colors.blue;
-    } else if (room.status == 'قيد التنظيف') {
-      statusColor = Colors.orange;
-    } else if (room.status == 'صيانة') {
-      statusColor = Colors.red;
-    } else {
-      statusColor = Colors.green;
-    }
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: statusColor.withValues(alpha: 0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header with room number and status
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.1),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    room.roomNumber,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Tajawal',
-                      color: statusColor,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: statusColor,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      room.status,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Tajawal',
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Room details
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (guestName.isNotEmpty) ...[
-                      _DetailRow(
-                        icon: Icons.person,
-                        label: 'الضيف',
-                        value: guestName,
-                      ),
-                      const SizedBox(height: 4),
-                    ],
-                    if (checkinDate.isNotEmpty) ...[
-                      _DetailRow(
-                        icon: Icons.login,
-                        label: 'دخول',
-                        value: checkinDate,
-                      ),
-                      const SizedBox(height: 4),
-                    ],
-                    if (checkoutDate.isNotEmpty) ...[
-                      _DetailRow(
-                        icon: Icons.logout,
-                        label: 'خروج',
-                        value: checkoutDate,
-                      ),
-                      const SizedBox(height: 4),
-                    ],
-                    if (remainingBalance > 0) ...[
-                      _DetailRow(
-                        icon: Icons.attach_money,
-                        label: 'المتبقي',
-                        value: NumberFormat('#,##0.00', 'ar').format(remainingBalance),
-                        valueColor: Colors.red,
-                      ),
-                    ],
-                    if (isOverdue) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: overdueColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: overdueColor.withValues(alpha: 0.3)),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.warning_amber_rounded, color: overdueColor, size: 16),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                'متأخر عن السداد',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  fontFamily: 'Tajawal',
-                                  color: overdueColor,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  const _DetailRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.valueColor,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color? valueColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 14, color: Colors.grey.shade500),
-        const SizedBox(width: 6),
-        Text(
-          '$label: ',
-          style: TextStyle(
-            fontSize: 11,
-            fontFamily: 'Tajawal',
-            color: Colors.grey.shade600,
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              fontFamily: 'Tajawal',
-              color: valueColor ?? Colors.grey.shade800,
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ColorDot extends StatelessWidget {
-  const _ColorDot({required this.color, required this.label});
-
-  final Color color;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildLegendItem(String label, Color color) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 14,
-          height: 14,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: 0.3),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
         ),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontFamily: 'Tajawal',
-            color: Color(0xFF1A1A2E),
-          ),
-        ),
+        const SizedBox(width: 4),
+        Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
       ],
+    );
+  }
+
+  Widget _buildRoomButton(BuildContext context, String roomNumber, RoomWithPaymentStatus? rws) {
+    final Color bgColor = rws?.roomColor ?? Colors.grey.shade400;
+    final String tooltipText = rws != null ? rws.displayStatus : 'غير مسجلة';
+    final bool isOverdue = rws?.isPaymentOverdue ?? false;
+
+    // ✅ إصلاح الوميض: استخدام ValueKey يمنع flutter_animate من إعادة تشغيل
+    // الرسوم المتحركة عند إعادة بناء الـ widget بنفس البيانات
+    // المفتاح يتضمن حالة التأخر فقط — لا يتغير إلا عند تغيير الحالة فعلياً
+    final keySuffix = isOverdue ? '_overdue' : '_normal';
+
+    final Widget button = Tooltip(
+      message: tooltipText,
+      child: GestureDetector(
+        onLongPress: rws != null ? () => _showRoomOptionsDialog(context, rws.room) : null,
+        child: Material(
+          key: ValueKey('room_$roomNumber$keySuffix'),
+          color: bgColor,
+          borderRadius: BorderRadius.circular(10),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () => _handleRoomTap(context, roomNumber, rws?.room),
+            child: Center(
+              child: Text(
+                roomNumber,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (isOverdue) {
+      // ✅ إصلاح الوميض: استخدام target(uniqueKey) لمنع إعادة تشغيل
+      // الرسوم المتحركة عند إعادة بناء القائمة بدون تغيير حقيقي
+      return button
+          .animate(key: ValueKey('anim_${roomNumber}_overdue'))
+          .tint(color: const Color(0x40FF9800), duration: 800.ms)
+          .scale(
+            begin: const Offset(1.0, 1.0),
+            end: const Offset(1.03, 1.03),
+            duration: 800.ms,
+            curve: Curves.easeInOut,
+          )
+          .then()
+          .tint(color: const Color(0x00FF9800), duration: 800.ms)
+          .scale(
+            begin: const Offset(1.03, 1.03),
+            end: const Offset(1.0, 1.0),
+            duration: 800.ms,
+            curve: Curves.easeInOut,
+          );
+    }
+
+    return button;
+  }
+
+  void _showRoomOptionsDialog(BuildContext context, Room room) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.settings, color: Colors.blue.shade600),
+            const SizedBox(width: 8),
+            Text('غرفة ${room.roomNumber}'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('الحالة الحالية: ${room.status}'),
+            const SizedBox(height: 16),
+            if (room.status != 'صيانة')
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    await _updateRoomStatus(room, 'صيانة');
+                  },
+                  icon: const Icon(Icons.build, color: Colors.white),
+                  label: const Text('تحويل إلى صيانة'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange.shade600,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء'))],
+      ),
+    );
+  }
+
+  Future<void> _updateRoomStatus(Room room, String newStatus) async {
+    try {
+      final roomsRepo = ref.read(roomsRepoProvider);
+      await roomsRepo.updateStatus(room.id, newStatus);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تم تحديث حالة الغرفة ${room.roomNumber} إلى $newStatus'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('خطأ في تحديث الحالة: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  Future<void> _handleRoomTap(BuildContext context, String roomNumber, Room? room) async {
+    if (room != null) {
+      final isAvailable = StatusUtils.isRoomAvailable(room.status);
+      final isOccupied = StatusUtils.isRoomOccupied(room.status);
+
+      if (isAvailable) {
+        // الانتقال مباشرة إلى شاشة إضافة حجز جديد عند النقر على غرفة شاغرة
+        _navigateToNewBooking(context, roomNumber);
+      } else if (isOccupied) {
+        // الانتقال مباشرة إلى شاشة الدفع/عرض الحجز عند النقر على غرفة محجوزة
+        await _navigateToPaymentForRoom(context, roomNumber);
+      } else {
+        // للحالات الأخرى مثل الصيانة
+        _showRoomDetailsDialog(context, room);
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('الغرفة $roomNumber غير مسجلة في النظام'), duration: const Duration(seconds: 3)),
+      );
+    }
+  }
+
+  void _navigateToNewBooking(BuildContext context, String roomNumber) {
+    Navigator.of(
+      context,
+    ).push<void>(MaterialPageRoute<void>(builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber)));
+  }
+
+  Future<void> _navigateToPaymentForRoom(BuildContext context, String roomNumber) async {
+    try {
+      final bookingsRepo = ref.read(bookingsRepoProvider);
+      final activeBooking = await bookingsRepo.getActiveBookingForRoom(roomNumber);
+
+      if (activeBooking == null) {
+        if (mounted) {
+          // ignore: use_build_context_synchronously
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('لا يوجد حجز محجوز للغرفة $roomNumber'), backgroundColor: Colors.orange),
+          );
+        }
+        return;
+      }
+
+      if (mounted) {
+        // ignore: use_build_context_synchronously
+        unawaited(
+          Navigator.of(
+            context,
+          ).push<void>(MaterialPageRoute<void>(builder: (context) => BookingPaymentScreen(booking: activeBooking))),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        // ignore: use_build_context_synchronously
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  void _showRoomDetailsDialog(BuildContext context, Room room) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('غرفة ${room.roomNumber}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildDetailRow('الحالة', room.status),
+            _buildDetailRow('النوع', room.type),
+            _buildDetailRow('السعر', '${room.price.toStringAsFixed(0)} ريال'),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
+          if (!StatusUtils.isRoomOccupied(room.status))
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _navigateToNewBooking(context, room.roomNumber);
+              },
+              child: const Text('حجز جديد'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildColorInstructions() {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildInstructionDot(Colors.green.shade600, 'شاغرة (متاحة)'),
+          const SizedBox(width: 12),
+          _buildInstructionDot(Colors.red.shade600, 'محجوزة (مشغولة)'),
+          const SizedBox(width: 12),
+          _buildInstructionDot(Colors.red.shade600, 'وميض: تأخر سداد (11م-5ص)'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInstructionDot(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
+        ),
+        const SizedBox(width: 3),
+        Text(label, style: TextStyle(fontSize: 8, color: Colors.grey.shade500)),
+      ],
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Text('$label: ', style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(value),
+        ],
+      ),
     );
   }
 }
