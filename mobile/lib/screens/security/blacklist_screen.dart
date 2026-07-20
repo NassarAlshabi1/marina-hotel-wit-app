@@ -1,7 +1,10 @@
 // ignore_for_file: use_build_context_synchronously
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
+import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/repositories/blacklist_repository.dart';
 import '../../services/sync_service.dart';
@@ -209,6 +212,8 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                         if (confirmed ?? false) {
                                           try {
                                             await repo.delete(e.id);
+                                            // ✅ رفع فوري لحذف عنصر من القائمة السوداء.
+                                            unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
                                             if (!mounted) {
                                               return;
                                             }

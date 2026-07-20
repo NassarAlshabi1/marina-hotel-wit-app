@@ -1,8 +1,11 @@
 // ignore_for_file: use_build_context_synchronously
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
+import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart' hide GuestInfo;
@@ -561,6 +564,12 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       // 5. حذف الحجز نفسه (soft delete مع outbox للمزامنة)
       await bookingsRepo.delete(booking.id);
 
+      // ✅ رفع فوري للتغييرات إلى Appwrite Cloud بعد كتلة الحذف الكاملة.
+      // كل العمليات أعلاه (5 خطوات) تتم داخل transaction واحد في الـ DAOs،
+      // لكن الـ outbox entries تُنشأ لكل عملية على حدة — pushLocalChanges
+      // يرفعها كلها دفعة واحدة.
+      unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
+
       if (!mounted) return;
       ref.invalidate(bookingsListProvider);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -845,6 +854,11 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
         await derivedService.refreshForBookingId(booking.id);
       }
 
+      // ✅ رفع فوري بعد تعديل تواريخ الدخول (شرط أن تم تعديل شيء فعلاً)
+      if (hasChanges) {
+        unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
+      }
+
       if (hasChanges && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -1008,6 +1022,10 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           }
         }
       }); // ✅ نهاية transaction — atomic
+
+      // ✅ رفع فوري بعد كتلة حذف الضيف الكاملة (7 خطوات داخل transaction).
+      // كل من: checkout، تحرير غرف، حذف ملاحظات/مدفوعات/ديون، حذف حجوزات.
+      unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
 
       if (!mounted) {
         return;

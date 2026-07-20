@@ -1,9 +1,12 @@
 // ignore_for_file: use_build_context_synchronously
+import 'dart:async';
+
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/booking_price_adjustment_service.dart';
@@ -222,6 +225,10 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         final derivedService = BookingDerivedFieldsService(db);
         await derivedService.refreshForBookingId(booking.id);
       }
+
+      // ✅ رفع فوري لتحديث بيانات الضيف (ونقل البيانات المالية إذا تغيرت الغرفة)
+      // إلى Appwrite Cloud بعد اكتمال كل العمليات.
+      unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
 
       _hasUnsavedChanges = false;
       if (mounted) {

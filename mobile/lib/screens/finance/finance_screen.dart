@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../models/payment_models.dart';
+import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart' as db;
 import '../../utils/currency_formatter.dart';
@@ -851,6 +852,9 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SyncOnExitMi
         paymentMethod: dbMethod,
         revenueType: 'other',
       );
+
+      // ✅ رفع فوري لدفعة جديدة (شاشة المالية) إلى Appwrite Cloud.
+      unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
 
       // إرسال إشعار واتساب
       unawaited(_sendPaymentWhatsAppNotification(amount: parsedAmount, method: dbMethod, notes: notes.trim()));

@@ -1,9 +1,12 @@
 // ignore_for_file: use_build_context_synchronously
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
@@ -411,6 +414,8 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> with 
       final repo = ref.read(employeesRepoProvider);
       await repo.reactivate(id: employee.id);
       markDataChanged();
+      // ✅ رفع فوري لإعادة تفعيل موظف إلى Appwrite Cloud.
+      unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -480,6 +485,8 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> with 
       final repo = ref.read(employeesRepoProvider);
       await repo.delete(employee.id);
       markDataChanged();
+      // ✅ رفع فوري لحذف موظف إلى Appwrite Cloud.
+      unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -790,6 +797,8 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen> with 
         }
       }
       markDataChanged();
+      // ✅ رفع فوري لموظف جديد/محدَّث إلى Appwrite Cloud.
+      unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
     } catch (e) {
       if (!mounted) {
         return;

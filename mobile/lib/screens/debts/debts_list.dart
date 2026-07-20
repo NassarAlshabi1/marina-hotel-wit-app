@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
@@ -1272,6 +1273,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> with SyncOnEx
         );
       }
       markDataChanged();
+      // ✅ رفع فوري لدين جديد/محدَّث إلى Appwrite Cloud.
+      unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
 
       if (mounted) {
         ScaffoldMessenger.of(

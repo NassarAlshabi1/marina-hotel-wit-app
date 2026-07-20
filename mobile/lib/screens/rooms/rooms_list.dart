@@ -1,9 +1,12 @@
 // ignore_for_file: use_build_context_synchronously
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../providers/appwrite_providers.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/room_payment_status_provider.dart'; // استيراد البروفايدر الجديد
@@ -544,6 +547,8 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
         }
       }
       markDataChanged();
+      // ✅ رفع فوري لغرفة جديدة/محدَّثة إلى Appwrite Cloud.
+      unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
     } catch (e) {
       if (!mounted) {
         return;

@@ -539,6 +539,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                       status: status,
                     );
                   }
+                  // ✅ رفع فوري لموظف جديد/محدَّث إلى Appwrite Cloud.
+                  unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(employee == null ? 'تم إضافة الموظف بنجاح' : 'تم تحديث بيانات الموظف')),
@@ -1236,6 +1238,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     try {
       final repo = ref.read(employeesRepoProvider);
       await repo.delete(employee.id);
+      // ✅ رفع فوري لحذف موظف إلى Appwrite Cloud.
+      unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

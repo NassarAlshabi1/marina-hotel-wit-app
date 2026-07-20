@@ -1831,6 +1831,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       revenueType: 'room', // رسوم غرفة للليالي الإضافية
     );
 
+    // ✅ رفع فوري للدفعة اليومية (إلغاء يوم إضافي / دفع ليلة إضافية).
+    // قبل الإصلاح: لم يكن هناك push بعد هذه الدالة، فكانت التغييرات
+    // تنتظر debounce الافتراضي (15s) أو مغادرة الشاشة.
+    unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
+
     Navigator.pop(context);
 
     // حساب المتبقي الجديد
@@ -4019,6 +4024,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         paymentMethod: 'نقدي',
         revenueType: 'room',
       );
+
+      // ✅ رفع فوري بعد تمديد الإقامة (تحديث الحجز + دفعة الليالي الإضافية).
+      // قبل الإصلاح: كانت التغييرات تنتظر SyncOnExitMixin عند مغادرة الشاشة.
+      unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
 
       // إرسال رسالة واتساب
       final cleanedPhone = _cleanAndFormatPhone(_currentGuestPhone);

@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 
 import '../../components/app_scaffold.dart';
+import '../../providers/appwrite_providers.dart';
 import '../../providers/auto_sync_engine_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/service_providers.dart';
@@ -792,6 +793,9 @@ class _SettingsMaintenanceScreenState extends ConsumerState<SettingsMaintenanceS
       await derivedService.refreshForBookingId(bookingId);
     }
     await derivedService.refreshAllActiveBookings();
+
+    // ✅ رفع فوري بعد تحويل المدفوعات المعلقة إلى مدفوعات غرفة فعلية.
+    unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
 
     return results;
   }

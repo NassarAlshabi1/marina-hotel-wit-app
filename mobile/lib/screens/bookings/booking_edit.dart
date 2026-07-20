@@ -1,4 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
@@ -6,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../providers/appwrite_providers.dart';
 import '../../providers/custom_list_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/room_payment_status_provider.dart';
@@ -653,6 +656,12 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                             // ✅ الحفظ نجح — نلغي حالة "تغييرات غير مزامنة"
                             // حتى لا يمنع PopScope الخروج
                             markSaved();
+
+                            // ✅ رفع فوري لإنشاء/تحديث الحجز إلى Appwrite Cloud.
+                            // قبل الإصلاح: كان الرفع يحدث فقط عبر syncNow() في نهاية الكتلة،
+                            // وهي مزامنة كاملة (push + pull) أثقل — pushLocalChanges أسرع
+                            // لأنها push-only بدون pull.
+                            unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
 
                             // ✅ حفظ الدفعة المقدمة إذا تم تحديدها
                             if (_hasAdvancePayment) {
