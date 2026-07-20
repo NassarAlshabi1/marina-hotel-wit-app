@@ -23,7 +23,7 @@ class DashboardSyncButton extends ConsumerStatefulWidget {
   ConsumerState<DashboardSyncButton> createState() => _DashboardSyncButtonState();
 }
 
-class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with SingleTickerProviderStateMixin {
+class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with TickerProviderStateMixin {
   bool _isPulling = false;
   bool _isPushing = false;
   bool _appwriteEnabled = true;
