@@ -30,6 +30,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:marina_hotel_mobile/providers/core_providers.dart';
 import 'package:marina_hotel_mobile/providers/repository_providers.dart';
@@ -207,12 +208,15 @@ Widget _buildTestWidget({
 /// السبب (منهجية عدم التخمين):
 /// - debounceStream (lib/utils/stream_helpers.dart:18) تُنشئ Timer(150ms)
 ///   لا يُلغى إلا عند وصول بيانات جديدة أو إغلاق الـ stream.
-/// - drift نفسها تُنشئ Timer داخلي في StreamQueryStore.markAsClosed
-///   (package:drift/src/runtime/executor/stream_queries.dart:154) عند dispose
-///   الـ StreamBuilder. هذا سلوك drift معروف ولا يمكن تجنّبه.
-/// - flutter_test يفحص '!timersPending' بعد كل test ويفشله إذا بقي timer.
-/// - الحل: استخدم tester.runAsync للانتظار في real async zone (خارج fake_async)
-///   بحيث تُنفّذ الـ timers الحقيقية وتنتهي طبيعياً.
+/// - drift نفسها تُنشئ Timer.run داخلي في StreamQueryStore.markAsClosed
+///   (drift-2.31.0/lib/.../stream_queries.dart:153) عند dispose الـ StreamBuilder.
+///   drift docs تقول صراحةً (نفس الملف، السطر 144-148):
+///   "If you're sent here because your Flutter tests fail, please call and
+///   await Database.close() in your Flutter widget tests!"
+/// - الحل الرسمي لـ drift: استدعاء `await db.close()` في tearDown لإغلاق
+///   الـ StreamQueryStore وما يتعلق بها من timers.
+/// - إضافياً: ننتظر real-time عبر tester.runAsync لتنفيذ أي timers متبقية
+///   من debounceStream.
 Future<void> _cleanupPendingTimers(WidgetTester tester) async {
   // runAsync يُشغّل الكود في real async zone حيث Future.delayed و Timer
   // الحقيقيان يُنفّذان (وليس fake_async).
@@ -221,11 +225,10 @@ Future<void> _cleanupPendingTimers(WidgetTester tester) async {
     await Future<void>.delayed(const Duration(milliseconds: 500));
   });
   // pump لمعالجة أي frames جديدة نتجت عن تنفيذ الـ timers.
-  // نستخدم pumpAndSettle مع timeout طويل لضمان استقرار كل الـ animations.
   try {
     await tester.pumpAndSettle(const Duration(seconds: 1));
   } catch (_) {
-    // تجاهل timeout — المقاييسalready جُمعت.
+    // تجاهل timeout — المقاييس already جُمعت.
   }
 }
 
@@ -237,6 +240,9 @@ Future<void> _cleanupPendingTimers(WidgetTester tester) async {
 /// 2. نستخدم pump عدة مرات بدل pumpAndSettle لتجنب hang على animations مستمرة.
 /// 3. في نهاية كل test، نستدعي _cleanupPendingTimers لتنظيف أي timers
 ///    معلّقة من debounceStream المُستخدم مباشرة في بعض الشاشات.
+/// 4. ✅ حل drift الرسمي: استدعاء `await db.close()` قبل نهاية الـ test
+///    لإغلاق StreamQueryStore وما يتعلق بها من timers.
+///    (drift docs: "call and await Database.close() in your Flutter widget tests!")
 Future<ScreenMetrics> _measureScreen(
   WidgetTester tester,
   String screenName,
@@ -280,11 +286,29 @@ Future<ScreenMetrics> _measureScreen(
 
   final afterBytes = ProcessInfo.currentRss;
   metrics.memoryDeltaMB = (afterBytes - beforeBytes) / (1024 * 1024);
+
+  // ✅ حل drift الرسمي لإغلاق StreamQueryStore قبل نهاية الـ test.
+  // drift docs (stream_queries.dart:144-148): "call and await Database.close()
+  // in your Flutter widget tests!"
+  // هذا يُلغي كل الـ timers الداخلية لـ drift.
+  try {
+    await db.close();
+  } catch (_) {
+    // تجاهل — الـ db قد تكون أُغلقت مسبقاً في tearDown.
+  }
+
   return metrics;
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ تهيئة locale data لـ DateFormat (يستخدم في BookingPaymentScreen
+  // وغيرها عبر DateFormat('yyyy-MM-dd HH:mm', 'en')).
+  // بدون هذا، يرمي LocaleDataException عند بناء الشاشة.
+  setUpAll(() async {
+    await initializeDateFormatting();
+  });
 
   late AppDatabase db;
 
