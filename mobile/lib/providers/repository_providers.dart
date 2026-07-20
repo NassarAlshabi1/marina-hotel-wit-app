@@ -245,3 +245,53 @@ final settledDebtsProvider = Provider.autoDispose<List<Debt>>((ref) {
 
 // دالة للحصول على Database instance (singleton)
 AppDatabase getDatabase() => DatabaseManager.instance;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Providers لـ BookingPaymentScreen — بديل Riverpod للـ StreamBuilders
+// ═══════════════════════════════════════════════════════════════════════════
+// قبل الإصلاح: كانت الشاشة تستخدم 5 StreamBuilders متداخلة (pyramid of doom):
+//   StreamBuilder<Booking?> → StreamBuilder<Room?> → StreamBuilder<...Adjustment>
+//     → StreamBuilder<...Night> → StreamBuilder<...Payment>
+// كل stream يُعيد بناء كل الـ children عند أي تغيير → أداء سيء.
+//
+// بعد الإصلاح: كل stream يُدار عبر Riverpod provider مستقل. الشاشة تستخدم
+// ref.watch لقراءة AsyncValue لكل provider بشكل مسطح (flat) — لا تداخل.
+
+/// بيانات الحجز المباشرة (بديل StreamBuilder<Booking?>).
+final liveBookingProvider = StreamProvider.autoDispose.family<Booking?, int>((ref, bookingId) {
+  final repo = ref.watch(bookingsRepoProvider);
+  return repo.watchOne(bookingId);
+});
+
+/// بيانات الغرفة بالرقم (بديل StreamBuilder<Room?>).
+final liveRoomByNumberProvider = StreamProvider.autoDispose.family<Room?, String>((ref, roomNumber) {
+  final repo = ref.watch(roomsRepoProvider);
+  return repo.watchByNumber(roomNumber);
+});
+
+/// تعديلات الأسعار النشطة لحجز محدد (بديل StreamBuilder<List<BookingPriceAdjustment>>).
+final bookingPriceAdjustmentsProvider = StreamProvider.autoDispose.family<List<BookingPriceAdjustment>, int>((ref, bookingId) {
+  final db = ref.watch(databaseProvider);
+  return (db.select(db.bookingPriceAdjustments)
+        ..where((a) => a.bookingLocalId.equals(bookingId))
+        ..where((a) => a.isActive.equals(true))
+        ..where((a) => a.deletedAt.isNull()))
+      .watch();
+});
+
+/// ليالي الحجز (بديل StreamBuilder<List<BookingNight>>).
+final bookingNightsProvider = StreamProvider.autoDispose.family<List<BookingNight>, int>((ref, bookingId) {
+  final db = ref.watch(databaseProvider);
+  return (db.select(db.bookingNights)
+        ..where((n) => n.bookingLocalId.equals(bookingId))
+        ..where((n) => n.deletedAt.isNull()))
+      .watch();
+});
+
+/// مدفوعات الحجز (بديل StreamBuilder<List<Payment>>).
+/// ملاحظة: bookingPaymentsProvider موجود بالفعل (line 220) لكنه يستخدم
+/// debounceStream. هذا الـ provider بديل مباشر بدون debounce.
+final bookingPaymentsDirectProvider = StreamProvider.autoDispose.family<List<Payment>, int>((ref, bookingId) {
+  final repo = ref.watch(paymentsRepoProvider);
+  return repo.paymentsByBooking(bookingId);
+});
