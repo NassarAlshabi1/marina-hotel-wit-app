@@ -22,7 +22,6 @@ import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart' as db;
-
 import '../../services/stay_balance_calculator.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/date_parser.dart';
@@ -31,6 +30,7 @@ import '../../utils/hotel_day_ticker.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/loading_snackbar.dart';
 import '../../utils/time.dart';
+import 'widgets/payment_summary_card.dart';
 import 'payment_history_screen.dart';
 
 class BookingPaymentScreen extends ConsumerStatefulWidget {
@@ -604,14 +604,18 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           child: Column(
             children: [
               RepaintBoundary(
-                child: _buildPaymentSummaryCard(
-                  summary,
-                  liveBooking: booking,
-                  roomRate: roomRate,
-                  priceAdjustments: filteredAdjustments,
+                child: PaymentSummaryCard(
+                  summary: summary,
                   expectedNights: expectedNights,
                   actualNights: nightsCount,
                   checkin: checkin,
+                  booking: booking,
+                  guestPhone: _currentGuestPhone,
+                  currencyFmt: _currencyFmt,
+                  debtAmount: _debtAmount,
+                  liveBooking: booking,
+                  roomRate: roomRate,
+                  priceAdjustments: filteredAdjustments,
                   plannedCheckout: plannedCheckout,
                   actualCheckout: actualCheckout,
                   discount: discount,
@@ -624,6 +628,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   nowIsAfterCutoff: nowIsAfterCutoff,
                   actualNightsDynamic: actualNights,
                   todayPaidAmount: todayPaidAmount,
+                  onAddBalancePayment: () => _showPaymentDialog(PaymentMethod.cash, null, 'رصيد تراكمي للنزيل', true),
                 ),
               ),
               const SizedBox(height: 8),
@@ -676,286 +681,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     );
   }
 
-  Widget _buildPaymentSummaryCard(
-    BookingPaymentSummary summary, {
-    required int expectedNights,
-    required int actualNights,
-    required DateTime checkin,
-    db.Booking? liveBooking,
-    double? roomRate,
-    List<db.BookingPriceAdjustment>? priceAdjustments,
-    DateTime? plannedCheckout,
-    DateTime? actualCheckout,
-    double discount = 0,
-    int normalNights = 0,
-    int discountedNights = 0,
-    int surchargeNights = 0,
-    double totalDiscount = 0,
-    double totalSurcharge = 0,
-    bool hasNotCheckedOut = false,
-    bool nowIsAfterCutoff = false,
-    int actualNightsDynamic = 0,
-    double todayPaidAmount = 0,
-  }) {
-    final progressPercentage = summary.paidPercentage / 100;
-    final dateFmt = DateFormat('dd/MM/yyyy HH:mm', 'en');
-    final checkinText = dateFmt.format(checkin);
-    final plannedText = plannedCheckout != null ? dateFmt.format(plannedCheckout) : null;
-    final actualText = actualCheckout != null ? dateFmt.format(actualCheckout) : null;
-    final hasPhone = _currentGuestPhone.isNotEmpty;
-    final identityLine = widget.booking.guestIdNumber.isEmpty
-        ? widget.booking.guestIdType
-        : '${widget.booking.guestIdType} • ${widget.booking.guestIdNumber}';
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            if (summary.isFullyPaid) Colors.green.shade50 else Colors.blue.shade50,
-            if (summary.isFullyPaid) Colors.green.shade100 else Colors.blue.shade100,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: summary.isFullyPaid ? Colors.green.shade200 : Colors.blue.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: Colors.blue,
-                child: Text(
-                  widget.booking.roomNumber,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(widget.booking.guestName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                    Text(
-                      'غرفة ${widget.booking.roomNumber}${hasPhone ? ' • $_currentGuestPhone' : ''}',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
-                    ),
-                    Text(identityLine, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                    Text(
-                      'الجنسية: ${widget.booking.guestNationality}',
-                      style: const TextStyle(fontSize: 11, color: Colors.grey),
-                    ),
-                    Text('الوصول: $checkinText', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                    if (plannedText != null)
-                      Text('المغادرة المخطط: $plannedText', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                    // ─── تاريخ المغادرة التلقائي (محسوب من المدفوعات التراكمية) ───
-                    Builder(
-                      builder: (context) {
-                        final balanceResult = StayBalanceCalculator.calculate(
-                          liveBooking ?? widget.booking,
-                          roomRate: roomRate,
-                          priceAdjustments: priceAdjustments,
-                        );
-                        if (!balanceResult.hasPayments) {
-                          return const SizedBox.shrink();
-                        }
-                        final autoFmt = DateFormat('dd/MM/yyyy', 'en');
-                        final autoStr = autoFmt.format(balanceResult.autoCheckoutDate);
-                        final extra = balanceResult.isAutoExtended
-                            ? ' (+${balanceResult.extraNightsBeyondManual})'
-                            : '';
-                        return Text(
-                          'المغادرة التلقائية: $autoStr (${balanceResult.totalPaidNights} ليلة مدفوعة)$extra',
-                          style: const TextStyle(fontSize: 11, color: Colors.grey),
-                        );
-                      },
-                    ),
-                    if (actualText != null)
-                      Text('المغادرة الفعلي: $actualText', style: const TextStyle(fontSize: 11, color: Colors.green)),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: summary.isFullyPaid
-                      ? Colors.green.withValues(alpha: 0.2)
-                      : Colors.orange.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: summary.isFullyPaid ? Colors.green : Colors.orange),
-                ),
-                child: Text(
-                  summary.isFullyPaid ? 'مكتمل الدفع' : 'دفع جزئي',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: summary.isFullyPaid ? Colors.green : Colors.orange,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              _buildDetailChip(
-                context,
-                icon: Icons.attach_money,
-                label: 'سعر الليلة',
-                value: _currencyFmt.format(roomRate),
-              ),
-              // _buildDetailChip(
-              //   context,
-              //   icon: Icons.nightlight_round,
-              //   label: 'الليالي المتوقعة',
-              //   value: expectedNights.toString(),
-              // ),
-              _buildDetailChip(
-                context,
-                icon: Icons.task_alt,
-                label: 'الليالي الفعلية',
-                value: actualNights.toString(),
-                color: actualNights > expectedNights ? Colors.orange : Colors.green,
-              ),
-              // مؤشر إضافة ليلة بعد الساعة 14:00 للنزلاء الذين لم يسجلوا خروج
-              if (hasNotCheckedOut && nowIsAfterCutoff && actualNightsDynamic > expectedNights)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade100,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.orange.shade400),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.schedule, size: 12, color: Colors.orange.shade700),
-                      const SizedBox(width: 3),
-                      Text(
-                        '+${actualNightsDynamic - expectedNights} ليلة بعد 14:00',
-                        style: TextStyle(fontSize: 9, color: Colors.orange.shade700, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
-              if (_debtAmount > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade100,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.red.shade300),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.warning, size: 12, color: Colors.red.shade700),
-                      const SizedBox(width: 3),
-                      Text(
-                        'يوجد دين ${_currencyFmt.format(_debtAmount)}',
-                        style: TextStyle(fontSize: 9, color: Colors.red.shade700, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
-              if (discount > 0)
-                _buildDetailChip(
-                  context,
-                  icon: Icons.discount,
-                  label: 'التخفيض',
-                  value: _currencyFmt.format(discount),
-                  color: Colors.purple,
-                ),
-              if (normalNights > 0)
-                _buildDetailChip(
-                  context,
-                  icon: Icons.nights_stay,
-                  label: 'ليالي عادية',
-                  value: normalNights.toString(),
-                  color: Colors.blueGrey,
-                ),
-              if (discountedNights > 0)
-                _buildDetailChip(
-                  context,
-                  icon: Icons.trending_down,
-                  label: 'ليالي مخفضة',
-                  value: '$discountedNights (-${_currencyFmt.format(totalDiscount)})',
-                  color: Colors.purple,
-                ),
-              if (surchargeNights > 0)
-                _buildDetailChip(
-                  context,
-                  icon: Icons.trending_up,
-                  label: 'ليالي مزادة',
-                  value: '$surchargeNights (+${_currencyFmt.format(totalSurcharge)})',
-                  color: Colors.teal,
-                ),
-            ],
-          ),
-          const SizedBox(height: 1),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('تقدم الدفع', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 9)),
-                  Text(
-                    '${summary.paidPercentage.toStringAsFixed(1)}%',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 9),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 1),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: progressPercentage,
-                  minHeight: 2,
-                  backgroundColor: Colors.grey.shade300,
-                  valueColor: AlwaysStoppedAnimation<Color>(summary.isFullyPaid ? Colors.green : Colors.blue),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 1),
-          Row(
-            children: [
-              Expanded(child: _buildAmountChip('الإجمالي', summary.totalAmount, Colors.blue)),
-              const SizedBox(width: 3),
-              Expanded(child: _buildAmountChip('المدفوع', summary.paidAmount, Colors.green)),
-              const SizedBox(width: 3),
-              Expanded(child: _buildAmountChip('المتبقي', summary.remainingAmount, Colors.red)),
-              const SizedBox(width: 3),
-              Expanded(child: _buildAmountChip('مدفوع اليوم', todayPaidAmount, Colors.indigo)),
-            ],
-          ),
-          const SizedBox(height: 2),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => _showPaymentDialog(PaymentMethod.cash, null, 'رصيد تراكمي للنزيل', true),
-              icon: const Icon(Icons.account_balance_wallet, size: 12),
-              label: const Text('إضافة دفعة رصيد تراكمي', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 9)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.indigo,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 3),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildAmountChip(String label, double amount, Color color) {
     return Container(
