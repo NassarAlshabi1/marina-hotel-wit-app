@@ -1390,33 +1390,28 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   /// زر دفع سريع للليالي الإضافية
   Widget _buildDailyPaymentButton(String label, BookingPaymentSummary summary, int nights) {
-    final roomsRepo = ref.watch(roomsRepoProvider);
+    // ✅ استبدال StreamBuilder بـ Riverpod provider (مسطح، لا تداخل)
+    final roomAsync = ref.watch(liveRoomByNumberProvider(widget.booking.roomNumber));
+    final double roomRate = roomAsync.valueOrNull?.price ?? 0;
+    final amount = nights * roomRate;
 
-    return StreamBuilder<db.Room?>(
-      stream: roomsRepo.watchByNumber(widget.booking.roomNumber),
-      builder: (context, roomSnap) {
-        final double roomRate = roomSnap.data?.price ?? 0;
-        final amount = nights * roomRate;
-
-        return ElevatedButton(
-          onPressed: amount > 0 ? () => _showDailyPaymentDialog(nights, amount) : null,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.orange,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 12),
+    return ElevatedButton(
+      onPressed: amount > 0 ? () => _showDailyPaymentDialog(nights, amount) : null,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.orange,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+      ),
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            textAlign: TextAlign.center,
           ),
-          child: Column(
-            children: [
-              Text(
-                label,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                textAlign: TextAlign.center,
-              ),
-              Text(_currencyFmt.format(amount), style: const TextStyle(fontSize: 11)),
-            ],
-          ),
-        );
-      },
+          Text(_currencyFmt.format(amount), style: const TextStyle(fontSize: 11)),
+        ],
+      ),
     );
   }
 
@@ -3549,18 +3544,16 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   /// نافذة حوار تمديد الإقامة
   void _showExtendStayDialog() {
-    final roomsRepo = ref.watch(roomsRepoProvider);
     final nightsController = TextEditingController(text: '1');
     final notesController = TextEditingController();
 
+    // ✅ استبدال StreamBuilder بـ ref.read (قيمة واحدة، لا stream)
+    final room = ref.read(liveRoomByNumberProvider(widget.booking.roomNumber)).valueOrNull;
+    final double roomRate = room?.price ?? 0;
+
     showDialog<void>(
       context: context,
-      builder: (context) => StreamBuilder<db.Room?>(
-        stream: roomsRepo.watchByNumber(widget.booking.roomNumber),
-        builder: (context, roomSnap) {
-          final double roomRate = roomSnap.data?.price ?? 0;
-
-          return AlertDialog(
+      builder: (context) => AlertDialog(
             title: const Row(
               children: [
                 Icon(Icons.add_circle_outline, color: Colors.blue),
@@ -3622,9 +3615,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 child: const Text('تمديد وتسجيل دفعة'),
               ),
             ],
-          );
-        },
-      ),
+          ),
     ).then((_) {
       // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات بعد إغلاق الحوار
       nightsController.dispose();
