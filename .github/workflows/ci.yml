@@ -82,15 +82,15 @@ jobs:
             echo "No coverage file generated." >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - name: 🚦 Coverage gate (minimum 30%)
+      - name: 🚦 Coverage gate (minimum 70%)
         if: always() && env.COVERAGE_PCT != ''
         run: |
           echo "Coverage: ${COVERAGE_PCT}%"
-          if (( $(echo "${COVERAGE_PCT} < 30.0" | bc -l) )); then
-            echo "❌ Coverage ${COVERAGE_PCT}% is below minimum 30%"
+          if (( $(echo "${COVERAGE_PCT} < 70.0" | bc -l) )); then
+            echo "❌ Coverage ${COVERAGE_PCT}% is below minimum 70%"
             exit 1
           else
-            echo "✅ Coverage ${COVERAGE_PCT}% meets minimum 30%"
+            echo "✅ Coverage ${COVERAGE_PCT}% meets minimum 70%"
           fi
 
       - name: 💬 Comment PR with coverage
