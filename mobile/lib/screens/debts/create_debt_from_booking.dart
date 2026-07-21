@@ -87,21 +87,22 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
   }
 
   Widget _buildBookingSelector() {
-    final bookingsRepo = ref.watch(bookingsRepoProvider);
-    return StreamBuilder<List<Booking>>(
-      stream: bookingsRepo.watchList(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final bookings = snapshot.data!.where((b) => b.status != 'checked_out' && b.status != 'cancelled').toList();
-        if (bookings.isEmpty) {
-          return const Card(
-            child: Padding(padding: EdgeInsets.all(16), child: Text('لا توجد حجوزات نشطة')),
-          );
-        }
-        final dropdownColor = Theme.of(context).textTheme.bodyMedium?.color;
-        return Card(
+    // ✅ استبدال StreamBuilder بـ Riverpod provider
+    final bookingsAsync = ref.watch(bookingsListProvider);
+    final bookings = (bookingsAsync.valueOrNull ?? [])
+        .where((b) => b.status != 'checked_out' && b.status != 'cancelled')
+        .toList();
+
+    if (bookingsAsync.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (bookings.isEmpty) {
+      return const Card(
+        child: Padding(padding: EdgeInsets.all(16), child: Text('لا توجد حجوزات نشطة')),
+      );
+    }
+    final dropdownColor = Theme.of(context).textTheme.bodyMedium?.color;
+    return Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -145,8 +146,6 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
             ),
           ),
         );
-      },
-    );
   }
 
   Widget _buildBookingInfo() {
