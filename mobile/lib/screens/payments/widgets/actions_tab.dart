@@ -19,7 +19,6 @@ class ActionsTab extends ConsumerWidget {
     required this.currencyFmt,
     required this.debtAmount,
     required this.unsettledDebts,
-    required this.suspiciousNights,
     required this.onGenerateInvoice,
     required this.onShowPaymentHistory,
     required this.onShowCheckoutConfirmation,
@@ -36,7 +35,6 @@ class ActionsTab extends ConsumerWidget {
   final NumberFormat currencyFmt;
   final double debtAmount;
   final List<dynamic> unsettledDebts;
-  final List<dynamic> suspiciousNights;
   final VoidCallback onGenerateInvoice;
   final VoidCallback onShowPaymentHistory;
   final void Function(BookingPaymentSummary, db.Booking, List<db.BookingNight>) onShowCheckoutConfirmation;
@@ -48,19 +46,14 @@ class ActionsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hasSuspicious = suspiciousNights.isNotEmpty;
     final actions = <Widget>[
       _buildActionCard('عرض الفاتورة الشاملة', 'عرض وطباعة الفاتورة التفصيلية', Icons.receipt_long, Colors.teal, onGenerateInvoice),
       _buildActionCard('سجل المدفوعات', 'عرض تاريخ جميع المدفوعات', Icons.history, Colors.purple, onShowPaymentHistory),
       _buildActionCard(
         'تسجيل المغادرة',
-        hasSuspicious
-            ? 'تنبيه: ${suspiciousNights.length} ${suspiciousNights.length == 1 ? "ليلة مشبوهة" : "ليالٍ مشبوهة"} بعد المغادرة!'
-            : summary.isFullyPaid
-            ? 'تسجيل مغادرة العميل'
-            : 'تحذير: يوجد مبلغ متبقي!',
+        summary.isFullyPaid ? 'تسجيل مغادرة العميل' : 'تحذير: يوجد مبلغ متبقي!',
         Icons.logout,
-        hasSuspicious ? Colors.orange : (summary.isFullyPaid ? Colors.green : Colors.red),
+        summary.isFullyPaid ? Colors.green : Colors.red,
         () => onShowCheckoutConfirmation(summary, booking, nights),
       ),
       _buildActionCard('مغادرة مبكرة / مردود', 'حساب المردود عند مغادرة قبل الموعد', Icons.currency_exchange, Colors.amber.shade700, () => onShowEarlyCheckout(summary)),

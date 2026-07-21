@@ -693,7 +693,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                         currencyFmt: _currencyFmt,
                         debtAmount: _debtAmount,
                         unsettledDebts: _unsettledDebts,
-                        suspiciousNights: _detectSuspiciousNights(nights, booking),
                         onGenerateInvoice: () => _generateInvoice(summary),
                         onShowPaymentHistory: () => Navigator.push<void>(context, MaterialPageRoute<void>(builder: (context) => PaymentHistoryScreen(bookingId: widget.booking.localUuid))),
                         onShowCheckoutConfirmation: (s, b, n) => _showCheckoutConfirmation(s, booking: b, nights: n),
