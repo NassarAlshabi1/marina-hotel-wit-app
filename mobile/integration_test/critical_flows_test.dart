@@ -14,6 +14,7 @@
 import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -56,7 +57,7 @@ Future<AppDatabase> _seedFullDatabase() async {
       guestName: const d.Value('أحمد محمد'),
       guestPhone: const d.Value('0501234567'),
       guestNationality: const d.Value('يمني'),
-      checkinDate: d.Value(DateTime.now().toIso8601String()),
+      checkinDate: d.Value(_nowIso()),
       status: const d.Value('نشط'),
       localUuid: const d.Value('booking-test-uuid'),
     ),
@@ -68,7 +69,7 @@ Future<AppDatabase> _seedFullDatabase() async {
       bookingLocalId: d.Value(bookingId),
       roomNumber: const d.Value('101'),
       amount: const d.Value(150.0),
-      paymentDate: d.Value(DateTime.now().toIso8601String()),
+      paymentDate: d.Value(_nowIso()),
       paymentMethod: const d.Value('نقدي'),
       revenueType: const d.Value('room'),
       localUuid: const d.Value('payment-test-uuid'),
@@ -81,7 +82,7 @@ Future<AppDatabase> _seedFullDatabase() async {
       expenseType: const d.Value('صيانة'),
       description: const d.Value('صيانة غرفة 101'),
       amount: const d.Value(50.0),
-      date: d.Value(DateTime.now().toIso8601String()),
+      date: d.Value(_nowIso()),
       hotelDayKey: const d.Value('2026-07-21'),
       localUuid: const d.Value('expense-test-uuid'),
     ),
@@ -147,7 +148,7 @@ void main() {
         bookings.first.id,
         BookingsCompanion(
           status: const d.Value('مكتمل'),
-          actualCheckout: d.Value(DateTime.now().toIso8601String()),
+          actualCheckout: d.Value(_nowIso()),
           calculatedNights: const d.Value(1),
         ),
       );
@@ -188,7 +189,7 @@ void main() {
           expenseType: const d.Value('رواتب'),
           description: const d.Value('راتب موظف'),
           amount: const d.Value(5000.0),
-          date: d.Value(DateTime.now().toIso8601String()),
+          date: d.Value(_nowIso()),
           hotelDayKey: const d.Value('2026-07-21'),
           localUuid: const d.Value('salary-expense-uuid'),
         ),
@@ -272,7 +273,7 @@ void main() {
           expenseType: const d.Value('صيانة'),
           description: const d.Value('مصروف جديد'),
           amount: const d.Value(100.0),
-          date: d.Value(DateTime.now().toIso8601String()),
+          date: d.Value(_nowIso()),
           hotelDayKey: const d.Value('2026-07-21'),
           localUuid: const d.Value('e2e-create-uuid'),
         ),
@@ -304,11 +305,14 @@ void main() {
   });
 }
 
-/// Helper: يحمل خط PDF للاختبار.
+/// Helper: تنسيق التاريخ بفاصل مسافة بدلاً من T (متوافق مع التطبيق).
+String _nowIso() => DateTime.now().toIso8601String().replaceFirst('T', ' ');
+
+/// Helper: يحمل خط PDF للاختبار عبر rootBundle (آمن على الأجهزة الحقيقية).
 Future<List<int>?> _loadTestFont() async {
   try {
-    final file = await File('assets/fonts/Tajawal-Regular.ttf').readAsBytes();
-    return file;
+    final byteData = await rootBundle.load('assets/fonts/Tajawal-Regular.ttf');
+    return byteData.buffer.asUint8List();
   } catch (_) {
     // في CI قد لا تكون الـ fonts متاحة
     return null;

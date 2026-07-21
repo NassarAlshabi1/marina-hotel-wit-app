@@ -19,6 +19,7 @@ class ActionsTab extends ConsumerWidget {
     required this.currencyFmt,
     required this.debtAmount,
     required this.unsettledDebts,
+    required this.suspiciousNights,
     required this.onGenerateInvoice,
     required this.onShowPaymentHistory,
     required this.onShowCheckoutConfirmation,
@@ -27,9 +28,6 @@ class ActionsTab extends ConsumerWidget {
     required this.onSendAccountStatement,
     required this.onCreateDebtFromRemaining,
     required this.onShowDiscountDialog,
-    required this.detectSuspiciousNights,
-    required this.buildActionCard,
-    required this.buildInfoRow,
   });
 
   final BookingPaymentSummary summary;
@@ -38,6 +36,7 @@ class ActionsTab extends ConsumerWidget {
   final NumberFormat currencyFmt;
   final double debtAmount;
   final List<dynamic> unsettledDebts;
+  final List<dynamic> suspiciousNights;
   final VoidCallback onGenerateInvoice;
   final VoidCallback onShowPaymentHistory;
   final void Function(BookingPaymentSummary, db.Booking, List<db.BookingNight>) onShowCheckoutConfirmation;
@@ -46,18 +45,14 @@ class ActionsTab extends ConsumerWidget {
   final void Function(BookingPaymentSummary) onSendAccountStatement;
   final void Function(BookingPaymentSummary, db.Booking) onCreateDebtFromRemaining;
   final void Function(BookingPaymentSummary, db.Booking) onShowDiscountDialog;
-  final List<dynamic> Function(List<db.BookingNight>, db.Booking) detectSuspiciousNights;
-  final Widget Function(String, String, IconData, Color, VoidCallback) buildActionCard;
-  final Widget Function(String, String) buildInfoRow;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final suspiciousNights = detectSuspiciousNights(nights, booking);
     final hasSuspicious = suspiciousNights.isNotEmpty;
     final actions = <Widget>[
-      buildActionCard('عرض الفاتورة الشاملة', 'عرض وطباعة الفاتورة التفصيلية', Icons.receipt_long, Colors.teal, onGenerateInvoice),
-      buildActionCard('سجل المدفوعات', 'عرض تاريخ جميع المدفوعات', Icons.history, Colors.purple, onShowPaymentHistory),
-      buildActionCard(
+      _buildActionCard('عرض الفاتورة الشاملة', 'عرض وطباعة الفاتورة التفصيلية', Icons.receipt_long, Colors.teal, onGenerateInvoice),
+      _buildActionCard('سجل المدفوعات', 'عرض تاريخ جميع المدفوعات', Icons.history, Colors.purple, onShowPaymentHistory),
+      _buildActionCard(
         'تسجيل المغادرة',
         hasSuspicious
             ? 'تنبيه: ${suspiciousNights.length} ${suspiciousNights.length == 1 ? "ليلة مشبوهة" : "ليالٍ مشبوهة"} بعد المغادرة!'
@@ -68,9 +63,9 @@ class ActionsTab extends ConsumerWidget {
         hasSuspicious ? Colors.orange : (summary.isFullyPaid ? Colors.green : Colors.red),
         () => onShowCheckoutConfirmation(summary, booking, nights),
       ),
-      buildActionCard('مغادرة مبكرة / مردود', 'حساب المردود عند مغادرة قبل الموعد', Icons.currency_exchange, Colors.amber.shade700, () => onShowEarlyCheckout(summary)),
-      buildActionCard('إلغاء يوم إضافي', 'إلغاء دفعة اليوم الفندقي المحتسبة بالخطأ', Icons.remove_circle_outline, Colors.red.shade700, () => onShowCancelTodayPayment(summary)),
-      buildActionCard('إرسال كشف حساب', 'إرسال ملخص المدفوعات للعميل', Icons.send, Colors.orange, () => onSendAccountStatement(summary)),
+      _buildActionCard('مغادرة مبكرة / مردود', 'حساب المردود عند مغادرة قبل الموعد', Icons.currency_exchange, Colors.amber.shade700, () => onShowEarlyCheckout(summary)),
+      _buildActionCard('إلغاء يوم إضافي', 'إلغاء دفعة اليوم الفندقي المحتسبة بالخطأ', Icons.remove_circle_outline, Colors.red.shade700, () => onShowCancelTodayPayment(summary)),
+      _buildActionCard('إرسال كشف حساب', 'إرسال ملخص المدفوعات للعميل', Icons.send, Colors.orange, () => onSendAccountStatement(summary)),
     ];
 
     final hasRemainingBalance = summary.remainingAmount > 0;
@@ -170,15 +165,60 @@ class ActionsTab extends ConsumerWidget {
                 children: [
                   const Text('معلومات الحجز', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  buildInfoRow('رقم الحجز', booking.localUuid),
-                  buildInfoRow('تاريخ الوصول', booking.checkinDate.split(' ')[0]),
-                  if (booking.checkoutDate != null) buildInfoRow('تاريخ المغادرة', booking.checkoutDate!.split(' ')[0]),
-                  buildInfoRow('الحالة', booking.status),
-                  if (booking.notes != null && booking.notes!.isNotEmpty) buildInfoRow('ملاحظات', booking.notes!),
+                  _buildInfoRow('رقم الحجز', booking.localUuid),
+                  _buildInfoRow('تاريخ الوصول', booking.checkinDate.split(' ')[0]),
+                  if (booking.checkoutDate != null) _buildInfoRow('تاريخ المغادرة', booking.checkoutDate!.split(' ')[0]),
+                  _buildInfoRow('الحالة', booking.status),
+                  if (booking.notes != null && booking.notes!.isNotEmpty) _buildInfoRow('ملاحظات', booking.notes!),
                 ],
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  Internal UI helpers — مُدمجة داخل ActionsTab (لا coupling خارجي)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  Widget _buildActionCard(String title, String subtitle, IconData icon, Color color, VoidCallback onTap) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircleAvatar(
+                radius: 14,
+                backgroundColor: color.withValues(alpha: 0.15),
+                child: Icon(icon, size: 16, color: color),
+              ),
+              const SizedBox(height: 4),
+              Text(title, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 2),
+              Text(subtitle, style: const TextStyle(fontSize: 8, color: Colors.grey), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          Text(value, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
         ],
       ),
     );
