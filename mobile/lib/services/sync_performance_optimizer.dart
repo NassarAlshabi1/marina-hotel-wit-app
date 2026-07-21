@@ -17,13 +17,16 @@ class SyncPerformanceOptimizer {
   // إضافة static getter instance للوصول للـ singleton
   static SyncPerformanceOptimizer get instance => _instance;
 
-  // إصلاح المشكلة الأولى: تغيير نوع البيانات من ConnectivityResult إلى List<ConnectivityResult>
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   bool _isOnWiFi = false;
   bool _isInitialized = false;
   DateTime? _lastSyncTime;
   int _syncAttempts = 0;
+
+  HttpClient? _cachedHttpClient;
+  DateTime? _httpClientCreatedAt;
+  static const Duration _httpClientTtl = Duration(minutes: 5);
 
   // إعدادات الأداء حسب نوع الشبكة
   static const Map<String, Map<String, dynamic>> _performanceSettings = {
@@ -200,7 +203,8 @@ class SyncPerformanceOptimizer {
 
   /// التحقق من وجود اتصال إنترنت فعلي
   Future<bool> _hasInternetConnection() async {
-    final client = HttpClient()..connectionTimeout = const Duration(seconds: 2);
+    // ✅ إعادة استخدام HttpClient بدلاً من إنشاء واحد جديد كل مرة
+    final client = _getOrCreateHttpClient();
     try {
       final uri = Uri.parse(AppwriteConfig.endpoint);
       final request = await client.getUrl(uri).timeout(const Duration(seconds: 2));
@@ -215,9 +219,19 @@ class SyncPerformanceOptimizer {
     } catch (e) {
       debugPrint('❌ خطأ في فحص الاتصال: $e');
       return false;
-    } finally {
-      client.close(force: true);
     }
+  }
+
+  HttpClient _getOrCreateHttpClient() {
+    final now = DateTime.now();
+    if (_cachedHttpClient == null ||
+        _httpClientCreatedAt == null ||
+        now.difference(_httpClientCreatedAt!) > _httpClientTtl) {
+      _cachedHttpClient?.close(force: true);
+      _cachedHttpClient = HttpClient()..connectionTimeout = const Duration(seconds: 2);
+      _httpClientCreatedAt = now;
+    }
+    return _cachedHttpClient!;
   }
 
   /// التحقق من إعدادات WiFi Only
@@ -395,6 +409,9 @@ class SyncPerformanceOptimizer {
   void dispose() {
     _connectivitySubscription?.cancel();
     _connectivitySubscription = null;
+    _cachedHttpClient?.close(force: true);
+    _cachedHttpClient = null;
+    _httpClientCreatedAt = null;
     _isInitialized = false;
     debugPrint('🧹 تم تنظيف موارد مُحسِّن أداء المزامنة');
   }

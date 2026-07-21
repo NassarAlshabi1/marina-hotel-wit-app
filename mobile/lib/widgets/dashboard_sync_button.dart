@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -8,7 +9,6 @@ import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
 import '../providers/secondary_sync_provider.dart';
 import '../services/appwrite_health_checker.dart';
-import '../services/appwrite_realtime_sync.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/daos/sync_log_dao.dart';
 import '../services/secondary_appwrite_config.dart';
@@ -23,7 +23,7 @@ class DashboardSyncButton extends ConsumerStatefulWidget {
   ConsumerState<DashboardSyncButton> createState() => _DashboardSyncButtonState();
 }
 
-class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with SingleTickerProviderStateMixin {
+class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with TickerProviderStateMixin {
   bool _isPulling = false;
   bool _isPushing = false;
   bool _appwriteEnabled = true;
@@ -116,7 +116,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
       task: () => _pullChangesInner(context),
     );
     if (!executed && mounted) {
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -157,9 +156,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
     // ✅ P2-4 fix: تحذير قبل السحب عند وجود تغييرات محلية غير مرفوعة
     if (_pendingChangesCount > 0) {
       if (!mounted) return;
-      // ignore: use_build_context_synchronously
       final shouldContinue = await showDialog<bool>(
-        // ignore: use_build_context_synchronously
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('⚠️ تغييرات محلية غير مرفوعة'),
@@ -182,7 +179,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
         // رفع ثم سحب — نخرج مؤقتاً من البوّابة الحالية لأن _pushChanges
         // سيحاول دخولها بنفسه. البوّابة تُحرَّر هنا ويُعاد دخولها في الـ push.
         if (!mounted) return;
-        // ignore: use_build_context_synchronously
         await _pushChanges(context);
       }
     }
@@ -202,7 +198,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
       if (!appwriteEnabled) {
         _isPulling = false;
         if (mounted) {
-          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('مزامنة Appwrite معطلة - يرجى تفعيلها من الإعدادات'),
@@ -219,7 +214,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
       if (!appwriteConnected) {
         _isPulling = false;
         if (mounted) {
-          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text('لا يوجد اتصال بـ Appwrite'), backgroundColor: Colors.red));
@@ -242,7 +236,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
 
       // ✅ إشعار تحميل قابل للإغلاق برمجياً
       if (mounted) {
-        // ignore: use_build_context_synchronously
         loading = LoadingSnackBar.show(context, message: '⬇️ جاري سحب التغييرات من السيرفر...');
       }
 
@@ -252,9 +245,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
 
       // ✅ إغلاق إشعار التحميل فور انتهاء المزامنة
       loading?.close();
-
-      // إعادة تعيين علامة "توجد تغييرات من السيرفر"
-      AppwriteRealtimeSync().resetRemoteChangesFlag();
 
       // ✅ تسجيل نجاح العملية
       stopwatch.stop();
@@ -274,7 +264,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
         });
         // ✅ إغلاق إشعار "جاري" فوراً قبل إظهار النتيجة
         loading?.close();
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Column(
@@ -320,7 +309,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
       } catch (_) {}
 
       if (mounted) {
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -371,7 +359,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
       task: () => _pushChangesInner(context),
     );
     if (!executed && mounted) {
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -416,7 +403,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
     if (_pendingChangesCount == 0) {
       _isPushing = false;
       if (mounted) {
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Row(
@@ -458,7 +444,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
 
       if (!smartEnabled && !appwriteEnabled) {
         if (mounted) {
-          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Row(
@@ -492,7 +477,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
 
       if (targets.isEmpty) {
         if (mounted) {
-          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('لا توجد وجهات مزامنة متاحة حالياً'), backgroundColor: Colors.orange),
           );
@@ -504,7 +488,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
       // ✅ إشعار تحميل قابل للإغلاق برمجياً
       LoadingSnackBar? pushLoading;
       if (mounted) {
-        // ignore: use_build_context_synchronously
         pushLoading = LoadingSnackBar.show(context, message: '⬆️ جاري رفع التغييرات إلى ${targets.join(' + ')}...');
       }
 
@@ -587,7 +570,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
         if (failedTargets.isEmpty) {
           // ✅ إغلاق إشعار "جاري الرفع" فوراً قبل إظهار النتيجة
           pushLoading?.close();
-          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Column(
@@ -614,7 +596,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
         } else if (successTargets.isEmpty) {
           // ✅ إغلاق إشعار "جاري الرفع" فوراً عند الفشل
           pushLoading?.close();
-          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Row(
@@ -631,7 +612,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
         } else {
           // ✅ إغلاق إشعار "جاري الرفع" فوراً للنتيجة الجزئية
           pushLoading?.close();
-          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Column(
@@ -674,7 +654,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
       );
 
       if (mounted) {
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Row(
@@ -961,26 +940,27 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
   Widget build(BuildContext context) {
     final isGoogleDriveSignedIn = ref.watch(smartSyncGoogleDriveSignInStatusProvider);
 
-    // ✅ تحسين: استخدام ValueListenableBuilder المدمج لكل من hasRemoteChanges و pendingRemoteChangesCount
-    return ValueListenableBuilder<bool>(
-      valueListenable: AppwriteRealtimeSync().hasRemoteChanges,
-      builder: (context, hasRemoteChanges, child) {
-        return ValueListenableBuilder<int>(
-          valueListenable: AppwriteRealtimeSync().pendingRemoteChangesCount,
-          builder: (context, pendingRemoteCount, child) {
-            // ✅ P3-5 (Global SyncGate): مراقبة البوّابة العامة. إذا كانت
-            // مشغولة بعملية من أي مصدر (زر آخر، سحب تلقائي، مؤقّت)،
-            // تُعطَّل الأزرار تلقائياً.
-            return ValueListenableBuilder<SyncGateState>(
-              valueListenable: SyncGate.instance.notifier,
-              builder: (context, gateState, child) {
-                final gateBusy = gateState.isBusy;
-                // إذا البوّابة مشغولة بعمل من هذه الـ widget نفسها (push/pull
-                // محلي)، فإن _isPulling/_isPushing بالفعل يُظهر التغذية
-                // الراجعة البصرية المناسبة. أما إذا كانت مشغولة بمصدر خارجي
-                // (auto_open / timer / background)، نُظهر حالة "مشغول" عامة.
-                final externalBusy = gateBusy && !_isPulling && !_isPushing;
-                final hasLocalChanges = _pendingChangesCount > 0;
+    // ✅ Appwrite Realtime معطّل في dashboard — استخدم قيمًا ثابتة بدلاً من
+    // ValueListenableBuilder على hasRemoteChanges/pendingRemoteChangesCount.
+    // قبل الإصلاح: كانت الـ widget تُعاد بناؤها كلما غيّر Realtime قيمة
+    // hasRemoteChanges أو pendingRemoteChangesCount. الآن لم تعد تعتمد على
+    // Realtime إطلاقاً — السحب يتم فقط عبر زر المستخدم أو السحب التلقائي
+    // عند فتح التطبيق.
+    const hasRemoteChanges = false;
+    const pendingRemoteCount = 0;
+
+    // ✅ P3-5 (Global SyncGate): مراقبة البوّابة العامة. إذا كانت مشغولة
+    // بعملية من أي مصدر (زر آخر، سحب تلقائي، مؤقّت)، تُعطَّل الأزرار تلقائياً.
+    return ValueListenableBuilder<SyncGateState>(
+      valueListenable: SyncGate.instance.notifier,
+      builder: (context, gateState, child) {
+        final gateBusy = gateState.isBusy;
+        // إذا البوّابة مشغولة بعمل من هذه الـ widget نفسها (push/pull محلي)،
+        // فإن _isPulling/_isPushing بالفعل يُظهر التغذية الراجعة البصرية
+        // المناسبة. أما إذا كانت مشغولة بمصدر خارجي (auto_open / timer /
+        // background)، نُظهر حالة "مشغول" عامة.
+        final externalBusy = gateBusy && !_isPulling && !_isPushing;
+        final hasLocalChanges = _pendingChangesCount > 0;
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -1045,8 +1025,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
                                     ? 'مزامنة من مصدر آخر (${gateState.operation ?? "?"})'
                                     : hasLocalChanges
                                     ? '$_pendingChangesCount تغيير محلي معلق'
-                                    : hasRemoteChanges
-                                    ? '$pendingRemoteCount تحديث من السيرفر'
+                                    // ✅ Appwrite Realtime معطّل — لا نعرض حالة
+                                    // "تحديث من السيرفر" لأن hasRemoteChanges=false دائماً.
                                     : 'محدّث',
                                 style: TextStyle(
                                   fontSize: 11,
@@ -1118,9 +1098,5 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
                 );
               },
             );
-          },
-        );
-      },
-    );
   }
 }

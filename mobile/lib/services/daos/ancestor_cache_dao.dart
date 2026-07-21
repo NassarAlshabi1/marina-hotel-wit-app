@@ -29,7 +29,6 @@ class AncestorCacheDao extends DatabaseAccessor<AppDatabase> with _$AncestorCach
         capturedAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
       ),
     );
-    // ignore: unused_result
   }
 
   /// استرجاع النسخة المشتركة لسجل معيّن

@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -31,9 +32,9 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
       final manager = ref.read(smartSyncManagerProvider);
       await manager.setEnabled(enabled);
 
+
       ref.invalidate(smartSyncStatusProvider);
 
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(enabled ? '✅ تم تفعيل المزامنة التلقائية' : '⏸️ تم إيقاف المزامنة التلقائية'),
@@ -41,7 +42,6 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
         ),
       );
     } catch (e) {
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('❌ خطأ في تغيير حالة المزامنة: $e'), backgroundColor: Colors.red));
@@ -57,14 +57,13 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
       final manager = ref.read(smartSyncManagerProvider);
       await manager.setSyncInterval(minutes);
 
+
       ref.invalidate(smartSyncStatusProvider);
 
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('⏰ تم تغيير فترة المزامنة إلى $minutes دقائق'), backgroundColor: Colors.green),
       );
     } catch (e) {
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('❌ خطأ في تغيير فترة المزامنة: $e'), backgroundColor: Colors.red));
@@ -80,14 +79,13 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
       final manager = ref.read(smartSyncManagerProvider);
       await manager.setConflictResolution(resolution);
 
+
       ref.invalidate(smartSyncStatusProvider);
 
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('🤝 تم تغيير استراتيجية حل التضارب'), backgroundColor: Colors.green));
     } catch (e) {
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('❌ خطأ في تغيير استراتيجية التضارب: $e'), backgroundColor: Colors.red));
@@ -103,14 +101,13 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
       final manager = ref.read(smartSyncManagerProvider);
       await manager.forceSyncNow();
 
+
       ref.invalidate(smartSyncStatusProvider);
 
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('🔄 تمت المزامنة اليدوية بنجاح'), backgroundColor: Colors.green));
     } catch (e) {
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('❌ فشلت المزامنة اليدوية: $e'), backgroundColor: Colors.red));
@@ -125,12 +122,10 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
       final guardian = ref.read(syncGuardianProvider);
       await guardian.forceSync();
       ref.invalidate(syncHealthProvider);
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('⚡ تم تشغيل مزامنة WorkManager فوراً'), backgroundColor: Colors.green),
       );
     } catch (e) {
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('❌ تعذر تشغيل مزامنة WorkManager: $e'), backgroundColor: Colors.red));
@@ -144,7 +139,6 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
       final guardian = ref.read(syncGuardianProvider);
       await guardian.setDevicePriority(enabled ? 200 : 100);
       ref.invalidate(syncHealthProvider);
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(enabled ? '🏅 هذا الجهاز أصبح صاحب الأولوية' : '↩︎ تم العودة للأولوية الافتراضية'),
@@ -152,7 +146,6 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
         ),
       );
     } catch (e) {
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('❌ تعذر تغيير أولوية الجهاز: $e'), backgroundColor: Colors.red));

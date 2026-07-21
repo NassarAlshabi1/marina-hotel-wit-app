@@ -1000,7 +1000,7 @@ class GoogleDriveBackupService {
   }) async {
     try {
       final db = DatabaseManager.instance;
-      final adapterRegistry = AdapterRegistry(db);
+      final adapterRegistry = AdapterRegistry.instance;
 
       if (!backupData.containsKey('metadata')) {
         _log('⚠️ النسخة الاحتياطية لا تحتوي على بيانات وصفية، سيتم تجاوزها');

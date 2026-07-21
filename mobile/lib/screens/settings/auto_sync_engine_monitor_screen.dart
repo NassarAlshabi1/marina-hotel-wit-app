@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 import 'dart:convert';
 
@@ -281,7 +282,6 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
               child: ElevatedButton.icon(
                 onPressed: () async {
                   await ref.read(autoSyncEngineProvider).resetFailedAttempts();
-                  // ignore: use_build_context_synchronously
                   ScaffoldMessenger.of(
                     context,
                   ).showSnackBar(const SnackBar(content: Text('✅ تم إعادة تعيين المحاولات')));
@@ -557,8 +557,8 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
     try {
       final result = await ref.read(autoSyncEngineProvider).forceSyncNow();
 
+
       if (mounted) {
-        // ignore: use_build_context_synchronously
         Navigator.of(context).pop();
       }
 
@@ -572,7 +572,6 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
 
         unawaited(
           showDialog<void>(
-            // ignore: use_build_context_synchronously
             context: context,
             builder: (context) => AlertDialog(
               title: Text(result.success ? 'نجح!' : 'فشل'),
@@ -586,11 +585,9 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
       ref.invalidate(autoSyncEngineStateProvider);
     } catch (e) {
       if (mounted) {
-        // ignore: use_build_context_synchronously
         Navigator.of(context).pop();
       }
       if (mounted) {
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('❌ خطأ: $e'), backgroundColor: Colors.red));
       }
     }
@@ -599,7 +596,6 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
   Future<void> _resetFailedAttempts(BuildContext context) async {
     await ref.read(autoSyncEngineProvider).resetFailedAttempts();
     if (mounted) {
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('✅ تم إعادة تعيين المحاولات الفاشلة'), backgroundColor: Colors.green),
       );
@@ -741,7 +737,6 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
     if (mounted) {
       unawaited(
         showDialog<void>(
-          // ignore: use_build_context_synchronously
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('ضبط Debouncing'),
@@ -762,11 +757,9 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
                       if (value != null) {
                         await ref.read(autoSyncEngineProvider).setDebounceSeconds(value);
                         if (mounted) {
-                          // ignore: use_build_context_synchronously
                           Navigator.pop(context);
                         }
                         if (mounted) {
-                          // ignore: use_build_context_synchronously
                           ScaffoldMessenger.of(
                             context,
                           ).showSnackBar(SnackBar(content: Text('✅ تم تعيين Debounce إلى $value ثانية')));
@@ -790,7 +783,6 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
     if (mounted) {
       unawaited(
         showDialog<void>(
-          // ignore: use_build_context_synchronously
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('ضبط فترة Pull'),
@@ -811,11 +803,9 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
                       if (value != null) {
                         await ref.read(autoSyncEngineProvider).setPullInterval(value);
                         if (mounted) {
-                          // ignore: use_build_context_synchronously
                           Navigator.pop(context);
                         }
                         if (mounted) {
-                          // ignore: use_build_context_synchronously
                           ScaffoldMessenger.of(
                             context,
                           ).showSnackBar(SnackBar(content: Text('✅ تم تعيين Pull Interval إلى $value دقيقة')));
@@ -836,10 +826,10 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
     final resolver = ref.read(conflictResolverProvider);
     final currentStrategy = await resolver.getStrategy();
 
+
     if (mounted) {
       unawaited(
         showDialog<void>(
-          // ignore: use_build_context_synchronously
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('استراتيجية حل التضارب'),
@@ -858,11 +848,9 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
                       if (value != null) {
                         await ref.read(autoSyncEngineProvider).setConflictStrategy(value);
                         if (mounted) {
-                          // ignore: use_build_context_synchronously
                           Navigator.pop(context);
                         }
                         if (mounted) {
-                          // ignore: use_build_context_synchronously
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('✅ تم تعيين الاستراتيجية: ${_getStrategyName(value)}')),
                           );

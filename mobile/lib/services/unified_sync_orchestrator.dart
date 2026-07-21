@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:isolate';
 
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/sync_models.dart' as models;
+import '../utils/debug_log.dart';
 import 'analytics_service.dart';
 import 'appwrite_service.dart';
 import 'appwrite_sync_manager.dart' show AppwriteSyncManager, SyncStatus;
@@ -181,13 +181,13 @@ class UnifiedSyncOrchestrator {
     _debounceTimer?.cancel();
     await _appwriteSub?.cancel();
     await _driveSub?.cancel();
-    await _stateController.close();
+    unawaited(_stateController.close());
     _initialized = false;
   }
 
   /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
-  static Future<void> disposeInstance() async {
-    await instance.dispose();
+  static void disposeInstance() {
+    instance.dispose();
   }
 
   Future<void> notifyLocalChange({String? table, String? operation}) async {
@@ -198,8 +198,8 @@ class UnifiedSyncOrchestrator {
       try {
         await _autoSyncToAppwrite(reason: 'local_change:${table ?? 'unknown'}:${operation ?? 'unknown'}');
       } catch (e, stackTrace) {
-        debugPrint('❌ UnifiedSyncOrchestrator: خطأ في debounce auto sync: $e');
-        debugPrint('Stack trace: $stackTrace');
+        dwarn(() => '❌ UnifiedSyncOrchestrator: خطأ في debounce auto sync: $e');
+        dwarn(() => 'Stack trace: $stackTrace');
         // لا rethrow — نمنع fatal crash
       }
     });
@@ -209,7 +209,7 @@ class UnifiedSyncOrchestrator {
   /// ✅ P1-2 fix: تمييز "مشغول" (true) عن "فشل" (false)
   Future<bool> _autoSyncToAppwrite({String reason = 'auto'}) async {
     if (_syncing) {
-      debugPrint('⏸️ _autoSyncToAppwrite: مشغول — تخطي (ليس فشل)');
+      dlog(() => '⏸️ _autoSyncToAppwrite: مشغول — تخطي (ليس فشل)');
       return true; // مشغول ≠ فشل — لا نُعيد جدولة إعادة محاولة
     }
 
@@ -218,24 +218,24 @@ class UnifiedSyncOrchestrator {
       final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
       if (!appwriteEnabled) {
-        debugPrint('ℹ️ Appwrite sync معطل - تخطي الرفع التلقائي');
+        dlog(() => 'ℹ️ Appwrite sync معطل - تخطي الرفع التلقائي');
         return true;
       }
 
       _syncing = true;
-      debugPrint('🔄 رفع تلقائي إلى Appwrite: $reason');
+      dlog(() => '🔄 رفع تلقائي إلى Appwrite: $reason');
 
       final success = await _syncAppwrite(push: true, pull: false);
 
       if (success) {
-        debugPrint('✅ تم الرفع التلقائي إلى Appwrite');
+        dlog(() => '✅ تم الرفع التلقائي إلى Appwrite');
       } else {
-        debugPrint('❌ فشل الرفع التلقائي إلى Appwrite');
+        dwarn(() => '❌ فشل الرفع التلقائي إلى Appwrite');
       }
 
       return success;
     } catch (e) {
-      debugPrint('❌ خطأ في الرفع التلقائي: $e');
+      dwarn(() => '❌ خطأ في الرفع التلقائي: $e');
       return false;
     } finally {
       _syncing = false;
@@ -249,7 +249,7 @@ class UnifiedSyncOrchestrator {
     bool forceSnapshot = false,
   }) async {
     if (_syncing) {
-      debugPrint('⏸️ syncNow: مشغول — تخطي (ليس فشل)');
+      dlog(() => '⏸️ syncNow: مشغول — تخطي (ليس فشل)');
       return true; // ✅ P1-2: مشغول ≠ فشل
     }
 
@@ -319,7 +319,7 @@ class UnifiedSyncOrchestrator {
       // ✅ Analytics: تسجيل فشل المزامنة
       final syncDuration = DateTime.now().difference(syncStartTime);
       unawaited(AnalyticsService().logSyncFailure(error: e.toString(), operation: 'syncNow', attempt: 1));
-      debugPrint('📊 Analytics: sync failed after ${syncDuration.inMilliseconds}ms');
+      dlog(() => '📊 Analytics: sync failed after ${syncDuration.inMilliseconds}ms');
       return false;
     } finally {
       _syncing = false;

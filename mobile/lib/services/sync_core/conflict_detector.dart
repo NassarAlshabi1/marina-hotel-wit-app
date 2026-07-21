@@ -56,10 +56,13 @@ class ConflictDetectionResult {
   final Map<String, dynamic>? commonAncestor;
 
   /// جميع التعارضات تُحل تلقائياً — لا يوجد تصعيد يدوي
-  bool get needsManualResolution => false;
+  /// ما عدا التعارضات المتزامنة التي تمس حقولاً مالية/حرجة
+  bool get needsManualResolution =>
+      type == ConflictType.concurrentSameFields &&
+      conflictingFields.any(ConflictDetector.isCriticalField);
 
   /// جميع التعارضات قابلة للحل التلقائي
-  bool get canAutoResolve => true;
+  bool get canAutoResolve => !needsManualResolution;
 }
 
 /// كاشف التعارضات — يُصنّف العلاقة بين نسختين محلية وبعيدة
@@ -176,7 +179,7 @@ class ConflictDetector {
     if (ancestor == null) return current.keys.toSet();
     final changed = <String>{};
     for (final key in current.keys) {
-      if (key.startsWith('\$')) continue;
+      if (key.startsWith(r'$')) continue;
       if (key == 'lastModified' ||
           key == 'updatedAt' ||
           key == 'version' ||
@@ -200,4 +203,19 @@ class ConflictDetector {
         (data['lastModifiedEpoch'] as int?) ??
         0;
   }
+
+  /// الحقول المالية/الحرجة التي تتطلب عناية خاصة في conflict resolution.
+  /// أُزيل 'status' لأن سياسة بعض الكيانات تستخدم newerWins.
+  static final Set<String> _criticalFields = {
+    'amount',
+    'paidAmount',
+    'price',
+    'basicSalary',
+    'isVoided',
+    'discount',
+    'discountAmount',
+  };
+
+  /// هل الحقل [fieldName] حرج (مالي)؟
+  static bool isCriticalField(String fieldName) => _criticalFields.contains(fieldName);
 }

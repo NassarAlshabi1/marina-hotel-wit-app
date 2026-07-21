@@ -1,0 +1,19 @@
+targets:
+  $default:
+    builders:
+      drift_dev:
+        options:
+          sqlite_modules:
+            - json1
+            - fts5
+      freezed:
+        options:
+          runtime_hash: false
+          generic_argument_factories: false
+      json_serializable:
+        options:
+          create_to_json: false
+          field_rename: snake
+          checked: false
+          explicit_to_json: true
+          any_map: false

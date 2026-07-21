@@ -1,4 +1,4 @@
-// ignore_for_file: unused_field, use_late_for_private_fields_and_variables, duplicate_ignore, avoid_redundant_argument_values, no_leading_underscores_for_local_identifiers, unused_local_variable, directives_ordering
+// ignore_for_file: unused_field, avoid_redundant_argument_values, no_leading_underscores_for_local_identifiers, unused_local_variable, directives_ordering
 
 import 'dart:async';
 import 'dart:convert';
@@ -15,6 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqlite3/sqlite3.dart' show SqliteException;
 
 import '../utils/app_logger.dart';
+import '../utils/debug_log.dart';
 import '../utils/id.dart';
 import '../utils/secure_storage.dart';
 import '../utils/status_utils.dart';
@@ -40,6 +41,7 @@ import 'salary_fix_helper.dart';
 import 'secondary_appwrite_config.dart';
 import 'sync_constants.dart';
 import 'sync_guard.dart';
+import 'sync_performance_optimizer.dart';
 import 'sync/payload_mapper.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_core/sync_error_service.dart';
@@ -56,14 +58,13 @@ export 'sync_enums.dart' show SyncStatus;
 
 /// نتيجة المزامنة
 class SyncResult {
-  SyncResult({
-    required this.status,
-    this.recordsPushed = 0,
-    this.recordsPulled = 0,
-    this.conflicts = 0,
-    this.errorMessage,
-    required this.timestamp,
-    required this.duration,
+  SyncResult({      required this.status,
+      required this.timestamp,
+      required this.duration,
+      this.recordsPushed = 0,
+      this.recordsPulled = 0,
+      this.conflicts = 0,
+      this.errorMessage,
   });
   final SyncStatus status;
   final int recordsPushed;
@@ -105,7 +106,7 @@ class AppwriteSyncManager {
 
   AppwriteSyncManager._internal({required this.appwriteService, required this.database})
     : outboxDao = OutboxDao(database) {
-    _adapterRegistry = AdapterRegistry(database);
+    _adapterRegistry = AdapterRegistry.instance;
     _bookingsRepository = BookingsRepository(database);
     _roomsRepository = RoomsRepository(database);
     _ancestorCacheDao = AncestorCacheDao(database);
@@ -151,7 +152,9 @@ class AppwriteSyncManager {
   Timer? _failedRetryTimer;
   Timer? _cleanupTimer;
   Timer? _stuckRecoveryTimer;
-  double _adaptiveBatchSize = 20;
+  double get _initialBatchSize =>
+      (SyncPerformanceOptimizer.instance.getCurrentPerformanceSettings()['batchSize'] as num?)?.toDouble() ?? 20;
+  double _adaptiveBatchSize = 20; // يُضبط في _pushAllEntities عبر _initialBatchSize
   StreamSubscription<void>? _outboxSubscription;
   Duration _debounceWindow = SyncConstants.outboxDebounceWindow;
   SyncStatus _currentStatus = SyncStatus.idle;
@@ -280,7 +283,7 @@ class AppwriteSyncManager {
           data: {'fcmToken': token, 'fcmTokenUpdatedAt': DateTime.now().millisecondsSinceEpoch ~/ 1000},
         );
       } catch (e) {
-        debugPrint('⚠️ Failed to update FCM token: $e');
+        dwarn(() => 'Failed to update FCM token: $e');
       }
     }
   }
@@ -470,18 +473,18 @@ class AppwriteSyncManager {
         final resetCount = await outboxDao.retryFailedWithBackoff();
         if (resetCount == 0) return;
 
-        debugPrint('🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $resetCount)');
+        dlog(() => '🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $resetCount)');
 
         // محاولة رفعها فوراً
         final result = await sync(pull: false);
         if (result.status == SyncStatus.success) {
-          debugPrint('✅ نجحت إعادة محاولة رفع العناصر الفاشلة');
+          dlog('✅ نجحت إعادة محاولة رفع العناصر الفاشلة');
         }
       } catch (e) {
-        debugPrint('⚠️ فشلت إعادة محاولة العناصر الفاشلة: $e');
+        dwarn(() => 'فشلت إعادة محاولة العناصر الفاشلة: $e');
       }
     });
-    debugPrint('🔄 تم تشغيل مؤقت إعادة محاولة العناصر الفاشلة (كل 5 دقائق)');
+    dlog('🔄 تم تشغيل مؤقت إعادة محاولة العناصر الفاشلة (كل 5 دقائق)');
 
     // ✅ إصلاح حرج (audit agent-6): استعادة stuck 'processing' entries بشكل دوري
     // المشكلة: cleanupStuckEntries كان يُستدعى فقط عند initialize() (مرة واحدة عند بدء التطبيق)
@@ -501,7 +504,7 @@ class AppwriteSyncManager {
         _logger.warning('⚠️ فشل استعادة العناصر العالقة: $e', tag: 'SYNC');
       }
     });
-    debugPrint('🔧 تم تشغيل مؤقت استعادة العناصر العالقة (كل دقيقة)');
+    dlog('🔧 تم تشغيل مؤقت استعادة العناصر العالقة (كل دقيقة)');
 
     // ✅ تنظيف outbox تلقائي كل 24 ساعة
     _cleanupTimer?.cancel();
@@ -549,13 +552,19 @@ class AppwriteSyncManager {
   /// تنظيف الموارد
   void dispose() {
     _syncTimer?.cancel();
+    _syncTimer = null;
     _debouncePushTimer?.cancel();
+    _debouncePushTimer = null;
     _failedRetryTimer?.cancel();
+    _failedRetryTimer = null;
     _cleanupTimer?.cancel();
+    _cleanupTimer = null;
     _stuckRecoveryTimer?.cancel();
+    _stuckRecoveryTimer = null;
     _outboxSubscription?.cancel();
+    _outboxSubscription = null;
     stopAutoSync();
-    _syncController.close();
+    unawaited(_syncController.close());
   }
 
   /// دورة المزامنة الكاملة مع Appwrite:
@@ -1773,6 +1782,18 @@ class AppwriteSyncManager {
   Future<int> _syncRooms(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+
+    // ✅ تحسين أداء: batch lookup — جلب كل الغرف المحلية مرة واحدة بدل N استعلام
+    final uuids = documents.map((doc) {
+      final data = Map<String, dynamic>.from(doc.data);
+      data['localUuid'] ??= doc.$id;
+      return (data['localUuid'] as String?) ?? '';
+    }).where((u) => u.isNotEmpty).toList();
+
+    final existingRooms = uuids.isNotEmpty
+        ? {for (final r in await (database.select(database.rooms)..where((r) => r.localUuid.isIn(uuids))).get()) r.localUuid: r}
+        : <String, Room>{};
+
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -1780,11 +1801,7 @@ class AppwriteSyncManager {
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
-        final existingRoom =
-            await (database.select(database.rooms)
-                  ..where((r) => r.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
+        final existingRoom = existingRooms[localUuid];
 
         if (!(await _isRemoteDataNewer(
           data,
@@ -1996,6 +2013,18 @@ class AppwriteSyncManager {
   Future<int> _syncEmployees(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+
+    // ✅ تحسين أداء: batch lookup — جلب كل الموظفين المحليين مرة واحدة
+    final uuids = documents.map((doc) {
+      final data = Map<String, dynamic>.from(doc.data);
+      data['localUuid'] ??= doc.$id;
+      return (data['localUuid'] as String?) ?? '';
+    }).where((u) => u.isNotEmpty).toList();
+
+    final existingEmployees = uuids.isNotEmpty
+        ? {for (final e in await (database.select(database.employees)..where((e) => e.localUuid.isIn(uuids))).get()) e.localUuid: e}
+        : <String, Employee>{};
+
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -2003,11 +2032,7 @@ class AppwriteSyncManager {
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
-        final existing =
-            await (database.select(database.employees)
-                  ..where((e) => e.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
+        final existing = existingEmployees[localUuid];
         if (!(await _isRemoteDataNewer(
           data,
           existing?.lastModified,
@@ -2041,6 +2066,18 @@ class AppwriteSyncManager {
   Future<int> _syncExpenses(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+
+    // ✅ تحسين أداء: batch lookup
+    final uuids = documents.map((doc) {
+      final data = Map<String, dynamic>.from(doc.data);
+      data['localUuid'] ??= doc.$id;
+      return (data['localUuid'] as String?) ?? '';
+    }).where((u) => u.isNotEmpty).toList();
+
+    final existingExpenses = uuids.isNotEmpty
+        ? {for (final e in await (database.select(database.expenses)..where((e) => e.localUuid.isIn(uuids))).get()) e.localUuid: e}
+        : <String, Expense>{};
+
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -2048,11 +2085,7 @@ class AppwriteSyncManager {
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
-        final existing =
-            await (database.select(database.expenses)
-                  ..where((e) => e.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
+        final existing = existingExpenses[localUuid];
         if (!(await _isRemoteDataNewer(
           data,
           existing?.lastModified,
@@ -2322,10 +2355,12 @@ class AppwriteSyncManager {
     final maxBatchSize = constrainedNetwork ? 25 : 100;
     final entryTimeout = Duration(seconds: constrainedNetwork ? 12 : 25);
 
-    if (_adaptiveBatchSize > maxBatchSize) {
-      _adaptiveBatchSize = maxBatchSize.toDouble();
-    } else if (_adaptiveBatchSize < minBatchSize) {
-      _adaptiveBatchSize = minBatchSize.toDouble();
+    // ✅ تطبيق batchSize من SyncPerformanceOptimizer كنقطة بدء
+    final optimizerBatchSize = _initialBatchSize.round();
+    _adaptiveBatchSize = _adaptiveBatchSize.clamp(minBatchSize, maxBatchSize).toDouble();
+    // إذا اختلف optimizer عن القيمة الحالية بأكثر من 20%، حدّثها
+    if ((optimizerBatchSize - _adaptiveBatchSize).abs() / (_adaptiveBatchSize.clamp(1, double.infinity)) > 0.2) {
+      _adaptiveBatchSize = optimizerBatchSize.clamp(minBatchSize, maxBatchSize).toDouble();
     }
 
     while (true) {
@@ -2954,6 +2989,18 @@ class AppwriteSyncManager {
   Future<int> _syncGuestInfos(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
     var processed = 0;
+
+    // ✅ تحسين أداء: batch lookup
+    final uuids = documents.map((doc) {
+      final data = Map<String, dynamic>.from(doc.data);
+      data['localUuid'] ??= doc.$id;
+      return (data['localUuid'] as String?) ?? '';
+    }).where((u) => u.isNotEmpty).toList();
+
+    final existingGuestInfos = uuids.isNotEmpty
+        ? {for (final g in await (database.select(database.guestInfos)..where((t) => t.localUuid.isIn(uuids))).get()) g.localUuid: g}
+        : <String, GuestInfo>{};
+
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -2961,11 +3008,7 @@ class AppwriteSyncManager {
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
-        final existing =
-            await (database.select(database.guestInfos)
-                  ..where((t) => t.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
+        final existing = existingGuestInfos[localUuid];
         if (!(await _isRemoteDataNewer(
           data,
           existing?.lastModified,
@@ -4168,7 +4211,7 @@ class AppwriteSyncManager {
             await _updateLastPullTs(newPullTs);
             if (_maxUpdatedAtInPull != null) {
               _logger.debug(
-                '📍 pullRemoteChanges: مؤشر السحب مشتق من max(\$updatedAt) = '
+                r'📍 pullRemoteChanges: مؤشر السحب مشتق من max($updatedAt) = '
                 '$_maxUpdatedAtInPull (سلطة الخادم)',
                 tag: 'SYNC',
               );
@@ -6257,7 +6300,7 @@ class AppwriteSyncManager {
           try {
             await _bookingsRepository.derivedFields.refreshForBookingId(bookingId);
           } catch (e) {
-            debugPrint('⚠️ refreshForBookingId($bookingId) failed: $e');
+            dwarn(() => 'refreshForBookingId($bookingId) failed: $e');
           }
         }
       }

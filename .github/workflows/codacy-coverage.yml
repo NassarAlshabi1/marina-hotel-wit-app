@@ -55,11 +55,12 @@ jobs:
           fetch-depth: 0
 
       - name: 🐦 Set up Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@v2.23.0
         with:
-          flutter-version: '3.44.6'
+          flutter-version: '3.44.4'
           channel: stable
           cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
 
       - name: ☕ Set up JDK 17
         uses: actions/setup-java@v5
@@ -154,7 +155,7 @@ jobs:
             echo ""
             if [ "${{ steps.coverage_check.outputs.has_coverage }}" = "true" ]; then
               echo "### Test Results (last 15 lines)"
-              echo '```'"
+              echo '```'
               tail -15 test_results.log 2>/dev/null || echo 'No test log'
               echo '```'
               echo ""

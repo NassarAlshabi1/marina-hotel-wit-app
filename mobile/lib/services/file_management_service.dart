@@ -162,7 +162,7 @@ class FileManagementService {
           continue;
         }
 
-        final stat = file.statSync();
+        final stat = await file.stat();
         final dateKey =
             '${stat.modified.year}-${stat.modified.month.toString().padLeft(2, '0')}-${stat.modified.day.toString().padLeft(2, '0')}';
 
@@ -579,7 +579,7 @@ class FileManagementService {
     final entities = dir.listSync();
     for (final entity in entities) {
       try {
-        final stat = entity.statSync();
+        final stat = await entity.stat();
         if (stat.modified.isBefore(cutoffTime)) {
           if (entity is File) {
             await entity.delete();

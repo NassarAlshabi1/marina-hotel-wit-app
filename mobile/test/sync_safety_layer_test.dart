@@ -6,12 +6,12 @@ import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/sync_safety_layer.dart';
 import 'package:marina_hotel_mobile/utils/id.dart';
 import 'package:marina_hotel_mobile/utils/time.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+
+// ✅ sqfliteFfiInit() + databaseFactory أصبحت في test/flutter_test_config.dart
+// لا حاجة لتكرارها هنا — التهيئة العامة تمنع segmentation faults
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  sqfliteFfiInit();
-  databaseFactory = databaseFactoryFfi;
 
   late AppDatabase db;
   late Directory tempDir;

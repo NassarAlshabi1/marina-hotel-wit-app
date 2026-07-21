@@ -12,7 +12,8 @@ mixin _$SyncLogDaoMixin on DatabaseAccessor<AppDatabase> {
 class SyncLogDaoManager {
   final _$SyncLogDaoMixin _db;
   SyncLogDaoManager(this._db);
-  $$SyncLogTableTableManager get syncLog => $$SyncLogTableTableManager(_db.attachedDatabase, _db.syncLog);
+  $$SyncLogTableTableManager get syncLog =>
+      $$SyncLogTableTableManager(_db.attachedDatabase, _db.syncLog);
   $$SyncConflictsTableTableManager get syncConflicts =>
       $$SyncConflictsTableTableManager(_db.attachedDatabase, _db.syncConflicts);
 }

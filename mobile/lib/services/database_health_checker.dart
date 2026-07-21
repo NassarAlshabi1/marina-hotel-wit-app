@@ -89,7 +89,11 @@ class DatabaseHealthChecker {
 }
 
 class DatabaseHealth {
-  const DatabaseHealth._({required this.status, this.responseTimeMs, this.errorMessage, required this.timestamp});
+  const DatabaseHealth._({      required this.status,
+      required this.timestamp,
+      this.responseTimeMs,
+      this.errorMessage,
+  });
 
   factory DatabaseHealth.healthy([int? responseTime]) =>
       DatabaseHealth._(status: DatabaseHealthStatus.healthy, responseTimeMs: responseTime, timestamp: DateTime.now());

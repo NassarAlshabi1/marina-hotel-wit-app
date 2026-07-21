@@ -1,6 +1,6 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -539,23 +539,14 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                       status: status,
                     );
                   }
-                  // ✅ مزامنة فورية بعد الحفظ
-                  unawaited(
-                    ref
-                        .read(appwriteSyncManagerProvider)
-                        .pushLocalChanges()
-                        .then((n) => debugPrint('📤 [Employee] push: $n records'))
-                        .catchError((Object e) => debugPrint('⚠️ [Employee] push failed: $e')),
-                  );
-                  // ignore: use_build_context_synchronously
+                  // ✅ رفع فوري لموظف جديد/محدَّث إلى Appwrite Cloud.
+                  unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
                   Navigator.pop(context);
-                  // ignore: use_build_context_synchronously
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(employee == null ? 'تم إضافة الموظف بنجاح' : 'تم تحديث بيانات الموظف')),
                   );
                 } catch (e) {
                   ScaffoldMessenger.of(
-                    // ignore: use_build_context_synchronously
                     context,
                   ).showSnackBar(SnackBar(content: Text('خطأ: $e')));
                 }
@@ -1170,18 +1161,11 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                     description: noteController.text.trim().isNotEmpty ? noteController.text.trim() : null,
                   );
 
-                  // ✅ مزامنة فورية بعد الحفظ
-                  unawaited(
-                    ref
-                        .read(appwriteSyncManagerProvider)
-                        .pushLocalChanges()
-                        .then((n) => debugPrint('📤 [SalaryWithdraw] push: $n records'))
-                        .catchError((Object e) => debugPrint('⚠️ [SalaryWithdraw] push failed: $e')),
-                  );
-
                   if (ctx.mounted) {
                     Navigator.pop(ctx);
                   }
+                  unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
+
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -1254,14 +1238,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     try {
       final repo = ref.read(employeesRepoProvider);
       await repo.delete(employee.id);
-      // ✅ مزامنة فورية بعد الحفظ
-      unawaited(
-        ref
-            .read(appwriteSyncManagerProvider)
-            .pushLocalChanges()
-            .then((n) => debugPrint('📤 [EmployeeDelete] push: $n records'))
-            .catchError((Object e) => debugPrint('⚠️ [EmployeeDelete] push failed: $e')),
-      );
+      // ✅ رفع فوري لحذف موظف إلى Appwrite Cloud.
+      unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -1299,22 +1277,13 @@ class SettingsEmployeesScreen extends ConsumerWidget {
         status: newStatus,
       );
 
-      // ✅ مزامنة فورية بعد الحفظ
-      unawaited(
-        ref
-            .read(appwriteSyncManagerProvider)
-            .pushLocalChanges()
-            .then((n) => debugPrint('📤 [EmployeeToggle] push: $n records'))
-            .catchError((Object e) => debugPrint('⚠️ [EmployeeToggle] push failed: $e')),
-      );
-
-      // ignore: use_build_context_synchronously
+      if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('تم ${newStatus == 'نشط' ? 'تفعيل' : 'إيقاف'} الموظف')));
     } catch (e) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(
-        // ignore: use_build_context_synchronously
         context,
       ).showSnackBar(SnackBar(content: Text('خطأ: $e')));
     }

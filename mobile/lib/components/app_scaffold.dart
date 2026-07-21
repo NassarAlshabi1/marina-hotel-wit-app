@@ -2,22 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/repository_providers.dart';
-import '../screens/notes/notes_screen.dart';
+import '../screens/notes/notes_screen.dart' deferred as notes;
 import '../utils/performance_monitor.dart';
 import 'widgets/sync_action_button.dart';
 
 class AppScaffold extends ConsumerWidget {
-  const AppScaffold({
-    super.key,
-    required this.title,
-    required this.body,
-    this.actions,
-    this.fab,
-    this.subtitle,
-    this.appBarBackgroundColor,
-    this.titleColor,
-    this.subtitleColor,
-    this.titleAlign,
+  const AppScaffold({      required this.title,
+      required this.body,
+      super.key,
+      this.actions,
+      this.fab,
+      this.subtitle,
+      this.appBarBackgroundColor,
+      this.titleColor,
+      this.subtitleColor,
+      this.titleAlign,
   });
   final String title;
   final Widget body;
@@ -85,8 +84,11 @@ class AppScaffold extends ConsumerWidget {
               : Text(title),
           actions: [
             IconButton(
-              onPressed: () {
-                Navigator.of(context).push<void>(MaterialPageRoute<void>(builder: (_) => const NotesScreen()));
+              onPressed: () async {
+                await notes.loadLibrary();
+                if (context.mounted) {
+                  Navigator.of(context).push<void>(MaterialPageRoute<void>(builder: (_) => notes.NotesScreen()));
+                }
               },
               tooltip: 'التنبيهات',
               icon: Stack(

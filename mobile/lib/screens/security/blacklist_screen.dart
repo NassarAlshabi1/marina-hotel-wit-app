@@ -1,6 +1,6 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
@@ -187,18 +187,9 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                       case 'toggle':
                                         try {
                                           await repo.updateActive(e.id, !e.active);
-                                          // ✅ مزامنة فورية بعد الحفظ
-                                          unawaited(
-                                            ref
-                                                .read(appwriteSyncManagerProvider)
-                                                .pushLocalChanges()
-                                                .then((n) => debugPrint('📤 [BlacklistToggle] push: $n records'))
-                                                .catchError((Object err) => debugPrint('⚠️ [BlacklistToggle] push failed: $err')),
-                                          );
                                           if (!mounted) {
                                             return;
                                           }
-                                          // ignore: use_build_context_synchronously
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(
                                               content: Text(e.active ? 'تم تعطيل: ${e.name}' : 'تم تفعيل: ${e.name}'),
@@ -209,7 +200,6 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                           if (!mounted) {
                                             return;
                                           }
-                                          // ignore: use_build_context_synchronously
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(
                                               content: Text('فشل تحديث الحالة: $err'),
@@ -222,18 +212,11 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                         if (confirmed ?? false) {
                                           try {
                                             await repo.delete(e.id);
-                                            // ✅ مزامنة فورية بعد الحفظ
-                                            unawaited(
-                                              ref
-                                                  .read(appwriteSyncManagerProvider)
-                                                  .pushLocalChanges()
-                                                  .then((n) => debugPrint('📤 [BlacklistDelete] push: $n records'))
-                                                  .catchError((Object err) => debugPrint('⚠️ [BlacklistDelete] push failed: $err')),
-                                            );
+                                            // ✅ رفع فوري لحذف عنصر من القائمة السوداء.
+                                            unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
                                             if (!mounted) {
                                               return;
                                             }
-                                            // ignore: use_build_context_synchronously
                                             ScaffoldMessenger.of(context).showSnackBar(
                                               SnackBar(content: Text('تم حذف: ${e.name}'), backgroundColor: Colors.red),
                                             );
@@ -241,7 +224,6 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                             if (!mounted) {
                                               return;
                                             }
-                                            // ignore: use_build_context_synchronously
                                             ScaffoldMessenger.of(context).showSnackBar(
                                               SnackBar(
                                                 content: Text('فشل الحذف: $err'),
@@ -502,19 +484,10 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                     notes: notesCtrl.text,
                   );
                 }
-                // ✅ مزامنة فورية بعد الحفظ
-                unawaited(
-                  ref
-                      .read(appwriteSyncManagerProvider)
-                      .pushLocalChanges()
-                      .then((n) => debugPrint('📤 [BlacklistSave] push: $n records'))
-                      .catchError((Object err) => debugPrint('⚠️ [BlacklistSave] push failed: $err')),
-                );
                 navigator.pop();
                 if (!mounted) {
                   return;
                 }
-                // ignore: use_build_context_synchronously
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(isEdit ? 'تم تعديل: ${nameCtrl.text}' : 'تمت الإضافة: ${nameCtrl.text}'),
@@ -525,7 +498,6 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                 if (!mounted) {
                   return;
                 }
-                // ignore: use_build_context_synchronously
                 ScaffoldMessenger.of(
                   context,
                 ).showSnackBar(SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red));

@@ -12,7 +12,7 @@ part 'employees_dao.g.dart';
 
 @DriftAccessor(tables: [Employees])
 class EmployeesDao extends DatabaseAccessor<AppDatabase> with _$EmployeesDaoMixin {
-  EmployeesDao(super.db, this.outboxDao) : adapters = AdapterRegistry(db);
+  EmployeesDao(super.db, this.outboxDao, [AdapterRegistry? a]) : adapters = a ?? AdapterRegistry.instance;
   final OutboxDao outboxDao;
   final AdapterRegistry adapters;
 

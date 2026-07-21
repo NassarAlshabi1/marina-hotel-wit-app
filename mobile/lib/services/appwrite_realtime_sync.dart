@@ -175,7 +175,7 @@ class AppwriteRealtimeSync {
     }
 
     // ✅ تحسين: تتبع آخر وقت تحديث (Delta Sync Safety)
-    final updatedAt = payload['\$updatedAt'] ?? payload['\$createdAt'];
+    final updatedAt = payload[r'$updatedAt'] ?? payload[r'$createdAt'];
     if (updatedAt != null) {
       try {
         final serverTime = DateTime.parse(updatedAt as String);

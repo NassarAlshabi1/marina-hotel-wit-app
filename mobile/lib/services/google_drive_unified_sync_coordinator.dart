@@ -2,9 +2,9 @@
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/debug_log.dart';
 import '../utils/debug_logs.dart';
 import 'data_usage_manager.dart';
 import 'google_drive_backup_service.dart';
@@ -40,14 +40,13 @@ class _PerformSyncAlreadyInProgress extends _PerformSyncStartResult {
 }
 
 class SyncResult {
-  const SyncResult({
-    required this.success,
-    required this.message,
-    this.pushedChanges,
-    this.pulledChanges,
-    required this.phase,
-    required this.timestamp,
-    this.error,
+  const SyncResult({      required this.success,
+      required this.message,
+      required this.phase,
+      required this.timestamp,
+      this.pushedChanges,
+      this.pulledChanges,
+      this.error,
   });
 
   factory SyncResult.success({required String message, int? pushed, int? pulled}) {
@@ -61,7 +60,10 @@ class SyncResult {
     );
   }
 
-  factory SyncResult.failure({required String message, String? error, required SyncPhase phase}) {
+  factory SyncResult.failure({      required String message,
+      required SyncPhase phase,
+      String? error,
+  }) {
     return SyncResult(success: false, message: message, error: error, phase: phase, timestamp: DateTime.now());
   }
   final bool success;
@@ -133,7 +135,7 @@ class GoogleDriveUnifiedSyncCoordinator {
 
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('UnifiedSyncCoordinator', message);
-    debugPrint('[UnifiedSyncCoordinator] $message');
+    dlog(() => '[UnifiedSyncCoordinator] $message');
     _logger?.log(message, level: level, tag: 'SYNC_COORD');
   }
 
@@ -258,10 +260,14 @@ class GoogleDriveUnifiedSyncCoordinator {
 
   void _stopMonitoring() {
     _debounceTimer?.cancel();
+    _debounceTimer = null;
     _periodicSyncTimer?.cancel();
+    _periodicSyncTimer = null;
     _pullCheckTimer?.cancel();
+    _pullCheckTimer = null;
     _outboxSubscription?.cancel();
-    _log('⏹️ Stopped all monitoring');
+    _outboxSubscription = null;
+    dlog(() => '[UnifiedSyncCoordinator] ⏹️ Stopped all monitoring');
   }
 
   Future<void> _scheduleFullBackup() async {
@@ -833,13 +839,13 @@ class GoogleDriveUnifiedSyncCoordinator {
 
   void dispose() {
     _stopMonitoring();
-    _syncResultController.close();
+    unawaited(_syncResultController.close());
     _isInitialized = false;
-    _log('🛑 Unified Sync Coordinator disposed');
+    dlog('🛑 Unified Sync Coordinator disposed');
   }
 
   /// تنظيف آمن للمثيل Singleton
-  static Future<void> disposeInstance() async {
+  static void disposeInstance() {
     instance.dispose();
   }
 }

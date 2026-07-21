@@ -20,7 +20,7 @@ const _uuid = Uuid();
 
 @DriftAccessor(tables: [Outbox])
 class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
-  OutboxDao(super.db) : adapters = AdapterRegistry(db);
+  OutboxDao(super.db, [AdapterRegistry? a]) : adapters = a ?? AdapterRegistry.instance;
 
   final AdapterRegistry adapters;
 
@@ -192,14 +192,13 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   /// ✅ إصلاح إضافي: البحث عن السجلات الموجودة في حالة 'pending' أو 'processing'
   /// إذا كان السجل في حالة 'processing'، نحدثه بدلاً من إنشاء سجل جديد
   /// لأن السجل 'processing' سيعود لاحقاً كـ 'completed' أو 'failed'
-  Future<int> merge({
-    required String entity,
-    required String op,
-    required String localUuid,
-    int? serverId,
-    required Map<String, dynamic> payload,
-    required int clientTs,
-    String source = 'local',
+  Future<int> merge({      required String entity,
+      required String op,
+      required String localUuid,
+      required Map<String, dynamic> payload,
+      required int clientTs,
+      int? serverId,
+      String source = 'local',
   }) async {
     final payloadJson = jsonEncode(payload);
     final idempKey = '$entity:$op:$localUuid:$clientTs';
@@ -865,14 +864,13 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   }
 
   /// ✅ P0: إدراج/تحديث عنصر outbox واحد (للاستخدام الداخلي في mergeBatch)
-  Future<int?> _mergeSingle({
-    required String entity,
-    required String op,
-    required String localUuid,
-    int? serverId,
-    required Map<String, dynamic> payload,
-    required int clientTs,
-    String source = 'local',
+  Future<int?> _mergeSingle({      required String entity,
+      required String op,
+      required String localUuid,
+      required Map<String, dynamic> payload,
+      required int clientTs,
+      int? serverId,
+      String source = 'local',
   }) async {
     final payloadJson = jsonEncode(payload);
     final idempKey = '$entity:$op:$localUuid:$clientTs';

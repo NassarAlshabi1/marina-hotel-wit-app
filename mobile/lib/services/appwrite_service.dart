@@ -20,6 +20,32 @@ class AppwriteService {
   late final Client _client;
   late final Databases _databases;
 
+  /// Cached secondary client & databases – lazily initialised on first failover call.
+  Client? _secondaryClient;
+  Databases? _secondaryDatabases;
+
+  Databases get _secondaryDb {
+    if (_secondaryClient == null) {
+      _secondaryClient = Client()
+        ..setEndpoint(SecondaryAppwriteConfig.endpoint)
+        ..setProject(SecondaryAppwriteConfig.projectId)
+        ..setSelfSigned();
+      final apiKey = SecondaryAppwriteConfig.apiKey;
+      if (apiKey.isNotEmpty) {
+        _secondaryClient!.addHeader('X-Appwrite-Key', apiKey);
+      }
+      _secondaryDatabases = Databases(_secondaryClient!);
+    }
+    return _secondaryDatabases!;
+  }
+
+  /// Invalidate the cached secondary client so it is re-created on next access.
+  /// Call this when the secondary configuration changes at runtime.
+  void invalidateSecondaryClient() {
+    _secondaryClient = null;
+    _secondaryDatabases = null;
+  }
+
   final _logger = AppwriteLogger();
   // ignore: unused_field
   final _errorHandler = AppwriteErrorHandler();
@@ -130,7 +156,7 @@ class AppwriteService {
         // جميع الصفحات وإلا فاشل Appwrite بـ "cursor requires consistent
         // sort order" أو يُرجع نتائج خاطئة. pagedQueries يُعاد بناؤه
         // من queries (بدون الترتيب) في كل تكرار، لذا يجب إعادة إضافته.
-        pagedQueries.add(Query.orderAsc('\$id'));
+        pagedQueries.add(Query.orderAsc(r'$id'));
         pagedQueries.add(Query.limit(pageSize));
         // ✅ P1-4: استخدام cursorAfter بدل offset
         if (cursorAfterId != null) {
@@ -291,12 +317,7 @@ class AppwriteService {
 
   /// قراءة مستندات من Secondary مباشرة
   Future<List<models.Document>> _listFromSecondary(String collectionId, List<String> queries) async {
-    final client = Client().setEndpoint(SecondaryAppwriteConfig.endpoint).setProject(SecondaryAppwriteConfig.projectId);
-    final apiKey = SecondaryAppwriteConfig.apiKey;
-    if (apiKey.isNotEmpty) {
-      client.addHeader('X-Appwrite-Key', apiKey);
-    }
-    final db = Databases(client);
+    final db = _secondaryDb;
 
     final allDocuments = <models.Document>[];
     int pageOffset = 0;
@@ -322,12 +343,7 @@ class AppwriteService {
 
   /// قراءة مستند واحد من Secondary مباشرة
   Future<models.Document> _getFromSecondary(String collectionId, String documentId) async {
-    final client = Client().setEndpoint(SecondaryAppwriteConfig.endpoint).setProject(SecondaryAppwriteConfig.projectId);
-    final apiKey = SecondaryAppwriteConfig.apiKey;
-    if (apiKey.isNotEmpty) {
-      client.addHeader('X-Appwrite-Key', apiKey);
-    }
-    final db = Databases(client);
+    final db = _secondaryDb;
     // ignore: deprecated_member_use
     return db.getDocument(
       databaseId: SecondaryAppwriteConfig.databaseId,

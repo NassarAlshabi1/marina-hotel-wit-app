@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -777,7 +778,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final version = await _getAppVersion();
     if (!mounted) return;
     await showDialog<void>(
-      // ignore: use_build_context_synchronously
       context: context,
       builder: (context) => AboutDialog(
         applicationName: 'تطبيق إدارة فندق مارينا',

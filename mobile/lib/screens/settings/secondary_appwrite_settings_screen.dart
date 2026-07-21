@@ -1,4 +1,4 @@
-// ignore_for_file: directives_ordering, prefer_const_constructors, use_if_null_to_convert_nulls_to_bools, unawaited_futures, use_build_context_synchronously, unused_field
+// ignore_for_file: directives_ordering, prefer_const_constructors, use_if_null_to_convert_nulls_to_bools, unawaited_futures, use_build_context_synchronously
 import 'dart:async';
 
 import 'package:appwrite/appwrite.dart';

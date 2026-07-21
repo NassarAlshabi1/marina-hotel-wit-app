@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 
 class AdminSidebar extends ConsumerWidget {
-  const AdminSidebar({super.key, required this.currentRoute, required this.onRouteSelected});
+  const AdminSidebar({      required this.currentRoute,
+      required this.onRouteSelected,
+      super.key,
+  });
   final String currentRoute;
   final void Function(String) onRouteSelected;
 
@@ -253,12 +256,9 @@ class AdminSidebar extends ConsumerWidget {
     required VoidCallback onTap,
     BuildContext? context,
   }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      decoration: BoxDecoration(
-        color: isActive ? Colors.white.withValues(alpha: 0.12) : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-      ),
+    return Material(
+      color: isActive ? Colors.white.withValues(alpha: 0.12) : Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
       child: ListTile(
         leading: Icon(icon, color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.72)),
         title: Text(

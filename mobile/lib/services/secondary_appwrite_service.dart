@@ -1,4 +1,4 @@
-// ignore_for_file: unused_element, prefer_final_locals, unnecessary_lambdas, curly_braces_in_flow_control_structures
+// ignore_for_file: prefer_final_locals
 import 'dart:convert';
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
@@ -32,7 +32,6 @@ class SecondaryAppwriteService {
   static SecondaryAppwriteService get instance => SecondaryAppwriteService();
 
   final _networkHelper = AppwriteNetworkHelper();
-  // ignore: unused_field
   final _logger = AppwriteLogger();
 
   Client? _client;
@@ -608,7 +607,11 @@ class FullBackupStats {
 
 /// خطأ في رفع سجل واحد
 class FullBackupFailure {
-  FullBackupFailure({this.documentId, required this.reason, this.collectionName, this.timestamp});
+  FullBackupFailure({      required this.reason,
+      this.documentId,
+      this.collectionName,
+      this.timestamp,
+  });
   final String? documentId;
   final String reason;
   final String? collectionName;

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -88,21 +87,22 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
   }
 
   Widget _buildBookingSelector() {
-    final bookingsRepo = ref.watch(bookingsRepoProvider);
-    return StreamBuilder<List<Booking>>(
-      stream: bookingsRepo.watchList(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final bookings = snapshot.data!.where((b) => b.status != 'checked_out' && b.status != 'cancelled').toList();
-        if (bookings.isEmpty) {
-          return const Card(
-            child: Padding(padding: EdgeInsets.all(16), child: Text('لا توجد حجوزات نشطة')),
-          );
-        }
-        final dropdownColor = Theme.of(context).textTheme.bodyMedium?.color;
-        return Card(
+    // ✅ استبدال StreamBuilder بـ Riverpod provider
+    final bookingsAsync = ref.watch(bookingsListProvider);
+    final bookings = (bookingsAsync.valueOrNull ?? [])
+        .where((b) => b.status != 'checked_out' && b.status != 'cancelled')
+        .toList();
+
+    if (bookingsAsync.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (bookings.isEmpty) {
+      return const Card(
+        child: Padding(padding: EdgeInsets.all(16), child: Text('لا توجد حجوزات نشطة')),
+      );
+    }
+    final dropdownColor = Theme.of(context).textTheme.bodyMedium?.color;
+    return Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -146,8 +146,6 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
             ),
           ),
         );
-      },
-    );
   }
 
   Widget _buildBookingInfo() {
@@ -394,22 +392,8 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
         note: _notesController.text.isNotEmpty ? _notesController.text : null,
       );
 
-      // ✅ مزامنة فورية بعد إنشاء الدين (مثل booking_payment_screen)
-      // بدلاً من انتظار debounce 15 ثانية
-      unawaited(
-        ref
-            .read(appwriteSyncManagerProvider)
-            .pushLocalChanges()
-            .then((pushedCount) {
-              debugPrint(
-                '📤 [CreateDebt] push-only to Appwrite Cloud: '
-                '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred (will retry via outbox)"}',
-              );
-            })
-            .catchError((Object e) {
-              debugPrint('⚠️ [CreateDebt] push failed: $e — will retry via outbox');
-            }),
-      );
+      // ✅ رفع فوري لدين جديد منشأ من حجز إلى Appwrite Cloud.
+      unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
@@ -284,7 +285,6 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
                 await _saveSettings();
 
                 if (mounted) {
-                  // ignore: use_build_context_synchronously
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(value ? 'تم تفعيل المزامنة التلقائية' : 'تم إيقاف المزامنة التلقائية'),

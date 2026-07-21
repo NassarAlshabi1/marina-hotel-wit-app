@@ -18,7 +18,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:marina_hotel_mobile/screens/auth/login_screen.dart';
 
 void main() {
-  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   group('Marina Hotel — Login Screen Smoke Test', () {
     // helper لالتفاف LoginScreen بـ MaterialApp + RTL
@@ -187,8 +187,41 @@ void main() {
       await tester.tap(find.text('دخول'));
       await tester.pump();
 
-      // التطبيق ما زال يعمل بدون انهيار
+      // التطبيق ما زال يعود بدون انهيار
       expect(find.byType(LoginScreen), findsOneWidget);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  //  Performance Trace — يسجّل Timeline للأداء
+  //  يُستخدم مع: flutter drive --driver=test_driver/perf_driver.dart
+  // ═══════════════════════════════════════════════════════════════
+  group('Performance Traces', () {
+    testWidgets('Login screen render performance', (tester) async {
+      await binding.traceAction(
+        () async {
+          await tester.pumpWidget(
+            const ProviderScope(
+              child: MaterialApp(
+                home: Directionality(
+                  textDirection: TextDirection.rtl,
+                  child: LoginScreen(),
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle(const Duration(seconds: 2));
+
+          // محاكاة تفاعلات المستخدم
+          await tester.enterText(find.byType(TextFormField).first, 'admin');
+          await tester.pumpAndSettle();
+          await tester.enterText(find.byType(TextFormField).last, 'password');
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('دخول'));
+          await tester.pumpAndSettle();
+        },
+        reportKey: 'login_screen_timeline',
+      );
     });
   });
 }
