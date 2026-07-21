@@ -31,6 +31,7 @@ import '../../utils/hotel_time_engine.dart';
 import '../../utils/loading_snackbar.dart';
 import '../../utils/time.dart';
 import 'widgets/payment_summary_card.dart';
+import 'widgets/actions_tab.dart';
 import 'payment_history_screen.dart';
 
 class BookingPaymentScreen extends ConsumerStatefulWidget {
@@ -685,7 +686,25 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                       ),
                     ),
                     RepaintBoundary(
-                      child: _buildActionsTab(summary, booking: booking, nights: nights),
+                      child: ActionsTab(
+                        summary: summary,
+                        booking: booking,
+                        nights: nights,
+                        currencyFmt: _currencyFmt,
+                        debtAmount: _debtAmount,
+                        unsettledDebts: _unsettledDebts,
+                        onGenerateInvoice: () => _generateInvoice(summary),
+                        onShowPaymentHistory: () => Navigator.push<void>(context, MaterialPageRoute<void>(builder: (context) => PaymentHistoryScreen(bookingId: widget.booking.localUuid))),
+                        onShowCheckoutConfirmation: (s, b, n) => _showCheckoutConfirmation(s, booking: b, nights: n),
+                        onShowEarlyCheckout: (s) => _showEarlyCheckoutDialog(s),
+                        onShowCancelTodayPayment: (s) => _showCancelTodayPaymentDialog(s),
+                        onSendAccountStatement: (s) => _sendAccountStatement(s),
+                        onCreateDebtFromRemaining: (s, b) => _createDebtFromRemainingBalance(s, b),
+                        onShowDiscountDialog: (s, b) => _showDiscountAmountDialog(s, b),
+                        detectSuspiciousNights: _detectSuspiciousNights,
+                        buildActionCard: _buildActionCard,
+                        buildInfoRow: _buildInfoRow,
+                      ),
                     ),
                   ],
                 ),
@@ -905,216 +924,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     );
   }
 
-  Widget _buildActionsTab(
-    BookingPaymentSummary summary, {
-    required db.Booking booking,
-    required List<db.BookingNight> nights,
-  }) {
-    // كشف الليالي المشبوهة (لعرض مؤشر على زر تسجيل المغادرة)
-    final suspiciousNights = _detectSuspiciousNights(nights, booking);
-    final hasSuspicious = suspiciousNights.isNotEmpty;
-    final actions = <Widget>[
-      _buildActionCard(
-        'عرض الفاتورة الشاملة',
-        'عرض وطباعة الفاتورة التفصيلية',
-        Icons.receipt_long,
-        Colors.teal,
-        () => _generateInvoice(summary),
-      ),
-      _buildActionCard(
-        'سجل المدفوعات',
-        'عرض تاريخ جميع المدفوعات',
-        Icons.history,
-        Colors.purple,
-        () => Navigator.push<void>(
-          context,
-          MaterialPageRoute<void>(builder: (context) => PaymentHistoryScreen(bookingId: widget.booking.localUuid)),
-        ),
-      ),
-      _buildActionCard(
-        'تسجيل المغادرة',
-        hasSuspicious
-            ? 'تنبيه: ${suspiciousNights.length} ${suspiciousNights.length == 1 ? "ليلة مشبوهة" : "ليالٍ مشبوهة"} بعد المغادرة!'
-            : summary.isFullyPaid
-            ? 'تسجيل مغادرة العميل'
-            : 'تحذير: يوجد مبلغ متبقي!',
-        Icons.logout,
-        hasSuspicious ? Colors.orange : (summary.isFullyPaid ? Colors.green : Colors.red),
-        () => _showCheckoutConfirmation(summary, booking: booking, nights: nights),
-      ),
-      _buildActionCard(
-        'مغادرة مبكرة / مردود',
-        'حساب المردود عند مغادرة قبل الموعد',
-        Icons.currency_exchange,
-        Colors.amber.shade700,
-        () => _showEarlyCheckoutDialog(summary),
-      ),
-      _buildActionCard(
-        'إلغاء يوم إضافي',
-        'إلغاء دفعة اليوم الفندقي المحتسبة بالخطأ',
-        Icons.remove_circle_outline,
-        Colors.red.shade700,
-        () => _showCancelTodayPaymentDialog(summary),
-      ),
-      _buildActionCard(
-        'إرسال كشف حساب',
-        'إرسال ملخص المدفوعات للعميل',
-        Icons.send,
-        Colors.orange,
-        () => _sendAccountStatement(summary),
-      ),
-    ];
-
-    // ✅ رسالة تحذير المبلغ المتبقي + زر إنشاء دين + زر خصم من الليالي
-    final hasRemainingBalance = summary.remainingAmount > 0;
-    // ✅ يوجد دين سابق غير مسدّد → نعرضه في التنبيه
-    final hasUnsettledDebt = _debtAmount > 0 && _unsettledDebts.isNotEmpty;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ✅ تنبيه مدمج (compact): النزيل عليه مبلغ متبقي + أزرار إجراءات
-          if (hasRemainingBalance || hasUnsettledDebt) ...[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              margin: const EdgeInsets.only(bottom: 6),
-              decoration: BoxDecoration(
-                color: hasUnsettledDebt ? Colors.red.shade50 : Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: hasUnsettledDebt ? Colors.red.shade300 : Colors.orange.shade300),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    hasUnsettledDebt ? Icons.error_outline : Icons.warning_amber_rounded,
-                    color: hasUnsettledDebt ? Colors.red.shade700 : Colors.orange.shade700,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      hasUnsettledDebt
-                          ? 'دين سابق: ${_currencyFmt.format(_debtAmount)} • متبقي: ${_currencyFmt.format(summary.remainingAmount)}'
-                          : 'متبقي: ${_currencyFmt.format(summary.remainingAmount)}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: hasUnsettledDebt ? Colors.red.shade900 : Colors.orange.shade900,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // ✅ أزرار الإجراءات في صف واحد (compact)
-            Row(
-              children: [
-                // زر إنشاء دين بالمبلغ المتبقي (برتقالي)
-                if (hasRemainingBalance)
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 4),
-                      child: ElevatedButton.icon(
-                        onPressed: () => _createDebtFromRemainingBalance(summary, booking),
-                        icon: const Icon(Icons.add_circle, size: 14),
-                        label: const Text('إنشاء دين', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          minimumSize: const Size(0, 32),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                        ),
-                      ),
-                    ),
-                  ),
-                // ✅ زر خصم مبلغ من الليالي الفعلية (أخضر) — للمدير فقط
-                // صلاحية الخصم محصورة على admin أو من يملك 'payments.discount'
-                if (ref.watch(authProvider).currentUser?.isAdmin ?? false) ...[
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 4),
-                      child: ElevatedButton.icon(
-                        onPressed: () => _showDiscountAmountDialog(summary, booking),
-                        icon: const Icon(Icons.discount, size: 14),
-                        label: const Text('خصم مبلغ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green.shade600,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          minimumSize: const Size(0, 32),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                        ),
-                      ),
-                    ),
-                  ),
-                ] else ...[
-                  // ✅ زر معطّل للمستخدمين العاديين (يُظهر رسالة عند الضغط)
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(left: 4),
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('⚠️ صلاحية الخصم متاحة للمدير فقط'),
-                              backgroundColor: Colors.red,
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.lock_outline, size: 14),
-                        label: const Text('خصم (مقيد)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey.shade400,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          minimumSize: const Size(0, 32),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 6),
-          ],
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            childAspectRatio: 1.6,
-            children: actions,
-          ),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('معلومات الحجز', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  _buildInfoRow('رقم الحجز', widget.booking.localUuid),
-                  _buildInfoRow('تاريخ الوصول', widget.booking.checkinDate.split(' ')[0]),
-                  if (widget.booking.checkoutDate != null)
-                    _buildInfoRow('تاريخ المغادرة', widget.booking.checkoutDate!.split(' ')[0]),
-                  _buildInfoRow('الحالة', widget.booking.status),
-                  if (widget.booking.notes != null && widget.booking.notes!.isNotEmpty)
-                    _buildInfoRow('ملاحظات', widget.booking.notes!),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildActionCard(String title, String subtitle, IconData icon, Color color, VoidCallback onTap) {
