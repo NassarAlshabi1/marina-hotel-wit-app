@@ -38,8 +38,7 @@ if [ "$RELEASE_ONLY" = false ]; then
   flutter build apk --debug \
     --target-platform android-arm,android-arm64,android-x64 \
     --split-per-abi \
-    --enable-impeller \
-    --enable-flutter-gpu
+    --enable-impeller
 fi
 
 if [ "$DEBUG_ONLY" = false ]; then
@@ -47,12 +46,10 @@ if [ "$DEBUG_ONLY" = false ]; then
     --build-number "$BUILD_NUMBER" \
     --target-platform android-arm,android-arm64,android-x64 \
     --split-per-abi \
-    --enable-impeller \
-    --enable-flutter-gpu
+    --enable-impeller
   flutter build appbundle --release \
     --build-number "$BUILD_NUMBER" \
-    --enable-impeller \
-    --enable-flutter-gpu
+    --enable-impeller
 fi
 
 mapfile -t APK_DEBUG < <(ls build/app/outputs/flutter-apk/*-debug.apk 2>/dev/null || true)

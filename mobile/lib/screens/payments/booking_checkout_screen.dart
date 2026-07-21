@@ -96,12 +96,21 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
   Widget build(BuildContext context) {
     // ✅ إعادة هيكلة: استبدال 4 StreamBuilders متداخلة بـ Riverpod providers مسطحة.
     final roomAsync = ref.watch(liveRoomByNumberProvider(widget.booking.roomNumber));
-    final roomPrice = roomAsync.valueOrNull?.price ?? 0.0;
-
     final nightsAsync = ref.watch(bookingNightsProvider(widget.booking.id));
-    final nights = nightsAsync.valueOrNull ?? const <BookingNight>[];
-
     final paymentsAsync = ref.watch(bookingPaymentsDirectProvider(widget.booking.id));
+
+    // ✅ إصلاح Gemini: التحقق من loading state لمنع حسابات خاطئة
+    if (roomAsync.isLoading || nightsAsync.isLoading || paymentsAsync.isLoading) {
+      return wrapWithSyncOnExit(
+        child: AppScaffold(
+          title: 'دفع الحجز',
+          body: const Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    final roomPrice = roomAsync.valueOrNull?.price ?? 0.0;
+    final nights = nightsAsync.valueOrNull ?? const <BookingNight>[];
     final payments = paymentsAsync.valueOrNull ?? const <Payment>[];
 
     final checkin = DateTime.tryParse(widget.booking.checkinDate);

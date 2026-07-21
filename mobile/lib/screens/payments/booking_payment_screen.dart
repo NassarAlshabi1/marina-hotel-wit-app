@@ -453,6 +453,25 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final booking = bookingAsync.valueOrNull ?? widget.booking;
 
     final roomAsync = ref.watch(liveRoomByNumberProvider(booking.roomNumber));
+    final adjustmentsAsync = ref.watch(bookingPriceAdjustmentsProvider(booking.id));
+    final nightsAsync = ref.watch(bookingNightsProvider(booking.id));
+    final paymentsAsync = ref.watch(bookingPaymentsDirectProvider(booking.id));
+
+    // ✅ إصلاح Gemini: التحقق من loading state لمنع حسابات خاطئة
+    if (bookingAsync.isLoading ||
+        roomAsync.isLoading ||
+        adjustmentsAsync.isLoading ||
+        nightsAsync.isLoading ||
+        paymentsAsync.isLoading) {
+      return PopScope(
+        canPop: !_isSavingPayment,
+        child: const AppScaffold(
+          title: 'معالجة المدفوعات',
+          body: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
     final room = roomAsync.valueOrNull;
     final double roomRate = room?.price ?? 0;
 
@@ -480,13 +499,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final discountType = booking.discountType;
     final discountStartDate = _parseDateTime(booking.discountStartDate);
 
-    // تعديلات الأسعار
-    final adjustmentsAsync = ref.watch(bookingPriceAdjustmentsProvider(booking.id));
+    // تعديلات الأسعار (providers تم تعريفها في الأعلى)
     final rawAdjustments = adjustmentsAsync.valueOrNull ?? const <db.BookingPriceAdjustment>[];
     final filteredAdjustments = StayBalanceCalculator.filterActiveAdjustments(booking, rawAdjustments);
 
-    // ليالي الحجز
-    final nightsAsync = ref.watch(bookingNightsProvider(booking.id));
+    // ليالي الحجز (provider تم تعريفه في الأعلى)
     final nights = (nightsAsync.valueOrNull ?? const <db.BookingNight>[])
         .where((n) => !_cancelledSuspiciousNightIds.contains(n.id))
         .toList();
@@ -547,8 +564,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       totalDiscount = discount;
     }
 
-    // مدفوعات الحجز
-    final paymentsAsync = ref.watch(bookingPaymentsDirectProvider(booking.id));
+    // مدفوعات الحجز (provider تم تعريفه في الأعلى)
     final dbPayments = paymentsAsync.valueOrNull ?? const <db.Payment>[];
     final paidAmount = dbPayments.where((p) => !p.isVoided).fold<double>(0, (s, p) => s + p.amount);
     final hotelDay = HotelTimeEngine.getHotelDayKey();

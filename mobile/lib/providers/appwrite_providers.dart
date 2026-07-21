@@ -19,8 +19,9 @@ final appwriteServiceProvider = Provider<AppwriteService>((ref) {
 
 /// مزود مدير المزامنة
 final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
-  final service = ref.read(appwriteServiceProvider);
-  final database = ref.read(databaseProvider);
+  // ✅ إصلاح Gemini: استخدام ref.watch بدلاً من ref.read داخل provider
+  final service = ref.watch(appwriteServiceProvider);
+  final database = ref.watch(databaseProvider);
   final manager = AppwriteSyncManager(appwriteService: service, database: database);
 
   ref.onDispose(manager.dispose);

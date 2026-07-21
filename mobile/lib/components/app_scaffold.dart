@@ -84,8 +84,11 @@ class AppScaffold extends ConsumerWidget {
               : Text(title),
           actions: [
             IconButton(
-              onPressed: () {
-Navigator.of(context).push<void>(MaterialPageRoute<void>(builder: (_) => notes.NotesScreen()));
+              onPressed: () async {
+                await notes.loadLibrary();
+                if (context.mounted) {
+                  Navigator.of(context).push<void>(MaterialPageRoute<void>(builder: (_) => notes.NotesScreen()));
+                }
               },
               tooltip: 'التنبيهات',
               icon: Stack(
