@@ -30,8 +30,9 @@ final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
 });
 
 final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((ref) {
-  final appwriteSync = ref.read(appwriteSyncManagerProvider);
-  final db = ref.read(databaseProvider);
+  // ✅ إصلاح Gemini: استخدام ref.watch بدلاً من ref.read داخل provider
+  final appwriteSync = ref.watch(appwriteSyncManagerProvider);
+  final db = ref.watch(databaseProvider);
   final smart = SmartSyncManager.instance;
   final orch = UnifiedSyncOrchestrator.instance;
   orch.initialize(appwrite: appwriteSync, smart: smart, database: db);
@@ -106,12 +107,14 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
 
 /// مزود إحصائيات المزامنة
 final syncStatsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
-  final syncManager = ref.read(appwriteSyncManagerProvider);
+  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
+  final syncManager = ref.watch(appwriteSyncManagerProvider);
   return syncManager.getSyncStatistics();
 });
 
 final outboxCountProvider = StreamProvider.autoDispose<int>((ref) {
-  final db = ref.read(databaseProvider);
+  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
+  final db = ref.watch(databaseProvider);
   final dao = OutboxDao(db);
   // ✅ فصل هندسي: نراقب فقط عناصر source='local' (تغييرات محلية)
   return dao.watchCount(sources: const ['local']);
@@ -119,30 +122,35 @@ final outboxCountProvider = StreamProvider.autoDispose<int>((ref) {
 
 /// مزود إحصائيات الذاكرة المؤقتة
 final cacheStatsProvider = Provider<CacheStatistics>((ref) {
-  final cacheManager = ref.read(appwriteCacheManagerProvider);
+  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
+  final cacheManager = ref.watch(appwriteCacheManagerProvider);
   return cacheManager.getStatistics();
 });
 
 /// مزود إحصائيات السجلات
 final logStatsProvider = Provider<Map<String, int>>((ref) {
-  final logger = ref.read(appwriteLoggerProvider);
+  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
+  final logger = ref.watch(appwriteLoggerProvider);
   return logger.getStatistics();
 });
 
 /// مزود معلومات المشروع
 final projectInfoProvider = Provider<Map<String, String>>((ref) {
-  final service = ref.read(appwriteServiceProvider);
+  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
+  final service = ref.watch(appwriteServiceProvider);
   return service.getProjectInfo();
 });
 
 /// مزود قائمة الأجهزة المسجلة (أحدث جهازين فقط)
 final devicesListProvider = FutureProvider.autoDispose((ref) async {
-  final syncManager = ref.read(appwriteSyncManagerProvider);
+  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
+  final syncManager = ref.watch(appwriteSyncManagerProvider);
   return syncManager.getRegisteredDevices();
 });
 
 /// مزود السجلات
 final logsProvider = Provider((ref) {
-  final logger = ref.read(appwriteLoggerProvider);
+  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
+  final logger = ref.watch(appwriteLoggerProvider);
   return logger.getLogs();
 });
