@@ -6,11 +6,26 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// الوجهة الثانوية تعمل بشكل مستقل عن الوجهة الرئيسية. الـ outbox المحلي
 /// يُسلّم لكلا الوجهتين بالتوازي، ولا يُحذف السجل إلا بعد نجاح كليهما.
 ///
-/// القيم الافتراضية:
-///   - isEnabled = false (يجب تفعيلها يدوياً من شاشة الإعدادات)
-///   - isPushEnabled = true (الرفع مُفعّل افتراضياً عند تفعيل Secondary)
-///   - isPullEnabled = false (السحب معطّل افتراضياً — يحتاج تطبيقاً منفصلاً)
+/// القيم الافتراضية (مدمجة في التطبيق — يُمكن للمستخدم تغييرها في أي وقت
+/// من شاشة الإعدادات، أو استعادتها عبر زر "استعادة الافتراضي"):
+///   - isEnabled = true (مفعّل افتراضياً بالبيانات الافتراضية)
+///   - isPushEnabled = true (الرفع مُفعّل افتراضياً)
+///   - isPullEnabled = false (السحب معطّل افتراضياً)
 class SecondaryAppwriteConfig {
+  // ═══════════════════════════════════════════════════════════════════════
+  //  القيم الافتراضية المُدمجة في التطبيق
+  //  هذه القيم تُستخدم عندما لا يوجد إعداد محفوظ في SharedPreferences،
+  //  ويُمكن للمستخدم تغييرها أو استعادتها في أي وقت.
+  // ═══════════════════════════════════════════════════════════════════════
+  static const String defaultEndpoint = 'https://fra.cloud.appwrite.io/v1';
+  static const String defaultProjectId = '6a4408f300217885fd7b';
+  static const String defaultDatabaseId = '6a4409b50019dd39dde5';
+  static const String defaultApiKey =
+      'standard_c0ab6ac2628715c7714eb312e2272a55ae41809dcc156c7e4553874e4a6ad9f3d3e9169d8a69b84f7d746b108905041e412a66ec66d03e122ccb056484c43d2a27f7839088bf60385ab58061624bbcc1f82271c09d608536e68d9cc0ff1b05b83ae4fe14c4dc4ce38840317ea555155f1733141450b3097df09a2a1b4b154a6c';
+  static const bool defaultEnabled = true;
+  static const bool defaultPushEnabled = true;
+  static const bool defaultPullEnabled = false;
+
   static const String _keyEnabled = 'secondary_appwrite_enabled';
   static const String _keyEndpoint = 'secondary_appwrite_endpoint';
   static const String _keyProjectId = 'secondary_appwrite_project_id';
@@ -33,45 +48,45 @@ class SecondaryAppwriteConfig {
 
   static bool get isEnabled {
     ensureInitializedSync();
-    return _prefs!.getBool(_keyEnabled) ?? false;
+    return _prefs!.getBool(_keyEnabled) ?? defaultEnabled;
   }
 
   static bool get isConfigured {
     ensureInitializedSync();
-    final endpoint = _prefs!.getString(_keyEndpoint) ?? '';
-    final projectId = _prefs!.getString(_keyProjectId) ?? '';
-    final databaseId = _prefs!.getString(_keyDatabaseId) ?? '';
+    final endpoint = _prefs!.getString(_keyEndpoint) ?? defaultEndpoint;
+    final projectId = _prefs!.getString(_keyProjectId) ?? defaultProjectId;
+    final databaseId = _prefs!.getString(_keyDatabaseId) ?? defaultDatabaseId;
     return endpoint.isNotEmpty && projectId.isNotEmpty && databaseId.isNotEmpty;
   }
 
   static String get endpoint {
     ensureInitializedSync();
-    return _prefs!.getString(_keyEndpoint) ?? '';
+    return _prefs!.getString(_keyEndpoint) ?? defaultEndpoint;
   }
 
   static String get projectId {
     ensureInitializedSync();
-    return _prefs!.getString(_keyProjectId) ?? '';
+    return _prefs!.getString(_keyProjectId) ?? defaultProjectId;
   }
 
   static String get databaseId {
     ensureInitializedSync();
-    return _prefs!.getString(_keyDatabaseId) ?? '';
+    return _prefs!.getString(_keyDatabaseId) ?? defaultDatabaseId;
   }
 
   static String get apiKey {
     ensureInitializedSync();
-    return _prefs!.getString(_keyApiKey) ?? '';
+    return _prefs!.getString(_keyApiKey) ?? defaultApiKey;
   }
 
   static bool get isPushEnabled {
     ensureInitializedSync();
-    return _prefs!.getBool(_keyPushEnabled) ?? true;
+    return _prefs!.getBool(_keyPushEnabled) ?? defaultPushEnabled;
   }
 
   static bool get isPullEnabled {
     ensureInitializedSync();
-    return _prefs!.getBool(_keyPullEnabled) ?? false;
+    return _prefs!.getBool(_keyPullEnabled) ?? defaultPullEnabled;
   }
 
   static DateTime? get lastSyncTime {
@@ -120,6 +135,26 @@ class SecondaryAppwriteConfig {
     ]);
     if (kDebugMode) {
       debugPrint('✅ Secondary Appwrite config saved (enabled=$enabled)');
+    }
+  }
+
+  /// استعادة القيم الافتراضية المُدمجة في التطبيق.
+  ///
+  /// تُستخدم عند رغبة المستخدم في العودة للإعدادات الأصلية بعد تجربة قيم
+  /// مختلفة. تُعيد الكتابة فوق أي قيم محفوظة سابقاً.
+  static Future<void> restoreDefaults() async {
+    await ensureInitialized();
+    await Future.wait([
+      _prefs!.setBool(_keyEnabled, defaultEnabled),
+      _prefs!.setString(_keyEndpoint, defaultEndpoint),
+      _prefs!.setString(_keyProjectId, defaultProjectId),
+      _prefs!.setString(_keyDatabaseId, defaultDatabaseId),
+      _prefs!.setString(_keyApiKey, defaultApiKey),
+      _prefs!.setBool(_keyPushEnabled, defaultPushEnabled),
+      _prefs!.setBool(_keyPullEnabled, defaultPullEnabled),
+    ]);
+    if (kDebugMode) {
+      debugPrint('✅ Secondary Appwrite config restored to defaults');
     }
   }
 
