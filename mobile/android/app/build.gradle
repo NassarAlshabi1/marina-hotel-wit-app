@@ -54,16 +54,27 @@ android {
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
         multiDexEnabled = true
-        
+
         // ABI filters handled by Flutter --split-per-abi during build
         // This allows flexible multi-architecture builds via GitHub Actions
-        
+
         // Add app metadata
         manifestPlaceholders = [
             appName: "Marina Hotel",
             appDescription: "Complete Hotel Management System",
             applicationName: "io.flutter.app.FlutterApplication"
         ]
+
+        // ════════════════════════════════════════════════════════════════
+        //  Patrol integration — required for `patrol test android`
+        //  See: https://patrol.leancode.co/documentation
+        // ════════════════════════════════════════════════════════════════
+        testInstrumentationRunner = "pl.leancode.patrol.PatrolJUnitRunner"
+        testInstrumentationRunnerArguments["clearPackageData"] = "true"
+    }
+
+    testOptions {
+        execution = "ANDROIDX_TEST_ORCHESTRATOR"
     }
 
     signingConfigs {
@@ -106,4 +117,10 @@ flutter {
 dependencies {
     implementation "androidx.multidex:multidex:2.0.1"
     coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.4"
+
+    // ════════════════════════════════════════════════════════════════
+    //  Patrol — Android Test Orchestrator (required by PatrolJUnitRunner)
+    //  See: https://patrol.leancode.co/documentation
+    // ════════════════════════════════════════════════════════════════
+    androidTestUtil "androidx.test:orchestrator:1.5.1"
 }

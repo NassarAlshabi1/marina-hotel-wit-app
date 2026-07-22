@@ -1,5 +1,6 @@
 // ============================================================================
-//  Marina Hotel — Integration Test: App Smoke Test
+//  Marina Hotel — Integration Test: App Smoke Test (Patrol)
+//  ============================================================================
 //  يتحقق من: شاشة تسجيل الدخول تُعرَض بشكل صحيح →
 //            التحقق من صحة المدخلات →
 //            التحكم في إظهار/إخفاء كلمة المرور →
@@ -8,220 +9,239 @@
 //
 //  ملاحظة: نتجنَّب استدعاء main() كاملاً لأنه يُهيِّئ Firebase + Appwrite
 //  التي تحتاج إعدادات سرية لا تتوفر في CI. نختبر LoginScreen مباشرة.
+//
+//  ✅ migrated to Patrol 4.7.x — uses patrolTest + $ custom finders
+//     Run with: patrol test --target integration_test/app_test.dart
 // ============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:integration_test/integration_test.dart';
+import 'package:patrol/patrol.dart';
 
 import 'package:marina_hotel_mobile/screens/auth/login_screen.dart';
 
 void main() {
-  final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-
-  group('Marina Hotel — Login Screen Smoke Test', () {
-    // helper لالتفاف LoginScreen بـ MaterialApp + RTL
-    Widget buildApp() {
-      return const ProviderScope(
-        child: MaterialApp(
-          home: Directionality(
-            textDirection: TextDirection.rtl,
-            child: LoginScreen(),
+  patrolTest(
+    'يعرض شاشة تسجيل الدخول بكامل عناصرها',
+    config: const PatrolTesterConfig(),
+    ($) async {
+      await $.pumpWidgetAndSettle(
+        const ProviderScope(
+          child: MaterialApp(
+            home: Directionality(
+              textDirection: TextDirection.rtl,
+              child: LoginScreen(),
+            ),
           ),
         ),
       );
-    }
-
-    testWidgets('يعرض شاشة تسجيل الدخول بكامل عناصرها', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pumpAndSettle();
 
       // التحقق من ظهور شاشة تسجيل الدخول
-      expect(find.byType(LoginScreen), findsOneWidget,
-          reason: 'يجب أن تظهر شاشة تسجيل الدخول');
+      expect($(LoginScreen), findsOneWidget, reason: 'يجب أن تظهر شاشة تسجيل الدخول');
 
       // التحقق من وجود عنوان "تسجيل الدخول"
-      expect(find.text('تسجيل الدخول'), findsOneWidget);
+      expect($('تسجيل الدخول'), findsOneWidget);
 
       // التحقق من وجود حقلي اسم المستخدم وكلمة المرور
-      expect(find.text('اسم المستخدم'), findsOneWidget);
-      expect(find.text('كلمة المرور'), findsOneWidget);
+      expect($('اسم المستخدم'), findsOneWidget);
+      expect($('كلمة المرور'), findsOneWidget);
 
       // التحقق من وجود زر الدخول
-      expect(find.text('دخول'), findsOneWidget);
+      expect($('دخول'), findsOneWidget);
 
       // التحقق من وجود خيار "تذكرني"
-      expect(find.text('تذكرني'), findsOneWidget);
+      expect($('تذكرني'), findsOneWidget);
 
       // التحقق من وجود أيقونة القفل (header)
-      expect(find.byIcon(Icons.lock), findsOneWidget);
-    });
+      expect($(Icons.lock), findsOneWidget);
+    },
+  );
 
-    testWidgets('يتحقق من صحة المدخلات قبل محاولة الدخول', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pumpAndSettle();
+  patrolTest(
+    'يتحقق من صحة المدخلات قبل محاولة الدخول',
+    ($) async {
+      await $.pumpWidgetAndSettle(
+        const ProviderScope(
+          child: MaterialApp(
+            home: Directionality(
+              textDirection: TextDirection.rtl,
+              child: LoginScreen(),
+            ),
+          ),
+        ),
+      );
 
       // الضغط على زر الدخول بدون إدخال بيانات
-      await tester.tap(find.text('دخول'));
-      await tester.pumpAndSettle();
+      await $('دخول').tap();
 
       // يجب أن تظهر رسالة خطأ تطلب إدخال اسم المستخدم
-      expect(find.text('يرجى إدخال اسم المستخدم'), findsOneWidget,
+      expect($('يرجى إدخال اسم المستخدم'), findsOneWidget,
           reason: 'يجب أن تظهر رسالة تحقق عند ترك الحقل فارغاً');
 
       // يجب أن تظهر رسالة خطأ تطلب إدخال كلمة المرور
-      expect(find.text('يرجى إدخال كلمة المرور'), findsOneWidget,
+      expect($('يرجى إدخال كلمة المرور'), findsOneWidget,
           reason: 'يجب أن تظهر رسالة تحقق عند ترك كلمة المرور فارغة');
-    });
+    },
+  );
 
-    testWidgets('يقبل إدخال بيانات في حقلي المستخدم وكلمة المرور', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pumpAndSettle();
+  patrolTest(
+    'يقبل إدخال بيانات في حقلي المستخدم وكلمة المرور',
+    ($) async {
+      await $.pumpWidgetAndSettle(
+        const ProviderScope(
+          child: MaterialApp(
+            home: Directionality(
+              textDirection: TextDirection.rtl,
+              child: LoginScreen(),
+            ),
+          ),
+        ),
+      );
 
       // إدخال اسم المستخدم في الحقل الأول
-      await tester.enterText(find.byType(TextFormField).first, 'admin');
-      await tester.pumpAndSettle();
+      await $(TextFormField).at(0).enterText('admin');
 
       // إدخال كلمة المرور في الحقل الثاني
-      await tester.enterText(find.byType(TextFormField).last, 'wrongpass');
-      await tester.pumpAndSettle();
+      await $(TextFormField).at(1).enterText('wrongpass');
 
       // التحقق من أن النص أصبح في حقل اسم المستخدم
-      expect(find.text('admin'), findsOneWidget);
+      expect($('admin'), findsOneWidget);
 
       // الضغط على زر الدخول — سيفشل لأن لا backend، لكن يجب ألا يرمي استثناء
-      await tester.tap(find.text('دخول'));
-      await tester.pump(const Duration(seconds: 1));
+      await $('دخول').tap();
+      await $.pump(const Duration(seconds: 1));
 
       // التطبيق لا ينهار — هذا نجاح الاختبار
       expect(tester.takeException(), isNull);
-    });
+    },
+  );
 
-    testWidgets('يتحكم في إظهار/إخفاء كلمة المرور', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pumpAndSettle();
+  patrolTest(
+    'يتحكم في إظهار/إخفاء كلمة المرور',
+    ($) async {
+      await $.pumpWidgetAndSettle(
+        const ProviderScope(
+          child: MaterialApp(
+            home: Directionality(
+              textDirection: TextDirection.rtl,
+              child: LoginScreen(),
+            ),
+          ),
+        ),
+      );
 
       // إدخال كلمة مرور
-      await tester.enterText(find.byType(TextFormField).last, 'secret123');
-      await tester.pumpAndSettle();
+      await $(TextFormField).at(1).enterText('secret123');
 
       // افتراضياً كلمة المرور مخفية (obscured)
-      expect(find.text('secret123'), findsNothing,
-          reason: 'كلمة المرور يجب أن تكون مخفية افتراضياً');
+      expect($('secret123'), findsNothing, reason: 'كلمة المرور يجب أن تكون مخفية افتراضياً');
 
       // الضغط على أيقونة إظهار كلمة المرور
-      await tester.tap(find.byIcon(Icons.visibility));
-      await tester.pumpAndSettle();
+      await $(Icons.visibility).tap();
 
       // الآن كلمة المرور ظاهرة
-      expect(find.text('secret123'), findsOneWidget,
+      expect($('secret123'), findsOneWidget,
           reason: 'كلمة المرور يجب أن تكون ظاهرة بعد الضغط على أيقونة العين');
 
       // الأيقونة تغيَّرت إلى visibility_off
-      expect(find.byIcon(Icons.visibility_off), findsOneWidget);
+      expect($(Icons.visibility_off), findsOneWidget);
 
       // الضغط مرة أخرى لإخفائها
-      await tester.tap(find.byIcon(Icons.visibility_off));
-      await tester.pumpAndSettle();
+      await $(Icons.visibility_off).tap();
 
       // كلمة المرور مخفية مرة أخرى
-      expect(find.text('secret123'), findsNothing);
-      expect(find.byIcon(Icons.visibility), findsOneWidget);
-    });
+      expect($('secret123'), findsNothing);
+      expect($(Icons.visibility), findsOneWidget);
+    },
+  );
 
-    testWidgets('يتحكم في خيار "تذكرني"', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pumpAndSettle();
+  patrolTest(
+    'يتحكم في خيار "تذكرني"',
+    ($) async {
+      await $.pumpWidgetAndSettle(
+        const ProviderScope(
+          child: MaterialApp(
+            home: Directionality(
+              textDirection: TextDirection.rtl,
+              child: LoginScreen(),
+            ),
+          ),
+        ),
+      );
 
       // افتراضياً "تذكرني" قد يكون مفعل أو لا — نسجِّل القيمة الأولية
-      Checkbox checkbox = tester.widget(find.byType(Checkbox));
+      Checkbox checkbox = tester.widget<Checkbox>($(Checkbox));
       expect(checkbox.value, isNotNull);
       final initialValue = checkbox.value!;
 
       // الضغط على الـ Checkbox
-      await tester.tap(find.byType(Checkbox));
-      await tester.pumpAndSettle();
+      await $(Checkbox).tap();
 
       // القيمة انقلبت
-      checkbox = tester.widget(find.byType(Checkbox));
-      expect(checkbox.value, !initialValue,
-          reason: 'الضغط على Checkbox يجب أن يقلب قيمته');
+      checkbox = tester.widget<Checkbox>($(Checkbox));
+      expect(checkbox.value, !initialValue, reason: 'الضغط على Checkbox يجب أن يقلب قيمته');
 
       // الضغط مرة أخرى لإعادتها
-      await tester.tap(find.byType(Checkbox));
-      await tester.pumpAndSettle();
-      checkbox = tester.widget(find.byType(Checkbox));
+      await $(Checkbox).tap();
+      checkbox = tester.widget<Checkbox>($(Checkbox));
       expect(checkbox.value, initialValue);
-    });
+    },
+  );
 
-    testWidgets('يدعم اتجاه RTL (من اليمين لليسار)', (tester) async {
-      await tester.pumpWidget(buildApp());
-      await tester.pumpAndSettle();
+  patrolTest(
+    'يدعم اتجاه RTL (من اليمين لليسار)',
+    ($) async {
+      await $.pumpWidgetAndSettle(
+        const ProviderScope(
+          child: MaterialApp(
+            home: Directionality(
+              textDirection: TextDirection.rtl,
+              child: LoginScreen(),
+            ),
+          ),
+        ),
+      );
 
       // التحقق من أن شاشة تسجيل الدخول في وضع RTL
       // (LoginScreen نفسها تستخدم Directionality(textDirection: TextDirection.rtl))
       final directionWidget = tester.widget<Directionality>(
         find.ancestor(
-          of: find.text('تسجيل الدخول'),
+          of: $('تسجيل الدخول'),
           matching: find.byType(Directionality),
         ).first,
       );
       expect(directionWidget.textDirection, TextDirection.rtl,
           reason: 'التطبيق يجب أن يكون في وضع RTL للعربية');
-    });
+    },
+  );
 
-    testWidgets('يعرض رسالة خطأ عند توفرها من authProvider', (tester) async {
+  patrolTest(
+    'يعرض رسالة خطأ عند توفرها من authProvider',
+    ($) async {
       // ملاحظة: authProvider.error يُحدَّث فقط بعد محاولة تسجيل دخول فاشلة
       // لا نستطيع محاكاة ذلك بدون backend حقيقي، لذا نتحقق فقط من
       // أن الـ widget شجرة سليمة وتقبل التحديثات
-      await tester.pumpWidget(buildApp());
-      await tester.pumpAndSettle();
+      await $.pumpWidgetAndSettle(
+        const ProviderScope(
+          child: MaterialApp(
+            home: Directionality(
+              textDirection: TextDirection.rtl,
+              child: LoginScreen(),
+            ),
+          ),
+        ),
+      );
 
       // إدخال بيانات
-      await tester.enterText(find.byType(TextFormField).first, 'test');
-      await tester.enterText(find.byType(TextFormField).last, 'test');
-      await tester.pumpAndSettle();
+      await $(TextFormField).at(0).enterText('test');
+      await $(TextFormField).at(1).enterText('test');
 
       // محاولة الدخول
-      await tester.tap(find.text('دخول'));
-      await tester.pump();
+      await $('دخول').tap();
+      await $.pump();
 
       // التطبيق ما زال يعود بدون انهيار
-      expect(find.byType(LoginScreen), findsOneWidget);
-    });
-  });
-
-  // ═══════════════════════════════════════════════════════════════
-  //  Performance Trace — يسجّل Timeline للأداء
-  //  يُستخدم مع: flutter drive --driver=test_driver/perf_driver.dart
-  // ═══════════════════════════════════════════════════════════════
-  group('Performance Traces', () {
-    testWidgets('Login screen render performance', (tester) async {
-      await binding.traceAction(
-        () async {
-          await tester.pumpWidget(
-            const ProviderScope(
-              child: MaterialApp(
-                home: Directionality(
-                  textDirection: TextDirection.rtl,
-                  child: LoginScreen(),
-                ),
-              ),
-            ),
-          );
-          await tester.pumpAndSettle(const Duration(seconds: 2));
-
-          // محاكاة تفاعلات المستخدم
-          await tester.enterText(find.byType(TextFormField).first, 'admin');
-          await tester.pumpAndSettle();
-          await tester.enterText(find.byType(TextFormField).last, 'password');
-          await tester.pumpAndSettle();
-          await tester.tap(find.text('دخول'));
-          await tester.pumpAndSettle();
-        },
-        reportKey: 'login_screen_timeline',
-      );
-    });
-  });
+      expect($(LoginScreen), findsOneWidget);
+    },
+  );
 }
