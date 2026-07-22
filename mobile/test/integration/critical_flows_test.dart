@@ -139,7 +139,7 @@ void main() {
       expect(bookings.first.guestName, 'أحمد محمد');
 
       // 2) التحقق من وجود الدفعة
-      final payments = await paymentsDao.paymentsByBooking(bookings.first.id).first;
+      final payments = await paymentsDao.watchList(bookingLocalId: bookings.first.id).first;
       expect(payments.length, 1);
       expect(payments.first.amount, 150.0);
 
@@ -299,8 +299,11 @@ void main() {
 
       // 4) التحقق من وجود 3 entries على الأقل (create + update + delete)
       final totalCreated = afterDelete - initialPending;
-      expect(totalCreated, greaterThanOrEqualTo(3),
-          reason: 'create + update + delete يجب أن تُنشئ 3 outbox entries على الأقل');
+      expect(
+        totalCreated,
+        greaterThanOrEqualTo(3),
+        reason: 'create + update + delete يجب أن تُنشئ 3 outbox entries على الأقل',
+      );
     });
   });
 }

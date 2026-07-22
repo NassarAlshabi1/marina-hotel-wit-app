@@ -141,7 +141,8 @@ class _AppwriteConnectionSettingsScreenState extends ConsumerState<AppwriteConne
       _endpointController.text = AppwriteConfig.endpoint;
       _projectIdController.text = AppwriteConfig.projectId;
       _databaseIdController.text = AppwriteConfig.databaseId;
-      _apiKeyController.text = '';
+      // ✅ استعادة المفتاح الافتراضي المُدمج، لا مسحه
+      _apiKeyController.text = AppwriteConfig.defaultApiKey;
       _hasChanges = false;
     });
 
@@ -287,8 +288,9 @@ class _AppwriteConnectionSettingsScreenState extends ConsumerState<AppwriteConne
             TextFormField(
               controller: _apiKeyController,
               decoration: InputDecoration(
-                labelText: 'API Key (اختياري)',
-                hintText: 'مفتاح API من Appwrite',
+                labelText: 'API Key',
+                hintText: 'مفتاح API من Appwrite (افتراضي مُدمج)',
+                helperText: 'يُستخدم المفتاح الافتراضي تلقائياً. يمكنك استبداله بأي وقت.',
                 prefixIcon: const Icon(Icons.key),
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(

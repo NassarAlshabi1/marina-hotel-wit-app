@@ -2,6 +2,7 @@ import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 import 'package:flutter/foundation.dart';
 
+import 'adapters/id_resolver.dart';
 import 'appwrite_cache_manager.dart';
 import 'appwrite_config.dart';
 import 'appwrite_config_manager.dart';
@@ -422,11 +423,14 @@ class AppwriteService {
     required Map<String, dynamic> data,
   }) async {
     var workingData = Map<String, dynamic>.from(data);
+    // ✅ سياسة "المستند بشرطات": نطبّع المعرّف إلى الصيغة القانونية (بشرطات)
+    //    عبر IdResolver.normalizeUuid قبل أي عملية، فلا نكتب مستنداً بلا شرطات.
+    final canonicalId = IdResolver.normalizeUuid(documentId);
     // حد أعلى للمحاولات = عدد الحقول (كل محاولة تُزيل حقلاً واحداً على الأكثر).
     final maxRetries = workingData.length + 1;
     for (var attempt = 0; ; attempt++) {
       try {
-        return await _upsertDocumentOnce(collectionId: collectionId, documentId: documentId, data: workingData);
+        return await _upsertDocumentOnce(collectionId: collectionId, documentId: canonicalId, data: workingData);
       } on AppwriteException catch (e) {
         final unknownAttr = _extractUnknownAttribute(e);
         if (unknownAttr != null && workingData.containsKey(unknownAttr) && attempt < maxRetries) {
@@ -484,13 +488,17 @@ class AppwriteService {
         : ''; // ID أصلاً بدون شرطات — لا بديل
 
     // مساعد لتنفيذ updateDocument بـ ID محدد
-    Future<models.Document> doUpdate(String id, {bool suppressErrorLog = false}) async {
+    // ✅ إصلاح إرهاق 429 (2026-07-22): probe=true → محاولة واحدة فقط (كشف وجود
+    //    سريع). المستندات الجديدة تُرجع 404 حتماً، فلا داعي لاستهلاك 2×60s على
+    //    إعادة محاولات 429 قبل الانتقال للإنشاء. الكتابة الفعلية تبقى بكامل المحاولات.
+    Future<models.Document> doUpdate(String id, {bool suppressErrorLog = false, bool probe = false}) async {
       return _networkHelper.withRetryAndTimeout(
         operation: () =>
             // ignore: deprecated_member_use
             _databases.updateDocument(databaseId: dbId, collectionId: collectionId, documentId: id, data: data),
         operationName: 'updateDocument',
         suppressErrorLog: suppressErrorLog,
+        maxRetries: probe ? 1 : null,
       );
     }
 
@@ -505,10 +513,11 @@ class AppwriteService {
       );
     }
 
-    // ─── الخطوة 1: updateDocument بالـ ID الأصلي (بالشرطات) ───
-    // ✅ معالجة 429: انتظر ثم انتقل مباشرة للإنشاء بدل إعادة الرمي
+    // ─── الخطوة 1: updateDocument بالـ ID الأصلي (بالشرطات) — probe ───
+    // ✅ معالجة 429: محاولة كشف واحدة؛ على المستندات الجديدة يُرجع 404 سريعاً
+    //    فننتقل للإنشاء بدل استهلاك 2×60s على إعادة محاولات 429.
     try {
-      return await doUpdate(documentId, suppressErrorLog: true);
+      return await doUpdate(documentId, suppressErrorLog: true, probe: true);
     } on AppwriteException catch (updateError) {
       if (isRateLimit(updateError)) {
         debugPrint('⚠️ primary_upsert: 429 on update $documentId — waiting 65s then create');
@@ -542,7 +551,7 @@ class AppwriteService {
     // إن وُجد، ونتجنّب الإنشاء المكرر تمامًا.
     if (altDocumentId.isNotEmpty) {
       try {
-        return await doUpdate(altDocumentId, suppressErrorLog: true);
+        return await doUpdate(altDocumentId, suppressErrorLog: true, probe: true);
       } on AppwriteException catch (altError) {
         if (!isNotFound(altError)) {
           rethrow; // خطأ آخر غير 404

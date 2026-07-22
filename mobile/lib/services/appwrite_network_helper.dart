@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:appwrite/appwrite.dart';
+import 'package:flutter/foundation.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 
@@ -495,6 +496,46 @@ class AppwriteNetworkHelper {
     }
     final errorStr = error.toString().toLowerCase();
     return errorStr.contains('circuit_breaker_active');
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // أغلفة اختبار (@visibleForTesting) — تكشف المنطق النقي (تصنيف الأخطاء،
+  // استخراج Retry-After، وإعادة ضبط حالة الـ breaker) للاختبارات الوحدوية
+  // دون الحاجة لانتظار حقيقي 60s+. لا تغيّر أي سلوك إنتاجي.
+  // ─────────────────────────────────────────────────────────────────────
+
+  @visibleForTesting
+  bool isRateLimitErrorForTest(dynamic error) => _isRateLimitError(error);
+
+  @visibleForTesting
+  bool isRetriableErrorForTest(dynamic error) => _isRetriableError(error);
+
+  @visibleForTesting
+  bool isCircuitBreakerErrorForTest(dynamic error) => _isCircuitBreakerActive(error);
+
+  @visibleForTesting
+  Duration? extractRetryAfterForTest(dynamic error) => _extractRetryAfter(error);
+
+  /// عدد أخطاء 429 المتتالية الحالية (للاختبار/المراقبة).
+  @visibleForTesting
+  int get consecutiveRateLimitHitsForTest => _consecutiveRateLimitHits;
+
+  /// يحاكي استلام 429 من السيرفر (يزيد العداد ويُفعّل الـ breaker عند العتبة).
+  @visibleForTesting
+  void simulateRateLimitHitForTest() => _onRateLimitHit();
+
+  /// يحاكي طلباً ناجحاً (يصفّر العدادات).
+  @visibleForTesting
+  void simulateSuccessForTest() => _onRequestSuccess();
+
+  /// يُعيد ضبط حالة الـ circuit breaker والعدادات إلى الوضع الابتدائي.
+  /// ضروري بين الاختبارات لأن الكائن singleton (حالة مشتركة).
+  @visibleForTesting
+  void resetForTest() {
+    _consecutiveRateLimitHits = 0;
+    _circuitBreakerActivationCount = 0;
+    _circuitBreakerUntil = null;
+    _lastRequestTime = DateTime.fromMillisecondsSinceEpoch(0);
   }
 }
 

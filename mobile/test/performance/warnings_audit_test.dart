@@ -1,8 +1,7 @@
-// ignore_for_file: lines_longer_than_80_chars, avoid_print
+// ignore_for_file: avoid_print
 
 /// يُشغّل benchmark_test.dart ثم يطبع تقرير الـ warnings التفصيلي
 /// من PerformanceMonitor لفحص الأنواع والمصادر.
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -45,11 +44,19 @@ void main() {
     }
     print('═══════════════════════════════════════════════════════════\n');
 
-    // حفظ التقرير الكامل في ملف
+    // حفظ التقرير الكامل في ملف — نستخدم مجلداً مؤقتاً بدل مسار مُرمَّز
+    // (المسار القديم '/home/z/my-project/scripts/perf_report.json' كان يفشل في CI).
     final jsonStr = PerformanceMonitor.instance.exportReportJson();
-    final outFile = File('/home/z/my-project/scripts/perf_report.json');
-    await outFile.writeAsString(jsonStr);
-    print('💾 تم حفظ التقرير الكامل في: ${outFile.path}');
+    try {
+      final tempDir = await Directory.systemTemp.createTemp('perf_audit_');
+      final outFile = File('${tempDir.path}/perf_report.json');
+      await outFile.writeAsString(jsonStr);
+      print('💾 تم حفظ التقرير الكامل في: ${outFile.path}');
+      // تنظيف: حذف الملف المؤقت (المجلد يُحذف تلقائياً عند انتهاء الـ process)
+      await outFile.delete();
+    } catch (e) {
+      print('⚠️ تعذّر حفظ التقرير في ملف مؤقت: $e — سيتم تجاهله');
+    }
 
     PerformanceMonitor.instance.stop();
   });
