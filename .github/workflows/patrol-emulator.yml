@@ -83,7 +83,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
 
       # ─────────────────────────────────────────────────────────────────────
-      #  3. تثبيت Java 17 (مطلوب لـ Android Gradle Plugin 8+)
+      #  4. تثبيت Java 17 (مطلوب لـ Android Gradle Plugin 8+)
       # ─────────────────────────────────────────────────────────────────────
       - name: ☕ Set up JDK 17
         uses: actions/setup-java@v5
@@ -91,16 +91,6 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
-
-      # ─────────────────────────────────────────────────────────────────────
-      #  4. تثبيت Android SDK + platform-tools (مطلوب لـ patrol_cli)
-      # ─────────────────────────────────────────────────────────────────────
-      - name: 🤖 Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: |
-            platform-tools
-            platforms;android-${{ matrix.api-level }}
 
       # ─────────────────────────────────────────────────────────────────────
       #  5. تثبيت Flutter 3.44.4 (مطابق للإصدار المُستخدم محلياً)
@@ -114,7 +104,22 @@ jobs:
           cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
 
       # ─────────────────────────────────────────────────────────────────────
-      #  6. تثبيت patrol_cli
+      #  6. إعداد ANDROID_HOME — Ubuntu runners لديها Android SDK مثبَّت مسبقاً
+      #     في /usr/local/lib/android/sdk. نحتاج فقط تصديره لـ patrol_cli.
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 🤖 Configure Android SDK
+        run: |
+          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          # التحقق من أن sdkmanager متاح
+          sdkmanager --version || {
+            echo "::error::sdkmanager غير متاح"
+            exit 1
+          }
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  7. تثبيت patrol_cli
       # ─────────────────────────────────────────────────────────────────────
       - name: 🔧 Install patrol_cli
         run: dart pub global activate patrol_cli 4.5.1
@@ -122,23 +127,22 @@ jobs:
       - name: 🩺 Patrol doctor
         run: |
           export PATH="$HOME/.pub-cache/bin:$PATH"
-          export ANDROID_HOME=${ANDROID_HOME:-$ANDROID_SDK_ROOT}
           patrol doctor || true
 
       # ─────────────────────────────────────────────────────────────────────
-      #  7. تثبيت dependencies
+      #  8. تثبيت dependencies
       # ─────────────────────────────────────────────────────────────────────
       - name: 📦 Install dependencies
         run: flutter pub get
 
       # ─────────────────────────────────────────────────────────────────────
-      #  8. توليد ملفات drift/freezed اللازمة قبل البناء
+      #  9. توليد ملفات drift/freezed اللازمة قبل البناء
       # ─────────────────────────────────────────────────────────────────────
       - name: 🔧 Generate build_runner files
         run: dart run build_runner build --delete-conflicting-outputs
 
       # ─────────────────────────────────────────────────────────────────────
-      #  9. AVD cache — يُسرِّع الـ runs القادمة بشكل كبير
+      #  10. AVD cache — يُسرِّع الـ runs القادمة بشكل كبير
       # ─────────────────────────────────────────────────────────────────────
       - name: 💾 AVD cache
         uses: actions/cache@v5
@@ -150,14 +154,13 @@ jobs:
           key: avd-patrol-${{ matrix.api-level }}-${{ matrix.target }}-${{ matrix.arch }}-v1
 
       # ─────────────────────────────────────────────────────────────────────
-      #  10. بناء APK اختبار Patrol (يُجمِّع كل اختبارات integration_test)
+      #  11. بناء APK اختبار Patrol (يُجمِّع كل اختبارات integration_test)
       #      نُنفِّذه كـ "config-only" ثم نترك الـ emulator-runner يبني
       #      الـ APK الكامل داخل خطوة الاختبار.
       # ─────────────────────────────────────────────────────────────────────
       - name: 🏗️ Build Patrol test APK (config only)
         run: |
           export PATH="$HOME/.pub-cache/bin:$PATH"
-          export ANDROID_HOME=${ANDROID_HOME:-$ANDROID_SDK_ROOT}
           patrol build android --debug --verbose || {
             echo "::warning::patrol build android فشل — راجع الـ logs"
             exit 1
@@ -179,7 +182,6 @@ jobs:
           script: |
             cd ${{ github.workspace }}/mobile
             export PATH="$HOME/.pub-cache/bin:$PATH"
-            export ANDROID_HOME=${ANDROID_HOME:-$ANDROID_SDK_ROOT}
             echo "=== تشغيل Patrol tests ==="
 
             # تشغيل كل الاختبارات في integration_test/ دفعة واحدة
