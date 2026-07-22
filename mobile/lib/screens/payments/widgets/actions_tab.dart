@@ -1,4 +1,4 @@
-// ignore_for_file: use_build_context_synchronously, always_put_required_named_parameters_first
+// ignore_for_file: always_put_required_named_parameters_first
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -47,7 +47,13 @@ class ActionsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final actions = <Widget>[
-      _buildActionCard('عرض الفاتورة الشاملة', 'عرض وطباعة الفاتورة التفصيلية', Icons.receipt_long, Colors.teal, onGenerateInvoice),
+      _buildActionCard(
+        'عرض الفاتورة الشاملة',
+        'عرض وطباعة الفاتورة التفصيلية',
+        Icons.receipt_long,
+        Colors.teal,
+        onGenerateInvoice,
+      ),
       _buildActionCard('سجل المدفوعات', 'عرض تاريخ جميع المدفوعات', Icons.history, Colors.purple, onShowPaymentHistory),
       _buildActionCard(
         'تسجيل المغادرة',
@@ -56,9 +62,27 @@ class ActionsTab extends ConsumerWidget {
         summary.isFullyPaid ? Colors.green : Colors.red,
         () => onShowCheckoutConfirmation(summary, booking, nights),
       ),
-      _buildActionCard('مغادرة مبكرة / مردود', 'حساب المردود عند مغادرة قبل الموعد', Icons.currency_exchange, Colors.amber.shade700, () => onShowEarlyCheckout(summary)),
-      _buildActionCard('إلغاء يوم إضافي', 'إلغاء دفعة اليوم الفندقي المحتسبة بالخطأ', Icons.remove_circle_outline, Colors.red.shade700, () => onShowCancelTodayPayment(summary)),
-      _buildActionCard('إرسال كشف حساب', 'إرسال ملخص المدفوعات للعميل', Icons.send, Colors.orange, () => onSendAccountStatement(summary)),
+      _buildActionCard(
+        'مغادرة مبكرة / مردود',
+        'حساب المردود عند مغادرة قبل الموعد',
+        Icons.currency_exchange,
+        Colors.amber.shade700,
+        () => onShowEarlyCheckout(summary),
+      ),
+      _buildActionCard(
+        'إلغاء يوم إضافي',
+        'إلغاء دفعة اليوم الفندقي المحتسبة بالخطأ',
+        Icons.remove_circle_outline,
+        Colors.red.shade700,
+        () => onShowCancelTodayPayment(summary),
+      ),
+      _buildActionCard(
+        'إرسال كشف حساب',
+        'إرسال ملخص المدفوعات للعميل',
+        Icons.send,
+        Colors.orange,
+        () => onSendAccountStatement(summary),
+      ),
     ];
 
     final hasRemainingBalance = summary.remainingAmount > 0;
@@ -82,12 +106,22 @@ class ActionsTab extends ConsumerWidget {
               ),
               child: Row(
                 children: [
-                  Icon(hasUnsettledDebt ? Icons.error_outline : Icons.warning_amber_rounded, color: hasUnsettledDebt ? Colors.red.shade700 : Colors.orange.shade700, size: 16),
+                  Icon(
+                    hasUnsettledDebt ? Icons.error_outline : Icons.warning_amber_rounded,
+                    color: hasUnsettledDebt ? Colors.red.shade700 : Colors.orange.shade700,
+                    size: 16,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      hasUnsettledDebt ? 'دين سابق: ${currencyFmt.format(debtAmount)} • متبقي: ${currencyFmt.format(summary.remainingAmount)}' : 'متبقي: ${currencyFmt.format(summary.remainingAmount)}',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: hasUnsettledDebt ? Colors.red.shade900 : Colors.orange.shade900),
+                      hasUnsettledDebt
+                          ? 'دين سابق: ${currencyFmt.format(debtAmount)} • متبقي: ${currencyFmt.format(summary.remainingAmount)}'
+                          : 'متبقي: ${currencyFmt.format(summary.remainingAmount)}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: hasUnsettledDebt ? Colors.red.shade900 : Colors.orange.shade900,
+                      ),
                     ),
                   ),
                 ],
@@ -103,7 +137,13 @@ class ActionsTab extends ConsumerWidget {
                         onPressed: () => onCreateDebtFromRemaining(summary, booking),
                         icon: const Icon(Icons.add_circle, size: 14),
                         label: const Text('إنشاء دين', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 6), minimumSize: const Size(0, 32), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          minimumSize: const Size(0, 32),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        ),
                       ),
                     ),
                   ),
@@ -115,7 +155,13 @@ class ActionsTab extends ConsumerWidget {
                         onPressed: () => onShowDiscountDialog(summary, booking),
                         icon: const Icon(Icons.discount, size: 14),
                         label: const Text('خصم مبلغ', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade600, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 6), minimumSize: const Size(0, 32), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.shade600,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          minimumSize: const Size(0, 32),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        ),
                       ),
                     ),
                   ),
@@ -126,12 +172,22 @@ class ActionsTab extends ConsumerWidget {
                       child: ElevatedButton.icon(
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('⚠️ صلاحية الخصم متاحة للمدير فقط'), backgroundColor: Colors.red, duration: Duration(seconds: 2)),
+                            const SnackBar(
+                              content: Text('⚠️ صلاحية الخصم متاحة للمدير فقط'),
+                              backgroundColor: Colors.red,
+                              duration: Duration(seconds: 2),
+                            ),
                           );
                         },
                         icon: const Icon(Icons.lock_outline, size: 14),
                         label: const Text('خصم (مقيد)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade400, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 6), minimumSize: const Size(0, 32), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey.shade400,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          minimumSize: const Size(0, 32),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        ),
                       ),
                     ),
                   ),
@@ -160,7 +216,8 @@ class ActionsTab extends ConsumerWidget {
                   const SizedBox(height: 8),
                   _buildInfoRow('رقم الحجز', booking.localUuid),
                   _buildInfoRow('تاريخ الوصول', booking.checkinDate.split(' ')[0]),
-                  if (booking.checkoutDate != null) _buildInfoRow('تاريخ المغادرة', booking.checkoutDate!.split(' ')[0]),
+                  if (booking.checkoutDate != null)
+                    _buildInfoRow('تاريخ المغادرة', booking.checkoutDate!.split(' ')[0]),
                   _buildInfoRow('الحالة', booking.status),
                   if (booking.notes != null && booking.notes!.isNotEmpty) _buildInfoRow('ملاحظات', booking.notes!),
                 ],
@@ -194,9 +251,21 @@ class ActionsTab extends ConsumerWidget {
                 child: Icon(icon, size: 16, color: color),
               ),
               const SizedBox(height: 4),
-              Text(title, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
+              Text(
+                title,
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
               const SizedBox(height: 2),
-              Text(subtitle, style: const TextStyle(fontSize: 8, color: Colors.grey), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
+              Text(
+                subtitle,
+                style: const TextStyle(fontSize: 8, color: Colors.grey),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ],
           ),
         ),

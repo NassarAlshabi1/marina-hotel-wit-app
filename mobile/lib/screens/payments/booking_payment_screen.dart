@@ -30,13 +30,14 @@ import '../../utils/hotel_day_ticker.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/loading_snackbar.dart';
 import '../../utils/time.dart';
-import 'widgets/payment_summary_card.dart';
-import 'widgets/actions_tab.dart';
 import 'payment_history_screen.dart';
+import 'widgets/actions_tab.dart';
+import 'widgets/payment_summary_card.dart';
 
 class BookingPaymentScreen extends ConsumerStatefulWidget {
-  const BookingPaymentScreen({      required this.booking,
-      super.key,
+  const BookingPaymentScreen({
+    required this.booking,
+    super.key,
   });
   final db.Booking booking;
 
@@ -259,12 +260,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
       );
     }
-    final plannedCheckout = booking.checkoutDate != null
-        ? DateTime.tryParse(booking.checkoutDate!)
-        : null;
-    final actualCheckout = booking.actualCheckout != null
-        ? DateTime.tryParse(booking.actualCheckout!)
-        : null;
+    final plannedCheckout = booking.checkoutDate != null ? DateTime.tryParse(booking.checkoutDate!) : null;
+    final actualCheckout = booking.actualCheckout != null ? DateTime.tryParse(booking.actualCheckout!) : null;
     final expectedNights = booking.expectedNights;
     final actualNights = booking.calculatedNights;
     final hasNotCheckedOut = actualCheckout == null;
@@ -341,7 +338,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final paidAmount = dbPayments.where((p) => !p.isVoided).fold<double>(0, (s, p) => s + p.amount);
     final hotelDay = HotelTimeEngine.getHotelDayKey();
     final todayPaidAmount = dbPayments
-        .where((p) => !p.isVoided && (p.hotelDayKey == hotelDay || (p.hotelDayKey == null && p.paymentDate.startsWith(hotelDay))))
+        .where(
+          (p) =>
+              !p.isVoided &&
+              (p.hotelDayKey == hotelDay || (p.hotelDayKey == null && p.paymentDate.startsWith(hotelDay))),
+        )
         .fold<double>(0, (s, p) => s + p.amount);
     double remainingAmount = totalAmount - paidAmount;
     if (remainingAmount < 0) remainingAmount = 0;
@@ -382,8 +383,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         title: 'معالجة المدفوعات',
         actions: [
           IconButton(
-            onPressed: () => Navigator.push<void>(context,
-              MaterialPageRoute<void>(builder: (context) => PaymentHistoryScreen(bookingId: widget.booking.localUuid))),
+            onPressed: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(builder: (context) => PaymentHistoryScreen(bookingId: widget.booking.localUuid)),
+            ),
             icon: const Icon(Icons.history),
             tooltip: 'سجل المدفوعات',
           ),
@@ -465,13 +468,18 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                         debtAmount: _debtAmount,
                         unsettledDebts: _unsettledDebts,
                         onGenerateInvoice: () => _generateInvoice(summary),
-                        onShowPaymentHistory: () => Navigator.push<void>(context, MaterialPageRoute<void>(builder: (context) => PaymentHistoryScreen(bookingId: widget.booking.localUuid))),
+                        onShowPaymentHistory: () => Navigator.push<void>(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (context) => PaymentHistoryScreen(bookingId: widget.booking.localUuid),
+                          ),
+                        ),
                         onShowCheckoutConfirmation: (s, b, n) => _showCheckoutConfirmation(s, booking: b, nights: n),
-                        onShowEarlyCheckout: (s) => _showEarlyCheckoutDialog(s),
-                        onShowCancelTodayPayment: (s) => _showCancelTodayPaymentDialog(s),
-                        onSendAccountStatement: (s) => _sendAccountStatement(s),
-                        onCreateDebtFromRemaining: (s, b) => _createDebtFromRemainingBalance(s, b),
-                        onShowDiscountDialog: (s, b) => _showDiscountAmountDialog(s, b),
+                        onShowEarlyCheckout: _showEarlyCheckoutDialog,
+                        onShowCancelTodayPayment: _showCancelTodayPaymentDialog,
+                        onSendAccountStatement: _sendAccountStatement,
+                        onCreateDebtFromRemaining: _createDebtFromRemainingBalance,
+                        onShowDiscountDialog: _showDiscountAmountDialog,
                       ),
                     ),
                   ],
@@ -483,7 +491,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       ),
     );
   }
-
 
   Widget _buildAmountChip(String label, double amount, Color color) {
     return Container(
@@ -2609,8 +2616,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
 
     // ترتيب الدفعات حسب التاريخ تصاعدياً (الأقدم أولاً)
-    final sortedPayments = List<Payment>.from(summary.payments)
-      ..sort((a, b) => a.paymentDate.compareTo(b.paymentDate));
+    final sortedPayments = List<Payment>.from(summary.payments)..sort((a, b) => a.paymentDate.compareTo(b.paymentDate));
 
     return Column(
       key: const ValueKey('payments_section'),
@@ -2619,7 +2625,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         // عنوان القسم
         Row(
           children: [
-            Container(width: 4, height: 14, decoration: BoxDecoration(color: Colors.teal, borderRadius: BorderRadius.circular(2))),
+            Container(
+              width: 4,
+              height: 14,
+              decoration: BoxDecoration(color: Colors.teal, borderRadius: BorderRadius.circular(2)),
+            ),
             const SizedBox(width: 6),
             Text(
               'سجل المدفوعات المفصّل (${sortedPayments.length} ${sortedPayments.length == 1 ? "دفعة" : "دفعة"})',
@@ -2645,10 +2655,21 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 ),
                 child: const Row(
                   children: [
-                    Expanded(child: Text('#', textAlign: TextAlign.center, style: _tableHeaderStyle)),
-                    Expanded(flex: 3, child: Text('التاريخ', textAlign: TextAlign.center, style: _tableHeaderStyle)),
-                    Expanded(flex: 2, child: Text('طريقة الدفع', textAlign: TextAlign.center, style: _tableHeaderStyle)),
-                    Expanded(flex: 2, child: Text('المبلغ', textAlign: TextAlign.center, style: _tableHeaderStyle)),
+                    Expanded(
+                      child: Text('#', textAlign: TextAlign.center, style: _tableHeaderStyle),
+                    ),
+                    Expanded(
+                      flex: 3,
+                      child: Text('التاريخ', textAlign: TextAlign.center, style: _tableHeaderStyle),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Text('طريقة الدفع', textAlign: TextAlign.center, style: _tableHeaderStyle),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Text('المبلغ', textAlign: TextAlign.center, style: _tableHeaderStyle),
+                    ),
                   ],
                 ),
               ),
@@ -2669,7 +2690,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   child: Row(
                     children: [
                       Expanded(
-                        child: Text('$i', textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                        child: Text(
+                          '$i',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 11, color: Colors.grey),
+                        ),
                       ),
                       Expanded(
                         flex: 3,
@@ -2708,13 +2733,23 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
                 decoration: BoxDecoration(
                   color: Colors.orange.shade50,
-                  borderRadius: const BorderRadius.only(bottomRight: Radius.circular(7), bottomLeft: Radius.circular(7)),
+                  borderRadius: const BorderRadius.only(
+                    bottomRight: Radius.circular(7),
+                    bottomLeft: Radius.circular(7),
+                  ),
                   border: Border(top: BorderSide(color: Colors.orange.shade200)),
                 ),
                 child: Row(
                   children: [
                     const Expanded(child: SizedBox()),
-                    const Expanded(flex: 3, child: Text('الإجمالي المدفوع', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.orange))),
+                    const Expanded(
+                      flex: 3,
+                      child: Text(
+                        'الإجمالي المدفوع',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.orange),
+                      ),
+                    ),
                     const Expanded(flex: 2, child: SizedBox()),
                     Expanded(
                       flex: 2,
@@ -3104,68 +3139,68 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-            title: const Row(
-              children: [
-                Icon(Icons.add_circle_outline, color: Colors.blue),
-                SizedBox(width: 8),
-                Text('تمديد الإقامة'),
-              ],
-            ),
-            content: StatefulBuilder(
-              builder: (context, setState) {
-                final nights = int.tryParse(nightsController.text) ?? 1;
-                final totalCost = nights * roomRate;
+        title: const Row(
+          children: [
+            Icon(Icons.add_circle_outline, color: Colors.blue),
+            SizedBox(width: 8),
+            Text('تمديد الإقامة'),
+          ],
+        ),
+        content: StatefulBuilder(
+          builder: (context, setState) {
+            final nights = int.tryParse(nightsController.text) ?? 1;
+            final totalCost = nights * roomRate;
 
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
-                      child: Column(
-                        children: [
-                          Text('سعر الليلة: ${_currencyFmt.format(roomRate)}'),
-                          Text('عدد الليالي: $nights'),
-                          Text(
-                            'التكلفة الإجمالية: ${_currencyFmt.format(totalCost)}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                        ],
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
+                  child: Column(
+                    children: [
+                      Text('سعر الليلة: ${_currencyFmt.format(roomRate)}'),
+                      Text('عدد الليالي: $nights'),
+                      Text(
+                        'التكلفة الإجمالية: ${_currencyFmt.format(totalCost)}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: nightsController,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'عدد الليالي الإضافية',
-                        border: OutlineInputBorder(),
-                      ),
-                      onChanged: (value) {
-                        setState(() {}); // لتحديث التكلفة
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: notesController,
-                      decoration: const InputDecoration(labelText: 'ملاحظات', border: OutlineInputBorder()),
-                    ),
-                  ],
-                );
-              },
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _processExtendStay(int.tryParse(nightsController.text) ?? 1, roomRate, notesController.text);
-                },
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-                child: const Text('تمديد وتسجيل دفعة'),
-              ),
-            ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: nightsController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'عدد الليالي الإضافية',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (value) {
+                    setState(() {}); // لتحديث التكلفة
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: notesController,
+                  decoration: const InputDecoration(labelText: 'ملاحظات', border: OutlineInputBorder()),
+                ),
+              ],
+            );
+          },
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _processExtendStay(int.tryParse(nightsController.text) ?? 1, roomRate, notesController.text);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+            child: const Text('تمديد وتسجيل دفعة'),
           ),
+        ],
+      ),
     ).then((_) {
       // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات بعد إغلاق الحوار
       nightsController.dispose();
