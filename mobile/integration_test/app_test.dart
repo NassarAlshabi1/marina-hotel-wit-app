@@ -113,7 +113,7 @@ void main() {
       await $.pump(const Duration(seconds: 1));
 
       // التطبيق لا ينهار — هذا نجاح الاختبار
-      expect(tester.takeException(), isNull);
+      expect($.takeException(), isNull);
     },
   );
 
@@ -171,7 +171,7 @@ void main() {
       );
 
       // افتراضياً "تذكرني" قد يكون مفعل أو لا — نسجِّل القيمة الأولية
-      Checkbox checkbox = tester.widget<Checkbox>($(Checkbox));
+      Checkbox checkbox = $.widget<Checkbox>($(Checkbox));
       expect(checkbox.value, isNotNull);
       final initialValue = checkbox.value!;
 
@@ -179,12 +179,12 @@ void main() {
       await $(Checkbox).tap();
 
       // القيمة انقلبت
-      checkbox = tester.widget<Checkbox>($(Checkbox));
+      checkbox = $.widget<Checkbox>($(Checkbox));
       expect(checkbox.value, !initialValue, reason: 'الضغط على Checkbox يجب أن يقلب قيمته');
 
       // الضغط مرة أخرى لإعادتها
       await $(Checkbox).tap();
-      checkbox = tester.widget<Checkbox>($(Checkbox));
+      checkbox = $.widget<Checkbox>($(Checkbox));
       expect(checkbox.value, initialValue);
     },
   );
@@ -205,7 +205,7 @@ void main() {
 
       // التحقق من أن شاشة تسجيل الدخول في وضع RTL
       // (LoginScreen نفسها تستخدم Directionality(textDirection: TextDirection.rtl))
-      final directionWidget = tester.widget<Directionality>(
+      final directionWidget = $.widget<Directionality>(
         find.ancestor(
           of: $('تسجيل الدخول'),
           matching: find.byType(Directionality),
