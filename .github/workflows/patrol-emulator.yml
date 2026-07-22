@@ -170,7 +170,10 @@ jobs:
       - name: 🏗️ Build Patrol test APK (config only)
         run: |
           export PATH="$HOME/.pub-cache/bin:$PATH"
-          patrol build android --debug --verbose || {
+          patrol build android \
+            --target integration_test/ \
+            --debug \
+            --verbose || {
             echo "::warning::patrol build android فشل — راجع الـ logs"
             exit 1
           }
