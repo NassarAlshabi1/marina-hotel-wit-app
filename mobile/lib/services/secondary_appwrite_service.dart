@@ -175,6 +175,37 @@ class SecondaryAppwriteService {
 
   static final RegExp _unknownAttrPattern = RegExp(r'Unknown attribute:\s*"([^"]+)"');
 
+  // ── مصنّفات أخطاء Appwrite (static/pure — قابلة لإعادة الاستخدام والاختبار) ──
+  // ✅ استُخرِجت من الإغلاقات المحلية داخل `_upsertDocumentOnce` ومن الفحص
+  //    المضمّن في `deleteDocument` لتوحيد المنطق (DRY) وإتاحة اختباره مباشرةً.
+
+  /// هل الخطأ "المستند غير موجود" (404)؟ يُطابق code أو type أو toString
+  /// لأن Appwrite لا يملأ الحقول بشكل متسق دائماً.
+  @visibleForTesting
+  static bool isNotFoundError(AppwriteException e) =>
+      e.code == 404 || (e.type ?? '').contains('document_not_found') || e.toString().contains('document_not_found');
+
+  /// هل الخطأ "المستند موجود مسبقاً" (409/conflict)؟
+  @visibleForTesting
+  static bool isAlreadyExistsError(AppwriteException e) =>
+      e.code == 409 ||
+      (e.type ?? '').contains('document_already_exists') ||
+      (e.type ?? '').contains('conflict') ||
+      e.toString().contains('document_already_exists');
+
+  /// هل الخطأ 429 (rate limit)؟
+  @visibleForTesting
+  static bool isRateLimitError(AppwriteException e) =>
+      e.code == 429 ||
+      (e.type ?? '').contains('rate_limit') ||
+      (e.type ?? '').contains('general_rate_limit_exceeded') ||
+      e.toString().contains('429') ||
+      e.toString().contains('rate limit');
+
+  /// معرّف بديل بدون شرطات (نفس Primary). يُعيد '' إن لم يحتوِ على شرطات.
+  @visibleForTesting
+  static String altDocumentId(String documentId) => documentId.contains('-') ? documentId.replaceAll('-', '') : '';
+
   /// استخراج اسم السمة غير المعروفة من خطأ Appwrite (إن وُجد).
   String? _extractUnknownAttribute(AppwriteException e) {
     final type = e.type ?? '';
@@ -225,24 +256,14 @@ class SecondaryAppwriteService {
     await ensureInitialized();
     final dbId = SecondaryAppwriteConfig.databaseId;
 
-    bool isNotFound(AppwriteException e) =>
-        e.code == 404 || (e.type ?? '').contains('document_not_found') || e.toString().contains('document_not_found');
-
-    bool isAlreadyExists(AppwriteException e) =>
-        e.code == 409 ||
-        (e.type ?? '').contains('document_already_exists') ||
-        (e.type ?? '').contains('conflict') ||
-        e.toString().contains('document_already_exists');
-
-    bool isRateLimit(AppwriteException e) =>
-        e.code == 429 ||
-        (e.type ?? '').contains('rate_limit') ||
-        (e.type ?? '').contains('general_rate_limit_exceeded') ||
-        e.toString().contains('429') ||
-        e.toString().contains('rate limit');
+    // ✅ مصنّفات الأخطاء موحّدة الآن كدوالّ static (isNotFoundError…) — أغلفة
+    //    محلية قصيرة للحفاظ على قابلية القراءة داخل هذا المسار.
+    bool isNotFound(AppwriteException e) => isNotFoundError(e);
+    bool isAlreadyExists(AppwriteException e) => isAlreadyExistsError(e);
+    bool isRateLimit(AppwriteException e) => isRateLimitError(e);
 
     // ✅ معالجة ID بدون شرطات (نفس Primary)
-    final altDocumentId = documentId.contains('-') ? documentId.replaceAll('-', '') : '';
+    final altDocumentId = SecondaryAppwriteService.altDocumentId(documentId);
 
     Future<models.Document> doUpdate(String id, {bool suppressErrorLog = false}) async {
       return _networkHelper.withRetryAndTimeout(
@@ -357,10 +378,8 @@ class SecondaryAppwriteService {
       );
     } on AppwriteException catch (e) {
       // ✅ P1-2: نفس منطق isNotFound في upsert — 404 أو document_not_found
-      // بأي صيغة (code أو type أو toString).
-      if (e.code == 404 ||
-          (e.type ?? '').contains('document_not_found') ||
-          e.toString().contains('document_not_found')) {
+      // بأي صيغة (code أو type أو toString) — الآن عبر المصنّف الموحّد.
+      if (isNotFoundError(e)) {
         return; // المستند غير موجود أصلاً — الحذف idempotent ✓
       }
       rethrow;
