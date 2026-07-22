@@ -2,6 +2,7 @@ import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 import 'package:flutter/foundation.dart';
 
+import 'adapters/id_resolver.dart';
 import 'appwrite_cache_manager.dart';
 import 'appwrite_config.dart';
 import 'appwrite_config_manager.dart';
@@ -422,11 +423,14 @@ class AppwriteService {
     required Map<String, dynamic> data,
   }) async {
     var workingData = Map<String, dynamic>.from(data);
+    // ✅ سياسة "المستند بشرطات": نطبّع المعرّف إلى الصيغة القانونية (بشرطات)
+    //    عبر IdResolver.normalizeUuid قبل أي عملية، فلا نكتب مستنداً بلا شرطات.
+    final canonicalId = IdResolver.normalizeUuid(documentId);
     // حد أعلى للمحاولات = عدد الحقول (كل محاولة تُزيل حقلاً واحداً على الأكثر).
     final maxRetries = workingData.length + 1;
     for (var attempt = 0; ; attempt++) {
       try {
-        return await _upsertDocumentOnce(collectionId: collectionId, documentId: documentId, data: workingData);
+        return await _upsertDocumentOnce(collectionId: collectionId, documentId: canonicalId, data: workingData);
       } on AppwriteException catch (e) {
         final unknownAttr = _extractUnknownAttribute(e);
         if (unknownAttr != null && workingData.containsKey(unknownAttr) && attempt < maxRetries) {

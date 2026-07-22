@@ -129,4 +129,41 @@ void main() {
       expect(SecondaryAppwriteService.altDocumentId('x-y-z'), 'xyz');
     });
   });
+
+  group('canonicalDocumentId (سياسة: المستند دائماً بشرطات)', () {
+    test('صيغة قديمة بدون شرطات (32 حرف) → تُحوّل إلى شرطات', () {
+      expect(
+        SecondaryAppwriteService.canonicalDocumentId('a30690998e9c4291991e6aeb60730d17'),
+        'a3069099-8e9c-4291-991e-6aeb60730d17',
+      );
+    });
+
+    test('معرّف بشرطات بالفعل → يبقى كما هو', () {
+      const id = 'a3069099-8e9c-4291-991e-6aeb60730d17';
+      expect(SecondaryAppwriteService.canonicalDocumentId(id), id);
+    });
+
+    test('معرّف غير-UUID (whatsapp_settings) → يبقى كما هو', () {
+      expect(SecondaryAppwriteService.canonicalDocumentId('whatsapp_settings'), 'whatsapp_settings');
+    });
+
+    test('مسافات بيضاء تُقتطع', () {
+      expect(
+        SecondaryAppwriteService.canonicalDocumentId('  a3069099-8e9c-4291-991e-6aeb60730d17  '),
+        'a3069099-8e9c-4291-991e-6aeb60730d17',
+      );
+    });
+
+    test('طول غير 32 وبدون شرطات → يبقى كما هو (ليس UUID)', () {
+      expect(SecondaryAppwriteService.canonicalDocumentId('short_id'), 'short_id');
+    });
+
+    test('canonical ثم alt: يعودان لنفس زوج الصيغتين (ذهاب وإياب)', () {
+      const dashless = 'a30690998e9c4291991e6aeb60730d17';
+      final canonical = SecondaryAppwriteService.canonicalDocumentId(dashless);
+      expect(canonical.contains('-'), isTrue);
+      // الصيغة البديلة للمعرّف القانوني تعود إلى الصيغة القديمة بدون شرطات.
+      expect(SecondaryAppwriteService.altDocumentId(canonical), dashless);
+    });
+  });
 }

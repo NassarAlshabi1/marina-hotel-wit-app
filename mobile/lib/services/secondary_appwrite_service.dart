@@ -5,6 +5,7 @@ import 'package:appwrite/models.dart' as models;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'adapters/id_resolver.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_network_helper.dart';
@@ -206,6 +207,18 @@ class SecondaryAppwriteService {
   @visibleForTesting
   static String altDocumentId(String documentId) => documentId.contains('-') ? documentId.replaceAll('-', '') : '';
 
+  /// المعرّف القانوني للمستند = **دائماً بشرطات** (UUID بصيغة 8-4-4-4-12).
+  ///
+  /// سياسة النظام: المستند يجب أن يُكتب دائماً بشرطات. الصيغة القديمة بدون
+  /// شرطات (32 حرفاً متصلاً — legacy من Google Drive/backup قديم) تُحوَّل إلى
+  /// صيغة الشرطات قبل الكتابة، فلا يُنشَأ مستند جديد بلا شرطات أبداً. المعرّفات
+  /// غير-UUID (مثل 'whatsapp_settings') تبقى كما هي.
+  ///
+  /// يعيد استخدام `IdResolver.normalizeUuid` (مصدر الحقيقة الوحيد للتطبيع)
+  /// لتفادي أي انحراف في تعريف "الصيغة القانونية".
+  @visibleForTesting
+  static String canonicalDocumentId(String documentId) => IdResolver.normalizeUuid(documentId);
+
   /// استخراج اسم السمة غير المعروفة من خطأ Appwrite (إن وُجد).
   String? _extractUnknownAttribute(AppwriteException e) {
     final type = e.type ?? '';
@@ -228,10 +241,13 @@ class SecondaryAppwriteService {
     required Map<String, dynamic> data,
   }) async {
     var workingData = Map<String, dynamic>.from(data);
+    // ✅ سياسة "المستند بشرطات": نطبّع المعرّف إلى الصيغة القانونية (بشرطات)
+    //    قبل أي عملية، فلا نكتب أبداً مستنداً بلا شرطات.
+    final canonicalId = canonicalDocumentId(documentId);
     final maxRetries = workingData.length + 1;
     for (var attempt = 0; ; attempt++) {
       try {
-        return await _upsertDocumentOnce(collectionId: collectionId, documentId: documentId, data: workingData);
+        return await _upsertDocumentOnce(collectionId: collectionId, documentId: canonicalId, data: workingData);
       } on AppwriteException catch (e) {
         final unknownAttr = _extractUnknownAttribute(e);
         if (unknownAttr != null && workingData.containsKey(unknownAttr) && attempt < maxRetries) {
