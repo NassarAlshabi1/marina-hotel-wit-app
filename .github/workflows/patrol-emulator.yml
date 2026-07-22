@@ -177,17 +177,16 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
           disable-animations: true
           script: |
-            cd ${{ github.workspace }}/mobile
-            export PATH="$HOME/.pub-cache/bin:$PATH"
-            echo "=== تشغيل Patrol tests ==="
-
-            # تشغيل كل الاختبارات في integration_test/ دفعة واحدة
-            # --retry 2 = يُعيد تشغيل الاختبار الفاشل مرتين قبل الإعلان عن الفشل
-            patrol test \
-              --target integration_test/ \
-              --exclude-tags skip-ci \
-              --retry 2 \
-              --verbose || {
+            # ⚠️ android-emulator-runner runs each line in a separate shell,
+            # so we must chain commands with && to keep the working directory.
+            cd "${{ github.workspace }}/mobile" \
+              && export PATH="$HOME/.pub-cache/bin:$PATH" \
+              && echo "=== تشغيل Patrol tests ===" \
+              && patrol test \
+                  --target integration_test/ \
+                  --exclude-tags skip-ci \
+                  --retry 2 \
+                  --verbose || {
                 echo "::error::Patrol tests فشلت بعد الـ retries"
                 exit 1
               }
