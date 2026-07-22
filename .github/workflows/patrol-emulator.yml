@@ -177,19 +177,9 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
           disable-animations: true
           script: |
-            # ⚠️ android-emulator-runner runs each line in a separate shell,
-            # so we must chain commands with && to keep the working directory.
-            cd "${{ github.workspace }}/mobile" \
-              && export PATH="$HOME/.pub-cache/bin:$PATH" \
-              && echo "=== تشغيل Patrol tests ===" \
-              && patrol test \
-                  --target integration_test/ \
-                  --exclude-tags skip-ci \
-                  --retry 2 \
-                  --verbose || {
-                echo "::error::Patrol tests فشلت بعد الـ retries"
-                exit 1
-              }
+            # android-emulator-runner passes the script to /usr/bin/sh -c.
+            # We use a single-line command with && so cd persists to patrol test.
+            cd "${{ github.workspace }}/mobile" && export PATH="$HOME/.pub-cache/bin:$PATH" && patrol test --target integration_test/ --exclude-tags skip-ci --retry 2 --verbose
 
       # ─────────────────────────────────────────────────────────────────────
       #  12. رفع تقارير الاختبار كـ artifact (في حال الفشل)
