@@ -10,10 +10,10 @@ class AppwriteConfig {
   );
 
   // Project ID - من لوحة تحكم Appwrite
-  static const String projectId = '6a2b01d0000752ce97e7';
+  static const String projectId = '6a4408f300217885fd7b';
 
   // Database ID - من لوحة تحكم Appwrite
-  static const String databaseId = '6a2b030d000445596163';
+  static const String databaseId = '6a4409b50019dd39dde5';
 
   // ═══════════════════════════════════════════════════════════════
   //  API Key — مفتاح افتراضي مُدمج في التطبيق
@@ -23,7 +23,7 @@ class AppwriteConfig {
   // SharedPreferences ويُحمَّل عند بدء التطبيق بدلاً من هذا الافتراضي.
   // استخدم AppwriteConfigManager.apiKey للوصول للقيمة الفعّالة وقت التشغيل.
   static const String defaultApiKey =
-      'standard_9f8b72c47deb018fef2c235201a01a810322d3fe981ba0e1e6f13d03b8cf88d62866a1a96d212e02793838f811c16e36ad3fa376473d348db74458072ee9b960a9495efccd35be2c26692bd351ddde56ce10a60bf8e087761ce737851f21b6cf413b025c0a700091aa81f40b1fe4ee0092c7b02d13a2753f381ff434843db818';
+      'standard_c0ab6ac2628715c7714eb312e2272a55ae41809dcc156c7e4553874e4a6ad9f3d3e9169d8a69b84f7d746b108905041e412a66ec66d03e122ccb056484c43d2a27f7839088bf60385ab58061624bbcc1f82271c09d608536e68d9cc0ff1b05b83ae4fe14c4dc4ce38840317ea555155f1733141450b3097df09a2a1b4b154a6c';
 
   // ═══════════════════════════════════════════════════════════════
   //  Messaging — Appwrite Messaging Provider ID
