@@ -179,7 +179,8 @@ jobs:
           script: |
             # android-emulator-runner passes the script to /usr/bin/sh -c.
             # We use a single-line command with && so cd persists to patrol test.
-            cd "${{ github.workspace }}/mobile" && export PATH="$HOME/.pub-cache/bin:$PATH" && patrol test --target integration_test/ --exclude-tags skip-ci --retry 2 --verbose
+            # Note: patrol test doesn't have --retry (only --web-retries for web).
+            cd "${{ github.workspace }}/mobile" && export PATH="$HOME/.pub-cache/bin:$PATH" && patrol test --target integration_test/ --exclude-tags skip-ci --verbose
 
       # ─────────────────────────────────────────────────────────────────────
       #  12. رفع تقارير الاختبار كـ artifact (في حال الفشل)
