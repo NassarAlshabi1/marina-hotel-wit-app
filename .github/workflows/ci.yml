@@ -149,3 +149,30 @@ jobs:
           path: mobile/coverage
           if-no-files-found: ignore
           retention-days: 14
+
+      # ═══════════════════════════════════════════════════════════════════════
+      #  Coveralls — رفع تقرير التغطية إلى coveralls.io
+      #
+      #  التوثيق: https://github.com/coverallsapp/github-action
+      #
+      #  - يعمل بعد توليد coverage/lcov.info من خطوة "Run tests" أعلاه.
+      #  - github-token: الـ GITHUB_TOKEN المُدمج في Actions (لا يحتاج secret).
+      #  - COVERALLS_REPO_TOKEN: secret إضافي مُخزَّن في إعدادات المستودع
+      #    (Settings → Secrets and variables → Actions). يُستخدم للتوافق مع
+      #    الـ API القديم وللمستودعات الخاصة.
+      #  - fail-on-error: false حتى لا يُفشل الـ CI إذا انقطع الاتصال بـ Coveralls.
+      #  - format: lcov لأن flutter test --coverage يولّد ملف lcov.info.
+      #  - base-path: mobile لأن flutter test يُشغَّل من داخل مجلد mobile.
+      # ═══════════════════════════════════════════════════════════════════════
+      - name: 📊 Upload coverage to Coveralls
+        if: always() && hashFiles('mobile/coverage/lcov.info') != ''
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          file: mobile/coverage/lcov.info
+          format: lcov
+          base-path: mobile
+          fail-on-error: false
+        env:
+          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+
