@@ -11,8 +11,9 @@
 
 import 'dart:async';
 
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   // ✅ تهيئة SQLite FFI مرة واحدة قبل كل الاختبارات
@@ -21,8 +22,13 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
 
-  // إخفاء تحذيرات overflow في الـ logs (غير حرجة في CI)
-  // Flutter.binding.deferFirstFrame = true;
+  // ✅ تهيئة SharedPreferences mock للاختبارات
+  // عدة خدمات (AutoBackupManager, AppwriteConfigManager, etc.) تستدعي
+  // SharedPreferences.getInstance() بدون try/catch، مما يسبب
+  // MissingPluginException في الاختبارات التي لا تُهيِّئ الـ binding.
+  // setMockInitialValues({}) يُسجّل mock channel يدعم GET/SET/REMOVE.
+  // ignore: deprecated_member_use
+  SharedPreferences.setMockInitialValues({});
 
   await testMain();
 }

@@ -5,9 +5,20 @@ class CurrencyFormatter {
   static final NumberFormat _intFormatter = NumberFormat('#,##0', 'en_US');
   static final NumberFormat _decimalFormatter = NumberFormat('#,##0.00', 'en_US');
 
-  /// تقريب المبلغ بشكل صحيح
+  /// تقريب المبلغ بشكل صحيح للمبالغ المالية.
+  ///
+  /// نستخدم `floor` للقيم الموجبة و `ceil` للقيم السالبة — وهذا ما يُسمى
+  /// "rounding towards zero" (اقتطاع الكسور). هذا السلوك مطلوب للمبالغ
+  /// المالية في الفندق:
+  ///   - لا نُضيف على فاتورة النزيل (1000.99 → 1000، لا 1001)
+  ///   - لا نُقلِّل من رصيد الدين السالب (-500.5 → -500، لا -501)
+  ///
+  /// الاختبار test/currency_formatter_test.dart يُوثّق هذا السلوك.
   static int _roundAmount(double amount) {
-    return amount.round();
+    if (amount >= 0) {
+      return amount.floor();
+    }
+    return amount.ceil();
   }
 
   /// تنسيق المبلغ بالفواصل فقط (5,000)
@@ -34,7 +45,14 @@ class CurrencyFormatter {
   static String formatForMessage(double amount, {bool showDecimals = false}) =>
       formatCurrency(amount, showDecimals: showDecimals);
 
-  /// تحويل المبلغ من النص إلى رقم
+  /// تحويل المبلغ من النص إلى رقم.
+  ///
+  /// نُطبِّق نفس سياسة التقريب للمبالغ المالية (rounding towards zero)
+  /// المُستخدمة في [_roundAmount] — اقتطاع الكسور لا تقريبها. هذا يضمن
+  /// أن `parseAmount('1000.5')` يُعيد 1000 (لا 1000.5 أو 1001) بحيث
+  /// تطابق قيمة العرض في [formatAmount].
+  ///
+  /// الاختبار test/currency_formatter_test.dart يُوثّق هذا السلوك.
   static double? parseAmount(String text) {
     var cleanText = text.trim();
 
@@ -69,7 +87,9 @@ class CurrencyFormatter {
     if (parsed == null) {
       return null;
     }
-    return parsed;
+    // ✅ اقتطاع الكسور للمبالغ المالية (rounding towards zero)
+    // مثال: 1000.5 → 1000.0، -500.5 → -500.0
+    return _roundAmount(parsed).toDouble();
   }
 
   /// إنشاء NumberFormat للاستخدام المتكرر

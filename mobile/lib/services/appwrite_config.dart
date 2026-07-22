@@ -16,6 +16,16 @@ class AppwriteConfig {
   static const String databaseId = '6a2b030d000445596163';
 
   // ═══════════════════════════════════════════════════════════════
+  //  API Key — مفتاح افتراضي مُدمج في التطبيق
+  // ═══════════════════════════════════════════════════════════════
+  // مفتاح API الافتراضي المُدمج. يُمكن للمستخدم تغييره في أي وقت من
+  // شاشة إعدادات اتصال Appwrite. عند الاستبدال، يُحفظ المفتاح الجديد في
+  // SharedPreferences ويُحمَّل عند بدء التطبيق بدلاً من هذا الافتراضي.
+  // استخدم AppwriteConfigManager.apiKey للوصول للقيمة الفعّالة وقت التشغيل.
+  static const String defaultApiKey =
+      'standard_9f8b72c47deb018fef2c235201a01a810322d3fe981ba0e1e6f13d03b8cf88d62866a1a96d212e02793838f811c16e36ad3fa376473d348db74458072ee9b960a9495efccd35be2c26692bd351ddde56ce10a60bf8e087761ce737851f21b6cf413b025c0a700091aa81f40b1fe4ee0092c7b02d13a2753f381ff434843db818';
+
+  // ═══════════════════════════════════════════════════════════════
   //  Messaging — Appwrite Messaging Provider ID
   // ═══════════════════════════════════════════════════════════════
   // يُستخدم في AppwriteMessagingService.registerDevice() لتسجيل الـ Target.
