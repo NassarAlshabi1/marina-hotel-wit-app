@@ -109,14 +109,23 @@ jobs:
       # ─────────────────────────────────────────────────────────────────────
       - name: 🤖 Configure Android SDK
         run: |
-          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+          # Ubuntu runners have Android SDK preinstalled here
+          export ANDROID_HOME=/usr/local/lib/android/sdk
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
           echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
-          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          # التحقق من أن sdkmanager متاح
-          sdkmanager --version || {
-            echo "::error::sdkmanager غير متاح"
+
+          # Find sdkmanager (path varies between runner images — could be
+          # cmdline-tools/latest/bin or cmdline-tools/<version>/bin)
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -1 || true)
+          if [ -z "$SDKMANAGER" ]; then
+            echo "::error::sdkmanager not found under $ANDROID_HOME/cmdline-tools"
+            ls -la "$ANDROID_HOME/cmdline-tools/" || true
             exit 1
-          }
+          fi
+          echo "Found sdkmanager: $SDKMANAGER"
+          SDKMANAGER_DIR=$(dirname "$SDKMANAGER")
+          echo "$SDKMANAGER_DIR" >> $GITHUB_PATH
+          "$SDKMANAGER" --version
 
       # ─────────────────────────────────────────────────────────────────────
       #  7. تثبيت patrol_cli
