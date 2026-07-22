@@ -484,13 +484,17 @@ class AppwriteService {
         : ''; // ID أصلاً بدون شرطات — لا بديل
 
     // مساعد لتنفيذ updateDocument بـ ID محدد
-    Future<models.Document> doUpdate(String id, {bool suppressErrorLog = false}) async {
+    // ✅ إصلاح إرهاق 429 (2026-07-22): probe=true → محاولة واحدة فقط (كشف وجود
+    //    سريع). المستندات الجديدة تُرجع 404 حتماً، فلا داعي لاستهلاك 2×60s على
+    //    إعادة محاولات 429 قبل الانتقال للإنشاء. الكتابة الفعلية تبقى بكامل المحاولات.
+    Future<models.Document> doUpdate(String id, {bool suppressErrorLog = false, bool probe = false}) async {
       return _networkHelper.withRetryAndTimeout(
         operation: () =>
             // ignore: deprecated_member_use
             _databases.updateDocument(databaseId: dbId, collectionId: collectionId, documentId: id, data: data),
         operationName: 'updateDocument',
         suppressErrorLog: suppressErrorLog,
+        maxRetries: probe ? 1 : null,
       );
     }
 
@@ -505,10 +509,11 @@ class AppwriteService {
       );
     }
 
-    // ─── الخطوة 1: updateDocument بالـ ID الأصلي (بالشرطات) ───
-    // ✅ معالجة 429: انتظر ثم انتقل مباشرة للإنشاء بدل إعادة الرمي
+    // ─── الخطوة 1: updateDocument بالـ ID الأصلي (بالشرطات) — probe ───
+    // ✅ معالجة 429: محاولة كشف واحدة؛ على المستندات الجديدة يُرجع 404 سريعاً
+    //    فننتقل للإنشاء بدل استهلاك 2×60s على إعادة محاولات 429.
     try {
-      return await doUpdate(documentId, suppressErrorLog: true);
+      return await doUpdate(documentId, suppressErrorLog: true, probe: true);
     } on AppwriteException catch (updateError) {
       if (isRateLimit(updateError)) {
         debugPrint('⚠️ primary_upsert: 429 on update $documentId — waiting 65s then create');
@@ -542,7 +547,7 @@ class AppwriteService {
     // إن وُجد، ونتجنّب الإنشاء المكرر تمامًا.
     if (altDocumentId.isNotEmpty) {
       try {
-        return await doUpdate(altDocumentId, suppressErrorLog: true);
+        return await doUpdate(altDocumentId, suppressErrorLog: true, probe: true);
       } on AppwriteException catch (altError) {
         if (!isNotFound(altError)) {
           rethrow; // خطأ آخر غير 404

@@ -232,4 +232,65 @@ void main() {
       expect(b.inMilliseconds, 6000);
     });
   });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // ✅ إصلاح إرهاق 429: يثبت أن probe (maxRetries:1) يفشل فوراً على 429 دون
+  //    الانتظار 2×60s — وهو جوهر إصلاح مسار upsert للمستندات الجديدة.
+  // ─────────────────────────────────────────────────────────────────────
+  group('probe سريع الفشل (maxRetries:1)', () {
+    test('429 مع maxRetries:1 → يرمي فوراً، استدعاء واحد، بلا انتظار 60s', () async {
+      var calls = 0;
+      final sw = Stopwatch()..start();
+      await expectLater(
+        helper.withRetry<int>(
+          operation: () async {
+            calls++;
+            throw AppwriteException('too many', 429);
+          },
+          maxRetries: 1,
+          operationName: 'test_probe_429',
+          suppressErrorLog: true,
+        ),
+        throwsA(isA<AppwriteException>()),
+      );
+      sw.stop();
+      expect(calls, 1, reason: 'probe يجب أن يستدعي العملية مرة واحدة فقط');
+      expect(
+        sw.elapsed,
+        lessThan(const Duration(seconds: 5)),
+        reason: 'probe يجب ألا ينتظر backoff الطويل (60s) على 429',
+      );
+    });
+
+    test('خطأ عابر (500) مع maxRetries:1 → استدعاء واحد فقط', () async {
+      var calls = 0;
+      await expectLater(
+        helper.withRetry<int>(
+          operation: () async {
+            calls++;
+            throw AppwriteException('server error 500', 500);
+          },
+          maxRetries: 1,
+          operationName: 'test_probe_500',
+          suppressErrorLog: true,
+        ),
+        throwsA(isA<AppwriteException>()),
+      );
+      expect(calls, 1);
+    });
+
+    test('نجاح فوري: العملية تُستدعى مرة وتُرجع القيمة', () async {
+      var calls = 0;
+      final result = await helper.withRetry<String>(
+        operation: () async {
+          calls++;
+          return 'ok';
+        },
+        maxRetries: 1,
+        operationName: 'test_probe_ok',
+      );
+      expect(result, 'ok');
+      expect(calls, 1);
+    });
+  });
 }

@@ -265,13 +265,20 @@ class SecondaryAppwriteService {
     // ✅ معالجة ID بدون شرطات (نفس Primary)
     final altDocumentId = SecondaryAppwriteService.altDocumentId(documentId);
 
-    Future<models.Document> doUpdate(String id, {bool suppressErrorLog = false}) async {
+    // ✅ إصلاح إرهاق 429 (2026-07-22): تمييز "محاولة كشف الوجود" (probe) عن
+    //    "الكتابة الفعلية". الـ probe (updateDocument للتحقق: هل المستند موجود؟)
+    //    يجب أن يفشل سريعاً (محاولة واحدة) بدلاً من استهلاك 2×60s على إعادة
+    //    محاولات 429 قبل أن يُرجع 404 حتماً للمستندات الجديدة — كما في السجلات.
+    //    الكتابة الفعلية (create + fallback updates) تبقى بكامل المحاولات.
+    Future<models.Document> doUpdate(String id, {bool suppressErrorLog = false, bool probe = false}) async {
       return _networkHelper.withRetryAndTimeout(
         operation: () =>
             // ignore: deprecated_member_use
             _databases!.updateDocument(databaseId: dbId, collectionId: collectionId, documentId: id, data: data),
         operationName: 'secondary_updateDocument',
         suppressErrorLog: suppressErrorLog,
+        // probe: محاولة واحدة فقط — لا انتظار طويل على 429/أخطاء عابرة.
+        maxRetries: probe ? 1 : null,
       );
     }
 
@@ -289,11 +296,11 @@ class SecondaryAppwriteService {
       );
     }
 
-    // الخطوة 1: updateDocument بالـ ID الأصلي
-    // ✅ معالجة 429: انتظر قليلاً ثم انتقل مباشرة للإنشاء بدل إعادة الرمي
-    // (الإعادة تستهلك كل محاولات withRetry قبل وصول 404 لـ catch)
+    // الخطوة 1: updateDocument بالـ ID الأصلي (probe: محاولة واحدة)
+    // ✅ معالجة 429: على المستندات الجديدة يُرجع 404 حتماً — نفشل سريعاً
+    //    وننتقل للإنشاء بدل استهلاك 2×60s على إعادة محاولات 429 (كما في السجلات).
     try {
-      return await doUpdate(documentId, suppressErrorLog: true);
+      return await doUpdate(documentId, suppressErrorLog: true, probe: true);
     } on AppwriteException catch (updateError) {
       if (isRateLimit(updateError)) {
         _logger.warning('secondary_upsert: 429 on update $documentId — waiting 65s then create', tag: 'RATE_LIMIT');
@@ -323,7 +330,7 @@ class SecondaryAppwriteService {
     // نسخة بدون شرطات. نحدّث في مكانه بدل إنشاء نسخة مكررة.
     if (altDocumentId.isNotEmpty) {
       try {
-        return await doUpdate(altDocumentId, suppressErrorLog: true);
+        return await doUpdate(altDocumentId, suppressErrorLog: true, probe: true);
       } on AppwriteException catch (altError) {
         if (!isNotFound(altError)) {
           rethrow;
