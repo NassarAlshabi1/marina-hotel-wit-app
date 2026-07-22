@@ -62,10 +62,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   List<db.Debt> _unsettledDebts = [];
   StreamSubscription<void>? _hotelDayTickerSub;
 
-  /// معرّفات الليالي المشبوهة (المضافة بعد موعد المغادرة المتوقع بسبب نسيان الموظف)
-  /// عند الإلغاء تُحذف من قاعدة البيانات وتُستبعد من حساب المبلغ
-  final Set<int> _cancelledSuspiciousNightIds = {};
-
   Payment _mapDbPaymentToUi(db.Payment p) {
     return Payment(
       id: p.localUuid,
@@ -202,229 +198,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   DateTime? _parseDateTime(String? value) => DateParser.parse(value);
 
-  /// ═══════════════════════════════════════════════════════════════════
-  /// كشف الليالي المشبوهة — ليالٍ أُضيفت تلقائياً بعد موعد المغادرة المتوقع
-  /// ═══════════════════════════════════════════════════════════════════
-  ///
-  /// المنطق:
-  /// 1. نحسب "آخر يوم إقامة متوقع" = checkoutDate أو (checkinDate + expectedNights)
-  /// 2. أي ليلة بـ hotelDayKey يقع تاريخ بدايتها بعد هذا اليوم = مشبوهة
-  /// 3. سبب الاشتباه: النزيل غادر فعلياً لكن الموظف نسي تسجيل الخروج
-  ///    فأضاف النظام ليلة تلقائية بعد تجاوز الساعة 14:00
-  List<db.BookingNight> _detectSuspiciousNights(List<db.BookingNight> nights, db.Booking booking) {
-    // لا يوجد اشتباه إذا سُجل الخروج فعلياً
-    if (booking.actualCheckout != null) return [];
-    // لا يوجد اشتباه إذا لم تكن هناك ليالٍ مسجلة
-    if (nights.isEmpty) return [];
-
-    // تحديد آخر يوم إقامة متوقع
-    final plannedCheckout = _parseDateTime(booking.checkoutDate);
-    final checkin = _parseDateTime(booking.checkinDate);
-
-    DateTime? lastExpectedDay;
-    if (plannedCheckout != null) {
-      // آخر يوم متوقع = يوم قبل موعد المغادرة المخطط
-      lastExpectedDay = DateTime(plannedCheckout.year, plannedCheckout.month, plannedCheckout.day);
-    } else if (checkin != null && booking.expectedNights > 0) {
-      // حساب من تاريخ الدخول + عدد الليالي المتوقعة
-      lastExpectedDay = DateTime(
-        checkin.year,
-        checkin.month,
-        checkin.day,
-      ).add(Duration(days: booking.expectedNights - 1));
-    }
-
-    if (lastExpectedDay == null) return [];
-
-    // فحص كل ليلة: هل hotelDayKey يقع بعد آخر يوم متوقع؟
-    final suspicious = <db.BookingNight>[];
-    for (final night in nights) {
-      if (_cancelledSuspiciousNightIds.contains(night.id)) continue;
-      final nightDayKey = night.hotelDayKey; // صيغة: "YYYY-MM-DD"
-      final nightDate = DateTime.tryParse(nightDayKey);
-      if (nightDate != null && nightDate.isAfter(lastExpectedDay)) {
-        suspicious.add(night);
-      }
-    }
-    return suspicious;
-  }
-
-  /// نافذة تأكيد احترافية لمعالجة الليالي المشبوهة
-  /// تعرض تفاصيل كل ليلة مشبوهة مع خيار احتسابها أو إلغائها
-  Future<bool> _showSuspiciousNightsDialog(List<db.BookingNight> suspiciousNights) async {
-    final totalSuspiciousAmount = suspiciousNights.fold<double>(
-      0,
-      (sum, n) => sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate),
-    );
-
-    final result = await showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => Directionality(
-        textDirection: ui.TextDirection.rtl,
-        child: AlertDialog(
-          title: Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700, size: 28),
-              const SizedBox(width: 10),
-              const Expanded(child: Text('تنبيه: ليالٍ مضافة بعد موعد المغادرة', style: TextStyle(fontSize: 16))),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.orange.shade200),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'تمت إضافة ${suspiciousNights.length} ${suspiciousNights.length == 1 ? "ليلة" : "ليالٍ"} تلقائياً بعد موعد المغادرة المتوقع، '
-                        'يُحتمل أنها ناتجة عن نسيان تسجيل الخروج في الوقت المحدد.',
-                        style: TextStyle(fontSize: 13, color: Colors.orange.shade900),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'تفاصيل الليالي المضافة:',
-                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade800),
-                ),
-                const SizedBox(height: 8),
-                ...suspiciousNights.map(
-                  (night) => Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.red.shade200),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.nightlight, size: 16, color: Colors.red.shade400),
-                            const SizedBox(width: 6),
-                            Text(night.hotelDayKey, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                        Text(
-                          CurrencyFormatter.formatAmount(night.finalRate > 0 ? night.finalRate : night.nightlyRate),
-                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade700),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const Divider(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'إجمالي الليالي المشبوهة:',
-                      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade700),
-                    ),
-                    Text(
-                      CurrencyFormatter.formatAmount(totalSuspiciousAmount),
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.red.shade700),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'ماذا تريد فعلاً بهذه الليالي؟',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '• "احتساب": تُضاف للمبلغ المستحق (النزيل يدفعها)\n'
-                  '• "إلغاء": تُحذف من الفاتورة (خطأ إداري)',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            // ✅ إصلاح: لف الأزرار في Row بدل Expanded مباشر في actions.
-            // AlertDialog.actions يُعرَض داخل OverflowBar داخلياً الذي لا
-            // يقبل Flexible/Expanded → يسبب Fatal Exception:
-            //   type '_OverflowBarParentData' is not a subtype of type 'FlexParentData'
-            // Row يلتف حول Expanded بشكل صحيح ويحل المشكلة.
-            Row(
-              children: [
-                // زر إلغاء الليالي المشبوهة
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.of(ctx).pop('cancel_nights'),
-                    icon: const Icon(Icons.cancel_outlined),
-                    label: Text(
-                      'إلغاء الليالي\n(${CurrencyFormatter.formatAmount(totalSuspiciousAmount)})',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red.shade700,
-                      side: BorderSide(color: Colors.red.shade300),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // زر احتساب الليالي
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => Navigator.of(ctx).pop('keep_nights'),
-                    icon: const Icon(Icons.check_circle_outline),
-                    label: Text(
-                      'احتساب الليالي\n(${CurrencyFormatter.formatAmount(totalSuspiciousAmount)})',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (result == 'cancel_nights') {
-      // حفظ معرّفات الليالي الملغاة لاستبعادها من الحساب
-      if (!mounted) return true;
-      setState(() {
-        _cancelledSuspiciousNightIds.addAll(suspiciousNights.map((n) => n.id));
-      });
-      return true; // تم المعالجة
-    }
-    // keep_nights أو إغلاق → نحتسب الليالي
-    return true;
-  }
-
-  /// حذف الليالي الملغاة من قاعدة البيانات عند تسجيل الخروج
-  Future<void> _deleteCancelledNights() async {
-    if (_cancelledSuspiciousNightIds.isEmpty) return;
-    final dbInstance = ref.read(databaseProvider);
-    for (final nightId in _cancelledSuspiciousNightIds) {
-      await (dbInstance.delete(dbInstance.bookingNights)..where((n) => n.id.equals(nightId))).go();
-    }
-  }
-
   int _countNightsWithDiscount(DateTime checkin, DateTime checkout, DateTime? discountStartDate) {
     if (discountStartDate == null) {
       return Time.nightsWithCutoff(checkin, checkout: checkout);
@@ -505,9 +278,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final filteredAdjustments = StayBalanceCalculator.filterActiveAdjustments(booking, rawAdjustments);
 
     // ليالي الحجز (provider تم تعريفه في الأعلى)
-    final nights = (nightsAsync.valueOrNull ?? const <db.BookingNight>[])
-        .where((n) => !_cancelledSuspiciousNightIds.contains(n.id))
-        .toList();
+    final nights = nightsAsync.valueOrNull ?? const <db.BookingNight>[];
     final nightsCount = nights.isNotEmpty ? nights.length : actualNights;
     final double nightTotal = nights.isNotEmpty
         ? nights.fold<double>(0, (sum, n) => sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate))
@@ -1768,32 +1539,21 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }
 
   /// نافذة تأكيد المغادرة العادية
-  /// عند وجود ليالٍ مشبوهة (مضافة بعد موعد المغادرة المتوقع) تظهر نافذة
-  /// احترافية أولاً لاتخاذ قرار احتسابها أو إلغائها قبل المتابعة.
   Future<void> _showCheckoutConfirmation(
     BookingPaymentSummary summary, {
     required db.Booking booking,
     required List<db.BookingNight> nights,
   }) async {
-    // 1. كشف الليالي المشبوهة أولاً — إذا وُجدت، اعرض نافذة القرار
-    final suspiciousNights = _detectSuspiciousNights(nights, booking);
-    if (suspiciousNights.isNotEmpty) {
-      await _showSuspiciousNightsDialog(suspiciousNights);
-      // بعد المعالجة، نتابع لنافذة التأكيد العادية
-      // (الليالي الملغاة ستُستبعد من الحساب تلقائياً عبر _cancelledSuspiciousNightIds)
-    }
-
     if (!mounted) return;
 
-    // 2. إعادة حساب المبلغ المستحق بعد استبعاد الليالي الملغاة (إن وُجدت)
-    final effectiveNights = nights.where((n) => !_cancelledSuspiciousNightIds.contains(n.id)).toList();
-    final double effectiveNightTotal = effectiveNights.isNotEmpty
-        ? effectiveNights.fold<double>(0, (sum, n) => sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate))
+    // حساب المبلغ المستحق
+    final double effectiveNightTotal = nights.isNotEmpty
+        ? nights.fold<double>(0, (sum, n) => sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate))
         : summary.totalAmount;
     final effectiveRemaining = (effectiveNightTotal - summary.paidAmount).clamp(0.0, effectiveNightTotal);
     final hasRemaining = effectiveRemaining > 0;
 
-    // 3. عرض نافذة التأكيد العادية
+    // عرض نافذة التأكيد
     unawaited(
       showDialog<void>(
         context: context,
@@ -1812,30 +1572,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // مؤشر استبعاد الليالي المشبوهة (إن وُجدت)
-              if (_cancelledSuspiciousNightIds.isNotEmpty) ...[
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green.shade300),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.check_circle, color: Colors.green.shade700, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'تم استبعاد ${_cancelledSuspiciousNightIds.length} ${_cancelledSuspiciousNightIds.length == 1 ? "ليلة مشبوهة" : "ليالٍ مشبوهة"} من الفاتورة',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green.shade800),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
               if (hasRemaining) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -2051,9 +1787,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   /// معالجة المغادرة المبكرة مع تسجيل المردود
   Future<void> _processEarlyCheckout(int refundAmount, int unusedNights, int actualNights) async {
     try {
-      // 0. حذف الليالي المشبوهة الملغاة من قاعدة البيانات
-      await _deleteCancelledNights();
-
       final bookingsRepo = ref.read(bookingsRepoProvider);
       final roomsRepo = ref.read(roomsRepoProvider);
       final paymentsRepo = ref.read(paymentsRepoProvider);
@@ -2438,9 +2171,6 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   /// معالجة المغادرة العادية
   Future<void> _processCheckout() async {
     try {
-      // 0. حذف الليالي المشبوهة الملغاة من قاعدة البيانات
-      await _deleteCancelledNights();
-
       final bookingsRepo = ref.read(bookingsRepoProvider);
       final roomsRepo = ref.read(roomsRepoProvider);
       final nowIso = Time.nowIso();
