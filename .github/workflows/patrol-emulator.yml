@@ -163,23 +163,8 @@ jobs:
           key: avd-patrol-${{ matrix.api-level }}-${{ matrix.target }}-${{ matrix.arch }}-v1
 
       # ─────────────────────────────────────────────────────────────────────
-      #  11. بناء APK اختبار Patrol (يُجمِّع كل اختبارات integration_test)
-      #      نُنفِّذه كـ "config-only" ثم نترك الـ emulator-runner يبني
-      #      الـ APK الكامل داخل خطوة الاختبار.
-      # ─────────────────────────────────────────────────────────────────────
-      - name: 🏗️ Build Patrol test APK (config only)
-        run: |
-          export PATH="$HOME/.pub-cache/bin:$PATH"
-          patrol build android \
-            --target integration_test/ \
-            --debug \
-            --verbose || {
-            echo "::warning::patrol build android فشل — راجع الـ logs"
-            exit 1
-          }
-
-      # ─────────────────────────────────────────────────────────────────────
       #  11. تشغيل الاختبارات على الـ emulator
+      #      patrol test يبني الـ APK ويُشغِّل الاختبارات في خطوة واحدة.
       #      نستخدم cold-boot لتفادي مشاكل snapshot corruption.
       # ─────────────────────────────────────────────────────────────────────
       - name: 🧪 Run Patrol tests
