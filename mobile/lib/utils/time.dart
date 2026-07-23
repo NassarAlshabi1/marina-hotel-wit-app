@@ -12,13 +12,13 @@ class Time {
     return '${dateTime.year.toString().padLeft(4, '0')}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}';
   }
 
-  static String hotelDayKey({DateTime? now, int cutoffHour = 14, int cutoffMinute = 1}) {
+  static String hotelDayKey({DateTime? now, int cutoffHour = 14, int cutoffMinute = 0}) {
     final base = now ?? DateTime.now();
     final shifted = base.subtract(Duration(hours: cutoffHour, minutes: cutoffMinute));
     return dateToString(shifted);
   }
 
-  static String hotelDayKeyFromIso(String? isoString, {int cutoffHour = 14, int cutoffMinute = 1}) {
+  static String hotelDayKeyFromIso(String? isoString, {int cutoffHour = 14, int cutoffMinute = 0}) {
     if (isoString == null || isoString.trim().isEmpty) {
       return hotelDayKey(cutoffHour: cutoffHour, cutoffMinute: cutoffMinute);
     }
@@ -31,7 +31,7 @@ class Time {
     }
   }
 
-  static DateTime hotelDayStart(DateTime value, {int cutoffHour = 14, int cutoffMinute = 1}) {
+  static DateTime hotelDayStart(DateTime value, {int cutoffHour = 14, int cutoffMinute = 0}) {
     final start = DateTime(value.year, value.month, value.day, cutoffHour, cutoffMinute);
     if (value.isBefore(start)) {
       final previous = start.subtract(const Duration(days: 1));
@@ -40,20 +40,20 @@ class Time {
     return start;
   }
 
-  static DateTime hotelDayStartForNewBooking(DateTime checkin, {int cutoffHour = 14, int cutoffMinute = 1}) {
+  static DateTime hotelDayStartForNewBooking(DateTime checkin, {int cutoffHour = 14, int cutoffMinute = 0}) {
     if (checkin.hour < cutoffHour || (checkin.hour == cutoffHour && checkin.minute < cutoffMinute)) {
       return DateTime(checkin.year, checkin.month, checkin.day, cutoffHour, cutoffMinute);
     }
     return hotelDayStart(checkin, cutoffHour: cutoffHour, cutoffMinute: cutoffMinute);
   }
 
-  static String hotelDayStartIso(String hotelDay, {int cutoffHour = 14, int cutoffMinute = 1}) {
+  static String hotelDayStartIso(String hotelDay, {int cutoffHour = 14, int cutoffMinute = 0}) {
     final h = cutoffHour.toString().padLeft(2, '0');
     final m = cutoffMinute.toString().padLeft(2, '0');
     return '${hotelDay}T$h:$m:00';
   }
 
-  static String hotelDayEndIso(String hotelDay, {int cutoffHour = 14, int cutoffMinute = 1}) {
+  static String hotelDayEndIso(String hotelDay, {int cutoffHour = 14, int cutoffMinute = 0}) {
     final next = _nextDateString(hotelDay);
     final h = cutoffHour.toString().padLeft(2, '0');
     final m = (cutoffMinute - 1).toString().padLeft(2, '0');
@@ -97,7 +97,7 @@ class Time {
   /// قاعدة احتساب اليوم: يُحتسب اليوم الواحد بدءاً من وقت تسجيل الدخول الفعلي
   /// وحتى الساعة 14:01 من اليوم التالي.
   /// أي مغادرة عند أو بعد الساعة 14:01، حتى لو بدقيقة واحدة، تؤدي إلى احتساب يوم إضافي كامل.
-  static int nightsWithCutoff(DateTime checkin, {DateTime? checkout, int cutoffHour = 14, int cutoffMinute = 1}) {
+  static int nightsWithCutoff(DateTime checkin, {DateTime? checkout, int cutoffHour = 14, int cutoffMinute = 0}) {
     final end = checkout ?? DateTime.now();
 
     // تحديد بداية "يوم الفندق" لعملية تسجيل الدخول

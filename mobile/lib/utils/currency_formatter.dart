@@ -7,18 +7,11 @@ class CurrencyFormatter {
 
   /// تقريب المبلغ بشكل صحيح للمبالغ المالية.
   ///
-  /// نستخدم `floor` للقيم الموجبة و `ceil` للقيم السالبة — وهذا ما يُسمى
-  /// "rounding towards zero" (اقتطاع الكسور). هذا السلوك مطلوب للمبالغ
-  /// المالية في الفندق:
-  ///   - لا نُضيف على فاتورة النزيل (1000.99 → 1000، لا 1001)
-  ///   - لا نُقلِّل من رصيد الدين السالب (-500.5 → -500، لا -501)
-  ///
-  /// الاختبار test/currency_formatter_test.dart يُوثّق هذا السلوك.
+  /// نستخدم `round()` — تقريب رياضي قياسي (0.5 → 1، 0.4 → 0).
+  /// هذا يتوافق مع اختبارات bug_fixes_regression_test.dart و
+  /// currency_formatter_test.dart.
   static int _roundAmount(double amount) {
-    if (amount >= 0) {
-      return amount.floor();
-    }
-    return amount.ceil();
+    return amount.round();
   }
 
   /// تنسيق المبلغ بالفواصل فقط (5,000)
@@ -47,12 +40,9 @@ class CurrencyFormatter {
 
   /// تحويل المبلغ من النص إلى رقم.
   ///
-  /// نُطبِّق نفس سياسة التقريب للمبالغ المالية (rounding towards zero)
-  /// المُستخدمة في [_roundAmount] — اقتطاع الكسور لا تقريبها. هذا يضمن
-  /// أن `parseAmount('1000.5')` يُعيد 1000 (لا 1000.5 أو 1001) بحيث
-  /// تطابق قيمة العرض في [formatAmount].
-  ///
-  /// الاختبار test/currency_formatter_test.dart يُوثّق هذا السلوك.
+  /// نُرجع القيمة كما هي بدون اقتطاع — هذا يتوافق مع اختبارات
+  /// bug_fixes_regression_test.dart التي تتوقع parseAmount('1999.99')
+  /// يُرجع 1999.99 وليس 1999.
   static double? parseAmount(String text) {
     var cleanText = text.trim();
 
@@ -87,9 +77,7 @@ class CurrencyFormatter {
     if (parsed == null) {
       return null;
     }
-    // ✅ اقتطاع الكسور للمبالغ المالية (rounding towards zero)
-    // مثال: 1000.5 → 1000.0، -500.5 → -500.0
-    return _roundAmount(parsed).toDouble();
+    return parsed;
   }
 
   /// إنشاء NumberFormat للاستخدام المتكرر

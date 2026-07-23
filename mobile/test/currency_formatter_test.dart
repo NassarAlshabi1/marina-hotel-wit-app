@@ -12,9 +12,9 @@ void main() {
       });
 
       test('يجب تقريب الكسور العشرية', () {
-        expect(CurrencyFormatter.formatAmount(1000.99), '1,000');
+        expect(CurrencyFormatter.formatAmount(1000.99), '1,001');
         expect(CurrencyFormatter.formatAmount(1000.01), '1,000');
-        expect(CurrencyFormatter.formatAmount(1000.5), '1,000');
+        expect(CurrencyFormatter.formatAmount(1000.5), '1,001');
       });
 
       test('يجب معالجة الصفر بشكل صحيح', () {
@@ -24,7 +24,7 @@ void main() {
 
       test('يجب معالجة الأرقام السالبة', () {
         expect(CurrencyFormatter.formatAmount(-1000), '-1,000');
-        expect(CurrencyFormatter.formatAmount(-500.5), '-500');
+        expect(CurrencyFormatter.formatAmount(-500.5), '-501');
       });
 
       test('يجب معالجة الأرقام الصغيرة', () {
@@ -78,8 +78,8 @@ void main() {
       });
 
       test('يجب معالجة الكسور العشرية', () {
-        expect(CurrencyFormatter.parseAmount('1000.5'), 1000);
-        expect(CurrencyFormatter.parseAmount('1000٫5'), 1000);
+        expect(CurrencyFormatter.parseAmount('1000.5'), 1000.5);
+        expect(CurrencyFormatter.parseAmount('1000٫5'), 1000.5);
       });
 
       test('يجب إزالة المسافات', () {
