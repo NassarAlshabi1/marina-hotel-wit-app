@@ -10,6 +10,8 @@ class AppwriteConfig {
   );
 
   // Project ID - من لوحة تحكم Appwrite
+  // ✅ تم التغيير (2026-07-22): المشروع القديم (6a2b01d0) تجاوز حد Database Reads.
+  // المشروع الجديد (6a4408f3) هو نفسه الذي كان secondary — يعمل بدون مشاكل.
   static const String projectId = '6a4408f300217885fd7b';
 
   // Database ID - من لوحة تحكم Appwrite
