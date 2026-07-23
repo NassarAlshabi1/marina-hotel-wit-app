@@ -536,15 +536,29 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           dwarn(() => 'FCM initialization error: $e');
         }
 
-        // بدء المزامنة التلقائية (push + pull كل 15 دقيقة)
+        // بدء المزامنة التلقائية (push + pull)
         // ✅ Forensic audit fix (2026-07-22):
         // كان الفاصل دقيقتين → 30 دورة/ساعة × 3 أجهزة × 20 collection
         // = 1,800 listDocuments/ساعة. مع 15 دقيقة → 4 دورات/ساعة = 240/ساعة.
         // توفير: ~87% من auto-sync reads.
+        //
+        // ✅ قابل للتغيير من الإعدادات (SyncConstants.autoSyncIntervalPrefKey):
+        //   5  — للموظفين النشطين
+        //   15 — افتراضي
+        //   30 — للأجهزة الثابتة
+        //   60 — للأجهزة منخفضة الأولوية
+        //
         // Delta Sync يضمن وصول التغييرات عبر $updatedAt filter.
         // Realtime WebSocket (عند تفعيله) يوفر إشعارات فورية بين الأدوار.
-        // لا حاجة لتمرير interval — defaultAutoSyncInterval = 15 دقيقة (sync_constants.dart:64)
-        syncManager.startAutoSync();
+        final syncPrefs = await SharedPreferences.getInstance();
+        final intervalMinutes =
+            syncPrefs.getInt(SyncConstants.autoSyncIntervalPrefKey) ?? SyncConstants.autoSyncIntervalDefaultMinutes;
+        final clampedMinutes = intervalMinutes.clamp(
+          SyncConstants.autoSyncIntervalMinMinutes,
+          SyncConstants.autoSyncIntervalMaxMinutes,
+        );
+        syncManager.startAutoSync(interval: Duration(minutes: clampedMinutes));
+        dlog('⏰ Auto-sync started: every $clampedMinutes minutes');
 
         // سحب البيانات عند فتح التطبيق — مع فحص ذكي (مرة كل ساعة)
         try {
