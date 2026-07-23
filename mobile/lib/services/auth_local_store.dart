@@ -548,18 +548,18 @@ class AuthLocalStore {
       final cloudAccount = cloudAccounts[username];
       if (cloudAccount == null) return true; // ليس مستخدم سحابي
 
-      // سحب credentials_version من السحابة
-      final docs = await appwrite.listDocuments(collectionId: 'app_users', useCache: false);
-      for (final doc in docs) {
-        final d = doc.data;
-        if ((d['username']?.toString() ?? '') == username) {
-          final cloudVersion = d['credentials_version'] as int? ?? 0;
-          if (cloudVersion != storedVersion) {
-            AppLogger.warning('Session invalid for $username: local=$storedVersion, cloud=$cloudVersion', tag: 'AUTH');
-            return false;
-          }
-          return true;
-        }
+      // ✅ Forensic audit fix (2026-07-22):
+      // كان الكود السابق يستدعي listDocuments('app_users') مرة ثانية (السطر 552)
+      // للبحث عن credentials_version — لكن loadCloudAccounts() أعلاه (السطر 547)
+      // سبق وجلب نفس البيانات وخزّنها في cloudAccount['credentials_version']
+      // (انظر auth_local_store.dart:146). هذا الاستدعاء المكرر يستهلك
+      // listDocuments API call إضافي بلا داعٍ في كل فحص جلسة (كل 30 ثانية).
+      //
+      /// للتراجع: أعد استدعاء listDocuments('app_users') بدل استخدام cloudAccount.
+      final cloudVersion = (cloudAccount['credentials_version'] as num?)?.toInt() ?? 0;
+      if (cloudVersion != storedVersion) {
+        AppLogger.warning('Session invalid for $username: local=$storedVersion, cloud=$cloudVersion', tag: 'AUTH');
+        return false;
       }
       return true;
     } catch (e) {
