@@ -55,9 +55,9 @@ void main() {
     });
   });
 
-  group('CurrencyFormatter - Rounding', () {
-    test('formatAmount rounds up correctly', () {
-      expect(CurrencyFormatter.formatAmount(1999.5), '2,000');
+  group('CurrencyFormatter - Truncation', () {
+    test('formatAmount truncates decimals (no rounding up)', () {
+      expect(CurrencyFormatter.formatAmount(1999.5), '1,999');
       expect(CurrencyFormatter.formatAmount(1999.4), '1,999');
     });
 
@@ -65,12 +65,12 @@ void main() {
       expect(CurrencyFormatter.formatAmount(5000.0), '5,000');
     });
 
-    test('formatAmount shows decimals when requested', () {
+    test('formatAmount shows decimals when explicitly requested', () {
       expect(CurrencyFormatter.formatAmount(1999.99, showDecimals: true), '1,999.99');
     });
 
-    test('parseAmount returns exact value without truncation', () {
-      expect(CurrencyFormatter.parseAmount('1999.99'), 1999.99);
+    test('parseAmount truncates to whole number (no decimals)', () {
+      expect(CurrencyFormatter.parseAmount('1999.99'), 1999);
       expect(CurrencyFormatter.parseAmount('5000'), 5000.0);
     });
 

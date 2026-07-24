@@ -53,11 +53,12 @@ class Time {
     return '${hotelDay}T$h:$m:00';
   }
 
+  /// نهاية يوم الفندق = بداية يوم الفندق التالي (حدّ حصري exclusive).
+  /// ملاحظة: الحساب السابق `(cutoffMinute - 1)` كان يُنتج توقيتاً فاسداً مثل
+  /// `14:-1:59` عندما cutoffMinute = 0، لأن `padLeft` لا يعالج القيم السالبة.
   static String hotelDayEndIso(String hotelDay, {int cutoffHour = 14, int cutoffMinute = 0}) {
     final next = _nextDateString(hotelDay);
-    final h = cutoffHour.toString().padLeft(2, '0');
-    final m = (cutoffMinute - 1).toString().padLeft(2, '0');
-    return '${next}T$h:$m:59';
+    return hotelDayStartIso(next, cutoffHour: cutoffHour, cutoffMinute: cutoffMinute);
   }
 
   /// Returns the ISO string for the next day (used for date range queries)
