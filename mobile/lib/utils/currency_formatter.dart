@@ -5,13 +5,18 @@ class CurrencyFormatter {
   static final NumberFormat _intFormatter = NumberFormat('#,##0', 'en_US');
   static final NumberFormat _decimalFormatter = NumberFormat('#,##0.00', 'en_US');
 
-  /// تقريب المبلغ بشكل صحيح للمبالغ المالية.
+  /// معالجة المبلغ المالي: **اقتطاع الكسور (بدون تقريب)**.
   ///
-  /// نستخدم `round()` — تقريب رياضي قياسي (0.5 → 1، 0.4 → 0).
-  /// هذا يتوافق مع اختبارات bug_fixes_regression_test.dart و
-  /// currency_formatter_test.dart.
+  /// سياسة الفندق: لا نتعامل بالكسور العشرية إطلاقاً، ولا نُقرّب لأعلى.
+  /// نُقتطع الكسور نحو الصفر (truncation towards zero):
+  ///   - الموجب: floor  →  1000.99 → 1000، 1000.5 → 1000
+  ///   - السالب: ceil   →  -500.5  → -500
+  /// هذا يضمن عدم إضافة أي مبلغ على فاتورة النزيل نتيجة التقريب.
   static int _roundAmount(double amount) {
-    return amount.round();
+    if (amount >= 0) {
+      return amount.floor();
+    }
+    return amount.ceil();
   }
 
   /// تنسيق المبلغ بالفواصل فقط (5,000)
@@ -40,9 +45,9 @@ class CurrencyFormatter {
 
   /// تحويل المبلغ من النص إلى رقم.
   ///
-  /// نُرجع القيمة كما هي بدون اقتطاع — هذا يتوافق مع اختبارات
-  /// bug_fixes_regression_test.dart التي تتوقع parseAmount('1999.99')
-  /// يُرجع 1999.99 وليس 1999.
+  /// نُطبِّق نفس سياسة الاقتطاع للمبالغ المالية (بدون كسور عشرية):
+  /// `parseAmount('1000.5')` يُرجع 1000 و `parseAmount('1999.99')` يُرجع 1999.
+  /// هذا يضمن تطابق القيمة المُدخلة مع القيمة المعروضة في [formatAmount].
   static double? parseAmount(String text) {
     var cleanText = text.trim();
 
@@ -77,7 +82,8 @@ class CurrencyFormatter {
     if (parsed == null) {
       return null;
     }
-    return parsed;
+    // اقتطاع الكسور — لا نتعامل بالكسور العشرية (مثال: 1000.5 → 1000، 1999.99 → 1999).
+    return _roundAmount(parsed).toDouble();
   }
 
   /// إنشاء NumberFormat للاستخدام المتكرر
