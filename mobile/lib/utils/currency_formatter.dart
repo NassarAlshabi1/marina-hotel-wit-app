@@ -5,15 +5,13 @@ class CurrencyFormatter {
   static final NumberFormat _intFormatter = NumberFormat('#,##0', 'en_US');
   static final NumberFormat _decimalFormatter = NumberFormat('#,##0.00', 'en_US');
 
-  /// تقريب المبلغ بشكل صحيح للمبالغ المالية.
+  /// معالجة المبلغ المالي: **اقتطاع الكسور (بدون تقريب)**.
   ///
-  /// نستخدم `floor` للقيم الموجبة و `ceil` للقيم السالبة — وهذا ما يُسمى
-  /// "rounding towards zero" (اقتطاع الكسور). هذا السلوك مطلوب للمبالغ
-  /// المالية في الفندق:
-  ///   - لا نُضيف على فاتورة النزيل (1000.99 → 1000، لا 1001)
-  ///   - لا نُقلِّل من رصيد الدين السالب (-500.5 → -500، لا -501)
-  ///
-  /// الاختبار test/currency_formatter_test.dart يُوثّق هذا السلوك.
+  /// سياسة الفندق: لا نتعامل بالكسور العشرية إطلاقاً، ولا نُقرّب لأعلى.
+  /// نُقتطع الكسور نحو الصفر (truncation towards zero):
+  ///   - الموجب: floor  →  1000.99 → 1000، 1000.5 → 1000
+  ///   - السالب: ceil   →  -500.5  → -500
+  /// هذا يضمن عدم إضافة أي مبلغ على فاتورة النزيل نتيجة التقريب.
   static int _roundAmount(double amount) {
     if (amount >= 0) {
       return amount.floor();
@@ -47,12 +45,9 @@ class CurrencyFormatter {
 
   /// تحويل المبلغ من النص إلى رقم.
   ///
-  /// نُطبِّق نفس سياسة التقريب للمبالغ المالية (rounding towards zero)
-  /// المُستخدمة في [_roundAmount] — اقتطاع الكسور لا تقريبها. هذا يضمن
-  /// أن `parseAmount('1000.5')` يُعيد 1000 (لا 1000.5 أو 1001) بحيث
-  /// تطابق قيمة العرض في [formatAmount].
-  ///
-  /// الاختبار test/currency_formatter_test.dart يُوثّق هذا السلوك.
+  /// نُطبِّق نفس سياسة الاقتطاع للمبالغ المالية (بدون كسور عشرية):
+  /// `parseAmount('1000.5')` يُرجع 1000 و `parseAmount('1999.99')` يُرجع 1999.
+  /// هذا يضمن تطابق القيمة المُدخلة مع القيمة المعروضة في [formatAmount].
   static double? parseAmount(String text) {
     var cleanText = text.trim();
 
@@ -87,8 +82,7 @@ class CurrencyFormatter {
     if (parsed == null) {
       return null;
     }
-    // ✅ اقتطاع الكسور للمبالغ المالية (rounding towards zero)
-    // مثال: 1000.5 → 1000.0، -500.5 → -500.0
+    // اقتطاع الكسور — لا نتعامل بالكسور العشرية (مثال: 1000.5 → 1000، 1999.99 → 1999).
     return _roundAmount(parsed).toDouble();
   }
 

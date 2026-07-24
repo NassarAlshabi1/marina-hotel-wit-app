@@ -62,6 +62,18 @@ class SyncConstants {
   static const int maxMetricsPayloadLength = 4000;
 
   static const Duration defaultAutoSyncInterval = Duration(minutes: 15);
+
+  /// مفتاح SharedPreferences لفاصل المزامنة التلقائية (بالدقائق).
+  /// يُسمح للمستخدم بتغييره من شاشة الإعدادات دون إعادة بناء التطبيق.
+  /// القيم المقترحة:
+  ///   5  — للموظفين النشطين (300 reads/hour/device)
+  ///   15 — افتراضي (240 reads/hour/device × 3 = 720/hour)
+  ///   30 — للأجهزة الثابتة (120 reads/hour/device)
+  ///   60 — للأجهزة منخفضة الأولوية (60 reads/hour/device)
+  static const String autoSyncIntervalPrefKey = 'auto_sync_interval_minutes';
+  static const int autoSyncIntervalDefaultMinutes = 15;
+  static const int autoSyncIntervalMinMinutes = 1;
+  static const int autoSyncIntervalMaxMinutes = 120;
   static const Duration outboxDebounceWindow = Duration(seconds: 10);
   static const Duration guardianOutboxDebounce = Duration(seconds: 30);
   static const Duration guardianLocalChangeDebounce = Duration(seconds: 5);

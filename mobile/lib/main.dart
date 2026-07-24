@@ -186,8 +186,16 @@ void _startHealthChecker() {
     // نستخدم AppwriteHealthStatus.instance مباشرة لأنه singleton
     // الـ Riverpod provider سيُستخدم في الـ UI لعرض الحالة
     final notifier = AppwriteHealthNotifier();
-    notifier.startPeriodicCheck();
-    dlog('🏥 [Main] Health checker started (30s interval)');
+    // ✅ Forensic audit fix (2026-07-22):
+    // كان الفحص كل 30 ثانية (الافتراضي في startPeriodicCheck). كل فحص ينفذ
+    // listDocuments(Query.limit(1)) على rooms (Primary) + listDocuments على
+    // rooms (Secondary إن مُفعّل) = 1-2 listDocuments API calls كل 30 ثانية.
+    // رفعنا الفاصل إلى 5 دقائق — لا حاجة لكشف التعطل خلال 30 ثانية،
+    // فالـ auto-sync (دقيقتين) سيرصد الفشل عبر retry/backoff على أي حال.
+    //
+    /// للتراجع: أزل المعامل interval للعودة للافتراضي (30 ثانية).
+    notifier.startPeriodicCheck(interval: const Duration(minutes: 5));
+    dlog('🏥 [Main] Health checker started (5min interval)');
   } catch (e) {
     dwarn(() => '[Main] Health checker init failed: $e');
   }
@@ -422,11 +430,12 @@ StreamSubscription<void>? _globalEngineMonitoringSub;
 void _startEngineMonitoring(AutoSyncEngine engine) {
   _globalEngineMonitoringSub?.cancel();
   _globalEngineMonitoringSub = engine.stateStream.listen((state) {
-    dlog(() =>
-      '📊 ENGINE ${state.isRunning ? '🟢' : '🔴'} | '
-      'Net: ${state.hasNetworkConnection ? '🌐' : '📴'} | '
-      'Auth: ${state.isSignedIn ? '🔐' : '🔓'} | '
-      'Pending: ${state.pendingChangesCount}',
+    dlog(
+      () =>
+          '📊 ENGINE ${state.isRunning ? '🟢' : '🔴'} | '
+          'Net: ${state.hasNetworkConnection ? '🌐' : '📴'} | '
+          'Auth: ${state.isSignedIn ? '🔐' : '🔓'} | '
+          'Pending: ${state.pendingChangesCount}',
     );
   });
 }
@@ -527,8 +536,29 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           dwarn(() => 'FCM initialization error: $e');
         }
 
-        // بدء المزامنة التلقائية (push + pull كل 2 دقيقة)
-        syncManager.startAutoSync(interval: const Duration(minutes: 2));
+        // بدء المزامنة التلقائية (push + pull)
+        // ✅ Forensic audit fix (2026-07-22):
+        // كان الفاصل دقيقتين → 30 دورة/ساعة × 3 أجهزة × 20 collection
+        // = 1,800 listDocuments/ساعة. مع 15 دقيقة → 4 دورات/ساعة = 240/ساعة.
+        // توفير: ~87% من auto-sync reads.
+        //
+        // ✅ قابل للتغيير من الإعدادات (SyncConstants.autoSyncIntervalPrefKey):
+        //   5  — للموظفين النشطين
+        //   15 — افتراضي
+        //   30 — للأجهزة الثابتة
+        //   60 — للأجهزة منخفضة الأولوية
+        //
+        // Delta Sync يضمن وصول التغييرات عبر $updatedAt filter.
+        // Realtime WebSocket (عند تفعيله) يوفر إشعارات فورية بين الأدوار.
+        final syncPrefs = await SharedPreferences.getInstance();
+        final intervalMinutes =
+            syncPrefs.getInt(SyncConstants.autoSyncIntervalPrefKey) ?? SyncConstants.autoSyncIntervalDefaultMinutes;
+        final clampedMinutes = intervalMinutes.clamp(
+          SyncConstants.autoSyncIntervalMinMinutes,
+          SyncConstants.autoSyncIntervalMaxMinutes,
+        );
+        syncManager.startAutoSync(interval: Duration(minutes: clampedMinutes));
+        dlog('⏰ Auto-sync started: every $clampedMinutes minutes');
 
         // سحب البيانات عند فتح التطبيق — مع فحص ذكي (مرة كل ساعة)
         try {
@@ -541,9 +571,10 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
             final elapsed = DateTime.now().difference(lastPull);
             if (elapsed < SyncConstants.appOpenSyncInterval) {
               final remaining = SyncConstants.appOpenSyncInterval - elapsed;
-              dlog(() =>
-                '⏭️ تخطي المزامنة عند بدء التطبيق — مرت ${elapsed.inMinutes} دقيقة فقط '
-                '(متبقي ${remaining.inMinutes} دقيقة)',
+              dlog(
+                () =>
+                    '⏭️ تخطي المزامنة عند بدء التطبيق — مرت ${elapsed.inMinutes} دقيقة فقط '
+                    '(متبقي ${remaining.inMinutes} دقيقة)',
               );
               shouldSync = false;
             }
@@ -684,14 +715,28 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     dlog('✅ FCM ready — cross-device notifications enabled');
   }
 
-  /// رفع التغييرات المعلقة + سحب التغييرات الجديدة عند العودة للتطبيق
+  /// رفع التغييرات المعلقة عند العودة للتطبيق.
+  ///
+  /// ✅ Forensic audit fix (2026-07-22):
+  /// كان الكود السابق ينفذ sync(push: true, pull: true) — أي push + pull
+  /// كامل (20 listDocuments API calls). لكن UnifiedSyncOrchestrator.onAppForeground()
+  /// (main.dart:861) ينفذ بالفعل syncNow(push: false, pull: true) — أي pull كامل.
+  /// النتيجة: pull مزدوج عند كل عودة من الخلفية (40 listDocuments بدل 20).
+  ///
+  /// الإصلاح: تحويل _syncOnResume ليعمل push فقط (sync(push: true, pull: false)).
+  /// هذا يحافظ على الوظيفة الحرجة (رفع التغييرات المعلقة في outbox عند العودة)
+  /// ويزيل pull المكرر الذي يغطيه UnifiedSyncOrchestrator.onAppForeground.
+  ///
+  /// للتراجع: أعد pull: true (الافتراضي) في السطر التالي.
+  /// للقياس: شغّل التطبيق على جهازين، أنشئ حجزاً على أحدهما، أخرج للخلفية،
+  /// عُد للتطبيق، وتحقق من وصول التغيير للجهاز الثاني + راقب Appwrite Console
+  /// → Usage → Database Reads قبل وبعد هذا التغيير.
   Future<void> _syncOnResume() async {
     try {
       final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
-      // push: رفع أي تغييرات معلقة في الـ outbox
-      // pull: سحب أي تغييرات جديدة من السيرفر
-      await syncManager.sync();
-      dlog('✅ Sync on resume completed (push + pull)');
+      // push فقط — pull يُغطَّى بواسطة UnifiedSyncOrchestrator.onAppForeground()
+      await syncManager.sync(pull: false);
+      dlog('✅ Push on resume completed (pull handled by UnifiedSyncOrchestrator)');
     } catch (e) {
       dwarn(() => 'Sync on resume error: $e');
     }

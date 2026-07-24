@@ -11,7 +11,7 @@ void main() {
         expect(CurrencyFormatter.formatAmount(1000000), '1,000,000');
       });
 
-      test('يجب تقريب الكسور العشرية', () {
+      test('يجب اقتطاع الكسور العشرية (بدون تقريب)', () {
         expect(CurrencyFormatter.formatAmount(1000.99), '1,000');
         expect(CurrencyFormatter.formatAmount(1000.01), '1,000');
         expect(CurrencyFormatter.formatAmount(1000.5), '1,000');
@@ -77,7 +77,7 @@ void main() {
         expect(CurrencyFormatter.parseAmount('1،000'), 1000);
       });
 
-      test('يجب معالجة الكسور العشرية', () {
+      test('يجب اقتطاع الكسور العشرية (بدون كسور)', () {
         expect(CurrencyFormatter.parseAmount('1000.5'), 1000);
         expect(CurrencyFormatter.parseAmount('1000٫5'), 1000);
       });
