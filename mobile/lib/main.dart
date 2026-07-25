@@ -94,9 +94,15 @@ Future<void> main() async {
     try {
       sqflite_ffi.sqfliteFfiInit();
       sqflite_ffi.databaseFactory = sqflite_ffi.databaseFactoryFfi;
+<<<<<<< HEAD
       dlog('✅ sqflite_common_ffi initialized for desktop');
     } catch (e) {
       dwarn(() => 'sqflite_common_ffi init failed: $e');
+=======
+      debugPrint('✅ sqflite_common_ffi initialized for desktop');
+    } catch (e) {
+      debugPrint('⚠️ sqflite_common_ffi init failed: $e');
+>>>>>>> origin/refactor/clean-v2
     }
   }
 
@@ -105,8 +111,13 @@ Future<void> main() async {
     await Firebase.initializeApp();
     dlog('✅ Firebase Core initialized');
   } catch (e) {
+<<<<<<< HEAD
     dwarn(() => 'Firebase Core initialization failed: $e');
     dlog('ℹ️ التطبيق يعمل بالإعدادات المحلية بدون Firebase');
+=======
+    debugPrint('⚠️ Firebase Core initialization failed: $e');
+    debugPrint('ℹ️ التطبيق يعمل بالإعدادات المحلية بدون Firebase');
+>>>>>>> origin/refactor/clean-v2
   }
 
   // ─── SecondaryAppwriteConfig: تهيئة SharedPreferences قبل أي وصول للإعدادات ───
@@ -130,7 +141,11 @@ Future<void> main() async {
   // تهيئة نظام الإنذارات المجدولة (نسخ احتياطي + تقارير Telegram)
   // ✅ catchError بدلاً من unawaited المُجرّد — لو فشل initAlarmSystem، نسجّل
   // الخطأ بدل تركه silent (البوت أشار لهذا بشكل صحيح).
+<<<<<<< HEAD
   unawaited(AlarmBackup.initAlarmSystem().catchError((Object e) => dwarn(() => 'Alarm system init failed: $e')));
+=======
+  unawaited(AlarmBackup.initAlarmSystem().catchError((Object e) => debugPrint('⚠️ Alarm system init failed: $e')));
+>>>>>>> origin/refactor/clean-v2
 
   // ─── ربط Crashlytics + DiagnosticsLogger ───
   CrashlyticsService.instance.setupErrorHandlers(
@@ -148,7 +163,11 @@ Future<void> main() async {
 
   unawaited(SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]));
 
+<<<<<<< HEAD
   dlog(() => 'BASE_API_URL=${Env.baseApiUrl}');
+=======
+  debugPrint('BASE_API_URL=${Env.baseApiUrl}');
+>>>>>>> origin/refactor/clean-v2
   runZonedGuarded(() => runApp(const ProviderScope(child: App())), (error, stack) async {
     // إرسال الخطأ إلى Crashlytics
     await CrashlyticsService.instance.recordUnexpectedError(
@@ -175,7 +194,11 @@ Future<void> _safeInit(String label, Future<void> Function() init) async {
   try {
     await init();
   } catch (e, stack) {
+<<<<<<< HEAD
     dwarn(() => '$label initialization failed: $e\n$stack');
+=======
+    debugPrint('⚠️ $label initialization failed: $e\n$stack');
+>>>>>>> origin/refactor/clean-v2
   }
 }
 
@@ -238,7 +261,11 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     dlog('📝 Initializing Google Drive Logger...');
     final driveLogger = GoogleDriveLogger();
     await driveLogger.initialize(minLevel: LogLevel.debug);
+<<<<<<< HEAD
     dlog('✅ Logger initialized');
+=======
+    debugPrint('✅ Logger initialized');
+>>>>>>> origin/refactor/clean-v2
 
     dlog('🔐 Initializing Google Drive Backup Service...');
     final backupService = GoogleDriveBackupService();
@@ -267,7 +294,11 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     dlog('🎯 [5/7] Initializing Unified Sync Coordinator...');
     final coordinator = GoogleDriveUnifiedSyncCoordinator.instance;
     await coordinator.initialize(backupService: backupService, database: database, logger: driveLogger);
+<<<<<<< HEAD
     dlog('✅ Coordinator initialized');
+=======
+    debugPrint('✅ Coordinator initialized');
+>>>>>>> origin/refactor/clean-v2
 
     dlog('🤝 [6/7] Initializing Conflict Resolver...');
     final conflictResolver = GoogleDriveConflictResolver.instance;
@@ -281,7 +312,11 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     final smartSync = SmartSyncManager.instance;
     await smartSync.initialize(backupService);
     await unifiedOrchestrator.initialize(smart: smartSync, driveCoordinator: coordinator, database: database);
+<<<<<<< HEAD
     dlog('✅ SmartSyncManager initialized');
+=======
+    debugPrint('✅ SmartSyncManager initialized');
+>>>>>>> origin/refactor/clean-v2
 
     // ✅ تفعيل SyncGuardian — الحارس الذي يدير المزامنة الخلفية وإعادة التشغيل
     dlog('🛡️ [7.5/8] Initializing SyncGuardian...');
@@ -298,18 +333,31 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     //   - SyncContinuationService (إكمال المزامنة عند الخروج من الشاشة)
     //   - AppSessionManager (backupAfterInactivity)
     // بدون هذا، registerOneOffTask/registerPeriodicTask تفشل بصمت!
+<<<<<<< HEAD
     dlog('⚙️ [7.6/8] Initializing WorkManager + SyncContinuationService...');
+=======
+    debugPrint('⚙️ [7.6/8] Initializing WorkManager + SyncContinuationService...');
+>>>>>>> origin/refactor/clean-v2
     try {
       await Workmanager().initialize(_unifiedCallbackDispatcher);
       await SyncContinuationService.initialize(debug: kDebugMode);
       // تسجيل فحص دوري للمزامنات المعلّقة (كل 15 دقيقة)
       await SyncContinuationService.schedulePeriodicCheck();
+<<<<<<< HEAD
       dlog('✅ WorkManager + SyncContinuationService initialized');
     } catch (e) {
       dwarn(() => 'WorkManager init failed (non-fatal): $e');
     }
 
     dlog('🤖 [8/8] Initializing & Starting Auto Sync Engine...');
+=======
+      debugPrint('✅ WorkManager + SyncContinuationService initialized');
+    } catch (e) {
+      debugPrint('⚠️ WorkManager init failed (non-fatal): $e');
+    }
+
+    debugPrint('🤖 [8/8] Initializing & Starting Auto Sync Engine...');
+>>>>>>> origin/refactor/clean-v2
     final autoSyncEngine = AutoSyncEngine.instance;
 
     await autoSyncEngine.initialize(backupService: backupService, database: database, logger: driveLogger);
@@ -328,6 +376,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       dlog('ℹ️ المستخدم لم يسجل دخول Google Drive بعد - لن تبدأ المزامنة التلقائية');
     }
 
+    // ignore: deprecated_member_use_from_same_package
     await SyncQueueService.instance.initialize();
 
     _startEngineMonitoring(autoSyncEngine);
@@ -430,12 +479,20 @@ StreamSubscription<void>? _globalEngineMonitoringSub;
 void _startEngineMonitoring(AutoSyncEngine engine) {
   _globalEngineMonitoringSub?.cancel();
   _globalEngineMonitoringSub = engine.stateStream.listen((state) {
+<<<<<<< HEAD
     dlog(
       () =>
           '📊 ENGINE ${state.isRunning ? '🟢' : '🔴'} | '
           'Net: ${state.hasNetworkConnection ? '🌐' : '📴'} | '
           'Auth: ${state.isSignedIn ? '🔐' : '🔓'} | '
           'Pending: ${state.pendingChangesCount}',
+=======
+    debugPrint(
+      '📊 ENGINE ${state.isRunning ? '🟢' : '🔴'} | '
+      'Net: ${state.hasNetworkConnection ? '🌐' : '📴'} | '
+      'Auth: ${state.isSignedIn ? '🔐' : '🔓'} | '
+      'Pending: ${state.pendingChangesCount}',
+>>>>>>> origin/refactor/clean-v2
     );
   });
 }
@@ -536,6 +593,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           dwarn(() => 'FCM initialization error: $e');
         }
 
+<<<<<<< HEAD
         // بدء المزامنة التلقائية (push + pull)
         // ✅ Forensic audit fix (2026-07-22):
         // كان الفاصل دقيقتين → 30 دورة/ساعة × 3 أجهزة × 20 collection
@@ -559,6 +617,10 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         );
         syncManager.startAutoSync(interval: Duration(minutes: clampedMinutes));
         dlog('⏰ Auto-sync started: every $clampedMinutes minutes');
+=======
+        // بدء المزامنة التلقائية (push + pull كل 2 دقيقة)
+        syncManager.startAutoSync(interval: const Duration(minutes: 2));
+>>>>>>> origin/refactor/clean-v2
 
         // سحب البيانات عند فتح التطبيق — مع فحص ذكي (مرة كل ساعة)
         try {
@@ -586,10 +648,17 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
             await syncManager.sync();
             // تسجيل وقت هذا السحب
             await prefs.setInt(SyncConstants.lastAppOpenPullKey, DateTime.now().millisecondsSinceEpoch);
+<<<<<<< HEAD
             dlog('✅ Initial sync on app start completed');
           }
         } catch (e) {
           dwarn(() => 'Initial sync on app start failed: $e');
+=======
+            debugPrint('✅ Initial sync on app start completed');
+          }
+        } catch (e) {
+          debugPrint('⚠️ Initial sync on app start failed: $e');
+>>>>>>> origin/refactor/clean-v2
         }
 
         var deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
@@ -759,19 +828,32 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // push فقط — لا نسحب لتوفير الوقت قبل أن يقتل النظام التطبيق
       // مهلة 10 ثوانٍ — إذا لم يكتمل، البيانات محفوظة في outbox
       await syncManager.sync(pull: false).timeout(const Duration(seconds: 10));
+<<<<<<< HEAD
       dlog('✅ Push on pause completed');
     } catch (e) {
       // البيانات محفوظة في outbox — لن تُفقد أبداً
       dwarn(() => 'Push on pause error (data safe in outbox): $e');
+=======
+      debugPrint('✅ Push on pause completed');
+    } catch (e) {
+      // البيانات محفوظة في outbox — لن تُفقد أبداً
+      debugPrint('⚠️ Push on pause error (data safe in outbox): $e');
+>>>>>>> origin/refactor/clean-v2
 
       // ✅ جدولة مهمة WorkManager لإكمال المزامنة في الخلفية
       // البيانات محفوظة في outbox، لكن push للسحابة لم يكتمل —
       // WorkManager سيُحاول إكماله عند توفر الشبكة.
       try {
         await SyncContinuationService.scheduleSyncCompletion();
+<<<<<<< HEAD
         dlog('📅 Scheduled WorkManager to complete sync in background');
       } catch (schedErr) {
         dwarn(() => 'Failed to schedule sync continuation: $schedErr');
+=======
+        debugPrint('📅 Scheduled WorkManager to complete sync in background');
+      } catch (schedErr) {
+        debugPrint('⚠️ Failed to schedule sync continuation: $schedErr');
+>>>>>>> origin/refactor/clean-v2
       }
     }
   }
@@ -790,7 +872,11 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // ستُرفع للسحابة حتى لو قُتل التطبيق فوراً بعد dispose().
       unawaited(
         SyncContinuationService.scheduleSyncCompletion().catchError(
+<<<<<<< HEAD
           (Object e, StackTrace s) => derr(() => 'Error scheduling sync continuation on dispose: $e\n$s'),
+=======
+          (Object e, StackTrace s) => debugPrint('Error scheduling sync continuation on dispose: $e\n$s'),
+>>>>>>> origin/refactor/clean-v2
         ),
       );
     }
@@ -813,6 +899,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     } catch (e) {
       dwarn(() => 'Error disposing BatteryOptimizer: $e');
     }
+    // ignore: deprecated_member_use_from_same_package
     try {
       // ignore: deprecated_member_use_from_same_package
       await AppwriteRealtimeService.disposeInstance();
@@ -859,6 +946,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     } catch (e) {
       dwarn(() => 'Error disposing CentralSyncCoordinator: $e');
     }
+    // ignore: deprecated_member_use_from_same_package
     try {
       BackgroundSyncService.disposeInstance();
     } catch (e) {
@@ -891,6 +979,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       return;
     }
     if (state == AppLifecycleState.resumed) {
+<<<<<<< HEAD
       dlog('📱 التطبيق عاد للواجهة...');
       AppSessionManager.onAppOpen().catchError((Object e, StackTrace s) => derr(() => 'Error in onAppOpen: $e\n$s'));
       ref
@@ -908,6 +997,28 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       );
       SyncGuardian.instance.onAppForeground().catchError(
         (Object e, StackTrace s) => derr(() => 'Error in SyncGuardian onAppForeground: $e\n$s'),
+=======
+      debugPrint('📱 التطبيق عاد للواجهة...');
+      AppSessionManager.onAppOpen().catchError((Object e, StackTrace s) => debugPrint('Error in onAppOpen: $e\n$s'));
+      ref
+          .read(backupStatusProvider.notifier)
+          .refreshSignInStatus()
+          .catchError((Object e, StackTrace s) => debugPrint('Error in refreshSignInStatus: $e\n$s'));
+      // ✅ استهلاك أي عمليات مزامنة معلّقة من WorkManager
+      // قبل بدء مزامنة جديدة لتجنب التضارب
+      unawaited(
+        SyncContinuationService.consumePendingAndSync().catchError(
+          (Object e, StackTrace s) => debugPrint('Error in consumePendingAndSync: $e\n$s'),
+        ),
+      );
+      // رفع التغييرات المعلقة + سحب التغييرات الجديدة عند العودة
+      unawaited(_syncOnResume());
+      UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
+        (Object e, StackTrace s) => debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
+      );
+      SyncGuardian.instance.onAppForeground().catchError(
+        (Object e, StackTrace s) => debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'),
+>>>>>>> origin/refactor/clean-v2
       );
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
@@ -919,13 +1030,21 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // حتى لو قُتل التطبيق قبل اكتمال _pushPendingChangesOnPause
       unawaited(
         SyncContinuationService.scheduleSyncCompletion().catchError(
+<<<<<<< HEAD
           (Object e, StackTrace s) => derr(() => 'Error scheduling sync continuation: $e\n$s'),
+=======
+          (Object e, StackTrace s) => debugPrint('Error scheduling sync continuation: $e\n$s'),
+>>>>>>> origin/refactor/clean-v2
         ),
       );
       // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
       Future.microtask(
         AppSessionManager.onAppCloseOrBackground,
+<<<<<<< HEAD
       ).catchError((Object e, StackTrace s) => derr(() => 'Error in onAppCloseOrBackground: $e\n$s'));
+=======
+      ).catchError((Object e, StackTrace s) => debugPrint('Error in onAppCloseOrBackground: $e\n$s'));
+>>>>>>> origin/refactor/clean-v2
     }
   }
 
@@ -1155,6 +1274,7 @@ void _unifiedCallbackDispatcher() {
       switch (task) {
         case kSyncCompletionImmediateTask:
         case kSyncCompletionTask:
+<<<<<<< HEAD
           return await _executeSyncCompletionTask(task, inputData);
 
         case 'marina_auto_sync_now':
@@ -1163,17 +1283,35 @@ void _unifiedCallbackDispatcher() {
 
         case 'backupAfterInactivity':
           return await _executeBackupAfterInactivity(task, inputData);
+=======
+          return _executeSyncCompletionTask(task, inputData);
+
+        case 'marina_auto_sync_now':
+        case 'marina_auto_sync_periodic':
+          return _executeAutoSyncTask(task, inputData);
+
+        case 'backupAfterInactivity':
+          return _executeBackupAfterInactivity(task, inputData);
+>>>>>>> origin/refactor/clean-v2
 
         case 'marina-hotel-background-sync':
         case 'marina-hotel-periodic-sync':
         case 'marina-hotel-battery-aware-sync':
         case 'autoBackup':
         case 'autoBackupTask':
+<<<<<<< HEAD
           return await _executeLegacySyncTask(task, inputData);
 
         default:
           developer.log('⚠️ [WorkManager] Unknown task: $task → fallback to sync', name: 'WorkManager');
           return await _executeLegacySyncTask(task, inputData);
+=======
+          return _executeLegacySyncTask(task, inputData);
+
+        default:
+          developer.log('⚠️ [WorkManager] Unknown task: $task → fallback to sync', name: 'WorkManager');
+          return _executeLegacySyncTask(task, inputData);
+>>>>>>> origin/refactor/clean-v2
       }
     } catch (e, st) {
       developer.log('❌ [WorkManager] Task $task failed', name: 'WorkManager', error: e, stackTrace: st);

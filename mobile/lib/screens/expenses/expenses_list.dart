@@ -749,6 +749,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
       int? selectedEmployeeId = existing?.relatedId;
 
       final ok = await showDialog<bool>(
+<<<<<<< HEAD
+=======
+        // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
         context: context,
         builder: (ctx) => StatefulBuilder(
           builder: (ctx, setState) {
@@ -1002,7 +1006,10 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
         }
 
         markDataChanged();
+<<<<<<< HEAD
         unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
+=======
+>>>>>>> origin/refactor/clean-v2
 
         // ✅ إصلاح: توسيع الفلتر تلقائياً إذا كان hotelDayKey للمصروف المحفوظ
         // يختلف عن نطاق الفلتر الحالي — لضمان ظهور المصروف الجديد دائماً

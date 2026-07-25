@@ -25,6 +25,7 @@ class BookingDerivedFieldsService {
     await refreshForBooking(booking, now: now, forceRebuild: forceRebuild);
   }
 
+<<<<<<< HEAD
   /// Refresh derived fields for a single booking (opens its own transaction).
   /// Use this for single-booking updates. For batch updates, use
   /// [refreshAllActiveBookings] which batches all writes in one transaction.
@@ -38,6 +39,9 @@ class BookingDerivedFieldsService {
   /// Does NOT open its own transaction — must only be called from within
   /// a `db.transaction` block or `refreshAllActiveBookings`.
   Future<void> _refreshForBookingInTransaction(Booking booking, {DateTime? now, bool forceRebuild = false}) async {
+=======
+  Future<void> refreshForBooking(Booking booking, {DateTime? now, bool forceRebuild = false}) async {
+>>>>>>> origin/refactor/clean-v2
     final moment = now ?? DateTime.now();
     final calcService = EnhancedBookingCalculationService(db);
     final calculation = await calcService.calculateForBooking(booking, now: moment);
@@ -69,6 +73,7 @@ class BookingDerivedFieldsService {
     final stamp = nowUtc.millisecondsSinceEpoch ~/ 1000;
     final stampIso = nowUtc.toIso8601String();
 
+<<<<<<< HEAD
     // Direct write — no nested transaction because caller already holds one.
     await (db.update(db.bookings)..where((b) => b.id.equals(booking.id))).write(
       BookingsCompanion(
@@ -92,6 +97,32 @@ class BookingDerivedFieldsService {
         updatedAtIso: d.Value(stampIso),
       ),
     );
+=======
+    await db.transaction(() async {
+      await (db.update(db.bookings)..where((b) => b.id.equals(booking.id))).write(
+        BookingsCompanion(
+          expectedNights: d.Value(expectedNightsValue),
+          calculatedNights: d.Value(calculation.financialSummary.totalNights),
+          totalNightsCached: d.Value(calculation.financialSummary.totalNights),
+          stayDurationIso: d.Value(calculation.stayDurationIso),
+          lastNightEpoch: d.Value(calculation.lastNightEpoch),
+          isOverdue: d.Value(isOverdue),
+          needsCheckoutReview: d.Value(needsReview),
+          totalDueCached: d.Value(calculation.financialSummary.totalDue.toDouble()),
+          totalPaidCached: d.Value(calculation.financialSummary.totalPaid.toDouble()),
+          remainingBalanceCached: d.Value(calculation.financialSummary.remainingBalance.toDouble()),
+          isFullyPaid: d.Value(calculation.financialSummary.isFullyPaid),
+          hotelDayCheckin: d.Value(calculation.hotelDayCheckin),
+          hotelDayCheckout: d.Value(calculation.hotelDayCheckout),
+          updatedAt: d.Value(stamp),
+          // ✅ لا نحدّث lastModified للحقول المشتقة لأنها تُحسب محلياً
+          // وليست تغييراً من المستخدم. تحديث lastModified يجعل البيانات
+          // المحلية تبدو "أحدث" مما يمنع السحب من تحديثها في المزامنة القادمة.
+          updatedAtIso: d.Value(stampIso),
+        ),
+      );
+    });
+>>>>>>> origin/refactor/clean-v2
   }
 
   Future<int> refreshAllActiveBookings({DateTime? now}) async {
@@ -106,6 +137,7 @@ class BookingDerivedFieldsService {
 
     int refreshed = 0;
     int promoted = 0;
+<<<<<<< HEAD
 
     // ✅ معالجة جميع الحجوزات داخل معاملة واحدة لتجنب تنازع أقفال SQLite
     // بدلاً من Future.wait الذي يفتح معاملة لكل حجز على حدة ويسبب SQLITE_BUSY
@@ -124,6 +156,28 @@ class BookingDerivedFieldsService {
         }
       }
     });
+=======
+    // معالجة الحجوزات بالتوازي باستخدام Future.wait بدلاً من التسلسل
+    final results = await Future.wait(
+      active.map((booking) async {
+        try {
+          bool didPromote = false;
+          final cutoffHour = RemoteConfigService.instance.checkoutHour;
+          if (StatusUtils.isBookingProvisional(booking) && moment.hour >= cutoffHour) {
+            await _promoteProvisionalBooking(booking.id);
+            didPromote = true;
+          }
+          await refreshForBooking(booking, now: moment, forceRebuild: true);
+          return (promoted: didPromote, refreshed: true);
+        } catch (e) {
+          debugPrint('⚠️ خطأ في تحديث حجز ${booking.id}: $e');
+          return (promoted: false, refreshed: false);
+        }
+      }),
+    );
+    promoted = results.where((r) => r.promoted).length;
+    refreshed = results.where((r) => r.refreshed).length;
+>>>>>>> origin/refactor/clean-v2
 
     if (promoted > 0) {
       debugPrint('✅ تم تثبيت $promoted حجز مؤقت → محجوزة');

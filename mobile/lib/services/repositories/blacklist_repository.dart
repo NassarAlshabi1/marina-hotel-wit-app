@@ -31,6 +31,7 @@ bool _tripleMatch(List<String> a, List<String> b) {
 }
 
 class BlacklistEntry {
+<<<<<<< HEAD
   const BlacklistEntry({      required this.id,
       required this.name,
       required this.createdAt,
@@ -41,6 +42,19 @@ class BlacklistEntry {
       this.notes,
       this.reportedBy = 'police',
       this.active = true,
+=======
+  const BlacklistEntry({
+    required this.id,
+    required this.name,
+    this.nationality,
+    this.nationalId,
+    this.phone,
+    this.reason,
+    this.notes,
+    this.reportedBy = 'police',
+    this.active = true,
+    required this.createdAt,
+>>>>>>> origin/refactor/clean-v2
   });
   final int id;
   final String name;

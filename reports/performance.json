@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
     "total_dart_files": 364,
     "total_lines": 143736,
     "stateful_widgets": 9,
@@ -13,5 +14,21 @@
         "lines": 6445
     },
     "average_file_size": 394,
+=======
+    "total_dart_files": 362,
+    "total_lines": 144437,
+    "stateful_widgets": 9,
+    "consumer_widgets": 85,
+    "set_state_calls": 391,
+    "future_builders": 8,
+    "stream_builders": 31,
+    "files_over_500": 52,
+    "files_over_1000": 30,
+    "largest_file": {
+        "name": "appwrite_sync_manager.dart",
+        "lines": 6333
+    },
+    "average_file_size": 398,
+>>>>>>> origin/refactor/clean-v2
     "score": 0
 }

@@ -133,6 +133,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
         lastModified: effectiveLastModified,
         version: Value(existing.version + 1),
       );
+<<<<<<< HEAD
 
       // ✅ إصلاح حرج: استبدال replace بـ write لتجنب InvalidDataException.
       //
@@ -162,6 +163,11 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
           serverId: comp.serverId.present ? comp.serverId.value : existing.serverId,
           clientTs: now,
         );
+=======
+      final rows = await (update(bookings)..where((t) => t.id.equals(id))).write(comp);
+      if (rows > 0 && !originIsServer) {
+        await _mergeOutbox(op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, clientTs: now);
+>>>>>>> origin/refactor/clean-v2
       }
       return 1;
     });
@@ -174,6 +180,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       if (existing == null) {
         return 0;
       }
+<<<<<<< HEAD
       await (update(bookings)..where((t) => t.id.equals(id))).write(
         BookingsCompanion(
           deletedAt: Value(now),
@@ -189,11 +196,21 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
           serverId: existing.serverId,
           clientTs: now,
         );
+=======
+      final rows = await (update(bookings)..where((t) => t.id.equals(id))).write(
+        BookingsCompanion(deletedAt: Value(now), updatedAt: Value(now), lastModified: Value(now)),
+      );
+      if (rows > 0 && !originIsServer) {
+        // ✅ نستخدم 'update' بدلاً من 'delete' لأن softDelete يحدّث deletedAt
+        // ولا يحذف المستند من Appwrite — الجهاز الآخر يحتاج رؤية deletedAt
+        await _mergeOutbox(op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, clientTs: now);
+>>>>>>> origin/refactor/clean-v2
       }
       return 1;
     });
   }
 
+<<<<<<< HEAD
   Future<int> restore(int id) async {
     return db.transaction(() async {
       final existing = await getById(id);
@@ -258,13 +275,34 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       ..orderBy([(t) => OrderingTerm(expression: t.checkinDate)]);
     if (limit != null) {
       query.limit(limit);
+=======
+  Future<int> deleteById(int id, {bool originIsServer = false}) => softDelete(id, originIsServer: originIsServer);
+
+  Future<List<Booking>> getAll({bool includeDeleted = false}) {
+    final query = select(bookings);
+    if (!includeDeleted) {
+      query.where((t) => t.deletedAt.isNull());
     }
     return query.get();
   }
 
+  Future<List<Booking>> getByRoomNumber(String roomNumber, {bool includeDeleted = false}) {
+    final query = select(bookings)..where((t) => t.roomNumber.equals(roomNumber));
+    if (!includeDeleted) {
+      query.where((t) => t.deletedAt.isNull());
+>>>>>>> origin/refactor/clean-v2
+    }
+    return query.get();
+  }
+
+<<<<<<< HEAD
   /// البحث عن حجوزات حسب نص (اسم الضيف، رقم الهاتف، رقم الغرفة)
   Future<List<Booking>> search(String query, {bool includeDeleted = false, int? limit}) async {
     final q = select(bookings);
+=======
+  Future<List<Booking>> getByStatus(String status, {bool includeDeleted = false}) {
+    final query = select(bookings)..where((t) => t.status.equals(status));
+>>>>>>> origin/refactor/clean-v2
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
     }

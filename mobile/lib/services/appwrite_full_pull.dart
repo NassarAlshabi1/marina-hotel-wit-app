@@ -26,7 +26,11 @@ class AppwriteFullPull {
   static const int _batchSize = 100;
 
   /// هل تم التهيئة
+<<<<<<< HEAD
   bool get isInitialized => _appwriteService != null && _database != null;
+=======
+  bool get isInitialized => _appwriteService != null && _database != null && _adapterRegistry != null;
+>>>>>>> origin/refactor/clean-v2
 
   /// تهيئة الخدمة
   Future<void> initialize(AppwriteService service, AppDatabase db) async {
@@ -117,7 +121,11 @@ class AppwriteFullPull {
         repo: reg.cashTransactions,
       ),
       // 5. ليالي الحجز (تعتمد على الحجوزات)
+<<<<<<< HEAD
       _PullEntity(name: 'booking_nights', collectionId: AppwriteConfig.bookingNightsCollectionId, repo: reg.nights, maxRecords: 1000),
+=======
+      _PullEntity(name: 'booking_nights', collectionId: AppwriteConfig.bookingNightsCollectionId, repo: reg.nights),
+>>>>>>> origin/refactor/clean-v2
       // 6. ملاحظات الحجز (تعتمد على الحجوزات)
       _PullEntity(name: 'booking_notes', collectionId: AppwriteConfig.bookingNotesCollectionId, repo: reg.bookingNotes),
       // 7. المدفوعات (تعتمد على الحجوزات والمعاملات النقدية)

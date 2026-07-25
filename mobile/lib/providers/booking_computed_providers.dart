@@ -12,7 +12,11 @@ import '../services/hotel_time_engine.dart';
 
 /// Singleton provider for [BookingComputedStreamService].
 final bookingComputedServiceProvider = Provider<BookingComputedStreamService>((ref) {
+<<<<<<< HEAD
   final db = ref.read(databaseProvider);
+=======
+  final db = ref.watch(databaseProvider);
+>>>>>>> origin/refactor/clean-v2
   return BookingComputedStreamService(db);
 });
 

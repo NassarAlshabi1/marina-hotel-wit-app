@@ -4,7 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/repository_providers.dart';
+<<<<<<< HEAD
 import '../screens/notes/notes_screen.dart' deferred as notes;
+=======
+import '../screens/notes/notes_screen.dart';
+>>>>>>> origin/refactor/clean-v2
 import '../utils/performance_monitor.dart';
 import 'widgets/sync_action_button.dart';
 
@@ -87,6 +91,7 @@ class AppScaffold extends ConsumerWidget {
               : Text(title),
           actions: [
             IconButton(
+<<<<<<< HEAD
               onPressed: () async {
                 await notes.loadLibrary();
                 if (context.mounted) {
@@ -94,6 +99,10 @@ class AppScaffold extends ConsumerWidget {
                     Navigator.of(context).push<void>(MaterialPageRoute<void>(builder: (_) => notes.NotesScreen())),
                   );
                 }
+=======
+              onPressed: () {
+                Navigator.of(context).push<void>(MaterialPageRoute<void>(builder: (_) => const NotesScreen()));
+>>>>>>> origin/refactor/clean-v2
               },
               tooltip: 'التنبيهات',
               icon: Stack(

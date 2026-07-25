@@ -553,6 +553,10 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
       if (!mounted) {
         return;
       }
+<<<<<<< HEAD
+=======
+      // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('فشل حفظ الغرفة: $e'), backgroundColor: Colors.red.shade900));

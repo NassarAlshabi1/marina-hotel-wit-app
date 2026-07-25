@@ -103,6 +103,7 @@ class BookingLostRevenue {
 }
 
 class AdjustmentSummary {
+<<<<<<< HEAD
   AdjustmentSummary({      required this.uuid,
       required this.type,
       required this.amount,
@@ -110,6 +111,16 @@ class AdjustmentSummary {
       required this.nightsAffected,
       required this.totalImpact,
       this.endHotelDay,
+=======
+  AdjustmentSummary({
+    required this.uuid,
+    required this.type,
+    required this.amount,
+    required this.effectiveHotelDay,
+    this.endHotelDay,
+    required this.nightsAffected,
+    required this.totalImpact,
+>>>>>>> origin/refactor/clean-v2
   });
   final String uuid;
   final AdjustmentType type;
@@ -444,6 +455,7 @@ class BookingPriceAdjustmentService {
     });
 
     final outboxDao = OutboxDao(db);
+<<<<<<< HEAD
     await outboxDao.mergeBatch(
       adjustments.map((adj) => <String, dynamic>{
         'entity': 'booking_price_adjustments',
@@ -452,6 +464,34 @@ class BookingPriceAdjustmentService {
         'payload': <String, dynamic>{'roomNumber': newRoomNumber},
         'clientTs': now,
       }).toList(),
+=======
+
+    for (final adj in adjustments) {
+      // تحديث رقم الغرفة مع timestamps للمزامنة
+      await (db.update(db.bookingPriceAdjustments)..where((a) => a.localUuid.equals(adj.localUuid))).write(
+        BookingPriceAdjustmentsCompanion(
+          roomNumber: Value(newRoomNumber),
+          updatedAt: Value(now),
+          lastModified: Value(now),
+          // ✅ bump version لتفعيل OCC عند الدفع لاحقاً
+          version: Value(adj.version + 1),
+        ),
+      );
+
+      // إنشاء outbox entry للمزامنة (نفس نمط cancelAdjustment)
+      await outboxDao.merge(
+        entity: 'booking_price_adjustments',
+        op: 'update',
+        localUuid: adj.localUuid,
+        payload: {'roomNumber': newRoomNumber},
+        clientTs: now,
+      );
+    }
+
+    debugPrint(
+      'تم نقل ${adjustments.length} تعديل(ات) سعر للغرفة $newRoomNumber '
+      'للحجز #$bookingId',
+>>>>>>> origin/refactor/clean-v2
     );
 
     dlog(() => 'تم نقل ${adjustments.length} تعديل(ات) سعر للغرفة $newRoomNumber للحجز #$bookingId');
@@ -486,6 +526,7 @@ class BookingPriceAdjustmentService {
 
     final result = <Booking>[];
 
+<<<<<<< HEAD
     // ✅ تحسين أداء: batch lookup بدل N+1 — جلب كل التعديلات مرة واحدة
     final bookingIds = bookings.map((b) => b.id).toSet();
     final allSurcharges = await (db.select(db.bookingPriceAdjustments)
@@ -495,6 +536,16 @@ class BookingPriceAdjustmentService {
           ..where((a) => a.deletedAt.isNull()))
         .get();
     final surchargeBookingIds = allSurcharges.map((a) => a.bookingLocalId).whereType<int>().toSet();
+=======
+    for (final booking in bookings) {
+      final hasSurcharge =
+          await (db.select(db.bookingPriceAdjustments)
+                ..where((a) => a.bookingLocalId.equals(booking.id))
+                ..where((a) => a.adjustmentType.equals(AdjustmentType.surcharge.value))
+                ..where((a) => a.isActive.equals(true))
+                ..where((a) => a.deletedAt.isNull()))
+              .get();
+>>>>>>> origin/refactor/clean-v2
 
     for (final booking in bookings) {
       if (!surchargeBookingIds.contains(booking.id)) {
@@ -540,17 +591,33 @@ class BookingPriceAdjustmentService {
     }
 
     for (final bookingId in bookingIds) {
+<<<<<<< HEAD
       final booking = bookingMap[bookingId];
+=======
+      final booking = await (db.select(db.bookings)..where((b) => b.id.equals(bookingId))).getSingleOrNull();
+>>>>>>> origin/refactor/clean-v2
       if (booking == null) {
         continue;
       }
 
+<<<<<<< HEAD
       final room = roomMap[booking.roomNumber];
+=======
+      final room = await (db.select(db.rooms)..where((r) => r.roomNumber.equals(booking.roomNumber))).getSingleOrNull();
+>>>>>>> origin/refactor/clean-v2
       if (room == null) {
         continue;
       }
 
+<<<<<<< HEAD
       final nights = nightsMap[bookingId] ?? const [];
+=======
+      final nights =
+          await (db.select(db.bookingNights)
+                ..where((n) => n.bookingLocalId.equals(bookingId))
+                ..where((n) => n.deletedAt.isNull()))
+              .get();
+>>>>>>> origin/refactor/clean-v2
 
       final bookingAdjustments = adjustments.where((a) => a.bookingLocalId == bookingId).toList();
 

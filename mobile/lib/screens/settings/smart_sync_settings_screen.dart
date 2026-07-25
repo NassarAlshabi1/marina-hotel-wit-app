@@ -42,6 +42,10 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
         ),
       );
     } catch (e) {
+<<<<<<< HEAD
+=======
+      // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('❌ خطأ في تغيير حالة المزامنة: $e'), backgroundColor: Colors.red));
@@ -64,6 +68,10 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
         SnackBar(content: Text('⏰ تم تغيير فترة المزامنة إلى $minutes دقائق'), backgroundColor: Colors.green),
       );
     } catch (e) {
+<<<<<<< HEAD
+=======
+      // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('❌ خطأ في تغيير فترة المزامنة: $e'), backgroundColor: Colors.red));
@@ -82,10 +90,18 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
 
       ref.invalidate(smartSyncStatusProvider);
 
+<<<<<<< HEAD
+=======
+      // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('🤝 تم تغيير استراتيجية حل التضارب'), backgroundColor: Colors.green));
     } catch (e) {
+<<<<<<< HEAD
+=======
+      // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('❌ خطأ في تغيير استراتيجية التضارب: $e'), backgroundColor: Colors.red));
@@ -104,10 +120,18 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
 
       ref.invalidate(smartSyncStatusProvider);
 
+<<<<<<< HEAD
+=======
+      // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('🔄 تمت المزامنة اليدوية بنجاح'), backgroundColor: Colors.green));
     } catch (e) {
+<<<<<<< HEAD
+=======
+      // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('❌ فشلت المزامنة اليدوية: $e'), backgroundColor: Colors.red));
@@ -126,6 +150,10 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
         const SnackBar(content: Text('⚡ تم تشغيل مزامنة WorkManager فوراً'), backgroundColor: Colors.green),
       );
     } catch (e) {
+<<<<<<< HEAD
+=======
+      // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('❌ تعذر تشغيل مزامنة WorkManager: $e'), backgroundColor: Colors.red));
@@ -146,6 +174,10 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
         ),
       );
     } catch (e) {
+<<<<<<< HEAD
+=======
+      // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('❌ تعذر تغيير أولوية الجهاز: $e'), backgroundColor: Colors.red));

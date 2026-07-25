@@ -3,10 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 
 class AdminSidebar extends ConsumerWidget {
+<<<<<<< HEAD
   const AdminSidebar({      required this.currentRoute,
       required this.onRouteSelected,
       super.key,
   });
+=======
+  const AdminSidebar({super.key, required this.currentRoute, required this.onRouteSelected});
+>>>>>>> origin/refactor/clean-v2
   final String currentRoute;
   final void Function(String) onRouteSelected;
 

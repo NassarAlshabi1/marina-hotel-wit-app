@@ -53,9 +53,15 @@ class SecondaryAppwriteConfig {
 
   static bool get isConfigured {
     ensureInitializedSync();
+<<<<<<< HEAD
     final endpoint = _prefs!.getString(_keyEndpoint) ?? defaultEndpoint;
     final projectId = _prefs!.getString(_keyProjectId) ?? defaultProjectId;
     final databaseId = _prefs!.getString(_keyDatabaseId) ?? defaultDatabaseId;
+=======
+    final endpoint = _prefs!.getString(_keyEndpoint) ?? '';
+    final projectId = _prefs!.getString(_keyProjectId) ?? '';
+    final databaseId = _prefs!.getString(_keyDatabaseId) ?? '';
+>>>>>>> origin/refactor/clean-v2
     return endpoint.isNotEmpty && projectId.isNotEmpty && databaseId.isNotEmpty;
   }
 

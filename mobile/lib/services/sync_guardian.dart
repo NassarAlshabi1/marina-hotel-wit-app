@@ -92,7 +92,11 @@ class SyncGuardian {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(SyncConstants.guardianLocalChangeDebounce, () async {
       try {
+<<<<<<< HEAD
         dlog(() => '📤 رفع $_pendingChangesCount تغيير بعد debounce: $table/$operation');
+=======
+        debugPrint('📤 رفع $_pendingChangesCount تغيير بعد debounce: $table/$operation');
+>>>>>>> origin/refactor/clean-v2
         final ok = await _orchestrator!.syncNow(reason: 'guardian_debounce');
         if (!ok) {
           await AutoSyncTask.scheduleImmediateSync();

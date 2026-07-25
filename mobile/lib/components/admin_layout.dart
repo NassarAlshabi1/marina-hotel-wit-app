@@ -4,6 +4,7 @@ import '../utils/theme.dart';
 import 'admin_sidebar.dart';
 
 class AdminLayout extends StatelessWidget {
+<<<<<<< HEAD
   const AdminLayout({      required this.body,
       required this.currentRoute,
       super.key,
@@ -12,6 +13,17 @@ class AdminLayout extends StatelessWidget {
       this.floatingActionButton,
       this.appBar,
       this.onRouteSelected,
+=======
+  const AdminLayout({
+    super.key,
+    required this.body,
+    required this.currentRoute,
+    this.title,
+    this.actions,
+    this.floatingActionButton,
+    this.appBar,
+    this.onRouteSelected,
+>>>>>>> origin/refactor/clean-v2
   });
   final Widget body;
   final String currentRoute;
@@ -134,6 +146,7 @@ class AdminLayout extends StatelessWidget {
 
 // Bootstrap-like components for matching PHP design
 class AdminCard extends StatelessWidget {
+<<<<<<< HEAD
   const AdminCard({      required this.child,
       super.key,
       this.padding,
@@ -141,6 +154,16 @@ class AdminCard extends StatelessWidget {
       this.elevation,
       this.title,
       this.trailing,
+=======
+  const AdminCard({
+    super.key,
+    required this.child,
+    this.padding,
+    this.color,
+    this.elevation,
+    this.title,
+    this.trailing,
+>>>>>>> origin/refactor/clean-v2
   });
   final Widget child;
   final EdgeInsets? padding;
@@ -185,12 +208,22 @@ class AdminCard extends StatelessWidget {
 }
 
 class StatCard extends StatelessWidget {
+<<<<<<< HEAD
   const StatCard({      required this.title,
       required this.value,
       required this.icon,
       required this.color,
       super.key,
       this.subtitle,
+=======
+  const StatCard({
+    super.key,
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+    this.subtitle,
+>>>>>>> origin/refactor/clean-v2
   });
   final String title;
   final String value;
@@ -248,12 +281,22 @@ class StatCard extends StatelessWidget {
 }
 
 class AdminTable extends StatefulWidget {
+<<<<<<< HEAD
   const AdminTable({      required this.headers,
       required this.rows,
       super.key,
       this.striped = true,
       this.bordered = true,
       this.rowsPerPage = 50,
+=======
+  const AdminTable({
+    super.key,
+    required this.headers,
+    required this.rows,
+    this.striped = true,
+    this.bordered = true,
+    this.rowsPerPage = 50,
+>>>>>>> origin/refactor/clean-v2
   });
   final List<String> headers;
   final List<List<Widget>> rows;
@@ -351,10 +394,14 @@ class _AdminTableState extends State<AdminTable> {
 }
 
 class StatusBadge extends StatelessWidget {
+<<<<<<< HEAD
   const StatusBadge({      required this.text,
       required this.color,
       super.key,
   });
+=======
+  const StatusBadge({super.key, required this.text, required this.color});
+>>>>>>> origin/refactor/clean-v2
 
   factory StatusBadge.success(String text) {
     return StatusBadge(text: text, color: Colors.green);

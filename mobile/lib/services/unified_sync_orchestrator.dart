@@ -4,7 +4,10 @@ import 'dart:isolate';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/sync_models.dart' as models;
+<<<<<<< HEAD
 import '../utils/debug_log.dart';
+=======
+>>>>>>> origin/refactor/clean-v2
 import 'analytics_service.dart';
 import 'appwrite_service.dart';
 import 'appwrite_sync_manager.dart' show AppwriteSyncManager, SyncStatus;
@@ -198,8 +201,13 @@ class UnifiedSyncOrchestrator {
       try {
         await _autoSyncToAppwrite(reason: 'local_change:${table ?? 'unknown'}:${operation ?? 'unknown'}');
       } catch (e, stackTrace) {
+<<<<<<< HEAD
         dwarn(() => '❌ UnifiedSyncOrchestrator: خطأ في debounce auto sync: $e');
         dwarn(() => 'Stack trace: $stackTrace');
+=======
+        debugPrint('❌ UnifiedSyncOrchestrator: خطأ في debounce auto sync: $e');
+        debugPrint('Stack trace: $stackTrace');
+>>>>>>> origin/refactor/clean-v2
         // لا rethrow — نمنع fatal crash
       }
     });
@@ -319,7 +327,11 @@ class UnifiedSyncOrchestrator {
       // ✅ Analytics: تسجيل فشل المزامنة
       final syncDuration = DateTime.now().difference(syncStartTime);
       unawaited(AnalyticsService().logSyncFailure(error: e.toString(), operation: 'syncNow', attempt: 1));
+<<<<<<< HEAD
       dlog(() => '📊 Analytics: sync failed after ${syncDuration.inMilliseconds}ms');
+=======
+      debugPrint('📊 Analytics: sync failed after ${syncDuration.inMilliseconds}ms');
+>>>>>>> origin/refactor/clean-v2
       return false;
     } finally {
       _syncing = false;

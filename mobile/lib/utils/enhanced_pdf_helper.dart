@@ -367,10 +367,14 @@ class EnhancedPdfHelper {
 
 /// Widget لعرض معاينة PDF محسّنة
 class EnhancedPdfPreviewScreen extends ConsumerWidget {
+<<<<<<< HEAD
   const EnhancedPdfPreviewScreen({      required this.title,
       required this.pdfGenerator,
       super.key,
   });
+=======
+  const EnhancedPdfPreviewScreen({super.key, required this.title, required this.pdfGenerator});
+>>>>>>> origin/refactor/clean-v2
   final String title;
   final Future<Uint8List> Function() pdfGenerator;
 

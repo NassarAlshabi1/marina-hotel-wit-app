@@ -680,8 +680,11 @@ class SyncLog extends Table {
 
   List<Index> get indexes => [
     Index('idx_sync_log_created', 'CREATE INDEX idx_sync_log_created ON sync_log (created_at)'),
+<<<<<<< HEAD
     Index('idx_sync_log_sync_id', 'CREATE INDEX idx_sync_log_sync_id ON sync_log (sync_id)'),
     Index('idx_sync_log_device_id', 'CREATE INDEX idx_sync_log_device_id ON sync_log (device_id)'),
+=======
+>>>>>>> origin/refactor/clean-v2
   ];
 }
 
@@ -1975,6 +1978,7 @@ class AppDatabase extends _$AppDatabase {
             }
           }
           developer.log('Migration 49: performance indexes created successfully', name: 'db.migration');
+<<<<<<< HEAD
         }
 
         // === Migration 50: Additional indexes for frequently queried columns ===
@@ -1997,6 +2001,8 @@ class AppDatabase extends _$AppDatabase {
             }
           }
           developer.log('Migration 50: additional indexes created successfully', name: 'db.migration');
+=======
+>>>>>>> origin/refactor/clean-v2
         }
       }
     },

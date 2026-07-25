@@ -57,10 +57,13 @@ List<Override> _baseOverrides(AppDatabase db, {List<Employee>? employees}) {
     databaseProvider.overrideWithValue(db),
     employeesListProvider.overrideWith((ref) => Stream.value(employees ?? [])),
     customListNamesProvider(kListKeyExpenseType).overrideWith((ref) async => ['اخرى', 'صيانة', 'رواتب']),
+<<<<<<< HEAD
     // ✅ إصلاح Timer معلّق: استبدال debounceStream بـ Stream.value ثابت
     simpleNotesUnreadCountProvider.overrideWith((ref) => Stream.value(0)),
     // ✅ إصلاح Timer معلّق: استبدال SyncService الكامل بـ Stream.value ثابت
     syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.idle)),
+=======
+>>>>>>> origin/refactor/clean-v2
   ];
 }
 
@@ -116,9 +119,12 @@ void main() {
             databaseProvider.overrideWithValue(db),
             employeesListProvider.overrideWith((ref) => Stream.empty()),
             customListNamesProvider(kListKeyExpenseType).overrideWith((ref) async => ['اخرى']),
+<<<<<<< HEAD
             // ✅ إصلاح Timer معلّق (انظر _baseOverrides للتوثيق الكامل)
             simpleNotesUnreadCountProvider.overrideWith((ref) => Stream.value(0)),
             syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.idle)),
+=======
+>>>>>>> origin/refactor/clean-v2
           ],
         ),
       );
@@ -133,9 +139,12 @@ void main() {
             databaseProvider.overrideWithValue(db),
             employeesListProvider.overrideWith((ref) => Stream.error('خطأ في الاتصال')),
             customListNamesProvider(kListKeyExpenseType).overrideWith((ref) async => ['اخرى']),
+<<<<<<< HEAD
             // ✅ إصلاح Timer معلّق (انظر _baseOverrides للتوثيق الكامل)
             simpleNotesUnreadCountProvider.overrideWith((ref) => Stream.value(0)),
             syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.idle)),
+=======
+>>>>>>> origin/refactor/clean-v2
           ],
         ),
       );
@@ -150,9 +159,12 @@ void main() {
             databaseProvider.overrideWithValue(db),
             employeesListProvider.overrideWith((ref) => Stream.value([_testEmployee()])),
             customListNamesProvider(kListKeyExpenseType).overrideWith((ref) async => ['اخرى']),
+<<<<<<< HEAD
             // ✅ إصلاح Timer معلّق (انظر _baseOverrides للتوثيق الكامل)
             simpleNotesUnreadCountProvider.overrideWith((ref) => Stream.value(0)),
             syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.idle)),
+=======
+>>>>>>> origin/refactor/clean-v2
           ],
         ),
       );

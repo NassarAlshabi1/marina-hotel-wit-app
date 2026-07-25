@@ -101,6 +101,7 @@ EXCLUDE_FROM_SERVICES_CHECK = {
     'screens/settings/settings_maintenance.dart',
 }
 
+<<<<<<< HEAD
 # ملفات يُسمح لها بالاعتماد الدائري (deferred imports, developer tools)
 EXCLUDE_FROM_CIRCULAR_CHECK = {
     'components/app_scaffold.dart',
@@ -129,6 +130,8 @@ def resolve_import(imp: str, current_file: str, lib_root: Path) -> str:
         return str(resolved)
     return imp
 
+=======
+>>>>>>> origin/refactor/clean-v2
 
 def get_layer(file_path: str) -> str:
     """تحديد طبقة الملف بناءً على مساره."""
@@ -140,6 +143,7 @@ def get_layer(file_path: str) -> str:
             return 'ui'
         if part in LAYER_STATE:
             return 'state'
+<<<<<<< HEAD
         if part in LAYER_DOMAIN:
             return 'domain'
         if part in LAYER_DATA:
@@ -147,6 +151,41 @@ def get_layer(file_path: str) -> str:
     return 'unknown'
 
 
+=======
+        if part in LAYER_DATA:
+            return 'data'
+        if part in LAYER_DOMAIN:
+            return 'domain'
+    return 'unknown'
+
+
+def get_imports(file_content: str) -> List[str]:
+    """استخراج كل الاستيرادات من محتوى الملف."""
+    pattern = r"^\s*import\s+['\"]([^'\"]+)['\"]"
+    return re.findall(pattern, file_content, re.MULTILINE)
+
+
+def resolve_import(imp: str, current_file: str, lib_root: Path) -> str:
+    """تحويل استيراد نسبي أو package إلى مسار ملف فعلي."""
+    if imp.startswith('package:marina_hotel_mobile/'):
+        relative = imp.replace('package:marina_hotel_mobile/', '')
+        return str(lib_root / relative)
+    if imp.startswith('.'):
+        current_dir = Path(current_file).parent
+        resolved = (current_dir / imp).resolve()
+        return str(resolved)
+    return imp
+
+
+def is_excluded(rel_path: str, exclude_set: Set[str]) -> bool:
+    """التحقق من أن الملف في قائمة الاستثناءات."""
+    for exclude in exclude_set:
+        if exclude in rel_path:
+            return True
+    return False
+
+
+>>>>>>> origin/refactor/clean-v2
 # ═══════════════════════════════════════════════════════════════
 #  ERRORS — قواعد تُسبب فشل الـ CI
 # ═══════════════════════════════════════════════════════════════
@@ -160,11 +199,31 @@ def check_no_direct_db_from_ui(lib_root: Path) -> Tuple[List[Tuple[str, str]], i
 
     ملاحظة: استيراد 'local_db.dart' للـ types (Room, Booking, Payment) مقبول
     وطبيعي في مشاريع Drift. الانتهاك هو استخدام DatabaseManager.instance
+<<<<<<< HEAD
     """
     violations = []
     db_access_patterns = [
         r'DatabaseManager\.instance\b',
         r'AppDatabase\s*\(\s*\)',  # direct construction
+=======
+    مباشرة من UI layer.
+
+    كشف الأنماط التالية:
+    - DatabaseManager.instance
+    - DatabaseManager.isInitialized
+    - DatabaseManager.close()
+    - DatabaseManager.reopen()
+    - AppDatabase()  (direct construction)
+    """
+    violations = []
+    # أنماط الانتهاك الحقيقية
+    db_access_patterns = [
+        r'DatabaseManager\.instance\b',
+        r'DatabaseManager\.isInitialized\b',
+        r'DatabaseManager\.close\b',
+        r'DatabaseManager\.reopen\b',
+        r'\bAppDatabase\s*\(\s*\)',  # direct construction
+>>>>>>> origin/refactor/clean-v2
     ]
 
     ui_dirs = [lib_root / 'screens', lib_root / 'widgets', lib_root / 'components']
@@ -198,9 +257,12 @@ def check_no_circular_dependencies(lib_root: Path) -> Tuple[List[Tuple[str, ...]
     graph: Dict[str, Set[str]] = {}
     for dart_file in lib_root.rglob('*.dart'):
         rel_path = str(dart_file.relative_to(lib_root))
+<<<<<<< HEAD
         # Skip excluded files from circular dependency check
         if is_excluded(rel_path, EXCLUDE_FROM_CIRCULAR_CHECK):
             continue
+=======
+>>>>>>> origin/refactor/clean-v2
         try:
             content = dart_file.read_text(encoding='utf-8')
         except Exception:
@@ -247,6 +309,7 @@ def check_no_services_from_ui(lib_root: Path) -> Tuple[List[Tuple[str, str]], in
     WARNING Rule: No direct services imports from screens
     screens يجب أن تستخدم providers بدلاً من استيراد services مباشرة.
     يمكن إصلاح هذا تدريجياً (transitional).
+<<<<<<< HEAD
     
     الاستثناءات المسموحة:
     1. data layer: local_db.dart, /daos/, /repositories/ (types/data access, ليست خدمات)
@@ -257,12 +320,17 @@ def check_no_services_from_ui(lib_root: Path) -> Tuple[List[Tuple[str, str]], in
     violations = []
     
     # خدمات تحليلية/تسجيل مسموحة
+=======
+    """
+    violations = []
+>>>>>>> origin/refactor/clean-v2
     allowed_services = {
         'crashlytics_service',
         'analytics_service',
         'logging',
         'app_logger',
     }
+<<<<<<< HEAD
     
     # ملفات طبقة البيانات - ليست خدمات حقيقية
     data_layer_patterns = [
@@ -315,6 +383,8 @@ def check_no_services_from_ui(lib_root: Path) -> Tuple[List[Tuple[str, str]], in
         'appwrite_models.dart',
     }
     
+=======
+>>>>>>> origin/refactor/clean-v2
     for dart_file in (lib_root / 'screens').rglob('*.dart'):
         rel_path = str(dart_file.relative_to(lib_root))
         # استثناء شاشات الصيانة
@@ -326,6 +396,7 @@ def check_no_services_from_ui(lib_root: Path) -> Tuple[List[Tuple[str, str]], in
             continue
         imports = get_imports(content)
         for imp in imports:
+<<<<<<< HEAD
             if 'services/' not in imp:
                 continue
             # السماح بخدمات التحليل/التسجيل
@@ -338,11 +409,18 @@ def check_no_services_from_ui(lib_root: Path) -> Tuple[List[Tuple[str, str]], in
             if any(t in imp for t in transitional_services):
                 continue
             violations.append((rel_path, imp))
+=======
+            if 'services/' in imp:
+                if any(allowed in imp for allowed in allowed_services):
+                    continue
+                violations.append((rel_path, imp))
+>>>>>>> origin/refactor/clean-v2
     return violations, len(violations)
 
 
 def check_riverpod_compliance(lib_root: Path) -> Tuple[List[Tuple[str, str]], int]:
     """
+<<<<<<< HEAD
     WARNING Rule: Riverpod compliance (ConsumerWidget)
     UI widgets يجب أن تكون ConsumerWidget أو ConsumerStatefulWidget.
     """
@@ -350,29 +428,70 @@ def check_riverpod_compliance(lib_root: Path) -> Tuple[List[Tuple[str, str]], in
     consumer_pattern = re.compile(r'(ConsumerWidget|ConsumerStatefulWidget)')
     for dart_file in (lib_root / 'screens').rglob('*.dart'):
         rel_path = str(dart_file.relative_to(lib_root))
+=======
+    WARNING Rule: Riverpod compliance
+    screens يجب أن تستخدم ConsumerWidget/ConsumerStatefulWidget.
+    شاشات الأدوات/الصيانة مستثناة.
+    """
+    violations = []
+    screens_dir = lib_root / 'screens'
+    if not screens_dir.exists():
+        return violations, 0
+
+    for dart_file in screens_dir.rglob('*.dart'):
+        rel_path = str(dart_file.relative_to(lib_root))
+        # استثناء شاشات الأدوات/الصيانة
+>>>>>>> origin/refactor/clean-v2
         if is_excluded(rel_path, EXCLUDE_FROM_RIVERPOD_CHECK):
             continue
         try:
             content = dart_file.read_text(encoding='utf-8')
         except Exception:
             continue
+<<<<<<< HEAD
         # إذا كان file يحتوي على widget class وليس ConsumerWidget
         if 'class ' in content and 'Widget' in content:
             if not consumer_pattern.search(content):
                 violations.append((rel_path, 'does not extend ConsumerWidget/ConsumerStatefulWidget'))
+=======
+
+        if 'class ' not in content or 'Widget' not in content:
+            continue
+
+        has_stateful = 'StatefulWidget' in content
+        has_stateless = 'StatelessWidget' in content
+        has_consumer_stateful = 'ConsumerStatefulWidget' in content
+        has_consumer_stateless = 'ConsumerWidget' in content
+
+        if (has_stateful or has_stateless) and not (
+            has_consumer_stateful or has_consumer_stateless
+        ):
+            violations.append(
+                (rel_path, 'يستخدم StatefulWidget/StatelessWidget بدلاً من ConsumerWidget')
+            )
+
+>>>>>>> origin/refactor/clean-v2
     return violations, len(violations)
 
 
 def check_no_ui_in_data(lib_root: Path) -> Tuple[List[Tuple[str, str]], int]:
     """
     WARNING Rule: No UI imports in Data layer
+<<<<<<< HEAD
     data layer لا يستورد UI (screens/widgets/components).
+=======
+    data layer لا يجب أن يستورد UI.
+>>>>>>> origin/refactor/clean-v2
     """
     violations = []
     for dart_file in lib_root.rglob('*.dart'):
         rel_path = str(dart_file.relative_to(lib_root))
         layer = get_layer(rel_path)
+<<<<<<< HEAD
         if layer not in ('data', 'domain'):
+=======
+        if layer != 'data':
+>>>>>>> origin/refactor/clean-v2
             continue
         try:
             content = dart_file.read_text(encoding='utf-8')
@@ -380,7 +499,14 @@ def check_no_ui_in_data(lib_root: Path) -> Tuple[List[Tuple[str, str]], int]:
             continue
         imports = get_imports(content)
         for imp in imports:
+<<<<<<< HEAD
             if 'screens/' in imp or 'widgets/' in imp or 'components/' in imp:
+=======
+            resolved = resolve_import(imp, str(dart_file), lib_root)
+            resolved_rel = resolved.replace(str(lib_root) + '/', '')
+            imported_layer = get_layer(resolved_rel)
+            if imported_layer == 'ui':
+>>>>>>> origin/refactor/clean-v2
                 violations.append((rel_path, imp))
     return violations, len(violations)
 
@@ -390,6 +516,7 @@ def check_no_ui_in_data(lib_root: Path) -> Tuple[List[Tuple[str, str]], int]:
 # ═══════════════════════════════════════════════════════════════
 
 def main() -> int:
+<<<<<<< HEAD
     parser = argparse.ArgumentParser(
         description='Architecture validator for Marina Hotel mobile app'
     )
@@ -402,6 +529,17 @@ def main() -> int:
     args = parser.parse_args()
 
     lib_root = args.project_root / 'lib'
+=======
+    parser = argparse.ArgumentParser(description='Architecture Validator for Marina Hotel')
+    parser.add_argument(
+        '--project-root',
+        required=True,
+        help='Path to mobile/ directory (containing lib/)',
+    )
+    args = parser.parse_args()
+
+    lib_root = Path(args.project_root) / 'lib'
+>>>>>>> origin/refactor/clean-v2
     if not lib_root.exists():
         print(f'❌ lib/ directory not found at {lib_root}')
         return 1
@@ -409,41 +547,87 @@ def main() -> int:
     print('═' * 60)
     print('  🏗️  Architecture Validator — Marina Hotel')
     print('═' * 60)
+<<<<<<< HEAD
+=======
+    print()
+>>>>>>> origin/refactor/clean-v2
 
     errors_count = 0
     warnings_count = 0
 
+<<<<<<< HEAD
     # Error 1: No direct DB access from UI
+=======
+    # ═══════════════════════════════════════════════════════════
+    #  ERRORS (blocking)
+    # ═══════════════════════════════════════════════════════════
+    print('🔴 ERRORS (blocking):')
+    print()
+
+    # Error 1: Direct DB access from UI
+>>>>>>> origin/refactor/clean-v2
     print('  🔹 Error 1: No direct DB access from UI')
     violations, count = check_no_direct_db_from_ui(lib_root)
     if violations:
         print(f'     ❌ {count} violations:')
+<<<<<<< HEAD
         for file, msg in violations[:5]:
             print(f'        {file}: {msg}')
+=======
+        for file, imp in violations[:10]:
+            print(f'        {file} → {imp}')
+        if count > 10:
+            print(f'        ... and {count - 10} more')
+>>>>>>> origin/refactor/clean-v2
         errors_count += count
     else:
         print('     ✅ Pass')
     print()
 
+<<<<<<< HEAD
     # Error 2: No circular dependencies
+=======
+    # Error 2: Circular dependencies
+>>>>>>> origin/refactor/clean-v2
     print('  🔹 Error 2: No circular dependencies')
     cycles, count = check_no_circular_dependencies(lib_root)
     if cycles:
         print(f'     ❌ {count} circular dependencies detected:')
+<<<<<<< HEAD
         for cycle in cycles:
             print(f'        {" -> ".join(cycle)}')
+=======
+        for cycle in cycles[:3]:
+            print(f'        {" → ".join(cycle)}')
+>>>>>>> origin/refactor/clean-v2
         errors_count += count
     else:
         print('     ✅ Pass')
     print()
 
+<<<<<<< HEAD
     # Warning 1: No direct services imports from screens
+=======
+    # ═══════════════════════════════════════════════════════════
+    #  WARNINGS (non-blocking)
+    # ═══════════════════════════════════════════════════════════
+    print('🟡 WARNINGS (non-blocking — can be fixed gradually):')
+    print()
+
+    # Warning 1: Direct services imports from UI
+>>>>>>> origin/refactor/clean-v2
     print('  🔹 Warning 1: No direct services imports from screens')
     violations, count = check_no_services_from_ui(lib_root)
     if violations:
         print(f'     ⚠️  {count} violations (transitional):')
         for file, imp in violations[:5]:
+<<<<<<< HEAD
             print(f'        {file} -> {imp}')
+=======
+            print(f'        {file} → {imp}')
+        if count > 5:
+            print(f'        ... and {count - 5} more')
+>>>>>>> origin/refactor/clean-v2
         warnings_count += count
     else:
         print('     ✅ Pass')
@@ -467,15 +651,25 @@ def main() -> int:
     if violations:
         print(f'     ⚠️  {count} violations:')
         for file, imp in violations[:5]:
+<<<<<<< HEAD
             print(f'        {file} -> {imp}')
+=======
+            print(f'        {file} → {imp}')
+>>>>>>> origin/refactor/clean-v2
         warnings_count += count
     else:
         print('     ✅ Pass')
     print()
 
+<<<<<<< HEAD
     # ══════════════════════════════════════════════════════════
     #  Summary
     # ══════════════════════════════════════════════════════════
+=======
+    # ═══════════════════════════════════════════════════════════
+    #  Summary
+    # ═══════════════════════════════════════════════════════════
+>>>>>>> origin/refactor/clean-v2
     print('═' * 60)
     print(f'  📊 Summary:')
     print(f'     🔴 Errors:   {errors_count}')

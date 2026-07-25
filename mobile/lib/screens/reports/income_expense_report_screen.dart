@@ -850,42 +850,63 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
           '${profitMargin.toStringAsFixed(1)}%',
           if (profitMargin > 20)
             'ممتاز'
+<<<<<<< HEAD
           else if (profitMargin > 10)
             'جيد'
           else if (profitMargin > 0)
             'مقبول'
           else
             'خسارة',
+=======
+          else
+            profitMargin > 10
+                ? 'جيد'
+                : profitMargin > 0
+                ? 'مقبول'
+                : 'خسارة',
+>>>>>>> origin/refactor/clean-v2
         ],
         [
           'نسبة المصروفات إلى الإيرادات',
           '${expenseRatio.toStringAsFixed(1)}%',
+<<<<<<< HEAD
           if (expenseRatio < 60)
             'ممتاز'
           else if (expenseRatio < 80)
             'جيد'
           else
             'مرتفع',
+=======
+          if (expenseRatio < 60) 'ممتاز' else expenseRatio < 80 ? 'جيد' : 'مرتفع',
+>>>>>>> origin/refactor/clean-v2
         ],
         [
           'نسبة الرواتب إلى الإيرادات',
           '${salaryExpenseRatio.toStringAsFixed(1)}%',
+<<<<<<< HEAD
           if (salaryExpenseRatio < 30)
             'ممتاز'
           else if (salaryExpenseRatio < 50)
             'جيد'
           else
             'مرتفع',
+=======
+          if (salaryExpenseRatio < 30) 'ممتاز' else salaryExpenseRatio < 50 ? 'جيد' : 'مرتفع',
+>>>>>>> origin/refactor/clean-v2
         ],
         [
           'معدل تغطية الديون',
           if (debtCoverage > 0) '${debtCoverage.toStringAsFixed(2)}x' else 'غير كافٍ',
+<<<<<<< HEAD
           if (debtCoverage > 2)
             'ممتاز'
           else if (debtCoverage > 1)
             'جيد'
           else
             'ضعيف',
+=======
+          if (debtCoverage > 2) 'ممتاز' else debtCoverage > 1 ? 'جيد' : 'ضعيف',
+>>>>>>> origin/refactor/clean-v2
         ],
       ],
     );
@@ -2040,6 +2061,7 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
         final color = entry.isIncome ? Colors.green : (entry.isSalary ? Colors.orange : Colors.red);
         final icon = entry.isIncome ? Icons.arrow_downward : (entry.isSalary ? Icons.people : Icons.arrow_upward);
 
+<<<<<<< HEAD
         return RepaintBoundary(
           child: Card(
             elevation: 0.5,
@@ -2070,6 +2092,37 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
                   ),
                 ],
               ),
+=======
+        return Card(
+          elevation: 0.5,
+          margin: const EdgeInsets.symmetric(vertical: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          child: ListTile(
+            dense: true,
+            leading: CircleAvatar(
+              backgroundColor: color.withValues(alpha: 0.1),
+              radius: 14,
+              child: Icon(icon, color: color, size: 14),
+            ),
+            title: Text(entry.description, style: const TextStyle(fontSize: 11)),
+            subtitle: Row(
+              children: [
+                Text(_dateFormat.format(entry.date), style: const TextStyle(fontSize: 9)),
+                const SizedBox(width: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    entry.isIncome ? 'دخل' : (entry.isSalary ? 'راتب' : 'مصروف'),
+                    style: TextStyle(fontSize: 8, color: color),
+                  ),
+                ),
+              ],
+            ),
+>>>>>>> origin/refactor/clean-v2
             trailing: Text(
               '${entry.isIncome ? '+' : '-'}${_currencyFormat.format(entry.amount)}',
               style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 11),
@@ -2082,6 +2135,7 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
   }
 
   Widget _buildStatsList() {
+<<<<<<< HEAD
     return RepaintBoundary(
       child: Card(
         elevation: 0.5,
@@ -2097,6 +2151,41 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
                 '${_incomeEntries.length}',
                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
               ),
+=======
+    return Card(
+      elevation: 0.5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: ListView(
+        shrinkWrap: true,
+        children: [
+          ListTile(
+            dense: true,
+            leading: const Icon(Icons.arrow_downward, color: Colors.green, size: 18),
+            title: const Text('عدد معاملات الدخل', style: TextStyle(fontSize: 11)),
+            trailing: Text(
+              '${_incomeEntries.length}',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            dense: true,
+            leading: const Icon(Icons.arrow_upward, color: Colors.red, size: 18),
+            title: const Text('عدد معاملات المصروفات', style: TextStyle(fontSize: 11)),
+            trailing: Text(
+              '${_expenseEntries.length}',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            dense: true,
+            leading: const Icon(Icons.people, color: Colors.orange, size: 18),
+            title: const Text('عدد معاملات الرواتب', style: TextStyle(fontSize: 11)),
+            trailing: Text(
+              '${_expenseEntries.where((e) => e.isSalary).length}',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+>>>>>>> origin/refactor/clean-v2
             ),
             const Divider(height: 1),
             ListTile(

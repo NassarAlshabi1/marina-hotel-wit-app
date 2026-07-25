@@ -526,7 +526,11 @@ class AppwriteSchemaVerifier {
 
     debugPrint('# إنشاء Attributes:');
     final includeSyncFields = schema['includeSyncFields'] != false;
+<<<<<<< HEAD
     final allAttributes = [...(schema['attributes']! as List), if (includeSyncFields) ..._syncFields];
+=======
+    final allAttributes = [...(schema['attributes'] as List), if (includeSyncFields) ..._syncFields];
+>>>>>>> origin/refactor/clean-v2
 
     for (final attr in allAttributes) {
       final key = attr['key'];

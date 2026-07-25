@@ -32,8 +32,13 @@ class CentralSyncCoordinator {
       try {
         await _performSync(reason: 'local_change:$table:$operation');
       } catch (e, stackTrace) {
+<<<<<<< HEAD
         derr(() => 'CentralSyncCoordinator: خطأ في المزامنة المؤجلة: $e');
         derr(() => 'Stack trace: $stackTrace');
+=======
+        debugPrint('❌ CentralSyncCoordinator: خطأ في المزامنة المؤجلة: $e');
+        debugPrint('Stack trace: $stackTrace');
+>>>>>>> origin/refactor/clean-v2
         // لا نرمي — Timer callback لا يجب أن يرمي استثناء
       }
     });
@@ -51,15 +56,23 @@ class CentralSyncCoordinator {
     return _performSync(push: push, pull: pull, reason: reason);
   }
 
+<<<<<<< HEAD
   Future<bool> _performSync({      required String reason,
       bool push = true,
       bool pull = true,
   }) async {
+=======
+  Future<bool> _performSync({bool push = true, bool pull = true, required String reason}) async {
+>>>>>>> origin/refactor/clean-v2
     if (_lastSyncTime != null) {
       final elapsed = DateTime.now().difference(_lastSyncTime!);
       if (elapsed < syncCooldown) {
         final remaining = syncCooldown - elapsed;
+<<<<<<< HEAD
         dlog(() => '⏸️ Sync في cooldown ($elapsed < $syncCooldown), scheduling after $remaining');
+=======
+        debugPrint('⏸️ Sync في cooldown ($elapsed < $syncCooldown), scheduling after $remaining');
+>>>>>>> origin/refactor/clean-v2
 
         _debounceTimer?.cancel();
         _debounceTimer = Timer(remaining, () async {
@@ -68,8 +81,13 @@ class CentralSyncCoordinator {
           try {
             await _performSync(push: push, pull: pull, reason: 'cooldown_delayed:$reason');
           } catch (e, stackTrace) {
+<<<<<<< HEAD
             derr(() => 'CentralSyncCoordinator: خطأ في cooldown delayed sync: $e');
             derr(() => 'Stack trace: $stackTrace');
+=======
+            debugPrint('❌ CentralSyncCoordinator: خطأ في cooldown delayed sync: $e');
+            debugPrint('Stack trace: $stackTrace');
+>>>>>>> origin/refactor/clean-v2
           }
         });
 
@@ -84,7 +102,11 @@ class CentralSyncCoordinator {
 
     _isSyncing = true;
     _syncCount++;
+<<<<<<< HEAD
     dlog(() => '🔄 [$_syncCount] بدء المزامنة: $reason (push: $push, pull: $pull)');
+=======
+    debugPrint('🔄 [$_syncCount] بدء المزامنة: $reason (push: $push, pull: $pull)');
+>>>>>>> origin/refactor/clean-v2
 
     try {
       final success = await UnifiedSyncOrchestrator.instance.syncNow(push: push, pull: pull, reason: reason);

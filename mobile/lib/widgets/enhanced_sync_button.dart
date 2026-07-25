@@ -436,6 +436,10 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
 
       unawaited(
         showDialog<void>(
+<<<<<<< HEAD
+=======
+          // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
           context: context,
           builder: (context) => AlertDialog(
             title: const Row(

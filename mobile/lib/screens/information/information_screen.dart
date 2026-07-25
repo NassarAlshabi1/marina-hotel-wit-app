@@ -393,6 +393,10 @@ class _InformationScreenState extends ConsumerState<InformationScreen> with Sync
       if (!mounted) {
         return;
       }
+<<<<<<< HEAD
+=======
+      // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('فشل حفظ السجل: $e'), backgroundColor: Colors.red.shade900));

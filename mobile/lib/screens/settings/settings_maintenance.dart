@@ -25,6 +25,7 @@ import '../../utils/env.dart';
 // ═══════════════════════════════════════════════════════════════
 
 class _SystemInfo {
+<<<<<<< HEAD
   const _SystemInfo({      required this.appVersion,
       required this.deviceModel,
       required this.osVersion,
@@ -36,6 +37,20 @@ class _SystemInfo {
       required this.logStats,
       required this.apiEndpoint,
       this.lastSyncTime,
+=======
+  const _SystemInfo({
+    required this.appVersion,
+    required this.deviceModel,
+    required this.osVersion,
+    required this.dbConnected,
+    required this.dbSchemaVersion,
+    required this.dbSizeBytes,
+    required this.totalRecords,
+    this.lastSyncTime,
+    required this.outboxCount,
+    required this.logStats,
+    required this.apiEndpoint,
+>>>>>>> origin/refactor/clean-v2
   });
   final String appVersion;
   final String deviceModel;

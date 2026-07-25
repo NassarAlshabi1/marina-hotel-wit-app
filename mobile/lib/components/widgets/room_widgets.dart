@@ -99,6 +99,7 @@ class RoomCard extends StatelessWidget {
 
 /// Widget لعرض عنوان الطابق مع الإحصائيات
 class FloorHeader extends StatelessWidget {
+<<<<<<< HEAD
   const FloorHeader({      required this.floorNumber,
       required this.totalRooms,
       required this.occupiedRooms,
@@ -107,6 +108,17 @@ class FloorHeader extends StatelessWidget {
       this.isCollapsible = false,
       this.isExpanded = true,
       this.onToggle,
+=======
+  const FloorHeader({
+    super.key,
+    required this.floorNumber,
+    required this.totalRooms,
+    required this.occupiedRooms,
+    required this.availableRooms,
+    this.isCollapsible = false,
+    this.isExpanded = true,
+    this.onToggle,
+>>>>>>> origin/refactor/clean-v2
   });
   final String floorNumber;
   final int totalRooms;
@@ -154,11 +166,20 @@ class FloorHeader extends StatelessWidget {
 
 /// Widget لعرض إحصائيات الطابق
 class FloorStats extends StatelessWidget {
+<<<<<<< HEAD
   const FloorStats({      required this.occupied,
       required this.available,
       required this.total,
       super.key,
       this.compact = false,
+=======
+  const FloorStats({
+    super.key,
+    required this.occupied,
+    required this.available,
+    required this.total,
+    this.compact = false,
+>>>>>>> origin/refactor/clean-v2
   });
   final int occupied;
   final int available;
@@ -210,11 +231,20 @@ class FloorStats extends StatelessWidget {
 
 /// Widget لعرض شبكة الغرف
 class RoomsGrid extends StatelessWidget {
+<<<<<<< HEAD
   const RoomsGrid({      required this.rooms,
       required this.onRoomTap,
       super.key,
       this.crossAxisCount = 4,
       this.childAspectRatio = 1.2,
+=======
+  const RoomsGrid({
+    super.key,
+    required this.rooms,
+    required this.onRoomTap,
+    this.crossAxisCount = 4,
+    this.childAspectRatio = 1.2,
+>>>>>>> origin/refactor/clean-v2
   });
   final List<dynamic> rooms; // تغيير النوع لدعم RoomWithPaymentStatus
   final void Function(Room) onRoomTap;
@@ -263,12 +293,22 @@ class RoomsGrid extends StatelessWidget {
 
 /// Widget لعرض قسم طابق كامل
 class FloorSection extends StatefulWidget {
+<<<<<<< HEAD
   const FloorSection({      required this.floorNumber,
       required this.rooms,
       required this.onRoomTap,
       super.key,
       this.isCollapsible = false,
       this.initiallyExpanded = true,
+=======
+  const FloorSection({
+    super.key,
+    required this.floorNumber,
+    required this.rooms,
+    required this.onRoomTap,
+    this.isCollapsible = false,
+    this.initiallyExpanded = true,
+>>>>>>> origin/refactor/clean-v2
   });
   final String floorNumber;
   final List<dynamic> rooms; // تغيير النوع

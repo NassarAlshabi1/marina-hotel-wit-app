@@ -82,7 +82,11 @@ class AutoBackupManager {
       await _startDeltaSyncTimer();
     }
 
+<<<<<<< HEAD
     dlog(() => '🤖 مدير النسخ التلقائي: تم التهيئة بنجاح (الوضع: ${_currentMode.name})');
+=======
+    debugPrint('🤖 مدير النسخ التلقائي: تم التهيئة بنجاح (الوضع: ${_currentMode.name})');
+>>>>>>> origin/refactor/clean-v2
   }
 
   Future<void> _loadBackupMode() async {
@@ -193,7 +197,11 @@ class AutoBackupManager {
       _batchDirty = true;
       return;
     }
+<<<<<<< HEAD
     dlog(() => '🔄 تغيير في $tableName ($operation) - تغييرات معلقة: $_pendingChanges');
+=======
+    debugPrint('🔄 تغيير في $tableName ($operation) - تغييرات معلقة: $_pendingChanges');
+>>>>>>> origin/refactor/clean-v2
 
     if (_currentMode == BackupMode.deltaSync || _currentMode == BackupMode.both) {
       _deltaSyncDebounceTimer?.cancel();
@@ -221,7 +229,11 @@ class AutoBackupManager {
   /// إجراء نسخة احتياطية تلقائية
   Future<void> _performAutoBackup({required String reason, int changesCount = 1}) async {
     if (_isBackingUp || _backupService == null || !_backupService!.isSignedIn) {
+<<<<<<< HEAD
       dwarn(() => 'نسخ تلقائي مؤجل: نسخ جارية $_isBackingUp، مسجل دخول ${_backupService?.isSignedIn}');
+=======
+      debugPrint('⏸️ نسخ تلقائي مؤجل: نسخ جارية $_isBackingUp، مسجل دخول ${_backupService?.isSignedIn}');
+>>>>>>> origin/refactor/clean-v2
       return;
     }
 
@@ -234,7 +246,11 @@ class AutoBackupManager {
       final now = DateTime.now();
 
       if (lastBackupTime != null && now.difference(lastBackupTime).inMinutes < 5) {
+<<<<<<< HEAD
         dwarn(() => 'تم تخطي النسخ التلقائي: نسخة حديثة موجودة (${now.difference(lastBackupTime).inMinutes} دقائق)');
+=======
+        debugPrint('⏭️ تم تخطي النسخ التلقائي: نسخة حديثة موجودة (${now.difference(lastBackupTime).inMinutes} دقائق)');
+>>>>>>> origin/refactor/clean-v2
         return;
       }
 
@@ -323,7 +339,11 @@ class AutoBackupManager {
         for (final file in filesToDelete) {
           try {
             await _backupService!.deleteBackupFile(file.fileId);
+<<<<<<< HEAD
             dlog(() => '✅ تم حذف: ${file.fileName} (${_formatDateTime(file.createdTime)})');
+=======
+            debugPrint('✅ تم حذف: ${file.fileName} (${_formatDateTime(file.createdTime)})');
+>>>>>>> origin/refactor/clean-v2
           } catch (e) {
             derr(() => 'فشل حذف ${file.fileName}: $e');
           }
@@ -521,7 +541,11 @@ class AutoBackupManager {
           if (!pushResult.success || !pullResult.success) {
             results['success'] = false;
           }
+<<<<<<< HEAD
           dlog(() => '✅ Google Drive Delta: رفع ${pushResult.changesCount}، سحب ${pullResult.changesCount}');
+=======
+          debugPrint('✅ Google Drive Delta: رفع ${pushResult.changesCount}، سحب ${pullResult.changesCount}');
+>>>>>>> origin/refactor/clean-v2
         } catch (e) {
           results['google_drive'] = {'error': e.toString()};
           results['success'] = false;
@@ -534,7 +558,11 @@ class AutoBackupManager {
       // ✅ Batch 3: استخدام singleton بدل إنشاء instance جديد عبر المصنع
       if (_appwriteService != null && _appwriteService!.isInitialized && _database != null) {
         try {
+<<<<<<< HEAD
           final syncManager = AppwriteSyncManager.instance ?? AppwriteSyncManager(appwriteService: _appwriteService!, database: _database!);
+=======
+          final syncManager = AppwriteSyncManager(appwriteService: _appwriteService!, database: _database!);
+>>>>>>> origin/refactor/clean-v2
           final result = await syncManager.sync();
           results['appwrite'] = {
             'push': {'success': result.status == SyncStatus.success, 'count': result.recordsPushed},
@@ -543,7 +571,11 @@ class AutoBackupManager {
           if (result.status != SyncStatus.success) {
             results['success'] = false;
           }
+<<<<<<< HEAD
           dlog(() => '✅ Appwrite Sync: رفع ${result.recordsPushed}، سحب ${result.recordsPulled}');
+=======
+          debugPrint('✅ Appwrite Sync: رفع ${result.recordsPushed}، سحب ${result.recordsPulled}');
+>>>>>>> origin/refactor/clean-v2
         } catch (e) {
           results['appwrite'] = {'error': e.toString()};
           results['success'] = false;
@@ -611,7 +643,11 @@ class AutoBackupManager {
   Future<void> setGoogleDriveDeltaSyncEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_googleDriveDeltaSyncEnabledKey, enabled);
+<<<<<<< HEAD
     dlog(() => '🔧 مزامنة Google Drive التفاضلية: ${enabled ? 'مفعلة' : 'معطلة'}');
+=======
+    debugPrint('🔧 مزامنة Google Drive التفاضلية: ${enabled ? 'مفعلة' : 'معطلة'}');
+>>>>>>> origin/refactor/clean-v2
   }
 
   /// تعيين وضع النسخ الاحتياطي

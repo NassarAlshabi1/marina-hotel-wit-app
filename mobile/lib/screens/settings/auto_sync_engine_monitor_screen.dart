@@ -282,6 +282,10 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
               child: ElevatedButton.icon(
                 onPressed: () async {
                   await ref.read(autoSyncEngineProvider).resetFailedAttempts();
+<<<<<<< HEAD
+=======
+                  // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
                   ScaffoldMessenger.of(
                     context,
                   ).showSnackBar(const SnackBar(content: Text('✅ تم إعادة تعيين المحاولات')));
@@ -572,6 +576,10 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
 
         unawaited(
           showDialog<void>(
+<<<<<<< HEAD
+=======
+            // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
             context: context,
             builder: (context) => AlertDialog(
               title: Text(result.success ? 'نجح!' : 'فشل'),
@@ -588,6 +596,10 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
         Navigator.of(context).pop();
       }
       if (mounted) {
+<<<<<<< HEAD
+=======
+        // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('❌ خطأ: $e'), backgroundColor: Colors.red));
       }
     }
@@ -737,6 +749,10 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
     if (mounted) {
       unawaited(
         showDialog<void>(
+<<<<<<< HEAD
+=======
+          // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('ضبط Debouncing'),
@@ -757,9 +773,17 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
                       if (value != null) {
                         await ref.read(autoSyncEngineProvider).setDebounceSeconds(value);
                         if (mounted) {
+<<<<<<< HEAD
                           Navigator.pop(context);
                         }
                         if (mounted) {
+=======
+                          // ignore: use_build_context_synchronously
+                          Navigator.pop(context);
+                        }
+                        if (mounted) {
+                          // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
                           ScaffoldMessenger.of(
                             context,
                           ).showSnackBar(SnackBar(content: Text('✅ تم تعيين Debounce إلى $value ثانية')));
@@ -783,6 +807,10 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
     if (mounted) {
       unawaited(
         showDialog<void>(
+<<<<<<< HEAD
+=======
+          // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('ضبط فترة Pull'),
@@ -803,9 +831,17 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
                       if (value != null) {
                         await ref.read(autoSyncEngineProvider).setPullInterval(value);
                         if (mounted) {
+<<<<<<< HEAD
                           Navigator.pop(context);
                         }
                         if (mounted) {
+=======
+                          // ignore: use_build_context_synchronously
+                          Navigator.pop(context);
+                        }
+                        if (mounted) {
+                          // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
                           ScaffoldMessenger.of(
                             context,
                           ).showSnackBar(SnackBar(content: Text('✅ تم تعيين Pull Interval إلى $value دقيقة')));
@@ -830,6 +866,10 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
     if (mounted) {
       unawaited(
         showDialog<void>(
+<<<<<<< HEAD
+=======
+          // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('استراتيجية حل التضارب'),
@@ -848,9 +888,17 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
                       if (value != null) {
                         await ref.read(autoSyncEngineProvider).setConflictStrategy(value);
                         if (mounted) {
+<<<<<<< HEAD
                           Navigator.pop(context);
                         }
                         if (mounted) {
+=======
+                          // ignore: use_build_context_synchronously
+                          Navigator.pop(context);
+                        }
+                        if (mounted) {
+                          // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('✅ تم تعيين الاستراتيجية: ${_getStrategyName(value)}')),
                           );

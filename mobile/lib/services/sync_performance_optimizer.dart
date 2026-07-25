@@ -203,8 +203,12 @@ class SyncPerformanceOptimizer {
 
   /// التحقق من وجود اتصال إنترنت فعلي
   Future<bool> _hasInternetConnection() async {
+<<<<<<< HEAD
     // ✅ إعادة استخدام HttpClient بدلاً من إنشاء واحد جديد كل مرة
     final client = _getOrCreateHttpClient();
+=======
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 2);
+>>>>>>> origin/refactor/clean-v2
     try {
       final uri = Uri.parse(AppwriteConfig.endpoint);
       final request = await client.getUrl(uri).timeout(const Duration(seconds: 2));

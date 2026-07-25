@@ -1277,12 +1277,19 @@ class SettingsEmployeesScreen extends ConsumerWidget {
         status: newStatus,
       );
 
+<<<<<<< HEAD
       if (!context.mounted) return;
+=======
+      // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('تم ${newStatus == 'نشط' ? 'تفعيل' : 'إيقاف'} الموظف')));
     } catch (e) {
+<<<<<<< HEAD
       if (!context.mounted) return;
+=======
+>>>>>>> origin/refactor/clean-v2
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('خطأ: $e')));

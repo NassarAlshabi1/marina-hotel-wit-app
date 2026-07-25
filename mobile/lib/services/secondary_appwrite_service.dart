@@ -175,6 +175,7 @@ class SecondaryAppwriteService {
   }
 
   static final RegExp _unknownAttrPattern = RegExp(r'Unknown attribute:\s*"([^"]+)"');
+<<<<<<< HEAD
 
   // ── مصنّفات أخطاء Appwrite (static/pure — قابلة لإعادة الاستخدام والاختبار) ──
   // ✅ استُخرِجت من الإغلاقات المحلية داخل `_upsertDocumentOnce` ومن الفحص
@@ -218,6 +219,8 @@ class SecondaryAppwriteService {
   /// لتفادي أي انحراف في تعريف "الصيغة القانونية".
   @visibleForTesting
   static String canonicalDocumentId(String documentId) => IdResolver.normalizeUuid(documentId);
+=======
+>>>>>>> origin/refactor/clean-v2
 
   /// استخراج اسم السمة غير المعروفة من خطأ Appwrite (إن وُجد).
   String? _extractUnknownAttribute(AppwriteException e) {
@@ -247,7 +250,11 @@ class SecondaryAppwriteService {
     final maxRetries = workingData.length + 1;
     for (var attempt = 0; ; attempt++) {
       try {
+<<<<<<< HEAD
         return await _upsertDocumentOnce(collectionId: collectionId, documentId: canonicalId, data: workingData);
+=======
+        return await _upsertDocumentOnce(collectionId: collectionId, documentId: documentId, data: workingData);
+>>>>>>> origin/refactor/clean-v2
       } on AppwriteException catch (e) {
         final unknownAttr = _extractUnknownAttribute(e);
         if (unknownAttr != null && workingData.containsKey(unknownAttr) && attempt < maxRetries) {
@@ -272,6 +279,7 @@ class SecondaryAppwriteService {
     await ensureInitialized();
     final dbId = SecondaryAppwriteConfig.databaseId;
 
+<<<<<<< HEAD
     // ✅ مصنّفات الأخطاء موحّدة الآن كدوالّ static (isNotFoundError…) — أغلفة
     //    محلية قصيرة للحفاظ على قابلية القراءة داخل هذا المسار.
     bool isNotFound(AppwriteException e) => isNotFoundError(e);
@@ -287,6 +295,28 @@ class SecondaryAppwriteService {
     //    محاولات 429 قبل أن يُرجع 404 حتماً للمستندات الجديدة — كما في السجلات.
     //    الكتابة الفعلية (create + fallback updates) تبقى بكامل المحاولات.
     Future<models.Document> doUpdate(String id, {bool suppressErrorLog = false, bool probe = false}) async {
+=======
+    bool isNotFound(AppwriteException e) =>
+        e.code == 404 || (e.type ?? '').contains('document_not_found') || e.toString().contains('document_not_found');
+
+    bool isAlreadyExists(AppwriteException e) =>
+        e.code == 409 ||
+        (e.type ?? '').contains('document_already_exists') ||
+        (e.type ?? '').contains('conflict') ||
+        e.toString().contains('document_already_exists');
+
+    bool isRateLimit(AppwriteException e) =>
+        e.code == 429 ||
+        (e.type ?? '').contains('rate_limit') ||
+        (e.type ?? '').contains('general_rate_limit_exceeded') ||
+        e.toString().contains('429') ||
+        e.toString().contains('rate limit');
+
+    // ✅ معالجة ID بدون شرطات (نفس Primary)
+    final altDocumentId = documentId.contains('-') ? documentId.replaceAll('-', '') : '';
+
+    Future<models.Document> doUpdate(String id, {bool suppressErrorLog = false}) async {
+>>>>>>> origin/refactor/clean-v2
       return _networkHelper.withRetryAndTimeout(
         operation: () =>
             // ignore: deprecated_member_use
@@ -649,11 +679,15 @@ class FullBackupStats {
 
 /// خطأ في رفع سجل واحد
 class FullBackupFailure {
+<<<<<<< HEAD
   FullBackupFailure({      required this.reason,
       this.documentId,
       this.collectionName,
       this.timestamp,
   });
+=======
+  FullBackupFailure({this.documentId, required this.reason, this.collectionName, this.timestamp});
+>>>>>>> origin/refactor/clean-v2
   final String? documentId;
   final String reason;
   final String? collectionName;

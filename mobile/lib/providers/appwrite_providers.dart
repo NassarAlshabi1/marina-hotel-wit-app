@@ -30,7 +30,10 @@ final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
 });
 
 final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((ref) {
+<<<<<<< HEAD
   // ✅ إصلاح Gemini: استخدام ref.watch بدلاً من ref.read داخل provider
+=======
+>>>>>>> origin/refactor/clean-v2
   final appwriteSync = ref.watch(appwriteSyncManagerProvider);
   final db = ref.watch(databaseProvider);
   final smart = SmartSyncManager.instance;

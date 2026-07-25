@@ -70,7 +70,11 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
   }
 
   /// بطاقة التحكم الرئيسية
+<<<<<<< HEAD
   Widget _buildMainControlCard(BuildContext context, bool isLoading) {
+=======
+  Widget _buildMainControlCard(BuildContext context, WidgetRef ref, bool isLoading) {
+>>>>>>> origin/refactor/clean-v2
     return Card(
       elevation: 4,
       child: Padding(
@@ -191,7 +195,11 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
   }
 
   /// بطاقة سجلات الإصلاح
+<<<<<<< HEAD
   Widget _buildFixLogsCard(BuildContext context, AsyncValue<List<RestoreFixLogData>> fixLogsAsyncValue) {
+=======
+  Widget _buildFixLogsCard(BuildContext context, WidgetRef ref, AsyncValue<List<RestoreFixLogData>> fixLogsAsyncValue) {
+>>>>>>> origin/refactor/clean-v2
     return Card(
       elevation: 4,
       child: Padding(
@@ -377,12 +385,20 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
           ),
         );
       } else {
+<<<<<<< HEAD
+=======
+        // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('❌ فشل الإصلاح: ${report.error}'), backgroundColor: Colors.red));
       }
     } catch (e) {
+<<<<<<< HEAD
       if (!mounted) return;
+=======
+      // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('خطأ غير متوقع: $e'), backgroundColor: Colors.red));
@@ -413,11 +429,19 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
         text: 'سجلات الإصلاح التلقائي للنسخة الاحتياطية',
       );
 
+<<<<<<< HEAD
+=======
+      // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('✅ تم تصدير السجلات بنجاح'), backgroundColor: Colors.green));
     } catch (e) {
+<<<<<<< HEAD
       if (!mounted) return;
+=======
+      // ignore: use_build_context_synchronously
+>>>>>>> origin/refactor/clean-v2
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('خطأ في التصدير: $e'), backgroundColor: Colors.red));

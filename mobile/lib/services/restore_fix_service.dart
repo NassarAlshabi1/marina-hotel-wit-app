@@ -56,6 +56,7 @@ class RestoreSnapshot {
 
 /// تقرير شامل عن عملية الإصلاح التلقائي
 class RestoreFixReport {
+<<<<<<< HEAD
   RestoreFixReport({      required this.success,
       required this.bookingsFixed,
       required this.roomsUpdated,
@@ -64,6 +65,17 @@ class RestoreFixReport {
       required this.executedAt,
       required this.durationMs,
       this.error,
+=======
+  RestoreFixReport({
+    required this.success,
+    required this.bookingsFixed,
+    required this.roomsUpdated,
+    required this.paymentsRecalculated,
+    required this.changes,
+    this.error,
+    required this.executedAt,
+    required this.durationMs,
+>>>>>>> origin/refactor/clean-v2
   });
 
   factory RestoreFixReport.fromJson(Map<String, dynamic> json) => RestoreFixReport(

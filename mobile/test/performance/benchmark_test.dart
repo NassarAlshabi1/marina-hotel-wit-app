@@ -19,7 +19,10 @@ import 'dart:async';
 import 'dart:convert' show jsonDecode;
 import 'dart:io' show Directory, File;
 
+<<<<<<< HEAD
 import 'package:flutter/material.dart';
+=======
+>>>>>>> origin/refactor/clean-v2
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -336,6 +339,7 @@ void main() {
       await sub.cancel();
     });
   });
+<<<<<<< HEAD
 
 
   group('🏠 Widget Rendering Performance (Widget Tester)', () {
@@ -640,4 +644,6 @@ void main() {
           reason: 'تصفّح 200 عنصر يجب أن يكون < 5 ثوانٍ في CI');
     });
   });
+=======
+>>>>>>> origin/refactor/clean-v2
 }

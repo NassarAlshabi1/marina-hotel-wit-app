@@ -4,11 +4,15 @@ import '../../utils/currency_formatter.dart';
 
 /// Widget لعرض بطاقة ملخص المدفوعات للحجز
 class PaymentSummaryWidget extends StatelessWidget {
+<<<<<<< HEAD
   const PaymentSummaryWidget({      required this.summary,
       super.key,
       this.onTap,
       this.compact = false,
   });
+=======
+  const PaymentSummaryWidget({super.key, required this.summary, this.onTap, this.compact = false});
+>>>>>>> origin/refactor/clean-v2
   final BookingPaymentSummary summary;
   final VoidCallback? onTap;
   final bool compact;
@@ -124,12 +128,16 @@ class PaymentSummaryWidget extends StatelessWidget {
 
 /// Widget لعرض بطاقة دفعة واحدة
 class PaymentCard extends StatelessWidget {
+<<<<<<< HEAD
   const PaymentCard({      required this.payment,
       super.key,
       this.onTap,
       this.actions,
       this.showBookingId = true,
   });
+=======
+  const PaymentCard({super.key, required this.payment, this.onTap, this.actions, this.showBookingId = true});
+>>>>>>> origin/refactor/clean-v2
   final Payment payment;
   final VoidCallback? onTap;
   final List<Widget>? actions;
@@ -265,10 +273,14 @@ class PaymentCard extends StatelessWidget {
 
 /// Widget لعرض شارة حالة الدفعة
 class PaymentStatusBadge extends StatelessWidget {
+<<<<<<< HEAD
   const PaymentStatusBadge({      required this.status,
       super.key,
       this.fontSize,
   });
+=======
+  const PaymentStatusBadge({super.key, required this.status, this.fontSize});
+>>>>>>> origin/refactor/clean-v2
   final PaymentStatus status;
   final double? fontSize;
 
@@ -291,11 +303,15 @@ class PaymentStatusBadge extends StatelessWidget {
 
 /// Widget لعرض طريقة الدفع
 class PaymentMethodChip extends StatelessWidget {
+<<<<<<< HEAD
   const PaymentMethodChip({      required this.method,
       super.key,
       this.isSelected = false,
       this.onTap,
   });
+=======
+  const PaymentMethodChip({super.key, required this.method, this.isSelected = false, this.onTap});
+>>>>>>> origin/refactor/clean-v2
   final PaymentMethod method;
   final bool isSelected;
   final VoidCallback? onTap;
@@ -333,10 +349,14 @@ class PaymentMethodChip extends StatelessWidget {
 
 /// Widget لعرض إحصائيات المدفوعات
 class PaymentStatsWidget extends StatelessWidget {
+<<<<<<< HEAD
   const PaymentStatsWidget({      required this.payments,
       required this.title,
       super.key,
   });
+=======
+  const PaymentStatsWidget({super.key, required this.payments, required this.title});
+>>>>>>> origin/refactor/clean-v2
   final List<Payment> payments;
   final String title;
 
@@ -471,10 +491,18 @@ class PaymentStatsWidget extends StatelessWidget {
 
 /// Widget لاختيار طريقة الدفع
 class PaymentMethodSelector extends StatelessWidget {
+<<<<<<< HEAD
   const PaymentMethodSelector({      required this.onMethodSelected,
       super.key,
       this.selectedMethod,
       this.availableMethods = const [PaymentMethod.cash, PaymentMethod.transfer],
+=======
+  const PaymentMethodSelector({
+    super.key,
+    this.selectedMethod,
+    required this.onMethodSelected,
+    this.availableMethods = const [PaymentMethod.cash, PaymentMethod.transfer],
+>>>>>>> origin/refactor/clean-v2
   });
   final PaymentMethod? selectedMethod;
   final void Function(PaymentMethod) onMethodSelected;
@@ -539,12 +567,22 @@ class PaymentMethodSelector extends StatelessWidget {
 
 /// Widget لعرض ملخص الفاتورة
 class InvoiceSummaryWidget extends StatelessWidget {
+<<<<<<< HEAD
   const InvoiceSummaryWidget({      required this.totalAmount,
       required this.paidAmount,
       required this.remainingAmount,
       required this.nights,
       required this.roomRate,
       super.key,
+=======
+  const InvoiceSummaryWidget({
+    super.key,
+    required this.totalAmount,
+    required this.paidAmount,
+    required this.remainingAmount,
+    required this.nights,
+    required this.roomRate,
+>>>>>>> origin/refactor/clean-v2
   });
   final double totalAmount;
   final double paidAmount;
@@ -603,12 +641,22 @@ class InvoiceSummaryWidget extends StatelessWidget {
 
 /// Widget لزر العمليات السريعة
 class QuickPaymentButton extends StatelessWidget {
+<<<<<<< HEAD
   const QuickPaymentButton({      required this.label,
       required this.amount,
       required this.icon,
       required this.color,
       required this.onPressed,
       super.key,
+=======
+  const QuickPaymentButton({
+    super.key,
+    required this.label,
+    required this.amount,
+    required this.icon,
+    required this.color,
+    required this.onPressed,
+>>>>>>> origin/refactor/clean-v2
   });
   final String label;
   final double amount;

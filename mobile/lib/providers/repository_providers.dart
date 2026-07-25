@@ -45,9 +45,14 @@ final syncHealthProvider = StreamProvider<SyncHealthSnapshot>((ref) => ref.watch
 final diagnosticsLoggerProvider = ChangeNotifierProvider<DiagnosticsLogger>((ref) => DiagnosticsLogger.instance);
 
 final databaseProvider = Provider<AppDatabase>((ref) => DatabaseManager.instance);
+<<<<<<< HEAD
 final adapterRegistryProvider = Provider<AdapterRegistry>((ref) => AdapterRegistry.instance);
 
 final outboxDaoProvider = Provider<OutboxDao>((ref) => OutboxDao(ref.read(databaseProvider), ref.read(adapterRegistryProvider)));
+=======
+
+final outboxDaoProvider = Provider<OutboxDao>((ref) => OutboxDao(ref.read(databaseProvider)));
+>>>>>>> origin/refactor/clean-v2
 final bookingsDaoProvider = Provider<BookingsDao>(
   (ref) => BookingsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider), ref.read(adapterRegistryProvider)),
 );
@@ -55,13 +60,20 @@ final paymentsDaoProvider = Provider<PaymentsDao>(
   (ref) => PaymentsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider), ref.read(adapterRegistryProvider)),
 );
 final expensesDaoProvider = Provider<ExpensesDao>(
+<<<<<<< HEAD
   (ref) => ExpensesDao(ref.read(databaseProvider), ref.read(outboxDaoProvider), ref.read(adapterRegistryProvider)),
 );
 final debtsDaoProvider = Provider<DebtsDao>((ref) => DebtsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider), ref.read(adapterRegistryProvider)));
+=======
+  (ref) => ExpensesDao(ref.read(databaseProvider), ref.read(outboxDaoProvider)),
+);
+final debtsDaoProvider = Provider<DebtsDao>((ref) => DebtsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider)));
+>>>>>>> origin/refactor/clean-v2
 final employeesDaoProvider = Provider<EmployeesDao>(
   (ref) => EmployeesDao(ref.read(databaseProvider), ref.read(outboxDaoProvider), ref.read(adapterRegistryProvider)),
 );
 
+<<<<<<< HEAD
 final roomsRepoProvider = Provider<RoomsRepository>((ref) => RoomsRepository(ref.read(databaseProvider)));
 final bookingsRepoProvider = Provider<BookingsRepository>((ref) => BookingsRepository(ref.read(databaseProvider)));
 final employeesRepoProvider = Provider<EmployeesRepository>((ref) => EmployeesRepository(ref.read(databaseProvider)));
@@ -73,6 +85,19 @@ final cashRepoProvider = Provider<CashRepository>((ref) => CashRepository(ref.re
 final paymentsRepoProvider = Provider<PaymentsRepository>((ref) => PaymentsRepository(ref.read(databaseProvider)));
 final debtsRepoProvider = Provider<DebtsRepository>((ref) => DebtsRepository(ref.read(databaseProvider)));
 final notesRepoProvider = Provider<NotesRepository>((ref) => NotesRepository(ref.read(databaseProvider)));
+=======
+final roomsRepoProvider = Provider<RoomsRepository>((ref) => RoomsRepository(ref.watch(databaseProvider)));
+final bookingsRepoProvider = Provider<BookingsRepository>((ref) => BookingsRepository(ref.watch(databaseProvider)));
+final employeesRepoProvider = Provider<EmployeesRepository>((ref) => EmployeesRepository(ref.watch(databaseProvider)));
+final guestInfoRepoProvider = Provider<GuestInfosRepository>(
+  (ref) => GuestInfosRepository(ref.watch(databaseProvider)),
+);
+final expensesRepoProvider = Provider<ExpensesRepository>((ref) => ExpensesRepository(ref.watch(databaseProvider)));
+final cashRepoProvider = Provider<CashRepository>((ref) => CashRepository(ref.watch(databaseProvider)));
+final paymentsRepoProvider = Provider<PaymentsRepository>((ref) => PaymentsRepository(ref.watch(databaseProvider)));
+final debtsRepoProvider = Provider<DebtsRepository>((ref) => DebtsRepository(ref.watch(databaseProvider)));
+final notesRepoProvider = Provider<NotesRepository>((ref) => NotesRepository(ref.watch(databaseProvider)));
+>>>>>>> origin/refactor/clean-v2
 final salaryWithdrawalsRepoProvider = Provider<SalaryWithdrawalsRepository>(
   (ref) => SalaryWithdrawalsRepository(ref.read(databaseProvider)),
 );
