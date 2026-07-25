@@ -639,11 +639,7 @@ packages:
     source: hosted
     version: "1.1.9+2"
   flutter_driver:
-<<<<<<< HEAD
     dependency: "direct dev"
-=======
-    dependency: transitive
->>>>>>> origin/refactor/clean-v2
     description: flutter
     source: sdk
     version: "0.0.0"
@@ -1753,17 +1749,10 @@ packages:
     dependency: "direct dev"
     description:
       name: very_good_analysis
-<<<<<<< HEAD
       sha256: "481af67ab5877af20325251dc215a4ebac7666a1c8cf09198ffd457bc612b33d"
       url: "https://pub.dev"
     source: hosted
     version: "10.3.0"
-=======
-      sha256: "1fb637c0022034b1f19ea2acb42a3603cbd8314a470646a59a2fb01f5f3a8629"
-      url: "https://pub.dev"
-    source: hosted
-    version: "6.0.0"
->>>>>>> origin/refactor/clean-v2
   vm_service:
     dependency: transitive
     description:

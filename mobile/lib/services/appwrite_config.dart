@@ -18,7 +18,6 @@ class AppwriteConfig {
   static const String databaseId = '6a4409b50019dd39dde5';
 
   // ═══════════════════════════════════════════════════════════════
-<<<<<<< HEAD
   //  API Key — مفتاح افتراضي مُدمج في التطبيق
   // ═══════════════════════════════════════════════════════════════
   // مفتاح API الافتراضي المُدمج. يُمكن للمستخدم تغييره في أي وقت من
@@ -29,8 +28,6 @@ class AppwriteConfig {
       'standard_c0ab6ac2628715c7714eb312e2272a55ae41809dcc156c7e4553874e4a6ad9f3d3e9169d8a69b84f7d746b108905041e412a66ec66d03e122ccb056484c43d2a27f7839088bf60385ab58061624bbcc1f82271c09d608536e68d9cc0ff1b05b83ae4fe14c4dc4ce38840317ea555155f1733141450b3097df09a2a1b4b154a6c';
 
   // ═══════════════════════════════════════════════════════════════
-=======
->>>>>>> origin/refactor/clean-v2
   //  Messaging — Appwrite Messaging Provider ID
   // ═══════════════════════════════════════════════════════════════
   // يُستخدم في AppwriteMessagingService.registerDevice() لتسجيل الـ Target.

@@ -5,22 +5,12 @@ import 'local_db.dart';
 enum IssueType { orphanedRecord, duplicateUuid, versionInconsistency, amountMismatch, missingReference, invalidStatus }
 
 class IntegrityIssue {
-<<<<<<< HEAD
   IntegrityIssue({      required this.type,
       required this.table,
       required this.description,
       this.uuid,
       this.metadata,
       this.isCritical = false,
-=======
-  IntegrityIssue({
-    required this.type,
-    required this.table,
-    this.uuid,
-    required this.description,
-    this.metadata,
-    this.isCritical = false,
->>>>>>> origin/refactor/clean-v2
   });
   final IssueType type;
   final String table;

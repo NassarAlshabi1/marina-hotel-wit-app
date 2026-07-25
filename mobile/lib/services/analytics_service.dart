@@ -24,7 +24,6 @@ enum SyncAnalyticsEvent {
 
 /// إحصائيات المزامنة
 class SyncStats {
-<<<<<<< HEAD
   const SyncStats({      required this.totalPushOperations,
       required this.totalPullOperations,
       required this.totalConflicts,
@@ -33,17 +32,6 @@ class SyncStats {
       required this.averageSyncTime,
       required this.isHealthy,
       this.lastSyncTime,
-=======
-  const SyncStats({
-    required this.totalPushOperations,
-    required this.totalPullOperations,
-    required this.totalConflicts,
-    required this.totalFailures,
-    required this.totalRetries,
-    required this.averageSyncTime,
-    this.lastSyncTime,
-    required this.isHealthy,
->>>>>>> origin/refactor/clean-v2
   });
   final int totalPushOperations;
   final int totalPullOperations;

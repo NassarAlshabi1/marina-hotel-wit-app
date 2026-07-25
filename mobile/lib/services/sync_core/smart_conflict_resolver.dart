@@ -412,14 +412,10 @@ class SmartConflictResolver {
         final localTs = _extractTs(localData);
         final remoteTs = _extractTs(remoteData);
         final remoteWins = remoteTs >= localTs;
-<<<<<<< HEAD
         return _FieldResolution(
           value: remoteWins ? remoteVal : localVal,
           warning: remoteWins ? 'newerWins: remote won for $field' : 'newerWins: local won for $field',
         );
-=======
-        return _FieldResolution(value: remoteWins ? remoteVal : localVal);
->>>>>>> origin/refactor/clean-v2
 
       case FieldStrategy.localWins:
         return _FieldResolution(value: localVal);

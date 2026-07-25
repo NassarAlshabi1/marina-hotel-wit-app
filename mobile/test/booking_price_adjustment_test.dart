@@ -51,11 +51,8 @@ void main() {
               localUuid: Value(bookingUuid),
               roomNumber: const Value('101'),
               guestName: const Value('أحمد محمد'),
-<<<<<<< HEAD
               guestPhone: const Value('0500000000'),
               guestNationality: const Value('يمني'),
-=======
->>>>>>> origin/refactor/clean-v2
               checkinDate: const Value('2025-01-12T10:00:00'),
               status: const Value('checked_in'),
               discount: const Value(0),
@@ -87,11 +84,8 @@ void main() {
                 localUuid: Value(IdGen.uuid()),
                 bookingLocalId: Value(booking.id),
                 hotelDayKey: Value(hotelDays[i]),
-<<<<<<< HEAD
                 nightStart: const Value('2025-01-01T14:00:00'),
                 nightEnd: const Value('2025-01-02T12:00:00'),
-=======
->>>>>>> origin/refactor/clean-v2
                 nightlyRate: const Value(15000),
                 baseRate: const Value(15000),
                 adjustment: const Value(0),
@@ -175,11 +169,8 @@ void main() {
               localUuid: Value(bookingUuid),
               roomNumber: const Value('102'),
               guestName: const Value('سالم أحمد'),
-<<<<<<< HEAD
               guestPhone: const Value('0500000000'),
               guestNationality: const Value('يمني'),
-=======
->>>>>>> origin/refactor/clean-v2
               checkinDate: const Value('2025-01-15T06:00:00'),
               status: const Value('checked_in'),
               discount: const Value(0),
@@ -206,11 +197,8 @@ void main() {
                 localUuid: Value(IdGen.uuid()),
                 bookingLocalId: Value(booking.id),
                 hotelDayKey: Value(hotelDayKey),
-<<<<<<< HEAD
                 nightStart: const Value('2025-01-01T14:00:00'),
                 nightEnd: const Value('2025-01-02T12:00:00'),
-=======
->>>>>>> origin/refactor/clean-v2
                 nightlyRate: const Value(15000),
                 baseRate: const Value(15000),
                 adjustment: const Value(0),
@@ -270,11 +258,8 @@ void main() {
               localUuid: Value(bookingUuid),
               roomNumber: const Value('103'),
               guestName: const Value('محمد علي'),
-<<<<<<< HEAD
               guestPhone: const Value('0500000000'),
               guestNationality: const Value('يمني'),
-=======
->>>>>>> origin/refactor/clean-v2
               checkinDate: const Value('2025-02-01T10:00:00'),
               status: const Value('checked_in'),
               discount: const Value(0),
@@ -300,11 +285,8 @@ void main() {
                 localUuid: Value(IdGen.uuid()),
                 bookingLocalId: Value(booking.id),
                 hotelDayKey: Value(hotelDayKey),
-<<<<<<< HEAD
                 nightStart: const Value('2025-01-01T14:00:00'),
                 nightEnd: const Value('2025-01-02T12:00:00'),
-=======
->>>>>>> origin/refactor/clean-v2
                 nightlyRate: const Value(15000),
                 baseRate: const Value(15000),
                 adjustment: const Value(0),
@@ -369,11 +351,8 @@ void main() {
               localUuid: Value(bookingUuid),
               roomNumber: const Value('104'),
               guestName: const Value('خالد سعيد'),
-<<<<<<< HEAD
               guestPhone: const Value('0500000000'),
               guestNationality: const Value('يمني'),
-=======
->>>>>>> origin/refactor/clean-v2
               checkinDate: const Value('2025-01-15T06:00:00'),
               status: const Value('checked_in'),
               discount: const Value(0),
@@ -420,11 +399,8 @@ void main() {
                 localUuid: Value(IdGen.uuid()),
                 bookingLocalId: Value(booking.id),
                 hotelDayKey: Value(hotelDayKey),
-<<<<<<< HEAD
                 nightStart: const Value('2025-01-01T14:00:00'),
                 nightEnd: const Value('2025-01-02T12:00:00'),
-=======
->>>>>>> origin/refactor/clean-v2
                 nightlyRate: const Value(15000),
                 baseRate: const Value(15000),
                 adjustment: const Value(0),
@@ -466,10 +442,7 @@ void main() {
             RoomsCompanion(
               localUuid: Value(roomUuid),
               roomNumber: const Value('105'),
-<<<<<<< HEAD
               type: const Value('standard'),
-=======
->>>>>>> origin/refactor/clean-v2
               price: const Value(15000),
               status: const Value('occupied'),
               createdAt: Value(now),
@@ -485,11 +458,8 @@ void main() {
               localUuid: Value(bookingUuid),
               roomNumber: const Value('105'),
               guestName: const Value('عمر أحمد'),
-<<<<<<< HEAD
               guestPhone: const Value('0500000000'),
               guestNationality: const Value('يمني'),
-=======
->>>>>>> origin/refactor/clean-v2
               checkinDate: const Value('2025-01-20T10:00:00'),
               status: const Value('checked_in'),
               discount: const Value(0),
@@ -531,10 +501,7 @@ void main() {
             RoomsCompanion(
               localUuid: Value(roomUuid),
               roomNumber: const Value('106'),
-<<<<<<< HEAD
               type: const Value('standard'),
-=======
->>>>>>> origin/refactor/clean-v2
               price: const Value(20000),
               status: const Value('occupied'),
               createdAt: Value(now),
@@ -550,11 +517,8 @@ void main() {
               localUuid: Value(bookingUuid),
               roomNumber: const Value('106'),
               guestName: const Value('فاطمة علي'),
-<<<<<<< HEAD
               guestPhone: const Value('0500000000'),
               guestNationality: const Value('يمني'),
-=======
->>>>>>> origin/refactor/clean-v2
               checkinDate: const Value('2025-01-01T10:00:00'),
               status: const Value('checked_in'),
               discount: const Value(0),
@@ -580,11 +544,8 @@ void main() {
                 localUuid: Value(IdGen.uuid()),
                 bookingLocalId: Value(booking.id),
                 hotelDayKey: Value(hotelDayKey),
-<<<<<<< HEAD
                 nightStart: const Value('2025-01-01T14:00:00'),
                 nightEnd: const Value('2025-01-02T12:00:00'),
-=======
->>>>>>> origin/refactor/clean-v2
                 nightlyRate: const Value(20000),
                 baseRate: const Value(20000),
                 adjustment: const Value(0),

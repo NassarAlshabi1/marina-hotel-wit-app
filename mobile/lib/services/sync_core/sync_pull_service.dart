@@ -123,18 +123,9 @@ class SyncPullService {
     if (lastPullTs <= 0) {
       return [];
     }
-<<<<<<< HEAD
     final cutoffSeconds = lastPullTs - _safetyWindowSeconds;
     final cutoffIso = DateTime.fromMillisecondsSinceEpoch(cutoffSeconds * 1000, isUtc: true).toIso8601String();
     return [Query.greaterThan(r'$updatedAt', cutoffIso)];
-=======
-    // ✅ نافذة أمان 60 ثانية (بدل 5) لتفادي انحراف الساعات.
-    final cutoffSeconds = lastPullTs - 60;
-    // تحويل cutoff إلى ISO 8601 (Appwrite $updatedAt بصيغة ISO string)
-    final cutoffIso = DateTime.fromMillisecondsSinceEpoch(cutoffSeconds * 1000, isUtc: true).toIso8601String();
-    // الاستعلام الأساسي: $updatedAt (زمن الخادم)
-    return [Query.greaterThan('\$updatedAt', cutoffIso)];
->>>>>>> origin/refactor/clean-v2
   }
 
   /// ✅ إصلاح جوهري: يبني delta queries خاصة بـ booking_nights بنفس النهج
@@ -145,17 +136,9 @@ class SyncPullService {
   /// (لا يتأثر بوحدة الثواني/الميلي ثانية).
   List<String> bookingNightsDeltaQueries(int lastPullTs, {required bool remoteEpochIsMillis}) {
     if (lastPullTs > 0) {
-<<<<<<< HEAD
       final cutoffSeconds = lastPullTs - _safetyWindowSeconds;
       final cutoffIso = DateTime.fromMillisecondsSinceEpoch(cutoffSeconds * 1000, isUtc: true).toIso8601String();
       return [Query.greaterThan(r'$updatedAt', cutoffIso)];
-=======
-      // ✅ نافذة أمان 60 ثانية (بدل 5) لتفادي انحراف الساعات.
-      final cutoffSeconds = lastPullTs - 60;
-      final cutoffIso = DateTime.fromMillisecondsSinceEpoch(cutoffSeconds * 1000, isUtc: true).toIso8601String();
-      // الاستعلام الأساسي: $updatedAt (زمن الخادم)
-      return [Query.greaterThan('\$updatedAt', cutoffIso)];
->>>>>>> origin/refactor/clean-v2
     }
     return []; // full fetch
   }

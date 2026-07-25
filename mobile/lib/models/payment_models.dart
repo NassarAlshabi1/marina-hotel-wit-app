@@ -37,7 +37,6 @@ enum PaymentStatus {
 
 /// نموذج بيانات الدفعة
 class Payment {
-<<<<<<< HEAD
   Payment({      required this.id,
       required this.bookingId,
       required this.amount,
@@ -51,22 +50,6 @@ class Payment {
       this.referenceNumber,
       this.cardLastFourDigits,
       this.bankName,
-=======
-  Payment({
-    required this.id,
-    required this.bookingId,
-    required this.amount,
-    required this.method,
-    required this.status,
-    required this.paymentDate,
-    this.notes,
-    this.referenceNumber,
-    this.cardLastFourDigits,
-    this.bankName,
-    required this.receivedBy,
-    required this.createdAt,
-    required this.updatedAt,
->>>>>>> origin/refactor/clean-v2
   });
 
   factory Payment.fromJson(Map<String, dynamic> json) {
@@ -174,7 +157,6 @@ class BookingPaymentSummary {
 
 /// نموذج الإيصال
 class Receipt {
-<<<<<<< HEAD
   Receipt({      required this.receiptNumber,
       required this.payment,
       required this.guestName,
@@ -184,18 +166,6 @@ class Receipt {
       this.hotelName = 'فندق مارينا بلازا',
       this.hotelAddress = 'عدن - اليمن - شارع أحمد قاسم',
       this.hotelPhone = '+967-2-324457',
-=======
-  Receipt({
-    required this.receiptNumber,
-    required this.payment,
-    required this.guestName,
-    required this.guestPhone,
-    required this.roomNumber,
-    this.hotelName = 'فندق مارينا بلازا',
-    this.hotelAddress = 'عدن - اليمن - شارع أحمد قاسم',
-    this.hotelPhone = '+967-2-324457',
-    required this.generatedAt,
->>>>>>> origin/refactor/clean-v2
   });
   final String receiptNumber;
   final Payment payment;
@@ -299,11 +269,7 @@ class Receipt {
                 decoration: pw.BoxDecoration(color: PdfColors.secondary, borderRadius: pw.BorderRadius.circular(8)),
                 child: pw.Center(
                   child: pw.Text(
-<<<<<<< HEAD
                     r'$',
-=======
-                    '\$',
->>>>>>> origin/refactor/clean-v2
                     style: pw.TextStyle(font: fonts.bold, fontSize: 22, color: PdfColors.textWhite),
                   ),
                 ),

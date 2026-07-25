@@ -98,11 +98,7 @@ class Time {
   /// قاعدة احتساب اليوم: يُحتسب اليوم الواحد بدءاً من وقت تسجيل الدخول الفعلي
   /// وحتى الساعة 14:01 من اليوم التالي.
   /// أي مغادرة عند أو بعد الساعة 14:01، حتى لو بدقيقة واحدة، تؤدي إلى احتساب يوم إضافي كامل.
-<<<<<<< HEAD
   static int nightsWithCutoff(DateTime checkin, {DateTime? checkout, int cutoffHour = 14, int cutoffMinute = 0}) {
-=======
-  static int nightsWithCutoff(DateTime checkin, {DateTime? checkout, int cutoffHour = 14, int cutoffMinute = 1}) {
->>>>>>> origin/refactor/clean-v2
     final end = checkout ?? DateTime.now();
 
     // تحديد بداية "يوم الفندق" لعملية تسجيل الدخول

@@ -1277,10 +1277,6 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> with SyncOnEx
       unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
 
       if (mounted) {
-<<<<<<< HEAD
-=======
-        // ignore: use_build_context_synchronously
->>>>>>> origin/refactor/clean-v2
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(existing == null ? 'تم إضافة الدين بنجاح' : 'تم تحديث الدين بنجاح')));
@@ -1430,10 +1426,6 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> with SyncOnEx
       if (!mounted) {
         return;
       }
-<<<<<<< HEAD
-=======
-      // ignore: use_build_context_synchronously
->>>>>>> origin/refactor/clean-v2
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('فشل حذف الدين: $e'), backgroundColor: Colors.red.shade900));

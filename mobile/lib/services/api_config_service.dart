@@ -187,22 +187,12 @@ class ApiConfigService {
 }
 
 class ServerInfo {
-<<<<<<< HEAD
   const ServerInfo({      required this.id,
       required this.name,
       required this.url,
       required this.addedAt,
       this.apiKey,
       this.isDefault = false,
-=======
-  const ServerInfo({
-    required this.id,
-    required this.name,
-    required this.url,
-    this.apiKey,
-    required this.addedAt,
-    this.isDefault = false,
->>>>>>> origin/refactor/clean-v2
   });
 
   factory ServerInfo.fromJson(Map<String, dynamic> json) {

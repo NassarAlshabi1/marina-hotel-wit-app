@@ -76,14 +76,9 @@ dev_dependencies:
     sdk: flutter
   json_serializable: ^6.14.0
   mockito: ^5.4.4
-<<<<<<< HEAD
   patrol: ^4.7.1
   very_good_analysis: ^10.0.0
 
-=======
-  very_good_analysis: ^6.0.0
-  
->>>>>>> origin/refactor/clean-v2
   
 flutter:
   uses-material-design: true

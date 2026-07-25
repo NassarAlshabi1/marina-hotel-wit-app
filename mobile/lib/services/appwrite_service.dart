@@ -318,16 +318,7 @@ class AppwriteService {
 
   /// قراءة مستندات من Secondary مباشرة
   Future<List<models.Document>> _listFromSecondary(String collectionId, List<String> queries) async {
-<<<<<<< HEAD
     final db = _secondaryDb;
-=======
-    final client = Client().setEndpoint(SecondaryAppwriteConfig.endpoint).setProject(SecondaryAppwriteConfig.projectId);
-    final apiKey = SecondaryAppwriteConfig.apiKey;
-    if (apiKey.isNotEmpty) {
-      client.addHeader('X-Appwrite-Key', apiKey);
-    }
-    final db = Databases(client);
->>>>>>> origin/refactor/clean-v2
 
     final allDocuments = <models.Document>[];
     int pageOffset = 0;
@@ -353,16 +344,7 @@ class AppwriteService {
 
   /// قراءة مستند واحد من Secondary مباشرة
   Future<models.Document> _getFromSecondary(String collectionId, String documentId) async {
-<<<<<<< HEAD
     final db = _secondaryDb;
-=======
-    final client = Client().setEndpoint(SecondaryAppwriteConfig.endpoint).setProject(SecondaryAppwriteConfig.projectId);
-    final apiKey = SecondaryAppwriteConfig.apiKey;
-    if (apiKey.isNotEmpty) {
-      client.addHeader('X-Appwrite-Key', apiKey);
-    }
-    final db = Databases(client);
->>>>>>> origin/refactor/clean-v2
     // ignore: deprecated_member_use
     return db.getDocument(
       databaseId: SecondaryAppwriteConfig.databaseId,
@@ -448,11 +430,7 @@ class AppwriteService {
     final maxRetries = workingData.length + 1;
     for (var attempt = 0; ; attempt++) {
       try {
-<<<<<<< HEAD
         return await _upsertDocumentOnce(collectionId: collectionId, documentId: canonicalId, data: workingData);
-=======
-        return await _upsertDocumentOnce(collectionId: collectionId, documentId: documentId, data: workingData);
->>>>>>> origin/refactor/clean-v2
       } on AppwriteException catch (e) {
         final unknownAttr = _extractUnknownAttribute(e);
         if (unknownAttr != null && workingData.containsKey(unknownAttr) && attempt < maxRetries) {
@@ -510,14 +488,10 @@ class AppwriteService {
         : ''; // ID أصلاً بدون شرطات — لا بديل
 
     // مساعد لتنفيذ updateDocument بـ ID محدد
-<<<<<<< HEAD
     // ✅ إصلاح إرهاق 429 (2026-07-22): probe=true → محاولة واحدة فقط (كشف وجود
     //    سريع). المستندات الجديدة تُرجع 404 حتماً، فلا داعي لاستهلاك 2×60s على
     //    إعادة محاولات 429 قبل الانتقال للإنشاء. الكتابة الفعلية تبقى بكامل المحاولات.
     Future<models.Document> doUpdate(String id, {bool suppressErrorLog = false, bool probe = false}) async {
-=======
-    Future<models.Document> doUpdate(String id, {bool suppressErrorLog = false}) async {
->>>>>>> origin/refactor/clean-v2
       return _networkHelper.withRetryAndTimeout(
         operation: () =>
             // ignore: deprecated_member_use

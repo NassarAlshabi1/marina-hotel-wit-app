@@ -94,7 +94,6 @@ class ShiftNoteAdapter {
 
 // نماذج البيانات للملاحظات
 class ShiftNote {
-<<<<<<< HEAD
   ShiftNote({      required this.id,
       required this.title,
       required this.content,
@@ -105,19 +104,6 @@ class ShiftNote {
       this.expiresAt,
       this.isRead = false,
       this.status = NoteStatus.active,
-=======
-  ShiftNote({
-    required this.id,
-    required this.title,
-    required this.content,
-    required this.priority,
-    required this.shiftType,
-    required this.createdAt,
-    this.expiresAt,
-    this.isRead = false,
-    this.status = NoteStatus.active,
-    required this.createdBy,
->>>>>>> origin/refactor/clean-v2
   });
   final String id;
   String title;

@@ -149,14 +149,10 @@ class AutoSyncEngine with WidgetsBindingObserver {
   ///
   /// يُرجع false إذا كانت البوّابة مشغولة (العملية لم تُنفّذ)، ويُرجع
   /// نتيجة syncNow الحقيقية إذا نُفّذت.
-<<<<<<< HEAD
   Future<bool> _guardedSyncNow({      required String reason,
       bool push = true,
       bool pull = true,
   }) async {
-=======
-  Future<bool> _guardedSyncNow({bool push = true, bool pull = true, required String reason}) async {
->>>>>>> origin/refactor/clean-v2
     final result = await SyncGate.instance.runGuarded<bool>(
       operation: push && pull ? 'auto_sync' : (pull ? 'auto_pull' : 'auto_push'),
       source: 'google_drive_engine',

@@ -7,20 +7,11 @@ import '../utils/enhanced_pdf_utils.dart';
 
 /// تقرير دفوعات محسّن
 class EnhancedPaymentsReport {
-<<<<<<< HEAD
   EnhancedPaymentsReport({      required this.payments,
       required this.fromDate,
       required this.toDate,
       required this.generatedBy,
       this.roomFilter,
-=======
-  EnhancedPaymentsReport({
-    required this.payments,
-    required this.fromDate,
-    required this.toDate,
-    this.roomFilter,
-    required this.generatedBy,
->>>>>>> origin/refactor/clean-v2
   });
   final List<PaymentReportItem> payments;
   final DateTime fromDate;
@@ -347,20 +338,11 @@ class DailySummary {
 
 /// تقرير المصروفات المحسّن
 class EnhancedExpensesReport {
-<<<<<<< HEAD
   EnhancedExpensesReport({      required this.expenses,
       required this.fromDate,
       required this.toDate,
       required this.generatedBy,
       this.categoryFilter,
-=======
-  EnhancedExpensesReport({
-    required this.expenses,
-    required this.fromDate,
-    required this.toDate,
-    this.categoryFilter,
-    required this.generatedBy,
->>>>>>> origin/refactor/clean-v2
   });
   final List<ExpenseReportItem> expenses;
   final DateTime fromDate;

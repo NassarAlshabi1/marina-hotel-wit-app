@@ -190,10 +190,6 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                           if (!mounted) {
                                             return;
                                           }
-<<<<<<< HEAD
-=======
-                                          // ignore: use_build_context_synchronously
->>>>>>> origin/refactor/clean-v2
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(
                                               content: Text(e.active ? 'تم تعطيل: ${e.name}' : 'تم تفعيل: ${e.name}'),
@@ -204,10 +200,6 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                           if (!mounted) {
                                             return;
                                           }
-<<<<<<< HEAD
-=======
-                                          // ignore: use_build_context_synchronously
->>>>>>> origin/refactor/clean-v2
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(
                                               content: Text('فشل تحديث الحالة: $err'),
@@ -220,18 +212,11 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                         if (confirmed ?? false) {
                                           try {
                                             await repo.delete(e.id);
-<<<<<<< HEAD
                                             // ✅ رفع فوري لحذف عنصر من القائمة السوداء.
                                             unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
                                             if (!mounted) {
                                               return;
                                             }
-=======
-                                            if (!mounted) {
-                                              return;
-                                            }
-                                            // ignore: use_build_context_synchronously
->>>>>>> origin/refactor/clean-v2
                                             ScaffoldMessenger.of(context).showSnackBar(
                                               SnackBar(content: Text('تم حذف: ${e.name}'), backgroundColor: Colors.red),
                                             );
@@ -239,10 +224,6 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                                             if (!mounted) {
                                               return;
                                             }
-<<<<<<< HEAD
-=======
-                                            // ignore: use_build_context_synchronously
->>>>>>> origin/refactor/clean-v2
                                             ScaffoldMessenger.of(context).showSnackBar(
                                               SnackBar(
                                                 content: Text('فشل الحذف: $err'),
@@ -517,10 +498,6 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                 if (!mounted) {
                   return;
                 }
-<<<<<<< HEAD
-=======
-                // ignore: use_build_context_synchronously
->>>>>>> origin/refactor/clean-v2
                 ScaffoldMessenger.of(
                   context,
                 ).showSnackBar(SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red));

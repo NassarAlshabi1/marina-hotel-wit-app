@@ -8,7 +8,6 @@ enum RecoveryAction { retry, skip, rollback, escalate, pause }
 enum ErrorSeverity { low, medium, high, critical }
 
 class SyncError {
-<<<<<<< HEAD
   SyncError({      required this.id,
       required this.operation,
       required this.table,
@@ -19,19 +18,6 @@ class SyncError {
       this.stackTrace,
       DateTime? timestamp,
       this.retryCount = 0,
-=======
-  SyncError({
-    required this.id,
-    required this.operation,
-    required this.table,
-    this.recordId,
-    required this.message,
-    this.stackTrace,
-    required this.severity,
-    required this.isRetriable,
-    DateTime? timestamp,
-    this.retryCount = 0,
->>>>>>> origin/refactor/clean-v2
   }) : timestamp = timestamp ?? DateTime.now();
   final String id;
   final String operation;
@@ -58,15 +44,11 @@ class SyncError {
 }
 
 class RecoveryResult {
-<<<<<<< HEAD
   const RecoveryResult({      required this.success,
       required this.actionTaken,
       required this.duration,
       this.message,
   });
-=======
-  const RecoveryResult({required this.success, required this.actionTaken, this.message, required this.duration});
->>>>>>> origin/refactor/clean-v2
   final bool success;
   final RecoveryAction actionTaken;
   final String? message;

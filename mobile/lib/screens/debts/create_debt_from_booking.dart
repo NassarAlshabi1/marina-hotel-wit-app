@@ -5,10 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-<<<<<<< HEAD
 import '../../providers/appwrite_providers.dart';
-=======
->>>>>>> origin/refactor/clean-v2
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
@@ -90,7 +87,6 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
   }
 
   Widget _buildBookingSelector() {
-<<<<<<< HEAD
     // ✅ استبدال StreamBuilder بـ Riverpod provider
     final bookingsAsync = ref.watch(bookingsListProvider);
     final bookings = (bookingsAsync.valueOrNull ?? [])
@@ -107,23 +103,6 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
     }
     final dropdownColor = Theme.of(context).textTheme.bodyMedium?.color;
     return Card(
-=======
-    final bookingsRepo = ref.watch(bookingsRepoProvider);
-    return StreamBuilder<List<Booking>>(
-      stream: bookingsRepo.watchList(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final bookings = snapshot.data!.where((b) => b.status != 'checked_out' && b.status != 'cancelled').toList();
-        if (bookings.isEmpty) {
-          return const Card(
-            child: Padding(padding: EdgeInsets.all(16), child: Text('لا توجد حجوزات نشطة')),
-          );
-        }
-        final dropdownColor = Theme.of(context).textTheme.bodyMedium?.color;
-        return Card(
->>>>>>> origin/refactor/clean-v2
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(

@@ -23,11 +23,7 @@ class DashboardSyncButton extends ConsumerStatefulWidget {
   ConsumerState<DashboardSyncButton> createState() => _DashboardSyncButtonState();
 }
 
-<<<<<<< HEAD
 class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with TickerProviderStateMixin {
-=======
-class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with SingleTickerProviderStateMixin {
->>>>>>> origin/refactor/clean-v2
   bool _isPulling = false;
   bool _isPushing = false;
   bool _appwriteEnabled = true;
@@ -218,10 +214,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
       if (!appwriteConnected) {
         _isPulling = false;
         if (mounted) {
-<<<<<<< HEAD
-=======
-          // ignore: use_build_context_synchronously
->>>>>>> origin/refactor/clean-v2
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text('لا يوجد اتصال بـ Appwrite'), backgroundColor: Colors.red));
@@ -244,10 +236,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
 
       // ✅ إشعار تحميل قابل للإغلاق برمجياً
       if (mounted) {
-<<<<<<< HEAD
-=======
-        // ignore: use_build_context_synchronously
->>>>>>> origin/refactor/clean-v2
         loading = LoadingSnackBar.show(context, message: '⬇️ جاري سحب التغييرات من السيرفر...');
       }
 
@@ -257,12 +245,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
 
       // ✅ إغلاق إشعار التحميل فور انتهاء المزامنة
       loading?.close();
-<<<<<<< HEAD
-=======
-
-      // إعادة تعيين علامة "توجد تغييرات من السيرفر"
-      AppwriteRealtimeSync().resetRemoteChangesFlag();
->>>>>>> origin/refactor/clean-v2
 
       // ✅ تسجيل نجاح العملية
       stopwatch.stop();
@@ -282,10 +264,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
         });
         // ✅ إغلاق إشعار "جاري" فوراً قبل إظهار النتيجة
         loading?.close();
-<<<<<<< HEAD
-=======
-        // ignore: use_build_context_synchronously
->>>>>>> origin/refactor/clean-v2
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Column(
@@ -510,10 +488,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
       // ✅ إشعار تحميل قابل للإغلاق برمجياً
       LoadingSnackBar? pushLoading;
       if (mounted) {
-<<<<<<< HEAD
-=======
-        // ignore: use_build_context_synchronously
->>>>>>> origin/refactor/clean-v2
         pushLoading = LoadingSnackBar.show(context, message: '⬆️ جاري رفع التغييرات إلى ${targets.join(' + ')}...');
       }
 
@@ -596,10 +570,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
         if (failedTargets.isEmpty) {
           // ✅ إغلاق إشعار "جاري الرفع" فوراً قبل إظهار النتيجة
           pushLoading?.close();
-<<<<<<< HEAD
-=======
-          // ignore: use_build_context_synchronously
->>>>>>> origin/refactor/clean-v2
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Column(
@@ -626,10 +596,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
         } else if (successTargets.isEmpty) {
           // ✅ إغلاق إشعار "جاري الرفع" فوراً عند الفشل
           pushLoading?.close();
-<<<<<<< HEAD
-=======
-          // ignore: use_build_context_synchronously
->>>>>>> origin/refactor/clean-v2
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Row(
@@ -646,10 +612,6 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
         } else {
           // ✅ إغلاق إشعار "جاري الرفع" فوراً للنتيجة الجزئية
           pushLoading?.close();
-<<<<<<< HEAD
-=======
-          // ignore: use_build_context_synchronously
->>>>>>> origin/refactor/clean-v2
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Column(
@@ -1063,13 +1025,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton> with 
                                     ? 'مزامنة من مصدر آخر (${gateState.operation ?? "?"})'
                                     : hasLocalChanges
                                     ? '$_pendingChangesCount تغيير محلي معلق'
-<<<<<<< HEAD
                                     // ✅ Appwrite Realtime معطّل — لا نعرض حالة
                                     // "تحديث من السيرفر" لأن hasRemoteChanges=false دائماً.
-=======
-                                    : hasRemoteChanges
-                                    ? '$pendingRemoteCount تحديث من السيرفر'
->>>>>>> origin/refactor/clean-v2
                                     : 'محدّث',
                                 style: TextStyle(
                                   fontSize: 11,

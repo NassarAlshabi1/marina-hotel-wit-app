@@ -41,10 +41,7 @@ import 'salary_fix_helper.dart';
 import 'secondary_appwrite_config.dart';
 import 'sync_constants.dart';
 import 'sync_guard.dart';
-<<<<<<< HEAD
 import 'sync_performance_optimizer.dart';
-=======
->>>>>>> origin/refactor/clean-v2
 import 'sync/payload_mapper.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_core/sync_error_service.dart';
@@ -110,11 +107,7 @@ class AppwriteSyncManager {
 
   AppwriteSyncManager._internal({required this.appwriteService, required this.database})
     : outboxDao = OutboxDao(database) {
-<<<<<<< HEAD
     _adapterRegistry = AdapterRegistry.instance;
-=======
-    _adapterRegistry = AdapterRegistry(database);
->>>>>>> origin/refactor/clean-v2
     _bookingsRepository = BookingsRepository(database);
     _roomsRepository = RoomsRepository(database);
     _ancestorCacheDao = AncestorCacheDao(database);
@@ -481,16 +474,11 @@ class AppwriteSyncManager {
         final resetCount = await outboxDao.retryFailedWithBackoff();
         if (resetCount == 0) return;
 
-<<<<<<< HEAD
         dlog(() => '🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $resetCount)');
-=======
-        debugPrint('🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $resetCount)');
->>>>>>> origin/refactor/clean-v2
 
         // محاولة رفعها فوراً
         final result = await sync(pull: false);
         if (result.status == SyncStatus.success) {
-<<<<<<< HEAD
           dlog('✅ نجحت إعادة محاولة رفع العناصر الفاشلة');
         }
       } catch (e) {
@@ -498,15 +486,6 @@ class AppwriteSyncManager {
       }
     });
     dlog('🔄 تم تشغيل مؤقت إعادة محاولة العناصر الفاشلة (كل 5 دقائق)');
-=======
-          debugPrint('✅ نجحت إعادة محاولة رفع العناصر الفاشلة');
-        }
-      } catch (e) {
-        debugPrint('⚠️ فشلت إعادة محاولة العناصر الفاشلة: $e');
-      }
-    });
-    debugPrint('🔄 تم تشغيل مؤقت إعادة محاولة العناصر الفاشلة (كل 5 دقائق)');
->>>>>>> origin/refactor/clean-v2
 
     // ✅ إصلاح حرج (audit agent-6): استعادة stuck 'processing' entries بشكل دوري
     // المشكلة: cleanupStuckEntries كان يُستدعى فقط عند initialize() (مرة واحدة عند بدء التطبيق)
@@ -526,11 +505,7 @@ class AppwriteSyncManager {
         _logger.warning('⚠️ فشل استعادة العناصر العالقة: $e', tag: 'SYNC');
       }
     });
-<<<<<<< HEAD
     dlog('🔧 تم تشغيل مؤقت استعادة العناصر العالقة (كل دقيقة)');
-=======
-    debugPrint('🔧 تم تشغيل مؤقت استعادة العناصر العالقة (كل دقيقة)');
->>>>>>> origin/refactor/clean-v2
 
     // ✅ تنظيف outbox تلقائي كل 24 ساعة
     _cleanupTimer?.cancel();
@@ -1081,7 +1056,6 @@ class AppwriteSyncManager {
               // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
 
               // مزامنة إعدادات الواتساب (app_settings) — غير حرجة، لا تمنع Delta Sync
-<<<<<<< HEAD
               // ✅ Forensic audit fix (2026-07-22):
               // كان الكود السابق يستخدم queries: <String>[] (full scan) مع تعليق
               // "app_settings لا يحتوي على حقل lastModified". لكن deltaQ يستخدم
@@ -1090,19 +1064,11 @@ class AppwriteSyncManager {
               // تلقائياً، وليس حقلاً مخصصاً في الـ schema. المطور خلط بين
               // lastModified (حقل مخصص) و $updatedAt (حقل نظام).
               // الآن نستخدم deltaQ — إذا فشل (غير متوقع)، catch block يتعامل معه.
-=======
-              // ⚠️ app_settings لا يحتوي على حقل lastModified، لذا نستخدم queries فارغة
-              // (full pull) بدلاً من deltaQ لتجنب خطأ "Attribute not found in schema"
->>>>>>> origin/refactor/clean-v2
               try {
                 recordsPulled += await _timePhase('syncAppSettings', () async {
                   final docs = await appwriteService.listDocuments(
                     collectionId: 'app_settings',
-<<<<<<< HEAD
                     queries: deltaQ, // ✅ delta filter يعمل لأن $updatedAt حقل نظام
-=======
-                    queries: <String>[], // بدون delta filter - app_settings لا يملك lastModified
->>>>>>> origin/refactor/clean-v2
                   );
                   final synced = await _syncAppSettings(docs);
                   _logger.debug('Synced $synced app_settings', tag: 'SYNC');
@@ -1848,15 +1814,7 @@ class AppwriteSyncManager {
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
-<<<<<<< HEAD
         final existingRoom = existingRooms[localUuid];
-=======
-        final existingRoom =
-            await (database.select(database.rooms)
-                  ..where((r) => r.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
->>>>>>> origin/refactor/clean-v2
 
         if (!(await _isRemoteDataNewer(
           data,
@@ -2093,15 +2051,7 @@ class AppwriteSyncManager {
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
-<<<<<<< HEAD
         final existing = existingEmployees[localUuid];
-=======
-        final existing =
-            await (database.select(database.employees)
-                  ..where((e) => e.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
->>>>>>> origin/refactor/clean-v2
         if (!(await _isRemoteDataNewer(
           data,
           existing?.lastModified,
@@ -2160,15 +2110,7 @@ class AppwriteSyncManager {
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
-<<<<<<< HEAD
         final existing = existingExpenses[localUuid];
-=======
-        final existing =
-            await (database.select(database.expenses)
-                  ..where((e) => e.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
->>>>>>> origin/refactor/clean-v2
         if (!(await _isRemoteDataNewer(
           data,
           existing?.lastModified,
@@ -2838,14 +2780,10 @@ class AppwriteSyncManager {
     final finalPayload = _addIdempotencyKey(cleanPayload, entry);
 
     try {
-<<<<<<< HEAD
       final upsertedDoc = await appwriteService.upsertBooking(
         booking.localUuid,
         _filterPayload('bookings', finalPayload),
       );
-=======
-      await appwriteService.upsertBooking(booking.localUuid, _filterPayload('bookings', finalPayload));
->>>>>>> origin/refactor/clean-v2
 
       // ✅ Forensic audit fix (2026-07-22):
       // كان الكود السابق يستدعي _verifyPushedBooking الذي ينفذ getDocument
@@ -2859,11 +2797,7 @@ class AppwriteSyncManager {
           e.toString().contains('Property not found') ||
           e.toString().contains('invalid_attribute')) {
         _logger.warning('⚠️ إعادة محاولة رفع الحجز بدون idempotencyKey: $e', tag: 'SYNC');
-<<<<<<< HEAD
         final retryDoc = await appwriteService.upsertBooking(
-=======
-        await appwriteService.upsertBooking(
->>>>>>> origin/refactor/clean-v2
           booking.localUuid,
           _filterPayload('bookings', occPayload), // بدون idempotencyKey
         );
@@ -2900,11 +2834,8 @@ class AppwriteSyncManager {
 
   /// ✅ تحقق من حفظ الحقول الحرجة بعد الرفع إلى Appwrite
   /// يقرأ المستند من Appwrite ويقارن status و actualCheckout
-<<<<<<< HEAD
   /// ⚠️ محفوظة للتوافق — لم تُستدعى بعد Forensic audit fix
   // ignore: unused_element
-=======
->>>>>>> origin/refactor/clean-v2
   Future<void> _verifyPushedBooking(String localUuid, Booking expected) async {
     try {
       // ignore: deprecated_member_use
@@ -3141,15 +3072,7 @@ class AppwriteSyncManager {
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
-<<<<<<< HEAD
         final existing = existingGuestInfos[localUuid];
-=======
-        final existing =
-            await (database.select(database.guestInfos)
-                  ..where((t) => t.localUuid.equals(localUuid))
-                  ..limit(1))
-                .getSingleOrNull();
->>>>>>> origin/refactor/clean-v2
         if (!(await _isRemoteDataNewer(
           data,
           existing?.lastModified,
@@ -3363,7 +3286,6 @@ class AppwriteSyncManager {
           employee.localUuid,
           _filterPayload('employees', _addIdempotencyKey(empPayload, entry)),
         );
-<<<<<<< HEAD
         // ✅ Forensic audit fix (2026-07-22):
         // كان الكود السابق يستدعي getDocument منفصل للتحقق من وجود المستند
         // — لكن النتيجة (remoteDoc) لم تكن تُستخدم إطلاقاً! serverId يُضبط
@@ -3376,24 +3298,6 @@ class AppwriteSyncManager {
             serverId: drift.Value(employee.id),
           ),
         );
-=======
-        // تحديث serverId محلياً لمنع الرفع المكرر
-        try {
-          final remoteDoc = await appwriteService.getDocument(
-            collectionId: AppwriteConfig.employeesCollectionId,
-            documentId: employee.localUuid,
-          );
-          await (database.update(database.employees)..where((e) => e.id.equals(employee.id))).write(
-            EmployeesCompanion(
-              // ✅ إصلاح P0 (2026-06-28): استخدام employee.id بدل hashCode
-              // hashCode غير ثابت عبر العمليات — employee.id هو المعرف المحلي الصحيح
-              serverId: drift.Value(employee.id),
-            ),
-          );
-        } catch (_) {
-          // فشل جلب المستند البعيد — نتجاوز، الأهم أن الموظف رُفع بنجاح
-        }
->>>>>>> origin/refactor/clean-v2
       } catch (e) {
         _logger.warning('⚠️ فشل رفع الموظف ${employee.id} — سيتم تأجيل سحب الراتب: $e', tag: 'SYNC');
         // فشل رفع الموظف — لا نستطيع رفع السحب بدون FK
@@ -3618,15 +3522,8 @@ class AppwriteSyncManager {
       }
 
       // تطبيع وحدة الزمن إلى الثواني قبل المقارنة (clientTs بالثواني)
-<<<<<<< HEAD
       final normalizedRemoteTs = effectiveRemoteTs > 10000000000 ? effectiveRemoteTs ~/ 1000 : effectiveRemoteTs;
       final normalizedClientTs = entry.clientTs > 10000000000 ? entry.clientTs ~/ 1000 : entry.clientTs;
-=======
-      final normalizedRemoteTs =
-          effectiveRemoteTs > 10000000000 ? effectiveRemoteTs ~/ 1000 : effectiveRemoteTs;
-      final normalizedClientTs =
-          entry.clientTs > 10000000000 ? entry.clientTs ~/ 1000 : entry.clientTs;
->>>>>>> origin/refactor/clean-v2
 
       // الخادم لديه هذا التغيير (أو أحدث) → الحذف آمن
       return normalizedRemoteTs >= normalizedClientTs;

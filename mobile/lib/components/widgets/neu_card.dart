@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 class NeuCard extends StatelessWidget {
-<<<<<<< HEAD
   const NeuCard({      required this.child,
       super.key,
       this.padding,
@@ -9,9 +8,6 @@ class NeuCard extends StatelessWidget {
       this.onTap,
       this.borderRadius = 16,
   });
-=======
-  const NeuCard({super.key, required this.child, this.padding, this.margin, this.onTap, this.borderRadius = 16});
->>>>>>> origin/refactor/clean-v2
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final EdgeInsetsGeometry? margin;
@@ -47,7 +43,6 @@ class NeuCard extends StatelessWidget {
 }
 
 class NeuStatCard extends StatelessWidget {
-<<<<<<< HEAD
   const NeuStatCard({      required this.icon,
       required this.title,
       required this.value,
@@ -55,16 +50,6 @@ class NeuStatCard extends StatelessWidget {
       this.iconColor,
       this.valueColor,
       this.emphasize = false,
-=======
-  const NeuStatCard({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.value,
-    this.iconColor,
-    this.valueColor,
-    this.emphasize = false,
->>>>>>> origin/refactor/clean-v2
   });
   final IconData icon;
   final String title;
@@ -121,15 +106,11 @@ class NeuStatCard extends StatelessWidget {
 }
 
 class NeuDateButton extends StatelessWidget {
-<<<<<<< HEAD
   const NeuDateButton({      required this.icon,
       required this.label,
       required this.onTap,
       super.key,
   });
-=======
-  const NeuDateButton({super.key, required this.icon, required this.label, required this.onTap});
->>>>>>> origin/refactor/clean-v2
   final IconData icon;
   final String label;
   final VoidCallback onTap;
@@ -167,15 +148,11 @@ class NeuDateButton extends StatelessWidget {
 }
 
 class NeuQuickFilterChip extends StatelessWidget {
-<<<<<<< HEAD
   const NeuQuickFilterChip({      required this.label,
       required this.selected,
       required this.onTap,
       super.key,
   });
-=======
-  const NeuQuickFilterChip({super.key, required this.label, required this.selected, required this.onTap});
->>>>>>> origin/refactor/clean-v2
   final String label;
   final bool selected;
   final VoidCallback onTap;
@@ -211,16 +188,12 @@ class NeuQuickFilterChip extends StatelessWidget {
 }
 
 class NeuSectionHeader extends StatelessWidget {
-<<<<<<< HEAD
   const NeuSectionHeader({      required this.icon,
       required this.title,
       super.key,
       this.trailing,
       this.iconColor,
   });
-=======
-  const NeuSectionHeader({super.key, required this.icon, required this.title, this.trailing, this.iconColor});
->>>>>>> origin/refactor/clean-v2
   final IconData icon;
   final String title;
   final String? trailing;

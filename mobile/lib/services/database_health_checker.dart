@@ -89,7 +89,6 @@ class DatabaseHealthChecker {
 }
 
 class DatabaseHealth {
-<<<<<<< HEAD
   const DatabaseHealth._({      required this.status,
       required this.timestamp,
       this.responseTimeMs,
@@ -105,19 +104,6 @@ class DatabaseHealth {
   factory DatabaseHealth.notInitialized() =>
       DatabaseHealth._(status: DatabaseHealthStatus.notInitialized, timestamp: DateTime.now());
 
-=======
-  const DatabaseHealth._({required this.status, this.responseTimeMs, this.errorMessage, required this.timestamp});
-
-  factory DatabaseHealth.healthy([int? responseTime]) =>
-      DatabaseHealth._(status: DatabaseHealthStatus.healthy, responseTimeMs: responseTime, timestamp: DateTime.now());
-
-  factory DatabaseHealth.slow(int responseTime) =>
-      DatabaseHealth._(status: DatabaseHealthStatus.slow, responseTimeMs: responseTime, timestamp: DateTime.now());
-
-  factory DatabaseHealth.notInitialized() =>
-      DatabaseHealth._(status: DatabaseHealthStatus.notInitialized, timestamp: DateTime.now());
-
->>>>>>> origin/refactor/clean-v2
   factory DatabaseHealth.error(String message) =>
       DatabaseHealth._(status: DatabaseHealthStatus.error, errorMessage: message, timestamp: DateTime.now());
   final DatabaseHealthStatus status;

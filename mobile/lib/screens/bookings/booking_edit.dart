@@ -583,13 +583,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                                 },
                               ),
                             );
-<<<<<<< HEAD
                             ScaffoldMessenger.of(context).clearSnackBars();
-=======
-                            // ignore: use_build_context_synchronously
-                            ScaffoldMessenger.of(context).clearSnackBars();
-                            // ignore: use_build_context_synchronously
->>>>>>> origin/refactor/clean-v2
                             ScaffoldMessenger.of(context).showSnackBar(snackBar);
                             // لا نوقف الحجز — نعرض التحذير فقط
                           }
@@ -663,15 +657,12 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                             // حتى لا يمنع PopScope الخروج
                             markSaved();
 
-<<<<<<< HEAD
                             // ✅ رفع فوري لإنشاء/تحديث الحجز إلى Appwrite Cloud.
                             // قبل الإصلاح: كان الرفع يحدث فقط عبر syncNow() في نهاية الكتلة،
                             // وهي مزامنة كاملة (push + pull) أثقل — pushLocalChanges أسرع
                             // لأنها push-only بدون pull.
                             unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
 
-=======
->>>>>>> origin/refactor/clean-v2
                             // ✅ حفظ الدفعة المقدمة إذا تم تحديدها
                             if (_hasAdvancePayment) {
                               final advanceAmount = double.tryParse(_advancePayment.text.trim());
@@ -690,10 +681,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                                 } catch (e) {
                                   debugPrint('⚠️ خطأ في حفظ الدفعة المقدمة: $e');
                                   if (mounted) {
-<<<<<<< HEAD
-=======
-                                    // ignore: use_build_context_synchronously
->>>>>>> origin/refactor/clean-v2
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text('تم حفظ الحجز لكن فشل حفظ الدفعة المقدمة: $e'),
@@ -712,19 +699,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
 
                             await syncNow();
                             if (mounted) {
-<<<<<<< HEAD
-=======
-                              // ignore: use_build_context_synchronously
->>>>>>> origin/refactor/clean-v2
                               Navigator.pop(context);
                             }
                           } on StateError catch (e) {
                             // خطأ منطقي (مثل: حجز مزدوج لنفس الغرفة)
                             if (mounted) {
-<<<<<<< HEAD
-=======
-                              // ignore: use_build_context_synchronously
->>>>>>> origin/refactor/clean-v2
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(e.message),
@@ -736,10 +715,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
                           } catch (e) {
                             // أي خطأ آخر (قاعدة بيانات، شبكة، إلخ)
                             if (mounted) {
-<<<<<<< HEAD
-=======
-                              // ignore: use_build_context_synchronously
->>>>>>> origin/refactor/clean-v2
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text('فشل حفظ الحجز: $e'),

@@ -63,13 +63,9 @@ class SmartSyncStatusWidget extends ConsumerWidget {
 
 /// Widget لإشعارات المزامنة التفاعلية
 class SmartSyncNotificationListener extends ConsumerStatefulWidget {
-<<<<<<< HEAD
   const SmartSyncNotificationListener({      required this.child,
       super.key,
   });
-=======
-  const SmartSyncNotificationListener({super.key, required this.child});
->>>>>>> origin/refactor/clean-v2
   final Widget child;
 
   @override

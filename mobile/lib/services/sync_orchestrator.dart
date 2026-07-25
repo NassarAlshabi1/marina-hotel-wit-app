@@ -57,22 +57,12 @@ class SyncTask {
 }
 
 class SyncTaskResult {
-<<<<<<< HEAD
   const SyncTaskResult({      required this.success,
       required this.duration,
       this.recordsProcessed = 0,
       this.conflicts = 0,
       this.error,
       this.metadata,
-=======
-  const SyncTaskResult({
-    required this.success,
-    this.recordsProcessed = 0,
-    this.conflicts = 0,
-    required this.duration,
-    this.error,
-    this.metadata,
->>>>>>> origin/refactor/clean-v2
   });
 
   factory SyncTaskResult.success({      required Duration duration,
@@ -98,7 +88,6 @@ class SyncTaskResult {
 }
 
 class SyncHealth {
-<<<<<<< HEAD
   const SyncHealth({      required this.isHealthy,
       required this.successRate,
       required this.consecutiveFailures,
@@ -108,18 +97,6 @@ class SyncHealth {
       required this.circuitStates,
       this.lastSuccessfulSync,
       this.lastFailedSync,
-=======
-  const SyncHealth({
-    required this.isHealthy,
-    required this.successRate,
-    required this.consecutiveFailures,
-    required this.avgSyncDuration,
-    this.lastSuccessfulSync,
-    this.lastFailedSync,
-    required this.pendingTasks,
-    required this.outboxCount,
-    required this.circuitStates,
->>>>>>> origin/refactor/clean-v2
   });
   final bool isHealthy;
   final double successRate;

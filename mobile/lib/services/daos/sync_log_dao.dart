@@ -36,7 +36,6 @@ class SyncLogEntry {
 
 /// إحصائيات المزامنة
 class SyncStats {
-<<<<<<< HEAD
   SyncStats({      required this.totalSyncs,
       required this.successfulSyncs,
       required this.failedSyncs,
@@ -45,17 +44,6 @@ class SyncStats {
       required this.totalRecordsPushed,
       required this.averageDurationMs,
       this.lastSync,
-=======
-  SyncStats({
-    required this.totalSyncs,
-    required this.successfulSyncs,
-    required this.failedSyncs,
-    required this.successRate,
-    required this.totalRecordsPulled,
-    required this.totalRecordsPushed,
-    this.lastSync,
-    required this.averageDurationMs,
->>>>>>> origin/refactor/clean-v2
   });
   final int totalSyncs;
   final int successfulSyncs;

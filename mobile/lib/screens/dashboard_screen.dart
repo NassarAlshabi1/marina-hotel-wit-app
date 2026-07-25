@@ -11,10 +11,6 @@ import '../providers/core_providers.dart';
 import '../providers/repository_providers.dart';
 import '../providers/room_payment_status_provider.dart';
 import '../services/analytics_service.dart';
-<<<<<<< HEAD
-=======
-import '../services/appwrite_realtime_sync.dart';
->>>>>>> origin/refactor/clean-v2
 import '../services/local_db.dart';
 import '../services/remote_config_service.dart';
 import '../services/sync/sync_gate.dart';
@@ -128,12 +124,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       if (mounted) {
         loading?.close();
       }
-<<<<<<< HEAD
-=======
-
-      // إعادة تعيين علامة التغييرات عن بعد
-      AppwriteRealtimeSync().resetRemoteChangesFlag();
->>>>>>> origin/refactor/clean-v2
 
       // ─── تسجيل وقت هذا السحب التلقائي ───
       await prefs.setInt(SyncConstants.lastAppOpenPullKey, DateTime.now().millisecondsSinceEpoch);
@@ -617,12 +607,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         return;
       }
 
-<<<<<<< HEAD
       if (context.mounted) {
-=======
-      if (mounted) {
-        // ignore: use_build_context_synchronously
->>>>>>> origin/refactor/clean-v2
         unawaited(
           Navigator.of(
             context,
@@ -630,12 +615,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         );
       }
     } catch (e) {
-<<<<<<< HEAD
       if (context.mounted) {
-=======
-      if (mounted) {
-        // ignore: use_build_context_synchronously
->>>>>>> origin/refactor/clean-v2
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red));
       }
     }

@@ -90,15 +90,11 @@ class AiAddExpenseCommand extends AiCommand {
 
 /// تسجيل دفعة لحجز
 class AiAddPaymentCommand extends AiCommand {
-<<<<<<< HEAD
   const AiAddPaymentCommand({      required this.roomNumber,
       required this.amount,
       required super.description,
       this.notes,
   });
-=======
-  const AiAddPaymentCommand({required this.roomNumber, required this.amount, this.notes, required super.description});
->>>>>>> origin/refactor/clean-v2
   final String roomNumber;
   final double amount;
   final String? notes;
@@ -118,15 +114,11 @@ class AiFixPaymentsCommand extends AiCommand {
 
 /// تسوية دين
 class AiSettleDebtCommand extends AiCommand {
-<<<<<<< HEAD
   const AiSettleDebtCommand({      required this.guestName,
       required this.amount,
       required super.description,
       this.debtId,
   });
-=======
-  const AiSettleDebtCommand({this.debtId, required this.guestName, required this.amount, required super.description});
->>>>>>> origin/refactor/clean-v2
   final int? debtId;
   final String guestName;
   final double amount;
@@ -168,15 +160,11 @@ class AiUpdateBookingGuestCommand extends AiCommand {
 
 /// طلب تقرير (يُنفذ فوراً بدون تأكيد)
 class AiReportCommand extends AiCommand {
-<<<<<<< HEAD
   const AiReportCommand({      required this.reportType,
       required super.description,
       this.dateFrom,
       this.dateTo,
   });
-=======
-  const AiReportCommand({required this.reportType, this.dateFrom, this.dateTo, required super.description});
->>>>>>> origin/refactor/clean-v2
   final String reportType; // daily, revenue, occupancy, debts, expenses, room_prices
   final String? dateFrom;
   final String? dateTo;
@@ -192,7 +180,6 @@ class AiNoActionCommand extends AiCommand {
 // ═══════════════════════════════════════════════════════════════
 
 class AiAuditLog {
-<<<<<<< HEAD
   const AiAuditLog({      required this.id,
       required this.userMessage,
       required this.aiResponse,
@@ -201,17 +188,6 @@ class AiAuditLog {
       required this.wasConfirmed,
       this.commandType,
       this.commandDescription,
-=======
-  const AiAuditLog({
-    required this.id,
-    required this.userMessage,
-    required this.aiResponse,
-    this.commandType,
-    this.commandDescription,
-    required this.executionResult,
-    required this.timestamp,
-    required this.wasConfirmed,
->>>>>>> origin/refactor/clean-v2
   });
   final String id;
   final String userMessage;

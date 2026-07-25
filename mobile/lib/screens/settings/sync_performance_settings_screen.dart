@@ -42,10 +42,6 @@ class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceS
         ),
       );
     } catch (e) {
-<<<<<<< HEAD
-=======
-      // ignore: use_build_context_synchronously
->>>>>>> origin/refactor/clean-v2
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('❌ خطأ في تطبيق ملف التعريف: $e'), backgroundColor: Colors.red));

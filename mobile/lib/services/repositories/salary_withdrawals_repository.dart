@@ -162,11 +162,7 @@ class SalaryWithdrawalsRepository {
       // البحث عن سجلات أخرى بنفس expense_id أو exp_XX
       final allExisting = await (_db.select(
         _db.salaryWithdrawals,
-<<<<<<< HEAD
       )..where((t) => t.deletedAt.isNull() & t.id.equals(matchedId).not())).get();
-=======
-      )..where((t) => t.deletedAt.isNull() & t.id.equals(matched!.id).not())).get();
->>>>>>> origin/refactor/clean-v2
       for (final w in allExisting) {
         if (matchesExpenseRef(w.reason, expenseId)) {
           staleRecords.add(w);
@@ -209,11 +205,7 @@ class SalaryWithdrawalsRepository {
         final matchedServerId = matched.serverId;
         final matchedVersion = matched.version;
         // تحديث السجل الموجود
-<<<<<<< HEAD
         await (_db.update(_db.salaryWithdrawals)..where((t) => t.id.equals(matchedId))).write(
-=======
-        await (_db.update(_db.salaryWithdrawals)..where((t) => t.id.equals(matched!.id))).write(
->>>>>>> origin/refactor/clean-v2
           SalaryWithdrawalsCompanion(
             employeeId: d.Value(employeeId),
             amount: d.Value(amount),
@@ -224,11 +216,7 @@ class SalaryWithdrawalsRepository {
             hotelDayKey: d.Value(hotelDayKey ?? _computeHotelDayKey(date)),
             updatedAt: d.Value(now),
             lastModified: d.Value(now),
-<<<<<<< HEAD
             version: d.Value(matchedVersion + 1),
-=======
-            version: d.Value(matched.version + 1),
->>>>>>> origin/refactor/clean-v2
           ),
         );
 
