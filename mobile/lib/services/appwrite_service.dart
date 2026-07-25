@@ -2,6 +2,7 @@ import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 import 'package:flutter/foundation.dart';
 
+import 'adapters/id_resolver.dart';
 import 'appwrite_cache_manager.dart';
 import 'appwrite_config.dart';
 import 'appwrite_config_manager.dart';
@@ -19,6 +20,32 @@ class AppwriteService {
 
   late final Client _client;
   late final Databases _databases;
+
+  /// Cached secondary client & databases – lazily initialised on first failover call.
+  Client? _secondaryClient;
+  Databases? _secondaryDatabases;
+
+  Databases get _secondaryDb {
+    if (_secondaryClient == null) {
+      _secondaryClient = Client()
+        ..setEndpoint(SecondaryAppwriteConfig.endpoint)
+        ..setProject(SecondaryAppwriteConfig.projectId)
+        ..setSelfSigned();
+      final apiKey = SecondaryAppwriteConfig.apiKey;
+      if (apiKey.isNotEmpty) {
+        _secondaryClient!.addHeader('X-Appwrite-Key', apiKey);
+      }
+      _secondaryDatabases = Databases(_secondaryClient!);
+    }
+    return _secondaryDatabases!;
+  }
+
+  /// Invalidate the cached secondary client so it is re-created on next access.
+  /// Call this when the secondary configuration changes at runtime.
+  void invalidateSecondaryClient() {
+    _secondaryClient = null;
+    _secondaryDatabases = null;
+  }
 
   final _logger = AppwriteLogger();
   // ignore: unused_field
@@ -130,7 +157,7 @@ class AppwriteService {
         // جميع الصفحات وإلا فاشل Appwrite بـ "cursor requires consistent
         // sort order" أو يُرجع نتائج خاطئة. pagedQueries يُعاد بناؤه
         // من queries (بدون الترتيب) في كل تكرار، لذا يجب إعادة إضافته.
-        pagedQueries.add(Query.orderAsc('\$id'));
+        pagedQueries.add(Query.orderAsc(r'$id'));
         pagedQueries.add(Query.limit(pageSize));
         // ✅ P1-4: استخدام cursorAfter بدل offset
         if (cursorAfterId != null) {
@@ -291,12 +318,7 @@ class AppwriteService {
 
   /// قراءة مستندات من Secondary مباشرة
   Future<List<models.Document>> _listFromSecondary(String collectionId, List<String> queries) async {
-    final client = Client().setEndpoint(SecondaryAppwriteConfig.endpoint).setProject(SecondaryAppwriteConfig.projectId);
-    final apiKey = SecondaryAppwriteConfig.apiKey;
-    if (apiKey.isNotEmpty) {
-      client.addHeader('X-Appwrite-Key', apiKey);
-    }
-    final db = Databases(client);
+    final db = _secondaryDb;
 
     final allDocuments = <models.Document>[];
     int pageOffset = 0;
@@ -322,12 +344,7 @@ class AppwriteService {
 
   /// قراءة مستند واحد من Secondary مباشرة
   Future<models.Document> _getFromSecondary(String collectionId, String documentId) async {
-    final client = Client().setEndpoint(SecondaryAppwriteConfig.endpoint).setProject(SecondaryAppwriteConfig.projectId);
-    final apiKey = SecondaryAppwriteConfig.apiKey;
-    if (apiKey.isNotEmpty) {
-      client.addHeader('X-Appwrite-Key', apiKey);
-    }
-    final db = Databases(client);
+    final db = _secondaryDb;
     // ignore: deprecated_member_use
     return db.getDocument(
       databaseId: SecondaryAppwriteConfig.databaseId,
@@ -406,11 +423,14 @@ class AppwriteService {
     required Map<String, dynamic> data,
   }) async {
     var workingData = Map<String, dynamic>.from(data);
+    // ✅ سياسة "المستند بشرطات": نطبّع المعرّف إلى الصيغة القانونية (بشرطات)
+    //    عبر IdResolver.normalizeUuid قبل أي عملية، فلا نكتب مستنداً بلا شرطات.
+    final canonicalId = IdResolver.normalizeUuid(documentId);
     // حد أعلى للمحاولات = عدد الحقول (كل محاولة تُزيل حقلاً واحداً على الأكثر).
     final maxRetries = workingData.length + 1;
     for (var attempt = 0; ; attempt++) {
       try {
-        return await _upsertDocumentOnce(collectionId: collectionId, documentId: documentId, data: workingData);
+        return await _upsertDocumentOnce(collectionId: collectionId, documentId: canonicalId, data: workingData);
       } on AppwriteException catch (e) {
         final unknownAttr = _extractUnknownAttribute(e);
         if (unknownAttr != null && workingData.containsKey(unknownAttr) && attempt < maxRetries) {
@@ -468,13 +488,17 @@ class AppwriteService {
         : ''; // ID أصلاً بدون شرطات — لا بديل
 
     // مساعد لتنفيذ updateDocument بـ ID محدد
-    Future<models.Document> doUpdate(String id, {bool suppressErrorLog = false}) async {
+    // ✅ إصلاح إرهاق 429 (2026-07-22): probe=true → محاولة واحدة فقط (كشف وجود
+    //    سريع). المستندات الجديدة تُرجع 404 حتماً، فلا داعي لاستهلاك 2×60s على
+    //    إعادة محاولات 429 قبل الانتقال للإنشاء. الكتابة الفعلية تبقى بكامل المحاولات.
+    Future<models.Document> doUpdate(String id, {bool suppressErrorLog = false, bool probe = false}) async {
       return _networkHelper.withRetryAndTimeout(
         operation: () =>
             // ignore: deprecated_member_use
             _databases.updateDocument(databaseId: dbId, collectionId: collectionId, documentId: id, data: data),
         operationName: 'updateDocument',
         suppressErrorLog: suppressErrorLog,
+        maxRetries: probe ? 1 : null,
       );
     }
 
@@ -489,10 +513,11 @@ class AppwriteService {
       );
     }
 
-    // ─── الخطوة 1: updateDocument بالـ ID الأصلي (بالشرطات) ───
-    // ✅ معالجة 429: انتظر ثم انتقل مباشرة للإنشاء بدل إعادة الرمي
+    // ─── الخطوة 1: updateDocument بالـ ID الأصلي (بالشرطات) — probe ───
+    // ✅ معالجة 429: محاولة كشف واحدة؛ على المستندات الجديدة يُرجع 404 سريعاً
+    //    فننتقل للإنشاء بدل استهلاك 2×60s على إعادة محاولات 429.
     try {
-      return await doUpdate(documentId, suppressErrorLog: true);
+      return await doUpdate(documentId, suppressErrorLog: true, probe: true);
     } on AppwriteException catch (updateError) {
       if (isRateLimit(updateError)) {
         debugPrint('⚠️ primary_upsert: 429 on update $documentId — waiting 65s then create');
@@ -526,7 +551,7 @@ class AppwriteService {
     // إن وُجد، ونتجنّب الإنشاء المكرر تمامًا.
     if (altDocumentId.isNotEmpty) {
       try {
-        return await doUpdate(altDocumentId, suppressErrorLog: true);
+        return await doUpdate(altDocumentId, suppressErrorLog: true, probe: true);
       } on AppwriteException catch (altError) {
         if (!isNotFound(altError)) {
           rethrow; // خطأ آخر غير 404

@@ -32,6 +32,7 @@ BookingNote _bookingNote({
     alertUntil: alertUntil,
     isActive: isActive,
     vectorClock: '{}',
+    deviceId: 'test',
   );
 }
 
@@ -52,7 +53,7 @@ void main() {
 
     final data = adapter.ShiftNoteAdapter.toBookingNoteData(note);
 
-    expect(data['booking_id'], adapter.ShiftNoteAdapter.GENERAL_NOTES_BOOKING_ID);
+    expect(data['booking_id'], adapter.ShiftNoteAdapter.generalNotesBookingId);
     expect(data['note_text'], 'Title|||Body');
     expect(data['alert_type'], 'H-NIG');
     expect(data['alert_until'], '2024-01-03T04:05:06.000Z');

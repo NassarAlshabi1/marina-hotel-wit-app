@@ -31,27 +31,26 @@ class BookingsRepository {
       dao.watchList(roomNumber: roomNumber, status: status);
   Stream<Booking?> watchOne(int id) => dao.watchById(id);
 
-  Future<int> create({
-    required String roomNumber,
-    required String guestName,
-    required String guestPhone,
-    String guestIdType = 'بطاقة شخصية',
-    String guestIdNumber = '',
-    String? guestIdIssueDate,
-    String? guestIdIssuePlace,
-    required String guestNationality,
-    String? guestEmail,
-    String? guestAddress,
-    required String checkinDate,
-    String? checkoutDate,
-    String? actualCheckout,
-    required String status,
-    String? notes,
-    int expectedNights = 1,
-    int? calculatedNights,
-    double discount = 0,
-    String discountType = 'per_night',
-    String? discountStartDate,
+  Future<int> create({      required String roomNumber,
+      required String guestName,
+      required String guestPhone,
+      required String guestNationality,
+      required String checkinDate,
+      required String status,
+      String guestIdType = 'بطاقة شخصية',
+      String guestIdNumber = '',
+      String? guestIdIssueDate,
+      String? guestIdIssuePlace,
+      String? guestEmail,
+      String? guestAddress,
+      String? checkoutDate,
+      String? actualCheckout,
+      String? notes,
+      int expectedNights = 1,
+      int? calculatedNights,
+      double discount = 0,
+      String discountType = 'per_night',
+      String? discountStartDate,
   }) async {
     // ─── منع الحجز المزدوج: غرفة واحدة = حجز نشط واحد فقط ───
     if (StatusUtils.isActiveBooking(status)) {
@@ -312,15 +311,18 @@ class BookingsRepository {
         );
 
     // ─── إنشاء outbox entries لمزامنة التعديلات المُلغاة ───
+    // ✅ تحسين أداء: استبدال N × merge() بـ mergeBatch() — معاملة واحدة بدل N
     // بدون هذا، إلغاء legacy_discount لن يُزامن إلى الأجهزة الأخرى
-    final outboxDao = OutboxDao(db);
-    for (final orphan in orphans) {
-      await outboxDao.merge(
-        entity: 'booking_price_adjustments',
-        op: 'update',
-        localUuid: orphan.localUuid,
-        payload: {'isActive': false, 'cancelledAt': nowIso, 'cancelledBy': 'auto_cleanup'},
-        clientTs: now,
+    if (orphans.isNotEmpty) {
+      final outboxDao = OutboxDao(db);
+      await outboxDao.mergeBatch(
+        orphans.map((orphan) => <String, dynamic>{
+          'entity': 'booking_price_adjustments',
+          'op': 'update',
+          'localUuid': orphan.localUuid,
+          'payload': <String, dynamic>{'isActive': false, 'cancelledAt': nowIso, 'cancelledBy': 'auto_cleanup'},
+          'clientTs': now,
+        }).toList(),
       );
     }
   }

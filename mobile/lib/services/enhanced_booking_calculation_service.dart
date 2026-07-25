@@ -79,10 +79,11 @@ class EnhancedBookingCalculationService {
     DateTime? now,
     bool forceRebuild = true,
     List<NightlyBreakdown>? breakdown,
+    bool inTransaction = false,
   }) async {
     final context = _resolveDateRange(booking, now ?? DateTime.now());
     final resolvedBreakdown = breakdown ?? await _buildNightlyBreakdown(booking, context: context);
-    await _replaceBookingNights(booking: booking, breakdown: resolvedBreakdown, forceRebuild: forceRebuild);
+    await _replaceBookingNights(booking: booking, breakdown: resolvedBreakdown, forceRebuild: forceRebuild, inTransaction: inTransaction);
   }
 
   Future<void> recalculateAfterSync(int bookingId, {DateTime? now}) async {
@@ -322,6 +323,7 @@ class EnhancedBookingCalculationService {
     required Booking booking,
     required List<NightlyBreakdown> breakdown,
     required bool forceRebuild,
+    bool inTransaction = false,
   }) async {
     final nowUtc = DateTime.now().toUtc();
     final stamp = nowUtc.millisecondsSinceEpoch ~/ 1000;
@@ -361,7 +363,7 @@ class EnhancedBookingCalculationService {
       }
     }
 
-    await db.transaction(() async {
+    Future<void> doWrite() async {
       if (shouldRebuild) {
         await (db.delete(db.bookingNights)..where((n) => n.bookingLocalId.equals(booking.id))).go();
       }
@@ -404,7 +406,16 @@ class EnhancedBookingCalculationService {
           );
         }
       });
-    });
+    }
+
+    if (inTransaction) {
+      // Already inside a transaction — just perform the writes directly.
+      await doWrite();
+    } else {
+      await db.transaction(() async {
+        await doWrite();
+      });
+    }
   }
 
   _BookingDateRange _resolveDateRange(Booking booking, DateTime moment) {

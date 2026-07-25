@@ -841,6 +841,15 @@ class LocalBackupService {
         await file.delete();
         debugPrint('✅ تم حذف النسخة الاحتياطية: $filePath');
       }
+      // ✅ إصلاح: حذف ملف .metadata.json المرافق لنسخ SQLite
+      // نسخ SQLite تُخزَّن مع ملف .metadata.json بجانبها (انظر _metadataFilePath).
+      // بدون هذا، تتراكم ملفات metadata يتيمة على القرص بعد حذف النسخة الأصلية.
+      final metadataPath = _metadataFilePath(filePath);
+      final metadataFile = File(metadataPath);
+      if (metadataFile.existsSync()) {
+        await metadataFile.delete();
+        debugPrint('🧹 تم حذف ملف metadata المرافق: $metadataPath');
+      }
     } catch (e) {
       debugPrint('❌ خطأ في حذف النسخة الاحتياطية: $e');
       rethrow;

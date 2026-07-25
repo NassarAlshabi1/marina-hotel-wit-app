@@ -2,8 +2,19 @@ name: Enterprise Quality Gate
 
 # ═══════════════════════════════════════════════════════════════
 # Marina Hotel — Professional Quality Gate Pipeline
+<<<<<<< HEAD
+# Refactored with Very Good Workflows patterns (VGV)
+#
+#  يستخدم flutter_ci.yml كـ reusable workflow للتحليل والاختبارات
+#  ويضيف فحوصات إضافية في وضع full:
+#    - Duplicate code detection (jscpd)
+#    - Architecture validation
+#    - Custom reports (performance, complexity, dead-code, security)
+#    - Quality dashboard generation
+=======
 # Manual Run Only — مع اختيار الفرع عند التشغيل
 # ═══════════════════════════════════════════════════════════════
+>>>>>>> origin/refactor/clean-v2
 #
 #  للتشغيل:
 #    1. اذهب لـ Actions tab في GitHub
@@ -12,8 +23,18 @@ name: Enterprise Quality Gate
 #    4. اختر الفرع المراد فحصه (default: الحالي)
 #    5. اختر مستوى الفحص (full / quick)
 # ═══════════════════════════════════════════════════════════════
+<<<<<<< HEAD
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+=======
 
 on:
+>>>>>>> origin/refactor/clean-v2
   workflow_dispatch:
     inputs:
       check_level:
@@ -45,14 +66,52 @@ permissions:
   checks: write
 
 jobs:
+<<<<<<< HEAD
+  # ═══════════════════════════════════════════════════════════════
+  #  Job 1: Flutter CI (reusable — format + analyze + test)
+  #  يُستدعى من flutter_ci.yml بمعايير VGV
+  # ═══════════════════════════════════════════════════════════════
+  flutter-ci:
+    name: Flutter CI
+    uses: ./.github/workflows/flutter_ci.yml
+    with:
+      flutter_version: '3.44.4'
+      working_directory: 'mobile'
+      analyze_directories: 'lib'
+      format_directories: 'lib test'
+      format_line_length: '120'
+      min_coverage: ${{ inputs.check_level == 'full' && 60 || 0 }}
+      coverage_excludes: '**/*.g.dart **/*.freezed.dart **/generated_plugin_registrant.dart'
+      run_build_runner: true
+      run_tests: ${{ inputs.run_tests != false }}
+      test_concurrency: 4
+      test_timeout: ${{ inputs.check_level == 'full' && '120s' || '60s' }}
+      run_benchmarks: ${{ inputs.run_tests != false }}
+
+  # ═══════════════════════════════════════════════════════════════
+  #  Job 2: Extended Quality Checks (full mode only)
+  #  فحوصات إضافية لا يُغطيها الـ reusable workflow
+  # ═══════════════════════════════════════════════════════════════
+  extended-quality:
+    name: 🛡️ Extended Quality (${{ inputs.check_level || 'quick' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.check_level == 'full' && 15 || 3 }}
+    if: inputs.check_level == 'full'
+    needs: flutter-ci
+=======
   quality_gate:
     name: 🛡️ Quality & Security Gate (${{ inputs.check_level || 'quick' }})
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.check_level == 'full' && 20 || 8 }}
+>>>>>>> origin/refactor/clean-v2
 
     steps:
       - name: 📚 Checkout Code
         uses: actions/checkout@v5
+<<<<<<< HEAD
+
+      - name: 🐍 Setup Python
+=======
         with:
           ref: ${{ github.ref_name }}
 
@@ -65,16 +124,29 @@ jobs:
 
       - name: 🐍 Setup Python
         if: inputs.check_level == 'full'
+>>>>>>> origin/refactor/clean-v2
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
       - name: 🟢 Setup Node.js
+<<<<<<< HEAD
+=======
         if: inputs.check_level == 'full'
+>>>>>>> origin/refactor/clean-v2
         uses: actions/setup-node@v4
         with:
           node-version: "24"
 
+<<<<<<< HEAD
+      - name: 📦 Install Tools
+        run: npm install -g jscpd
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  Full-only: Find Duplicate Code + Architecture Validation + Reports
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 👯 Find Duplicate Code
+=======
       # ─────────────────────────────────────────────────────────────────────
       #  1. تثبيت dependencies (مع caching قوي)
       # ─────────────────────────────────────────────────────────────────────
@@ -158,6 +230,7 @@ jobs:
       # ─────────────────────────────────────────────────────────────────────
       - name: 👯 Find Duplicate Code
         if: inputs.check_level == 'full'
+>>>>>>> origin/refactor/clean-v2
         run: |
           mkdir -p reports
           jscpd ./mobile/lib \
@@ -166,11 +239,17 @@ jobs:
             --output ./reports || true
 
       - name: 🏗️ Architecture Validation
+<<<<<<< HEAD
+        run: python3 scripts/architecture-validator.py --project-root mobile || true
+
+      - name: 📊 Run Custom Reports
+=======
         if: inputs.check_level == 'full'
         run: python3 scripts/architecture-validator.py --project-root mobile || true
 
       - name: 📊 Run Custom Reports
         if: inputs.check_level == 'full'
+>>>>>>> origin/refactor/clean-v2
         run: |
           mkdir -p reports
           python3 scripts/performance-report.py mobile/lib || true
@@ -179,6 +258,32 @@ jobs:
           bash scripts/security-scan.sh mobile/lib || true
 
       - name: 📝 Generate Quality Dashboard
+<<<<<<< HEAD
+        run: python3 scripts/quality-summary.py || true
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  ملخص النتائج
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 📊 Extended Quality Summary
+        if: always()
+        working-directory: mobile
+        run: |
+          {
+            echo "### 🛡️ Extended Quality Gate Results"
+            echo ""
+            echo "- **Branch:** \`${{ github.ref_name }}\`"
+            echo "- **Check level:** \`${{ inputs.check_level || 'quick' }}\`"
+            echo ""
+            echo "#### إحصائيات الكود"
+            PERF_COUNT=$(grep -r "PerformanceInspector" lib/ | wc -l || echo "0")
+            SCREENS_COUNT=$(find lib/screens -name "*.dart" | wc -l || echo "0")
+            echo "- **PerformanceInspector usages:** $PERF_COUNT"
+            echo "- **Total screen files:** $SCREENS_COUNT"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  رفع التقارير (optional)
+=======
         if: inputs.check_level == 'full'
         run: python3 scripts/quality-summary.py || true
 
@@ -222,6 +327,7 @@ jobs:
 
       # ─────────────────────────────────────────────────────────────────────
       #  9. رفع التقارير (optional)
+>>>>>>> origin/refactor/clean-v2
       # ─────────────────────────────────────────────────────────────────────
       - name: 📦 Upload Reports
         if: always() && inputs.upload_reports == true
@@ -230,7 +336,10 @@ jobs:
           name: quality-reports-${{ github.ref_name }}-${{ github.run_id }}
           path: |
             reports/
+<<<<<<< HEAD
+=======
             mobile/test_results.log
             mobile/perf_benchmarks.log
+>>>>>>> origin/refactor/clean-v2
           retention-days: 14
           if-no-files-found: ignore

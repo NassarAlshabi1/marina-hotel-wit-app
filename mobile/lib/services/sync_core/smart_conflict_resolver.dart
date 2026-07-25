@@ -336,6 +336,7 @@ class SmartConflictResolver {
         mergedData: localData!,
         strategy: ResolutionStrategy.localWins,
         warnings: const ['حذف محلي له أولوية على تعديل بعيد'],
+        pushedToRemote: true,
       );
     }
 
@@ -411,7 +412,10 @@ class SmartConflictResolver {
         final localTs = _extractTs(localData);
         final remoteTs = _extractTs(remoteData);
         final remoteWins = remoteTs >= localTs;
-        return _FieldResolution(value: remoteWins ? remoteVal : localVal);
+        return _FieldResolution(
+          value: remoteWins ? remoteVal : localVal,
+          warning: remoteWins ? 'newerWins: remote won for $field' : 'newerWins: local won for $field',
+        );
 
       case FieldStrategy.localWins:
         return _FieldResolution(value: localVal);

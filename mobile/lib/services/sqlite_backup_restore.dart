@@ -212,6 +212,34 @@ class SqliteBackupRestore {
         rethrow;
       }
 
+      // ✅ إصلاح حرج: حذف ملفات -wal و -shm القديمة قبل إعادة فتح DB
+      //
+      // Marina's DB uses PRAGMA journal_mode = WAL. في وضع WAL، يوجد ملفان
+      // جانبيان بجانب .db الرئيسي:
+      //   - .db-wal: يحتوي على المعاملات الحديثة غير المدمجة بعد في .db
+      //   - .db-shm: فهرس ذاكرة مشتركة للوصول المتزامن لـ -wal
+      //
+      // عند الاستعادة، استبدلنا .db بملف جديد، لكن -wal و -shm القديمين
+      // لا يزالان موجودين. عند فتح DB، SQLite يحاول إعادة تشغيل WAL القديم
+      // على .db الجديد، مما قد يسبب:
+      //   1. "database disk image is malformed"
+      //   2. إعادة تطبيق معاملات قديمة على البيانات الجديدة (data corruption)
+      //   3. سلوك غير محدد لأن -wal و -shm غير متوافقين مع .db الجديد
+      //
+      // الحل: حذف -wal و -shm بعد استبدال .db، قبل إعادة الفتح.
+      // SQLite سينشئ ملفات -wal/-shm جديدة فارغة عند الحاجة.
+      for (final suffix in const ['-wal', '-shm']) {
+        final sidecar = File('$dstPath$suffix');
+        if (sidecar.existsSync()) {
+          try {
+            await sidecar.delete();
+            debugPrint('🧹 حذف ملف $suffix القديم قبل إعادة الفتح');
+          } catch (e) {
+            debugPrint('⚠️ فشل حذف $suffix القديم: $e — قد يسبب مشاكل عند الفتح');
+          }
+        }
+      }
+
       // Reopen the database so the app can continue working
       if (reopenCallback != null) {
         await reopenCallback();

@@ -324,7 +324,7 @@ class AppwriteRealtimeService {
 
       // استخراج البيانات
       final payload = (response.payload as Map<String, dynamic>?) ?? {};
-      final documentId = (payload['\$id'] ?? '') as String;
+      final documentId = (payload[r'$id'] ?? '') as String;
 
       _logger.debug('Realtime event: $eventType on $collectionId/$documentId', tag: 'REALTIME');
 

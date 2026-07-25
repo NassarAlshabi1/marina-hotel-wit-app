@@ -1,10 +1,11 @@
-// ignore_for_file: unused_element, prefer_final_locals, unnecessary_lambdas, curly_braces_in_flow_control_structures
+// ignore_for_file: prefer_final_locals
 import 'dart:convert';
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'adapters/id_resolver.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_network_helper.dart';
@@ -32,7 +33,6 @@ class SecondaryAppwriteService {
   static SecondaryAppwriteService get instance => SecondaryAppwriteService();
 
   final _networkHelper = AppwriteNetworkHelper();
-  // ignore: unused_field
   final _logger = AppwriteLogger();
 
   Client? _client;
@@ -176,6 +176,49 @@ class SecondaryAppwriteService {
 
   static final RegExp _unknownAttrPattern = RegExp(r'Unknown attribute:\s*"([^"]+)"');
 
+  // ── مصنّفات أخطاء Appwrite (static/pure — قابلة لإعادة الاستخدام والاختبار) ──
+  // ✅ استُخرِجت من الإغلاقات المحلية داخل `_upsertDocumentOnce` ومن الفحص
+  //    المضمّن في `deleteDocument` لتوحيد المنطق (DRY) وإتاحة اختباره مباشرةً.
+
+  /// هل الخطأ "المستند غير موجود" (404)؟ يُطابق code أو type أو toString
+  /// لأن Appwrite لا يملأ الحقول بشكل متسق دائماً.
+  @visibleForTesting
+  static bool isNotFoundError(AppwriteException e) =>
+      e.code == 404 || (e.type ?? '').contains('document_not_found') || e.toString().contains('document_not_found');
+
+  /// هل الخطأ "المستند موجود مسبقاً" (409/conflict)؟
+  @visibleForTesting
+  static bool isAlreadyExistsError(AppwriteException e) =>
+      e.code == 409 ||
+      (e.type ?? '').contains('document_already_exists') ||
+      (e.type ?? '').contains('conflict') ||
+      e.toString().contains('document_already_exists');
+
+  /// هل الخطأ 429 (rate limit)؟
+  @visibleForTesting
+  static bool isRateLimitError(AppwriteException e) =>
+      e.code == 429 ||
+      (e.type ?? '').contains('rate_limit') ||
+      (e.type ?? '').contains('general_rate_limit_exceeded') ||
+      e.toString().contains('429') ||
+      e.toString().contains('rate limit');
+
+  /// معرّف بديل بدون شرطات (نفس Primary). يُعيد '' إن لم يحتوِ على شرطات.
+  @visibleForTesting
+  static String altDocumentId(String documentId) => documentId.contains('-') ? documentId.replaceAll('-', '') : '';
+
+  /// المعرّف القانوني للمستند = **دائماً بشرطات** (UUID بصيغة 8-4-4-4-12).
+  ///
+  /// سياسة النظام: المستند يجب أن يُكتب دائماً بشرطات. الصيغة القديمة بدون
+  /// شرطات (32 حرفاً متصلاً — legacy من Google Drive/backup قديم) تُحوَّل إلى
+  /// صيغة الشرطات قبل الكتابة، فلا يُنشَأ مستند جديد بلا شرطات أبداً. المعرّفات
+  /// غير-UUID (مثل 'whatsapp_settings') تبقى كما هي.
+  ///
+  /// يعيد استخدام `IdResolver.normalizeUuid` (مصدر الحقيقة الوحيد للتطبيع)
+  /// لتفادي أي انحراف في تعريف "الصيغة القانونية".
+  @visibleForTesting
+  static String canonicalDocumentId(String documentId) => IdResolver.normalizeUuid(documentId);
+
   /// استخراج اسم السمة غير المعروفة من خطأ Appwrite (إن وُجد).
   String? _extractUnknownAttribute(AppwriteException e) {
     final type = e.type ?? '';
@@ -198,10 +241,13 @@ class SecondaryAppwriteService {
     required Map<String, dynamic> data,
   }) async {
     var workingData = Map<String, dynamic>.from(data);
+    // ✅ سياسة "المستند بشرطات": نطبّع المعرّف إلى الصيغة القانونية (بشرطات)
+    //    قبل أي عملية، فلا نكتب أبداً مستنداً بلا شرطات.
+    final canonicalId = canonicalDocumentId(documentId);
     final maxRetries = workingData.length + 1;
     for (var attempt = 0; ; attempt++) {
       try {
-        return await _upsertDocumentOnce(collectionId: collectionId, documentId: documentId, data: workingData);
+        return await _upsertDocumentOnce(collectionId: collectionId, documentId: canonicalId, data: workingData);
       } on AppwriteException catch (e) {
         final unknownAttr = _extractUnknownAttribute(e);
         if (unknownAttr != null && workingData.containsKey(unknownAttr) && attempt < maxRetries) {
@@ -226,32 +272,29 @@ class SecondaryAppwriteService {
     await ensureInitialized();
     final dbId = SecondaryAppwriteConfig.databaseId;
 
-    bool isNotFound(AppwriteException e) =>
-        e.code == 404 || (e.type ?? '').contains('document_not_found') || e.toString().contains('document_not_found');
-
-    bool isAlreadyExists(AppwriteException e) =>
-        e.code == 409 ||
-        (e.type ?? '').contains('document_already_exists') ||
-        (e.type ?? '').contains('conflict') ||
-        e.toString().contains('document_already_exists');
-
-    bool isRateLimit(AppwriteException e) =>
-        e.code == 429 ||
-        (e.type ?? '').contains('rate_limit') ||
-        (e.type ?? '').contains('general_rate_limit_exceeded') ||
-        e.toString().contains('429') ||
-        e.toString().contains('rate limit');
+    // ✅ مصنّفات الأخطاء موحّدة الآن كدوالّ static (isNotFoundError…) — أغلفة
+    //    محلية قصيرة للحفاظ على قابلية القراءة داخل هذا المسار.
+    bool isNotFound(AppwriteException e) => isNotFoundError(e);
+    bool isAlreadyExists(AppwriteException e) => isAlreadyExistsError(e);
+    bool isRateLimit(AppwriteException e) => isRateLimitError(e);
 
     // ✅ معالجة ID بدون شرطات (نفس Primary)
-    final altDocumentId = documentId.contains('-') ? documentId.replaceAll('-', '') : '';
+    final altDocumentId = SecondaryAppwriteService.altDocumentId(documentId);
 
-    Future<models.Document> doUpdate(String id, {bool suppressErrorLog = false}) async {
+    // ✅ إصلاح إرهاق 429 (2026-07-22): تمييز "محاولة كشف الوجود" (probe) عن
+    //    "الكتابة الفعلية". الـ probe (updateDocument للتحقق: هل المستند موجود؟)
+    //    يجب أن يفشل سريعاً (محاولة واحدة) بدلاً من استهلاك 2×60s على إعادة
+    //    محاولات 429 قبل أن يُرجع 404 حتماً للمستندات الجديدة — كما في السجلات.
+    //    الكتابة الفعلية (create + fallback updates) تبقى بكامل المحاولات.
+    Future<models.Document> doUpdate(String id, {bool suppressErrorLog = false, bool probe = false}) async {
       return _networkHelper.withRetryAndTimeout(
         operation: () =>
             // ignore: deprecated_member_use
             _databases!.updateDocument(databaseId: dbId, collectionId: collectionId, documentId: id, data: data),
         operationName: 'secondary_updateDocument',
         suppressErrorLog: suppressErrorLog,
+        // probe: محاولة واحدة فقط — لا انتظار طويل على 429/أخطاء عابرة.
+        maxRetries: probe ? 1 : null,
       );
     }
 
@@ -269,11 +312,11 @@ class SecondaryAppwriteService {
       );
     }
 
-    // الخطوة 1: updateDocument بالـ ID الأصلي
-    // ✅ معالجة 429: انتظر قليلاً ثم انتقل مباشرة للإنشاء بدل إعادة الرمي
-    // (الإعادة تستهلك كل محاولات withRetry قبل وصول 404 لـ catch)
+    // الخطوة 1: updateDocument بالـ ID الأصلي (probe: محاولة واحدة)
+    // ✅ معالجة 429: على المستندات الجديدة يُرجع 404 حتماً — نفشل سريعاً
+    //    وننتقل للإنشاء بدل استهلاك 2×60s على إعادة محاولات 429 (كما في السجلات).
     try {
-      return await doUpdate(documentId, suppressErrorLog: true);
+      return await doUpdate(documentId, suppressErrorLog: true, probe: true);
     } on AppwriteException catch (updateError) {
       if (isRateLimit(updateError)) {
         _logger.warning('secondary_upsert: 429 on update $documentId — waiting 65s then create', tag: 'RATE_LIMIT');
@@ -303,7 +346,7 @@ class SecondaryAppwriteService {
     // نسخة بدون شرطات. نحدّث في مكانه بدل إنشاء نسخة مكررة.
     if (altDocumentId.isNotEmpty) {
       try {
-        return await doUpdate(altDocumentId, suppressErrorLog: true);
+        return await doUpdate(altDocumentId, suppressErrorLog: true, probe: true);
       } on AppwriteException catch (altError) {
         if (!isNotFound(altError)) {
           rethrow;
@@ -358,10 +401,8 @@ class SecondaryAppwriteService {
       );
     } on AppwriteException catch (e) {
       // ✅ P1-2: نفس منطق isNotFound في upsert — 404 أو document_not_found
-      // بأي صيغة (code أو type أو toString).
-      if (e.code == 404 ||
-          (e.type ?? '').contains('document_not_found') ||
-          e.toString().contains('document_not_found')) {
+      // بأي صيغة (code أو type أو toString) — الآن عبر المصنّف الموحّد.
+      if (isNotFoundError(e)) {
         return; // المستند غير موجود أصلاً — الحذف idempotent ✓
       }
       rethrow;
@@ -608,7 +649,11 @@ class FullBackupStats {
 
 /// خطأ في رفع سجل واحد
 class FullBackupFailure {
-  FullBackupFailure({this.documentId, required this.reason, this.collectionName, this.timestamp});
+  FullBackupFailure({      required this.reason,
+      this.documentId,
+      this.collectionName,
+      this.timestamp,
+  });
   final String? documentId;
   final String reason;
   final String? collectionName;

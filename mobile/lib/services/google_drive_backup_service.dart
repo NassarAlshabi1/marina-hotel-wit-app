@@ -841,12 +841,37 @@ class GoogleDriveBackupService {
           throw Exception('Database file not found');
         }
 
+        // ✅ إصلاح حرج: WAL checkpoint قبل قراءة ملف .db
+        //
+        // Marina's DB uses PRAGMA journal_mode = WAL (local_db.dart:770). في وضع
+        // WAL، تُكتب المعاملات الحديثة إلى ملف -wal جانبي قبل دمجها في .db
+        // الرئيسي. بدون checkpoint، dbFile.readAsBytes() يقرأ .db فقط — ويفقد
+        // كل البيانات الحديثة الموجودة في -wal.
+        //
+        // الاختبار test/unit/backup_restore_test.dart أثبت هذا الخطأ:
+        // بدون checkpoint: 50 سجل فقط في .db (out of 100)
+        // بعد checkpoint: كل الـ100 سجل موجودة
+        //
+        // LocalBackupService.createLocalBackup(sqlite) ينفّذ checkpoint بالفعل،
+        // لكن uploadDbBackup كان يفتقد هذه الخطوة الحرجة.
+        try {
+          final checkpointDb = await sqflite.openDatabase(dbPath, singleInstance: false);
+          try {
+            await checkpointDb.execute('PRAGMA wal_checkpoint(TRUNCATE)');
+            _log('✅ WAL checkpoint (TRUNCATE) قبل رفع نسخة .db');
+          } finally {
+            await checkpointDb.close();
+          }
+        } catch (e) {
+          _log('⚠️ WAL checkpoint failed before .db upload (proceeding): $e');
+        }
+
         final timestamp = DateTime.now();
         final fileName =
             customFileName ??
             'db_backup_${timestamp.toIso8601String().split('T')[0]}_${timestamp.millisecondsSinceEpoch}.db';
 
-        // قراءة ملف قاعدة البيانات
+        // قراءة ملف قاعدة البيانات (بعد checkpoint — كل البيانات مدموجة)
         final bytes = await dbFile.readAsBytes();
 
         // ✅ إصلاح (2026-06-28): حساب SHA-256 للملف الخام للتحقق من السلامة
@@ -1000,7 +1025,7 @@ class GoogleDriveBackupService {
   }) async {
     try {
       final db = DatabaseManager.instance;
-      final adapterRegistry = AdapterRegistry(db);
+      final adapterRegistry = AdapterRegistry.instance;
 
       if (!backupData.containsKey('metadata')) {
         _log('⚠️ النسخة الاحتياطية لا تحتوي على بيانات وصفية، سيتم تجاوزها');

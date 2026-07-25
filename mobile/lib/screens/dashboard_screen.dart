@@ -11,7 +11,6 @@ import '../providers/core_providers.dart';
 import '../providers/repository_providers.dart';
 import '../providers/room_payment_status_provider.dart';
 import '../services/analytics_service.dart';
-import '../services/appwrite_realtime_sync.dart';
 import '../services/local_db.dart';
 import '../services/remote_config_service.dart';
 import '../services/sync/sync_gate.dart';
@@ -125,9 +124,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       if (mounted) {
         loading?.close();
       }
-
-      // إعادة تعيين علامة التغييرات عن بعد
-      AppwriteRealtimeSync().resetRemoteChangesFlag();
 
       // ─── تسجيل وقت هذا السحب التلقائي ───
       await prefs.setInt(SyncConstants.lastAppOpenPullKey, DateTime.now().millisecondsSinceEpoch);
@@ -603,8 +599,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       final activeBooking = await bookingsRepo.getActiveBookingForRoom(roomNumber);
 
       if (activeBooking == null) {
-        if (mounted) {
-          // ignore: use_build_context_synchronously
+        if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('لا يوجد حجز محجوز للغرفة $roomNumber'), backgroundColor: Colors.orange),
           );
@@ -612,8 +607,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         return;
       }
 
-      if (mounted) {
-        // ignore: use_build_context_synchronously
+      if (context.mounted) {
         unawaited(
           Navigator.of(
             context,
@@ -621,8 +615,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         );
       }
     } catch (e) {
-      if (mounted) {
-        // ignore: use_build_context_synchronously
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red));
       }
     }

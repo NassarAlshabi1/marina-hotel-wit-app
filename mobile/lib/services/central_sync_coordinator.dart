@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 
+import '../utils/debug_log.dart';
 import 'auto_backup_manager.dart';
 import 'unified_sync_orchestrator.dart';
 
@@ -20,7 +20,7 @@ class CentralSyncCoordinator {
   static const Duration syncCooldown = Duration(seconds: 10);
 
   void notifyLocalChange({required String table, required String operation}) {
-    debugPrint('🔔 CentralSyncCoordinator: تغيير في $table ($operation)');
+    dlog(() => '🔔 CentralSyncCoordinator: تغيير في $table ($operation)');
 
     _debounceTimer?.cancel();
     _debounceTimer = Timer(unifiedDebounce, () async {
@@ -32,8 +32,8 @@ class CentralSyncCoordinator {
       try {
         await _performSync(reason: 'local_change:$table:$operation');
       } catch (e, stackTrace) {
-        debugPrint('❌ CentralSyncCoordinator: خطأ في المزامنة المؤجلة: $e');
-        debugPrint('Stack trace: $stackTrace');
+        derr(() => 'CentralSyncCoordinator: خطأ في المزامنة المؤجلة: $e');
+        derr(() => 'Stack trace: $stackTrace');
         // لا نرمي — Timer callback لا يجب أن يرمي استثناء
       }
     });
@@ -51,12 +51,15 @@ class CentralSyncCoordinator {
     return _performSync(push: push, pull: pull, reason: reason);
   }
 
-  Future<bool> _performSync({bool push = true, bool pull = true, required String reason}) async {
+  Future<bool> _performSync({      required String reason,
+      bool push = true,
+      bool pull = true,
+  }) async {
     if (_lastSyncTime != null) {
       final elapsed = DateTime.now().difference(_lastSyncTime!);
       if (elapsed < syncCooldown) {
         final remaining = syncCooldown - elapsed;
-        debugPrint('⏸️ Sync في cooldown ($elapsed < $syncCooldown), scheduling after $remaining');
+        dlog(() => '⏸️ Sync في cooldown ($elapsed < $syncCooldown), scheduling after $remaining');
 
         _debounceTimer?.cancel();
         _debounceTimer = Timer(remaining, () async {
@@ -65,8 +68,8 @@ class CentralSyncCoordinator {
           try {
             await _performSync(push: push, pull: pull, reason: 'cooldown_delayed:$reason');
           } catch (e, stackTrace) {
-            debugPrint('❌ CentralSyncCoordinator: خطأ في cooldown delayed sync: $e');
-            debugPrint('Stack trace: $stackTrace');
+            derr(() => 'CentralSyncCoordinator: خطأ في cooldown delayed sync: $e');
+            derr(() => 'Stack trace: $stackTrace');
           }
         });
 
@@ -75,28 +78,28 @@ class CentralSyncCoordinator {
     }
 
     if (_isSyncing) {
-      debugPrint('⏸️ Sync قيد التنفيذ بالفعل');
+      dlog('⏸️ Sync قيد التنفيذ بالفعل');
       return false;
     }
 
     _isSyncing = true;
     _syncCount++;
-    debugPrint('🔄 [$_syncCount] بدء المزامنة: $reason (push: $push, pull: $pull)');
+    dlog(() => '🔄 [$_syncCount] بدء المزامنة: $reason (push: $push, pull: $pull)');
 
     try {
       final success = await UnifiedSyncOrchestrator.instance.syncNow(push: push, pull: pull, reason: reason);
 
       if (success) {
         _lastSyncTime = DateTime.now();
-        debugPrint('✅ [$_syncCount] المزامنة نجحت: $reason');
+        dlog(() => '✅ [$_syncCount] المزامنة نجحت: $reason');
       } else {
-        debugPrint('❌ [$_syncCount] المزامنة فشلت: $reason');
+        derr(() => '[$_syncCount] المزامنة فشلت: $reason');
       }
 
       return success;
     } catch (e, stackTrace) {
-      debugPrint('❌ [$_syncCount] خطأ في المزامنة: $e');
-      debugPrint('Stack trace: $stackTrace');
+      derr(() => '[$_syncCount] خطأ في المزامنة: $e');
+      derr(() => 'Stack trace: $stackTrace');
       return false;
     } finally {
       _isSyncing = false;

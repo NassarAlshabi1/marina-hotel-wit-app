@@ -42,6 +42,7 @@ import 'services/appwrite_health_checker.dart';
 import 'services/appwrite_realtime_service.dart';
 import 'services/appwrite_realtime_sync.dart';
 import 'services/appwrite_sync_manager.dart';
+import 'services/auto_backup_manager.dart';
 import 'services/background_sync_service.dart';
 import 'services/battery_optimizer.dart';
 import 'services/central_sync_coordinator.dart';
@@ -73,6 +74,7 @@ import 'services/sync_service.dart';
 // AutoSync Engine imports
 import 'services/unified_sync_orchestrator.dart';
 import 'utils/auto_sync_preferences.dart';
+import 'utils/debug_log.dart';
 import 'utils/env.dart';
 import 'utils/hotel_day_ticker.dart';
 import 'utils/id.dart';
@@ -92,19 +94,19 @@ Future<void> main() async {
     try {
       sqflite_ffi.sqfliteFfiInit();
       sqflite_ffi.databaseFactory = sqflite_ffi.databaseFactoryFfi;
-      debugPrint('✅ sqflite_common_ffi initialized for desktop');
+      dlog('✅ sqflite_common_ffi initialized for desktop');
     } catch (e) {
-      debugPrint('⚠️ sqflite_common_ffi init failed: $e');
+      dwarn(() => 'sqflite_common_ffi init failed: $e');
     }
   }
 
   // ─── Firebase Core: تهيئة قبل كل خدمات Firebase ───
   try {
     await Firebase.initializeApp();
-    debugPrint('✅ Firebase Core initialized');
+    dlog('✅ Firebase Core initialized');
   } catch (e) {
-    debugPrint('⚠️ Firebase Core initialization failed: $e');
-    debugPrint('ℹ️ التطبيق يعمل بالإعدادات المحلية بدون Firebase');
+    dwarn(() => 'Firebase Core initialization failed: $e');
+    dlog('ℹ️ التطبيق يعمل بالإعدادات المحلية بدون Firebase');
   }
 
   // ─── SecondaryAppwriteConfig: تهيئة SharedPreferences قبل أي وصول للإعدادات ───
@@ -128,7 +130,7 @@ Future<void> main() async {
   // تهيئة نظام الإنذارات المجدولة (نسخ احتياطي + تقارير Telegram)
   // ✅ catchError بدلاً من unawaited المُجرّد — لو فشل initAlarmSystem، نسجّل
   // الخطأ بدل تركه silent (البوت أشار لهذا بشكل صحيح).
-  unawaited(AlarmBackup.initAlarmSystem().catchError((Object e) => debugPrint('⚠️ Alarm system init failed: $e')));
+  unawaited(AlarmBackup.initAlarmSystem().catchError((Object e) => dwarn(() => 'Alarm system init failed: $e')));
 
   // ─── ربط Crashlytics + DiagnosticsLogger ───
   CrashlyticsService.instance.setupErrorHandlers(
@@ -146,7 +148,7 @@ Future<void> main() async {
 
   unawaited(SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]));
 
-  debugPrint('BASE_API_URL=${Env.baseApiUrl}');
+  dlog(() => 'BASE_API_URL=${Env.baseApiUrl}');
   runZonedGuarded(() => runApp(const ProviderScope(child: App())), (error, stack) async {
     // إرسال الخطأ إلى Crashlytics
     await CrashlyticsService.instance.recordUnexpectedError(
@@ -173,7 +175,7 @@ Future<void> _safeInit(String label, Future<void> Function() init) async {
   try {
     await init();
   } catch (e, stack) {
-    debugPrint('⚠️ $label initialization failed: $e\n$stack');
+    dwarn(() => '$label initialization failed: $e\n$stack');
   }
 }
 
@@ -184,10 +186,18 @@ void _startHealthChecker() {
     // نستخدم AppwriteHealthStatus.instance مباشرة لأنه singleton
     // الـ Riverpod provider سيُستخدم في الـ UI لعرض الحالة
     final notifier = AppwriteHealthNotifier();
-    notifier.startPeriodicCheck();
-    debugPrint('🏥 [Main] Health checker started (30s interval)');
+    // ✅ Forensic audit fix (2026-07-22):
+    // كان الفحص كل 30 ثانية (الافتراضي في startPeriodicCheck). كل فحص ينفذ
+    // listDocuments(Query.limit(1)) على rooms (Primary) + listDocuments على
+    // rooms (Secondary إن مُفعّل) = 1-2 listDocuments API calls كل 30 ثانية.
+    // رفعنا الفاصل إلى 5 دقائق — لا حاجة لكشف التعطل خلال 30 ثانية،
+    // فالـ auto-sync (دقيقتين) سيرصد الفشل عبر retry/backoff على أي حال.
+    //
+    /// للتراجع: أزل المعامل interval للعودة للافتراضي (30 ثانية).
+    notifier.startPeriodicCheck(interval: const Duration(minutes: 5));
+    dlog('🏥 [Main] Health checker started (5min interval)');
   } catch (e) {
-    debugPrint('⚠️ [Main] Health checker init failed: $e');
+    dwarn(() => '[Main] Health checker init failed: $e');
   }
 }
 
@@ -198,19 +208,19 @@ Future<void> _initializeSecondarySync() async {
     await SecondaryAppwriteConfig.ensureInitialized();
     if (SecondaryAppwriteConfig.isEnabled && SecondaryAppwriteConfig.isConfigured) {
       SecondarySyncManager.instance.startAutoSync();
-      debugPrint('🔵 [Main] Secondary sync auto-started');
+      dlog('🔵 [Main] Secondary sync auto-started');
     } else {
-      debugPrint('🔵 [Main] Secondary sync disabled or not configured');
+      dlog('🔵 [Main] Secondary sync disabled or not configured');
     }
   } catch (e) {
-    debugPrint('⚠️ [Main] Secondary sync init failed: $e');
+    dwarn(() => '[Main] Secondary sync init failed: $e');
   }
 }
 
 Future<void> _initializeFullyAutomatedSyncSystem() async {
-  debugPrint('═══════════════════════════════════════════════════════');
-  debugPrint('🚀 Initializing Fully Automated Sync System');
-  debugPrint('═══════════════════════════════════════════════════════');
+  dlog('═══════════════════════════════════════════════════════');
+  dlog('🚀 Initializing Fully Automated Sync System');
+  dlog('═══════════════════════════════════════════════════════');
 
   try {
     final prefs = await SharedPreferences.getInstance();
@@ -221,65 +231,65 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       await prefs.setBool('appwrite_sync_enabled', true);
     }
 
-    debugPrint('📦 Initializing Appwrite Config Manager...');
+    dlog('📦 Initializing Appwrite Config Manager...');
     await AppwriteConfigManager.init();
-    debugPrint('✅ Appwrite Config loaded');
+    dlog('✅ Appwrite Config loaded');
 
-    debugPrint('📝 Initializing Google Drive Logger...');
+    dlog('📝 Initializing Google Drive Logger...');
     final driveLogger = GoogleDriveLogger();
     await driveLogger.initialize(minLevel: LogLevel.debug);
-    debugPrint('✅ Logger initialized');
+    dlog('✅ Logger initialized');
 
-    debugPrint('🔐 Initializing Google Drive Backup Service...');
+    dlog('🔐 Initializing Google Drive Backup Service...');
     final backupService = GoogleDriveBackupService();
 
     try {
       // محاولة استعادة الجلسة بشكل صامت
       final account = await backupService.attemptSilentSignIn();
       if (account != null) {
-        debugPrint('✅ تم استعادة جلسة Google Drive: ${account.email}');
+        dlog(() => '✅ تم استعادة جلسة Google Drive: ${account.email}');
       } else {
-        debugPrint('ℹ️ لا توجد جلسة محفوظة - المستخدم يحتاج لتسجيل دخول يدوي');
+        dlog('ℹ️ لا توجد جلسة محفوظة - المستخدم يحتاج لتسجيل دخول يدوي');
       }
     } catch (e) {
-      debugPrint('⚠️ فشلت استعادة الجلسة: $e');
+      dwarn(() => 'فشلت استعادة الجلسة: $e');
     }
 
-    debugPrint('🔧 [3/7] Initializing Database...');
+    dlog('🔧 [3/7] Initializing Database...');
     final database = DatabaseManager.instance;
-    debugPrint('✅ Database ready');
+    dlog('✅ Database ready');
 
-    debugPrint('🎯 [4/7] Initializing Unified Sync Orchestrator...');
+    dlog('🎯 [4/7] Initializing Unified Sync Orchestrator...');
     final unifiedOrchestrator = UnifiedSyncOrchestrator.instance;
     await unifiedOrchestrator.initialize(database: database);
-    debugPrint('✅ Unified Sync Orchestrator ready');
+    dlog('✅ Unified Sync Orchestrator ready');
 
-    debugPrint('🎯 [5/7] Initializing Unified Sync Coordinator...');
+    dlog('🎯 [5/7] Initializing Unified Sync Coordinator...');
     final coordinator = GoogleDriveUnifiedSyncCoordinator.instance;
     await coordinator.initialize(backupService: backupService, database: database, logger: driveLogger);
-    debugPrint('✅ Coordinator initialized');
+    dlog('✅ Coordinator initialized');
 
-    debugPrint('🤝 [6/7] Initializing Conflict Resolver...');
+    dlog('🤝 [6/7] Initializing Conflict Resolver...');
     final conflictResolver = GoogleDriveConflictResolver.instance;
     conflictResolver.initialize(driveLogger);
 
     await conflictResolver.setStrategy(ConflictResolutionStrategy.newerWins);
     await conflictResolver.setConflictThreshold(30);
-    debugPrint('✅ Conflict Resolver initialized (strategy: newerWins)');
+    dlog('✅ Conflict Resolver initialized (strategy: newerWins)');
 
-    debugPrint('🧠 [7/8] Initializing SmartSyncManager...');
+    dlog('🧠 [7/8] Initializing SmartSyncManager...');
     final smartSync = SmartSyncManager.instance;
     await smartSync.initialize(backupService);
     await unifiedOrchestrator.initialize(smart: smartSync, driveCoordinator: coordinator, database: database);
-    debugPrint('✅ SmartSyncManager initialized');
+    dlog('✅ SmartSyncManager initialized');
 
     // ✅ تفعيل SyncGuardian — الحارس الذي يدير المزامنة الخلفية وإعادة التشغيل
-    debugPrint('🛡️ [7.5/8] Initializing SyncGuardian...');
+    dlog('🛡️ [7.5/8] Initializing SyncGuardian...');
     try {
       await SyncGuardian.instance.initialize(database: database);
-      debugPrint('✅ SyncGuardian initialized');
+      dlog('✅ SyncGuardian initialized');
     } catch (e) {
-      debugPrint('⚠️ SyncGuardian init failed (non-fatal): $e');
+      dwarn(() => 'SyncGuardian init failed (non-fatal): $e');
     }
 
     // ✅ تهيئة WorkManager + SyncContinuationService
@@ -288,18 +298,18 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     //   - SyncContinuationService (إكمال المزامنة عند الخروج من الشاشة)
     //   - AppSessionManager (backupAfterInactivity)
     // بدون هذا، registerOneOffTask/registerPeriodicTask تفشل بصمت!
-    debugPrint('⚙️ [7.6/8] Initializing WorkManager + SyncContinuationService...');
+    dlog('⚙️ [7.6/8] Initializing WorkManager + SyncContinuationService...');
     try {
       await Workmanager().initialize(_unifiedCallbackDispatcher);
       await SyncContinuationService.initialize(debug: kDebugMode);
       // تسجيل فحص دوري للمزامنات المعلّقة (كل 15 دقيقة)
       await SyncContinuationService.schedulePeriodicCheck();
-      debugPrint('✅ WorkManager + SyncContinuationService initialized');
+      dlog('✅ WorkManager + SyncContinuationService initialized');
     } catch (e) {
-      debugPrint('⚠️ WorkManager init failed (non-fatal): $e');
+      dwarn(() => 'WorkManager init failed (non-fatal): $e');
     }
 
-    debugPrint('🤖 [8/8] Initializing & Starting Auto Sync Engine...');
+    dlog('🤖 [8/8] Initializing & Starting Auto Sync Engine...');
     final autoSyncEngine = AutoSyncEngine.instance;
 
     await autoSyncEngine.initialize(backupService: backupService, database: database, logger: driveLogger);
@@ -309,23 +319,22 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     // تفعيل المزامنة التلقائية عند فتح التطبيق (فقط إذا كان المستخدم قد فعّلها)
     final driveSyncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
     if (backupService.isSignedIn && driveSyncEnabled) {
-      debugPrint('🔔 إشعار أنظمة المزامنة بتسجيل الدخول...');
+      dlog('🔔 إشعار أنظمة المزامنة بتسجيل الدخول...');
       await autoSyncEngine.start();
       await autoSyncEngine.onSignInChanged(true);
       await smartSync.onGoogleDriveSignInChanged(true);
-      debugPrint('✅ تم إشعار جميع أنظمة المزامنة وبدء المراقبة');
+      dlog('✅ تم إشعار جميع أنظمة المزامنة وبدء المراقبة');
     } else {
-      debugPrint('ℹ️ المستخدم لم يسجل دخول Google Drive بعد - لن تبدأ المزامنة التلقائية');
+      dlog('ℹ️ المستخدم لم يسجل دخول Google Drive بعد - لن تبدأ المزامنة التلقائية');
     }
 
-    // ignore: deprecated_member_use_from_same_package
     await SyncQueueService.instance.initialize();
 
     _startEngineMonitoring(autoSyncEngine);
 
-    debugPrint('✅ Auto Sync Engine started');
+    dlog('✅ Auto Sync Engine started');
 
-    debugPrint('🔗 Registering Database Sync Callbacks...');
+    dlog('🔗 Registering Database Sync Callbacks...');
     DatabaseSyncCoordinator.initialize();
 
     // Register stop callbacks
@@ -344,29 +353,29 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       await SyncGuardian.instance.restart();
     });
 
-    debugPrint('✅ Sync callbacks registered');
+    dlog('✅ Sync callbacks registered');
 
-    debugPrint('═══════════════════════════════════════════════════════');
-    debugPrint('✅ Fully Automated Sync System Ready!');
-    debugPrint('═══════════════════════════════════════════════════════');
-    debugPrint('📡 Network monitoring: ACTIVE');
-    debugPrint('🔄 Lifecycle monitoring: ACTIVE');
-    debugPrint('💾 Data stream listening: ACTIVE');
-    debugPrint('❤️ Health checks: ACTIVE (every 5 minutes)');
-    debugPrint('🔁 Auto-retry: ACTIVE (exponential backoff)');
-    debugPrint('═══════════════════════════════════════════════════════');
+    dlog('═══════════════════════════════════════════════════════');
+    dlog('✅ Fully Automated Sync System Ready!');
+    dlog('═══════════════════════════════════════════════════════');
+    dlog('📡 Network monitoring: ACTIVE');
+    dlog('🔄 Lifecycle monitoring: ACTIVE');
+    dlog('💾 Data stream listening: ACTIVE');
+    dlog('❤️ Health checks: ACTIVE (every 5 minutes)');
+    dlog('🔁 Auto-retry: ACTIVE (exponential backoff)');
+    dlog('═══════════════════════════════════════════════════════');
   } catch (e, stackTrace) {
-    debugPrint('═══════════════════════════════════════════════════════');
-    debugPrint('❌ CRITICAL ERROR in Sync System Initialization');
-    debugPrint('═══════════════════════════════════════════════════════');
-    debugPrint('Error: $e');
-    debugPrint('Stack trace: $stackTrace');
-    debugPrint('═══════════════════════════════════════════════════════');
+    dlog('═══════════════════════════════════════════════════════');
+    derr('CRITICAL ERROR in Sync System Initialization');
+    dlog('═══════════════════════════════════════════════════════');
+    derr(() => 'Error: $e');
+    derr(() => 'Stack trace: $stackTrace');
+    dlog('═══════════════════════════════════════════════════════');
   }
 }
 
 Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
-  debugPrint('⚙️ Configuring Auto Sync Engine...');
+  dlog('⚙️ Configuring Auto Sync Engine...');
 
   const engineDebounceKey = 'auto_sync_engine_debounce';
   const legacyDebounceKey = 'auto_sync_debounce';
@@ -384,7 +393,7 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
     defaultValue: 5,
     apply: (value) => engine.setDebounceSeconds(value),
   );
-  debugPrint('   ⏱️ Debounce: ${debounceSeconds}s');
+  dlog(() => '   ⏱️ Debounce: ${debounceSeconds}s');
 
   final pullInterval = await migrateAutoSyncPreference<int>(
     prefs: prefs,
@@ -393,7 +402,7 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
     defaultValue: 2,
     apply: (value) => engine.setPullInterval(value),
   );
-  debugPrint('   ⏰ Pull interval: ${pullInterval}min');
+  dlog(() => '   ⏰ Pull interval: ${pullInterval}min');
 
   final retryEnabled = await migrateAutoSyncPreference<bool>(
     prefs: prefs,
@@ -402,7 +411,7 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
     defaultValue: true,
     apply: (value) => engine.setRetryEnabled(value),
   );
-  debugPrint('   🔁 Auto-retry: $retryEnabled');
+  dlog(() => '   🔁 Auto-retry: $retryEnabled');
 
   final conflictStrategy = prefs.getString('conflict_strategy') ?? 'newerWins';
   final strategy = ConflictResolutionStrategy.values.firstWhere(
@@ -410,9 +419,9 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
     orElse: () => ConflictResolutionStrategy.newerWins,
   );
   await engine.setConflictStrategy(strategy);
-  debugPrint('   🤝 Conflict strategy: ${strategy.name}');
+  dlog(() => '   🤝 Conflict strategy: ${strategy.name}');
 
-  debugPrint('✅ Configuration complete');
+  dlog('✅ Configuration complete');
 }
 
 /// يخزن اشتراك مراقبة المحرك لاستخدامه في Dispose
@@ -421,11 +430,12 @@ StreamSubscription<void>? _globalEngineMonitoringSub;
 void _startEngineMonitoring(AutoSyncEngine engine) {
   _globalEngineMonitoringSub?.cancel();
   _globalEngineMonitoringSub = engine.stateStream.listen((state) {
-    debugPrint(
-      '📊 ENGINE ${state.isRunning ? '🟢' : '🔴'} | '
-      'Net: ${state.hasNetworkConnection ? '🌐' : '📴'} | '
-      'Auth: ${state.isSignedIn ? '🔐' : '🔓'} | '
-      'Pending: ${state.pendingChangesCount}',
+    dlog(
+      () =>
+          '📊 ENGINE ${state.isRunning ? '🟢' : '🔴'} | '
+          'Net: ${state.hasNetworkConnection ? '🌐' : '📴'} | '
+          'Auth: ${state.isSignedIn ? '🔐' : '🔓'} | '
+          'Pending: ${state.pendingChangesCount}',
     );
   });
 }
@@ -516,18 +526,39 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         try {
           await syncManager.registerDevice();
         } catch (e) {
-          debugPrint('⚠️ Device registration error: $e');
+          dwarn(() => 'Device registration error: $e');
         }
 
         // تهيئة FCM للإشعارات بين الأجهزة
         try {
           await _initializeFcm(syncManager);
         } catch (e) {
-          debugPrint('⚠️ FCM initialization error: $e');
+          dwarn(() => 'FCM initialization error: $e');
         }
 
-        // بدء المزامنة التلقائية (push + pull كل 2 دقيقة)
-        syncManager.startAutoSync(interval: const Duration(minutes: 2));
+        // بدء المزامنة التلقائية (push + pull)
+        // ✅ Forensic audit fix (2026-07-22):
+        // كان الفاصل دقيقتين → 30 دورة/ساعة × 3 أجهزة × 20 collection
+        // = 1,800 listDocuments/ساعة. مع 15 دقيقة → 4 دورات/ساعة = 240/ساعة.
+        // توفير: ~87% من auto-sync reads.
+        //
+        // ✅ قابل للتغيير من الإعدادات (SyncConstants.autoSyncIntervalPrefKey):
+        //   5  — للموظفين النشطين
+        //   15 — افتراضي
+        //   30 — للأجهزة الثابتة
+        //   60 — للأجهزة منخفضة الأولوية
+        //
+        // Delta Sync يضمن وصول التغييرات عبر $updatedAt filter.
+        // Realtime WebSocket (عند تفعيله) يوفر إشعارات فورية بين الأدوار.
+        final syncPrefs = await SharedPreferences.getInstance();
+        final intervalMinutes =
+            syncPrefs.getInt(SyncConstants.autoSyncIntervalPrefKey) ?? SyncConstants.autoSyncIntervalDefaultMinutes;
+        final clampedMinutes = intervalMinutes.clamp(
+          SyncConstants.autoSyncIntervalMinMinutes,
+          SyncConstants.autoSyncIntervalMaxMinutes,
+        );
+        syncManager.startAutoSync(interval: Duration(minutes: clampedMinutes));
+        dlog('⏰ Auto-sync started: every $clampedMinutes minutes');
 
         // سحب البيانات عند فتح التطبيق — مع فحص ذكي (مرة كل ساعة)
         try {
@@ -540,24 +571,25 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
             final elapsed = DateTime.now().difference(lastPull);
             if (elapsed < SyncConstants.appOpenSyncInterval) {
               final remaining = SyncConstants.appOpenSyncInterval - elapsed;
-              debugPrint(
-                '⏭️ تخطي المزامنة عند بدء التطبيق — مرت ${elapsed.inMinutes} دقيقة فقط '
-                '(متبقي ${remaining.inMinutes} دقيقة)',
+              dlog(
+                () =>
+                    '⏭️ تخطي المزامنة عند بدء التطبيق — مرت ${elapsed.inMinutes} دقيقة فقط '
+                    '(متبقي ${remaining.inMinutes} دقيقة)',
               );
               shouldSync = false;
             }
           }
 
           if (shouldSync) {
-            debugPrint('📥 Pulling latest data from Appwrite on app start...');
+            dlog('📥 Pulling latest data from Appwrite on app start...');
             // push + pull معاً — لا نرفع بدون سحب
             await syncManager.sync();
             // تسجيل وقت هذا السحب
             await prefs.setInt(SyncConstants.lastAppOpenPullKey, DateTime.now().millisecondsSinceEpoch);
-            debugPrint('✅ Initial sync on app start completed');
+            dlog('✅ Initial sync on app start completed');
           }
         } catch (e) {
-          debugPrint('⚠️ Initial sync on app start failed: $e');
+          dwarn(() => 'Initial sync on app start failed: $e');
         }
 
         var deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
@@ -573,9 +605,9 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
         await AppwriteRealtimeSync().initialize(deviceId: deviceId);
         await AppwriteRealtimeSync().start();
-        debugPrint('📡 Realtime sync + auto sync started');
+        dlog('📡 Realtime sync + auto sync started');
       } catch (e) {
-        debugPrint('❌ Realtime sync init error: $e');
+        derr(() => 'Realtime sync init error: $e');
       }
     });
   }
@@ -656,7 +688,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     try {
       await ref.read(syncServiceProvider).runSync();
     } catch (e) {
-      debugPrint('❌ Local auto sync error: $e');
+      derr(() => 'Local auto sync error: $e');
     } finally {
       _lastLocalAutoSync = DateTime.now();
       _localAutoSyncRunning = false;
@@ -680,19 +712,33 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       await syncManager.setFcmToken(fcm.currentToken!);
     }
 
-    debugPrint('✅ FCM ready — cross-device notifications enabled');
+    dlog('✅ FCM ready — cross-device notifications enabled');
   }
 
-  /// رفع التغييرات المعلقة + سحب التغييرات الجديدة عند العودة للتطبيق
+  /// رفع التغييرات المعلقة عند العودة للتطبيق.
+  ///
+  /// ✅ Forensic audit fix (2026-07-22):
+  /// كان الكود السابق ينفذ sync(push: true, pull: true) — أي push + pull
+  /// كامل (20 listDocuments API calls). لكن UnifiedSyncOrchestrator.onAppForeground()
+  /// (main.dart:861) ينفذ بالفعل syncNow(push: false, pull: true) — أي pull كامل.
+  /// النتيجة: pull مزدوج عند كل عودة من الخلفية (40 listDocuments بدل 20).
+  ///
+  /// الإصلاح: تحويل _syncOnResume ليعمل push فقط (sync(push: true, pull: false)).
+  /// هذا يحافظ على الوظيفة الحرجة (رفع التغييرات المعلقة في outbox عند العودة)
+  /// ويزيل pull المكرر الذي يغطيه UnifiedSyncOrchestrator.onAppForeground.
+  ///
+  /// للتراجع: أعد pull: true (الافتراضي) في السطر التالي.
+  /// للقياس: شغّل التطبيق على جهازين، أنشئ حجزاً على أحدهما، أخرج للخلفية،
+  /// عُد للتطبيق، وتحقق من وصول التغيير للجهاز الثاني + راقب Appwrite Console
+  /// → Usage → Database Reads قبل وبعد هذا التغيير.
   Future<void> _syncOnResume() async {
     try {
       final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
-      // push: رفع أي تغييرات معلقة في الـ outbox
-      // pull: سحب أي تغييرات جديدة من السيرفر
-      await syncManager.sync();
-      debugPrint('✅ Sync on resume completed (push + pull)');
+      // push فقط — pull يُغطَّى بواسطة UnifiedSyncOrchestrator.onAppForeground()
+      await syncManager.sync(pull: false);
+      dlog('✅ Push on resume completed (pull handled by UnifiedSyncOrchestrator)');
     } catch (e) {
-      debugPrint('⚠️ Sync on resume error: $e');
+      dwarn(() => 'Sync on resume error: $e');
     }
   }
 
@@ -713,19 +759,19 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // push فقط — لا نسحب لتوفير الوقت قبل أن يقتل النظام التطبيق
       // مهلة 10 ثوانٍ — إذا لم يكتمل، البيانات محفوظة في outbox
       await syncManager.sync(pull: false).timeout(const Duration(seconds: 10));
-      debugPrint('✅ Push on pause completed');
+      dlog('✅ Push on pause completed');
     } catch (e) {
       // البيانات محفوظة في outbox — لن تُفقد أبداً
-      debugPrint('⚠️ Push on pause error (data safe in outbox): $e');
+      dwarn(() => 'Push on pause error (data safe in outbox): $e');
 
       // ✅ جدولة مهمة WorkManager لإكمال المزامنة في الخلفية
       // البيانات محفوظة في outbox، لكن push للسحابة لم يكتمل —
       // WorkManager سيُحاول إكماله عند توفر الشبكة.
       try {
         await SyncContinuationService.scheduleSyncCompletion();
-        debugPrint('📅 Scheduled WorkManager to complete sync in background');
+        dlog('📅 Scheduled WorkManager to complete sync in background');
       } catch (schedErr) {
-        debugPrint('⚠️ Failed to schedule sync continuation: $schedErr');
+        dwarn(() => 'Failed to schedule sync continuation: $schedErr');
       }
     }
   }
@@ -744,7 +790,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // ستُرفع للسحابة حتى لو قُتل التطبيق فوراً بعد dispose().
       unawaited(
         SyncContinuationService.scheduleSyncCompletion().catchError(
-          (Object e, StackTrace s) => debugPrint('Error scheduling sync continuation on dispose: $e\n$s'),
+          (Object e, StackTrace s) => derr(() => 'Error scheduling sync continuation on dispose: $e\n$s'),
         ),
       );
     }
@@ -756,70 +802,87 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
   /// تنظيف جميع الخدمات Singleton عند إغلاق التطبيق
   static Future<void> _disposeSingletonServices() async {
-    debugPrint('🧹 Disposing singleton services...');
+    dlog('🧹 Disposing singleton services...');
     try {
       await FcmService.disposeInstance();
     } catch (e) {
-      debugPrint('⚠️ Error disposing FcmService: $e');
+      dwarn(() => 'Error disposing FcmService: $e');
     }
     try {
       await BatteryOptimizer.disposeInstance();
     } catch (e) {
-      debugPrint('⚠️ Error disposing BatteryOptimizer: $e');
+      dwarn(() => 'Error disposing BatteryOptimizer: $e');
     }
-    // ignore: deprecated_member_use_from_same_package
     try {
+      // ignore: deprecated_member_use_from_same_package
       await AppwriteRealtimeService.disposeInstance();
     } catch (e) {
-      debugPrint('⚠️ Error disposing AppwriteRealtimeService: $e');
+      dwarn(() => 'Error disposing AppwriteRealtimeService: $e');
     }
     try {
       await SyncPerformanceOptimizer.disposeInstance();
     } catch (e) {
-      debugPrint('⚠️ Error disposing SyncPerformanceOptimizer: $e');
+      dwarn(() => 'Error disposing SyncPerformanceOptimizer: $e');
     }
     try {
       await SmartSyncManager.disposeInstance();
     } catch (e) {
-      debugPrint('⚠️ Error disposing SmartSyncManager: $e');
+      dwarn(() => 'Error disposing SmartSyncManager: $e');
     }
     try {
       ConnectivityService.instance.dispose();
     } catch (e) {
-      debugPrint('⚠️ Error disposing ConnectivityService: $e');
+      dwarn(() => 'Error disposing ConnectivityService: $e');
     }
     try {
       HotelDayTicker.instance.dispose();
     } catch (e) {
-      debugPrint('⚠️ Error disposing HotelDayTicker: $e');
+      dwarn(() => 'Error disposing HotelDayTicker: $e');
     }
     try {
-      await AutoSyncEngine.disposeInstance();
+      AutoSyncEngine.disposeInstance();
     } catch (e) {
-      debugPrint('⚠️ Error disposing GoogleDriveAutoSyncEngine: $e');
+      dwarn(() => 'Error disposing GoogleDriveAutoSyncEngine: $e');
     }
     try {
-      await UnifiedSyncOrchestrator.disposeInstance();
+      UnifiedSyncOrchestrator.disposeInstance();
     } catch (e) {
-      debugPrint('⚠️ Error disposing UnifiedSyncOrchestrator: $e');
+      dwarn(() => 'Error disposing UnifiedSyncOrchestrator: $e');
     }
     try {
-      await GoogleDriveUnifiedSyncCoordinator.disposeInstance();
+      GoogleDriveUnifiedSyncCoordinator.disposeInstance();
     } catch (e) {
-      debugPrint('⚠️ Error disposing GoogleDriveUnifiedSyncCoordinator: $e');
+      dwarn(() => 'Error disposing GoogleDriveUnifiedSyncCoordinator: $e');
     }
     try {
       CentralSyncCoordinator.disposeInstance();
     } catch (e) {
-      debugPrint('⚠️ Error disposing CentralSyncCoordinator: $e');
+      dwarn(() => 'Error disposing CentralSyncCoordinator: $e');
     }
-    // ignore: deprecated_member_use_from_same_package
     try {
       BackgroundSyncService.disposeInstance();
     } catch (e) {
-      debugPrint('⚠️ Error disposing BackgroundSyncService: $e');
+      dwarn(() => 'Error disposing BackgroundSyncService: $e');
     }
-    debugPrint('✅ All singleton services disposed');
+    // ✅ تنظيف خدمات إضافية كانت تتسرب StreamController
+    try {
+      SyncConflictEventBus.instance.dispose();
+    } catch (e) {
+      dwarn(() => 'Error disposing SyncConflictEventBus: $e');
+    }
+    // ✅ Batch 3: تنظيف AutoBackupManager timers + SmartSyncManager timers
+    try {
+      AutoBackupManager.disposeInstance();
+    } catch (e) {
+      dwarn(() => 'Error disposing AutoBackupManager: $e');
+    }
+    // ✅ Batch 3: تنظيف SyncGuardian timer + StreamController
+    try {
+      await SyncGuardian.disposeInstance();
+    } catch (e) {
+      dwarn(() => 'Error disposing SyncGuardian: $e');
+    }
+    dlog('✅ All singleton services disposed');
   }
 
   @override
@@ -828,44 +891,41 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       return;
     }
     if (state == AppLifecycleState.resumed) {
-      debugPrint('📱 التطبيق عاد للواجهة...');
-      AppSessionManager.onAppOpen().catchError((Object e, StackTrace s) => debugPrint('Error in onAppOpen: $e\n$s'));
+      dlog('📱 التطبيق عاد للواجهة...');
+      AppSessionManager.onAppOpen().catchError((Object e, StackTrace s) => derr(() => 'Error in onAppOpen: $e\n$s'));
       ref
           .read(backupStatusProvider.notifier)
           .refreshSignInStatus()
-          .catchError((Object e, StackTrace s) => debugPrint('Error in refreshSignInStatus: $e\n$s'));
-      // ✅ استهلاك أي عمليات مزامنة معلّقة من WorkManager
-      // قبل بدء مزامنة جديدة لتجنب التضارب
-      unawaited(
-        SyncContinuationService.consumePendingAndSync().catchError(
-          (Object e, StackTrace s) => debugPrint('Error in consumePendingAndSync: $e\n$s'),
-        ),
-      );
-      // رفع التغييرات المعلقة + سحب التغييرات الجديدة عند العودة
+          .catchError((Object e, StackTrace s) => derr(() => 'Error in refreshSignInStatus: $e\n$s'));
+      // ✅ تحسين أداء: تقليل تكرار المزامنة عند العودة — مزامنة واحدة فقط
+      // سابقاً: 4 عمليات مزامنة متوازية (consumePendingAndSync + _syncOnResume +
+      // UnifiedSyncOrchestrator.onAppForeground + SyncGuardian.onAppForeground)
+      // الآن: _syncOnResume كعملية أساسية + إشعار UnifiedSyncOrchestrator بدون مزامنة مستقلة
       unawaited(_syncOnResume());
+      // إشعار خدمات المزامنة بالعودة — بدون بدء مزامنة مستقلة (ستكتفي بالتحقق)
       UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
-        (Object e, StackTrace s) => debugPrint('Error in UnifiedSync onAppForeground: $e\n$s'),
+        (Object e, StackTrace s) => derr(() => 'Error in UnifiedSync onAppForeground: $e\n$s'),
       );
       SyncGuardian.instance.onAppForeground().catchError(
-        (Object e, StackTrace s) => debugPrint('Error in SyncGuardian onAppForeground: $e\n$s'),
+        (Object e, StackTrace s) => derr(() => 'Error in SyncGuardian onAppForeground: $e\n$s'),
       );
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
-      debugPrint('📱 التطبيق في الخلفية...');
+      dlog('📱 التطبيق في الخلفية...');
       // مزامنة فورية عند الخروج لضمان عدم ضياع البيانات
       unawaited(_pushPendingChangesOnPause());
       // ✅ جدولة مهمة WorkManager لإكمال المزامنة في الخلفية
       // حتى لو قُتل التطبيق قبل اكتمال _pushPendingChangesOnPause
       unawaited(
         SyncContinuationService.scheduleSyncCompletion().catchError(
-          (Object e, StackTrace s) => debugPrint('Error scheduling sync continuation: $e\n$s'),
+          (Object e, StackTrace s) => derr(() => 'Error scheduling sync continuation: $e\n$s'),
         ),
       );
       // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
       Future.microtask(
         AppSessionManager.onAppCloseOrBackground,
-      ).catchError((Object e, StackTrace s) => debugPrint('Error in onAppCloseOrBackground: $e\n$s'));
+      ).catchError((Object e, StackTrace s) => derr(() => 'Error in onAppCloseOrBackground: $e\n$s'));
     }
   }
 
@@ -1095,25 +1155,25 @@ void _unifiedCallbackDispatcher() {
       switch (task) {
         case kSyncCompletionImmediateTask:
         case kSyncCompletionTask:
-          return _executeSyncCompletionTask(task, inputData);
+          return await _executeSyncCompletionTask(task, inputData);
 
         case 'marina_auto_sync_now':
         case 'marina_auto_sync_periodic':
-          return _executeAutoSyncTask(task, inputData);
+          return await _executeAutoSyncTask(task, inputData);
 
         case 'backupAfterInactivity':
-          return _executeBackupAfterInactivity(task, inputData);
+          return await _executeBackupAfterInactivity(task, inputData);
 
         case 'marina-hotel-background-sync':
         case 'marina-hotel-periodic-sync':
         case 'marina-hotel-battery-aware-sync':
         case 'autoBackup':
         case 'autoBackupTask':
-          return _executeLegacySyncTask(task, inputData);
+          return await _executeLegacySyncTask(task, inputData);
 
         default:
           developer.log('⚠️ [WorkManager] Unknown task: $task → fallback to sync', name: 'WorkManager');
-          return _executeLegacySyncTask(task, inputData);
+          return await _executeLegacySyncTask(task, inputData);
       }
     } catch (e, st) {
       developer.log('❌ [WorkManager] Task $task failed', name: 'WorkManager', error: e, stackTrace: st);

@@ -2,19 +2,18 @@
 
 /// نموذج الجهاز المسجل
 class AppwriteDevice {
-  AppwriteDevice({
-    required this.id,
-    required this.deviceName,
-    required this.deviceModel,
-    required this.osVersion,
-    required this.lastSeen,
-    this.lastActive,
-    required this.status,
-    required this.createdAt,
-    required this.updatedAt,
-    required this.version,
-    this.origin,
-    this.localUuid,
+  AppwriteDevice({      required this.id,
+      required this.deviceName,
+      required this.deviceModel,
+      required this.osVersion,
+      required this.lastSeen,
+      required this.status,
+      required this.createdAt,
+      required this.updatedAt,
+      required this.version,
+      this.lastActive,
+      this.origin,
+      this.localUuid,
   });
 
   factory AppwriteDevice.fromJson(Map<String, dynamic> json) {
@@ -38,7 +37,7 @@ class AppwriteDevice {
     }
 
     return AppwriteDevice(
-      id: (json['\$id'] as String?) ?? (json['id'] as String?) ?? '',
+      id: (json[r'$id'] as String?) ?? (json['id'] as String?) ?? '',
       deviceName: (json['deviceName'] as String?) ?? '',
       deviceModel: (json['deviceModel'] as String?) ?? '',
       osVersion: (json['osVersion'] as String?) ?? '',
@@ -88,23 +87,22 @@ class AppwriteDevice {
 
 /// نموذج سجل المزامنة
 class AppwriteSyncLog {
-  AppwriteSyncLog({
-    required this.id,
-    required this.deviceId,
-    required this.syncType,
-    required this.startTime,
-    this.endTime,
-    required this.status,
-    this.recordsPushed = 0,
-    this.recordsPulled = 0,
-    this.conflicts = 0,
-    this.errorMessage,
-    this.details,
+  AppwriteSyncLog({      required this.id,
+      required this.deviceId,
+      required this.syncType,
+      required this.startTime,
+      required this.status,
+      this.endTime,
+      this.recordsPushed = 0,
+      this.recordsPulled = 0,
+      this.conflicts = 0,
+      this.errorMessage,
+      this.details,
   });
 
   factory AppwriteSyncLog.fromJson(Map<String, dynamic> json) {
     return AppwriteSyncLog(
-      id: (json['\$id'] as String?) ?? (json['id'] as String?) ?? '',
+      id: (json[r'$id'] as String?) ?? (json['id'] as String?) ?? '',
       deviceId: (json['deviceId'] as String?) ?? '',
       syncType: (json['syncType'] as String?) ?? 'full',
       startTime: DateTime.parse((json['startTime'] as String?) ?? DateTime.now().toIso8601String()),
@@ -162,7 +160,7 @@ class AppwriteRoom {
 
   factory AppwriteRoom.fromJson(Map<String, dynamic> json) {
     return AppwriteRoom(
-      id: (json['\$id'] as String?) ?? (json['id'] as String?) ?? '',
+      id: (json[r'$id'] as String?) ?? (json['id'] as String?) ?? '',
       roomNumber: (json['roomNumber'] as String?) ?? '',
       type: (json['type'] as String?) ?? '',
       status: (json['status'] as String?) ?? '',
@@ -212,7 +210,7 @@ class AppwriteBooking {
 
   factory AppwriteBooking.fromJson(Map<String, dynamic> json) {
     return AppwriteBooking(
-      id: (json['\$id'] as String?) ?? (json['id'] as String?) ?? '',
+      id: (json[r'$id'] as String?) ?? (json['id'] as String?) ?? '',
       roomId: (json['roomId'] as String?) ?? '',
       guestName: (json['guestName'] as String?) ?? '',
       guestPhone: (json['guestPhone'] as String?) ?? '',
@@ -268,7 +266,7 @@ class AppwritePayment {
 
   factory AppwritePayment.fromJson(Map<String, dynamic> json) {
     return AppwritePayment(
-      id: (json['\$id'] as String?) ?? (json['id'] as String?) ?? '',
+      id: (json[r'$id'] as String?) ?? (json['id'] as String?) ?? '',
       bookingId: (json['bookingId'] as String?) ?? '',
       amount: ((json['amount'] as num?) ?? 0).toDouble(),
       paymentMethod: (json['paymentMethod'] as String?) ?? '',
@@ -315,7 +313,7 @@ class AppwriteExpense {
 
   factory AppwriteExpense.fromJson(Map<String, dynamic> json) {
     return AppwriteExpense(
-      id: (json['\$id'] as String?) ?? (json['id'] as String?) ?? '',
+      id: (json[r'$id'] as String?) ?? (json['id'] as String?) ?? '',
       category: (json['category'] as String?) ?? '',
       amount: ((json['amount'] as num?) ?? 0).toDouble(),
       description: (json['description'] as String?) ?? '',
@@ -364,7 +362,7 @@ class AppwriteEmployee {
 
   factory AppwriteEmployee.fromJson(Map<String, dynamic> json) {
     return AppwriteEmployee(
-      id: (json['\$id'] as String?) ?? (json['id'] as String?) ?? '',
+      id: (json[r'$id'] as String?) ?? (json['id'] as String?) ?? '',
       name: (json['name'] as String?) ?? '',
       phone: (json['phone'] as String?) ?? '',
       position: (json['position'] as String?) ?? '',
@@ -417,7 +415,7 @@ class AppwriteDebt {
 
   factory AppwriteDebt.fromJson(Map<String, dynamic> json) {
     return AppwriteDebt(
-      id: (json['\$id'] as String?) ?? (json['id'] as String?) ?? '',
+      id: (json[r'$id'] as String?) ?? (json['id'] as String?) ?? '',
       bookingId: (json['bookingId'] as String?) ?? '',
       guestName: (json['guestName'] as String?) ?? '',
       amount: ((json['amount'] as num?) ?? 0).toDouble(),

@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 import 'dart:io';
 
@@ -10,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 
 import '../../components/app_scaffold.dart';
+import '../../providers/appwrite_providers.dart';
 import '../../providers/auto_sync_engine_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/service_providers.dart';
@@ -23,18 +25,17 @@ import '../../utils/env.dart';
 // ═══════════════════════════════════════════════════════════════
 
 class _SystemInfo {
-  const _SystemInfo({
-    required this.appVersion,
-    required this.deviceModel,
-    required this.osVersion,
-    required this.dbConnected,
-    required this.dbSchemaVersion,
-    required this.dbSizeBytes,
-    required this.totalRecords,
-    this.lastSyncTime,
-    required this.outboxCount,
-    required this.logStats,
-    required this.apiEndpoint,
+  const _SystemInfo({      required this.appVersion,
+      required this.deviceModel,
+      required this.osVersion,
+      required this.dbConnected,
+      required this.dbSchemaVersion,
+      required this.dbSizeBytes,
+      required this.totalRecords,
+      required this.outboxCount,
+      required this.logStats,
+      required this.apiEndpoint,
+      this.lastSyncTime,
   });
   final String appVersion;
   final String deviceModel;
@@ -742,7 +743,6 @@ class _SettingsMaintenanceScreenState extends ConsumerState<SettingsMaintenanceS
                 if (result.isEmpty) {
                   _showSnack('لا توجد مدفوعات تراكمية معلقة', color: Colors.blue);
                 } else if (mounted) {
-                  // ignore: use_build_context_synchronously
                   _showProcessingResultDialog(context, result);
                 }
               } catch (e) {
@@ -793,6 +793,9 @@ class _SettingsMaintenanceScreenState extends ConsumerState<SettingsMaintenanceS
       await derivedService.refreshForBookingId(bookingId);
     }
     await derivedService.refreshAllActiveBookings();
+
+    // ✅ رفع فوري بعد تحويل المدفوعات المعلقة إلى مدفوعات غرفة فعلية.
+    unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
 
     return results;
   }

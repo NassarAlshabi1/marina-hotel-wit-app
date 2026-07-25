@@ -8,17 +8,16 @@ enum RecoveryAction { retry, skip, rollback, escalate, pause }
 enum ErrorSeverity { low, medium, high, critical }
 
 class SyncError {
-  SyncError({
-    required this.id,
-    required this.operation,
-    required this.table,
-    this.recordId,
-    required this.message,
-    this.stackTrace,
-    required this.severity,
-    required this.isRetriable,
-    DateTime? timestamp,
-    this.retryCount = 0,
+  SyncError({      required this.id,
+      required this.operation,
+      required this.table,
+      required this.message,
+      required this.severity,
+      required this.isRetriable,
+      this.recordId,
+      this.stackTrace,
+      DateTime? timestamp,
+      this.retryCount = 0,
   }) : timestamp = timestamp ?? DateTime.now();
   final String id;
   final String operation;
@@ -45,7 +44,11 @@ class SyncError {
 }
 
 class RecoveryResult {
-  const RecoveryResult({required this.success, required this.actionTaken, this.message, required this.duration});
+  const RecoveryResult({      required this.success,
+      required this.actionTaken,
+      required this.duration,
+      this.message,
+  });
   final bool success;
   final RecoveryAction actionTaken;
   final String? message;
@@ -85,12 +88,11 @@ class SyncErrorRecovery {
     debugPrint('❌ [Recovery] ${error.severity.name}: ${error.message}');
   }
 
-  SyncError createError({
-    required String operation,
-    required String table,
-    String? recordId,
-    required dynamic exception,
-    StackTrace? stackTrace,
+  SyncError createError({      required String operation,
+      required String table,
+      required dynamic exception,
+      String? recordId,
+      StackTrace? stackTrace,
   }) {
     final severity = _classifyError(exception);
     final isRetriable = _isRetriable(exception);

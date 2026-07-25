@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' as ui;
@@ -8,6 +9,7 @@ import 'package:intl/intl.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
@@ -1271,9 +1273,10 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> with SyncOnEx
         );
       }
       markDataChanged();
+      // ✅ رفع فوري لدين جديد/محدَّث إلى Appwrite Cloud.
+      unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
 
       if (mounted) {
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(existing == null ? 'تم إضافة الدين بنجاح' : 'تم تحديث الدين بنجاح')));
@@ -1416,7 +1419,6 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> with SyncOnEx
 
       if (mounted) {
         ScaffoldMessenger.of(
-          // ignore: use_build_context_synchronously
           context,
         ).showSnackBar(SnackBar(content: Text('تم حذف دين ${debt.guestName}')));
       }
@@ -1424,7 +1426,6 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> with SyncOnEx
       if (!mounted) {
         return;
       }
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('فشل حذف الدين: $e'), backgroundColor: Colors.red.shade900));

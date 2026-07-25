@@ -1,3 +1,5 @@
+// ignore_for_file: sort_constructors_first, sort_unnamed_constructors_first
+
 import '../local_db.dart';
 import '../repositories/base_repository.dart';
 import 'audit_logs_adapter.dart';
@@ -21,8 +23,10 @@ import 'salary_payments_adapter.dart';
 import 'salary_withdrawals_adapter.dart';
 import 'shift_notes_adapter.dart';
 
+/// ✅ Singleton AdapterRegistry - يضمن وجود instance واحد فقط
+/// يُستخدم عبر Provider في repository_providers.dart
 class AdapterRegistry {
-  AdapterRegistry(this.db)
+  AdapterRegistry._(this.db)
     : resolver = IdResolver(db),
       bookings = BaseRepository<Booking, BookingsCompanion>(
         db: db,
@@ -111,6 +115,31 @@ class AdapterRegistry {
         table: db.salaryCarryOverLogs,
         adapter: SalaryCarryOverLogsAdapter(IdResolver(db)),
       );
+
+  static AdapterRegistry? _instance;
+
+  /// For testing — creates a fresh instance with given database
+  AdapterRegistry(AppDatabase db) : this._(db);
+
+  /// For testing — creates a fresh instance with given database
+  AdapterRegistry.testing(AppDatabase db) : this._(db);
+
+  /// Get singleton instance (created via Provider)
+  // ignore: prefer_constructors_over_static_methods — singleton getter
+  static AdapterRegistry get instance {
+    _instance ??= AdapterRegistry._(DatabaseManager.instance);
+    return _instance!;
+  }
+
+  /// Initialize with specific database (for testing or explicit control)
+  static void initialize(AppDatabase db) {
+    _instance = AdapterRegistry._(db);
+  }
+
+  /// Reset singleton (for testing or re-initialization)
+  static void reset() {
+    _instance = null;
+  }
 
   final AppDatabase db;
   final IdResolver resolver;

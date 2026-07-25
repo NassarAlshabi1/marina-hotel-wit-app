@@ -3,13 +3,29 @@ import 'package:flutter/foundation.dart';
 /// إعدادات Appwrite المركزية
 class AppwriteConfig {
   // Appwrite Endpoint
-  static const String endpoint = 'https://fra.cloud.appwrite.io/v1';
+  // غيّره عبر --dart-define=APPWRITE_ENDPOINT=... للـ CI أو mockoon
+  static const String endpoint = String.fromEnvironment(
+    'APPWRITE_ENDPOINT',
+    defaultValue: 'https://fra.cloud.appwrite.io/v1',
+  );
 
   // Project ID - من لوحة تحكم Appwrite
-  static const String projectId = '6a2b01d0000752ce97e7';
+  // ✅ تم التغيير (2026-07-22): المشروع القديم (6a2b01d0) تجاوز حد Database Reads.
+  // المشروع الجديد (6a4408f3) هو نفسه الذي كان secondary — يعمل بدون مشاكل.
+  static const String projectId = '6a4408f300217885fd7b';
 
   // Database ID - من لوحة تحكم Appwrite
-  static const String databaseId = '6a2b030d000445596163';
+  static const String databaseId = '6a4409b50019dd39dde5';
+
+  // ═══════════════════════════════════════════════════════════════
+  //  API Key — مفتاح افتراضي مُدمج في التطبيق
+  // ═══════════════════════════════════════════════════════════════
+  // مفتاح API الافتراضي المُدمج. يُمكن للمستخدم تغييره في أي وقت من
+  // شاشة إعدادات اتصال Appwrite. عند الاستبدال، يُحفظ المفتاح الجديد في
+  // SharedPreferences ويُحمَّل عند بدء التطبيق بدلاً من هذا الافتراضي.
+  // استخدم AppwriteConfigManager.apiKey للوصول للقيمة الفعّالة وقت التشغيل.
+  static const String defaultApiKey =
+      'standard_c0ab6ac2628715c7714eb312e2272a55ae41809dcc156c7e4553874e4a6ad9f3d3e9169d8a69b84f7d746b108905041e412a66ec66d03e122ccb056484c43d2a27f7839088bf60385ab58061624bbcc1f82271c09d608536e68d9cc0ff1b05b83ae4fe14c4dc4ce38840317ea555155f1733141450b3097df09a2a1b4b154a6c';
 
   // ═══════════════════════════════════════════════════════════════
   //  Messaging — Appwrite Messaging Provider ID

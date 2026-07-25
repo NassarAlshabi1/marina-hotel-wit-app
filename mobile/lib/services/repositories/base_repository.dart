@@ -15,6 +15,18 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
   final TableInfo<Table, D> table;
   final EntityAdapter<D, C> adapter;
 
+  // ✅ N+1 FIX: Optional batch UUID cache for single upserts
+  // When called from batchUpsertFromJson, pass the pre-computed map to avoid N round-trips
+  Map<String, int>? _batchUuidCache;
+
+  void setBatchUuidCache(Map<String, int> cache) {
+    _batchUuidCache = cache;
+  }
+
+  void clearBatchUuidCache() {
+    _batchUuidCache = null;
+  }
+
   Future<int> upsertFromJson(Map<String, dynamic> json, {required Source src}) async {
     // ✅ إصلاح حرج: إزالة id البعيد عند المزامنة من السيرفر
     // id هو auto-increment محلي — تمرير id البعيد يسبب تصادم:
@@ -113,6 +125,28 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     return adapter.toJson(row, src: src);
   }
 
+  /// ✅ N+1 FIX: Optimized _findByLocalUuid with optional cache
+  /// Uses O(1) cache lookup when available (set by batchUpsertFromJson)
+  Future<int?> _findByLocalUuid(String localUuid) async {
+    // ✅ Use cached batch lookup if available (O(1) instead of SQL round-trip)
+    if (_batchUuidCache != null) {
+      return _batchUuidCache![localUuid];
+    }
+
+    // Fallback to individual query (for non-batch callers)
+    final tableName = table.actualTableName;
+    final sanitized = tableName.replaceAll("'", "''");
+    final result = await db
+        .customSelect(
+          "SELECT id FROM '$sanitized' WHERE local_uuid = ? LIMIT 1",
+          variables: [Variable.withString(localUuid)],
+          readsFrom: {table},
+        )
+        .getSingleOrNull();
+    if (result == null) return null;
+    return result.data['id'] as int?;
+  }
+
   Future<List<List<Column>>> _resolveConflictTargets() async {
     final tableName = table.actualTableName;
     final cached = _conflictTargetCache[tableName];
@@ -183,46 +217,27 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     return deduped;
   }
 
-  String _targetLabel(List<Column> target) {
-    return target.map((column) => column.name).join(',');
-  }
-
   bool _isUniqueConstraintError(Object error) {
-    return error.toString().contains('UNIQUE constraint failed');
+    final message = error.toString().toLowerCase();
+    return message.contains('unique constraint failed') ||
+           message.contains('constraint failed') ||
+           message.contains('duplicate entry');
   }
 
-  /// البحث عن id المحلي بواسطة localUuid
-  /// يُستخدم لحل تصادمات id عند المزامنة من السيرفر
-  Future<int?> _findByLocalUuid(String localUuid) async {
-    final tableName = table.actualTableName;
-    final sanitized = tableName.replaceAll("'", "''");
-    final result = await db
-        .customSelect(
-          "SELECT id FROM '$sanitized' WHERE local_uuid = ? LIMIT 1",
-          variables: [Variable.withString(localUuid)],
-          readsFrom: {table},
-        )
-        .getSingleOrNull();
-    if (result == null) return null;
-    return result.data['id'] as int?;
+  String _targetLabel(List<Column> target) {
+    return target.map((c) => c.toString()).join(',');
   }
 
-  /// ✅ إصلاح PR review (N+1 query): استعلام دفعي (batch) لكل localUuids.
-  ///
-  /// يُعيد Map<localUuid, id> لكل UUID موجود في الجدول. هذا يقلّل من
-  /// N استعلام منفصل (واحد لكل صف في batchUpsertFromJson) إلى استعلام
-  /// واحد بـ IN clause.
-  ///
-  /// ملاحظة: SQLite يدعم IN clause بأي عدد من القيم، لكن لمنع تجاوز حد
-  /// SQLITE_MAX_VARIABLE_COUNT (999 افتراضياً)، نقسّم إلى chunks من 500.
-  Future<Map<String, int>> _batchFindByLocalUuid(List<String> uuids) async {
+  /// ✅ N+1 FIX: Batch UUID lookup for external callers
+  /// يقلل N استعلامات منفصلة إلى استعلام واحد بـ IN clause
+  Future<Map<String, int>> batchFindByLocalUuids(List<String> uuids) async {
     if (uuids.isEmpty) return {};
 
     final tableName = table.actualTableName;
     final sanitized = tableName.replaceAll("'", "''");
     final result = <String, int>{};
 
-    // chunking لتجنب SQLITE_MAX_VARIABLE_COUNT
+    // chunking لتجنب SQLITE_MAX_VARIABLE_COUNT (999 افتراضياً)
     const chunkSize = 500;
     for (var i = 0; i < uuids.length; i += chunkSize) {
       final end = (i + chunkSize < uuids.length) ? i + chunkSize : uuids.length;
@@ -252,13 +267,6 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     return result;
   }
 
-  // ✅ تمت إزالة getByLocalUuid و buildAppwritePayload (PR #451):
-  // كانت هاتان الدالتان dead code — غير مستخدمتين في أي مكان.
-  // كما أن getByLocalUuid كان يُسبب تحذير flutter analyze
-  // (return_of_invalid_type_from_closure) بسبب التحويل لـ dynamic.
-  // أي حاجة مستقبلية لهذه الوظائف يجب أن تستخدم TypedResult +
-  // table.mapper بدل dynamic casting.
-
   /// ✅ إصلاح P3-16: إدراج جماعي (batch upsert) لقائمة من سجلات JSON.
   ///
   /// هذا الأسلوب البديل لـ `upsertFromJson` (الذي يُعالج صف واحد في كل مرة)
@@ -278,12 +286,6 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
   /// 2. تخطّي الصفوف ذات FK غير محلول (مع تسجيل السبب)
   /// 3. تجميع الـ companions الناجحة في chunks من 500 صف
   /// 4. تنفيذ `db.batch.insertAll` واحد لكل chunk (mode: insertOrReplace)
-  /// 5. عند فشل chunk كامل: التراجع إلى الإدراج صف-بصف للحفاظ على عزل الأخطاء
-  ///
-  /// **يُعيد:** ({int inserted, int skipped}) — عدد الصفوف المُدرجة والمتخطاة.
-  ///
-  /// **ملاحظة أمان:** يجب استدعاؤها داخل `db.transaction` من المُستدعي
-  /// (كما يفعل `_restoreFromBackupInternal`) لضمان atomicity مع حذف الجداول.
   Future<({int inserted, int skipped})> batchUpsertFromJson(
     List<Map<String, dynamic>> jsons, {
     required Source src,
@@ -316,6 +318,9 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
         // fallback: per-row lookup سيُستخدم (existingUuidToId فارغة)
       }
     }
+
+    // ✅ N+1 FIX: Set cache for single upsert calls within this batch
+    setBatchUuidCache(existingUuidToId);
 
     // المرحلة 1: pre-resolve لكل صف (UUID + FK) على حدة
     // هذا ضروري لأن كل صف له FK references مختلفة
@@ -369,6 +374,9 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
       }
     }
 
+    // Clear cache after batch
+    clearBatchUuidCache();
+
     if (companions.isEmpty) {
       return (inserted: 0, skipped: skipped);
     }
@@ -414,5 +422,43 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     }
 
     return (inserted: inserted, skipped: skipped);
+  }
+
+  /// ✅ Helper: batch UUID lookup with chunking
+  Future<Map<String, int>> _batchFindByLocalUuid(List<String> uuids) async {
+    if (uuids.isEmpty) return {};
+
+    final tableName = table.actualTableName;
+    final sanitized = tableName.replaceAll("'", "''");
+    final result = <String, int>{};
+
+    // chunking لتجنب SQLITE_MAX_VARIABLE_COUNT
+    const chunkSize = 500;
+    for (var i = 0; i < uuids.length; i += chunkSize) {
+      final end = (i + chunkSize < uuids.length) ? i + chunkSize : uuids.length;
+      final chunk = uuids.sublist(i, end);
+
+      // بناء placeholders (?, ?, ?, ...)
+      final placeholders = List.filled(chunk.length, '?').join(',');
+      final variables = chunk.map(Variable.withString).toList();
+
+      final rows = await db
+          .customSelect(
+            "SELECT local_uuid, id FROM '$sanitized' WHERE local_uuid IN ($placeholders)",
+            variables: variables,
+            readsFrom: {table},
+          )
+          .get();
+
+      for (final row in rows) {
+        final uuid = row.data['local_uuid'] as String?;
+        final id = row.data['id'] as int?;
+        if (uuid != null && id != null) {
+          result[uuid] = id;
+        }
+      }
+    }
+
+    return result;
   }
 }

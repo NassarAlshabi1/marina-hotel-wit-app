@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../models/payment_models.dart';
+import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart' as db;
 import '../../utils/currency_formatter.dart';
@@ -851,11 +853,13 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SyncOnExitMi
         revenueType: 'other',
       );
 
+      // ✅ رفع فوري لدفعة جديدة (شاشة المالية) إلى Appwrite Cloud.
+      unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
+
       // إرسال إشعار واتساب
       unawaited(_sendPaymentWhatsAppNotification(amount: parsedAmount, method: dbMethod, notes: notes.trim()));
 
       if (mounted) {
-        // ignore: use_build_context_synchronously
         Navigator.pop(dialogContext);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -866,7 +870,6 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SyncOnExitMi
       }
     } catch (e) {
       if (mounted) {
-        // ignore: use_build_context_synchronously
         Navigator.pop(dialogContext);
         ScaffoldMessenger.of(
           context,

@@ -1,9 +1,11 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
+import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
@@ -537,15 +539,14 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                       status: status,
                     );
                   }
-                  // ignore: use_build_context_synchronously
+                  // ✅ رفع فوري لموظف جديد/محدَّث إلى Appwrite Cloud.
+                  unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
                   Navigator.pop(context);
-                  // ignore: use_build_context_synchronously
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(employee == null ? 'تم إضافة الموظف بنجاح' : 'تم تحديث بيانات الموظف')),
                   );
                 } catch (e) {
                   ScaffoldMessenger.of(
-                    // ignore: use_build_context_synchronously
                     context,
                   ).showSnackBar(SnackBar(content: Text('خطأ: $e')));
                 }
@@ -1163,6 +1164,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   if (ctx.mounted) {
                     Navigator.pop(ctx);
                   }
+                  unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
+
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -1235,6 +1238,8 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     try {
       final repo = ref.read(employeesRepoProvider);
       await repo.delete(employee.id);
+      // ✅ رفع فوري لحذف موظف إلى Appwrite Cloud.
+      unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -1272,13 +1277,13 @@ class SettingsEmployeesScreen extends ConsumerWidget {
         status: newStatus,
       );
 
-      // ignore: use_build_context_synchronously
+      if (!context.mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('تم ${newStatus == 'نشط' ? 'تفعيل' : 'إيقاف'} الموظف')));
     } catch (e) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(
-        // ignore: use_build_context_synchronously
         context,
       ).showSnackBar(SnackBar(content: Text('خطأ: $e')));
     }

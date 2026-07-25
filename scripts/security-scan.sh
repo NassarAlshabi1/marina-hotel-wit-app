@@ -15,7 +15,12 @@ PATTERNS=(
 for pattern in "${PATTERNS[@]}"; do
     # استثناء مجلدات build و .git و .dart_tool والملفات المولدة
     SEARCH_DIR=${1:-"lib"}
+<<<<<<< HEAD
+    EXCLUDES="--exclude-dir={build,.git,.dart_tool,ios,android} --exclude="*.g.dart" --exclude=".env""
+    MATCHES=$(grep -rE $EXCLUDES "$pattern" "$SEARCH_DIR" 2>/dev/null)
+=======
     MATCHES=$(grep -rE --exclude-dir={build,.git,.dart_tool,ios,android} --exclude="*.g.dart" "$pattern" "$SEARCH_DIR" 2>/dev/null)
+>>>>>>> origin/refactor/clean-v2
     if [ ! -z "$MATCHES" ]; then
         echo "⚠️ WARNING: Potential secret found matching pattern: $pattern"
         echo "$MATCHES" >> reports/security_violations.txt

@@ -11,6 +11,10 @@ on:
       - yy
       - refactor/clean-v2
       - refactor/performance-fixes-v1
+<<<<<<< HEAD
+      - refactor/performance-fixes-v2
+=======
+>>>>>>> origin/refactor/clean-v2
     paths:
       - 'mobile/**'
       - '.github/workflows/main.yml'
@@ -49,11 +53,12 @@ jobs:
 
       # ─── إعداد Flutter ───────────────────────────────────
       - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@v2.23.0
         with:
-          flutter-version: '3.41.0'
+          flutter-version: '3.44.4'
           channel: 'stable'
           cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
 
       # ─── تثبيت مكونات Android SDK ────────────────────────
       - name: Install Android SDK components
@@ -113,8 +118,8 @@ jobs:
           --dart-define=AGENT_ROUTER_API_KEY=${{ secrets.AGENTROUTER_API_KEY }}
           --dart-define=AGENT_ROUTER_BASE_URL=https://openrouter.ai/api/v1
         env:
-          GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=1g -Dorg.gradle.daemon=false"
-          JAVA_TOOL_OPTIONS: "-Xmx4g -XX:MaxMetaspaceSize=1g"
+          GRADLE_OPTS: "-Xmx6g -XX:MaxMetaspaceSize=1g -Dorg.gradle.daemon=false"
+          JAVA_TOOL_OPTIONS: "-Xmx6g -XX:MaxMetaspaceSize=1g"
 
       # ─── عرض معلومات الـ APK المبني ─────────────────────
       - name: Inspect APK info

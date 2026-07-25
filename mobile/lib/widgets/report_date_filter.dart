@@ -141,13 +141,12 @@ class DateFilterController {
 /// )
 /// ```
 class ReportDateFilterWidget extends StatefulWidget {
-  const ReportDateFilterWidget({
-    super.key,
-    this.controller,
-    required this.onDateRangeChanged,
-    this.extraChips,
-    this.dateButtonsBuilder,
-    this.dateButtonsFirst = false,
+  const ReportDateFilterWidget({      required this.onDateRangeChanged,
+      super.key,
+      this.controller,
+      this.extraChips,
+      this.dateButtonsBuilder,
+      this.dateButtonsFirst = false,
   });
 
   /// تحكم برمجي (اختياري) — للقراءة والتعديل من خارج الويدجت

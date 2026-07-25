@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -392,7 +393,6 @@ class _InformationScreenState extends ConsumerState<InformationScreen> with Sync
       if (!mounted) {
         return;
       }
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('فشل حفظ السجل: $e'), backgroundColor: Colors.red.shade900));

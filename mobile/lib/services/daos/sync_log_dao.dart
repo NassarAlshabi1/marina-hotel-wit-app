@@ -36,15 +36,14 @@ class SyncLogEntry {
 
 /// إحصائيات المزامنة
 class SyncStats {
-  SyncStats({
-    required this.totalSyncs,
-    required this.successfulSyncs,
-    required this.failedSyncs,
-    required this.successRate,
-    required this.totalRecordsPulled,
-    required this.totalRecordsPushed,
-    this.lastSync,
-    required this.averageDurationMs,
+  SyncStats({      required this.totalSyncs,
+      required this.successfulSyncs,
+      required this.failedSyncs,
+      required this.successRate,
+      required this.totalRecordsPulled,
+      required this.totalRecordsPushed,
+      required this.averageDurationMs,
+      this.lastSync,
   });
   final int totalSyncs;
   final int successfulSyncs;
@@ -181,9 +180,9 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
       '  COUNT(*) AS total_syncs, '
       "  COALESCE(SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END), 0) AS successful_syncs, "
       "  COALESCE(SUM(CASE WHEN status != 'success' THEN 1 ELSE 0 END), 0) AS failed_syncs, "
-      "  COALESCE(SUM(json_extract(metadata, '\$.recordsPulled')), 0) AS total_pulled, "
-      "  COALESCE(SUM(json_extract(metadata, '\$.recordsPushed')), 0) AS total_pushed, "
-      "  COALESCE(SUM(json_extract(metadata, '\$.durationMs')), 0) AS total_duration, "
+      r"  COALESCE(SUM(json_extract(metadata, '$.recordsPulled')), 0) AS total_pulled, "
+      r"  COALESCE(SUM(json_extract(metadata, '$.recordsPushed')), 0) AS total_pushed, "
+      r"  COALESCE(SUM(json_extract(metadata, '$.durationMs')), 0) AS total_duration, "
       '  MAX(created_at) AS last_sync_at '
       'FROM sync_log $whereClause',
       variables: variables,

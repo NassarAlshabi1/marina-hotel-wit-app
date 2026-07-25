@@ -146,10 +146,16 @@ final roomsWithPaymentStatusProvider = StreamProvider.autoDispose<List<RoomWithP
     computeAndEmit();
   });
 
-  // تحديث الوقت كل دقيقة لإعادة حساب حالة التأخر (23:00-06:00)
+  // تحديث الوقت كل دقيقة لإعادة حساب حالة التأخر
+  // ✅ نُعيد الحساب فقط خلال نافذة التأخر (23:00-05:00)
+  // خارج النافذة نحدّث الوقت فقط بدون إعادة حساب مكلفة
+  // تنبيه: تغييرات البيانات (غرف/حجوزات) تُعيد الحساب دائماً بغض النظر عن الوقت
   final timer = Timer.periodic(const Duration(minutes: 1), (_) {
     lastTime = DateTime.now();
-    computeAndEmit();
+    final hour = lastTime.hour;
+    if (hour >= 23 || hour < 5) {
+      computeAndEmit();
+    }
   });
 
   ref.onDispose(() {

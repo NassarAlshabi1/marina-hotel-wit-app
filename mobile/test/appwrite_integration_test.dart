@@ -1,3 +1,7 @@
+// ✅ Tag: integration — يُستثنى عبر --exclude-tags integration في CI
+@Tags(['integration'])
+library;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;

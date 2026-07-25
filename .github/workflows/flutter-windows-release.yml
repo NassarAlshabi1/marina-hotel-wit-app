@@ -8,7 +8,11 @@ name: Build Flutter Windows Release
 #  ينتج ملف .exe + ملفات DLL + assets في مجلد bundle.
 #
 #  المتطلبات:
+<<<<<<< HEAD
+#  - Flutter 3.44.4+ (مع --enable-windows-desktop)
+=======
 #  - Flutter 3.41.0+ (مع --enable-windows-desktop)
+>>>>>>> origin/refactor/clean-v2
 #  - Visual Studio Build Tools (CMake)
 #  - sqflite_common_ffi لـ SQLite على Desktop
 #
@@ -51,11 +55,20 @@ jobs:
         uses: actions/checkout@v5
 
       - name: 🐦 Set up Flutter
+<<<<<<< HEAD
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
+=======
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.41.0'
           channel: stable
           cache: true
+>>>>>>> origin/refactor/clean-v2
 
       - name: 🔧 Enable Windows Desktop
         run: flutter config --enable-windows-desktop
@@ -96,7 +109,11 @@ jobs:
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
           echo "| Build Type | Release |" >> $GITHUB_STEP_SUMMARY
           echo "| Platform | Windows x64 |" >> $GITHUB_STEP_SUMMARY
+<<<<<<< HEAD
+          echo "| Flutter | 3.44.4 |" >> $GITHUB_STEP_SUMMARY
+=======
           echo "| Flutter | 3.41.0 |" >> $GITHUB_STEP_SUMMARY
+>>>>>>> origin/refactor/clean-v2
           echo "| Status | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📦 Artifact" >> $GITHUB_STEP_SUMMARY

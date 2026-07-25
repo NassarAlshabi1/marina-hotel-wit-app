@@ -132,7 +132,7 @@ class RealTimeRoomsProvider extends ChangeNotifier {
 
   /// معالجة حذف غرفة
   void _handleRoomDeleted(Map<String, dynamic> payload) {
-    final roomId = payload['\$id'] as String?;
+    final roomId = payload[r'$id'] as String?;
     if (roomId != null) {
       final intId = int.tryParse(roomId);
       if (intId != null) {

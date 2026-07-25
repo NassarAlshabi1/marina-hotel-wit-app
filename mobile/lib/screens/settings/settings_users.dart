@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
@@ -292,9 +293,7 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                                   permissions: selectedPerms.toList(),
                                 );
                             if (mounted) {
-                              // ignore: use_build_context_synchronously
                               Navigator.pop(dialogContext);
-                              // ignore: use_build_context_synchronously
                               ScaffoldMessenger.of(
                                 context,
                               ).showSnackBar(const SnackBar(content: Text('تم إضافة المستخدم بنجاح')));
@@ -354,16 +353,15 @@ class _UserAccountSummary {
 }
 
 class UserPermissionsCard extends ConsumerStatefulWidget {
-  const UserPermissionsCard({
-    super.key,
-    required this.username,
-    required this.displayName,
-    required this.userType,
-    required this.isFixedAccount,
-    this.isCloudUser = false,
-    this.docId,
-    this.onDeleted,
-    this.onUpdated,
+  const UserPermissionsCard({      required this.username,
+      required this.displayName,
+      required this.userType,
+      required this.isFixedAccount,
+      super.key,
+      this.isCloudUser = false,
+      this.docId,
+      this.onDeleted,
+      this.onUpdated,
   });
   final String username;
   final String displayName;
@@ -575,7 +573,6 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                       try {
                         final success = await ref.read(authProvider.notifier).deleteCloudUser(docId: widget.docId!);
                         if (mounted && success) {
-                          // ignore: use_build_context_synchronously
                           Navigator.pop(dialogContext);
                           widget.onDeleted?.call();
                           ScaffoldMessenger.of(
@@ -627,7 +624,6 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                                     newPermissions: userType == 'admin' ? AuthLocalStore.permissionKeys : selectedPerms,
                                   );
                               if (mounted && success) {
-                                // ignore: use_build_context_synchronously
                                 Navigator.pop(dialogContext);
                                 widget.onUpdated?.call();
                                 ScaffoldMessenger.of(context).showSnackBar(

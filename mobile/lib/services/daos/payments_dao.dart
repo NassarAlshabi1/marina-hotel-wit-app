@@ -18,7 +18,7 @@ part 'payments_dao.g.dart';
 @DriftAccessor(tables: [Payments])
 class PaymentsDao extends DatabaseAccessor<AppDatabase>
     with _$PaymentsDaoMixin, OptimisticLockDaoMixin<Payments, Payment> {
-  PaymentsDao(super.db, this.outboxDao) : adapters = AdapterRegistry(db);
+  PaymentsDao(super.db, this.outboxDao, [AdapterRegistry? a]) : adapters = a ?? AdapterRegistry.instance;
   final OutboxDao outboxDao;
   final AdapterRegistry adapters;
 

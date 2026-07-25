@@ -63,11 +63,18 @@ jobs:
           java-version: '17'
 
       - name: 🐦 Set Up Flutter
+<<<<<<< HEAD
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.44.4'
+=======
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.44.6'
+>>>>>>> origin/refactor/clean-v2
           channel: 'stable'
           cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
 
       - name: 📦 Install Dependencies
         working-directory: mobile

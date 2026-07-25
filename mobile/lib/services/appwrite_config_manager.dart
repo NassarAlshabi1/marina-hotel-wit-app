@@ -11,7 +11,11 @@ class AppwriteConfigManager {
   static String _endpoint = AppwriteConfig.endpoint;
   static String _projectId = AppwriteConfig.projectId;
   static String _databaseId = AppwriteConfig.databaseId;
-  static String _apiKeyValue = '';
+  // ✅ استخدم مفتاح API الافتراضي المُدمج كقيمة ابتدائية.
+  // عند أول تشغيل، _apiKeyValue = AppwriteConfig.defaultApiKey.
+  // إذا أعاد المستخدم تعيينه لاحقاً، تُحفظ القيمة الجديدة في SharedPreferences
+  // وتُحمَّل بدلاً من الافتراضي عند بدء التشغيل التالي.
+  static String _apiKeyValue = AppwriteConfig.defaultApiKey;
 
   static String get endpoint => _endpoint;
   static String get projectId => _projectId;
@@ -23,13 +27,16 @@ class AppwriteConfigManager {
     _endpoint = prefs.getString(_endpointKey) ?? AppwriteConfig.endpoint;
     _projectId = prefs.getString(_projectIdKey) ?? AppwriteConfig.projectId;
     _databaseId = prefs.getString(_databaseIdKey) ?? AppwriteConfig.databaseId;
-    _apiKeyValue = prefs.getString(_apiKey) ?? '';
+    // ✅ إذا لم يُخزَّن مفتاح API في prefs، نستخدم المفتاح الافتراضي المُدمج.
+    // هذا يضمن أن التطبيق يعمل "out-of-the-box" دون الحاجة لإدخال مفتاح يدوياً.
+    _apiKeyValue = prefs.getString(_apiKey) ?? AppwriteConfig.defaultApiKey;
 
     if (kDebugMode) {
       debugPrint('📱 Appwrite Config Loaded:');
       debugPrint('   Endpoint: $_endpoint');
       debugPrint('   Project ID: $_projectId');
       debugPrint('   Database ID: $_databaseId');
+      debugPrint('   API Key: ${_apiKeyValue.isEmpty ? '(empty)' : '${_apiKeyValue.substring(0, 12)}...'}');
     }
   }
 
@@ -70,7 +77,8 @@ class AppwriteConfigManager {
     _endpoint = AppwriteConfig.endpoint;
     _projectId = AppwriteConfig.projectId;
     _databaseId = AppwriteConfig.databaseId;
-    _apiKeyValue = '';
+    // ✅ إعادة التعيين تُعيد المفتاح الافتراضي المُدمج، لا قيمة فارغة
+    _apiKeyValue = AppwriteConfig.defaultApiKey;
 
     if (kDebugMode) {
       debugPrint('🔄 Appwrite Config Reset to Defaults');
@@ -81,7 +89,7 @@ class AppwriteConfigManager {
     return _endpoint != AppwriteConfig.endpoint ||
         _projectId != AppwriteConfig.projectId ||
         _databaseId != AppwriteConfig.databaseId ||
-        _apiKeyValue.isNotEmpty;
+        _apiKeyValue != AppwriteConfig.defaultApiKey;
   }
 
   static Map<String, String> get currentConfig => {
@@ -95,6 +103,6 @@ class AppwriteConfigManager {
     'endpoint': AppwriteConfig.endpoint,
     'projectId': AppwriteConfig.projectId,
     'databaseId': AppwriteConfig.databaseId,
-    'apiKey': '',
+    'apiKey': AppwriteConfig.defaultApiKey,
   };
 }

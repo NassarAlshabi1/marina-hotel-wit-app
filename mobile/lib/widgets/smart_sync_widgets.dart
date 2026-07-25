@@ -63,7 +63,9 @@ class SmartSyncStatusWidget extends ConsumerWidget {
 
 /// Widget لإشعارات المزامنة التفاعلية
 class SmartSyncNotificationListener extends ConsumerStatefulWidget {
-  const SmartSyncNotificationListener({super.key, required this.child});
+  const SmartSyncNotificationListener({      required this.child,
+      super.key,
+  });
   final Widget child;
 
   @override
@@ -145,14 +147,12 @@ class SmartSyncFloatingButton extends ConsumerWidget {
             await manager.forceSyncNow();
 
             if (context.mounted) {
-              // ignore: use_build_context_synchronously
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('🔄 بدأت المزامنة اليدوية...'), duration: Duration(seconds: 2)),
               );
             }
           } catch (e) {
             if (context.mounted) {
-              // ignore: use_build_context_synchronously
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: const Text('تعذر بدء المزامنة. تحقق من الاتصال ثم أعد المحاولة'),

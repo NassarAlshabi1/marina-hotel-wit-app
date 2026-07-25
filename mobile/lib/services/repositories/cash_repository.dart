@@ -20,15 +20,14 @@ class CashRepository {
     bool includeDeleted = false,
   }) => dao.listByReference(referenceType: referenceType, referenceId: referenceId, includeDeleted: includeDeleted);
 
-  Future<int> create({
-    int? registerId,
-    required String type,
-    required double amount,
-    String? referenceType,
-    int? referenceId,
-    String? description,
-    required String transactionTime,
-    int? createdBy,
+  Future<int> create({      required String type,
+      required double amount,
+      required String transactionTime,
+      int? registerId,
+      String? referenceType,
+      int? referenceId,
+      String? description,
+      int? createdBy,
   }) async {
     try {
       return await dao.insertOne(

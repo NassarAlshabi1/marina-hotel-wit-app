@@ -1,4 +1,4 @@
-// ignore_for_file: directives_ordering, prefer_const_constructors, use_if_null_to_convert_nulls_to_bools, unawaited_futures, use_build_context_synchronously, unused_field
+// ignore_for_file: directives_ordering, prefer_const_constructors, use_if_null_to_convert_nulls_to_bools, unawaited_futures, use_build_context_synchronously
 import 'dart:async';
 
 import 'package:appwrite/appwrite.dart';
@@ -58,11 +58,86 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
   }
 
   Future<void> _loadConfig() async {
+    // ✅ الـ getters تُعيد القيم الافتراضية المُدمجة تلقائياً عندما لا يوجد
+    // إعداد محفوظ في SharedPreferences، لذلك الحقول ستكون ممتلئة دائماً
+    // بقيم افتراضية صالحة للاتصال عند فتح الشاشة لأول مرة.
     _endpointCtrl.text = SecondaryAppwriteConfig.endpoint;
     _projectIdCtrl.text = SecondaryAppwriteConfig.projectId;
     _databaseIdCtrl.text = SecondaryAppwriteConfig.databaseId;
     _apiKeyCtrl.text = SecondaryAppwriteConfig.apiKey;
     setState(() {});
+  }
+
+  /// ✅ استعادة القيم الافتراضية المُدمجة في التطبيق.
+  ///
+  /// يُعيد ضبط كل الحقول للقيم الأصلية (endpoint, projectId, databaseId,
+  /// apiKey) ويُفعّل Push ويعطّل Pull ويُفعّل الوجهة الثانوية ككل. ثم يُحدِّث
+  /// الـ controllers ويُجبر SecondaryAppwriteService على إعادة التهيئة.
+  Future<void> _restoreDefaults() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.restart_alt, color: Colors.blue),
+            SizedBox(width: 8),
+            Text('استعادة الإعدادات الافتراضية'),
+          ],
+        ),
+        content: const Text(
+          'سيتم استبدال جميع قيم الاتصال الحالية بالقيم الافتراضية '
+          'المُدمجة في التطبيق.\n\n'
+          '• Endpoint: fra.cloud.appwrite.io\n'
+          '• Push: مُفعّل\n'
+          '• Pull: معطّل\n'
+          '• الوجهة الثانوية: مُفعّلة\n\n'
+          'هل تريد المتابعة؟',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
+            child: const Text('استعادة'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _saving = true);
+    try {
+      await SecondaryAppwriteConfig.restoreDefaults();
+      // إعادة تحميل الـ controllers بالقيم الافتراضية
+      _endpointCtrl.text = SecondaryAppwriteConfig.defaultEndpoint;
+      _projectIdCtrl.text = SecondaryAppwriteConfig.defaultProjectId;
+      _databaseIdCtrl.text = SecondaryAppwriteConfig.defaultDatabaseId;
+      _apiKeyCtrl.text = SecondaryAppwriteConfig.defaultApiKey;
+      // إجبار SecondaryAppwriteService على إعادة التهيئة بالقيم الجديدة
+      SecondaryAppwriteService().invalidate();
+      // تشغيل المزامنة التلقائية لأن Push مُفعّل افتراضياً
+      if (SecondaryAppwriteConfig.isPushEnabled) {
+        SecondarySyncManager.instance.startAutoSync();
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ تم استعادة الإعدادات الافتراضية'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ فشل الاستعادة: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -698,107 +773,124 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
     return PerformanceInspector(
       name: 'SecondaryAppwriteSettingsScreen',
       child: Scaffold(
-      appBar: AppBar(
-        title: const Text('وجهة Appwrite الثانوية'),
-        actions: [
-          IconButton(
-            onPressed: _saving ? null : _save,
-            icon: _saving
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.save),
-            tooltip: 'حفظ',
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _InfoCard(
-            icon: Icons.cloud_sync,
-            color: Colors.blue,
-            title: 'ما هي الوجهة الثانوية؟',
-            body:
-                'نسخة احتياطية سحابية على حساب Appwrite آخر (أو region مختلف). '
-                'تُرسل البيانات تلقائياً للوجهتين. عند تعطل الأساسية، يمكنك تفعيل '
-                '"تجاوز الفشل" للعمل على الثانوية.',
-          ),
-
-          const SizedBox(height: 16),
-
-          Card(
-            child: SwitchListTile(
-              title: const Text('تفعيل الوجهة الثانوية', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text(
-                enabled ? 'مفعّل' : 'معطّل',
-                style: TextStyle(color: enabled ? Colors.green : Colors.grey),
-              ),
-              value: enabled,
-              onChanged: (v) async {
-                await SecondaryAppwriteConfig.saveConfig(
-                  enabled: v,
-                  endpoint: _endpointCtrl.text.trim(),
-                  projectId: _projectIdCtrl.text.trim(),
-                  databaseId: _databaseIdCtrl.text.trim(),
-                  apiKey: _apiKeyCtrl.text.trim(),
-                  pushEnabled: pushEnabled,
-                  pullEnabled: pullEnabled,
-                );
-                SecondaryAppwriteService().invalidate();
-
-                // ✅ تحديث علامات التسليم في outbox
-                if (v) {
-                  // تفعيل: نُعلّم كل السجلات كـ "غير مُسلّمة للثانوي" ليتم رفعها
-                  final db = ref.read(databaseProvider);
-                  final outboxDao = OutboxDao(db);
-                  final count = await outboxDao.markAllLocalAsUndeliveredToSecondary();
-                  debugPrint('🔵 [Secondary] Marked $count records as undelivered to secondary');
-                  if (SecondaryAppwriteConfig.isPushEnabled) {
-                    SecondarySyncManager.instance.startAutoSync();
-                  }
-                } else {
-                  // تعطيل: نُعلّم كل السجلات كـ "مُسلّمة للثانوي" لمنع حجبها
-                  final db = ref.read(databaseProvider);
-                  final outboxDao = OutboxDao(db);
-                  final count = await outboxDao.markAllLocalAsDeliveredToSecondary();
-                  debugPrint('🔵 [Secondary] Marked $count records as delivered to secondary (disabled)');
-                  SecondarySyncManager.instance.stopAutoSync();
-                }
-                setState(() {});
-              },
+        appBar: AppBar(
+          title: const Text('وجهة Appwrite الثانوية'),
+          actions: [
+            // زر استعادة الإعدادات الافتراضية
+            IconButton(
+              onPressed: _saving ? null : _restoreDefaults,
+              icon: const Icon(Icons.restart_alt),
+              tooltip: 'استعادة الإعدادات الافتراضية',
             ),
-          ),
-
-          if (enabled && isConfigured) ...[
-            const SizedBox(height: 8),
-            Card(
-              color: failoverActive ? Colors.orange.shade50 : null,
-              child: SwitchListTile(
-                title: Row(
-                  children: [
-                    Icon(
-                      failoverActive ? Icons.warning : Icons.swap_horiz,
-                      color: failoverActive ? Colors.orange : Colors.blue,
-                    ),
-                    const SizedBox(width: 8),
-                    const Text('تجاوز الفشل (Failover)', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                subtitle: Text(
-                  failoverActive
-                      ? '⚠️ نشط — كل العمليات تتم على الوجهة الثانوية'
-                      : 'عند التفعيل: استخدم الثانوية كوجهة أساسية مؤقتاً',
-                  style: TextStyle(color: failoverActive ? Colors.orange : Colors.grey),
-                ),
-                value: failoverActive,
-                onChanged: _switchingFailover ? null : _toggleFailover,
-              ),
+            IconButton(
+              onPressed: _saving ? null : _save,
+              icon: _saving
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.save),
+              tooltip: 'حفظ',
             ),
           ],
+        ),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _InfoCard(
+              icon: Icons.cloud_sync,
+              color: Colors.blue,
+              title: 'ما هي الوجهة الثانوية؟',
+              body:
+                  'نسخة احتياطية سحابية على حساب Appwrite آخر (أو region مختلف). '
+                  'تُرسل البيانات تلقائياً للوجهتين. عند تعطل الأساسية، يمكنك تفعيل '
+                  '"تجاوز الفشل" للعمل على الثانوية.\n\n'
+                  '📌 القيم الافتراضية مُدمجة في التطبيق ويُمكن تغييرها في أي وقت. '
+                  'استخدم زر "استعادة الإعدادات الافتراضية" في الأعلى للعودة لها.',
+            ),
 
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-          if (enabled) ...[
+            Card(
+              child: SwitchListTile(
+                title: const Text('تفعيل الوجهة الثانوية', style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text(
+                  enabled ? 'مفعّل' : 'معطّل',
+                  style: TextStyle(color: enabled ? Colors.green : Colors.grey),
+                ),
+                value: enabled,
+                onChanged: (v) async {
+                  await SecondaryAppwriteConfig.saveConfig(
+                    enabled: v,
+                    endpoint: _endpointCtrl.text.trim(),
+                    projectId: _projectIdCtrl.text.trim(),
+                    databaseId: _databaseIdCtrl.text.trim(),
+                    apiKey: _apiKeyCtrl.text.trim(),
+                    pushEnabled: pushEnabled,
+                    pullEnabled: pullEnabled,
+                  );
+                  SecondaryAppwriteService().invalidate();
+
+                  // ✅ تحديث علامات التسليم في outbox
+                  if (v) {
+                    // تفعيل: نُعلّم كل السجلات كـ "غير مُسلّمة للثانوي" ليتم رفعها
+                    final db = ref.read(databaseProvider);
+                    final outboxDao = OutboxDao(db);
+                    final count = await outboxDao.markAllLocalAsUndeliveredToSecondary();
+                    debugPrint('🔵 [Secondary] Marked $count records as undelivered to secondary');
+                    if (SecondaryAppwriteConfig.isPushEnabled) {
+                      SecondarySyncManager.instance.startAutoSync();
+                    }
+                  } else {
+                    // تعطيل: نُعلّم كل السجلات كـ "مُسلّمة للثانوي" لمنع حجبها
+                    final db = ref.read(databaseProvider);
+                    final outboxDao = OutboxDao(db);
+                    final count = await outboxDao.markAllLocalAsDeliveredToSecondary();
+                    debugPrint('🔵 [Secondary] Marked $count records as delivered to secondary (disabled)');
+                    SecondarySyncManager.instance.stopAutoSync();
+                  }
+                  setState(() {});
+                },
+              ),
+            ),
+
+            if (enabled && isConfigured) ...[
+              const SizedBox(height: 8),
+              Card(
+                color: failoverActive ? Colors.orange.shade50 : null,
+                child: SwitchListTile(
+                  title: Row(
+                    children: [
+                      Icon(
+                        failoverActive ? Icons.warning : Icons.swap_horiz,
+                        color: failoverActive ? Colors.orange : Colors.blue,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('تجاوز الفشل (Failover)', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  subtitle: Text(
+                    failoverActive
+                        ? '⚠️ نشط — كل العمليات تتم على الوجهة الثانوية'
+                        : 'عند التفعيل: استخدم الثانوية كوجهة أساسية مؤقتاً',
+                    style: TextStyle(color: failoverActive ? Colors.orange : Colors.grey),
+                  ),
+                  value: failoverActive,
+                  onChanged: _switchingFailover ? null : _toggleFailover,
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 16),
+
+            // ════════════════════════════════════════════════════════════════
+            //  بيانات الاتصال — تُعرَض دائماً (سواء كانت الوجهة مفعّلة أو معطّلة)
+            //  حتى يتمكن المستخدم من تعديلها قبل التفعيل، ولأنها ممتلئة بقيم
+            //  افتراضية صالحة عند فتح الشاشة لأول مرة.
+            // ════════════════════════════════════════════════════════════════
             const Text('بيانات الاتصال', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text(
+              'القيم الحالية هي الافتراضية المُدمجة. يُمكنك تعديلها في أي وقت ثم الضغط على حفظ.',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: _endpointCtrl,
@@ -852,13 +944,29 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
 
             const SizedBox(height: 16),
 
+            // ════════════════════════════════════════════════════════════════
+            //  العمليات المفعّلة — Push مُفعّل افتراضياً (الرفع فقط)
+            //  يُمكن للمستخدم تعطيل Push في أي وقت، وتفعيل Pull إن احتاج.
+            // ════════════════════════════════════════════════════════════════
             const Text('العمليات المفعّلة', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text(
+              'الإعداد الافتراضي: Push مُفعّل، Pull معطّل. '
+              'يُمكنك تعطيل Push أو تفعيل Pull في أي وقت.',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            ),
             const SizedBox(height: 8),
             Card(
               child: Column(
                 children: [
                   SwitchListTile(
-                    title: const Text('Push (رفع البيانات)'),
+                    title: const Row(
+                      children: [
+                        Icon(Icons.cloud_upload, size: 20, color: Colors.green),
+                        SizedBox(width: 8),
+                        Text('Push (رفع البيانات)'),
+                      ],
+                    ),
                     subtitle: const Text('نسخ التغييرات من هذا الجهاز إلى الوجهة الثانوية'),
                     value: pushEnabled,
                     onChanged: (v) async {
@@ -871,12 +979,24 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                         pushEnabled: v,
                         pullEnabled: pullEnabled,
                       );
+                      // تشغيل/إيقاف المزامنة التلقائية حسب حالة Push
+                      if (v && enabled) {
+                        SecondarySyncManager.instance.startAutoSync();
+                      } else {
+                        SecondarySyncManager.instance.stopAutoSync();
+                      }
                       setState(() {});
                     },
                   ),
                   const Divider(height: 1),
                   SwitchListTile(
-                    title: const Text('Pull (سحب البيانات)'),
+                    title: const Row(
+                      children: [
+                        Icon(Icons.cloud_download, size: 20, color: Colors.orange),
+                        SizedBox(width: 8),
+                        Text('Pull (سحب البيانات)'),
+                      ],
+                    ),
                     subtitle: const Text('عند تفعيل Failover: السحب من الوجهة الثانوية'),
                     value: pullEnabled,
                     onChanged: (v) async {
@@ -942,93 +1062,92 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                     ],
                   ),
                 ),
+                const SizedBox(height: 16),
               ],
-              const SizedBox(height: 16),
-            ],
 
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _testingConnection ? null : _testConnection,
-                    icon: _testingConnection
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.wifi_tethering),
-                    label: const Text('اختبار الاتصال'),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _testingConnection ? null : _testConnection,
+                      icon: _testingConnection
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.wifi_tethering),
+                      label: const Text('اختبار الاتصال'),
+                    ),
+                  ),
+                ],
+              ),
+              if (_testResult != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _testSuccess == true ? Colors.green.shade50 : Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: _testSuccess == true ? Colors.green.shade200 : Colors.red.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _testSuccess == true ? Icons.check_circle : Icons.error,
+                        color: _testSuccess == true ? Colors.green : Colors.red,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '$_testResult'
+                          '${_testLatency != null ? " (latency: ${_testLatency}ms)" : ""}',
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => _copyToClipboard(
+                          '$_testResult'
+                          '${_testLatency != null ? " (latency: ${_testLatency}ms)" : ""}',
+                        ),
+                        icon: const Icon(Icons.copy, size: 18),
+                        tooltip: 'نسخ النص',
+                      ),
+                    ],
                   ),
                 ),
               ],
-            ),
-            if (_testResult != null) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: _testSuccess == true ? Colors.green.shade50 : Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: _testSuccess == true ? Colors.green.shade200 : Colors.red.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      _testSuccess == true ? Icons.check_circle : Icons.error,
-                      color: _testSuccess == true ? Colors.green : Colors.red,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '$_testResult'
-                        '${_testLatency != null ? " (latency: ${_testLatency}ms)" : ""}',
+
+              const SizedBox(height: 24),
+
+              TextButton.icon(
+                onPressed: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('تأكيد المسح'),
+                      content: const Text(
+                        'سيتم مسح كل إعدادات الوجهة الثانوية. '
+                        'هل أنت متأكد؟',
                       ),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                        TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('مسح')),
+                      ],
                     ),
-                    IconButton(
-                      onPressed: () => _copyToClipboard(
-                        '$_testResult'
-                        '${_testLatency != null ? " (latency: ${_testLatency}ms)" : ""}',
-                      ),
-                      icon: const Icon(Icons.copy, size: 18),
-                      tooltip: 'نسخ النص',
-                    ),
-                  ],
-                ),
+                  );
+                  if (confirmed != true) return;
+                  await SecondaryAppwriteConfig.clear();
+                  SecondaryAppwriteService().invalidate();
+                  _loadConfig();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🧹 تم مسح الإعدادات')));
+                  }
+                },
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                label: const Text('مسح الإعدادات', style: TextStyle(color: Colors.red)),
               ),
             ],
 
-            const SizedBox(height: 24),
-
-            TextButton.icon(
-              onPressed: () async {
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: const Text('تأكيد المسح'),
-                    content: const Text(
-                      'سيتم مسح كل إعدادات الوجهة الثانوية. '
-                      'هل أنت متأكد؟',
-                    ),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
-                      TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('مسح')),
-                    ],
-                  ),
-                );
-                if (confirmed != true) return;
-                await SecondaryAppwriteConfig.clear();
-                SecondaryAppwriteService().invalidate();
-                _loadConfig();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🧹 تم مسح الإعدادات')));
-                }
-              },
-              icon: const Icon(Icons.delete_outline, color: Colors.red),
-              label: const Text('مسح الإعدادات', style: TextStyle(color: Colors.red)),
-            ),
+            const SizedBox(height: 40),
           ],
-
-          const SizedBox(height: 40),
-        ],
+        ),
       ),
-    )
     );
   }
 }

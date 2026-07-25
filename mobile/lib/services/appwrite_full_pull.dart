@@ -19,20 +19,19 @@ class AppwriteFullPull {
 
   AppwriteService? _appwriteService;
   AppDatabase? _database;
-  AdapterRegistry? _adapterRegistry;
+  final AdapterRegistry _adapterRegistry = AdapterRegistry.instance;
   final _logger = AppwriteLogger();
 
   /// حجم الدفعة الواحدة
   static const int _batchSize = 100;
 
   /// هل تم التهيئة
-  bool get isInitialized => _appwriteService != null && _database != null && _adapterRegistry != null;
+  bool get isInitialized => _appwriteService != null && _database != null;
 
   /// تهيئة الخدمة
   Future<void> initialize(AppwriteService service, AppDatabase db) async {
     _appwriteService = service;
     _database = db;
-    _adapterRegistry = AdapterRegistry(db);
     _logger.info('تم تهيئة خدمة السحب الشامل', tag: 'FULL_PULL');
   }
 
@@ -102,7 +101,7 @@ class AppwriteFullPull {
 
   /// ترتيب الكيانات للسحب (حسب العلاقات)
   List<_PullEntity> _getEntitiesInOrder() {
-    final reg = _adapterRegistry!;
+    final reg = _adapterRegistry;
 
     return [
       // 1. الغرف أولاً (Bookings.roomNumber → Rooms.roomNumber)
@@ -118,7 +117,7 @@ class AppwriteFullPull {
         repo: reg.cashTransactions,
       ),
       // 5. ليالي الحجز (تعتمد على الحجوزات)
-      _PullEntity(name: 'booking_nights', collectionId: AppwriteConfig.bookingNightsCollectionId, repo: reg.nights),
+      _PullEntity(name: 'booking_nights', collectionId: AppwriteConfig.bookingNightsCollectionId, repo: reg.nights, maxRecords: 1000),
       // 6. ملاحظات الحجز (تعتمد على الحجوزات)
       _PullEntity(name: 'booking_notes', collectionId: AppwriteConfig.bookingNotesCollectionId, repo: reg.bookingNotes),
       // 7. المدفوعات (تعتمد على الحجوزات والمعاملات النقدية)
@@ -179,6 +178,7 @@ class AppwriteFullPull {
     _logger.info('📥 بدء سحب ${entity.name} من collection: ${entity.collectionId}', tag: 'FULL_PULL');
 
     // حلقة لجلب جميع السجلات على دفعات
+    _pullLoop:
     while (true) {
       try {
         // ✅ استعلام بسيط - بدون أي فلترة بالوقت
@@ -250,6 +250,15 @@ class AppwriteFullPull {
                 totalCount++;
                 continue;
               }
+            }
+
+            // ✅ Full Pull: الحد الأقصى للسجلات المسحوبة (مثل booking_nights)
+            if (entity.maxRecords != null && totalCount >= entity.maxRecords!) {
+              _logger.info(
+                '⏹️ تم الوصول للحد الأقصى (${entity.maxRecords}) لـ ${entity.name}',
+                tag: 'FULL_PULL',
+              );
+              break _pullLoop;
             }
 
             // حفظ السجل (upsert)
@@ -450,16 +459,16 @@ class AppwriteFullPull {
   /// هذه الحقول يضيفها Appwrite تلقائياً ولا يجب تخزينها محلياً
   void _cleanDataFromAppwrite(Map<String, dynamic> data, String docId) {
     // إزالة حقول Appwrite الخاصة
-    data.remove('\$id');
-    data.remove('\$createdAt');
-    data.remove('\$updatedAt');
-    data.remove('\$permissions');
-    data.remove('\$collectionId');
-    data.remove('\$databaseId');
+    data.remove(r'$id');
+    data.remove(r'$createdAt');
+    data.remove(r'$updatedAt');
+    data.remove(r'$permissions');
+    data.remove(r'$collectionId');
+    data.remove(r'$databaseId');
 
     // أيضاً إزالة الحقول بأسماء بديلة
-    data.remove('createdAt_\$');
-    data.remove('updatedAt_\$');
+    data.remove(r'createdAt_$');
+    data.remove(r'updatedAt_$');
 
     // الاحتفاظ بـ document ID كـ reference إذا لزم الأمر
     // يمكن استخدامه لاحقاً للتحديثات
@@ -536,10 +545,13 @@ class AppwriteFullPull {
 class _PullEntity {
   // BaseRepository<dynamic, dynamic>
 
-  _PullEntity({required this.name, this.collectionId, this.repo});
+  _PullEntity({required this.name, this.collectionId, this.repo, this.maxRecords});
   final String name;
   final String? collectionId;
   final dynamic repo;
+
+  /// الحد الأقصى للسجلات المسحوبة (null = غير محدود)
+  final int? maxRecords;
 }
 
 /// نتيجة السحب الشامل

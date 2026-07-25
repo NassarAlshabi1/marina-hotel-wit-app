@@ -5,6 +5,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/debug_log.dart';
 import '../utils/debug_logs.dart';
 import 'google_drive_backup_service.dart';
 import 'google_drive_conflict_resolver.dart';
@@ -132,7 +133,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('AutoSyncEngine', message);
-    debugPrint('[AutoSyncEngine] $message');
+    dlog(() => '[AutoSyncEngine] $message');
     _logger?.log(message, level: level, tag: 'AUTO_SYNC');
   }
 
@@ -148,7 +149,10 @@ class AutoSyncEngine with WidgetsBindingObserver {
   ///
   /// يُرجع false إذا كانت البوّابة مشغولة (العملية لم تُنفّذ)، ويُرجع
   /// نتيجة syncNow الحقيقية إذا نُفّذت.
-  Future<bool> _guardedSyncNow({bool push = true, bool pull = true, required String reason}) async {
+  Future<bool> _guardedSyncNow({      required String reason,
+      bool push = true,
+      bool pull = true,
+  }) async {
     final result = await SyncGate.instance.runGuarded<bool>(
       operation: push && pull ? 'auto_sync' : (pull ? 'auto_pull' : 'auto_push'),
       source: 'google_drive_engine',
@@ -776,12 +780,12 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
   void dispose() {
     stop();
-    _stateController.close();
-    _log('🛑 Auto Sync Engine disposed');
+    unawaited(_stateController.close());
+    dlog(() => '[AutoSyncEngine] 🛑 Auto Sync Engine disposed');
   }
 
   /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
-  static Future<void> disposeInstance() async {
+  static void disposeInstance() {
     instance.dispose();
   }
 }
