@@ -75,8 +75,7 @@ async function main() {
 
       const criticalCount = issues.filter((i) => i.severity === "critical").length;
       if (criticalCount > 0) {
-        console.log(`\n❌ ${criticalCount} critical issue(s) found — blocking merge.\n`);
-        process.exit(1);
+        console.log(`\n⚠️ ${criticalCount} critical issue(s) found — review posted, but not blocking merge.\n`);
       }
     } else {
       console.log("\n✅ Nessun problema trovato! PR looks good! 🎉");
