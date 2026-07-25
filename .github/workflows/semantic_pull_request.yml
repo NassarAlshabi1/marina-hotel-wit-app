@@ -31,6 +31,13 @@ on:
 permissions:
   pull-requests: write
   contents: read
+  # amannn/action-semantic-pull-request manages a PR result comment (issue
+  # comment) and status; without these the job token — which defaults every
+  # unlisted scope to `none` once a permissions block is present — fails with
+  # "Resource not accessible by integration" even when the title is valid.
+  issues: write
+  statuses: write
+  checks: write
 
 jobs:
   semantic:
