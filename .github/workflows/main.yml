@@ -11,10 +11,6 @@ on:
       - yy
       - refactor/clean-v2
       - refactor/performance-fixes-v1
-<<<<<<< HEAD
-      - refactor/performance-fixes-v2
-=======
->>>>>>> origin/refactor/clean-v2
     paths:
       - 'mobile/**'
       - '.github/workflows/main.yml'

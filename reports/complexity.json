@@ -16,15 +16,6 @@
             "file": "booking_payment_screen.dart",
             "ifs": 165,
             "max_nesting": 10,
-<<<<<<< HEAD
-            "lines": 4109
-        },
-        {
-            "file": "appwrite_sync_manager.dart",
-            "ifs": 317,
-            "max_nesting": 10,
-            "lines": 6446
-=======
             "lines": 4112
         },
         {
@@ -32,7 +23,6 @@
             "ifs": 312,
             "max_nesting": 10,
             "lines": 6334
->>>>>>> origin/refactor/clean-v2
         },
         {
             "file": "file_management_service.dart",
@@ -42,11 +32,6 @@
         }
     ],
     "long_functions": 0,
-<<<<<<< HEAD
-    "deep_nesting": 3665,
-    "total_if_switch": 5806
-=======
     "deep_nesting": 3573,
     "total_if_switch": 5853
->>>>>>> origin/refactor/clean-v2
 }
