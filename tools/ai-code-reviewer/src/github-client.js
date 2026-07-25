@@ -60,6 +60,11 @@ class GitHubClient {
       /\.png$/,
       /\.jpg$/,
       /\.gif$/,
+      // ✅ Dart/Flutter generated files — don't review
+      /\.g\.dart$/,
+      /\.freezed\.dart$/,
+      /generated_plugin_registrant\.dart$/,
+      /\.gr\.dart$/,
     ];
 
     return skipPatterns.some((pattern) => pattern.test(filename));
