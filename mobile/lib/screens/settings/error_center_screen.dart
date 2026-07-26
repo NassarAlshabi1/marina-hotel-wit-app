@@ -1,1 +1,249 @@
-aW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXIvbWF0ZXJpYWwuZGFydCc7CmltcG9ydCAncGFja2FnZTpmbHV0dGVyL3NlcnZpY2VzLmRhcnQnOwppbXBvcnQgJ3BhY2thZ2U6Zmx1dHRlcl9yaXZlcnBvZC9mbHV0dGVyX3JpdmVycG9kLmRhcnQnOwppbXBvcnQgJ3BhY2thZ2U6aW50bC9pbnRsLmRhcnQnOwoKaW1wb3J0ICcuLi8uLi9jb21wb25lbnRzL2FwcF9zY2FmZm9sZC5kYXJ0JzsKaW1wb3J0ICcuLi8uLi9wcm92aWRlcnMvYXBwd3JpdGVfcHJvdmlkZXJzLmRhcnQnOwppbXBvcnQgJy4uLy4uL3Byb3ZpZGVycy9iYWNrdXBfcHJvdmlkZXIuZGFydCc7CmltcG9ydCAnLi4vLi4vc2VydmljZXMvYXBwd3JpdGVfbG9nZ2VyLmRhcnQnOwppbXBvcnQgJy4uLy4uL3NlcnZpY2VzL2xvZ2dpbmcvbG9nX21vZGVscy5kYXJ0JzsKaW1wb3J0ICcuLi8uLi91dGlscy9kZWJ1Z19sb2dzLmRhcnQnOwoKY2xhc3MgRXJyb3JDZW50ZXJTY3JlZW4gZXh0ZW5kcyBDb25zdW1lcldpZGdldCB7CiAgY29uc3QgRXJyb3JDZW50ZXJTY3JlZW4oe3N1cGVyLmtleX0pOwoKICBAb3ZlcnJpZGUKICBXaWRnZXQgYnVpbGQoQnVpbGRDb250ZXh0IGNvbnRleHQsIFdpZGdldFJlZiByZWYpIHsKICAgIGZpbmFsIGFwcHdyaXRlTG9ncyA9IHJlZi53YXRjaChsb2dzUHJvdmlkZXIpOwogICAgZmluYWwgZHJpdmVMb2dzID0gcmVmLndhdGNoKGdvb2dsZURyaXZlTG9nc1Byb3ZpZGVyKTsKCiAgICBmaW5hbCBhcHB3cml0ZUVycm9ycyA9IF9vbmx5RXJyb3JzKGFwcHdyaXRlTG9ncyk7CiAgICBmaW5hbCBkcml2ZUVycm9ycyA9IF9vbmx5RXJyb3JzKGRyaXZlTG9ncyk7CiAgICBmaW5hbCBkZWJ1Z0VudHJpZXMgPSBEZWJ1Z0xvZ3MuZW50cmllczsKCiAgICByZXR1cm4gQXBwU2NhZmZvbGQoCiAgICAgIHRpdGxlOiAn2YXYsdmD2LIg2KfZhNij2K7Yt9in2KEnLAogICAgICBhY3Rpb25zOiBbCiAgICAgICAgSWNvbkJ1dHRvbigKICAgICAgICAgIGljb246IGNvbnN0IEljb24oSWNvbnMuY29weV9hbGwpLAogICAgICAgICAgdG9vbHRpcDogJ9mG2LPYriDZg9mEINin2YTYs9is2YTYp9iqJywKICAgICAgICAgIG9uUHJlc3NlZDogKCkgPT4gX2NvcHlBbGwoYXBwd3JpdGVFcnJvcnMsIGRyaXZlRXJyb3JzLCBkZWJ1Z0VudHJpZXMpLAogICAgICAgICksCiAgICAgICAgSWNvbkJ1dHRvbigKICAgICAgICAgIGljb246IGNvbnN0IEljb24oSWNvbnMuZGVsZXRlX3N3ZWVwKSwKICAgICAgICAgIHRvb2x0aXA6ICfZhdiz2K0g2KfZhNiz2KzZhNin2Kog2KfZhNmF2KTZgtiq2KknLAogICAgICAgICAgb25QcmVzc2VkOiAoKSB7CiAgICAgICAgICAgIERlYnVnTG9ncy5jbGVhcigpOwogICAgICAgICAgICByZWYucmVhZChhcHB3cml0ZUxvZ2dlclByb3ZpZGVyKS5jbGVhckxvZ3MoKTsKICAgICAgICAgICAgcmVmLnJlYWQoZ29vZ2xlRHJpdmVMb2dnZXJQcm92aWRlcikuY2xlYXJMb2dzKCk7CiAgICAgICAgICAgIFNjYWZmb2xkTWVzc2VuZ2VyLm9mKAogICAgICAgICAgICAgIGNvbnRleHQsCiAgICAgICAgICAgICkuc2hvd1NuYWNrQmFyKGNvbnN0IFNuYWNrQmFyKGNvbnRlbnQ6IFRleHQoJ9iq2YUg2YXYs9itINin2YTYs9is2YTYp9iqLicpKSk7CiAgICAgICAgICB9LAogICAgICAgICksCiAgICAgIF0sCiAgICAgIGJvZHk6IExpc3RWaWV3KAogICAgICAgIHBhZGRpbmc6IGNvbnN0IEVkZ2VJbnNldHMuYWxsKDE2KSwKICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgX1N1bW1hcnlDYXJkKAogICAgICAgICAgICBhcHB3cml0ZUNvdW50OiBhcHB3cml0ZUVycm9ycy5sZW5ndGgsCiAgICAgICAgICAgIGRyaXZlQ291bnQ6IGRyaXZlRXJyb3JzLmxlbmd0aCwKICAgICAgICAgICAgZGVidWdDb3VudDogZGVidWdFbnRyaWVzLmxlbmd0aCwKICAgICAgICAgICksCiAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDEyKSwKICAgICAgICAgIF9FcnJvclNlY3Rpb24oCiAgICAgICAgICAgIHRpdGxlOiAn2KPYrti32KfYoSBBcHB3cml0ZScsCiAgICAgICAgICAgIGNvbG9yOiBDb2xvcnMucmVkQWNjZW50LAogICAgICAgICAgICBlbnRyaWVzOiBhcHB3cml0ZUVycm9ycy5tYXAoX3RvVmlld0VudHJ5KS50b0xpc3QoKSwKICAgICAgICAgICksCiAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDEyKSwKICAgICAgICAgIF9FcnJvclNlY3Rpb24oCiAgICAgICAgICAgIHRpdGxlOiAn2KPYrti32KfYoSBHb29nbGUgRHJpdmUnLAogICAgICAgICAgICBjb2xvcjogQ29sb3JzLmRlZXBPcmFuZ2UsCiAgICAgICAgICAgIGVudHJpZXM6IGRyaXZlRXJyb3JzLm1hcChfdG9WaWV3RW50cnkpLnRvTGlzdCgpLAogICAgICAgICAgKSwKICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogMTIpLAogICAgICAgICAgX0Vycm9yU2VjdGlvbigKICAgICAgICAgICAgdGl0bGU6ICfYs9is2YTYp9iqINin2YTZhdiy2KfZhdmG2Kkg2YjYp9mE2K/ZhdisJywKICAgICAgICAgICAgY29sb3I6IENvbG9ycy5ibHVlR3JleSwKICAgICAgICAgICAgZW50cmllczogZGVidWdFbnRyaWVzCiAgICAgICAgICAgICAgICAubWFwKAogICAgICAgICAgICAgICAgICAoZSkgPT4gX1ZpZXdFbnRyeSgKICAgICAgICAgICAgICAgICAgICB0aXRsZTogZSwKICAgICAgICAgICAgICAgICAgICBzdWJ0aXRsZTogJ0RlYnVnTG9ncycsCiAgICAgICAgICAgICAgICAgICAgdGltZXN0YW1wOiBudWxsLAogICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgKQogICAgICAgICAgICAgICAgLnRvTGlzdCgpLAogICAgICAgICAgKSwKICAgICAgICBdLAogICAgICApLAogICAgKTsKICB9CgogIExpc3Q8TG9nRW50cnk+IF9vbmx5RXJyb3JzKExpc3Q8TG9nRW50cnk+IGxvZ3MpIHsKICAgIHJldHVybiBsb2dzCiAgICAgICAgLndoZXJlKChsKSA9PiBsLmxldmVsID09IExvZ0xldmVsLmVycm9yIHx8IGwubGV2ZWwgPT0gTG9nTGV2ZWwuY3JpdGljYWwpCiAgICAgICAgLnRvTGlzdChncm93YWJsZTogZmFsc2UpOwogIH0KCiAgX1ZpZXdFbnRyeSBfdG9WaWV3RW50cnkoTG9nRW50cnkgZW50cnkpIHsKICAgIHJldHVybiBfVmlld0VudHJ5KAogICAgICB0aXRsZTogZW50cnkubWVzc2FnZSwKICAgICAgc3VidGl0bGU6CiAgICAgICAgICAnWyR7ZW50cnkudGFnfV0gJHtlbnRyeS5sZXZlbC5uYW1lLnRvVXBwZXJDYXNlKCl9JHtlbnRyeS5lcnJvciAhPSBudWxsID8gJyDigKIgJHtlbnRyeS5lcnJvcn0nIDogJyd9JywKICAgICAgdGltZXN0YW1wOiBlbnRyeS50aW1lc3RhbXAsCiAgICApOwogIH0KCiAgdm9pZCBfY29weUFsbCgKICAgIExpc3Q8TG9nRW50cnk+IGFwcHdyaXRlLAogICAgTGlzdDxMb2dFbnRyeT4gZHJpdmUsCiAgICBMaXN0PFN0cmluZz4gZGVidWcsCiAgKSB7CiAgICBmaW5hbCBidWZmZXIgPSBTdHJpbmdCdWZmZXIoKTsKICAgIGZvciAoZmluYWwgZSBpbiBhcHB3cml0ZSkgewogICAgICBidWZmZXIud3JpdGVsbignW0FQUFdSSVRFXSAke2UudG9Gb3JtYXR0ZWRTdHJpbmcoKX0nKTsKICAgIH0KICAgIGZvciAoZmluYWwgZSBpbiBkcml2ZSkgewogICAgICBidWZmZXIud3JpdGVsbignW0RSSVZFXSAke2UudG9Gb3JtYXR0ZWRTdHJpbmcoKX0nKTsKICAgIH0KICAgIGZvciAoZmluYWwgZSBpbiBkZWJ1ZykgewogICAgICBidWZmZXIud3JpdGVsbignW0RFQlVHXSAkZScpOwogICAgfQogICAgQ2xpcGJvYXJkLnNldERhdGEoQ2xpcGJvYXJkRGF0YSh0ZXh0OiBidWZmZXIudG9TdHJpbmcoKSkpOwogIH0KfQoKY2xhc3MgX1N1bW1hcnlDYXJkIGV4dGVuZHMgU3RhdGVsZXNzV2lkZ2V0IHsKICBjb25zdCBfU3VtbWFyeUNhcmQoewogICAgcmVxdWlyZWQgdGhpcy5hcHB3cml0ZUNvdW50LAogICAgcmVxdWlyZWQgdGhpcy5kcml2ZUNvdW50LAogICAgcmVxdWlyZWQgdGhpcy5kZWJ1Z0NvdW50LAogIH0pOwogIGZpbmFsIGludCBhcHB3cml0ZUNvdW50OwogIGZpbmFsIGludCBkcml2ZUNvdW50OwogIGZpbmFsIGludCBkZWJ1Z0NvdW50OwoKICBAb3ZlcnJpZGUKICBXaWRnZXQgYnVpbGQoQnVpbGRDb250ZXh0IGNvbnRleHQpIHsKICAgIGZpbmFsIHRvdGFsID0gYXBwd3JpdGVDb3VudCArIGRyaXZlQ291bnQgKyBkZWJ1Z0NvdW50OwogICAgcmV0dXJuIENhcmQoCiAgICAgIGNoaWxkOiBQYWRkaW5nKAogICAgICAgIHBhZGRpbmc6IGNvbnN0IEVkZ2VJbnNldHMuYWxsKDE2KSwKICAgICAgICBjaGlsZDogQ29sdW1uKAogICAgICAgICAgY3Jvc3NBeGlzQWxpZ25tZW50OiBDcm9zc0F4aXNBbGlnbm1lbnQuc3RhcnQsCiAgICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgICBjb25zdCBSb3coCiAgICAgICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgICAgIEljb24oSWNvbnMuZXJyb3Jfb3V0bGluZSwgY29sb3I6IENvbG9ycy5yZWQpLAogICAgICAgICAgICAgICAgU2l6ZWRCb3god2lkdGg6IDgpLAogICAgICAgICAgICAgICAgVGV4dCgKICAgICAgICAgICAgICAgICAgJ9mF2YTYrti1INin2YTYo9iu2LfYp9ihJywKICAgICAgICAgICAgICAgICAgc3R5bGU6IFRleHRTdHlsZShmb250U2l6ZTogMTYsIGZvbnRXZWlnaHQ6IEZvbnRXZWlnaHQuYm9sZCksCiAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgIF0sCiAgICAgICAgICAgICksCiAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogMTIpLAogICAgICAgICAgICBXcmFwKAogICAgICAgICAgICAgIHNwYWNpbmc6IDEyLAogICAgICAgICAgICAgIHJ1blNwYWNpbmc6IDgsCiAgICAgICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgICAgIF9jaGlwKCdBcHB3cml0ZScsIGFwcHdyaXRlQ291bnQsIENvbG9ycy5yZWRBY2NlbnQpLAogICAgICAgICAgICAgICAgX2NoaXAoJ0dvb2dsZSBEcml2ZScsIGRyaXZlQ291bnQsIENvbG9ycy5kZWVwT3JhbmdlKSwKICAgICAgICAgICAgICAgIF9jaGlwKCdTeW5jL0RlYnVnJywgZGVidWdDb3VudCwgQ29sb3JzLmJsdWVHcmV5KSwKICAgICAgICAgICAgICAgIF9jaGlwKCfYp9mE2KXYrNmF2KfZhNmKJywgdG90YWwsIENvbG9ycy5ibGFjazg3KSwKICAgICAgICAgICAgICBdLAogICAgICAgICAgICApLAogICAgICAgICAgXSwKICAgICAgICApLAogICAgICApLAogICAgKTsKICB9CgogIFdpZGdldCBfY2hpcChTdHJpbmcgbGFiZWwsIGludCBjb3VudCwgQ29sb3IgY29sb3IpIHsKICAgIHJldHVybiBDaGlwKAogICAgICBhdmF0YXI6IENpcmNsZUF2YXRhcihiYWNrZ3JvdW5kQ29sb3I6IGNvbG9yLCBjaGlsZDogY29uc3QgU2l6ZWRCb3goKSksCiAgICAgIGxhYmVsOiBUZXh0KCckbGFiZWw6ICRjb3VudCcpLAogICAgKTsKICB9Cn0KCmNsYXNzIF9FcnJvclNlY3Rpb24gZXh0ZW5kcyBTdGF0ZWxlc3NXaWRnZXQgewogIGNvbnN0IF9FcnJvclNlY3Rpb24oewogICAgcmVxdWlyZWQgdGhpcy50aXRsZSwKICAgIHJlcXVpcmVkIHRoaXMuY29sb3IsCiAgICByZXF1aXJlZCB0aGlzLmVudHJpZXMsCiAgfSk7CiAgZmluYWwgU3RyaW5nIHRpdGxlOwogIGZpbmFsIENvbG9yIGNvbG9yOwogIGZpbmFsIExpc3Q8X1ZpZXdFbnRyeT4gZW50cmllczsKCiAgQG92ZXJyaWRlCiAgV2lkZ2V0IGJ1aWxkKEJ1aWxkQ29udGV4dCBjb250ZXh0KSB7CiAgICByZXR1cm4gQ2FyZCgKICAgICAgZWxldmF0aW9uOiAyLAogICAgICBjaGlsZDogUGFkZGluZygKICAgICAgICBwYWRkaW5nOiBjb25zdCBFZGdlSW5zZXRzLmFsbCgxMiksCiAgICAgICAgY2hpbGQ6IENvbHVtbigKICAgICAgICAgIGNyb3NzQXhpc0FsaWdubWVudDogQ3Jvc3NBeGlzQWxpZ25tZW50LnN0YXJ0LAogICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgUm93KAogICAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgICBJY29uKEljb25zLndhcm5pbmdfYW1iZXIsIGNvbG9yOiBjb2xvciksCiAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveCh3aWR0aDogOCksCiAgICAgICAgICAgICAgICBUZXh0KAogICAgICAgICAgICAgICAgICB0aXRsZSwKICAgICAgICAgICAgICAgICAgc3R5bGU6IGNvbnN0IFRleHRTdHlsZSgKICAgICAgICAgICAgICAgICAgICBmb250V2VpZ2h0OiBGb250V2VpZ2h0LmJvbGQsCiAgICAgICAgICAgICAgICAgICAgZm9udFNpemU6IDE1LAogICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICBdLAogICAgICAgICAgICApLAogICAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDgpLAogICAgICAgICAgICBpZiAoZW50cmllcy5pc0VtcHR5KQogICAgICAgICAgICAgIGNvbnN0IFBhZGRpbmcoCiAgICAgICAgICAgICAgICBwYWRkaW5nOiBFZGdlSW5zZXRzLnN5bW1ldHJpYyh2ZXJ0aWNhbDogOCksCiAgICAgICAgICAgICAgICBjaGlsZDogVGV4dCgn2YTYpyDYqtmI2KzYryDYo9iu2LfYp9ihINmF2LPYrNmE2KknKSwKICAgICAgICAgICAgICApCiAgICAgICAgICAgIGVsc2UKICAgICAgICAgICAgICAuLi5lbnRyaWVzLm1hcCgKICAgICAgICAgICAgICAgIChlKSA9PiBMaXN0VGlsZSgKICAgICAgICAgICAgICAgICAgZGVuc2U6IHRydWUsCiAgICAgICAgICAgICAgICAgIGNvbnRlbnRQYWRkaW5nOiBFZGdlSW5zZXRzLnplcm8sCiAgICAgICAgICAgICAgICAgIHRpdGxlOiBUZXh0KGUudGl0bGUpLAogICAgICAgICAgICAgICAgICBzdWJ0aXRsZTogVGV4dCgKICAgICAgICAgICAgICAgICAgICBlLnN1YnRpdGxlLAogICAgICAgICAgICAgICAgICAgIHN0eWxlOiBjb25zdCBUZXh0U3R5bGUoY29sb3I6IENvbG9ycy5ncmV5KSwKICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgdHJhaWxpbmc6IGUudGltZXN0YW1wICE9IG51bGwKICAgICAgICAgICAgICAgICAgICAgID8gVGV4dCgKICAgICAgICAgICAgICAgICAgICAgICAgICBfZm9ybWF0VGltZShlLnRpbWVzdGFtcCEpLAogICAgICAgICAgICAgICAgICAgICAgICAgIHN0eWxlOiBjb25zdCBUZXh0U3R5bGUoZm9udFNpemU6IDEyKSwKICAgICAgICAgICAgICAgICAgICAgICAgKQogICAgICAgICAgICAgICAgICAgICAgOiBudWxsLAogICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICApLAogICAgICAgICAgXSwKICAgICAgICApLAogICAgICApLAogICAgKTsKICB9CgogIFN0cmluZyBfZm9ybWF0VGltZShEYXRlVGltZSB2YWx1ZSkgewogICAgcmV0dXJuIERhdGVGb3JtYXQoJ3l5eXkvTU0vZGQgSEg6bW0nKS5mb3JtYXQodmFsdWUpOwogIH0KfQoKY2xhc3MgX1ZpZXdFbnRyeSB7CiAgX1ZpZXdFbnRyeSh7CiAgICByZXF1aXJlZCB0aGlzLnRpdGxlLAogICAgcmVxdWlyZWQgdGhpcy5zdWJ0aXRsZSwKICAgIHJlcXVpcmVkIHRoaXMudGltZXN0YW1wLAogIH0pOwogIGZpbmFsIFN0cmluZyB0aXRsZTsKICBmaW5hbCBTdHJpbmcgc3VidGl0bGU7CiAgZmluYWwgRGF0ZVRpbWU/IHRpbWVzdGFtcDsKfQo=
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+
+import '../../components/app_scaffold.dart';
+import '../../providers/appwrite_providers.dart';
+import '../../providers/backup_provider.dart';
+import '../../services/appwrite_logger.dart';
+import '../../services/logging/log_models.dart';
+import '../../utils/debug_logs.dart';
+
+class ErrorCenterScreen extends ConsumerWidget {
+  const ErrorCenterScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appwriteLogs = ref.watch(logsProvider);
+    final driveLogs = ref.watch(googleDriveLogsProvider);
+
+    final appwriteErrors = _onlyErrors(appwriteLogs);
+    final driveErrors = _onlyErrors(driveLogs);
+    final debugEntries = DebugLogs.entries;
+
+    return AppScaffold(
+      title: 'مركز الأخطاء',
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.copy_all),
+          tooltip: 'نسخ كل السجلات',
+          onPressed: () => _copyAll(appwriteErrors, driveErrors, debugEntries),
+        ),
+        IconButton(
+          icon: const Icon(Icons.delete_sweep),
+          tooltip: 'مسح السجلات المؤقتة',
+          onPressed: () {
+            DebugLogs.clear();
+            ref.read(appwriteLoggerProvider).clearLogs();
+            ref.read(googleDriveLoggerProvider).clearLogs();
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('تم مسح السجلات.')));
+          },
+        ),
+      ],
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _SummaryCard(
+            appwriteCount: appwriteErrors.length,
+            driveCount: driveErrors.length,
+            debugCount: debugEntries.length,
+          ),
+          const SizedBox(height: 12),
+          _ErrorSection(
+            title: 'أخطاء Appwrite',
+            color: Colors.redAccent,
+            entries: appwriteErrors.map(_toViewEntry).toList(),
+          ),
+          const SizedBox(height: 12),
+          _ErrorSection(
+            title: 'أخطاء Google Drive',
+            color: Colors.deepOrange,
+            entries: driveErrors.map(_toViewEntry).toList(),
+          ),
+          const SizedBox(height: 12),
+          _ErrorSection(
+            title: 'سجلات المزامنة والدمج',
+            color: Colors.blueGrey,
+            entries: debugEntries
+                .map(
+                  (e) => _ViewEntry(
+                    title: e,
+                    subtitle: 'DebugLogs',
+                    timestamp: null,
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<LogEntry> _onlyErrors(List<LogEntry> logs) {
+    return logs
+        .where((l) => l.level == LogLevel.error || l.level == LogLevel.critical)
+        .toList(growable: false);
+  }
+
+  _ViewEntry _toViewEntry(LogEntry entry) {
+    return _ViewEntry(
+      title: entry.message,
+      subtitle:
+          '[${entry.tag}] ${entry.level.name.toUpperCase()}${entry.error != null ? ' • ${entry.error}' : ''}',
+      timestamp: entry.timestamp,
+    );
+  }
+
+  void _copyAll(
+    List<LogEntry> appwrite,
+    List<LogEntry> drive,
+    List<String> debug,
+  ) {
+    final buffer = StringBuffer();
+    for (final e in appwrite) {
+      buffer.writeln('[APPWRITE] ${e.toFormattedString()}');
+    }
+    for (final e in drive) {
+      buffer.writeln('[DRIVE] ${e.toFormattedString()}');
+    }
+    for (final e in debug) {
+      buffer.writeln('[DEBUG] $e');
+    }
+    Clipboard.setData(ClipboardData(text: buffer.toString()));
+  }
+}
+
+class _SummaryCard extends StatelessWidget {
+  const _SummaryCard({
+    required this.appwriteCount,
+    required this.driveCount,
+    required this.debugCount,
+  });
+  final int appwriteCount;
+  final int driveCount;
+  final int debugCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = appwriteCount + driveCount + debugCount;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.red),
+                SizedBox(width: 8),
+                Text(
+                  'ملخص الأخطاء',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                _chip('Appwrite', appwriteCount, Colors.redAccent),
+                _chip('Google Drive', driveCount, Colors.deepOrange),
+                _chip('Sync/Debug', debugCount, Colors.blueGrey),
+                _chip('الإجمالي', total, Colors.black87),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _chip(String label, int count, Color color) {
+    return Chip(
+      avatar: CircleAvatar(backgroundColor: color, child: const SizedBox()),
+      label: Text('$label: $count'),
+    );
+  }
+}
+
+class _ErrorSection extends StatelessWidget {
+  const _ErrorSection({
+    required this.title,
+    required this.color,
+    required this.entries,
+  });
+  final String title;
+  final Color color;
+  final List<_ViewEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.warning_amber, color: color),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (entries.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text('لا توجد أخطاء مسجلة'),
+              )
+            else
+              ...entries.map(
+                (e) => ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(e.title),
+                  subtitle: Text(
+                    e.subtitle,
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                  trailing: e.timestamp != null
+                      ? Text(
+                          _formatTime(e.timestamp!),
+                          style: const TextStyle(fontSize: 12),
+                        )
+                      : null,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatTime(DateTime value) {
+    return DateFormat('yyyy/MM/dd HH:mm').format(value);
+  }
+}
+
+class _ViewEntry {
+  _ViewEntry({
+    required this.title,
+    required this.subtitle,
+    required this.timestamp,
+  });
+  final String title;
+  final String subtitle;
+  final DateTime? timestamp;
+}
