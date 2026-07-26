@@ -1,1 +1,191 @@
-aW1wb3J0ICdkYXJ0OmFzeW5jJzsKaW1wb3J0ICdkYXJ0Om1hdGgnOwoKaW1wb3J0ICdwYWNrYWdlOmRyaWZ0L2RyaWZ0LmRhcnQnIHNob3cgVmFsdWU7CmltcG9ydCAncGFja2FnZTpmbHV0dGVyL2ZvdW5kYXRpb24uZGFydCc7CmltcG9ydCAncGFja2FnZTpzaGFyZWRfcHJlZmVyZW5jZXMvc2hhcmVkX3ByZWZlcmVuY2VzLmRhcnQnOwppbXBvcnQgJ3BhY2thZ2U6d29ya21hbmFnZXIvd29ya21hbmFnZXIuZGFydCc7CgppbXBvcnQgJy4uL3V0aWxzL2lkLmRhcnQnOwppbXBvcnQgJ2FwcHdyaXRlX3N5bmNfbWFuYWdlci5kYXJ0JzsKaW1wb3J0ICdsb2NhbF9kYi5kYXJ0JzsKCi8vLyDZitiq2KrYqNi5INis2YTYs9in2Kog2KfZhNiq2LfYqNmK2YIg2YjZitiz2KzZkdmE2YfYpyDZgdmKINmC2KfYudiv2Kkg2KfZhNio2YrYp9mG2KfYqtiMCi8vLyDZiNmK2YLZiNmFINio2KzYr9mI2YTYqSDYp9mE2YbYs9iuINin2YTYp9it2KrZitin2LfZiiDYqNi52K8gMTUg2K/ZgtmK2YLYqSDZhdmGINin2YTYp9iz2KrYrtiv2KfZhSDYp9mE2KrYsdin2YPZhdmKLgpjbGFzcyBBcHBTZXNzaW9uTWFuYWdlciB7CiAgc3RhdGljIGNvbnN0IGludCBfYmFja3VwVGhyZXNob2xkU2Vjb25kcyA9IDkwMDsKCiAgc3RhdGljIEFwcERhdGFiYXNlPyBfZGF0YWJhc2U7CiAgc3RhdGljIERhdGVUaW1lPyBfc2Vzc2lvblN0YXJ0OwogIHN0YXRpYyBTdHJpbmc/IF9hY3RpdmVTZXNzaW9uVXVpZDsKICBzdGF0aWMgaW50IF9hY2N1bXVsYXRlZFNlY29uZHMgPSAwOwogIHN0YXRpYyBGdXR1cmU8U3RyaW5nPz4gRnVuY3Rpb24oKT8gX2RldmljZUlkUmVzb2x2ZXI7CgogIC8vLyDZhdix2KzYuSDZhdi02KrYsdmDINmE2YXYr9mK2LEg2KfZhNmF2LLYp9mF2YbYqSDigJQg2YrZj9i52YrZjtmR2YYg2LnYqNixIGNvbmZpZ3VyZSgpCiAgc3RhdGljIEFwcHdyaXRlU3luY01hbmFnZXI/IF9zaGFyZWRTeW5jTWFuYWdlcjsKCiAgLy8vINiq2YfZitim2Kkg2KfZhNmF2K/ZitixINio2YLYp9i52K/YqSDYp9mE2KjZitin2YbYp9iqINmI2KfZhNiv2YjYp9mEINin2YTZhdiz2KfYudiv2KkgKNmF2KvZhCDYp9mE2K3YtdmI2YQg2LnZhNmJINmF2LnYsdmBINin2YTYrNmH2KfYsikuCiAgc3RhdGljIHZvaWQgY29uZmlndXJlKHsKICAgIHJlcXVpcmVkIEFwcERhdGFiYXNlIGRhdGFiYXNlLAogICAgRnV0dXJlPFN0cmluZz8+IEZ1bmN0aW9uKCk/IGRldmljZUlkUmVzb2x2ZXIsCiAgICBBcHB3cml0ZVN5bmNNYW5hZ2VyPyBzeW5jTWFuYWdlciwKICB9KSB7CiAgICBfZGF0YWJhc2UgPSBkYXRhYmFzZTsKICAgIF9kZXZpY2VJZFJlc29sdmVyID0gZGV2aWNlSWRSZXNvbHZlcjsKICAgIF9zaGFyZWRTeW5jTWFuYWdlciA9IHN5bmNNYW5hZ2VyOwogIH0KCiAgLy8vINin2LPYqtiv2LnYp9ihINi52YbYryDYqti02LrZitmEINin2YTYqti32KjZitmCINij2Ygg2LnZiNiv2KrZhyDYpdmE2Ykg2KfZhNmI2KfYrNmH2KkuCiAgc3RhdGljIEZ1dHVyZTx2b2lkPiBvbkFwcE9wZW4oKSBhc3luYyB7CiAgICAvLyDYqti02LrZitmEINiz2K3YqCDYp9mE2KjZitin2YbYp9iqINmF2YYgQXBwd3JpdGUg2KrZhNmC2KfYptmK2KfZiwogICAgdW5hd2FpdGVkKF90cmlnZ2VyQXBwT3BlbkFwcHdyaXRlUHVsbCgpKTsKCiAgICBpZiAoX3Nlc3Npb25TdGFydCAhPSBudWxsKSB7CiAgICAgIHJldHVybjsKICAgIH0KCiAgICBfc2Vzc2lvblN0YXJ0ID0gRGF0ZVRpbWUubm93KCk7CiAgICBfYWN0aXZlU2Vzc2lvblV1aWQgPSBJZEdlbi51dWlkKCk7CgogICAgZmluYWwgZGIgPSBfZGF0YWJhc2U7CiAgICBpZiAoZGIgIT0gbnVsbCAmJiBfYWN0aXZlU2Vzc2lvblV1aWQgIT0gbnVsbCkgewogICAgICBmaW5hbCBkZXZpY2VJZCA9IGF3YWl0IF9yZXNvbHZlRGV2aWNlSWQoKTsKICAgICAgYXdhaXQgZGIKICAgICAgICAgIC5pbnRvKGRiLmFwcFNlc3Npb25zKQogICAgICAgICAgLmluc2VydCgKICAgICAgICAgICAgQXBwU2Vzc2lvbnNDb21wYW5pb24uaW5zZXJ0KAogICAgICAgICAgICAgIHNlc3Npb25VdWlkOiBfYWN0aXZlU2Vzc2lvblV1aWQhLAogICAgICAgICAgICAgIHNlc3Npb25TdGFydElzbzogX3Nlc3Npb25TdGFydCEudG9Jc284NjAxU3RyaW5nKCksCiAgICAgICAgICAgICAgZGV2aWNlSWQ6IGRldmljZUlkICE9IG51bGwKICAgICAgICAgICAgICAgICAgPyBWYWx1ZShkZXZpY2VJZCkKICAgICAgICAgICAgICAgICAgOiBjb25zdCBWYWx1ZS5hYnNlbnQoKSwKICAgICAgICAgICAgICBkdXJhdGlvblNlY29uZHM6IGNvbnN0IFZhbHVlKDApLAogICAgICAgICAgICApLAogICAgICAgICAgKTsKICAgIH0KICB9CgogIC8vLyDYp9iz2KrYr9i52KfYoSDYudmG2K8g2KfZhtiq2YLYp9mEINin2YTYqti32KjZitmCINil2YTZiSDYp9mE2K7ZhNmB2YrYqSDYo9mIINil2LrZhNin2YLZhy4KICBzdGF0aWMgRnV0dXJlPHZvaWQ+IG9uQXBwQ2xvc2VPckJhY2tncm91bmQoKSBhc3luYyB7CiAgICBmaW5hbCBzdGFydCA9IF9zZXNzaW9uU3RhcnQ7CiAgICBpZiAoc3RhcnQgPT0gbnVsbCkgewogICAgICByZXR1cm47CiAgICB9CgogICAgZmluYWwgZW5kID0gRGF0ZVRpbWUubm93KCk7CiAgICBmaW5hbCBkdXJhdGlvblNlY29uZHMgPSBtYXgoMCwgZW5kLmRpZmZlcmVuY2Uoc3RhcnQpLmluU2Vjb25kcyk7CiAgICBfYWNjdW11bGF0ZWRTZWNvbmRzICs9IGR1cmF0aW9uU2Vjb25kczsKCiAgICBmaW5hbCBkYiA9IF9kYXRhYmFzZTsKICAgIGZpbmFsIHNlc3Npb25VdWlkID0gX2FjdGl2ZVNlc3Npb25VdWlkOwogICAgaWYgKGRiICE9IG51bGwgJiYgc2Vzc2lvblV1aWQgIT0gbnVsbCkgewogICAgICBmaW5hbCBkZXZpY2VJZCA9IGF3YWl0IF9yZXNvbHZlRGV2aWNlSWQoKTsKICAgICAgYXdhaXQgKGRiLnVwZGF0ZSgKICAgICAgICBkYi5hcHBTZXNzaW9ucywKICAgICAgKS4ud2hlcmUoKHRibCkgPT4gdGJsLnNlc3Npb25VdWlkLmVxdWFscyhzZXNzaW9uVXVpZCkpKS53cml0ZSgKICAgICAgICBBcHBTZXNzaW9uc0NvbXBhbmlvbigKICAgICAgICAgIHNlc3Npb25FbmRJc286IFZhbHVlKGVuZC50b0lzbzg2MDFTdHJpbmcoKSksCiAgICAgICAgICBkdXJhdGlvblNlY29uZHM6IFZhbHVlKGR1cmF0aW9uU2Vjb25kcyksCiAgICAgICAgICBkZXZpY2VJZDogZGV2aWNlSWQgIT0gbnVsbCA/IFZhbHVlKGRldmljZUlkKSA6IGNvbnN0IFZhbHVlLmFic2VudCgpLAogICAgICAgICksCiAgICAgICk7CiAgICB9CgogICAgX3Nlc3Npb25TdGFydCA9IG51bGw7CiAgICBfYWN0aXZlU2Vzc2lvblV1aWQgPSBudWxsOwoKICAgIGF3YWl0IF9zY2hlZHVsZUJhY2t1cElmTmVlZGVkKCk7CiAgfQoKICAvLy8g2KrZh9mK2KbYqSDYp9mE2YbYs9iuINin2YTYp9it2KrZitin2LfZiiDYudmG2K8g2KrYrNin2YjYsiDYp9mE2K3YryDYp9mE2KrYsdin2YPZhdmKICgxNSDYr9mC2YrZgtipKS4KICBzdGF0aWMgRnV0dXJlPHZvaWQ+IF9zY2hlZHVsZUJhY2t1cElmTmVlZGVkKCkgYXN5bmMgewogICAgaWYgKF9hY2N1bXVsYXRlZFNlY29uZHMgPj0gX2JhY2t1cFRocmVzaG9sZFNlY29uZHMpIHsKICAgICAgYXdhaXQgV29ya21hbmFnZXIoKS5yZWdpc3Rlck9uZU9mZlRhc2soCiAgICAgICAgJ2JhY2t1cEFmdGVySW5hY3Rpdml0eScsCiAgICAgICAgJ2JhY2t1cEFmdGVySW5hY3Rpdml0eScsCiAgICAgICAgaW5pdGlhbERlbGF5OiBjb25zdCBEdXJhdGlvbihtaW51dGVzOiAxKSwKICAgICAgICBleGlzdGluZ1dvcmtQb2xpY3k6IEV4aXN0aW5nV29ya1BvbGljeS5yZXBsYWNlLAogICAgICAgIGlucHV0RGF0YTogY29uc3QgPFN0cmluZywgZHluYW1pYz57J3RyaWdnZXInOiAnc2Vzc2lvbl90aHJlc2hvbGQnfSwKICAgICAgKTsKICAgICAgX2FjY3VtdWxhdGVkU2Vjb25kcyA9IDA7CiAgICB9CiAgfQoKICBzdGF0aWMgRnV0dXJlPFN0cmluZz8+IF9yZXNvbHZlRGV2aWNlSWQoKSBhc3luYyB7CiAgICBpZiAoX2RldmljZUlkUmVzb2x2ZXIgIT0gbnVsbCkgewogICAgICB0cnkgewogICAgICAgIHJldHVybiBhd2FpdCBfZGV2aWNlSWRSZXNvbHZlciEoKTsKICAgICAgfSBjYXRjaCAoXykgewogICAgICAgIHJldHVybiBudWxsOwogICAgICB9CiAgICB9CiAgICByZXR1cm4gbnVsbDsKICB9CgogIC8vLyDYqtmG2YHZitiwINiz2K3YqCDYp9mE2KjZitin2YbYp9iqINmF2YYgQXBwd3JpdGUg2KrZhNmC2KfYptmK2KfZiyDYudmG2K8g2YHYqtitINin2YTYqti32KjZitmCCiAgLy8vINiq2YUg2KrYrdiz2YrZhtmH2Kcg2YTYqtmD2YjZhiAi2LDZg9mK2KkiOiDZitiq2YUg2KfZhNiz2K3YqCDZhdix2Kkg2YjYp9it2K/YqSDZgdmC2Lcg2YPZhCDYs9in2LnYqSDZg9it2K8g2KPZgti12Ykg2LnZhtivINin2YTZgdiq2K0uCiAgc3RhdGljIEZ1dHVyZTx2b2lkPiBfdHJpZ2dlckFwcE9wZW5BcHB3cml0ZVB1bGwoKSBhc3luYyB7CiAgICB0cnkgewogICAgICBkZWJ1Z1ByaW50KCfwn5SEIFtBcHBPcGVuXSBDaGVja2luZyBmb3IgYXV0b21hdGljIEFwcHdyaXRlIHB1bGwuLi4nKTsKICAgICAgZmluYWwgcHJlZnMgPSBhd2FpdCBTaGFyZWRQcmVmZXJlbmNlcy5nZXRJbnN0YW5jZSgpOwogICAgICBmaW5hbCBhcHB3cml0ZUVuYWJsZWQgPSBwcmVmcy5nZXRCb29sKCdhcHB3cml0ZV9zeW5jX2VuYWJsZWQnKSA/PyB0cnVlOwoKICAgICAgaWYgKCFhcHB3cml0ZUVuYWJsZWQpIHsKICAgICAgICBkZWJ1Z1ByaW50KAogICAgICAgICAgJ+KEue+4jyBbQXBwT3Blbl0gQXBwd3JpdGUgc3luYyBpcyBkaXNhYmxlZCBpbiBzZXR0aW5ncy4gU2tpcHBpbmcgcHVsbC4nLAogICAgICAgICk7CiAgICAgICAgcmV0dXJuOwogICAgICB9CgogICAgICAvLyAtLS0g2KjYr9in2YrYqSDZhdmG2LfZgiDYp9mE2LDZg9in2KEgKNmF2LHYqSDZg9mEINiz2KfYudipKSAtLS0KICAgICAgLy8g2YXZgdiq2KfYrSDYp9mE2KrYrtiy2YrZhiDYp9mE2YXZiNit2K8g2YTYttmF2KfZhiDYp9mE2YLYsdin2KHYqSDYp9mE2LXYrdmK2K3YqQogICAgICBjb25zdCBTdHJpbmcgbGFzdFB1bGxLZXkgPSAnbGFzdF9hcHB3cml0ZV9wdWxsX29uX29wZW5fdGltZXN0YW1wJzsKCiAgICAgIC8vINin2YTYrdi12YjZhCDYudmE2Ykg2KfZhNmI2YLYqiDYp9mE2K3Yp9mE2YoKICAgICAgZmluYWwgbm93ID0gRGF0ZVRpbWUubm93KCk7CiAgICAgIGZpbmFsIG5vd01zID0gbm93Lm1pbGxpc2Vjb25kc1NpbmNlRXBvY2g7CgogICAgICAvLyDZgtix2KfYodipINii2K7YsSDZiNmC2Kog2LPYrdioICgwINil2LDYpyDZhNmFINmK2YjYrNivKQogICAgICBmaW5hbCBsYXN0UHVsbE1zID0gcHJlZnMuZ2V0SW50KGxhc3RQdWxsS2V5KSA/PyAwOwoKICAgICAgaWYgKGxhc3RQdWxsTXMgPiAwKSB7CiAgICAgICAgZmluYWwgbGFzdFB1bGxUaW1lID0gRGF0ZVRpbWUuZnJvbU1pbGxpc2Vjb25kc1NpbmNlRXBvY2gobGFzdFB1bGxNcyk7CiAgICAgICAgZmluYWwgZGlmZmVyZW5jZSA9IG5vdy5kaWZmZXJlbmNlKGxhc3RQdWxsVGltZSk7CgogICAgICAgIC8vINin2YTYqtit2YLZgiDZhdmF2Kcg2KXYsNinINmD2KfZhiDYp9mE2YHYp9ix2YIg2KPZgtmEINmF2YYgNjAg2K/ZgtmK2YLYqQogICAgICAgIGlmIChkaWZmZXJlbmNlLmluTWludXRlcyA8IDYwKSB7CiAgICAgICAgICBmaW5hbCByZW1haW5pbmdNaW51dGVzID0gNjAgLSBkaWZmZXJlbmNlLmluTWludXRlczsKICAgICAgICAgIGRlYnVnUHJpbnQoCiAgICAgICAgICAgICfihLnvuI8gW0FwcE9wZW5dIFNtYXJ0IFN5bmM6IFNraXBwaW5nIHB1bGwuIExhc3QgcHVsbCB3YXMgJHtkaWZmZXJlbmNlLmluTWludXRlc30gbWlucyBhZ28uIE5leHQgcHVsbCBhdmFpbGFibGUgaW4gJHJlbWFpbmluZ01pbnV0ZXMgbWlucy4nLAogICAgICAgICAgKTsKICAgICAgICAgIHJldHVybjsKICAgICAgICB9CiAgICAgIH0KICAgICAgLy8gLS0tINmG2YfYp9mK2Kkg2YXZhti32YIg2KfZhNiw2YPYp9ihIC0tLQoKICAgICAgLy8g2KfZhNin2YbYqti42KfYsSDZgtmE2YrZhNin2Ysg2YTZhNiq2KPZg9ivINmF2YYg2KfYs9iq2YLYsdin2LEg2KfZhNi02KjZg9ipINmI2KfZhNij2YbYuNmF2KkKICAgICAgYXdhaXQgRnV0dXJlPHZvaWQ+LmRlbGF5ZWQoY29uc3QgRHVyYXRpb24oc2Vjb25kczogMykpOwoKICAgICAgZGVidWdQcmludCgn8J+TpSBbQXBwT3Blbl0gU3RhcnRpbmcgc21hcnQgYXV0b21hdGljIEFwcHdyaXRlIHB1bGwuLi4nKTsKCiAgICAgIC8vINin2LPYqtiu2K/Yp9mFIFN5bmNNYW5hZ2VyINin2YTZhdi02KrYsdmDINmE2KrYrNmG2Kgg2YXYstin2YXZhtipINmF2LLYr9mI2KzYqSDZiNmF2LXYp9iv2YXYp9iqIG11dGV4CiAgICAgIGZpbmFsIHN5bmNNYW5hZ2VyID0gX3NoYXJlZFN5bmNNYW5hZ2VyOwogICAgICBpZiAoc3luY01hbmFnZXIgPT0gbnVsbCkgewogICAgICAgIGRlYnVnUHJpbnQoJ+KEue+4jyBbQXBwT3Blbl0gTm8gc2hhcmVkIFN5bmNNYW5hZ2VyIOKAlCBza2lwcGluZyBwdWxsLicpOwogICAgICAgIHJldHVybjsKICAgICAgfQoKICAgICAgLy8g2KrZhtmB2YrYsCDYp9mE2YXYstin2YXZhtipICjYs9it2Kgg2YHZgti3KQogICAgICBmaW5hbCByZXN1bHQgPSBhd2FpdCBzeW5jTWFuYWdlci5zeW5jKHB1c2g6IGZhbHNlKTsKCiAgICAgIC8vINiq2K3Yr9mK2Ksg2YjZgtiqINii2K7YsSDYs9it2Kgg2YbYp9is2K0KICAgICAgYXdhaXQgcHJlZnMuc2V0SW50KGxhc3RQdWxsS2V5LCBub3dNcyk7CgogICAgICBkZWJ1Z1ByaW50KAogICAgICAgICfinIUgW0FwcE9wZW5dIFNtYXJ0IHB1bGwgY29tcGxldGVkOiAke3Jlc3VsdC5yZWNvcmRzUHVsbGVkfSByZWNvcmRzIHB1bGxlZC4nLAogICAgICApOwogICAgfSBjYXRjaCAoZSkgewogICAgICBkZWJ1Z1ByaW50KCfinYwgW0FwcE9wZW5dIEVycm9yIGR1cmluZyBhdXRvbWF0aWMgQXBwd3JpdGUgcHVsbDogJGUnKTsKICAgIH0KICB9Cn0K
+import 'dart:async';
+import 'dart:math';
+
+import 'package:drift/drift.dart' show Value;
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:workmanager/workmanager.dart';
+
+import '../utils/id.dart';
+import 'appwrite_sync_manager.dart';
+import 'local_db.dart';
+
+/// يتتبع جلسات التطبيق ويسجّلها في قاعدة البيانات،
+/// ويقوم بجدولة النسخ الاحتياطي بعد 15 دقيقة من الاستخدام التراكمي.
+class AppSessionManager {
+  static const int _backupThresholdSeconds = 900;
+
+  static AppDatabase? _database;
+  static DateTime? _sessionStart;
+  static String? _activeSessionUuid;
+  static int _accumulatedSeconds = 0;
+  static Future<String?> Function()? _deviceIdResolver;
+
+  /// مرجع مشترك لمدير المزامنة — يُعيَّن عبر configure()
+  static AppwriteSyncManager? _sharedSyncManager;
+
+  /// تهيئة المدير بقاعدة البيانات والدوال المساعدة (مثل الحصول على معرف الجهاز).
+  static void configure({
+    required AppDatabase database,
+    Future<String?> Function()? deviceIdResolver,
+    AppwriteSyncManager? syncManager,
+  }) {
+    _database = database;
+    _deviceIdResolver = deviceIdResolver;
+    _sharedSyncManager = syncManager;
+  }
+
+  /// استدعاء عند تشغيل التطبيق أو عودته إلى الواجهة.
+  static Future<void> onAppOpen() async {
+    // تشغيل سحب البيانات من Appwrite تلقائياً
+    unawaited(_triggerAppOpenAppwritePull());
+
+    if (_sessionStart != null) {
+      return;
+    }
+
+    _sessionStart = DateTime.now();
+    _activeSessionUuid = IdGen.uuid();
+
+    final db = _database;
+    if (db != null && _activeSessionUuid != null) {
+      final deviceId = await _resolveDeviceId();
+      await db
+          .into(db.appSessions)
+          .insert(
+            AppSessionsCompanion.insert(
+              sessionUuid: _activeSessionUuid!,
+              sessionStartIso: _sessionStart!.toIso8601String(),
+              deviceId: deviceId != null
+                  ? Value(deviceId)
+                  : const Value.absent(),
+              durationSeconds: const Value(0),
+            ),
+          );
+    }
+  }
+
+  /// استدعاء عند انتقال التطبيق إلى الخلفية أو إغلاقه.
+  static Future<void> onAppCloseOrBackground() async {
+    final start = _sessionStart;
+    if (start == null) {
+      return;
+    }
+
+    final end = DateTime.now();
+    final durationSeconds = max(0, end.difference(start).inSeconds);
+    _accumulatedSeconds += durationSeconds;
+
+    final db = _database;
+    final sessionUuid = _activeSessionUuid;
+    if (db != null && sessionUuid != null) {
+      final deviceId = await _resolveDeviceId();
+      await (db.update(
+        db.appSessions,
+      )..where((tbl) => tbl.sessionUuid.equals(sessionUuid))).write(
+        AppSessionsCompanion(
+          sessionEndIso: Value(end.toIso8601String()),
+          durationSeconds: Value(durationSeconds),
+          deviceId: deviceId != null ? Value(deviceId) : const Value.absent(),
+        ),
+      );
+    }
+
+    _sessionStart = null;
+    _activeSessionUuid = null;
+
+    await _scheduleBackupIfNeeded();
+  }
+
+  /// تهيئة النسخ الاحتياطي عند تجاوز الحد التراكمي (15 دقيقة).
+  static Future<void> _scheduleBackupIfNeeded() async {
+    if (_accumulatedSeconds >= _backupThresholdSeconds) {
+      await Workmanager().registerOneOffTask(
+        'backupAfterInactivity',
+        'backupAfterInactivity',
+        initialDelay: const Duration(minutes: 1),
+        existingWorkPolicy: ExistingWorkPolicy.replace,
+        inputData: const <String, dynamic>{'trigger': 'session_threshold'},
+      );
+      _accumulatedSeconds = 0;
+    }
+  }
+
+  static Future<String?> _resolveDeviceId() async {
+    if (_deviceIdResolver != null) {
+      try {
+        return await _deviceIdResolver!();
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  /// تنفيذ سحب البيانات من Appwrite تلقائياً عند فتح التطبيق
+  /// تم تحسينها لتكون "ذكية": يتم السحب مرة واحدة فقط كل ساعة كحد أقصى عند الفتح.
+  static Future<void> _triggerAppOpenAppwritePull() async {
+    try {
+      debugPrint('🔄 [AppOpen] Checking for automatic Appwrite pull...');
+      final prefs = await SharedPreferences.getInstance();
+      final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+
+      if (!appwriteEnabled) {
+        debugPrint(
+          'ℹ️ [AppOpen] Appwrite sync is disabled in settings. Skipping pull.',
+        );
+        return;
+      }
+
+      // --- بداية منطق الذكاء (مرة كل ساعة) ---
+      // مفتاح التخزين الموحد لضمان القراءة الصحيحة
+      const String lastPullKey = 'last_appwrite_pull_on_open_timestamp';
+
+      // الحصول على الوقت الحالي
+      final now = DateTime.now();
+      final nowMs = now.millisecondsSinceEpoch;
+
+      // قراءة آخر وقت سحب (0 إذا لم يوجد)
+      final lastPullMs = prefs.getInt(lastPullKey) ?? 0;
+
+      if (lastPullMs > 0) {
+        final lastPullTime = DateTime.fromMillisecondsSinceEpoch(lastPullMs);
+        final difference = now.difference(lastPullTime);
+
+        // التحقق مما إذا كان الفارق أقل من 60 دقيقة
+        if (difference.inMinutes < 60) {
+          final remainingMinutes = 60 - difference.inMinutes;
+          debugPrint(
+            'ℹ️ [AppOpen] Smart Sync: Skipping pull. Last pull was ${difference.inMinutes} mins ago. Next pull available in $remainingMinutes mins.',
+          );
+          return;
+        }
+      }
+      // --- نهاية منطق الذكاء ---
+
+      // الانتظار قليلاً للتأكد من استقرار الشبكة والأنظمة
+      await Future<void>.delayed(const Duration(seconds: 3));
+
+      debugPrint('📥 [AppOpen] Starting smart automatic Appwrite pull...');
+
+      // استخدام SyncManager المشترك لتجنب مزامنة مزدوجة ومصادمات mutex
+      final syncManager = _sharedSyncManager;
+      if (syncManager == null) {
+        debugPrint('ℹ️ [AppOpen] No shared SyncManager — skipping pull.');
+        return;
+      }
+
+      // تنفيذ المزامنة (سحب فقط)
+      final result = await syncManager.sync(push: false);
+
+      // تحديث وقت آخر سحب ناجح
+      await prefs.setInt(lastPullKey, nowMs);
+
+      debugPrint(
+        '✅ [AppOpen] Smart pull completed: ${result.recordsPulled} records pulled.',
+      );
+    } catch (e) {
+      debugPrint('❌ [AppOpen] Error during automatic Appwrite pull: $e');
+    }
+  }
+}
