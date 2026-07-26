@@ -125,13 +125,18 @@ class BookingPriceAdjustmentsAdapter
       // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15) كـ integer
       // نقرأه كـ double للمحلي (integer على Cloud → double محلياً)
       amount: _vDouble(json, 'amount', src),
-      effectiveHotelDay: _vStr(
-        json,
-        'effectiveHotelDay',
-        src,
-        altKey: 'effective_hotel_day',
-        fallback: '',
-      ),
+      // ✅ إصلاح 2026-07-26: نقرأ effectiveHotelDay من أي من الحقلين
+      // — 'effectiveHotelDay' (الاسم المحلي) أو 'hotelDayKey' (اسم Appwrite المطلوب)
+      // عند السحب من Appwrite، الـ payload قد يحتوي على hotelDayKey فقط.
+      effectiveHotelDay: () {
+        final v =
+            _asString(json, 'effectiveHotelDay', src) ??
+            _asString(json, 'effective_hotel_day', src) ??
+            _asString(json, 'hotelDayKey', src) ??
+            _asString(json, 'hotel_day_key', src) ??
+            '';
+        return d.Value(v);
+      }(),
       endHotelDay: _vStr(json, 'endHotelDay', src, altKey: 'end_hotel_day'),
       isActive: _vBool(
         json,
@@ -201,6 +206,9 @@ class BookingPriceAdjustmentsAdapter
       _k(src, 'amount', 'amount'): model.amount.round(),
       _k(src, 'effectiveHotelDay', 'effective_hotel_day'):
           model.effectiveHotelDay,
+      // ✅ إصلاح 2026-07-26: hotelDayKey مطلوب على Appwrite Cloud
+      // محلياً effectiveHotelDay = hotelDayKey (نفس القيمة، اسم مختلف)
+      _k(src, 'hotelDayKey', 'hotel_day_key'): model.effectiveHotelDay,
       _k(src, 'endHotelDay', 'end_hotel_day'): model.endHotelDay,
       _k(src, 'isActive', 'is_active'): model.isActive,
       _k(src, 'reason', 'reason'): model.reason,
