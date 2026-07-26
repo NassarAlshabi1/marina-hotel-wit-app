@@ -1,1 +1,82 @@
-aW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXIvbWF0ZXJpYWwuZGFydCc7CgppbXBvcnQgJy4uLy4uL2NvbXBvbmVudHMvYXBwX3NjYWZmb2xkLmRhcnQnOwppbXBvcnQgJy4uLy4uL3dpZGdldHMvcmVwb3J0X2RhdGVfZmlsdGVyLmRhcnQnOwoKLy8vINmI2YrYr9is2Kog2YXYtNiq2LHZg9ipINmE2KjZhtin2KEg2YfZitmD2YQg2LXZgdit2KfYqiDYp9mE2KrZgtin2LHZitixIChBcHBTY2FmZm9sZCArINmB2YTYqtixINiq2KfYsdmK2K4gKyDYstixINio2K3YqyBQREYpCi8vLyDZhNiq2KzZhtioINiq2YPYsdin2LEg2YPZiNivINin2YTYqNmG2YrYqSDYp9mE2YXYtNiq2LHZg9ipINio2YrZhiDYtNin2LTYp9iqINin2YTYqtmC2KfYsdmK2LEg2KfZhNmF2K7YqtmE2YHYqQpjbGFzcyBSZXBvcnRQYWdlU2NhZmZvbGQgZXh0ZW5kcyBTdGF0ZWxlc3NXaWRnZXQgewogIGNvbnN0IFJlcG9ydFBhZ2VTY2FmZm9sZCh7CiAgICByZXF1aXJlZCB0aGlzLnRpdGxlLAogICAgcmVxdWlyZWQgdGhpcy5maWx0ZXJDb250cm9sbGVyLAogICAgcmVxdWlyZWQgdGhpcy5vbkRhdGVSYW5nZUNoYW5nZWQsCiAgICByZXF1aXJlZCB0aGlzLm9uRXhwb3J0UGRmLAogICAgcmVxdWlyZWQgdGhpcy5vblNlYXJjaCwKICAgIHJlcXVpcmVkIHRoaXMuaXNQZGZFbmFibGVkLAogICAgcmVxdWlyZWQgdGhpcy5pc0xvYWRpbmcsCiAgICByZXF1aXJlZCB0aGlzLmZpbHRlcldpZGdldHMsCiAgICByZXF1aXJlZCB0aGlzLnN1bW1hcnlXaWRnZXQsCiAgICByZXF1aXJlZCB0aGlzLmNvbnRlbnRXaWRnZXQsCiAgICBzdXBlci5rZXksCiAgfSk7CgogIGZpbmFsIFN0cmluZyB0aXRsZTsKICBmaW5hbCBEYXRlRmlsdGVyQ29udHJvbGxlciBmaWx0ZXJDb250cm9sbGVyOwogIGZpbmFsIHZvaWQgRnVuY3Rpb24oRGF0ZVJhbmdlIHJhbmdlKSBvbkRhdGVSYW5nZUNoYW5nZWQ7CiAgZmluYWwgVm9pZENhbGxiYWNrIG9uRXhwb3J0UGRmOwogIGZpbmFsIFZvaWRDYWxsYmFjayBvblNlYXJjaDsKICBmaW5hbCBib29sIGlzUGRmRW5hYmxlZDsKICBmaW5hbCBib29sIGlzTG9hZGluZzsKICBmaW5hbCBMaXN0PFdpZGdldD4gZmlsdGVyV2lkZ2V0czsKICBmaW5hbCBXaWRnZXQgc3VtbWFyeVdpZGdldDsKICBmaW5hbCBXaWRnZXQgY29udGVudFdpZGdldDsKCiAgQG92ZXJyaWRlCiAgV2lkZ2V0IGJ1aWxkKEJ1aWxkQ29udGV4dCBjb250ZXh0KSB7CiAgICByZXR1cm4gQXBwU2NhZmZvbGQoCiAgICAgIHRpdGxlOiB0aXRsZSwKICAgICAgYWN0aW9uczogWwogICAgICAgIEljb25CdXR0b24oCiAgICAgICAgICBpY29uOiBjb25zdCBJY29uKEljb25zLnBpY3R1cmVfYXNfcGRmKSwKICAgICAgICAgIHRvb2x0aXA6ICfYqti12K/ZitixIFBERicsCiAgICAgICAgICBvblByZXNzZWQ6IGlzUGRmRW5hYmxlZCA/IG9uRXhwb3J0UGRmIDogbnVsbCwKICAgICAgICApLAogICAgICBdLAogICAgICBib2R5OiBQYWRkaW5nKAogICAgICAgIHBhZGRpbmc6IGNvbnN0IEVkZ2VJbnNldHMuc3ltbWV0cmljKGhvcml6b250YWw6IDgsIHZlcnRpY2FsOiA2KSwKICAgICAgICBjaGlsZDogQ29sdW1uKAogICAgICAgICAgY3Jvc3NBeGlzQWxpZ25tZW50OiBDcm9zc0F4aXNBbGlnbm1lbnQuc3RhcnQsCiAgICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgICBSZXBvcnREYXRlRmlsdGVyV2lkZ2V0KAogICAgICAgICAgICAgIGNvbnRyb2xsZXI6IGZpbHRlckNvbnRyb2xsZXIsCiAgICAgICAgICAgICAgb25EYXRlUmFuZ2VDaGFuZ2VkOiBvbkRhdGVSYW5nZUNoYW5nZWQsCiAgICAgICAgICAgICksCiAgICAgICAgICAgIFdyYXAoCiAgICAgICAgICAgICAgc3BhY2luZzogOCwKICAgICAgICAgICAgICBydW5TcGFjaW5nOiA4LAogICAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgICAuLi5maWx0ZXJXaWRnZXRzLAogICAgICAgICAgICAgICAgRWxldmF0ZWRCdXR0b24uaWNvbigKICAgICAgICAgICAgICAgICAgc3R5bGU6IEVsZXZhdGVkQnV0dG9uLnN0eWxlRnJvbSgKICAgICAgICAgICAgICAgICAgICBwYWRkaW5nOiBjb25zdCBFZGdlSW5zZXRzLnN5bW1ldHJpYygKICAgICAgICAgICAgICAgICAgICAgIGhvcml6b250YWw6IDEwLAogICAgICAgICAgICAgICAgICAgICAgdmVydGljYWw6IDYsCiAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgICB0ZXh0U3R5bGU6IGNvbnN0IFRleHRTdHlsZShmb250U2l6ZTogMTEpLAogICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICBvblByZXNzZWQ6IGlzTG9hZGluZyA/IG51bGwgOiBvblNlYXJjaCwKICAgICAgICAgICAgICAgICAgaWNvbjogY29uc3QgSWNvbihJY29ucy5zZWFyY2gsIHNpemU6IDE2KSwKICAgICAgICAgICAgICAgICAgbGFiZWw6IFRleHQoaXNMb2FkaW5nID8gJ9is2KfYsdmNLi4uJyA6ICfYqNit2KsnKSwKICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgXSwKICAgICAgICAgICAgKSwKICAgICAgICAgICAgY29uc3QgU2l6ZWRCb3goaGVpZ2h0OiA4KSwKICAgICAgICAgICAgc3VtbWFyeVdpZGdldCwKICAgICAgICAgICAgY29uc3QgU2l6ZWRCb3goaGVpZ2h0OiA4KSwKICAgICAgICAgICAgRXhwYW5kZWQoY2hpbGQ6IGNvbnRlbnRXaWRnZXQpLAogICAgICAgICAgXSwKICAgICAgICApLAogICAgICApLAogICAgKTsKICB9Cn0K
+import 'package:flutter/material.dart';
+
+import '../../components/app_scaffold.dart';
+import '../../widgets/report_date_filter.dart';
+
+/// ويدجت مشتركة لبناء هيكل صفحات التقارير (AppScaffold + فلتر تاريخ + زر بحث PDF)
+/// لتجنب تكرار كود البنية المشتركة بين شاشات التقارير المختلفة
+class ReportPageScaffold extends StatelessWidget {
+  const ReportPageScaffold({
+    required this.title,
+    required this.filterController,
+    required this.onDateRangeChanged,
+    required this.onExportPdf,
+    required this.onSearch,
+    required this.isPdfEnabled,
+    required this.isLoading,
+    required this.filterWidgets,
+    required this.summaryWidget,
+    required this.contentWidget,
+    super.key,
+  });
+
+  final String title;
+  final DateFilterController filterController;
+  final void Function(DateRange range) onDateRangeChanged;
+  final VoidCallback onExportPdf;
+  final VoidCallback onSearch;
+  final bool isPdfEnabled;
+  final bool isLoading;
+  final List<Widget> filterWidgets;
+  final Widget summaryWidget;
+  final Widget contentWidget;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppScaffold(
+      title: title,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.picture_as_pdf),
+          tooltip: 'تصدير PDF',
+          onPressed: isPdfEnabled ? onExportPdf : null,
+        ),
+      ],
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ReportDateFilterWidget(
+              controller: filterController,
+              onDateRangeChanged: onDateRangeChanged,
+            ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ...filterWidgets,
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    textStyle: const TextStyle(fontSize: 11),
+                  ),
+                  onPressed: isLoading ? null : onSearch,
+                  icon: const Icon(Icons.search, size: 16),
+                  label: Text(isLoading ? 'جارٍ...' : 'بحث'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            summaryWidget,
+            const SizedBox(height: 8),
+            Expanded(child: contentWidget),
+          ],
+        ),
+      ),
+    );
+  }
+}
