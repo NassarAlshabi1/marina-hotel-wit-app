@@ -1,1 +1,284 @@
-aW1wb3J0ICdwYWNrYWdlOmRyaWZ0L2RyaWZ0LmRhcnQnIGFzIGQ7CgppbXBvcnQgJy4uLy4uL3V0aWxzL2lkLmRhcnQnOwppbXBvcnQgJy4uLy4uL3V0aWxzL3RpbWUuZGFydCc7CmltcG9ydCAnLi4vbG9jYWxfZGIuZGFydCc7CmltcG9ydCAnZW50aXR5X2FkYXB0ZXIuZGFydCc7CmltcG9ydCAnaWRfcmVzb2x2ZXIuZGFydCc7CmltcG9ydCAncmVzb2x2ZV9yZXN1bHQuZGFydCc7CmltcG9ydCAnc291cmNlLmRhcnQnOwoKY2xhc3MgRW1wbG95ZWVzQWRhcHRlciBleHRlbmRzIEVudGl0eUFkYXB0ZXI8RW1wbG95ZWUsIEVtcGxveWVlc0NvbXBhbmlvbj4gewogIEVtcGxveWVlc0FkYXB0ZXIodGhpcy5yZXNvbHZlcik7CiAgZmluYWwgSWRSZXNvbHZlciByZXNvbHZlcjsKCiAgQG92ZXJyaWRlCiAgU3RyaW5nIGdldCBjb2xsZWN0aW9uSWQgPT4gJ2VtcGxveWVlcyc7CgogIEBvdmVycmlkZQogIFN0cmluZyBnZXQgZHJpdmVQYXRoID0+ICdlbXBsb3llZXMuanNvbic7CgogIEBvdmVycmlkZQogIFN0cmluZyBnZXQgdGFibGVOYW1lID0+ICdlbXBsb3llZXMnOwoKICBAb3ZlcnJpZGUKICBGdXR1cmU8UmVzb2x2ZVJlc3VsdD4gcmVzb2x2ZVJlZnMoCiAgICBBcHBEYXRhYmFzZSBkYiwKICAgIE1hcDxTdHJpbmcsIGR5bmFtaWM+IGpzb24sIHsKICAgIHJlcXVpcmVkIFNvdXJjZSBzcmMsCiAgfSkgYXN5bmMgewogICAgZmluYWwgY3JlYXRlZEF0ID0gX2Vwb2NoKGpzb24sICdjcmVhdGVkQXQnLCBzcmMpOwogICAgZmluYWwgbGFzdE1vZGlmaWVkID0gX2Vwb2NoKGpzb24sICdsYXN0TW9kaWZpZWQnLCBzcmMpOwogICAgcmV0dXJuIFJlc29sdmVSZXN1bHQoCiAgICAgIGNyZWF0ZWRBdEVwb2NoOiBjcmVhdGVkQXQsCiAgICAgIGxhc3RNb2RpZmllZEVwb2NoOiBsYXN0TW9kaWZpZWQsCiAgICApOwogIH0KCiAgQG92ZXJyaWRlCiAgRW1wbG95ZWVzQ29tcGFuaW9uIGZyb21Kc29uKAogICAgTWFwPFN0cmluZywgZHluYW1pYz4ganNvbiwgewogICAgcmVxdWlyZWQgU291cmNlIHNyYywKICAgIHJlcXVpcmVkIFJlc29sdmVSZXN1bHQgcmVmcywKICB9KSB7CiAgICBmaW5hbCBub3cgPSBUaW1lLm5vd0Vwb2NoKCk7CiAgICBmaW5hbCBjcmVhdGVkQXQgPQogICAgICAgIHJlZnMuY3JlYXRlZEF0RXBvY2ggPz8gX2Vwb2NoKGpzb24sICdjcmVhdGVkQXQnLCBzcmMpID8/IG5vdzsKICAgIGZpbmFsIGxhc3RNb2RpZmllZCA9CiAgICAgICAgcmVmcy5sYXN0TW9kaWZpZWRFcG9jaCA/PwogICAgICAgIF9lcG9jaChqc29uLCAnbGFzdE1vZGlmaWVkJywgc3JjKSA/PwogICAgICAgIGNyZWF0ZWRBdDsKICAgIHJldHVybiBFbXBsb3llZXNDb21wYW5pb24oCiAgICAgIGlkOiBfdkludChqc29uLCAnaWQnLCBzcmMpLAogICAgICBsb2NhbFV1aWQ6IGQuVmFsdWUoCiAgICAgICAgX2FzU3RyaW5nKGpzb24sICdsb2NhbFV1aWQnLCBzcmMpID8/CiAgICAgICAgICAgIF9hc1N0cmluZyhqc29uLCAnbG9jYWxfdXVpZCcsIHNyYykgPz8KICAgICAgICAgICAgSWRHZW4udXVpZCgpLAogICAgICApLAogICAgICBzZXJ2ZXJJZDogX3ZJbnQoanNvbiwgJ3NlcnZlcklkJywgc3JjKSwKICAgICAgbmFtZTogX3ZTdHIoanNvbiwgJ25hbWUnLCBzcmMsIGZhbGxiYWNrOiAnJyksCiAgICAgIGJhc2ljU2FsYXJ5OiBfdkRvdWJsZSgKICAgICAgICBqc29uLAogICAgICAgICdiYXNpY1NhbGFyeScsCiAgICAgICAgc3JjLAogICAgICAgIGFsdEtleTogJ2Jhc2ljX3NhbGFyeScsCiAgICAgICAgZmFsbGJhY2s6IDAsCiAgICAgICksCiAgICAgIHBvc2l0aW9uOiBfdlN0cihqc29uLCAncG9zaXRpb24nLCBzcmMsIGZhbGxiYWNrOiAn2YXZiNi42YEnKSwKICAgICAgcGhvbmU6IF92U3RyKGpzb24sICdwaG9uZScsIHNyYywgZmFsbGJhY2s6ICcnKSwKICAgICAgaGlyZURhdGU6IF92U3RyKGpzb24sICdoaXJlRGF0ZScsIHNyYywgYWx0S2V5OiAnaGlyZV9kYXRlJywgZmFsbGJhY2s6ICcnKSwKICAgICAgc3RhdHVzOiBfdlN0cihqc29uLCAnc3RhdHVzJywgc3JjLCBmYWxsYmFjazogJycpLAogICAgICB0ZXJtaW5hdGlvbkRhdGU6IF92U3RyKAogICAgICAgIGpzb24sCiAgICAgICAgJ3Rlcm1pbmF0aW9uRGF0ZScsCiAgICAgICAgc3JjLAogICAgICAgIGFsdEtleTogJ3Rlcm1pbmF0aW9uX2RhdGUnLAogICAgICApLAogICAgICB0ZXJtaW5hdGlvblJlYXNvbjogX3ZTdHIoCiAgICAgICAganNvbiwKICAgICAgICAndGVybWluYXRpb25SZWFzb24nLAogICAgICAgIHNyYywKICAgICAgICBhbHRLZXk6ICd0ZXJtaW5hdGlvbl9yZWFzb24nLAogICAgICApLAogICAgICBjcmVhdGVkQXQ6IGQuVmFsdWUoY3JlYXRlZEF0KSwKICAgICAgdXBkYXRlZEF0OiBkLlZhbHVlKF9lcG9jaChqc29uLCAndXBkYXRlZEF0Jywgc3JjKSA/PyBjcmVhdGVkQXQpLAogICAgICBkZWxldGVkQXQ6IF92SW50KGpzb24sICdkZWxldGVkQXQnLCBzcmMpLAogICAgICBsYXN0TW9kaWZpZWQ6IGQuVmFsdWUobGFzdE1vZGlmaWVkKSwKICAgICAgY3JlYXRlZEF0SXNvOiBfdlN0cihqc29uLCAnY3JlYXRlZEF0SXNvJywgc3JjKSwKICAgICAgdXBkYXRlZEF0SXNvOiBfdlN0cihqc29uLCAndXBkYXRlZEF0SXNvJywgc3JjKSwKICAgICAgZGVsZXRlZEF0SXNvOiBfdlN0cihqc29uLCAnZGVsZXRlZEF0SXNvJywgc3JjKSwKICAgICAgY3JlYXRlZEF0RXBvY2g6IF92SW50KGpzb24sICdjcmVhdGVkQXRFcG9jaCcsIHNyYywgZmFsbGJhY2s6IGNyZWF0ZWRBdCksCiAgICAgIGxhc3RNb2RpZmllZEVwb2NoOiBfdkludCgKICAgICAgICBqc29uLAogICAgICAgICdsYXN0TW9kaWZpZWRFcG9jaCcsCiAgICAgICAgc3JjLAogICAgICAgIGZhbGxiYWNrOiBsYXN0TW9kaWZpZWQsCiAgICAgICksCiAgICAgIHZlcnNpb246IF92SW50KGpzb24sICd2ZXJzaW9uJywgc3JjLCBmYWxsYmFjazogMSksCiAgICAgIC8vIOKchSDYpdi12YTYp9itOiDYudmG2K8gc3JjPVNvdXJjZS5hcHB3cml0ZdiMINmG2LXYsSDYudmE2Ykgb3JpZ2luPSdzZXJ2ZXInINiv2KfYptmF2KfZiwogICAgICAvLyDZhNmF2YbYuSDZhdi02YPZhNipINij2YYg2KfZhNio2YrYp9mG2KfYqiDYp9mE2YXYs9it2YjYqNipINmF2YYg2KfZhNiz2YrYsdmB2LEg2KrYrdmF2YQgb3JpZ2luPSdtb2JpbGUnCiAgICAgIC8vINmF2YXYpyDZitmF2YbYuSBfY2xlYW51cE91dGJveEFmdGVyUHVsbCDZhdmGINiq2YbYuNmK2YEg2LnZhtin2LXYsSBvdXRib3gg2KjYtNmD2YQg2LXYrdmK2K0KICAgICAgb3JpZ2luOiBzcmMgPT0gU291cmNlLmFwcHdyaXRlIHx8IHNyYyA9PSBTb3VyY2UuZHJpdmUKICAgICAgICAgID8gY29uc3QgZC5WYWx1ZSgnc2VydmVyJykKICAgICAgICAgIDogX3ZTdHIoanNvbiwgJ29yaWdpbicsIHNyYywgZmFsbGJhY2s6ICdzZXJ2ZXInKSwKICAgICAgdmVjdG9yQ2xvY2s6IF92U3RyKAogICAgICAgIGpzb24sCiAgICAgICAgJ3ZlY3RvckNsb2NrJywKICAgICAgICBzcmMsCiAgICAgICAgYWx0S2V5OiAndmVjdG9yX2Nsb2NrJywKICAgICAgICBmYWxsYmFjazogJ3t9JywKICAgICAgKSwKICAgICAgaWRlbXBvdGVuY3lLZXk6IF92U3RyKAogICAgICAgIGpzb24sCiAgICAgICAgJ2lkZW1wb3RlbmN5S2V5JywKICAgICAgICBzcmMsCiAgICAgICAgYWx0S2V5OiAnaWRlbXBvdGVuY3lfa2V5JywKICAgICAgKSwKICAgICAgZW1wbG95ZWVJRDogX3ZTdHIoanNvbiwgJ0VtcGxveWVlSUQnLCBzcmMsIGFsdEtleTogJ2VtcGxveWVlX2lfZCcpLAogICAgICBkZXZpY2VJZDogX3ZTdHIoanNvbiwgJ2RldmljZUlkJywgc3JjLCBhbHRLZXk6ICdkZXZpY2VfaWQnLCBmYWxsYmFjazogJycpLAogICAgKTsKICB9CgogIEBvdmVycmlkZQogIE1hcDxTdHJpbmcsIGR5bmFtaWM+IHRvSnNvbihFbXBsb3llZSBtb2RlbCwge3JlcXVpcmVkIFNvdXJjZSBzcmN9KSB7CiAgICByZXR1cm4gewogICAgICBfayhzcmMsICdpZCcsICdpZCcpOiBtb2RlbC5pZCwKICAgICAgX2soc3JjLCAnbG9jYWxVdWlkJywgJ2xvY2FsX3V1aWQnKTogbW9kZWwubG9jYWxVdWlkLAogICAgICBfayhzcmMsICdzZXJ2ZXJJZCcsICdzZXJ2ZXJfaWQnKTogbW9kZWwuc2VydmVySWQsCiAgICAgIF9rKHNyYywgJ25hbWUnLCAnbmFtZScpOiBtb2RlbC5uYW1lLAogICAgICBfayhzcmMsICdiYXNpY1NhbGFyeScsICdiYXNpY19zYWxhcnknKTogbW9kZWwuYmFzaWNTYWxhcnksCiAgICAgIF9rKHNyYywgJ3Bvc2l0aW9uJywgJ3Bvc2l0aW9uJyk6IG1vZGVsLnBvc2l0aW9uLAogICAgICBfayhzcmMsICdwaG9uZScsICdwaG9uZScpOiBtb2RlbC5waG9uZSwKICAgICAgX2soc3JjLCAnaGlyZURhdGUnLCAnaGlyZV9kYXRlJyk6IG1vZGVsLmhpcmVEYXRlLAogICAgICBfayhzcmMsICdzdGF0dXMnLCAnc3RhdHVzJyk6IG1vZGVsLnN0YXR1cywKICAgICAgX2soc3JjLCAndGVybWluYXRpb25EYXRlJywgJ3Rlcm1pbmF0aW9uX2RhdGUnKTogbW9kZWwudGVybWluYXRpb25EYXRlLAogICAgICBfayhzcmMsICd0ZXJtaW5hdGlvblJlYXNvbicsICd0ZXJtaW5hdGlvbl9yZWFzb24nKToKICAgICAgICAgIG1vZGVsLnRlcm1pbmF0aW9uUmVhc29uLAogICAgICBfayhzcmMsICdjcmVhdGVkQXQnLCAnY3JlYXRlZF9hdCcpOiBtb2RlbC5jcmVhdGVkQXQsCiAgICAgIF9rKHNyYywgJ2NyZWF0ZWRBdEVwb2NoJywgJ2NyZWF0ZWRfYXRfZXBvY2gnKTogbW9kZWwuY3JlYXRlZEF0RXBvY2gsCiAgICAgIF9rKHNyYywgJ2NyZWF0ZWRBdElzbycsICdjcmVhdGVkX2F0X2lzbycpOiBtb2RlbC5jcmVhdGVkQXRJc28sCiAgICAgIF9rKHNyYywgJ3VwZGF0ZWRBdCcsICd1cGRhdGVkX2F0Jyk6IG1vZGVsLnVwZGF0ZWRBdCwKICAgICAgX2soc3JjLCAndXBkYXRlZEF0SXNvJywgJ3VwZGF0ZWRfYXRfaXNvJyk6IG1vZGVsLnVwZGF0ZWRBdElzbywKICAgICAgX2soc3JjLCAnZGVsZXRlZEF0JywgJ2RlbGV0ZWRfYXQnKTogbW9kZWwuZGVsZXRlZEF0LAogICAgICBfayhzcmMsICdkZWxldGVkQXRJc28nLCAnZGVsZXRlZF9hdF9pc28nKTogbW9kZWwuZGVsZXRlZEF0SXNvLAogICAgICBfayhzcmMsICdsYXN0TW9kaWZpZWQnLCAnbGFzdF9tb2RpZmllZCcpOiBtb2RlbC5sYXN0TW9kaWZpZWQsCiAgICAgIF9rKHNyYywgJ2xhc3RNb2RpZmllZEVwb2NoJywgJ2xhc3RfbW9kaWZpZWRfZXBvY2gnKToKICAgICAgICAgIG1vZGVsLmxhc3RNb2RpZmllZEVwb2NoLAogICAgICBfayhzcmMsICd2ZXJzaW9uJywgJ3ZlcnNpb24nKTogbW9kZWwudmVyc2lvbiwKICAgICAgX2soc3JjLCAnb3JpZ2luJywgJ29yaWdpbicpOiBtb2RlbC5vcmlnaW4sCiAgICAgIF9rKHNyYywgJ3ZlY3RvckNsb2NrJywgJ3ZlY3Rvcl9jbG9jaycpOiBtb2RlbC52ZWN0b3JDbG9jaywKICAgICAgJ2lkZW1wb3RlbmN5S2V5JzogbW9kZWwuaWRlbXBvdGVuY3lLZXksCiAgICAgICdFbXBsb3llZUlEJzogbW9kZWwuZW1wbG95ZWVJRCwKICAgICAgJ2RldmljZUlkJzogbW9kZWwuZGV2aWNlSWQsCiAgICB9OwogIH0KfQoKZC5WYWx1ZTxpbnQ+IF92SW50KAogIE1hcDxTdHJpbmcsIGR5bmFtaWM+IGpzb24sCiAgU3RyaW5nIGtleSwKICBTb3VyY2Ugc3JjLCB7CiAgU3RyaW5nPyBhbHRLZXksCiAgaW50PyBmYWxsYmFjaywKfSkgewogIGZpbmFsIHYgPQogICAgICBfYXNJbnQoanNvbiwga2V5LCBzcmMpID8/CiAgICAgIChhbHRLZXkgIT0gbnVsbCA/IF9hc0ludChqc29uLCBhbHRLZXksIHNyYykgOiBudWxsKSA/PwogICAgICBmYWxsYmFjazsKICByZXR1cm4gdiA9PSBudWxsID8gY29uc3QgZC5WYWx1ZS5hYnNlbnQoKSA6IGQuVmFsdWUodik7Cn0KCmQuVmFsdWU8U3RyaW5nPiBfdlN0cigKICBNYXA8U3RyaW5nLCBkeW5hbWljPiBqc29uLAogIFN0cmluZyBrZXksCiAgU291cmNlIHNyYywgewogIFN0cmluZz8gYWx0S2V5LAogIFN0cmluZz8gZmFsbGJhY2ssCn0pIHsKICBmaW5hbCB2ID0KICAgICAgX2FzU3RyaW5nKGpzb24sIGtleSwgc3JjKSA/PwogICAgICAoYWx0S2V5ICE9IG51bGwgPyBfYXNTdHJpbmcoanNvbiwgYWx0S2V5LCBzcmMpIDogbnVsbCkgPz8KICAgICAgZmFsbGJhY2s7CiAgcmV0dXJuIHYgPT0gbnVsbCA/IGNvbnN0IGQuVmFsdWUuYWJzZW50KCkgOiBkLlZhbHVlKHYpOwp9CgpkLlZhbHVlPGRvdWJsZT4gX3ZEb3VibGUoCiAgTWFwPFN0cmluZywgZHluYW1pYz4ganNvbiwKICBTdHJpbmcga2V5LAogIFNvdXJjZSBzcmMsIHsKICBTdHJpbmc/IGFsdEtleSwKICBkb3VibGU/IGZhbGxiYWNrLAp9KSB7CiAgZmluYWwgdiA9CiAgICAgIF9hc0RvdWJsZShqc29uLCBrZXksIHNyYykgPz8KICAgICAgKGFsdEtleSAhPSBudWxsID8gX2FzRG91YmxlKGpzb24sIGFsdEtleSwgc3JjKSA6IG51bGwpID8/CiAgICAgIGZhbGxiYWNrOwogIHJldHVybiB2ID09IG51bGwgPyBjb25zdCBkLlZhbHVlLmFic2VudCgpIDogZC5WYWx1ZSh2KTsKfQoKaW50PyBfZXBvY2goTWFwPFN0cmluZywgZHluYW1pYz4ganNvbiwgU3RyaW5nIGtleSwgU291cmNlIHNyYykgewogIGZpbmFsIHYgPSBfYXNJbnQoanNvbiwga2V5LCBzcmMpOwogIGlmICh2ICE9IG51bGwpIHsKICAgIHJldHVybiB2OwogIH0KICBmaW5hbCBzID0gX2FzU3RyaW5nKGpzb24sIGtleSwgc3JjKTsKICBpZiAocyA9PSBudWxsKSB7CiAgICByZXR1cm4gbnVsbDsKICB9CiAgcmV0dXJuIGludC50cnlQYXJzZShzKTsKfQoKaW50PyBfYXNJbnQoTWFwPFN0cmluZywgZHluYW1pYz4ganNvbiwgU3RyaW5nIGtleSwgU291cmNlIHNyYykgewogIGZpbmFsIHYgPSBfcmF3KGpzb24sIGtleSwgc3JjKTsKICBpZiAodiBpcyBib29sKSB7CiAgICByZXR1cm4gdiA/IDEgOiAwOwogIH0KICBpZiAodiBpcyBpbnQpIHsKICAgIHJldHVybiB2OwogIH0KICBpZiAodiBpcyBudW0pIHsKICAgIHJldHVybiB2LnRvSW50KCk7CiAgfQogIGlmICh2IGlzIFN0cmluZykgewogICAgLy8g2KrYrNin2YfZhCBVVUlEINij2Yggc3RyaW5ncyDYt9mI2YrZhNipCiAgICBpZiAodi5jb250YWlucygnLScpIHx8IHYubGVuZ3RoID4gMjApIHsKICAgICAgcmV0dXJuIG51bGw7CiAgICB9CiAgICByZXR1cm4gaW50LnRyeVBhcnNlKHYpOwogIH0KICByZXR1cm4gbnVsbDsKfQoKZG91YmxlPyBfYXNEb3VibGUoTWFwPFN0cmluZywgZHluYW1pYz4ganNvbiwgU3RyaW5nIGtleSwgU291cmNlIHNyYykgewogIGZpbmFsIHYgPSBfcmF3KGpzb24sIGtleSwgc3JjKTsKICBpZiAodiBpcyBkb3VibGUpIHsKICAgIHJldHVybiB2OwogIH0KICBpZiAodiBpcyBpbnQpIHsKICAgIHJldHVybiB2LnRvRG91YmxlKCk7CiAgfQogIGlmICh2IGlzIG51bSkgewogICAgcmV0dXJuIHYudG9Eb3VibGUoKTsKICB9CiAgaWYgKHYgaXMgU3RyaW5nKSB7CiAgICByZXR1cm4gZG91YmxlLnRyeVBhcnNlKHYpOwogIH0KICByZXR1cm4gbnVsbDsKfQoKU3RyaW5nPyBfYXNTdHJpbmcoTWFwPFN0cmluZywgZHluYW1pYz4ganNvbiwgU3RyaW5nIGtleSwgU291cmNlIHNyYykgewogIGZpbmFsIHYgPSBfcmF3KGpzb24sIGtleSwgc3JjKTsKICBpZiAodiA9PSBudWxsKSB7CiAgICByZXR1cm4gbnVsbDsKICB9CiAgcmV0dXJuIHYudG9TdHJpbmcoKTsKfQoKT2JqZWN0PyBfcmF3KE1hcDxTdHJpbmcsIGR5bmFtaWM+IGpzb24sIFN0cmluZyBrZXksIFNvdXJjZSBzcmMpIHsKICBpZiAoanNvbi5jb250YWluc0tleShrZXkpKSB7CiAgICByZXR1cm4ganNvbltrZXldOwogIH0KICBmaW5hbCBhbHQgPSBfYWx0S2V5KGtleSwgc3JjKTsKICBpZiAoYWx0ICE9IG51bGwgJiYganNvbi5jb250YWluc0tleShhbHQpKSB7CiAgICByZXR1cm4ganNvblthbHRdOwogIH0KICByZXR1cm4gbnVsbDsKfQoKU3RyaW5nIF9rKFNvdXJjZSBzcmMsIFN0cmluZyBjYW1lbCwgU3RyaW5nIHNuYWtlKSA9PgogICAgc3JjID09IFNvdXJjZS5kcml2ZSA/IHNuYWtlIDogY2FtZWw7CgpTdHJpbmc/IF9hbHRLZXkoU3RyaW5nIGNhbWVsLCBTb3VyY2Ugc3JjKSB7CiAgLy8g4pyFINil2LXZhNin2K06INiq2K3ZiNmK2YQgY2FtZWxDYXNlIOKGkiBzbmFrZV9jYXNlINmE2KzZhdmK2Lkg2KfZhNmF2LXYp9iv2LEg2KjZhdinINmB2YrZh9inIERyaXZlCiAgZmluYWwgYnVmID0gU3RyaW5nQnVmZmVyKCk7CiAgZm9yICh2YXIgaSA9IDA7IGkgPCBjYW1lbC5sZW5ndGg7IGkrKykgewogICAgZmluYWwgYyA9IGNhbWVsW2ldOwogICAgaWYgKGMudG9VcHBlckNhc2UoKSA9PSBjICYmIGMudG9Mb3dlckNhc2UoKSAhPSBjKSB7CiAgICAgIGJ1Zi53cml0ZSgnXycpOwogICAgICBidWYud3JpdGUoYy50b0xvd2VyQ2FzZSgpKTsKICAgIH0gZWxzZSB7CiAgICAgIGJ1Zi53cml0ZShjKTsKICAgIH0KICB9CiAgcmV0dXJuIGJ1Zi50b1N0cmluZygpOwp9Cg==
+import 'package:drift/drift.dart' as d;
+
+import '../../utils/id.dart';
+import '../../utils/time.dart';
+import '../local_db.dart';
+import 'entity_adapter.dart';
+import 'id_resolver.dart';
+import 'resolve_result.dart';
+import 'source.dart';
+
+class EmployeesAdapter extends EntityAdapter<Employee, EmployeesCompanion> {
+  EmployeesAdapter(this.resolver);
+  final IdResolver resolver;
+
+  @override
+  String get collectionId => 'employees';
+
+  @override
+  String get drivePath => 'employees.json';
+
+  @override
+  String get tableName => 'employees';
+
+  @override
+  Future<ResolveResult> resolveRefs(
+    AppDatabase db,
+    Map<String, dynamic> json, {
+    required Source src,
+  }) async {
+    final createdAt = _epoch(json, 'createdAt', src);
+    final lastModified = _epoch(json, 'lastModified', src);
+    return ResolveResult(
+      createdAtEpoch: createdAt,
+      lastModifiedEpoch: lastModified,
+    );
+  }
+
+  @override
+  EmployeesCompanion fromJson(
+    Map<String, dynamic> json, {
+    required Source src,
+    required ResolveResult refs,
+  }) {
+    final now = Time.nowEpoch();
+    final createdAt =
+        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final lastModified =
+        refs.lastModifiedEpoch ??
+        _epoch(json, 'lastModified', src) ??
+        createdAt;
+    return EmployeesCompanion(
+      id: _vInt(json, 'id', src),
+      localUuid: d.Value(
+        _asString(json, 'localUuid', src) ??
+            _asString(json, 'local_uuid', src) ??
+            IdGen.uuid(),
+      ),
+      serverId: _vInt(json, 'serverId', src),
+      name: _vStr(json, 'name', src, fallback: ''),
+      basicSalary: _vDouble(
+        json,
+        'basicSalary',
+        src,
+        altKey: 'basic_salary',
+        fallback: 0,
+      ),
+      position: _vStr(json, 'position', src, fallback: 'موظف'),
+      phone: _vStr(json, 'phone', src, fallback: ''),
+      hireDate: _vStr(json, 'hireDate', src, altKey: 'hire_date', fallback: ''),
+      status: _vStr(json, 'status', src, fallback: ''),
+      terminationDate: _vStr(
+        json,
+        'terminationDate',
+        src,
+        altKey: 'termination_date',
+      ),
+      terminationReason: _vStr(
+        json,
+        'terminationReason',
+        src,
+        altKey: 'termination_reason',
+      ),
+      createdAt: d.Value(createdAt),
+      updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
+      deletedAt: _vInt(json, 'deletedAt', src),
+      lastModified: d.Value(lastModified),
+      createdAtIso: _vStr(json, 'createdAtIso', src),
+      updatedAtIso: _vStr(json, 'updatedAtIso', src),
+      deletedAtIso: _vStr(json, 'deletedAtIso', src),
+      createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
+      lastModifiedEpoch: _vInt(
+        json,
+        'lastModifiedEpoch',
+        src,
+        fallback: lastModified,
+      ),
+      version: _vInt(json, 'version', src, fallback: 1),
+      // ✅ إصلاح: عند src=Source.appwrite، نصر على origin='server' دائماً
+      // لمنع مشكلة أن البيانات المسحوبة من السيرفر تحمل origin='mobile'
+      // مما يمنع _cleanupOutboxAfterPull من تنظيف عناصر outbox بشكل صحيح
+      origin: src == Source.appwrite || src == Source.drive
+          ? const d.Value('server')
+          : _vStr(json, 'origin', src, fallback: 'server'),
+      vectorClock: _vStr(
+        json,
+        'vectorClock',
+        src,
+        altKey: 'vector_clock',
+        fallback: '{}',
+      ),
+      idempotencyKey: _vStr(
+        json,
+        'idempotencyKey',
+        src,
+        altKey: 'idempotency_key',
+      ),
+      employeeID: _vStr(json, 'EmployeeID', src, altKey: 'employee_i_d'),
+      deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
+    );
+  }
+
+  @override
+  Map<String, dynamic> toJson(Employee model, {required Source src}) {
+    return {
+      _k(src, 'id', 'id'): model.id,
+      _k(src, 'localUuid', 'local_uuid'): model.localUuid,
+      _k(src, 'serverId', 'server_id'): model.serverId,
+      _k(src, 'name', 'name'): model.name,
+      _k(src, 'basicSalary', 'basic_salary'): model.basicSalary,
+      _k(src, 'position', 'position'): model.position,
+      _k(src, 'phone', 'phone'): model.phone,
+      _k(src, 'hireDate', 'hire_date'): model.hireDate,
+      _k(src, 'status', 'status'): model.status,
+      _k(src, 'terminationDate', 'termination_date'): model.terminationDate,
+      _k(src, 'terminationReason', 'termination_reason'):
+          model.terminationReason,
+      _k(src, 'createdAt', 'created_at'): model.createdAt,
+      _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
+      _k(src, 'createdAtIso', 'created_at_iso'): model.createdAtIso,
+      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
+      _k(src, 'updatedAtIso', 'updated_at_iso'): model.updatedAtIso,
+      _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
+      _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
+      _k(src, 'lastModified', 'last_modified'): model.lastModified,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'):
+          model.lastModifiedEpoch,
+      _k(src, 'version', 'version'): model.version,
+      _k(src, 'origin', 'origin'): model.origin,
+      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      'idempotencyKey': model.idempotencyKey,
+      'EmployeeID': model.employeeID,
+      'deviceId': model.deviceId,
+    };
+  }
+}
+
+d.Value<int> _vInt(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  int? fallback,
+}) {
+  final v =
+      _asInt(json, key, src) ??
+      (altKey != null ? _asInt(json, altKey, src) : null) ??
+      fallback;
+  return v == null ? const d.Value.absent() : d.Value(v);
+}
+
+d.Value<String> _vStr(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  String? fallback,
+}) {
+  final v =
+      _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null) ??
+      fallback;
+  return v == null ? const d.Value.absent() : d.Value(v);
+}
+
+d.Value<double> _vDouble(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  double? fallback,
+}) {
+  final v =
+      _asDouble(json, key, src) ??
+      (altKey != null ? _asDouble(json, altKey, src) : null) ??
+      fallback;
+  return v == null ? const d.Value.absent() : d.Value(v);
+}
+
+int? _epoch(Map<String, dynamic> json, String key, Source src) {
+  final v = _asInt(json, key, src);
+  if (v != null) {
+    return v;
+  }
+  final s = _asString(json, key, src);
+  if (s == null) {
+    return null;
+  }
+  return int.tryParse(s);
+}
+
+int? _asInt(Map<String, dynamic> json, String key, Source src) {
+  final v = _raw(json, key, src);
+  if (v is bool) {
+    return v ? 1 : 0;
+  }
+  if (v is int) {
+    return v;
+  }
+  if (v is num) {
+    return v.toInt();
+  }
+  if (v is String) {
+    // تجاهل UUID أو strings طويلة
+    if (v.contains('-') || v.length > 20) {
+      return null;
+    }
+    return int.tryParse(v);
+  }
+  return null;
+}
+
+double? _asDouble(Map<String, dynamic> json, String key, Source src) {
+  final v = _raw(json, key, src);
+  if (v is double) {
+    return v;
+  }
+  if (v is int) {
+    return v.toDouble();
+  }
+  if (v is num) {
+    return v.toDouble();
+  }
+  if (v is String) {
+    return double.tryParse(v);
+  }
+  return null;
+}
+
+String? _asString(Map<String, dynamic> json, String key, Source src) {
+  final v = _raw(json, key, src);
+  if (v == null) {
+    return null;
+  }
+  return v.toString();
+}
+
+Object? _raw(Map<String, dynamic> json, String key, Source src) {
+  if (json.containsKey(key)) {
+    return json[key];
+  }
+  final alt = _altKey(key, src);
+  if (alt != null && json.containsKey(alt)) {
+    return json[alt];
+  }
+  return null;
+}
+
+String _k(Source src, String camel, String snake) =>
+    src == Source.drive ? snake : camel;
+
+String? _altKey(String camel, Source src) {
+  // ✅ إصلاح: تحويل camelCase → snake_case لجميع المصادر بما فيها Drive
+  final buf = StringBuffer();
+  for (var i = 0; i < camel.length; i++) {
+    final c = camel[i];
+    if (c.toUpperCase() == c && c.toLowerCase() != c) {
+      buf.write('_');
+      buf.write(c.toLowerCase());
+    } else {
+      buf.write(c);
+    }
+  }
+  return buf.toString();
+}
