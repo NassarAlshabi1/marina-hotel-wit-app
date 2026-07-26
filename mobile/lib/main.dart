@@ -59,6 +59,7 @@ import 'services/google_drive_unified_sync_coordinator.dart';
 import 'services/hotel_day_key_fix_service.dart';
 import 'services/local_db.dart';
 import 'services/logging/log_models.dart';
+import 'services/posthog_service.dart';
 import 'services/remote_config_service.dart';
 import 'services/secondary_appwrite_config.dart';
 import 'services/secondary_sync_manager.dart';
@@ -125,6 +126,7 @@ Future<void> main() async {
     _safeInit('RemoteConfigService', RemoteConfigService.instance.initialize),
     _safeInit('DiagnosticsLogger', DiagnosticsLogger.instance.initialize),
     _safeInit('ApiConfigService', ApiConfigService.instance.initialize),
+    _safeInit('PostHogService', PostHogService.instance.initialize),
   ]);
 
   // تهيئة نظام الإنذارات المجدولة (نسخ احتياطي + تقارير Telegram)
@@ -176,6 +178,12 @@ Future<void> main() async {
     await CrashlyticsService.instance.recordUnexpectedError(
       error: error,
       stackTrace: stack,
+      context: 'runZonedGuarded',
+    );
+    // إرسال الخطأ إلى PostHog (يظهر في session replay مع باقي الأحداث)
+    await PostHogService.instance.captureError(
+      error,
+      stack,
       context: 'runZonedGuarded',
     );
     // تسجيل محلي
