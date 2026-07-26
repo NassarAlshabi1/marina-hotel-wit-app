@@ -1,1 +1,468 @@
-aW1wb3J0ICdkYXJ0OmFzeW5jJzsKCmltcG9ydCAncGFja2FnZTpmbHV0dGVyL21hdGVyaWFsLmRhcnQnOwppbXBvcnQgJ3BhY2thZ2U6Zmx1dHRlci9zZXJ2aWNlcy5kYXJ0JzsKaW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXJfcml2ZXJwb2QvZmx1dHRlcl9yaXZlcnBvZC5kYXJ0JzsKaW1wb3J0ICdwYWNrYWdlOmludGwvaW50bC5kYXJ0JzsKaW1wb3J0ICdwYWNrYWdlOnNoYXJlX3BsdXMvc2hhcmVfcGx1cy5kYXJ0JzsKaW1wb3J0ICcuLi8uLi9jb21wb25lbnRzL2FwcF9zY2FmZm9sZC5kYXJ0JzsKaW1wb3J0ICcuLi8uLi9wcm92aWRlcnMvYmFja3VwX3Byb3ZpZGVyLmRhcnQnOwppbXBvcnQgJy4uLy4uL3NlcnZpY2VzL2xvZ2dpbmcvbG9nX21vZGVscy5kYXJ0JzsKCmNsYXNzIEdvb2dsZURyaXZlTG9nc1NjcmVlbiBleHRlbmRzIENvbnN1bWVyU3RhdGVmdWxXaWRnZXQgewogIGNvbnN0IEdvb2dsZURyaXZlTG9nc1NjcmVlbih7c3VwZXIua2V5fSk7CgogIEBvdmVycmlkZQogIENvbnN1bWVyU3RhdGU8R29vZ2xlRHJpdmVMb2dzU2NyZWVuPiBjcmVhdGVTdGF0ZSgpID0+CiAgICAgIF9Hb29nbGVEcml2ZUxvZ3NTY3JlZW5TdGF0ZSgpOwp9CgpjbGFzcyBfR29vZ2xlRHJpdmVMb2dzU2NyZWVuU3RhdGUgZXh0ZW5kcyBDb25zdW1lclN0YXRlPEdvb2dsZURyaXZlTG9nc1NjcmVlbj4gewogIExvZ0xldmVsPyBfZmlsdGVyTGV2ZWw7CiAgU3RyaW5nIF9zZWFyY2hRdWVyeSA9ICcnOwogIFRpbWVyPyBfZGVib3VuY2VUaW1lcjsKICBMaXN0PExvZ0VudHJ5Pj8gX2xhc3RGaWx0ZXJlZExvZ3M7CiAgTGlzdDxMb2dFbnRyeT4/IF9sYXN0TG9nczsKICBMb2dMZXZlbD8gX2xhc3RGaWx0ZXJMZXZlbDsKICBTdHJpbmc/IF9sYXN0U2VhcmNoUXVlcnk7CgogIEBvdmVycmlkZQogIHZvaWQgZGlzcG9zZSgpIHsKICAgIF9kZWJvdW5jZVRpbWVyPy5jYW5jZWwoKTsKICAgIHN1cGVyLmRpc3Bvc2UoKTsKICB9CgogIExpc3Q8TG9nRW50cnk+IF9nZXRGaWx0ZXJlZExvZ3MoTGlzdDxMb2dFbnRyeT4gbG9ncykgewogICAgaWYgKF9sYXN0RmlsdGVyZWRMb2dzICE9IG51bGwgJiYKICAgICAgICBpZGVudGljYWwoX2xhc3RMb2dzLCBsb2dzKSAmJgogICAgICAgIF9sYXN0RmlsdGVyTGV2ZWwgPT0gX2ZpbHRlckxldmVsICYmCiAgICAgICAgX2xhc3RTZWFyY2hRdWVyeSA9PSBfc2VhcmNoUXVlcnkpIHsKICAgICAgcmV0dXJuIF9sYXN0RmlsdGVyZWRMb2dzITsKICAgIH0KICAgIF9sYXN0TG9ncyA9IGxvZ3M7CiAgICBfbGFzdEZpbHRlckxldmVsID0gX2ZpbHRlckxldmVsOwogICAgX2xhc3RTZWFyY2hRdWVyeSA9IF9zZWFyY2hRdWVyeTsKICAgIF9sYXN0RmlsdGVyZWRMb2dzID0gbG9ncy53aGVyZSgobG9nKSB7CiAgICAgIGZpbmFsIG1hdGNoZXNMZXZlbCA9IF9maWx0ZXJMZXZlbCA9PSBudWxsIHx8IGxvZy5sZXZlbCA9PSBfZmlsdGVyTGV2ZWw7CiAgICAgIGZpbmFsIG1hdGNoZXNRdWVyeSA9CiAgICAgICAgICBfc2VhcmNoUXVlcnkuaXNFbXB0eSB8fAogICAgICAgICAgbG9nLm1lc3NhZ2UudG9Mb3dlckNhc2UoKS5jb250YWlucyhfc2VhcmNoUXVlcnkpIHx8CiAgICAgICAgICBsb2cudGFnLnRvTG93ZXJDYXNlKCkuY29udGFpbnMoX3NlYXJjaFF1ZXJ5KSB8fAogICAgICAgICAgKGxvZy5lcnJvcj8udG9TdHJpbmcoKS50b0xvd2VyQ2FzZSgpLmNvbnRhaW5zKF9zZWFyY2hRdWVyeSkgPz8gZmFsc2UpOwogICAgICByZXR1cm4gbWF0Y2hlc0xldmVsICYmIG1hdGNoZXNRdWVyeTsKICAgIH0pLnRvTGlzdCgpOwogICAgcmV0dXJuIF9sYXN0RmlsdGVyZWRMb2dzITsKICB9CgogIEBvdmVycmlkZQogIFdpZGdldCBidWlsZChCdWlsZENvbnRleHQgY29udGV4dCkgewogICAgZmluYWwgbG9ncyA9IHJlZi53YXRjaChnb29nbGVEcml2ZUxvZ3NQcm92aWRlcik7CiAgICBmaW5hbCBsb2dTdGF0cyA9IHJlZi53YXRjaChnb29nbGVEcml2ZUxvZ1N0YXRzUHJvdmlkZXIpOwogICAgZmluYWwgZmlsdGVyZWRMb2dzID0gX2dldEZpbHRlcmVkTG9ncyhsb2dzKTsKCiAgICByZXR1cm4gQXBwU2NhZmZvbGQoCiAgICAgIHRpdGxlOiAn2LPYrNmE2KfYqiBHb29nbGUgRHJpdmUnLAogICAgICBhY3Rpb25zOiBbCiAgICAgICAgUG9wdXBNZW51QnV0dG9uPFN0cmluZz4oCiAgICAgICAgICBpY29uOiBjb25zdCBJY29uKEljb25zLm1vcmVfdmVydCksCiAgICAgICAgICBvblNlbGVjdGVkOiAodmFsdWUpIGFzeW5jIHsKICAgICAgICAgICAgc3dpdGNoICh2YWx1ZSkgewogICAgICAgICAgICAgIGNhc2UgJ2V4cG9ydCc6CiAgICAgICAgICAgICAgICB1bmF3YWl0ZWQoX2V4cG9ydExvZ3MoKSk7CiAgICAgICAgICAgICAgY2FzZSAnc2hhcmUnOgogICAgICAgICAgICAgICAgdW5hd2FpdGVkKF9zaGFyZUxvZ3MoZmlsdGVyZWRMb2dzKSk7CiAgICAgICAgICAgICAgY2FzZSAnY2xlYXInOgogICAgICAgICAgICAgICAgX2NsZWFyTG9ncygpOwogICAgICAgICAgICB9CiAgICAgICAgICB9LAogICAgICAgICAgaXRlbUJ1aWxkZXI6IChjb250ZXh0KSA9PiBjb25zdCBbCiAgICAgICAgICAgIFBvcHVwTWVudUl0ZW0oCiAgICAgICAgICAgICAgdmFsdWU6ICdleHBvcnQnLAogICAgICAgICAgICAgIGNoaWxkOiBSb3coCiAgICAgICAgICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgICAgICAgICBJY29uKEljb25zLmZpbGVfZG93bmxvYWQpLAogICAgICAgICAgICAgICAgICBTaXplZEJveCh3aWR0aDogOCksCiAgICAgICAgICAgICAgICAgIFRleHQoJ9iq2LXYr9mK2LEg2KfZhNiz2KzZhNin2KonKSwKICAgICAgICAgICAgICAgIF0sCiAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgKSwKICAgICAgICAgICAgUG9wdXBNZW51SXRlbSgKICAgICAgICAgICAgICB2YWx1ZTogJ3NoYXJlJywKICAgICAgICAgICAgICBjaGlsZDogUm93KAogICAgICAgICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgICAgICAgSWNvbihJY29ucy5zaGFyZSksCiAgICAgICAgICAgICAgICAgIFNpemVkQm94KHdpZHRoOiA4KSwKICAgICAgICAgICAgICAgICAgVGV4dCgn2YXYtNin2LHZg9ipINin2YTYs9is2YTYp9iqJyksCiAgICAgICAgICAgICAgICBdLAogICAgICAgICAgICAgICksCiAgICAgICAgICAgICksCiAgICAgICAgICAgIFBvcHVwTWVudUl0ZW0oCiAgICAgICAgICAgICAgdmFsdWU6ICdjbGVhcicsCiAgICAgICAgICAgICAgY2hpbGQ6IFJvdygKICAgICAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgICAgIEljb24oSWNvbnMuZGVsZXRlLCBjb2xvcjogQ29sb3JzLnJlZCksCiAgICAgICAgICAgICAgICAgIFNpemVkQm94KHdpZHRoOiA4KSwKICAgICAgICAgICAgICAgICAgVGV4dCgn2YXYs9itINin2YTYs9is2YTYp9iqJywgc3R5bGU6IFRleHRTdHlsZShjb2xvcjogQ29sb3JzLnJlZCkpLAogICAgICAgICAgICAgICAgXSwKICAgICAgICAgICAgICApLAogICAgICAgICAgICApLAogICAgICAgICAgXSwKICAgICAgICApLAogICAgICBdLAogICAgICBib2R5OiBDb2x1bW4oCiAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgIENvbnRhaW5lcigKICAgICAgICAgICAgY29sb3I6IENvbG9ycy5ncmV5LnNoYWRlMTAwLAogICAgICAgICAgICBwYWRkaW5nOiBjb25zdCBFZGdlSW5zZXRzLmFsbCgxMiksCiAgICAgICAgICAgIGNoaWxkOiBDb2x1bW4oCiAgICAgICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgICAgIFRleHRGaWVsZCgKICAgICAgICAgICAgICAgICAgZGVjb3JhdGlvbjogSW5wdXREZWNvcmF0aW9uKAogICAgICAgICAgICAgICAgICAgIGhpbnRUZXh0OiAn2KfZhNio2K3YqyDZgdmKINiz2KzZhNin2KogR29vZ2xlIERyaXZlLi4uJywKICAgICAgICAgICAgICAgICAgICBwcmVmaXhJY29uOiBjb25zdCBJY29uKEljb25zLnNlYXJjaCksCiAgICAgICAgICAgICAgICAgICAgYm9yZGVyOiBPdXRsaW5lSW5wdXRCb3JkZXIoCiAgICAgICAgICAgICAgICAgICAgICBib3JkZXJSYWRpdXM6IEJvcmRlclJhZGl1cy5jaXJjdWxhcig4KSwKICAgICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICAgIGZpbGxlZDogdHJ1ZSwKICAgICAgICAgICAgICAgICAgICBmaWxsQ29sb3I6IENvbG9ycy53aGl0ZSwKICAgICAgICAgICAgICAgICAgICBjb250ZW50UGFkZGluZzogY29uc3QgRWRnZUluc2V0cy5zeW1tZXRyaWModmVydGljYWw6IDEyKSwKICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgb25DaGFuZ2VkOiAodmFsdWUpIHsKICAgICAgICAgICAgICAgICAgICBfZGVib3VuY2VUaW1lcj8uY2FuY2VsKCk7CiAgICAgICAgICAgICAgICAgICAgX2RlYm91bmNlVGltZXIgPSBUaW1lcigKICAgICAgICAgICAgICAgICAgICAgIGNvbnN0IER1cmF0aW9uKG1pbGxpc2Vjb25kczogMzAwKSwKICAgICAgICAgICAgICAgICAgICAgICgpIHsKICAgICAgICAgICAgICAgICAgICAgICAgc2V0U3RhdGUoKCkgPT4gX3NlYXJjaFF1ZXJ5ID0gdmFsdWUudG9Mb3dlckNhc2UoKSk7CiAgICAgICAgICAgICAgICAgICAgICB9LAogICAgICAgICAgICAgICAgICAgICk7CiAgICAgICAgICAgICAgICAgIH0sCiAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgY29uc3QgU2l6ZWRCb3goaGVpZ2h0OiA4KSwKICAgICAgICAgICAgICAgIFNpbmdsZUNoaWxkU2Nyb2xsVmlldygKICAgICAgICAgICAgICAgICAgc2Nyb2xsRGlyZWN0aW9uOiBBeGlzLmhvcml6b250YWwsCiAgICAgICAgICAgICAgICAgIGNoaWxkOiBSb3coCiAgICAgICAgICAgICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgICAgICAgICAgIF9idWlsZEZpbHRlckNoaXAoJ9in2YTZg9mEJywgbnVsbCwgbG9nU3RhdHNbJ3RvdGFsJ10gPz8gMCksCiAgICAgICAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveCh3aWR0aDogOCksCiAgICAgICAgICAgICAgICAgICAgICBfYnVpbGRGaWx0ZXJDaGlwKAogICAgICAgICAgICAgICAgICAgICAgICAnRGVidWcnLAogICAgICAgICAgICAgICAgICAgICAgICBMb2dMZXZlbC5kZWJ1ZywKICAgICAgICAgICAgICAgICAgICAgICAgbG9nU3RhdHNbJ2RlYnVnJ10gPz8gMCwKICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveCh3aWR0aDogOCksCiAgICAgICAgICAgICAgICAgICAgICBfYnVpbGRGaWx0ZXJDaGlwKAogICAgICAgICAgICAgICAgICAgICAgICAnSW5mbycsCiAgICAgICAgICAgICAgICAgICAgICAgIExvZ0xldmVsLmluZm8sCiAgICAgICAgICAgICAgICAgICAgICAgIGxvZ1N0YXRzWydpbmZvJ10gPz8gMCwKICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveCh3aWR0aDogOCksCiAgICAgICAgICAgICAgICAgICAgICBfYnVpbGRGaWx0ZXJDaGlwKAogICAgICAgICAgICAgICAgICAgICAgICAnV2FybmluZycsCiAgICAgICAgICAgICAgICAgICAgICAgIExvZ0xldmVsLndhcm5pbmcsCiAgICAgICAgICAgICAgICAgICAgICAgIGxvZ1N0YXRzWyd3YXJuaW5nJ10gPz8gMCwKICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveCh3aWR0aDogOCksCiAgICAgICAgICAgICAgICAgICAgICBfYnVpbGRGaWx0ZXJDaGlwKAogICAgICAgICAgICAgICAgICAgICAgICAnRXJyb3InLAogICAgICAgICAgICAgICAgICAgICAgICBMb2dMZXZlbC5lcnJvciwKICAgICAgICAgICAgICAgICAgICAgICAgbG9nU3RhdHNbJ2Vycm9yJ10gPz8gMCwKICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveCh3aWR0aDogOCksCiAgICAgICAgICAgICAgICAgICAgICBfYnVpbGRGaWx0ZXJDaGlwKAogICAgICAgICAgICAgICAgICAgICAgICAnQ3JpdGljYWwnLAogICAgICAgICAgICAgICAgICAgICAgICBMb2dMZXZlbC5jcml0aWNhbCwKICAgICAgICAgICAgICAgICAgICAgICAgbG9nU3RhdHNbJ2NyaXRpY2FsJ10gPz8gMCwKICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgXSwKICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgXSwKICAgICAgICAgICAgKSwKICAgICAgICAgICksCiAgICAgICAgICBFeHBhbmRlZCgKICAgICAgICAgICAgY2hpbGQ6IGZpbHRlcmVkTG9ncy5pc0VtcHR5CiAgICAgICAgICAgICAgICA/IGNvbnN0IENlbnRlcigKICAgICAgICAgICAgICAgICAgICBjaGlsZDogQ29sdW1uKAogICAgICAgICAgICAgICAgICAgICAgbWFpbkF4aXNBbGlnbm1lbnQ6IE1haW5BeGlzQWxpZ25tZW50LmNlbnRlciwKICAgICAgICAgICAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgICAgICAgICAgIEljb24oSWNvbnMuY2xvdWRfb2ZmLCBzaXplOiA2NCwgY29sb3I6IENvbG9ycy5ncmV5KSwKICAgICAgICAgICAgICAgICAgICAgICAgU2l6ZWRCb3goaGVpZ2h0OiAxNiksCiAgICAgICAgICAgICAgICAgICAgICAgIFRleHQoCiAgICAgICAgICAgICAgICAgICAgICAgICAgJ9mE2Kcg2KrZiNis2K8g2LPYrNmE2KfYqiBHb29nbGUgRHJpdmUnLAogICAgICAgICAgICAgICAgICAgICAgICAgIHN0eWxlOiBUZXh0U3R5bGUoZm9udFNpemU6IDE2LCBjb2xvcjogQ29sb3JzLmdyZXkpLAogICAgICAgICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICAgICAgXSwKICAgICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICApCiAgICAgICAgICAgICAgICA6IExpc3RWaWV3LnNlcGFyYXRlZCgKICAgICAgICAgICAgICAgICAgICBwYWRkaW5nOiBjb25zdCBFZGdlSW5zZXRzLmFsbCg4KSwKICAgICAgICAgICAgICAgICAgICBpdGVtQ291bnQ6IGZpbHRlcmVkTG9ncy5sZW5ndGgsCiAgICAgICAgICAgICAgICAgICAgc2VwYXJhdG9yQnVpbGRlcjogKGNvbnRleHQsIGluZGV4KSA9PgogICAgICAgICAgICAgICAgICAgICAgICBjb25zdCBEaXZpZGVyKGhlaWdodDogMSksCiAgICAgICAgICAgICAgICAgICAgaXRlbUJ1aWxkZXI6IChjb250ZXh0LCBpbmRleCkgewogICAgICAgICAgICAgICAgICAgICAgZmluYWwgbG9nID0gZmlsdGVyZWRMb2dzW2ZpbHRlcmVkTG9ncy5sZW5ndGggLSAxIC0gaW5kZXhdOwogICAgICAgICAgICAgICAgICAgICAgcmV0dXJuIF9idWlsZExvZ0VudHJ5KGxvZyk7CiAgICAgICAgICAgICAgICAgICAgfSwKICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICksCiAgICAgICAgXSwKICAgICAgKSwKICAgICk7CiAgfQoKICBXaWRnZXQgX2J1aWxkRmlsdGVyQ2hpcChTdHJpbmcgbGFiZWwsIExvZ0xldmVsPyBsZXZlbCwgaW50IGNvdW50KSB7CiAgICBmaW5hbCBpc1NlbGVjdGVkID0gX2ZpbHRlckxldmVsID09IGxldmVsOwogICAgZmluYWwgY29sb3IgPSBfZ2V0Q29sb3JGb3JMZXZlbChsZXZlbCk7CgogICAgcmV0dXJuIEZpbHRlckNoaXAoCiAgICAgIGxhYmVsOiBUZXh0KCckbGFiZWwgKCRjb3VudCknKSwKICAgICAgc2VsZWN0ZWQ6IGlzU2VsZWN0ZWQsCiAgICAgIG9uU2VsZWN0ZWQ6IChzZWxlY3RlZCkgewogICAgICAgIHNldFN0YXRlKCgpID0+IF9maWx0ZXJMZXZlbCA9IHNlbGVjdGVkID8gbGV2ZWwgOiBudWxsKTsKICAgICAgfSwKICAgICAgYmFja2dyb3VuZENvbG9yOiBDb2xvcnMud2hpdGUsCiAgICAgIHNlbGVjdGVkQ29sb3I6IGNvbG9yLndpdGhWYWx1ZXMoYWxwaGE6IDAuMiksCiAgICAgIGNoZWNrbWFya0NvbG9yOiBjb2xvciwKICAgICAgbGFiZWxTdHlsZTogVGV4dFN0eWxlKAogICAgICAgIGNvbG9yOiBpc1NlbGVjdGVkID8gY29sb3IgOiBDb2xvcnMuYmxhY2s4NywKICAgICAgICBmb250V2VpZ2h0OiBpc1NlbGVjdGVkID8gRm9udFdlaWdodC5ib2xkIDogRm9udFdlaWdodC5ub3JtYWwsCiAgICAgICksCiAgICApOwogIH0KCiAgV2lkZ2V0IF9idWlsZExvZ0VudHJ5KExvZ0VudHJ5IGxvZykgewogICAgZmluYWwgY29sb3IgPSBfZ2V0Q29sb3JGb3JMZXZlbChsb2cubGV2ZWwpOwogICAgZmluYWwgaWNvbiA9IF9nZXRJY29uRm9yTGV2ZWwobG9nLmxldmVsKTsKICAgIGZpbmFsIGZvcm1hdHRlciA9IERhdGVGb3JtYXQoJ3l5eXkvTU0vZGQgSEg6bW06c3MnKTsKCiAgICByZXR1cm4gQ2FyZCgKICAgICAgbWFyZ2luOiBjb25zdCBFZGdlSW5zZXRzLnN5bW1ldHJpYyh2ZXJ0aWNhbDogNCksCiAgICAgIGNoaWxkOiBJbmtXZWxsKAogICAgICAgIG9uVGFwOiAoKSA9PiBfc2hvd0xvZ0RldGFpbHMobG9nKSwKICAgICAgICBvbkxvbmdQcmVzczogKCkgPT4gX2NvcHlMb2cobG9nKSwKICAgICAgICBjaGlsZDogUGFkZGluZygKICAgICAgICAgIHBhZGRpbmc6IGNvbnN0IEVkZ2VJbnNldHMuYWxsKDEyKSwKICAgICAgICAgIGNoaWxkOiBDb2x1bW4oCiAgICAgICAgICAgIGNyb3NzQXhpc0FsaWdubWVudDogQ3Jvc3NBeGlzQWxpZ25tZW50LnN0YXJ0LAogICAgICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgICAgIFJvdygKICAgICAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgICAgIEljb24oaWNvbiwgY29sb3I6IGNvbG9yLCBzaXplOiAyMCksCiAgICAgICAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KHdpZHRoOiA4KSwKICAgICAgICAgICAgICAgICAgVGV4dCgKICAgICAgICAgICAgICAgICAgICBsb2cubGV2ZWwubmFtZS50b1VwcGVyQ2FzZSgpLAogICAgICAgICAgICAgICAgICAgIHN0eWxlOiBUZXh0U3R5bGUoY29sb3I6IGNvbG9yLCBmb250V2VpZ2h0OiBGb250V2VpZ2h0LmJvbGQpLAogICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICBjb25zdCBTcGFjZXIoKSwKICAgICAgICAgICAgICAgICAgVGV4dCgKICAgICAgICAgICAgICAgICAgICBmb3JtYXR0ZXIuZm9ybWF0KGxvZy50aW1lc3RhbXApLAogICAgICAgICAgICAgICAgICAgIHN0eWxlOiBjb25zdCBUZXh0U3R5bGUoZm9udFNpemU6IDEyLCBjb2xvcjogQ29sb3JzLmdyZXkpLAogICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgXSwKICAgICAgICAgICAgICApLAogICAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogOCksCiAgICAgICAgICAgICAgVGV4dCgKICAgICAgICAgICAgICAgIGxvZy5tZXNzYWdlLAogICAgICAgICAgICAgICAgc3R5bGU6IGNvbnN0IFRleHRTdHlsZSgKICAgICAgICAgICAgICAgICAgZm9udFNpemU6IDE1LAogICAgICAgICAgICAgICAgICBmb250V2VpZ2h0OiBGb250V2VpZ2h0Lnc2MDAsCiAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgY29uc3QgU2l6ZWRCb3goaGVpZ2h0OiA0KSwKICAgICAgICAgICAgICBSb3coCiAgICAgICAgICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgICAgICAgICBDb250YWluZXIoCiAgICAgICAgICAgICAgICAgICAgcGFkZGluZzogY29uc3QgRWRnZUluc2V0cy5zeW1tZXRyaWMoCiAgICAgICAgICAgICAgICAgICAgICBob3Jpem9udGFsOiA4LAogICAgICAgICAgICAgICAgICAgICAgdmVydGljYWw6IDQsCiAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgICBkZWNvcmF0aW9uOiBCb3hEZWNvcmF0aW9uKAogICAgICAgICAgICAgICAgICAgICAgYm9yZGVyUmFkaXVzOiBCb3JkZXJSYWRpdXMuY2lyY3VsYXIoMTIpLAogICAgICAgICAgICAgICAgICAgICAgY29sb3I6IGNvbG9yLndpdGhWYWx1ZXMoYWxwaGE6IDAuMSksCiAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgICBjaGlsZDogVGV4dCgKICAgICAgICAgICAgICAgICAgICAgIGxvZy50YWcsCiAgICAgICAgICAgICAgICAgICAgICBzdHlsZTogVGV4dFN0eWxlKAogICAgICAgICAgICAgICAgICAgICAgICBmb250U2l6ZTogMTIsCiAgICAgICAgICAgICAgICAgICAgICAgIGNvbG9yOiBjb2xvciwKICAgICAgICAgICAgICAgICAgICAgICAgZm9udFdlaWdodDogRm9udFdlaWdodC5ib2xkLAogICAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICBpZiAobG9nLmVycm9yICE9IG51bGwpIC4uLlsKICAgICAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveCh3aWR0aDogOCksCiAgICAgICAgICAgICAgICAgICAgY29uc3QgSWNvbigKICAgICAgICAgICAgICAgICAgICAgIEljb25zLmVycm9yX291dGxpbmUsCiAgICAgICAgICAgICAgICAgICAgICBjb2xvcjogQ29sb3JzLnJlZCwKICAgICAgICAgICAgICAgICAgICAgIHNpemU6IDE2LAogICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgY29uc3QgU2l6ZWRCb3god2lkdGg6IDQpLAogICAgICAgICAgICAgICAgICAgIEZsZXhpYmxlKAogICAgICAgICAgICAgICAgICAgICAgY2hpbGQ6IFRleHQoCiAgICAgICAgICAgICAgICAgICAgICAgIGxvZy5lcnJvci50b1N0cmluZygpLAogICAgICAgICAgICAgICAgICAgICAgICBzdHlsZTogY29uc3QgVGV4dFN0eWxlKGZvbnRTaXplOiAxMiwgY29sb3I6IENvbG9ycy5yZWQpLAogICAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICBdLAogICAgICAgICAgICAgICAgXSwKICAgICAgICAgICAgICApLAogICAgICAgICAgICBdLAogICAgICAgICAgKSwKICAgICAgICApLAogICAgICApLAogICAgKTsKICB9CgogIENvbG9yIF9nZXRDb2xvckZvckxldmVsKExvZ0xldmVsPyBsZXZlbCkgewogICAgc3dpdGNoIChsZXZlbCkgewogICAgICBjYXNlIExvZ0xldmVsLmRlYnVnOgogICAgICAgIHJldHVybiBDb2xvcnMuYmx1ZUdyZXk7CiAgICAgIGNhc2UgTG9nTGV2ZWwuaW5mbzoKICAgICAgICByZXR1cm4gQ29sb3JzLmJsdWU7CiAgICAgIGNhc2UgTG9nTGV2ZWwud2FybmluZzoKICAgICAgICByZXR1cm4gQ29sb3JzLm9yYW5nZTsKICAgICAgY2FzZSBMb2dMZXZlbC5lcnJvcjoKICAgICAgICByZXR1cm4gQ29sb3JzLnJlZDsKICAgICAgY2FzZSBMb2dMZXZlbC5jcml0aWNhbDoKICAgICAgICByZXR1cm4gQ29sb3JzLnB1cnBsZTsKICAgICAgZGVmYXVsdDoKICAgICAgICByZXR1cm4gQ29sb3JzLmJsdWVHcmV5OwogICAgfQogIH0KCiAgSWNvbkRhdGEgX2dldEljb25Gb3JMZXZlbChMb2dMZXZlbCBsZXZlbCkgewogICAgc3dpdGNoIChsZXZlbCkgewogICAgICBjYXNlIExvZ0xldmVsLmRlYnVnOgogICAgICAgIHJldHVybiBJY29ucy5idWdfcmVwb3J0OwogICAgICBjYXNlIExvZ0xldmVsLmluZm86CiAgICAgICAgcmV0dXJuIEljb25zLmluZm87CiAgICAgIGNhc2UgTG9nTGV2ZWwud2FybmluZzoKICAgICAgICByZXR1cm4gSWNvbnMud2FybmluZzsKICAgICAgY2FzZSBMb2dMZXZlbC5lcnJvcjoKICAgICAgICByZXR1cm4gSWNvbnMuZXJyb3I7CiAgICAgIGNhc2UgTG9nTGV2ZWwuY3JpdGljYWw6CiAgICAgICAgcmV0dXJuIEljb25zLndhcm5pbmdfYW1iZXI7CiAgICB9CiAgfQoKICB2b2lkIF9zaG93TG9nRGV0YWlscyhMb2dFbnRyeSBsb2cpIHsKICAgIHNob3dNb2RhbEJvdHRvbVNoZWV0PHZvaWQ+KAogICAgICBjb250ZXh0OiBjb250ZXh0LAogICAgICBzaGFwZTogY29uc3QgUm91bmRlZFJlY3RhbmdsZUJvcmRlcigKICAgICAgICBib3JkZXJSYWRpdXM6IEJvcmRlclJhZGl1cy52ZXJ0aWNhbCh0b3A6IFJhZGl1cy5jaXJjdWxhcigxNikpLAogICAgICApLAogICAgICBidWlsZGVyOiAoY29udGV4dCkgewogICAgICAgIGZpbmFsIGZvcm1hdHRlciA9IERhdGVGb3JtYXQoJ3l5eXkvTU0vZGQgSEg6bW06c3MnKTsKICAgICAgICByZXR1cm4gUGFkZGluZygKICAgICAgICAgIHBhZGRpbmc6IGNvbnN0IEVkZ2VJbnNldHMuYWxsKDE2KSwKICAgICAgICAgIGNoaWxkOiBDb2x1bW4oCiAgICAgICAgICAgIG1haW5BeGlzU2l6ZTogTWFpbkF4aXNTaXplLm1pbiwKICAgICAgICAgICAgY3Jvc3NBeGlzQWxpZ25tZW50OiBDcm9zc0F4aXNBbGlnbm1lbnQuc3RhcnQsCiAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgUm93KAogICAgICAgICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgICAgICAgVGV4dCgKICAgICAgICAgICAgICAgICAgICBsb2cubGV2ZWwubmFtZS50b1VwcGVyQ2FzZSgpLAogICAgICAgICAgICAgICAgICAgIHN0eWxlOiBUZXh0U3R5bGUoCiAgICAgICAgICAgICAgICAgICAgICBjb2xvcjogX2dldENvbG9yRm9yTGV2ZWwobG9nLmxldmVsKSwKICAgICAgICAgICAgICAgICAgICAgIGZvbnRXZWlnaHQ6IEZvbnRXZWlnaHQuYm9sZCwKICAgICAgICAgICAgICAgICAgICAgIGZvbnRTaXplOiAxNiwKICAgICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICBjb25zdCBTcGFjZXIoKSwKICAgICAgICAgICAgICAgICAgSWNvbkJ1dHRvbigKICAgICAgICAgICAgICAgICAgICBpY29uOiBjb25zdCBJY29uKEljb25zLmNvcHkpLAogICAgICAgICAgICAgICAgICAgIG9uUHJlc3NlZDogKCkgewogICAgICAgICAgICAgICAgICAgICAgX2NvcHlMb2cobG9nKTsKICAgICAgICAgICAgICAgICAgICAgIE5hdmlnYXRvci5wb3AoY29udGV4dCk7CiAgICAgICAgICAgICAgICAgICAgfSwKICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgIF0sCiAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDgpLAogICAgICAgICAgICAgIFRleHQoCiAgICAgICAgICAgICAgICBmb3JtYXR0ZXIuZm9ybWF0KGxvZy50aW1lc3RhbXApLAogICAgICAgICAgICAgICAgc3R5bGU6IGNvbnN0IFRleHRTdHlsZShjb2xvcjogQ29sb3JzLmdyZXksIGZvbnRTaXplOiAxMiksCiAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDEyKSwKICAgICAgICAgICAgICBUZXh0KGxvZy5tZXNzYWdlLCBzdHlsZTogY29uc3QgVGV4dFN0eWxlKGZvbnRTaXplOiAxNikpLAogICAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogMTIpLAogICAgICAgICAgICAgIFJvdygKICAgICAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgICAgIGNvbnN0IEljb24oSWNvbnMubGFiZWwsIHNpemU6IDE2LCBjb2xvcjogQ29sb3JzLmdyZXkpLAogICAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveCh3aWR0aDogNiksCiAgICAgICAgICAgICAgICAgIFRleHQobG9nLnRhZywgc3R5bGU6IGNvbnN0IFRleHRTdHlsZShjb2xvcjogQ29sb3JzLmdyZXkpKSwKICAgICAgICAgICAgICAgIF0sCiAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICBpZiAobG9nLmVycm9yICE9IG51bGwpIC4uLlsKICAgICAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogMTIpLAogICAgICAgICAgICAgICAgY29uc3QgVGV4dCgKICAgICAgICAgICAgICAgICAgJ9in2YTYrti32KM6JywKICAgICAgICAgICAgICAgICAgc3R5bGU6IFRleHRTdHlsZShmb250V2VpZ2h0OiBGb250V2VpZ2h0LmJvbGQpLAogICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogNCksCiAgICAgICAgICAgICAgICBUZXh0KAogICAgICAgICAgICAgICAgICBsb2cuZXJyb3IudG9TdHJpbmcoKSwKICAgICAgICAgICAgICAgICAgc3R5bGU6IGNvbnN0IFRleHRTdHlsZShjb2xvcjogQ29sb3JzLnJlZCksCiAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgIF0sCiAgICAgICAgICAgICAgaWYgKGxvZy5zdGFja1RyYWNlICE9IG51bGwpIC4uLlsKICAgICAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogMTIpLAogICAgICAgICAgICAgICAgY29uc3QgVGV4dCgKICAgICAgICAgICAgICAgICAgJ1N0YWNrIFRyYWNlOicsCiAgICAgICAgICAgICAgICAgIHN0eWxlOiBUZXh0U3R5bGUoZm9udFdlaWdodDogRm9udFdlaWdodC5ib2xkKSwKICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDQpLAogICAgICAgICAgICAgICAgU2l6ZWRCb3goCiAgICAgICAgICAgICAgICAgIGhlaWdodDogMTIwLAogICAgICAgICAgICAgICAgICBjaGlsZDogU2luZ2xlQ2hpbGRTY3JvbGxWaWV3KAogICAgICAgICAgICAgICAgICAgIGNoaWxkOiBUZXh0KAogICAgICAgICAgICAgICAgICAgICAgbG9nLnN0YWNrVHJhY2UudG9TdHJpbmcoKSwKICAgICAgICAgICAgICAgICAgICAgIHN0eWxlOiBjb25zdCBUZXh0U3R5bGUoZm9udFNpemU6IDEyKSwKICAgICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICBdLAogICAgICAgICAgICBdLAogICAgICAgICAgKSwKICAgICAgICApOwogICAgICB9LAogICAgKTsKICB9CgogIHZvaWQgX2NvcHlMb2coTG9nRW50cnkgbG9nKSB7CiAgICBDbGlwYm9hcmQuc2V0RGF0YShDbGlwYm9hcmREYXRhKHRleHQ6IGxvZy50b0Zvcm1hdHRlZFN0cmluZygpKSk7CiAgICBpZiAobW91bnRlZCkgewogICAgICBTY2FmZm9sZE1lc3Nlbmdlci5vZigKICAgICAgICBjb250ZXh0LAogICAgICApLnNob3dTbmFja0Jhcihjb25zdCBTbmFja0Jhcihjb250ZW50OiBUZXh0KCfYqtmFINmG2LPYriDYp9mE2LPYrNmEINil2YTZiSDYp9mE2K3Yp9mB2LjYqScpKSk7CiAgICB9CiAgfQoKICBGdXR1cmU8dm9pZD4gX3NoYXJlTG9ncyhMaXN0PExvZ0VudHJ5PiBsb2dzKSBhc3luYyB7CiAgICBpZiAobG9ncy5pc0VtcHR5KSB7CiAgICAgIHJldHVybjsKICAgIH0KICAgIGZpbmFsIGZpbGUgPSBhd2FpdCByZWYucmVhZChnb29nbGVEcml2ZUxvZ2dlclByb3ZpZGVyKS5leHBvcnRMb2dzKCk7CiAgICBpZiAoZmlsZSA9PSBudWxsKSB7CiAgICAgIHJldHVybjsKICAgIH0KICAgIGF3YWl0IFNoYXJlLnNoYXJlWEZpbGVzKFtYRmlsZShmaWxlLnBhdGgpXSwgdGV4dDogJ9iz2KzZhNin2KogR29vZ2xlIERyaXZlJyk7CiAgfQoKICBGdXR1cmU8dm9pZD4gX2V4cG9ydExvZ3MoKSBhc3luYyB7CiAgICBmaW5hbCBmaWxlID0gYXdhaXQgcmVmLnJlYWQoZ29vZ2xlRHJpdmVMb2dnZXJQcm92aWRlcikuZXhwb3J0TG9ncygpOwogICAgaWYgKGZpbGUgPT0gbnVsbCkgewogICAgICByZXR1cm47CiAgICB9CiAgICBpZiAobW91bnRlZCkgewogICAgICBTY2FmZm9sZE1lc3Nlbmdlci5vZigKICAgICAgICBjb250ZXh0LAogICAgICApLnNob3dTbmFja0JhcihTbmFja0Jhcihjb250ZW50OiBUZXh0KCfYqtmFINit2YHYuCDYp9mE2YXZhNmBINmB2YogJHtmaWxlLnBhdGh9JykpKTsKICAgIH0KICB9CgogIHZvaWQgX2NsZWFyTG9ncygpIHsKICAgIHJlZi5yZWFkKGdvb2dsZURyaXZlTG9nZ2VyUHJvdmlkZXIpLmNsZWFyTG9ncygpOwogIH0KfQo=
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
+import '../../components/app_scaffold.dart';
+import '../../providers/backup_provider.dart';
+import '../../services/logging/log_models.dart';
+
+class GoogleDriveLogsScreen extends ConsumerStatefulWidget {
+  const GoogleDriveLogsScreen({super.key});
+
+  @override
+  ConsumerState<GoogleDriveLogsScreen> createState() =>
+      _GoogleDriveLogsScreenState();
+}
+
+class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
+  LogLevel? _filterLevel;
+  String _searchQuery = '';
+  Timer? _debounceTimer;
+  List<LogEntry>? _lastFilteredLogs;
+  List<LogEntry>? _lastLogs;
+  LogLevel? _lastFilterLevel;
+  String? _lastSearchQuery;
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+
+  List<LogEntry> _getFilteredLogs(List<LogEntry> logs) {
+    if (_lastFilteredLogs != null &&
+        identical(_lastLogs, logs) &&
+        _lastFilterLevel == _filterLevel &&
+        _lastSearchQuery == _searchQuery) {
+      return _lastFilteredLogs!;
+    }
+    _lastLogs = logs;
+    _lastFilterLevel = _filterLevel;
+    _lastSearchQuery = _searchQuery;
+    _lastFilteredLogs = logs.where((log) {
+      final matchesLevel = _filterLevel == null || log.level == _filterLevel;
+      final matchesQuery =
+          _searchQuery.isEmpty ||
+          log.message.toLowerCase().contains(_searchQuery) ||
+          log.tag.toLowerCase().contains(_searchQuery) ||
+          (log.error?.toString().toLowerCase().contains(_searchQuery) ?? false);
+      return matchesLevel && matchesQuery;
+    }).toList();
+    return _lastFilteredLogs!;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final logs = ref.watch(googleDriveLogsProvider);
+    final logStats = ref.watch(googleDriveLogStatsProvider);
+    final filteredLogs = _getFilteredLogs(logs);
+
+    return AppScaffold(
+      title: 'سجلات Google Drive',
+      actions: [
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert),
+          onSelected: (value) async {
+            switch (value) {
+              case 'export':
+                unawaited(_exportLogs());
+              case 'share':
+                unawaited(_shareLogs(filteredLogs));
+              case 'clear':
+                _clearLogs();
+            }
+          },
+          itemBuilder: (context) => const [
+            PopupMenuItem(
+              value: 'export',
+              child: Row(
+                children: [
+                  Icon(Icons.file_download),
+                  SizedBox(width: 8),
+                  Text('تصدير السجلات'),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'share',
+              child: Row(
+                children: [
+                  Icon(Icons.share),
+                  SizedBox(width: 8),
+                  Text('مشاركة السجلات'),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'clear',
+              child: Row(
+                children: [
+                  Icon(Icons.delete, color: Colors.red),
+                  SizedBox(width: 8),
+                  Text('مسح السجلات', style: TextStyle(color: Colors.red)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+      body: Column(
+        children: [
+          Container(
+            color: Colors.grey.shade100,
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                TextField(
+                  decoration: InputDecoration(
+                    hintText: 'البحث في سجلات Google Drive...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onChanged: (value) {
+                    _debounceTimer?.cancel();
+                    _debounceTimer = Timer(
+                      const Duration(milliseconds: 300),
+                      () {
+                        setState(() => _searchQuery = value.toLowerCase());
+                      },
+                    );
+                  },
+                ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildFilterChip('الكل', null, logStats['total'] ?? 0),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                        'Debug',
+                        LogLevel.debug,
+                        logStats['debug'] ?? 0,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                        'Info',
+                        LogLevel.info,
+                        logStats['info'] ?? 0,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                        'Warning',
+                        LogLevel.warning,
+                        logStats['warning'] ?? 0,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                        'Error',
+                        LogLevel.error,
+                        logStats['error'] ?? 0,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildFilterChip(
+                        'Critical',
+                        LogLevel.critical,
+                        logStats['critical'] ?? 0,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: filteredLogs.isEmpty
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.cloud_off, size: 64, color: Colors.grey),
+                        SizedBox(height: 16),
+                        Text(
+                          'لا توجد سجلات Google Drive',
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.separated(
+                    padding: const EdgeInsets.all(8),
+                    itemCount: filteredLogs.length,
+                    separatorBuilder: (context, index) =>
+                        const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final log = filteredLogs[filteredLogs.length - 1 - index];
+                      return _buildLogEntry(log);
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, LogLevel? level, int count) {
+    final isSelected = _filterLevel == level;
+    final color = _getColorForLevel(level);
+
+    return FilterChip(
+      label: Text('$label ($count)'),
+      selected: isSelected,
+      onSelected: (selected) {
+        setState(() => _filterLevel = selected ? level : null);
+      },
+      backgroundColor: Colors.white,
+      selectedColor: color.withValues(alpha: 0.2),
+      checkmarkColor: color,
+      labelStyle: TextStyle(
+        color: isSelected ? color : Colors.black87,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
+    );
+  }
+
+  Widget _buildLogEntry(LogEntry log) {
+    final color = _getColorForLevel(log.level);
+    final icon = _getIconForLevel(log.level);
+    final formatter = DateFormat('yyyy/MM/dd HH:mm:ss');
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: InkWell(
+        onTap: () => _showLogDetails(log),
+        onLongPress: () => _copyLog(log),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, color: color, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    log.level.name.toUpperCase(),
+                    style: TextStyle(color: color, fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
+                  Text(
+                    formatter.format(log.timestamp),
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                log.message,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: color.withValues(alpha: 0.1),
+                    ),
+                    child: Text(
+                      log.tag,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: color,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  if (log.error != null) ...[
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.error_outline,
+                      color: Colors.red,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        log.error.toString(),
+                        style: const TextStyle(fontSize: 12, color: Colors.red),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getColorForLevel(LogLevel? level) {
+    switch (level) {
+      case LogLevel.debug:
+        return Colors.blueGrey;
+      case LogLevel.info:
+        return Colors.blue;
+      case LogLevel.warning:
+        return Colors.orange;
+      case LogLevel.error:
+        return Colors.red;
+      case LogLevel.critical:
+        return Colors.purple;
+      default:
+        return Colors.blueGrey;
+    }
+  }
+
+  IconData _getIconForLevel(LogLevel level) {
+    switch (level) {
+      case LogLevel.debug:
+        return Icons.bug_report;
+      case LogLevel.info:
+        return Icons.info;
+      case LogLevel.warning:
+        return Icons.warning;
+      case LogLevel.error:
+        return Icons.error;
+      case LogLevel.critical:
+        return Icons.warning_amber;
+    }
+  }
+
+  void _showLogDetails(LogEntry log) {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        final formatter = DateFormat('yyyy/MM/dd HH:mm:ss');
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    log.level.name.toUpperCase(),
+                    style: TextStyle(
+                      color: _getColorForLevel(log.level),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.copy),
+                    onPressed: () {
+                      _copyLog(log);
+                      Navigator.pop(context);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                formatter.format(log.timestamp),
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              Text(log.message, style: const TextStyle(fontSize: 16)),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Icon(Icons.label, size: 16, color: Colors.grey),
+                  const SizedBox(width: 6),
+                  Text(log.tag, style: const TextStyle(color: Colors.grey)),
+                ],
+              ),
+              if (log.error != null) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  'الخطأ:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  log.error.toString(),
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ],
+              if (log.stackTrace != null) ...[
+                const SizedBox(height: 12),
+                const Text(
+                  'Stack Trace:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                SizedBox(
+                  height: 120,
+                  child: SingleChildScrollView(
+                    child: Text(
+                      log.stackTrace.toString(),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _copyLog(LogEntry log) {
+    Clipboard.setData(ClipboardData(text: log.toFormattedString()));
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('تم نسخ السجل إلى الحافظة')));
+    }
+  }
+
+  Future<void> _shareLogs(List<LogEntry> logs) async {
+    if (logs.isEmpty) {
+      return;
+    }
+    final file = await ref.read(googleDriveLoggerProvider).exportLogs();
+    if (file == null) {
+      return;
+    }
+    await Share.shareXFiles([XFile(file.path)], text: 'سجلات Google Drive');
+  }
+
+  Future<void> _exportLogs() async {
+    final file = await ref.read(googleDriveLoggerProvider).exportLogs();
+    if (file == null) {
+      return;
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('تم حفظ الملف في ${file.path}')));
+    }
+  }
+
+  void _clearLogs() {
+    ref.read(googleDriveLoggerProvider).clearLogs();
+  }
+}
