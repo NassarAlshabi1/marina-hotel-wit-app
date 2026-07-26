@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -42,8 +41,12 @@ Future<void> main() async {
     debugPrint(report.toString());
 
     // حفظ التقرير في ملف JSON
-    final reportFile = File('recalculation_report_${DateTime.now().millisecondsSinceEpoch}.json');
-    await reportFile.writeAsString(const JsonEncoder.withIndent('  ').convert(report.toJson()));
+    final reportFile = File(
+      'recalculation_report_${DateTime.now().millisecondsSinceEpoch}.json',
+    );
+    await reportFile.writeAsString(
+      const JsonEncoder.withIndent('  ').convert(report.toJson()),
+    );
     debugPrint('\n📄 Report saved to: ${reportFile.path}');
 
     // Exit code
