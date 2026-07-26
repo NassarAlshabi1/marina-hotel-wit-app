@@ -3,7 +3,10 @@ import 'package:intl/intl.dart';
 /// دوال تنسيق الأرقام المالية (بدون رموز عملة)
 class CurrencyFormatter {
   static final NumberFormat _intFormatter = NumberFormat('#,##0', 'en_US');
-  static final NumberFormat _decimalFormatter = NumberFormat('#,##0.00', 'en_US');
+  static final NumberFormat _decimalFormatter = NumberFormat(
+    '#,##0.00',
+    'en_US',
+  );
 
   /// معالجة المبلغ المالي: **اقتطاع الكسور (بدون تقريب)**.
   ///
@@ -32,8 +35,10 @@ class CurrencyFormatter {
       formatCurrency(amount, showDecimals: showDecimals);
 
   /// تنسيق المبلغ بالفواصل — مرادف لـ formatCurrency (للحفاظ على التوافق)
-  static String formatCurrencyEnglish(double amount, {bool showDecimals = false}) =>
-      formatCurrency(amount, showDecimals: showDecimals);
+  static String formatCurrencyEnglish(
+    double amount, {
+    bool showDecimals = false,
+  }) => formatCurrency(amount, showDecimals: showDecimals);
 
   /// تنسيق المبلغ للعرض — مرادف لـ formatCurrency
   static String formatForDisplay(double amount, {bool showDecimals = false}) =>
@@ -51,7 +56,11 @@ class CurrencyFormatter {
   static double? parseAmount(String text) {
     var cleanText = text.trim();
 
-    cleanText = cleanText.replaceAll('٬', '').replaceAll('،', '').replaceAll(',', '').replaceAll('٫', '.');
+    cleanText = cleanText
+        .replaceAll('٬', '')
+        .replaceAll('،', '')
+        .replaceAll(',', '')
+        .replaceAll('٫', '.');
 
     const digitMap = {
       '٠': '0',
