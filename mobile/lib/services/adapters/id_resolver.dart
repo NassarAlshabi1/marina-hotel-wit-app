@@ -1,1 +1,244 @@
-aW1wb3J0ICcuLi9sb2NhbF9kYi5kYXJ0JzsKCmNsYXNzIElkUmVzb2x2ZXIgewogIElkUmVzb2x2ZXIodGhpcy5kYik7CiAgZmluYWwgQXBwRGF0YWJhc2UgZGI7CgogIC8vLyDZitit2YjZkdmEIFVVSUQg2KXZhNmJINin2YTYtdmK2LrYqSDYp9mE2YLZitin2LPZitipICjYqNin2YTYtNix2LfYp9iqKS4KICAvLy8g2KXYsNinINmD2KfZhiAzMiDYrdix2YEg2KjYr9mI2YYg2LTYsdi32KfYqtiMINmK2LbZitmBINin2YTYtNix2LfYp9iqLgogIC8vLyDYpdiw2Kcg2YPYp9mGINio2KfZhNi02LHYt9in2Kog2KjYp9mE2YHYudmE2Iwg2YrZj9ix2KzYudmHINmD2YXYpyDZh9mILgogIHN0YXRpYyBTdHJpbmcgbm9ybWFsaXplVXVpZChTdHJpbmcgdXVpZCkgewogICAgZmluYWwgdHJpbW1lZCA9IHV1aWQudHJpbSgpOwogICAgaWYgKHRyaW1tZWQubGVuZ3RoID09IDMyICYmICF0cmltbWVkLmNvbnRhaW5zKCctJykpIHsKICAgICAgLy8gMzIg2K3YsdmBINio2K/ZiNmGINi02LHYt9in2Kog4oaSINij2LbZgSDYp9mE2LTYsdi32KfYqjogOC00LTQtNC0xMgogICAgICByZXR1cm4gJyR7dHJpbW1lZC5zdWJzdHJpbmcoMCwgOCl9LSR7dHJpbW1lZC5zdWJzdHJpbmcoOCwgMTIpfS0nCiAgICAgICAgICAnJHt0cmltbWVkLnN1YnN0cmluZygxMiwgMTYpfS0ke3RyaW1tZWQuc3Vic3RyaW5nKDE2LCAyMCl9LScKICAgICAgICAgICcke3RyaW1tZWQuc3Vic3RyaW5nKDIwKX0nOwogICAgfQogICAgcmV0dXJuIHRyaW1tZWQ7CiAgfQoKICAvLy8g2YrYrdmI2ZHZhCBVVUlEINil2YTZiSDYp9mE2LXZiti62Kkg2KjYr9mI2YYg2LTYsdi32KfYqiAoMzIg2K3YsdmBINmF2KrYtdmEKS4KICBzdGF0aWMgU3RyaW5nIHN0cmlwRGFzaGVzKFN0cmluZyB1dWlkKSB7CiAgICByZXR1cm4gdXVpZC5yZXBsYWNlQWxsKCctJywgJycpOwogIH0KCiAgRnV0dXJlPGludD8+IHJlc29sdmVCb29raW5nKHsKICAgIGludD8gbG9jYWxJZCwKICAgIGludD8gc2VydmVySWQsCiAgICBTdHJpbmc/IHV1aWQsCiAgICBib29sIGZyb21SZW1vdGUgPSBmYWxzZSwKICB9KSBhc3luYyB7CiAgICBpZiAodXVpZCAhPSBudWxsICYmIHV1aWQuaXNOb3RFbXB0eSkgewogICAgICAvLyDinIUg2KXYtdmE2KfYrSDYrdix2Kw6INmF2K3Yp9mI2YTYqSDZg9mE2Kcg2LXZiti62KrZiiBVVUlEICjYqNin2YTYtNix2LfYp9iqINmI2KjYr9mI2YYpCiAgICAgIC8vINin2YTZhdi02YPZhNipOiDYqNi52LYg2KfZhNiz2KzZhNin2Kog2LnZhNmJIEFwcHdyaXRlIENsb3VkINmF2K7YstmR2YbYqSDYqNmAIFVVSUQg2KjYr9mI2YYg2LTYsdi32KfYqgogICAgICAvLyAobGVnYWN5INmF2YYgR29vZ2xlIERyaXZlIHN5bmMg2KPZiCBiYWNrdXAg2YLYr9mK2YUpLiDYudmG2K8g2KfZhNiz2K3YqNiMCiAgICAgIC8vIGJvb2tpbmdVdWlkQ2FjaGUg2YHZiiDYp9mE2YXYr9mB2YjYudin2Kog2YLYryDZitmD2YjZhiDYqNi12YrYutipINmF2K7YqtmE2YHYqSDYudmGIGxvY2FsVXVpZAogICAgICAvLyDZgdmKINin2YTYrdis2YjYstin2Kog2KfZhNmF2K3ZhNmK2Kkg4oaSINin2YTZhdi32KfYqNmC2Kkg2KrZgdi02YQg4oaSINin2YTZhdiv2YHZiNi52KfYqiDYqti12KjYrSDZitiq2YrZhdipLgoKICAgICAgLy8gMSkg2KfYqNit2Ksg2KjYp9mE2YAgVVVJRCDZg9mF2Kcg2YfZiCAo2YXYt9in2KjZgtipINiq2KfZhdipKQogICAgICB2YXIgcm93ID0KICAgICAgICAgIGF3YWl0IChkYi5zZWxlY3QoZGIuYm9va2luZ3MpCiAgICAgICAgICAgICAgICAuLndoZXJlKChiKSA9PiBiLmxvY2FsVXVpZC5lcXVhbHModXVpZCkpCiAgICAgICAgICAgICAgICAuLmxpbWl0KDEpKQogICAgICAgICAgICAgIC5nZXRTaW5nbGVPck51bGwoKTsKICAgICAgaWYgKHJvdyAhPSBudWxsKSB7CiAgICAgICAgcmV0dXJuIHJvdy5pZDsKICAgICAgfQoKICAgICAgLy8gMikg2KfYqNit2Ksg2KjYp9mE2LXZiti62Kkg2KfZhNmF2YLYp9io2YTYqSAo2KXYsNinINmD2KfZhiDYqNin2YTYtNix2LfYp9iqIOKGkiDYqNiv2YjZhtiMINmI2KfZhNi52YPYsykKICAgICAgZmluYWwgbm9ybWFsaXplZCA9IG5vcm1hbGl6ZVV1aWQodXVpZCk7CiAgICAgIGlmIChub3JtYWxpemVkICE9IHV1aWQpIHsKICAgICAgICByb3cgPQogICAgICAgICAgICBhd2FpdCAoZGIuc2VsZWN0KGRiLmJvb2tpbmdzKQogICAgICAgICAgICAgICAgICAuLndoZXJlKChiKSA9PiBiLmxvY2FsVXVpZC5lcXVhbHMobm9ybWFsaXplZCkpCiAgICAgICAgICAgICAgICAgIC4ubGltaXQoMSkpCiAgICAgICAgICAgICAgICAuZ2V0U2luZ2xlT3JOdWxsKCk7CiAgICAgICAgaWYgKHJvdyAhPSBudWxsKSB7CiAgICAgICAgICByZXR1cm4gcm93LmlkOwogICAgICAgIH0KICAgICAgfQoKICAgICAgZmluYWwgc3RyaXBwZWQgPSBzdHJpcERhc2hlcyh1dWlkKTsKICAgICAgaWYgKHN0cmlwcGVkICE9IHV1aWQgJiYgc3RyaXBwZWQubGVuZ3RoID09IDMyKSB7CiAgICAgICAgcm93ID0KICAgICAgICAgICAgYXdhaXQgKGRiLnNlbGVjdChkYi5ib29raW5ncykKICAgICAgICAgICAgICAgICAgLi53aGVyZSgoYikgPT4gYi5sb2NhbFV1aWQuZXF1YWxzKHN0cmlwcGVkKSkKICAgICAgICAgICAgICAgICAgLi5saW1pdCgxKSkKICAgICAgICAgICAgICAgIC5nZXRTaW5nbGVPck51bGwoKTsKICAgICAgICBpZiAocm93ICE9IG51bGwpIHsKICAgICAgICAgIHJldHVybiByb3cuaWQ7CiAgICAgICAgfQogICAgICB9CiAgICB9CiAgICBpZiAoc2VydmVySWQgIT0gbnVsbCkgewogICAgICBmaW5hbCByb3cgPQogICAgICAgICAgYXdhaXQgKGRiLnNlbGVjdChkYi5ib29raW5ncykKICAgICAgICAgICAgICAgIC4ud2hlcmUoKGIpID0+IGIuc2VydmVyQm9va2luZ0lkLmVxdWFscyhzZXJ2ZXJJZCkpCiAgICAgICAgICAgICAgICAuLmxpbWl0KDEpKQogICAgICAgICAgICAgIC5nZXRTaW5nbGVPck51bGwoKTsKICAgICAgaWYgKHJvdyAhPSBudWxsKSB7CiAgICAgICAgcmV0dXJuIHJvdy5pZDsKICAgICAgfQogICAgfQogICAgLy8g4pyFINil2LXZhNin2K0g2K3YsdisOiDZhNinINmG2LPYqtiu2K/ZhSBsb2NhbElkINmF2YYg2KzZh9in2LIg2KjYudmK2K8g2YPZgCBmYWxsYmFjayEKICAgIC8vINin2YTZhdi02YPZhNipOiBib29raW5nTG9jYWxJZD0yNyDYudmE2Ykg2KzZh9in2LIgQSDiiaAgYm9va2luZ0xvY2FsSWQ9Mjcg2LnZhNmJINis2YfYp9iyIEIKICAgIC8vIChhdXRvSW5jcmVtZW50INmF2K3ZhNmKINmF2LPYqtmC2YQpLiDYp9iz2KrYrtiv2KfZhSBsb2NhbElkINmF2YYg2KfZhNiz2YrYsdmB2LEg2YrYsdio2Lcg2KfZhNiv2YHYudipCiAgICAvLyDYqNit2KzYsiDYrtin2LfYpiAo2K3YrNiyINii2K7YsSDZhNmHINmG2YHYsyBpZCDYp9mE2YXYrdmE2Yog2YTZg9mG2Ycg2LTYrti1INmF2K7YqtmE2YEg2KrZhdin2YXYp9mLKS4KICAgIC8vCiAgICAvLyBsb2NhbElkINmK2Y/Ys9iq2K7Yr9mFINmB2YLYtyDZhNmE2YXYs9in2LEg2KfZhNmF2K3ZhNmKIChmcm9tUmVtb3RlPWZhbHNlKSDYrdmK2KsgaWQg2YXYrdmE2Yog2LXYrdmK2K0uCiAgICBpZiAobG9jYWxJZCAhPSBudWxsICYmICFmcm9tUmVtb3RlKSB7CiAgICAgIGZpbmFsIHJvdyA9CiAgICAgICAgICBhd2FpdCAoZGIuc2VsZWN0KGRiLmJvb2tpbmdzKQogICAgICAgICAgICAgICAgLi53aGVyZSgoYikgPT4gYi5pZC5lcXVhbHMobG9jYWxJZCkpCiAgICAgICAgICAgICAgICAuLmxpbWl0KDEpKQogICAgICAgICAgICAgIC5nZXRTaW5nbGVPck51bGwoKTsKICAgICAgaWYgKHJvdyAhPSBudWxsKSB7CiAgICAgICAgcmV0dXJuIHJvdy5pZDsKICAgICAgfQogICAgfQogICAgcmV0dXJuIG51bGw7CiAgfQoKICAvLy8g2K3ZhCDZhdix2KzYuSDYp9mE2YXZiNi42YEgLSDYp9mE2KrYrdmC2YIg2YXZhiDZiNis2YjYryDYp9mE2YXZiNi42YEg2YXYrdmE2YrYp9mLCiAgLy8vINmK2Y/Ys9iq2K7Yr9mFINmB2Yogc2FsYXJ5X3dpdGhkcmF3YWxzINmIIHNhbGFyeV9jeWNsZXMg2YTZhNiq2K3ZgtmCINmF2YYgRksKICAvLy8KICAvLy8g4pyFINil2LXZhNin2K06INmK2KzYsdmR2Kgg2YPZhNinINi12YrYutiq2YogVVVJRCAo2KjYp9mE2LTYsdi32KfYqiDZiNio2K/ZiNmGKSDigJQg2YXYq9mEIHJlc29sdmVCb29raW5nLgogIC8vLyDYp9mE2YXYtNmD2YTYqTog2KjYudi2INin2YTYs9is2YTYp9iqINi52YTZiSBBcHB3cml0ZSBDbG91ZCDZhdiu2LLZkdmG2Kkg2KjZgCBVVUlEINio2K/ZiNmGINi02LHYt9in2KoKICAvLy8gKGxlZ2FjeSkuINi52YbYryDYp9mE2LPYrdio2IwgZW1wbG95ZWVVdWlkINmB2Yogc2FsYXJ5X3dpdGhkcmF3YWxzINmC2K8g2YrZg9mI2YYg2KjYtdmK2LrYqQogIC8vLyDZhdiu2KrZhNmB2Kkg2LnZhiBsb2NhbFV1aWQg2YHZiiDYp9mE2YXZiNi42YHZitmGINin2YTZhdit2YTZitmK2YYg4oaSINin2YTZhdi32KfYqNmC2Kkg2KrZgdi02YQg4oaSINiz2KzZhCDZitiq2YrZhS4KICBGdXR1cmU8aW50Pz4gcmVzb2x2ZUVtcGxveWVlKHsKICAgIGludD8gbG9jYWxJZCwKICAgIFN0cmluZz8gdXVpZCwKICAgIGludD8gc2VydmVySWQsCiAgICBpbnQ/IGVtcGxveWVlSWQsCiAgfSkgYXN5bmMgewogICAgLy8gMS4g2KfZhNio2K3YqyDYqNin2YTZgCBVVUlEINij2YjZhNin2YsgKNin2YTYo9mD2KvYsSDYr9mC2Kkg2YTZhNmF2LLYp9mF2YbYqSkKICAgIGlmICh1dWlkICE9IG51bGwgJiYgdXVpZC5pc05vdEVtcHR5KSB7CiAgICAgIC8vIDFhKSDYp9io2K3YqyDYqNin2YTZgCBVVUlEINmD2YXYpyDZh9mIICjZhdi32KfYqNmC2Kkg2KrYp9mF2KkpCiAgICAgIHZhciByb3cgPQogICAgICAgICAgYXdhaXQgKGRiLnNlbGVjdChkYi5lbXBsb3llZXMpCiAgICAgICAgICAgICAgICAuLndoZXJlKChlKSA9PiBlLmxvY2FsVXVpZC5lcXVhbHModXVpZCkpCiAgICAgICAgICAgICAgICAuLmxpbWl0KDEpKQogICAgICAgICAgICAgIC5nZXRTaW5nbGVPck51bGwoKTsKICAgICAgaWYgKHJvdyAhPSBudWxsKSB7CiAgICAgICAgcmV0dXJuIHJvdy5pZDsKICAgICAgfQoKICAgICAgLy8gMWIpINin2KjYrdirINio2KfZhNi12YrYutipINin2YTZhdmC2KfYqNmE2KkgKNil2LDYpyDZg9in2YYg2KjYr9mI2YYg2LTYsdi32KfYqiDihpIg2KPYttmBINi02LHYt9in2KopCiAgICAgIGZpbmFsIG5vcm1hbGl6ZWQgPSBub3JtYWxpemVVdWlkKHV1aWQpOwogICAgICBpZiAobm9ybWFsaXplZCAhPSB1dWlkKSB7CiAgICAgICAgcm93ID0KICAgICAgICAgICAgYXdhaXQgKGRiLnNlbGVjdChkYi5lbXBsb3llZXMpCiAgICAgICAgICAgICAgICAgIC4ud2hlcmUoKGUpID0+IGUubG9jYWxVdWlkLmVxdWFscyhub3JtYWxpemVkKSkKICAgICAgICAgICAgICAgICAgLi5saW1pdCgxKSkKICAgICAgICAgICAgICAgIC5nZXRTaW5nbGVPck51bGwoKTsKICAgICAgICBpZiAocm93ICE9IG51bGwpIHsKICAgICAgICAgIHJldHVybiByb3cuaWQ7CiAgICAgICAgfQogICAgICB9CgogICAgICAvLyAxYykg2KfYqNit2Ksg2KjYp9mE2LXZiti62Kkg2KjYr9mI2YYg2LTYsdi32KfYqiAo2KXYsNinINmD2KfZhiDYqNin2YTYtNix2LfYp9iqIOKGkiDYo9iy2YQg2KfZhNi02LHYt9in2KopCiAgICAgIGZpbmFsIHN0cmlwcGVkID0gc3RyaXBEYXNoZXModXVpZCk7CiAgICAgIGlmIChzdHJpcHBlZCAhPSB1dWlkICYmIHN0cmlwcGVkLmxlbmd0aCA9PSAzMikgewogICAgICAgIHJvdyA9CiAgICAgICAgICAgIGF3YWl0IChkYi5zZWxlY3QoZGIuZW1wbG95ZWVzKQogICAgICAgICAgICAgICAgICAuLndoZXJlKChlKSA9PiBlLmxvY2FsVXVpZC5lcXVhbHMoc3RyaXBwZWQpKQogICAgICAgICAgICAgICAgICAuLmxpbWl0KDEpKQogICAgICAgICAgICAgICAgLmdldFNpbmdsZU9yTnVsbCgpOwogICAgICAgIGlmIChyb3cgIT0gbnVsbCkgewogICAgICAgICAgcmV0dXJuIHJvdy5pZDsKICAgICAgICB9CiAgICAgIH0KICAgIH0KICAgIC8vIDIuINin2YTYqNit2Ksg2KjYp9mE2YAgaWQg2KfZhNmF2K3ZhNmKCiAgICBpZiAobG9jYWxJZCAhPSBudWxsKSB7CiAgICAgIGZpbmFsIHJvdyA9CiAgICAgICAgICBhd2FpdCAoZGIuc2VsZWN0KGRiLmVtcGxveWVlcykKICAgICAgICAgICAgICAgIC4ud2hlcmUoKGUpID0+IGUuaWQuZXF1YWxzKGxvY2FsSWQpKQogICAgICAgICAgICAgICAgLi5saW1pdCgxKSkKICAgICAgICAgICAgICAuZ2V0U2luZ2xlT3JOdWxsKCk7CiAgICAgIGlmIChyb3cgIT0gbnVsbCkgewogICAgICAgIHJldHVybiByb3cuaWQ7CiAgICAgIH0KICAgIH0KICAgIC8vIDMuINin2YTYqNit2Ksg2KjYp9mE2YAgc2VydmVySWQgKNin2YTZhdi52LHZgSDYp9mE2KPYtdmE2Yog2YXZhiDYp9mE2LPZitix2YHYsSkKICAgIGlmIChzZXJ2ZXJJZCAhPSBudWxsKSB7CiAgICAgIGZpbmFsIHJvdyA9CiAgICAgICAgICBhd2FpdCAoZGIuc2VsZWN0KGRiLmVtcGxveWVlcykKICAgICAgICAgICAgICAgIC4ud2hlcmUoKGUpID0+IGUuc2VydmVySWQuZXF1YWxzKHNlcnZlcklkKSkKICAgICAgICAgICAgICAgIC4ubGltaXQoMSkpCiAgICAgICAgICAgICAgLmdldFNpbmdsZU9yTnVsbCgpOwogICAgICBpZiAocm93ICE9IG51bGwpIHsKICAgICAgICByZXR1cm4gcm93LmlkOwogICAgICB9CiAgICB9CiAgICAvLyA0LiDYp9mE2KjYrdirINio2KfZhNmAIGVtcGxveWVlSWQgKNmD2K7Zitin2LEg2KPYrtmK2LEg2YTZhNiq2YjYp9mB2YIpCiAgICBpZiAoZW1wbG95ZWVJZCAhPSBudWxsKSB7CiAgICAgIGZpbmFsIHJvdyA9CiAgICAgICAgICBhd2FpdCAoZGIuc2VsZWN0KGRiLmVtcGxveWVlcykKICAgICAgICAgICAgICAgIC4ud2hlcmUoKGUpID0+IGUuaWQuZXF1YWxzKGVtcGxveWVlSWQpKQogICAgICAgICAgICAgICAgLi5saW1pdCgxKSkKICAgICAgICAgICAgICAuZ2V0U2luZ2xlT3JOdWxsKCk7CiAgICAgIGlmIChyb3cgIT0gbnVsbCkgewogICAgICAgIHJldHVybiByb3cuaWQ7CiAgICAgIH0KICAgIH0KICAgIHJldHVybiBudWxsOwogIH0KCiAgLy8vINit2YQg2YXYsdis2Lkg2K/ZiNix2Kkg2KfZhNix2KfYqtioIC0g2KfZhNiq2K3ZgtmCINmF2YYg2YjYrNmI2K8g2KfZhNiv2YjYsdipINmF2K3ZhNmK2KfZiwogIC8vLyDZitmP2LPYqtiu2K/ZhSDZgdmKIHNhbGFyeV9wYXltZW50cyDZhNmE2KrYrdmC2YIg2YXZhiBGSwogIC8vLwogIC8vLyDinIUg2KXYtdmE2KfYrTog2YrYrNix2ZHYqCDZg9mE2Kcg2LXZiti62KrZiiBVVUlEICjYqNin2YTYtNix2LfYp9iqINmI2KjYr9mI2YYpIOKAlCDZhdir2YQgcmVzb2x2ZUJvb2tpbmcvcmVzb2x2ZUVtcGxveWVlLgogIEZ1dHVyZTxpbnQ/PiByZXNvbHZlU2FsYXJ5Q3ljbGUoe2ludD8gbG9jYWxJZCwgU3RyaW5nPyB1dWlkfSkgYXN5bmMgewogICAgLy8g2KfZhNio2K3YqyDYqNin2YTZgCBVVUlEINij2YjZhNin2YsKICAgIGlmICh1dWlkICE9IG51bGwgJiYgdXVpZC5pc05vdEVtcHR5KSB7CiAgICAgIC8vIDFhKSDZhdi32KfYqNmC2Kkg2KrYp9mF2KkKICAgICAgdmFyIHJvdyA9CiAgICAgICAgICBhd2FpdCAoZGIuc2VsZWN0KGRiLnNhbGFyeUN5Y2xlcykKICAgICAgICAgICAgICAgIC4ud2hlcmUoKGMpID0+IGMubG9jYWxVdWlkLmVxdWFscyh1dWlkKSkKICAgICAgICAgICAgICAgIC4ubGltaXQoMSkpCiAgICAgICAgICAgICAgLmdldFNpbmdsZU9yTnVsbCgpOwogICAgICBpZiAocm93ICE9IG51bGwpIHsKICAgICAgICByZXR1cm4gcm93LmlkOwogICAgICB9CiAgICAgIC8vIDFiKSDYtdmK2LrYqSDYqNin2YTYtNix2LfYp9iqCiAgICAgIGZpbmFsIG5vcm1hbGl6ZWQgPSBub3JtYWxpemVVdWlkKHV1aWQpOwogICAgICBpZiAobm9ybWFsaXplZCAhPSB1dWlkKSB7CiAgICAgICAgcm93ID0KICAgICAgICAgICAgYXdhaXQgKGRiLnNlbGVjdChkYi5zYWxhcnlDeWNsZXMpCiAgICAgICAgICAgICAgICAgIC4ud2hlcmUoKGMpID0+IGMubG9jYWxVdWlkLmVxdWFscyhub3JtYWxpemVkKSkKICAgICAgICAgICAgICAgICAgLi5saW1pdCgxKSkKICAgICAgICAgICAgICAgIC5nZXRTaW5nbGVPck51bGwoKTsKICAgICAgICBpZiAocm93ICE9IG51bGwpIHsKICAgICAgICAgIHJldHVybiByb3cuaWQ7CiAgICAgICAgfQogICAgICB9CiAgICAgIC8vIDFjKSDYtdmK2LrYqSDYqNiv2YjZhiDYtNix2LfYp9iqCiAgICAgIGZpbmFsIHN0cmlwcGVkID0gc3RyaXBEYXNoZXModXVpZCk7CiAgICAgIGlmIChzdHJpcHBlZCAhPSB1dWlkICYmIHN0cmlwcGVkLmxlbmd0aCA9PSAzMikgewogICAgICAgIHJvdyA9CiAgICAgICAgICAgIGF3YWl0IChkYi5zZWxlY3QoZGIuc2FsYXJ5Q3ljbGVzKQogICAgICAgICAgICAgICAgICAuLndoZXJlKChjKSA9PiBjLmxvY2FsVXVpZC5lcXVhbHMoc3RyaXBwZWQpKQogICAgICAgICAgICAgICAgICAuLmxpbWl0KDEpKQogICAgICAgICAgICAgICAgLmdldFNpbmdsZU9yTnVsbCgpOwogICAgICAgIGlmIChyb3cgIT0gbnVsbCkgewogICAgICAgICAgcmV0dXJuIHJvdy5pZDsKICAgICAgICB9CiAgICAgIH0KICAgIH0KICAgIC8vINin2YTYqNit2Ksg2KjYp9mE2YAgaWQg2KfZhNmF2K3ZhNmKCiAgICBpZiAobG9jYWxJZCAhPSBudWxsKSB7CiAgICAgIGZpbmFsIHJvdyA9CiAgICAgICAgICBhd2FpdCAoZGIuc2VsZWN0KGRiLnNhbGFyeUN5Y2xlcykKICAgICAgICAgICAgICAgIC4ud2hlcmUoKGMpID0+IGMuaWQuZXF1YWxzKGxvY2FsSWQpKQogICAgICAgICAgICAgICAgLi5saW1pdCgxKSkKICAgICAgICAgICAgICAuZ2V0U2luZ2xlT3JOdWxsKCk7CiAgICAgIGlmIChyb3cgIT0gbnVsbCkgewogICAgICAgIHJldHVybiByb3cuaWQ7CiAgICAgIH0KICAgIH0KICAgIHJldHVybiBudWxsOwogIH0KfQo=
+import '../local_db.dart';
+
+class IdResolver {
+  IdResolver(this.db);
+  final AppDatabase db;
+
+  /// يحوّل UUID إلى الصيغة القياسية (بالشرطات).
+  /// إذا كان 32 حرف بدون شرطات، يضيف الشرطات.
+  /// إذا كان بالشرطات بالفعل، يُرجعه كما هو.
+  static String normalizeUuid(String uuid) {
+    final trimmed = uuid.trim();
+    if (trimmed.length == 32 && !trimmed.contains('-')) {
+      // 32 حرف بدون شرطات → أضف الشرطات: 8-4-4-4-12
+      return '${trimmed.substring(0, 8)}-${trimmed.substring(8, 12)}-'
+          '${trimmed.substring(12, 16)}-${trimmed.substring(16, 20)}-'
+          '${trimmed.substring(20)}';
+    }
+    return trimmed;
+  }
+
+  /// يحوّل UUID إلى الصيغة بدون شرطات (32 حرف متصل).
+  static String stripDashes(String uuid) {
+    return uuid.replaceAll('-', '');
+  }
+
+  Future<int?> resolveBooking({
+    int? localId,
+    int? serverId,
+    String? uuid,
+    bool fromRemote = false,
+  }) async {
+    if (uuid != null && uuid.isNotEmpty) {
+      // ✅ إصلاح حرج: محاولة كلا صيغتي UUID (بالشرطات وبدون)
+      // المشكلة: بعض السجلات على Appwrite Cloud مخزّنة بـ UUID بدون شرطات
+      // (legacy من Google Drive sync أو backup قديم). عند السحب،
+      // bookingUuidCache في المدفوعات قد يكون بصيغة مختلفة عن localUuid
+      // في الحجوزات المحلية → المطابقة تفشل → المدفوعات تصبح يتيمة.
+
+      // 1) ابحث بالـ UUID كما هو (مطابقة تامة)
+      var row =
+          await (db.select(db.bookings)
+                ..where((b) => b.localUuid.equals(uuid))
+                ..limit(1))
+              .getSingleOrNull();
+      if (row != null) {
+        return row.id;
+      }
+
+      // 2) ابحث بالصيغة المقابلة (إذا كان بالشرطات → بدون، والعكس)
+      final normalized = normalizeUuid(uuid);
+      if (normalized != uuid) {
+        row =
+            await (db.select(db.bookings)
+                  ..where((b) => b.localUuid.equals(normalized))
+                  ..limit(1))
+                .getSingleOrNull();
+        if (row != null) {
+          return row.id;
+        }
+      }
+
+      final stripped = stripDashes(uuid);
+      if (stripped != uuid && stripped.length == 32) {
+        row =
+            await (db.select(db.bookings)
+                  ..where((b) => b.localUuid.equals(stripped))
+                  ..limit(1))
+                .getSingleOrNull();
+        if (row != null) {
+          return row.id;
+        }
+      }
+    }
+    if (serverId != null) {
+      final row =
+          await (db.select(db.bookings)
+                ..where((b) => b.serverBookingId.equals(serverId))
+                ..limit(1))
+              .getSingleOrNull();
+      if (row != null) {
+        return row.id;
+      }
+    }
+    // ✅ إصلاح حرج: لا نستخدم localId من جهاز بعيد كـ fallback!
+    // المشكلة: bookingLocalId=27 على جهاز A ≠ bookingLocalId=27 على جهاز B
+    // (autoIncrement محلي مستقل). استخدام localId من السيرفر يربط الدفعة
+    // بحجز خاطئ (حجز آخر له نفس id المحلي لكنه شخص مختلف تماماً).
+    //
+    // localId يُستخدم فقط للمسار المحلي (fromRemote=false) حيث id محلي صحيح.
+    if (localId != null && !fromRemote) {
+      final row =
+          await (db.select(db.bookings)
+                ..where((b) => b.id.equals(localId))
+                ..limit(1))
+              .getSingleOrNull();
+      if (row != null) {
+        return row.id;
+      }
+    }
+    return null;
+  }
+
+  /// حل مرجع الموظف - التحقق من وجود الموظف محلياً
+  /// يُستخدم في salary_withdrawals و salary_cycles للتحقق من FK
+  ///
+  /// ✅ إصلاح: يجرّب كلا صيغتي UUID (بالشرطات وبدون) — مثل resolveBooking.
+  /// المشكلة: بعض السجلات على Appwrite Cloud مخزّنة بـ UUID بدون شرطات
+  /// (legacy). عند السحب، employeeUuid في salary_withdrawals قد يكون بصيغة
+  /// مختلفة عن localUuid في الموظفين المحليين → المطابقة تفشل → سجل يتيم.
+  Future<int?> resolveEmployee({
+    int? localId,
+    String? uuid,
+    int? serverId,
+    int? employeeId,
+  }) async {
+    // 1. البحث بالـ UUID أولاً (الأكثر دقة للمزامنة)
+    if (uuid != null && uuid.isNotEmpty) {
+      // 1a) ابحث بالـ UUID كما هو (مطابقة تامة)
+      var row =
+          await (db.select(db.employees)
+                ..where((e) => e.localUuid.equals(uuid))
+                ..limit(1))
+              .getSingleOrNull();
+      if (row != null) {
+        return row.id;
+      }
+
+      // 1b) ابحث بالصيغة المقابلة (إذا كان بدون شرطات → أضف شرطات)
+      final normalized = normalizeUuid(uuid);
+      if (normalized != uuid) {
+        row =
+            await (db.select(db.employees)
+                  ..where((e) => e.localUuid.equals(normalized))
+                  ..limit(1))
+                .getSingleOrNull();
+        if (row != null) {
+          return row.id;
+        }
+      }
+
+      // 1c) ابحث بالصيغة بدون شرطات (إذا كان بالشرطات → أزل الشرطات)
+      final stripped = stripDashes(uuid);
+      if (stripped != uuid && stripped.length == 32) {
+        row =
+            await (db.select(db.employees)
+                  ..where((e) => e.localUuid.equals(stripped))
+                  ..limit(1))
+                .getSingleOrNull();
+        if (row != null) {
+          return row.id;
+        }
+      }
+    }
+    // 2. البحث بالـ id المحلي
+    if (localId != null) {
+      final row =
+          await (db.select(db.employees)
+                ..where((e) => e.id.equals(localId))
+                ..limit(1))
+              .getSingleOrNull();
+      if (row != null) {
+        return row.id;
+      }
+    }
+    // 3. البحث بالـ serverId (المعرف الأصلي من السيرفر)
+    if (serverId != null) {
+      final row =
+          await (db.select(db.employees)
+                ..where((e) => e.serverId.equals(serverId))
+                ..limit(1))
+              .getSingleOrNull();
+      if (row != null) {
+        return row.id;
+      }
+    }
+    // 4. البحث بالـ employeeId (كخيار أخير للتوافق)
+    if (employeeId != null) {
+      final row =
+          await (db.select(db.employees)
+                ..where((e) => e.id.equals(employeeId))
+                ..limit(1))
+              .getSingleOrNull();
+      if (row != null) {
+        return row.id;
+      }
+    }
+    return null;
+  }
+
+  /// حل مرجع دورة الراتب - التحقق من وجود الدورة محلياً
+  /// يُستخدم في salary_payments للتحقق من FK
+  ///
+  /// ✅ إصلاح: يجرّب كلا صيغتي UUID (بالشرطات وبدون) — مثل resolveBooking/resolveEmployee.
+  Future<int?> resolveSalaryCycle({int? localId, String? uuid}) async {
+    // البحث بالـ UUID أولاً
+    if (uuid != null && uuid.isNotEmpty) {
+      // 1a) مطابقة تامة
+      var row =
+          await (db.select(db.salaryCycles)
+                ..where((c) => c.localUuid.equals(uuid))
+                ..limit(1))
+              .getSingleOrNull();
+      if (row != null) {
+        return row.id;
+      }
+      // 1b) صيغة بالشرطات
+      final normalized = normalizeUuid(uuid);
+      if (normalized != uuid) {
+        row =
+            await (db.select(db.salaryCycles)
+                  ..where((c) => c.localUuid.equals(normalized))
+                  ..limit(1))
+                .getSingleOrNull();
+        if (row != null) {
+          return row.id;
+        }
+      }
+      // 1c) صيغة بدون شرطات
+      final stripped = stripDashes(uuid);
+      if (stripped != uuid && stripped.length == 32) {
+        row =
+            await (db.select(db.salaryCycles)
+                  ..where((c) => c.localUuid.equals(stripped))
+                  ..limit(1))
+                .getSingleOrNull();
+        if (row != null) {
+          return row.id;
+        }
+      }
+    }
+    // البحث بالـ id المحلي
+    if (localId != null) {
+      final row =
+          await (db.select(db.salaryCycles)
+                ..where((c) => c.id.equals(localId))
+                ..limit(1))
+              .getSingleOrNull();
+      if (row != null) {
+        return row.id;
+      }
+    }
+    return null;
+  }
+}
