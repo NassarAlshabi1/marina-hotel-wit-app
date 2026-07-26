@@ -496,6 +496,8 @@ class AppwriteSchemaVerifier {
         {'key': 'effectiveHotelDay', 'type': 'string', 'size': 255},
         // ✅ hotelDayKey: size 50, REQUIRED (مطلوب على Appwrite)
         {'key': 'hotelDayKey', 'type': 'string', 'size': 50, 'required': true},
+        // ✅ appliedDate: التاريخ الذي طُبِّق فيه التعديل (same as effectiveHotelDay)
+        {'key': 'appliedDate', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'endHotelDay', 'type': 'string', 'size': 10},
         {'key': 'isActive', 'type': 'boolean', 'default': true},
         {'key': 'reason', 'type': 'string', 'size': 500},
