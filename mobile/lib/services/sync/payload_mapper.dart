@@ -458,7 +458,7 @@ class PayloadMapper {
   Map<String, dynamic> cashTransactionToRemote(CashTransaction transaction) {
     final data = <String, dynamic>{
       'transactionType': transaction.transactionType,
-      'amount': transaction.amount.round(), // Appwrite: integer
+      'amount': transaction.amount, // ✅ Appwrite: double (fixed 2026-07-26)
       'transactionTime': transaction.transactionTime,
       'localUuid': transaction.localUuid,
       'createdAt': transaction.createdAt,
@@ -743,7 +743,7 @@ class PayloadMapper {
       'deviceId': withdrawal.deviceId,
       // تمت إزالة 'id'
       'employeeId': withdrawal.employeeId,
-      'amount': withdrawal.amount.round(),
+      'amount': withdrawal.amount, // ✅ Appwrite: double (fixed 2026-07-26)
       'withdrawDate': effectiveWithdrawDate,
       'withdrawalDate': effectiveWithdrawDate,
     };
@@ -794,7 +794,7 @@ class PayloadMapper {
       'bookingLocalUuid': adj.bookingLocalUuid,
       'adjustmentType': adj.adjustmentType,
       'adjustmentMode': adj.adjustmentMode,
-      'amount': adj.amount.round(),
+      'amount': adj.amount, // ✅ Appwrite: double (fixed 2026-07-26)
       'effectiveHotelDay': adj.effectiveHotelDay,
       // ✅ إصلاح 2026-07-26: hotelDayKey مطلوب على Appwrite Cloud (required attribute,
       // created 2026-07-03). محلياً BookingPriceAdjustments لا يملك عمود hotelDayKey
