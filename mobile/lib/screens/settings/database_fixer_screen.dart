@@ -1,1 +1,401 @@
-aW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXIvbWF0ZXJpYWwuZGFydCc7CmltcG9ydCAnLi4vLi4vc2VydmljZXMvZGF0YWJhc2VfZml4ZXIuZGFydCc7CmltcG9ydCAnLi4vLi4vc2VydmljZXMvbG9jYWxfZGIuZGFydCc7CmltcG9ydCAnLi4vLi4vdXRpbHMvcGVyZm9ybWFuY2VfbW9uaXRvci5kYXJ0JzsKCmNsYXNzIERhdGFiYXNlRml4ZXJTY3JlZW4gZXh0ZW5kcyBTdGF0ZWZ1bFdpZGdldCB7CiAgY29uc3QgRGF0YWJhc2VGaXhlclNjcmVlbih7c3VwZXIua2V5fSk7CgogIEBvdmVycmlkZQogIFN0YXRlPERhdGFiYXNlRml4ZXJTY3JlZW4+IGNyZWF0ZVN0YXRlKCkgPT4gX0RhdGFiYXNlRml4ZXJTY3JlZW5TdGF0ZSgpOwp9CgpjbGFzcyBfRGF0YWJhc2VGaXhlclNjcmVlblN0YXRlIGV4dGVuZHMgU3RhdGU8RGF0YWJhc2VGaXhlclNjcmVlbj4gewogIFZhbGlkYXRpb25SZXBvcnQ/IF92YWxpZGF0aW9uUmVwb3J0OwogIEZpeFJlc3VsdD8gX2ZpeFJlc3VsdDsKICBib29sIF9pc0xvYWRpbmcgPSBmYWxzZTsKICBib29sIF9pc0ZpeGluZyA9IGZhbHNlOwoKICBsYXRlIGZpbmFsIERhdGFiYXNlRml4ZXIgX2ZpeGVyOwoKICBAb3ZlcnJpZGUKICB2b2lkIGluaXRTdGF0ZSgpIHsKICAgIHN1cGVyLmluaXRTdGF0ZSgpOwogICAgX2ZpeGVyID0gRGF0YWJhc2VGaXhlcihEYXRhYmFzZU1hbmFnZXIuaW5zdGFuY2UpOwogICAgX3J1blZhbGlkYXRpb24oKTsKICB9CgogIEZ1dHVyZTx2b2lkPiBfcnVuVmFsaWRhdGlvbigpIGFzeW5jIHsKICAgIHNldFN0YXRlKCgpIHsKICAgICAgX2lzTG9hZGluZyA9IHRydWU7CiAgICAgIF92YWxpZGF0aW9uUmVwb3J0ID0gbnVsbDsKICAgIH0pOwoKICAgIHRyeSB7CiAgICAgIGZpbmFsIHJlcG9ydCA9IGF3YWl0IF9maXhlci52YWxpZGF0ZSgpOwogICAgICBzZXRTdGF0ZSgoKSB7CiAgICAgICAgX3ZhbGlkYXRpb25SZXBvcnQgPSByZXBvcnQ7CiAgICAgIH0pOwogICAgfSBjYXRjaCAoZSkgewogICAgICBpZiAobW91bnRlZCkgewogICAgICAgIFNjYWZmb2xkTWVzc2VuZ2VyLm9mKAogICAgICAgICAgY29udGV4dCwKICAgICAgICApLnNob3dTbmFja0JhcihTbmFja0Jhcihjb250ZW50OiBUZXh0KCfYrti32KMg2YHZiiDYp9mE2KrYrdmC2YI6ICRlJykpKTsKICAgICAgfQogICAgfSBmaW5hbGx5IHsKICAgICAgc2V0U3RhdGUoKCkgewogICAgICAgIF9pc0xvYWRpbmcgPSBmYWxzZTsKICAgICAgfSk7CiAgICB9CiAgfQoKICBGdXR1cmU8dm9pZD4gX3J1bkZpeCgpIGFzeW5jIHsKICAgIGZpbmFsIGNvbmZpcm1lZCA9IGF3YWl0IHNob3dEaWFsb2c8Ym9vbD4oCiAgICAgIGNvbnRleHQ6IGNvbnRleHQsCiAgICAgIGJ1aWxkZXI6IChjb250ZXh0KSA9PiBBbGVydERpYWxvZygKICAgICAgICB0aXRsZTogY29uc3QgVGV4dCgn2KrYo9mD2YrYryDYp9mE2KXYtdmE2KfYrScpLAogICAgICAgIGNvbnRlbnQ6IGNvbnN0IFRleHQoCiAgICAgICAgICAn2LPZitiq2YUg2KXYtdmE2KfYrSDYp9mE2KjZitin2YbYp9iqINin2YTZgdin2LPYr9ipINmB2Yog2YLYp9i52K/YqSDYp9mE2KjZitin2YbYp9iqLlxuJwogICAgICAgICAgJ9mH2YQg2KrYsdmK2K8g2KfZhNmF2KrYp9io2LnYqdifJywKICAgICAgICApLAogICAgICAgIGFjdGlvbnM6IFsKICAgICAgICAgIFRleHRCdXR0b24oCiAgICAgICAgICAgIG9uUHJlc3NlZDogKCkgPT4gTmF2aWdhdG9yLnBvcDxib29sPihjb250ZXh0LCBmYWxzZSksCiAgICAgICAgICAgIGNoaWxkOiBjb25zdCBUZXh0KCfYpdmE2LrYp9ihJyksCiAgICAgICAgICApLAogICAgICAgICAgRWxldmF0ZWRCdXR0b24oCiAgICAgICAgICAgIG9uUHJlc3NlZDogKCkgPT4gTmF2aWdhdG9yLnBvcDxib29sPihjb250ZXh0LCB0cnVlKSwKICAgICAgICAgICAgY2hpbGQ6IGNvbnN0IFRleHQoJ9il2LXZhNin2K0nKSwKICAgICAgICAgICksCiAgICAgICAgXSwKICAgICAgKSwKICAgICk7CgogICAgaWYgKGNvbmZpcm1lZCAhPSB0cnVlKSB7CiAgICAgIHJldHVybjsKICAgIH0KCiAgICBzZXRTdGF0ZSgoKSB7CiAgICAgIF9pc0ZpeGluZyA9IHRydWU7CiAgICAgIF9maXhSZXN1bHQgPSBudWxsOwogICAgfSk7CgogICAgdHJ5IHsKICAgICAgZmluYWwgcmVzdWx0ID0gYXdhaXQgX2ZpeGVyLmZpeEFsbElzc3VlcygpOwogICAgICBzZXRTdGF0ZSgoKSB7CiAgICAgICAgX2ZpeFJlc3VsdCA9IHJlc3VsdDsKICAgICAgfSk7CgogICAgICBpZiAocmVzdWx0LnN1Y2Nlc3MgJiYgcmVzdWx0LnRvdGFsRml4ZWQgPiAwKSB7CiAgICAgICAgLy8g2KXYudin2K/YqSDYp9mE2KrYrdmC2YIg2KjYudivINin2YTYpdi12YTYp9itCiAgICAgICAgYXdhaXQgX3J1blZhbGlkYXRpb24oKTsKCiAgICAgICAgaWYgKG1vdW50ZWQpIHsKICAgICAgICAgIFNjYWZmb2xkTWVzc2VuZ2VyLm9mKGNvbnRleHQpLnNob3dTbmFja0JhcigKICAgICAgICAgICAgU25hY2tCYXIoCiAgICAgICAgICAgICAgY29udGVudDogVGV4dCgn2KrZhSDYpdi12YTYp9itICR7cmVzdWx0LnRvdGFsRml4ZWR9INmF2LTZg9mE2Kkg4pyTJyksCiAgICAgICAgICAgICAgYmFja2dyb3VuZENvbG9yOiBDb2xvcnMuZ3JlZW4sCiAgICAgICAgICAgICksCiAgICAgICAgICApOwogICAgICAgIH0KICAgICAgfSBlbHNlIGlmIChyZXN1bHQuc3VjY2VzcyAmJiByZXN1bHQudG90YWxGaXhlZCA9PSAwKSB7CiAgICAgICAgaWYgKG1vdW50ZWQpIHsKICAgICAgICAgIFNjYWZmb2xkTWVzc2VuZ2VyLm9mKGNvbnRleHQpLnNob3dTbmFja0JhcigKICAgICAgICAgICAgY29uc3QgU25hY2tCYXIoY29udGVudDogVGV4dCgn2YTYpyDYqtmI2KzYryDZhdi02KfZg9mEINmE2YTYpdi12YTYp9itJykpLAogICAgICAgICAgKTsKICAgICAgICB9CiAgICAgIH0KICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgaWYgKG1vdW50ZWQpIHsKICAgICAgICBTY2FmZm9sZE1lc3Nlbmdlci5vZigKICAgICAgICAgIGNvbnRleHQsCiAgICAgICAgKS5zaG93U25hY2tCYXIoU25hY2tCYXIoY29udGVudDogVGV4dCgn2K7Yt9ijINmB2Yog2KfZhNil2LXZhNin2K06ICRlJykpKTsKICAgICAgfQogICAgfSBmaW5hbGx5IHsKICAgICAgc2V0U3RhdGUoKCkgewogICAgICAgIF9pc0ZpeGluZyA9IGZhbHNlOwogICAgICB9KTsKICAgIH0KICB9CgogIEBvdmVycmlkZQogIFdpZGdldCBidWlsZChCdWlsZENvbnRleHQgY29udGV4dCkgewogICAgcmV0dXJuIFBlcmZvcm1hbmNlSW5zcGVjdG9yKAogICAgICBuYW1lOiAnRGF0YWJhc2VGaXhlclNjcmVlbicsCiAgICAgIGNoaWxkOiBTY2FmZm9sZCgKICAgICAgICBhcHBCYXI6IEFwcEJhcigKICAgICAgICAgIHRpdGxlOiBjb25zdCBUZXh0KCfYpdi12YTYp9itINmC2KfYudiv2Kkg2KfZhNio2YrYp9mG2KfYqicpLAogICAgICAgICAgYWN0aW9uczogWwogICAgICAgICAgICBJY29uQnV0dG9uKAogICAgICAgICAgICAgIGljb246IGNvbnN0IEljb24oSWNvbnMucmVmcmVzaCksCiAgICAgICAgICAgICAgb25QcmVzc2VkOiBfaXNMb2FkaW5nID8gbnVsbCA6IF9ydW5WYWxpZGF0aW9uLAogICAgICAgICAgICAgIHRvb2x0aXA6ICfYpdi52KfYr9ipINin2YTYqtit2YLZgicsCiAgICAgICAgICAgICksCiAgICAgICAgICBdLAogICAgICAgICksCiAgICAgICAgYm9keTogX2lzTG9hZGluZwogICAgICAgICAgICA/IGNvbnN0IENlbnRlcihjaGlsZDogQ2lyY3VsYXJQcm9ncmVzc0luZGljYXRvcigpKQogICAgICAgICAgICA6IFNpbmdsZUNoaWxkU2Nyb2xsVmlldygKICAgICAgICAgICAgICAgIHBhZGRpbmc6IGNvbnN0IEVkZ2VJbnNldHMuYWxsKDE2KSwKICAgICAgICAgICAgICAgIGNoaWxkOiBDb2x1bW4oCiAgICAgICAgICAgICAgICAgIGNyb3NzQXhpc0FsaWdubWVudDogQ3Jvc3NBeGlzQWxpZ25tZW50LnN0YXJ0LAogICAgICAgICAgICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgICAgICAgICAgIF9idWlsZEluZm9DYXJkKCksCiAgICAgICAgICAgICAgICAgICAgY29uc3QgU2l6ZWRCb3goaGVpZ2h0OiAxNiksCiAgICAgICAgICAgICAgICAgICAgaWYgKF92YWxpZGF0aW9uUmVwb3J0ICE9IG51bGwpIC4uLlsKICAgICAgICAgICAgICAgICAgICAgIF9idWlsZFZhbGlkYXRpb25DYXJkKCksCiAgICAgICAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDE2KSwKICAgICAgICAgICAgICAgICAgICBdLAogICAgICAgICAgICAgICAgICAgIGlmIChfZml4UmVzdWx0ICE9IG51bGwpIC4uLlsKICAgICAgICAgICAgICAgICAgICAgIF9idWlsZEZpeFJlc3VsdENhcmQoKSwKICAgICAgICAgICAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogMTYpLAogICAgICAgICAgICAgICAgICAgIF0sCiAgICAgICAgICAgICAgICAgICAgaWYgKF92YWxpZGF0aW9uUmVwb3J0Py5oYXNJc3N1ZXMgPz8gZmFsc2UpCiAgICAgICAgICAgICAgICAgICAgICBfYnVpbGRGaXhCdXR0b24oKSwKICAgICAgICAgICAgICAgICAgXSwKICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgKSwKICAgICAgKSwKICAgICk7CiAgfQoKICBXaWRnZXQgX2J1aWxkSW5mb0NhcmQoKSB7CiAgICByZXR1cm4gQ2FyZCgKICAgICAgY2hpbGQ6IFBhZGRpbmcoCiAgICAgICAgcGFkZGluZzogY29uc3QgRWRnZUluc2V0cy5hbGwoMTYpLAogICAgICAgIGNoaWxkOiBDb2x1bW4oCiAgICAgICAgICBjcm9zc0F4aXNBbGlnbm1lbnQ6IENyb3NzQXhpc0FsaWdubWVudC5zdGFydCwKICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgIFJvdygKICAgICAgICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgICAgICAgSWNvbihJY29ucy5pbmZvX291dGxpbmUsIGNvbG9yOiBDb2xvcnMuYmx1ZVs3MDBdKSwKICAgICAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KHdpZHRoOiA4KSwKICAgICAgICAgICAgICAgIGNvbnN0IFRleHQoCiAgICAgICAgICAgICAgICAgICfZhdi52YTZiNmF2KfYqicsCiAgICAgICAgICAgICAgICAgIHN0eWxlOiBUZXh0U3R5bGUoZm9udFNpemU6IDE4LCBmb250V2VpZ2h0OiBGb250V2VpZ2h0LmJvbGQpLAogICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICBdLAogICAgICAgICAgICApLAogICAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDEyKSwKICAgICAgICAgICAgY29uc3QgVGV4dCgKICAgICAgICAgICAgICAn2YfYsNmHINin2YTYo9iv2KfYqSDYqtmC2YjZhSDYqNin2YTYqtit2YLZgiDZhdmGINi12K3YqSDYp9mE2KjZitin2YbYp9iqINmB2Yog2YLYp9i52K/YqSDYp9mE2KjZitin2YbYp9iqINmI2KXYtdmE2KfYrSDYp9mE2YXYtNin2YPZhCDYp9mE2KrYp9mE2YrYqTonLAogICAgICAgICAgICAgIHN0eWxlOiBUZXh0U3R5bGUoZm9udFNpemU6IDE0KSwKICAgICAgICAgICAgKSwKICAgICAgICAgICAgY29uc3QgU2l6ZWRCb3goaGVpZ2h0OiA4KSwKICAgICAgICAgICAgX2J1aWxkSW5mb0l0ZW0oJ+KAoiBzZXJ2ZXJJZCDYqtit2KrZiNmKINi52YTZiSBVVUlEINio2K/ZhNin2Ysg2YXZhiDYo9ix2YLYp9mFJyksCiAgICAgICAgICAgIF9idWlsZEluZm9JdGVtKCfigKIg2YXYr9mB2YjYudin2Kog2KrYtNmK2LEg2YTYrdis2YjYstin2Kog2LrZitixINmF2YjYrNmI2K/YqScpLAogICAgICAgICAgICBfYnVpbGRJbmZvSXRlbSgn4oCiINmF2LXYsdmI2YHYp9iqINiq2LTZitixINmE2KjZitin2YbYp9iqINi62YrYsSDZhdmI2KzZiNiv2KknKSwKICAgICAgICAgIF0sCiAgICAgICAgKSwKICAgICAgKSwKICAgICk7CiAgfQoKICBXaWRnZXQgX2J1aWxkSW5mb0l0ZW0oU3RyaW5nIHRleHQpIHsKICAgIHJldHVybiBQYWRkaW5nKAogICAgICBwYWRkaW5nOiBjb25zdCBFZGdlSW5zZXRzLnN5bW1ldHJpYyh2ZXJ0aWNhbDogNCksCiAgICAgIGNoaWxkOiBUZXh0KAogICAgICAgIHRleHQsCiAgICAgICAgc3R5bGU6IFRleHRTdHlsZShmb250U2l6ZTogMTMsIGNvbG9yOiBDb2xvcnMuZ3JleVs3MDBdKSwKICAgICAgKSwKICAgICk7CiAgfQoKICBXaWRnZXQgX2J1aWxkVmFsaWRhdGlvbkNhcmQoKSB7CiAgICBmaW5hbCByZXBvcnQgPSBfdmFsaWRhdGlvblJlcG9ydCE7CgogICAgcmV0dXJuIENhcmQoCiAgICAgIGNvbG9yOiByZXBvcnQuaGFzSXNzdWVzID8gQ29sb3JzLm9yYW5nZVs1MF0gOiBDb2xvcnMuZ3JlZW5bNTBdLAogICAgICBjaGlsZDogUGFkZGluZygKICAgICAgICBwYWRkaW5nOiBjb25zdCBFZGdlSW5zZXRzLmFsbCgxNiksCiAgICAgICAgY2hpbGQ6IENvbHVtbigKICAgICAgICAgIGNyb3NzQXhpc0FsaWdubWVudDogQ3Jvc3NBeGlzQWxpZ25tZW50LnN0YXJ0LAogICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgUm93KAogICAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgICBJY29uKAogICAgICAgICAgICAgICAgICByZXBvcnQuaGFzSXNzdWVzID8gSWNvbnMud2FybmluZyA6IEljb25zLmNoZWNrX2NpcmNsZSwKICAgICAgICAgICAgICAgICAgY29sb3I6IHJlcG9ydC5oYXNJc3N1ZXMgPyBDb2xvcnMub3JhbmdlIDogQ29sb3JzLmdyZWVuLAogICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KHdpZHRoOiA4KSwKICAgICAgICAgICAgICAgIFRleHQoCiAgICAgICAgICAgICAgICAgICfZhtiq2YrYrNipINin2YTYqtit2YLZgicsCiAgICAgICAgICAgICAgICAgIHN0eWxlOiBUZXh0U3R5bGUoCiAgICAgICAgICAgICAgICAgICAgZm9udFNpemU6IDE4LAogICAgICAgICAgICAgICAgICAgIGZvbnRXZWlnaHQ6IEZvbnRXZWlnaHQuYm9sZCwKICAgICAgICAgICAgICAgICAgICBjb2xvcjogcmVwb3J0Lmhhc0lzc3VlcwogICAgICAgICAgICAgICAgICAgICAgICA/IENvbG9ycy5vcmFuZ2VbOTAwXQogICAgICAgICAgICAgICAgICAgICAgICA6IENvbG9ycy5ncmVlbls5MDBdLAogICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICBdLAogICAgICAgICAgICApLAogICAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDEyKSwKICAgICAgICAgICAgaWYgKHJlcG9ydC5lcnJvciAhPSBudWxsKQogICAgICAgICAgICAgIFRleHQoCiAgICAgICAgICAgICAgICAn2K7Yt9ijOiAke3JlcG9ydC5lcnJvcn0nLAogICAgICAgICAgICAgICAgc3R5bGU6IGNvbnN0IFRleHRTdHlsZShjb2xvcjogQ29sb3JzLnJlZCksCiAgICAgICAgICAgICAgKQogICAgICAgICAgICBlbHNlIGlmICghcmVwb3J0Lmhhc0lzc3VlcykKICAgICAgICAgICAgICBjb25zdCBUZXh0KAogICAgICAgICAgICAgICAgJ+KckyDZgtin2LnYr9ipINin2YTYqNmK2KfZhtin2Kog2LXYrdmK2K3YqScsCiAgICAgICAgICAgICAgICBzdHlsZTogVGV4dFN0eWxlKGZvbnRTaXplOiAxNiwgZm9udFdlaWdodDogRm9udFdlaWdodC53NTAwKSwKICAgICAgICAgICAgICApCiAgICAgICAgICAgIGVsc2UgLi4uWwogICAgICAgICAgICAgIF9idWlsZElzc3VlSXRlbSgKICAgICAgICAgICAgICAgICdzZXJ2ZXJJZCDZgdin2LPYr9ipJywKICAgICAgICAgICAgICAgIHJlcG9ydC5pbnZhbGlkU2VydmVySWRzLAogICAgICAgICAgICAgICAgSWNvbnMua2V5LAogICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgX2J1aWxkSXNzdWVJdGVtKAogICAgICAgICAgICAgICAgJ9mF2K/ZgdmI2LnYp9iqINmK2KrZitmF2KknLAogICAgICAgICAgICAgICAgcmVwb3J0Lm9ycGhhblBheW1lbnRzLAogICAgICAgICAgICAgICAgSWNvbnMucGF5bWVudCwKICAgICAgICAgICAgICApLAogICAgICAgICAgICAgIF9idWlsZElzc3VlSXRlbSgKICAgICAgICAgICAgICAgICfZhdi12LHZiNmB2KfYqiDZitiq2YrZhdipJywKICAgICAgICAgICAgICAgIHJlcG9ydC5vcnBoYW5FeHBlbnNlcywKICAgICAgICAgICAgICAgIEljb25zLm1vbmV5X29mZiwKICAgICAgICAgICAgICApLAogICAgICAgICAgICAgIGNvbnN0IERpdmlkZXIoaGVpZ2h0OiAyNCksCiAgICAgICAgICAgICAgVGV4dCgKICAgICAgICAgICAgICAgICfYp9mE2KXYrNmF2KfZhNmKOiAke3JlcG9ydC50b3RhbElzc3Vlc30g2YXYtNmD2YTYqScsCiAgICAgICAgICAgICAgICBzdHlsZTogY29uc3QgVGV4dFN0eWxlKAogICAgICAgICAgICAgICAgICBmb250U2l6ZTogMTYsCiAgICAgICAgICAgICAgICAgIGZvbnRXZWlnaHQ6IEZvbnRXZWlnaHQuYm9sZCwKICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgXSwKICAgICAgICAgIF0sCiAgICAgICAgKSwKICAgICAgKSwKICAgICk7CiAgfQoKICBXaWRnZXQgX2J1aWxkSXNzdWVJdGVtKFN0cmluZyBsYWJlbCwgaW50IGNvdW50LCBJY29uRGF0YSBpY29uKSB7CiAgICBpZiAoY291bnQgPT0gMCkgewogICAgICByZXR1cm4gY29uc3QgU2l6ZWRCb3guc2hyaW5rKCk7CiAgICB9CgogICAgcmV0dXJuIFBhZGRpbmcoCiAgICAgIHBhZGRpbmc6IGNvbnN0IEVkZ2VJbnNldHMuc3ltbWV0cmljKHZlcnRpY2FsOiA0KSwKICAgICAgY2hpbGQ6IFJvdygKICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgSWNvbihpY29uLCBzaXplOiAyMCwgY29sb3I6IENvbG9ycy5vcmFuZ2VbNzAwXSksCiAgICAgICAgICBjb25zdCBTaXplZEJveCh3aWR0aDogOCksCiAgICAgICAgICBUZXh0KCckbGFiZWw6ICcsIHN0eWxlOiBjb25zdCBUZXh0U3R5bGUoZm9udFNpemU6IDE0KSksCiAgICAgICAgICBUZXh0KAogICAgICAgICAgICAnJGNvdW50JywKICAgICAgICAgICAgc3R5bGU6IFRleHRTdHlsZSgKICAgICAgICAgICAgICBmb250U2l6ZTogMTQsCiAgICAgICAgICAgICAgZm9udFdlaWdodDogRm9udFdlaWdodC5ib2xkLAogICAgICAgICAgICAgIGNvbG9yOiBDb2xvcnMub3JhbmdlWzkwMF0sCiAgICAgICAgICAgICksCiAgICAgICAgICApLAogICAgICAgIF0sCiAgICAgICksCiAgICApOwogIH0KCiAgV2lkZ2V0IF9idWlsZEZpeFJlc3VsdENhcmQoKSB7CiAgICBmaW5hbCByZXN1bHQgPSBfZml4UmVzdWx0ITsKCiAgICByZXR1cm4gQ2FyZCgKICAgICAgY29sb3I6IHJlc3VsdC5zdWNjZXNzID8gQ29sb3JzLmdyZWVuWzUwXSA6IENvbG9ycy5yZWRbNTBdLAogICAgICBjaGlsZDogUGFkZGluZygKICAgICAgICBwYWRkaW5nOiBjb25zdCBFZGdlSW5zZXRzLmFsbCgxNiksCiAgICAgICAgY2hpbGQ6IENvbHVtbigKICAgICAgICAgIGNyb3NzQXhpc0FsaWdubWVudDogQ3Jvc3NBeGlzQWxpZ25tZW50LnN0YXJ0LAogICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgUm93KAogICAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgICBJY29uKAogICAgICAgICAgICAgICAgICByZXN1bHQuc3VjY2VzcyA/IEljb25zLmNoZWNrX2NpcmNsZSA6IEljb25zLmVycm9yLAogICAgICAgICAgICAgICAgICBjb2xvcjogcmVzdWx0LnN1Y2Nlc3MgPyBDb2xvcnMuZ3JlZW4gOiBDb2xvcnMucmVkLAogICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KHdpZHRoOiA4KSwKICAgICAgICAgICAgICAgIFRleHQoCiAgICAgICAgICAgICAgICAgICfZhtiq2YrYrNipINin2YTYpdi12YTYp9itJywKICAgICAgICAgICAgICAgICAgc3R5bGU6IFRleHRTdHlsZSgKICAgICAgICAgICAgICAgICAgICBmb250U2l6ZTogMTgsCiAgICAgICAgICAgICAgICAgICAgZm9udFdlaWdodDogRm9udFdlaWdodC5ib2xkLAogICAgICAgICAgICAgICAgICAgIGNvbG9yOiByZXN1bHQuc3VjY2VzcyA/IENvbG9ycy5ncmVlbls5MDBdIDogQ29sb3JzLnJlZFs5MDBdLAogICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICBdLAogICAgICAgICAgICApLAogICAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDEyKSwKICAgICAgICAgICAgaWYgKHJlc3VsdC5lcnJvciAhPSBudWxsKQogICAgICAgICAgICAgIFRleHQoCiAgICAgICAgICAgICAgICAn2K7Yt9ijOiAke3Jlc3VsdC5lcnJvcn0nLAogICAgICAgICAgICAgICAgc3R5bGU6IGNvbnN0IFRleHRTdHlsZShjb2xvcjogQ29sb3JzLnJlZCksCiAgICAgICAgICAgICAgKQogICAgICAgICAgICBlbHNlIGlmIChyZXN1bHQuc3VjY2VzcykgLi4uWwogICAgICAgICAgICAgIF9idWlsZEZpeEl0ZW0oJ3NlcnZlcklkJywgcmVzdWx0LnNlcnZlcklkRml4ZWQpLAogICAgICAgICAgICAgIF9idWlsZEZpeEl0ZW0oJ9mF2K/ZgdmI2LnYp9iqINmK2KrZitmF2KknLCByZXN1bHQub3JwaGFuUGF5bWVudHNGaXhlZCksCiAgICAgICAgICAgICAgX2J1aWxkRml4SXRlbSgn2YXYtdix2YjZgdin2Kog2YrYqtmK2YXYqScsIHJlc3VsdC5vcnBoYW5FeHBlbnNlc0ZpeGVkKSwKICAgICAgICAgICAgICBjb25zdCBEaXZpZGVyKGhlaWdodDogMjQpLAogICAgICAgICAgICAgIFRleHQoCiAgICAgICAgICAgICAgICAn4pyTINiq2YUg2KXYtdmE2KfYrSAke3Jlc3VsdC50b3RhbEZpeGVkfSDZhdi02YPZhNipJywKICAgICAgICAgICAgICAgIHN0eWxlOiBjb25zdCBUZXh0U3R5bGUoCiAgICAgICAgICAgICAgICAgIGZvbnRTaXplOiAxNiwKICAgICAgICAgICAgICAgICAgZm9udFdlaWdodDogRm9udFdlaWdodC5ib2xkLAogICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICApLAogICAgICAgICAgICBdLAogICAgICAgICAgXSwKICAgICAgICApLAogICAgICApLAogICAgKTsKICB9CgogIFdpZGdldCBfYnVpbGRGaXhJdGVtKFN0cmluZyBsYWJlbCwgaW50IGNvdW50KSB7CiAgICBpZiAoY291bnQgPT0gMCkgewogICAgICByZXR1cm4gY29uc3QgU2l6ZWRCb3guc2hyaW5rKCk7CiAgICB9CgogICAgcmV0dXJuIFBhZGRpbmcoCiAgICAgIHBhZGRpbmc6IGNvbnN0IEVkZ2VJbnNldHMuc3ltbWV0cmljKHZlcnRpY2FsOiA0KSwKICAgICAgY2hpbGQ6IFJvdygKICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgY29uc3QgSWNvbihJY29ucy5idWlsZCwgc2l6ZTogMjAsIGNvbG9yOiBDb2xvcnMuZ3JlZW4pLAogICAgICAgICAgY29uc3QgU2l6ZWRCb3god2lkdGg6IDgpLAogICAgICAgICAgVGV4dCgnJGxhYmVsOiAnLCBzdHlsZTogY29uc3QgVGV4dFN0eWxlKGZvbnRTaXplOiAxNCkpLAogICAgICAgICAgVGV4dCgKICAgICAgICAgICAgJyRjb3VudCcsCiAgICAgICAgICAgIHN0eWxlOiBUZXh0U3R5bGUoCiAgICAgICAgICAgICAgZm9udFNpemU6IDE0LAogICAgICAgICAgICAgIGZvbnRXZWlnaHQ6IEZvbnRXZWlnaHQuYm9sZCwKICAgICAgICAgICAgICBjb2xvcjogQ29sb3JzLmdyZWVuWzkwMF0sCiAgICAgICAgICAgICksCiAgICAgICAgICApLAogICAgICAgIF0sCiAgICAgICksCiAgICApOwogIH0KCiAgV2lkZ2V0IF9idWlsZEZpeEJ1dHRvbigpIHsKICAgIHJldHVybiBTaXplZEJveCgKICAgICAgd2lkdGg6IGRvdWJsZS5pbmZpbml0eSwKICAgICAgY2hpbGQ6IEVsZXZhdGVkQnV0dG9uLmljb24oCiAgICAgICAgb25QcmVzc2VkOiBfaXNGaXhpbmcgPyBudWxsIDogX3J1bkZpeCwKICAgICAgICBpY29uOiBfaXNGaXhpbmcKICAgICAgICAgICAgPyBjb25zdCBTaXplZEJveCgKICAgICAgICAgICAgICAgIHdpZHRoOiAyMCwKICAgICAgICAgICAgICAgIGhlaWdodDogMjAsCiAgICAgICAgICAgICAgICBjaGlsZDogQ2lyY3VsYXJQcm9ncmVzc0luZGljYXRvcigKICAgICAgICAgICAgICAgICAgc3Ryb2tlV2lkdGg6IDIsCiAgICAgICAgICAgICAgICAgIHZhbHVlQ29sb3I6IEFsd2F5c1N0b3BwZWRBbmltYXRpb248Q29sb3I+KENvbG9ycy53aGl0ZSksCiAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICkKICAgICAgICAgICAgOiBjb25zdCBJY29uKEljb25zLmJ1aWxkKSwKICAgICAgICBsYWJlbDogVGV4dChfaXNGaXhpbmcgPyAn2KzYp9ix2Yog2KfZhNil2LXZhNin2K0uLi4nIDogJ9il2LXZhNin2K0g2KfZhNmF2LTYp9mD2YQnKSwKICAgICAgICBzdHlsZTogRWxldmF0ZWRCdXR0b24uc3R5bGVGcm9tKAogICAgICAgICAgcGFkZGluZzogY29uc3QgRWRnZUluc2V0cy5zeW1tZXRyaWModmVydGljYWw6IDE2KSwKICAgICAgICAgIGJhY2tncm91bmRDb2xvcjogQ29sb3JzLm9yYW5nZSwKICAgICAgICAgIGZvcmVncm91bmRDb2xvcjogQ29sb3JzLndoaXRlLAogICAgICAgICksCiAgICAgICksCiAgICApOwogIH0KfQo=
+import 'package:flutter/material.dart';
+import '../../services/database_fixer.dart';
+import '../../services/local_db.dart';
+import '../../utils/performance_monitor.dart';
+
+class DatabaseFixerScreen extends StatefulWidget {
+  const DatabaseFixerScreen({super.key});
+
+  @override
+  State<DatabaseFixerScreen> createState() => _DatabaseFixerScreenState();
+}
+
+class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
+  ValidationReport? _validationReport;
+  FixResult? _fixResult;
+  bool _isLoading = false;
+  bool _isFixing = false;
+
+  late final DatabaseFixer _fixer;
+
+  @override
+  void initState() {
+    super.initState();
+    _fixer = DatabaseFixer(DatabaseManager.instance);
+    _runValidation();
+  }
+
+  Future<void> _runValidation() async {
+    setState(() {
+      _isLoading = true;
+      _validationReport = null;
+    });
+
+    try {
+      final report = await _fixer.validate();
+      setState(() {
+        _validationReport = report;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('خطأ في التحقق: $e')));
+      }
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _runFix() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('تأكيد الإصلاح'),
+        content: const Text(
+          'سيتم إصلاح البيانات الفاسدة في قاعدة البيانات.\n'
+          'هل تريد المتابعة؟',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop<bool>(context, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop<bool>(context, true),
+            child: const Text('إصلاح'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    setState(() {
+      _isFixing = true;
+      _fixResult = null;
+    });
+
+    try {
+      final result = await _fixer.fixAllIssues();
+      setState(() {
+        _fixResult = result;
+      });
+
+      if (result.success && result.totalFixed > 0) {
+        // إعادة التحقق بعد الإصلاح
+        await _runValidation();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('تم إصلاح ${result.totalFixed} مشكلة ✓'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else if (result.success && result.totalFixed == 0) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('لا توجد مشاكل للإصلاح')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('خطأ في الإصلاح: $e')));
+      }
+    } finally {
+      setState(() {
+        _isFixing = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PerformanceInspector(
+      name: 'DatabaseFixerScreen',
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('إصلاح قاعدة البيانات'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _isLoading ? null : _runValidation,
+              tooltip: 'إعادة التحقق',
+            ),
+          ],
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildInfoCard(),
+                    const SizedBox(height: 16),
+                    if (_validationReport != null) ...[
+                      _buildValidationCard(),
+                      const SizedBox(height: 16),
+                    ],
+                    if (_fixResult != null) ...[
+                      _buildFixResultCard(),
+                      const SizedBox(height: 16),
+                    ],
+                    if (_validationReport?.hasIssues ?? false)
+                      _buildFixButton(),
+                  ],
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildInfoCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.blue[700]),
+                const SizedBox(width: 8),
+                const Text(
+                  'معلومات',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'هذه الأداة تقوم بالتحقق من صحة البيانات في قاعدة البيانات وإصلاح المشاكل التالية:',
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 8),
+            _buildInfoItem('• serverId تحتوي على UUID بدلاً من أرقام'),
+            _buildInfoItem('• مدفوعات تشير لحجوزات غير موجودة'),
+            _buildInfoItem('• مصروفات تشير لبيانات غير موجودة'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoItem(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Text(
+        text,
+        style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+      ),
+    );
+  }
+
+  Widget _buildValidationCard() {
+    final report = _validationReport!;
+
+    return Card(
+      color: report.hasIssues ? Colors.orange[50] : Colors.green[50],
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  report.hasIssues ? Icons.warning : Icons.check_circle,
+                  color: report.hasIssues ? Colors.orange : Colors.green,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'نتيجة التحقق',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: report.hasIssues
+                        ? Colors.orange[900]
+                        : Colors.green[900],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (report.error != null)
+              Text(
+                'خطأ: ${report.error}',
+                style: const TextStyle(color: Colors.red),
+              )
+            else if (!report.hasIssues)
+              const Text(
+                '✓ قاعدة البيانات صحيحة',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              )
+            else ...[
+              _buildIssueItem(
+                'serverId فاسدة',
+                report.invalidServerIds,
+                Icons.key,
+              ),
+              _buildIssueItem(
+                'مدفوعات يتيمة',
+                report.orphanPayments,
+                Icons.payment,
+              ),
+              _buildIssueItem(
+                'مصروفات يتيمة',
+                report.orphanExpenses,
+                Icons.money_off,
+              ),
+              const Divider(height: 24),
+              Text(
+                'الإجمالي: ${report.totalIssues} مشكلة',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIssueItem(String label, int count, IconData icon) {
+    if (count == 0) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: Colors.orange[700]),
+          const SizedBox(width: 8),
+          Text('$label: ', style: const TextStyle(fontSize: 14)),
+          Text(
+            '$count',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.orange[900],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFixResultCard() {
+    final result = _fixResult!;
+
+    return Card(
+      color: result.success ? Colors.green[50] : Colors.red[50],
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  result.success ? Icons.check_circle : Icons.error,
+                  color: result.success ? Colors.green : Colors.red,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'نتيجة الإصلاح',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: result.success ? Colors.green[900] : Colors.red[900],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (result.error != null)
+              Text(
+                'خطأ: ${result.error}',
+                style: const TextStyle(color: Colors.red),
+              )
+            else if (result.success) ...[
+              _buildFixItem('serverId', result.serverIdFixed),
+              _buildFixItem('مدفوعات يتيمة', result.orphanPaymentsFixed),
+              _buildFixItem('مصروفات يتيمة', result.orphanExpensesFixed),
+              const Divider(height: 24),
+              Text(
+                '✓ تم إصلاح ${result.totalFixed} مشكلة',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFixItem(String label, int count) {
+    if (count == 0) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          const Icon(Icons.build, size: 20, color: Colors.green),
+          const SizedBox(width: 8),
+          Text('$label: ', style: const TextStyle(fontSize: 14)),
+          Text(
+            '$count',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.green[900],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFixButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _isFixing ? null : _runFix,
+        icon: _isFixing
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : const Icon(Icons.build),
+        label: Text(_isFixing ? 'جاري الإصلاح...' : 'إصلاح المشاكل'),
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          backgroundColor: Colors.orange,
+          foregroundColor: Colors.white,
+        ),
+      ),
+    );
+  }
+}
