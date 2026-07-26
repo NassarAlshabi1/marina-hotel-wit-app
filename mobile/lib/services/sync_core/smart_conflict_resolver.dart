@@ -43,7 +43,10 @@ class FieldResolutionRule {
 
 /// سياسة حل التعارض لكيان معيّن
 class EntityResolutionPolicy {
-  const EntityResolutionPolicy({required this.defaultRule, this.rules = const {}});
+  const EntityResolutionPolicy({
+    required this.defaultRule,
+    this.rules = const {},
+  });
   final FieldResolutionRule defaultRule;
   final Map<String, FieldResolutionRule> rules;
 }
@@ -98,7 +101,10 @@ class SmartConflictResolver {
       rules: {
         'status': FieldResolutionRule(FieldStrategy.newerWins),
         'actualCheckout': FieldResolutionRule(FieldStrategy.newerWins),
-        'guestName': FieldResolutionRule(FieldStrategy.remoteWins, reason: 'آخر تحديث للمعلومات الشخصية'),
+        'guestName': FieldResolutionRule(
+          FieldStrategy.remoteWins,
+          reason: 'آخر تحديث للمعلومات الشخصية',
+        ),
         'guestPhone': FieldResolutionRule(FieldStrategy.remoteWins),
         'notes': FieldResolutionRule(FieldStrategy.concat),
         'discount': FieldResolutionRule(FieldStrategy.newerWins),
@@ -306,7 +312,9 @@ class SmartConflictResolver {
     ),
   };
 
-  static const _defaultPolicy = EntityResolutionPolicy(defaultRule: FieldResolutionRule(FieldStrategy.newerWins));
+  static const _defaultPolicy = EntityResolutionPolicy(
+    defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
+  );
 
   /// حل التعارض تلقائياً — جميع التعارضات تُحل على مستوى السجل
   static ResolutionResult resolve({
@@ -322,14 +330,24 @@ class SmartConflictResolver {
     );
 
     if (detection.type == ConflictType.noConflictRemoteNewer) {
-      return ResolutionResult(mergedData: remoteData, strategy: ResolutionStrategy.remoteWins);
+      return ResolutionResult(
+        mergedData: remoteData,
+        strategy: ResolutionStrategy.remoteWins,
+      );
     }
-    if (detection.type == ConflictType.noConflictLocalNewer || detection.type == ConflictType.noConflictEqual) {
-      return ResolutionResult(mergedData: localData!, strategy: ResolutionStrategy.localWins);
+    if (detection.type == ConflictType.noConflictLocalNewer ||
+        detection.type == ConflictType.noConflictEqual) {
+      return ResolutionResult(
+        mergedData: localData!,
+        strategy: ResolutionStrategy.localWins,
+      );
     }
 
     if (detection.type == ConflictType.deleteVsDelete) {
-      return ResolutionResult(mergedData: localData!, strategy: ResolutionStrategy.localWins);
+      return ResolutionResult(
+        mergedData: localData!,
+        strategy: ResolutionStrategy.localWins,
+      );
     }
     if (detection.type == ConflictType.deleteVsUpdate) {
       return ResolutionResult(
@@ -341,7 +359,12 @@ class SmartConflictResolver {
     }
 
     // جميع التعارضات المتزامنة تُحل تلقائياً على مستوى الحقل
-    return _autoMerge(entity: entity, localData: localData!, remoteData: remoteData, detection: detection);
+    return _autoMerge(
+      entity: entity,
+      localData: localData!,
+      remoteData: remoteData,
+      detection: detection,
+    );
   }
 
   /// دمج تلقائي على مستوى الحقل
@@ -377,8 +400,12 @@ class SmartConflictResolver {
       }
     }
 
-    final localVc = VectorClock.fromString((localData['vectorClock'] as String?) ?? '{}');
-    final remoteVc = VectorClock.fromString((remoteData['vectorClock'] as String?) ?? '{}');
+    final localVc = VectorClock.fromString(
+      (localData['vectorClock'] as String?) ?? '{}',
+    );
+    final remoteVc = VectorClock.fromString(
+      (remoteData['vectorClock'] as String?) ?? '{}',
+    );
     final mergedVc = localVc.copy();
     mergedVc.merge(remoteVc);
     merged['vectorClock'] = mergedVc.toString();
@@ -414,7 +441,9 @@ class SmartConflictResolver {
         final remoteWins = remoteTs >= localTs;
         return _FieldResolution(
           value: remoteWins ? remoteVal : localVal,
-          warning: remoteWins ? 'newerWins: remote won for $field' : 'newerWins: local won for $field',
+          warning: remoteWins
+              ? 'newerWins: remote won for $field'
+              : 'newerWins: local won for $field',
         );
 
       case FieldStrategy.localWins:
@@ -444,7 +473,10 @@ class SmartConflictResolver {
         final r = remoteVal?.toString() ?? '';
         if (l == r) return _FieldResolution(value: l);
         final mergedValue = _concatWithDedup(l, r);
-        return _FieldResolution(value: mergedValue, warning: 'concat merge: $field');
+        return _FieldResolution(
+          value: mergedValue,
+          warning: 'concat merge: $field',
+        );
     }
   }
 
