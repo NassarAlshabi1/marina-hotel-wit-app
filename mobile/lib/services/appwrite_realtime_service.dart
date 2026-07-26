@@ -1,1 +1,506 @@
-aW1wb3J0ICdkYXJ0OmFzeW5jJzsKCmltcG9ydCAncGFja2FnZTphcHB3cml0ZS9hcHB3cml0ZS5kYXJ0JzsKCmltcG9ydCAnYXBwd3JpdGVfY2FjaGVfbWFuYWdlci5kYXJ0JzsKaW1wb3J0ICdhcHB3cml0ZV9jb25maWcuZGFydCc7CmltcG9ydCAnYXBwd3JpdGVfbG9nZ2VyLmRhcnQnOwoKLy8vINmG2YjYuSDYp9mE2K3Yr9irINmB2YogUmVhbHRpbWUKZW51bSBSZWFsdGltZUV2ZW50VHlwZSB7IGNyZWF0ZSwgdXBkYXRlLCBkZWxldGUsIHVua25vd24gfQoKLy8vINit2K/YqyBSZWFsdGltZQpjbGFzcyBSZWFsdGltZUV2ZW50IHsKICBSZWFsdGltZUV2ZW50KHsKICAgIHJlcXVpcmVkIHRoaXMudHlwZSwKICAgIHJlcXVpcmVkIHRoaXMuY29sbGVjdGlvbiwKICAgIHJlcXVpcmVkIHRoaXMuZG9jdW1lbnRJZCwKICAgIHRoaXMuZGF0YSwKICAgIERhdGVUaW1lPyB0aW1lc3RhbXAsCiAgfSkgOiB0aW1lc3RhbXAgPSB0aW1lc3RhbXAgPz8gRGF0ZVRpbWUubm93KCk7CiAgZmluYWwgUmVhbHRpbWVFdmVudFR5cGUgdHlwZTsKICBmaW5hbCBTdHJpbmcgY29sbGVjdGlvbjsKICBmaW5hbCBTdHJpbmcgZG9jdW1lbnRJZDsKICBmaW5hbCBNYXA8U3RyaW5nLCBkeW5hbWljPj8gZGF0YTsKICBmaW5hbCBEYXRlVGltZSB0aW1lc3RhbXA7CgogIEBvdmVycmlkZQogIFN0cmluZyB0b1N0cmluZygpID0+CiAgICAgICdSZWFsdGltZUV2ZW50KHR5cGU6ICR0eXBlLCBjb2xsZWN0aW9uOiAkY29sbGVjdGlvbiwgaWQ6ICRkb2N1bWVudElkKSc7Cn0KCi8vLyDZhdi52KfZhNisINij2K3Yr9in2KsgUmVhbHRpbWUKdHlwZWRlZiBSZWFsdGltZUV2ZW50SGFuZGxlciA9IHZvaWQgRnVuY3Rpb24oUmVhbHRpbWVFdmVudCBldmVudCk7CgovLy8g2K7Yr9mF2KkgQXBwd3JpdGUgUmVhbHRpbWUgLSDYp9mE2KrYrdiv2YrYq9in2Kog2KfZhNmB2YjYsdmK2KkKLy8vCi8vLyDimqDvuI8gKipERVBSRUNBVEVEKiog4oCUINiq2K3ZhNmK2YQgUDItMTMg2KPYuNmH2LEg2KPZhiDZh9iw2Ycg2KfZhNiu2K/ZhdipINmE2Kcg2KrZj9iz2KrYr9i52Ykg2YXZhiDYo9mKINmF2LPYp9ixCi8vLyDYpdmG2KrYp9is2YogKNmE2KcgYGluaXRpYWxpemUoKWAg2YjZhNinIGBzdWJzY3JpYmVUb0FsbENvbGxlY3Rpb25zKClgINiq2Y/Ys9iq2K/YudmJKS4KLy8vINin2YTYrtiv2YXYqSDYp9mE2YHYudmE2YrYqSDZh9mKIGBBcHB3cml0ZVJlYWx0aW1lU3luY2Ag2KfZhNiq2Yog2KrYs9iq2K7Yr9mFINin2KrYtdin2YQgV2ViU29ja2V0INmI2KfYrdivCi8vLyAo2KjYr9mE2KfZiyDZhdmGIDE4INin2KrYtdin2YTYp9mLINmF2YbZgdi12YTYp9mLINmH2YbYpykuINmK2Y/Yqtix2YMg2YfYsNinINin2YTZhdmE2YEg2YTZhNiq2YjYp9mB2YIg2YXYuSDYo9mKINin2LPYqtiv2LnYp9ih2KfYqgovLy8g2YXYrtmB2YrYqS4g2YTYpyDYqtmP2LbZgSDYp9iz2KrYr9i52KfYodin2Kog2KzYr9mK2K/YqSDigJQg2KfYs9iq2K7Yr9mFIGBBcHB3cml0ZVJlYWx0aW1lU3luY2Ag2KjYr9mE2KfZiyDZhdmGINiw2YTZgy4KQERlcHJlY2F0ZWQoCiAgJ9in2LPYqtiu2K/ZhSBBcHB3cml0ZVJlYWx0aW1lU3luYyDYqNiv2YTYp9mLINmF2YYg2LDZhNmDIOKAlCDZh9iw2Ycg2KfZhNiu2K/ZhdipINi62YrYsSDZhdiz2KrYrtiv2YXYqSDZgdmKINin2YTYpdmG2KrYp9isJywKKQpjbGFzcyBBcHB3cml0ZVJlYWx0aW1lU2VydmljZSB7CiAgZmFjdG9yeSBBcHB3cml0ZVJlYWx0aW1lU2VydmljZSgpID0+IF9pbnN0YW5jZTsKICBBcHB3cml0ZVJlYWx0aW1lU2VydmljZS5faW50ZXJuYWwoKTsKICBzdGF0aWMgZmluYWwgQXBwd3JpdGVSZWFsdGltZVNlcnZpY2UgX2luc3RhbmNlID0KICAgICAgQXBwd3JpdGVSZWFsdGltZVNlcnZpY2UuX2ludGVybmFsKCk7CgogIGxhdGUgZmluYWwgUmVhbHRpbWUgX3JlYWx0aW1lOwogIGZpbmFsIF9sb2dnZXIgPSBBcHB3cml0ZUxvZ2dlcigpOwogIGZpbmFsIF9jYWNoZSA9IEFwcHdyaXRlQ2FjaGVNYW5hZ2VyKCk7CgogIGJvb2wgX2luaXRpYWxpemVkID0gZmFsc2U7CiAgZmluYWwgTWFwPFN0cmluZywgUmVhbHRpbWVTdWJzY3JpcHRpb24+IF9zdWJzY3JpcHRpb25zID0ge307CiAgZmluYWwgTWFwPFN0cmluZywgTGlzdDxSZWFsdGltZUV2ZW50SGFuZGxlcj4+IF9oYW5kbGVycyA9IHt9OwogIC8vIOKchSDYqtiq2KjYuSDZhdit2KfZiNmE2KfYqiDYpdi52KfYr9ipINin2YTYp9iq2LXYp9mEINmE2YPZhCBjb2xsZWN0aW9uINmE2KrYt9io2YrZgiBleHBvbmVudGlhbCBiYWNrb2ZmCiAgLy8g2KjYr9mI2YYg2YbZhdmIINi62YrYsSDZhdit2K/ZiNivICjZitmP2LXZgdmR2LEg2LnZhtivINmG2KzYp9itINin2YTYp9iq2LXYp9mEKS4KICBmaW5hbCBNYXA8U3RyaW5nLCBpbnQ+IF9yZWNvbm5lY3RBdHRlbXB0cyA9IHt9OwogIHN0YXRpYyBjb25zdCBpbnQgX21heFJlY29ubmVjdEF0dGVtcHRzID0gNjsKICBzdGF0aWMgY29uc3QgRHVyYXRpb24gX2Jhc2VSZWNvbm5lY3REZWxheSA9IER1cmF0aW9uKHNlY29uZHM6IDEpOwogIHN0YXRpYyBjb25zdCBEdXJhdGlvbiBfbWF4UmVjb25uZWN0RGVsYXkgPSBEdXJhdGlvbihzZWNvbmRzOiAzMCk7CgogIC8vLyDYqtmH2YrYptipINiu2K/ZhdipIFJlYWx0aW1lCiAgRnV0dXJlPHZvaWQ+IGluaXRpYWxpemUoQ2xpZW50IGNsaWVudCkgYXN5bmMgewogICAgaWYgKF9pbml0aWFsaXplZCkgewogICAgICByZXR1cm47CiAgICB9CgogICAgdHJ5IHsKICAgICAgX3JlYWx0aW1lID0gUmVhbHRpbWUoY2xpZW50KTsKICAgICAgX2luaXRpYWxpemVkID0gdHJ1ZTsKICAgICAgX2xvZ2dlci5pbmZvKCdBcHB3cml0ZSBSZWFsdGltZSBzZXJ2aWNlIGluaXRpYWxpemVkJywgdGFnOiAnUkVBTFRJTUUnKTsKICAgIH0gY2F0Y2ggKGUsIHN0YWNrVHJhY2UpIHsKICAgICAgX2xvZ2dlci5lcnJvcigKICAgICAgICAnRmFpbGVkIHRvIGluaXRpYWxpemUgUmVhbHRpbWUgc2VydmljZScsCiAgICAgICAgZXJyb3I6IGUsCiAgICAgICAgc3RhY2tUcmFjZTogc3RhY2tUcmFjZSwKICAgICAgICB0YWc6ICdSRUFMVElNRScsCiAgICAgICk7CiAgICAgIHJldGhyb3c7CiAgICB9CiAgfQoKICAvLy8g2KfZhNin2LTYqtix2KfZgyDZgdmKINmF2KzZhdmI2LnYqSAoQ29sbGVjdGlvbikKICAvLy8KICAvLy8gW2NvbGxlY3Rpb25JZF0gLSDZhdi52LHZgSDYp9mE2YXYrNmF2YjYudipCiAgLy8vIFtoYW5kbGVyXSAtINmF2LnYp9mE2Kwg2KfZhNij2K3Yr9in2KsKICAvLy8gW2V2ZW50c10gLSDYo9mG2YjYp9i5INin2YTYo9it2K/Yp9irINin2YTZhdi32YTZiNio2KkgKGNyZWF0ZSwgdXBkYXRlLCBkZWxldGUpCiAgRnV0dXJlPHZvaWQ+IHN1YnNjcmliZVRvQ29sbGVjdGlvbih7CiAgICByZXF1aXJlZCBTdHJpbmcgY29sbGVjdGlvbklkLAogICAgcmVxdWlyZWQgUmVhbHRpbWVFdmVudEhhbmRsZXIgaGFuZGxlciwKICAgIExpc3Q8U3RyaW5nPj8gZXZlbnRzLAogIH0pIGFzeW5jIHsKICAgIGlmICghX2luaXRpYWxpemVkKSB7CiAgICAgIHRocm93IEV4Y2VwdGlvbignUmVhbHRpbWUgc2VydmljZSBub3QgaW5pdGlhbGl6ZWQnKTsKICAgIH0KCiAgICB0cnkgewogICAgICAvLyDYpdmG2LTYp9ihINmC2YbZiNin2Kog2KfZhNin2LTYqtix2KfZgwogICAgICBmaW5hbCBjaGFubmVscyA9IF9idWlsZENoYW5uZWxzKGNvbGxlY3Rpb25JZCwgZXZlbnRzKTsKICAgICAgZmluYWwgc3Vic2NyaXB0aW9uS2V5ID0gJ2NvbGxlY3Rpb25fJGNvbGxlY3Rpb25JZCc7CgogICAgICBfbG9nZ2VyLmRlYnVnKAogICAgICAgICdTdWJzY3JpYmluZyB0byBjb2xsZWN0aW9uOiAkY29sbGVjdGlvbklkJywKICAgICAgICB0YWc6ICdSRUFMVElNRScsCiAgICAgICk7CgogICAgICAvLyDYpdmE2LrYp9ihINin2YTYp9i02KrYsdin2YMg2KfZhNmC2K/ZitmFINil2LDYpyDZg9in2YYg2YXZiNis2YjYr9in2YsKICAgICAgaWYgKF9zdWJzY3JpcHRpb25zLmNvbnRhaW5zS2V5KHN1YnNjcmlwdGlvbktleSkpIHsKICAgICAgICB1bmF3YWl0ZWQoX3N1YnNjcmlwdGlvbnNbc3Vic2NyaXB0aW9uS2V5XSEuY2xvc2UoKSk7CiAgICAgICAgX3N1YnNjcmlwdGlvbnMucmVtb3ZlKHN1YnNjcmlwdGlvbktleSk7CiAgICAgIH0KCiAgICAgIC8vIOKchSDZhdiz2K0g2YLYp9im2YXYqSBoYW5kbGVycyDYp9mE2YLYr9mK2YXYqSDZgtio2YQg2KXYttin2YHYqSDYp9mE2KzYr9mK2K/YqSDZhNmF2YbYuSDYp9mE2YbZhdmIINi62YrYsSDYp9mE2YXYrdiv2YjYrwogICAgICAvLyDYudmG2K8g2KXYudin2K/YqSDYp9mE2KfYtNiq2LHYp9mDINin2YTZhdiq2YPYsdixICjYpdi12YTYp9itIFAzLTE4INmF2YYg2KrZgtix2YrYsSDYp9mE2KPYr9in2KEpLgogICAgICBfaGFuZGxlcnNbc3Vic2NyaXB0aW9uS2V5XSA9IFtoYW5kbGVyXTsKCiAgICAgIC8vINil2YbYtNin2KEg2KfYtNiq2LHYp9mDINis2K/ZitivCiAgICAgIGZpbmFsIHN1YnNjcmlwdGlvbiA9IF9yZWFsdGltZS5zdWJzY3JpYmUoY2hhbm5lbHMpOwoKICAgICAgLy8g2KfZhNin2LPYqtmF2KfYuSDZhNmE2KPYrdiv2KfYqwogICAgICBzdWJzY3JpcHRpb24uc3RyZWFtLmxpc3RlbigKICAgICAgICAocmVzcG9uc2UpIHsKICAgICAgICAgIC8vIOKchSDYqti12YHZitixINi52K/Yp9ivINil2LnYp9iv2Kkg2KfZhNin2KrYtdin2YQg2LnZhtivINmG2KzYp9itINin2LPYqtmE2KfZhSDYrdiv2Ksg4oCUINmK2LnZhtmKINin2YTYp9iq2LXYp9mEINi12K3ZigogICAgICAgICAgX3JlY29ubmVjdEF0dGVtcHRzLnJlbW92ZShzdWJzY3JpcHRpb25LZXkpOwogICAgICAgICAgX2hhbmRsZVJlYWx0aW1lUmVzcG9uc2UocmVzcG9uc2UsIGNvbGxlY3Rpb25JZCwgaGFuZGxlcik7CiAgICAgICAgfSwKICAgICAgICBvbkVycm9yOiAoT2JqZWN0IGVycm9yKSB7CiAgICAgICAgICBfbG9nZ2VyLmVycm9yKAogICAgICAgICAgICAnUmVhbHRpbWUgc3Vic2NyaXB0aW9uIGVycm9yIGZvciAkY29sbGVjdGlvbklkJywKICAgICAgICAgICAgZXJyb3I6IGVycm9yLAogICAgICAgICAgICB0YWc6ICdSRUFMVElNRScsCiAgICAgICAgICApOwogICAgICAgICAgLy8g4pyFINil2LXZhNin2K0gUFIgcmV2aWV3OiDZhNinINmG2Y/YudmK2K8g2KfZhNin2KrYtdin2YQg2YfZhtinIOKAlCBvbkRvbmUg2YrZj9iz2KrYr9i52Ykg2K/Yp9im2YXYp9mLCiAgICAgICAgICAvLyDYqNi52K8gb25FcnJvciAoU3RyZWFtIHByb3RvY29sKdiMINmI2LPZitmP2LnZitivINin2YTYp9iq2LXYp9mEINmH2YbYp9mDLiDYs9in2KjZgtin2Ysg2YPYp9mGCiAgICAgICAgICAvLyBfc2NoZWR1bGVSZWNvbm5lY3Qg2YrZj9iz2KrYr9i52Ykg2YXYsdiq2YrZhiDihpIgdGltZXIg2YXYstiv2YjYrCDihpIgcmVjb25uZWN0INi52LTZiNin2KbZii4KICAgICAgICB9LAogICAgICAgIG9uRG9uZTogKCkgewogICAgICAgICAgX2xvZ2dlci5pbmZvKAogICAgICAgICAgICAnUmVhbHRpbWUgc3Vic2NyaXB0aW9uIGNsb3NlZCBmb3IgJGNvbGxlY3Rpb25JZCcsCiAgICAgICAgICAgIHRhZzogJ1JFQUxUSU1FJywKICAgICAgICAgICk7CiAgICAgICAgICAvLyDinIUg2KXYudin2K/YqSDYp9mE2KfYqti12KfZhCDYudmG2K8g2KXYutmE2KfZgiDYp9mE2KfYqti12KfZhCAo2YXYq9mEINin2YbZgti32KfYuSDYp9mE2LTYqNmD2KkpIOKAlCBleHBvbmVudGlhbCBiYWNrb2ZmCiAgICAgICAgICBfc2NoZWR1bGVSZWNvbm5lY3QoY29sbGVjdGlvbklkLCBldmVudHM6IGV2ZW50cywgaGFuZGxlcjogaGFuZGxlcik7CiAgICAgICAgfSwKICAgICAgKTsKCiAgICAgIF9zdWJzY3JpcHRpb25zW3N1YnNjcmlwdGlvbktleV0gPSBzdWJzY3JpcHRpb247CgogICAgICBfbG9nZ2VyLmluZm8oCiAgICAgICAgJ1N1Y2Nlc3NmdWxseSBzdWJzY3JpYmVkIHRvIGNvbGxlY3Rpb246ICRjb2xsZWN0aW9uSWQnLAogICAgICAgIHRhZzogJ1JFQUxUSU1FJywKICAgICAgKTsKICAgIH0gY2F0Y2ggKGUsIHN0YWNrVHJhY2UpIHsKICAgICAgX2xvZ2dlci5lcnJvcigKICAgICAgICAnRmFpbGVkIHRvIHN1YnNjcmliZSB0byBjb2xsZWN0aW9uOiAkY29sbGVjdGlvbklkJywKICAgICAgICBlcnJvcjogZSwKICAgICAgICBzdGFja1RyYWNlOiBzdGFja1RyYWNlLAogICAgICAgIHRhZzogJ1JFQUxUSU1FJywKICAgICAgKTsKICAgICAgcmV0aHJvdzsKICAgIH0KICB9CgogIC8vLyDYpdi52KfYr9ipINin2YTYp9iq2LXYp9mEINio2KrYt9io2YrZgiBleHBvbmVudGlhbCBiYWNrb2ZmIOKAlCDZitmF2YbYuSDYpdi62LHYp9mCINin2YTYrtin2K/ZhSDYqNin2YTZhdit2KfZiNmE2KfYqgogIC8vLyDYudmG2K8g2KfZhNin2YbZgti32KfYuS4g2KfZhNiq2KPYrtmK2LEg2YrYqti22KfYudmBOiAxcywgMnMsIDRzLCA4cywgMTZzLCAzMHMgKGNhcHBlZCkuCiAgLy8vINio2LnYryBfbWF4UmVjb25uZWN0QXR0ZW1wdHMg2YXYrdin2YjZhNin2KrYjCDZitiq2YjZgtmBINmE2KrYrNmG2Kgg2KXZh9iv2KfYsSDYp9mE2KjYt9in2LHZitipLgogIEZ1dHVyZTx2b2lkPiBfc2NoZWR1bGVSZWNvbm5lY3QoCiAgICBTdHJpbmcgY29sbGVjdGlvbklkLCB7CiAgICBMaXN0PFN0cmluZz4/IGV2ZW50cywKICAgIFJlYWx0aW1lRXZlbnRIYW5kbGVyPyBoYW5kbGVyLAogIH0pIGFzeW5jIHsKICAgIGlmICghX2luaXRpYWxpemVkIHx8IGhhbmRsZXIgPT0gbnVsbCkgcmV0dXJuOwoKICAgIGZpbmFsIHN1YnNjcmlwdGlvbktleSA9ICdjb2xsZWN0aW9uXyRjb2xsZWN0aW9uSWQnOwogICAgZmluYWwgYXR0ZW1wdHMgPSAoX3JlY29ubmVjdEF0dGVtcHRzW3N1YnNjcmlwdGlvbktleV0gPz8gMCkgKyAxOwoKICAgIGlmIChhdHRlbXB0cyA+IF9tYXhSZWNvbm5lY3RBdHRlbXB0cykgewogICAgICBfbG9nZ2VyLndhcm5pbmcoCiAgICAgICAgJ01heCByZWNvbm5lY3QgYXR0ZW1wdHMgKCRfbWF4UmVjb25uZWN0QXR0ZW1wdHMpIHJlYWNoZWQgZm9yICRjb2xsZWN0aW9uSWQg4oCUIGdpdmluZyB1cCcsCiAgICAgICAgdGFnOiAnUkVBTFRJTUUnLAogICAgICApOwogICAgICBfcmVjb25uZWN0QXR0ZW1wdHMucmVtb3ZlKHN1YnNjcmlwdGlvbktleSk7CiAgICAgIHJldHVybjsKICAgIH0KCiAgICBfcmVjb25uZWN0QXR0ZW1wdHNbc3Vic2NyaXB0aW9uS2V5XSA9IGF0dGVtcHRzOwoKICAgIC8vIGV4cG9uZW50aWFsIGJhY2tvZmYg2YXYuSDYs9mC2YEg2KPYudmE2Ykg4oCUIDJeKG4tMSkg2KvYp9mG2YrYqdiMIG1heCAzMHMKICAgIGZpbmFsIGRlbGF5U2Vjb25kcyA9IChfYmFzZVJlY29ubmVjdERlbGF5LmluU2Vjb25kcyAqICgxIDw8IChhdHRlbXB0cyAtIDEpKSkKICAgICAgICAuY2xhbXAoMSwgX21heFJlY29ubmVjdERlbGF5LmluU2Vjb25kcyk7CgogICAgX2xvZ2dlci5pbmZvKAogICAgICAnU2NoZWR1bGluZyByZWNvbm5lY3QgIyRhdHRlbXB0cyBmb3IgJGNvbGxlY3Rpb25JZCBpbiAke2RlbGF5U2Vjb25kc31zJywKICAgICAgdGFnOiAnUkVBTFRJTUUnLAogICAgKTsKCiAgICBhd2FpdCBGdXR1cmU8dm9pZD4uZGVsYXllZChEdXJhdGlvbihzZWNvbmRzOiBkZWxheVNlY29uZHMpKTsKCiAgICAvLyDYqtit2YLZgiDYo9mGINin2YTYrtiv2YXYqSDZhdinINiy2KfZhNiqINmF2YfZitmR2KPYqSDZiNij2YYg2KfZhNmF2LPYqtiu2K/ZhSDZhNmFINmK2Y/ZhNi62ZAg2KfZhNin2LTYqtix2KfZgyDZitiv2YjZitin2YsKICAgIGlmICghX2luaXRpYWxpemVkIHx8ICFfaGFuZGxlcnMuY29udGFpbnNLZXkoc3Vic2NyaXB0aW9uS2V5KSkgewogICAgICBfcmVjb25uZWN0QXR0ZW1wdHMucmVtb3ZlKHN1YnNjcmlwdGlvbktleSk7CiAgICAgIHJldHVybjsKICAgIH0KCiAgICB0cnkgewogICAgICBhd2FpdCBzdWJzY3JpYmVUb0NvbGxlY3Rpb24oCiAgICAgICAgY29sbGVjdGlvbklkOiBjb2xsZWN0aW9uSWQsCiAgICAgICAgaGFuZGxlcjogaGFuZGxlciwKICAgICAgICBldmVudHM6IGV2ZW50cywKICAgICAgKTsKICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgX2xvZ2dlci5lcnJvcigKICAgICAgICAnUmVjb25uZWN0IGF0dGVtcHQgIyRhdHRlbXB0cyBmYWlsZWQgZm9yICRjb2xsZWN0aW9uSWQnLAogICAgICAgIGVycm9yOiBlLAogICAgICAgIHRhZzogJ1JFQUxUSU1FJywKICAgICAgKTsKICAgICAgLy8g2KfZhNmF2K3Yp9mI2YTYqSDYp9mE2KrYp9mE2YrYqSDYs9iq2Y/YrNiv2YjZhCDZhdmGINiv2KfYrtmEIHN1YnNjcmliZVRvQ29sbGVjdGlvbiDYudmG2K8g2YHYtNmEINin2YTYp9iq2LXYp9mECiAgICB9CiAgfQoKICAvLy8g2KfZhNin2LTYqtix2KfZgyDZgdmKINmF2LPYqtmG2K8g2YXYrdiv2K8KICBGdXR1cmU8dm9pZD4gc3Vic2NyaWJlVG9Eb2N1bWVudCh7CiAgICByZXF1aXJlZCBTdHJpbmcgY29sbGVjdGlvbklkLAogICAgcmVxdWlyZWQgU3RyaW5nIGRvY3VtZW50SWQsCiAgICByZXF1aXJlZCBSZWFsdGltZUV2ZW50SGFuZGxlciBoYW5kbGVyLAogIH0pIGFzeW5jIHsKICAgIGlmICghX2luaXRpYWxpemVkKSB7CiAgICAgIHRocm93IEV4Y2VwdGlvbignUmVhbHRpbWUgc2VydmljZSBub3QgaW5pdGlhbGl6ZWQnKTsKICAgIH0KCiAgICB0cnkgewogICAgICBmaW5hbCBjaGFubmVsID0KICAgICAgICAgICdkYXRhYmFzZXMuJHtBcHB3cml0ZUNvbmZpZy5kYXRhYmFzZUlkfS5jb2xsZWN0aW9ucy4kY29sbGVjdGlvbklkLmRvY3VtZW50cy4kZG9jdW1lbnRJZCc7CiAgICAgIGZpbmFsIHN1YnNjcmlwdGlvbktleSA9ICdkb2N1bWVudF8ke2NvbGxlY3Rpb25JZH1fJGRvY3VtZW50SWQnOwoKICAgICAgX2xvZ2dlci5kZWJ1ZygKICAgICAgICAnU3Vic2NyaWJpbmcgdG8gZG9jdW1lbnQ6ICRjb2xsZWN0aW9uSWQvJGRvY3VtZW50SWQnLAogICAgICAgIHRhZzogJ1JFQUxUSU1FJywKICAgICAgKTsKCiAgICAgIC8vINil2YTYutin2KEg2KfZhNin2LTYqtix2KfZgyDYp9mE2YLYr9mK2YUKICAgICAgaWYgKF9zdWJzY3JpcHRpb25zLmNvbnRhaW5zS2V5KHN1YnNjcmlwdGlvbktleSkpIHsKICAgICAgICB1bmF3YWl0ZWQoX3N1YnNjcmlwdGlvbnNbc3Vic2NyaXB0aW9uS2V5XSEuY2xvc2UoKSk7CiAgICAgICAgX3N1YnNjcmlwdGlvbnMucmVtb3ZlKHN1YnNjcmlwdGlvbktleSk7CiAgICAgIH0KCiAgICAgIC8vIOKchSDZhdiz2K0gaGFuZGxlcnMg2KfZhNmC2K/ZitmF2KkgKNiq2YUg2KjYp9mE2YHYudmEINmB2Yog2KfZhNiz2LfYsSDYp9mE2KrYp9mE2YrYjCDZhNmD2YYg2YbZj9mD2LHZkdixINin2YTYqtij2YPZitivCiAgICAgIC8vINmE2YXZhti5INmG2YXZiCDYp9mE2YLYp9im2YXYqSDYudmG2K8g2KXYudin2K/YqSDYp9mE2KfYtNiq2LHYp9mDINin2YTZhdiq2YPYsdixKS4KICAgICAgX2hhbmRsZXJzW3N1YnNjcmlwdGlvbktleV0gPSBbaGFuZGxlcl07CgogICAgICAvLyDYpdmG2LTYp9ihINin2LTYqtix2KfZgyDYrNiv2YrYrwogICAgICBmaW5hbCBzdWJzY3JpcHRpb24gPSBfcmVhbHRpbWUuc3Vic2NyaWJlKFtjaGFubmVsXSk7CgogICAgICBzdWJzY3JpcHRpb24uc3RyZWFtLmxpc3RlbigKICAgICAgICAocmVzcG9uc2UpIHsKICAgICAgICAgIF9oYW5kbGVSZWFsdGltZVJlc3BvbnNlKHJlc3BvbnNlLCBjb2xsZWN0aW9uSWQsIGhhbmRsZXIpOwogICAgICAgIH0sCiAgICAgICAgb25FcnJvcjogKE9iamVjdCBlcnJvcikgewogICAgICAgICAgX2xvZ2dlci5lcnJvcigKICAgICAgICAgICAgJ1JlYWx0aW1lIHN1YnNjcmlwdGlvbiBlcnJvciBmb3IgZG9jdW1lbnQgJGRvY3VtZW50SWQnLAogICAgICAgICAgICBlcnJvcjogZXJyb3IsCiAgICAgICAgICAgIHRhZzogJ1JFQUxUSU1FJywKICAgICAgICAgICk7CiAgICAgICAgfSwKICAgICAgKTsKCiAgICAgIF9zdWJzY3JpcHRpb25zW3N1YnNjcmlwdGlvbktleV0gPSBzdWJzY3JpcHRpb247CgogICAgICBfbG9nZ2VyLmluZm8oCiAgICAgICAgJ1N1Y2Nlc3NmdWxseSBzdWJzY3JpYmVkIHRvIGRvY3VtZW50OiAkY29sbGVjdGlvbklkLyRkb2N1bWVudElkJywKICAgICAgICB0YWc6ICdSRUFMVElNRScsCiAgICAgICk7CiAgICB9IGNhdGNoIChlLCBzdGFja1RyYWNlKSB7CiAgICAgIF9sb2dnZXIuZXJyb3IoCiAgICAgICAgJ0ZhaWxlZCB0byBzdWJzY3JpYmUgdG8gZG9jdW1lbnQnLAogICAgICAgIGVycm9yOiBlLAogICAgICAgIHN0YWNrVHJhY2U6IHN0YWNrVHJhY2UsCiAgICAgICAgdGFnOiAnUkVBTFRJTUUnLAogICAgICApOwogICAgICByZXRocm93OwogICAgfQogIH0KCiAgLy8vINin2YTYp9i02KrYsdin2YMg2YHZiiDYrNmF2YrYuSDYp9mE2YXYrNmF2YjYudin2Kog2KfZhNmF2YfZhdipCiAgRnV0dXJlPHZvaWQ+IHN1YnNjcmliZVRvQWxsQ29sbGVjdGlvbnMoUmVhbHRpbWVFdmVudEhhbmRsZXIgaGFuZGxlcikgYXN5bmMgewogICAgZmluYWwgY29sbGVjdGlvbnMgPSBbCiAgICAgIEFwcHdyaXRlQ29uZmlnLnJvb21zQ29sbGVjdGlvbklkLAogICAgICBBcHB3cml0ZUNvbmZpZy5ib29raW5nc0NvbGxlY3Rpb25JZCwKICAgICAgQXBwd3JpdGVDb25maWcuYm9va2luZ05vdGVzQ29sbGVjdGlvbklkLAogICAgICBBcHB3cml0ZUNvbmZpZy5ib29raW5nTmlnaHRzQ29sbGVjdGlvbklkLAogICAgICBBcHB3cml0ZUNvbmZpZy5wYXltZW50c0NvbGxlY3Rpb25JZCwKICAgICAgQXBwd3JpdGVDb25maWcuZXhwZW5zZXNDb2xsZWN0aW9uSWQsCiAgICAgIEFwcHdyaXRlQ29uZmlnLmNhc2hUcmFuc2FjdGlvbnNDb2xsZWN0aW9uSWQsCiAgICAgIEFwcHdyaXRlQ29uZmlnLmVtcGxveWVlc0NvbGxlY3Rpb25JZCwKICAgICAgQXBwd3JpdGVDb25maWcuZGVidHNDb2xsZWN0aW9uSWQsCiAgICAgIC8vIOKdjCBob3RlbF9kYXlfbGVkZ2VyIC0g2YXYrdmE2Yog2YHZgti3CiAgICAgIEFwcHdyaXRlQ29uZmlnLnNhbGFyeUN5Y2xlc0NvbGxlY3Rpb25JZCwKICAgICAgQXBwd3JpdGVDb25maWcuc2FsYXJ5UGF5bWVudHNDb2xsZWN0aW9uSWQsCiAgICAgIEFwcHdyaXRlQ29uZmlnLnNhbGFyeVdpdGhkcmF3YWxzQ29sbGVjdGlvbklkLAogICAgICBBcHB3cml0ZUNvbmZpZy5zaGlmdE5vdGVzQ29sbGVjdGlvbklkLAogICAgICBBcHB3cml0ZUNvbmZpZy5ndWVzdEluZm9zQ29sbGVjdGlvbklkLAogICAgICBBcHB3cml0ZUNvbmZpZy5wcmljZUFkanVzdG1lbnRzQ29sbGVjdGlvbklkLAogICAgICBBcHB3cml0ZUNvbmZpZy5ib29raW5nUHJpY2VBZGp1c3RtZW50c0NvbGxlY3Rpb25JZCwKICAgICAgQXBwd3JpdGVDb25maWcuYXVkaXRMb2dzQ29sbGVjdGlvbklkLAogICAgICBBcHB3cml0ZUNvbmZpZy5wYXltZW50Vm9pZHNDb2xsZWN0aW9uSWQsCiAgICBdOwoKICAgIGZvciAoZmluYWwgY29sbGVjdGlvbklkIGluIGNvbGxlY3Rpb25zKSB7CiAgICAgIHRyeSB7CiAgICAgICAgYXdhaXQgc3Vic2NyaWJlVG9Db2xsZWN0aW9uKAogICAgICAgICAgY29sbGVjdGlvbklkOiBjb2xsZWN0aW9uSWQsCiAgICAgICAgICBoYW5kbGVyOiBoYW5kbGVyLAogICAgICAgICk7CiAgICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgICBfbG9nZ2VyLndhcm5pbmcoCiAgICAgICAgICAnRmFpbGVkIHRvIHN1YnNjcmliZSB0byAkY29sbGVjdGlvbklkLCBjb250aW51aW5nLi4uJywKICAgICAgICAgIGVycm9yOiBlLAogICAgICAgICAgdGFnOiAnUkVBTFRJTUUnLAogICAgICAgICk7CiAgICAgIH0KICAgIH0KCiAgICBfbG9nZ2VyLmluZm8oCiAgICAgICdTdWJzY3JpYmVkIHRvICR7Y29sbGVjdGlvbnMubGVuZ3RofSBjb2xsZWN0aW9ucycsCiAgICAgIHRhZzogJ1JFQUxUSU1FJywKICAgICk7CiAgfQoKICAvLy8g2KXZhNi62KfYoSDYp9mE2KfYtNiq2LHYp9mDINmB2Yog2YXYrNmF2YjYudipCiAgdm9pZCB1bnN1YnNjcmliZUZyb21Db2xsZWN0aW9uKFN0cmluZyBjb2xsZWN0aW9uSWQpIHsKICAgIGZpbmFsIHN1YnNjcmlwdGlvbktleSA9ICdjb2xsZWN0aW9uXyRjb2xsZWN0aW9uSWQnOwoKICAgIGlmIChfc3Vic2NyaXB0aW9ucy5jb250YWluc0tleShzdWJzY3JpcHRpb25LZXkpKSB7CiAgICAgIF9zdWJzY3JpcHRpb25zW3N1YnNjcmlwdGlvbktleV0hLmNsb3NlKCk7CiAgICAgIF9zdWJzY3JpcHRpb25zLnJlbW92ZShzdWJzY3JpcHRpb25LZXkpOwogICAgICBfaGFuZGxlcnMucmVtb3ZlKHN1YnNjcmlwdGlvbktleSk7CgogICAgICBfbG9nZ2VyLmluZm8oCiAgICAgICAgJ1Vuc3Vic2NyaWJlZCBmcm9tIGNvbGxlY3Rpb246ICRjb2xsZWN0aW9uSWQnLAogICAgICAgIHRhZzogJ1JFQUxUSU1FJywKICAgICAgKTsKICAgIH0KICB9CgogIC8vLyDYpdmE2LrYp9ihINin2YTYp9i02KrYsdin2YMg2YHZiiDZhdiz2KrZhtivCiAgdm9pZCB1bnN1YnNjcmliZUZyb21Eb2N1bWVudChTdHJpbmcgY29sbGVjdGlvbklkLCBTdHJpbmcgZG9jdW1lbnRJZCkgewogICAgZmluYWwgc3Vic2NyaXB0aW9uS2V5ID0gJ2RvY3VtZW50XyR7Y29sbGVjdGlvbklkfV8kZG9jdW1lbnRJZCc7CgogICAgaWYgKF9zdWJzY3JpcHRpb25zLmNvbnRhaW5zS2V5KHN1YnNjcmlwdGlvbktleSkpIHsKICAgICAgX3N1YnNjcmlwdGlvbnNbc3Vic2NyaXB0aW9uS2V5XSEuY2xvc2UoKTsKICAgICAgX3N1YnNjcmlwdGlvbnMucmVtb3ZlKHN1YnNjcmlwdGlvbktleSk7CiAgICAgIF9oYW5kbGVycy5yZW1vdmUoc3Vic2NyaXB0aW9uS2V5KTsKCiAgICAgIF9sb2dnZXIuaW5mbygKICAgICAgICAnVW5zdWJzY3JpYmVkIGZyb20gZG9jdW1lbnQ6ICRjb2xsZWN0aW9uSWQvJGRvY3VtZW50SWQnLAogICAgICAgIHRhZzogJ1JFQUxUSU1FJywKICAgICAgKTsKICAgIH0KICB9CgogIC8vLyDYpdmE2LrYp9ihINis2YXZiti5INin2YTYp9i02KrYsdin2YPYp9iqCiAgdm9pZCB1bnN1YnNjcmliZUFsbCgpIHsKICAgIGZvciAoZmluYWwgc3Vic2NyaXB0aW9uIGluIF9zdWJzY3JpcHRpb25zLnZhbHVlcykgewogICAgICBzdWJzY3JpcHRpb24uY2xvc2UoKTsKICAgIH0KICAgIF9zdWJzY3JpcHRpb25zLmNsZWFyKCk7CiAgICBfaGFuZGxlcnMuY2xlYXIoKTsKCiAgICBfbG9nZ2VyLmluZm8oJ1Vuc3Vic2NyaWJlZCBmcm9tIGFsbCBSZWFsdGltZSBjaGFubmVscycsIHRhZzogJ1JFQUxUSU1FJyk7CiAgfQoKICAvLy8g2YXYudin2YTYrNipINin2LPYqtis2KfYqNipIFJlYWx0aW1lCiAgdm9pZCBfaGFuZGxlUmVhbHRpbWVSZXNwb25zZSgKICAgIGR5bmFtaWMgcmVzcG9uc2UsCiAgICBTdHJpbmcgY29sbGVjdGlvbklkLAogICAgUmVhbHRpbWVFdmVudEhhbmRsZXIgaGFuZGxlciwKICApIHsKICAgIHRyeSB7CiAgICAgIGZpbmFsIGV2ZW50cyA9IHJlc3BvbnNlLmV2ZW50cyBhcyBMaXN0OwoKICAgICAgaWYgKGV2ZW50cy5pc0VtcHR5KSB7CiAgICAgICAgX2xvZ2dlci5kZWJ1ZygKICAgICAgICAgICdSZWNlaXZlZCBSZWFsdGltZSBtZXNzYWdlIHdpdGggbm8gZXZlbnRzJywKICAgICAgICAgIHRhZzogJ1JFQUxUSU1FJywKICAgICAgICApOwogICAgICAgIHJldHVybjsKICAgICAgfQoKICAgICAgLy8g2KrYrdiv2YrYryDZhtmI2Lkg2KfZhNit2K/YqwogICAgICBSZWFsdGltZUV2ZW50VHlwZSBldmVudFR5cGUgPSBSZWFsdGltZUV2ZW50VHlwZS51bmtub3duOwogICAgICBpZiAoZXZlbnRzLmFueSgoZSkgPT4gKGUgYXMgU3RyaW5nKS5jb250YWlucygnY3JlYXRlJykpKSB7CiAgICAgICAgZXZlbnRUeXBlID0gUmVhbHRpbWVFdmVudFR5cGUuY3JlYXRlOwogICAgICB9IGVsc2UgaWYgKGV2ZW50cy5hbnkoKGUpID0+IChlIGFzIFN0cmluZykuY29udGFpbnMoJ3VwZGF0ZScpKSkgewogICAgICAgIGV2ZW50VHlwZSA9IFJlYWx0aW1lRXZlbnRUeXBlLnVwZGF0ZTsKICAgICAgfSBlbHNlIGlmIChldmVudHMuYW55KChlKSA9PiAoZSBhcyBTdHJpbmcpLmNvbnRhaW5zKCdkZWxldGUnKSkpIHsKICAgICAgICBldmVudFR5cGUgPSBSZWFsdGltZUV2ZW50VHlwZS5kZWxldGU7CiAgICAgIH0KCiAgICAgIC8vINin2LPYqtiu2LHYp9isINin2YTYqNmK2KfZhtin2KoKICAgICAgZmluYWwgcGF5bG9hZCA9IChyZXNwb25zZS5wYXlsb2FkIGFzIE1hcDxTdHJpbmcsIGR5bmFtaWM+PykgPz8ge307CiAgICAgIGZpbmFsIGRvY3VtZW50SWQgPSAocGF5bG9hZFtyJyRpZCddID8/ICcnKSBhcyBTdHJpbmc7CgogICAgICBfbG9nZ2VyLmRlYnVnKAogICAgICAgICdSZWFsdGltZSBldmVudDogJGV2ZW50VHlwZSBvbiAkY29sbGVjdGlvbklkLyRkb2N1bWVudElkJywKICAgICAgICB0YWc6ICdSRUFMVElNRScsCiAgICAgICk7CgogICAgICAvLyDYpdmG2LTYp9ihINit2K/YqyBSZWFsdGltZQogICAgICBmaW5hbCBldmVudCA9IFJlYWx0aW1lRXZlbnQoCiAgICAgICAgdHlwZTogZXZlbnRUeXBlLAogICAgICAgIGNvbGxlY3Rpb246IGNvbGxlY3Rpb25JZCwKICAgICAgICBkb2N1bWVudElkOiBkb2N1bWVudElkLAogICAgICAgIGRhdGE6IHBheWxvYWQgYXMgTWFwPFN0cmluZywgZHluYW1pYz4/LAogICAgICApOwoKICAgICAgLy8g2KrYrdiv2YrYqyDYp9mE2LDYp9mD2LHYqSDYp9mE2YXYpNmC2KrYqQogICAgICBfdXBkYXRlQ2FjaGVPbkV2ZW50KGV2ZW50KTsKCiAgICAgIC8vINin2LPYqtiv2LnYp9ihINin2YTZhdi52KfZhNisCiAgICAgIGhhbmRsZXIoZXZlbnQpOwogICAgfSBjYXRjaCAoZSwgc3RhY2tUcmFjZSkgewogICAgICBfbG9nZ2VyLmVycm9yKAogICAgICAgICdFcnJvciBoYW5kbGluZyBSZWFsdGltZSByZXNwb25zZScsCiAgICAgICAgZXJyb3I6IGUsCiAgICAgICAgc3RhY2tUcmFjZTogc3RhY2tUcmFjZSwKICAgICAgICB0YWc6ICdSRUFMVElNRScsCiAgICAgICk7CiAgICB9CiAgfQoKICAvLy8g2KrYrdiv2YrYqyDYp9mE2LDYp9mD2LHYqSDYp9mE2YXYpNmC2KrYqSDYqNmG2KfYodmLINi52YTZiSDYp9mE2K3Yr9irCiAgdm9pZCBfdXBkYXRlQ2FjaGVPbkV2ZW50KFJlYWx0aW1lRXZlbnQgZXZlbnQpIHsKICAgIHRyeSB7CiAgICAgIGZpbmFsIGNhY2hlS2V5ID0gJyR7ZXZlbnQuY29sbGVjdGlvbn1fJHtldmVudC5kb2N1bWVudElkfSc7CgogICAgICBzd2l0Y2ggKGV2ZW50LnR5cGUpIHsKICAgICAgICBjYXNlIFJlYWx0aW1lRXZlbnRUeXBlLmNyZWF0ZToKICAgICAgICBjYXNlIFJlYWx0aW1lRXZlbnRUeXBlLnVwZGF0ZToKICAgICAgICAgIC8vINiq2K3Yr9mK2Ksg2KPZiCDYpdi22KfZgdipINil2YTZiSDYp9mE2LDYp9mD2LHYqSDYp9mE2YXYpNmC2KrYqQogICAgICAgICAgaWYgKGV2ZW50LmRhdGEgIT0gbnVsbCkgewogICAgICAgICAgICBfY2FjaGUuc2V0KGNhY2hlS2V5LCBldmVudC5kYXRhKTsKICAgICAgICAgIH0KICAgICAgICAgIC8vINmF2LPYrSDZgtin2KbZhdipINin2YTZhdiz2KrZhtiv2KfYqiDZhNmE2KrYrdiv2YrYqwogICAgICAgICAgX2NhY2hlLmNsZWFyQnlQYXR0ZXJuKCdeJHtldmVudC5jb2xsZWN0aW9ufV9hbGwnKTsKCiAgICAgICAgY2FzZSBSZWFsdGltZUV2ZW50VHlwZS5kZWxldGU6CiAgICAgICAgICAvLyDYrdiw2YEg2YXZhiDYp9mE2LDYp9mD2LHYqSDYp9mE2YXYpNmC2KrYqQogICAgICAgICAgX2NhY2hlLnJlbW92ZShjYWNoZUtleSk7CiAgICAgICAgICBfY2FjaGUuY2xlYXJCeVBhdHRlcm4oJ14ke2V2ZW50LmNvbGxlY3Rpb259X2FsbCcpOwoKICAgICAgICBjYXNlIFJlYWx0aW1lRXZlbnRUeXBlLnVua25vd246CiAgICAgICAgICAvLyDZhNinINi02YrYoQogICAgICAgICAgYnJlYWs7CiAgICAgIH0KICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgX2xvZ2dlci53YXJuaW5nKAogICAgICAgICdGYWlsZWQgdG8gdXBkYXRlIGNhY2hlIG9uIFJlYWx0aW1lIGV2ZW50JywKICAgICAgICBlcnJvcjogZSwKICAgICAgICB0YWc6ICdSRUFMVElNRScsCiAgICAgICk7CiAgICB9CiAgfQoKICAvLy8g2KjZhtin2KEg2YLZhtmI2KfYqiDYp9mE2KfYtNiq2LHYp9mDCiAgTGlzdDxTdHJpbmc+IF9idWlsZENoYW5uZWxzKFN0cmluZyBjb2xsZWN0aW9uSWQsIExpc3Q8U3RyaW5nPj8gZXZlbnRzKSB7CiAgICBmaW5hbCBiYXNlQ2hhbm5lbCA9CiAgICAgICAgJ2RhdGFiYXNlcy4ke0FwcHdyaXRlQ29uZmlnLmRhdGFiYXNlSWR9LmNvbGxlY3Rpb25zLiRjb2xsZWN0aW9uSWQuZG9jdW1lbnRzJzsKCiAgICBpZiAoZXZlbnRzID09IG51bGwgfHwgZXZlbnRzLmlzRW1wdHkpIHsKICAgICAgcmV0dXJuIFtiYXNlQ2hhbm5lbF07CiAgICB9CgogICAgLy8g2KXZhti02KfYoSDZgtmG2YjYp9iqINmF2K3Yr9iv2Kkg2YTYo9mG2YjYp9i5INin2YTYo9it2K/Yp9irCiAgICByZXR1cm4gZXZlbnRzLm1hcCgoZXZlbnQpID0+ICckYmFzZUNoYW5uZWwuJGV2ZW50JykudG9MaXN0KCk7CiAgfQoKICAvLy8g2KfZhNit2LXZiNmEINi52YTZiSDYpdit2LXYp9im2YrYp9iqINin2YTYp9i02KrYsdin2YPYp9iqCiAgTWFwPFN0cmluZywgZHluYW1pYz4gZ2V0U3Vic2NyaXB0aW9uU3RhdHMoKSB7CiAgICByZXR1cm4gewogICAgICAndG90YWxfc3Vic2NyaXB0aW9ucyc6IF9zdWJzY3JpcHRpb25zLmxlbmd0aCwKICAgICAgJ2FjdGl2ZV9zdWJzY3JpcHRpb25zJzogX3N1YnNjcmlwdGlvbnMua2V5cy50b0xpc3QoKSwKICAgICAgJ2hhbmRsZXJzX2NvdW50JzogX2hhbmRsZXJzLmxlbmd0aCwKICAgICAgJ2luaXRpYWxpemVkJzogX2luaXRpYWxpemVkLAogICAgfTsKICB9CgogIC8vLyDYp9mE2KrYrdmC2YIg2YXZhiDZiNis2YjYryDYp9i02KrYsdin2YMg2YbYtNi3CiAgYm9vbCBoYXNBY3RpdmVTdWJzY3JpcHRpb24oU3RyaW5nIGNvbGxlY3Rpb25JZCkgewogICAgcmV0dXJuIF9zdWJzY3JpcHRpb25zLmNvbnRhaW5zS2V5KCdjb2xsZWN0aW9uXyRjb2xsZWN0aW9uSWQnKTsKICB9CgogIC8vLyDYpdi62YTYp9mCINin2YTYrtiv2YXYqQogIHZvaWQgZGlzcG9zZSgpIHsKICAgIHVuc3Vic2NyaWJlQWxsKCk7CiAgICBfaW5pdGlhbGl6ZWQgPSBmYWxzZTsKICAgIF9sb2dnZXIuaW5mbygnUmVhbHRpbWUgc2VydmljZSBkaXNwb3NlZCcsIHRhZzogJ1JFQUxUSU1FJyk7CiAgfQoKICAvLy8g2KrZhti42YrZgSDYp9mE2YXZiNin2LHYryDYp9mE2KvYp9io2KrYqSDZhNmE2YAgc2luZ2xldG9uICjZitmP2LPYqtiv2LnZiSDYudmG2K8g2KXYutmE2KfZgiDYp9mE2KrYt9io2YrZgikKICBzdGF0aWMgRnV0dXJlPHZvaWQ+IGRpc3Bvc2VJbnN0YW5jZSgpIGFzeW5jIHsKICAgIF9pbnN0YW5jZS5kaXNwb3NlKCk7CiAgfQp9Cg==
+import 'dart:async';
+
+import 'package:appwrite/appwrite.dart';
+
+import 'appwrite_cache_manager.dart';
+import 'appwrite_config.dart';
+import 'appwrite_logger.dart';
+
+/// نوع الحدث في Realtime
+enum RealtimeEventType { create, update, delete, unknown }
+
+/// حدث Realtime
+class RealtimeEvent {
+  RealtimeEvent({
+    required this.type,
+    required this.collection,
+    required this.documentId,
+    this.data,
+    DateTime? timestamp,
+  }) : timestamp = timestamp ?? DateTime.now();
+  final RealtimeEventType type;
+  final String collection;
+  final String documentId;
+  final Map<String, dynamic>? data;
+  final DateTime timestamp;
+
+  @override
+  String toString() =>
+      'RealtimeEvent(type: $type, collection: $collection, id: $documentId)';
+}
+
+/// معالج أحداث Realtime
+typedef RealtimeEventHandler = void Function(RealtimeEvent event);
+
+/// خدمة Appwrite Realtime - التحديثات الفورية
+///
+/// ⚠️ **DEPRECATED** — تحليل P2-13 أظهر أن هذه الخدمة لا تُستدعى من أي مسار
+/// إنتاجي (لا `initialize()` ولا `subscribeToAllCollections()` تُستدعى).
+/// الخدمة الفعلية هي `AppwriteRealtimeSync` التي تستخدم اتصال WebSocket واحد
+/// (بدلاً من 18 اتصالاً منفصلاً هنا). يُترك هذا الملف للتوافق مع أي استدعاءات
+/// مخفية. لا تُضف استدعاءات جديدة — استخدم `AppwriteRealtimeSync` بدلاً من ذلك.
+@Deprecated(
+  'استخدم AppwriteRealtimeSync بدلاً من ذلك — هذه الخدمة غير مستخدمة في الإنتاج',
+)
+class AppwriteRealtimeService {
+  factory AppwriteRealtimeService() => _instance;
+  AppwriteRealtimeService._internal();
+  static final AppwriteRealtimeService _instance =
+      AppwriteRealtimeService._internal();
+
+  late final Realtime _realtime;
+  final _logger = AppwriteLogger();
+  final _cache = AppwriteCacheManager();
+
+  bool _initialized = false;
+  final Map<String, RealtimeSubscription> _subscriptions = {};
+  final Map<String, List<RealtimeEventHandler>> _handlers = {};
+  // ✅ تتبع محاولات إعادة الاتصال لكل collection لتطبيق exponential backoff
+  // بدون نمو غير محدود (يُصفّر عند نجاح الاتصال).
+  final Map<String, int> _reconnectAttempts = {};
+  static const int _maxReconnectAttempts = 6;
+  static const Duration _baseReconnectDelay = Duration(seconds: 1);
+  static const Duration _maxReconnectDelay = Duration(seconds: 30);
+
+  /// تهيئة خدمة Realtime
+  Future<void> initialize(Client client) async {
+    if (_initialized) {
+      return;
+    }
+
+    try {
+      _realtime = Realtime(client);
+      _initialized = true;
+      _logger.info('Appwrite Realtime service initialized', tag: 'REALTIME');
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to initialize Realtime service',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'REALTIME',
+      );
+      rethrow;
+    }
+  }
+
+  /// الاشتراك في مجموعة (Collection)
+  ///
+  /// [collectionId] - معرف المجموعة
+  /// [handler] - معالج الأحداث
+  /// [events] - أنواع الأحداث المطلوبة (create, update, delete)
+  Future<void> subscribeToCollection({
+    required String collectionId,
+    required RealtimeEventHandler handler,
+    List<String>? events,
+  }) async {
+    if (!_initialized) {
+      throw Exception('Realtime service not initialized');
+    }
+
+    try {
+      // إنشاء قنوات الاشتراك
+      final channels = _buildChannels(collectionId, events);
+      final subscriptionKey = 'collection_$collectionId';
+
+      _logger.debug(
+        'Subscribing to collection: $collectionId',
+        tag: 'REALTIME',
+      );
+
+      // إلغاء الاشتراك القديم إذا كان موجوداً
+      if (_subscriptions.containsKey(subscriptionKey)) {
+        unawaited(_subscriptions[subscriptionKey]!.close());
+        _subscriptions.remove(subscriptionKey);
+      }
+
+      // ✅ مسح قائمة handlers القديمة قبل إضافة الجديدة لمنع النمو غير المحدود
+      // عند إعادة الاشتراك المتكرر (إصلاح P3-18 من تقرير الأداء).
+      _handlers[subscriptionKey] = [handler];
+
+      // إنشاء اشتراك جديد
+      final subscription = _realtime.subscribe(channels);
+
+      // الاستماع للأحداث
+      subscription.stream.listen(
+        (response) {
+          // ✅ تصفير عداد إعادة الاتصال عند نجاح استلام حدث — يعني الاتصال صحي
+          _reconnectAttempts.remove(subscriptionKey);
+          _handleRealtimeResponse(response, collectionId, handler);
+        },
+        onError: (Object error) {
+          _logger.error(
+            'Realtime subscription error for $collectionId',
+            error: error,
+            tag: 'REALTIME',
+          );
+          // ✅ إصلاح PR review: لا نُعيد الاتصال هنا — onDone يُستدعى دائماً
+          // بعد onError (Stream protocol)، وسيُعيد الاتصال هناك. سابقاً كان
+          // _scheduleReconnect يُستدعى مرتين → timer مزدوج → reconnect عشوائي.
+        },
+        onDone: () {
+          _logger.info(
+            'Realtime subscription closed for $collectionId',
+            tag: 'REALTIME',
+          );
+          // ✅ إعادة الاتصال عند إغلاق الاتصال (مثل انقطاع الشبكة) — exponential backoff
+          _scheduleReconnect(collectionId, events: events, handler: handler);
+        },
+      );
+
+      _subscriptions[subscriptionKey] = subscription;
+
+      _logger.info(
+        'Successfully subscribed to collection: $collectionId',
+        tag: 'REALTIME',
+      );
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to subscribe to collection: $collectionId',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'REALTIME',
+      );
+      rethrow;
+    }
+  }
+
+  /// إعادة الاتصال بتطبيق exponential backoff — يمنع إغراق الخادم بالمحاولات
+  /// عند الانقطاع. التأخير يتضاعف: 1s, 2s, 4s, 8s, 16s, 30s (capped).
+  /// بعد _maxReconnectAttempts محاولات، يتوقف لتجنب إهدار البطارية.
+  Future<void> _scheduleReconnect(
+    String collectionId, {
+    List<String>? events,
+    RealtimeEventHandler? handler,
+  }) async {
+    if (!_initialized || handler == null) return;
+
+    final subscriptionKey = 'collection_$collectionId';
+    final attempts = (_reconnectAttempts[subscriptionKey] ?? 0) + 1;
+
+    if (attempts > _maxReconnectAttempts) {
+      _logger.warning(
+        'Max reconnect attempts ($_maxReconnectAttempts) reached for $collectionId — giving up',
+        tag: 'REALTIME',
+      );
+      _reconnectAttempts.remove(subscriptionKey);
+      return;
+    }
+
+    _reconnectAttempts[subscriptionKey] = attempts;
+
+    // exponential backoff مع سقف أعلى — 2^(n-1) ثانية، max 30s
+    final delaySeconds = (_baseReconnectDelay.inSeconds * (1 << (attempts - 1)))
+        .clamp(1, _maxReconnectDelay.inSeconds);
+
+    _logger.info(
+      'Scheduling reconnect #$attempts for $collectionId in ${delaySeconds}s',
+      tag: 'REALTIME',
+    );
+
+    await Future<void>.delayed(Duration(seconds: delaySeconds));
+
+    // تحقق أن الخدمة ما زالت مهيّأة وأن المستخدم لم يُلغِ الاشتراك يدوياً
+    if (!_initialized || !_handlers.containsKey(subscriptionKey)) {
+      _reconnectAttempts.remove(subscriptionKey);
+      return;
+    }
+
+    try {
+      await subscribeToCollection(
+        collectionId: collectionId,
+        handler: handler,
+        events: events,
+      );
+    } catch (e) {
+      _logger.error(
+        'Reconnect attempt #$attempts failed for $collectionId',
+        error: e,
+        tag: 'REALTIME',
+      );
+      // المحاولة التالية ستُجدول من داخل subscribeToCollection عند فشل الاتصال
+    }
+  }
+
+  /// الاشتراك في مستند محدد
+  Future<void> subscribeToDocument({
+    required String collectionId,
+    required String documentId,
+    required RealtimeEventHandler handler,
+  }) async {
+    if (!_initialized) {
+      throw Exception('Realtime service not initialized');
+    }
+
+    try {
+      final channel =
+          'databases.${AppwriteConfig.databaseId}.collections.$collectionId.documents.$documentId';
+      final subscriptionKey = 'document_${collectionId}_$documentId';
+
+      _logger.debug(
+        'Subscribing to document: $collectionId/$documentId',
+        tag: 'REALTIME',
+      );
+
+      // إلغاء الاشتراك القديم
+      if (_subscriptions.containsKey(subscriptionKey)) {
+        unawaited(_subscriptions[subscriptionKey]!.close());
+        _subscriptions.remove(subscriptionKey);
+      }
+
+      // ✅ مسح handlers القديمة (تم بالفعل في السطر التالي، لكن نُكرّر التأكيد
+      // لمنع نمو القائمة عند إعادة الاشتراك المتكرر).
+      _handlers[subscriptionKey] = [handler];
+
+      // إنشاء اشتراك جديد
+      final subscription = _realtime.subscribe([channel]);
+
+      subscription.stream.listen(
+        (response) {
+          _handleRealtimeResponse(response, collectionId, handler);
+        },
+        onError: (Object error) {
+          _logger.error(
+            'Realtime subscription error for document $documentId',
+            error: error,
+            tag: 'REALTIME',
+          );
+        },
+      );
+
+      _subscriptions[subscriptionKey] = subscription;
+
+      _logger.info(
+        'Successfully subscribed to document: $collectionId/$documentId',
+        tag: 'REALTIME',
+      );
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Failed to subscribe to document',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'REALTIME',
+      );
+      rethrow;
+    }
+  }
+
+  /// الاشتراك في جميع المجموعات المهمة
+  Future<void> subscribeToAllCollections(RealtimeEventHandler handler) async {
+    final collections = [
+      AppwriteConfig.roomsCollectionId,
+      AppwriteConfig.bookingsCollectionId,
+      AppwriteConfig.bookingNotesCollectionId,
+      AppwriteConfig.bookingNightsCollectionId,
+      AppwriteConfig.paymentsCollectionId,
+      AppwriteConfig.expensesCollectionId,
+      AppwriteConfig.cashTransactionsCollectionId,
+      AppwriteConfig.employeesCollectionId,
+      AppwriteConfig.debtsCollectionId,
+      // ❌ hotel_day_ledger - محلي فقط
+      AppwriteConfig.salaryCyclesCollectionId,
+      AppwriteConfig.salaryPaymentsCollectionId,
+      AppwriteConfig.salaryWithdrawalsCollectionId,
+      AppwriteConfig.shiftNotesCollectionId,
+      AppwriteConfig.guestInfosCollectionId,
+      AppwriteConfig.priceAdjustmentsCollectionId,
+      AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+      AppwriteConfig.auditLogsCollectionId,
+      AppwriteConfig.paymentVoidsCollectionId,
+    ];
+
+    for (final collectionId in collections) {
+      try {
+        await subscribeToCollection(
+          collectionId: collectionId,
+          handler: handler,
+        );
+      } catch (e) {
+        _logger.warning(
+          'Failed to subscribe to $collectionId, continuing...',
+          error: e,
+          tag: 'REALTIME',
+        );
+      }
+    }
+
+    _logger.info(
+      'Subscribed to ${collections.length} collections',
+      tag: 'REALTIME',
+    );
+  }
+
+  /// إلغاء الاشتراك في مجموعة
+  void unsubscribeFromCollection(String collectionId) {
+    final subscriptionKey = 'collection_$collectionId';
+
+    if (_subscriptions.containsKey(subscriptionKey)) {
+      _subscriptions[subscriptionKey]!.close();
+      _subscriptions.remove(subscriptionKey);
+      _handlers.remove(subscriptionKey);
+
+      _logger.info(
+        'Unsubscribed from collection: $collectionId',
+        tag: 'REALTIME',
+      );
+    }
+  }
+
+  /// إلغاء الاشتراك في مستند
+  void unsubscribeFromDocument(String collectionId, String documentId) {
+    final subscriptionKey = 'document_${collectionId}_$documentId';
+
+    if (_subscriptions.containsKey(subscriptionKey)) {
+      _subscriptions[subscriptionKey]!.close();
+      _subscriptions.remove(subscriptionKey);
+      _handlers.remove(subscriptionKey);
+
+      _logger.info(
+        'Unsubscribed from document: $collectionId/$documentId',
+        tag: 'REALTIME',
+      );
+    }
+  }
+
+  /// إلغاء جميع الاشتراكات
+  void unsubscribeAll() {
+    for (final subscription in _subscriptions.values) {
+      subscription.close();
+    }
+    _subscriptions.clear();
+    _handlers.clear();
+
+    _logger.info('Unsubscribed from all Realtime channels', tag: 'REALTIME');
+  }
+
+  /// معالجة استجابة Realtime
+  void _handleRealtimeResponse(
+    dynamic response,
+    String collectionId,
+    RealtimeEventHandler handler,
+  ) {
+    try {
+      final events = response.events as List;
+
+      if (events.isEmpty) {
+        _logger.debug(
+          'Received Realtime message with no events',
+          tag: 'REALTIME',
+        );
+        return;
+      }
+
+      // تحديد نوع الحدث
+      RealtimeEventType eventType = RealtimeEventType.unknown;
+      if (events.any((e) => (e as String).contains('create'))) {
+        eventType = RealtimeEventType.create;
+      } else if (events.any((e) => (e as String).contains('update'))) {
+        eventType = RealtimeEventType.update;
+      } else if (events.any((e) => (e as String).contains('delete'))) {
+        eventType = RealtimeEventType.delete;
+      }
+
+      // استخراج البيانات
+      final payload = (response.payload as Map<String, dynamic>?) ?? {};
+      final documentId = (payload[r'$id'] ?? '') as String;
+
+      _logger.debug(
+        'Realtime event: $eventType on $collectionId/$documentId',
+        tag: 'REALTIME',
+      );
+
+      // إنشاء حدث Realtime
+      final event = RealtimeEvent(
+        type: eventType,
+        collection: collectionId,
+        documentId: documentId,
+        data: payload as Map<String, dynamic>?,
+      );
+
+      // تحديث الذاكرة المؤقتة
+      _updateCacheOnEvent(event);
+
+      // استدعاء المعالج
+      handler(event);
+    } catch (e, stackTrace) {
+      _logger.error(
+        'Error handling Realtime response',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'REALTIME',
+      );
+    }
+  }
+
+  /// تحديث الذاكرة المؤقتة بناءً على الحدث
+  void _updateCacheOnEvent(RealtimeEvent event) {
+    try {
+      final cacheKey = '${event.collection}_${event.documentId}';
+
+      switch (event.type) {
+        case RealtimeEventType.create:
+        case RealtimeEventType.update:
+          // تحديث أو إضافة إلى الذاكرة المؤقتة
+          if (event.data != null) {
+            _cache.set(cacheKey, event.data);
+          }
+          // مسح قائمة المستندات للتحديث
+          _cache.clearByPattern('^${event.collection}_all');
+
+        case RealtimeEventType.delete:
+          // حذف من الذاكرة المؤقتة
+          _cache.remove(cacheKey);
+          _cache.clearByPattern('^${event.collection}_all');
+
+        case RealtimeEventType.unknown:
+          // لا شيء
+          break;
+      }
+    } catch (e) {
+      _logger.warning(
+        'Failed to update cache on Realtime event',
+        error: e,
+        tag: 'REALTIME',
+      );
+    }
+  }
+
+  /// بناء قنوات الاشتراك
+  List<String> _buildChannels(String collectionId, List<String>? events) {
+    final baseChannel =
+        'databases.${AppwriteConfig.databaseId}.collections.$collectionId.documents';
+
+    if (events == null || events.isEmpty) {
+      return [baseChannel];
+    }
+
+    // إنشاء قنوات محددة لأنواع الأحداث
+    return events.map((event) => '$baseChannel.$event').toList();
+  }
+
+  /// الحصول على إحصائيات الاشتراكات
+  Map<String, dynamic> getSubscriptionStats() {
+    return {
+      'total_subscriptions': _subscriptions.length,
+      'active_subscriptions': _subscriptions.keys.toList(),
+      'handlers_count': _handlers.length,
+      'initialized': _initialized,
+    };
+  }
+
+  /// التحقق من وجود اشتراك نشط
+  bool hasActiveSubscription(String collectionId) {
+    return _subscriptions.containsKey('collection_$collectionId');
+  }
+
+  /// إغلاق الخدمة
+  void dispose() {
+    unsubscribeAll();
+    _initialized = false;
+    _logger.info('Realtime service disposed', tag: 'REALTIME');
+  }
+
+  /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
+  static Future<void> disposeInstance() async {
+    _instance.dispose();
+  }
+}
