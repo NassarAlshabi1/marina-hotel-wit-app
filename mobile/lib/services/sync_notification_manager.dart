@@ -9,9 +9,11 @@ class SyncNotificationManager {
   }
   static SyncNotificationManager? _instance;
   // ignore: prefer_constructors_over_static_methods
-  static SyncNotificationManager get instance => _instance ??= SyncNotificationManager._();
+  static SyncNotificationManager get instance =>
+      _instance ??= SyncNotificationManager._();
 
-  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
   bool _isInitialized = false;
 
   Future<void> _initLocalNotifications() async {
@@ -19,7 +21,9 @@ class SyncNotificationManager {
       return;
     }
 
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const initSettings = InitializationSettings(android: androidSettings);
 
     await _localNotifications.initialize(
@@ -32,7 +36,11 @@ class SyncNotificationManager {
   }
 
   /// إظهار إشعار النظام (يظهر حتى والتطبيق مغلق/في الخلفية)
-  Future<void> showSystemNotification({required String title, required String body, String? payload}) async {
+  Future<void> showSystemNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
     if (!_isInitialized) {
       await _initLocalNotifications();
     }
@@ -80,7 +88,11 @@ class SyncNotificationManager {
               ),
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4, offset: const Offset(0, 4)),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 4,
+                  offset: const Offset(0, 4),
+                ),
               ],
             ),
             child: Row(
@@ -91,7 +103,11 @@ class SyncNotificationManager {
                     color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.cloud_sync, color: Colors.white, size: 24),
+                  child: const Icon(
+                    Icons.cloud_sync,
+                    color: Colors.white,
+                    size: 24,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -101,12 +117,19 @@ class SyncNotificationManager {
                     children: [
                       const Text(
                         '✅ تمت المزامنة بنجاح',
-                        style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'تم تحديث $recordsCount سجل من $fromDevice',
-                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
@@ -138,7 +161,11 @@ class SyncNotificationManager {
   }
 
   /// إشعار فشل المزامنة
-  static void showSyncError(BuildContext context, {required String error, VoidCallback? onRetry}) {
+  static void showSyncError(
+    BuildContext context, {
+    required String error,
+    VoidCallback? onRetry,
+  }) {
     final overlay = Overlay.of(context);
     late OverlayEntry overlayEntry;
 
@@ -159,7 +186,11 @@ class SyncNotificationManager {
               ),
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4, offset: const Offset(0, 4)),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 4,
+                  offset: const Offset(0, 4),
+                ),
               ],
             ),
             child: Column(
@@ -174,7 +205,11 @@ class SyncNotificationManager {
                         color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.sync_problem, color: Colors.white, size: 24),
+                      child: const Icon(
+                        Icons.sync_problem,
+                        color: Colors.white,
+                        size: 24,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -183,12 +218,19 @@ class SyncNotificationManager {
                         children: [
                           const Text(
                             '❌ فشلت المزامنة',
-                            style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             error,
-                            style: const TextStyle(color: Colors.white, fontSize: 12),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -197,7 +239,11 @@ class SyncNotificationManager {
                     ),
                     IconButton(
                       onPressed: () => overlayEntry.remove(),
-                      icon: const Icon(Icons.close, color: Colors.white, size: 20),
+                      icon: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
@@ -251,7 +297,10 @@ class SyncNotificationManager {
             SizedBox(
               width: 16,
               height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
             ),
             SizedBox(width: 8),
             Text('🔄 بدأت المزامنة التلقائية...'),
@@ -293,7 +342,11 @@ class SyncNotificationManager {
               ),
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4, offset: const Offset(0, 4)),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 4,
+                  offset: const Offset(0, 4),
+                ),
               ],
             ),
             child: Column(
@@ -308,7 +361,11 @@ class SyncNotificationManager {
                         color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.new_releases, color: Colors.white, size: 24),
+                      child: const Icon(
+                        Icons.new_releases,
+                        color: Colors.white,
+                        size: 24,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -317,19 +374,30 @@ class SyncNotificationManager {
                         children: [
                           const Text(
                             '🆕 بيانات جديدة متاحة',
-                            style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             'تم العثور على $changesCount تغيير من $sourceDevice',
-                            style: const TextStyle(color: Colors.white, fontSize: 12),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
                     ),
                     IconButton(
                       onPressed: () => overlayEntry.remove(),
-                      icon: const Icon(Icons.close, color: Colors.white, size: 20),
+                      icon: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
@@ -363,7 +431,10 @@ class SyncNotificationManager {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white.withValues(alpha: 0.2),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 8,
+                            horizontal: 12,
+                          ),
                         ),
                         child: const Text('تفاصيل'),
                       ),
@@ -422,7 +493,11 @@ class SyncNotificationManager {
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 20),
+            const Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.amber,
+              size: 20,
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -447,7 +522,12 @@ class SyncNotificationManager {
                     builder: (ctx) => AlertDialog(
                       title: const Text('تفاصيل التضارب'),
                       content: Text(details, textDirection: TextDirection.rtl),
-                      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('فهمت'))],
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('فهمت'),
+                        ),
+                      ],
                     ),
                   );
                 },
