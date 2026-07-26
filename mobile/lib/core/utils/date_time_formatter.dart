@@ -1,1 +1,237 @@
-aW1wb3J0ICdwYWNrYWdlOmludGwvaW50bC5kYXJ0JzsKCi8vLyBEYXRlIGFuZCBUaW1lIEZvcm1hdHRpbmcgVXRpbGl0aWVzCi8vLwovLy8g2YXYsdmD2LIg2YXZiNit2K8g2YTYrNmF2YrYuSDYudmF2YTZitin2Kog2KrZhtiz2YrZgiDYp9mE2KrYp9ix2YrYriDZiNin2YTZiNmC2Kog2YHZiiDYp9mE2KrYt9io2YrZggpjbGFzcyBEYXRlVGltZUZvcm1hdHRlciB7CiAgRGF0ZVRpbWVGb3JtYXR0ZXIuXygpOwoKICAvLyBEYXRlIGZvcm1hdHMKICBzdGF0aWMgZmluYWwgRGF0ZUZvcm1hdCBfZGF0ZUZvcm1hdCA9IERhdGVGb3JtYXQoJ3l5eXktTU0tZGQnKTsKICBzdGF0aWMgZmluYWwgRGF0ZUZvcm1hdCBfdGltZUZvcm1hdCA9IERhdGVGb3JtYXQoJ0hIOm1tJyk7CiAgc3RhdGljIGZpbmFsIERhdGVGb3JtYXQgX2RhdGVUaW1lRm9ybWF0ID0gRGF0ZUZvcm1hdCgneXl5eS1NTS1kZCBISDptbScpOwogIHN0YXRpYyBmaW5hbCBEYXRlRm9ybWF0IF9kYXRlVGltZUZ1bGxGb3JtYXQgPSBEYXRlRm9ybWF0KAogICAgJ3l5eXktTU0tZGQgSEg6bW06c3MnLAogICk7CiAgc3RhdGljIGZpbmFsIERhdGVGb3JtYXQgX2FyYWJpY0RhdGVGb3JtYXQgPSBEYXRlRm9ybWF0KCdkIE1NTU0geXl5eScsICdhcicpOwogIHN0YXRpYyBmaW5hbCBEYXRlRm9ybWF0IF9hcmFiaWNEYXRlVGltZUZvcm1hdCA9IERhdGVGb3JtYXQoCiAgICAnZCBNTU1NIHl5eXkgLSBoOm1tIGEnLAogICAgJ2FyJywKICApOwoKICAvLy8gRm9ybWF0IElTTyBzdHJpbmcgdG8gZGF0ZSBhbmQgdGltZSAoMjAyNC0wMS0yOSAxODozMCkKICBzdGF0aWMgU3RyaW5nIGZvcm1hdERhdGVUaW1lKFN0cmluZz8gaXNvU3RyaW5nKSB7CiAgICBpZiAoaXNvU3RyaW5nID09IG51bGwgfHwgaXNvU3RyaW5nLmlzRW1wdHkpIHsKICAgICAgcmV0dXJuICfZhNinINmK2YjYrNivJzsKICAgIH0KCiAgICB0cnkgewogICAgICBmaW5hbCBkYXRlID0gRGF0ZVRpbWUucGFyc2UoaXNvU3RyaW5nKTsKICAgICAgcmV0dXJuIF9kYXRlVGltZUZvcm1hdC5mb3JtYXQoZGF0ZSk7CiAgICB9IGNhdGNoIChlKSB7CiAgICAgIHJldHVybiAn2KrYp9ix2YrYriDYutmK2LEg2LXYp9mE2K0nOwogICAgfQogIH0KCiAgLy8vIEZvcm1hdCBJU08gc3RyaW5nIHRvIGRhdGUgb25seSAoMjAyNC0wMS0yOSkKICBzdGF0aWMgU3RyaW5nIGZvcm1hdERhdGUoU3RyaW5nPyBpc29TdHJpbmcpIHsKICAgIGlmIChpc29TdHJpbmcgPT0gbnVsbCB8fCBpc29TdHJpbmcuaXNFbXB0eSkgewogICAgICByZXR1cm4gJ9mE2Kcg2YrZiNis2K8nOwogICAgfQoKICAgIHRyeSB7CiAgICAgIGZpbmFsIGRhdGUgPSBEYXRlVGltZS5wYXJzZShpc29TdHJpbmcpOwogICAgICByZXR1cm4gX2RhdGVGb3JtYXQuZm9ybWF0KGRhdGUpOwogICAgfSBjYXRjaCAoZSkgewogICAgICByZXR1cm4gJ9iq2KfYsdmK2K4g2LrZitixINi12KfZhNitJzsKICAgIH0KICB9CgogIC8vLyBGb3JtYXQgSVNPIHN0cmluZyB0byB0aW1lIG9ubHkgKDE4OjMwKQogIHN0YXRpYyBTdHJpbmcgZm9ybWF0VGltZShTdHJpbmc/IGlzb1N0cmluZykgewogICAgaWYgKGlzb1N0cmluZyA9PSBudWxsIHx8IGlzb1N0cmluZy5pc0VtcHR5KSB7CiAgICAgIHJldHVybiAn2YTYpyDZitmI2KzYryc7CiAgICB9CgogICAgdHJ5IHsKICAgICAgZmluYWwgZGF0ZSA9IERhdGVUaW1lLnBhcnNlKGlzb1N0cmluZyk7CiAgICAgIHJldHVybiBfdGltZUZvcm1hdC5mb3JtYXQoZGF0ZSk7CiAgICB9IGNhdGNoIChlKSB7CiAgICAgIHJldHVybiAn2YjZgtiqINi62YrYsSDYtdin2YTYrSc7CiAgICB9CiAgfQoKICAvLy8gRm9ybWF0IElTTyBzdHJpbmcgdG8gZnVsbCBkYXRlIGFuZCB0aW1lIHdpdGggc2Vjb25kcwogIHN0YXRpYyBTdHJpbmcgZm9ybWF0RGF0ZVRpbWVGdWxsKFN0cmluZz8gaXNvU3RyaW5nKSB7CiAgICBpZiAoaXNvU3RyaW5nID09IG51bGwgfHwgaXNvU3RyaW5nLmlzRW1wdHkpIHsKICAgICAgcmV0dXJuICfZhNinINmK2YjYrNivJzsKICAgIH0KCiAgICB0cnkgewogICAgICBmaW5hbCBkYXRlID0gRGF0ZVRpbWUucGFyc2UoaXNvU3RyaW5nKTsKICAgICAgcmV0dXJuIF9kYXRlVGltZUZ1bGxGb3JtYXQuZm9ybWF0KGRhdGUpOwogICAgfSBjYXRjaCAoZSkgewogICAgICByZXR1cm4gJ9iq2KfYsdmK2K4g2LrZitixINi12KfZhNitJzsKICAgIH0KICB9CgogIC8vLyBGb3JtYXQgSVNPIHN0cmluZyB0byBBcmFiaWMgZGF0ZSAoMjkg2YrZhtin2YrYsSAyMDI0KQogIHN0YXRpYyBTdHJpbmcgZm9ybWF0QXJhYmljRGF0ZShTdHJpbmc/IGlzb1N0cmluZykgewogICAgaWYgKGlzb1N0cmluZyA9PSBudWxsIHx8IGlzb1N0cmluZy5pc0VtcHR5KSB7CiAgICAgIHJldHVybiAn2YTYpyDZitmI2KzYryc7CiAgICB9CgogICAgdHJ5IHsKICAgICAgZmluYWwgZGF0ZSA9IERhdGVUaW1lLnBhcnNlKGlzb1N0cmluZyk7CiAgICAgIHJldHVybiBfYXJhYmljRGF0ZUZvcm1hdC5mb3JtYXQoZGF0ZSk7CiAgICB9IGNhdGNoIChlKSB7CiAgICAgIHJldHVybiAn2KrYp9ix2YrYriDYutmK2LEg2LXYp9mE2K0nOwogICAgfQogIH0KCiAgLy8vIEZvcm1hdCBJU08gc3RyaW5nIHRvIEFyYWJpYyBkYXRlIGFuZCB0aW1lICgyOSDZitmG2KfZitixIDIwMjQgLSA2OjMwINmFKQogIHN0YXRpYyBTdHJpbmcgZm9ybWF0QXJhYmljRGF0ZVRpbWUoU3RyaW5nPyBpc29TdHJpbmcpIHsKICAgIGlmIChpc29TdHJpbmcgPT0gbnVsbCB8fCBpc29TdHJpbmcuaXNFbXB0eSkgewogICAgICByZXR1cm4gJ9mE2Kcg2YrZiNis2K8nOwogICAgfQoKICAgIHRyeSB7CiAgICAgIGZpbmFsIGRhdGUgPSBEYXRlVGltZS5wYXJzZShpc29TdHJpbmcpOwogICAgICByZXR1cm4gX2FyYWJpY0RhdGVUaW1lRm9ybWF0LmZvcm1hdChkYXRlKTsKICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgcmV0dXJuICfYqtin2LHZitiuINi62YrYsSDYtdin2YTYrSc7CiAgICB9CiAgfQoKICAvLy8gRm9ybWF0IERhdGVUaW1lIHRvIElTTyBzdHJpbmcKICBzdGF0aWMgU3RyaW5nIHRvSXNvU3RyaW5nKERhdGVUaW1lPyBkYXRlVGltZSkgewogICAgcmV0dXJuIGRhdGVUaW1lPy50b0lzbzg2MDFTdHJpbmcoKSA/PyAnJzsKICB9CgogIC8vLyBHZXQgcmVsYXRpdmUgdGltZSAo2YXZhtiwIDUg2K/Zgtin2KbZgtiMINmF2YbYsCDYs9in2LnYqdiMINil2YTYrikKICBzdGF0aWMgU3RyaW5nIGdldFJlbGF0aXZlVGltZShTdHJpbmc/IGlzb1N0cmluZykgewogICAgaWYgKGlzb1N0cmluZyA9PSBudWxsIHx8IGlzb1N0cmluZy5pc0VtcHR5KSB7CiAgICAgIHJldHVybiAn2YTYpyDZitmI2KzYryc7CiAgICB9CgogICAgdHJ5IHsKICAgICAgZmluYWwgZGF0ZSA9IERhdGVUaW1lLnBhcnNlKGlzb1N0cmluZyk7CiAgICAgIGZpbmFsIG5vdyA9IERhdGVUaW1lLm5vdygpOwogICAgICBmaW5hbCBkaWZmZXJlbmNlID0gbm93LmRpZmZlcmVuY2UoZGF0ZSk7CgogICAgICBpZiAoZGlmZmVyZW5jZS5pblNlY29uZHMgPCA2MCkgewogICAgICAgIHJldHVybiAn2YXZhtiwINmE2K3YuNin2KonOwogICAgICB9IGVsc2UgaWYgKGRpZmZlcmVuY2UuaW5NaW51dGVzIDwgNjApIHsKICAgICAgICBmaW5hbCBtaW51dGVzID0gZGlmZmVyZW5jZS5pbk1pbnV0ZXM7CiAgICAgICAgcmV0dXJuICfZhdmG2LAgJG1pbnV0ZXMgJHttaW51dGVzID09IDEgPyAn2K/ZgtmK2YLYqScgOiAn2K/Zgtin2KbZgid9JzsKICAgICAgfSBlbHNlIGlmIChkaWZmZXJlbmNlLmluSG91cnMgPCAyNCkgewogICAgICAgIGZpbmFsIGhvdXJzID0gZGlmZmVyZW5jZS5pbkhvdXJzOwogICAgICAgIHJldHVybiAn2YXZhtiwICRob3VycyAke2hvdXJzID09IDEgPyAn2LPYp9i52KknIDogJ9iz2KfYudin2KonfSc7CiAgICAgIH0gZWxzZSBpZiAoZGlmZmVyZW5jZS5pbkRheXMgPCA3KSB7CiAgICAgICAgZmluYWwgZGF5cyA9IGRpZmZlcmVuY2UuaW5EYXlzOwogICAgICAgIHJldHVybiAn2YXZhtiwICRkYXlzICR7ZGF5cyA9PSAxID8gJ9mK2YjZhScgOiAn2KPZitin2YUnfSc7CiAgICAgIH0gZWxzZSBpZiAoZGlmZmVyZW5jZS5pbkRheXMgPCAzMCkgewogICAgICAgIGZpbmFsIHdlZWtzID0gKGRpZmZlcmVuY2UuaW5EYXlzIC8gNykuZmxvb3IoKTsKICAgICAgICByZXR1cm4gJ9mF2YbYsCAkd2Vla3MgJHt3ZWVrcyA9PSAxID8gJ9ij2LPYqNmI2LknIDogJ9ij2LPYp9io2YrYuSd9JzsKICAgICAgfSBlbHNlIGlmIChkaWZmZXJlbmNlLmluRGF5cyA8IDM2NSkgewogICAgICAgIGZpbmFsIG1vbnRocyA9IChkaWZmZXJlbmNlLmluRGF5cyAvIDMwKS5mbG9vcigpOwogICAgICAgIHJldHVybiAn2YXZhtiwICRtb250aHMgJHttb250aHMgPT0gMSA/ICfYtNmH2LEnIDogJ9ij2LTZh9ixJ30nOwogICAgICB9IGVsc2UgewogICAgICAgIGZpbmFsIHllYXJzID0gKGRpZmZlcmVuY2UuaW5EYXlzIC8gMzY1KS5mbG9vcigpOwogICAgICAgIHJldHVybiAn2YXZhtiwICR5ZWFycyAke3llYXJzID09IDEgPyAn2LPZhtipJyA6ICfYs9mG2YjYp9iqJ30nOwogICAgICB9CiAgICB9IGNhdGNoIChlKSB7CiAgICAgIHJldHVybiAn2KrYp9ix2YrYriDYutmK2LEg2LXYp9mE2K0nOwogICAgfQogIH0KCiAgLy8vIEdldCB0aW1lIGFnbyBpbiBzaG9ydCBmb3JtYXQgKDXYr9iMIDLYs9iMIDPZiikKICBzdGF0aWMgU3RyaW5nIGdldFRpbWVBZ29TaG9ydChTdHJpbmc/IGlzb1N0cmluZykgewogICAgaWYgKGlzb1N0cmluZyA9PSBudWxsIHx8IGlzb1N0cmluZy5pc0VtcHR5KSB7CiAgICAgIHJldHVybiAnLSc7CiAgICB9CgogICAgdHJ5IHsKICAgICAgZmluYWwgZGF0ZSA9IERhdGVUaW1lLnBhcnNlKGlzb1N0cmluZyk7CiAgICAgIGZpbmFsIG5vdyA9IERhdGVUaW1lLm5vdygpOwogICAgICBmaW5hbCBkaWZmZXJlbmNlID0gbm93LmRpZmZlcmVuY2UoZGF0ZSk7CgogICAgICBpZiAoZGlmZmVyZW5jZS5pblNlY29uZHMgPCA2MCkgewogICAgICAgIHJldHVybiAn2KfZhNii2YYnOwogICAgICB9IGVsc2UgaWYgKGRpZmZlcmVuY2UuaW5NaW51dGVzIDwgNjApIHsKICAgICAgICByZXR1cm4gJyR7ZGlmZmVyZW5jZS5pbk1pbnV0ZXN92K8nOwogICAgICB9IGVsc2UgaWYgKGRpZmZlcmVuY2UuaW5Ib3VycyA8IDI0KSB7CiAgICAgICAgcmV0dXJuICcke2RpZmZlcmVuY2UuaW5Ib3Vyc33Ysyc7CiAgICAgIH0gZWxzZSBpZiAoZGlmZmVyZW5jZS5pbkRheXMgPCAzNjUpIHsKICAgICAgICByZXR1cm4gJyR7ZGlmZmVyZW5jZS5pbkRheXN92YonOwogICAgICB9IGVsc2UgewogICAgICAgIHJldHVybiAnJHsoZGlmZmVyZW5jZS5pbkRheXMgLyAzNjUpLmZsb29yKCl92LPZhtipJzsKICAgICAgfQogICAgfSBjYXRjaCAoZSkgewogICAgICByZXR1cm4gJy0nOwogICAgfQogIH0KCiAgLy8vIENoZWNrIGlmIGRhdGUgaXMgdG9kYXkKICBzdGF0aWMgYm9vbCBpc1RvZGF5KFN0cmluZz8gaXNvU3RyaW5nKSB7CiAgICBpZiAoaXNvU3RyaW5nID09IG51bGwgfHwgaXNvU3RyaW5nLmlzRW1wdHkpIHsKICAgICAgcmV0dXJuIGZhbHNlOwogICAgfQoKICAgIHRyeSB7CiAgICAgIGZpbmFsIGRhdGUgPSBEYXRlVGltZS5wYXJzZShpc29TdHJpbmcpOwogICAgICBmaW5hbCBub3cgPSBEYXRlVGltZS5ub3coKTsKICAgICAgcmV0dXJuIGRhdGUueWVhciA9PSBub3cueWVhciAmJgogICAgICAgICAgZGF0ZS5tb250aCA9PSBub3cubW9udGggJiYKICAgICAgICAgIGRhdGUuZGF5ID09IG5vdy5kYXk7CiAgICB9IGNhdGNoIChlKSB7CiAgICAgIHJldHVybiBmYWxzZTsKICAgIH0KICB9CgogIC8vLyBDaGVjayBpZiBkYXRlIGlzIHllc3RlcmRheQogIHN0YXRpYyBib29sIGlzWWVzdGVyZGF5KFN0cmluZz8gaXNvU3RyaW5nKSB7CiAgICBpZiAoaXNvU3RyaW5nID09IG51bGwgfHwgaXNvU3RyaW5nLmlzRW1wdHkpIHsKICAgICAgcmV0dXJuIGZhbHNlOwogICAgfQoKICAgIHRyeSB7CiAgICAgIGZpbmFsIGRhdGUgPSBEYXRlVGltZS5wYXJzZShpc29TdHJpbmcpOwogICAgICBmaW5hbCB5ZXN0ZXJkYXkgPSBEYXRlVGltZS5ub3coKS5zdWJ0cmFjdChjb25zdCBEdXJhdGlvbihkYXlzOiAxKSk7CiAgICAgIHJldHVybiBkYXRlLnllYXIgPT0geWVzdGVyZGF5LnllYXIgJiYKICAgICAgICAgIGRhdGUubW9udGggPT0geWVzdGVyZGF5Lm1vbnRoICYmCiAgICAgICAgICBkYXRlLmRheSA9PSB5ZXN0ZXJkYXkuZGF5OwogICAgfSBjYXRjaCAoZSkgewogICAgICByZXR1cm4gZmFsc2U7CiAgICB9CiAgfQoKICAvLy8gRm9ybWF0IGR1cmF0aW9uIChlLmcuLCAxOjMwOjQ1KQogIHN0YXRpYyBTdHJpbmcgZm9ybWF0RHVyYXRpb24oRHVyYXRpb24gZHVyYXRpb24pIHsKICAgIFN0cmluZyB0d29EaWdpdHMoaW50IG4pID0+IG4udG9TdHJpbmcoKS5wYWRMZWZ0KDIsICcwJyk7CiAgICBmaW5hbCBob3VycyA9IHR3b0RpZ2l0cyhkdXJhdGlvbi5pbkhvdXJzKTsKICAgIGZpbmFsIG1pbnV0ZXMgPSB0d29EaWdpdHMoZHVyYXRpb24uaW5NaW51dGVzLnJlbWFpbmRlcig2MCkpOwogICAgZmluYWwgc2Vjb25kcyA9IHR3b0RpZ2l0cyhkdXJhdGlvbi5pblNlY29uZHMucmVtYWluZGVyKDYwKSk7CiAgICByZXR1cm4gJyRob3VyczokbWludXRlczokc2Vjb25kcyc7CiAgfQoKICAvLy8gRm9ybWF0IGR1cmF0aW9uIGluIEFyYWJpYyAo2LPYp9i52Kkg2YgzMCDYr9mC2YrZgtipKQogIHN0YXRpYyBTdHJpbmcgZm9ybWF0RHVyYXRpb25BcmFiaWMoRHVyYXRpb24gZHVyYXRpb24pIHsKICAgIGZpbmFsIGhvdXJzID0gZHVyYXRpb24uaW5Ib3VyczsKICAgIGZpbmFsIG1pbnV0ZXMgPSBkdXJhdGlvbi5pbk1pbnV0ZXMucmVtYWluZGVyKDYwKTsKICAgIGZpbmFsIHNlY29uZHMgPSBkdXJhdGlvbi5pblNlY29uZHMucmVtYWluZGVyKDYwKTsKCiAgICBmaW5hbCBwYXJ0cyA9IDxTdHJpbmc+W107CiAgICBpZiAoaG91cnMgPiAwKSB7CiAgICAgIHBhcnRzLmFkZCgnJGhvdXJzICR7aG91cnMgPT0gMSA/ICfYs9in2LnYqScgOiAn2LPYp9i52KfYqid9Jyk7CiAgICB9CiAgICBpZiAobWludXRlcyA+IDApIHsKICAgICAgcGFydHMuYWRkKCckbWludXRlcyAke21pbnV0ZXMgPT0gMSA/ICfYr9mC2YrZgtipJyA6ICfYr9mC2KfYptmCJ30nKTsKICAgIH0KICAgIGlmIChzZWNvbmRzID4gMCAmJiBob3VycyA9PSAwKSB7CiAgICAgIHBhcnRzLmFkZCgnJHNlY29uZHMgJHtzZWNvbmRzID09IDEgPyAn2KvYp9mG2YrYqScgOiAn2KvZiNin2YYnfScpOwogICAgfQoKICAgIHJldHVybiBwYXJ0cy5pc0VtcHR5ID8gJzAg2KvYp9mG2YrYqScgOiBwYXJ0cy5qb2luKCcg2YggJyk7CiAgfQp9Cg==
+import 'package:intl/intl.dart';
+
+/// Date and Time Formatting Utilities
+///
+/// مركز موحد لجميع عمليات تنسيق التاريخ والوقت في التطبيق
+class DateTimeFormatter {
+  DateTimeFormatter._();
+
+  // Date formats
+  static final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
+  static final DateFormat _timeFormat = DateFormat('HH:mm');
+  static final DateFormat _dateTimeFormat = DateFormat('yyyy-MM-dd HH:mm');
+  static final DateFormat _dateTimeFullFormat = DateFormat(
+    'yyyy-MM-dd HH:mm:ss',
+  );
+  static final DateFormat _arabicDateFormat = DateFormat('d MMMM yyyy', 'ar');
+  static final DateFormat _arabicDateTimeFormat = DateFormat(
+    'd MMMM yyyy - h:mm a',
+    'ar',
+  );
+
+  /// Format ISO string to date and time (2024-01-29 18:30)
+  static String formatDateTime(String? isoString) {
+    if (isoString == null || isoString.isEmpty) {
+      return 'لا يوجد';
+    }
+
+    try {
+      final date = DateTime.parse(isoString);
+      return _dateTimeFormat.format(date);
+    } catch (e) {
+      return 'تاريخ غير صالح';
+    }
+  }
+
+  /// Format ISO string to date only (2024-01-29)
+  static String formatDate(String? isoString) {
+    if (isoString == null || isoString.isEmpty) {
+      return 'لا يوجد';
+    }
+
+    try {
+      final date = DateTime.parse(isoString);
+      return _dateFormat.format(date);
+    } catch (e) {
+      return 'تاريخ غير صالح';
+    }
+  }
+
+  /// Format ISO string to time only (18:30)
+  static String formatTime(String? isoString) {
+    if (isoString == null || isoString.isEmpty) {
+      return 'لا يوجد';
+    }
+
+    try {
+      final date = DateTime.parse(isoString);
+      return _timeFormat.format(date);
+    } catch (e) {
+      return 'وقت غير صالح';
+    }
+  }
+
+  /// Format ISO string to full date and time with seconds
+  static String formatDateTimeFull(String? isoString) {
+    if (isoString == null || isoString.isEmpty) {
+      return 'لا يوجد';
+    }
+
+    try {
+      final date = DateTime.parse(isoString);
+      return _dateTimeFullFormat.format(date);
+    } catch (e) {
+      return 'تاريخ غير صالح';
+    }
+  }
+
+  /// Format ISO string to Arabic date (29 يناير 2024)
+  static String formatArabicDate(String? isoString) {
+    if (isoString == null || isoString.isEmpty) {
+      return 'لا يوجد';
+    }
+
+    try {
+      final date = DateTime.parse(isoString);
+      return _arabicDateFormat.format(date);
+    } catch (e) {
+      return 'تاريخ غير صالح';
+    }
+  }
+
+  /// Format ISO string to Arabic date and time (29 يناير 2024 - 6:30 م)
+  static String formatArabicDateTime(String? isoString) {
+    if (isoString == null || isoString.isEmpty) {
+      return 'لا يوجد';
+    }
+
+    try {
+      final date = DateTime.parse(isoString);
+      return _arabicDateTimeFormat.format(date);
+    } catch (e) {
+      return 'تاريخ غير صالح';
+    }
+  }
+
+  /// Format DateTime to ISO string
+  static String toIsoString(DateTime? dateTime) {
+    return dateTime?.toIso8601String() ?? '';
+  }
+
+  /// Get relative time (منذ 5 دقائق، منذ ساعة، إلخ)
+  static String getRelativeTime(String? isoString) {
+    if (isoString == null || isoString.isEmpty) {
+      return 'لا يوجد';
+    }
+
+    try {
+      final date = DateTime.parse(isoString);
+      final now = DateTime.now();
+      final difference = now.difference(date);
+
+      if (difference.inSeconds < 60) {
+        return 'منذ لحظات';
+      } else if (difference.inMinutes < 60) {
+        final minutes = difference.inMinutes;
+        return 'منذ $minutes ${minutes == 1 ? 'دقيقة' : 'دقائق'}';
+      } else if (difference.inHours < 24) {
+        final hours = difference.inHours;
+        return 'منذ $hours ${hours == 1 ? 'ساعة' : 'ساعات'}';
+      } else if (difference.inDays < 7) {
+        final days = difference.inDays;
+        return 'منذ $days ${days == 1 ? 'يوم' : 'أيام'}';
+      } else if (difference.inDays < 30) {
+        final weeks = (difference.inDays / 7).floor();
+        return 'منذ $weeks ${weeks == 1 ? 'أسبوع' : 'أسابيع'}';
+      } else if (difference.inDays < 365) {
+        final months = (difference.inDays / 30).floor();
+        return 'منذ $months ${months == 1 ? 'شهر' : 'أشهر'}';
+      } else {
+        final years = (difference.inDays / 365).floor();
+        return 'منذ $years ${years == 1 ? 'سنة' : 'سنوات'}';
+      }
+    } catch (e) {
+      return 'تاريخ غير صالح';
+    }
+  }
+
+  /// Get time ago in short format (5د، 2س، 3ي)
+  static String getTimeAgoShort(String? isoString) {
+    if (isoString == null || isoString.isEmpty) {
+      return '-';
+    }
+
+    try {
+      final date = DateTime.parse(isoString);
+      final now = DateTime.now();
+      final difference = now.difference(date);
+
+      if (difference.inSeconds < 60) {
+        return 'الآن';
+      } else if (difference.inMinutes < 60) {
+        return '${difference.inMinutes}د';
+      } else if (difference.inHours < 24) {
+        return '${difference.inHours}س';
+      } else if (difference.inDays < 365) {
+        return '${difference.inDays}ي';
+      } else {
+        return '${(difference.inDays / 365).floor()}سنة';
+      }
+    } catch (e) {
+      return '-';
+    }
+  }
+
+  /// Check if date is today
+  static bool isToday(String? isoString) {
+    if (isoString == null || isoString.isEmpty) {
+      return false;
+    }
+
+    try {
+      final date = DateTime.parse(isoString);
+      final now = DateTime.now();
+      return date.year == now.year &&
+          date.month == now.month &&
+          date.day == now.day;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Check if date is yesterday
+  static bool isYesterday(String? isoString) {
+    if (isoString == null || isoString.isEmpty) {
+      return false;
+    }
+
+    try {
+      final date = DateTime.parse(isoString);
+      final yesterday = DateTime.now().subtract(const Duration(days: 1));
+      return date.year == yesterday.year &&
+          date.month == yesterday.month &&
+          date.day == yesterday.day;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Format duration (e.g., 1:30:45)
+  static String formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final hours = twoDigits(duration.inHours);
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final seconds = twoDigits(duration.inSeconds.remainder(60));
+    return '$hours:$minutes:$seconds';
+  }
+
+  /// Format duration in Arabic (ساعة و30 دقيقة)
+  static String formatDurationArabic(Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60);
+    final seconds = duration.inSeconds.remainder(60);
+
+    final parts = <String>[];
+    if (hours > 0) {
+      parts.add('$hours ${hours == 1 ? 'ساعة' : 'ساعات'}');
+    }
+    if (minutes > 0) {
+      parts.add('$minutes ${minutes == 1 ? 'دقيقة' : 'دقائق'}');
+    }
+    if (seconds > 0 && hours == 0) {
+      parts.add('$seconds ${seconds == 1 ? 'ثانية' : 'ثوان'}');
+    }
+
+    return parts.isEmpty ? '0 ثانية' : parts.join(' و ');
+  }
+}
