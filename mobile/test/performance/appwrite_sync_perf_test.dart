@@ -62,11 +62,19 @@ void main() {
       }
 
       stopwatch.stop();
-      debugPrint('✓ Outbox: $processed entries in ${stopwatch.elapsedMilliseconds}ms');
-      debugPrint('  Rate: ${(processed / (stopwatch.elapsedMilliseconds + 1) * 1000).toStringAsFixed(0)} entries/sec');
+      debugPrint(
+        '✓ Outbox: $processed entries in ${stopwatch.elapsedMilliseconds}ms',
+      );
+      debugPrint(
+        '  Rate: ${(processed / (stopwatch.elapsedMilliseconds + 1) * 1000).toStringAsFixed(0)} entries/sec',
+      );
 
       expect(processed, 100);
-      expect(stopwatch.elapsedMilliseconds, lessThan(500), reason: 'معالجة 100 outbox entry يجب أن تكون < 500ms');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(500),
+        reason: 'معالجة 100 outbox entry يجب أن تكون < 500ms',
+      );
     });
 
     test('تجميع وتصنيف 200 outbox entry يستغرق < 30ms', () {
@@ -90,10 +98,16 @@ void main() {
       }
 
       stopwatch.stop();
-      debugPrint('✓ Group 200 entries into ${grouped.length} buckets: ${stopwatch.elapsedMicroseconds}µs');
+      debugPrint(
+        '✓ Group 200 entries into ${grouped.length} buckets: ${stopwatch.elapsedMicroseconds}µs',
+      );
 
       expect(grouped.length, 4);
-      expect(stopwatch.elapsedMicroseconds, lessThan(30000), reason: 'تجميع 200 entry يجب أن يكون < 30ms');
+      expect(
+        stopwatch.elapsedMicroseconds,
+        lessThan(30000),
+        reason: 'تجميع 200 entry يجب أن يكون < 30ms',
+      );
     });
   });
 
@@ -142,11 +156,21 @@ void main() {
         expect(decoded['id'], entry['id']);
       }
 
-      debugPrint('✓ Serialize 100 entries: ${serializeTime.toStringAsFixed(0)}µs total');
-      debugPrint('✓ Deserialize 100 entries: ${deserializeTime.toStringAsFixed(0)}µs total');
-      debugPrint('✓ Average round-trip: ${((serializeTime + deserializeTime) / 100).toStringAsFixed(1)}µs/entry');
+      debugPrint(
+        '✓ Serialize 100 entries: ${serializeTime.toStringAsFixed(0)}µs total',
+      );
+      debugPrint(
+        '✓ Deserialize 100 entries: ${deserializeTime.toStringAsFixed(0)}µs total',
+      );
+      debugPrint(
+        '✓ Average round-trip: ${((serializeTime + deserializeTime) / 100).toStringAsFixed(1)}µs/entry',
+      );
 
-      expect(serializeTime + deserializeTime, lessThan(20000), reason: '100 serialize/deserialize يجب أن يكون < 20ms');
+      expect(
+        serializeTime + deserializeTime,
+        lessThan(20000),
+        reason: '100 serialize/deserialize يجب أن يكون < 20ms',
+      );
     });
   });
 
@@ -163,7 +187,8 @@ void main() {
           'guestName': 'Guest $i',
           'guestPhone': '05${(i % 10000000).toString().padLeft(8, '0')}',
           'checkinDate': '2026-07-${(i % 30) + 1}',
-          'checkoutDate': '2026-07-${((i % 28) + 2).toString().padLeft(2, '0')}',
+          'checkoutDate':
+              '2026-07-${((i % 28) + 2).toString().padLeft(2, '0')}',
           'status': ['active', 'checked_out', 'cancelled'][i % 3],
           'localUuid': 'uuid-$i',
           'version': 1,
@@ -193,16 +218,26 @@ void main() {
       }
 
       stopwatch.stop();
-      debugPrint('✓ Process 500 rows (mock companion): ${stopwatch.elapsedMilliseconds}ms');
-      debugPrint('  Rate: ${(500 / (stopwatch.elapsedMilliseconds + 1) * 1000).toStringAsFixed(0)} rows/sec');
+      debugPrint(
+        '✓ Process 500 rows (mock companion): ${stopwatch.elapsedMilliseconds}ms',
+      );
+      debugPrint(
+        '  Rate: ${(500 / (stopwatch.elapsedMilliseconds + 1) * 1000).toStringAsFixed(0)} rows/sec',
+      );
 
-      expect(stopwatch.elapsedMilliseconds, lessThan(500), reason: '500 row يجب أن تُعالج < 500ms');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(500),
+        reason: '500 row يجب أن تُعالج < 500ms',
+      );
     });
 
     test('فلترة 500 سجل للـ upsert (موجود/جديد) < 10ms', () {
       // محاكاة الـ batch UUID lookup الذي يقرر أي السجلات موجودة محلياً
       final incoming = List.generate(500, (i) => 'uuid-$i');
-      final existing = Set<String>.from(List.generate(300, (i) => 'uuid-${i * 2}')); // 300 موجود
+      final existing = Set<String>.from(
+        List.generate(300, (i) => 'uuid-${i * 2}'),
+      ); // 300 موجود
 
       final stopwatch = Stopwatch()..start();
 
@@ -230,7 +265,11 @@ void main() {
       debugPrint('✓ Classify 500 UUIDs: ${stopwatch.elapsedMicroseconds}µs');
       debugPrint('  For update: $forUpdate, For insert: $forInsert');
 
-      expect(stopwatch.elapsedMicroseconds, lessThan(10000), reason: 'تصنيف 500 UUID يجب أن يكون < 10ms');
+      expect(
+        stopwatch.elapsedMicroseconds,
+        lessThan(10000),
+        reason: 'تصنيف 500 UUID يجب أن يكون < 10ms',
+      );
       expect(forUpdate, greaterThan(0));
       expect(forInsert, greaterThan(0));
     });
@@ -256,9 +295,15 @@ void main() {
       }
 
       stopwatch.stop();
-      debugPrint('✓ 500 cache lookups: ${stopwatch.elapsedMicroseconds}µs (found: $found)');
+      debugPrint(
+        '✓ 500 cache lookups: ${stopwatch.elapsedMicroseconds}µs (found: $found)',
+      );
 
-      expect(stopwatch.elapsedMicroseconds, lessThan(1000), reason: '500 عملية بحث في Map يجب أن تكون < 1ms');
+      expect(
+        stopwatch.elapsedMicroseconds,
+        lessThan(1000),
+        reason: '500 عملية بحث في Map يجب أن تكون < 1ms',
+      );
       expect(found, 500);
     });
 
@@ -275,10 +320,16 @@ void main() {
       }
 
       stopwatch.stop();
-      debugPrint('✓ Build 1000 entry UUID map: ${stopwatch.elapsedMicroseconds}µs');
+      debugPrint(
+        '✓ Build 1000 entry UUID map: ${stopwatch.elapsedMicroseconds}µs',
+      );
 
       expect(result.length, 1000);
-      expect(stopwatch.elapsedMicroseconds, lessThan(5000), reason: 'بناء خريطة 1000 يجب أن يكون < 5ms');
+      expect(
+        stopwatch.elapsedMicroseconds,
+        lessThan(5000),
+        reason: 'بناء خريطة 1000 يجب أن يكون < 5ms',
+      );
     });
   });
 
@@ -296,7 +347,8 @@ void main() {
           'guestName': 'Guest $i',
           'guestPhone': '05${(i % 10000000).toString().padLeft(8, '0')}',
           'checkinDate': '2026-07-${(i % 30) + 1}',
-          'checkoutDate': '2026-07-${((i % 28) + 2).toString().padLeft(2, '0')}',
+          'checkoutDate':
+              '2026-07-${((i % 28) + 2).toString().padLeft(2, '0')}',
           'status': 'active',
           'amount': i * 200.0,
           'version': 1,
@@ -323,7 +375,11 @@ void main() {
       stopwatch.stop();
       debugPrint('✓ Transform 200 objects: ${stopwatch.elapsedMilliseconds}ms');
 
-      expect(stopwatch.elapsedMilliseconds, lessThan(100), reason: 'تحويل 200 كائن للإرسال يجب أن يكون < 100ms');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(100),
+        reason: 'تحويل 200 كائن للإرسال يجب أن يكون < 100ms',
+      );
     });
 
     test('محاكاة استقبال وتطبيق 300 سجل (pull) < 300ms', () {
@@ -351,17 +407,28 @@ void main() {
         data.remove(r'$id');
 
         // تعيين localUuid
-        data['localUuid'] = data['localUuid'] ?? data['local_uuid'] ?? 'generated-${data.hashCode}';
+        data['localUuid'] =
+            data['localUuid'] ??
+            data['local_uuid'] ??
+            'generated-${data.hashCode}';
 
         // التحقق من أن السجل جاهز للحفظ
         assert(data['localUuid'] != null);
       }
 
       stopwatch.stop();
-      debugPrint('✓ Process 300 incoming records: ${stopwatch.elapsedMilliseconds}ms');
-      debugPrint('  Rate: ${(300 / (stopwatch.elapsedMilliseconds + 1) * 1000).toStringAsFixed(0)} records/sec');
+      debugPrint(
+        '✓ Process 300 incoming records: ${stopwatch.elapsedMilliseconds}ms',
+      );
+      debugPrint(
+        '  Rate: ${(300 / (stopwatch.elapsedMilliseconds + 1) * 1000).toStringAsFixed(0)} records/sec',
+      );
 
-      expect(stopwatch.elapsedMilliseconds, lessThan(500), reason: 'معالجة 300 سجل وارد يجب أن تكون < 500ms');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(500),
+        reason: 'معالجة 300 سجل وارد يجب أن تكون < 500ms',
+      );
     });
   });
 
@@ -395,10 +462,16 @@ void main() {
       }
 
       stopwatch.stop();
-      debugPrint('✓ LWW compare 500 records: ${stopwatch.elapsedMicroseconds}µs');
+      debugPrint(
+        '✓ LWW compare 500 records: ${stopwatch.elapsedMicroseconds}µs',
+      );
       debugPrint('  Local wins: $localWins, Remote wins: $remoteWins');
 
-      expect(stopwatch.elapsedMicroseconds, lessThan(10000), reason: 'مقارنة LWW لـ 500 سجل < 10ms');
+      expect(
+        stopwatch.elapsedMicroseconds,
+        lessThan(10000),
+        reason: 'مقارنة LWW لـ 500 سجل < 10ms',
+      );
       expect(localWins, greaterThan(0));
       expect(remoteWins, greaterThan(0));
     });
@@ -432,15 +505,25 @@ void main() {
         }
 
         // تحديد الفائز
-        final localGreater = local.entries.every((e) => (e.value as int) >= (remote[e.key] as int? ?? 0));
-        final remoteGreater = remote.entries.every((e) => (e.value as int) >= (local[e.key] as int? ?? 0));
+        final localGreater = local.entries.every(
+          (e) => (e.value as int) >= (remote[e.key] as int? ?? 0),
+        );
+        final remoteGreater = remote.entries.every(
+          (e) => (e.value as int) >= (local[e.key] as int? ?? 0),
+        );
         assert(localGreater || remoteGreater || true); // تعارض حقيقي
       }
 
       stopwatch.stop();
-      debugPrint('✓ Vector clock merge 1000: ${stopwatch.elapsedMicroseconds}µs');
+      debugPrint(
+        '✓ Vector clock merge 1000: ${stopwatch.elapsedMicroseconds}µs',
+      );
 
-      expect(stopwatch.elapsedMicroseconds, lessThan(20000), reason: 'دمج 1000 vector clock < 20ms');
+      expect(
+        stopwatch.elapsedMicroseconds,
+        lessThan(20000),
+        reason: 'دمج 1000 vector clock < 20ms',
+      );
     });
   });
 
