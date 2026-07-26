@@ -477,51 +477,35 @@ class AppwriteSchemaVerifier {
       'name': 'Booking Price Adjustments',
       'includeSyncFields': true,
       'attributes': [
-        {'key': 'localUuid', 'type': 'string', 'size': 100, 'required': true},
-        {
-          'key': 'bookingLocalUuid',
-          'type': 'string',
-          'size': 100,
-          'required': true,
-        },
+        // ✅ إصلاح 2026-07-26: جميع القيم مطابقة لـ Appwrite Cloud الفعلي
+        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true},
+        // bookingLocalUuid على Appwrite: size 255, optional (ليس required كما كان مُسجَّلاً)
+        {'key': 'bookingLocalUuid', 'type': 'string', 'size': 255},
         {'key': 'bookingLocalId', 'type': 'integer'},
-        {
-          'key': 'adjustmentType',
-          'type': 'integer',
-          'required': true,
-        }, // 0=discount, 1=surcharge
+        {'key': 'adjustmentType', 'type': 'integer', 'required': true},
         {
           'key': 'adjustmentMode',
           'type': 'string',
           'size': 20,
           'default': 'per_night',
         },
-        // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15)
-        // ⚠️ على Cloud هو integer (وليس double) — كود المزامنة يحول تلقائياً
-        {'key': 'amount', 'type': 'integer', 'required': true},
-        // ✅ roomNumber أُضيف إلى Appwrite Cloud (2026-05-15)
-        {'key': 'roomNumber', 'type': 'string', 'size': 20},
-        {
-          'key': 'effectiveHotelDay',
-          'type': 'string',
-          'size': 50,
-          'required': true,
-        },
-        // ✅ إصلاح 2026-07-26: hotelDayKey مطلوب على Appwrite Cloud (created 2026-07-03)
-        // محلياً effectiveHotelDay = hotelDayKey (نفس القيمة، اسم مختلف)
-        // كود المزامنة يرسل القيمة تحت الاسمين للحفاظ على التوافق.
-        {
-          'key': 'hotelDayKey',
-          'type': 'string',
-          'size': 50,
-          'required': true,
-        },
-        {'key': 'endHotelDay', 'type': 'string', 'size': 50},
+        // ✅ amount: double (ليس integer)، optional، default 0
+        {'key': 'amount', 'type': 'double', 'default': 0},
+        {'key': 'roomNumber', 'type': 'string', 'size': 50},
+        // ✅ effectiveHotelDay: size 255 (ليس 50)، optional (ليس required)
+        {'key': 'effectiveHotelDay', 'type': 'string', 'size': 255},
+        // ✅ hotelDayKey: size 50, REQUIRED (مطلوب على Appwrite)
+        {'key': 'hotelDayKey', 'type': 'string', 'size': 50, 'required': true},
+        {'key': 'endHotelDay', 'type': 'string', 'size': 10},
         {'key': 'isActive', 'type': 'boolean', 'default': true},
         {'key': 'reason', 'type': 'string', 'size': 500},
         {'key': 'appliedBy', 'type': 'string', 'size': 100},
-        {'key': 'cancelledAt', 'type': 'string', 'size': 50},
+        {'key': 'cancelledAt', 'type': 'string', 'size': 30},
         {'key': 'cancelledBy', 'type': 'string', 'size': 100},
+        // ✅ bookingUuid: size 36, optional
+        {'key': 'bookingUuid', 'type': 'string', 'size': 36},
+        // ✅ appliedAt: integer, optional
+        {'key': 'appliedAt', 'type': 'integer'},
       ],
     },
     'salary_withdrawals': {
@@ -577,12 +561,21 @@ class AppwriteSchemaVerifier {
     {'key': 'updatedAtIso', 'type': 'string', 'size': 50},
     {'key': 'deletedAtIso', 'type': 'string', 'size': 50},
     {'key': 'createdAtEpoch', 'type': 'integer', 'default': 0},
-    {'key': 'lastModifiedEpoch', 'type': 'integer', 'default': 0},
-    {'key': 'syncTimestamp', 'type': 'integer', 'default': 0},
+    // ✅ إصلاح 2026-07-26: lastModifiedEpoch مطلوب فعلياً على Appwrite
+    {'key': 'lastModifiedEpoch', 'type': 'integer', 'required': true},
+    // ✅ إصلاح 2026-07-26: syncTimestamp مطلوب فعلياً على Appwrite
+    {'key': 'syncTimestamp', 'type': 'integer', 'required': true},
     {'key': 'deviceId', 'type': 'string', 'size': 100, 'default': ''},
-    {'key': 'version', 'type': 'integer', 'default': 1},
-    {'key': 'origin', 'type': 'string', 'size': 20, 'default': 'local'},
-    {'key': 'vectorClock', 'type': 'string', 'size': 500, 'default': '{}'},
+    // ✅ إصلاح 2026-07-26: version مطلوب فعلياً على Appwrite
+    {'key': 'version', 'type': 'integer', 'required': true},
+    // ✅ إصلاح 2026-07-26: origin size 50 (كان 20)، default 'local'
+    {'key': 'origin', 'type': 'string', 'size': 50, 'default': 'local'},
+    // ✅ إصلاح 2026-07-26: vectorClock size 1000 (كان 500)
+    {'key': 'vectorClock', 'type': 'string', 'size': 1000, 'default': '{}'},
+    // ✅ إصلاح 2026-07-26: sync_origin size 50 (موجود على Appwrite لكن لم يكن في القائمة)
+    {'key': 'sync_origin', 'type': 'string', 'size': 50},
+    // ✅ إصلاح 2026-07-26: idempotencyKey size 100 (موجود على Appwrite لكن لم يكن في القائمة)
+    {'key': 'idempotencyKey', 'type': 'string', 'size': 100},
   ];
 
   /// التحقق من جميع Collections والـ Attributes
