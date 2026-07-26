@@ -60,7 +60,8 @@ class SchemaVerificationButton extends StatefulWidget {
   const SchemaVerificationButton({super.key});
 
   @override
-  State<SchemaVerificationButton> createState() => _SchemaVerificationButtonState();
+  State<SchemaVerificationButton> createState() =>
+      _SchemaVerificationButtonState();
 }
 
 class _SchemaVerificationButtonState extends State<SchemaVerificationButton> {
@@ -126,9 +127,15 @@ class _SchemaVerificationButtonState extends State<SchemaVerificationButton> {
         ElevatedButton.icon(
           onPressed: _checking ? null : _verify,
           icon: _checking
-              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Icon(Icons.check_circle),
-          label: Text(_checking ? 'جاري التحقق...' : 'التحقق من Appwrite Schema'),
+          label: Text(
+            _checking ? 'جاري التحقق...' : 'التحقق من Appwrite Schema',
+          ),
         ),
         if (_result != null) ...[
           const SizedBox(height: 16),
@@ -139,7 +146,9 @@ class _SchemaVerificationButtonState extends State<SchemaVerificationButton> {
                   ? Colors.green.withValues(alpha: 0.1)
                   : Colors.orange.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: _result!.contains('✅') ? Colors.green : Colors.orange),
+              border: Border.all(
+                color: _result!.contains('✅') ? Colors.green : Colors.orange,
+              ),
             ),
             child: Text(
               _result!,
