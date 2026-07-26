@@ -83,7 +83,12 @@ class EnhancedBookingCalculationService {
   }) async {
     final context = _resolveDateRange(booking, now ?? DateTime.now());
     final resolvedBreakdown = breakdown ?? await _buildNightlyBreakdown(booking, context: context);
-    await _replaceBookingNights(booking: booking, breakdown: resolvedBreakdown, forceRebuild: forceRebuild, inTransaction: inTransaction);
+    await _replaceBookingNights(
+      booking: booking,
+      breakdown: resolvedBreakdown,
+      forceRebuild: forceRebuild,
+      inTransaction: inTransaction,
+    );
   }
 
   Future<void> recalculateAfterSync(int bookingId, {DateTime? now}) async {

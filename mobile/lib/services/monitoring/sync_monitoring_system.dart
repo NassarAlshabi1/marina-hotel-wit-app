@@ -65,17 +65,18 @@ class SyncEvent {
 
 /// إحصائيات الأداء الحية
 class SyncPerformanceStats {
-  SyncPerformanceStats({      required this.totalAttempts,
-      required this.successfulSyncs,
-      required this.failedSyncs,
-      required this.conflictsDetected,
-      required this.conflictsResolved,
-      required this.successRate,
-      required this.averageTime,
-      required this.recentErrors,
-      this.lastSyncDuration,
-      this.lastSuccessfulSync,
-      this.lastFailedSync,
+  SyncPerformanceStats({
+    required this.totalAttempts,
+    required this.successfulSyncs,
+    required this.failedSyncs,
+    required this.conflictsDetected,
+    required this.conflictsResolved,
+    required this.successRate,
+    required this.averageTime,
+    required this.recentErrors,
+    this.lastSyncDuration,
+    this.lastSuccessfulSync,
+    this.lastFailedSync,
   });
   final int totalAttempts;
   final int successfulSyncs;

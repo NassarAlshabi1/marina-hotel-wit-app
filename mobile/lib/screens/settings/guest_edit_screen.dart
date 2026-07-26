@@ -18,8 +18,9 @@ import '../../utils/status_utils.dart';
 import 'guest_info.dart';
 
 class GuestEditScreen extends ConsumerStatefulWidget {
-  const GuestEditScreen({      required this.guest,
-      super.key,
+  const GuestEditScreen({
+    required this.guest,
+    super.key,
   });
 
   final GuestInfo guest;

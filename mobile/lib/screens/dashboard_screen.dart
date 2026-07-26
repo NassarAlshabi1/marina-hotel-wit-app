@@ -173,28 +173,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return PerformanceInspector(
       name: 'DashboardScreen',
       child: Scaffold(
-      backgroundColor: Colors.grey.shade100,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 16),
-            _buildStatisticsCards(),
-            const SizedBox(height: 20),
-            _buildRoomsSection(),
-            const SizedBox(height: 12),
-            _buildColorInstructions(),
-          ],
+        backgroundColor: Colors.grey.shade100,
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 16),
+              _buildStatisticsCards(),
+              const SizedBox(height: 20),
+              _buildRoomsSection(),
+              const SizedBox(height: 12),
+              _buildColorInstructions(),
+            ],
+          ),
         ),
       ),
-    )
     );
   }
 
   Widget _buildHeader() {
     final versionAsync = ref.watch(appVersionProvider);
-    final versionLabel = versionAsync.valueOrNull ?? '...';
+    final versionLabel = versionAsync.value ?? '...';
     return Row(
       children: [
         Container(
@@ -269,8 +269,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 return _buildStatCard('المتبقي', '--', Icons.savings, Colors.indigo);
               }
 
-              final income = incomeAsync.valueOrNull ?? 0.0;
-              final expenses = expensesAsync.valueOrNull ?? 0.0;
+              final income = incomeAsync.value ?? 0.0;
+              final expenses = expensesAsync.value ?? 0.0;
               final balance = income - expenses;
 
               return _buildStatCard(

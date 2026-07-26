@@ -40,13 +40,14 @@ class _PerformSyncAlreadyInProgress extends _PerformSyncStartResult {
 }
 
 class SyncResult {
-  const SyncResult({      required this.success,
-      required this.message,
-      required this.phase,
-      required this.timestamp,
-      this.pushedChanges,
-      this.pulledChanges,
-      this.error,
+  const SyncResult({
+    required this.success,
+    required this.message,
+    required this.phase,
+    required this.timestamp,
+    this.pushedChanges,
+    this.pulledChanges,
+    this.error,
   });
 
   factory SyncResult.success({required String message, int? pushed, int? pulled}) {
@@ -60,9 +61,10 @@ class SyncResult {
     );
   }
 
-  factory SyncResult.failure({      required String message,
-      required SyncPhase phase,
-      String? error,
+  factory SyncResult.failure({
+    required String message,
+    required SyncPhase phase,
+    String? error,
   }) {
     return SyncResult(success: false, message: message, error: error, phase: phase, timestamp: DateTime.now());
   }

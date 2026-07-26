@@ -15,7 +15,13 @@ import '../../utils/performance_monitor.dart';
 final restoreFixServiceProvider = Provider<RestoreFixService>((ref) => RestoreFixService(DatabaseManager.instance));
 
 // مقدم لتقرير الإصلاح الأخير
-final lastFixReportProvider = StateProvider<RestoreFixReport?>((ref) => null);
+class LastFixReportNotifier extends Notifier<RestoreFixReport?> {
+  @override
+  RestoreFixReport? build() => null;
+  void setReport(RestoreFixReport? report) => state = report;
+}
+
+final lastFixReportProvider = NotifierProvider<LastFixReportNotifier, RestoreFixReport?>(LastFixReportNotifier.new);
 
 // مقدم لسجلات الإصلاح
 final fixLogsProvider = FutureProvider.autoDispose<List<RestoreFixLogData>>((ref) async {
@@ -24,7 +30,13 @@ final fixLogsProvider = FutureProvider.autoDispose<List<RestoreFixLogData>>((ref
 });
 
 // مقدم لحالة التحميل
-final fixServiceLoadingProvider = StateProvider<bool>((ref) => false);
+class FixServiceLoadingNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+  void setLoading(bool value) => state = value;
+}
+
+final fixServiceLoadingProvider = NotifierProvider<FixServiceLoadingNotifier, bool>(FixServiceLoadingNotifier.new);
 
 /// شاشة إعدادات الإصلاح التلقائي
 class RestoreFixScreen extends ConsumerStatefulWidget {
@@ -44,28 +56,28 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
     return PerformanceInspector(
       name: 'RestoreFixScreen',
       child: Scaffold(
-      appBar: AppBar(
-        title: const Text('الإصلاح التلقائي للنسخة الاحتياطية'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // بطاقة التحكم الرئيسية
-            _buildMainControlCard(context, isLoading),
-            const SizedBox(height: 20),
+        appBar: AppBar(
+          title: const Text('الإصلاح التلقائي للنسخة الاحتياطية'),
+          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // بطاقة التحكم الرئيسية
+              _buildMainControlCard(context, isLoading),
+              const SizedBox(height: 20),
 
-            // بطاقة التقرير الأخير
-            if (lastReport != null) ...[_buildLastReportCard(context, lastReport), const SizedBox(height: 20)],
+              // بطاقة التقرير الأخير
+              if (lastReport != null) ...[_buildLastReportCard(context, lastReport), const SizedBox(height: 20)],
 
-            // بطاقة سجلات الإصلاح
-            _buildFixLogsCard(context, fixLogsAsyncValue),
-          ],
+              // بطاقة سجلات الإصلاح
+              _buildFixLogsCard(context, fixLogsAsyncValue),
+            ],
+          ),
         ),
       ),
-    )
     );
   }
 
@@ -349,7 +361,7 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
   /// تشغيل الإصلاح يدوياً
   Future<void> _runManualFix(BuildContext context) async {
     final service = ref.read(restoreFixServiceProvider);
-    ref.read(fixServiceLoadingProvider.notifier).state = true;
+    ref.read(fixServiceLoadingProvider.notifier).setLoading(true);
 
     try {
       // إظهار رسالة بدء التشغيل
@@ -361,7 +373,7 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
       final report = await service.runAutoFixAfterRestore();
 
       // حفظ التقرير
-      ref.read(lastFixReportProvider.notifier).state = report;
+      ref.read(lastFixReportProvider.notifier).setReport(report);
 
       // تحديث السجلات
       ref.invalidate(fixLogsProvider);
@@ -387,7 +399,7 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text('خطأ غير متوقع: $e'), backgroundColor: Colors.red));
     } finally {
-      ref.read(fixServiceLoadingProvider.notifier).state = false;
+      ref.read(fixServiceLoadingProvider.notifier).setLoading(false);
     }
   }
 

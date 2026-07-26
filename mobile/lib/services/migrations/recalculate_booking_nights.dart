@@ -1,4 +1,3 @@
-
 import 'package:flutter/foundation.dart';
 
 import '../booking_derived_fields_service.dart';

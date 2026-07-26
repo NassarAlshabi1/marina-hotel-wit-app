@@ -63,9 +63,9 @@ final appwriteErrorHandlerProvider = Provider<AppwriteErrorHandler>((ref) {
 // ============ State Providers ============
 
 /// مزود حالة الاتصال
-final connectionStatusProvider = StateNotifierProvider<ConnectionStatusNotifier, ConnectionState>((ref) {
-  return ConnectionStatusNotifier(ref);
-});
+final connectionStatusProvider = NotifierProvider<ConnectionStatusNotifier, ConnectionState>(
+  ConnectionStatusNotifier.new,
+);
 
 class ConnectionState {
   ConnectionState({required this.isConnected, this.isChecking = false, this.errorMessage});
@@ -82,9 +82,11 @@ class ConnectionState {
   }
 }
 
-class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
-  ConnectionStatusNotifier(this.ref) : super(ConnectionState(isConnected: false));
-  final Ref ref;
+class ConnectionStatusNotifier extends Notifier<ConnectionState> {
+  @override
+  ConnectionState build() {
+    return ConnectionState(isConnected: false);
+  }
 
   Future<void> checkConnection() async {
     state = state.copyWith(isChecking: true);

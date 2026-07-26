@@ -958,7 +958,7 @@ class _ActiveBookingsReminderScreenState extends ConsumerState<ActiveBookingsRem
     }
 
     final bookingsAsync = ref.read(bookingsListProvider);
-    final bookings = bookingsAsync.valueOrNull ?? [];
+    final bookings = bookingsAsync.value ?? [];
     final selectedBookings = bookings.where((b) => _selectedIds.contains(b.id)).toList();
     final totalRemaining = selectedBookings.fold(0.0, (sum, b) => sum + b.remainingBalanceCached);
 

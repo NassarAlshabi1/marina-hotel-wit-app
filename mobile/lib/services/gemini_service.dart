@@ -28,10 +28,11 @@ class AiQueryCommand extends AiCommand {
 
 /// تغيير سعر غرفة (مع إعادة حساب الحجوزات النشطة)
 class AiUpdateRoomPriceCommand extends AiCommand {
-  const AiUpdateRoomPriceCommand({      required this.roomNumber,
-      required this.newPrice,
-      required super.description,
-      this.reason,
+  const AiUpdateRoomPriceCommand({
+    required this.roomNumber,
+    required this.newPrice,
+    required super.description,
+    this.reason,
   });
   final String roomNumber;
   final double newPrice;
@@ -42,11 +43,12 @@ class AiUpdateRoomPriceCommand extends AiCommand {
 /// مثال: زيادة 10% على غرف doubles
 /// مثال: تخفيض 5000 ريال من جميع الغرف
 class AiBulkPriceAdjustCommand extends AiCommand {
-  const AiBulkPriceAdjustCommand({      required this.mode,
-      required this.value,
-      required super.description,
-      this.roomType,
-      this.reason,
+  const AiBulkPriceAdjustCommand({
+    required this.mode,
+    required this.value,
+    required super.description,
+    this.roomType,
+    this.reason,
   });
   final String? roomType;
   final String mode; // 'percent_increase', 'percent_decrease', 'fixed_increase', 'fixed_decrease'
@@ -56,11 +58,12 @@ class AiBulkPriceAdjustCommand extends AiCommand {
 
 /// تخفيض على حجز معين (خصم ليلي أو إجمالي)
 class AiBookingDiscountCommand extends AiCommand {
-  const AiBookingDiscountCommand({      required this.roomNumber,
-      required this.discountAmount,
-      required this.discountType,
-      required super.description,
-      this.reason,
+  const AiBookingDiscountCommand({
+    required this.roomNumber,
+    required this.discountAmount,
+    required this.discountType,
+    required super.description,
+    this.reason,
   });
   final String roomNumber;
   final double discountAmount;
@@ -90,10 +93,11 @@ class AiAddExpenseCommand extends AiCommand {
 
 /// تسجيل دفعة لحجز
 class AiAddPaymentCommand extends AiCommand {
-  const AiAddPaymentCommand({      required this.roomNumber,
-      required this.amount,
-      required super.description,
-      this.notes,
+  const AiAddPaymentCommand({
+    required this.roomNumber,
+    required this.amount,
+    required super.description,
+    this.notes,
   });
   final String roomNumber;
   final double amount;
@@ -114,10 +118,11 @@ class AiFixPaymentsCommand extends AiCommand {
 
 /// تسوية دين
 class AiSettleDebtCommand extends AiCommand {
-  const AiSettleDebtCommand({      required this.guestName,
-      required this.amount,
-      required super.description,
-      this.debtId,
+  const AiSettleDebtCommand({
+    required this.guestName,
+    required this.amount,
+    required super.description,
+    this.debtId,
   });
   final int? debtId;
   final String guestName;
@@ -126,14 +131,15 @@ class AiSettleDebtCommand extends AiCommand {
 
 /// إضافة حجز جديد
 class AiAddBookingCommand extends AiCommand {
-  const AiAddBookingCommand({      required this.roomNumber,
-      required this.guestName,
-      required this.guestPhone,
-      required this.guestNationality,
-      required this.checkinDate,
-      required this.expectedNights,
-      required super.description,
-      this.price,
+  const AiAddBookingCommand({
+    required this.roomNumber,
+    required this.guestName,
+    required this.guestPhone,
+    required this.guestNationality,
+    required this.checkinDate,
+    required this.expectedNights,
+    required super.description,
+    this.price,
   });
   final String roomNumber;
   final String guestName;
@@ -146,11 +152,12 @@ class AiAddBookingCommand extends AiCommand {
 
 /// تحديث بيانات ضيف
 class AiUpdateBookingGuestCommand extends AiCommand {
-  const AiUpdateBookingGuestCommand({      required this.roomNumber,
-      required super.description,
-      this.guestName,
-      this.guestPhone,
-      this.extendNights,
+  const AiUpdateBookingGuestCommand({
+    required this.roomNumber,
+    required super.description,
+    this.guestName,
+    this.guestPhone,
+    this.extendNights,
   });
   final String roomNumber;
   final String? guestName;
@@ -160,10 +167,11 @@ class AiUpdateBookingGuestCommand extends AiCommand {
 
 /// طلب تقرير (يُنفذ فوراً بدون تأكيد)
 class AiReportCommand extends AiCommand {
-  const AiReportCommand({      required this.reportType,
-      required super.description,
-      this.dateFrom,
-      this.dateTo,
+  const AiReportCommand({
+    required this.reportType,
+    required super.description,
+    this.dateFrom,
+    this.dateTo,
   });
   final String reportType; // daily, revenue, occupancy, debts, expenses, room_prices
   final String? dateFrom;
@@ -180,14 +188,15 @@ class AiNoActionCommand extends AiCommand {
 // ═══════════════════════════════════════════════════════════════
 
 class AiAuditLog {
-  const AiAuditLog({      required this.id,
-      required this.userMessage,
-      required this.aiResponse,
-      required this.executionResult,
-      required this.timestamp,
-      required this.wasConfirmed,
-      this.commandType,
-      this.commandDescription,
+  const AiAuditLog({
+    required this.id,
+    required this.userMessage,
+    required this.aiResponse,
+    required this.executionResult,
+    required this.timestamp,
+    required this.wasConfirmed,
+    this.commandType,
+    this.commandDescription,
   });
   final String id;
   final String userMessage;
@@ -1892,11 +1901,12 @@ class GeminiService {
   }
 
   /// تسجيل في سجل التدقيق
-  void logToAudit({      required String userMessage,
-      required String aiResponse,
-      required String executionResult,
-      required bool wasConfirmed,
-      AiCommand? command,
+  void logToAudit({
+    required String userMessage,
+    required String aiResponse,
+    required String executionResult,
+    required bool wasConfirmed,
+    AiCommand? command,
   }) {
     final auditNow = DateTime.now();
     _auditLog.add(

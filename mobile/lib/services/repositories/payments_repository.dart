@@ -79,15 +79,16 @@ class PaymentsRepository {
         .map((result) => (result.data['total'] as num).toDouble());
   }
 
-  Future<int> create({      required double amount,
-      required String paymentDate,
-      required String paymentMethod,
-      required String revenueType,
-      int? bookingLocalId,
-      int? serverBookingId,
-      String? roomNumber,
-      String? notes,
-      bool isPendingBalance = false,
+  Future<int> create({
+    required double amount,
+    required String paymentDate,
+    required String paymentMethod,
+    required String revenueType,
+    int? bookingLocalId,
+    int? serverBookingId,
+    String? roomNumber,
+    String? notes,
+    bool isPendingBalance = false,
   }) async {
     try {
       final hotelDayKey = HotelTimeEngine.getHotelDayKeyFromIso(paymentDate);

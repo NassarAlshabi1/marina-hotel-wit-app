@@ -65,9 +65,12 @@ class TelegramState {
 }
 
 /// Notifier للتحكم في حالة Telegram
-class TelegramNotifier extends StateNotifier<TelegramState> {
-  TelegramNotifier() : super(const TelegramState()) {
+class TelegramNotifier extends Notifier<TelegramState> {
+  @override
+  TelegramState build() {
+    ref.onDispose(_dispose);
     _initialize();
+    return const TelegramState();
   }
 
   final TelegramApiClient _api = TelegramApiClient.instance;
@@ -241,10 +244,9 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
     });
   }
 
-  @override
-  void dispose() {
+  // dispose handled via ref.onDispose
+  void _dispose() {
     _mounted = false;
-    super.dispose();
   }
 
   /// مسح حالة آخر تقرير
@@ -255,7 +257,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
 }
 
 /// Provider رئيسي لـ Telegram
-final telegramProvider = StateNotifierProvider<TelegramNotifier, TelegramState>((ref) => TelegramNotifier());
+final telegramProvider = NotifierProvider<TelegramNotifier, TelegramState>(TelegramNotifier.new);
 
 /// Provider للوصول إلى خدمة الإشعارات
 final telegramNotificationServiceProvider = Provider<TelegramNotificationService>(

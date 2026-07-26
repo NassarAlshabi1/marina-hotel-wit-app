@@ -167,110 +167,111 @@ class _GoogleDriveLoginScreenState extends ConsumerState<GoogleDriveLoginScreen>
     return PerformanceInspector(
       name: 'GoogleDriveLoginScreen',
       child: Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        backgroundColor: AppColors.backgroundColor,
-        body: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const Icon(Icons.cloud_outlined, size: 80, color: AppColors.primaryColor),
-                      const SizedBox(height: 24),
-                      const Text(
-                        'تسجيل الدخول إلى Google Drive',
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'للحصول على أفضل تجربة والمزامنة التلقائية للبيانات بين أجهزتك، يرجى تسجيل الدخول إلى Google Drive',
-                        style: TextStyle(fontSize: 15, color: AppColors.textSecondary, height: 1.5),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 24),
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.infoColor.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          backgroundColor: AppColors.backgroundColor,
+          body: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Icon(Icons.cloud_outlined, size: 80, color: AppColors.primaryColor),
+                        const SizedBox(height: 24),
+                        const Text(
+                          'تسجيل الدخول إلى Google Drive',
+                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                          textAlign: TextAlign.center,
                         ),
-                        child: const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.check_circle, color: AppColors.successColor, size: 20),
-                                SizedBox(width: 8),
-                                Expanded(child: Text('مزامنة تلقائية للبيانات', style: TextStyle(fontSize: 14))),
-                              ],
-                            ),
-                            SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Icon(Icons.check_circle, color: AppColors.successColor, size: 20),
-                                SizedBox(width: 8),
-                                Expanded(child: Text('نسخ احتياطي آمن في السحابة', style: TextStyle(fontSize: 14))),
-                              ],
-                            ),
-                            SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Icon(Icons.check_circle, color: AppColors.successColor, size: 20),
-                                SizedBox(width: 8),
-                                Expanded(child: Text('إمكانية الوصول من أي جهاز', style: TextStyle(fontSize: 14))),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (_errorMessage != null) ...[
                         const SizedBox(height: 16),
+                        const Text(
+                          'للحصول على أفضل تجربة والمزامنة التلقائية للبيانات بين أجهزتك، يرجى تسجيل الدخول إلى Google Drive',
+                          style: TextStyle(fontSize: 15, color: AppColors.textSecondary, height: 1.5),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 24),
                         Container(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: AppColors.dangerColor.withValues(alpha: 0.1),
+                            color: AppColors.infoColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: Row(
+                          child: const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(Icons.error_outline, color: AppColors.dangerColor, size: 20),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  _errorMessage!,
-                                  style: const TextStyle(color: AppColors.dangerColor, fontSize: 13),
-                                ),
+                              Row(
+                                children: [
+                                  Icon(Icons.check_circle, color: AppColors.successColor, size: 20),
+                                  SizedBox(width: 8),
+                                  Expanded(child: Text('مزامنة تلقائية للبيانات', style: TextStyle(fontSize: 14))),
+                                ],
+                              ),
+                              SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(Icons.check_circle, color: AppColors.successColor, size: 20),
+                                  SizedBox(width: 8),
+                                  Expanded(child: Text('نسخ احتياطي آمن في السحابة', style: TextStyle(fontSize: 14))),
+                                ],
+                              ),
+                              SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Icon(Icons.check_circle, color: AppColors.successColor, size: 20),
+                                  SizedBox(width: 8),
+                                  Expanded(child: Text('إمكانية الوصول من أي جهاز', style: TextStyle(fontSize: 14))),
+                                ],
                               ),
                             ],
                           ),
                         ),
+                        if (_errorMessage != null) ...[
+                          const SizedBox(height: 16),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.dangerColor.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.error_outline, color: AppColors.dangerColor, size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _errorMessage!,
+                                    style: const TextStyle(color: AppColors.dangerColor, fontSize: 13),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          onPressed: _isSigningIn ? null : _handleSignIn,
+                          icon: _isSigningIn
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.login),
+                          label: Text(_isSigningIn ? 'جارٍ تسجيل الدخول...' : 'تسجيل الدخول بـ Google Drive'),
+                          style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+                        ),
+                        const SizedBox(height: 12),
+                        TextButton(
+                          onPressed: _isSigningIn ? null : _handleSkip,
+                          child: const Text('تخطي', style: TextStyle(color: AppColors.textSecondary, fontSize: 15)),
+                        ),
                       ],
-                      const SizedBox(height: 24),
-                      ElevatedButton.icon(
-                        onPressed: _isSigningIn ? null : _handleSignIn,
-                        icon: _isSigningIn
-                            ? const SizedBox(
-                                height: 18,
-                                width: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Icon(Icons.login),
-                        label: Text(_isSigningIn ? 'جارٍ تسجيل الدخول...' : 'تسجيل الدخول بـ Google Drive'),
-                        style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-                      ),
-                      const SizedBox(height: 12),
-                      TextButton(
-                        onPressed: _isSigningIn ? null : _handleSkip,
-                        child: const Text('تخطي', style: TextStyle(color: AppColors.textSecondary, fontSize: 15)),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -278,7 +279,6 @@ class _GoogleDriveLoginScreenState extends ConsumerState<GoogleDriveLoginScreen>
           ),
         ),
       ),
-    )
     );
   }
 }

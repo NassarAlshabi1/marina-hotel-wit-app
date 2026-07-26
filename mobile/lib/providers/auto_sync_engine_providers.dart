@@ -44,12 +44,14 @@ final conflictHistoryProvider = FutureProvider<List<Map<String, dynamic>>>((ref)
   return resolver.getConflictHistory(limit: 50);
 });
 
-class AutoSyncEngineController extends StateNotifier<AsyncValue<Map<String, dynamic>>> {
-  AutoSyncEngineController(this.engine) : super(const AsyncValue.loading()) {
+class AutoSyncEngineController extends Notifier<AsyncValue<Map<String, dynamic>>> {
+  @override
+  AsyncValue<Map<String, dynamic>> build() {
     _loadStatus();
+    return const AsyncValue.loading();
   }
 
-  final AutoSyncEngine engine;
+  late final AutoSyncEngine engine = ref.read(autoSyncEngineProvider);
 
   Future<void> _loadStatus() async {
     state = const AsyncValue.loading();
@@ -95,11 +97,9 @@ class AutoSyncEngineController extends StateNotifier<AsyncValue<Map<String, dyna
   }
 }
 
-final autoSyncEngineControllerProvider =
-    StateNotifierProvider<AutoSyncEngineController, AsyncValue<Map<String, dynamic>>>((ref) {
-      final engine = ref.watch(autoSyncEngineProvider);
-      return AutoSyncEngineController(engine);
-    });
+final autoSyncEngineControllerProvider = NotifierProvider<AutoSyncEngineController, AsyncValue<Map<String, dynamic>>>(
+  AutoSyncEngineController.new,
+);
 
 final isSyncingProvider = Provider<bool>((ref) {
   final coordinatorState = ref.watch(unifiedSyncCoordinatorProvider);

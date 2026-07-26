@@ -36,8 +36,11 @@ class PerformanceState {
   }
 }
 
-class PerformanceNotifier extends StateNotifier<PerformanceState> {
-  PerformanceNotifier() : super(PerformanceState(metrics: [], averageTimings: {}, isMonitoring: kDebugMode));
+class PerformanceNotifier extends Notifier<PerformanceState> {
+  @override
+  PerformanceState build() {
+    return PerformanceState(metrics: [], averageTimings: {}, isMonitoring: kDebugMode);
+  }
 
   void recordOperation(PerformanceMetrics metric) {
     if (!state.isMonitoring) {
@@ -90,9 +93,7 @@ class PerformanceNotifier extends StateNotifier<PerformanceState> {
   }
 }
 
-final performanceProvider = StateNotifierProvider<PerformanceNotifier, PerformanceState>((ref) {
-  return PerformanceNotifier();
-});
+final performanceProvider = NotifierProvider<PerformanceNotifier, PerformanceState>(PerformanceNotifier.new);
 
 class PerformanceTimer {
   PerformanceTimer({required this.operation, required this.notifier, this.recordsProcessed = 0}) {

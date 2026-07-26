@@ -87,7 +87,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen> with Sy
   /// ✅ استبعاد السلفة — تسبب تكرار بيانات لأن مبالغها تظهر أيضاً كأقساط خصم من الراتب
   List<String> get _expenseTypes {
     final asyncTypes = ref.watch(customListNamesProvider(kListKeyExpenseType));
-    final types = asyncTypes.valueOrNull ?? kDefaultExpenseTypes;
+    final types = asyncTypes.value ?? kDefaultExpenseTypes;
     return types.where((t) => t != 'سلفة').toList();
   }
 

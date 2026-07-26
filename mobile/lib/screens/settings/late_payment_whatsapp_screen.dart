@@ -146,7 +146,7 @@ class _LatePaymentWhatsAppScreenState extends ConsumerState<LatePaymentWhatsAppS
 
     // جلب الحجوزات من stream provider
     final bookingsAsync = ref.read(bookingsListProvider);
-    final bookings = bookingsAsync.valueOrNull ?? [];
+    final bookings = bookingsAsync.value ?? [];
 
     for (final debt in debts) {
       final booking = bookings.cast<Booking?>().firstWhere((b) => b?.id == debt.bookingLocalId, orElse: () => null);
@@ -730,13 +730,13 @@ class _LatePaymentWhatsAppScreenState extends ConsumerState<LatePaymentWhatsAppS
     }
 
     final debtsAsync = ref.read(debtsListProvider);
-    final debts = debtsAsync.valueOrNull ?? [];
+    final debts = debtsAsync.value ?? [];
     final selectedDebts = debts.where((d) => _selectedIds.contains(d.id)).toList();
     final totalAmount = selectedDebts.fold(0.0, (sum, d) => sum + d.remainingAmount);
 
     // التحقق من وجود أرقام هواتف
     final bookingsAsync = ref.read(bookingsListProvider);
-    final bookings = bookingsAsync.valueOrNull ?? [];
+    final bookings = bookingsAsync.value ?? [];
     int withoutPhone = 0;
     for (final debt in selectedDebts) {
       final booking = bookings.cast<Booking?>().firstWhere((b) => b?.id == debt.bookingLocalId, orElse: () => null);
@@ -789,7 +789,7 @@ class _LatePaymentWhatsAppScreenState extends ConsumerState<LatePaymentWhatsAppS
     }
 
     // تصفية الديون التي لديها رقم هاتف فقط
-    final bookingsList = ref.read(bookingsListProvider).valueOrNull ?? [];
+    final bookingsList = ref.read(bookingsListProvider).value ?? [];
     final debtsWithPhone = <Debt>[];
     for (final debt in selectedDebts) {
       final booking = bookingsList.cast<Booking?>().firstWhere((b) => b?.id == debt.bookingLocalId, orElse: () => null);

@@ -94,8 +94,8 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> with SyncOnExitMi
             final todayIncome = ref.watch(todayPaymentsProvider);
             final todayExpenses = ref.watch(todayExpensesProvider);
 
-            final income = todayIncome.valueOrNull ?? 0.0;
-            final expenses = todayExpenses.valueOrNull ?? 0.0;
+            final income = todayIncome.value ?? 0.0;
+            final expenses = todayExpenses.value ?? 0.0;
             final balance = income - expenses;
 
             return RefreshIndicator(

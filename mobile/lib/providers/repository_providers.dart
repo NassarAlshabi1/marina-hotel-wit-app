@@ -42,12 +42,14 @@ export '../providers/smart_sync_provider.dart';
 final syncGuardianProvider = Provider<SyncGuardian>((ref) => SyncGuardian.instance);
 final syncHealthProvider = StreamProvider<SyncHealthSnapshot>((ref) => ref.watch(syncGuardianProvider).watchHealth());
 
-final diagnosticsLoggerProvider = ChangeNotifierProvider<DiagnosticsLogger>((ref) => DiagnosticsLogger.instance);
+final diagnosticsLoggerProvider = Provider<DiagnosticsLogger>((ref) => DiagnosticsLogger.instance);
 
 final databaseProvider = Provider<AppDatabase>((ref) => DatabaseManager.instance);
 final adapterRegistryProvider = Provider<AdapterRegistry>((ref) => AdapterRegistry.instance);
 
-final outboxDaoProvider = Provider<OutboxDao>((ref) => OutboxDao(ref.read(databaseProvider), ref.read(adapterRegistryProvider)));
+final outboxDaoProvider = Provider<OutboxDao>(
+  (ref) => OutboxDao(ref.read(databaseProvider), ref.read(adapterRegistryProvider)),
+);
 final bookingsDaoProvider = Provider<BookingsDao>(
   (ref) => BookingsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider), ref.read(adapterRegistryProvider)),
 );
@@ -57,7 +59,9 @@ final paymentsDaoProvider = Provider<PaymentsDao>(
 final expensesDaoProvider = Provider<ExpensesDao>(
   (ref) => ExpensesDao(ref.read(databaseProvider), ref.read(outboxDaoProvider), ref.read(adapterRegistryProvider)),
 );
-final debtsDaoProvider = Provider<DebtsDao>((ref) => DebtsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider), ref.read(adapterRegistryProvider)));
+final debtsDaoProvider = Provider<DebtsDao>(
+  (ref) => DebtsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider), ref.read(adapterRegistryProvider)),
+);
 final employeesDaoProvider = Provider<EmployeesDao>(
   (ref) => EmployeesDao(ref.read(databaseProvider), ref.read(outboxDaoProvider), ref.read(adapterRegistryProvider)),
 );
@@ -113,7 +117,7 @@ WhatsAppApiType _parseApiType(String? type) {
 final whatsappServiceProvider = Provider<WhatsAppService>((ref) {
   final settingsAsync = ref.watch(whatsappSettingsProvider);
   final settings =
-      settingsAsync.valueOrNull ??
+      settingsAsync.value ??
       const {
         'apiType': 'custom',
         'baseUrl': 'https://7103.api.greenapi.com',
@@ -235,11 +239,11 @@ final debtsListProvider = StreamProvider.autoDispose(
   (ref) => debounceStream(ref.watch(debtsRepoProvider).watchAll(), const Duration(milliseconds: 150)),
 );
 final pendingDebtsProvider = Provider.autoDispose<List<Debt>>((ref) {
-  final allDebts = ref.watch(debtsListProvider).valueOrNull ?? [];
+  final allDebts = ref.watch(debtsListProvider).value ?? [];
   return allDebts.where((debt) => debt.isSettled == 0 && debt.remainingAmount > 0).toList();
 });
 final settledDebtsProvider = Provider.autoDispose<List<Debt>>((ref) {
-  final allDebts = ref.watch(debtsListProvider).valueOrNull ?? [];
+  final allDebts = ref.watch(debtsListProvider).value ?? [];
   return allDebts.where((debt) => debt.isSettled == 1 || debt.remainingAmount <= 0).toList();
 });
 
@@ -270,7 +274,10 @@ final liveRoomByNumberProvider = StreamProvider.autoDispose.family<Room?, String
 });
 
 /// تعديلات الأسعار النشطة لحجز محدد (بديل StreamBuilder<List<BookingPriceAdjustment>>).
-final bookingPriceAdjustmentsProvider = StreamProvider.autoDispose.family<List<BookingPriceAdjustment>, int>((ref, bookingId) {
+final bookingPriceAdjustmentsProvider = StreamProvider.autoDispose.family<List<BookingPriceAdjustment>, int>((
+  ref,
+  bookingId,
+) {
   final db = ref.watch(databaseProvider);
   return (db.select(db.bookingPriceAdjustments)
         ..where((a) => a.bookingLocalId.equals(bookingId))

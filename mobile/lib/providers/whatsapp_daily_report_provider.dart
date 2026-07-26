@@ -59,9 +59,12 @@ class WhatsAppDailyReportState {
 }
 
 /// Notifier للتحكم في حالة التقرير اليومي عبر واتساب
-class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState> {
-  WhatsAppDailyReportNotifier() : super(const WhatsAppDailyReportState()) {
+class WhatsAppDailyReportNotifier extends Notifier<WhatsAppDailyReportState> {
+  @override
+  WhatsAppDailyReportState build() {
+    ref.onDispose(_dispose);
     _initialize();
+    return const WhatsAppDailyReportState();
   }
 
   final TelegramReportService _reports = TelegramReportService.instance;
@@ -217,10 +220,9 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
     });
   }
 
-  @override
-  void dispose() {
+  // dispose handled via ref.onDispose
+  void _dispose() {
     _mounted = false;
-    super.dispose();
   }
 
   /// مسح حالة آخر تقرير
@@ -231,8 +233,8 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
 }
 
 /// Provider رئيسي للتقرير اليومي عبر واتساب
-final whatsappDailyReportProvider = StateNotifierProvider<WhatsAppDailyReportNotifier, WhatsAppDailyReportState>(
-  (ref) => WhatsAppDailyReportNotifier(),
+final whatsappDailyReportProvider = NotifierProvider<WhatsAppDailyReportNotifier, WhatsAppDailyReportState>(
+  WhatsAppDailyReportNotifier.new,
 );
 
 /// Provider للوصول إلى خدمة التقارير

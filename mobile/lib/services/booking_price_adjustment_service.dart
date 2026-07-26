@@ -103,13 +103,14 @@ class BookingLostRevenue {
 }
 
 class AdjustmentSummary {
-  AdjustmentSummary({      required this.uuid,
-      required this.type,
-      required this.amount,
-      required this.effectiveHotelDay,
-      required this.nightsAffected,
-      required this.totalImpact,
-      this.endHotelDay,
+  AdjustmentSummary({
+    required this.uuid,
+    required this.type,
+    required this.amount,
+    required this.effectiveHotelDay,
+    required this.nightsAffected,
+    required this.totalImpact,
+    this.endHotelDay,
   });
   final String uuid;
   final AdjustmentType type;
@@ -342,9 +343,7 @@ class BookingPriceAdjustmentService {
     }
 
     // إذا لم يتبقَّ أي ليلة مخفّضة → نعطّل التخفيض بالكامل
-    final bool fullyCancelled =
-        effectiveEnd == null ||
-        effectiveEnd.compareTo(effectiveStart) < 0;
+    final bool fullyCancelled = effectiveEnd == null || effectiveEnd.compareTo(effectiveStart) < 0;
 
     final update = BookingPriceAdjustmentsCompanion(
       isActive: Value(!fullyCancelled),
@@ -444,13 +443,17 @@ class BookingPriceAdjustmentService {
 
     final outboxDao = OutboxDao(db);
     await outboxDao.mergeBatch(
-      adjustments.map((adj) => <String, dynamic>{
-        'entity': 'booking_price_adjustments',
-        'op': 'update',
-        'localUuid': adj.localUuid,
-        'payload': <String, dynamic>{'roomNumber': newRoomNumber},
-        'clientTs': now,
-      }).toList(),
+      adjustments
+          .map(
+            (adj) => <String, dynamic>{
+              'entity': 'booking_price_adjustments',
+              'op': 'update',
+              'localUuid': adj.localUuid,
+              'payload': <String, dynamic>{'roomNumber': newRoomNumber},
+              'clientTs': now,
+            },
+          )
+          .toList(),
     );
 
     dlog(() => 'تم نقل ${adjustments.length} تعديل(ات) سعر للغرفة $newRoomNumber للحجز #$bookingId');
@@ -487,12 +490,13 @@ class BookingPriceAdjustmentService {
 
     // ✅ تحسين أداء: batch lookup بدل N+1 — جلب كل التعديلات مرة واحدة
     final bookingIds = bookings.map((b) => b.id).toSet();
-    final allSurcharges = await (db.select(db.bookingPriceAdjustments)
-          ..where((a) => a.bookingLocalId.isIn(bookingIds))
-          ..where((a) => a.adjustmentType.equals(AdjustmentType.surcharge.value))
-          ..where((a) => a.isActive.equals(true))
-          ..where((a) => a.deletedAt.isNull()))
-        .get();
+    final allSurcharges =
+        await (db.select(db.bookingPriceAdjustments)
+              ..where((a) => a.bookingLocalId.isIn(bookingIds))
+              ..where((a) => a.adjustmentType.equals(AdjustmentType.surcharge.value))
+              ..where((a) => a.isActive.equals(true))
+              ..where((a) => a.deletedAt.isNull()))
+            .get();
     final surchargeBookingIds = allSurcharges.map((a) => a.bookingLocalId).whereType<int>().toSet();
 
     for (final booking in bookings) {

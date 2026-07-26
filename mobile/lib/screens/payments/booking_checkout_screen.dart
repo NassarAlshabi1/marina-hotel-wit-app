@@ -106,9 +106,9 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen> w
       );
     }
 
-    final roomPrice = roomAsync.valueOrNull?.price ?? 0.0;
-    final nights = nightsAsync.valueOrNull ?? const <BookingNight>[];
-    final payments = paymentsAsync.valueOrNull ?? const <Payment>[];
+    final roomPrice = roomAsync.value?.price ?? 0.0;
+    final nights = nightsAsync.value ?? const <BookingNight>[];
+    final payments = paymentsAsync.value ?? const <Payment>[];
 
     final checkin = DateTime.tryParse(widget.booking.checkinDate);
     final plannedCheckout = widget.booking.checkoutDate != null

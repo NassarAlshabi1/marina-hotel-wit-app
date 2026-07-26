@@ -98,13 +98,19 @@ class AuthState {
   );
 }
 
-class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier() : super(const AuthState(isAuthenticated: false, isRestoring: true)) {
+class AuthNotifier extends Notifier<AuthState> {
+  @override
+  AuthState build() {
+    ref.onDispose(_dispose);
     restoreSession();
+    return const AuthState(isAuthenticated: false, isRestoring: true);
   }
 
   final _store = AuthLocalStore();
   Timer? _sessionCheckTimer;
+  // ignore: prefer_final_fields
+  bool _mounted = true;
+  bool get mounted => _mounted;
 
   /// فحص دوري لصلاحية الجلسة — كل 30 ثانية
   void _startSessionCheck() {
@@ -134,10 +140,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  @override
-  void dispose() {
+  // dispose handled via ref.onDispose
+  void _dispose() {
     _stopSessionCheck();
-    super.dispose();
   }
 
   Future<void> restoreSession() async {
@@ -270,4 +275,4 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 }
 
-final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) => AuthNotifier());
+final authProvider = NotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new);

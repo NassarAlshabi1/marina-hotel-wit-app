@@ -94,8 +94,12 @@ class AppwriteHealthState {
 }
 
 /// Notifier يدير حالة صحة الوجهتين ويوفّرها للـ UI
-class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
-  AppwriteHealthNotifier() : super(AppwriteHealthState.initial);
+class AppwriteHealthNotifier extends Notifier<AppwriteHealthState> {
+  @override
+  AppwriteHealthState build() {
+    ref.onDispose(_dispose);
+    return AppwriteHealthState.initial;
+  }
 
   Timer? _checkTimer;
   bool _isChecking = false;
@@ -227,10 +231,9 @@ class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
     }
   }
 
-  @override
-  void dispose() {
+  // dispose handled via ref.onDispose
+  void _dispose() {
     stopPeriodicCheck();
-    super.dispose();
   }
 }
 
@@ -244,9 +247,9 @@ class _HealthCheckResult {
 }
 
 /// Provider لحالة صحة الوجهتين
-final appwriteHealthProvider = StateNotifierProvider<AppwriteHealthNotifier, AppwriteHealthState>((ref) {
-  return AppwriteHealthNotifier();
-});
+final appwriteHealthProvider = NotifierProvider<AppwriteHealthNotifier, AppwriteHealthState>(
+  AppwriteHealthNotifier.new,
+);
 
 /// Singleton للوصول للحالة الحالية من خارج Riverpod (مثل main.dart)
 ///

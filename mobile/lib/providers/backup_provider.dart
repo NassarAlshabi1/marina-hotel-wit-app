@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../services/appwrite_sync_manager.dart';
 import '../services/auto_backup_task.dart';
 import '../services/file_management_service.dart';
 import '../services/google_drive_auto_sync_engine.dart';
@@ -175,22 +174,19 @@ class BackupState {
 }
 
 // Notifier للتحكم في حالة النسخ الاحتياطي
-class BackupStatusNotifier extends StateNotifier<BackupState> {
-  BackupStatusNotifier(
-    this._backupService,
-    this._localBackupService,
-    this._fileService,
-    this._appwriteSyncManager,
-    this._smartSyncManager,
-  ) : super(BackupState()) {
+class BackupStatusNotifier extends Notifier<BackupState> {
+  @override
+  BackupState build() {
+    ref.onDispose(_dispose);
     _initialize();
+    return BackupState();
   }
 
-  final GoogleDriveBackupService _backupService;
-  final LocalBackupService _localBackupService;
-  final FileManagementService _fileService;
-  final AppwriteSyncManager _appwriteSyncManager;
-  final SmartSyncManager _smartSyncManager;
+  late final _backupService = ref.read(googleDriveBackupServiceProvider);
+  late final _localBackupService = ref.read(localBackupServiceProvider);
+  late final _fileService = ref.read(fileManagementServiceProvider);
+  late final _appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
+  late final _smartSyncManager = ref.read(smartSyncManagerProvider);
   bool _mounted = true;
 
   /// تحديث حالة النسخ الاحتياطي
@@ -656,10 +652,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     state = state.copyWith(status: BackupStatus.idle);
   }
 
-  @override
-  void dispose() {
+  // dispose handled via ref.onDispose
+  void _dispose() {
     _mounted = false;
-    super.dispose();
   }
 
   /// التحقق من حالة تسجيل الدخول وتحديثها
@@ -1250,14 +1245,7 @@ final fileManagementServiceProvider = Provider<FileManagementService>((ref) {
 });
 
 // Provider للحالة
-final backupStatusProvider = StateNotifierProvider<BackupStatusNotifier, BackupState>((ref) {
-  final driveService = ref.watch(googleDriveBackupServiceProvider);
-  final localService = ref.watch(localBackupServiceProvider);
-  final fileService = ref.watch(fileManagementServiceProvider);
-  final appwriteSync = ref.watch(appwriteSyncManagerProvider);
-  final smartSync = ref.watch(smartSyncManagerProvider);
-  return BackupStatusNotifier(driveService, localService, fileService, appwriteSync, smartSync);
-});
+final backupStatusProvider = NotifierProvider<BackupStatusNotifier, BackupState>(BackupStatusNotifier.new);
 
 // Provider للنسخ المتاحة (Google Drive)
 final availableBackupsProvider = Provider<List<DriveBackupFile>>((ref) {
@@ -1340,7 +1328,7 @@ final backupStatusSummaryProvider = Provider<String>((ref) {
   }
 });
 
-final googleDriveLoggerProvider = ChangeNotifierProvider<GoogleDriveLogger>((ref) {
+final googleDriveLoggerProvider = Provider<GoogleDriveLogger>((ref) {
   final logger = GoogleDriveLogger();
   ref.onDispose(logger.dispose);
   return logger;

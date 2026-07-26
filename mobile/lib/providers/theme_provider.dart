@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class ThemeSettingsNotifier extends StateNotifier<bool> {
-  ThemeSettingsNotifier() : super(false) {
+class ThemeSettingsNotifier extends Notifier<bool> {
+  @override
+  bool build() {
     _load();
+    return false;
   }
 
   static const _kDarkMode = 'dark_mode_enabled';
@@ -22,6 +24,4 @@ class ThemeSettingsNotifier extends StateNotifier<bool> {
   Future<void> toggle() => setDarkMode(!state);
 }
 
-final themeSettingsProvider = StateNotifierProvider<ThemeSettingsNotifier, bool>((ref) {
-  return ThemeSettingsNotifier();
-});
+final themeSettingsProvider = NotifierProvider<ThemeSettingsNotifier, bool>(ThemeSettingsNotifier.new);

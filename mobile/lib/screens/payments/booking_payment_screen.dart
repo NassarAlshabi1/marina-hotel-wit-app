@@ -225,7 +225,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     // ✅ إعادة هيكلة: استبدال 5 StreamBuilders متداخلة بـ Riverpod providers
     // مسطحة. كل provider يُدار بشكل مستقل — لا pyramid of doom.
     final bookingAsync = ref.watch(liveBookingProvider(widget.booking.id));
-    final booking = bookingAsync.valueOrNull ?? widget.booking;
+    final booking = bookingAsync.value ?? widget.booking;
 
     final roomAsync = ref.watch(liveRoomByNumberProvider(booking.roomNumber));
     final adjustmentsAsync = ref.watch(bookingPriceAdjustmentsProvider(booking.id));
@@ -247,7 +247,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       );
     }
 
-    final room = roomAsync.valueOrNull;
+    final room = roomAsync.value;
     final double roomRate = room?.price ?? 0;
 
     final checkin = DateTime.tryParse(booking.checkinDate);
@@ -271,11 +271,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final discountStartDate = _parseDateTime(booking.discountStartDate);
 
     // تعديلات الأسعار (providers تم تعريفها في الأعلى)
-    final rawAdjustments = adjustmentsAsync.valueOrNull ?? const <db.BookingPriceAdjustment>[];
+    final rawAdjustments = adjustmentsAsync.value ?? const <db.BookingPriceAdjustment>[];
     final filteredAdjustments = StayBalanceCalculator.filterActiveAdjustments(booking, rawAdjustments);
 
     // ليالي الحجز (provider تم تعريفه في الأعلى)
-    final nights = nightsAsync.valueOrNull ?? const <db.BookingNight>[];
+    final nights = nightsAsync.value ?? const <db.BookingNight>[];
     final nightsCount = nights.isNotEmpty ? nights.length : actualNights;
     final double nightTotal = nights.isNotEmpty
         ? nights.fold<double>(0, (sum, n) => sum + (n.finalRate > 0 ? n.finalRate : n.nightlyRate))
@@ -334,7 +334,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
 
     // مدفوعات الحجز (provider تم تعريفه في الأعلى)
-    final dbPayments = paymentsAsync.valueOrNull ?? const <db.Payment>[];
+    final dbPayments = paymentsAsync.value ?? const <db.Payment>[];
     final paidAmount = dbPayments.where((p) => !p.isVoided).fold<double>(0, (s, p) => s + p.amount);
     final hotelDay = HotelTimeEngine.getHotelDayKey();
     final todayPaidAmount = dbPayments
@@ -990,7 +990,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   Widget _buildDailyPaymentButton(String label, BookingPaymentSummary summary, int nights) {
     // ✅ استبدال StreamBuilder بـ Riverpod provider (مسطح، لا تداخل)
     final roomAsync = ref.watch(liveRoomByNumberProvider(widget.booking.roomNumber));
-    final double roomRate = roomAsync.valueOrNull?.price ?? 0;
+    final double roomRate = roomAsync.value?.price ?? 0;
     final amount = nights * roomRate;
 
     return ElevatedButton(
@@ -3133,7 +3133,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final notesController = TextEditingController();
 
     // ✅ استبدال StreamBuilder بـ ref.read (قيمة واحدة، لا stream)
-    final room = ref.read(liveRoomByNumberProvider(widget.booking.roomNumber)).valueOrNull;
+    final room = ref.read(liveRoomByNumberProvider(widget.booking.roomNumber)).value;
     final double roomRate = room?.price ?? 0;
 
     showDialog<void>(

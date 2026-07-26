@@ -8,12 +8,13 @@ import '../../utils/status_utils.dart';
 class RoomCard extends StatelessWidget {
   // حالة تأخر السداد للوميض
 
-  const RoomCard({      required this.room,
-      super.key,
-      this.onTap,
-      this.compact = false,
-      this.customColor,
-      this.isPaymentOverdue = false,
+  const RoomCard({
+    required this.room,
+    super.key,
+    this.onTap,
+    this.compact = false,
+    this.customColor,
+    this.isPaymentOverdue = false,
   });
   final Room room;
   final VoidCallback? onTap;
@@ -99,14 +100,15 @@ class RoomCard extends StatelessWidget {
 
 /// Widget لعرض عنوان الطابق مع الإحصائيات
 class FloorHeader extends StatelessWidget {
-  const FloorHeader({      required this.floorNumber,
-      required this.totalRooms,
-      required this.occupiedRooms,
-      required this.availableRooms,
-      super.key,
-      this.isCollapsible = false,
-      this.isExpanded = true,
-      this.onToggle,
+  const FloorHeader({
+    required this.floorNumber,
+    required this.totalRooms,
+    required this.occupiedRooms,
+    required this.availableRooms,
+    super.key,
+    this.isCollapsible = false,
+    this.isExpanded = true,
+    this.onToggle,
   });
   final String floorNumber;
   final int totalRooms;
@@ -154,11 +156,12 @@ class FloorHeader extends StatelessWidget {
 
 /// Widget لعرض إحصائيات الطابق
 class FloorStats extends StatelessWidget {
-  const FloorStats({      required this.occupied,
-      required this.available,
-      required this.total,
-      super.key,
-      this.compact = false,
+  const FloorStats({
+    required this.occupied,
+    required this.available,
+    required this.total,
+    super.key,
+    this.compact = false,
   });
   final int occupied;
   final int available;
@@ -210,11 +213,12 @@ class FloorStats extends StatelessWidget {
 
 /// Widget لعرض شبكة الغرف
 class RoomsGrid extends StatelessWidget {
-  const RoomsGrid({      required this.rooms,
-      required this.onRoomTap,
-      super.key,
-      this.crossAxisCount = 4,
-      this.childAspectRatio = 1.2,
+  const RoomsGrid({
+    required this.rooms,
+    required this.onRoomTap,
+    super.key,
+    this.crossAxisCount = 4,
+    this.childAspectRatio = 1.2,
   });
   final List<dynamic> rooms; // تغيير النوع لدعم RoomWithPaymentStatus
   final void Function(Room) onRoomTap;
@@ -263,12 +267,13 @@ class RoomsGrid extends StatelessWidget {
 
 /// Widget لعرض قسم طابق كامل
 class FloorSection extends StatefulWidget {
-  const FloorSection({      required this.floorNumber,
-      required this.rooms,
-      required this.onRoomTap,
-      super.key,
-      this.isCollapsible = false,
-      this.initiallyExpanded = true,
+  const FloorSection({
+    required this.floorNumber,
+    required this.rooms,
+    required this.onRoomTap,
+    super.key,
+    this.isCollapsible = false,
+    this.initiallyExpanded = true,
   });
   final String floorNumber;
   final List<dynamic> rooms; // تغيير النوع

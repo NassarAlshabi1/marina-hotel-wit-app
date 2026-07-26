@@ -62,7 +62,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
   /// أنواع الهوية من القائمة الديناميكية
   List<String> get _idTypes {
     final asyncTypes = ref.watch(customListNamesProvider(kListKeyIdType));
-    final types = asyncTypes.valueOrNull ?? kDefaultIdTypes;
+    final types = asyncTypes.value ?? kDefaultIdTypes;
     // التأكد من أن القيمة المحددة موجودة في القائمة
     if (_idType.isNotEmpty && !types.contains(_idType)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -75,7 +75,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen> with Sync
   /// طرق الدفع من القائمة الديناميكية
   List<String> get _paymentMethods {
     final asyncTypes = ref.watch(customListNamesProvider(kListKeyPaymentMethod));
-    final methods = asyncTypes.valueOrNull ?? kDefaultPaymentMethods;
+    final methods = asyncTypes.value ?? kDefaultPaymentMethods;
     // التأكد من أن القيمة المحددة موجودة في القائمة
     if (_paymentMethod.isNotEmpty && !methods.contains(_paymentMethod)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -136,123 +136,123 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
     return PerformanceInspector(
       name: 'ServerIdFixerScreen',
       child: Scaffold(
-      appBar: AppBar(title: const Text('إصلاح Server IDs للغرف'), backgroundColor: Colors.blue),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Card(
-              color: Colors.blue.shade50,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.info_outline, color: Colors.blue),
-                        SizedBox(width: 8),
-                        Text('حول هذه الأداة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'هذه الأداة تقوم بتحديث serverId لجميع الغرف في قاعدة البيانات المحلية لربطها مع Appwrite.',
-                      style: TextStyle(fontSize: 14),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'عدد الغرف المطلوب تحديثها: ${_roomsMapping.length}',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: _isProcessing ? null : _fixServerIds,
-              icon: _isProcessing
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : const Icon(Icons.build),
-              label: Text(_isProcessing ? 'جاري التحديث...' : 'بدء الإصلاح'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.all(16),
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-              ),
-            ),
-            if (_status.isNotEmpty) ...[
-              const SizedBox(height: 16),
+        appBar: AppBar(title: const Text('إصلاح Server IDs للغرف'), backgroundColor: Colors.blue),
+        body: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
               Card(
-                color: _status == 'اكتمل بنجاح'
-                    ? Colors.green.shade50
-                    : _status == 'فشل'
-                    ? Colors.red.shade50
-                    : Colors.orange.shade50,
+                color: Colors.blue.shade50,
                 child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        _status == 'اكتمل بنجاح'
-                            ? Icons.check_circle
-                            : _status == 'فشل'
-                            ? Icons.error
-                            : Icons.pending,
-                        color: _status == 'اكتمل بنجاح'
-                            ? Colors.green
-                            : _status == 'فشل'
-                            ? Colors.red
-                            : Colors.orange,
+                      const Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.blue),
+                          SizedBox(width: 8),
+                          Text('حول هذه الأداة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      Text('الحالة: $_status', style: const TextStyle(fontWeight: FontWeight.bold)),
-                      if (_updatedCount > 0) ...[const Spacer(), Text('$_updatedCount/${_roomsMapping.length}')],
+                      const SizedBox(height: 8),
+                      const Text(
+                        'هذه الأداة تقوم بتحديث serverId لجميع الغرف في قاعدة البيانات المحلية لربطها مع Appwrite.',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'عدد الغرف المطلوب تحديثها: ${_roomsMapping.length}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
+                      ),
                     ],
                   ),
                 ),
               ),
-            ],
-            const SizedBox(height: 16),
-            const Text('سجل التنفيذ:', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Expanded(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: _logs.isEmpty
-                    ? const Center(
-                        child: Text('لم يتم البدء بعد', style: TextStyle(color: Colors.grey)),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _isProcessing ? null : _fixServerIds,
+                icon: _isProcessing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
                       )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(8),
-                        itemCount: _logs.length,
-                        itemBuilder: (context, index) {
-                          final log = _logs[index];
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 2),
-                            child: Text(log, style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
-                          );
-                        },
-                      ),
+                    : const Icon(Icons.build),
+                label: Text(_isProcessing ? 'جاري التحديث...' : 'بدء الإصلاح'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.all(16),
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
               ),
-            ),
-          ],
+              if (_status.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Card(
+                  color: _status == 'اكتمل بنجاح'
+                      ? Colors.green.shade50
+                      : _status == 'فشل'
+                      ? Colors.red.shade50
+                      : Colors.orange.shade50,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _status == 'اكتمل بنجاح'
+                              ? Icons.check_circle
+                              : _status == 'فشل'
+                              ? Icons.error
+                              : Icons.pending,
+                          color: _status == 'اكتمل بنجاح'
+                              ? Colors.green
+                              : _status == 'فشل'
+                              ? Colors.red
+                              : Colors.orange,
+                        ),
+                        const SizedBox(width: 8),
+                        Text('الحالة: $_status', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        if (_updatedCount > 0) ...[const Spacer(), Text('$_updatedCount/${_roomsMapping.length}')],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              const Text('سجل التنفيذ:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Expanded(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: _logs.isEmpty
+                      ? const Center(
+                          child: Text('لم يتم البدء بعد', style: TextStyle(color: Colors.grey)),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(8),
+                          itemCount: _logs.length,
+                          itemBuilder: (context, index) {
+                            final log = _logs[index];
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Text(log, style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
+                            );
+                          },
+                        ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    )
     );
   }
 }

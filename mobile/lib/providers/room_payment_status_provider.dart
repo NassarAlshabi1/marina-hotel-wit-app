@@ -177,7 +177,7 @@ final roomsWithPaymentStatusProvider = StreamProvider.autoDispose<List<RoomWithP
 /// عدد الغرف المشغولة — يُحدّث فقط عندما يتغير العدد (وليس عند تغيير حالات فردية)
 final occupiedRoomsCountProvider = Provider<int>((ref) {
   return ref.watch(
-    roomsWithPaymentStatusProvider.select((rooms) => rooms.valueOrNull?.where((r) => r.hasActiveBooking).length ?? 0),
+    roomsWithPaymentStatusProvider.select((rooms) => rooms.value?.where((r) => r.hasActiveBooking).length ?? 0),
   );
 });
 
@@ -186,10 +186,7 @@ final availableRoomsCountProvider = Provider<int>((ref) {
   return ref.watch(
     roomsWithPaymentStatusProvider.select(
       (rooms) =>
-          rooms.valueOrNull
-              ?.where((r) => !r.hasActiveBooking && !StatusUtils.isUnderMaintenance(r.room.status))
-              .length ??
-          0,
+          rooms.value?.where((r) => !r.hasActiveBooking && !StatusUtils.isUnderMaintenance(r.room.status)).length ?? 0,
     ),
   );
 });
@@ -197,7 +194,7 @@ final availableRoomsCountProvider = Provider<int>((ref) {
 /// عدد الغرف المتأخرة السداد — يُحدّث فقط عندما يتغير العدد
 final overdueRoomsCountProvider = Provider<int>((ref) {
   return ref.watch(
-    roomsWithPaymentStatusProvider.select((rooms) => rooms.valueOrNull?.where((r) => r.isPaymentOverdue).length ?? 0),
+    roomsWithPaymentStatusProvider.select((rooms) => rooms.value?.where((r) => r.isPaymentOverdue).length ?? 0),
   );
 });
 
@@ -207,7 +204,7 @@ final overdueRoomsCountProvider = Provider<int>((ref) {
 final maintenanceRoomsCountProvider = Provider<int>((ref) {
   return ref.watch(
     roomsWithPaymentStatusProvider.select(
-      (rooms) => rooms.valueOrNull?.where((r) => StatusUtils.isUnderMaintenance(r.room.status)).length ?? 0,
+      (rooms) => rooms.value?.where((r) => StatusUtils.isUnderMaintenance(r.room.status)).length ?? 0,
     ),
   );
 });

@@ -353,15 +353,16 @@ class _UserAccountSummary {
 }
 
 class UserPermissionsCard extends ConsumerStatefulWidget {
-  const UserPermissionsCard({      required this.username,
-      required this.displayName,
-      required this.userType,
-      required this.isFixedAccount,
-      super.key,
-      this.isCloudUser = false,
-      this.docId,
-      this.onDeleted,
-      this.onUpdated,
+  const UserPermissionsCard({
+    required this.username,
+    required this.displayName,
+    required this.userType,
+    required this.isFixedAccount,
+    super.key,
+    this.isCloudUser = false,
+    this.docId,
+    this.onDeleted,
+    this.onUpdated,
   });
   final String username;
   final String displayName;

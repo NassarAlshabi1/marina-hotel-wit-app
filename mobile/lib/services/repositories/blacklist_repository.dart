@@ -31,16 +31,17 @@ bool _tripleMatch(List<String> a, List<String> b) {
 }
 
 class BlacklistEntry {
-  const BlacklistEntry({      required this.id,
-      required this.name,
-      required this.createdAt,
-      this.nationality,
-      this.nationalId,
-      this.phone,
-      this.reason,
-      this.notes,
-      this.reportedBy = 'police',
-      this.active = true,
+  const BlacklistEntry({
+    required this.id,
+    required this.name,
+    required this.createdAt,
+    this.nationality,
+    this.nationalId,
+    this.phone,
+    this.reason,
+    this.notes,
+    this.reportedBy = 'police',
+    this.active = true,
   });
   final int id;
   final String name;

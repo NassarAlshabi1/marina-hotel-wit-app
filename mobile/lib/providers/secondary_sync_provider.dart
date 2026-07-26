@@ -39,8 +39,11 @@ class SecondarySyncState {
 }
 
 /// Notifier يدير حالة المزامنة الثانوية
-class SecondarySyncNotifier extends StateNotifier<SecondarySyncState> {
-  SecondarySyncNotifier() : super(_loadInitialState());
+class SecondarySyncNotifier extends Notifier<SecondarySyncState> {
+  @override
+  SecondarySyncState build() {
+    return _loadInitialState();
+  }
 
   static SecondarySyncState _loadInitialState() {
     return SecondarySyncState(
@@ -69,6 +72,4 @@ class SecondarySyncNotifier extends StateNotifier<SecondarySyncState> {
 }
 
 /// Provider لحالة المزامنة الثانوية
-final secondarySyncProvider = StateNotifierProvider<SecondarySyncNotifier, SecondarySyncState>((ref) {
-  return SecondarySyncNotifier();
-});
+final secondarySyncProvider = NotifierProvider<SecondarySyncNotifier, SecondarySyncState>(SecondarySyncNotifier.new);

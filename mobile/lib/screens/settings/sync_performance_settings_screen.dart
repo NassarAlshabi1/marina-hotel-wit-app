@@ -55,33 +55,33 @@ class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceS
     return PerformanceInspector(
       name: 'SyncPerformanceSettingsScreen',
       child: Scaffold(
-      appBar: AppBar(title: const Text('تحسين أداء المزامنة'), centerTitle: true, elevation: 0),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // شرح النظام
-            _buildExplanationCard(),
+        appBar: AppBar(title: const Text('تحسين أداء المزامنة'), centerTitle: true, elevation: 0),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // شرح النظام
+              _buildExplanationCard(),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // ملفات التعريف المحددة مسبقاً
-            _buildProfilesSection(),
+              // ملفات التعريف المحددة مسبقاً
+              _buildProfilesSection(),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // إعدادات مخصصة
-            _buildCustomSettingsSection(),
+              // إعدادات مخصصة
+              _buildCustomSettingsSection(),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // إحصائيات الأداء
-            _buildPerformanceStatsSection(),
-          ],
+              // إحصائيات الأداء
+              _buildPerformanceStatsSection(),
+            ],
+          ),
         ),
       ),
-    )
     );
   }
 
@@ -372,7 +372,6 @@ class _SyncPerformanceSettingsScreenState extends ConsumerState<SyncPerformanceS
   Future<Map<String, dynamic>> _loadPerformanceStats() async {
     final performanceStats = ref.read(syncPerformanceOptimizerProvider).getPerformanceStatus();
     final usageStats = await ref.read(dataUsageManagerProvider).getUsageStats();
-
 
     return {...performanceStats, ...usageStats};
   }

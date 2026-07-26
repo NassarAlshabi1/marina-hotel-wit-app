@@ -20,13 +20,14 @@ class EmployeesRepository {
 
   String _normalizeStatus(String status) => StatusUtils.canonicalEmployeeStatus(status);
 
-  Future<int> create({      required String name,
-      required String status,
-      double? basicSalary,
-      double? salary,
-      String? position,
-      String? phone,
-      String? hireDate,
+  Future<int> create({
+    required String name,
+    required String status,
+    double? basicSalary,
+    double? salary,
+    String? position,
+    String? phone,
+    String? hireDate,
   }) async {
     try {
       final s = salary ?? basicSalary ?? 0.0;

@@ -1303,7 +1303,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> with SyncOnEx
     String phone = '';
     try {
       final bookingsAsync = ref.read(bookingsListProvider);
-      final bookings = bookingsAsync.valueOrNull ?? [];
+      final bookings = bookingsAsync.value ?? [];
       final booking = bookings.cast<Booking?>().firstWhere((b) => b?.id == debt.bookingLocalId, orElse: () => null);
       if (booking != null) {
         phone = booking.guestPhone;

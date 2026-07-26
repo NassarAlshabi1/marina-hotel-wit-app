@@ -1,4 +1,3 @@
-
 import 'dart:async';
 
 import 'appwrite_sync_utils.dart';

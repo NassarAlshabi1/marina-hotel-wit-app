@@ -16,13 +16,14 @@ import 'enhanced_pdf_utils.dart';
 /// [ReportPdfBuilder.buildAndShare] أو [ReportPdfBuilder.buildDocument].
 class ReportPdfConfig {
   /// إنشاء إعدادات تقرير PDF
-  ReportPdfConfig({      required this.title,
-      required this.buildContent,
-      required this.fileName,
-      this.extraHeaderLine,
-      this.fromDate,
-      this.toDate,
-      this.customHeader,
+  ReportPdfConfig({
+    required this.title,
+    required this.buildContent,
+    required this.fileName,
+    this.extraHeaderLine,
+    this.fromDate,
+    this.toDate,
+    this.customHeader,
   });
 
   /// عنوان التقرير (مثال: 'مدفوعات النزلاء')

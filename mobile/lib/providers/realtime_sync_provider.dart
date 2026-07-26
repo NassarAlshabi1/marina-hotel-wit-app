@@ -10,12 +10,12 @@ import '../services/appwrite_realtime_sync.dart';
 /// مزود مزامنة Appwrite Realtime (Singleton)
 final appwriteRealtimeSyncProvider = Provider<AppwriteRealtimeSync>((ref) {
   final sync = AppwriteRealtimeSync();
-  
+
   // تهيئة الجهاز ID
   ref.onDispose(() {
     // لا نريد استدعاء dispose() هنا لأن الـ singleton يشارك في التطبيق كله
   });
-  
+
   return sync;
 });
 
