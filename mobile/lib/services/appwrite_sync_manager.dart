@@ -1279,14 +1279,12 @@ class AppwriteSyncManager {
               context: {
                 'recordsPushed': '$recordsPushed',
                 'recordsPulled': '$recordsPulled',
-                // ignore: dead_null_aware_expression
-                'errorMessage': errorMessage ?? '',
+                'errorMessage': errorMessage,
               },
             );
             await WhatsAppNotificationService.instance.notifySyncError(
               operation: 'sync',
-              // ignore: dead_null_aware_expression
-              error: errorMessage ?? e.toString(),
+              error: errorMessage,
               recordsPushed: recordsPushed,
               recordsPulled: recordsPulled,
             );
