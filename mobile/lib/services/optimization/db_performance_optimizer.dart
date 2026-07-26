@@ -152,7 +152,9 @@ class DatabaseOptimizer {
   }
 
   /// Get index statistics
-  static Future<Map<String, dynamic>> getIndexStats(local_db.AppDatabase db) async {
+  static Future<Map<String, dynamic>> getIndexStats(
+    local_db.AppDatabase db,
+  ) async {
     final result = await db.customSelect('''
       SELECT 
         tbl.name as table_name,
