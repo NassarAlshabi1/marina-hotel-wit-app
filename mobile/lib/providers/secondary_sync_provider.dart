@@ -1,1 +1,75 @@
-aW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXJfcml2ZXJwb2QvZmx1dHRlcl9yaXZlcnBvZC5kYXJ0JzsKaW1wb3J0ICcuLi9zZXJ2aWNlcy9zZWNvbmRhcnlfYXBwd3JpdGVfY29uZmlnLmRhcnQnOwoKLy8vINit2KfZhNipINin2YTZhdiy2KfZhdmG2Kkg2KfZhNir2KfZhtmI2YrYqSDYp9mE2YXYudix2YjYttipINmB2Yog2KfZhNmI2KfYrNmH2KkKY2xhc3MgU2Vjb25kYXJ5U3luY1N0YXRlIHsKICBjb25zdCBTZWNvbmRhcnlTeW5jU3RhdGUoewogICAgcmVxdWlyZWQgdGhpcy5pc0VuYWJsZWQsCiAgICByZXF1aXJlZCB0aGlzLmlzUHVzaEVuYWJsZWQsCiAgICByZXF1aXJlZCB0aGlzLmlzUHVsbEVuYWJsZWQsCiAgICByZXF1aXJlZCB0aGlzLmlzQ29uZmlndXJlZCwKICAgIHRoaXMubGFzdFN5bmMsCiAgICB0aGlzLnBlbmRpbmdDb3VudCA9IDAsCiAgfSk7CgogIGZpbmFsIGJvb2wgaXNFbmFibGVkOwogIGZpbmFsIGJvb2wgaXNQdXNoRW5hYmxlZDsKICBmaW5hbCBib29sIGlzUHVsbEVuYWJsZWQ7CiAgZmluYWwgYm9vbCBpc0NvbmZpZ3VyZWQ7CiAgZmluYWwgRGF0ZVRpbWU/IGxhc3RTeW5jOwogIGZpbmFsIGludCBwZW5kaW5nQ291bnQ7CgogIFNlY29uZGFyeVN5bmNTdGF0ZSBjb3B5V2l0aCh7CiAgICBib29sPyBpc0VuYWJsZWQsCiAgICBib29sPyBpc1B1c2hFbmFibGVkLAogICAgYm9vbD8gaXNQdWxsRW5hYmxlZCwKICAgIGJvb2w/IGlzQ29uZmlndXJlZCwKICAgIERhdGVUaW1lPyBsYXN0U3luYywKICAgIGludD8gcGVuZGluZ0NvdW50LAogIH0pIHsKICAgIHJldHVybiBTZWNvbmRhcnlTeW5jU3RhdGUoCiAgICAgIGlzRW5hYmxlZDogaXNFbmFibGVkID8/IHRoaXMuaXNFbmFibGVkLAogICAgICBpc1B1c2hFbmFibGVkOiBpc1B1c2hFbmFibGVkID8/IHRoaXMuaXNQdXNoRW5hYmxlZCwKICAgICAgaXNQdWxsRW5hYmxlZDogaXNQdWxsRW5hYmxlZCA/PyB0aGlzLmlzUHVsbEVuYWJsZWQsCiAgICAgIGlzQ29uZmlndXJlZDogaXNDb25maWd1cmVkID8/IHRoaXMuaXNDb25maWd1cmVkLAogICAgICBsYXN0U3luYzogbGFzdFN5bmMgPz8gdGhpcy5sYXN0U3luYywKICAgICAgcGVuZGluZ0NvdW50OiBwZW5kaW5nQ291bnQgPz8gdGhpcy5wZW5kaW5nQ291bnQsCiAgICApOwogIH0KfQoKLy8vIE5vdGlmaWVyINmK2K/ZitixINit2KfZhNipINin2YTZhdiy2KfZhdmG2Kkg2KfZhNir2KfZhtmI2YrYqQpjbGFzcyBTZWNvbmRhcnlTeW5jTm90aWZpZXIgZXh0ZW5kcyBTdGF0ZU5vdGlmaWVyPFNlY29uZGFyeVN5bmNTdGF0ZT4gewogIFNlY29uZGFyeVN5bmNOb3RpZmllcigpIDogc3VwZXIoX2xvYWRJbml0aWFsU3RhdGUoKSk7CgogIHN0YXRpYyBTZWNvbmRhcnlTeW5jU3RhdGUgX2xvYWRJbml0aWFsU3RhdGUoKSB7CiAgICByZXR1cm4gU2Vjb25kYXJ5U3luY1N0YXRlKAogICAgICBpc0VuYWJsZWQ6IFNlY29uZGFyeUFwcHdyaXRlQ29uZmlnLmlzRW5hYmxlZCwKICAgICAgaXNQdXNoRW5hYmxlZDogU2Vjb25kYXJ5QXBwd3JpdGVDb25maWcuaXNQdXNoRW5hYmxlZCwKICAgICAgaXNQdWxsRW5hYmxlZDogU2Vjb25kYXJ5QXBwd3JpdGVDb25maWcuaXNQdWxsRW5hYmxlZCwKICAgICAgaXNDb25maWd1cmVkOiBTZWNvbmRhcnlBcHB3cml0ZUNvbmZpZy5pc0NvbmZpZ3VyZWQsCiAgICAgIGxhc3RTeW5jOiBTZWNvbmRhcnlBcHB3cml0ZUNvbmZpZy5sYXN0U3luY1RpbWUsCiAgICApOwogIH0KCiAgLy8vINiq2K3Yr9mK2Ksg2KfZhNit2KfZhNipINmF2YYg2KfZhNil2LnYr9in2K/Yp9iqINin2YTZhdit2YHZiNi42KkKICB2b2lkIHJlZnJlc2goKSB7CiAgICBzdGF0ZSA9IF9sb2FkSW5pdGlhbFN0YXRlKCk7CiAgfQoKICAvLy8g2KrYrdiv2YrYqyDZiNmC2Kog2KLYrtixINmF2LLYp9mF2YbYqQogIHZvaWQgdXBkYXRlTGFzdFN5bmMoRGF0ZVRpbWUgdGltZSkgewogICAgc3RhdGUgPSBzdGF0ZS5jb3B5V2l0aChsYXN0U3luYzogdGltZSk7CiAgfQoKICAvLy8g2KrYrdiv2YrYqyDYudiv2K8g2KfZhNiz2KzZhNin2Kog2LrZitixINin2YTZhdmP2LPZhNmR2YXYqQogIHZvaWQgdXBkYXRlUGVuZGluZ0NvdW50KGludCBjb3VudCkgewogICAgc3RhdGUgPSBzdGF0ZS5jb3B5V2l0aChwZW5kaW5nQ291bnQ6IGNvdW50KTsKICB9Cn0KCi8vLyBQcm92aWRlciDZhNit2KfZhNipINin2YTZhdiy2KfZhdmG2Kkg2KfZhNir2KfZhtmI2YrYqQpmaW5hbCBzZWNvbmRhcnlTeW5jUHJvdmlkZXIgPQogICAgU3RhdGVOb3RpZmllclByb3ZpZGVyPFNlY29uZGFyeVN5bmNOb3RpZmllciwgU2Vjb25kYXJ5U3luY1N0YXRlPigocmVmKSB7CiAgICAgIHJldHVybiBTZWNvbmRhcnlTeW5jTm90aWZpZXIoKTsKICAgIH0pOwo=
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../services/secondary_appwrite_config.dart';
+
+/// حالة المزامنة الثانوية المعروضة في الواجهة
+class SecondarySyncState {
+  const SecondarySyncState({
+    required this.isEnabled,
+    required this.isPushEnabled,
+    required this.isPullEnabled,
+    required this.isConfigured,
+    this.lastSync,
+    this.pendingCount = 0,
+  });
+
+  final bool isEnabled;
+  final bool isPushEnabled;
+  final bool isPullEnabled;
+  final bool isConfigured;
+  final DateTime? lastSync;
+  final int pendingCount;
+
+  SecondarySyncState copyWith({
+    bool? isEnabled,
+    bool? isPushEnabled,
+    bool? isPullEnabled,
+    bool? isConfigured,
+    DateTime? lastSync,
+    int? pendingCount,
+  }) {
+    return SecondarySyncState(
+      isEnabled: isEnabled ?? this.isEnabled,
+      isPushEnabled: isPushEnabled ?? this.isPushEnabled,
+      isPullEnabled: isPullEnabled ?? this.isPullEnabled,
+      isConfigured: isConfigured ?? this.isConfigured,
+      lastSync: lastSync ?? this.lastSync,
+      pendingCount: pendingCount ?? this.pendingCount,
+    );
+  }
+}
+
+/// Notifier يدير حالة المزامنة الثانوية
+class SecondarySyncNotifier extends StateNotifier<SecondarySyncState> {
+  SecondarySyncNotifier() : super(_loadInitialState());
+
+  static SecondarySyncState _loadInitialState() {
+    return SecondarySyncState(
+      isEnabled: SecondaryAppwriteConfig.isEnabled,
+      isPushEnabled: SecondaryAppwriteConfig.isPushEnabled,
+      isPullEnabled: SecondaryAppwriteConfig.isPullEnabled,
+      isConfigured: SecondaryAppwriteConfig.isConfigured,
+      lastSync: SecondaryAppwriteConfig.lastSyncTime,
+    );
+  }
+
+  /// تحديث الحالة من الإعدادات المحفوظة
+  void refresh() {
+    state = _loadInitialState();
+  }
+
+  /// تحديث وقت آخر مزامنة
+  void updateLastSync(DateTime time) {
+    state = state.copyWith(lastSync: time);
+  }
+
+  /// تحديث عدد السجلات غير المُسلّمة
+  void updatePendingCount(int count) {
+    state = state.copyWith(pendingCount: count);
+  }
+}
+
+/// Provider لحالة المزامنة الثانوية
+final secondarySyncProvider =
+    StateNotifierProvider<SecondarySyncNotifier, SecondarySyncState>((ref) {
+      return SecondarySyncNotifier();
+    });
