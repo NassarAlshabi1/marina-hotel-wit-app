@@ -91,7 +91,9 @@ class HotelDayKeyFixService {
       final year = int.tryParse(parts[0]) ?? 1;
       final month = int.tryParse(parts[1]) ?? 1;
       final day = int.tryParse(parts[2]) ?? 1;
-      return HotelTimeEngine.getHotelDayKey(dateTime: DateTime(year, month, day, 14, 1));
+      return HotelTimeEngine.getHotelDayKey(
+        dateTime: DateTime(year, month, day, 14, 1),
+      );
     } catch (_) {
       return HotelTimeEngine.getHotelDayKey();
     }
@@ -107,20 +109,33 @@ class HotelDayKeyFixService {
   /// الآن: 1 معاملة للتحديث + 1 معاملة لـ mergeBatch = 2 معاملة فقط
   Future<int> _fixExpenses(AppDatabase db) async {
     try {
-      final rows = await (db.select(db.expenses)..where((t) => t.deletedAt.isNull())).get();
-      final toFix = <({int id, String localUuid, String correctKey, int version})>[];
+      final rows = await (db.select(
+        db.expenses,
+      )..where((t) => t.deletedAt.isNull())).get();
+      final toFix =
+          <({int id, String localUuid, String correctKey, int version})>[];
       for (final row in rows) {
         final correctKey = computeCorrectHotelDayKey(row.date);
         if (row.hotelDayKey != correctKey) {
-          toFix.add((id: row.id, localUuid: row.localUuid, correctKey: correctKey, version: row.version));
+          toFix.add((
+            id: row.id,
+            localUuid: row.localUuid,
+            correctKey: correctKey,
+            version: row.version,
+          ));
         }
       }
       if (toFix.isEmpty) return 0;
 
       await db.transaction(() async {
         for (final item in toFix) {
-          await (db.update(db.expenses)..where((t) => t.id.equals(item.id))).write(
-            ExpensesCompanion(hotelDayKey: d.Value(item.correctKey), version: d.Value(item.version + 1)),
+          await (db.update(
+            db.expenses,
+          )..where((t) => t.id.equals(item.id))).write(
+            ExpensesCompanion(
+              hotelDayKey: d.Value(item.correctKey),
+              version: d.Value(item.version + 1),
+            ),
           );
         }
       });
@@ -128,13 +143,17 @@ class HotelDayKeyFixService {
       final outboxDao = OutboxDao(db);
       final now = Time.nowEpoch();
       await outboxDao.mergeBatch(
-        toFix.map((item) => <String, dynamic>{
-          'entity': 'expenses',
-          'op': 'update',
-          'localUuid': item.localUuid,
-          'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
-          'clientTs': now,
-        }).toList(),
+        toFix
+            .map(
+              (item) => <String, dynamic>{
+                'entity': 'expenses',
+                'op': 'update',
+                'localUuid': item.localUuid,
+                'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+                'clientTs': now,
+              },
+            )
+            .toList(),
       );
 
       dlog(() => '  📋 expenses: تم إصلاح ${toFix.length} سجل');
@@ -149,20 +168,33 @@ class HotelDayKeyFixService {
   /// ✅ تحسين أداء: نفس نمط _fixExpenses — batch + mergeBatch
   Future<int> _fixSalaryWithdrawals(AppDatabase db) async {
     try {
-      final rows = await (db.select(db.salaryWithdrawals)..where((t) => t.deletedAt.isNull())).get();
-      final toFix = <({int id, String localUuid, String correctKey, int version})>[];
+      final rows = await (db.select(
+        db.salaryWithdrawals,
+      )..where((t) => t.deletedAt.isNull())).get();
+      final toFix =
+          <({int id, String localUuid, String correctKey, int version})>[];
       for (final row in rows) {
         final correctKey = computeCorrectHotelDayKey(row.withdrawDate);
         if (row.hotelDayKey != correctKey) {
-          toFix.add((id: row.id, localUuid: row.localUuid, correctKey: correctKey, version: row.version));
+          toFix.add((
+            id: row.id,
+            localUuid: row.localUuid,
+            correctKey: correctKey,
+            version: row.version,
+          ));
         }
       }
       if (toFix.isEmpty) return 0;
 
       await db.transaction(() async {
         for (final item in toFix) {
-          await (db.update(db.salaryWithdrawals)..where((t) => t.id.equals(item.id))).write(
-            SalaryWithdrawalsCompanion(hotelDayKey: d.Value(item.correctKey), version: d.Value(item.version + 1)),
+          await (db.update(
+            db.salaryWithdrawals,
+          )..where((t) => t.id.equals(item.id))).write(
+            SalaryWithdrawalsCompanion(
+              hotelDayKey: d.Value(item.correctKey),
+              version: d.Value(item.version + 1),
+            ),
           );
         }
       });
@@ -170,13 +202,17 @@ class HotelDayKeyFixService {
       final outboxDao = OutboxDao(db);
       final now = Time.nowEpoch();
       await outboxDao.mergeBatch(
-        toFix.map((item) => <String, dynamic>{
-          'entity': 'salary_withdrawals',
-          'op': 'update',
-          'localUuid': item.localUuid,
-          'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
-          'clientTs': now,
-        }).toList(),
+        toFix
+            .map(
+              (item) => <String, dynamic>{
+                'entity': 'salary_withdrawals',
+                'op': 'update',
+                'localUuid': item.localUuid,
+                'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+                'clientTs': now,
+              },
+            )
+            .toList(),
       );
 
       dlog(() => '  📋 salary_withdrawals: تم إصلاح ${toFix.length} سجل');
@@ -235,11 +271,17 @@ class HotelDayKeyFixService {
       final outboxItems = <Map<String, dynamic>>[];
       try {
         // جلب مصروفات الرواتب النشطة
-        final salaryExpenses = await (db.select(db.expenses)..where((t) => t.deletedAt.isNull())).get();
-        final salaryTypeExpenses = salaryExpenses.where((e) => _isSalaryType(e.expenseType)).toList();
+        final salaryExpenses = await (db.select(
+          db.expenses,
+        )..where((t) => t.deletedAt.isNull())).get();
+        final salaryTypeExpenses = salaryExpenses
+            .where((e) => _isSalaryType(e.expenseType))
+            .toList();
 
         // جلب سحوبات الرواتب النشطة
-        final withdrawals = await (db.select(db.salaryWithdrawals)..where((t) => t.deletedAt.isNull())).get();
+        final withdrawals = await (db.select(
+          db.salaryWithdrawals,
+        )..where((t) => t.deletedAt.isNull())).get();
 
         // بناء خريطة مصروفات الرواتب: (employeeId, hotelDayKey) → List<Expense>
         final expenseMap = <String, List<Expense>>{};
@@ -250,24 +292,29 @@ class HotelDayKeyFixService {
         }
 
         // جلب الموظفين لبناء خريطة id → localUuid (لـ employeeUuid في outbox)
-        final employees = await (db.select(db.employees)..where((t) => t.deletedAt.isNull())).get();
+        final employees = await (db.select(
+          db.employees,
+        )..where((t) => t.deletedAt.isNull())).get();
         final empUuidMap = <int, String>{};
         for (final emp in employees) {
           empUuidMap[emp.id] = emp.localUuid;
         }
 
         // ✅ تحسين: جمع كل التحديثات ثم تنفيذها كدفقة واحدة
-        final dbUpdates = <({int id, String newReason, int matchedExpId, int version})>[];
+        final dbUpdates =
+            <({int id, String newReason, int matchedExpId, int version})>[];
         final customSqlUpdates = <({int id, int expenseId})>[];
 
         for (final sw in withdrawals) {
           // تخطي السحوبات المباشرة (ليس لها مصروف مقابل)
-          if (sw.reason != null && sw.reason!.startsWith('direct_withdrawal_')) {
+          if (sw.reason != null &&
+              sw.reason!.startsWith('direct_withdrawal_')) {
             continue;
           }
 
           // تخطي السحوبات المرتبطة بالفعل
-          final hasExpRef = sw.reason != null && RegExp(r'exp_(\d+)').hasMatch(sw.reason!);
+          final hasExpRef =
+              sw.reason != null && RegExp(r'exp_(\d+)').hasMatch(sw.reason!);
           if (hasExpRef) continue;
 
           // البحث عن مصروف مطابق
@@ -289,7 +336,12 @@ class HotelDayKeyFixService {
           // تسجيل التحديثات للتنفيذ الدفعي — matched مضمون non-null هنا
           final matchedId = matched.id;
           final newReason = 'exp_$matchedId';
-          dbUpdates.add((id: sw.id, newReason: newReason, matchedExpId: matchedId, version: sw.version));
+          dbUpdates.add((
+            id: sw.id,
+            newReason: newReason,
+            matchedExpId: matchedId,
+            version: sw.version,
+          ));
           customSqlUpdates.add((id: sw.id, expenseId: matchedId));
 
           // تسجيل عنصر outbox
@@ -316,9 +368,10 @@ class HotelDayKeyFixService {
           });
 
           step2Fixed++;
-          dlog(() =>
-            '  🔗 ربط سحب راتب قديم: sw.id=${sw.id} → expense.id=$matchedId '
-            '(موظف=${sw.employeeId}, يوم=$swDayKey, مبلغ=${sw.amount})',
+          dlog(
+            () =>
+                '  🔗 ربط سحب راتب قديم: sw.id=${sw.id} → expense.id=$matchedId '
+                '(موظف=${sw.employeeId}, يوم=$swDayKey, مبلغ=${sw.amount})',
           );
         }
 
@@ -327,7 +380,9 @@ class HotelDayKeyFixService {
           final now = Time.nowEpoch();
           await db.transaction(() async {
             for (final item in dbUpdates) {
-              await (db.update(db.salaryWithdrawals)..where((t) => t.id.equals(item.id))).write(
+              await (db.update(
+                db.salaryWithdrawals,
+              )..where((t) => t.id.equals(item.id))).write(
                 SalaryWithdrawalsCompanion(
                   reason: d.Value(item.newReason),
                   updatedAt: d.Value(now),
@@ -359,9 +414,10 @@ class HotelDayKeyFixService {
 
       final total = step1Fixed + step2Fixed;
       if (total > 0) {
-        dlog(() =>
-          '  🔗 expense_withdrawal_links: تم إصلاح $total سجل '
-          '(step1=$step1Fixed, step2=$step2Fixed, outbox=${outboxItems.length})',
+        dlog(
+          () =>
+              '  🔗 expense_withdrawal_links: تم إصلاح $total سجل '
+              '(step1=$step1Fixed, step2=$step2Fixed, outbox=${outboxItems.length})',
         );
       }
       return total;
@@ -373,7 +429,13 @@ class HotelDayKeyFixService {
 
   /// هل نوع المصروف مرتبط بالرواتب
   static bool _isSalaryType(String type) {
-    const salaryKeywords = ['رواتب', 'سحب راتب', 'سحب من الراتب', 'خصم راتب', 'خصم من الراتب'];
+    const salaryKeywords = [
+      'رواتب',
+      'سحب راتب',
+      'سحب من الراتب',
+      'خصم راتب',
+      'خصم من الراتب',
+    ];
     for (final keyword in salaryKeywords) {
       if (type.contains(keyword)) return true;
     }
@@ -404,14 +466,18 @@ class HotelDayKeyFixService {
   Future<int> _fixSalaryWithdrawalsEmployeeUuid(AppDatabase db) async {
     try {
       // جلب الموظفين لبناء خريطة id → localUuid
-      final employees = await (db.select(db.employees)..where((t) => t.deletedAt.isNull())).get();
+      final employees = await (db.select(
+        db.employees,
+      )..where((t) => t.deletedAt.isNull())).get();
       final empUuidMap = <int, String>{};
       for (final emp in employees) {
         empUuidMap[emp.id] = emp.localUuid;
       }
 
       // جلب سجلات salary_withdrawals النشطة
-      final rows = await (db.select(db.salaryWithdrawals)..where((t) => t.deletedAt.isNull())).get();
+      final rows = await (db.select(
+        db.salaryWithdrawals,
+      )..where((t) => t.deletedAt.isNull())).get();
 
       const int fixed = 0;
       for (final _ in rows) {
@@ -432,21 +498,34 @@ class HotelDayKeyFixService {
   /// ✅ تحسين أداء: batch + mergeBatch
   Future<int> _fixPayments(AppDatabase db) async {
     try {
-      final rows = await (db.select(db.payments)..where((t) => t.deletedAt.isNull())).get();
-      final toFix = <({int id, String localUuid, String correctKey, int version})>[];
+      final rows = await (db.select(
+        db.payments,
+      )..where((t) => t.deletedAt.isNull())).get();
+      final toFix =
+          <({int id, String localUuid, String correctKey, int version})>[];
       for (final row in rows) {
         if (row.paymentDate.isEmpty) continue;
         final correctKey = computeCorrectHotelDayKey(row.paymentDate);
         if (row.hotelDayKey != correctKey) {
-          toFix.add((id: row.id, localUuid: row.localUuid, correctKey: correctKey, version: row.version));
+          toFix.add((
+            id: row.id,
+            localUuid: row.localUuid,
+            correctKey: correctKey,
+            version: row.version,
+          ));
         }
       }
       if (toFix.isEmpty) return 0;
 
       await db.transaction(() async {
         for (final item in toFix) {
-          await (db.update(db.payments)..where((t) => t.id.equals(item.id))).write(
-            PaymentsCompanion(hotelDayKey: d.Value(item.correctKey), version: d.Value(item.version + 1)),
+          await (db.update(
+            db.payments,
+          )..where((t) => t.id.equals(item.id))).write(
+            PaymentsCompanion(
+              hotelDayKey: d.Value(item.correctKey),
+              version: d.Value(item.version + 1),
+            ),
           );
         }
       });
@@ -454,13 +533,17 @@ class HotelDayKeyFixService {
       final outboxDao = OutboxDao(db);
       final now = Time.nowEpoch();
       await outboxDao.mergeBatch(
-        toFix.map((item) => <String, dynamic>{
-          'entity': 'payments',
-          'op': 'update',
-          'localUuid': item.localUuid,
-          'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
-          'clientTs': now,
-        }).toList(),
+        toFix
+            .map(
+              (item) => <String, dynamic>{
+                'entity': 'payments',
+                'op': 'update',
+                'localUuid': item.localUuid,
+                'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+                'clientTs': now,
+              },
+            )
+            .toList(),
       );
 
       dlog(() => '  📋 payments: تم إصلاح ${toFix.length} سجل');
@@ -476,20 +559,31 @@ class HotelDayKeyFixService {
   Future<int> _fixBookingNights(AppDatabase db) async {
     try {
       final rows = await db.select(db.bookingNights).get();
-      final toFix = <({int id, String localUuid, String correctKey, int version})>[];
+      final toFix =
+          <({int id, String localUuid, String correctKey, int version})>[];
       for (final row in rows) {
         if (row.nightStart.isEmpty) continue;
         final correctKey = computeCorrectHotelDayKey(row.nightStart);
         if (row.hotelDayKey != correctKey) {
-          toFix.add((id: row.id, localUuid: row.localUuid, correctKey: correctKey, version: row.version));
+          toFix.add((
+            id: row.id,
+            localUuid: row.localUuid,
+            correctKey: correctKey,
+            version: row.version,
+          ));
         }
       }
       if (toFix.isEmpty) return 0;
 
       await db.transaction(() async {
         for (final item in toFix) {
-          await (db.update(db.bookingNights)..where((t) => t.id.equals(item.id))).write(
-            BookingNightsCompanion(hotelDayKey: d.Value(item.correctKey), version: d.Value(item.version + 1)),
+          await (db.update(
+            db.bookingNights,
+          )..where((t) => t.id.equals(item.id))).write(
+            BookingNightsCompanion(
+              hotelDayKey: d.Value(item.correctKey),
+              version: d.Value(item.version + 1),
+            ),
           );
         }
       });
@@ -497,13 +591,17 @@ class HotelDayKeyFixService {
       final outboxDao = OutboxDao(db);
       final now = Time.nowEpoch();
       await outboxDao.mergeBatch(
-        toFix.map((item) => <String, dynamic>{
-          'entity': 'booking_nights',
-          'op': 'update',
-          'localUuid': item.localUuid,
-          'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
-          'clientTs': now,
-        }).toList(),
+        toFix
+            .map(
+              (item) => <String, dynamic>{
+                'entity': 'booking_nights',
+                'op': 'update',
+                'localUuid': item.localUuid,
+                'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+                'clientTs': now,
+              },
+            )
+            .toList(),
       );
 
       dlog(() => '  📋 booking_nights: تم إصلاح ${toFix.length} سجل');
@@ -519,20 +617,31 @@ class HotelDayKeyFixService {
   Future<int> _fixSalaryPayments(AppDatabase db) async {
     try {
       final rows = await db.select(db.salaryPayments).get();
-      final toFix = <({int id, String localUuid, String correctKey, int version})>[];
+      final toFix =
+          <({int id, String localUuid, String correctKey, int version})>[];
       for (final row in rows) {
         if (row.paymentDateIso.isEmpty) continue;
         final correctKey = computeCorrectHotelDayKey(row.paymentDateIso);
         if (row.hotelDayKey != correctKey) {
-          toFix.add((id: row.id, localUuid: row.localUuid, correctKey: correctKey, version: row.version));
+          toFix.add((
+            id: row.id,
+            localUuid: row.localUuid,
+            correctKey: correctKey,
+            version: row.version,
+          ));
         }
       }
       if (toFix.isEmpty) return 0;
 
       await db.transaction(() async {
         for (final item in toFix) {
-          await (db.update(db.salaryPayments)..where((t) => t.id.equals(item.id))).write(
-            SalaryPaymentsCompanion(hotelDayKey: d.Value(item.correctKey), version: d.Value(item.version + 1)),
+          await (db.update(
+            db.salaryPayments,
+          )..where((t) => t.id.equals(item.id))).write(
+            SalaryPaymentsCompanion(
+              hotelDayKey: d.Value(item.correctKey),
+              version: d.Value(item.version + 1),
+            ),
           );
         }
       });
@@ -540,13 +649,17 @@ class HotelDayKeyFixService {
       final outboxDao = OutboxDao(db);
       final now = Time.nowEpoch();
       await outboxDao.mergeBatch(
-        toFix.map((item) => <String, dynamic>{
-          'entity': 'salary_payments',
-          'op': 'update',
-          'localUuid': item.localUuid,
-          'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
-          'clientTs': now,
-        }).toList(),
+        toFix
+            .map(
+              (item) => <String, dynamic>{
+                'entity': 'salary_payments',
+                'op': 'update',
+                'localUuid': item.localUuid,
+                'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+                'clientTs': now,
+              },
+            )
+            .toList(),
       );
 
       dlog(() => '  📋 salary_payments: تم إصلاح ${toFix.length} سجل');
@@ -562,20 +675,31 @@ class HotelDayKeyFixService {
   Future<int> _fixPaymentVoids(AppDatabase db) async {
     try {
       final rows = await db.select(db.paymentVoids).get();
-      final toFix = <({int id, String localUuid, String correctKey, int version})>[];
+      final toFix =
+          <({int id, String localUuid, String correctKey, int version})>[];
       for (final row in rows) {
         if (row.voidedAtIso.isEmpty) continue;
         final correctKey = computeCorrectHotelDayKey(row.voidedAtIso);
         if (row.hotelDayKey != correctKey) {
-          toFix.add((id: row.id, localUuid: row.localUuid, correctKey: correctKey, version: row.version));
+          toFix.add((
+            id: row.id,
+            localUuid: row.localUuid,
+            correctKey: correctKey,
+            version: row.version,
+          ));
         }
       }
       if (toFix.isEmpty) return 0;
 
       await db.transaction(() async {
         for (final item in toFix) {
-          await (db.update(db.paymentVoids)..where((t) => t.id.equals(item.id))).write(
-            PaymentVoidsCompanion(hotelDayKey: d.Value(item.correctKey), version: d.Value(item.version + 1)),
+          await (db.update(
+            db.paymentVoids,
+          )..where((t) => t.id.equals(item.id))).write(
+            PaymentVoidsCompanion(
+              hotelDayKey: d.Value(item.correctKey),
+              version: d.Value(item.version + 1),
+            ),
           );
         }
       });
@@ -583,13 +707,17 @@ class HotelDayKeyFixService {
       final outboxDao = OutboxDao(db);
       final now = Time.nowEpoch();
       await outboxDao.mergeBatch(
-        toFix.map((item) => <String, dynamic>{
-          'entity': 'payment_voids',
-          'op': 'update',
-          'localUuid': item.localUuid,
-          'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
-          'clientTs': now,
-        }).toList(),
+        toFix
+            .map(
+              (item) => <String, dynamic>{
+                'entity': 'payment_voids',
+                'op': 'update',
+                'localUuid': item.localUuid,
+                'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+                'clientTs': now,
+              },
+            )
+            .toList(),
       );
 
       dlog(() => '  📋 payment_voids: تم إصلاح ${toFix.length} سجل');
@@ -605,20 +733,31 @@ class HotelDayKeyFixService {
   Future<int> _fixAuditLogs(AppDatabase db) async {
     try {
       final rows = await db.select(db.auditLogs).get();
-      final toFix = <({int id, String localUuid, String correctKey, int version})>[];
+      final toFix =
+          <({int id, String localUuid, String correctKey, int version})>[];
       for (final row in rows) {
         if (row.timestampIso.isEmpty) continue;
         final correctKey = computeCorrectHotelDayKey(row.timestampIso);
         if (row.hotelDayKey != correctKey) {
-          toFix.add((id: row.id, localUuid: row.localUuid, correctKey: correctKey, version: row.version));
+          toFix.add((
+            id: row.id,
+            localUuid: row.localUuid,
+            correctKey: correctKey,
+            version: row.version,
+          ));
         }
       }
       if (toFix.isEmpty) return 0;
 
       await db.transaction(() async {
         for (final item in toFix) {
-          await (db.update(db.auditLogs)..where((t) => t.id.equals(item.id))).write(
-            AuditLogsCompanion(hotelDayKey: d.Value(item.correctKey), version: d.Value(item.version + 1)),
+          await (db.update(
+            db.auditLogs,
+          )..where((t) => t.id.equals(item.id))).write(
+            AuditLogsCompanion(
+              hotelDayKey: d.Value(item.correctKey),
+              version: d.Value(item.version + 1),
+            ),
           );
         }
       });
@@ -626,13 +765,17 @@ class HotelDayKeyFixService {
       final outboxDao = OutboxDao(db);
       final now = Time.nowEpoch();
       await outboxDao.mergeBatch(
-        toFix.map((item) => <String, dynamic>{
-          'entity': 'audit_logs',
-          'op': 'update',
-          'localUuid': item.localUuid,
-          'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
-          'clientTs': now,
-        }).toList(),
+        toFix
+            .map(
+              (item) => <String, dynamic>{
+                'entity': 'audit_logs',
+                'op': 'update',
+                'localUuid': item.localUuid,
+                'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+                'clientTs': now,
+              },
+            )
+            .toList(),
       );
 
       dlog(() => '  📋 audit_logs: تم إصلاح ${toFix.length} سجل');
