@@ -24,7 +24,8 @@ import 'secondary_appwrite_config.dart';
 /// مثل Primary. كتم أخطاء 404 المتوقعة في upsert probe.
 class SecondaryAppwriteService {
   /// Factory singleton — يُرجع نفس الكائن دائماً.
-  factory SecondaryAppwriteService() => _instance ??= SecondaryAppwriteService._();
+  factory SecondaryAppwriteService() =>
+      _instance ??= SecondaryAppwriteService._();
 
   SecondaryAppwriteService._();
   static SecondaryAppwriteService? _instance;
@@ -50,7 +51,9 @@ class SecondaryAppwriteService {
     }
 
     final apiKey = SecondaryAppwriteConfig.apiKey;
-    _client = Client().setEndpoint(SecondaryAppwriteConfig.endpoint).setProject(SecondaryAppwriteConfig.projectId);
+    _client = Client()
+        .setEndpoint(SecondaryAppwriteConfig.endpoint)
+        .setProject(SecondaryAppwriteConfig.projectId);
     if (apiKey.isNotEmpty) {
       _client!.addHeader('X-Appwrite-Key', apiKey);
     }
@@ -84,14 +87,24 @@ class SecondaryAppwriteService {
     } catch (e) {
       stopwatch.stop();
       debugPrint('❌ [Secondary] testConnection failed: $e');
-      return ConnectionTestResult(success: false, message: '❌ فشل: $e', latencyMs: stopwatch.elapsedMilliseconds);
+      return ConnectionTestResult(
+        success: false,
+        message: '❌ فشل: $e',
+        latencyMs: stopwatch.elapsedMilliseconds,
+      );
     }
   }
 
   /// رفع نسخة شاملة من كل البيانات المحلية إلى Secondary
   Future<FullBackupStats> uploadFullBackup({
-    required void Function(String collection, int current, int total) onProgress,
-    required void Function(String collectionName, int successCount, int failureCount) onCollectionComplete,
+    required void Function(String collection, int current, int total)
+    onProgress,
+    required void Function(
+      String collectionName,
+      int successCount,
+      int failureCount,
+    )
+    onCollectionComplete,
   }) async {
     await ensureInitialized();
     final db = DatabaseManager.instance;
@@ -118,22 +131,34 @@ class SecondaryAppwriteService {
           const reason = 'تخطّي سجل بلا localUuid صالح (معرّف فارغ)';
           stats.failuresByCollection
               .putIfAbsent(coll.name, () => [])
-              .add(FullBackupFailure(reason: reason, collectionName: coll.name));
-          stats.errorsByReason[reason] = (stats.errorsByReason[reason] ?? 0) + 1;
+              .add(
+                FullBackupFailure(reason: reason, collectionName: coll.name),
+              );
+          stats.errorsByReason[reason] =
+              (stats.errorsByReason[reason] ?? 0) + 1;
           continue;
         }
 
         try {
           // ✅ P0: استخدام sanitizePayload بدلاً من filterPayloadForCollection
           // لضمان تحويل الأنواع (double→int), تحويل camelCase, إزالة الحقول الداخلية.
-          final sanitized = AppwriteSyncUtils.sanitizePayload(coll.name, record, collectionId: coll.collectionId);
+          final sanitized = AppwriteSyncUtils.sanitizePayload(
+            coll.name,
+            record,
+            collectionId: coll.collectionId,
+          );
           // ✅ P1: إضافة syncTimestamp + idempotencyKey—حقول كانت مفقودة من ToMaps
           final enhancedData = Map<String, dynamic>.from(sanitized);
           final now = DateTime.now().millisecondsSinceEpoch;
           enhancedData['syncTimestamp'] ??= now;
-          enhancedData['idempotencyKey'] ??= 'backup_${coll.name}_${documentId}_$now';
+          enhancedData['idempotencyKey'] ??=
+              'backup_${coll.name}_${documentId}_$now';
           enhancedData['sync_origin'] ??= 'secondary_backup';
-          await upsertDocument(collectionId: coll.collectionId, documentId: documentId, data: enhancedData);
+          await upsertDocument(
+            collectionId: coll.collectionId,
+            documentId: documentId,
+            data: enhancedData,
+          );
           successCount++;
         } catch (e) {
           failureCount++;
@@ -144,12 +169,17 @@ class SecondaryAppwriteService {
             collectionName: coll.name,
             timestamp: DateTime.now(),
           );
-          stats.failuresByCollection.putIfAbsent(coll.name, () => []).add(failure);
+          stats.failuresByCollection
+              .putIfAbsent(coll.name, () => [])
+              .add(failure);
           // ✅ P3: failedRecords كانت تبقى فارغة—الآن تُملأ بكل فشل
           stats.failedRecords.add(failure);
           // ✅ توسيع error truncation من 100→500 حرف لتحليل أفضل
-          final reasonShort = reason.length > 500 ? reason.substring(0, 500) : reason;
-          stats.errorsByReason[reasonShort] = (stats.errorsByReason[reasonShort] ?? 0) + 1;
+          final reasonShort = reason.length > 500
+              ? reason.substring(0, 500)
+              : reason;
+          stats.errorsByReason[reasonShort] =
+              (stats.errorsByReason[reasonShort] ?? 0) + 1;
         }
       }
 
@@ -174,7 +204,9 @@ class SecondaryAppwriteService {
     return stats;
   }
 
-  static final RegExp _unknownAttrPattern = RegExp(r'Unknown attribute:\s*"([^"]+)"');
+  static final RegExp _unknownAttrPattern = RegExp(
+    r'Unknown attribute:\s*"([^"]+)"',
+  );
 
   // ── مصنّفات أخطاء Appwrite (static/pure — قابلة لإعادة الاستخدام والاختبار) ──
   // ✅ استُخرِجت من الإغلاقات المحلية داخل `_upsertDocumentOnce` ومن الفحص
@@ -184,7 +216,9 @@ class SecondaryAppwriteService {
   /// لأن Appwrite لا يملأ الحقول بشكل متسق دائماً.
   @visibleForTesting
   static bool isNotFoundError(AppwriteException e) =>
-      e.code == 404 || (e.type ?? '').contains('document_not_found') || e.toString().contains('document_not_found');
+      e.code == 404 ||
+      (e.type ?? '').contains('document_not_found') ||
+      e.toString().contains('document_not_found');
 
   /// هل الخطأ "المستند موجود مسبقاً" (409/conflict)؟
   @visibleForTesting
@@ -205,7 +239,8 @@ class SecondaryAppwriteService {
 
   /// معرّف بديل بدون شرطات (نفس Primary). يُعيد '' إن لم يحتوِ على شرطات.
   @visibleForTesting
-  static String altDocumentId(String documentId) => documentId.contains('-') ? documentId.replaceAll('-', '') : '';
+  static String altDocumentId(String documentId) =>
+      documentId.contains('-') ? documentId.replaceAll('-', '') : '';
 
   /// المعرّف القانوني للمستند = **دائماً بشرطات** (UUID بصيغة 8-4-4-4-12).
   ///
@@ -217,7 +252,8 @@ class SecondaryAppwriteService {
   /// يعيد استخدام `IdResolver.normalizeUuid` (مصدر الحقيقة الوحيد للتطبيع)
   /// لتفادي أي انحراف في تعريف "الصيغة القانونية".
   @visibleForTesting
-  static String canonicalDocumentId(String documentId) => IdResolver.normalizeUuid(documentId);
+  static String canonicalDocumentId(String documentId) =>
+      IdResolver.normalizeUuid(documentId);
 
   /// استخراج اسم السمة غير المعروفة من خطأ Appwrite (إن وُجد).
   String? _extractUnknownAttribute(AppwriteException e) {
@@ -247,11 +283,18 @@ class SecondaryAppwriteService {
     final maxRetries = workingData.length + 1;
     for (var attempt = 0; ; attempt++) {
       try {
-        return await _upsertDocumentOnce(collectionId: collectionId, documentId: canonicalId, data: workingData);
+        return await _upsertDocumentOnce(
+          collectionId: collectionId,
+          documentId: canonicalId,
+          data: workingData,
+        );
       } on AppwriteException catch (e) {
         final unknownAttr = _extractUnknownAttribute(e);
-        if (unknownAttr != null && workingData.containsKey(unknownAttr) && attempt < maxRetries) {
-          workingData = Map<String, dynamic>.from(workingData)..remove(unknownAttr);
+        if (unknownAttr != null &&
+            workingData.containsKey(unknownAttr) &&
+            attempt < maxRetries) {
+          workingData = Map<String, dynamic>.from(workingData)
+            ..remove(unknownAttr);
           _logger.warning(
             '⚠️ [Secondary] حقل غير معروف في المخطط — أُزيل وأُعيدت المحاولة: '
             '$collectionId.$unknownAttr',
@@ -286,11 +329,20 @@ class SecondaryAppwriteService {
     //    يجب أن يفشل سريعاً (محاولة واحدة) بدلاً من استهلاك 2×60s على إعادة
     //    محاولات 429 قبل أن يُرجع 404 حتماً للمستندات الجديدة — كما في السجلات.
     //    الكتابة الفعلية (create + fallback updates) تبقى بكامل المحاولات.
-    Future<models.Document> doUpdate(String id, {bool suppressErrorLog = false, bool probe = false}) async {
+    Future<models.Document> doUpdate(
+      String id, {
+      bool suppressErrorLog = false,
+      bool probe = false,
+    }) async {
       return _networkHelper.withRetryAndTimeout(
         operation: () =>
             // ignore: deprecated_member_use
-            _databases!.updateDocument(databaseId: dbId, collectionId: collectionId, documentId: id, data: data),
+            _databases!.updateDocument(
+              databaseId: dbId,
+              collectionId: collectionId,
+              documentId: id,
+              data: data,
+            ),
         operationName: 'secondary_updateDocument',
         suppressErrorLog: suppressErrorLog,
         // probe: محاولة واحدة فقط — لا انتظار طويل على 429/أخطاء عابرة.
@@ -319,7 +371,10 @@ class SecondaryAppwriteService {
       return await doUpdate(documentId, suppressErrorLog: true, probe: true);
     } on AppwriteException catch (updateError) {
       if (isRateLimit(updateError)) {
-        _logger.warning('secondary_upsert: 429 on update $documentId — waiting 65s then create', tag: 'RATE_LIMIT');
+        _logger.warning(
+          'secondary_upsert: 429 on update $documentId — waiting 65s then create',
+          tag: 'RATE_LIMIT',
+        );
         await Future<void>.delayed(const Duration(seconds: 65));
         // انتقل مباشرة للخطوة 2 (create) — لا إعادة try update
       } else if (!isNotFound(updateError)) {
@@ -346,7 +401,11 @@ class SecondaryAppwriteService {
     // نسخة بدون شرطات. نحدّث في مكانه بدل إنشاء نسخة مكررة.
     if (altDocumentId.isNotEmpty) {
       try {
-        return await doUpdate(altDocumentId, suppressErrorLog: true, probe: true);
+        return await doUpdate(
+          altDocumentId,
+          suppressErrorLog: true,
+          probe: true,
+        );
       } on AppwriteException catch (altError) {
         if (!isNotFound(altError)) {
           rethrow;
@@ -387,7 +446,10 @@ class SecondaryAppwriteService {
   /// في upsertDocument بدل فحص `code == 404` فقط. الثانوي يُملأ كسولاً
   /// (سجلات كثيرة لم تُدفَع إليه بعد)، فحذف سجل غير موجود شائع جداً
   /// ولا يجب أن يُعامل كخطأ.
-  Future<void> deleteDocument({required String collectionId, required String documentId}) async {
+  Future<void> deleteDocument({
+    required String collectionId,
+    required String documentId,
+  }) async {
     await ensureInitialized();
     try {
       await _networkHelper.withRetryAndTimeout(
@@ -421,7 +483,9 @@ class SecondaryAppwriteService {
   /// إضافة/إزالة جدول من النسخة الشاملة = تعديل سطر واحد هنا فقط.
   /// (سابقاً كانت قائمة `entities` و`switch` منفصلين يتباعدان مع الوقت،
   /// مما أدى لإسقاط `salary_carry_over_logs` صامتاً من النسخة "الشاملة".)
-  Map<String, Future<List<Map<String, dynamic>>> Function()> _backupFetchers(AppDatabase db) {
+  Map<String, Future<List<Map<String, dynamic>>> Function()> _backupFetchers(
+    AppDatabase db,
+  ) {
     // ✅ إصلاح تطابق الحقول مع Primary:
     // نستخدم `row.toJson()` لكل كيان — تماماً مثل DeltaSyncService في Primary
     // (`_entityConfigs()` → `toJson: (row) => row.toJson()`).
@@ -431,7 +495,8 @@ class SecondaryAppwriteService {
     // في المدخلات). باستخدام toJson تُرسَل نفس أعمدة Primary بالضبط، ثم تمرّ عبر
     // نفس sanitizePayload/collectionSchema — فيتطابق ناتج الحقول حرفياً مع Primary.
     return {
-      'rooms': () async => (await db.select(db.rooms).get()).map((e) => e.toJson()).toList(),
+      'rooms': () async =>
+          (await db.select(db.rooms).get()).map((e) => e.toJson()).toList(),
       'bookings': () async => (await db.select(db.bookings).get()).map((e) {
         final j = e.toJson();
         // ✅ حقل amount الموحّد لجدول bookings (مشتق من المبلغ المستحق)
@@ -439,27 +504,59 @@ class SecondaryAppwriteService {
         j['amount'] = e.totalDueCached;
         return j;
       }).toList(),
-      'payments': () async => (await db.select(db.payments).get()).map((e) => e.toJson()).toList(),
-      'expenses': () async => (await db.select(db.expenses).get()).map((e) => e.toJson()).toList(),
-      'debts': () async => (await db.select(db.debts).get()).map((e) => e.toJson()).toList(),
-      'employees': () async => (await db.select(db.employees).get()).map((e) => e.toJson()).toList(),
-      'booking_notes': () async => (await db.select(db.bookingNotes).get()).map((e) => e.toJson()).toList(),
-      'booking_nights': () async => (await db.select(db.bookingNights).get()).map((e) => e.toJson()).toList(),
-      'cash_transactions': () async => (await db.select(db.cashTransactions).get()).map((e) => e.toJson()).toList(),
-      'salary_cycles': () async => (await db.select(db.salaryCycles).get()).map((e) => e.toJson()).toList(),
-      'salary_payments': () async => (await db.select(db.salaryPayments).get()).map((e) => e.toJson()).toList(),
-      'salary_withdrawals': () async => (await db.select(db.salaryWithdrawals).get()).map((e) => e.toJson()).toList(),
+      'payments': () async =>
+          (await db.select(db.payments).get()).map((e) => e.toJson()).toList(),
+      'expenses': () async =>
+          (await db.select(db.expenses).get()).map((e) => e.toJson()).toList(),
+      'debts': () async =>
+          (await db.select(db.debts).get()).map((e) => e.toJson()).toList(),
+      'employees': () async =>
+          (await db.select(db.employees).get()).map((e) => e.toJson()).toList(),
+      'booking_notes': () async => (await db.select(db.bookingNotes).get())
+          .map((e) => e.toJson())
+          .toList(),
+      'booking_nights': () async => (await db.select(db.bookingNights).get())
+          .map((e) => e.toJson())
+          .toList(),
+      'cash_transactions': () async =>
+          (await db.select(db.cashTransactions).get())
+              .map((e) => e.toJson())
+              .toList(),
+      'salary_cycles': () async => (await db.select(db.salaryCycles).get())
+          .map((e) => e.toJson())
+          .toList(),
+      'salary_payments': () async => (await db.select(db.salaryPayments).get())
+          .map((e) => e.toJson())
+          .toList(),
+      'salary_withdrawals': () async =>
+          (await db.select(db.salaryWithdrawals).get())
+              .map((e) => e.toJson())
+              .toList(),
       'salary_carry_over_logs': () async =>
-          (await db.select(db.salaryCarryOverLogs).get()).map((e) => e.toJson()).toList(),
-      'shift_notes': () async => (await db.select(db.shiftNotes).get()).map((e) => e.toJson()).toList(),
-      'price_adjustments': () async => (await db.select(db.priceAdjustments).get()).map((e) => e.toJson()).toList(),
+          (await db.select(db.salaryCarryOverLogs).get())
+              .map((e) => e.toJson())
+              .toList(),
+      'shift_notes': () async => (await db.select(db.shiftNotes).get())
+          .map((e) => e.toJson())
+          .toList(),
+      'price_adjustments': () async =>
+          (await db.select(db.priceAdjustments).get())
+              .map((e) => e.toJson())
+              .toList(),
       'booking_price_adjustments': () async =>
-          (await db.select(db.bookingPriceAdjustments).get()).map((e) => e.toJson()).toList(),
-      'audit_logs': () async => (await db.select(db.auditLogs).get()).map((e) => e.toJson()).toList(),
-      'payment_voids': () async => (await db.select(db.paymentVoids).get()).map((e) => e.toJson()).toList(),
+          (await db.select(db.bookingPriceAdjustments).get())
+              .map((e) => e.toJson())
+              .toList(),
+      'audit_logs': () async =>
+          (await db.select(db.auditLogs).get()).map((e) => e.toJson()).toList(),
+      'payment_voids': () async => (await db.select(db.paymentVoids).get())
+          .map((e) => e.toJson())
+          .toList(),
       // app_settings ليس جدول Drift — يُبنى من SharedPreferences كما في السابق.
       'app_settings': () async => [await _appSettingsToMap()],
-      'guest_infos': () async => (await db.select(db.guestInfos).get()).map((e) => e.toJson()).toList(),
+      'guest_infos': () async => (await db.select(db.guestInfos).get())
+          .map((e) => e.toJson())
+          .toList(),
     };
   }
 
@@ -475,12 +572,20 @@ class SecondaryAppwriteService {
       final collectionId = AppwriteConfig.collectionIdFor(entity);
       if (collectionId == null) {
         // كيان بلا collectionId مُعرّف — لا يمكن رفعه؛ نتخطّاه صراحةً مع تنبيه.
-        debugPrint('⚠️ [Secondary] تخطّي "$entity": لا يوجد collectionId مطابق');
+        debugPrint(
+          '⚠️ [Secondary] تخطّي "$entity": لا يوجد collectionId مطابق',
+        );
         continue;
       }
 
       final records = await entry.value();
-      result.add(CollectionData(name: entity, collectionId: collectionId, records: records));
+      result.add(
+        CollectionData(
+          name: entity,
+          collectionId: collectionId,
+          records: records,
+        ),
+      );
     }
 
     return result;
@@ -513,9 +618,12 @@ class SecondaryAppwriteService {
       'wa_sendzen_from_number': prefs.getString('wa_sendzen_from_number') ?? '',
       'telegram_enabled': prefs.getBool('telegram_enabled') ?? false,
       'telegram_chat_id': prefs.getString('telegram_chat_id') ?? '',
-      'telegram_notifications_enabled': prefs.getBool('telegram_notifications_enabled') ?? false,
-      'telegram_daily_report_enabled': prefs.getBool('telegram_daily_report_enabled') ?? false,
-      'telegram_daily_report_time': prefs.getString('telegram_daily_report_time') ?? '',
+      'telegram_notifications_enabled':
+          prefs.getBool('telegram_notifications_enabled') ?? false,
+      'telegram_daily_report_enabled':
+          prefs.getBool('telegram_daily_report_enabled') ?? false,
+      'telegram_daily_report_time':
+          prefs.getString('telegram_daily_report_time') ?? '',
       'appwrite_sync_interval': prefs.getInt('appwrite_sync_interval') ?? 15,
       // حقول المزامنة الأساسية (SyncFields)
       'deviceId': deviceId,
@@ -555,7 +663,11 @@ class SecondaryAppwriteService {
 
 /// نتيجة اختبار الاتصال
 class ConnectionTestResult {
-  ConnectionTestResult({required this.success, required this.message, this.latencyMs});
+  ConnectionTestResult({
+    required this.success,
+    required this.message,
+    this.latencyMs,
+  });
   final bool success;
   final String message;
   final int? latencyMs;
@@ -583,7 +695,9 @@ class FullBackupStats {
     buf.writeln();
     buf.writeln('✅ نجح: $successCount');
     buf.writeln('❌ فشل: $failureCount');
-    buf.writeln('📁 الجداول: $fullySuccessfulCollections مكتمل / $failedCollections فاشل');
+    buf.writeln(
+      '📁 الجداول: $fullySuccessfulCollections مكتمل / $failedCollections فاشل',
+    );
     if (error != null) {
       buf.writeln('⚠️ خطأ عام: $error');
     }
@@ -616,7 +730,9 @@ class FullBackupStats {
         buf.writeln('  📁 ${entry.key} (${entry.value.length} خطأ):');
         for (final failure in entry.value) {
           final id = failure.documentId ?? 'بدون معرّف';
-          final reason = failure.reason.length > 200 ? '${failure.reason.substring(0, 200)}...' : failure.reason;
+          final reason = failure.reason.length > 200
+              ? '${failure.reason.substring(0, 200)}...'
+              : failure.reason;
           buf.writeln('    · [$id] $reason');
         }
       }
@@ -639,7 +755,9 @@ class FullBackupStats {
       'error': error,
       'collectionNames': collectionNames,
       'collectionDetails': collectionDetails,
-      'failuresByCollection': failuresByCollection.map((k, v) => MapEntry(k, v.map((f) => f.toJson()).toList())),
+      'failuresByCollection': failuresByCollection.map(
+        (k, v) => MapEntry(k, v.map((f) => f.toJson()).toList()),
+      ),
       'failedRecords': failedRecords.map((f) => f.toJson()).toList(),
       'errorsByReason': errorsByReason,
       'timestamp': DateTime.now().toLocal().toIso8601String(),
@@ -649,10 +767,11 @@ class FullBackupStats {
 
 /// خطأ في رفع سجل واحد
 class FullBackupFailure {
-  FullBackupFailure({      required this.reason,
-      this.documentId,
-      this.collectionName,
-      this.timestamp,
+  FullBackupFailure({
+    required this.reason,
+    this.documentId,
+    this.collectionName,
+    this.timestamp,
   });
   final String? documentId;
   final String reason;
@@ -679,7 +798,11 @@ class FullBackupFailure {
 
 /// بيانات جدول للرفع الشامل
 class CollectionData {
-  CollectionData({required this.name, required this.collectionId, required this.records});
+  CollectionData({
+    required this.name,
+    required this.collectionId,
+    required this.records,
+  });
   final String name;
   final String collectionId;
   final List<Map<String, dynamic>> records;
