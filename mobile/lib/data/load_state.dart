@@ -1,14 +1,1 @@
-class LoadState<T> {
-  const LoadState._(this.data, this.error, this.isLoading);
-
-  final T? data;
-  final Object? error;
-  final bool isLoading;
-
-  static LoadState<T> loading<T>() => LoadState._(null, null, true);
-  static LoadState<T> success<T>(T value) => LoadState._(value, null, false);
-  static LoadState<T> failure<T>(Object error) => LoadState._(null, error, false);
-
-  bool get hasData => data != null;
-  bool get hasError => error != null;
-}
+Y2xhc3MgTG9hZFN0YXRlPFQ+IHsKICBjb25zdCBMb2FkU3RhdGUuXyh0aGlzLmRhdGEsIHRoaXMuZXJyb3IsIHRoaXMuaXNMb2FkaW5nKTsKCiAgZmluYWwgVD8gZGF0YTsKICBmaW5hbCBPYmplY3Q/IGVycm9yOwogIGZpbmFsIGJvb2wgaXNMb2FkaW5nOwoKICBzdGF0aWMgTG9hZFN0YXRlPFQ+IGxvYWRpbmc8VD4oKSA9PiBMb2FkU3RhdGUuXyhudWxsLCBudWxsLCB0cnVlKTsKICBzdGF0aWMgTG9hZFN0YXRlPFQ+IHN1Y2Nlc3M8VD4oVCB2YWx1ZSkgPT4gTG9hZFN0YXRlLl8odmFsdWUsIG51bGwsIGZhbHNlKTsKICBzdGF0aWMgTG9hZFN0YXRlPFQ+IGZhaWx1cmU8VD4oT2JqZWN0IGVycm9yKSA9PgogICAgICBMb2FkU3RhdGUuXyhudWxsLCBlcnJvciwgZmFsc2UpOwoKICBib29sIGdldCBoYXNEYXRhID0+IGRhdGEgIT0gbnVsbDsKICBib29sIGdldCBoYXNFcnJvciA9PiBlcnJvciAhPSBudWxsOwp9Cg==
