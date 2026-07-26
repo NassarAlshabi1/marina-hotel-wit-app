@@ -1,1 +1,306 @@
-aW1wb3J0ICdkYXJ0OmFzeW5jJzsKaW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXIvZm91bmRhdGlvbi5kYXJ0JzsKaW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXJfcml2ZXJwb2QvZmx1dHRlcl9yaXZlcnBvZC5kYXJ0JzsKaW1wb3J0ICcuLi9zZXJ2aWNlcy9hdXRoX2xvY2FsX3N0b3JlLmRhcnQnIHNob3cgQXV0aExvY2FsU3RvcmUsIEF1dGhUeXBlOwppbXBvcnQgJy4uL3V0aWxzL2FwcF9sb2dnZXIuZGFydCc7CgpjbGFzcyBBdXRoVXNlciB7CiAgY29uc3QgQXV0aFVzZXIoewogICAgcmVxdWlyZWQgdGhpcy5pZCwKICAgIHJlcXVpcmVkIHRoaXMudXNlcm5hbWUsCiAgICByZXF1aXJlZCB0aGlzLmZ1bGxOYW1lLAogICAgcmVxdWlyZWQgdGhpcy51c2VyVHlwZSwKICAgIHRoaXMucGVybWlzc2lvbnMgPSBjb25zdCBbXSwKICB9KTsKCiAgZmFjdG9yeSBBdXRoVXNlci5mcm9tSnNvbihNYXA8U3RyaW5nLCBkeW5hbWljPiBqc29uKSB7CiAgICBmaW5hbCByYXdQZXJtcyA9IGpzb25bJ3Blcm1pc3Npb25zJ107CiAgICBmaW5hbCBpZFZhbHVlID0ganNvblsnaWQnXSA/PyBqc29uWyd1c2VyX2lkJ107CiAgICBmaW5hbCBpbnQgcGFyc2VkSWQ7CiAgICBpZiAoaWRWYWx1ZSBpcyBpbnQpIHsKICAgICAgcGFyc2VkSWQgPSBpZFZhbHVlOwogICAgfSBlbHNlIGlmIChpZFZhbHVlIGlzIFN0cmluZykgewogICAgICBwYXJzZWRJZCA9IGludC50cnlQYXJzZShpZFZhbHVlKSA/PyAwOwogICAgfSBlbHNlIHsKICAgICAgcGFyc2VkSWQgPSAwOwogICAgfQogICAgcmV0dXJuIEF1dGhVc2VyKAogICAgICBpZDogcGFyc2VkSWQsCiAgICAgIHVzZXJuYW1lOiAoanNvblsndXNlcm5hbWUnXSA/PyAnJykudG9TdHJpbmcoKSwKICAgICAgZnVsbE5hbWU6IChqc29uWydmdWxsX25hbWUnXSA/PyBqc29uWyduYW1lJ10gPz8gJycpLnRvU3RyaW5nKCksCiAgICAgIHVzZXJUeXBlOiAoanNvblsndXNlcl90eXBlJ10gPz8gJycpLnRvU3RyaW5nKCksCiAgICAgIHBlcm1pc3Npb25zOiByYXdQZXJtcyBpcyBMaXN0CiAgICAgICAgICA/IHJhd1Blcm1zLm1hcCgoZSkgPT4gZS50b1N0cmluZygpKS50b0xpc3QoKQogICAgICAgICAgOiBjb25zdCA8U3RyaW5nPltdLAogICAgKTsKICB9CiAgZmluYWwgaW50IGlkOwogIGZpbmFsIFN0cmluZyB1c2VybmFtZTsKICBmaW5hbCBTdHJpbmcgZnVsbE5hbWU7CiAgZmluYWwgU3RyaW5nIHVzZXJUeXBlOwogIGZpbmFsIExpc3Q8U3RyaW5nPiBwZXJtaXNzaW9uczsKCiAgU3RyaW5nIGdldCBuYW1lID0+IGZ1bGxOYW1lLmlzTm90RW1wdHkgPyBmdWxsTmFtZSA6IHVzZXJuYW1lOwoKICBib29sIGdldCBpc0FkbWluID0+IHVzZXJUeXBlID09ICdhZG1pbicgfHwgcGVybWlzc2lvbnMuY29udGFpbnMoJ2FsbCcpOwoKICBNYXA8U3RyaW5nLCBkeW5hbWljPiB0b0pzb24oKSA9PiB7CiAgICAnaWQnOiBpZCwKICAgICd1c2VybmFtZSc6IHVzZXJuYW1lLAogICAgJ2Z1bGxfbmFtZSc6IGZ1bGxOYW1lLAogICAgJ3VzZXJfdHlwZSc6IHVzZXJUeXBlLAogICAgJ3Blcm1pc3Npb25zJzogcGVybWlzc2lvbnMsCiAgfTsKCiAgQXV0aFVzZXIgY29weVdpdGgoe0xpc3Q8U3RyaW5nPj8gcGVybWlzc2lvbnN9KSB7CiAgICByZXR1cm4gQXV0aFVzZXIoCiAgICAgIGlkOiBpZCwKICAgICAgdXNlcm5hbWU6IHVzZXJuYW1lLAogICAgICBmdWxsTmFtZTogZnVsbE5hbWUsCiAgICAgIHVzZXJUeXBlOiB1c2VyVHlwZSwKICAgICAgcGVybWlzc2lvbnM6IHBlcm1pc3Npb25zID8/IHRoaXMucGVybWlzc2lvbnMsCiAgICApOwogIH0KfQoKY2xhc3MgQXV0aFN0YXRlIHsKICBjb25zdCBBdXRoU3RhdGUoewogICAgcmVxdWlyZWQgdGhpcy5pc0F1dGhlbnRpY2F0ZWQsCiAgICB0aGlzLmlzUmVzdG9yaW5nID0gZmFsc2UsCiAgICB0aGlzLmVycm9yLAogICAgdGhpcy5jdXJyZW50VXNlciwKICAgIHRoaXMucmVtZW1iZXJNZSA9IGZhbHNlLAogICAgdGhpcy5hdXRoVHlwZSA9IEF1dGhUeXBlLmxvY2FsLAogICAgdGhpcy5zZXNzaW9uSW52YWxpZGF0ZWQgPSBmYWxzZSwKICB9KTsKICBmaW5hbCBib29sIGlzQXV0aGVudGljYXRlZDsKICBmaW5hbCBib29sIGlzUmVzdG9yaW5nOwogIGZpbmFsIFN0cmluZz8gZXJyb3I7CiAgZmluYWwgQXV0aFVzZXI/IGN1cnJlbnRVc2VyOwogIGZpbmFsIGJvb2wgcmVtZW1iZXJNZTsKICBmaW5hbCBBdXRoVHlwZSBhdXRoVHlwZTsKICBmaW5hbCBib29sIHNlc3Npb25JbnZhbGlkYXRlZDsKCiAgQXV0aFN0YXRlIGNvcHlXaXRoKHsKICAgIGJvb2w/IGlzQXV0aGVudGljYXRlZCwKICAgIGJvb2w/IGlzUmVzdG9yaW5nLAogICAgU3RyaW5nPyBlcnJvciwKICAgIEF1dGhVc2VyPyBjdXJyZW50VXNlciwKICAgIGJvb2w/IHJlbWVtYmVyTWUsCiAgICBBdXRoVHlwZT8gYXV0aFR5cGUsCiAgICBib29sPyBzZXNzaW9uSW52YWxpZGF0ZWQsCiAgfSkgPT4gQXV0aFN0YXRlKAogICAgaXNBdXRoZW50aWNhdGVkOiBpc0F1dGhlbnRpY2F0ZWQgPz8gdGhpcy5pc0F1dGhlbnRpY2F0ZWQsCiAgICBpc1Jlc3RvcmluZzogaXNSZXN0b3JpbmcgPz8gdGhpcy5pc1Jlc3RvcmluZywKICAgIGVycm9yOiBlcnJvciwgLy8gbnVsbCDZitmF2LPYrSDYp9mE2K7Yt9ijCiAgICBjdXJyZW50VXNlcjogY3VycmVudFVzZXIgPz8gdGhpcy5jdXJyZW50VXNlciwKICAgIHJlbWVtYmVyTWU6IHJlbWVtYmVyTWUgPz8gdGhpcy5yZW1lbWJlck1lLAogICAgYXV0aFR5cGU6IGF1dGhUeXBlID8/IHRoaXMuYXV0aFR5cGUsCiAgICBzZXNzaW9uSW52YWxpZGF0ZWQ6IHNlc3Npb25JbnZhbGlkYXRlZCA/PyB0aGlzLnNlc3Npb25JbnZhbGlkYXRlZCwKICApOwp9CgpjbGFzcyBBdXRoTm90aWZpZXIgZXh0ZW5kcyBTdGF0ZU5vdGlmaWVyPEF1dGhTdGF0ZT4gewogIEF1dGhOb3RpZmllcigpCiAgICA6IHN1cGVyKGNvbnN0IEF1dGhTdGF0ZShpc0F1dGhlbnRpY2F0ZWQ6IGZhbHNlLCBpc1Jlc3RvcmluZzogdHJ1ZSkpIHsKICAgIHJlc3RvcmVTZXNzaW9uKCk7CiAgfQoKICBmaW5hbCBfc3RvcmUgPSBBdXRoTG9jYWxTdG9yZSgpOwogIFRpbWVyPyBfc2Vzc2lvbkNoZWNrVGltZXI7CgogIC8vLyDZgdit2LUg2K/ZiNix2Yog2YTYtdmE2KfYrdmK2Kkg2KfZhNis2YTYs9ipIOKAlCDZg9mEIDMwINir2KfZhtmK2KkKICB2b2lkIF9zdGFydFNlc3Npb25DaGVjaygpIHsKICAgIF9zZXNzaW9uQ2hlY2tUaW1lcj8uY2FuY2VsKCk7CiAgICBfc2Vzc2lvbkNoZWNrVGltZXIgPSBUaW1lci5wZXJpb2RpYygKICAgICAgY29uc3QgRHVyYXRpb24oc2Vjb25kczogMzApLAogICAgICAoXykgPT4gX2NoZWNrU2Vzc2lvbigpLAogICAgKTsKICB9CgogIHZvaWQgX3N0b3BTZXNzaW9uQ2hlY2soKSB7CiAgICBfc2Vzc2lvbkNoZWNrVGltZXI/LmNhbmNlbCgpOwogICAgX3Nlc3Npb25DaGVja1RpbWVyID0gbnVsbDsKICB9CgogIEZ1dHVyZTx2b2lkPiBfY2hlY2tTZXNzaW9uKCkgYXN5bmMgewogICAgaWYgKCFzdGF0ZS5pc0F1dGhlbnRpY2F0ZWQgfHwgc3RhdGUuY3VycmVudFVzZXIgPT0gbnVsbCkgewogICAgICByZXR1cm47CiAgICB9CiAgICBmaW5hbCB2YWxpZCA9IGF3YWl0IF9zdG9yZS5jaGVja1Nlc3Npb25WYWxpZGl0eSgpOwogICAgaWYgKCF2YWxpZCAmJiBtb3VudGVkKSB7CiAgICAgIEFwcExvZ2dlci53YXJuaW5nKAogICAgICAgICdTZXNzaW9uIGludmFsaWRhdGVkIOKAlCBjcmVkZW50aWFscyBjaGFuZ2VkIGZyb20gYW5vdGhlciBkZXZpY2UnLAogICAgICAgIHRhZzogJ0FVVEgnLAogICAgICApOwogICAgICBhd2FpdCBfc3RvcmUuY2xlYXJTZXNzaW9uKCk7CiAgICAgIF9zdG9wU2Vzc2lvbkNoZWNrKCk7CiAgICAgIHN0YXRlID0gY29uc3QgQXV0aFN0YXRlKAogICAgICAgIGlzQXV0aGVudGljYXRlZDogZmFsc2UsCiAgICAgICAgZXJyb3I6ICfYqtmFINiq2LrZitmK2LEg2KjZitin2YbYp9iqINin2YTYr9iu2YjZhCDZhdmGINis2YfYp9iyINii2K7YsS4g2YrYsdis2Ykg2KrYs9is2YrZhCDYp9mE2K/YrtmI2YQg2YXYrNiv2K/Yp9mLLicsCiAgICAgICAgc2Vzc2lvbkludmFsaWRhdGVkOiB0cnVlLAogICAgICApOwogICAgfQogIH0KCiAgQG92ZXJyaWRlCiAgdm9pZCBkaXNwb3NlKCkgewogICAgX3N0b3BTZXNzaW9uQ2hlY2soKTsKICAgIHN1cGVyLmRpc3Bvc2UoKTsKICB9CgogIEZ1dHVyZTx2b2lkPiByZXN0b3JlU2Vzc2lvbigpIGFzeW5jIHsKICAgIHN0YXRlID0gc3RhdGUuY29weVdpdGgoaXNSZXN0b3Jpbmc6IHRydWUpOwoKICAgIGZpbmFsIHJlbWVtYmVyTWUgPSBhd2FpdCBfc3RvcmUuZ2V0UmVtZW1iZXJNZSgpOwogICAgaWYgKCFyZW1lbWJlck1lKSB7CiAgICAgIHN0YXRlID0gY29uc3QgQXV0aFN0YXRlKGlzQXV0aGVudGljYXRlZDogZmFsc2UpOwogICAgICByZXR1cm47CiAgICB9CgogICAgZmluYWwganNvbiA9IGF3YWl0IF9zdG9yZS5sb2FkQ3VycmVudFVzZXIoKTsKICAgIGlmIChqc29uID09IG51bGwpIHsKICAgICAgc3RhdGUgPSBjb25zdCBBdXRoU3RhdGUoaXNBdXRoZW50aWNhdGVkOiBmYWxzZSk7CiAgICAgIHJldHVybjsKICAgIH0KCiAgICBmaW5hbCB1c2VyID0gQXV0aFVzZXIuZnJvbUpzb24oanNvbik7CiAgICBmaW5hbCBhdXRoVHlwZSA9IGF3YWl0IF9zdG9yZS5nZXRBdXRoVHlwZSgpOwoKICAgIC8vINin2YTYqtit2YLZgiDZhdmGINi12YTYp9it2YrYqSDYp9mE2KzZhNiz2Kkg2LnZhtivINin2YTYp9iz2KrYudin2K/YqQogICAgaWYgKCFfc3RvcmUuaXNGaXhlZEFjY291bnQodXNlci51c2VybmFtZSkpIHsKICAgICAgZmluYWwgdmFsaWQgPSBhd2FpdCBfc3RvcmUuY2hlY2tTZXNzaW9uVmFsaWRpdHkoKTsKICAgICAgaWYgKCF2YWxpZCkgewogICAgICAgIGF3YWl0IF9zdG9yZS5jbGVhclNlc3Npb24oKTsKICAgICAgICBzdGF0ZSA9IGNvbnN0IEF1dGhTdGF0ZSgKICAgICAgICAgIGlzQXV0aGVudGljYXRlZDogZmFsc2UsCiAgICAgICAgICBlcnJvcjoKICAgICAgICAgICAgICAn2KrZhSDYqti62YrZitixINio2YrYp9mG2KfYqiDYp9mE2K/YrtmI2YQg2YXZhiDYrNmH2KfYsiDYotiu2LEuINmK2LHYrNmJINiq2LPYrNmK2YQg2KfZhNiv2K7ZiNmEINmF2KzYr9iv2KfZiy4nLAogICAgICAgICAgc2Vzc2lvbkludmFsaWRhdGVkOiB0cnVlLAogICAgICAgICk7CiAgICAgICAgcmV0dXJuOwogICAgICB9CiAgICB9CgogICAgc3RhdGUgPSBBdXRoU3RhdGUoCiAgICAgIGlzQXV0aGVudGljYXRlZDogdHJ1ZSwKICAgICAgY3VycmVudFVzZXI6IHVzZXIsCiAgICAgIHJlbWVtYmVyTWU6IHJlbWVtYmVyTWUsCiAgICAgIGF1dGhUeXBlOiBhdXRoVHlwZSwKICAgICk7CgogICAgLy8g2KjYr9ihINmB2K3YtSDYp9mE2KzZhNiz2Kkg2YTZhNmF2LPYqtiu2K/ZhdmK2YYg2KfZhNiz2K3Yp9io2YrZitmGCiAgICB0cnkgewogICAgICBmaW5hbCBhY2NvdW50cyA9IGF3YWl0IF9zdG9yZS5sb2FkQ2xvdWRBY2NvdW50cygpOwogICAgICBpZiAoYWNjb3VudHMuY29udGFpbnNLZXkodXNlci51c2VybmFtZSkpIHsKICAgICAgICBfc3RhcnRTZXNzaW9uQ2hlY2soKTsKICAgICAgfQogICAgfSBjYXRjaCAoZSkgewogICAgICBkZWJ1Z1ByaW50KHInRXJyb3IgbG9hZGluZyBjbG91ZCBhY2NvdW50czogJGUnKTsKICAgIH0KICB9CgogIEZ1dHVyZTx2b2lkPiBsb2dpbigKICAgIFN0cmluZyB1c2VybmFtZSwKICAgIFN0cmluZyBwYXNzd29yZCwgewogICAgYm9vbCByZW1lbWJlck1lID0gZmFsc2UsCiAgfSkgYXN5bmMgewogICAgc3RhdGUgPSBzdGF0ZS5jb3B5V2l0aCgpOwoKICAgIGZpbmFsIGRhdGEgPSBhd2FpdCBfc3RvcmUudmFsaWRhdGVDcmVkZW50aWFscyh1c2VybmFtZSwgcGFzc3dvcmQpOwogICAgaWYgKGRhdGEgPT0gbnVsbCkgewogICAgICBzdGF0ZSA9IGNvbnN0IEF1dGhTdGF0ZSgKICAgICAgICBpc0F1dGhlbnRpY2F0ZWQ6IGZhbHNlLAogICAgICAgIGVycm9yOiAn2KfYs9mFINin2YTZhdiz2KrYrtiv2YUg2KPZiCDZg9mE2YXYqSDYp9mE2YXYsdmI2LEg2LrZitixINi12K3Zitit2KknLAogICAgICApOwogICAgICByZXR1cm47CiAgICB9CgogICAgZmluYWwgdXNlciA9IEF1dGhVc2VyLmZyb21Kc29uKGRhdGEpOwogICAgYXdhaXQgX3N0b3JlLnNhdmVDdXJyZW50VXNlcih1c2VyLnRvSnNvbigpKTsKICAgIGF3YWl0IF9zdG9yZS5zZXRSZW1lbWJlck1lKHJlbWVtYmVyTWUpOwogICAgYXdhaXQgX3N0b3JlLnNldEF1dGhUeXBlKEF1dGhUeXBlLmxvY2FsKTsKCiAgICBzdGF0ZSA9IEF1dGhTdGF0ZSgKICAgICAgaXNBdXRoZW50aWNhdGVkOiB0cnVlLAogICAgICBjdXJyZW50VXNlcjogdXNlciwKICAgICAgcmVtZW1iZXJNZTogcmVtZW1iZXJNZSwKICAgICk7CgogICAgLy8g2KjYr9ihINmB2K3YtSDYp9mE2KzZhNiz2Kkg2YTZhNmF2LPYqtiu2K/ZhdmK2YYg2KfZhNiz2K3Yp9io2YrZitmGCiAgICB0cnkgewogICAgICBmaW5hbCBhY2NvdW50cyA9IGF3YWl0IF9zdG9yZS5sb2FkQ2xvdWRBY2NvdW50cygpOwogICAgICBpZiAoYWNjb3VudHMuY29udGFpbnNLZXkodXNlci51c2VybmFtZSkpIHsKICAgICAgICBfc3RhcnRTZXNzaW9uQ2hlY2soKTsKICAgICAgfQogICAgfSBjYXRjaCAoZSkgewogICAgICBkZWJ1Z1ByaW50KHInRXJyb3IgbG9hZGluZyBjbG91ZCBhY2NvdW50czogJGUnKTsKICAgIH0KICB9CgogIEZ1dHVyZTx2b2lkPiBsb2dvdXQoKSBhc3luYyB7CiAgICBfc3RvcFNlc3Npb25DaGVjaygpOwogICAgYXdhaXQgX3N0b3JlLmNsZWFyU2Vzc2lvbigpOwogICAgc3RhdGUgPSBjb25zdCBBdXRoU3RhdGUoaXNBdXRoZW50aWNhdGVkOiBmYWxzZSk7CiAgfQoKICBGdXR1cmU8dm9pZD4gdXBkYXRlVXNlclBlcm1pc3Npb25zKAogICAgU3RyaW5nIHVzZXJuYW1lLAogICAgTGlzdDxTdHJpbmc+IHBlcm1pc3Npb25zLAogICkgYXN5bmMgewogICAgYXdhaXQgX3N0b3JlLnNldFBlcm1pc3Npb25zKHVzZXJuYW1lLCBwZXJtaXNzaW9ucyk7CiAgICBpZiAoc3RhdGUuY3VycmVudFVzZXIgIT0gbnVsbCAmJiBzdGF0ZS5jdXJyZW50VXNlciEudXNlcm5hbWUgPT0gdXNlcm5hbWUpIHsKICAgICAgZmluYWwgdXBkYXRlZCA9IHN0YXRlLmN1cnJlbnRVc2VyIS5jb3B5V2l0aCgKICAgICAgICBwZXJtaXNzaW9uczogdXNlcm5hbWUgPT0gJ2FkbWluJyA/IFsnYWxsJ10gOiBwZXJtaXNzaW9ucywKICAgICAgKTsKICAgICAgYXdhaXQgX3N0b3JlLnNhdmVDdXJyZW50VXNlcih1cGRhdGVkLnRvSnNvbigpKTsKICAgICAgc3RhdGUgPSBzdGF0ZS5jb3B5V2l0aChjdXJyZW50VXNlcjogdXBkYXRlZCk7CiAgICB9CiAgfQoKICBGdXR1cmU8dm9pZD4gYWRkVXNlcih7CiAgICByZXF1aXJlZCBTdHJpbmcgdXNlcm5hbWUsCiAgICByZXF1aXJlZCBTdHJpbmcgcGFzc3dvcmQsCiAgICByZXF1aXJlZCBTdHJpbmcgZnVsbE5hbWUsCiAgICByZXF1aXJlZCBTdHJpbmcgdXNlclR5cGUsCiAgICByZXF1aXJlZCBMaXN0PFN0cmluZz4gcGVybWlzc2lvbnMsCiAgfSkgYXN5bmMgewogICAgYXdhaXQgX3N0b3JlLmFkZFVzZXIoCiAgICAgIHVzZXJuYW1lOiB1c2VybmFtZSwKICAgICAgcGFzc3dvcmQ6IHBhc3N3b3JkLAogICAgICBmdWxsTmFtZTogZnVsbE5hbWUsCiAgICAgIHVzZXJUeXBlOiB1c2VyVHlwZSwKICAgICAgcGVybWlzc2lvbnM6IHBlcm1pc3Npb25zLAogICAgKTsKICB9CgogIC8vLyDYqtit2K/ZitirINio2YrYp9mG2KfYqiDZhdiz2KrYrtiv2YUg2LPYrdin2KjZiiAo2YXZhiDYtNin2LTYqSDYpdiv2KfYsdipINin2YTZhdiz2KrYrtiv2YXZitmGKQogIEZ1dHVyZTxib29sPiB1cGRhdGVDbG91ZFVzZXIoewogICAgcmVxdWlyZWQgU3RyaW5nIHVzZXJuYW1lLAogICAgcmVxdWlyZWQgU3RyaW5nIGRvY0lkLAogICAgU3RyaW5nPyBuZXdQYXNzd29yZCwKICAgIFN0cmluZz8gbmV3RnVsbE5hbWUsCiAgICBTdHJpbmc/IG5ld1VzZXJUeXBlLAogICAgTGlzdDxTdHJpbmc+PyBuZXdQZXJtaXNzaW9ucywKICAgIGJvb2w/IGFjdGl2ZSwKICB9KSBhc3luYyB7CiAgICByZXR1cm4gX3N0b3JlLnVwZGF0ZUNsb3VkVXNlcigKICAgICAgdXNlcm5hbWU6IHVzZXJuYW1lLAogICAgICBkb2NJZDogZG9jSWQsCiAgICAgIG5ld1Bhc3N3b3JkOiBuZXdQYXNzd29yZCwKICAgICAgbmV3RnVsbE5hbWU6IG5ld0Z1bGxOYW1lLAogICAgICBuZXdVc2VyVHlwZTogbmV3VXNlclR5cGUsCiAgICAgIG5ld1Blcm1pc3Npb25zOiBuZXdQZXJtaXNzaW9ucywKICAgICAgYWN0aXZlOiBhY3RpdmUsCiAgICApOwogIH0KCiAgLy8vINit2LDZgSDZhdiz2KrYrtiv2YUg2LPYrdin2KjZigogIEZ1dHVyZTxib29sPiBkZWxldGVDbG91ZFVzZXIoe3JlcXVpcmVkIFN0cmluZyBkb2NJZH0pIGFzeW5jIHsKICAgIHJldHVybiBfc3RvcmUuZGVsZXRlQ2xvdWRVc2VyKGRvY0lkOiBkb2NJZCk7CiAgfQp9CgpmaW5hbCBhdXRoUHJvdmlkZXIgPSBTdGF0ZU5vdGlmaWVyUHJvdmlkZXI8QXV0aE5vdGlmaWVyLCBBdXRoU3RhdGU+KAogIChyZWYpID0+IEF1dGhOb3RpZmllcigpLAopOwo=
+import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../services/auth_local_store.dart' show AuthLocalStore, AuthType;
+import '../utils/app_logger.dart';
+
+class AuthUser {
+  const AuthUser({
+    required this.id,
+    required this.username,
+    required this.fullName,
+    required this.userType,
+    this.permissions = const [],
+  });
+
+  factory AuthUser.fromJson(Map<String, dynamic> json) {
+    final rawPerms = json['permissions'];
+    final idValue = json['id'] ?? json['user_id'];
+    final int parsedId;
+    if (idValue is int) {
+      parsedId = idValue;
+    } else if (idValue is String) {
+      parsedId = int.tryParse(idValue) ?? 0;
+    } else {
+      parsedId = 0;
+    }
+    return AuthUser(
+      id: parsedId,
+      username: (json['username'] ?? '').toString(),
+      fullName: (json['full_name'] ?? json['name'] ?? '').toString(),
+      userType: (json['user_type'] ?? '').toString(),
+      permissions: rawPerms is List
+          ? rawPerms.map((e) => e.toString()).toList()
+          : const <String>[],
+    );
+  }
+  final int id;
+  final String username;
+  final String fullName;
+  final String userType;
+  final List<String> permissions;
+
+  String get name => fullName.isNotEmpty ? fullName : username;
+
+  bool get isAdmin => userType == 'admin' || permissions.contains('all');
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'username': username,
+    'full_name': fullName,
+    'user_type': userType,
+    'permissions': permissions,
+  };
+
+  AuthUser copyWith({List<String>? permissions}) {
+    return AuthUser(
+      id: id,
+      username: username,
+      fullName: fullName,
+      userType: userType,
+      permissions: permissions ?? this.permissions,
+    );
+  }
+}
+
+class AuthState {
+  const AuthState({
+    required this.isAuthenticated,
+    this.isRestoring = false,
+    this.error,
+    this.currentUser,
+    this.rememberMe = false,
+    this.authType = AuthType.local,
+    this.sessionInvalidated = false,
+  });
+  final bool isAuthenticated;
+  final bool isRestoring;
+  final String? error;
+  final AuthUser? currentUser;
+  final bool rememberMe;
+  final AuthType authType;
+  final bool sessionInvalidated;
+
+  AuthState copyWith({
+    bool? isAuthenticated,
+    bool? isRestoring,
+    String? error,
+    AuthUser? currentUser,
+    bool? rememberMe,
+    AuthType? authType,
+    bool? sessionInvalidated,
+  }) => AuthState(
+    isAuthenticated: isAuthenticated ?? this.isAuthenticated,
+    isRestoring: isRestoring ?? this.isRestoring,
+    error: error, // null يمسح الخطأ
+    currentUser: currentUser ?? this.currentUser,
+    rememberMe: rememberMe ?? this.rememberMe,
+    authType: authType ?? this.authType,
+    sessionInvalidated: sessionInvalidated ?? this.sessionInvalidated,
+  );
+}
+
+class AuthNotifier extends StateNotifier<AuthState> {
+  AuthNotifier()
+    : super(const AuthState(isAuthenticated: false, isRestoring: true)) {
+    restoreSession();
+  }
+
+  final _store = AuthLocalStore();
+  Timer? _sessionCheckTimer;
+
+  /// فحص دوري لصلاحية الجلسة — كل 30 ثانية
+  void _startSessionCheck() {
+    _sessionCheckTimer?.cancel();
+    _sessionCheckTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _checkSession(),
+    );
+  }
+
+  void _stopSessionCheck() {
+    _sessionCheckTimer?.cancel();
+    _sessionCheckTimer = null;
+  }
+
+  Future<void> _checkSession() async {
+    if (!state.isAuthenticated || state.currentUser == null) {
+      return;
+    }
+    final valid = await _store.checkSessionValidity();
+    if (!valid && mounted) {
+      AppLogger.warning(
+        'Session invalidated — credentials changed from another device',
+        tag: 'AUTH',
+      );
+      await _store.clearSession();
+      _stopSessionCheck();
+      state = const AuthState(
+        isAuthenticated: false,
+        error: 'تم تغيير بيانات الدخول من جهاز آخر. يرجى تسجيل الدخول مجدداً.',
+        sessionInvalidated: true,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _stopSessionCheck();
+    super.dispose();
+  }
+
+  Future<void> restoreSession() async {
+    state = state.copyWith(isRestoring: true);
+
+    final rememberMe = await _store.getRememberMe();
+    if (!rememberMe) {
+      state = const AuthState(isAuthenticated: false);
+      return;
+    }
+
+    final json = await _store.loadCurrentUser();
+    if (json == null) {
+      state = const AuthState(isAuthenticated: false);
+      return;
+    }
+
+    final user = AuthUser.fromJson(json);
+    final authType = await _store.getAuthType();
+
+    // التحقق من صلاحية الجلسة عند الاستعادة
+    if (!_store.isFixedAccount(user.username)) {
+      final valid = await _store.checkSessionValidity();
+      if (!valid) {
+        await _store.clearSession();
+        state = const AuthState(
+          isAuthenticated: false,
+          error:
+              'تم تغيير بيانات الدخول من جهاز آخر. يرجى تسجيل الدخول مجدداً.',
+          sessionInvalidated: true,
+        );
+        return;
+      }
+    }
+
+    state = AuthState(
+      isAuthenticated: true,
+      currentUser: user,
+      rememberMe: rememberMe,
+      authType: authType,
+    );
+
+    // بدء فحص الجلسة للمستخدمين السحابيين
+    try {
+      final accounts = await _store.loadCloudAccounts();
+      if (accounts.containsKey(user.username)) {
+        _startSessionCheck();
+      }
+    } catch (e) {
+      debugPrint(r'Error loading cloud accounts: $e');
+    }
+  }
+
+  Future<void> login(
+    String username,
+    String password, {
+    bool rememberMe = false,
+  }) async {
+    state = state.copyWith();
+
+    final data = await _store.validateCredentials(username, password);
+    if (data == null) {
+      state = const AuthState(
+        isAuthenticated: false,
+        error: 'اسم المستخدم أو كلمة المرور غير صحيحة',
+      );
+      return;
+    }
+
+    final user = AuthUser.fromJson(data);
+    await _store.saveCurrentUser(user.toJson());
+    await _store.setRememberMe(rememberMe);
+    await _store.setAuthType(AuthType.local);
+
+    state = AuthState(
+      isAuthenticated: true,
+      currentUser: user,
+      rememberMe: rememberMe,
+    );
+
+    // بدء فحص الجلسة للمستخدمين السحابيين
+    try {
+      final accounts = await _store.loadCloudAccounts();
+      if (accounts.containsKey(user.username)) {
+        _startSessionCheck();
+      }
+    } catch (e) {
+      debugPrint(r'Error loading cloud accounts: $e');
+    }
+  }
+
+  Future<void> logout() async {
+    _stopSessionCheck();
+    await _store.clearSession();
+    state = const AuthState(isAuthenticated: false);
+  }
+
+  Future<void> updateUserPermissions(
+    String username,
+    List<String> permissions,
+  ) async {
+    await _store.setPermissions(username, permissions);
+    if (state.currentUser != null && state.currentUser!.username == username) {
+      final updated = state.currentUser!.copyWith(
+        permissions: username == 'admin' ? ['all'] : permissions,
+      );
+      await _store.saveCurrentUser(updated.toJson());
+      state = state.copyWith(currentUser: updated);
+    }
+  }
+
+  Future<void> addUser({
+    required String username,
+    required String password,
+    required String fullName,
+    required String userType,
+    required List<String> permissions,
+  }) async {
+    await _store.addUser(
+      username: username,
+      password: password,
+      fullName: fullName,
+      userType: userType,
+      permissions: permissions,
+    );
+  }
+
+  /// تحديث بيانات مستخدم سحابي (من شاشة إدارة المستخدمين)
+  Future<bool> updateCloudUser({
+    required String username,
+    required String docId,
+    String? newPassword,
+    String? newFullName,
+    String? newUserType,
+    List<String>? newPermissions,
+    bool? active,
+  }) async {
+    return _store.updateCloudUser(
+      username: username,
+      docId: docId,
+      newPassword: newPassword,
+      newFullName: newFullName,
+      newUserType: newUserType,
+      newPermissions: newPermissions,
+      active: active,
+    );
+  }
+
+  /// حذف مستخدم سحابي
+  Future<bool> deleteCloudUser({required String docId}) async {
+    return _store.deleteCloudUser(docId: docId);
+  }
+}
+
+final authProvider = StateNotifierProvider<AuthNotifier, AuthState>(
+  (ref) => AuthNotifier(),
+);
