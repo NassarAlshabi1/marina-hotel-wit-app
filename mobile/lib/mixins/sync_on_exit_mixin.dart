@@ -1,1 +1,49 @@
-aW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXIvbWF0ZXJpYWwuZGFydCc7CmltcG9ydCAnLi4vc2VydmljZXMvc2NyZWVuX3N5bmNfY29udHJvbGxlci5kYXJ0JzsKCm1peGluIFN5bmNPbkV4aXRNaXhpbjxUIGV4dGVuZHMgU3RhdGVmdWxXaWRnZXQ+IG9uIFN0YXRlPFQ+IHsKICBsYXRlIGZpbmFsIFNjcmVlblN5bmNDb250cm9sbGVyIF9zeW5jQ29udHJvbGxlcjsKCiAgU3RyaW5nIGdldCBzY3JlZW5JZDsKCiAgRHVyYXRpb24gZ2V0IGRlYm91bmNlRGVsYXkgPT4gY29uc3QgRHVyYXRpb24oc2Vjb25kczogMTUpOwoKICBAb3ZlcnJpZGUKICB2b2lkIGluaXRTdGF0ZSgpIHsKICAgIHN1cGVyLmluaXRTdGF0ZSgpOwogICAgX3N5bmNDb250cm9sbGVyID0gU2NyZWVuU3luY0NvbnRyb2xsZXIoCiAgICAgIHNjcmVlbklkOiBzY3JlZW5JZCwKICAgICAgZGVib3VuY2VEZWxheTogZGVib3VuY2VEZWxheSwKICAgICk7CiAgfQoKICBAb3ZlcnJpZGUKICB2b2lkIGRpc3Bvc2UoKSB7CiAgICBfc3luY0NvbnRyb2xsZXIuZGlzcG9zZSgpOwogICAgc3VwZXIuZGlzcG9zZSgpOwogIH0KCiAgdm9pZCBtYXJrRGF0YUNoYW5nZWQoKSB7CiAgICBfc3luY0NvbnRyb2xsZXIubWFya0NoYW5nZWQoKTsKICB9CgogIGJvb2wgZ2V0IGhhc1Vuc3luY2VkQ2hhbmdlcyA9PiBfc3luY0NvbnRyb2xsZXIuaGFzQ2hhbmdlczsKCiAgRnV0dXJlPGJvb2w+IHN5bmNOb3coKSA9PiBfc3luY0NvbnRyb2xsZXIuc3luY05vdygpOwoKICAvLy8g2KXYudin2K/YqSDYttio2Lcg2LnZhNmFINin2YTYqti62YrZitix2KfYqiDYqNi52K8g2KfZhNit2YHYuCDYp9mE2YbYp9is2K0g2YXYrdmE2YrYp9mLCiAgdm9pZCBtYXJrU2F2ZWQoKSA9PiBfc3luY0NvbnRyb2xsZXIubWFya1NhdmVkKCk7CgogIFN0cmVhbTxTeW5jU3RhdHVzPiBnZXQgc3luY1N0YXR1c1N0cmVhbSA9PiBfc3luY0NvbnRyb2xsZXIuc3luY1N0YXR1c1N0cmVhbTsKCiAgV2lkZ2V0IHdyYXBXaXRoU3luY09uRXhpdCh7cmVxdWlyZWQgV2lkZ2V0IGNoaWxkfSkgewogICAgcmV0dXJuIFBvcFNjb3BlKAogICAgICBvblBvcEludm9rZWRXaXRoUmVzdWx0OiAoZGlkUG9wLCByZXN1bHQpIGFzeW5jIHsKICAgICAgICBpZiAoIWRpZFBvcCkgewogICAgICAgICAgYXdhaXQgX3N5bmNDb250cm9sbGVyLnN5bmNPbkV4aXQoKTsKICAgICAgICB9CiAgICAgIH0sCiAgICAgIGNoaWxkOiBjaGlsZCwKICAgICk7CiAgfQp9Cg==
+import 'package:flutter/material.dart';
+import '../services/screen_sync_controller.dart';
+
+mixin SyncOnExitMixin<T extends StatefulWidget> on State<T> {
+  late final ScreenSyncController _syncController;
+
+  String get screenId;
+
+  Duration get debounceDelay => const Duration(seconds: 15);
+
+  @override
+  void initState() {
+    super.initState();
+    _syncController = ScreenSyncController(
+      screenId: screenId,
+      debounceDelay: debounceDelay,
+    );
+  }
+
+  @override
+  void dispose() {
+    _syncController.dispose();
+    super.dispose();
+  }
+
+  void markDataChanged() {
+    _syncController.markChanged();
+  }
+
+  bool get hasUnsyncedChanges => _syncController.hasChanges;
+
+  Future<bool> syncNow() => _syncController.syncNow();
+
+  /// إعادة ضبط علم التغييرات بعد الحفظ الناجح محلياً
+  void markSaved() => _syncController.markSaved();
+
+  Stream<SyncStatus> get syncStatusStream => _syncController.syncStatusStream;
+
+  Widget wrapWithSyncOnExit({required Widget child}) {
+    return PopScope(
+      onPopInvokedWithResult: (didPop, result) async {
+        if (!didPop) {
+          await _syncController.syncOnExit();
+        }
+      },
+      child: child,
+    );
+  }
+}
