@@ -48,6 +48,7 @@ dependencies:
   pdf: ^3.11.1
   permission_handler: ^11.3.1
   pointycastle: ^3.9.1
+  posthog_flutter: ^4.0.0
   printing: ^5.13.2
   share_plus: ^10.1.1
   shared_preferences: ^2.3.2
