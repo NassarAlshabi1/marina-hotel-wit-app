@@ -1,1 +1,281 @@
-aW1wb3J0ICdkYXJ0OmNvbnZlcnQnOwppbXBvcnQgJ3BhY2thZ2U6ZHJpZnQvZHJpZnQuZGFydCc7CmltcG9ydCAnLi4vbG9jYWxfZGIuZGFydCc7CgpwYXJ0ICdzeW5jX2xvZ19kYW8uZy5kYXJ0JzsKCi8vLyDZhtmF2YjYsNisINmF2KjYs9i3INmE2LPYrNmEINin2YTZhdiy2KfZhdmG2Kkg2YTZhNi52LHYtgpjbGFzcyBTeW5jTG9nRW50cnkgewogIC8vIEFwcHdyaXRlLCBHb29nbGVEcml2ZQoKICBTeW5jTG9nRW50cnkoewogICAgcmVxdWlyZWQgdGhpcy5pZCwKICAgIHJlcXVpcmVkIHRoaXMuc3luY0lkLAogICAgcmVxdWlyZWQgdGhpcy5kaXJlY3Rpb24sCiAgICByZXF1aXJlZCB0aGlzLmRldmljZUlkLAogICAgcmVxdWlyZWQgdGhpcy5zdGF0dXMsCiAgICByZXF1aXJlZCB0aGlzLmNyZWF0ZWRBdCwKICAgIHRoaXMuY29tcGxldGVkQXQsCiAgICB0aGlzLnJlY29yZHNDb3VudCwKICAgIHRoaXMuZXJyb3JNZXNzYWdlLAogICAgdGhpcy5kdXJhdGlvbk1zLAogICAgdGhpcy50YXJnZXQsCiAgfSk7CiAgZmluYWwgaW50IGlkOwogIGZpbmFsIFN0cmluZyBzeW5jSWQ7CiAgZmluYWwgU3RyaW5nIGRpcmVjdGlvbjsgLy8gcHVsbCwgcHVzaCwgYmlkaXJlY3Rpb25hbAogIGZpbmFsIFN0cmluZyBkZXZpY2VJZDsKICBmaW5hbCBTdHJpbmcgc3RhdHVzOyAvLyBzdWNjZXNzLCBmYWlsZWQsIHBhcnRpYWwKICBmaW5hbCBEYXRlVGltZSBjcmVhdGVkQXQ7CiAgZmluYWwgRGF0ZVRpbWU/IGNvbXBsZXRlZEF0OwogIGZpbmFsIGludD8gcmVjb3Jkc0NvdW50OwogIGZpbmFsIFN0cmluZz8gZXJyb3JNZXNzYWdlOwogIGZpbmFsIGludD8gZHVyYXRpb25NczsKICBmaW5hbCBTdHJpbmc/IHRhcmdldDsKfQoKLy8vINil2K3Ytdin2KbZitin2Kog2KfZhNmF2LLYp9mF2YbYqQpjbGFzcyBTeW5jU3RhdHMgewogIFN5bmNTdGF0cyh7CiAgICByZXF1aXJlZCB0aGlzLnRvdGFsU3luY3MsCiAgICByZXF1aXJlZCB0aGlzLnN1Y2Nlc3NmdWxTeW5jcywKICAgIHJlcXVpcmVkIHRoaXMuZmFpbGVkU3luY3MsCiAgICByZXF1aXJlZCB0aGlzLnN1Y2Nlc3NSYXRlLAogICAgcmVxdWlyZWQgdGhpcy50b3RhbFJlY29yZHNQdWxsZWQsCiAgICByZXF1aXJlZCB0aGlzLnRvdGFsUmVjb3Jkc1B1c2hlZCwKICAgIHJlcXVpcmVkIHRoaXMuYXZlcmFnZUR1cmF0aW9uTXMsCiAgICB0aGlzLmxhc3RTeW5jLAogIH0pOwogIGZpbmFsIGludCB0b3RhbFN5bmNzOwogIGZpbmFsIGludCBzdWNjZXNzZnVsU3luY3M7CiAgZmluYWwgaW50IGZhaWxlZFN5bmNzOwogIGZpbmFsIGRvdWJsZSBzdWNjZXNzUmF0ZTsKICBmaW5hbCBpbnQgdG90YWxSZWNvcmRzUHVsbGVkOwogIGZpbmFsIGludCB0b3RhbFJlY29yZHNQdXNoZWQ7CiAgZmluYWwgRGF0ZVRpbWU/IGxhc3RTeW5jOwogIGZpbmFsIGludCBhdmVyYWdlRHVyYXRpb25NczsKfQoKQERyaWZ0QWNjZXNzb3IodGFibGVzOiBbU3luY0xvZywgU3luY0NvbmZsaWN0c10pCmNsYXNzIFN5bmNMb2dEYW8gZXh0ZW5kcyBEYXRhYmFzZUFjY2Vzc29yPEFwcERhdGFiYXNlPiB3aXRoIF8kU3luY0xvZ0Rhb01peGluIHsKICBTeW5jTG9nRGFvKHN1cGVyLmRiKTsKCiAgLy8vINiq2LPYrNmK2YQg2LnZhdmE2YrYqSDZhdiy2KfZhdmG2Kkg2KzYr9mK2K/YqQogIC8vLyBgb3BlcmF0aW9uc2AgY2FuIGJlIG51bGwgaWYgbm8gb3BlcmF0aW9ucyBsaXN0IGlzIGF2YWlsYWJsZQogIEZ1dHVyZTxpbnQ+IGxvZ1N5bmMoewogICAgcmVxdWlyZWQgU3RyaW5nIHN5bmNJZCwKICAgIHJlcXVpcmVkIFN0cmluZyBkaXJlY3Rpb24sCiAgICByZXF1aXJlZCBTdHJpbmcgZGV2aWNlSWQsCiAgICByZXF1aXJlZCBTdHJpbmcgdGFyZ2V0LAogICAgcmVxdWlyZWQgU3RyaW5nIHN0YXR1cywKICAgIGludD8gcmVjb3Jkc1B1bGxlZCwKICAgIGludD8gcmVjb3Jkc1B1c2hlZCwKICAgIFN0cmluZz8gZXJyb3JNZXNzYWdlLAogICAgaW50PyBkdXJhdGlvbk1zLAogICAgTWFwPFN0cmluZywgZHluYW1pYz4/IG1ldGFkYXRhLAogIH0pIGFzeW5jIHsKICAgIGZpbmFsIG5vdyA9IERhdGVUaW1lLm5vdygpOwoKICAgIGZpbmFsIGVudHJ5ID0gU3luY0xvZ0NvbXBhbmlvbigKICAgICAgc3luY0lkOiBWYWx1ZShzeW5jSWQpLAogICAgICBkaXJlY3Rpb246IFZhbHVlKGRpcmVjdGlvbiksCiAgICAgIGRldmljZUlkOiBWYWx1ZShkZXZpY2VJZCksCiAgICAgIHN0YXR1czogVmFsdWUoc3RhdHVzKSwKICAgICAgY3JlYXRlZEF0OiBWYWx1ZShub3cudG9Jc284NjAxU3RyaW5nKCkpLAogICAgICBjb21wbGV0ZWRBdDogc3RhdHVzICE9ICdpbl9wcm9ncmVzcycKICAgICAgICAgID8gVmFsdWUobm93LnRvSXNvODYwMVN0cmluZygpKQogICAgICAgICAgOiBjb25zdCBWYWx1ZS5hYnNlbnQoKSwKICAgICAgbWV0YWRhdGE6IFZhbHVlKAogICAgICAgIGpzb25FbmNvZGUoewogICAgICAgICAgJ3RhcmdldCc6IHRhcmdldCwKICAgICAgICAgICdyZWNvcmRzUHVsbGVkJzogcmVjb3Jkc1B1bGxlZCwKICAgICAgICAgICdyZWNvcmRzUHVzaGVkJzogcmVjb3Jkc1B1c2hlZCwKICAgICAgICAgICdkdXJhdGlvbk1zJzogZHVyYXRpb25NcywKICAgICAgICAgICdlcnJvck1lc3NhZ2UnOiBlcnJvck1lc3NhZ2UsCiAgICAgICAgICAuLi4/bWV0YWRhdGEsCiAgICAgICAgfSksCiAgICAgICksCiAgICApOwoKICAgIHJldHVybiBpbnRvKHN5bmNMb2cpLmluc2VydChlbnRyeSk7CiAgfQoKICAvLy8g2KfZhNit2LXZiNmEINi52YTZiSDYs9is2YQg2KfZhNmF2LLYp9mF2YbYqSAo2YXYuSBwYWdpbmF0aW9uKQogIEZ1dHVyZTxMaXN0PFN5bmNMb2dFbnRyeT4+IGdldFN5bmNIaXN0b3J5KHsKICAgIGludCBsaW1pdCA9IDUwLAogICAgaW50IG9mZnNldCA9IDAsCiAgICBTdHJpbmc/IGRpcmVjdGlvbiwgLy8gJ3B1bGwnLCAncHVzaCcsIG51bGwg2YTZhNmD2YQKICAgIFN0cmluZz8gc3RhdHVzLCAvLyAnc3VjY2VzcycsICdmYWlsZWQnLCBudWxsINmE2YTZg9mECiAgfSkgYXN5bmMgewogICAgdmFyIHF1ZXJ5ID0gc2VsZWN0KHN5bmNMb2cpCiAgICAgIC4ub3JkZXJCeShbKHQpID0+IE9yZGVyaW5nVGVybS5kZXNjKHQuY3JlYXRlZEF0KV0pOwoKICAgIGlmIChkaXJlY3Rpb24gIT0gbnVsbCkgewogICAgICBxdWVyeSA9IHF1ZXJ5Li53aGVyZSgodCkgPT4gdC5kaXJlY3Rpb24uZXF1YWxzKGRpcmVjdGlvbikpOwogICAgfQoKICAgIGlmIChzdGF0dXMgIT0gbnVsbCkgewogICAgICBxdWVyeSA9IHF1ZXJ5Li53aGVyZSgodCkgPT4gdC5zdGF0dXMuZXF1YWxzKHN0YXR1cykpOwogICAgfQoKICAgIHF1ZXJ5ID0gcXVlcnkuLmxpbWl0KGxpbWl0LCBvZmZzZXQ6IG9mZnNldCk7CgogICAgZmluYWwgcmVzdWx0cyA9IGF3YWl0IHF1ZXJ5LmdldCgpOwoKICAgIHJldHVybiByZXN1bHRzLm1hcCgocm93KSB7CiAgICAgIGZpbmFsIG1ldGFkYXRhID0ganNvbkRlY29kZShyb3cubWV0YWRhdGEpIGFzIE1hcDxTdHJpbmcsIGR5bmFtaWM+OwoKICAgICAgcmV0dXJuIFN5bmNMb2dFbnRyeSgKICAgICAgICBpZDogcm93LmlkLAogICAgICAgIHN5bmNJZDogcm93LnN5bmNJZCwKICAgICAgICBkaXJlY3Rpb246IHJvdy5kaXJlY3Rpb24sCiAgICAgICAgZGV2aWNlSWQ6IHJvdy5kZXZpY2VJZCwKICAgICAgICBzdGF0dXM6IHJvdy5zdGF0dXMsCiAgICAgICAgY3JlYXRlZEF0OiBEYXRlVGltZS5wYXJzZShyb3cuY3JlYXRlZEF0KSwKICAgICAgICBjb21wbGV0ZWRBdDogcm93LmNvbXBsZXRlZEF0ICE9IG51bGwKICAgICAgICAgICAgPyBEYXRlVGltZS5wYXJzZShyb3cuY29tcGxldGVkQXQhKQogICAgICAgICAgICA6IG51bGwsCiAgICAgICAgcmVjb3Jkc0NvdW50OgogICAgICAgICAgICAobWV0YWRhdGFbJ3JlY29yZHNQdWxsZWQnXSBhcyBpbnQ/KSA/PwogICAgICAgICAgICAobWV0YWRhdGFbJ3JlY29yZHNQdXNoZWQnXSBhcyBpbnQ/KSwKICAgICAgICBlcnJvck1lc3NhZ2U6IG1ldGFkYXRhWydlcnJvck1lc3NhZ2UnXSBhcyBTdHJpbmc/LAogICAgICAgIGR1cmF0aW9uTXM6IG1ldGFkYXRhWydkdXJhdGlvbk1zJ10gYXMgaW50PywKICAgICAgICB0YXJnZXQ6IG1ldGFkYXRhWyd0YXJnZXQnXSBhcyBTdHJpbmc/LAogICAgICApOwogICAgfSkudG9MaXN0KCk7CiAgfQoKICAvLy8g2KfZhNit2LXZiNmEINi52YTZiSDYotiu2LEg2LnZhdmE2YrYqSDZhdiy2KfZhdmG2KkKICBGdXR1cmU8U3luY0xvZ0VudHJ5Pz4gZ2V0TGFzdFN5bmMoKSBhc3luYyB7CiAgICBmaW5hbCBxdWVyeSA9IHNlbGVjdChzeW5jTG9nKQogICAgICAuLm9yZGVyQnkoWyh0KSA9PiBPcmRlcmluZ1Rlcm0uZGVzYyh0LmNyZWF0ZWRBdCldKQogICAgICAuLmxpbWl0KDEpOwoKICAgIGZpbmFsIHJlc3VsdCA9IGF3YWl0IHF1ZXJ5LmdldFNpbmdsZU9yTnVsbCgpOwogICAgaWYgKHJlc3VsdCA9PSBudWxsKSB7CiAgICAgIHJldHVybiBudWxsOwogICAgfQoKICAgIGZpbmFsIG1ldGFkYXRhID0ganNvbkRlY29kZShyZXN1bHQubWV0YWRhdGEpIGFzIE1hcDxTdHJpbmcsIGR5bmFtaWM+OwoKICAgIHJldHVybiBTeW5jTG9nRW50cnkoCiAgICAgIGlkOiByZXN1bHQuaWQsCiAgICAgIHN5bmNJZDogcmVzdWx0LnN5bmNJZCwKICAgICAgZGlyZWN0aW9uOiByZXN1bHQuZGlyZWN0aW9uLAogICAgICBkZXZpY2VJZDogcmVzdWx0LmRldmljZUlkLAogICAgICBzdGF0dXM6IHJlc3VsdC5zdGF0dXMsCiAgICAgIGNyZWF0ZWRBdDogRGF0ZVRpbWUucGFyc2UocmVzdWx0LmNyZWF0ZWRBdCksCiAgICAgIGNvbXBsZXRlZEF0OiByZXN1bHQuY29tcGxldGVkQXQgIT0gbnVsbAogICAgICAgICAgPyBEYXRlVGltZS5wYXJzZShyZXN1bHQuY29tcGxldGVkQXQhKQogICAgICAgICAgOiBudWxsLAogICAgICByZWNvcmRzQ291bnQ6CiAgICAgICAgICAobWV0YWRhdGFbJ3JlY29yZHNQdWxsZWQnXSBhcyBpbnQ/KSA/PwogICAgICAgICAgKG1ldGFkYXRhWydyZWNvcmRzUHVzaGVkJ10gYXMgaW50PyksCiAgICAgIGVycm9yTWVzc2FnZTogbWV0YWRhdGFbJ2Vycm9yTWVzc2FnZSddIGFzIFN0cmluZz8sCiAgICAgIGR1cmF0aW9uTXM6IG1ldGFkYXRhWydkdXJhdGlvbk1zJ10gYXMgaW50PywKICAgICAgdGFyZ2V0OiBtZXRhZGF0YVsndGFyZ2V0J10gYXMgU3RyaW5nPywKICAgICk7CiAgfQoKICAvLy8g2KXYrdi12KfYptmK2KfYqiDYp9mE2YXYstin2YXZhtipICh1c2luZyBTUUwgYWdncmVnYXRlcyBpbnN0ZWFkIG9mIERhcnQgbG9vcCkKICBGdXR1cmU8U3luY1N0YXRzPiBnZXRTeW5jU3RhdHMoe0RhdGVUaW1lPyBzaW5jZX0pIGFzeW5jIHsKICAgIHZhciB3aGVyZUNsYXVzZSA9ICcnOwogICAgZmluYWwgdmFyaWFibGVzID0gPFZhcmlhYmxlPE9iamVjdD4+W107CgogICAgaWYgKHNpbmNlICE9IG51bGwpIHsKICAgICAgd2hlcmVDbGF1c2UgPSAnV0hFUkUgY3JlYXRlZF9hdCA+PSA/JzsKICAgICAgdmFyaWFibGVzLmFkZChWYXJpYWJsZTxTdHJpbmc+KHNpbmNlLnRvSXNvODYwMVN0cmluZygpKSk7CiAgICB9CgogICAgZmluYWwgcmVzdWx0ID0gYXdhaXQgY3VzdG9tU2VsZWN0KAogICAgICAnU0VMRUNUICcKICAgICAgJyAgQ09VTlQoKikgQVMgdG90YWxfc3luY3MsICcKICAgICAgIiAgQ09BTEVTQ0UoU1VNKENBU0UgV0hFTiBzdGF0dXMgPSAnc3VjY2VzcycgVEhFTiAxIEVMU0UgMCBFTkQpLCAwKSBBUyBzdWNjZXNzZnVsX3N5bmNzLCAiCiAgICAgICIgIENPQUxFU0NFKFNVTShDQVNFIFdIRU4gc3RhdHVzICE9ICdzdWNjZXNzJyBUSEVOIDEgRUxTRSAwIEVORCksIDApIEFTIGZhaWxlZF9zeW5jcywgIgogICAgICByIiAgQ09BTEVTQ0UoU1VNKGpzb25fZXh0cmFjdChtZXRhZGF0YSwgJyQucmVjb3Jkc1B1bGxlZCcpKSwgMCkgQVMgdG90YWxfcHVsbGVkLCAiCiAgICAgIHIiICBDT0FMRVNDRShTVU0oanNvbl9leHRyYWN0KG1ldGFkYXRhLCAnJC5yZWNvcmRzUHVzaGVkJykpLCAwKSBBUyB0b3RhbF9wdXNoZWQsICIKICAgICAgciIgIENPQUxFU0NFKFNVTShqc29uX2V4dHJhY3QobWV0YWRhdGEsICckLmR1cmF0aW9uTXMnKSksIDApIEFTIHRvdGFsX2R1cmF0aW9uLCAiCiAgICAgICcgIE1BWChjcmVhdGVkX2F0KSBBUyBsYXN0X3N5bmNfYXQgJwogICAgICAnRlJPTSBzeW5jX2xvZyAkd2hlcmVDbGF1c2UnLAogICAgICB2YXJpYWJsZXM6IHZhcmlhYmxlcywKICAgICAgcmVhZHNGcm9tOiB7c3luY0xvZ30sCiAgICApLmdldFNpbmdsZSgpOwoKICAgIGZpbmFsIHRvdGFsU3luY3MgPSByZXN1bHQucmVhZDxpbnQ+KCd0b3RhbF9zeW5jcycpOwoKICAgIGlmICh0b3RhbFN5bmNzID09IDApIHsKICAgICAgcmV0dXJuIFN5bmNTdGF0cygKICAgICAgICB0b3RhbFN5bmNzOiAwLAogICAgICAgIHN1Y2Nlc3NmdWxTeW5jczogMCwKICAgICAgICBmYWlsZWRTeW5jczogMCwKICAgICAgICBzdWNjZXNzUmF0ZTogMCwKICAgICAgICB0b3RhbFJlY29yZHNQdWxsZWQ6IDAsCiAgICAgICAgdG90YWxSZWNvcmRzUHVzaGVkOiAwLAogICAgICAgIGF2ZXJhZ2VEdXJhdGlvbk1zOiAwLAogICAgICApOwogICAgfQoKICAgIGZpbmFsIHN1Y2Nlc3NmdWwgPSByZXN1bHQucmVhZDxpbnQ+KCdzdWNjZXNzZnVsX3N5bmNzJyk7CiAgICBmaW5hbCBsYXN0U3luY0F0ID0gcmVzdWx0LnJlYWQ8U3RyaW5nPz4oJ2xhc3Rfc3luY19hdCcpOwoKICAgIHJldHVybiBTeW5jU3RhdHMoCiAgICAgIHRvdGFsU3luY3M6IHRvdGFsU3luY3MsCiAgICAgIHN1Y2Nlc3NmdWxTeW5jczogc3VjY2Vzc2Z1bCwKICAgICAgZmFpbGVkU3luY3M6IHJlc3VsdC5yZWFkPGludD4oJ2ZhaWxlZF9zeW5jcycpLAogICAgICBzdWNjZXNzUmF0ZTogKHN1Y2Nlc3NmdWwgLyB0b3RhbFN5bmNzKSAqIDEwMCwKICAgICAgdG90YWxSZWNvcmRzUHVsbGVkOiByZXN1bHQucmVhZDxpbnQ+KCd0b3RhbF9wdWxsZWQnKSwKICAgICAgdG90YWxSZWNvcmRzUHVzaGVkOiByZXN1bHQucmVhZDxpbnQ+KCd0b3RhbF9wdXNoZWQnKSwKICAgICAgbGFzdFN5bmM6IGxhc3RTeW5jQXQgIT0gbnVsbCA/IERhdGVUaW1lLnBhcnNlKGxhc3RTeW5jQXQpIDogbnVsbCwKICAgICAgYXZlcmFnZUR1cmF0aW9uTXM6IHJlc3VsdC5yZWFkPGludD4oJ3RvdGFsX2R1cmF0aW9uJykgfi8gdG90YWxTeW5jcywKICAgICk7CiAgfQoKICAvLy8g2K3YsNmBINin2YTYs9is2YTYp9iqINin2YTZgtiv2YrZhdipICjZhNmE2LXZitin2YbYqSkKICBGdXR1cmU8aW50PiBkZWxldGVPbGRMb2dzKHtyZXF1aXJlZCBEdXJhdGlvbiBvbGRlclRoYW59KSBhc3luYyB7CiAgICBmaW5hbCBjdXRvZmYgPSBEYXRlVGltZS5ub3coKS5zdWJ0cmFjdChvbGRlclRoYW4pOwoKICAgIGZpbmFsIHF1ZXJ5ID0gZGVsZXRlKHN5bmNMb2cpCiAgICAgIC4ud2hlcmUoKHQpID0+IHQuY3JlYXRlZEF0LmlzU21hbGxlclRoYW5WYWx1ZShjdXRvZmYudG9Jc284NjAxU3RyaW5nKCkpKTsKCiAgICByZXR1cm4gcXVlcnkuZ28oKTsKICB9CgogIC8vLyDYudiv2K8g2KfZhNiz2KzZhNin2KoKICBGdXR1cmU8aW50PiBjb3VudCgpIGFzeW5jIHsKICAgIGZpbmFsIGNvdW50RXhwciA9IGNvdW50QWxsKCk7CiAgICBmaW5hbCBxdWVyeSA9IHNlbGVjdE9ubHkoc3luY0xvZykuLmFkZENvbHVtbnMoW2NvdW50RXhwcl0pOwogICAgZmluYWwgcmVzdWx0ID0gYXdhaXQgcXVlcnkuZ2V0U2luZ2xlKCk7CiAgICByZXR1cm4gcmVzdWx0LnJlYWQoY291bnRFeHByKSA/PyAwOwogIH0KCiAgLy8vIFN0cmVhbSDZhNmE2LPYrNmE2KfYqiDYp9mE2KzYr9mK2K/YqSAo2YTZhNmAIFVJINin2YTZhdio2KfYtNixKQogIFN0cmVhbTxMaXN0PFN5bmNMb2dFbnRyeT4+IHdhdGNoUmVjZW50TG9ncyh7aW50IGxpbWl0ID0gMjB9KSB7CiAgICBmaW5hbCBxdWVyeSA9IHNlbGVjdChzeW5jTG9nKQogICAgICAuLm9yZGVyQnkoWyh0KSA9PiBPcmRlcmluZ1Rlcm0uZGVzYyh0LmNyZWF0ZWRBdCldKQogICAgICAuLmxpbWl0KGxpbWl0KTsKCiAgICByZXR1cm4gcXVlcnkud2F0Y2goKS5tYXAoCiAgICAgIChyb3dzKSA9PiByb3dzLm1hcCgocm93KSB7CiAgICAgICAgZmluYWwgbWV0YWRhdGEgPSBqc29uRGVjb2RlKHJvdy5tZXRhZGF0YSkgYXMgTWFwPFN0cmluZywgZHluYW1pYz47CgogICAgICAgIHJldHVybiBTeW5jTG9nRW50cnkoCiAgICAgICAgICBpZDogcm93LmlkLAogICAgICAgICAgc3luY0lkOiByb3cuc3luY0lkLAogICAgICAgICAgZGlyZWN0aW9uOiByb3cuZGlyZWN0aW9uLAogICAgICAgICAgZGV2aWNlSWQ6IHJvdy5kZXZpY2VJZCwKICAgICAgICAgIHN0YXR1czogcm93LnN0YXR1cywKICAgICAgICAgIGNyZWF0ZWRBdDogRGF0ZVRpbWUucGFyc2Uocm93LmNyZWF0ZWRBdCksCiAgICAgICAgICBjb21wbGV0ZWRBdDogcm93LmNvbXBsZXRlZEF0ICE9IG51bGwKICAgICAgICAgICAgICA/IERhdGVUaW1lLnBhcnNlKHJvdy5jb21wbGV0ZWRBdCEpCiAgICAgICAgICAgICAgOiBudWxsLAogICAgICAgICAgcmVjb3Jkc0NvdW50OgogICAgICAgICAgICAgIChtZXRhZGF0YVsncmVjb3Jkc1B1bGxlZCddIGFzIGludD8pID8/CiAgICAgICAgICAgICAgKG1ldGFkYXRhWydyZWNvcmRzUHVzaGVkJ10gYXMgaW50PyksCiAgICAgICAgICBlcnJvck1lc3NhZ2U6IG1ldGFkYXRhWydlcnJvck1lc3NhZ2UnXSBhcyBTdHJpbmc/LAogICAgICAgICAgZHVyYXRpb25NczogbWV0YWRhdGFbJ2R1cmF0aW9uTXMnXSBhcyBpbnQ/LAogICAgICAgICAgdGFyZ2V0OiBtZXRhZGF0YVsndGFyZ2V0J10gYXMgU3RyaW5nPywKICAgICAgICApOwogICAgICB9KS50b0xpc3QoKSwKICAgICk7CiAgfQp9Cg==
+import 'dart:convert';
+import 'package:drift/drift.dart';
+import '../local_db.dart';
+
+part 'sync_log_dao.g.dart';
+
+/// نموذج مبسط لسجل المزامنة للعرض
+class SyncLogEntry {
+  // Appwrite, GoogleDrive
+
+  SyncLogEntry({
+    required this.id,
+    required this.syncId,
+    required this.direction,
+    required this.deviceId,
+    required this.status,
+    required this.createdAt,
+    this.completedAt,
+    this.recordsCount,
+    this.errorMessage,
+    this.durationMs,
+    this.target,
+  });
+  final int id;
+  final String syncId;
+  final String direction; // pull, push, bidirectional
+  final String deviceId;
+  final String status; // success, failed, partial
+  final DateTime createdAt;
+  final DateTime? completedAt;
+  final int? recordsCount;
+  final String? errorMessage;
+  final int? durationMs;
+  final String? target;
+}
+
+/// إحصائيات المزامنة
+class SyncStats {
+  SyncStats({
+    required this.totalSyncs,
+    required this.successfulSyncs,
+    required this.failedSyncs,
+    required this.successRate,
+    required this.totalRecordsPulled,
+    required this.totalRecordsPushed,
+    required this.averageDurationMs,
+    this.lastSync,
+  });
+  final int totalSyncs;
+  final int successfulSyncs;
+  final int failedSyncs;
+  final double successRate;
+  final int totalRecordsPulled;
+  final int totalRecordsPushed;
+  final DateTime? lastSync;
+  final int averageDurationMs;
+}
+
+@DriftAccessor(tables: [SyncLog, SyncConflicts])
+class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
+  SyncLogDao(super.db);
+
+  /// تسجيل عملية مزامنة جديدة
+  /// `operations` can be null if no operations list is available
+  Future<int> logSync({
+    required String syncId,
+    required String direction,
+    required String deviceId,
+    required String target,
+    required String status,
+    int? recordsPulled,
+    int? recordsPushed,
+    String? errorMessage,
+    int? durationMs,
+    Map<String, dynamic>? metadata,
+  }) async {
+    final now = DateTime.now();
+
+    final entry = SyncLogCompanion(
+      syncId: Value(syncId),
+      direction: Value(direction),
+      deviceId: Value(deviceId),
+      status: Value(status),
+      createdAt: Value(now.toIso8601String()),
+      completedAt: status != 'in_progress'
+          ? Value(now.toIso8601String())
+          : const Value.absent(),
+      metadata: Value(
+        jsonEncode({
+          'target': target,
+          'recordsPulled': recordsPulled,
+          'recordsPushed': recordsPushed,
+          'durationMs': durationMs,
+          'errorMessage': errorMessage,
+          ...?metadata,
+        }),
+      ),
+    );
+
+    return into(syncLog).insert(entry);
+  }
+
+  /// الحصول على سجل المزامنة (مع pagination)
+  Future<List<SyncLogEntry>> getSyncHistory({
+    int limit = 50,
+    int offset = 0,
+    String? direction, // 'pull', 'push', null للكل
+    String? status, // 'success', 'failed', null للكل
+  }) async {
+    var query = select(syncLog)
+      ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]);
+
+    if (direction != null) {
+      query = query..where((t) => t.direction.equals(direction));
+    }
+
+    if (status != null) {
+      query = query..where((t) => t.status.equals(status));
+    }
+
+    query = query..limit(limit, offset: offset);
+
+    final results = await query.get();
+
+    return results.map((row) {
+      final metadata = jsonDecode(row.metadata) as Map<String, dynamic>;
+
+      return SyncLogEntry(
+        id: row.id,
+        syncId: row.syncId,
+        direction: row.direction,
+        deviceId: row.deviceId,
+        status: row.status,
+        createdAt: DateTime.parse(row.createdAt),
+        completedAt: row.completedAt != null
+            ? DateTime.parse(row.completedAt!)
+            : null,
+        recordsCount:
+            (metadata['recordsPulled'] as int?) ??
+            (metadata['recordsPushed'] as int?),
+        errorMessage: metadata['errorMessage'] as String?,
+        durationMs: metadata['durationMs'] as int?,
+        target: metadata['target'] as String?,
+      );
+    }).toList();
+  }
+
+  /// الحصول على آخر عملية مزامنة
+  Future<SyncLogEntry?> getLastSync() async {
+    final query = select(syncLog)
+      ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
+      ..limit(1);
+
+    final result = await query.getSingleOrNull();
+    if (result == null) {
+      return null;
+    }
+
+    final metadata = jsonDecode(result.metadata) as Map<String, dynamic>;
+
+    return SyncLogEntry(
+      id: result.id,
+      syncId: result.syncId,
+      direction: result.direction,
+      deviceId: result.deviceId,
+      status: result.status,
+      createdAt: DateTime.parse(result.createdAt),
+      completedAt: result.completedAt != null
+          ? DateTime.parse(result.completedAt!)
+          : null,
+      recordsCount:
+          (metadata['recordsPulled'] as int?) ??
+          (metadata['recordsPushed'] as int?),
+      errorMessage: metadata['errorMessage'] as String?,
+      durationMs: metadata['durationMs'] as int?,
+      target: metadata['target'] as String?,
+    );
+  }
+
+  /// إحصائيات المزامنة (using SQL aggregates instead of Dart loop)
+  Future<SyncStats> getSyncStats({DateTime? since}) async {
+    var whereClause = '';
+    final variables = <Variable<Object>>[];
+
+    if (since != null) {
+      whereClause = 'WHERE created_at >= ?';
+      variables.add(Variable<String>(since.toIso8601String()));
+    }
+
+    final result = await customSelect(
+      'SELECT '
+      '  COUNT(*) AS total_syncs, '
+      "  COALESCE(SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END), 0) AS successful_syncs, "
+      "  COALESCE(SUM(CASE WHEN status != 'success' THEN 1 ELSE 0 END), 0) AS failed_syncs, "
+      r"  COALESCE(SUM(json_extract(metadata, '$.recordsPulled')), 0) AS total_pulled, "
+      r"  COALESCE(SUM(json_extract(metadata, '$.recordsPushed')), 0) AS total_pushed, "
+      r"  COALESCE(SUM(json_extract(metadata, '$.durationMs')), 0) AS total_duration, "
+      '  MAX(created_at) AS last_sync_at '
+      'FROM sync_log $whereClause',
+      variables: variables,
+      readsFrom: {syncLog},
+    ).getSingle();
+
+    final totalSyncs = result.read<int>('total_syncs');
+
+    if (totalSyncs == 0) {
+      return SyncStats(
+        totalSyncs: 0,
+        successfulSyncs: 0,
+        failedSyncs: 0,
+        successRate: 0,
+        totalRecordsPulled: 0,
+        totalRecordsPushed: 0,
+        averageDurationMs: 0,
+      );
+    }
+
+    final successful = result.read<int>('successful_syncs');
+    final lastSyncAt = result.read<String?>('last_sync_at');
+
+    return SyncStats(
+      totalSyncs: totalSyncs,
+      successfulSyncs: successful,
+      failedSyncs: result.read<int>('failed_syncs'),
+      successRate: (successful / totalSyncs) * 100,
+      totalRecordsPulled: result.read<int>('total_pulled'),
+      totalRecordsPushed: result.read<int>('total_pushed'),
+      lastSync: lastSyncAt != null ? DateTime.parse(lastSyncAt) : null,
+      averageDurationMs: result.read<int>('total_duration') ~/ totalSyncs,
+    );
+  }
+
+  /// حذف السجلات القديمة (للصيانة)
+  Future<int> deleteOldLogs({required Duration olderThan}) async {
+    final cutoff = DateTime.now().subtract(olderThan);
+
+    final query = delete(syncLog)
+      ..where((t) => t.createdAt.isSmallerThanValue(cutoff.toIso8601String()));
+
+    return query.go();
+  }
+
+  /// عدد السجلات
+  Future<int> count() async {
+    final countExpr = countAll();
+    final query = selectOnly(syncLog)..addColumns([countExpr]);
+    final result = await query.getSingle();
+    return result.read(countExpr) ?? 0;
+  }
+
+  /// Stream للسجلات الجديدة (للـ UI المباشر)
+  Stream<List<SyncLogEntry>> watchRecentLogs({int limit = 20}) {
+    final query = select(syncLog)
+      ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
+      ..limit(limit);
+
+    return query.watch().map(
+      (rows) => rows.map((row) {
+        final metadata = jsonDecode(row.metadata) as Map<String, dynamic>;
+
+        return SyncLogEntry(
+          id: row.id,
+          syncId: row.syncId,
+          direction: row.direction,
+          deviceId: row.deviceId,
+          status: row.status,
+          createdAt: DateTime.parse(row.createdAt),
+          completedAt: row.completedAt != null
+              ? DateTime.parse(row.completedAt!)
+              : null,
+          recordsCount:
+              (metadata['recordsPulled'] as int?) ??
+              (metadata['recordsPushed'] as int?),
+          errorMessage: metadata['errorMessage'] as String?,
+          durationMs: metadata['durationMs'] as int?,
+          target: metadata['target'] as String?,
+        );
+      }).toList(),
+    );
+  }
+}
