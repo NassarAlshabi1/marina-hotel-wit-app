@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 
 class FormInput extends StatelessWidget {
-  const FormInput({
-    super.key,
-    required this.controller,
-    required this.label,
-    this.obscureText = false,
-    this.keyboardType,
+  const FormInput({      required this.controller,
+      required this.label,
+      super.key,
+      this.obscureText = false,
+      this.keyboardType,
   });
   final TextEditingController controller;
   final String label;

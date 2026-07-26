@@ -1,85 +1,106 @@
 name: Build Flutter Windows Release
 
+# ═══════════════════════════════════════════════════════════════
+#  Marina Hotel — Build Flutter Windows Release
+# ═══════════════════════════════════════════════════════════════
+#
+#  يبني تطبيق Flutter لـ Windows Desktop (release).
+#  ينتج ملف .exe + ملفات DLL + assets في مجلد bundle.
+#
+#  المتطلبات:
+#  - Flutter 3.44.4+ (مع --enable-windows-desktop)
+#  - Visual Studio Build Tools (CMake)
+#  - sqflite_common_ffi لـ SQLite على Desktop
+#
+#  الإصلاحات اللازمة لدعم Windows:
+#  - local_db.dart: استخدام path_provider بدلاً من sqflite.getDatabasesPath()
+#  - main.dart: تهيئة sqflite_common_ffi على Desktop
+#  - pubspec.yaml: sqflite_common_ffi كـ dependency (ليس dev فقط)
+
+concurrency:
+  group: windows-release-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
 on:
   push:
-    branches:
-      - main
-      - 'marina'
+    branches: [main, marina]
     paths:
       - 'mobile/**'
       - '.github/workflows/flutter-windows-release.yml'
   pull_request:
-    branches:
-      - main
+    branches: [main]
     paths:
       - 'mobile/**'
       - '.github/workflows/flutter-windows-release.yml'
   workflow_dispatch:
-    inputs:
-      base_api_url:
-        description: 'BASE_API_URL for desktop build'
-        required: false
-        default: 'http://127.0.0.1:8080/api/v1'
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
 
 jobs:
-  build-windows-release:
+  windows-build:
+    name: 🪟 Build Windows Release
     runs-on: windows-latest
-    permissions:
-      contents: read
-    timeout-minutes: 45
     defaults:
       run:
         working-directory: mobile
-    env:
-      BASE_API_URL: ${{ github.event.inputs.base_api_url || 'http://127.0.0.1:8080/api/v1' }}
 
     steps:
-      - name: Checkout repository
+      - name: 📥 Checkout code
         uses: actions/checkout@v5
 
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+      - name: 🐦 Set up Flutter
+        uses: subosito/flutter-action@v2.23.0
         with:
-          flutter-version: '3.41.0'
+          flutter-version: '3.44.4'
+          channel: stable
           cache: true
-          cache-key: flutter-${{ runner.os }}-3.41.0
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
 
-      - name: Enable Windows desktop
+      - name: 🔧 Enable Windows Desktop
         run: flutter config --enable-windows-desktop
 
-      - name: Add Windows platform support
-        run: flutter create --platforms=windows .
-
-      - name: Flutter doctor
-        run: flutter doctor -v
-
-      - name: Clean build artifacts
-        run: flutter clean
-
-      - name: Install dependencies
+      - name: 📦 Install dependencies
         run: flutter pub get
 
-      - name: Build runner - clean generated files
-        run: flutter pub run build_runner clean
+      - name: 🏗️ Generate code (build_runner)
+        run: dart run build_runner build --delete-conflicting-outputs
 
-      - name: Generate code
-        run: flutter pub run build_runner build --delete-conflicting-outputs --verbose
+      - name: 🔍 Static analysis
+        run: flutter analyze --no-fatal-infos
+        continue-on-error: true
 
-      - name: Build Windows release
-        run: >
-          flutter build windows --release
-          --dart-define=BASE_API_URL=${{ env.BASE_API_URL }}
-          --dart-define=AGENT_ROUTER_API_KEY=${{ secrets.AGENTROUTER_API_KEY }}
-          --dart-define=AGENT_ROUTER_BASE_URL=https://openrouter.ai/api/v1
+      - name: 🔨 Build Windows Release
+        run: flutter build windows --release
 
-      - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
+      - name: 📦 Archive Windows build
+        run: |
+          # إنشاء ZIP archive من مجلد build
+          cd build/windows/x64/runner/Release
+          7z a -tzip windows-release.zip *
+          mv windows-release.zip ../../../../../
+
+      - name: 📤 Upload Windows artifact
+        uses: actions/upload-artifact@v7
         with:
-          name: marina-hotel-windows-${{ github.run_number }}
-          path: |
-            mobile/build/windows/x64/runner/Release/**
-          if-no-files-found: error
+          name: windows-release
+          path: mobile/windows-release.zip
+          retention-days: 14
+
+      - name: 📋 Build summary
+        if: always()
+        run: |
+          echo "## 🪟 Windows Build Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Type | Release |" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Windows x64 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Flutter | 3.44.4 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Artifact" >> $GITHUB_STEP_SUMMARY
+          echo "- **Name**: windows-release.zip" >> $GITHUB_STEP_SUMMARY
+          echo "- **Retention**: 14 days" >> $GITHUB_STEP_SUMMARY
+          echo "- **Contents**: .exe + DLLs + assets" >> $GITHUB_STEP_SUMMARY

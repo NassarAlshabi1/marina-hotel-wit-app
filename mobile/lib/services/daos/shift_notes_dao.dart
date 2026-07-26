@@ -1,32 +1,30 @@
 import 'package:drift/drift.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../appwrite_sync_manager.dart';
 import '../local_db.dart';
 import 'outbox_dao.dart';
 
 part 'shift_notes_dao.g.dart';
 
 @DriftAccessor(tables: [ShiftNotes])
-class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
-    with _$ShiftNotesDaoMixin {
+class ShiftNotesDao extends DatabaseAccessor<AppDatabase> with _$ShiftNotesDaoMixin {
   ShiftNotesDao(super.db, this.outboxDao);
 
   final OutboxDao outboxDao;
 
   // جلب جميع الملاحظات (غير المحذوفة، غير القائمة السوداء)
-  Future<List<ShiftNote>> getAllNotes() => (select(shiftNotes)
-    ..where((t) => t.deletedAt.isNull() & t.createdBy.equals('user')))
-      .get();
+  Future<List<ShiftNote>> getAllNotes() =>
+      (select(shiftNotes)..where((t) => t.deletedAt.isNull() & t.createdBy.equals('user'))).get();
 
   // جلب الملاحظات غير المقروءة فقط (غير المحذوفة، غير القائمة السوداء)
-  Future<List<ShiftNote>> getUnreadNotes() => (select(shiftNotes)
-    ..where((t) => t.isRead.equals(0) & t.deletedAt.isNull() & t.createdBy.equals('user')))
-      .get();
+  Future<List<ShiftNote>> getUnreadNotes() =>
+      (select(shiftNotes)..where((t) => t.isRead.equals(0) & t.deletedAt.isNull() & t.createdBy.equals('user'))).get();
 
   // جلب الملاحظات عالية الأولوية (غير المحذوفة، غير القائمة السوداء)
-  Future<List<ShiftNote>> getHighPriorityNotes() => (select(shiftNotes)
-    ..where((t) => t.priority.equals('high') & t.deletedAt.isNull() & t.createdBy.equals('user')))
-      .get();
+  Future<List<ShiftNote>> getHighPriorityNotes() => (select(
+    shiftNotes,
+  )..where((t) => t.priority.equals('high') & t.deletedAt.isNull() & t.createdBy.equals('user'))).get();
 
   // إضافة ملاحظة جديدة
   Future<int> addNote({
@@ -53,6 +51,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
         isRead: const Value(0),
         createdBy: const Value('user'),
         localUuid: Value(uuid),
+        deviceId: originIsServer ? const Value.absent() : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
       );
 
       final id = await into(shiftNotes).insert(companion);
@@ -90,9 +89,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
     int? serverLastModified,
   }) async {
     return transaction(() async {
-      final existing = await (select(
-        shiftNotes,
-      )..where((t) => t.id.equals(id))).getSingleOrNull();
+      final existing = await (select(shiftNotes)..where((t) => t.id.equals(id))).getSingleOrNull();
       if (existing == null) {
         return false;
       }
@@ -100,10 +97,9 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       final now = Time.nowEpoch();
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified =
-          originIsServer && serverLastModified != null
-              ? Value(serverLastModified)
-              : Value(now);
+      final effectiveLastModified = originIsServer && serverLastModified != null
+          ? Value(serverLastModified)
+          : Value(now);
       final companion = ShiftNotesCompanion(
         title: title != null ? Value(title) : const Value.absent(),
         content: content != null ? Value(content) : const Value.absent(),
@@ -112,11 +108,13 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
         expiresAt: expiresAt != null ? Value(expiresAt) : const Value.absent(),
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
+        version: Value(existing.version + 1),
       );
 
+      // ✅ OCC: فحص version في WHERE لمنع lost update
       final rows = await (update(
         shiftNotes,
-      )..where((t) => t.id.equals(id))).write(companion);
+      )..where((t) => t.id.equals(id) & t.version.equals(existing.version))).write(companion);
 
       if (rows > 0 && !originIsServer) {
         final payload = <String, dynamic>{};
@@ -154,9 +152,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
   // وضع علامة مقروء
   Future<bool> markAsRead(int id, {bool originIsServer = false, int? serverLastModified}) async {
     return transaction(() async {
-      final existing = await (select(
-        shiftNotes,
-      )..where((t) => t.id.equals(id))).getSingleOrNull();
+      final existing = await (select(shiftNotes)..where((t) => t.id.equals(id))).getSingleOrNull();
       if (existing == null) {
         return false;
       }
@@ -164,18 +160,18 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       final now = Time.nowEpoch();
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified =
-          originIsServer && serverLastModified != null
-              ? Value(serverLastModified)
-              : Value(now);
-      final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
-          .write(
-            ShiftNotesCompanion(
-              isRead: const Value(1),
-              updatedAt: Value(now),
-              lastModified: effectiveLastModified,
-            ),
-          );
+      final effectiveLastModified = originIsServer && serverLastModified != null
+          ? Value(serverLastModified)
+          : Value(now);
+      // ✅ OCC: فحص version في WHERE لمنع lost update
+      final rows = await (update(shiftNotes)..where((t) => t.id.equals(id) & t.version.equals(existing.version))).write(
+        ShiftNotesCompanion(
+          isRead: const Value(1),
+          updatedAt: Value(now),
+          lastModified: effectiveLastModified,
+          version: Value(existing.version + 1),
+        ),
+      );
 
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
@@ -194,9 +190,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
   // وضع علامة غير مقروء
   Future<bool> markAsUnread(int id, {bool originIsServer = false, int? serverLastModified}) async {
     return transaction(() async {
-      final existing = await (select(
-        shiftNotes,
-      )..where((t) => t.id.equals(id))).getSingleOrNull();
+      final existing = await (select(shiftNotes)..where((t) => t.id.equals(id))).getSingleOrNull();
       if (existing == null) {
         return false;
       }
@@ -204,18 +198,18 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       final now = Time.nowEpoch();
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified =
-          originIsServer && serverLastModified != null
-              ? Value(serverLastModified)
-              : Value(now);
-      final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
-          .write(
-            ShiftNotesCompanion(
-              isRead: const Value(0),
-              updatedAt: Value(now),
-              lastModified: effectiveLastModified,
-            ),
-          );
+      final effectiveLastModified = originIsServer && serverLastModified != null
+          ? Value(serverLastModified)
+          : Value(now);
+      // ✅ OCC: فحص version في WHERE لمنع lost update
+      final rows = await (update(shiftNotes)..where((t) => t.id.equals(id) & t.version.equals(existing.version))).write(
+        ShiftNotesCompanion(
+          isRead: const Value(0),
+          updatedAt: Value(now),
+          lastModified: effectiveLastModified,
+          version: Value(existing.version + 1),
+        ),
+      );
 
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
@@ -234,9 +228,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
   // حذف ملاحظة
   Future<bool> deleteNote(int id, {bool originIsServer = false}) async {
     return transaction(() async {
-      final existing = await (select(
-        shiftNotes,
-      )..where((t) => t.id.equals(id))).getSingleOrNull();
+      final existing = await (select(shiftNotes)..where((t) => t.id.equals(id))).getSingleOrNull();
       if (existing == null) {
         return false; // Already deleted or doesn't exist
       }
@@ -249,14 +241,15 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       // SyncFields adds `deletedAt`. We should use Soft Delete.
 
       final now = Time.nowEpoch();
-      final rows = await (update(shiftNotes)..where((t) => t.id.equals(id)))
-          .write(
-            ShiftNotesCompanion(
-              deletedAt: Value(now),
-              updatedAt: Value(now),
-              lastModified: Value(now),
-            ),
-          );
+      // ✅ OCC: فحص version في WHERE لمنع lost update
+      final rows = await (update(shiftNotes)..where((t) => t.id.equals(id) & t.version.equals(existing.version))).write(
+        ShiftNotesCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          lastModified: Value(now),
+          version: Value(existing.version + 1),
+        ),
+      );
 
       if (rows > 0 && !originIsServer) {
         // ✅ نستخدم 'update' بدلاً من 'delete' لأن softDelete يحدّث deletedAt
@@ -284,17 +277,14 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
   }
 
   // مراقبة التغييرات على جميع الملاحظات (غير المحذوفة، غير القائمة السوداء)
-  Stream<List<ShiftNote>> watchAllNotes() => (select(shiftNotes)
-    ..where((t) => t.deletedAt.isNull() & t.createdBy.equals('user')))
-      .watch();
+  Stream<List<ShiftNote>> watchAllNotes() =>
+      (select(shiftNotes)..where((t) => t.deletedAt.isNull() & t.createdBy.equals('user'))).watch();
 
   // مراقبة عدد الملاحظات غير المقروءة (غير المحذوفة، غير القائمة السوداء)
   Stream<int> watchUnreadCount() {
     final query = selectOnly(shiftNotes)
       ..addColumns([shiftNotes.id.count()])
       ..where(shiftNotes.isRead.equals(0) & shiftNotes.deletedAt.isNull() & shiftNotes.createdBy.equals('user'));
-    return query.watchSingle().map(
-      (row) => row.read(shiftNotes.id.count()) ?? 0,
-    );
+    return query.watchSingle().map((row) => row.read(shiftNotes.id.count()) ?? 0);
   }
 }

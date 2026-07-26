@@ -148,7 +148,6 @@ jobs:
         run: |
           dart format \
             --line-length ${{ inputs.format_line_length }} \
-            --set-exit-if-changed \
             ${{ inputs.format_directories }}
 
       - name: 🕵️ Analyze

@@ -22,25 +22,14 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
   String get tableName => 'debts';
 
   @override
-  Future<ResolveResult> resolveRefs(
-    AppDatabase db,
-    Map<String, dynamic> json, {
-    required Source src,
-  }) async {
+  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
     final bookingUuid =
         _asString(json, 'bookingUuidCache', src) ??
         _asString(json, 'booking_uuid_cache', src) ??
         _asString(json, 'booking_uuid', src);
-    final serverBookingId =
-        _asInt(json, 'serverBookingId', src) ?? _asInt(json, 'booking_id', src);
-    final localId =
-        _asInt(json, 'bookingLocalId', src) ??
-        _asInt(json, 'booking_local_id', src);
-    final resolvedId = await resolver.resolveBooking(
-      localId: localId,
-      serverId: serverBookingId,
-      uuid: bookingUuid,
-    );
+    final serverBookingId = _asInt(json, 'serverBookingId', src) ?? _asInt(json, 'booking_id', src);
+    final localId = _asInt(json, 'bookingLocalId', src) ?? _asInt(json, 'booking_local_id', src);
+    final resolvedId = await resolver.resolveBooking(localId: localId, serverId: serverBookingId, uuid: bookingUuid);
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
     return ResolveResult(
@@ -52,25 +41,13 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
   }
 
   @override
-  DebtsCompanion fromJson(
-    Map<String, dynamic> json, {
-    required Source src,
-    required ResolveResult refs,
-  }) {
+  DebtsCompanion fromJson(Map<String, dynamic> json, {required Source src, required ResolveResult refs}) {
     final now = Time.nowEpoch();
-    final createdAt =
-        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified =
-        refs.lastModifiedEpoch ??
-        _epoch(json, 'lastModified', src) ??
-        createdAt;
+    final createdAt = refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final lastModified = refs.lastModifiedEpoch ?? _epoch(json, 'lastModified', src) ?? createdAt;
     return DebtsCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(
-        _asString(json, 'localUuid', src) ??
-            _asString(json, 'local_uuid', src) ??
-            IdGen.uuid(),
-      ),
+      localUuid: d.Value(_asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src) ?? IdGen.uuid()),
       serverId: _vInt(json, 'serverId', src),
       // ✅ إصلاح حرج: لا نستخدم bookingLocalId الخام من الجهاز البعيد
       // معرّف الزيادة التلقائية يختلف بين الأجهزة — bookingLocalId=5 على جهاز A ≠ جهاز B
@@ -78,51 +55,15 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       bookingLocalId: refs.bookingLocalId != null
           ? d.Value(refs.bookingLocalId)
           : (src == Source.appwrite || src == Source.drive)
-              ? const d.Value.absent()
-              : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
+          ? const d.Value.absent()
+          : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
       guestName: _vStr(json, 'guestName', src, fallback: ''),
-      checkinDate: _vStr(
-        json,
-        'checkinDate',
-        src,
-        altKey: 'checkin_date',
-        fallback: '',
-      ),
-      checkoutDate: _vStr(
-        json,
-        'checkoutDate',
-        src,
-        altKey: 'checkout_date',
-        fallback: '',
-      ),
-      dateRecorded: _vStr(
-        json,
-        'dateRecorded',
-        src,
-        altKey: 'date_recorded',
-        fallback: '',
-      ),
-      debtReason: _vStr(
-        json,
-        'debtReason',
-        src,
-        altKey: 'debt_reason',
-        fallback: '',
-      ),
-      totalAmount: _vDouble(
-        json,
-        'totalAmount',
-        src,
-        altKey: 'total_amount',
-        fallback: 0,
-      ),
-      paidAmount: _vDouble(
-        json,
-        'paidAmount',
-        src,
-        altKey: 'paid_amount',
-        fallback: 0,
-      ),
+      checkinDate: _vStr(json, 'checkinDate', src, altKey: 'checkin_date', fallback: ''),
+      checkoutDate: _vStr(json, 'checkoutDate', src, altKey: 'checkout_date', fallback: ''),
+      dateRecorded: _vStr(json, 'dateRecorded', src, altKey: 'date_recorded', fallback: ''),
+      debtReason: _vStr(json, 'debtReason', src, altKey: 'debt_reason', fallback: ''),
+      totalAmount: _vDouble(json, 'totalAmount', src, altKey: 'total_amount'),
+      paidAmount: _vDouble(json, 'paidAmount', src, altKey: 'paid_amount'),
       // ✅ remainingAmount أُضيف إلى Appwrite Cloud (2026-05-15) كـ integer
       // نقرأه من السحابة، وإذا لم يكن موجوداً نحسبه: totalAmount - paidAmount
       remainingAmount: _vDouble(
@@ -130,40 +71,20 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
         'remainingAmount',
         src,
         altKey: 'remaining_amount',
-        fallback: (_asDouble(json, 'totalAmount', src, altKey: 'total_amount') ?? 0) -
+        fallback:
+            (_asDouble(json, 'totalAmount', src, altKey: 'total_amount') ?? 0) -
             (_asDouble(json, 'paidAmount', src, altKey: 'paid_amount') ?? 0),
       ),
-      paymentDate: _vStr(
-        json,
-        'paymentDate',
-        src,
-        altKey: 'payment_date',
-        fallback: '',
-      ),
+      paymentDate: _vStr(json, 'paymentDate', src, altKey: 'payment_date', fallback: ''),
       isSettled: _vInt(json, 'isSettled', src, fallback: 0),
       pledge: _vStr(json, 'pledge', src),
       pledgeType: _vStr(json, 'pledgeType', src, altKey: 'pledge_type'),
       note: _vStr(json, 'note', src),
       debtUuid: _vStr(json, 'debtUuid', src, altKey: 'debt_uuid'),
-      hotelDayOpened: _vStr(
-        json,
-        'hotelDayOpened',
-        src,
-        altKey: 'hotel_day_opened',
-      ),
-      hotelDayClosed: _vStr(
-        json,
-        'hotelDayClosed',
-        src,
-        altKey: 'hotel_day_closed',
-      ),
+      hotelDayOpened: _vStr(json, 'hotelDayOpened', src, altKey: 'hotel_day_opened'),
+      hotelDayClosed: _vStr(json, 'hotelDayClosed', src, altKey: 'hotel_day_closed'),
       isFromAutoFix: _vBool(json, 'isFromAutoFix', src, fallback: false),
-      settlementConfirmed: _vBool(
-        json,
-        'settlementConfirmed',
-        src,
-        fallback: false,
-      ),
+      settlementConfirmed: _vBool(json, 'settlementConfirmed', src, fallback: false),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
@@ -172,12 +93,7 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
       createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
-      lastModifiedEpoch: _vInt(
-        json,
-        'lastModifiedEpoch',
-        src,
-        fallback: lastModified,
-      ),
+      lastModifiedEpoch: _vInt(json, 'lastModifiedEpoch', src, fallback: lastModified),
       version: _vInt(json, 'version', src, fallback: 1),
       // ✅ إصلاح: عند src=Source.appwrite، نصر على origin='server' دائماً
       // لمنع مشكلة أن البيانات المسحوبة من السيرفر تحمل origin='mobile'
@@ -185,13 +101,9 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       origin: src == Source.appwrite || src == Source.drive
           ? const d.Value('server')
           : _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vStr(
-        json,
-        'vectorClock',
-        src,
-        altKey: 'vector_clock',
-        fallback: '{}',
-      ),
+      vectorClock: _vStr(json, 'vectorClock', src, altKey: 'vector_clock', fallback: '{}'),
+      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
+      deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
 
@@ -221,72 +133,42 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       _k(src, 'hotelDayOpened', 'hotel_day_opened'): model.hotelDayOpened,
       _k(src, 'hotelDayClosed', 'hotel_day_closed'): model.hotelDayClosed,
       _k(src, 'isFromAutoFix', 'is_from_auto_fix'): model.isFromAutoFix,
-      _k(src, 'settlementConfirmed', 'settlement_confirmed'):
-          model.settlementConfirmed,
+      _k(src, 'settlementConfirmed', 'settlement_confirmed'): model.settlementConfirmed,
       _k(src, 'createdAt', 'created_at'): model.createdAt,
+      _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
+      _k(src, 'createdAtIso', 'created_at_iso'): model.createdAtIso,
       _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
+      _k(src, 'updatedAtIso', 'updated_at_iso'): model.updatedAtIso,
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
+      _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      'idempotencyKey': model.idempotencyKey,
+      'deviceId': model.deviceId,
     };
   }
 }
 
-d.Value<int> _vInt(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  int? fallback,
-}) {
-  final v =
-      _asInt(json, key, src) ??
-      (altKey != null ? _asInt(json, altKey, src) : null) ??
-      fallback;
+d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src, {String? altKey, int? fallback}) {
+  final v = _asInt(json, key, src) ?? (altKey != null ? _asInt(json, altKey, src) : null) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String> _vStr(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  String? fallback,
-}) {
-  final v =
-      _asString(json, key, src) ??
-      (altKey != null ? _asString(json, altKey, src) : null) ??
-      fallback;
+d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src, {String? altKey, String? fallback}) {
+  final v = _asString(json, key, src) ?? (altKey != null ? _asString(json, altKey, src) : null) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<double> _vDouble(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  double? fallback,
-}) {
-  final v =
-      _asDouble(json, key, src) ??
-      (altKey != null ? _asDouble(json, altKey, src) : null) ??
-      fallback;
+d.Value<double> _vDouble(Map<String, dynamic> json, String key, Source src, {String? altKey, double? fallback}) {
+  final v = _asDouble(json, key, src) ?? (altKey != null ? _asDouble(json, altKey, src) : null) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<bool> _vBool(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  bool? fallback,
-}) {
-  final v =
-      _asBool(json, key, src) ??
-      (altKey != null ? _asBool(json, altKey, src) : null) ??
-      fallback;
+d.Value<bool> _vBool(Map<String, dynamic> json, String key, Source src, {String? altKey, bool? fallback}) {
+  final v = _asBool(json, key, src) ?? (altKey != null ? _asBool(json, altKey, src) : null) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
@@ -382,13 +264,10 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) =>
-    src == Source.drive ? snake : camel;
+String _k(Source src, String camel, String snake) => src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
-  if (src == Source.drive) {
-    return camel;
-  }
+  // ✅ إصلاح: تحويل camelCase → snake_case لجميع المصادر بما فيها Drive
   final buf = StringBuffer();
   for (var i = 0; i < camel.length; i++) {
     final c = camel[i];

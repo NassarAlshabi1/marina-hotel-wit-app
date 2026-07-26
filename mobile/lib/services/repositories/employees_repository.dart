@@ -10,48 +10,39 @@ import '../daos/outbox_dao.dart';
 import '../local_db.dart';
 
 class EmployeesRepository {
-  EmployeesRepository(this.db)
-    : outbox = OutboxDao(db),
-      dao = EmployeesDao(db, OutboxDao(db));
+  EmployeesRepository(this.db) : outbox = OutboxDao(db), dao = EmployeesDao(db, OutboxDao(db));
   final AppDatabase db;
   final OutboxDao outbox;
   final EmployeesDao dao;
 
-  Stream<List<Employee>> watchAll({String? search}) =>
-      dao.watchList(search: search);
+  Stream<List<Employee>> watchAll({String? search}) => dao.watchList(search: search);
   Stream<Employee?> watchOne(int id) => dao.watchById(id);
 
-  String _normalizeStatus(String status) =>
-      StatusUtils.canonicalEmployeeStatus(status);
+  String _normalizeStatus(String status) => StatusUtils.canonicalEmployeeStatus(status);
 
-  Future<int> create({
-    required String name,
-    double? basicSalary,
-    double? salary,
-    String? position,
-    String? phone,
-    String? hireDate,
-    required String status,
+  Future<int> create({      required String name,
+      required String status,
+      double? basicSalary,
+      double? salary,
+      String? position,
+      String? phone,
+      String? hireDate,
   }) async {
     try {
-    final s = salary ?? basicSalary ?? 0.0;
-    final normalizedStatus = _normalizeStatus(status);
-    final result = await dao.insertOne(
-      EmployeesCompanion(
-        name: d.Value(name),
-        basicSalary: d.Value(s),
-        position: d.Value(position ?? 'موظف'),
-        phone: d.Value(phone ?? ''),
-        hireDate: d.Value(hireDate ?? ''),
-        status: d.Value(normalizedStatus),
-      ),
-    );
-    unawaited(AutoBackupManager.instance.onDataChange(
-      'employees',
-      'INSERT',
-      recordData: {'name': name},
-    ),);
-    return result;
+      final s = salary ?? basicSalary ?? 0.0;
+      final normalizedStatus = _normalizeStatus(status);
+      final result = await dao.insertOne(
+        EmployeesCompanion(
+          name: d.Value(name),
+          basicSalary: d.Value(s),
+          position: d.Value(position ?? 'موظف'),
+          phone: d.Value(phone ?? ''),
+          hireDate: d.Value(hireDate ?? ''),
+          status: d.Value(normalizedStatus),
+        ),
+      );
+      unawaited(AutoBackupManager.instance.onDataChange('employees', 'INSERT', recordData: {'name': name}));
+      return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
         screen: 'EmployeesRepository',
@@ -78,35 +69,23 @@ class EmployeesRepository {
     String? terminationReason,
   }) async {
     try {
-    final result = await dao.updateById(
-      id,
-      EmployeesCompanion(
-        name: name != null ? d.Value(name) : const d.Value.absent(),
-        basicSalary: (salary ?? basicSalary) != null
-            ? d.Value((salary ?? basicSalary)!)
-            : const d.Value.absent(),
-        position: position != null ? d.Value(position) : const d.Value.absent(),
-        phone: phone != null ? d.Value(phone) : const d.Value.absent(),
-        hireDate: hireDate != null ? d.Value(hireDate) : const d.Value.absent(),
-        status: status != null
-            ? d.Value(_normalizeStatus(status))
-            : const d.Value.absent(),
-        terminationDate: terminationDate != null
-            ? d.Value(terminationDate)
-            : const d.Value.absent(),
-        terminationReason: terminationReason != null
-            ? d.Value(terminationReason)
-            : const d.Value.absent(),
-      ),
-    );
-    if (result > 0) {
-      unawaited(AutoBackupManager.instance.onDataChange(
-        'employees',
-        'UPDATE',
-        recordData: {'id': id},
-      ),);
-    }
-    return result;
+      final result = await dao.updateById(
+        id,
+        EmployeesCompanion(
+          name: name != null ? d.Value(name) : const d.Value.absent(),
+          basicSalary: (salary ?? basicSalary) != null ? d.Value((salary ?? basicSalary)!) : const d.Value.absent(),
+          position: position != null ? d.Value(position) : const d.Value.absent(),
+          phone: phone != null ? d.Value(phone) : const d.Value.absent(),
+          hireDate: hireDate != null ? d.Value(hireDate) : const d.Value.absent(),
+          status: status != null ? d.Value(_normalizeStatus(status)) : const d.Value.absent(),
+          terminationDate: terminationDate != null ? d.Value(terminationDate) : const d.Value.absent(),
+          terminationReason: terminationReason != null ? d.Value(terminationReason) : const d.Value.absent(),
+        ),
+      );
+      if (result > 0) {
+        unawaited(AutoBackupManager.instance.onDataChange('employees', 'UPDATE', recordData: {'id': id}));
+      }
+      return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
         screen: 'EmployeesRepository',
@@ -134,21 +113,13 @@ class EmployeesRepository {
     localUuid,
     EmployeesCompanion(
       name: name != null ? d.Value(name) : const d.Value.absent(),
-      basicSalary: (salary ?? basicSalary) != null
-          ? d.Value((salary ?? basicSalary)!)
-          : const d.Value.absent(),
+      basicSalary: (salary ?? basicSalary) != null ? d.Value((salary ?? basicSalary)!) : const d.Value.absent(),
       position: position != null ? d.Value(position) : const d.Value.absent(),
       phone: phone != null ? d.Value(phone) : const d.Value.absent(),
       hireDate: hireDate != null ? d.Value(hireDate) : const d.Value.absent(),
-      status: status != null
-          ? d.Value(_normalizeStatus(status))
-          : const d.Value.absent(),
-      terminationDate: terminationDate != null
-          ? d.Value(terminationDate)
-          : const d.Value.absent(),
-      terminationReason: terminationReason != null
-          ? d.Value(terminationReason)
-          : const d.Value.absent(),
+      status: status != null ? d.Value(_normalizeStatus(status)) : const d.Value.absent(),
+      terminationDate: terminationDate != null ? d.Value(terminationDate) : const d.Value.absent(),
+      terminationReason: terminationReason != null ? d.Value(terminationReason) : const d.Value.absent(),
     ),
   );
 
@@ -160,22 +131,24 @@ class EmployeesRepository {
     String? terminationReason,
   }) async {
     try {
-    final result = await dao.updateById(
-      id,
-      EmployeesCompanion(
-        status: d.Value(_normalizeStatus(terminationType)),
-        terminationDate: d.Value(terminationDate),
-        terminationReason: d.Value(terminationReason ?? ''),
-      ),
-    );
-    if (result > 0) {
-      unawaited(AutoBackupManager.instance.onDataChange(
-        'employees',
-        'TERMINATE',
-        recordData: {'id': id, 'type': terminationType},
-      ),);
-    }
-    return result;
+      final result = await dao.updateById(
+        id,
+        EmployeesCompanion(
+          status: d.Value(_normalizeStatus(terminationType)),
+          terminationDate: d.Value(terminationDate),
+          terminationReason: d.Value(terminationReason ?? ''),
+        ),
+      );
+      if (result > 0) {
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
+            'employees',
+            'TERMINATE',
+            recordData: {'id': id, 'type': terminationType},
+          ),
+        );
+      }
+      return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
         screen: 'EmployeesRepository',
@@ -190,26 +163,20 @@ class EmployeesRepository {
   }
 
   /// إعادة تفعيل موظف مفصول / مستغنى عنه
-  Future<int> reactivate({
-    required int id,
-  }) async {
+  Future<int> reactivate({required int id}) async {
     try {
-    final result = await dao.updateById(
-      id,
-      EmployeesCompanion(
-        status: const d.Value('active'),
-        terminationDate: const d.Value<String?>(null),
-        terminationReason: const d.Value<String?>(null),
-      ),
-    );
-    if (result > 0) {
-      unawaited(AutoBackupManager.instance.onDataChange(
-        'employees',
-        'REACTIVATE',
-        recordData: {'id': id},
-      ),);
-    }
-    return result;
+      final result = await dao.updateById(
+        id,
+        const EmployeesCompanion(
+          status: d.Value('active'),
+          terminationDate: d.Value<String?>(null),
+          terminationReason: d.Value<String?>(null),
+        ),
+      );
+      if (result > 0) {
+        unawaited(AutoBackupManager.instance.onDataChange('employees', 'REACTIVATE', recordData: {'id': id}));
+      }
+      return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
         screen: 'EmployeesRepository',
@@ -224,15 +191,11 @@ class EmployeesRepository {
 
   Future<int> delete(int id) async {
     try {
-    final result = await dao.softDelete(id);
-    if (result > 0) {
-      unawaited(AutoBackupManager.instance.onDataChange(
-        'employees',
-        'DELETE',
-        recordData: {'id': id},
-      ),);
-    }
-    return result;
+      final result = await dao.softDelete(id);
+      if (result > 0) {
+        unawaited(AutoBackupManager.instance.onDataChange('employees', 'DELETE', recordData: {'id': id}));
+      }
+      return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
         screen: 'EmployeesRepository',
@@ -258,9 +221,7 @@ class EmployeesRepository {
   /// استيراد بيانات الموظفين
   Future<void> importData(Map<String, dynamic> data) async {
     if (data.containsKey('data') && data['data'] is List) {
-      await dao.importFromJson(
-        List<Map<String, dynamic>>.from(data['data'] as List),
-      );
+      await dao.importFromJson(List<Map<String, dynamic>>.from(data['data'] as List));
     }
   }
 

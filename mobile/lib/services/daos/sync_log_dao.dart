@@ -5,7 +5,8 @@ import '../local_db.dart';
 part 'sync_log_dao.g.dart';
 
 /// نموذج مبسط لسجل المزامنة للعرض
-class SyncLogEntry { // Appwrite, GoogleDrive
+class SyncLogEntry {
+  // Appwrite, GoogleDrive
 
   SyncLogEntry({
     required this.id,
@@ -35,16 +36,14 @@ class SyncLogEntry { // Appwrite, GoogleDrive
 
 /// إحصائيات المزامنة
 class SyncStats {
-
-  SyncStats({
-    required this.totalSyncs,
-    required this.successfulSyncs,
-    required this.failedSyncs,
-    required this.successRate,
-    required this.totalRecordsPulled,
-    required this.totalRecordsPushed,
-    this.lastSync,
-    required this.averageDurationMs,
+  SyncStats({      required this.totalSyncs,
+      required this.successfulSyncs,
+      required this.failedSyncs,
+      required this.successRate,
+      required this.totalRecordsPulled,
+      required this.totalRecordsPushed,
+      required this.averageDurationMs,
+      this.lastSync,
   });
   final int totalSyncs;
   final int successfulSyncs;
@@ -75,7 +74,7 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
     Map<String, dynamic>? metadata,
   }) async {
     final now = DateTime.now();
-    
+
     final entry = SyncLogCompanion(
       syncId: Value(syncId),
       direction: Value(direction),
@@ -83,14 +82,16 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
       status: Value(status),
       createdAt: Value(now.toIso8601String()),
       completedAt: status != 'in_progress' ? Value(now.toIso8601String()) : const Value.absent(),
-      metadata: Value(jsonEncode({
-        'target': target,
-        'recordsPulled': recordsPulled,
-        'recordsPushed': recordsPushed,
-        'durationMs': durationMs,
-        'errorMessage': errorMessage,
-        ...?metadata,
-      }),),
+      metadata: Value(
+        jsonEncode({
+          'target': target,
+          'recordsPulled': recordsPulled,
+          'recordsPushed': recordsPushed,
+          'durationMs': durationMs,
+          'errorMessage': errorMessage,
+          ...?metadata,
+        }),
+      ),
     );
 
     return into(syncLog).insert(entry);
@@ -103,8 +104,7 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
     String? direction, // 'pull', 'push', null للكل
     String? status, // 'success', 'failed', null للكل
   }) async {
-    var query = select(syncLog)
-      ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]);
+    var query = select(syncLog)..orderBy([(t) => OrderingTerm.desc(t.createdAt)]);
 
     if (direction != null) {
       query = query..where((t) => t.direction.equals(direction));
@@ -120,7 +120,7 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
 
     return results.map((row) {
       final metadata = jsonDecode(row.metadata) as Map<String, dynamic>;
-      
+
       return SyncLogEntry(
         id: row.id,
         syncId: row.syncId,
@@ -142,14 +142,14 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
     final query = select(syncLog)
       ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
       ..limit(1);
-    
+
     final result = await query.getSingleOrNull();
     if (result == null) {
       return null;
     }
 
     final metadata = jsonDecode(result.metadata) as Map<String, dynamic>;
-    
+
     return SyncLogEntry(
       id: result.id,
       syncId: result.syncId,
@@ -180,9 +180,9 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
       '  COUNT(*) AS total_syncs, '
       "  COALESCE(SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END), 0) AS successful_syncs, "
       "  COALESCE(SUM(CASE WHEN status != 'success' THEN 1 ELSE 0 END), 0) AS failed_syncs, "
-      "  COALESCE(SUM(json_extract(metadata, '\$.recordsPulled')), 0) AS total_pulled, "
-      "  COALESCE(SUM(json_extract(metadata, '\$.recordsPushed')), 0) AS total_pushed, "
-      "  COALESCE(SUM(json_extract(metadata, '\$.durationMs')), 0) AS total_duration, "
+      r"  COALESCE(SUM(json_extract(metadata, '$.recordsPulled')), 0) AS total_pulled, "
+      r"  COALESCE(SUM(json_extract(metadata, '$.recordsPushed')), 0) AS total_pushed, "
+      r"  COALESCE(SUM(json_extract(metadata, '$.durationMs')), 0) AS total_duration, "
       '  MAX(created_at) AS last_sync_at '
       'FROM sync_log $whereClause',
       variables: variables,
@@ -221,10 +221,9 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
   /// حذف السجلات القديمة (للصيانة)
   Future<int> deleteOldLogs({required Duration olderThan}) async {
     final cutoff = DateTime.now().subtract(olderThan);
-    
-    final query = delete(syncLog)
-      ..where((t) => t.createdAt.isSmallerThanValue(cutoff.toIso8601String()));
-    
+
+    final query = delete(syncLog)..where((t) => t.createdAt.isSmallerThanValue(cutoff.toIso8601String()));
+
     return query.go();
   }
 
@@ -242,22 +241,24 @@ class SyncLogDao extends DatabaseAccessor<AppDatabase> with _$SyncLogDaoMixin {
       ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
       ..limit(limit);
 
-    return query.watch().map((rows) => rows.map((row) {
-      final metadata = jsonDecode(row.metadata) as Map<String, dynamic>;
-      
-      return SyncLogEntry(
-        id: row.id,
-        syncId: row.syncId,
-        direction: row.direction,
-        deviceId: row.deviceId,
-        status: row.status,
-        createdAt: DateTime.parse(row.createdAt),
-        completedAt: row.completedAt != null ? DateTime.parse(row.completedAt!) : null,
-        recordsCount: (metadata['recordsPulled'] as int?) ?? (metadata['recordsPushed'] as int?),
-        errorMessage: metadata['errorMessage'] as String?,
-        durationMs: metadata['durationMs'] as int?,
-        target: metadata['target'] as String?,
-      );
-    }).toList(),);
+    return query.watch().map(
+      (rows) => rows.map((row) {
+        final metadata = jsonDecode(row.metadata) as Map<String, dynamic>;
+
+        return SyncLogEntry(
+          id: row.id,
+          syncId: row.syncId,
+          direction: row.direction,
+          deviceId: row.deviceId,
+          status: row.status,
+          createdAt: DateTime.parse(row.createdAt),
+          completedAt: row.completedAt != null ? DateTime.parse(row.completedAt!) : null,
+          recordsCount: (metadata['recordsPulled'] as int?) ?? (metadata['recordsPushed'] as int?),
+          errorMessage: metadata['errorMessage'] as String?,
+          durationMs: metadata['durationMs'] as int?,
+          target: metadata['target'] as String?,
+        );
+      }).toList(),
+    );
   }
 }

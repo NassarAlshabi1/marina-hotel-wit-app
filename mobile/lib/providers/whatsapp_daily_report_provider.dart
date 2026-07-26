@@ -8,17 +8,10 @@ import '../services/telegram/telegram_report_service.dart';
 import '../utils/env.dart';
 
 /// حالة إعداد التقرير اليومي عبر واتساب
-enum WhatsAppReportStatus {
-  idle,
-  testing,
-  success,
-  error,
-  sendingReport,
-}
+enum WhatsAppReportStatus { idle, testing, success, error, sendingReport }
 
 /// حالة التقرير اليومي عبر واتساب
 class WhatsAppDailyReportState {
-
   const WhatsAppDailyReportState({
     this.status = WhatsAppReportStatus.idle,
     this.message,
@@ -130,10 +123,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
     try {
       if (enabled && state.isEnabled) {
         final parts = state.dailyReportTime.split(':');
-        await AlarmBackup.rescheduleTelegramReport(
-          int.parse(parts[0]),
-          int.parse(parts[1]),
-        );
+        await AlarmBackup.rescheduleTelegramReport(int.parse(parts[0]), int.parse(parts[1]));
       } else {
         await AlarmBackup.cancelTelegramReportAlarm();
       }
@@ -151,10 +141,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
     try {
       if (state.isDailyReportEnabled && state.isEnabled) {
         final parts = time.split(':');
-        await AlarmBackup.rescheduleTelegramReport(
-          int.parse(parts[0]),
-          int.parse(parts[1]),
-        );
+        await AlarmBackup.rescheduleTelegramReport(int.parse(parts[0]), int.parse(parts[1]));
       }
     } catch (e) {
       debugPrint('خطأ في إعادة جدولة إنذار التقرير: $e');
@@ -163,10 +150,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
 
   /// اختبار الاتصال — إرسال رسالة اختبار عبر CallMeBot
   Future<void> testConnection() async {
-    state = state.copyWith(
-      status: WhatsAppReportStatus.testing,
-      message: 'جاري اختبار الاتصال بواتساب...',
-    );
+    state = state.copyWith(status: WhatsAppReportStatus.testing, message: 'جاري اختبار الاتصال بواتساب...');
 
     try {
       final success = await _reports.sendReportNow();
@@ -183,10 +167,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
         );
       }
     } catch (e) {
-      state = state.copyWith(
-        status: WhatsAppReportStatus.error,
-        message: 'خطأ في الاتصال: $e',
-      );
+      state = state.copyWith(status: WhatsAppReportStatus.error, message: 'خطأ في الاتصال: $e');
     }
 
     _clearMessageAfterDelay();
@@ -194,10 +175,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
 
   /// إرسال تقرير تجريبي
   Future<void> sendTestReport() async {
-    state = state.copyWith(
-      status: WhatsAppReportStatus.sendingReport,
-      message: 'جاري تجميع وإرسال التقرير...',
-    );
+    state = state.copyWith(status: WhatsAppReportStatus.sendingReport, message: 'جاري تجميع وإرسال التقرير...');
 
     try {
       final success = await _reports.sendReportNow();
@@ -208,16 +186,10 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
           message: 'تم إرسال التقرير التجريبي بنجاح عبر واتساب!',
         );
       } else {
-        state = state.copyWith(
-          status: WhatsAppReportStatus.error,
-          message: 'فشل إرسال التقرير — تحقق من الإعدادات',
-        );
+        state = state.copyWith(status: WhatsAppReportStatus.error, message: 'فشل إرسال التقرير — تحقق من الإعدادات');
       }
     } catch (e) {
-      state = state.copyWith(
-        status: WhatsAppReportStatus.error,
-        message: 'خطأ في إرسال التقرير: $e',
-      );
+      state = state.copyWith(status: WhatsAppReportStatus.error, message: 'خطأ في إرسال التقرير: $e');
     }
 
     _clearMessageAfterDelay();
@@ -239,8 +211,7 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
       if (!_mounted) {
         return;
       }
-      if (state.status == WhatsAppReportStatus.success ||
-          state.status == WhatsAppReportStatus.error) {
+      if (state.status == WhatsAppReportStatus.success || state.status == WhatsAppReportStatus.error) {
         state = state.copyWith(status: WhatsAppReportStatus.idle);
       }
     });
@@ -265,6 +236,4 @@ final whatsappDailyReportProvider = StateNotifierProvider<WhatsAppDailyReportNot
 );
 
 /// Provider للوصول إلى خدمة التقارير
-final whatsappDailyReportServiceProvider = Provider<TelegramReportService>(
-  (ref) => TelegramReportService.instance,
-);
+final whatsappDailyReportServiceProvider = Provider<TelegramReportService>((ref) => TelegramReportService.instance);

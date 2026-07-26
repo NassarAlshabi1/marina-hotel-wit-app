@@ -57,6 +57,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const MISSING_FIELDS = {
   employees: [
+    { key: "salary", type: "float", size: null, required: false },
     { key: "terminationDate", type: "string", size: 50, required: false },
     { key: "terminationReason", type: "string", size: 200, required: false },
   ],

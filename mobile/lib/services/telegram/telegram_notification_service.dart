@@ -22,7 +22,6 @@ enum TelegramEventType {
 
 /// بيانات الحدث
 class TelegramEvent {
-
   const TelegramEvent({
     required this.type,
     required this.roomNumber,
@@ -43,11 +42,10 @@ class TelegramEvent {
 
 /// خدمة إشعارات Telegram الفورية
 class TelegramNotificationService {
-
   TelegramNotificationService._();
   static TelegramNotificationService? _instance;
-  static TelegramNotificationService get instance =>
-      _instance ??= TelegramNotificationService._();
+  // ignore: prefer_constructors_over_static_methods
+  static TelegramNotificationService get instance => _instance ??= TelegramNotificationService._();
 
   final TelegramApiClient _api = TelegramApiClient.instance;
 
@@ -161,14 +159,16 @@ class TelegramNotificationService {
       details.writeln('💰 الإجمالي: \$${totalDue.toStringAsFixed(2)}');
     }
 
-    return sendEventNotification(TelegramEvent(
-      type: TelegramEventType.newBooking,
-      roomNumber: roomNumber,
-      guestName: guestName,
-      guestPhone: guestPhone,
-      details: details.isEmpty ? null : details.toString().trimRight(),
-      eventTime: DateTime.now(),
-    ),);
+    return sendEventNotification(
+      TelegramEvent(
+        type: TelegramEventType.newBooking,
+        roomNumber: roomNumber,
+        guestName: guestName,
+        guestPhone: guestPhone,
+        details: details.isEmpty ? null : details.toString().trimRight(),
+        eventTime: DateTime.now(),
+      ),
+    );
   }
 
   /// إشعار تسجيل دخول
@@ -183,14 +183,16 @@ class TelegramNotificationService {
       details.writeln('🌙 الليالي المتوقعة: $expectedNights');
     }
 
-    return sendEventNotification(TelegramEvent(
-      type: TelegramEventType.checkIn,
-      roomNumber: roomNumber,
-      guestName: guestName,
-      guestPhone: guestPhone,
-      details: details.isEmpty ? null : details.toString().trimRight(),
-      eventTime: DateTime.now(),
-    ),);
+    return sendEventNotification(
+      TelegramEvent(
+        type: TelegramEventType.checkIn,
+        roomNumber: roomNumber,
+        guestName: guestName,
+        guestPhone: guestPhone,
+        details: details.isEmpty ? null : details.toString().trimRight(),
+        eventTime: DateTime.now(),
+      ),
+    );
   }
 
   /// إشعار تسجيل خروج
@@ -212,13 +214,15 @@ class TelegramNotificationService {
       details.writeln('⚠️ المتبقي: \$${remaining.toStringAsFixed(2)}');
     }
 
-    return sendEventNotification(TelegramEvent(
-      type: TelegramEventType.checkOut,
-      roomNumber: roomNumber,
-      guestName: guestName,
-      details: details.isEmpty ? null : details.toString().trimRight(),
-      eventTime: DateTime.now(),
-    ),);
+    return sendEventNotification(
+      TelegramEvent(
+        type: TelegramEventType.checkOut,
+        roomNumber: roomNumber,
+        guestName: guestName,
+        details: details.isEmpty ? null : details.toString().trimRight(),
+        eventTime: DateTime.now(),
+      ),
+    );
   }
 
   /// إشعار استلام دفعة
@@ -239,44 +243,42 @@ class TelegramNotificationService {
       }
     }
 
-    return sendEventNotification(TelegramEvent(
-      type: TelegramEventType.paymentReceived,
-      roomNumber: roomNumber,
-      guestName: guestName,
-      amount: amount,
-      details: details.toString().trimRight(),
-      eventTime: DateTime.now(),
-    ),);
+    return sendEventNotification(
+      TelegramEvent(
+        type: TelegramEventType.paymentReceived,
+        roomNumber: roomNumber,
+        guestName: guestName,
+        amount: amount,
+        details: details.toString().trimRight(),
+        eventTime: DateTime.now(),
+      ),
+    );
   }
 
   /// إشعار طلب صيانة
-  Future<bool> notifyMaintenance({
-    required String roomNumber,
-    required String description,
-    String? reportedBy,
-  }) {
-    return sendEventNotification(TelegramEvent(
-      type: TelegramEventType.maintenance,
-      roomNumber: roomNumber,
-      guestName: reportedBy,
-      details: description,
-      eventTime: DateTime.now(),
-    ),);
+  Future<bool> notifyMaintenance({required String roomNumber, required String description, String? reportedBy}) {
+    return sendEventNotification(
+      TelegramEvent(
+        type: TelegramEventType.maintenance,
+        roomNumber: roomNumber,
+        guestName: reportedBy,
+        details: description,
+        eventTime: DateTime.now(),
+      ),
+    );
   }
 
   /// إشعار إلغاء حجز
-  Future<bool> notifyCancellation({
-    required String roomNumber,
-    required String guestName,
-    String? reason,
-  }) {
-    return sendEventNotification(TelegramEvent(
-      type: TelegramEventType.cancellation,
-      roomNumber: roomNumber,
-      guestName: guestName,
-      details: reason,
-      eventTime: DateTime.now(),
-    ),);
+  Future<bool> notifyCancellation({required String roomNumber, required String guestName, String? reason}) {
+    return sendEventNotification(
+      TelegramEvent(
+        type: TelegramEventType.cancellation,
+        roomNumber: roomNumber,
+        guestName: guestName,
+        details: reason,
+        eventTime: DateTime.now(),
+      ),
+    );
   }
 
   /// إشعار تأخير مغادرة
@@ -296,33 +298,77 @@ class TelegramNotificationService {
       details.writeln('💵 تكلفة إضافية: \$${extraCharge.toStringAsFixed(2)}');
     }
 
-    return sendEventNotification(TelegramEvent(
-      type: TelegramEventType.overstay,
-      roomNumber: roomNumber,
-      guestName: guestName,
-      details: details.toString().trimRight(),
-      eventTime: DateTime.now(),
-    ),);
+    return sendEventNotification(
+      TelegramEvent(
+        type: TelegramEventType.overstay,
+        roomNumber: roomNumber,
+        guestName: guestName,
+        details: details.toString().trimRight(),
+        eventTime: DateTime.now(),
+      ),
+    );
   }
 
   /// إشعار مصروف جديد
-  Future<bool> notifyNewExpense({
-    required String category,
-    required double amount,
-    String? description,
-  }) {
+  Future<bool> notifyNewExpense({required String category, required double amount, String? description}) {
     final details = StringBuffer();
     details.writeln('📂 التصنيف: $category');
     if (description != null && description.isNotEmpty) {
       details.writeln(description);
     }
 
-    return sendEventNotification(TelegramEvent(
-      type: TelegramEventType.newExpense,
-      roomNumber: '-',
-      amount: amount,
-      details: details.toString().trimRight(),
-      eventTime: DateTime.now(),
-    ),);
+    return sendEventNotification(
+      TelegramEvent(
+        type: TelegramEventType.newExpense,
+        roomNumber: '-',
+        amount: amount,
+        details: details.toString().trimRight(),
+        eventTime: DateTime.now(),
+      ),
+    );
+  }
+
+  /// إشعار خطأ مزامنة حرج — يرسل فوراً عبر Telegram
+  /// لا يتطلب تفعيل الإشعارات العادية (إشعارات خطأ دائماً مفعلة)
+  Future<bool> notifySyncError({
+    required String operation,
+    required String error,
+    int? recordsPushed,
+    int? recordsPulled,
+  }) async {
+    try {
+      if (!await TelegramConfig.isConfigured()) {
+        debugPrint('⚠️ Telegram: لا يمكن إرسال تنبيه المزامنة - البوت غير مضبوط');
+        return false;
+      }
+
+      final buffer = StringBuffer();
+      buffer.writeln('🔴 <b>خطأ مزامنة حرج</b>');
+      buffer.writeln('━━━━━━━━━━━━━━━━━');
+      buffer.writeln('⚙️ العملية: <b>$operation</b>');
+      buffer.writeln('❌ الخطأ: $error');
+      if (recordsPushed != null) {
+        buffer.writeln('📤 تم رفع: $recordsPushed');
+      }
+      if (recordsPulled != null) {
+        buffer.writeln('📥 تم سحب: $recordsPulled');
+      }
+      buffer.writeln();
+      buffer.writeln('🕐 ${DateTime.now().toIso8601String()}');
+      buffer.writeln();
+      buffer.writeln('<i>Marina Hotel App — Crashlytics Alert</i>');
+
+      final success = await _api.sendToDefaultChat(text: buffer.toString().trimRight());
+
+      if (success) {
+        debugPrint('✅ Telegram: تم إرسال تنبيه خطأ مزامنة — $operation');
+      } else {
+        debugPrint('⚠️ Telegram: فشل إرسال تنبيه المزامنة');
+      }
+      return success;
+    } catch (e) {
+      debugPrint('❌ Telegram: فشل إرسال تنبيه المزامنة — $e');
+      return false;
+    }
   }
 }

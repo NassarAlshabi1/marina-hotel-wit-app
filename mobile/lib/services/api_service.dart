@@ -51,18 +51,14 @@ class ApiService {
     );
 
     if (config.enableLogging) {
-      _dio.interceptors.add(
-        LogInterceptor(
-          requestBody: true,
-          responseBody: true,
-        ),
-      );
+      _dio.interceptors.add(LogInterceptor(requestBody: true, responseBody: true));
     }
   }
 
   void _onConfigChanged() {
     _initializeDio();
   }
+
   static final ApiService I = ApiService._internal();
 
   late final Dio _dio;
@@ -71,12 +67,7 @@ class ApiService {
 
   Future<Response<void>> _retryRequest(RequestOptions ro) async {
     final opts = Options(method: ro.method, headers: ro.headers);
-    return _dio.request<dynamic>(
-      ro.path,
-      data: ro.data,
-      queryParameters: ro.queryParameters,
-      options: opts,
-    );
+    return _dio.request<dynamic>(ro.path, data: ro.data, queryParameters: ro.queryParameters, options: opts);
   }
 
   Future<Map<String, dynamic>?> login(String username, String password) async {
@@ -84,9 +75,7 @@ class ApiService {
       '/auth/login.php',
       data: jsonEncode({'username': username, 'password': password}),
     );
-    if (res.statusCode == 200 &&
-        res.data is Map &&
-        res.data['success'] == true) {
+    if (res.statusCode == 200 && res.data is Map && res.data['success'] == true) {
       final rawData = res.data['data'];
       if (rawData is Map) {
         final data = Map<String, dynamic>.from(rawData);
@@ -139,19 +128,12 @@ class ApiService {
     return Map<String, dynamic>.from(res.data as Map);
   }
 
-  Future<Map<String, dynamic>> createEntity(
-    String entity,
-    Map<String, dynamic> data,
-  ) async {
+  Future<Map<String, dynamic>> createEntity(String entity, Map<String, dynamic> data) async {
     final res = await _dio.post<dynamic>('/$entity.php', data: jsonEncode(data));
     return Map<String, dynamic>.from(res.data as Map);
   }
 
-  Future<Map<String, dynamic>> updateEntity(
-    String entity,
-    dynamic id,
-    Map<String, dynamic> data,
-  ) async {
+  Future<Map<String, dynamic>> updateEntity(String entity, dynamic id, Map<String, dynamic> data) async {
     final res = await _dio.put<dynamic>('/$entity.php/$id', data: jsonEncode(data));
     return Map<String, dynamic>.from(res.data as Map);
   }
@@ -161,29 +143,18 @@ class ApiService {
     return Map<String, dynamic>.from(res.data as Map);
   }
 
-  Future<Map<String, dynamic>> syncPush(
-    List<Map<String, dynamic>> changes,
-  ) async {
-    final res = await _dio.post<dynamic>(
-      '/sync/push.php',
-      data: jsonEncode({'changes': changes}),
-    );
+  Future<Map<String, dynamic>> syncPush(List<Map<String, dynamic>> changes) async {
+    final res = await _dio.post<dynamic>('/sync/push.php', data: jsonEncode({'changes': changes}));
     return Map<String, dynamic>.from(res.data as Map);
   }
 
   Future<Map<String, dynamic>> syncPull(int since) async {
-    final res = await _dio.get<dynamic>(
-      '/sync/pull.php',
-      queryParameters: {'since': since},
-    );
+    final res = await _dio.get<dynamic>('/sync/pull.php', queryParameters: {'since': since});
     return Map<String, dynamic>.from(res.data as Map);
   }
 
   Future<String?> uploadRoomImage(String roomNumber, String filePath) async {
-    final form = FormData.fromMap({
-      'room_number': roomNumber,
-      'image': await MultipartFile.fromFile(filePath),
-    });
+    final form = FormData.fromMap({'room_number': roomNumber, 'image': await MultipartFile.fromFile(filePath)});
     final res = await _dio.post<dynamic>('/uploads/rooms.php', data: form);
     if (res.statusCode == 200 && res.data['success'] == true) {
       return res.data['data']['url'] as String;

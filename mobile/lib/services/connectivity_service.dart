@@ -1,26 +1,17 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart';
+
+import '../utils/debug_log.dart';
 
 enum ConnectionType { none, wifi, mobile, ethernet, vpn, bluetooth, other }
 
 class ConnectionStatus {
+  const ConnectionStatus({required this.isOnline, required this.type, required this.timestamp});
 
-  const ConnectionStatus({
-    required this.isOnline,
-    required this.type,
-    required this.timestamp,
-  });
+  factory ConnectionStatus.offline() =>
+      ConnectionStatus(isOnline: false, type: ConnectionType.none, timestamp: DateTime.now());
 
-  factory ConnectionStatus.offline() => ConnectionStatus(
-    isOnline: false,
-    type: ConnectionType.none,
-    timestamp: DateTime.now(),
-  );
-
-  factory ConnectionStatus.fromConnectivityResult(
-    List<ConnectivityResult> results,
-  ) {
+  factory ConnectionStatus.fromConnectivityResult(List<ConnectivityResult> results) {
     final isOnline = results.any((r) => r != ConnectivityResult.none);
     ConnectionType type = ConnectionType.none;
 
@@ -38,11 +29,7 @@ class ConnectionStatus {
       type = ConnectionType.other;
     }
 
-    return ConnectionStatus(
-      isOnline: isOnline,
-      type: type,
-      timestamp: DateTime.now(),
-    );
+    return ConnectionStatus(isOnline: isOnline, type: type, timestamp: DateTime.now());
   }
   final bool isOnline;
   final ConnectionType type;
@@ -50,19 +37,17 @@ class ConnectionStatus {
 
   bool get isWifi => type == ConnectionType.wifi;
   bool get isMobile => type == ConnectionType.mobile;
-  bool get isHighSpeed =>
-      type == ConnectionType.wifi || type == ConnectionType.ethernet;
+  bool get isHighSpeed => type == ConnectionType.wifi || type == ConnectionType.ethernet;
 
   @override
   String toString() => 'ConnectionStatus(isOnline: $isOnline, type: $type)';
 }
 
 class ConnectivityService {
-
   ConnectivityService._();
   static ConnectivityService? _instance;
-  static ConnectivityService get instance =>
-      _instance ??= ConnectivityService._();
+  // ignore: prefer_constructors_over_static_methods
+  static ConnectivityService get instance => _instance ??= ConnectivityService._();
 
   final Connectivity _connectivity = Connectivity();
   StreamSubscription<List<ConnectivityResult>>? _subscription;
@@ -88,16 +73,16 @@ class ConnectivityService {
       _subscription = _connectivity.onConnectivityChanged.listen(
         _updateStatus,
         onError: (Object error) {
-          debugPrint('❌ [Connectivity] خطأ في مراقبة الاتصال: $error');
+          derr(() => '[Connectivity] خطأ في مراقبة الاتصال: $error');
           _currentStatus = ConnectionStatus.offline();
           _statusController.add(_currentStatus);
         },
       );
 
       _initialized = true;
-      debugPrint('✅ [Connectivity] تم تهيئة خدمة الاتصال: $_currentStatus');
+      dlog(() => '✅ [Connectivity] تم تهيئة خدمة الاتصال: $_currentStatus');
     } catch (e) {
-      debugPrint('❌ [Connectivity] فشل في تهيئة خدمة الاتصال: $e');
+      derr(() => '[Connectivity] فشل في تهيئة خدمة الاتصال: $e');
       _currentStatus = ConnectionStatus.offline();
     }
   }
@@ -109,9 +94,9 @@ class ConnectivityService {
     _statusController.add(newStatus);
 
     if (!wasOnline && newStatus.isOnline) {
-      debugPrint('🌐 [Connectivity] الاتصال متاح: ${newStatus.type}');
+      dlog(() => '🌐 [Connectivity] الاتصال متاح: ${newStatus.type}');
     } else if (wasOnline && !newStatus.isOnline) {
-      debugPrint('📴 [Connectivity] الاتصال مفقود');
+      dlog('📴 [Connectivity] الاتصال مفقود');
     }
   }
 
@@ -121,7 +106,7 @@ class ConnectivityService {
       _updateStatus(results);
       return _currentStatus.isOnline;
     } catch (e) {
-      debugPrint('❌ [Connectivity] فشل في فحص الاتصال: $e');
+      derr(() => '[Connectivity] فشل في فحص الاتصال: $e');
       return false;
     }
   }
@@ -140,13 +125,10 @@ class ConnectivityService {
     }
 
     try {
-      await statusStream
-          .where((status) => status.isOnline)
-          .first
-          .timeout(timeout);
+      await statusStream.where((status) => status.isOnline).first.timeout(timeout);
       return await operation();
     } on TimeoutException {
-      debugPrint('⏱️ [Connectivity] انتهت مهلة انتظار الاتصال');
+      dlog('⏱️ [Connectivity] انتهت مهلة انتظار الاتصال');
       return null;
     }
   }

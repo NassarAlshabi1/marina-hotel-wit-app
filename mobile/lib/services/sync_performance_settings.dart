@@ -35,8 +35,7 @@ class SyncPerformanceSettings {
   static Future<String> getCurrentProfile() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final currentProfile =
-          prefs.getString('sync_performance_profile') ?? 'balanced';
+      final currentProfile = prefs.getString('sync_performance_profile') ?? 'balanced';
 
       // التأكد من أن ملف التعريف موجود في القائمة المحددة مسبقاً
       if (predefinedProfiles.containsKey(currentProfile)) {
@@ -69,14 +68,8 @@ class SyncPerformanceSettings {
       // تطبيق الإعدادات من ملف التعريف
       await prefs.setInt('sync_interval_minutes', profile['interval'] as int);
       await prefs.setBool('wifi_only_sync', profile['wifi_only'] as bool);
-      await prefs.setBool(
-        'low_power_mode_enabled',
-        profile['low_power_mode'] as bool,
-      );
-      await prefs.setInt(
-        'daily_data_limit_mb',
-        profile['daily_limit_mb'] as int,
-      );
+      await prefs.setBool('low_power_mode_enabled', profile['low_power_mode'] as bool);
+      await prefs.setInt('daily_data_limit_mb', profile['daily_limit_mb'] as int);
 
       // تطبيق إعدادات إضافية حسب ملف التعريف
       await _applyProfileSpecificSettings(profileKey, profile);
@@ -95,46 +88,28 @@ class SyncPerformanceSettings {
   }
 
   /// تطبيق إعدادات خاصة بكل ملف تعريف
-  static Future<void> _applyProfileSpecificSettings(
-    String profileKey,
-    Map<String, dynamic> profile,
-  ) async {
+  static Future<void> _applyProfileSpecificSettings(String profileKey, Map<String, dynamic> profile) async {
     final prefs = await SharedPreferences.getInstance();
 
     switch (profileKey) {
       case 'performance':
         // إعدادات الأداء العالي
-        await prefs.setBool(
-          'adaptive_interval_enabled',
-          false,
-        ); // فترة ثابتة للأداء
-        await prefs.setBool(
-          'battery_optimization_enabled',
-          false,
-        ); // تعطيل تحسين البطارية
+        await prefs.setBool('adaptive_interval_enabled', false); // فترة ثابتة للأداء
+        await prefs.setBool('battery_optimization_enabled', false); // تعطيل تحسين البطارية
         await prefs.setInt('batch_size', 100); // حجم دفعة أكبر
         await prefs.setInt('connection_timeout_seconds', 30);
 
       case 'balanced':
         // إعدادات متوازنة
         await prefs.setBool('adaptive_interval_enabled', true); // فترة تكيفية
-        await prefs.setBool(
-          'battery_optimization_enabled',
-          true,
-        ); // تحسين البطارية معتدل
+        await prefs.setBool('battery_optimization_enabled', true); // تحسين البطارية معتدل
         await prefs.setInt('batch_size', 50); // حجم دفعة متوسط
         await prefs.setInt('connection_timeout_seconds', 20);
 
       case 'battery_saver':
         // إعدادات توفير البطارية
-        await prefs.setBool(
-          'adaptive_interval_enabled',
-          true,
-        ); // فترة تكيفية طويلة
-        await prefs.setBool(
-          'battery_optimization_enabled',
-          true,
-        ); // أقصى تحسين للبطارية
+        await prefs.setBool('adaptive_interval_enabled', true); // فترة تكيفية طويلة
+        await prefs.setBool('battery_optimization_enabled', true); // أقصى تحسين للبطارية
         await prefs.setInt('batch_size', 25); // حجم دفعة صغير
         await prefs.setInt('connection_timeout_seconds', 10);
         // إعدادات إضافية لتوفير البطارية
@@ -153,18 +128,13 @@ class SyncPerformanceSettings {
         'current_profile': currentProfile,
         'sync_interval_minutes': prefs.getInt('sync_interval_minutes') ?? 5,
         'wifi_only_sync': prefs.getBool('wifi_only_sync') ?? false,
-        'low_power_mode_enabled':
-            prefs.getBool('low_power_mode_enabled') ?? false,
+        'low_power_mode_enabled': prefs.getBool('low_power_mode_enabled') ?? false,
         'daily_data_limit_mb': prefs.getInt('daily_data_limit_mb') ?? 200,
-        'adaptive_interval_enabled':
-            prefs.getBool('adaptive_interval_enabled') ?? true,
-        'battery_optimization_enabled':
-            prefs.getBool('battery_optimization_enabled') ?? true,
+        'adaptive_interval_enabled': prefs.getBool('adaptive_interval_enabled') ?? true,
+        'battery_optimization_enabled': prefs.getBool('battery_optimization_enabled') ?? true,
         'batch_size': prefs.getInt('batch_size') ?? 50,
-        'connection_timeout_seconds':
-            prefs.getInt('connection_timeout_seconds') ?? 20,
-        'background_sync_enabled':
-            prefs.getBool('background_sync_enabled') ?? true,
+        'connection_timeout_seconds': prefs.getInt('connection_timeout_seconds') ?? 20,
+        'background_sync_enabled': prefs.getBool('background_sync_enabled') ?? true,
         'max_retry_attempts': prefs.getInt('max_retry_attempts') ?? 3,
       };
     } catch (e) {

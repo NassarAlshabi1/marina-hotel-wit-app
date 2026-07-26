@@ -1,14 +1,14 @@
 import 'package:drift/drift.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
+import '../appwrite_sync_manager.dart';
 import '../local_db.dart';
 import 'outbox_dao.dart';
 
 part 'cash_transactions_dao.g.dart';
 
 @DriftAccessor(tables: [CashTransactions])
-class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
-    with _$CashTransactionsDaoMixin {
+class CashTransactionsDao extends DatabaseAccessor<AppDatabase> with _$CashTransactionsDaoMixin {
   CashTransactionsDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
@@ -17,6 +17,8 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     String? from,
     String? to,
     bool includeDeleted = false,
+    int? limit,
+    int? offset,
   }) async {
     final q = select(cashTransactions);
     if (!includeDeleted) {
@@ -26,16 +28,12 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.transactionType.equals(type));
     }
     if (from != null && to != null) {
-      q.where(
-        (t) =>
-            t.transactionTime.isBiggerOrEqualValue(from) &
-            t.transactionTime.isSmallerOrEqualValue(to),
-      );
+      q.where((t) => t.transactionTime.isBiggerOrEqualValue(from) & t.transactionTime.isSmallerOrEqualValue(to));
     }
-    q.orderBy([
-      (t) =>
-          OrderingTerm(expression: t.transactionTime, mode: OrderingMode.desc),
-    ]);
+    q.orderBy([(t) => OrderingTerm(expression: t.transactionTime, mode: OrderingMode.desc)]);
+    if (limit != null) {
+      q.limit(limit, offset: offset);
+    }
     return q.get();
   }
 
@@ -43,54 +41,52 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     required String referenceType,
     required int referenceId,
     bool includeDeleted = false,
+    int? limit,
+    int? offset,
   }) async {
     final q = select(cashTransactions)
-      ..where(
-        (t) =>
-            t.referenceType.equals(referenceType) &
-            t.referenceId.equals(referenceId),
-      );
+      ..where((t) => t.referenceType.equals(referenceType) & t.referenceId.equals(referenceId));
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
     }
-    q.orderBy([
-      (t) =>
-          OrderingTerm(expression: t.transactionTime, mode: OrderingMode.desc),
-    ]);
+    q.orderBy([(t) => OrderingTerm(expression: t.transactionTime, mode: OrderingMode.desc)]);
+    if (limit != null) {
+      q.limit(limit, offset: offset);
+    }
     return q.get();
   }
 
-  Stream<List<CashTransaction>> watchList({bool includeDeleted = false}) {
+  Stream<List<CashTransaction>> watchList({bool includeDeleted = false, int? limit, int offset = 0}) {
     final q = select(cashTransactions);
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
     }
+    // ✅ إصلاح PR review: ترتيب deterministic قبل LIMIT
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.transactionTime, mode: OrderingMode.desc),
+      (t) => OrderingTerm(expression: t.id, mode: OrderingMode.desc),
+    ]);
+    if (limit != null) {
+      q.limit(limit, offset: offset);
+    }
     return q.watch();
   }
 
-  Future<CashTransaction?> getById(int id) => (select(
-    cashTransactions,
-  )..where((t) => t.id.equals(id))).getSingleOrNull();
-  Stream<CashTransaction?> watchById(int id) => (select(
-    cashTransactions,
-  )..where((t) => t.id.equals(id))).watchSingleOrNull();
-  Future<CashTransaction?> getByLocalUuid(String localUuid) => (select(
-    cashTransactions,
-  )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+  Future<CashTransaction?> getById(int id) =>
+      (select(cashTransactions)..where((t) => t.id.equals(id))).getSingleOrNull();
+  Stream<CashTransaction?> watchById(int id) =>
+      (select(cashTransactions)..where((t) => t.id.equals(id))).watchSingleOrNull();
+  Future<CashTransaction?> getByLocalUuid(String localUuid) =>
+      (select(cashTransactions)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   Future<CashTransaction?> getByServerId(String serverId) {
     final parsedServerId = _parseServerId(serverId);
     if (parsedServerId == null) {
       return Future.value();
     }
-    return (select(
-      cashTransactions,
-    )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
+    return (select(cashTransactions)..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
   }
 
-  Future<int> insertOne(
-    CashTransactionsCompanion data, {
-    bool originIsServer = false,
-  }) async {
+  Future<int> insertOne(CashTransactionsCompanion data, {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
@@ -100,6 +96,7 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
         updatedAt: Value(now),
         lastModified: Value(now),
         origin: Value(originIsServer ? 'server' : 'local'),
+        deviceId: originIsServer ? const Value.absent() : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
       );
       final id = await into(cashTransactions).insert(comp);
       if (!originIsServer) {
@@ -116,11 +113,7 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Future<int> updateById(
-    int id,
-    CashTransactionsCompanion data, {
-    bool originIsServer = false,
-  }) async {
+  Future<int> updateById(int id, CashTransactionsCompanion data, {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
@@ -129,18 +122,13 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
       }
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified =
-          originIsServer && data.lastModified.present
-              ? data.lastModified
-              : Value(now);
+      final effectiveLastModified = originIsServer && data.lastModified.present ? data.lastModified : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
         version: Value(existing.version + 1),
       );
-      final rows = await (update(
-        cashTransactions,
-      )..where((t) => t.id.equals(id))).write(comp);
+      final rows = await (update(cashTransactions)..where((t) => t.id.equals(id))).write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'cash_transactions',
@@ -155,11 +143,7 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Future<int> updateByLocalUuid(
-    String localUuid,
-    CashTransactionsCompanion data, {
-    bool originIsServer = false,
-  }) async {
+  Future<int> updateByLocalUuid(String localUuid, CashTransactionsCompanion data, {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getByLocalUuid(localUuid);
@@ -168,18 +152,13 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
       }
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified =
-          originIsServer && data.lastModified.present
-              ? data.lastModified
-              : Value(now);
+      final effectiveLastModified = originIsServer && data.lastModified.present ? data.lastModified : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
         version: Value(existing.version + 1),
       );
-      final rows = await (update(
-        cashTransactions,
-      )..where((t) => t.localUuid.equals(localUuid))).write(comp);
+      final rows = await (update(cashTransactions)..where((t) => t.localUuid.equals(localUuid))).write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'cash_transactions',
@@ -194,11 +173,7 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Future<int> updateByServerId(
-    String? serverId,
-    CashTransactionsCompanion data, {
-    bool originIsServer = false,
-  }) async {
+  Future<int> updateByServerId(String? serverId, CashTransactionsCompanion data, {bool originIsServer = false}) async {
     return db.transaction(() async {
       final parsedServerId = _parseServerId(serverId);
       if (parsedServerId == null) {
@@ -213,18 +188,13 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
       }
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified =
-          originIsServer && data.lastModified.present
-              ? data.lastModified
-              : Value(now);
+      final effectiveLastModified = originIsServer && data.lastModified.present ? data.lastModified : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
         version: Value(existing.version + 1),
       );
-      final rows = await (update(
-        cashTransactions,
-      )..where((t) => t.serverId.equals(parsedServerId))).write(comp);
+      final rows = await (update(cashTransactions)..where((t) => t.serverId.equals(parsedServerId))).write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'cash_transactions',
@@ -250,14 +220,9 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
       if (existing == null) {
         return 0;
       }
-      final rows =
-          await (update(cashTransactions)..where((t) => t.id.equals(id))).write(
-            CashTransactionsCompanion(
-              deletedAt: Value(now),
-              updatedAt: Value(now),
-              lastModified: Value(now),
-            ),
-          );
+      final rows = await (update(cashTransactions)..where((t) => t.id.equals(id))).write(
+        CashTransactionsCompanion(deletedAt: Value(now), updatedAt: Value(now), lastModified: Value(now)),
+      );
       if (rows > 0 && !originIsServer) {
         // ✅ نستخدم 'update' بدلاً من 'delete' لأن softDelete يحدّث deletedAt
         // ولا يحذف المستند من Appwrite — الجهاز الآخر يحتاج رؤية deletedAt
@@ -274,10 +239,7 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
-  Map<String, dynamic> _payloadFrom(
-    CashTransactionsCompanion comp, {
-    CashTransaction? base,
-  }) {
+  Map<String, dynamic> _payloadFrom(CashTransactionsCompanion comp, {CashTransaction? base}) {
     final m = <String, dynamic>{};
 
     if (comp.registerId.present) {
@@ -357,43 +319,41 @@ class CashTransactionsDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// استيراد معاملات النقدية من JSON
-  Future<void> importFromJson(
-    List<Map<String, dynamic>> data, {
-    bool clearExisting = false,
-  }) async {
-    if (clearExisting) {
-      await delete(cashTransactions).go();
-    }
+  Future<void> importFromJson(List<Map<String, dynamic>> data, {bool clearExisting = false}) async {
+    await transaction(() async {
+      if (clearExisting) {
+        await delete(cashTransactions).go();
+      }
 
-    for (final transactionJson in data) {
-      final transaction = CashTransaction.fromJson(transactionJson);
-      await into(cashTransactions).insertOnConflictUpdate(
-        CashTransactionsCompanion(
-          registerId: Value(transaction.registerId),
-          transactionType: Value(transaction.transactionType),
-          amount: Value(transaction.amount),
-          referenceType: Value(transaction.referenceType),
-          referenceId: Value(transaction.referenceId),
-          description: Value(transaction.description),
-          transactionTime: Value(transaction.transactionTime),
-          createdBy: Value(transaction.createdBy),
-          localUuid: Value(transaction.localUuid),
-          serverId: Value(transaction.serverId),
-          createdAt: Value(transaction.createdAt),
-          updatedAt: Value(transaction.updatedAt),
-          deletedAt: Value(transaction.deletedAt),
-          lastModified: Value(transaction.lastModified),
-          version: Value(transaction.version),
-          origin: Value(transaction.origin),
-        ),
-      );
-    }
+      for (final transactionJson in data) {
+        final transaction = CashTransaction.fromJson(transactionJson);
+        await into(cashTransactions).insertOnConflictUpdate(
+          CashTransactionsCompanion(
+            registerId: Value(transaction.registerId),
+            transactionType: Value(transaction.transactionType),
+            amount: Value(transaction.amount),
+            referenceType: Value(transaction.referenceType),
+            referenceId: Value(transaction.referenceId),
+            description: Value(transaction.description),
+            transactionTime: Value(transaction.transactionTime),
+            createdBy: Value(transaction.createdBy),
+            localUuid: Value(transaction.localUuid),
+            serverId: Value(transaction.serverId),
+            createdAt: Value(transaction.createdAt),
+            updatedAt: Value(transaction.updatedAt),
+            deletedAt: Value(transaction.deletedAt),
+            lastModified: Value(transaction.lastModified),
+            version: Value(transaction.version),
+            origin: Value(transaction.origin),
+          ),
+        );
+      }
+    });
   }
 
   /// الحصول على عدد السجلات
   Future<int> getRecordCount() async {
-    final query = selectOnly(cashTransactions)
-      ..addColumns([cashTransactions.id.count()]);
+    final query = selectOnly(cashTransactions)..addColumns([cashTransactions.id.count()]);
     final result = await query.getSingle();
     return result.read(cashTransactions.id.count()) ?? 0;
   }

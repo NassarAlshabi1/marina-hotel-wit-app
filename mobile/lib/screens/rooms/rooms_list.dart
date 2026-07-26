@@ -1,8 +1,12 @@
+// ignore_for_file: use_build_context_synchronously
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
+import '../../providers/appwrite_providers.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../providers/room_payment_status_provider.dart'; // استيراد البروفايدر الجديد
@@ -19,8 +23,7 @@ class RoomsListScreen extends ConsumerStatefulWidget {
   ConsumerState<RoomsListScreen> createState() => _RoomsListScreenState();
 }
 
-class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
-    with SyncOnExitMixin {
+class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnExitMixin {
   @override
   String get screenId => 'rooms_list';
 
@@ -68,11 +71,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
             tooltip: _isGridView ? 'عرض قائمة' : 'عرض شبكي',
           ),
           if (canRooms)
-            IconButton(
-              onPressed: () => _editRoom(context, ref),
-              icon: const Icon(Icons.add),
-              tooltip: 'إضافة غرفة',
-            ),
+            IconButton(onPressed: () => _editRoom(context, ref), icon: const Icon(Icons.add), tooltip: 'إضافة غرفة'),
         ],
         body: roomsStream.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -96,10 +95,8 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
             if (rooms.isEmpty) {
               return _buildEmptyState(canRooms);
             }
-            
-            return _isGridView
-                ? _buildGridView(rooms, canRooms)
-                : _buildListView(rooms, canRooms);
+
+            return _isGridView ? _buildGridView(rooms, canRooms) : _buildListView(rooms, canRooms);
           },
         ),
       ),
@@ -118,22 +115,12 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
               color: AppColors.primaryColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(50),
             ),
-            child: Icon(
-              Icons.hotel,
-              size: 50,
-              color: AppColors.primaryColor.withValues(alpha: 0.7),
-            ),
+            child: Icon(Icons.hotel, size: 50, color: AppColors.primaryColor.withValues(alpha: 0.7)),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'لا توجد غرف مسجلة',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
+          const Text('لا توجد غرف مسجلة', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          const Text(
-            'ابدأ بإضافة الغرف لإدارة الفندق',
-            style: TextStyle(color: AppColors.textSecondary),
-          ),
+          const Text('ابدأ بإضافة الغرف لإدارة الفندق', style: TextStyle(color: AppColors.textSecondary)),
           if (canAdd) ...[
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -162,8 +149,10 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
           final floorNumber = sortedFloors[index];
           final floorRooms = floorMap[floorNumber]!;
           // ✅ حساب الغرف المتاحة بناءً على الحجز النشط بدلاً من room.status المخزن
-          final availableCount = floorRooms.where((r) => !r.hasActiveBooking && r.room.status != 'صيانة' && r.room.status != 'maintenance').length;
-          
+          final availableCount = floorRooms
+              .where((r) => !r.hasActiveBooking && r.room.status != 'صيانة' && r.room.status != 'maintenance')
+              .length;
+
           return RepaintBoundary(
             child: _FloorExpansionTile(
               floorNumber: floorNumber,
@@ -227,7 +216,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
 
   void _showRoomActions(BuildContext context, WidgetRef ref, Room room, bool canEdit) {
     final isAvailable = StatusUtils.isRoomAvailable(room.status);
-    
+
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -245,10 +234,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                 width: 40,
                 height: 4,
                 margin: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
+                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
               ),
               _buildRoomHeader(room, isAvailable),
               const Divider(),
@@ -322,10 +308,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
           Container(
             width: 50,
             height: 50,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
             child: Icon(Icons.hotel, color: color),
           ),
           const SizedBox(width: 16),
@@ -333,25 +316,16 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'غرفة ${room.roomNumber}',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                ),
-                Text(
-                  room.type.isEmpty ? 'غرفة فندقية' : room.type,
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
+                Text('غرفة ${room.roomNumber}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                Text(room.type.isEmpty ? 'غرفة فندقية' : room.type, style: TextStyle(color: Colors.grey[600])),
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20),
-            ),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
             child: Text(
-              room.status,  // ✅ room.status سيكون صحيحاً بعد refreshAllRoomOccupancy
+              room.status, // ✅ room.status سيكون صحيحاً بعد refreshAllRoomOccupancy
               style: TextStyle(color: color, fontWeight: FontWeight.bold),
             ),
           ),
@@ -410,10 +384,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                   color: AppColors.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  existing == null ? Icons.add : Icons.edit,
-                  color: AppColors.primaryColor,
-                ),
+                child: Icon(existing == null ? Icons.add : Icons.edit, color: AppColors.primaryColor),
               ),
               const SizedBox(width: 12),
               Text(existing == null ? 'إضافة غرفة جديدة' : 'تعديل غرفة ${existing.roomNumber}'),
@@ -473,7 +444,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                   const SizedBox(height: 16),
                   StatefulBuilder(
                     builder: (context, setLocalState) => DropdownButtonFormField<String>(
-                      value: status,
+                      initialValue: status,
                       decoration: InputDecoration(
                         labelText: 'الحالة',
                         prefixIcon: const Icon(Icons.toggle_on),
@@ -509,10 +480,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
             ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('إلغاء'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
             FilledButton.icon(
               onPressed: () {
                 if (formKey.currentState?.validate() ?? false) {
@@ -548,7 +516,6 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
           imageUrl: imageUrl,
         );
         if (mounted) {
-          // ignore: use_build_context_synchronously
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('تمت إضافة الغرفة ${roomNumberCtrl.text.trim()}'),
@@ -580,17 +547,15 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
         }
       }
       markDataChanged();
+      // ✅ رفع فوري لغرفة جديدة/محدَّثة إلى Appwrite Cloud.
+      unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
     } catch (e) {
       if (!mounted) {
         return;
       }
-      // ignore: use_build_context_synchronously
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('فشل حفظ الغرفة: $e'),
-          backgroundColor: Colors.red.shade900,
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('فشل حفظ الغرفة: $e'), backgroundColor: Colors.red.shade900));
     } finally {
       // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات دائماً
       roomNumberCtrl.dispose();
@@ -609,10 +574,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     final db = ref.read(databaseProvider);
     final service = PriceAdjustmentService(db);
 
-    final preview = await service.previewPriceChange(
-      roomNumber: roomNumber,
-      newPrice: newPrice,
-    );
+    final preview = await service.previewPriceChange(roomNumber: roomNumber, newPrice: newPrice);
 
     final affectedBookings = preview['bookingsAffected'] as int;
     if (affectedBookings == 0) {
@@ -652,10 +614,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12)),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -719,15 +678,14 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
     if (apply ?? false) {
       final auth = ref.read(authProvider);
       final userName = auth.currentUser?.name ?? auth.currentUser?.username ?? 'موظف';
-      
+
       await service.applyRoomPriceChange(
-        roomNumber: roomNumber, 
-        oldPrice: oldPrice, 
-        newPrice: newPrice, 
+        roomNumber: roomNumber,
+        oldPrice: oldPrice,
+        newPrice: newPrice,
         appliedBy: userName,
       );
       if (mounted) {
-        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('تم تحديث أسعار الحجوزات بنجاح'), backgroundColor: AppColors.successColor),
         );
@@ -752,7 +710,6 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
 }
 
 class _FloorExpansionTile extends StatelessWidget {
-
   const _FloorExpansionTile({
     required this.floorNumber,
     required this.totalRooms,
@@ -777,10 +734,7 @@ class _FloorExpansionTile extends StatelessWidget {
       ),
       child: ExpansionTile(
         initiallyExpanded: initiallyExpanded,
-        title: Text(
-          'الطابق $floorNumber',
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
+        title: Text('الطابق $floorNumber', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         subtitle: Text(
           'إجمالي: $totalRooms | شاغر: $availableRooms',
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
@@ -800,7 +754,6 @@ class _FloorExpansionTile extends StatelessWidget {
 }
 
 class _RoomGridCard extends StatelessWidget {
-
   const _RoomGridCard({required this.roomData, required this.onTap});
   final RoomWithPaymentStatus roomData; // تغيير النوع
   final VoidCallback onTap;
@@ -823,13 +776,7 @@ class _RoomGridCard extends StatelessWidget {
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: cardColor.withValues(alpha: 0.3), width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: cardColor.withValues(alpha: 0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            boxShadow: [BoxShadow(color: cardColor.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 2))],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -837,24 +784,13 @@ class _RoomGridCard extends StatelessWidget {
               Container(
                 width: 36,
                 height: 36,
-                decoration: BoxDecoration(
-                  color: cardColor.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  isAvailable ? Icons.hotel : Icons.hotel_outlined,
-                  color: cardColor,
-                  size: 20,
-                ),
+                decoration: BoxDecoration(color: cardColor.withValues(alpha: 0.1), shape: BoxShape.circle),
+                child: Icon(isAvailable ? Icons.hotel : Icons.hotel_outlined, color: cardColor, size: 20),
               ),
               const SizedBox(height: 6),
               Text(
                 room.roomNumber,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                  color: cardColor,
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: cardColor),
               ),
               const SizedBox(height: 2),
               Container(
@@ -865,21 +801,14 @@ class _RoomGridCard extends StatelessWidget {
                 ),
                 child: Text(
                   roomData.displayStatus,
-                  style: TextStyle(
-                    fontSize: 9,
-                    color: cardColor,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: TextStyle(fontSize: 9, color: cardColor, fontWeight: FontWeight.w500),
                 ),
               ),
               if (room.type.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(
                   room.type,
-                  style: TextStyle(
-                    fontSize: 9,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 9, color: Colors.grey[600]),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -893,7 +822,6 @@ class _RoomGridCard extends StatelessWidget {
 }
 
 class _RoomListCard extends StatelessWidget {
-
   const _RoomListCard({required this.roomData, required this.onTap, this.onEdit});
   final RoomWithPaymentStatus roomData; // تغيير النوع
   final VoidCallback onTap;
@@ -928,11 +856,7 @@ class _RoomListCard extends StatelessWidget {
                 child: Center(
                   child: Text(
                     room.roomNumber,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: statusColor,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: statusColor),
                   ),
                 ),
               ),
@@ -945,10 +869,7 @@ class _RoomListCard extends StatelessWidget {
                       children: [
                         Text(
                           'غرفة ${room.roomNumber}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                         ),
                         if (room.type.isNotEmpty) ...[
                           const SizedBox(width: 8),
@@ -958,13 +879,7 @@ class _RoomListCard extends StatelessWidget {
                               color: AppColors.infoColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: Text(
-                              room.type,
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: AppColors.infoColor,
-                              ),
-                            ),
+                            child: Text(room.type, style: const TextStyle(fontSize: 10, color: AppColors.infoColor)),
                           ),
                         ],
                       ],
@@ -976,10 +891,7 @@ class _RoomListCard extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           CurrencyFormatter.formatAmount(room.price),
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 13,
-                          ),
+                          style: TextStyle(color: Colors.grey[600], fontSize: 13),
                         ),
                       ],
                     ),
@@ -995,19 +907,11 @@ class _RoomListCard extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      isAvailable ? Icons.check_circle : Icons.block,
-                      size: 14,
-                      color: statusColor,
-                    ),
+                    Icon(isAvailable ? Icons.check_circle : Icons.block, size: 14, color: statusColor),
                     const SizedBox(width: 4),
                     Text(
                       roomData.displayStatus,
-                      style: TextStyle(
-                        color: statusColor,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: statusColor, fontWeight: FontWeight.w600, fontSize: 12),
                     ),
                   ],
                 ),
@@ -1018,9 +922,7 @@ class _RoomListCard extends StatelessWidget {
                   onPressed: onEdit,
                   icon: const Icon(Icons.edit, size: 20),
                   color: AppColors.primaryColor,
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppColors.primaryColor.withValues(alpha: 0.1),
-                  ),
+                  style: IconButton.styleFrom(backgroundColor: AppColors.primaryColor.withValues(alpha: 0.1)),
                 ),
               ],
             ],

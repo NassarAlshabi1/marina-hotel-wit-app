@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/app_logger.dart';
+import 'appwrite_messaging_service.dart';
 import 'appwrite_sync_manager.dart';
 
 /// خدمة Firebase Cloud Messaging
@@ -16,11 +19,19 @@ class FcmService {
   static final FcmService _instance = FcmService._internal();
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
   String? _currentToken;
   bool _isInitialized = false;
-  StreamSubscription<String>? _tokenRefreshSubscription; // اشتراك تحديث التوكن — يجب إلغاؤه
+  StreamSubscription<String>? _tokenRefreshSubscription;
   StreamSubscription<RemoteMessage>? _onMessageSubscription;
   StreamSubscription<RemoteMessage>? _onMessageOpenedAppSubscription;
+
+  static const AndroidNotificationChannel _syncChannel = AndroidNotificationChannel(
+    'marina_sync_channel',
+    'مزامنة فندق مارينا',
+    description: 'إشعارات المزامنة والتحديثات',
+    importance: Importance.high,
+  );
 
   /// تهيئة FCM — تُستدعى من main.dart بعد تثبيت Appwrite
   Future<void> initialize() async {
@@ -29,6 +40,9 @@ class FcmService {
     }
 
     try {
+      // 0. ✅ تهيئة الإشعارات المحلية لعرض notifications في foreground
+      await _initLocalNotifications();
+
       // 1. Firebase تم تهيئته بالفعل في main.dart
       // لا حاجة لاستدعاء Firebase.initializeApp() هنا
 
@@ -43,6 +57,10 @@ class FcmService {
         // 4. حفظ التوكن في SharedPreferences
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('fcm_token', _currentToken!);
+
+        // 4.b ✅ تسجيل الجهاز في Appwrite Messaging أيضاً (بالتوازي مع FCM التقليدي)
+        // هذا يُتيح الاستفادة من مزايا Messaging API (Logs, Topics, UI)
+        await _registerInAppwriteMessaging(_currentToken!);
       }
 
       // 5. الاستماع لتغيير التوكن — حفظ الاشتراك لإلغائه عند التنظيف
@@ -57,6 +75,9 @@ class FcmService {
         if (syncManager != null) {
           await syncManager.setFcmToken(newToken);
         }
+
+        // ✅ تحديث التوكن في Appwrite Messaging أيضاً
+        await _registerInAppwriteMessaging(newToken);
       });
 
       // 6. الاستماع للرسائل الواردة
@@ -77,14 +98,10 @@ class FcmService {
   /// طلب إذن الإشعارات من المستخدم
   Future<void> _requestPermission() async {
     if (Platform.isIOS) {
-      await _messaging.requestPermission(
-        
-      );
+      await _messaging.requestPermission();
     } else if (Platform.isAndroid) {
       // Android 13+ يحتاج إذن صريح
-      await _messaging.requestPermission(
-        
-      );
+      await _messaging.requestPermission();
     }
 
     final settings = await _messaging.getNotificationSettings();
@@ -100,9 +117,7 @@ class FcmService {
         token = await _messaging.getToken();
       } else {
         // Android: استخدم APNs sandbox key للتطوير والتحميل المباشر للإنتاج
-        token = await _messaging.getToken(
-          
-        );
+        token = await _messaging.getToken();
       }
       return token;
     } catch (e) {
@@ -116,6 +131,8 @@ class FcmService {
     // --- رسالة في المقدمة (التطبيق مفتوح) ---
     _onMessageSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       debugPrint('📩 FCM: foreground message received');
+      // ✅ عرض إشعار محلي مرئي للمستخدم في foreground
+      _showLocalNotification(message);
       _handleIncomingMessage(message);
     });
 
@@ -132,6 +149,56 @@ class FcmService {
         _handleIncomingMessage(message);
       }
     });
+  }
+
+  /// ✅ تهيئة الإشعارات المحلية لعرض notifications في foreground
+  Future<void> _initLocalNotifications() async {
+    try {
+      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const iosSettings = DarwinInitializationSettings();
+      const settings = InitializationSettings(android: androidSettings, iOS: iosSettings);
+      await _localNotifications.initialize(settings);
+
+      // إنشاء قناة الإشعارات لأندرويد
+      if (Platform.isAndroid) {
+        await _localNotifications
+            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+            ?.createNotificationChannel(_syncChannel);
+      }
+      debugPrint('✅ Local notifications initialized');
+    } catch (e) {
+      debugPrint('⚠️ Local notifications init failed: $e');
+    }
+  }
+
+  /// ✅ عرض إشعار محلي مرئي للمستخدم
+  Future<void> _showLocalNotification(RemoteMessage message) async {
+    try {
+      final title = (message.notification?.title ?? message.data['title'] ?? 'إشعار') as String;
+      final body = (message.notification?.body ?? message.data['body'] ?? '') as String;
+
+      const androidDetails = AndroidNotificationDetails(
+        'marina_sync_channel',
+        'مزامنة فندق مارينا',
+        channelDescription: 'إشعارات المزامنة والتحديثات',
+        importance: Importance.high,
+        priority: Priority.high,
+        icon: '@mipmap/ic_launcher',
+      );
+      const iosDetails = DarwinNotificationDetails();
+      const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+      await _localNotifications.show(
+        DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        title,
+        body,
+        details,
+        payload: jsonEncode(message.data),
+      );
+      debugPrint('🔔 Local notification shown: $title');
+    } catch (e) {
+      debugPrint('⚠️ Show local notification failed: $e');
+    }
   }
 
   /// معالجة الرسالة الواردة — تشغيل sync
@@ -190,8 +257,7 @@ class FcmService {
   /// الحصول على معرف الجهاز الحالي
   Future<String?> _getMyDeviceId() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('appwrite_device_id') ??
-        prefs.getString('appwrite_realtime_device_id');
+    return prefs.getString('appwrite_device_id') ?? prefs.getString('appwrite_realtime_device_id');
   }
 
   /// الحصول على SyncManager (import دائري لذلك نستخدم getter خارجي)
@@ -218,12 +284,37 @@ class FcmService {
   static dynamic _realtimeInstance;
 
   /// حقن SyncManager (يُستدعى من main.dart بعد الإنشاء)
-  static void injectDependencies({
-    required AppwriteSyncManager syncManager,
-    required dynamic realtimeSync,
-  }) {
+  static void injectDependencies({required AppwriteSyncManager syncManager, required dynamic realtimeSync}) {
     _syncManagerInstance = syncManager;
     _realtimeInstance = realtimeSync;
+  }
+
+  /// ✅ تسجيل/تحديث جهاز في Appwrite Messaging (بالتوازي مع FCM التقليدي)
+  ///
+  /// هذه الدالة تُكمّل نظام FCM المباشر بتسجيل إضافي في Appwrite Messaging،
+  /// مما يُتيح الاستفادة من:
+  ///   - سجل تسليم كامل في Messaging → Messages
+  ///   - واجهة UI لإدارة الإشعارات
+  ///   - Topics للاشتراك في مجموعات محددة
+  ///   - إرسال مركزي عبر Function بدون Firebase Admin SDK
+  ///
+  /// آمنة للفشل — إذا تعذّر التسجيل، يُكمل التطبيق بدون مشاكل (FCM التقليدي يعمل).
+  Future<void> _registerInAppwriteMessaging(String fcmToken) async {
+    try {
+      final messagingService = AppwriteMessagingService();
+      if (!messagingService.isInitialized) {
+        await messagingService.initialize();
+      }
+      final targetId = await messagingService.registerDevice(fcmToken: fcmToken);
+      if (targetId != null) {
+        debugPrint('✅ Device also registered in Appwrite Messaging: $targetId');
+        // اشترك في Topics الافتراضية
+        await messagingService.subscribeToTopics(MessagingTopics.all);
+      }
+    } catch (e) {
+      // آمن للفشل — نُسجّل تحذيراً فقط
+      debugPrint('⚠️ Appwrite Messaging registration failed (FCM still works): $e');
+    }
   }
 
   /// الحصول على التوكن الحالي

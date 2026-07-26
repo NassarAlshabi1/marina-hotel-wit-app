@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 
+import 'secondary_appwrite_config.dart';
+import 'secondary_sync_manager.dart';
 import 'smart_sync_manager.dart';
 import 'sync_core/circuit_breaker.dart';
 import 'sync_core/retry_strategy.dart';
@@ -11,17 +13,10 @@ import 'sync_core/sync_validator.dart';
 import 'sync_locks.dart';
 
 class ScreenSyncController {
-
-  ScreenSyncController({
-    required this.screenId,
-    this.debounceDelay = const Duration(seconds: 15),
-  }) {
+  ScreenSyncController({required this.screenId, this.debounceDelay = const Duration(seconds: 15)}) {
     _circuitBreaker = CircuitBreaker(
       name: 'sync_$screenId',
-      config: const CircuitBreakerConfig(
-        failureThreshold: 3,
-        resetTimeout: Duration(minutes: 2),
-      ),
+      config: const CircuitBreakerConfig(failureThreshold: 3, resetTimeout: Duration(minutes: 2)),
     );
 
     _retryStrategy = RetryStrategy(config: RetryConfig.balanced);
@@ -93,12 +88,9 @@ class ScreenSyncController {
 
     try {
       final connectivityResults = await Connectivity().checkConnectivity();
-      final hasConnection = connectivityResults.any(
-        (r) => r != ConnectivityResult.none,
-      );
+      final hasConnection = connectivityResults.any((r) => r != ConnectivityResult.none);
 
-      final networkValidation = SyncValidator.instance
-          .validateNetworkConditions(hasConnection: hasConnection);
+      final networkValidation = SyncValidator.instance.validateNetworkConditions(hasConnection: hasConnection);
 
       if (!networkValidation.isValid) {
         debugPrint('📴 [$screenId] ${networkValidation.error}');
@@ -132,9 +124,7 @@ class ScreenSyncController {
           return syncError.isRetryable;
         },
         fallback: () {
-          debugPrint(
-            '⚠️ [$screenId] استخدام القيمة الاحتياطية بعد فشل المحاولات',
-          );
+          debugPrint('⚠️ [$screenId] استخدام القيمة الاحتياطية بعد فشل المحاولات');
           return false;
         },
         onRetry: (attempt, error) {
@@ -146,11 +136,17 @@ class ScreenSyncController {
         _hasChanges = false;
         _emitStatus(SyncStatus.synced);
         debugPrint('✅ [$screenId] تمت المزامنة بنجاح');
+
+        // ✅ إصلاح (2026-06-28): رفع التغييرات للوجهة الثانوية أيضاً
+        // بدون هذا، Secondary لا يُفعّل إلا عبر:
+        //   1. زر المزامنة اليدوي في Dashboard
+        //   2. المؤقت التلقائي (كل 15 دقيقة)
+        // الآن: أي markDataChanged → syncNow → Primary + Secondary
+        await _pushToSecondary();
+
         return true;
       } else {
-        debugPrint(
-          '⚠️ [$screenId] فشل الرفع - سيتم المحاولة لاحقاً عبر Outbox',
-        );
+        debugPrint('⚠️ [$screenId] فشل الرفع - سيتم المحاولة لاحقاً عبر Outbox');
         return false;
       }
     } on CircuitBreakerOpenException catch (e) {
@@ -181,6 +177,37 @@ class ScreenSyncController {
     debugPrint('🚪 [$screenId] الخروج من الشاشة...');
     cancelTimer();
     return syncNow();
+  }
+
+  /// ✅ رفع التغييرات للوجهة الثانوية (Secondary Appwrite)
+  ///
+  /// يُستدعى بعد نجاح Primary sync لضمان رفع التغييرات للوجهتين معاً.
+  /// إذا فشل Secondary، لا يُعطل Primary — السجل يبقى في outbox
+  /// حتى تنجح محاولة Secondary التالية (auto-sync timer أو مزامنة يدوية).
+  Future<void> _pushToSecondary() async {
+    try {
+      if (!SecondaryAppwriteConfig.isEnabled) {
+        return; // Secondary معطّل — لا شيء لنفعله
+      }
+      if (!SecondaryAppwriteConfig.isPushEnabled) {
+        return; // الرفع للثانوي معطّل
+      }
+
+      debugPrint('🔵 [$screenId] بدء الرفع للوجهة الثانوية...');
+      final result = await SecondarySyncManager.instance.pushLocalChanges();
+      if (result) {
+        debugPrint('✅ [$screenId] تم الرفع للوجهة الثانوية بنجاح');
+      } else {
+        debugPrint(
+          '⚠️ [$screenId] الرفع للوجهة الثانوية لم يكتمل — '
+          'سيتم المحاولة لاحقاً عبر auto-sync',
+        );
+      }
+    } catch (e) {
+      // فشل Secondary ليس خطأ قاتلاً — Primary نجح بالفعل
+      // السجلات تبقى في outbox حتى تنجح محاولة Secondary التالية
+      debugPrint('⚠️ [$screenId] خطأ في الرفع للثانوي (غير حرج): $e');
+    }
   }
 
   Map<String, dynamic> getHealthStatus() {

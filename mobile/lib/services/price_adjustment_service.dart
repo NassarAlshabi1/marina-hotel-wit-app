@@ -10,7 +10,6 @@ import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 
 class PriceAdjustmentService {
-
   PriceAdjustmentService(this.db);
   final AppDatabase db;
   static const _uuid = Uuid();
@@ -27,15 +26,10 @@ class PriceAdjustmentService {
     final effectiveDate = effectiveFrom ?? now;
     final effectiveHotelDay = HotelTimeEngine.getHotelDayKey(dateTime: effectiveDate);
 
-    final room = await (db.select(db.rooms)
-          ..where((r) => r.roomNumber.equals(roomNumber)))
-        .getSingleOrNull();
+    final room = await (db.select(db.rooms)..where((r) => r.roomNumber.equals(roomNumber))).getSingleOrNull();
 
     if (room == null) {
-      return PriceAdjustmentResult(
-        success: false,
-        error: 'الغرفة غير موجودة: $roomNumber',
-      );
+      return PriceAdjustmentResult(success: false, error: 'الغرفة غير موجودة: $roomNumber');
     }
 
     final adjustmentUuid = _uuid.v4();
@@ -88,12 +82,15 @@ class PriceAdjustmentService {
     // ─── إصلاح BUG المزامنة: إنشاء outbox entry لتحديث الغرفة ───
     // التحديث المباشر لـ rooms يتجاوز RoomsDao ولا يُنشئ outbox entry،
     // لذلك نُنشئه يدوياً لضمان مزامنة السعر الجديد.
-    await (db.update(db.rooms)..where((r) => r.roomNumber.equals(roomNumber)))
-        .write(RoomsCompanion(
-          price: Value(newPrice),
-          updatedAt: Value(Time.nowEpoch()),
-          lastModified: Value(Time.nowEpoch()),
-        ),);
+    // ✅ bump version لتفعيل OCC عند الدفع لاحقاً
+    await (db.update(db.rooms)..where((r) => r.roomNumber.equals(roomNumber))).write(
+      RoomsCompanion(
+        price: Value(newPrice),
+        updatedAt: Value(Time.nowEpoch()),
+        lastModified: Value(Time.nowEpoch()),
+        version: Value(room.version + 1),
+      ),
+    );
 
     // إنشاء outbox entry لتحديث سعر الغرفة
     await outboxDao.merge(
@@ -101,10 +98,7 @@ class PriceAdjustmentService {
       op: 'update',
       localUuid: room.localUuid,
       serverId: room.serverId,
-      payload: {
-        'room_number': roomNumber,
-        'price': newPrice,
-      },
+      payload: {'room_number': roomNumber, 'price': newPrice},
       clientTs: Time.nowEpoch(),
     );
 
@@ -116,11 +110,12 @@ class PriceAdjustmentService {
 
     for (final booking in activeBookings) {
       // حساب عدد الليالي المتأثرة (قبل إعادة الحساب)
-      final nightsBefore = await (db.select(db.bookingNights)
-            ..where((n) => n.bookingLocalId.equals(booking.id))
-            ..where((n) => n.deletedAt.isNull())
-            ..where((n) => n.hotelDayKey.isBiggerOrEqualValue(effectiveHotelDay)))
-          .get();
+      final nightsBefore =
+          await (db.select(db.bookingNights)
+                ..where((n) => n.bookingLocalId.equals(booking.id))
+                ..where((n) => n.deletedAt.isNull())
+                ..where((n) => n.hotelDayKey.isBiggerOrEqualValue(effectiveHotelDay)))
+              .get();
 
       final oldTotal = nightsBefore.fold<double>(0, (sum, n) => sum + n.nightlyRate);
 
@@ -129,19 +124,17 @@ class PriceAdjustmentService {
       // التخفيضات (legacy + booking_price_adjustments) بشكل صحيح
       // وتُحدّث جميع حقول booking_nights (baseRate, adjustment, finalRate, ...)
       try {
-        await BookingDerivedFieldsService(db).refreshForBookingId(
-          booking.id,
-          forceRebuild: true,
-        );
+        await BookingDerivedFieldsService(db).refreshForBookingId(booking.id, forceRebuild: true);
       } catch (e) {
         debugPrint('⚠️ خطأ في إعادة حساب حجز ${booking.id}: $e');
       }
 
       // حساب النتيجة بعد إعادة الحساب
-      final nightsAfter = await (db.select(db.bookingNights)
-            ..where((n) => n.bookingLocalId.equals(booking.id))
-            ..where((n) => n.deletedAt.isNull()))
-          .get();
+      final nightsAfter =
+          await (db.select(db.bookingNights)
+                ..where((n) => n.bookingLocalId.equals(booking.id))
+                ..where((n) => n.deletedAt.isNull()))
+              .get();
 
       final newTotal = nightsAfter.fold<double>(0, (sum, n) => sum + n.nightlyRate);
       final nightsAffected = nightsBefore.length;
@@ -156,11 +149,7 @@ class PriceAdjustmentService {
     }
 
     for (final entry in auditEntries) {
-      await _createAuditLog(
-        action: 'price_adjustment_applied',
-        details: entry,
-        performedBy: appliedBy,
-      );
+      await _createAuditLog(action: 'price_adjustment_applied', details: entry, performedBy: appliedBy);
     }
 
     await AutoBackupManager.instance.onDataChange(
@@ -189,27 +178,27 @@ class PriceAdjustmentService {
         .get();
   }
 
-  Future<void> _createAuditLog({
-    required String action,
-    required String details,
-    required String performedBy,
-  }) async {
+  Future<void> _createAuditLog({required String action, required String details, required String performedBy}) async {
     final now = DateTime.now();
-    await db.into(db.auditLogs).insert(AuditLogsCompanion(
-      localUuid: Value(_uuid.v4()),
-      operationType: Value(action),
-      entityType: const Value('booking_nights'),
-      entityUuid: const Value(''),
-      previousState: const Value(null),
-      newState: Value(details),
-      performedBy: Value(performedBy),
-      deviceId: const Value('app'),
-      hotelDayKey: Value(HotelTimeEngine.getHotelDayKey(dateTime: now)),
-      timestamp: Value(Time.nowEpoch()),
-      timestampIso: Value(now.toIso8601String()),
-      isFinancial: const Value(true),
-      createdAt: Value(Time.nowEpoch()),
-    ),);
+    await db
+        .into(db.auditLogs)
+        .insert(
+          AuditLogsCompanion(
+            localUuid: Value(_uuid.v4()),
+            operationType: Value(action),
+            entityType: const Value('booking_nights'),
+            entityUuid: const Value(''),
+            previousState: const Value(null),
+            newState: Value(details),
+            performedBy: Value(performedBy),
+            deviceId: const Value('app'),
+            hotelDayKey: Value(HotelTimeEngine.getHotelDayKey(dateTime: now)),
+            timestamp: Value(Time.nowEpoch()),
+            timestampIso: Value(now.toIso8601String()),
+            isFinancial: const Value(true),
+            createdAt: Value(Time.nowEpoch()),
+          ),
+        );
   }
 
   Future<List<PriceAdjustment>> getAdjustmentsForRoom(String roomUuid) async {
@@ -220,10 +209,7 @@ class PriceAdjustmentService {
         .get();
   }
 
-  Future<List<PriceAdjustment>> getAdjustmentsInDateRange(
-    String startDate,
-    String endDate,
-  ) async {
+  Future<List<PriceAdjustment>> getAdjustmentsInDateRange(String startDate, String endDate) async {
     return (db.select(db.priceAdjustments)
           ..where((p) => p.hotelDayKey.isBiggerOrEqualValue(startDate))
           ..where((p) => p.hotelDayKey.isSmallerOrEqualValue(endDate))
@@ -247,11 +233,12 @@ class PriceAdjustmentService {
     final bookingPreviews = <Map<String, dynamic>>[];
 
     for (final booking in activeBookings) {
-      final nights = await (db.select(db.bookingNights)
-            ..where((n) => n.bookingLocalId.equals(booking.id))
-            ..where((n) => n.deletedAt.isNull())
-            ..where((n) => n.hotelDayKey.isBiggerOrEqualValue(effectiveHotelDay)))
-          .get();
+      final nights =
+          await (db.select(db.bookingNights)
+                ..where((n) => n.bookingLocalId.equals(booking.id))
+                ..where((n) => n.deletedAt.isNull())
+                ..where((n) => n.hotelDayKey.isBiggerOrEqualValue(effectiveHotelDay)))
+              .get();
 
       if (nights.isEmpty) {
         continue;
@@ -299,7 +286,6 @@ class PriceAdjustmentService {
 }
 
 class PriceAdjustmentResult {
-
   PriceAdjustmentResult({
     required this.success,
     this.error,

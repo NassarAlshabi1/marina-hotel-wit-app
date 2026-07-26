@@ -5,11 +5,10 @@ import 'smart_sync_manager.dart';
 
 /// مُعلِم المزامنة الفورية - يتلقى إشعارات من الأجهزة الأخرى
 class RealtimeSyncNotifier {
-
   RealtimeSyncNotifier._();
   static RealtimeSyncNotifier? _instance;
-  static RealtimeSyncNotifier get instance =>
-      _instance ??= RealtimeSyncNotifier._();
+  // ignore: prefer_constructors_over_static_methods
+  static RealtimeSyncNotifier get instance => _instance ??= RealtimeSyncNotifier._();
 
   final _syncTriggerController = StreamController<SyncTrigger>.broadcast();
   Stream<SyncTrigger> get onSyncTrigger => _syncTriggerController.stream;
@@ -56,7 +55,11 @@ class RealtimeSyncNotifier {
       final hasChanges = await smartSync.pullRemoteChanges();
 
       if (hasChanges) {
-        final syncId = 'auto_${DateTime.now().millisecondsSinceEpoch}';
+        // ✅ P1-13 fix: استخدام timestamp متغير فريد بدل DateTime.now() المتكرر
+        // syncId يجب أن يُشتق من شيء يتغير فعلاً (عدد السجلات أو timestamp)
+        // بدل DateTime.now() الذي يولد قيمة جديدة كل مرة → لا يتطابق أبداً
+        final syncId = 'auto_changes_${DateTime.now().millisecondsSinceEpoch ~/ 5000}';
+        // ✅ P1-13: تقريب للـ 5 ثواني لمنع الإفراط في الإشعارات
         if (_lastProcessedSyncId == syncId) {
           return;
         }
@@ -78,10 +81,7 @@ class RealtimeSyncNotifier {
   }
 
   /// إرسال إشعار لأجهزة أخرى (عبر FCM أو Drive metadata)
-  Future<void> notifyOtherDevices({
-    required String syncId,
-    required String changeType,
-  }) async {
+  Future<void> notifyOtherDevices({required String syncId, required String changeType}) async {
     try {
       // ignore: unused_local_variable
       final metadata = {

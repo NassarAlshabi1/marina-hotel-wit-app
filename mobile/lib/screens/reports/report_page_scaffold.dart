@@ -6,18 +6,17 @@ import '../../widgets/report_date_filter.dart';
 /// ويدجت مشتركة لبناء هيكل صفحات التقارير (AppScaffold + فلتر تاريخ + زر بحث PDF)
 /// لتجنب تكرار كود البنية المشتركة بين شاشات التقارير المختلفة
 class ReportPageScaffold extends StatelessWidget {
-  const ReportPageScaffold({
-    super.key,
-    required this.title,
-    required this.filterController,
-    required this.onDateRangeChanged,
-    required this.onExportPdf,
-    required this.onSearch,
-    required this.isPdfEnabled,
-    required this.isLoading,
-    required this.filterWidgets,
-    required this.summaryWidget,
-    required this.contentWidget,
+  const ReportPageScaffold({      required this.title,
+      required this.filterController,
+      required this.onDateRangeChanged,
+      required this.onExportPdf,
+      required this.onSearch,
+      required this.isPdfEnabled,
+      required this.isLoading,
+      required this.filterWidgets,
+      required this.summaryWidget,
+      required this.contentWidget,
+      super.key,
   });
 
   final String title;
@@ -47,10 +46,7 @@ class ReportPageScaffold extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ReportDateFilterWidget(
-              controller: filterController,
-              onDateRangeChanged: onDateRangeChanged,
-            ),
+            ReportDateFilterWidget(controller: filterController, onDateRangeChanged: onDateRangeChanged),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -58,8 +54,7 @@ class ReportPageScaffold extends StatelessWidget {
                 ...filterWidgets,
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     textStyle: const TextStyle(fontSize: 11),
                   ),
                   onPressed: isLoading ? null : onSearch,

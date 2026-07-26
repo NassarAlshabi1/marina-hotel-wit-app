@@ -165,6 +165,7 @@ class BackupTableData {
     required this.paymentVoidsData,
     required this.guestInfosData,
     required this.salaryWithdrawalsData,
+    required this.salaryCarryOverLogsData,
   });
 
   final List<dynamic> roomsData;
@@ -186,6 +187,7 @@ class BackupTableData {
   final List<dynamic> paymentVoidsData;
   final List<dynamic> guestInfosData;
   final List<dynamic> salaryWithdrawalsData;
+  final List<dynamic> salaryCarryOverLogsData;
 
   /// إجمالي عدد السجلات في جميع الجداول
   int get totalRecords =>
@@ -207,7 +209,8 @@ class BackupTableData {
       auditLogsData.length +
       paymentVoidsData.length +
       guestInfosData.length +
-      salaryWithdrawalsData.length;
+      salaryWithdrawalsData.length +
+      salaryCarryOverLogsData.length;
 
   /// بناء خريطة بيانات النسخ الاحتياطي من هذه الحاوية
   Map<String, dynamic> toBackupDataMap({
@@ -237,6 +240,7 @@ class BackupTableData {
       paymentVoidsData: paymentVoidsData,
       guestInfosData: guestInfosData,
       salaryWithdrawalsData: salaryWithdrawalsData,
+      salaryCarryOverLogsData: salaryCarryOverLogsData,
       blacklistData: blacklistData,
       whatsappSettings: whatsappSettings,
       syncStateData: syncStateData,
@@ -267,6 +271,7 @@ Map<String, dynamic> buildBackupDataMap({
   required List<dynamic> paymentVoidsData,
   required List<dynamic> guestInfosData,
   required List<dynamic> salaryWithdrawalsData,
+  required List<dynamic> salaryCarryOverLogsData,
   List<dynamic>? blacklistData,
   Map<String, dynamic>? whatsappSettings,
   Map<String, dynamic>? syncStateData,
@@ -276,36 +281,23 @@ Map<String, dynamic> buildBackupDataMap({
     'rooms': roomsData.map((room) => room.toJson()).toList(),
     'bookings': bookingsData.map((booking) => booking.toJson()).toList(),
     'booking_notes': bookingNotesData.map((note) => note.toJson()).toList(),
-    'booking_nights': bookingNightsData
-        .map((night) => night.toJson())
-        .toList(),
+    'booking_nights': bookingNightsData.map((night) => night.toJson()).toList(),
     'hotel_day_ledger': ledgerData.map((entry) => entry.toJson()).toList(),
     'shift_notes': shiftNotesData.map((note) => note.toJson()).toList(),
     'employees': employeesData.map((employee) => employee.toJson()).toList(),
     'expenses': expensesData.map((expense) => expense.toJson()).toList(),
-    'cash_transactions': cashTransactionsData
-        .map((transaction) => transaction.toJson())
-        .toList(),
+    'cash_transactions': cashTransactionsData.map((transaction) => transaction.toJson()).toList(),
     'payments': paymentsData.map((payment) => payment.toJson()).toList(),
     'debts': debtsData.map((debt) => debt.toJson()).toList(),
-    'salary_cycles': salaryCyclesData
-        .map((cycle) => cycle.toJson())
-        .toList(),
-    'salary_payments': salaryPaymentsData
-        .map((payment) => payment.toJson())
-        .toList(),
-    'price_adjustments': priceAdjustmentsData
-        .map((adj) => adj.toJson())
-        .toList(),
-    'booking_price_adjustments': bookingPriceAdjData
-        .map((adj) => adj.toJson())
-        .toList(),
+    'salary_cycles': salaryCyclesData.map((cycle) => cycle.toJson()).toList(),
+    'salary_payments': salaryPaymentsData.map((payment) => payment.toJson()).toList(),
+    'price_adjustments': priceAdjustmentsData.map((adj) => adj.toJson()).toList(),
+    'booking_price_adjustments': bookingPriceAdjData.map((adj) => adj.toJson()).toList(),
     'audit_logs': auditLogsData.map((log) => log.toJson()).toList(),
     'payment_voids': paymentVoidsData.map((v) => v.toJson()).toList(),
     'guest_infos': guestInfosData.map((g) => g.toJson()).toList(),
-    'salary_withdrawals': salaryWithdrawalsData
-        .map((s) => s.toJson())
-        .toList(),
+    'salary_withdrawals': salaryWithdrawalsData.map((s) => s.toJson()).toList(),
+    'salary_carry_over_logs': salaryCarryOverLogsData.map((s) => s.toJson()).toList(),
   };
 
   // إعدادات الواتساب (اختياري)

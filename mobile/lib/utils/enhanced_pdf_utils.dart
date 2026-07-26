@@ -5,7 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 
 /// ألوان مخصصة للـ PDF
 class PdfColors {
-  static const primary = PdfColor(0.706, 0.420, 0.0);  // #b46b00
+  static const primary = PdfColor(0.706, 0.420, 0.0); // #b46b00
   static const secondary = PdfColor(0.85, 0.65, 0.13);
   static const accent = PdfColor(0.0, 0.48, 0.65);
   static const textDark = PdfColor(0.15, 0.15, 0.15);
@@ -21,71 +21,38 @@ class PdfColors {
 
 /// أنماط النصوص المخصصة
 class PdfTextStyles {
-  static pw.TextStyle heading1(pw.Font font) => pw.TextStyle(
-    font: font,
-    fontSize: 24,
-    fontWeight: pw.FontWeight.bold,
-    color: PdfColors.primary,
-  );
+  static pw.TextStyle heading1(pw.Font font) =>
+      pw.TextStyle(font: font, fontSize: 24, fontWeight: pw.FontWeight.bold, color: PdfColors.primary);
 
-  static pw.TextStyle heading2(pw.Font font) => pw.TextStyle(
-    font: font,
-    fontSize: 18,
-    fontWeight: pw.FontWeight.bold,
-    color: PdfColors.textDark,
-  );
+  static pw.TextStyle heading2(pw.Font font) =>
+      pw.TextStyle(font: font, fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.textDark);
 
-  static pw.TextStyle heading3(pw.Font font) => pw.TextStyle(
-    font: font,
-    fontSize: 16,
-    fontWeight: pw.FontWeight.bold,
-    color: PdfColors.textDark,
-  );
+  static pw.TextStyle heading3(pw.Font font) =>
+      pw.TextStyle(font: font, fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.textDark);
 
-  static pw.TextStyle body(pw.Font font) =>
-      pw.TextStyle(font: font, fontSize: 12, color: PdfColors.textDark);
+  static pw.TextStyle body(pw.Font font) => pw.TextStyle(font: font, fontSize: 12, color: PdfColors.textDark);
 
-  static pw.TextStyle bodySmall(pw.Font font) =>
-      pw.TextStyle(font: font, fontSize: 10, color: PdfColors.textLight);
+  static pw.TextStyle bodySmall(pw.Font font) => pw.TextStyle(font: font, fontSize: 10, color: PdfColors.textLight);
 
-  static pw.TextStyle bodyBold(pw.Font font) => pw.TextStyle(
-    font: font,
-    fontSize: 12,
-    fontWeight: pw.FontWeight.bold,
-    color: PdfColors.textDark,
-  );
+  static pw.TextStyle bodyBold(pw.Font font) =>
+      pw.TextStyle(font: font, fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.textDark);
 
-  static pw.TextStyle caption(pw.Font font) =>
-      pw.TextStyle(font: font, fontSize: 9, color: PdfColors.textLight);
+  static pw.TextStyle caption(pw.Font font) => pw.TextStyle(font: font, fontSize: 9, color: PdfColors.textLight);
 
-  static pw.TextStyle whiteText(pw.Font font) =>
-      pw.TextStyle(font: font, fontSize: 12, color: PdfColors.textWhite);
+  static pw.TextStyle whiteText(pw.Font font) => pw.TextStyle(font: font, fontSize: 12, color: PdfColors.textWhite);
 
-  static pw.TextStyle price(pw.Font font) => pw.TextStyle(
-    font: font,
-    fontSize: 14,
-    fontWeight: pw.FontWeight.bold,
-    color: PdfColors.secondary,
-  );
+  static pw.TextStyle price(pw.Font font) =>
+      pw.TextStyle(font: font, fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.secondary);
 
-  static pw.TextStyle tableHeader(pw.Font font) => pw.TextStyle(
-    font: font,
-    fontSize: 11,
-    fontWeight: pw.FontWeight.bold,
-    color: PdfColors.textDark,
-  );
+  static pw.TextStyle tableHeader(pw.Font font) =>
+      pw.TextStyle(font: font, fontSize: 11, fontWeight: pw.FontWeight.bold, color: PdfColors.textDark);
 
-  static pw.TextStyle tableCell(pw.Font font) =>
-      pw.TextStyle(font: font, fontSize: 10, color: PdfColors.textDark);
+  static pw.TextStyle tableCell(pw.Font font) => pw.TextStyle(font: font, fontSize: 10, color: PdfColors.textDark);
 }
 
 /// خطوط عربية محسنة
 class ArabicPdfFonts {
-  ArabicPdfFonts({
-    required this.regular,
-    required this.bold,
-    required this.light,
-  });
+  ArabicPdfFonts({required this.regular, required this.bold, required this.light});
 
   final pw.Font regular;
   final pw.Font bold;
@@ -95,9 +62,7 @@ class ArabicPdfFonts {
 /// أدوات PDF محسنة مع تصاميم احترافية
 class EnhancedPdfUtils {
   static Future<ArabicPdfFonts> loadArabicFonts() async {
-    final regularData = await rootBundle.load(
-      'assets/fonts/Tajawal-Regular.ttf',
-    );
+    final regularData = await rootBundle.load('assets/fonts/Tajawal-Regular.ttf');
     final boldData = await rootBundle.load('assets/fonts/Tajawal-Bold.ttf');
     final lightData = regularData;
 
@@ -148,46 +113,27 @@ class EnhancedPdfUtils {
               children: [
                 pw.Text(
                   'فندق مارينا بلازا',
-                  style: pw.TextStyle(
-                    font: fonts.bold,
-                    fontSize: 24,
-                    color: PdfColors.textWhite,
-                  ),
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 24, color: PdfColors.textWhite),
                 ),
                 pw.SizedBox(height: 4),
                 pw.Text(
                   'تجربة إقامة استثنائية',
-                  style: pw.TextStyle(
-                    font: fonts.regular,
-                    fontSize: 11,
-                    color: PdfColors.textWhite,
-                  ),
+                  style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: PdfColors.textWhite),
                 ),
                 pw.SizedBox(height: 8),
                 pw.Container(
-                  padding: const pw.EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: const pw.BoxDecoration(color: PdfColors.secondary),
                   child: pw.Text(
                     title.isNotEmpty ? title : 'وثيقة رسمية',
-                    style: pw.TextStyle(
-                      font: fonts.bold,
-                      fontSize: 14,
-                      color: PdfColors.textWhite,
-                    ),
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: PdfColors.textWhite),
                   ),
                 ),
                 if (subtitle.isNotEmpty) ...[
                   pw.SizedBox(height: 4),
                   pw.Text(
                     subtitle,
-                    style: pw.TextStyle(
-                      font: fonts.regular,
-                      fontSize: 10,
-                      color: PdfColors.textWhite,
-                    ),
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 10, color: PdfColors.textWhite),
                   ),
                 ],
               ],
@@ -208,11 +154,7 @@ class EnhancedPdfUtils {
               child: pw.Center(
                 child: pw.Text(
                   'M',
-                  style: pw.TextStyle(
-                    font: fonts.bold,
-                    fontSize: 32,
-                    color: PdfColors.textWhite,
-                  ),
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 32, color: PdfColors.textWhite),
                 ),
               ),
             ),
@@ -232,24 +174,9 @@ class EnhancedPdfUtils {
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
             children: [
-              _buildContactItem(
-                icon: '📍',
-                label: 'العنوان',
-                value: 'القاهرة - شارع احمد قاسم',
-                fonts: fonts,
-              ),
-              _buildContactItem(
-                icon: '📞',
-                label: 'الهاتف',
-                value: '02324457',
-                fonts: fonts,
-              ),
-              _buildContactItem(
-                icon: '📧',
-                label: 'البريد الإلكتروني',
-                value: 'info@marina-hotel.com',
-                fonts: fonts,
-              ),
+              _buildContactItem(icon: '📍', label: 'العنوان', value: 'القاهرة - شارع احمد قاسم', fonts: fonts),
+              _buildContactItem(icon: '📞', label: 'الهاتف', value: '02324457', fonts: fonts),
+              _buildContactItem(icon: '📧', label: 'البريد الإلكتروني', value: 'info@marina-hotel.com', fonts: fonts),
             ],
           ),
           pw.SizedBox(height: 8),
@@ -282,19 +209,11 @@ class EnhancedPdfUtils {
         pw.SizedBox(height: 4),
         pw.Text(
           label,
-          style: pw.TextStyle(
-            font: fonts.bold,
-            fontSize: 9,
-            color: PdfColors.textDark,
-          ),
+          style: pw.TextStyle(font: fonts.bold, fontSize: 9, color: PdfColors.textDark),
         ),
         pw.Text(
           value,
-          style: pw.TextStyle(
-            font: fonts.regular,
-            fontSize: 8,
-            color: PdfColors.textLight,
-          ),
+          style: pw.TextStyle(font: fonts.regular, fontSize: 8, color: PdfColors.textLight),
         ),
       ],
     );
@@ -314,38 +233,23 @@ class EnhancedPdfUtils {
       margin: const pw.EdgeInsets.symmetric(vertical: 8),
       decoration: pw.BoxDecoration(
         color: backgroundColor ?? PdfColors.backgroundLight,
-        border: pw.Border.all(
-          color: borderColor ?? PdfColors.primary,
-          width: borderWidth ?? 1,
-        ),
+        border: pw.Border.all(color: borderColor ?? PdfColors.primary, width: borderWidth ?? 1),
       ),
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Container(
             width: double.infinity,
-            padding: const pw.EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 10,
-            ),
-            decoration: pw.BoxDecoration(
-              color: borderColor ?? PdfColors.primary,
-            ),
+            padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: pw.BoxDecoration(color: borderColor ?? PdfColors.primary),
             child: pw.Text(
               title,
-              style: pw.TextStyle(
-                font: fonts.bold,
-                fontSize: 14,
-                color: PdfColors.textWhite,
-              ),
+              style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: PdfColors.textWhite),
             ),
           ),
           pw.Container(
             padding: const pw.EdgeInsets.all(16),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: content,
-            ),
+            child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: content),
           ),
         ],
       ),
@@ -365,9 +269,7 @@ class EnhancedPdfUtils {
     final cellStyle = PdfTextStyles.tableCell(fonts.regular);
 
     return pw.Container(
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.textLight),
-      ),
+      decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.textLight)),
       child: pw.Table(
         columnWidths: columnWidths != null
             ? Map.fromIterables(
@@ -377,18 +279,12 @@ class EnhancedPdfUtils {
             : null,
         children: [
           pw.TableRow(
-            decoration: pw.BoxDecoration(
-              color: headerColor ?? PdfColors.primary,
-            ),
+            decoration: pw.BoxDecoration(color: headerColor ?? PdfColors.primary),
             children: headers
                 .map(
                   (header) => pw.Padding(
                     padding: const pw.EdgeInsets.all(12),
-                    child: pw.Text(
-                      header,
-                      style: headerStyle,
-                      textAlign: pw.TextAlign.center,
-                    ),
+                    child: pw.Text(header, style: headerStyle, textAlign: pw.TextAlign.center),
                   ),
                 )
                 .toList(),
@@ -399,20 +295,12 @@ class EnhancedPdfUtils {
             final isEven = index.isEven;
 
             return pw.TableRow(
-              decoration: pw.BoxDecoration(
-                color: isEven
-                    ? (alternateRowColor ?? PdfColors.backgroundLight)
-                    : null,
-              ),
+              decoration: pw.BoxDecoration(color: isEven ? (alternateRowColor ?? PdfColors.backgroundLight) : null),
               children: row
                   .map(
                     (cell) => pw.Padding(
                       padding: const pw.EdgeInsets.all(10),
-                      child: pw.Text(
-                        cell,
-                        style: cellStyle,
-                        textAlign: pw.TextAlign.center,
-                      ),
+                      child: pw.Text(cell, style: cellStyle, textAlign: pw.TextAlign.center),
                     ),
                   )
                   .toList(),
@@ -424,22 +312,17 @@ class EnhancedPdfUtils {
   }
 
   /// بناء صندوق إحصائيات
-  static pw.Widget buildStatisticsBox({
-    required String title,
-    required String value,
-    String? subtitle,
-    required ArabicPdfFonts fonts,
-    PdfColor? color,
-    String? icon,
+  static pw.Widget buildStatisticsBox({      required String title,
+      required String value,
+      required ArabicPdfFonts fonts,
+      String? subtitle,
+      PdfColor? color,
+      String? icon,
   }) {
     final baseColor = color ?? PdfColors.primary;
     // Replicate the old `flatten(PdfColors.textWhite, 0.2)` logic to maintain visual consistency.
     // This creates a lighter shade by mixing with 20% white.
-    final secondaryColor = PdfColor(
-      baseColor.red * 0.8 + 0.2,
-      baseColor.green * 0.8 + 0.2,
-      baseColor.blue * 0.8 + 0.2,
-    );
+    final secondaryColor = PdfColor(baseColor.red * 0.8 + 0.2, baseColor.green * 0.8 + 0.2, baseColor.blue * 0.8 + 0.2);
 
     return pw.Container(
       padding: const pw.EdgeInsets.all(16),
@@ -452,37 +335,22 @@ class EnhancedPdfUtils {
       ),
       child: pw.Column(
         children: [
-          if (icon != null) ...[
-            pw.Text(icon, style: const pw.TextStyle(fontSize: 24)),
-            pw.SizedBox(height: 8),
-          ],
+          if (icon != null) ...[pw.Text(icon, style: const pw.TextStyle(fontSize: 24)), pw.SizedBox(height: 8)],
           pw.Text(
             title,
-            style: pw.TextStyle(
-              font: fonts.regular,
-              fontSize: 12,
-              color: PdfColors.textWhite,
-            ),
+            style: pw.TextStyle(font: fonts.regular, fontSize: 12, color: PdfColors.textWhite),
             textAlign: pw.TextAlign.center,
           ),
           pw.SizedBox(height: 4),
           pw.Text(
             value,
-            style: pw.TextStyle(
-              font: fonts.bold,
-              fontSize: 20,
-              color: PdfColors.textWhite,
-            ),
+            style: pw.TextStyle(font: fonts.bold, fontSize: 20, color: PdfColors.textWhite),
             textAlign: pw.TextAlign.center,
           ),
           if (subtitle != null && subtitle.isNotEmpty)
             pw.Text(
               subtitle,
-              style: pw.TextStyle(
-                font: fonts.regular,
-                fontSize: 9,
-                color: PdfColors.textWhite,
-              ),
+              style: pw.TextStyle(font: fonts.regular, fontSize: 9, color: PdfColors.textWhite),
               textAlign: pw.TextAlign.center,
             ),
         ],
@@ -507,15 +375,7 @@ class EnhancedPdfUtils {
       'ديسمبر',
     ];
 
-    const List<String> arabicDays = [
-      'الاثنين',
-      'الثلاثاء',
-      'الأربعاء',
-      'الخميس',
-      'الجمعة',
-      'السبت',
-      'الأحد',
-    ];
+    const List<String> arabicDays = ['الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'];
 
     final day = arabicDays[dateTime.weekday - 1];
     final month = arabicMonths[dateTime.month - 1];
@@ -532,18 +392,11 @@ class EnhancedPdfUtils {
   static String formatNumber(double number) {
     return number
         .toStringAsFixed(0)
-        .replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match match) => '${match[1]},',
-        );
+        .replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match match) => '${match[1]},');
   }
 
   /// بناء مربع نائب لـ QR Code
-  static pw.Widget buildQRCodePlaceholder({
-    required String data,
-    required ArabicPdfFonts fonts,
-    double size = 60,
-  }) {
+  static pw.Widget buildQRCodePlaceholder({required String data, required ArabicPdfFonts fonts, double size = 60}) {
     return pw.Container(
       width: size,
       height: size,
@@ -554,11 +407,7 @@ class EnhancedPdfUtils {
       child: pw.Center(
         child: pw.Text(
           'QR',
-          style: pw.TextStyle(
-            font: fonts.bold,
-            fontSize: 10,
-            color: PdfColors.textLight,
-          ),
+          style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: PdfColors.textLight),
         ),
       ),
     );

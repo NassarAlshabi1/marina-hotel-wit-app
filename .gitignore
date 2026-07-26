@@ -17,3 +17,8 @@ build/
 .npm/
 .cache/
 dist/
+scripts/appwrite/backup_splits/
+
+# Python cache
+__pycache__/
+*.pyc

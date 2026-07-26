@@ -10,8 +10,13 @@ import '../utils/status_utils.dart';
 /// Provider للغرف مع دعم Realtime Updates
 ///
 /// يدير حالة الغرف ويستمع للتحديثات الفورية من Appwrite
+///
+/// ⚠️ **DEPRECATED** — هذا الـ provider غير مستخدم في أي مسار إنتاجي،
+/// ويعتمد على `AppwriteRealtimeService` المُهملة. استخدم `roomsListProvider`
+/// (Riverpod StreamProvider) بدلاً منه للغرف مع التحديثات الفورية عبر
+/// `AppwriteRealtimeSync`.
+@Deprecated('استخدم roomsListProvider (Riverpod) بدلاً من ذلك')
 class RealTimeRoomsProvider extends ChangeNotifier {
-
   RealTimeRoomsProvider({
     required RoomRepository repository,
     required AppwriteRealtimeService realtimeService,
@@ -37,11 +42,9 @@ class RealTimeRoomsProvider extends ChangeNotifier {
 
   /// ✅ استخدام StatusUtils بدلاً من مطابقة النص المباشر
   /// لضمان دعم جميع متغيرات الحالة (شاغرة، شاغره، متاحة، إلخ)
-  List<Room> get availableRooms =>
-      _rooms.where((r) => StatusUtils.isRoomAvailable(r.status)).toList();
+  List<Room> get availableRooms => _rooms.where((r) => StatusUtils.isRoomAvailable(r.status)).toList();
 
-  List<Room> get occupiedRooms =>
-      _rooms.where((r) => StatusUtils.isRoomOccupied(r.status)).toList();
+  List<Room> get occupiedRooms => _rooms.where((r) => StatusUtils.isRoomOccupied(r.status)).toList();
 
   /// تحميل الغرف
   Future<void> loadRooms() async {
@@ -110,11 +113,7 @@ class RealTimeRoomsProvider extends ChangeNotifier {
         _handleRoomDeleted(payload);
       }
     } catch (e) {
-      _logger.error(
-        'Failed to handle realtime update',
-        error: e,
-        tag: 'ROOMS_PROVIDER',
-      );
+      _logger.error('Failed to handle realtime update', error: e, tag: 'ROOMS_PROVIDER');
     }
   }
 
@@ -132,7 +131,7 @@ class RealTimeRoomsProvider extends ChangeNotifier {
 
   /// معالجة حذف غرفة
   void _handleRoomDeleted(Map<String, dynamic> payload) {
-    final roomId = payload['\$id'] as String?;
+    final roomId = payload[r'$id'] as String?;
     if (roomId != null) {
       final intId = int.tryParse(roomId);
       if (intId != null) {
@@ -162,8 +161,7 @@ class RealTimeRoomsProvider extends ChangeNotifier {
 
     final lowerQuery = query.toLowerCase();
     return _rooms.where((room) {
-      return room.roomNumber.toLowerCase().contains(lowerQuery) ||
-          room.type.toLowerCase().contains(lowerQuery);
+      return room.roomNumber.toLowerCase().contains(lowerQuery) || room.type.toLowerCase().contains(lowerQuery);
     }).toList();
   }
 

@@ -3,11 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 
 class AdminSidebar extends ConsumerWidget {
-
-  const AdminSidebar({
-    super.key,
-    required this.currentRoute,
-    required this.onRouteSelected,
+  const AdminSidebar({      required this.currentRoute,
+      required this.onRouteSelected,
+      super.key,
   });
   final String currentRoute;
   final void Function(String) onRouteSelected;
@@ -50,25 +48,14 @@ class AdminSidebar extends ConsumerWidget {
                   children: [
                     Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: cardOverlay,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.hotel,
-                        color: Colors.white,
-                        size: 32,
-                      ),
+                      decoration: BoxDecoration(color: cardOverlay, borderRadius: BorderRadius.circular(12)),
+                      child: const Icon(Icons.hotel, color: Colors.white, size: 32),
                     ),
                     const SizedBox(width: 16),
                     const Expanded(
                       child: Text(
                         'فندق مارينا بلازا',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
@@ -78,10 +65,7 @@ class AdminSidebar extends ConsumerWidget {
                 // User info section
                 Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: cardOverlay,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  decoration: BoxDecoration(color: cardOverlay, borderRadius: BorderRadius.circular(12)),
                   child: Row(
                     children: [
                       CircleAvatar(
@@ -95,20 +79,11 @@ class AdminSidebar extends ConsumerWidget {
                           children: [
                             Text(
                               auth.currentUser?.name ?? 'مستخدم',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
                             ),
                             Text(
-                              auth.currentUser?.userType == 'admin'
-                                  ? 'مدير النظام'
-                                  : 'موظف',
-                              style: TextStyle(
-                                color: inactiveColor,
-                                fontSize: 12,
-                              ),
+                              auth.currentUser?.userType == 'admin' ? 'مدير النظام' : 'موظف',
+                              style: TextStyle(color: inactiveColor, fontSize: 12),
                             ),
                           ],
                         ),
@@ -281,17 +256,11 @@ class AdminSidebar extends ConsumerWidget {
     required VoidCallback onTap,
     BuildContext? context,
   }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      decoration: BoxDecoration(
-        color: isActive ? Colors.white.withValues(alpha: 0.12) : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-      ),
+    return Material(
+      color: isActive ? Colors.white.withValues(alpha: 0.12) : Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
       child: ListTile(
-        leading: Icon(
-          icon,
-          color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.72),
-        ),
+        leading: Icon(icon, color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.72)),
         title: Text(
           title,
           style: TextStyle(

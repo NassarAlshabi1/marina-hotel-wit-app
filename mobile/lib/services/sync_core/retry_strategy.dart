@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 enum RetryBackoffType { linear, exponential, fibonacci }
 
 class RetryConfig {
-
   const RetryConfig({
     this.maxAttempts = 5,
     this.initialDelay = const Duration(seconds: 2),
@@ -35,13 +34,10 @@ class RetryConfig {
     backoffMultiplier: 2.5,
   );
 
-  static const balanced = RetryConfig(
-    backoffType: RetryBackoffType.fibonacci,
-  );
+  static const balanced = RetryConfig(backoffType: RetryBackoffType.fibonacci);
 }
 
 class RetryStrategy {
-
   RetryStrategy({RetryConfig? config}) : config = config ?? const RetryConfig();
   final RetryConfig config;
   final Random _random = Random();
@@ -58,8 +54,10 @@ class RetryStrategy {
         baseDelay = config.initialDelay * attemptNumber;
 
       case RetryBackoffType.exponential:
+        // ✅ P1-12 fix: استخدام round() بدل toInt() لمنع بتر القيم
         final exponential = pow(config.backoffMultiplier, attemptNumber - 1);
-        baseDelay = config.initialDelay * exponential.toInt();
+        final delayMs = (config.initialDelay.inMilliseconds * exponential).round();
+        baseDelay = Duration(milliseconds: delayMs);
 
       case RetryBackoffType.fibonacci:
         final fib = _fibonacci(attemptNumber);
@@ -79,7 +77,8 @@ class RetryStrategy {
   Duration _calculateJitter(Duration baseDelay) {
     final jitterMs = baseDelay.inMilliseconds * config.jitterFactor;
     final randomJitter = (_random.nextDouble() * 2 - 1) * jitterMs;
-    return Duration(milliseconds: randomJitter.toInt());
+    // ✅ P1-12 fix: استخدام round() بدل toInt()
+    return Duration(milliseconds: randomJitter.round());
   }
 
   int _fibonacci(int n) {
@@ -124,9 +123,7 @@ class RetryStrategy {
         }
 
         final delay = calculateDelay(attempt);
-        debugPrint(
-          '⏳ [Retry] انتظار ${delay.inSeconds} ثانية قبل المحاولة التالية',
-        );
+        debugPrint('⏳ [Retry] انتظار ${delay.inSeconds} ثانية قبل المحاولة التالية');
 
         if (onRetry != null) {
           onRetry(attempt, error);
@@ -146,11 +143,7 @@ class RetryStrategy {
     void Function(int attempt, dynamic error)? onRetry,
   }) async {
     try {
-      return await execute(
-        operation: operation,
-        shouldRetry: shouldRetry,
-        onRetry: onRetry,
-      );
+      return await execute(operation: operation, shouldRetry: shouldRetry, onRetry: onRetry);
     } catch (e) {
       debugPrint('🔄 [Retry] استخدام القيمة الاحتياطية بعد فشل جميع المحاولات');
       return fallback();

@@ -166,6 +166,29 @@ class $RoomsTable extends Rooms with TableInfo<$RoomsTable, Room> {
     requiredDuringInsert: false,
     defaultValue: const Constant('{}'),
   );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -293,6 +316,8 @@ class $RoomsTable extends Rooms with TableInfo<$RoomsTable, Room> {
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     roomNumber,
     type,
@@ -426,6 +451,21 @@ class $RoomsTable extends Rooms with TableInfo<$RoomsTable, Room> {
         vectorClock.isAcceptableOrUnknown(
           data['vector_clock']!,
           _vectorClockMeta,
+        ),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
         ),
       );
     }
@@ -571,6 +611,14 @@ class $RoomsTable extends Rooms with TableInfo<$RoomsTable, Room> {
         DriftSqlType.string,
         data['${effectivePrefix}vector_clock'],
       )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -635,6 +683,8 @@ class Room extends DataClass implements Insertable<Room> {
   final int version;
   final String origin;
   final String vectorClock;
+  final String deviceId;
+  final String? idempotencyKey;
   final int id;
   final String roomNumber;
   final String type;
@@ -660,6 +710,8 @@ class Room extends DataClass implements Insertable<Room> {
     required this.version,
     required this.origin,
     required this.vectorClock,
+    required this.deviceId,
+    this.idempotencyKey,
     required this.id,
     required this.roomNumber,
     required this.type,
@@ -698,6 +750,10 @@ class Room extends DataClass implements Insertable<Room> {
     map['version'] = Variable<int>(version);
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
     map['id'] = Variable<int>(id);
     map['room_number'] = Variable<String>(roomNumber);
     map['type'] = Variable<String>(type);
@@ -743,6 +799,10 @@ class Room extends DataClass implements Insertable<Room> {
       version: Value(version),
       origin: Value(origin),
       vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
       id: Value(id),
       roomNumber: Value(roomNumber),
       type: Value(type),
@@ -782,6 +842,8 @@ class Room extends DataClass implements Insertable<Room> {
       version: serializer.fromJson<int>(json['version']),
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       roomNumber: serializer.fromJson<String>(json['roomNumber']),
       type: serializer.fromJson<String>(json['type']),
@@ -818,6 +880,8 @@ class Room extends DataClass implements Insertable<Room> {
       'version': serializer.toJson<int>(version),
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'roomNumber': serializer.toJson<String>(roomNumber),
       'type': serializer.toJson<String>(type),
@@ -846,6 +910,8 @@ class Room extends DataClass implements Insertable<Room> {
     int? version,
     String? origin,
     String? vectorClock,
+    String? deviceId,
+    Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? roomNumber,
     String? type,
@@ -871,6 +937,10 @@ class Room extends DataClass implements Insertable<Room> {
     version: version ?? this.version,
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
     id: id ?? this.id,
     roomNumber: roomNumber ?? this.roomNumber,
     type: type ?? this.type,
@@ -916,6 +986,10 @@ class Room extends DataClass implements Insertable<Room> {
       vectorClock: data.vectorClock.present
           ? data.vectorClock.value
           : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
       id: data.id.present ? data.id.value : this.id,
       roomNumber: data.roomNumber.present
           ? data.roomNumber.value
@@ -956,6 +1030,8 @@ class Room extends DataClass implements Insertable<Room> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('roomNumber: $roomNumber, ')
           ..write('type: $type, ')
@@ -986,6 +1062,8 @@ class Room extends DataClass implements Insertable<Room> {
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     roomNumber,
     type,
@@ -1015,6 +1093,8 @@ class Room extends DataClass implements Insertable<Room> {
           other.version == this.version &&
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.roomNumber == this.roomNumber &&
           other.type == this.type &&
@@ -1042,6 +1122,8 @@ class RoomsCompanion extends UpdateCompanion<Room> {
   final Value<int> version;
   final Value<String> origin;
   final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> roomNumber;
   final Value<String> type;
@@ -1067,6 +1149,8 @@ class RoomsCompanion extends UpdateCompanion<Room> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.roomNumber = const Value.absent(),
     this.type = const Value.absent(),
@@ -1093,6 +1177,8 @@ class RoomsCompanion extends UpdateCompanion<Room> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required String roomNumber,
     required String type,
@@ -1126,6 +1212,8 @@ class RoomsCompanion extends UpdateCompanion<Room> {
     Expression<int>? version,
     Expression<String>? origin,
     Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<String>? roomNumber,
     Expression<String>? type,
@@ -1152,6 +1240,8 @@ class RoomsCompanion extends UpdateCompanion<Room> {
       if (version != null) 'version': version,
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (roomNumber != null) 'room_number': roomNumber,
       if (type != null) 'type': type,
@@ -1183,6 +1273,8 @@ class RoomsCompanion extends UpdateCompanion<Room> {
     Value<int>? version,
     Value<String>? origin,
     Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? roomNumber,
     Value<String>? type,
@@ -1209,6 +1301,8 @@ class RoomsCompanion extends UpdateCompanion<Room> {
       version: version ?? this.version,
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       roomNumber: roomNumber ?? this.roomNumber,
       type: type ?? this.type,
@@ -1267,6 +1361,12 @@ class RoomsCompanion extends UpdateCompanion<Room> {
     if (vectorClock.present) {
       map['vector_clock'] = Variable<String>(vectorClock.value);
     }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
@@ -1321,6 +1421,8 @@ class RoomsCompanion extends UpdateCompanion<Room> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('roomNumber: $roomNumber, ')
           ..write('type: $type, ')
@@ -1498,6 +1600,29 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
     defaultValue: const Constant('{}'),
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
@@ -1902,6 +2027,8 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     serverBookingId,
     roomNumber,
@@ -2058,6 +2185,21 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
         vectorClock.isAcceptableOrUnknown(
           data['vector_clock']!,
           _vectorClockMeta,
+        ),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
         ),
       );
     }
@@ -2405,6 +2547,14 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
         DriftSqlType.string,
         data['${effectivePrefix}vector_clock'],
       )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -2561,6 +2711,8 @@ class Booking extends DataClass implements Insertable<Booking> {
   final int version;
   final String origin;
   final String vectorClock;
+  final String deviceId;
+  final String? idempotencyKey;
   final int id;
   final int? serverBookingId;
   final String roomNumber;
@@ -2609,6 +2761,8 @@ class Booking extends DataClass implements Insertable<Booking> {
     required this.version,
     required this.origin,
     required this.vectorClock,
+    required this.deviceId,
+    this.idempotencyKey,
     required this.id,
     this.serverBookingId,
     required this.roomNumber,
@@ -2670,6 +2824,10 @@ class Booking extends DataClass implements Insertable<Booking> {
     map['version'] = Variable<int>(version);
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
     map['id'] = Variable<int>(id);
     if (!nullToAbsent || serverBookingId != null) {
       map['server_booking_id'] = Variable<int>(serverBookingId);
@@ -2758,6 +2916,10 @@ class Booking extends DataClass implements Insertable<Booking> {
       version: Value(version),
       origin: Value(origin),
       vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
       id: Value(id),
       serverBookingId: serverBookingId == null && nullToAbsent
           ? const Value.absent()
@@ -2840,6 +3002,8 @@ class Booking extends DataClass implements Insertable<Booking> {
       version: serializer.fromJson<int>(json['version']),
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       serverBookingId: serializer.fromJson<int?>(json['serverBookingId']),
       roomNumber: serializer.fromJson<String>(json['roomNumber']),
@@ -2901,6 +3065,8 @@ class Booking extends DataClass implements Insertable<Booking> {
       'version': serializer.toJson<int>(version),
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'serverBookingId': serializer.toJson<int?>(serverBookingId),
       'roomNumber': serializer.toJson<String>(roomNumber),
@@ -2954,6 +3120,8 @@ class Booking extends DataClass implements Insertable<Booking> {
     int? version,
     String? origin,
     String? vectorClock,
+    String? deviceId,
+    Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     Value<int?> serverBookingId = const Value.absent(),
     String? roomNumber,
@@ -3002,6 +3170,10 @@ class Booking extends DataClass implements Insertable<Booking> {
     version: version ?? this.version,
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
     id: id ?? this.id,
     serverBookingId: serverBookingId.present
         ? serverBookingId.value
@@ -3085,6 +3257,10 @@ class Booking extends DataClass implements Insertable<Booking> {
       vectorClock: data.vectorClock.present
           ? data.vectorClock.value
           : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
       id: data.id.present ? data.id.value : this.id,
       serverBookingId: data.serverBookingId.present
           ? data.serverBookingId.value
@@ -3192,6 +3368,8 @@ class Booking extends DataClass implements Insertable<Booking> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('serverBookingId: $serverBookingId, ')
           ..write('roomNumber: $roomNumber, ')
@@ -3245,6 +3423,8 @@ class Booking extends DataClass implements Insertable<Booking> {
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     serverBookingId,
     roomNumber,
@@ -3297,6 +3477,8 @@ class Booking extends DataClass implements Insertable<Booking> {
           other.version == this.version &&
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.serverBookingId == this.serverBookingId &&
           other.roomNumber == this.roomNumber &&
@@ -3347,6 +3529,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
   final Value<int> version;
   final Value<String> origin;
   final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int?> serverBookingId;
   final Value<String> roomNumber;
@@ -3395,6 +3579,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.serverBookingId = const Value.absent(),
     this.roomNumber = const Value.absent(),
@@ -3444,6 +3630,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.serverBookingId = const Value.absent(),
     required String roomNumber,
@@ -3502,6 +3690,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     Expression<int>? version,
     Expression<String>? origin,
     Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<int>? serverBookingId,
     Expression<String>? roomNumber,
@@ -3551,6 +3741,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
       if (version != null) 'version': version,
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (serverBookingId != null) 'server_booking_id': serverBookingId,
       if (roomNumber != null) 'room_number': roomNumber,
@@ -3604,6 +3796,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     Value<int>? version,
     Value<String>? origin,
     Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int?>? serverBookingId,
     Value<String>? roomNumber,
@@ -3653,6 +3847,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
       version: version ?? this.version,
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       serverBookingId: serverBookingId ?? this.serverBookingId,
       roomNumber: roomNumber ?? this.roomNumber,
@@ -3734,6 +3930,12 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     }
     if (vectorClock.present) {
       map['vector_clock'] = Variable<String>(vectorClock.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
     }
     if (id.present) {
       map['id'] = Variable<int>(id.value);
@@ -3856,6 +4058,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('serverBookingId: $serverBookingId, ')
           ..write('roomNumber: $roomNumber, ')
@@ -4058,6 +4262,29 @@ class $BookingNotesTable extends BookingNotes
     requiredDuringInsert: false,
     defaultValue: const Constant('{}'),
   );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -4146,6 +4373,8 @@ class $BookingNotesTable extends BookingNotes
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     bookingId,
     noteText,
@@ -4278,6 +4507,21 @@ class $BookingNotesTable extends BookingNotes
         ),
       );
     }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
+        ),
+      );
+    }
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
@@ -4382,6 +4626,14 @@ class $BookingNotesTable extends BookingNotes
         DriftSqlType.string,
         data['${effectivePrefix}vector_clock'],
       )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -4430,6 +4682,8 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
   final int version;
   final String origin;
   final String vectorClock;
+  final String deviceId;
+  final String? idempotencyKey;
   final int id;
   final int bookingId;
   final String noteText;
@@ -4451,6 +4705,8 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
     required this.version,
     required this.origin,
     required this.vectorClock,
+    required this.deviceId,
+    this.idempotencyKey,
     required this.id,
     required this.bookingId,
     required this.noteText,
@@ -4485,6 +4741,10 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
     map['version'] = Variable<int>(version);
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
     map['id'] = Variable<int>(id);
     map['booking_id'] = Variable<int>(bookingId);
     map['note_text'] = Variable<String>(noteText);
@@ -4522,6 +4782,10 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
       version: Value(version),
       origin: Value(origin),
       vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
       id: Value(id),
       bookingId: Value(bookingId),
       noteText: Value(noteText),
@@ -4553,6 +4817,8 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
       version: serializer.fromJson<int>(json['version']),
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       bookingId: serializer.fromJson<int>(json['bookingId']),
       noteText: serializer.fromJson<String>(json['noteText']),
@@ -4579,6 +4845,8 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
       'version': serializer.toJson<int>(version),
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'bookingId': serializer.toJson<int>(bookingId),
       'noteText': serializer.toJson<String>(noteText),
@@ -4603,6 +4871,8 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
     int? version,
     String? origin,
     String? vectorClock,
+    String? deviceId,
+    Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     int? bookingId,
     String? noteText,
@@ -4624,6 +4894,10 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
     version: version ?? this.version,
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
     id: id ?? this.id,
     bookingId: bookingId ?? this.bookingId,
     noteText: noteText ?? this.noteText,
@@ -4661,6 +4935,10 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
       vectorClock: data.vectorClock.present
           ? data.vectorClock.value
           : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
       id: data.id.present ? data.id.value : this.id,
       bookingId: data.bookingId.present ? data.bookingId.value : this.bookingId,
       noteText: data.noteText.present ? data.noteText.value : this.noteText,
@@ -4689,6 +4967,8 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('bookingId: $bookingId, ')
           ..write('noteText: $noteText, ')
@@ -4700,7 +4980,7 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     localUuid,
     serverId,
     createdAt,
@@ -4715,13 +4995,15 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     bookingId,
     noteText,
     alertType,
     alertUntil,
     isActive,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4740,6 +5022,8 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
           other.version == this.version &&
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.bookingId == this.bookingId &&
           other.noteText == this.noteText &&
@@ -4763,6 +5047,8 @@ class BookingNotesCompanion extends UpdateCompanion<BookingNote> {
   final Value<int> version;
   final Value<String> origin;
   final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int> bookingId;
   final Value<String> noteText;
@@ -4784,6 +5070,8 @@ class BookingNotesCompanion extends UpdateCompanion<BookingNote> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.bookingId = const Value.absent(),
     this.noteText = const Value.absent(),
@@ -4806,6 +5094,8 @@ class BookingNotesCompanion extends UpdateCompanion<BookingNote> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required int bookingId,
     required String noteText,
@@ -4834,6 +5124,8 @@ class BookingNotesCompanion extends UpdateCompanion<BookingNote> {
     Expression<int>? version,
     Expression<String>? origin,
     Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<int>? bookingId,
     Expression<String>? noteText,
@@ -4856,6 +5148,8 @@ class BookingNotesCompanion extends UpdateCompanion<BookingNote> {
       if (version != null) 'version': version,
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (bookingId != null) 'booking_id': bookingId,
       if (noteText != null) 'note_text': noteText,
@@ -4880,6 +5174,8 @@ class BookingNotesCompanion extends UpdateCompanion<BookingNote> {
     Value<int>? version,
     Value<String>? origin,
     Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int>? bookingId,
     Value<String>? noteText,
@@ -4902,6 +5198,8 @@ class BookingNotesCompanion extends UpdateCompanion<BookingNote> {
       version: version ?? this.version,
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       bookingId: bookingId ?? this.bookingId,
       noteText: noteText ?? this.noteText,
@@ -4956,6 +5254,12 @@ class BookingNotesCompanion extends UpdateCompanion<BookingNote> {
     if (vectorClock.present) {
       map['vector_clock'] = Variable<String>(vectorClock.value);
     }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
@@ -4994,6 +5298,8 @@ class BookingNotesCompanion extends UpdateCompanion<BookingNote> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('bookingId: $bookingId, ')
           ..write('noteText: $noteText, ')
@@ -5169,6 +5475,29 @@ class $ShiftNotesTable extends ShiftNotes
     requiredDuringInsert: false,
     defaultValue: const Constant('{}'),
   );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -5275,6 +5604,8 @@ class $ShiftNotesTable extends ShiftNotes
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     title,
     content,
@@ -5409,6 +5740,21 @@ class $ShiftNotesTable extends ShiftNotes
         ),
       );
     }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
+        ),
+      );
+    }
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
@@ -5523,6 +5869,14 @@ class $ShiftNotesTable extends ShiftNotes
         DriftSqlType.string,
         data['${effectivePrefix}vector_clock'],
       )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -5579,6 +5933,8 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
   final int version;
   final String origin;
   final String vectorClock;
+  final String deviceId;
+  final String? idempotencyKey;
   final int id;
   final String title;
   final String content;
@@ -5602,6 +5958,8 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
     required this.version,
     required this.origin,
     required this.vectorClock,
+    required this.deviceId,
+    this.idempotencyKey,
     required this.id,
     required this.title,
     required this.content,
@@ -5638,6 +5996,10 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
     map['version'] = Variable<int>(version);
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
     map['id'] = Variable<int>(id);
     map['title'] = Variable<String>(title);
     map['content'] = Variable<String>(content);
@@ -5677,6 +6039,10 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
       version: Value(version),
       origin: Value(origin),
       vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
       id: Value(id),
       title: Value(title),
       content: Value(content),
@@ -5710,6 +6076,8 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
       version: serializer.fromJson<int>(json['version']),
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       title: serializer.fromJson<String>(json['title']),
       content: serializer.fromJson<String>(json['content']),
@@ -5738,6 +6106,8 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
       'version': serializer.toJson<int>(version),
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'title': serializer.toJson<String>(title),
       'content': serializer.toJson<String>(content),
@@ -5764,6 +6134,8 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
     int? version,
     String? origin,
     String? vectorClock,
+    String? deviceId,
+    Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? title,
     String? content,
@@ -5787,6 +6159,10 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
     version: version ?? this.version,
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
     id: id ?? this.id,
     title: title ?? this.title,
     content: content ?? this.content,
@@ -5826,6 +6202,10 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
       vectorClock: data.vectorClock.present
           ? data.vectorClock.value
           : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
       id: data.id.present ? data.id.value : this.id,
       title: data.title.present ? data.title.value : this.title,
       content: data.content.present ? data.content.value : this.content,
@@ -5854,6 +6234,8 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('content: $content, ')
@@ -5882,6 +6264,8 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     title,
     content,
@@ -5909,6 +6293,8 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
           other.version == this.version &&
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.title == this.title &&
           other.content == this.content &&
@@ -5934,6 +6320,8 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
   final Value<int> version;
   final Value<String> origin;
   final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> title;
   final Value<String> content;
@@ -5957,6 +6345,8 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.title = const Value.absent(),
     this.content = const Value.absent(),
@@ -5981,6 +6371,8 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required String title,
     required String content,
@@ -6010,6 +6402,8 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
     Expression<int>? version,
     Expression<String>? origin,
     Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<String>? title,
     Expression<String>? content,
@@ -6034,6 +6428,8 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
       if (version != null) 'version': version,
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (title != null) 'title': title,
       if (content != null) 'content': content,
@@ -6060,6 +6456,8 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
     Value<int>? version,
     Value<String>? origin,
     Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? title,
     Value<String>? content,
@@ -6084,6 +6482,8 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
       version: version ?? this.version,
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       title: title ?? this.title,
       content: content ?? this.content,
@@ -6140,6 +6540,12 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
     if (vectorClock.present) {
       map['vector_clock'] = Variable<String>(vectorClock.value);
     }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
@@ -6184,6 +6590,8 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('title: $title, ')
           ..write('content: $content, ')
@@ -6361,6 +6769,29 @@ class $EmployeesTable extends Employees
     requiredDuringInsert: false,
     defaultValue: const Constant('{}'),
   );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -6460,6 +6891,17 @@ class $EmployeesTable extends Employees
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _employeeIDMeta = const VerificationMeta(
+    'employeeID',
+  );
+  @override
+  late final GeneratedColumn<String> employeeID = GeneratedColumn<String>(
+    'employee_i_d',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -6476,6 +6918,8 @@ class $EmployeesTable extends Employees
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     name,
     basicSalary,
@@ -6485,6 +6929,7 @@ class $EmployeesTable extends Employees
     status,
     terminationDate,
     terminationReason,
+    employeeID,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -6611,6 +7056,21 @@ class $EmployeesTable extends Employees
         ),
       );
     }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
+        ),
+      );
+    }
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
@@ -6674,6 +7134,15 @@ class $EmployeesTable extends Employees
         terminationReason.isAcceptableOrUnknown(
           data['termination_reason']!,
           _terminationReasonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('employee_i_d')) {
+      context.handle(
+        _employeeIDMeta,
+        employeeID.isAcceptableOrUnknown(
+          data['employee_i_d']!,
+          _employeeIDMeta,
         ),
       );
     }
@@ -6742,6 +7211,14 @@ class $EmployeesTable extends Employees
         DriftSqlType.string,
         data['${effectivePrefix}vector_clock'],
       )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -6778,6 +7255,10 @@ class $EmployeesTable extends Employees
         DriftSqlType.string,
         data['${effectivePrefix}termination_reason'],
       ),
+      employeeID: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}employee_i_d'],
+      ),
     );
   }
 
@@ -6802,6 +7283,8 @@ class Employee extends DataClass implements Insertable<Employee> {
   final int version;
   final String origin;
   final String vectorClock;
+  final String deviceId;
+  final String? idempotencyKey;
   final int id;
   final String name;
   final double basicSalary;
@@ -6811,6 +7294,7 @@ class Employee extends DataClass implements Insertable<Employee> {
   final String status;
   final String? terminationDate;
   final String? terminationReason;
+  final String? employeeID;
   const Employee({
     required this.localUuid,
     this.serverId,
@@ -6826,6 +7310,8 @@ class Employee extends DataClass implements Insertable<Employee> {
     required this.version,
     required this.origin,
     required this.vectorClock,
+    required this.deviceId,
+    this.idempotencyKey,
     required this.id,
     required this.name,
     required this.basicSalary,
@@ -6835,6 +7321,7 @@ class Employee extends DataClass implements Insertable<Employee> {
     required this.status,
     this.terminationDate,
     this.terminationReason,
+    this.employeeID,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -6863,6 +7350,10 @@ class Employee extends DataClass implements Insertable<Employee> {
     map['version'] = Variable<int>(version);
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
     map['id'] = Variable<int>(id);
     map['name'] = Variable<String>(name);
     map['basic_salary'] = Variable<double>(basicSalary);
@@ -6875,6 +7366,9 @@ class Employee extends DataClass implements Insertable<Employee> {
     }
     if (!nullToAbsent || terminationReason != null) {
       map['termination_reason'] = Variable<String>(terminationReason);
+    }
+    if (!nullToAbsent || employeeID != null) {
+      map['employee_i_d'] = Variable<String>(employeeID);
     }
     return map;
   }
@@ -6905,6 +7399,10 @@ class Employee extends DataClass implements Insertable<Employee> {
       version: Value(version),
       origin: Value(origin),
       vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
       id: Value(id),
       name: Value(name),
       basicSalary: Value(basicSalary),
@@ -6918,6 +7416,9 @@ class Employee extends DataClass implements Insertable<Employee> {
       terminationReason: terminationReason == null && nullToAbsent
           ? const Value.absent()
           : Value(terminationReason),
+      employeeID: employeeID == null && nullToAbsent
+          ? const Value.absent()
+          : Value(employeeID),
     );
   }
 
@@ -6941,6 +7442,8 @@ class Employee extends DataClass implements Insertable<Employee> {
       version: serializer.fromJson<int>(json['version']),
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       basicSalary: serializer.fromJson<double>(json['basicSalary']),
@@ -6952,6 +7455,7 @@ class Employee extends DataClass implements Insertable<Employee> {
       terminationReason: serializer.fromJson<String?>(
         json['terminationReason'],
       ),
+      employeeID: serializer.fromJson<String?>(json['employeeID']),
     );
   }
   @override
@@ -6972,6 +7476,8 @@ class Employee extends DataClass implements Insertable<Employee> {
       'version': serializer.toJson<int>(version),
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'name': serializer.toJson<String>(name),
       'basicSalary': serializer.toJson<double>(basicSalary),
@@ -6981,6 +7487,7 @@ class Employee extends DataClass implements Insertable<Employee> {
       'status': serializer.toJson<String>(status),
       'terminationDate': serializer.toJson<String?>(terminationDate),
       'terminationReason': serializer.toJson<String?>(terminationReason),
+      'employeeID': serializer.toJson<String?>(employeeID),
     };
   }
 
@@ -6999,6 +7506,8 @@ class Employee extends DataClass implements Insertable<Employee> {
     int? version,
     String? origin,
     String? vectorClock,
+    String? deviceId,
+    Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? name,
     double? basicSalary,
@@ -7008,6 +7517,7 @@ class Employee extends DataClass implements Insertable<Employee> {
     String? status,
     Value<String?> terminationDate = const Value.absent(),
     Value<String?> terminationReason = const Value.absent(),
+    Value<String?> employeeID = const Value.absent(),
   }) => Employee(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -7023,6 +7533,10 @@ class Employee extends DataClass implements Insertable<Employee> {
     version: version ?? this.version,
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
     id: id ?? this.id,
     name: name ?? this.name,
     basicSalary: basicSalary ?? this.basicSalary,
@@ -7036,6 +7550,7 @@ class Employee extends DataClass implements Insertable<Employee> {
     terminationReason: terminationReason.present
         ? terminationReason.value
         : this.terminationReason,
+    employeeID: employeeID.present ? employeeID.value : this.employeeID,
   );
   Employee copyWithCompanion(EmployeesCompanion data) {
     return Employee(
@@ -7067,6 +7582,10 @@ class Employee extends DataClass implements Insertable<Employee> {
       vectorClock: data.vectorClock.present
           ? data.vectorClock.value
           : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       basicSalary: data.basicSalary.present
@@ -7082,6 +7601,9 @@ class Employee extends DataClass implements Insertable<Employee> {
       terminationReason: data.terminationReason.present
           ? data.terminationReason.value
           : this.terminationReason,
+      employeeID: data.employeeID.present
+          ? data.employeeID.value
+          : this.employeeID,
     );
   }
 
@@ -7102,6 +7624,8 @@ class Employee extends DataClass implements Insertable<Employee> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('basicSalary: $basicSalary, ')
@@ -7110,7 +7634,8 @@ class Employee extends DataClass implements Insertable<Employee> {
           ..write('hireDate: $hireDate, ')
           ..write('status: $status, ')
           ..write('terminationDate: $terminationDate, ')
-          ..write('terminationReason: $terminationReason')
+          ..write('terminationReason: $terminationReason, ')
+          ..write('employeeID: $employeeID')
           ..write(')'))
         .toString();
   }
@@ -7131,6 +7656,8 @@ class Employee extends DataClass implements Insertable<Employee> {
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     name,
     basicSalary,
@@ -7140,6 +7667,7 @@ class Employee extends DataClass implements Insertable<Employee> {
     status,
     terminationDate,
     terminationReason,
+    employeeID,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -7159,6 +7687,8 @@ class Employee extends DataClass implements Insertable<Employee> {
           other.version == this.version &&
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.name == this.name &&
           other.basicSalary == this.basicSalary &&
@@ -7167,7 +7697,8 @@ class Employee extends DataClass implements Insertable<Employee> {
           other.hireDate == this.hireDate &&
           other.status == this.status &&
           other.terminationDate == this.terminationDate &&
-          other.terminationReason == this.terminationReason);
+          other.terminationReason == this.terminationReason &&
+          other.employeeID == this.employeeID);
 }
 
 class EmployeesCompanion extends UpdateCompanion<Employee> {
@@ -7185,6 +7716,8 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
   final Value<int> version;
   final Value<String> origin;
   final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> name;
   final Value<double> basicSalary;
@@ -7194,6 +7727,7 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
   final Value<String> status;
   final Value<String?> terminationDate;
   final Value<String?> terminationReason;
+  final Value<String?> employeeID;
   const EmployeesCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -7209,6 +7743,8 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.basicSalary = const Value.absent(),
@@ -7218,6 +7754,7 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
     this.status = const Value.absent(),
     this.terminationDate = const Value.absent(),
     this.terminationReason = const Value.absent(),
+    this.employeeID = const Value.absent(),
   });
   EmployeesCompanion.insert({
     required String localUuid,
@@ -7234,6 +7771,8 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required String name,
     required double basicSalary,
@@ -7243,6 +7782,7 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
     required String status,
     this.terminationDate = const Value.absent(),
     this.terminationReason = const Value.absent(),
+    this.employeeID = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -7265,6 +7805,8 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
     Expression<int>? version,
     Expression<String>? origin,
     Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<String>? name,
     Expression<double>? basicSalary,
@@ -7274,6 +7816,7 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
     Expression<String>? status,
     Expression<String>? terminationDate,
     Expression<String>? terminationReason,
+    Expression<String>? employeeID,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -7290,6 +7833,8 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
       if (version != null) 'version': version,
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (basicSalary != null) 'basic_salary': basicSalary,
@@ -7299,6 +7844,7 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
       if (status != null) 'status': status,
       if (terminationDate != null) 'termination_date': terminationDate,
       if (terminationReason != null) 'termination_reason': terminationReason,
+      if (employeeID != null) 'employee_i_d': employeeID,
     });
   }
 
@@ -7317,6 +7863,8 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
     Value<int>? version,
     Value<String>? origin,
     Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? name,
     Value<double>? basicSalary,
@@ -7326,6 +7874,7 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
     Value<String>? status,
     Value<String?>? terminationDate,
     Value<String?>? terminationReason,
+    Value<String?>? employeeID,
   }) {
     return EmployeesCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -7342,6 +7891,8 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
       version: version ?? this.version,
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       name: name ?? this.name,
       basicSalary: basicSalary ?? this.basicSalary,
@@ -7351,6 +7902,7 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
       status: status ?? this.status,
       terminationDate: terminationDate ?? this.terminationDate,
       terminationReason: terminationReason ?? this.terminationReason,
+      employeeID: employeeID ?? this.employeeID,
     );
   }
 
@@ -7399,6 +7951,12 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
     if (vectorClock.present) {
       map['vector_clock'] = Variable<String>(vectorClock.value);
     }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
@@ -7426,6 +7984,9 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
     if (terminationReason.present) {
       map['termination_reason'] = Variable<String>(terminationReason.value);
     }
+    if (employeeID.present) {
+      map['employee_i_d'] = Variable<String>(employeeID.value);
+    }
     return map;
   }
 
@@ -7446,6 +8007,8 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('basicSalary: $basicSalary, ')
@@ -7454,7 +8017,8 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
           ..write('hireDate: $hireDate, ')
           ..write('status: $status, ')
           ..write('terminationDate: $terminationDate, ')
-          ..write('terminationReason: $terminationReason')
+          ..write('terminationReason: $terminationReason, ')
+          ..write('employeeID: $employeeID')
           ..write(')'))
         .toString();
   }
@@ -7623,6 +8187,29 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
     requiredDuringInsert: false,
     defaultValue: const Constant('{}'),
   );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -7746,6 +8333,17 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _employeeUuidMeta = const VerificationMeta(
+    'employeeUuid',
+  );
+  @override
+  late final GeneratedColumn<String> employeeUuid = GeneratedColumn<String>(
+    'employee_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -7762,6 +8360,8 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     expenseType,
     relatedId,
@@ -7773,6 +8373,7 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
     categoryUuid,
     cashFlowUuid,
     isAutoGenerated,
+    employeeUuid,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -7899,6 +8500,21 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
         ),
       );
     }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
+        ),
+      );
+    }
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
@@ -7991,6 +8607,15 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
         ),
       );
     }
+    if (data.containsKey('employee_uuid')) {
+      context.handle(
+        _employeeUuidMeta,
+        employeeUuid.isAcceptableOrUnknown(
+          data['employee_uuid']!,
+          _employeeUuidMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -8056,6 +8681,14 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
         DriftSqlType.string,
         data['${effectivePrefix}vector_clock'],
       )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -8100,6 +8733,10 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
         DriftSqlType.bool,
         data['${effectivePrefix}is_auto_generated'],
       )!,
+      employeeUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}employee_uuid'],
+      ),
     );
   }
 
@@ -8124,6 +8761,8 @@ class Expense extends DataClass implements Insertable<Expense> {
   final int version;
   final String origin;
   final String vectorClock;
+  final String deviceId;
+  final String? idempotencyKey;
   final int id;
   final String expenseType;
   final int? relatedId;
@@ -8135,6 +8774,7 @@ class Expense extends DataClass implements Insertable<Expense> {
   final String? categoryUuid;
   final String? cashFlowUuid;
   final bool isAutoGenerated;
+  final String? employeeUuid;
   const Expense({
     required this.localUuid,
     this.serverId,
@@ -8150,6 +8790,8 @@ class Expense extends DataClass implements Insertable<Expense> {
     required this.version,
     required this.origin,
     required this.vectorClock,
+    required this.deviceId,
+    this.idempotencyKey,
     required this.id,
     required this.expenseType,
     this.relatedId,
@@ -8161,6 +8803,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     this.categoryUuid,
     this.cashFlowUuid,
     required this.isAutoGenerated,
+    this.employeeUuid,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -8189,6 +8832,10 @@ class Expense extends DataClass implements Insertable<Expense> {
     map['version'] = Variable<int>(version);
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
     map['id'] = Variable<int>(id);
     map['expense_type'] = Variable<String>(expenseType);
     if (!nullToAbsent || relatedId != null) {
@@ -8210,6 +8857,9 @@ class Expense extends DataClass implements Insertable<Expense> {
       map['cash_flow_uuid'] = Variable<String>(cashFlowUuid);
     }
     map['is_auto_generated'] = Variable<bool>(isAutoGenerated);
+    if (!nullToAbsent || employeeUuid != null) {
+      map['employee_uuid'] = Variable<String>(employeeUuid);
+    }
     return map;
   }
 
@@ -8239,6 +8889,10 @@ class Expense extends DataClass implements Insertable<Expense> {
       version: Value(version),
       origin: Value(origin),
       vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
       id: Value(id),
       expenseType: Value(expenseType),
       relatedId: relatedId == null && nullToAbsent
@@ -8260,6 +8914,9 @@ class Expense extends DataClass implements Insertable<Expense> {
           ? const Value.absent()
           : Value(cashFlowUuid),
       isAutoGenerated: Value(isAutoGenerated),
+      employeeUuid: employeeUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(employeeUuid),
     );
   }
 
@@ -8283,6 +8940,8 @@ class Expense extends DataClass implements Insertable<Expense> {
       version: serializer.fromJson<int>(json['version']),
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       expenseType: serializer.fromJson<String>(json['expenseType']),
       relatedId: serializer.fromJson<int?>(json['relatedId']),
@@ -8294,6 +8953,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       categoryUuid: serializer.fromJson<String?>(json['categoryUuid']),
       cashFlowUuid: serializer.fromJson<String?>(json['cashFlowUuid']),
       isAutoGenerated: serializer.fromJson<bool>(json['isAutoGenerated']),
+      employeeUuid: serializer.fromJson<String?>(json['employeeUuid']),
     );
   }
   @override
@@ -8314,6 +8974,8 @@ class Expense extends DataClass implements Insertable<Expense> {
       'version': serializer.toJson<int>(version),
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'expenseType': serializer.toJson<String>(expenseType),
       'relatedId': serializer.toJson<int?>(relatedId),
@@ -8325,6 +8987,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       'categoryUuid': serializer.toJson<String?>(categoryUuid),
       'cashFlowUuid': serializer.toJson<String?>(cashFlowUuid),
       'isAutoGenerated': serializer.toJson<bool>(isAutoGenerated),
+      'employeeUuid': serializer.toJson<String?>(employeeUuid),
     };
   }
 
@@ -8343,6 +9006,8 @@ class Expense extends DataClass implements Insertable<Expense> {
     int? version,
     String? origin,
     String? vectorClock,
+    String? deviceId,
+    Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? expenseType,
     Value<int?> relatedId = const Value.absent(),
@@ -8354,6 +9019,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     Value<String?> categoryUuid = const Value.absent(),
     Value<String?> cashFlowUuid = const Value.absent(),
     bool? isAutoGenerated,
+    Value<String?> employeeUuid = const Value.absent(),
   }) => Expense(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -8369,6 +9035,10 @@ class Expense extends DataClass implements Insertable<Expense> {
     version: version ?? this.version,
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
     id: id ?? this.id,
     expenseType: expenseType ?? this.expenseType,
     relatedId: relatedId.present ? relatedId.value : this.relatedId,
@@ -8382,6 +9052,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     categoryUuid: categoryUuid.present ? categoryUuid.value : this.categoryUuid,
     cashFlowUuid: cashFlowUuid.present ? cashFlowUuid.value : this.cashFlowUuid,
     isAutoGenerated: isAutoGenerated ?? this.isAutoGenerated,
+    employeeUuid: employeeUuid.present ? employeeUuid.value : this.employeeUuid,
   );
   Expense copyWithCompanion(ExpensesCompanion data) {
     return Expense(
@@ -8413,6 +9084,10 @@ class Expense extends DataClass implements Insertable<Expense> {
       vectorClock: data.vectorClock.present
           ? data.vectorClock.value
           : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
       id: data.id.present ? data.id.value : this.id,
       expenseType: data.expenseType.present
           ? data.expenseType.value
@@ -8438,6 +9113,9 @@ class Expense extends DataClass implements Insertable<Expense> {
       isAutoGenerated: data.isAutoGenerated.present
           ? data.isAutoGenerated.value
           : this.isAutoGenerated,
+      employeeUuid: data.employeeUuid.present
+          ? data.employeeUuid.value
+          : this.employeeUuid,
     );
   }
 
@@ -8458,6 +9136,8 @@ class Expense extends DataClass implements Insertable<Expense> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('expenseType: $expenseType, ')
           ..write('relatedId: $relatedId, ')
@@ -8468,7 +9148,8 @@ class Expense extends DataClass implements Insertable<Expense> {
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('categoryUuid: $categoryUuid, ')
           ..write('cashFlowUuid: $cashFlowUuid, ')
-          ..write('isAutoGenerated: $isAutoGenerated')
+          ..write('isAutoGenerated: $isAutoGenerated, ')
+          ..write('employeeUuid: $employeeUuid')
           ..write(')'))
         .toString();
   }
@@ -8489,6 +9170,8 @@ class Expense extends DataClass implements Insertable<Expense> {
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     expenseType,
     relatedId,
@@ -8500,6 +9183,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     categoryUuid,
     cashFlowUuid,
     isAutoGenerated,
+    employeeUuid,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -8519,6 +9203,8 @@ class Expense extends DataClass implements Insertable<Expense> {
           other.version == this.version &&
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.expenseType == this.expenseType &&
           other.relatedId == this.relatedId &&
@@ -8529,7 +9215,8 @@ class Expense extends DataClass implements Insertable<Expense> {
           other.hotelDayKey == this.hotelDayKey &&
           other.categoryUuid == this.categoryUuid &&
           other.cashFlowUuid == this.cashFlowUuid &&
-          other.isAutoGenerated == this.isAutoGenerated);
+          other.isAutoGenerated == this.isAutoGenerated &&
+          other.employeeUuid == this.employeeUuid);
 }
 
 class ExpensesCompanion extends UpdateCompanion<Expense> {
@@ -8547,6 +9234,8 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
   final Value<int> version;
   final Value<String> origin;
   final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> expenseType;
   final Value<int?> relatedId;
@@ -8558,6 +9247,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
   final Value<String?> categoryUuid;
   final Value<String?> cashFlowUuid;
   final Value<bool> isAutoGenerated;
+  final Value<String?> employeeUuid;
   const ExpensesCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -8573,6 +9263,8 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.expenseType = const Value.absent(),
     this.relatedId = const Value.absent(),
@@ -8584,6 +9276,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     this.categoryUuid = const Value.absent(),
     this.cashFlowUuid = const Value.absent(),
     this.isAutoGenerated = const Value.absent(),
+    this.employeeUuid = const Value.absent(),
   });
   ExpensesCompanion.insert({
     required String localUuid,
@@ -8600,6 +9293,8 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required String expenseType,
     this.relatedId = const Value.absent(),
@@ -8611,6 +9306,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     this.categoryUuid = const Value.absent(),
     this.cashFlowUuid = const Value.absent(),
     this.isAutoGenerated = const Value.absent(),
+    this.employeeUuid = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -8634,6 +9330,8 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Expression<int>? version,
     Expression<String>? origin,
     Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<String>? expenseType,
     Expression<int>? relatedId,
@@ -8645,6 +9343,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Expression<String>? categoryUuid,
     Expression<String>? cashFlowUuid,
     Expression<bool>? isAutoGenerated,
+    Expression<String>? employeeUuid,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -8661,6 +9360,8 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       if (version != null) 'version': version,
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (expenseType != null) 'expense_type': expenseType,
       if (relatedId != null) 'related_id': relatedId,
@@ -8672,6 +9373,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       if (categoryUuid != null) 'category_uuid': categoryUuid,
       if (cashFlowUuid != null) 'cash_flow_uuid': cashFlowUuid,
       if (isAutoGenerated != null) 'is_auto_generated': isAutoGenerated,
+      if (employeeUuid != null) 'employee_uuid': employeeUuid,
     });
   }
 
@@ -8690,6 +9392,8 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Value<int>? version,
     Value<String>? origin,
     Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? expenseType,
     Value<int?>? relatedId,
@@ -8701,6 +9405,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Value<String?>? categoryUuid,
     Value<String?>? cashFlowUuid,
     Value<bool>? isAutoGenerated,
+    Value<String?>? employeeUuid,
   }) {
     return ExpensesCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -8717,6 +9422,8 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       version: version ?? this.version,
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       expenseType: expenseType ?? this.expenseType,
       relatedId: relatedId ?? this.relatedId,
@@ -8728,6 +9435,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       categoryUuid: categoryUuid ?? this.categoryUuid,
       cashFlowUuid: cashFlowUuid ?? this.cashFlowUuid,
       isAutoGenerated: isAutoGenerated ?? this.isAutoGenerated,
+      employeeUuid: employeeUuid ?? this.employeeUuid,
     );
   }
 
@@ -8776,6 +9484,12 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     if (vectorClock.present) {
       map['vector_clock'] = Variable<String>(vectorClock.value);
     }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
@@ -8809,6 +9523,9 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     if (isAutoGenerated.present) {
       map['is_auto_generated'] = Variable<bool>(isAutoGenerated.value);
     }
+    if (employeeUuid.present) {
+      map['employee_uuid'] = Variable<String>(employeeUuid.value);
+    }
     return map;
   }
 
@@ -8829,6 +9546,8 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('expenseType: $expenseType, ')
           ..write('relatedId: $relatedId, ')
@@ -8839,7 +9558,8 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('categoryUuid: $categoryUuid, ')
           ..write('cashFlowUuid: $cashFlowUuid, ')
-          ..write('isAutoGenerated: $isAutoGenerated')
+          ..write('isAutoGenerated: $isAutoGenerated, ')
+          ..write('employeeUuid: $employeeUuid')
           ..write(')'))
         .toString();
   }
@@ -9009,6 +9729,29 @@ class $CashTransactionsTable extends CashTransactions
     requiredDuringInsert: false,
     defaultValue: const Constant('{}'),
   );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -9124,6 +9867,8 @@ class $CashTransactionsTable extends CashTransactions
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     registerId,
     transactionType,
@@ -9256,6 +10001,21 @@ class $CashTransactionsTable extends CashTransactions
         vectorClock.isAcceptableOrUnknown(
           data['vector_clock']!,
           _vectorClockMeta,
+        ),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
         ),
       );
     }
@@ -9396,6 +10156,14 @@ class $CashTransactionsTable extends CashTransactions
         DriftSqlType.string,
         data['${effectivePrefix}vector_clock'],
       )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -9456,6 +10224,8 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
   final int version;
   final String origin;
   final String vectorClock;
+  final String deviceId;
+  final String? idempotencyKey;
   final int id;
   final int? registerId;
   final String transactionType;
@@ -9480,6 +10250,8 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
     required this.version,
     required this.origin,
     required this.vectorClock,
+    required this.deviceId,
+    this.idempotencyKey,
     required this.id,
     this.registerId,
     required this.transactionType,
@@ -9517,6 +10289,10 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
     map['version'] = Variable<int>(version);
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
     map['id'] = Variable<int>(id);
     if (!nullToAbsent || registerId != null) {
       map['register_id'] = Variable<int>(registerId);
@@ -9565,6 +10341,10 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
       version: Value(version),
       origin: Value(origin),
       vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
       id: Value(id),
       registerId: registerId == null && nullToAbsent
           ? const Value.absent()
@@ -9607,6 +10387,8 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
       version: serializer.fromJson<int>(json['version']),
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       registerId: serializer.fromJson<int?>(json['registerId']),
       transactionType: serializer.fromJson<String>(json['transactionType']),
@@ -9636,6 +10418,8 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
       'version': serializer.toJson<int>(version),
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'registerId': serializer.toJson<int?>(registerId),
       'transactionType': serializer.toJson<String>(transactionType),
@@ -9663,6 +10447,8 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
     int? version,
     String? origin,
     String? vectorClock,
+    String? deviceId,
+    Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     Value<int?> registerId = const Value.absent(),
     String? transactionType,
@@ -9687,6 +10473,10 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
     version: version ?? this.version,
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
     id: id ?? this.id,
     registerId: registerId.present ? registerId.value : this.registerId,
     transactionType: transactionType ?? this.transactionType,
@@ -9729,6 +10519,10 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
       vectorClock: data.vectorClock.present
           ? data.vectorClock.value
           : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
       id: data.id.present ? data.id.value : this.id,
       registerId: data.registerId.present
           ? data.registerId.value
@@ -9770,6 +10564,8 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('registerId: $registerId, ')
           ..write('transactionType: $transactionType, ')
@@ -9799,6 +10595,8 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     registerId,
     transactionType,
@@ -9827,6 +10625,8 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
           other.version == this.version &&
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.registerId == this.registerId &&
           other.transactionType == this.transactionType &&
@@ -9853,6 +10653,8 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
   final Value<int> version;
   final Value<String> origin;
   final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int?> registerId;
   final Value<String> transactionType;
@@ -9877,6 +10679,8 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.registerId = const Value.absent(),
     this.transactionType = const Value.absent(),
@@ -9902,6 +10706,8 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.registerId = const Value.absent(),
     required String transactionType,
@@ -9933,6 +10739,8 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
     Expression<int>? version,
     Expression<String>? origin,
     Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<int>? registerId,
     Expression<String>? transactionType,
@@ -9958,6 +10766,8 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
       if (version != null) 'version': version,
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (registerId != null) 'register_id': registerId,
       if (transactionType != null) 'transaction_type': transactionType,
@@ -9985,6 +10795,8 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
     Value<int>? version,
     Value<String>? origin,
     Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int?>? registerId,
     Value<String>? transactionType,
@@ -10010,6 +10822,8 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
       version: version ?? this.version,
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       registerId: registerId ?? this.registerId,
       transactionType: transactionType ?? this.transactionType,
@@ -10067,6 +10881,12 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
     if (vectorClock.present) {
       map['vector_clock'] = Variable<String>(vectorClock.value);
     }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
@@ -10114,6 +10934,8 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('registerId: $registerId, ')
           ..write('transactionType: $transactionType, ')
@@ -10290,6 +11112,29 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
     defaultValue: const Constant('{}'),
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
@@ -10561,6 +11406,8 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     serverPaymentId,
     bookingLocalId,
@@ -10706,6 +11553,21 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         vectorClock.isAcceptableOrUnknown(
           data['vector_clock']!,
           _vectorClockMeta,
+        ),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
         ),
       );
     }
@@ -10956,6 +11818,14 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         DriftSqlType.string,
         data['${effectivePrefix}vector_clock'],
       )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -11068,6 +11938,8 @@ class Payment extends DataClass implements Insertable<Payment> {
   final int version;
   final String origin;
   final String vectorClock;
+  final String deviceId;
+  final String? idempotencyKey;
   final int id;
   final int? serverPaymentId;
   final int? bookingLocalId;
@@ -11105,6 +11977,8 @@ class Payment extends DataClass implements Insertable<Payment> {
     required this.version,
     required this.origin,
     required this.vectorClock,
+    required this.deviceId,
+    this.idempotencyKey,
     required this.id,
     this.serverPaymentId,
     this.bookingLocalId,
@@ -11155,6 +12029,10 @@ class Payment extends DataClass implements Insertable<Payment> {
     map['version'] = Variable<int>(version);
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
     map['id'] = Variable<int>(id);
     if (!nullToAbsent || serverPaymentId != null) {
       map['server_payment_id'] = Variable<int>(serverPaymentId);
@@ -11238,6 +12116,10 @@ class Payment extends DataClass implements Insertable<Payment> {
       version: Value(version),
       origin: Value(origin),
       vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
       id: Value(id),
       serverPaymentId: serverPaymentId == null && nullToAbsent
           ? const Value.absent()
@@ -11313,6 +12195,8 @@ class Payment extends DataClass implements Insertable<Payment> {
       version: serializer.fromJson<int>(json['version']),
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       serverPaymentId: serializer.fromJson<int?>(json['serverPaymentId']),
       bookingLocalId: serializer.fromJson<int?>(json['bookingLocalId']),
@@ -11361,6 +12245,8 @@ class Payment extends DataClass implements Insertable<Payment> {
       'version': serializer.toJson<int>(version),
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'serverPaymentId': serializer.toJson<int?>(serverPaymentId),
       'bookingLocalId': serializer.toJson<int?>(bookingLocalId),
@@ -11403,6 +12289,8 @@ class Payment extends DataClass implements Insertable<Payment> {
     int? version,
     String? origin,
     String? vectorClock,
+    String? deviceId,
+    Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     Value<int?> serverPaymentId = const Value.absent(),
     Value<int?> bookingLocalId = const Value.absent(),
@@ -11440,6 +12328,10 @@ class Payment extends DataClass implements Insertable<Payment> {
     version: version ?? this.version,
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
     id: id ?? this.id,
     serverPaymentId: serverPaymentId.present
         ? serverPaymentId.value
@@ -11513,6 +12405,10 @@ class Payment extends DataClass implements Insertable<Payment> {
       vectorClock: data.vectorClock.present
           ? data.vectorClock.value
           : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
       id: data.id.present ? data.id.value : this.id,
       serverPaymentId: data.serverPaymentId.present
           ? data.serverPaymentId.value
@@ -11587,6 +12483,8 @@ class Payment extends DataClass implements Insertable<Payment> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('serverPaymentId: $serverPaymentId, ')
           ..write('bookingLocalId: $bookingLocalId, ')
@@ -11629,6 +12527,8 @@ class Payment extends DataClass implements Insertable<Payment> {
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     serverPaymentId,
     bookingLocalId,
@@ -11670,6 +12570,8 @@ class Payment extends DataClass implements Insertable<Payment> {
           other.version == this.version &&
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.serverPaymentId == this.serverPaymentId &&
           other.bookingLocalId == this.bookingLocalId &&
@@ -11709,6 +12611,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
   final Value<int> version;
   final Value<String> origin;
   final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int?> serverPaymentId;
   final Value<int?> bookingLocalId;
@@ -11746,6 +12650,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.serverPaymentId = const Value.absent(),
     this.bookingLocalId = const Value.absent(),
@@ -11784,6 +12690,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.serverPaymentId = const Value.absent(),
     this.bookingLocalId = const Value.absent(),
@@ -11829,6 +12737,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     Expression<int>? version,
     Expression<String>? origin,
     Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<int>? serverPaymentId,
     Expression<int>? bookingLocalId,
@@ -11867,6 +12777,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       if (version != null) 'version': version,
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (serverPaymentId != null) 'server_payment_id': serverPaymentId,
       if (bookingLocalId != null) 'booking_local_id': bookingLocalId,
@@ -11909,6 +12821,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     Value<int>? version,
     Value<String>? origin,
     Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int?>? serverPaymentId,
     Value<int?>? bookingLocalId,
@@ -11947,6 +12861,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       version: version ?? this.version,
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       serverPaymentId: serverPaymentId ?? this.serverPaymentId,
       bookingLocalId: bookingLocalId ?? this.bookingLocalId,
@@ -12018,6 +12934,12 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     }
     if (vectorClock.present) {
       map['vector_clock'] = Variable<String>(vectorClock.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
     }
     if (id.present) {
       map['id'] = Variable<int>(id.value);
@@ -12109,6 +13031,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('serverPaymentId: $serverPaymentId, ')
           ..write('bookingLocalId: $bookingLocalId, ')
@@ -12298,6 +13222,29 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
     defaultValue: const Constant('{}'),
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
@@ -12546,6 +13493,8 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     bookingLocalId,
     guestName,
@@ -12689,6 +13638,21 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
         vectorClock.isAcceptableOrUnknown(
           data['vector_clock']!,
           _vectorClockMeta,
+        ),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
         ),
       );
     }
@@ -12921,6 +13885,14 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
         DriftSqlType.string,
         data['${effectivePrefix}vector_clock'],
       )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -13025,6 +13997,8 @@ class Debt extends DataClass implements Insertable<Debt> {
   final int version;
   final String origin;
   final String vectorClock;
+  final String deviceId;
+  final String? idempotencyKey;
   final int id;
   final int? bookingLocalId;
   final String guestName;
@@ -13060,6 +14034,8 @@ class Debt extends DataClass implements Insertable<Debt> {
     required this.version,
     required this.origin,
     required this.vectorClock,
+    required this.deviceId,
+    this.idempotencyKey,
     required this.id,
     this.bookingLocalId,
     required this.guestName,
@@ -13108,6 +14084,10 @@ class Debt extends DataClass implements Insertable<Debt> {
     map['version'] = Variable<int>(version);
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
     map['id'] = Variable<int>(id);
     if (!nullToAbsent || bookingLocalId != null) {
       map['booking_local_id'] = Variable<int>(bookingLocalId);
@@ -13171,6 +14151,10 @@ class Debt extends DataClass implements Insertable<Debt> {
       version: Value(version),
       origin: Value(origin),
       vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
       id: Value(id),
       bookingLocalId: bookingLocalId == null && nullToAbsent
           ? const Value.absent()
@@ -13226,6 +14210,8 @@ class Debt extends DataClass implements Insertable<Debt> {
       version: serializer.fromJson<int>(json['version']),
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       bookingLocalId: serializer.fromJson<int?>(json['bookingLocalId']),
       guestName: serializer.fromJson<String>(json['guestName']),
@@ -13268,6 +14254,8 @@ class Debt extends DataClass implements Insertable<Debt> {
       'version': serializer.toJson<int>(version),
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'bookingLocalId': serializer.toJson<int?>(bookingLocalId),
       'guestName': serializer.toJson<String>(guestName),
@@ -13306,6 +14294,8 @@ class Debt extends DataClass implements Insertable<Debt> {
     int? version,
     String? origin,
     String? vectorClock,
+    String? deviceId,
+    Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     Value<int?> bookingLocalId = const Value.absent(),
     String? guestName,
@@ -13341,6 +14331,10 @@ class Debt extends DataClass implements Insertable<Debt> {
     version: version ?? this.version,
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
     id: id ?? this.id,
     bookingLocalId: bookingLocalId.present
         ? bookingLocalId.value
@@ -13398,6 +14392,10 @@ class Debt extends DataClass implements Insertable<Debt> {
       vectorClock: data.vectorClock.present
           ? data.vectorClock.value
           : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
       id: data.id.present ? data.id.value : this.id,
       bookingLocalId: data.bookingLocalId.present
           ? data.bookingLocalId.value
@@ -13466,6 +14464,8 @@ class Debt extends DataClass implements Insertable<Debt> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('bookingLocalId: $bookingLocalId, ')
           ..write('guestName: $guestName, ')
@@ -13506,6 +14506,8 @@ class Debt extends DataClass implements Insertable<Debt> {
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     bookingLocalId,
     guestName,
@@ -13545,6 +14547,8 @@ class Debt extends DataClass implements Insertable<Debt> {
           other.version == this.version &&
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.bookingLocalId == this.bookingLocalId &&
           other.guestName == this.guestName &&
@@ -13582,6 +14586,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
   final Value<int> version;
   final Value<String> origin;
   final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int?> bookingLocalId;
   final Value<String> guestName;
@@ -13617,6 +14623,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.bookingLocalId = const Value.absent(),
     this.guestName = const Value.absent(),
@@ -13653,6 +14661,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.bookingLocalId = const Value.absent(),
     required String guestName,
@@ -13699,6 +14709,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Expression<int>? version,
     Expression<String>? origin,
     Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<int>? bookingLocalId,
     Expression<String>? guestName,
@@ -13735,6 +14747,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       if (version != null) 'version': version,
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (bookingLocalId != null) 'booking_local_id': bookingLocalId,
       if (guestName != null) 'guest_name': guestName,
@@ -13774,6 +14788,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Value<int>? version,
     Value<String>? origin,
     Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int?>? bookingLocalId,
     Value<String>? guestName,
@@ -13810,6 +14826,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       version: version ?? this.version,
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       bookingLocalId: bookingLocalId ?? this.bookingLocalId,
       guestName: guestName ?? this.guestName,
@@ -13877,6 +14895,12 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     }
     if (vectorClock.present) {
       map['vector_clock'] = Variable<String>(vectorClock.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
     }
     if (id.present) {
       map['id'] = Variable<int>(id.value);
@@ -13958,6 +14982,8 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('bookingLocalId: $bookingLocalId, ')
           ..write('guestName: $guestName, ')
@@ -14147,6 +15173,29 @@ class $BookingNightsTable extends BookingNights
     requiredDuringInsert: false,
     defaultValue: const Constant('{}'),
   );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -14319,6 +15368,8 @@ class $BookingNightsTable extends BookingNights
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     bookingLocalId,
     hotelDayKey,
@@ -14455,6 +15506,21 @@ class $BookingNightsTable extends BookingNights
         vectorClock.isAcceptableOrUnknown(
           data['vector_clock']!,
           _vectorClockMeta,
+        ),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
         ),
       );
     }
@@ -14628,6 +15694,14 @@ class $BookingNightsTable extends BookingNights
         DriftSqlType.string,
         data['${effectivePrefix}vector_clock'],
       )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -14704,6 +15778,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
   final int version;
   final String origin;
   final String vectorClock;
+  final String deviceId;
+  final String? idempotencyKey;
   final int id;
   final int bookingLocalId;
   final String hotelDayKey;
@@ -14732,6 +15808,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     required this.version,
     required this.origin,
     required this.vectorClock,
+    required this.deviceId,
+    this.idempotencyKey,
     required this.id,
     required this.bookingLocalId,
     required this.hotelDayKey,
@@ -14773,6 +15851,10 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     map['version'] = Variable<int>(version);
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
     map['id'] = Variable<int>(id);
     map['booking_local_id'] = Variable<int>(bookingLocalId);
     map['hotel_day_key'] = Variable<String>(hotelDayKey);
@@ -14821,6 +15903,10 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       version: Value(version),
       origin: Value(origin),
       vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
       id: Value(id),
       bookingLocalId: Value(bookingLocalId),
       hotelDayKey: Value(hotelDayKey),
@@ -14861,6 +15947,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       version: serializer.fromJson<int>(json['version']),
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       bookingLocalId: serializer.fromJson<int>(json['bookingLocalId']),
       hotelDayKey: serializer.fromJson<String>(json['hotelDayKey']),
@@ -14900,6 +15988,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       'version': serializer.toJson<int>(version),
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'bookingLocalId': serializer.toJson<int>(bookingLocalId),
       'hotelDayKey': serializer.toJson<String>(hotelDayKey),
@@ -14935,6 +16025,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     int? version,
     String? origin,
     String? vectorClock,
+    String? deviceId,
+    Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     int? bookingLocalId,
     String? hotelDayKey,
@@ -14963,6 +16055,10 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     version: version ?? this.version,
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
     id: id ?? this.id,
     bookingLocalId: bookingLocalId ?? this.bookingLocalId,
     hotelDayKey: hotelDayKey ?? this.hotelDayKey,
@@ -15011,6 +16107,10 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       vectorClock: data.vectorClock.present
           ? data.vectorClock.value
           : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
       id: data.id.present ? data.id.value : this.id,
       bookingLocalId: data.bookingLocalId.present
           ? data.bookingLocalId.value
@@ -15060,6 +16160,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('bookingLocalId: $bookingLocalId, ')
           ..write('hotelDayKey: $hotelDayKey, ')
@@ -15093,6 +16195,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     bookingLocalId,
     hotelDayKey,
@@ -15125,6 +16229,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
           other.version == this.version &&
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.bookingLocalId == this.bookingLocalId &&
           other.hotelDayKey == this.hotelDayKey &&
@@ -15155,6 +16261,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
   final Value<int> version;
   final Value<String> origin;
   final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int> bookingLocalId;
   final Value<String> hotelDayKey;
@@ -15183,6 +16291,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.bookingLocalId = const Value.absent(),
     this.hotelDayKey = const Value.absent(),
@@ -15212,6 +16322,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required int bookingLocalId,
     required String hotelDayKey,
@@ -15248,6 +16360,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     Expression<int>? version,
     Expression<String>? origin,
     Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<int>? bookingLocalId,
     Expression<String>? hotelDayKey,
@@ -15277,6 +16391,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
       if (version != null) 'version': version,
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (bookingLocalId != null) 'booking_local_id': bookingLocalId,
       if (hotelDayKey != null) 'hotel_day_key': hotelDayKey,
@@ -15311,6 +16427,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     Value<int>? version,
     Value<String>? origin,
     Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int>? bookingLocalId,
     Value<String>? hotelDayKey,
@@ -15340,6 +16458,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
       version: version ?? this.version,
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       bookingLocalId: bookingLocalId ?? this.bookingLocalId,
       hotelDayKey: hotelDayKey ?? this.hotelDayKey,
@@ -15402,6 +16522,12 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     }
     if (vectorClock.present) {
       map['vector_clock'] = Variable<String>(vectorClock.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
     }
     if (id.present) {
       map['id'] = Variable<int>(id.value);
@@ -15468,6 +16594,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('bookingLocalId: $bookingLocalId, ')
           ..write('hotelDayKey: $hotelDayKey, ')
@@ -15650,6 +16778,29 @@ class $HotelDayLedgerTable extends HotelDayLedger
     requiredDuringInsert: false,
     defaultValue: const Constant('{}'),
   );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -15796,6 +16947,8 @@ class $HotelDayLedgerTable extends HotelDayLedger
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     hotelDayKey,
     totalIncome,
@@ -15930,6 +17083,21 @@ class $HotelDayLedgerTable extends HotelDayLedger
         vectorClock.isAcceptableOrUnknown(
           data['vector_clock']!,
           _vectorClockMeta,
+        ),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
         ),
       );
     }
@@ -16094,6 +17262,14 @@ class $HotelDayLedgerTable extends HotelDayLedger
         DriftSqlType.string,
         data['${effectivePrefix}vector_clock'],
       )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -16163,6 +17339,8 @@ class HotelDayLedgerEntry extends DataClass
   final int version;
   final String origin;
   final String vectorClock;
+  final String deviceId;
+  final String? idempotencyKey;
   final int id;
   final String hotelDayKey;
   final double totalIncome;
@@ -16189,6 +17367,8 @@ class HotelDayLedgerEntry extends DataClass
     required this.version,
     required this.origin,
     required this.vectorClock,
+    required this.deviceId,
+    this.idempotencyKey,
     required this.id,
     required this.hotelDayKey,
     required this.totalIncome,
@@ -16228,6 +17408,10 @@ class HotelDayLedgerEntry extends DataClass
     map['version'] = Variable<int>(version);
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
     map['id'] = Variable<int>(id);
     map['hotel_day_key'] = Variable<String>(hotelDayKey);
     map['total_income'] = Variable<double>(totalIncome);
@@ -16268,6 +17452,10 @@ class HotelDayLedgerEntry extends DataClass
       version: Value(version),
       origin: Value(origin),
       vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
       id: Value(id),
       hotelDayKey: Value(hotelDayKey),
       totalIncome: Value(totalIncome),
@@ -16302,6 +17490,8 @@ class HotelDayLedgerEntry extends DataClass
       version: serializer.fromJson<int>(json['version']),
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       hotelDayKey: serializer.fromJson<String>(json['hotelDayKey']),
       totalIncome: serializer.fromJson<double>(json['totalIncome']),
@@ -16333,6 +17523,8 @@ class HotelDayLedgerEntry extends DataClass
       'version': serializer.toJson<int>(version),
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'hotelDayKey': serializer.toJson<String>(hotelDayKey),
       'totalIncome': serializer.toJson<double>(totalIncome),
@@ -16362,6 +17554,8 @@ class HotelDayLedgerEntry extends DataClass
     int? version,
     String? origin,
     String? vectorClock,
+    String? deviceId,
+    Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? hotelDayKey,
     double? totalIncome,
@@ -16388,6 +17582,10 @@ class HotelDayLedgerEntry extends DataClass
     version: version ?? this.version,
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
     id: id ?? this.id,
     hotelDayKey: hotelDayKey ?? this.hotelDayKey,
     totalIncome: totalIncome ?? this.totalIncome,
@@ -16430,6 +17628,10 @@ class HotelDayLedgerEntry extends DataClass
       vectorClock: data.vectorClock.present
           ? data.vectorClock.value
           : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
       id: data.id.present ? data.id.value : this.id,
       hotelDayKey: data.hotelDayKey.present
           ? data.hotelDayKey.value
@@ -16479,6 +17681,8 @@ class HotelDayLedgerEntry extends DataClass
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('totalIncome: $totalIncome, ')
@@ -16510,6 +17714,8 @@ class HotelDayLedgerEntry extends DataClass
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     hotelDayKey,
     totalIncome,
@@ -16540,6 +17746,8 @@ class HotelDayLedgerEntry extends DataClass
           other.version == this.version &&
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.hotelDayKey == this.hotelDayKey &&
           other.totalIncome == this.totalIncome &&
@@ -16568,6 +17776,8 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
   final Value<int> version;
   final Value<String> origin;
   final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> hotelDayKey;
   final Value<double> totalIncome;
@@ -16594,6 +17804,8 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.hotelDayKey = const Value.absent(),
     this.totalIncome = const Value.absent(),
@@ -16621,6 +17833,8 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required String hotelDayKey,
     this.totalIncome = const Value.absent(),
@@ -16652,6 +17866,8 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
     Expression<int>? version,
     Expression<String>? origin,
     Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<String>? hotelDayKey,
     Expression<double>? totalIncome,
@@ -16679,6 +17895,8 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
       if (version != null) 'version': version,
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (hotelDayKey != null) 'hotel_day_key': hotelDayKey,
       if (totalIncome != null) 'total_income': totalIncome,
@@ -16708,6 +17926,8 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
     Value<int>? version,
     Value<String>? origin,
     Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? hotelDayKey,
     Value<double>? totalIncome,
@@ -16735,6 +17955,8 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
       version: version ?? this.version,
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       hotelDayKey: hotelDayKey ?? this.hotelDayKey,
       totalIncome: totalIncome ?? this.totalIncome,
@@ -16794,6 +18016,12 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
     if (vectorClock.present) {
       map['vector_clock'] = Variable<String>(vectorClock.value);
     }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
@@ -16847,6 +18075,8 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('totalIncome: $totalIncome, ')
@@ -18815,6 +20045,29 @@ class $SalaryCyclesTable extends SalaryCycles
     requiredDuringInsert: false,
     defaultValue: const Constant('{}'),
   );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -18937,6 +20190,8 @@ class $SalaryCyclesTable extends SalaryCycles
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     employeeId,
     cycleKey,
@@ -19069,6 +20324,21 @@ class $SalaryCyclesTable extends SalaryCycles
         vectorClock.isAcceptableOrUnknown(
           data['vector_clock']!,
           _vectorClockMeta,
+        ),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
         ),
       );
     }
@@ -19208,6 +20478,14 @@ class $SalaryCyclesTable extends SalaryCycles
         DriftSqlType.string,
         data['${effectivePrefix}vector_clock'],
       )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -19268,6 +20546,8 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
   final int version;
   final String origin;
   final String vectorClock;
+  final String deviceId;
+  final String? idempotencyKey;
   final int id;
   final int employeeId;
   final String cycleKey;
@@ -19292,6 +20572,8 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
     required this.version,
     required this.origin,
     required this.vectorClock,
+    required this.deviceId,
+    this.idempotencyKey,
     required this.id,
     required this.employeeId,
     required this.cycleKey,
@@ -19329,6 +20611,10 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
     map['version'] = Variable<int>(version);
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
     map['id'] = Variable<int>(id);
     map['employee_id'] = Variable<int>(employeeId);
     map['cycle_key'] = Variable<String>(cycleKey);
@@ -19371,6 +20657,10 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
       version: Value(version),
       origin: Value(origin),
       vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
       id: Value(id),
       employeeId: Value(employeeId),
       cycleKey: Value(cycleKey),
@@ -19407,6 +20697,8 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
       version: serializer.fromJson<int>(json['version']),
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       employeeId: serializer.fromJson<int>(json['employeeId']),
       cycleKey: serializer.fromJson<String>(json['cycleKey']),
@@ -19436,6 +20728,8 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
       'version': serializer.toJson<int>(version),
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'employeeId': serializer.toJson<int>(employeeId),
       'cycleKey': serializer.toJson<String>(cycleKey),
@@ -19463,6 +20757,8 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
     int? version,
     String? origin,
     String? vectorClock,
+    String? deviceId,
+    Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     int? employeeId,
     String? cycleKey,
@@ -19487,6 +20783,10 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
     version: version ?? this.version,
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
     id: id ?? this.id,
     employeeId: employeeId ?? this.employeeId,
     cycleKey: cycleKey ?? this.cycleKey,
@@ -19529,6 +20829,10 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
       vectorClock: data.vectorClock.present
           ? data.vectorClock.value
           : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
       id: data.id.present ? data.id.value : this.id,
       employeeId: data.employeeId.present
           ? data.employeeId.value
@@ -19570,6 +20874,8 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('employeeId: $employeeId, ')
           ..write('cycleKey: $cycleKey, ')
@@ -19599,6 +20905,8 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     employeeId,
     cycleKey,
@@ -19627,6 +20935,8 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
           other.version == this.version &&
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.employeeId == this.employeeId &&
           other.cycleKey == this.cycleKey &&
@@ -19653,6 +20963,8 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
   final Value<int> version;
   final Value<String> origin;
   final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int> employeeId;
   final Value<String> cycleKey;
@@ -19677,6 +20989,8 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.employeeId = const Value.absent(),
     this.cycleKey = const Value.absent(),
@@ -19702,6 +21016,8 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required int employeeId,
     required String cycleKey,
@@ -19732,6 +21048,8 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
     Expression<int>? version,
     Expression<String>? origin,
     Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<int>? employeeId,
     Expression<String>? cycleKey,
@@ -19757,6 +21075,8 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
       if (version != null) 'version': version,
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (employeeId != null) 'employee_id': employeeId,
       if (cycleKey != null) 'cycle_key': cycleKey,
@@ -19784,6 +21104,8 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
     Value<int>? version,
     Value<String>? origin,
     Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int>? employeeId,
     Value<String>? cycleKey,
@@ -19809,6 +21131,8 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
       version: version ?? this.version,
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       employeeId: employeeId ?? this.employeeId,
       cycleKey: cycleKey ?? this.cycleKey,
@@ -19866,6 +21190,12 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
     if (vectorClock.present) {
       map['vector_clock'] = Variable<String>(vectorClock.value);
     }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
@@ -19913,6 +21243,8 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('employeeId: $employeeId, ')
           ..write('cycleKey: $cycleKey, ')
@@ -20091,6 +21423,29 @@ class $SalaryPaymentsTable extends SalaryPayments
     requiredDuringInsert: false,
     defaultValue: const Constant('{}'),
   );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -20190,6 +21545,8 @@ class $SalaryPaymentsTable extends SalaryPayments
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     cycleId,
     amount,
@@ -20323,6 +21680,21 @@ class $SalaryPaymentsTable extends SalaryPayments
         ),
       );
     }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
+        ),
+      );
+    }
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
@@ -20440,6 +21812,14 @@ class $SalaryPaymentsTable extends SalaryPayments
         DriftSqlType.string,
         data['${effectivePrefix}vector_clock'],
       )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -20492,6 +21872,8 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
   final int version;
   final String origin;
   final String vectorClock;
+  final String deviceId;
+  final String? idempotencyKey;
   final int id;
   final int cycleId;
   final int amount;
@@ -20514,6 +21896,8 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     required this.version,
     required this.origin,
     required this.vectorClock,
+    required this.deviceId,
+    this.idempotencyKey,
     required this.id,
     required this.cycleId,
     required this.amount,
@@ -20549,6 +21933,10 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     map['version'] = Variable<int>(version);
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
     map['id'] = Variable<int>(id);
     map['cycle_id'] = Variable<int>(cycleId);
     map['amount'] = Variable<int>(amount);
@@ -20589,6 +21977,10 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
       version: Value(version),
       origin: Value(origin),
       vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
       id: Value(id),
       cycleId: Value(cycleId),
       amount: Value(amount),
@@ -20623,6 +22015,8 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
       version: serializer.fromJson<int>(json['version']),
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       cycleId: serializer.fromJson<int>(json['cycleId']),
       amount: serializer.fromJson<int>(json['amount']),
@@ -20650,6 +22044,8 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
       'version': serializer.toJson<int>(version),
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'cycleId': serializer.toJson<int>(cycleId),
       'amount': serializer.toJson<int>(amount),
@@ -20675,6 +22071,8 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     int? version,
     String? origin,
     String? vectorClock,
+    String? deviceId,
+    Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     int? cycleId,
     int? amount,
@@ -20697,6 +22095,10 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     version: version ?? this.version,
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
     id: id ?? this.id,
     cycleId: cycleId ?? this.cycleId,
     amount: amount ?? this.amount,
@@ -20735,6 +22137,10 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
       vectorClock: data.vectorClock.present
           ? data.vectorClock.value
           : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
       id: data.id.present ? data.id.value : this.id,
       cycleId: data.cycleId.present ? data.cycleId.value : this.cycleId,
       amount: data.amount.present ? data.amount.value : this.amount,
@@ -20768,6 +22174,8 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('cycleId: $cycleId, ')
           ..write('amount: $amount, ')
@@ -20795,6 +22203,8 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     cycleId,
     amount,
@@ -20821,6 +22231,8 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
           other.version == this.version &&
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.cycleId == this.cycleId &&
           other.amount == this.amount &&
@@ -20845,6 +22257,8 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
   final Value<int> version;
   final Value<String> origin;
   final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int> cycleId;
   final Value<int> amount;
@@ -20867,6 +22281,8 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.cycleId = const Value.absent(),
     this.amount = const Value.absent(),
@@ -20890,6 +22306,8 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required int cycleId,
     this.amount = const Value.absent(),
@@ -20918,6 +22336,8 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     Expression<int>? version,
     Expression<String>? origin,
     Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<int>? cycleId,
     Expression<int>? amount,
@@ -20941,6 +22361,8 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
       if (version != null) 'version': version,
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (cycleId != null) 'cycle_id': cycleId,
       if (amount != null) 'amount': amount,
@@ -20966,6 +22388,8 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     Value<int>? version,
     Value<String>? origin,
     Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int>? cycleId,
     Value<int>? amount,
@@ -20989,6 +22413,8 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
       version: version ?? this.version,
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       cycleId: cycleId ?? this.cycleId,
       amount: amount ?? this.amount,
@@ -21044,6 +22470,12 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     if (vectorClock.present) {
       map['vector_clock'] = Variable<String>(vectorClock.value);
     }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
@@ -21085,6 +22517,8 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('cycleId: $cycleId, ')
           ..write('amount: $amount, ')
@@ -21254,6 +22688,34 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
     requiredDuringInsert: false,
     defaultValue: const Constant('local'),
   );
+  static const VerificationMeta _deliveredToPrimaryMeta =
+      const VerificationMeta('deliveredToPrimary');
+  @override
+  late final GeneratedColumn<bool> deliveredToPrimary = GeneratedColumn<bool>(
+    'delivered_to_primary',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("delivered_to_primary" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _deliveredToSecondaryMeta =
+      const VerificationMeta('deliveredToSecondary');
+  @override
+  late final GeneratedColumn<bool> deliveredToSecondary = GeneratedColumn<bool>(
+    'delivered_to_secondary',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("delivered_to_secondary" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -21270,6 +22732,8 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
     processingStartedAt,
     processingWorker,
     source,
+    deliveredToPrimary,
+    deliveredToSecondary,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -21383,6 +22847,24 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
         source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
       );
     }
+    if (data.containsKey('delivered_to_primary')) {
+      context.handle(
+        _deliveredToPrimaryMeta,
+        deliveredToPrimary.isAcceptableOrUnknown(
+          data['delivered_to_primary']!,
+          _deliveredToPrimaryMeta,
+        ),
+      );
+    }
+    if (data.containsKey('delivered_to_secondary')) {
+      context.handle(
+        _deliveredToSecondaryMeta,
+        deliveredToSecondary.isAcceptableOrUnknown(
+          data['delivered_to_secondary']!,
+          _deliveredToSecondaryMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -21448,6 +22930,14 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
         DriftSqlType.string,
         data['${effectivePrefix}source'],
       )!,
+      deliveredToPrimary: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}delivered_to_primary'],
+      )!,
+      deliveredToSecondary: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}delivered_to_secondary'],
+      )!,
     );
   }
 
@@ -21475,6 +22965,20 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
   /// مصدر عنصر outbox: 'local' = تغيير محلي (مستخدم)، 'restore' = استعادة من نسخة احتياطية
   /// هذا يفصل بين تتبع التغييرات المحلية وعمليات الاستعادة/المزامنة البعيدة
   final String source;
+
+  /// ✅ تتبع التسليم لكل وجهة (dual-delivery tracking)
+  ///
+  /// بدلاً من حذف السجل بعد نجاح الرفع للرئيسي فقط، نحتفظ بالسجل حتى يتم
+  /// تسليمه لـ Primary و Secondary معاً. هذا يمنع فقدان البيانات من
+  /// الوجهة الثانوية عند فشل الرفع لها، ويمنع تكرار العمليات في الوجهة
+  /// الواحدة بسبب سباق البيانات بين مزامنتين متوازيتين.
+  ///
+  /// القيم الافتراضية:
+  ///   - delivered_to_primary = false (لم يُسلّم للرئيسي بعد)
+  ///   - delivered_to_secondary = true (افتراضياً مُسلّم: تجنّب حجب السجلات
+  ///     عندما Secondary غير مُفعّل — فقط SecondarySyncManager يضبطها على false)
+  final bool deliveredToPrimary;
+  final bool deliveredToSecondary;
   const OutboxData({
     required this.id,
     required this.entity,
@@ -21490,6 +22994,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     this.processingStartedAt,
     this.processingWorker,
     required this.source,
+    required this.deliveredToPrimary,
+    required this.deliveredToSecondary,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -21518,6 +23024,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       map['processing_worker'] = Variable<String>(processingWorker);
     }
     map['source'] = Variable<String>(source);
+    map['delivered_to_primary'] = Variable<bool>(deliveredToPrimary);
+    map['delivered_to_secondary'] = Variable<bool>(deliveredToSecondary);
     return map;
   }
 
@@ -21547,6 +23055,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
           ? const Value.absent()
           : Value(processingWorker),
       source: Value(source),
+      deliveredToPrimary: Value(deliveredToPrimary),
+      deliveredToSecondary: Value(deliveredToSecondary),
     );
   }
 
@@ -21572,6 +23082,10 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       ),
       processingWorker: serializer.fromJson<String?>(json['processingWorker']),
       source: serializer.fromJson<String>(json['source']),
+      deliveredToPrimary: serializer.fromJson<bool>(json['deliveredToPrimary']),
+      deliveredToSecondary: serializer.fromJson<bool>(
+        json['deliveredToSecondary'],
+      ),
     );
   }
   @override
@@ -21592,6 +23106,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       'processingStartedAt': serializer.toJson<int?>(processingStartedAt),
       'processingWorker': serializer.toJson<String?>(processingWorker),
       'source': serializer.toJson<String>(source),
+      'deliveredToPrimary': serializer.toJson<bool>(deliveredToPrimary),
+      'deliveredToSecondary': serializer.toJson<bool>(deliveredToSecondary),
     };
   }
 
@@ -21610,6 +23126,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     Value<int?> processingStartedAt = const Value.absent(),
     Value<String?> processingWorker = const Value.absent(),
     String? source,
+    bool? deliveredToPrimary,
+    bool? deliveredToSecondary,
   }) => OutboxData(
     id: id ?? this.id,
     entity: entity ?? this.entity,
@@ -21631,6 +23149,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
         ? processingWorker.value
         : this.processingWorker,
     source: source ?? this.source,
+    deliveredToPrimary: deliveredToPrimary ?? this.deliveredToPrimary,
+    deliveredToSecondary: deliveredToSecondary ?? this.deliveredToSecondary,
   );
   OutboxData copyWithCompanion(OutboxCompanion data) {
     return OutboxData(
@@ -21656,6 +23176,12 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
           ? data.processingWorker.value
           : this.processingWorker,
       source: data.source.present ? data.source.value : this.source,
+      deliveredToPrimary: data.deliveredToPrimary.present
+          ? data.deliveredToPrimary.value
+          : this.deliveredToPrimary,
+      deliveredToSecondary: data.deliveredToSecondary.present
+          ? data.deliveredToSecondary.value
+          : this.deliveredToSecondary,
     );
   }
 
@@ -21675,7 +23201,9 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
           ..write('processingStatus: $processingStatus, ')
           ..write('processingStartedAt: $processingStartedAt, ')
           ..write('processingWorker: $processingWorker, ')
-          ..write('source: $source')
+          ..write('source: $source, ')
+          ..write('deliveredToPrimary: $deliveredToPrimary, ')
+          ..write('deliveredToSecondary: $deliveredToSecondary')
           ..write(')'))
         .toString();
   }
@@ -21696,6 +23224,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     processingStartedAt,
     processingWorker,
     source,
+    deliveredToPrimary,
+    deliveredToSecondary,
   );
   @override
   bool operator ==(Object other) =>
@@ -21714,7 +23244,9 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
           other.processingStatus == this.processingStatus &&
           other.processingStartedAt == this.processingStartedAt &&
           other.processingWorker == this.processingWorker &&
-          other.source == this.source);
+          other.source == this.source &&
+          other.deliveredToPrimary == this.deliveredToPrimary &&
+          other.deliveredToSecondary == this.deliveredToSecondary);
 }
 
 class OutboxCompanion extends UpdateCompanion<OutboxData> {
@@ -21732,6 +23264,8 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
   final Value<int?> processingStartedAt;
   final Value<String?> processingWorker;
   final Value<String> source;
+  final Value<bool> deliveredToPrimary;
+  final Value<bool> deliveredToSecondary;
   const OutboxCompanion({
     this.id = const Value.absent(),
     this.entity = const Value.absent(),
@@ -21747,6 +23281,8 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     this.processingStartedAt = const Value.absent(),
     this.processingWorker = const Value.absent(),
     this.source = const Value.absent(),
+    this.deliveredToPrimary = const Value.absent(),
+    this.deliveredToSecondary = const Value.absent(),
   });
   OutboxCompanion.insert({
     this.id = const Value.absent(),
@@ -21763,6 +23299,8 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     this.processingStartedAt = const Value.absent(),
     this.processingWorker = const Value.absent(),
     this.source = const Value.absent(),
+    this.deliveredToPrimary = const Value.absent(),
+    this.deliveredToSecondary = const Value.absent(),
   }) : entity = Value(entity),
        op = Value(op),
        localUuid = Value(localUuid),
@@ -21783,6 +23321,8 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     Expression<int>? processingStartedAt,
     Expression<String>? processingWorker,
     Expression<String>? source,
+    Expression<bool>? deliveredToPrimary,
+    Expression<bool>? deliveredToSecondary,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -21800,6 +23340,10 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
         'processing_started_at': processingStartedAt,
       if (processingWorker != null) 'processing_worker': processingWorker,
       if (source != null) 'source': source,
+      if (deliveredToPrimary != null)
+        'delivered_to_primary': deliveredToPrimary,
+      if (deliveredToSecondary != null)
+        'delivered_to_secondary': deliveredToSecondary,
     });
   }
 
@@ -21818,6 +23362,8 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     Value<int?>? processingStartedAt,
     Value<String?>? processingWorker,
     Value<String>? source,
+    Value<bool>? deliveredToPrimary,
+    Value<bool>? deliveredToSecondary,
   }) {
     return OutboxCompanion(
       id: id ?? this.id,
@@ -21834,6 +23380,8 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
       processingStartedAt: processingStartedAt ?? this.processingStartedAt,
       processingWorker: processingWorker ?? this.processingWorker,
       source: source ?? this.source,
+      deliveredToPrimary: deliveredToPrimary ?? this.deliveredToPrimary,
+      deliveredToSecondary: deliveredToSecondary ?? this.deliveredToSecondary,
     );
   }
 
@@ -21882,6 +23430,14 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     if (source.present) {
       map['source'] = Variable<String>(source.value);
     }
+    if (deliveredToPrimary.present) {
+      map['delivered_to_primary'] = Variable<bool>(deliveredToPrimary.value);
+    }
+    if (deliveredToSecondary.present) {
+      map['delivered_to_secondary'] = Variable<bool>(
+        deliveredToSecondary.value,
+      );
+    }
     return map;
   }
 
@@ -21901,7 +23457,9 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
           ..write('processingStatus: $processingStatus, ')
           ..write('processingStartedAt: $processingStartedAt, ')
           ..write('processingWorker: $processingWorker, ')
-          ..write('source: $source')
+          ..write('source: $source, ')
+          ..write('deliveredToPrimary: $deliveredToPrimary, ')
+          ..write('deliveredToSecondary: $deliveredToSecondary')
           ..write(')'))
         .toString();
   }
@@ -24755,6 +26313,29 @@ class $PriceAdjustmentsTable extends PriceAdjustments
     requiredDuringInsert: false,
     defaultValue: const Constant('{}'),
   );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -24918,6 +26499,8 @@ class $PriceAdjustmentsTable extends PriceAdjustments
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     targetType,
     targetUuid,
@@ -25054,6 +26637,21 @@ class $PriceAdjustmentsTable extends PriceAdjustments
         vectorClock.isAcceptableOrUnknown(
           data['vector_clock']!,
           _vectorClockMeta,
+        ),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
         ),
       );
     }
@@ -25225,6 +26823,14 @@ class $PriceAdjustmentsTable extends PriceAdjustments
         DriftSqlType.string,
         data['${effectivePrefix}vector_clock'],
       )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -25301,6 +26907,8 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
   final int version;
   final String origin;
   final String vectorClock;
+  final String deviceId;
+  final String? idempotencyKey;
   final int id;
   final String targetType;
   final String targetUuid;
@@ -25329,6 +26937,8 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
     required this.version,
     required this.origin,
     required this.vectorClock,
+    required this.deviceId,
+    this.idempotencyKey,
     required this.id,
     required this.targetType,
     required this.targetUuid,
@@ -25370,6 +26980,10 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
     map['version'] = Variable<int>(version);
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
     map['id'] = Variable<int>(id);
     map['target_type'] = Variable<String>(targetType);
     map['target_uuid'] = Variable<String>(targetUuid);
@@ -25418,6 +27032,10 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
       version: Value(version),
       origin: Value(origin),
       vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
       id: Value(id),
       targetType: Value(targetType),
       targetUuid: Value(targetUuid),
@@ -25460,6 +27078,8 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
       version: serializer.fromJson<int>(json['version']),
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       targetType: serializer.fromJson<String>(json['targetType']),
       targetUuid: serializer.fromJson<String>(json['targetUuid']),
@@ -25493,6 +27113,8 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
       'version': serializer.toJson<int>(version),
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'targetType': serializer.toJson<String>(targetType),
       'targetUuid': serializer.toJson<String>(targetUuid),
@@ -25524,6 +27146,8 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
     int? version,
     String? origin,
     String? vectorClock,
+    String? deviceId,
+    Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? targetType,
     String? targetUuid,
@@ -25552,6 +27176,10 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
     version: version ?? this.version,
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
     id: id ?? this.id,
     targetType: targetType ?? this.targetType,
     targetUuid: targetUuid ?? this.targetUuid,
@@ -25596,6 +27224,10 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
       vectorClock: data.vectorClock.present
           ? data.vectorClock.value
           : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
       id: data.id.present ? data.id.value : this.id,
       targetType: data.targetType.present
           ? data.targetType.value
@@ -25647,6 +27279,8 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('targetType: $targetType, ')
           ..write('targetUuid: $targetUuid, ')
@@ -25680,6 +27314,8 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     targetType,
     targetUuid,
@@ -25712,6 +27348,8 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
           other.version == this.version &&
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.targetType == this.targetType &&
           other.targetUuid == this.targetUuid &&
@@ -25742,6 +27380,8 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
   final Value<int> version;
   final Value<String> origin;
   final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> targetType;
   final Value<String> targetUuid;
@@ -25770,6 +27410,8 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.targetType = const Value.absent(),
     this.targetUuid = const Value.absent(),
@@ -25799,6 +27441,8 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required String targetType,
     required String targetUuid,
@@ -25839,6 +27483,8 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
     Expression<int>? version,
     Expression<String>? origin,
     Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<String>? targetType,
     Expression<String>? targetUuid,
@@ -25868,6 +27514,8 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
       if (version != null) 'version': version,
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (targetType != null) 'target_type': targetType,
       if (targetUuid != null) 'target_uuid': targetUuid,
@@ -25899,6 +27547,8 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
     Value<int>? version,
     Value<String>? origin,
     Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? targetType,
     Value<String>? targetUuid,
@@ -25928,6 +27578,8 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
       version: version ?? this.version,
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       targetType: targetType ?? this.targetType,
       targetUuid: targetUuid ?? this.targetUuid,
@@ -25989,6 +27641,12 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
     if (vectorClock.present) {
       map['vector_clock'] = Variable<String>(vectorClock.value);
     }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
@@ -26048,6 +27706,8 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('targetType: $targetType, ')
           ..write('targetUuid: $targetUuid, ')
@@ -26229,6 +27889,29 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
     type: DriftSqlType.string,
     requiredDuringInsert: false,
     defaultValue: const Constant('{}'),
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
@@ -26416,6 +28099,8 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     bookingLocalUuid,
     bookingLocalId,
@@ -26553,6 +28238,21 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
         vectorClock.isAcceptableOrUnknown(
           data['vector_clock']!,
           _vectorClockMeta,
+        ),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
         ),
       );
     }
@@ -26730,6 +28430,14 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
         DriftSqlType.string,
         data['${effectivePrefix}vector_clock'],
       )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -26811,6 +28519,8 @@ class BookingPriceAdjustment extends DataClass
   final int version;
   final String origin;
   final String vectorClock;
+  final String deviceId;
+  final String? idempotencyKey;
   final int id;
   final String bookingLocalUuid;
   final int? bookingLocalId;
@@ -26840,6 +28550,8 @@ class BookingPriceAdjustment extends DataClass
     required this.version,
     required this.origin,
     required this.vectorClock,
+    required this.deviceId,
+    this.idempotencyKey,
     required this.id,
     required this.bookingLocalUuid,
     this.bookingLocalId,
@@ -26882,6 +28594,10 @@ class BookingPriceAdjustment extends DataClass
     map['version'] = Variable<int>(version);
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
     map['id'] = Variable<int>(id);
     map['booking_local_uuid'] = Variable<String>(bookingLocalUuid);
     if (!nullToAbsent || bookingLocalId != null) {
@@ -26939,6 +28655,10 @@ class BookingPriceAdjustment extends DataClass
       version: Value(version),
       origin: Value(origin),
       vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
       id: Value(id),
       bookingLocalUuid: Value(bookingLocalUuid),
       bookingLocalId: bookingLocalId == null && nullToAbsent
@@ -26990,6 +28710,8 @@ class BookingPriceAdjustment extends DataClass
       version: serializer.fromJson<int>(json['version']),
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       bookingLocalUuid: serializer.fromJson<String>(json['bookingLocalUuid']),
       bookingLocalId: serializer.fromJson<int?>(json['bookingLocalId']),
@@ -27024,6 +28746,8 @@ class BookingPriceAdjustment extends DataClass
       'version': serializer.toJson<int>(version),
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'bookingLocalUuid': serializer.toJson<String>(bookingLocalUuid),
       'bookingLocalId': serializer.toJson<int?>(bookingLocalId),
@@ -27056,6 +28780,8 @@ class BookingPriceAdjustment extends DataClass
     int? version,
     String? origin,
     String? vectorClock,
+    String? deviceId,
+    Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? bookingLocalUuid,
     Value<int?> bookingLocalId = const Value.absent(),
@@ -27085,6 +28811,10 @@ class BookingPriceAdjustment extends DataClass
     version: version ?? this.version,
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
     id: id ?? this.id,
     bookingLocalUuid: bookingLocalUuid ?? this.bookingLocalUuid,
     bookingLocalId: bookingLocalId.present
@@ -27134,6 +28864,10 @@ class BookingPriceAdjustment extends DataClass
       vectorClock: data.vectorClock.present
           ? data.vectorClock.value
           : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
       id: data.id.present ? data.id.value : this.id,
       bookingLocalUuid: data.bookingLocalUuid.present
           ? data.bookingLocalUuid.value
@@ -27186,6 +28920,8 @@ class BookingPriceAdjustment extends DataClass
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('bookingLocalUuid: $bookingLocalUuid, ')
           ..write('bookingLocalId: $bookingLocalId, ')
@@ -27220,6 +28956,8 @@ class BookingPriceAdjustment extends DataClass
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     bookingLocalUuid,
     bookingLocalId,
@@ -27253,6 +28991,8 @@ class BookingPriceAdjustment extends DataClass
           other.version == this.version &&
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.bookingLocalUuid == this.bookingLocalUuid &&
           other.bookingLocalId == this.bookingLocalId &&
@@ -27285,6 +29025,8 @@ class BookingPriceAdjustmentsCompanion
   final Value<int> version;
   final Value<String> origin;
   final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> bookingLocalUuid;
   final Value<int?> bookingLocalId;
@@ -27314,6 +29056,8 @@ class BookingPriceAdjustmentsCompanion
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.bookingLocalUuid = const Value.absent(),
     this.bookingLocalId = const Value.absent(),
@@ -27344,6 +29088,8 @@ class BookingPriceAdjustmentsCompanion
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required String bookingLocalUuid,
     this.bookingLocalId = const Value.absent(),
@@ -27379,6 +29125,8 @@ class BookingPriceAdjustmentsCompanion
     Expression<int>? version,
     Expression<String>? origin,
     Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<String>? bookingLocalUuid,
     Expression<int>? bookingLocalId,
@@ -27409,6 +29157,8 @@ class BookingPriceAdjustmentsCompanion
       if (version != null) 'version': version,
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (bookingLocalUuid != null) 'booking_local_uuid': bookingLocalUuid,
       if (bookingLocalId != null) 'booking_local_id': bookingLocalId,
@@ -27441,6 +29191,8 @@ class BookingPriceAdjustmentsCompanion
     Value<int>? version,
     Value<String>? origin,
     Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? bookingLocalUuid,
     Value<int?>? bookingLocalId,
@@ -27471,6 +29223,8 @@ class BookingPriceAdjustmentsCompanion
       version: version ?? this.version,
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       bookingLocalUuid: bookingLocalUuid ?? this.bookingLocalUuid,
       bookingLocalId: bookingLocalId ?? this.bookingLocalId,
@@ -27532,6 +29286,12 @@ class BookingPriceAdjustmentsCompanion
     }
     if (vectorClock.present) {
       map['vector_clock'] = Variable<String>(vectorClock.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
     }
     if (id.present) {
       map['id'] = Variable<int>(id.value);
@@ -27595,6 +29355,8 @@ class BookingPriceAdjustmentsCompanion
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('bookingLocalUuid: $bookingLocalUuid, ')
           ..write('bookingLocalId: $bookingLocalId, ')
@@ -27620,6 +29382,187 @@ class $AuditLogsTable extends AuditLogs
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $AuditLogsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _localUuidMeta = const VerificationMeta(
+    'localUuid',
+  );
+  @override
+  late final GeneratedColumn<String> localUuid = GeneratedColumn<String>(
+    'local_uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<int> serverId = GeneratedColumn<int>(
+    'server_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastModifiedMeta = const VerificationMeta(
+    'lastModified',
+  );
+  @override
+  late final GeneratedColumn<int> lastModified = GeneratedColumn<int>(
+    'last_modified',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtIsoMeta = const VerificationMeta(
+    'createdAtIso',
+  );
+  @override
+  late final GeneratedColumn<String> createdAtIso = GeneratedColumn<String>(
+    'created_at_iso',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtIsoMeta = const VerificationMeta(
+    'updatedAtIso',
+  );
+  @override
+  late final GeneratedColumn<String> updatedAtIso = GeneratedColumn<String>(
+    'updated_at_iso',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deletedAtIsoMeta = const VerificationMeta(
+    'deletedAtIso',
+  );
+  @override
+  late final GeneratedColumn<String> deletedAtIso = GeneratedColumn<String>(
+    'deleted_at_iso',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtEpochMeta = const VerificationMeta(
+    'createdAtEpoch',
+  );
+  @override
+  late final GeneratedColumn<int> createdAtEpoch = GeneratedColumn<int>(
+    'created_at_epoch',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _lastModifiedEpochMeta = const VerificationMeta(
+    'lastModifiedEpoch',
+  );
+  @override
+  late final GeneratedColumn<int> lastModifiedEpoch = GeneratedColumn<int>(
+    'last_modified_epoch',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _originMeta = const VerificationMeta('origin');
+  @override
+  late final GeneratedColumn<String> origin = GeneratedColumn<String>(
+    'origin',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('local'),
+  );
+  static const VerificationMeta _vectorClockMeta = const VerificationMeta(
+    'vectorClock',
+  );
+  @override
+  late final GeneratedColumn<String> vectorClock = GeneratedColumn<String>(
+    'vector_clock',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -27632,18 +29575,6 @@ class $AuditLogsTable extends AuditLogs
     defaultConstraints: GeneratedColumn.constraintIsAlways(
       'PRIMARY KEY AUTOINCREMENT',
     ),
-  );
-  static const VerificationMeta _localUuidMeta = const VerificationMeta(
-    'localUuid',
-  );
-  @override
-  late final GeneratedColumn<String> localUuid = GeneratedColumn<String>(
-    'local_uuid',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
   );
   static const VerificationMeta _operationTypeMeta = const VerificationMeta(
     'operationType',
@@ -27733,17 +29664,6 @@ class $AuditLogsTable extends AuditLogs
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
-    'deviceId',
-  );
-  @override
-  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
-    'device_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
   static const VerificationMeta _ipAddressMeta = const VerificationMeta(
     'ipAddress',
   );
@@ -27814,21 +29734,25 @@ class $AuditLogsTable extends AuditLogs
     type: DriftSqlType.int,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta(
-    'createdAt',
-  );
-  @override
-  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
-    'created_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-  );
   @override
   List<GeneratedColumn> get $columns => [
-    id,
     localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    vectorClock,
+    deviceId,
+    idempotencyKey,
+    id,
     operationType,
     entityType,
     entityUuid,
@@ -27837,14 +29761,12 @@ class $AuditLogsTable extends AuditLogs
     newState,
     changedFields,
     performedBy,
-    deviceId,
     ipAddress,
     hotelDayKey,
     timestamp,
     timestampIso,
     isFinancial,
     amountImpact,
-    createdAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -27858,9 +29780,6 @@ class $AuditLogsTable extends AuditLogs
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    }
     if (data.containsKey('local_uuid')) {
       context.handle(
         _localUuidMeta,
@@ -27868,6 +29787,129 @@ class $AuditLogsTable extends AuditLogs
       );
     } else if (isInserting) {
       context.missing(_localUuidMeta);
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('last_modified')) {
+      context.handle(
+        _lastModifiedMeta,
+        lastModified.isAcceptableOrUnknown(
+          data['last_modified']!,
+          _lastModifiedMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_lastModifiedMeta);
+    }
+    if (data.containsKey('created_at_iso')) {
+      context.handle(
+        _createdAtIsoMeta,
+        createdAtIso.isAcceptableOrUnknown(
+          data['created_at_iso']!,
+          _createdAtIsoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('updated_at_iso')) {
+      context.handle(
+        _updatedAtIsoMeta,
+        updatedAtIso.isAcceptableOrUnknown(
+          data['updated_at_iso']!,
+          _updatedAtIsoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('deleted_at_iso')) {
+      context.handle(
+        _deletedAtIsoMeta,
+        deletedAtIso.isAcceptableOrUnknown(
+          data['deleted_at_iso']!,
+          _deletedAtIsoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at_epoch')) {
+      context.handle(
+        _createdAtEpochMeta,
+        createdAtEpoch.isAcceptableOrUnknown(
+          data['created_at_epoch']!,
+          _createdAtEpochMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_modified_epoch')) {
+      context.handle(
+        _lastModifiedEpochMeta,
+        lastModifiedEpoch.isAcceptableOrUnknown(
+          data['last_modified_epoch']!,
+          _lastModifiedEpochMeta,
+        ),
+      );
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    }
+    if (data.containsKey('origin')) {
+      context.handle(
+        _originMeta,
+        origin.isAcceptableOrUnknown(data['origin']!, _originMeta),
+      );
+    }
+    if (data.containsKey('vector_clock')) {
+      context.handle(
+        _vectorClockMeta,
+        vectorClock.isAcceptableOrUnknown(
+          data['vector_clock']!,
+          _vectorClockMeta,
+        ),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
     if (data.containsKey('operation_type')) {
       context.handle(
@@ -27937,14 +29979,6 @@ class $AuditLogsTable extends AuditLogs
     } else if (isInserting) {
       context.missing(_performedByMeta);
     }
-    if (data.containsKey('device_id')) {
-      context.handle(
-        _deviceIdMeta,
-        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_deviceIdMeta);
-    }
     if (data.containsKey('ip_address')) {
       context.handle(
         _ipAddressMeta,
@@ -27999,14 +30033,6 @@ class $AuditLogsTable extends AuditLogs
         ),
       );
     }
-    if (data.containsKey('created_at')) {
-      context.handle(
-        _createdAtMeta,
-        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
-    }
     return context;
   }
 
@@ -28016,13 +30042,73 @@ class $AuditLogsTable extends AuditLogs
   AuditLog map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return AuditLog(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}id'],
-      )!,
       localUuid: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}local_uuid'],
+      )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_id'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      lastModified: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_modified'],
+      )!,
+      createdAtIso: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at_iso'],
+      ),
+      updatedAtIso: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}updated_at_iso'],
+      ),
+      deletedAtIso: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_at_iso'],
+      ),
+      createdAtEpoch: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at_epoch'],
+      )!,
+      lastModifiedEpoch: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_modified_epoch'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      origin: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin'],
+      )!,
+      vectorClock: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}vector_clock'],
+      )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
       )!,
       operationType: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -28056,10 +30142,6 @@ class $AuditLogsTable extends AuditLogs
         DriftSqlType.string,
         data['${effectivePrefix}performed_by'],
       )!,
-      deviceId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}device_id'],
-      )!,
       ipAddress: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}ip_address'],
@@ -28084,10 +30166,6 @@ class $AuditLogsTable extends AuditLogs
         DriftSqlType.int,
         data['${effectivePrefix}amount_impact'],
       ),
-      createdAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}created_at'],
-      )!,
     );
   }
 
@@ -28098,8 +30176,23 @@ class $AuditLogsTable extends AuditLogs
 }
 
 class AuditLog extends DataClass implements Insertable<AuditLog> {
-  final int id;
   final String localUuid;
+  final int? serverId;
+  final int createdAt;
+  final int updatedAt;
+  final int? deletedAt;
+  final int lastModified;
+  final String? createdAtIso;
+  final String? updatedAtIso;
+  final String? deletedAtIso;
+  final int createdAtEpoch;
+  final int lastModifiedEpoch;
+  final int version;
+  final String origin;
+  final String vectorClock;
+  final String deviceId;
+  final String? idempotencyKey;
+  final int id;
   final String operationType;
   final String entityType;
   final String entityUuid;
@@ -28108,17 +30201,30 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
   final String? newState;
   final String? changedFields;
   final String performedBy;
-  final String deviceId;
   final String? ipAddress;
   final String hotelDayKey;
   final int timestamp;
   final String timestampIso;
   final bool isFinancial;
   final int? amountImpact;
-  final int createdAt;
   const AuditLog({
-    required this.id,
     required this.localUuid,
+    this.serverId,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+    required this.lastModified,
+    this.createdAtIso,
+    this.updatedAtIso,
+    this.deletedAtIso,
+    required this.createdAtEpoch,
+    required this.lastModifiedEpoch,
+    required this.version,
+    required this.origin,
+    required this.vectorClock,
+    required this.deviceId,
+    this.idempotencyKey,
+    required this.id,
     required this.operationType,
     required this.entityType,
     required this.entityUuid,
@@ -28127,20 +30233,45 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
     this.newState,
     this.changedFields,
     required this.performedBy,
-    required this.deviceId,
     this.ipAddress,
     required this.hotelDayKey,
     required this.timestamp,
     required this.timestampIso,
     required this.isFinancial,
     this.amountImpact,
-    required this.createdAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    map['id'] = Variable<int>(id);
     map['local_uuid'] = Variable<String>(localUuid);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<int>(serverId);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    map['last_modified'] = Variable<int>(lastModified);
+    if (!nullToAbsent || createdAtIso != null) {
+      map['created_at_iso'] = Variable<String>(createdAtIso);
+    }
+    if (!nullToAbsent || updatedAtIso != null) {
+      map['updated_at_iso'] = Variable<String>(updatedAtIso);
+    }
+    if (!nullToAbsent || deletedAtIso != null) {
+      map['deleted_at_iso'] = Variable<String>(deletedAtIso);
+    }
+    map['created_at_epoch'] = Variable<int>(createdAtEpoch);
+    map['last_modified_epoch'] = Variable<int>(lastModifiedEpoch);
+    map['version'] = Variable<int>(version);
+    map['origin'] = Variable<String>(origin);
+    map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
+    map['id'] = Variable<int>(id);
     map['operation_type'] = Variable<String>(operationType);
     map['entity_type'] = Variable<String>(entityType);
     map['entity_uuid'] = Variable<String>(entityUuid);
@@ -28157,7 +30288,6 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       map['changed_fields'] = Variable<String>(changedFields);
     }
     map['performed_by'] = Variable<String>(performedBy);
-    map['device_id'] = Variable<String>(deviceId);
     if (!nullToAbsent || ipAddress != null) {
       map['ip_address'] = Variable<String>(ipAddress);
     }
@@ -28168,14 +30298,40 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
     if (!nullToAbsent || amountImpact != null) {
       map['amount_impact'] = Variable<int>(amountImpact);
     }
-    map['created_at'] = Variable<int>(createdAt);
     return map;
   }
 
   AuditLogsCompanion toCompanion(bool nullToAbsent) {
     return AuditLogsCompanion(
-      id: Value(id),
       localUuid: Value(localUuid),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      lastModified: Value(lastModified),
+      createdAtIso: createdAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAtIso),
+      updatedAtIso: updatedAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAtIso),
+      deletedAtIso: deletedAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAtIso),
+      createdAtEpoch: Value(createdAtEpoch),
+      lastModifiedEpoch: Value(lastModifiedEpoch),
+      version: Value(version),
+      origin: Value(origin),
+      vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
+      id: Value(id),
       operationType: Value(operationType),
       entityType: Value(entityType),
       entityUuid: Value(entityUuid),
@@ -28192,7 +30348,6 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
           ? const Value.absent()
           : Value(changedFields),
       performedBy: Value(performedBy),
-      deviceId: Value(deviceId),
       ipAddress: ipAddress == null && nullToAbsent
           ? const Value.absent()
           : Value(ipAddress),
@@ -28203,7 +30358,6 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       amountImpact: amountImpact == null && nullToAbsent
           ? const Value.absent()
           : Value(amountImpact),
-      createdAt: Value(createdAt),
     );
   }
 
@@ -28213,8 +30367,23 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return AuditLog(
-      id: serializer.fromJson<int>(json['id']),
       localUuid: serializer.fromJson<String>(json['localUuid']),
+      serverId: serializer.fromJson<int?>(json['serverId']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+      lastModified: serializer.fromJson<int>(json['lastModified']),
+      createdAtIso: serializer.fromJson<String?>(json['createdAtIso']),
+      updatedAtIso: serializer.fromJson<String?>(json['updatedAtIso']),
+      deletedAtIso: serializer.fromJson<String?>(json['deletedAtIso']),
+      createdAtEpoch: serializer.fromJson<int>(json['createdAtEpoch']),
+      lastModifiedEpoch: serializer.fromJson<int>(json['lastModifiedEpoch']),
+      version: serializer.fromJson<int>(json['version']),
+      origin: serializer.fromJson<String>(json['origin']),
+      vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
+      id: serializer.fromJson<int>(json['id']),
       operationType: serializer.fromJson<String>(json['operationType']),
       entityType: serializer.fromJson<String>(json['entityType']),
       entityUuid: serializer.fromJson<String>(json['entityUuid']),
@@ -28223,22 +30392,35 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       newState: serializer.fromJson<String?>(json['newState']),
       changedFields: serializer.fromJson<String?>(json['changedFields']),
       performedBy: serializer.fromJson<String>(json['performedBy']),
-      deviceId: serializer.fromJson<String>(json['deviceId']),
       ipAddress: serializer.fromJson<String?>(json['ipAddress']),
       hotelDayKey: serializer.fromJson<String>(json['hotelDayKey']),
       timestamp: serializer.fromJson<int>(json['timestamp']),
       timestampIso: serializer.fromJson<String>(json['timestampIso']),
       isFinancial: serializer.fromJson<bool>(json['isFinancial']),
       amountImpact: serializer.fromJson<int?>(json['amountImpact']),
-      createdAt: serializer.fromJson<int>(json['createdAt']),
     );
   }
   @override
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
-      'id': serializer.toJson<int>(id),
       'localUuid': serializer.toJson<String>(localUuid),
+      'serverId': serializer.toJson<int?>(serverId),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
+      'lastModified': serializer.toJson<int>(lastModified),
+      'createdAtIso': serializer.toJson<String?>(createdAtIso),
+      'updatedAtIso': serializer.toJson<String?>(updatedAtIso),
+      'deletedAtIso': serializer.toJson<String?>(deletedAtIso),
+      'createdAtEpoch': serializer.toJson<int>(createdAtEpoch),
+      'lastModifiedEpoch': serializer.toJson<int>(lastModifiedEpoch),
+      'version': serializer.toJson<int>(version),
+      'origin': serializer.toJson<String>(origin),
+      'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
+      'id': serializer.toJson<int>(id),
       'operationType': serializer.toJson<String>(operationType),
       'entityType': serializer.toJson<String>(entityType),
       'entityUuid': serializer.toJson<String>(entityUuid),
@@ -28247,20 +30429,33 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       'newState': serializer.toJson<String?>(newState),
       'changedFields': serializer.toJson<String?>(changedFields),
       'performedBy': serializer.toJson<String>(performedBy),
-      'deviceId': serializer.toJson<String>(deviceId),
       'ipAddress': serializer.toJson<String?>(ipAddress),
       'hotelDayKey': serializer.toJson<String>(hotelDayKey),
       'timestamp': serializer.toJson<int>(timestamp),
       'timestampIso': serializer.toJson<String>(timestampIso),
       'isFinancial': serializer.toJson<bool>(isFinancial),
       'amountImpact': serializer.toJson<int?>(amountImpact),
-      'createdAt': serializer.toJson<int>(createdAt),
     };
   }
 
   AuditLog copyWith({
-    int? id,
     String? localUuid,
+    Value<int?> serverId = const Value.absent(),
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> deletedAt = const Value.absent(),
+    int? lastModified,
+    Value<String?> createdAtIso = const Value.absent(),
+    Value<String?> updatedAtIso = const Value.absent(),
+    Value<String?> deletedAtIso = const Value.absent(),
+    int? createdAtEpoch,
+    int? lastModifiedEpoch,
+    int? version,
+    String? origin,
+    String? vectorClock,
+    String? deviceId,
+    Value<String?> idempotencyKey = const Value.absent(),
+    int? id,
     String? operationType,
     String? entityType,
     String? entityUuid,
@@ -28269,17 +30464,32 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
     Value<String?> newState = const Value.absent(),
     Value<String?> changedFields = const Value.absent(),
     String? performedBy,
-    String? deviceId,
     Value<String?> ipAddress = const Value.absent(),
     String? hotelDayKey,
     int? timestamp,
     String? timestampIso,
     bool? isFinancial,
     Value<int?> amountImpact = const Value.absent(),
-    int? createdAt,
   }) => AuditLog(
-    id: id ?? this.id,
     localUuid: localUuid ?? this.localUuid,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    lastModified: lastModified ?? this.lastModified,
+    createdAtIso: createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+    updatedAtIso: updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+    deletedAtIso: deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+    createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+    lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+    version: version ?? this.version,
+    origin: origin ?? this.origin,
+    vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
+    id: id ?? this.id,
     operationType: operationType ?? this.operationType,
     entityType: entityType ?? this.entityType,
     entityUuid: entityUuid ?? this.entityUuid,
@@ -28292,19 +30502,48 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
         ? changedFields.value
         : this.changedFields,
     performedBy: performedBy ?? this.performedBy,
-    deviceId: deviceId ?? this.deviceId,
     ipAddress: ipAddress.present ? ipAddress.value : this.ipAddress,
     hotelDayKey: hotelDayKey ?? this.hotelDayKey,
     timestamp: timestamp ?? this.timestamp,
     timestampIso: timestampIso ?? this.timestampIso,
     isFinancial: isFinancial ?? this.isFinancial,
     amountImpact: amountImpact.present ? amountImpact.value : this.amountImpact,
-    createdAt: createdAt ?? this.createdAt,
   );
   AuditLog copyWithCompanion(AuditLogsCompanion data) {
     return AuditLog(
-      id: data.id.present ? data.id.value : this.id,
       localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      lastModified: data.lastModified.present
+          ? data.lastModified.value
+          : this.lastModified,
+      createdAtIso: data.createdAtIso.present
+          ? data.createdAtIso.value
+          : this.createdAtIso,
+      updatedAtIso: data.updatedAtIso.present
+          ? data.updatedAtIso.value
+          : this.updatedAtIso,
+      deletedAtIso: data.deletedAtIso.present
+          ? data.deletedAtIso.value
+          : this.deletedAtIso,
+      createdAtEpoch: data.createdAtEpoch.present
+          ? data.createdAtEpoch.value
+          : this.createdAtEpoch,
+      lastModifiedEpoch: data.lastModifiedEpoch.present
+          ? data.lastModifiedEpoch.value
+          : this.lastModifiedEpoch,
+      version: data.version.present ? data.version.value : this.version,
+      origin: data.origin.present ? data.origin.value : this.origin,
+      vectorClock: data.vectorClock.present
+          ? data.vectorClock.value
+          : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
+      id: data.id.present ? data.id.value : this.id,
       operationType: data.operationType.present
           ? data.operationType.value
           : this.operationType,
@@ -28325,7 +30564,6 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       performedBy: data.performedBy.present
           ? data.performedBy.value
           : this.performedBy,
-      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
       ipAddress: data.ipAddress.present ? data.ipAddress.value : this.ipAddress,
       hotelDayKey: data.hotelDayKey.present
           ? data.hotelDayKey.value
@@ -28340,15 +30578,29 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       amountImpact: data.amountImpact.present
           ? data.amountImpact.value
           : this.amountImpact,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
 
   @override
   String toString() {
     return (StringBuffer('AuditLog(')
-          ..write('id: $id, ')
           ..write('localUuid: $localUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('createdAtIso: $createdAtIso, ')
+          ..write('updatedAtIso: $updatedAtIso, ')
+          ..write('deletedAtIso: $deletedAtIso, ')
+          ..write('createdAtEpoch: $createdAtEpoch, ')
+          ..write('lastModifiedEpoch: $lastModifiedEpoch, ')
+          ..write('version: $version, ')
+          ..write('origin: $origin, ')
+          ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
+          ..write('id: $id, ')
           ..write('operationType: $operationType, ')
           ..write('entityType: $entityType, ')
           ..write('entityUuid: $entityUuid, ')
@@ -28357,22 +30609,35 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
           ..write('newState: $newState, ')
           ..write('changedFields: $changedFields, ')
           ..write('performedBy: $performedBy, ')
-          ..write('deviceId: $deviceId, ')
           ..write('ipAddress: $ipAddress, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('timestamp: $timestamp, ')
           ..write('timestampIso: $timestampIso, ')
           ..write('isFinancial: $isFinancial, ')
-          ..write('amountImpact: $amountImpact, ')
-          ..write('createdAt: $createdAt')
+          ..write('amountImpact: $amountImpact')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
-    id,
+  int get hashCode => Object.hashAll([
     localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    vectorClock,
+    deviceId,
+    idempotencyKey,
+    id,
     operationType,
     entityType,
     entityUuid,
@@ -28381,21 +30646,34 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
     newState,
     changedFields,
     performedBy,
-    deviceId,
     ipAddress,
     hotelDayKey,
     timestamp,
     timestampIso,
     isFinancial,
     amountImpact,
-    createdAt,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is AuditLog &&
-          other.id == this.id &&
           other.localUuid == this.localUuid &&
+          other.serverId == this.serverId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.lastModified == this.lastModified &&
+          other.createdAtIso == this.createdAtIso &&
+          other.updatedAtIso == this.updatedAtIso &&
+          other.deletedAtIso == this.deletedAtIso &&
+          other.createdAtEpoch == this.createdAtEpoch &&
+          other.lastModifiedEpoch == this.lastModifiedEpoch &&
+          other.version == this.version &&
+          other.origin == this.origin &&
+          other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.idempotencyKey == this.idempotencyKey &&
+          other.id == this.id &&
           other.operationType == this.operationType &&
           other.entityType == this.entityType &&
           other.entityUuid == this.entityUuid &&
@@ -28404,19 +30682,32 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
           other.newState == this.newState &&
           other.changedFields == this.changedFields &&
           other.performedBy == this.performedBy &&
-          other.deviceId == this.deviceId &&
           other.ipAddress == this.ipAddress &&
           other.hotelDayKey == this.hotelDayKey &&
           other.timestamp == this.timestamp &&
           other.timestampIso == this.timestampIso &&
           other.isFinancial == this.isFinancial &&
-          other.amountImpact == this.amountImpact &&
-          other.createdAt == this.createdAt);
+          other.amountImpact == this.amountImpact);
 }
 
 class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
-  final Value<int> id;
   final Value<String> localUuid;
+  final Value<int?> serverId;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> deletedAt;
+  final Value<int> lastModified;
+  final Value<String?> createdAtIso;
+  final Value<String?> updatedAtIso;
+  final Value<String?> deletedAtIso;
+  final Value<int> createdAtEpoch;
+  final Value<int> lastModifiedEpoch;
+  final Value<int> version;
+  final Value<String> origin;
+  final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<String?> idempotencyKey;
+  final Value<int> id;
   final Value<String> operationType;
   final Value<String> entityType;
   final Value<String> entityUuid;
@@ -28425,17 +30716,30 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
   final Value<String?> newState;
   final Value<String?> changedFields;
   final Value<String> performedBy;
-  final Value<String> deviceId;
   final Value<String?> ipAddress;
   final Value<String> hotelDayKey;
   final Value<int> timestamp;
   final Value<String> timestampIso;
   final Value<bool> isFinancial;
   final Value<int?> amountImpact;
-  final Value<int> createdAt;
   const AuditLogsCompanion({
-    this.id = const Value.absent(),
     this.localUuid = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.lastModified = const Value.absent(),
+    this.createdAtIso = const Value.absent(),
+    this.updatedAtIso = const Value.absent(),
+    this.deletedAtIso = const Value.absent(),
+    this.createdAtEpoch = const Value.absent(),
+    this.lastModifiedEpoch = const Value.absent(),
+    this.version = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
+    this.id = const Value.absent(),
     this.operationType = const Value.absent(),
     this.entityType = const Value.absent(),
     this.entityUuid = const Value.absent(),
@@ -28444,18 +30748,31 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     this.newState = const Value.absent(),
     this.changedFields = const Value.absent(),
     this.performedBy = const Value.absent(),
-    this.deviceId = const Value.absent(),
     this.ipAddress = const Value.absent(),
     this.hotelDayKey = const Value.absent(),
     this.timestamp = const Value.absent(),
     this.timestampIso = const Value.absent(),
     this.isFinancial = const Value.absent(),
     this.amountImpact = const Value.absent(),
-    this.createdAt = const Value.absent(),
   });
   AuditLogsCompanion.insert({
-    this.id = const Value.absent(),
     required String localUuid,
+    this.serverId = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.deletedAt = const Value.absent(),
+    required int lastModified,
+    this.createdAtIso = const Value.absent(),
+    this.updatedAtIso = const Value.absent(),
+    this.deletedAtIso = const Value.absent(),
+    this.createdAtEpoch = const Value.absent(),
+    this.lastModifiedEpoch = const Value.absent(),
+    this.version = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
+    this.id = const Value.absent(),
     required String operationType,
     required String entityType,
     required String entityUuid,
@@ -28464,27 +30781,41 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     this.newState = const Value.absent(),
     this.changedFields = const Value.absent(),
     required String performedBy,
-    required String deviceId,
     this.ipAddress = const Value.absent(),
     required String hotelDayKey,
     required int timestamp,
     required String timestampIso,
     this.isFinancial = const Value.absent(),
     this.amountImpact = const Value.absent(),
-    required int createdAt,
   }) : localUuid = Value(localUuid),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       lastModified = Value(lastModified),
        operationType = Value(operationType),
        entityType = Value(entityType),
        entityUuid = Value(entityUuid),
        performedBy = Value(performedBy),
-       deviceId = Value(deviceId),
        hotelDayKey = Value(hotelDayKey),
        timestamp = Value(timestamp),
-       timestampIso = Value(timestampIso),
-       createdAt = Value(createdAt);
+       timestampIso = Value(timestampIso);
   static Insertable<AuditLog> custom({
-    Expression<int>? id,
     Expression<String>? localUuid,
+    Expression<int>? serverId,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? deletedAt,
+    Expression<int>? lastModified,
+    Expression<String>? createdAtIso,
+    Expression<String>? updatedAtIso,
+    Expression<String>? deletedAtIso,
+    Expression<int>? createdAtEpoch,
+    Expression<int>? lastModifiedEpoch,
+    Expression<int>? version,
+    Expression<String>? origin,
+    Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<String>? idempotencyKey,
+    Expression<int>? id,
     Expression<String>? operationType,
     Expression<String>? entityType,
     Expression<String>? entityUuid,
@@ -28493,18 +30824,31 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     Expression<String>? newState,
     Expression<String>? changedFields,
     Expression<String>? performedBy,
-    Expression<String>? deviceId,
     Expression<String>? ipAddress,
     Expression<String>? hotelDayKey,
     Expression<int>? timestamp,
     Expression<String>? timestampIso,
     Expression<bool>? isFinancial,
     Expression<int>? amountImpact,
-    Expression<int>? createdAt,
   }) {
     return RawValuesInsertable({
-      if (id != null) 'id': id,
       if (localUuid != null) 'local_uuid': localUuid,
+      if (serverId != null) 'server_id': serverId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (lastModified != null) 'last_modified': lastModified,
+      if (createdAtIso != null) 'created_at_iso': createdAtIso,
+      if (updatedAtIso != null) 'updated_at_iso': updatedAtIso,
+      if (deletedAtIso != null) 'deleted_at_iso': deletedAtIso,
+      if (createdAtEpoch != null) 'created_at_epoch': createdAtEpoch,
+      if (lastModifiedEpoch != null) 'last_modified_epoch': lastModifiedEpoch,
+      if (version != null) 'version': version,
+      if (origin != null) 'origin': origin,
+      if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
+      if (id != null) 'id': id,
       if (operationType != null) 'operation_type': operationType,
       if (entityType != null) 'entity_type': entityType,
       if (entityUuid != null) 'entity_uuid': entityUuid,
@@ -28513,20 +30857,33 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
       if (newState != null) 'new_state': newState,
       if (changedFields != null) 'changed_fields': changedFields,
       if (performedBy != null) 'performed_by': performedBy,
-      if (deviceId != null) 'device_id': deviceId,
       if (ipAddress != null) 'ip_address': ipAddress,
       if (hotelDayKey != null) 'hotel_day_key': hotelDayKey,
       if (timestamp != null) 'timestamp': timestamp,
       if (timestampIso != null) 'timestamp_iso': timestampIso,
       if (isFinancial != null) 'is_financial': isFinancial,
       if (amountImpact != null) 'amount_impact': amountImpact,
-      if (createdAt != null) 'created_at': createdAt,
     });
   }
 
   AuditLogsCompanion copyWith({
-    Value<int>? id,
     Value<String>? localUuid,
+    Value<int?>? serverId,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? deletedAt,
+    Value<int>? lastModified,
+    Value<String?>? createdAtIso,
+    Value<String?>? updatedAtIso,
+    Value<String?>? deletedAtIso,
+    Value<int>? createdAtEpoch,
+    Value<int>? lastModifiedEpoch,
+    Value<int>? version,
+    Value<String>? origin,
+    Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<String?>? idempotencyKey,
+    Value<int>? id,
     Value<String>? operationType,
     Value<String>? entityType,
     Value<String>? entityUuid,
@@ -28535,18 +30892,31 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     Value<String?>? newState,
     Value<String?>? changedFields,
     Value<String>? performedBy,
-    Value<String>? deviceId,
     Value<String?>? ipAddress,
     Value<String>? hotelDayKey,
     Value<int>? timestamp,
     Value<String>? timestampIso,
     Value<bool>? isFinancial,
     Value<int?>? amountImpact,
-    Value<int>? createdAt,
   }) {
     return AuditLogsCompanion(
-      id: id ?? this.id,
       localUuid: localUuid ?? this.localUuid,
+      serverId: serverId ?? this.serverId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      lastModified: lastModified ?? this.lastModified,
+      createdAtIso: createdAtIso ?? this.createdAtIso,
+      updatedAtIso: updatedAtIso ?? this.updatedAtIso,
+      deletedAtIso: deletedAtIso ?? this.deletedAtIso,
+      createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+      lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+      version: version ?? this.version,
+      origin: origin ?? this.origin,
+      vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+      id: id ?? this.id,
       operationType: operationType ?? this.operationType,
       entityType: entityType ?? this.entityType,
       entityUuid: entityUuid ?? this.entityUuid,
@@ -28555,25 +30925,68 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
       newState: newState ?? this.newState,
       changedFields: changedFields ?? this.changedFields,
       performedBy: performedBy ?? this.performedBy,
-      deviceId: deviceId ?? this.deviceId,
       ipAddress: ipAddress ?? this.ipAddress,
       hotelDayKey: hotelDayKey ?? this.hotelDayKey,
       timestamp: timestamp ?? this.timestamp,
       timestampIso: timestampIso ?? this.timestampIso,
       isFinancial: isFinancial ?? this.isFinancial,
       amountImpact: amountImpact ?? this.amountImpact,
-      createdAt: createdAt ?? this.createdAt,
     );
   }
 
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
-    if (id.present) {
-      map['id'] = Variable<int>(id.value);
-    }
     if (localUuid.present) {
       map['local_uuid'] = Variable<String>(localUuid.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<int>(serverId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
+    if (lastModified.present) {
+      map['last_modified'] = Variable<int>(lastModified.value);
+    }
+    if (createdAtIso.present) {
+      map['created_at_iso'] = Variable<String>(createdAtIso.value);
+    }
+    if (updatedAtIso.present) {
+      map['updated_at_iso'] = Variable<String>(updatedAtIso.value);
+    }
+    if (deletedAtIso.present) {
+      map['deleted_at_iso'] = Variable<String>(deletedAtIso.value);
+    }
+    if (createdAtEpoch.present) {
+      map['created_at_epoch'] = Variable<int>(createdAtEpoch.value);
+    }
+    if (lastModifiedEpoch.present) {
+      map['last_modified_epoch'] = Variable<int>(lastModifiedEpoch.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (origin.present) {
+      map['origin'] = Variable<String>(origin.value);
+    }
+    if (vectorClock.present) {
+      map['vector_clock'] = Variable<String>(vectorClock.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
     }
     if (operationType.present) {
       map['operation_type'] = Variable<String>(operationType.value);
@@ -28599,9 +31012,6 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     if (performedBy.present) {
       map['performed_by'] = Variable<String>(performedBy.value);
     }
-    if (deviceId.present) {
-      map['device_id'] = Variable<String>(deviceId.value);
-    }
     if (ipAddress.present) {
       map['ip_address'] = Variable<String>(ipAddress.value);
     }
@@ -28620,17 +31030,29 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     if (amountImpact.present) {
       map['amount_impact'] = Variable<int>(amountImpact.value);
     }
-    if (createdAt.present) {
-      map['created_at'] = Variable<int>(createdAt.value);
-    }
     return map;
   }
 
   @override
   String toString() {
     return (StringBuffer('AuditLogsCompanion(')
-          ..write('id: $id, ')
           ..write('localUuid: $localUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('createdAtIso: $createdAtIso, ')
+          ..write('updatedAtIso: $updatedAtIso, ')
+          ..write('deletedAtIso: $deletedAtIso, ')
+          ..write('createdAtEpoch: $createdAtEpoch, ')
+          ..write('lastModifiedEpoch: $lastModifiedEpoch, ')
+          ..write('version: $version, ')
+          ..write('origin: $origin, ')
+          ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
+          ..write('id: $id, ')
           ..write('operationType: $operationType, ')
           ..write('entityType: $entityType, ')
           ..write('entityUuid: $entityUuid, ')
@@ -28639,14 +31061,12 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
           ..write('newState: $newState, ')
           ..write('changedFields: $changedFields, ')
           ..write('performedBy: $performedBy, ')
-          ..write('deviceId: $deviceId, ')
           ..write('ipAddress: $ipAddress, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('timestamp: $timestamp, ')
           ..write('timestampIso: $timestampIso, ')
           ..write('isFinancial: $isFinancial, ')
-          ..write('amountImpact: $amountImpact, ')
-          ..write('createdAt: $createdAt')
+          ..write('amountImpact: $amountImpact')
           ..write(')'))
         .toString();
   }
@@ -28816,6 +31236,29 @@ class $PaymentVoidsTable extends PaymentVoids
     requiredDuringInsert: false,
     defaultValue: const Constant('{}'),
   );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -28951,6 +31394,37 @@ class $PaymentVoidsTable extends PaymentVoids
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _originalAmountMeta = const VerificationMeta(
+    'originalAmount',
+  );
+  @override
+  late final GeneratedColumn<double> originalAmount = GeneratedColumn<double>(
+    'original_amount',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _paymentUuidMeta = const VerificationMeta(
+    'paymentUuid',
+  );
+  @override
+  late final GeneratedColumn<String> paymentUuid = GeneratedColumn<String>(
+    'payment_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -28967,6 +31441,8 @@ class $PaymentVoidsTable extends PaymentVoids
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     originalPaymentUuid,
     originalPaymentId,
@@ -28979,6 +31455,9 @@ class $PaymentVoidsTable extends PaymentVoids
     hotelDayKey,
     reversalPaymentUuid,
     approvedBy,
+    note,
+    originalAmount,
+    paymentUuid,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -29105,6 +31584,21 @@ class $PaymentVoidsTable extends PaymentVoids
         ),
       );
     }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
+        ),
+      );
+    }
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
@@ -29213,6 +31707,30 @@ class $PaymentVoidsTable extends PaymentVoids
         approvedBy.isAcceptableOrUnknown(data['approved_by']!, _approvedByMeta),
       );
     }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('original_amount')) {
+      context.handle(
+        _originalAmountMeta,
+        originalAmount.isAcceptableOrUnknown(
+          data['original_amount']!,
+          _originalAmountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('payment_uuid')) {
+      context.handle(
+        _paymentUuidMeta,
+        paymentUuid.isAcceptableOrUnknown(
+          data['payment_uuid']!,
+          _paymentUuidMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -29278,6 +31796,14 @@ class $PaymentVoidsTable extends PaymentVoids
         DriftSqlType.string,
         data['${effectivePrefix}vector_clock'],
       )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -29326,6 +31852,18 @@ class $PaymentVoidsTable extends PaymentVoids
         DriftSqlType.string,
         data['${effectivePrefix}approved_by'],
       ),
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+      originalAmount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}original_amount'],
+      ),
+      paymentUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payment_uuid'],
+      ),
     );
   }
 
@@ -29350,6 +31888,8 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
   final int version;
   final String origin;
   final String vectorClock;
+  final String deviceId;
+  final String? idempotencyKey;
   final int id;
   final String originalPaymentUuid;
   final int originalPaymentId;
@@ -29362,6 +31902,9 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
   final String hotelDayKey;
   final String? reversalPaymentUuid;
   final String? approvedBy;
+  final String? note;
+  final double? originalAmount;
+  final String? paymentUuid;
   const PaymentVoid({
     required this.localUuid,
     this.serverId,
@@ -29377,6 +31920,8 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     required this.version,
     required this.origin,
     required this.vectorClock,
+    required this.deviceId,
+    this.idempotencyKey,
     required this.id,
     required this.originalPaymentUuid,
     required this.originalPaymentId,
@@ -29389,6 +31934,9 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     required this.hotelDayKey,
     this.reversalPaymentUuid,
     this.approvedBy,
+    this.note,
+    this.originalAmount,
+    this.paymentUuid,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -29417,6 +31965,10 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     map['version'] = Variable<int>(version);
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
     map['id'] = Variable<int>(id);
     map['original_payment_uuid'] = Variable<String>(originalPaymentUuid);
     map['original_payment_id'] = Variable<int>(originalPaymentId);
@@ -29432,6 +31984,15 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     }
     if (!nullToAbsent || approvedBy != null) {
       map['approved_by'] = Variable<String>(approvedBy);
+    }
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    if (!nullToAbsent || originalAmount != null) {
+      map['original_amount'] = Variable<double>(originalAmount);
+    }
+    if (!nullToAbsent || paymentUuid != null) {
+      map['payment_uuid'] = Variable<String>(paymentUuid);
     }
     return map;
   }
@@ -29462,6 +32023,10 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
       version: Value(version),
       origin: Value(origin),
       vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
       id: Value(id),
       originalPaymentUuid: Value(originalPaymentUuid),
       originalPaymentId: Value(originalPaymentId),
@@ -29478,6 +32043,13 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
       approvedBy: approvedBy == null && nullToAbsent
           ? const Value.absent()
           : Value(approvedBy),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      originalAmount: originalAmount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(originalAmount),
+      paymentUuid: paymentUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(paymentUuid),
     );
   }
 
@@ -29501,6 +32073,8 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
       version: serializer.fromJson<int>(json['version']),
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       originalPaymentUuid: serializer.fromJson<String>(
         json['originalPaymentUuid'],
@@ -29517,6 +32091,9 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
         json['reversalPaymentUuid'],
       ),
       approvedBy: serializer.fromJson<String?>(json['approvedBy']),
+      note: serializer.fromJson<String?>(json['note']),
+      originalAmount: serializer.fromJson<double?>(json['originalAmount']),
+      paymentUuid: serializer.fromJson<String?>(json['paymentUuid']),
     );
   }
   @override
@@ -29537,6 +32114,8 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
       'version': serializer.toJson<int>(version),
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'originalPaymentUuid': serializer.toJson<String>(originalPaymentUuid),
       'originalPaymentId': serializer.toJson<int>(originalPaymentId),
@@ -29549,6 +32128,9 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
       'hotelDayKey': serializer.toJson<String>(hotelDayKey),
       'reversalPaymentUuid': serializer.toJson<String?>(reversalPaymentUuid),
       'approvedBy': serializer.toJson<String?>(approvedBy),
+      'note': serializer.toJson<String?>(note),
+      'originalAmount': serializer.toJson<double?>(originalAmount),
+      'paymentUuid': serializer.toJson<String?>(paymentUuid),
     };
   }
 
@@ -29567,6 +32149,8 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     int? version,
     String? origin,
     String? vectorClock,
+    String? deviceId,
+    Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? originalPaymentUuid,
     int? originalPaymentId,
@@ -29579,6 +32163,9 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     String? hotelDayKey,
     Value<String?> reversalPaymentUuid = const Value.absent(),
     Value<String?> approvedBy = const Value.absent(),
+    Value<String?> note = const Value.absent(),
+    Value<double?> originalAmount = const Value.absent(),
+    Value<String?> paymentUuid = const Value.absent(),
   }) => PaymentVoid(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -29594,6 +32181,10 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     version: version ?? this.version,
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
     id: id ?? this.id,
     originalPaymentUuid: originalPaymentUuid ?? this.originalPaymentUuid,
     originalPaymentId: originalPaymentId ?? this.originalPaymentId,
@@ -29608,6 +32199,11 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
         ? reversalPaymentUuid.value
         : this.reversalPaymentUuid,
     approvedBy: approvedBy.present ? approvedBy.value : this.approvedBy,
+    note: note.present ? note.value : this.note,
+    originalAmount: originalAmount.present
+        ? originalAmount.value
+        : this.originalAmount,
+    paymentUuid: paymentUuid.present ? paymentUuid.value : this.paymentUuid,
   );
   PaymentVoid copyWithCompanion(PaymentVoidsCompanion data) {
     return PaymentVoid(
@@ -29639,6 +32235,10 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
       vectorClock: data.vectorClock.present
           ? data.vectorClock.value
           : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
       id: data.id.present ? data.id.value : this.id,
       originalPaymentUuid: data.originalPaymentUuid.present
           ? data.originalPaymentUuid.value
@@ -29669,6 +32269,13 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
       approvedBy: data.approvedBy.present
           ? data.approvedBy.value
           : this.approvedBy,
+      note: data.note.present ? data.note.value : this.note,
+      originalAmount: data.originalAmount.present
+          ? data.originalAmount.value
+          : this.originalAmount,
+      paymentUuid: data.paymentUuid.present
+          ? data.paymentUuid.value
+          : this.paymentUuid,
     );
   }
 
@@ -29689,6 +32296,8 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('originalPaymentUuid: $originalPaymentUuid, ')
           ..write('originalPaymentId: $originalPaymentId, ')
@@ -29700,7 +32309,10 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
           ..write('voidedAtIso: $voidedAtIso, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('reversalPaymentUuid: $reversalPaymentUuid, ')
-          ..write('approvedBy: $approvedBy')
+          ..write('approvedBy: $approvedBy, ')
+          ..write('note: $note, ')
+          ..write('originalAmount: $originalAmount, ')
+          ..write('paymentUuid: $paymentUuid')
           ..write(')'))
         .toString();
   }
@@ -29721,6 +32333,8 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     originalPaymentUuid,
     originalPaymentId,
@@ -29733,6 +32347,9 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     hotelDayKey,
     reversalPaymentUuid,
     approvedBy,
+    note,
+    originalAmount,
+    paymentUuid,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -29752,6 +32369,8 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
           other.version == this.version &&
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.originalPaymentUuid == this.originalPaymentUuid &&
           other.originalPaymentId == this.originalPaymentId &&
@@ -29763,7 +32382,10 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
           other.voidedAtIso == this.voidedAtIso &&
           other.hotelDayKey == this.hotelDayKey &&
           other.reversalPaymentUuid == this.reversalPaymentUuid &&
-          other.approvedBy == this.approvedBy);
+          other.approvedBy == this.approvedBy &&
+          other.note == this.note &&
+          other.originalAmount == this.originalAmount &&
+          other.paymentUuid == this.paymentUuid);
 }
 
 class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
@@ -29781,6 +32403,8 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
   final Value<int> version;
   final Value<String> origin;
   final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> originalPaymentUuid;
   final Value<int> originalPaymentId;
@@ -29793,6 +32417,9 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
   final Value<String> hotelDayKey;
   final Value<String?> reversalPaymentUuid;
   final Value<String?> approvedBy;
+  final Value<String?> note;
+  final Value<double?> originalAmount;
+  final Value<String?> paymentUuid;
   const PaymentVoidsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -29808,6 +32435,8 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.originalPaymentUuid = const Value.absent(),
     this.originalPaymentId = const Value.absent(),
@@ -29820,6 +32449,9 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     this.hotelDayKey = const Value.absent(),
     this.reversalPaymentUuid = const Value.absent(),
     this.approvedBy = const Value.absent(),
+    this.note = const Value.absent(),
+    this.originalAmount = const Value.absent(),
+    this.paymentUuid = const Value.absent(),
   });
   PaymentVoidsCompanion.insert({
     required String localUuid,
@@ -29836,6 +32468,8 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required String originalPaymentUuid,
     required int originalPaymentId,
@@ -29848,6 +32482,9 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     required String hotelDayKey,
     this.reversalPaymentUuid = const Value.absent(),
     this.approvedBy = const Value.absent(),
+    this.note = const Value.absent(),
+    this.originalAmount = const Value.absent(),
+    this.paymentUuid = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -29876,6 +32513,8 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     Expression<int>? version,
     Expression<String>? origin,
     Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<String>? originalPaymentUuid,
     Expression<int>? originalPaymentId,
@@ -29888,6 +32527,9 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     Expression<String>? hotelDayKey,
     Expression<String>? reversalPaymentUuid,
     Expression<String>? approvedBy,
+    Expression<String>? note,
+    Expression<double>? originalAmount,
+    Expression<String>? paymentUuid,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -29904,6 +32546,8 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
       if (version != null) 'version': version,
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (originalPaymentUuid != null)
         'original_payment_uuid': originalPaymentUuid,
@@ -29918,6 +32562,9 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
       if (reversalPaymentUuid != null)
         'reversal_payment_uuid': reversalPaymentUuid,
       if (approvedBy != null) 'approved_by': approvedBy,
+      if (note != null) 'note': note,
+      if (originalAmount != null) 'original_amount': originalAmount,
+      if (paymentUuid != null) 'payment_uuid': paymentUuid,
     });
   }
 
@@ -29936,6 +32583,8 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     Value<int>? version,
     Value<String>? origin,
     Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? originalPaymentUuid,
     Value<int>? originalPaymentId,
@@ -29948,6 +32597,9 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     Value<String>? hotelDayKey,
     Value<String?>? reversalPaymentUuid,
     Value<String?>? approvedBy,
+    Value<String?>? note,
+    Value<double?>? originalAmount,
+    Value<String?>? paymentUuid,
   }) {
     return PaymentVoidsCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -29964,6 +32616,8 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
       version: version ?? this.version,
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       originalPaymentUuid: originalPaymentUuid ?? this.originalPaymentUuid,
       originalPaymentId: originalPaymentId ?? this.originalPaymentId,
@@ -29976,6 +32630,9 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
       hotelDayKey: hotelDayKey ?? this.hotelDayKey,
       reversalPaymentUuid: reversalPaymentUuid ?? this.reversalPaymentUuid,
       approvedBy: approvedBy ?? this.approvedBy,
+      note: note ?? this.note,
+      originalAmount: originalAmount ?? this.originalAmount,
+      paymentUuid: paymentUuid ?? this.paymentUuid,
     );
   }
 
@@ -30024,6 +32681,12 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     if (vectorClock.present) {
       map['vector_clock'] = Variable<String>(vectorClock.value);
     }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
@@ -30064,6 +32727,15 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     if (approvedBy.present) {
       map['approved_by'] = Variable<String>(approvedBy.value);
     }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (originalAmount.present) {
+      map['original_amount'] = Variable<double>(originalAmount.value);
+    }
+    if (paymentUuid.present) {
+      map['payment_uuid'] = Variable<String>(paymentUuid.value);
+    }
     return map;
   }
 
@@ -30084,6 +32756,8 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('originalPaymentUuid: $originalPaymentUuid, ')
           ..write('originalPaymentId: $originalPaymentId, ')
@@ -30095,7 +32769,10 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
           ..write('voidedAtIso: $voidedAtIso, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('reversalPaymentUuid: $reversalPaymentUuid, ')
-          ..write('approvedBy: $approvedBy')
+          ..write('approvedBy: $approvedBy, ')
+          ..write('note: $note, ')
+          ..write('originalAmount: $originalAmount, ')
+          ..write('paymentUuid: $paymentUuid')
           ..write(')'))
         .toString();
   }
@@ -30265,6 +32942,29 @@ class $GuestInfosTable extends GuestInfos
     requiredDuringInsert: false,
     defaultValue: const Constant('{}'),
   );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -30390,6 +33090,8 @@ class $GuestInfosTable extends GuestInfos
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     roomNumber,
     guestName,
@@ -30523,6 +33225,21 @@ class $GuestInfosTable extends GuestInfos
         vectorClock.isAcceptableOrUnknown(
           data['vector_clock']!,
           _vectorClockMeta,
+        ),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
         ),
       );
     }
@@ -30662,6 +33379,14 @@ class $GuestInfosTable extends GuestInfos
         DriftSqlType.string,
         data['${effectivePrefix}vector_clock'],
       )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -30726,6 +33451,8 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
   final int version;
   final String origin;
   final String vectorClock;
+  final String deviceId;
+  final String? idempotencyKey;
   final int id;
   final String roomNumber;
   final String guestName;
@@ -30751,6 +33478,8 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     required this.version,
     required this.origin,
     required this.vectorClock,
+    required this.deviceId,
+    this.idempotencyKey,
     required this.id,
     required this.roomNumber,
     required this.guestName,
@@ -30789,6 +33518,10 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     map['version'] = Variable<int>(version);
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
     map['id'] = Variable<int>(id);
     map['room_number'] = Variable<String>(roomNumber);
     map['guest_name'] = Variable<String>(guestName);
@@ -30836,6 +33569,10 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       version: Value(version),
       origin: Value(origin),
       vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
       id: Value(id),
       roomNumber: Value(roomNumber),
       guestName: Value(guestName),
@@ -30877,6 +33614,8 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       version: serializer.fromJson<int>(json['version']),
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       roomNumber: serializer.fromJson<String>(json['roomNumber']),
       guestName: serializer.fromJson<String>(json['guestName']),
@@ -30907,6 +33646,8 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       'version': serializer.toJson<int>(version),
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'roomNumber': serializer.toJson<String>(roomNumber),
       'guestName': serializer.toJson<String>(guestName),
@@ -30935,6 +33676,8 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     int? version,
     String? origin,
     String? vectorClock,
+    String? deviceId,
+    Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? roomNumber,
     String? guestName,
@@ -30960,6 +33703,10 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     version: version ?? this.version,
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
     id: id ?? this.id,
     roomNumber: roomNumber ?? this.roomNumber,
     guestName: guestName ?? this.guestName,
@@ -31001,6 +33748,10 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       vectorClock: data.vectorClock.present
           ? data.vectorClock.value
           : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
       id: data.id.present ? data.id.value : this.id,
       roomNumber: data.roomNumber.present
           ? data.roomNumber.value
@@ -31039,6 +33790,8 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('roomNumber: $roomNumber, ')
           ..write('guestName: $guestName, ')
@@ -31069,6 +33822,8 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     roomNumber,
     guestName,
@@ -31098,6 +33853,8 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
           other.version == this.version &&
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.roomNumber == this.roomNumber &&
           other.guestName == this.guestName &&
@@ -31125,6 +33882,8 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
   final Value<int> version;
   final Value<String> origin;
   final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> roomNumber;
   final Value<String> guestName;
@@ -31150,6 +33909,8 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.roomNumber = const Value.absent(),
     this.guestName = const Value.absent(),
@@ -31176,6 +33937,8 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required String roomNumber,
     required String guestName,
@@ -31209,6 +33972,8 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     Expression<int>? version,
     Expression<String>? origin,
     Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<String>? roomNumber,
     Expression<String>? guestName,
@@ -31235,6 +34000,8 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
       if (version != null) 'version': version,
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (roomNumber != null) 'room_number': roomNumber,
       if (guestName != null) 'guest_name': guestName,
@@ -31263,6 +34030,8 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     Value<int>? version,
     Value<String>? origin,
     Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? roomNumber,
     Value<String>? guestName,
@@ -31289,6 +34058,8 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
       version: version ?? this.version,
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       roomNumber: roomNumber ?? this.roomNumber,
       guestName: guestName ?? this.guestName,
@@ -31347,6 +34118,12 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     if (vectorClock.present) {
       map['vector_clock'] = Variable<String>(vectorClock.value);
     }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
@@ -31397,6 +34174,8 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('roomNumber: $roomNumber, ')
           ..write('guestName: $guestName, ')
@@ -31576,6 +34355,29 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
     requiredDuringInsert: false,
     defaultValue: const Constant('{}'),
   );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<int> id = GeneratedColumn<int>(
@@ -31665,6 +34467,17 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _expenseIdMeta = const VerificationMeta(
+    'expenseId',
+  );
+  @override
+  late final GeneratedColumn<int> expenseId = GeneratedColumn<int>(
+    'expense_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -31681,6 +34494,8 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     employeeId,
     amount,
@@ -31689,6 +34504,7 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
     hotelDayKey,
     withdrawalType,
     description,
+    expenseId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -31815,6 +34631,21 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
         ),
       );
     }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
+        ),
+      );
+    }
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     }
@@ -31876,6 +34707,12 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
           data['description']!,
           _descriptionMeta,
         ),
+      );
+    }
+    if (data.containsKey('expense_id')) {
+      context.handle(
+        _expenseIdMeta,
+        expenseId.isAcceptableOrUnknown(data['expense_id']!, _expenseIdMeta),
       );
     }
     return context;
@@ -31943,6 +34780,14 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
         DriftSqlType.string,
         data['${effectivePrefix}vector_clock'],
       )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -31975,6 +34820,10 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
         DriftSqlType.string,
         data['${effectivePrefix}description'],
       ),
+      expenseId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}expense_id'],
+      ),
     );
   }
 
@@ -32000,6 +34849,8 @@ class SalaryWithdrawal extends DataClass
   final int version;
   final String origin;
   final String vectorClock;
+  final String deviceId;
+  final String? idempotencyKey;
   final int id;
   final int employeeId;
   final double amount;
@@ -32008,6 +34859,7 @@ class SalaryWithdrawal extends DataClass
   final String? hotelDayKey;
   final String? withdrawalType;
   final String? description;
+  final int? expenseId;
   const SalaryWithdrawal({
     required this.localUuid,
     this.serverId,
@@ -32023,6 +34875,8 @@ class SalaryWithdrawal extends DataClass
     required this.version,
     required this.origin,
     required this.vectorClock,
+    required this.deviceId,
+    this.idempotencyKey,
     required this.id,
     required this.employeeId,
     required this.amount,
@@ -32031,6 +34885,7 @@ class SalaryWithdrawal extends DataClass
     this.hotelDayKey,
     this.withdrawalType,
     this.description,
+    this.expenseId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -32059,6 +34914,10 @@ class SalaryWithdrawal extends DataClass
     map['version'] = Variable<int>(version);
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
     map['id'] = Variable<int>(id);
     map['employee_id'] = Variable<int>(employeeId);
     map['amount'] = Variable<double>(amount);
@@ -32074,6 +34933,9 @@ class SalaryWithdrawal extends DataClass
     }
     if (!nullToAbsent || description != null) {
       map['description'] = Variable<String>(description);
+    }
+    if (!nullToAbsent || expenseId != null) {
+      map['expense_id'] = Variable<int>(expenseId);
     }
     return map;
   }
@@ -32104,6 +34966,10 @@ class SalaryWithdrawal extends DataClass
       version: Value(version),
       origin: Value(origin),
       vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
       id: Value(id),
       employeeId: Value(employeeId),
       amount: Value(amount),
@@ -32120,6 +34986,9 @@ class SalaryWithdrawal extends DataClass
       description: description == null && nullToAbsent
           ? const Value.absent()
           : Value(description),
+      expenseId: expenseId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expenseId),
     );
   }
 
@@ -32143,6 +35012,8 @@ class SalaryWithdrawal extends DataClass
       version: serializer.fromJson<int>(json['version']),
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       employeeId: serializer.fromJson<int>(json['employeeId']),
       amount: serializer.fromJson<double>(json['amount']),
@@ -32151,6 +35022,7 @@ class SalaryWithdrawal extends DataClass
       hotelDayKey: serializer.fromJson<String?>(json['hotelDayKey']),
       withdrawalType: serializer.fromJson<String?>(json['withdrawalType']),
       description: serializer.fromJson<String?>(json['description']),
+      expenseId: serializer.fromJson<int?>(json['expenseId']),
     );
   }
   @override
@@ -32171,6 +35043,8 @@ class SalaryWithdrawal extends DataClass
       'version': serializer.toJson<int>(version),
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'employeeId': serializer.toJson<int>(employeeId),
       'amount': serializer.toJson<double>(amount),
@@ -32179,6 +35053,7 @@ class SalaryWithdrawal extends DataClass
       'hotelDayKey': serializer.toJson<String?>(hotelDayKey),
       'withdrawalType': serializer.toJson<String?>(withdrawalType),
       'description': serializer.toJson<String?>(description),
+      'expenseId': serializer.toJson<int?>(expenseId),
     };
   }
 
@@ -32197,6 +35072,8 @@ class SalaryWithdrawal extends DataClass
     int? version,
     String? origin,
     String? vectorClock,
+    String? deviceId,
+    Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     int? employeeId,
     double? amount,
@@ -32205,6 +35082,7 @@ class SalaryWithdrawal extends DataClass
     Value<String?> hotelDayKey = const Value.absent(),
     Value<String?> withdrawalType = const Value.absent(),
     Value<String?> description = const Value.absent(),
+    Value<int?> expenseId = const Value.absent(),
   }) => SalaryWithdrawal(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -32220,6 +35098,10 @@ class SalaryWithdrawal extends DataClass
     version: version ?? this.version,
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
     id: id ?? this.id,
     employeeId: employeeId ?? this.employeeId,
     amount: amount ?? this.amount,
@@ -32230,6 +35112,7 @@ class SalaryWithdrawal extends DataClass
         ? withdrawalType.value
         : this.withdrawalType,
     description: description.present ? description.value : this.description,
+    expenseId: expenseId.present ? expenseId.value : this.expenseId,
   );
   SalaryWithdrawal copyWithCompanion(SalaryWithdrawalsCompanion data) {
     return SalaryWithdrawal(
@@ -32261,6 +35144,10 @@ class SalaryWithdrawal extends DataClass
       vectorClock: data.vectorClock.present
           ? data.vectorClock.value
           : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
       id: data.id.present ? data.id.value : this.id,
       employeeId: data.employeeId.present
           ? data.employeeId.value
@@ -32279,6 +35166,7 @@ class SalaryWithdrawal extends DataClass
       description: data.description.present
           ? data.description.value
           : this.description,
+      expenseId: data.expenseId.present ? data.expenseId.value : this.expenseId,
     );
   }
 
@@ -32299,6 +35187,8 @@ class SalaryWithdrawal extends DataClass
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('employeeId: $employeeId, ')
           ..write('amount: $amount, ')
@@ -32306,7 +35196,8 @@ class SalaryWithdrawal extends DataClass
           ..write('reason: $reason, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('withdrawalType: $withdrawalType, ')
-          ..write('description: $description')
+          ..write('description: $description, ')
+          ..write('expenseId: $expenseId')
           ..write(')'))
         .toString();
   }
@@ -32327,6 +35218,8 @@ class SalaryWithdrawal extends DataClass
     version,
     origin,
     vectorClock,
+    deviceId,
+    idempotencyKey,
     id,
     employeeId,
     amount,
@@ -32335,6 +35228,7 @@ class SalaryWithdrawal extends DataClass
     hotelDayKey,
     withdrawalType,
     description,
+    expenseId,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -32354,6 +35248,8 @@ class SalaryWithdrawal extends DataClass
           other.version == this.version &&
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.employeeId == this.employeeId &&
           other.amount == this.amount &&
@@ -32361,7 +35257,8 @@ class SalaryWithdrawal extends DataClass
           other.reason == this.reason &&
           other.hotelDayKey == this.hotelDayKey &&
           other.withdrawalType == this.withdrawalType &&
-          other.description == this.description);
+          other.description == this.description &&
+          other.expenseId == this.expenseId);
 }
 
 class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
@@ -32379,6 +35276,8 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
   final Value<int> version;
   final Value<String> origin;
   final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int> employeeId;
   final Value<double> amount;
@@ -32387,6 +35286,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
   final Value<String?> hotelDayKey;
   final Value<String?> withdrawalType;
   final Value<String?> description;
+  final Value<int?> expenseId;
   const SalaryWithdrawalsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -32402,6 +35302,8 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.employeeId = const Value.absent(),
     this.amount = const Value.absent(),
@@ -32410,6 +35312,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     this.hotelDayKey = const Value.absent(),
     this.withdrawalType = const Value.absent(),
     this.description = const Value.absent(),
+    this.expenseId = const Value.absent(),
   });
   SalaryWithdrawalsCompanion.insert({
     required String localUuid,
@@ -32426,6 +35329,8 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     this.version = const Value.absent(),
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required int employeeId,
     required double amount,
@@ -32434,6 +35339,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     this.hotelDayKey = const Value.absent(),
     this.withdrawalType = const Value.absent(),
     this.description = const Value.absent(),
+    this.expenseId = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -32456,6 +35362,8 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     Expression<int>? version,
     Expression<String>? origin,
     Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<int>? employeeId,
     Expression<double>? amount,
@@ -32464,6 +35372,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     Expression<String>? hotelDayKey,
     Expression<String>? withdrawalType,
     Expression<String>? description,
+    Expression<int>? expenseId,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -32480,6 +35389,8 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
       if (version != null) 'version': version,
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (employeeId != null) 'employee_id': employeeId,
       if (amount != null) 'amount': amount,
@@ -32488,6 +35399,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
       if (hotelDayKey != null) 'hotel_day_key': hotelDayKey,
       if (withdrawalType != null) 'withdrawal_type': withdrawalType,
       if (description != null) 'description': description,
+      if (expenseId != null) 'expense_id': expenseId,
     });
   }
 
@@ -32506,6 +35418,8 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     Value<int>? version,
     Value<String>? origin,
     Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int>? employeeId,
     Value<double>? amount,
@@ -32514,6 +35428,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     Value<String?>? hotelDayKey,
     Value<String?>? withdrawalType,
     Value<String?>? description,
+    Value<int?>? expenseId,
   }) {
     return SalaryWithdrawalsCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -32530,6 +35445,8 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
       version: version ?? this.version,
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       employeeId: employeeId ?? this.employeeId,
       amount: amount ?? this.amount,
@@ -32538,6 +35455,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
       hotelDayKey: hotelDayKey ?? this.hotelDayKey,
       withdrawalType: withdrawalType ?? this.withdrawalType,
       description: description ?? this.description,
+      expenseId: expenseId ?? this.expenseId,
     );
   }
 
@@ -32586,6 +35504,12 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     if (vectorClock.present) {
       map['vector_clock'] = Variable<String>(vectorClock.value);
     }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
     if (id.present) {
       map['id'] = Variable<int>(id.value);
     }
@@ -32610,6 +35534,9 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     if (description.present) {
       map['description'] = Variable<String>(description.value);
     }
+    if (expenseId.present) {
+      map['expense_id'] = Variable<int>(expenseId.value);
+    }
     return map;
   }
 
@@ -32630,6 +35557,8 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
           ..write('version: $version, ')
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('employeeId: $employeeId, ')
           ..write('amount: $amount, ')
@@ -32637,7 +35566,1743 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
           ..write('reason: $reason, ')
           ..write('hotelDayKey: $hotelDayKey, ')
           ..write('withdrawalType: $withdrawalType, ')
-          ..write('description: $description')
+          ..write('description: $description, ')
+          ..write('expenseId: $expenseId')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SalaryCarryOverLogsTable extends SalaryCarryOverLogs
+    with TableInfo<$SalaryCarryOverLogsTable, SalaryCarryOverLog> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SalaryCarryOverLogsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _localUuidMeta = const VerificationMeta(
+    'localUuid',
+  );
+  @override
+  late final GeneratedColumn<String> localUuid = GeneratedColumn<String>(
+    'local_uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<int> serverId = GeneratedColumn<int>(
+    'server_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastModifiedMeta = const VerificationMeta(
+    'lastModified',
+  );
+  @override
+  late final GeneratedColumn<int> lastModified = GeneratedColumn<int>(
+    'last_modified',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtIsoMeta = const VerificationMeta(
+    'createdAtIso',
+  );
+  @override
+  late final GeneratedColumn<String> createdAtIso = GeneratedColumn<String>(
+    'created_at_iso',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtIsoMeta = const VerificationMeta(
+    'updatedAtIso',
+  );
+  @override
+  late final GeneratedColumn<String> updatedAtIso = GeneratedColumn<String>(
+    'updated_at_iso',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deletedAtIsoMeta = const VerificationMeta(
+    'deletedAtIso',
+  );
+  @override
+  late final GeneratedColumn<String> deletedAtIso = GeneratedColumn<String>(
+    'deleted_at_iso',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtEpochMeta = const VerificationMeta(
+    'createdAtEpoch',
+  );
+  @override
+  late final GeneratedColumn<int> createdAtEpoch = GeneratedColumn<int>(
+    'created_at_epoch',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _lastModifiedEpochMeta = const VerificationMeta(
+    'lastModifiedEpoch',
+  );
+  @override
+  late final GeneratedColumn<int> lastModifiedEpoch = GeneratedColumn<int>(
+    'last_modified_epoch',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _originMeta = const VerificationMeta('origin');
+  @override
+  late final GeneratedColumn<String> origin = GeneratedColumn<String>(
+    'origin',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('local'),
+  );
+  static const VerificationMeta _vectorClockMeta = const VerificationMeta(
+    'vectorClock',
+  );
+  @override
+  late final GeneratedColumn<String> vectorClock = GeneratedColumn<String>(
+    'vector_clock',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _employeeIdMeta = const VerificationMeta(
+    'employeeId',
+  );
+  @override
+  late final GeneratedColumn<int> employeeId = GeneratedColumn<int>(
+    'employee_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES employees (id)',
+    ),
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _previousCycleStartMeta =
+      const VerificationMeta('previousCycleStart');
+  @override
+  late final GeneratedColumn<String> previousCycleStart =
+      GeneratedColumn<String>(
+        'previous_cycle_start',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _previousCycleEndMeta = const VerificationMeta(
+    'previousCycleEnd',
+  );
+  @override
+  late final GeneratedColumn<String> previousCycleEnd = GeneratedColumn<String>(
+    'previous_cycle_end',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _newCycleStartMeta = const VerificationMeta(
+    'newCycleStart',
+  );
+  @override
+  late final GeneratedColumn<String> newCycleStart = GeneratedColumn<String>(
+    'new_cycle_start',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _newCycleEndMeta = const VerificationMeta(
+    'newCycleEnd',
+  );
+  @override
+  late final GeneratedColumn<String> newCycleEnd = GeneratedColumn<String>(
+    'new_cycle_end',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reasonMeta = const VerificationMeta('reason');
+  @override
+  late final GeneratedColumn<String> reason = GeneratedColumn<String>(
+    'reason',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _carriedAtMeta = const VerificationMeta(
+    'carriedAt',
+  );
+  @override
+  late final GeneratedColumn<int> carriedAt = GeneratedColumn<int>(
+    'carried_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    vectorClock,
+    deviceId,
+    idempotencyKey,
+    id,
+    employeeId,
+    amount,
+    previousCycleStart,
+    previousCycleEnd,
+    newCycleStart,
+    newCycleEnd,
+    reason,
+    carriedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'salary_carry_over_logs';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SalaryCarryOverLog> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('local_uuid')) {
+      context.handle(
+        _localUuidMeta,
+        localUuid.isAcceptableOrUnknown(data['local_uuid']!, _localUuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_localUuidMeta);
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('last_modified')) {
+      context.handle(
+        _lastModifiedMeta,
+        lastModified.isAcceptableOrUnknown(
+          data['last_modified']!,
+          _lastModifiedMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_lastModifiedMeta);
+    }
+    if (data.containsKey('created_at_iso')) {
+      context.handle(
+        _createdAtIsoMeta,
+        createdAtIso.isAcceptableOrUnknown(
+          data['created_at_iso']!,
+          _createdAtIsoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('updated_at_iso')) {
+      context.handle(
+        _updatedAtIsoMeta,
+        updatedAtIso.isAcceptableOrUnknown(
+          data['updated_at_iso']!,
+          _updatedAtIsoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('deleted_at_iso')) {
+      context.handle(
+        _deletedAtIsoMeta,
+        deletedAtIso.isAcceptableOrUnknown(
+          data['deleted_at_iso']!,
+          _deletedAtIsoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at_epoch')) {
+      context.handle(
+        _createdAtEpochMeta,
+        createdAtEpoch.isAcceptableOrUnknown(
+          data['created_at_epoch']!,
+          _createdAtEpochMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_modified_epoch')) {
+      context.handle(
+        _lastModifiedEpochMeta,
+        lastModifiedEpoch.isAcceptableOrUnknown(
+          data['last_modified_epoch']!,
+          _lastModifiedEpochMeta,
+        ),
+      );
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    }
+    if (data.containsKey('origin')) {
+      context.handle(
+        _originMeta,
+        origin.isAcceptableOrUnknown(data['origin']!, _originMeta),
+      );
+    }
+    if (data.containsKey('vector_clock')) {
+      context.handle(
+        _vectorClockMeta,
+        vectorClock.isAcceptableOrUnknown(
+          data['vector_clock']!,
+          _vectorClockMeta,
+        ),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('employee_id')) {
+      context.handle(
+        _employeeIdMeta,
+        employeeId.isAcceptableOrUnknown(data['employee_id']!, _employeeIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_employeeIdMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('previous_cycle_start')) {
+      context.handle(
+        _previousCycleStartMeta,
+        previousCycleStart.isAcceptableOrUnknown(
+          data['previous_cycle_start']!,
+          _previousCycleStartMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_previousCycleStartMeta);
+    }
+    if (data.containsKey('previous_cycle_end')) {
+      context.handle(
+        _previousCycleEndMeta,
+        previousCycleEnd.isAcceptableOrUnknown(
+          data['previous_cycle_end']!,
+          _previousCycleEndMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_previousCycleEndMeta);
+    }
+    if (data.containsKey('new_cycle_start')) {
+      context.handle(
+        _newCycleStartMeta,
+        newCycleStart.isAcceptableOrUnknown(
+          data['new_cycle_start']!,
+          _newCycleStartMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_newCycleStartMeta);
+    }
+    if (data.containsKey('new_cycle_end')) {
+      context.handle(
+        _newCycleEndMeta,
+        newCycleEnd.isAcceptableOrUnknown(
+          data['new_cycle_end']!,
+          _newCycleEndMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_newCycleEndMeta);
+    }
+    if (data.containsKey('reason')) {
+      context.handle(
+        _reasonMeta,
+        reason.isAcceptableOrUnknown(data['reason']!, _reasonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_reasonMeta);
+    }
+    if (data.containsKey('carried_at')) {
+      context.handle(
+        _carriedAtMeta,
+        carriedAt.isAcceptableOrUnknown(data['carried_at']!, _carriedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_carriedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SalaryCarryOverLog map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SalaryCarryOverLog(
+      localUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_uuid'],
+      )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_id'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      lastModified: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_modified'],
+      )!,
+      createdAtIso: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at_iso'],
+      ),
+      updatedAtIso: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}updated_at_iso'],
+      ),
+      deletedAtIso: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_at_iso'],
+      ),
+      createdAtEpoch: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at_epoch'],
+      )!,
+      lastModifiedEpoch: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_modified_epoch'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      origin: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin'],
+      )!,
+      vectorClock: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}vector_clock'],
+      )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      employeeId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}employee_id'],
+      )!,
+      amount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}amount'],
+      )!,
+      previousCycleStart: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}previous_cycle_start'],
+      )!,
+      previousCycleEnd: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}previous_cycle_end'],
+      )!,
+      newCycleStart: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}new_cycle_start'],
+      )!,
+      newCycleEnd: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}new_cycle_end'],
+      )!,
+      reason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reason'],
+      )!,
+      carriedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}carried_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SalaryCarryOverLogsTable createAlias(String alias) {
+    return $SalaryCarryOverLogsTable(attachedDatabase, alias);
+  }
+}
+
+class SalaryCarryOverLog extends DataClass
+    implements Insertable<SalaryCarryOverLog> {
+  final String localUuid;
+  final int? serverId;
+  final int createdAt;
+  final int updatedAt;
+  final int? deletedAt;
+  final int lastModified;
+  final String? createdAtIso;
+  final String? updatedAtIso;
+  final String? deletedAtIso;
+  final int createdAtEpoch;
+  final int lastModifiedEpoch;
+  final int version;
+  final String origin;
+  final String vectorClock;
+  final String deviceId;
+  final String? idempotencyKey;
+  final int id;
+  final int employeeId;
+  final double amount;
+  final String previousCycleStart;
+  final String previousCycleEnd;
+  final String newCycleStart;
+  final String newCycleEnd;
+  final String reason;
+  final int carriedAt;
+  const SalaryCarryOverLog({
+    required this.localUuid,
+    this.serverId,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+    required this.lastModified,
+    this.createdAtIso,
+    this.updatedAtIso,
+    this.deletedAtIso,
+    required this.createdAtEpoch,
+    required this.lastModifiedEpoch,
+    required this.version,
+    required this.origin,
+    required this.vectorClock,
+    required this.deviceId,
+    this.idempotencyKey,
+    required this.id,
+    required this.employeeId,
+    required this.amount,
+    required this.previousCycleStart,
+    required this.previousCycleEnd,
+    required this.newCycleStart,
+    required this.newCycleEnd,
+    required this.reason,
+    required this.carriedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['local_uuid'] = Variable<String>(localUuid);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<int>(serverId);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    map['last_modified'] = Variable<int>(lastModified);
+    if (!nullToAbsent || createdAtIso != null) {
+      map['created_at_iso'] = Variable<String>(createdAtIso);
+    }
+    if (!nullToAbsent || updatedAtIso != null) {
+      map['updated_at_iso'] = Variable<String>(updatedAtIso);
+    }
+    if (!nullToAbsent || deletedAtIso != null) {
+      map['deleted_at_iso'] = Variable<String>(deletedAtIso);
+    }
+    map['created_at_epoch'] = Variable<int>(createdAtEpoch);
+    map['last_modified_epoch'] = Variable<int>(lastModifiedEpoch);
+    map['version'] = Variable<int>(version);
+    map['origin'] = Variable<String>(origin);
+    map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
+    map['id'] = Variable<int>(id);
+    map['employee_id'] = Variable<int>(employeeId);
+    map['amount'] = Variable<double>(amount);
+    map['previous_cycle_start'] = Variable<String>(previousCycleStart);
+    map['previous_cycle_end'] = Variable<String>(previousCycleEnd);
+    map['new_cycle_start'] = Variable<String>(newCycleStart);
+    map['new_cycle_end'] = Variable<String>(newCycleEnd);
+    map['reason'] = Variable<String>(reason);
+    map['carried_at'] = Variable<int>(carriedAt);
+    return map;
+  }
+
+  SalaryCarryOverLogsCompanion toCompanion(bool nullToAbsent) {
+    return SalaryCarryOverLogsCompanion(
+      localUuid: Value(localUuid),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      lastModified: Value(lastModified),
+      createdAtIso: createdAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAtIso),
+      updatedAtIso: updatedAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAtIso),
+      deletedAtIso: deletedAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAtIso),
+      createdAtEpoch: Value(createdAtEpoch),
+      lastModifiedEpoch: Value(lastModifiedEpoch),
+      version: Value(version),
+      origin: Value(origin),
+      vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
+      id: Value(id),
+      employeeId: Value(employeeId),
+      amount: Value(amount),
+      previousCycleStart: Value(previousCycleStart),
+      previousCycleEnd: Value(previousCycleEnd),
+      newCycleStart: Value(newCycleStart),
+      newCycleEnd: Value(newCycleEnd),
+      reason: Value(reason),
+      carriedAt: Value(carriedAt),
+    );
+  }
+
+  factory SalaryCarryOverLog.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SalaryCarryOverLog(
+      localUuid: serializer.fromJson<String>(json['localUuid']),
+      serverId: serializer.fromJson<int?>(json['serverId']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+      lastModified: serializer.fromJson<int>(json['lastModified']),
+      createdAtIso: serializer.fromJson<String?>(json['createdAtIso']),
+      updatedAtIso: serializer.fromJson<String?>(json['updatedAtIso']),
+      deletedAtIso: serializer.fromJson<String?>(json['deletedAtIso']),
+      createdAtEpoch: serializer.fromJson<int>(json['createdAtEpoch']),
+      lastModifiedEpoch: serializer.fromJson<int>(json['lastModifiedEpoch']),
+      version: serializer.fromJson<int>(json['version']),
+      origin: serializer.fromJson<String>(json['origin']),
+      vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
+      id: serializer.fromJson<int>(json['id']),
+      employeeId: serializer.fromJson<int>(json['employeeId']),
+      amount: serializer.fromJson<double>(json['amount']),
+      previousCycleStart: serializer.fromJson<String>(
+        json['previousCycleStart'],
+      ),
+      previousCycleEnd: serializer.fromJson<String>(json['previousCycleEnd']),
+      newCycleStart: serializer.fromJson<String>(json['newCycleStart']),
+      newCycleEnd: serializer.fromJson<String>(json['newCycleEnd']),
+      reason: serializer.fromJson<String>(json['reason']),
+      carriedAt: serializer.fromJson<int>(json['carriedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'localUuid': serializer.toJson<String>(localUuid),
+      'serverId': serializer.toJson<int?>(serverId),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
+      'lastModified': serializer.toJson<int>(lastModified),
+      'createdAtIso': serializer.toJson<String?>(createdAtIso),
+      'updatedAtIso': serializer.toJson<String?>(updatedAtIso),
+      'deletedAtIso': serializer.toJson<String?>(deletedAtIso),
+      'createdAtEpoch': serializer.toJson<int>(createdAtEpoch),
+      'lastModifiedEpoch': serializer.toJson<int>(lastModifiedEpoch),
+      'version': serializer.toJson<int>(version),
+      'origin': serializer.toJson<String>(origin),
+      'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
+      'id': serializer.toJson<int>(id),
+      'employeeId': serializer.toJson<int>(employeeId),
+      'amount': serializer.toJson<double>(amount),
+      'previousCycleStart': serializer.toJson<String>(previousCycleStart),
+      'previousCycleEnd': serializer.toJson<String>(previousCycleEnd),
+      'newCycleStart': serializer.toJson<String>(newCycleStart),
+      'newCycleEnd': serializer.toJson<String>(newCycleEnd),
+      'reason': serializer.toJson<String>(reason),
+      'carriedAt': serializer.toJson<int>(carriedAt),
+    };
+  }
+
+  SalaryCarryOverLog copyWith({
+    String? localUuid,
+    Value<int?> serverId = const Value.absent(),
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> deletedAt = const Value.absent(),
+    int? lastModified,
+    Value<String?> createdAtIso = const Value.absent(),
+    Value<String?> updatedAtIso = const Value.absent(),
+    Value<String?> deletedAtIso = const Value.absent(),
+    int? createdAtEpoch,
+    int? lastModifiedEpoch,
+    int? version,
+    String? origin,
+    String? vectorClock,
+    String? deviceId,
+    Value<String?> idempotencyKey = const Value.absent(),
+    int? id,
+    int? employeeId,
+    double? amount,
+    String? previousCycleStart,
+    String? previousCycleEnd,
+    String? newCycleStart,
+    String? newCycleEnd,
+    String? reason,
+    int? carriedAt,
+  }) => SalaryCarryOverLog(
+    localUuid: localUuid ?? this.localUuid,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    lastModified: lastModified ?? this.lastModified,
+    createdAtIso: createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+    updatedAtIso: updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+    deletedAtIso: deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+    createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+    lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+    version: version ?? this.version,
+    origin: origin ?? this.origin,
+    vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
+    id: id ?? this.id,
+    employeeId: employeeId ?? this.employeeId,
+    amount: amount ?? this.amount,
+    previousCycleStart: previousCycleStart ?? this.previousCycleStart,
+    previousCycleEnd: previousCycleEnd ?? this.previousCycleEnd,
+    newCycleStart: newCycleStart ?? this.newCycleStart,
+    newCycleEnd: newCycleEnd ?? this.newCycleEnd,
+    reason: reason ?? this.reason,
+    carriedAt: carriedAt ?? this.carriedAt,
+  );
+  SalaryCarryOverLog copyWithCompanion(SalaryCarryOverLogsCompanion data) {
+    return SalaryCarryOverLog(
+      localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      lastModified: data.lastModified.present
+          ? data.lastModified.value
+          : this.lastModified,
+      createdAtIso: data.createdAtIso.present
+          ? data.createdAtIso.value
+          : this.createdAtIso,
+      updatedAtIso: data.updatedAtIso.present
+          ? data.updatedAtIso.value
+          : this.updatedAtIso,
+      deletedAtIso: data.deletedAtIso.present
+          ? data.deletedAtIso.value
+          : this.deletedAtIso,
+      createdAtEpoch: data.createdAtEpoch.present
+          ? data.createdAtEpoch.value
+          : this.createdAtEpoch,
+      lastModifiedEpoch: data.lastModifiedEpoch.present
+          ? data.lastModifiedEpoch.value
+          : this.lastModifiedEpoch,
+      version: data.version.present ? data.version.value : this.version,
+      origin: data.origin.present ? data.origin.value : this.origin,
+      vectorClock: data.vectorClock.present
+          ? data.vectorClock.value
+          : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
+      id: data.id.present ? data.id.value : this.id,
+      employeeId: data.employeeId.present
+          ? data.employeeId.value
+          : this.employeeId,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      previousCycleStart: data.previousCycleStart.present
+          ? data.previousCycleStart.value
+          : this.previousCycleStart,
+      previousCycleEnd: data.previousCycleEnd.present
+          ? data.previousCycleEnd.value
+          : this.previousCycleEnd,
+      newCycleStart: data.newCycleStart.present
+          ? data.newCycleStart.value
+          : this.newCycleStart,
+      newCycleEnd: data.newCycleEnd.present
+          ? data.newCycleEnd.value
+          : this.newCycleEnd,
+      reason: data.reason.present ? data.reason.value : this.reason,
+      carriedAt: data.carriedAt.present ? data.carriedAt.value : this.carriedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SalaryCarryOverLog(')
+          ..write('localUuid: $localUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('createdAtIso: $createdAtIso, ')
+          ..write('updatedAtIso: $updatedAtIso, ')
+          ..write('deletedAtIso: $deletedAtIso, ')
+          ..write('createdAtEpoch: $createdAtEpoch, ')
+          ..write('lastModifiedEpoch: $lastModifiedEpoch, ')
+          ..write('version: $version, ')
+          ..write('origin: $origin, ')
+          ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
+          ..write('id: $id, ')
+          ..write('employeeId: $employeeId, ')
+          ..write('amount: $amount, ')
+          ..write('previousCycleStart: $previousCycleStart, ')
+          ..write('previousCycleEnd: $previousCycleEnd, ')
+          ..write('newCycleStart: $newCycleStart, ')
+          ..write('newCycleEnd: $newCycleEnd, ')
+          ..write('reason: $reason, ')
+          ..write('carriedAt: $carriedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    vectorClock,
+    deviceId,
+    idempotencyKey,
+    id,
+    employeeId,
+    amount,
+    previousCycleStart,
+    previousCycleEnd,
+    newCycleStart,
+    newCycleEnd,
+    reason,
+    carriedAt,
+  ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SalaryCarryOverLog &&
+          other.localUuid == this.localUuid &&
+          other.serverId == this.serverId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.lastModified == this.lastModified &&
+          other.createdAtIso == this.createdAtIso &&
+          other.updatedAtIso == this.updatedAtIso &&
+          other.deletedAtIso == this.deletedAtIso &&
+          other.createdAtEpoch == this.createdAtEpoch &&
+          other.lastModifiedEpoch == this.lastModifiedEpoch &&
+          other.version == this.version &&
+          other.origin == this.origin &&
+          other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.idempotencyKey == this.idempotencyKey &&
+          other.id == this.id &&
+          other.employeeId == this.employeeId &&
+          other.amount == this.amount &&
+          other.previousCycleStart == this.previousCycleStart &&
+          other.previousCycleEnd == this.previousCycleEnd &&
+          other.newCycleStart == this.newCycleStart &&
+          other.newCycleEnd == this.newCycleEnd &&
+          other.reason == this.reason &&
+          other.carriedAt == this.carriedAt);
+}
+
+class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
+  final Value<String> localUuid;
+  final Value<int?> serverId;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> deletedAt;
+  final Value<int> lastModified;
+  final Value<String?> createdAtIso;
+  final Value<String?> updatedAtIso;
+  final Value<String?> deletedAtIso;
+  final Value<int> createdAtEpoch;
+  final Value<int> lastModifiedEpoch;
+  final Value<int> version;
+  final Value<String> origin;
+  final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<String?> idempotencyKey;
+  final Value<int> id;
+  final Value<int> employeeId;
+  final Value<double> amount;
+  final Value<String> previousCycleStart;
+  final Value<String> previousCycleEnd;
+  final Value<String> newCycleStart;
+  final Value<String> newCycleEnd;
+  final Value<String> reason;
+  final Value<int> carriedAt;
+  const SalaryCarryOverLogsCompanion({
+    this.localUuid = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.lastModified = const Value.absent(),
+    this.createdAtIso = const Value.absent(),
+    this.updatedAtIso = const Value.absent(),
+    this.deletedAtIso = const Value.absent(),
+    this.createdAtEpoch = const Value.absent(),
+    this.lastModifiedEpoch = const Value.absent(),
+    this.version = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
+    this.id = const Value.absent(),
+    this.employeeId = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.previousCycleStart = const Value.absent(),
+    this.previousCycleEnd = const Value.absent(),
+    this.newCycleStart = const Value.absent(),
+    this.newCycleEnd = const Value.absent(),
+    this.reason = const Value.absent(),
+    this.carriedAt = const Value.absent(),
+  });
+  SalaryCarryOverLogsCompanion.insert({
+    required String localUuid,
+    this.serverId = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.deletedAt = const Value.absent(),
+    required int lastModified,
+    this.createdAtIso = const Value.absent(),
+    this.updatedAtIso = const Value.absent(),
+    this.deletedAtIso = const Value.absent(),
+    this.createdAtEpoch = const Value.absent(),
+    this.lastModifiedEpoch = const Value.absent(),
+    this.version = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
+    this.id = const Value.absent(),
+    required int employeeId,
+    required double amount,
+    required String previousCycleStart,
+    required String previousCycleEnd,
+    required String newCycleStart,
+    required String newCycleEnd,
+    required String reason,
+    required int carriedAt,
+  }) : localUuid = Value(localUuid),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       lastModified = Value(lastModified),
+       employeeId = Value(employeeId),
+       amount = Value(amount),
+       previousCycleStart = Value(previousCycleStart),
+       previousCycleEnd = Value(previousCycleEnd),
+       newCycleStart = Value(newCycleStart),
+       newCycleEnd = Value(newCycleEnd),
+       reason = Value(reason),
+       carriedAt = Value(carriedAt);
+  static Insertable<SalaryCarryOverLog> custom({
+    Expression<String>? localUuid,
+    Expression<int>? serverId,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? deletedAt,
+    Expression<int>? lastModified,
+    Expression<String>? createdAtIso,
+    Expression<String>? updatedAtIso,
+    Expression<String>? deletedAtIso,
+    Expression<int>? createdAtEpoch,
+    Expression<int>? lastModifiedEpoch,
+    Expression<int>? version,
+    Expression<String>? origin,
+    Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<String>? idempotencyKey,
+    Expression<int>? id,
+    Expression<int>? employeeId,
+    Expression<double>? amount,
+    Expression<String>? previousCycleStart,
+    Expression<String>? previousCycleEnd,
+    Expression<String>? newCycleStart,
+    Expression<String>? newCycleEnd,
+    Expression<String>? reason,
+    Expression<int>? carriedAt,
+  }) {
+    return RawValuesInsertable({
+      if (localUuid != null) 'local_uuid': localUuid,
+      if (serverId != null) 'server_id': serverId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (lastModified != null) 'last_modified': lastModified,
+      if (createdAtIso != null) 'created_at_iso': createdAtIso,
+      if (updatedAtIso != null) 'updated_at_iso': updatedAtIso,
+      if (deletedAtIso != null) 'deleted_at_iso': deletedAtIso,
+      if (createdAtEpoch != null) 'created_at_epoch': createdAtEpoch,
+      if (lastModifiedEpoch != null) 'last_modified_epoch': lastModifiedEpoch,
+      if (version != null) 'version': version,
+      if (origin != null) 'origin': origin,
+      if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
+      if (id != null) 'id': id,
+      if (employeeId != null) 'employee_id': employeeId,
+      if (amount != null) 'amount': amount,
+      if (previousCycleStart != null)
+        'previous_cycle_start': previousCycleStart,
+      if (previousCycleEnd != null) 'previous_cycle_end': previousCycleEnd,
+      if (newCycleStart != null) 'new_cycle_start': newCycleStart,
+      if (newCycleEnd != null) 'new_cycle_end': newCycleEnd,
+      if (reason != null) 'reason': reason,
+      if (carriedAt != null) 'carried_at': carriedAt,
+    });
+  }
+
+  SalaryCarryOverLogsCompanion copyWith({
+    Value<String>? localUuid,
+    Value<int?>? serverId,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? deletedAt,
+    Value<int>? lastModified,
+    Value<String?>? createdAtIso,
+    Value<String?>? updatedAtIso,
+    Value<String?>? deletedAtIso,
+    Value<int>? createdAtEpoch,
+    Value<int>? lastModifiedEpoch,
+    Value<int>? version,
+    Value<String>? origin,
+    Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<String?>? idempotencyKey,
+    Value<int>? id,
+    Value<int>? employeeId,
+    Value<double>? amount,
+    Value<String>? previousCycleStart,
+    Value<String>? previousCycleEnd,
+    Value<String>? newCycleStart,
+    Value<String>? newCycleEnd,
+    Value<String>? reason,
+    Value<int>? carriedAt,
+  }) {
+    return SalaryCarryOverLogsCompanion(
+      localUuid: localUuid ?? this.localUuid,
+      serverId: serverId ?? this.serverId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      lastModified: lastModified ?? this.lastModified,
+      createdAtIso: createdAtIso ?? this.createdAtIso,
+      updatedAtIso: updatedAtIso ?? this.updatedAtIso,
+      deletedAtIso: deletedAtIso ?? this.deletedAtIso,
+      createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+      lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+      version: version ?? this.version,
+      origin: origin ?? this.origin,
+      vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+      id: id ?? this.id,
+      employeeId: employeeId ?? this.employeeId,
+      amount: amount ?? this.amount,
+      previousCycleStart: previousCycleStart ?? this.previousCycleStart,
+      previousCycleEnd: previousCycleEnd ?? this.previousCycleEnd,
+      newCycleStart: newCycleStart ?? this.newCycleStart,
+      newCycleEnd: newCycleEnd ?? this.newCycleEnd,
+      reason: reason ?? this.reason,
+      carriedAt: carriedAt ?? this.carriedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (localUuid.present) {
+      map['local_uuid'] = Variable<String>(localUuid.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<int>(serverId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
+    if (lastModified.present) {
+      map['last_modified'] = Variable<int>(lastModified.value);
+    }
+    if (createdAtIso.present) {
+      map['created_at_iso'] = Variable<String>(createdAtIso.value);
+    }
+    if (updatedAtIso.present) {
+      map['updated_at_iso'] = Variable<String>(updatedAtIso.value);
+    }
+    if (deletedAtIso.present) {
+      map['deleted_at_iso'] = Variable<String>(deletedAtIso.value);
+    }
+    if (createdAtEpoch.present) {
+      map['created_at_epoch'] = Variable<int>(createdAtEpoch.value);
+    }
+    if (lastModifiedEpoch.present) {
+      map['last_modified_epoch'] = Variable<int>(lastModifiedEpoch.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (origin.present) {
+      map['origin'] = Variable<String>(origin.value);
+    }
+    if (vectorClock.present) {
+      map['vector_clock'] = Variable<String>(vectorClock.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (employeeId.present) {
+      map['employee_id'] = Variable<int>(employeeId.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (previousCycleStart.present) {
+      map['previous_cycle_start'] = Variable<String>(previousCycleStart.value);
+    }
+    if (previousCycleEnd.present) {
+      map['previous_cycle_end'] = Variable<String>(previousCycleEnd.value);
+    }
+    if (newCycleStart.present) {
+      map['new_cycle_start'] = Variable<String>(newCycleStart.value);
+    }
+    if (newCycleEnd.present) {
+      map['new_cycle_end'] = Variable<String>(newCycleEnd.value);
+    }
+    if (reason.present) {
+      map['reason'] = Variable<String>(reason.value);
+    }
+    if (carriedAt.present) {
+      map['carried_at'] = Variable<int>(carriedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SalaryCarryOverLogsCompanion(')
+          ..write('localUuid: $localUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('createdAtIso: $createdAtIso, ')
+          ..write('updatedAtIso: $updatedAtIso, ')
+          ..write('deletedAtIso: $deletedAtIso, ')
+          ..write('createdAtEpoch: $createdAtEpoch, ')
+          ..write('lastModifiedEpoch: $lastModifiedEpoch, ')
+          ..write('version: $version, ')
+          ..write('origin: $origin, ')
+          ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
+          ..write('id: $id, ')
+          ..write('employeeId: $employeeId, ')
+          ..write('amount: $amount, ')
+          ..write('previousCycleStart: $previousCycleStart, ')
+          ..write('previousCycleEnd: $previousCycleEnd, ')
+          ..write('newCycleStart: $newCycleStart, ')
+          ..write('newCycleEnd: $newCycleEnd, ')
+          ..write('reason: $reason, ')
+          ..write('carriedAt: $carriedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AncestorCacheTable extends AncestorCache
+    with TableInfo<$AncestorCacheTable, AncestorCacheData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AncestorCacheTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _entityMeta = const VerificationMeta('entity');
+  @override
+  late final GeneratedColumn<String> entity = GeneratedColumn<String>(
+    'entity',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _localUuidMeta = const VerificationMeta(
+    'localUuid',
+  );
+  @override
+  late final GeneratedColumn<String> localUuid = GeneratedColumn<String>(
+    'local_uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dataJsonMeta = const VerificationMeta(
+    'dataJson',
+  );
+  @override
+  late final GeneratedColumn<String> dataJson = GeneratedColumn<String>(
+    'data_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _capturedAtMeta = const VerificationMeta(
+    'capturedAt',
+  );
+  @override
+  late final GeneratedColumn<int> capturedAt = GeneratedColumn<int>(
+    'captured_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    entity,
+    localUuid,
+    dataJson,
+    capturedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'ancestor_cache';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AncestorCacheData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('entity')) {
+      context.handle(
+        _entityMeta,
+        entity.isAcceptableOrUnknown(data['entity']!, _entityMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_entityMeta);
+    }
+    if (data.containsKey('local_uuid')) {
+      context.handle(
+        _localUuidMeta,
+        localUuid.isAcceptableOrUnknown(data['local_uuid']!, _localUuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_localUuidMeta);
+    }
+    if (data.containsKey('data_json')) {
+      context.handle(
+        _dataJsonMeta,
+        dataJson.isAcceptableOrUnknown(data['data_json']!, _dataJsonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dataJsonMeta);
+    }
+    if (data.containsKey('captured_at')) {
+      context.handle(
+        _capturedAtMeta,
+        capturedAt.isAcceptableOrUnknown(data['captured_at']!, _capturedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_capturedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {entity, localUuid},
+  ];
+  @override
+  AncestorCacheData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AncestorCacheData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      entity: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}entity'],
+      )!,
+      localUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_uuid'],
+      )!,
+      dataJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}data_json'],
+      )!,
+      capturedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}captured_at'],
+      )!,
+    );
+  }
+
+  @override
+  $AncestorCacheTable createAlias(String alias) {
+    return $AncestorCacheTable(attachedDatabase, alias);
+  }
+}
+
+class AncestorCacheData extends DataClass
+    implements Insertable<AncestorCacheData> {
+  final int id;
+  final String entity;
+  final String localUuid;
+  final String dataJson;
+  final int capturedAt;
+  const AncestorCacheData({
+    required this.id,
+    required this.entity,
+    required this.localUuid,
+    required this.dataJson,
+    required this.capturedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['entity'] = Variable<String>(entity);
+    map['local_uuid'] = Variable<String>(localUuid);
+    map['data_json'] = Variable<String>(dataJson);
+    map['captured_at'] = Variable<int>(capturedAt);
+    return map;
+  }
+
+  AncestorCacheCompanion toCompanion(bool nullToAbsent) {
+    return AncestorCacheCompanion(
+      id: Value(id),
+      entity: Value(entity),
+      localUuid: Value(localUuid),
+      dataJson: Value(dataJson),
+      capturedAt: Value(capturedAt),
+    );
+  }
+
+  factory AncestorCacheData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AncestorCacheData(
+      id: serializer.fromJson<int>(json['id']),
+      entity: serializer.fromJson<String>(json['entity']),
+      localUuid: serializer.fromJson<String>(json['localUuid']),
+      dataJson: serializer.fromJson<String>(json['dataJson']),
+      capturedAt: serializer.fromJson<int>(json['capturedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'entity': serializer.toJson<String>(entity),
+      'localUuid': serializer.toJson<String>(localUuid),
+      'dataJson': serializer.toJson<String>(dataJson),
+      'capturedAt': serializer.toJson<int>(capturedAt),
+    };
+  }
+
+  AncestorCacheData copyWith({
+    int? id,
+    String? entity,
+    String? localUuid,
+    String? dataJson,
+    int? capturedAt,
+  }) => AncestorCacheData(
+    id: id ?? this.id,
+    entity: entity ?? this.entity,
+    localUuid: localUuid ?? this.localUuid,
+    dataJson: dataJson ?? this.dataJson,
+    capturedAt: capturedAt ?? this.capturedAt,
+  );
+  AncestorCacheData copyWithCompanion(AncestorCacheCompanion data) {
+    return AncestorCacheData(
+      id: data.id.present ? data.id.value : this.id,
+      entity: data.entity.present ? data.entity.value : this.entity,
+      localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
+      dataJson: data.dataJson.present ? data.dataJson.value : this.dataJson,
+      capturedAt: data.capturedAt.present
+          ? data.capturedAt.value
+          : this.capturedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AncestorCacheData(')
+          ..write('id: $id, ')
+          ..write('entity: $entity, ')
+          ..write('localUuid: $localUuid, ')
+          ..write('dataJson: $dataJson, ')
+          ..write('capturedAt: $capturedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, entity, localUuid, dataJson, capturedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AncestorCacheData &&
+          other.id == this.id &&
+          other.entity == this.entity &&
+          other.localUuid == this.localUuid &&
+          other.dataJson == this.dataJson &&
+          other.capturedAt == this.capturedAt);
+}
+
+class AncestorCacheCompanion extends UpdateCompanion<AncestorCacheData> {
+  final Value<int> id;
+  final Value<String> entity;
+  final Value<String> localUuid;
+  final Value<String> dataJson;
+  final Value<int> capturedAt;
+  const AncestorCacheCompanion({
+    this.id = const Value.absent(),
+    this.entity = const Value.absent(),
+    this.localUuid = const Value.absent(),
+    this.dataJson = const Value.absent(),
+    this.capturedAt = const Value.absent(),
+  });
+  AncestorCacheCompanion.insert({
+    this.id = const Value.absent(),
+    required String entity,
+    required String localUuid,
+    required String dataJson,
+    required int capturedAt,
+  }) : entity = Value(entity),
+       localUuid = Value(localUuid),
+       dataJson = Value(dataJson),
+       capturedAt = Value(capturedAt);
+  static Insertable<AncestorCacheData> custom({
+    Expression<int>? id,
+    Expression<String>? entity,
+    Expression<String>? localUuid,
+    Expression<String>? dataJson,
+    Expression<int>? capturedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (entity != null) 'entity': entity,
+      if (localUuid != null) 'local_uuid': localUuid,
+      if (dataJson != null) 'data_json': dataJson,
+      if (capturedAt != null) 'captured_at': capturedAt,
+    });
+  }
+
+  AncestorCacheCompanion copyWith({
+    Value<int>? id,
+    Value<String>? entity,
+    Value<String>? localUuid,
+    Value<String>? dataJson,
+    Value<int>? capturedAt,
+  }) {
+    return AncestorCacheCompanion(
+      id: id ?? this.id,
+      entity: entity ?? this.entity,
+      localUuid: localUuid ?? this.localUuid,
+      dataJson: dataJson ?? this.dataJson,
+      capturedAt: capturedAt ?? this.capturedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (entity.present) {
+      map['entity'] = Variable<String>(entity.value);
+    }
+    if (localUuid.present) {
+      map['local_uuid'] = Variable<String>(localUuid.value);
+    }
+    if (dataJson.present) {
+      map['data_json'] = Variable<String>(dataJson.value);
+    }
+    if (capturedAt.present) {
+      map['captured_at'] = Variable<int>(capturedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AncestorCacheCompanion(')
+          ..write('id: $id, ')
+          ..write('entity: $entity, ')
+          ..write('localUuid: $localUuid, ')
+          ..write('dataJson: $dataJson, ')
+          ..write('capturedAt: $capturedAt')
           ..write(')'))
         .toString();
   }
@@ -32681,6 +37346,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $GuestInfosTable guestInfos = $GuestInfosTable(this);
   late final $SalaryWithdrawalsTable salaryWithdrawals =
       $SalaryWithdrawalsTable(this);
+  late final $SalaryCarryOverLogsTable salaryCarryOverLogs =
+      $SalaryCarryOverLogsTable(this);
+  late final $AncestorCacheTable ancestorCache = $AncestorCacheTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -32714,6 +37382,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     paymentVoids,
     guestInfos,
     salaryWithdrawals,
+    salaryCarryOverLogs,
+    ancestorCache,
   ];
 }
 
@@ -32733,6 +37403,8 @@ typedef $$RoomsTableCreateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       required String roomNumber,
       required String type,
@@ -32760,6 +37432,8 @@ typedef $$RoomsTableUpdateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> roomNumber,
       Value<String> type,
@@ -32875,6 +37549,16 @@ class $$RoomsTableFilterComposer extends Composer<_$AppDatabase, $RoomsTable> {
 
   ColumnFilters<String> get vectorClock => $composableBuilder(
     column: $table.vectorClock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -33033,6 +37717,16 @@ class $$RoomsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -33149,6 +37843,14 @@ class $$RoomsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -33257,6 +37959,8 @@ class $$RoomsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> roomNumber = const Value.absent(),
                 Value<String> type = const Value.absent(),
@@ -33282,6 +37986,8 @@ class $$RoomsTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 roomNumber: roomNumber,
                 type: type,
@@ -33309,6 +38015,8 @@ class $$RoomsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String roomNumber,
                 required String type,
@@ -33334,6 +38042,8 @@ class $$RoomsTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 roomNumber: roomNumber,
                 type: type,
@@ -33409,6 +38119,8 @@ typedef $$BookingsTableCreateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> serverBookingId,
       required String roomNumber,
@@ -33459,6 +38171,8 @@ typedef $$BookingsTableUpdateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> serverBookingId,
       Value<String> roomNumber,
@@ -33592,6 +38306,67 @@ final class $$BookingsTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<
+    $BookingPriceAdjustmentsTable,
+    List<BookingPriceAdjustment>
+  >
+  _bookingPriceAdjustmentsByUuidTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.bookingPriceAdjustments,
+        aliasName: $_aliasNameGenerator(
+          db.bookings.localUuid,
+          db.bookingPriceAdjustments.bookingLocalUuid,
+        ),
+      );
+
+  $$BookingPriceAdjustmentsTableProcessedTableManager
+  get bookingPriceAdjustmentsByUuid {
+    final manager =
+        $$BookingPriceAdjustmentsTableTableManager(
+          $_db,
+          $_db.bookingPriceAdjustments,
+        ).filter(
+          (f) => f.bookingLocalUuid.localUuid.sqlEquals(
+            $_itemColumn<String>('local_uuid')!,
+          ),
+        );
+
+    final cache = $_typedResult.readTableOrNull(
+      _bookingPriceAdjustmentsByUuidTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $BookingPriceAdjustmentsTable,
+    List<BookingPriceAdjustment>
+  >
+  _bookingPriceAdjustmentsByIdTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.bookingPriceAdjustments,
+        aliasName: $_aliasNameGenerator(
+          db.bookings.id,
+          db.bookingPriceAdjustments.bookingLocalId,
+        ),
+      );
+
+  $$BookingPriceAdjustmentsTableProcessedTableManager
+  get bookingPriceAdjustmentsById {
+    final manager = $$BookingPriceAdjustmentsTableTableManager(
+      $_db,
+      $_db.bookingPriceAdjustments,
+    ).filter((f) => f.bookingLocalId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _bookingPriceAdjustmentsByIdTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$BookingsTableFilterComposer
@@ -33670,6 +38445,16 @@ class $$BookingsTableFilterComposer
 
   ColumnFilters<String> get vectorClock => $composableBuilder(
     column: $table.vectorClock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -33955,6 +38740,58 @@ class $$BookingsTableFilterComposer
     );
     return f(composer);
   }
+
+  Expression<bool> bookingPriceAdjustmentsByUuid(
+    Expression<bool> Function($$BookingPriceAdjustmentsTableFilterComposer f) f,
+  ) {
+    final $$BookingPriceAdjustmentsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.localUuid,
+          referencedTable: $db.bookingPriceAdjustments,
+          getReferencedColumn: (t) => t.bookingLocalUuid,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$BookingPriceAdjustmentsTableFilterComposer(
+                $db: $db,
+                $table: $db.bookingPriceAdjustments,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<bool> bookingPriceAdjustmentsById(
+    Expression<bool> Function($$BookingPriceAdjustmentsTableFilterComposer f) f,
+  ) {
+    final $$BookingPriceAdjustmentsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.bookingPriceAdjustments,
+          getReferencedColumn: (t) => t.bookingLocalId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$BookingPriceAdjustmentsTableFilterComposer(
+                $db: $db,
+                $table: $db.bookingPriceAdjustments,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$BookingsTableOrderingComposer
@@ -34033,6 +38870,16 @@ class $$BookingsTableOrderingComposer
 
   ColumnOrderings<String> get vectorClock => $composableBuilder(
     column: $table.vectorClock,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -34282,6 +39129,14 @@ class $$BookingsTableAnnotationComposer
 
   GeneratedColumn<String> get vectorClock => $composableBuilder(
     column: $table.vectorClock,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
     builder: (column) => column,
   );
 
@@ -34555,6 +39410,60 @@ class $$BookingsTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> bookingPriceAdjustmentsByUuid<T extends Object>(
+    Expression<T> Function($$BookingPriceAdjustmentsTableAnnotationComposer a)
+    f,
+  ) {
+    final $$BookingPriceAdjustmentsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.localUuid,
+          referencedTable: $db.bookingPriceAdjustments,
+          getReferencedColumn: (t) => t.bookingLocalUuid,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$BookingPriceAdjustmentsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.bookingPriceAdjustments,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> bookingPriceAdjustmentsById<T extends Object>(
+    Expression<T> Function($$BookingPriceAdjustmentsTableAnnotationComposer a)
+    f,
+  ) {
+    final $$BookingPriceAdjustmentsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.bookingPriceAdjustments,
+          getReferencedColumn: (t) => t.bookingLocalId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$BookingPriceAdjustmentsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.bookingPriceAdjustments,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$BookingsTableTableManager
@@ -34576,6 +39485,8 @@ class $$BookingsTableTableManager
             bool paymentsRefs,
             bool debtsRefs,
             bool bookingNightsRefs,
+            bool bookingPriceAdjustmentsByUuid,
+            bool bookingPriceAdjustmentsById,
           })
         > {
   $$BookingsTableTableManager(_$AppDatabase db, $BookingsTable table)
@@ -34605,6 +39516,8 @@ class $$BookingsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> serverBookingId = const Value.absent(),
                 Value<String> roomNumber = const Value.absent(),
@@ -34653,6 +39566,8 @@ class $$BookingsTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 serverBookingId: serverBookingId,
                 roomNumber: roomNumber,
@@ -34703,6 +39618,8 @@ class $$BookingsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> serverBookingId = const Value.absent(),
                 required String roomNumber,
@@ -34751,6 +39668,8 @@ class $$BookingsTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 serverBookingId: serverBookingId,
                 roomNumber: roomNumber,
@@ -34800,6 +39719,8 @@ class $$BookingsTableTableManager
                 paymentsRefs = false,
                 debtsRefs = false,
                 bookingNightsRefs = false,
+                bookingPriceAdjustmentsByUuid = false,
+                bookingPriceAdjustmentsById = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -34808,6 +39729,9 @@ class $$BookingsTableTableManager
                     if (paymentsRefs) db.payments,
                     if (debtsRefs) db.debts,
                     if (bookingNightsRefs) db.bookingNights,
+                    if (bookingPriceAdjustmentsByUuid)
+                      db.bookingPriceAdjustments,
+                    if (bookingPriceAdjustmentsById) db.bookingPriceAdjustments,
                   ],
                   addJoins:
                       <
@@ -34927,6 +39851,48 @@ class $$BookingsTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (bookingPriceAdjustmentsByUuid)
+                        await $_getPrefetchedData<
+                          Booking,
+                          $BookingsTable,
+                          BookingPriceAdjustment
+                        >(
+                          currentTable: table,
+                          referencedTable: $$BookingsTableReferences
+                              ._bookingPriceAdjustmentsByUuidTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$BookingsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).bookingPriceAdjustmentsByUuid,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.bookingLocalUuid == item.localUuid,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (bookingPriceAdjustmentsById)
+                        await $_getPrefetchedData<
+                          Booking,
+                          $BookingsTable,
+                          BookingPriceAdjustment
+                        >(
+                          currentTable: table,
+                          referencedTable: $$BookingsTableReferences
+                              ._bookingPriceAdjustmentsByIdTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$BookingsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).bookingPriceAdjustmentsById,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.bookingLocalId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -34953,6 +39919,8 @@ typedef $$BookingsTableProcessedTableManager =
         bool paymentsRefs,
         bool debtsRefs,
         bool bookingNightsRefs,
+        bool bookingPriceAdjustmentsByUuid,
+        bool bookingPriceAdjustmentsById,
       })
     >;
 typedef $$BookingNotesTableCreateCompanionBuilder =
@@ -34971,6 +39939,8 @@ typedef $$BookingNotesTableCreateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       required int bookingId,
       required String noteText,
@@ -34994,6 +39964,8 @@ typedef $$BookingNotesTableUpdateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       Value<int> bookingId,
       Value<String> noteText,
@@ -35102,6 +40074,16 @@ class $$BookingNotesTableFilterComposer
 
   ColumnFilters<String> get vectorClock => $composableBuilder(
     column: $table.vectorClock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -35233,6 +40215,16 @@ class $$BookingNotesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -35347,6 +40339,14 @@ class $$BookingNotesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -35430,6 +40430,8 @@ class $$BookingNotesTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int> bookingId = const Value.absent(),
                 Value<String> noteText = const Value.absent(),
@@ -35451,6 +40453,8 @@ class $$BookingNotesTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 bookingId: bookingId,
                 noteText: noteText,
@@ -35474,6 +40478,8 @@ class $$BookingNotesTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required int bookingId,
                 required String noteText,
@@ -35495,6 +40501,8 @@ class $$BookingNotesTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 bookingId: bookingId,
                 noteText: noteText,
@@ -35585,6 +40593,8 @@ typedef $$ShiftNotesTableCreateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       required String title,
       required String content,
@@ -35610,6 +40620,8 @@ typedef $$ShiftNotesTableUpdateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> title,
       Value<String> content,
@@ -35696,6 +40708,16 @@ class $$ShiftNotesTableFilterComposer
 
   ColumnFilters<String> get vectorClock => $composableBuilder(
     column: $table.vectorClock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -35819,6 +40841,16 @@ class $$ShiftNotesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -35925,6 +40957,14 @@ class $$ShiftNotesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -35995,6 +41035,8 @@ class $$ShiftNotesTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> title = const Value.absent(),
                 Value<String> content = const Value.absent(),
@@ -36018,6 +41060,8 @@ class $$ShiftNotesTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 title: title,
                 content: content,
@@ -36043,6 +41087,8 @@ class $$ShiftNotesTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String title,
                 required String content,
@@ -36066,6 +41112,8 @@ class $$ShiftNotesTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 title: title,
                 content: content,
@@ -36113,6 +41161,8 @@ typedef $$EmployeesTableCreateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       required String name,
       required double basicSalary,
@@ -36122,6 +41172,7 @@ typedef $$EmployeesTableCreateCompanionBuilder =
       required String status,
       Value<String?> terminationDate,
       Value<String?> terminationReason,
+      Value<String?> employeeID,
     });
 typedef $$EmployeesTableUpdateCompanionBuilder =
     EmployeesCompanion Function({
@@ -36139,6 +41190,8 @@ typedef $$EmployeesTableUpdateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> name,
       Value<double> basicSalary,
@@ -36148,6 +41201,7 @@ typedef $$EmployeesTableUpdateCompanionBuilder =
       Value<String> status,
       Value<String?> terminationDate,
       Value<String?> terminationReason,
+      Value<String?> employeeID,
     });
 
 final class $$EmployeesTableReferences
@@ -36193,6 +41247,33 @@ final class $$EmployeesTableReferences
 
     final cache = $_typedResult.readTableOrNull(
       _salaryWithdrawalsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $SalaryCarryOverLogsTable,
+    List<SalaryCarryOverLog>
+  >
+  _salaryCarryOverLogsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.salaryCarryOverLogs,
+        aliasName: $_aliasNameGenerator(
+          db.employees.id,
+          db.salaryCarryOverLogs.employeeId,
+        ),
+      );
+
+  $$SalaryCarryOverLogsTableProcessedTableManager get salaryCarryOverLogsRefs {
+    final manager = $$SalaryCarryOverLogsTableTableManager(
+      $_db,
+      $_db.salaryCarryOverLogs,
+    ).filter((f) => f.employeeId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _salaryCarryOverLogsRefsTable($_db),
     );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
@@ -36279,6 +41360,16 @@ class $$EmployeesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnFilters(column),
@@ -36324,6 +41415,11 @@ class $$EmployeesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get employeeID => $composableBuilder(
+    column: $table.employeeID,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> salaryCyclesRefs(
     Expression<bool> Function($$SalaryCyclesTableFilterComposer f) f,
   ) {
@@ -36365,6 +41461,31 @@ class $$EmployeesTableFilterComposer
           }) => $$SalaryWithdrawalsTableFilterComposer(
             $db: $db,
             $table: $db.salaryWithdrawals,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> salaryCarryOverLogsRefs(
+    Expression<bool> Function($$SalaryCarryOverLogsTableFilterComposer f) f,
+  ) {
+    final $$SalaryCarryOverLogsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.salaryCarryOverLogs,
+      getReferencedColumn: (t) => t.employeeId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SalaryCarryOverLogsTableFilterComposer(
+            $db: $db,
+            $table: $db.salaryCarryOverLogs,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -36454,6 +41575,16 @@ class $$EmployeesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -36496,6 +41627,11 @@ class $$EmployeesTableOrderingComposer
 
   ColumnOrderings<String> get terminationReason => $composableBuilder(
     column: $table.terminationReason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get employeeID => $composableBuilder(
+    column: $table.employeeID,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -36565,6 +41701,14 @@ class $$EmployeesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -36595,6 +41739,11 @@ class $$EmployeesTableAnnotationComposer
 
   GeneratedColumn<String> get terminationReason => $composableBuilder(
     column: $table.terminationReason,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get employeeID => $composableBuilder(
+    column: $table.employeeID,
     builder: (column) => column,
   );
 
@@ -36648,6 +41797,32 @@ class $$EmployeesTableAnnotationComposer
         );
     return f(composer);
   }
+
+  Expression<T> salaryCarryOverLogsRefs<T extends Object>(
+    Expression<T> Function($$SalaryCarryOverLogsTableAnnotationComposer a) f,
+  ) {
+    final $$SalaryCarryOverLogsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.salaryCarryOverLogs,
+          getReferencedColumn: (t) => t.employeeId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SalaryCarryOverLogsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.salaryCarryOverLogs,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$EmployeesTableTableManager
@@ -36666,6 +41841,7 @@ class $$EmployeesTableTableManager
           PrefetchHooks Function({
             bool salaryCyclesRefs,
             bool salaryWithdrawalsRefs,
+            bool salaryCarryOverLogsRefs,
           })
         > {
   $$EmployeesTableTableManager(_$AppDatabase db, $EmployeesTable table)
@@ -36695,6 +41871,8 @@ class $$EmployeesTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<double> basicSalary = const Value.absent(),
@@ -36704,6 +41882,7 @@ class $$EmployeesTableTableManager
                 Value<String> status = const Value.absent(),
                 Value<String?> terminationDate = const Value.absent(),
                 Value<String?> terminationReason = const Value.absent(),
+                Value<String?> employeeID = const Value.absent(),
               }) => EmployeesCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -36719,6 +41898,8 @@ class $$EmployeesTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 name: name,
                 basicSalary: basicSalary,
@@ -36728,6 +41909,7 @@ class $$EmployeesTableTableManager
                 status: status,
                 terminationDate: terminationDate,
                 terminationReason: terminationReason,
+                employeeID: employeeID,
               ),
           createCompanionCallback:
               ({
@@ -36745,6 +41927,8 @@ class $$EmployeesTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String name,
                 required double basicSalary,
@@ -36754,6 +41938,7 @@ class $$EmployeesTableTableManager
                 required String status,
                 Value<String?> terminationDate = const Value.absent(),
                 Value<String?> terminationReason = const Value.absent(),
+                Value<String?> employeeID = const Value.absent(),
               }) => EmployeesCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -36769,6 +41954,8 @@ class $$EmployeesTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 name: name,
                 basicSalary: basicSalary,
@@ -36778,6 +41965,7 @@ class $$EmployeesTableTableManager
                 status: status,
                 terminationDate: terminationDate,
                 terminationReason: terminationReason,
+                employeeID: employeeID,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -36788,12 +41976,17 @@ class $$EmployeesTableTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({salaryCyclesRefs = false, salaryWithdrawalsRefs = false}) {
+              ({
+                salaryCyclesRefs = false,
+                salaryWithdrawalsRefs = false,
+                salaryCarryOverLogsRefs = false,
+              }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
                     if (salaryCyclesRefs) db.salaryCycles,
                     if (salaryWithdrawalsRefs) db.salaryWithdrawals,
+                    if (salaryCarryOverLogsRefs) db.salaryCarryOverLogs,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -36840,6 +42033,27 @@ class $$EmployeesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (salaryCarryOverLogsRefs)
+                        await $_getPrefetchedData<
+                          Employee,
+                          $EmployeesTable,
+                          SalaryCarryOverLog
+                        >(
+                          currentTable: table,
+                          referencedTable: $$EmployeesTableReferences
+                              ._salaryCarryOverLogsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$EmployeesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).salaryCarryOverLogsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.employeeId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -36863,6 +42077,7 @@ typedef $$EmployeesTableProcessedTableManager =
       PrefetchHooks Function({
         bool salaryCyclesRefs,
         bool salaryWithdrawalsRefs,
+        bool salaryCarryOverLogsRefs,
       })
     >;
 typedef $$ExpensesTableCreateCompanionBuilder =
@@ -36881,6 +42096,8 @@ typedef $$ExpensesTableCreateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       required String expenseType,
       Value<int?> relatedId,
@@ -36892,6 +42109,7 @@ typedef $$ExpensesTableCreateCompanionBuilder =
       Value<String?> categoryUuid,
       Value<String?> cashFlowUuid,
       Value<bool> isAutoGenerated,
+      Value<String?> employeeUuid,
     });
 typedef $$ExpensesTableUpdateCompanionBuilder =
     ExpensesCompanion Function({
@@ -36909,6 +42127,8 @@ typedef $$ExpensesTableUpdateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> expenseType,
       Value<int?> relatedId,
@@ -36920,6 +42140,7 @@ typedef $$ExpensesTableUpdateCompanionBuilder =
       Value<String?> categoryUuid,
       Value<String?> cashFlowUuid,
       Value<bool> isAutoGenerated,
+      Value<String?> employeeUuid,
     });
 
 class $$ExpensesTableFilterComposer
@@ -37001,6 +42222,16 @@ class $$ExpensesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnFilters(column),
@@ -37053,6 +42284,11 @@ class $$ExpensesTableFilterComposer
 
   ColumnFilters<bool> get isAutoGenerated => $composableBuilder(
     column: $table.isAutoGenerated,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get employeeUuid => $composableBuilder(
+    column: $table.employeeUuid,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -37136,6 +42372,16 @@ class $$ExpensesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -37188,6 +42434,11 @@ class $$ExpensesTableOrderingComposer
 
   ColumnOrderings<bool> get isAutoGenerated => $composableBuilder(
     column: $table.isAutoGenerated,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get employeeUuid => $composableBuilder(
+    column: $table.employeeUuid,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -37257,6 +42508,14 @@ class $$ExpensesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -37303,6 +42562,11 @@ class $$ExpensesTableAnnotationComposer
     column: $table.isAutoGenerated,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get employeeUuid => $composableBuilder(
+    column: $table.employeeUuid,
+    builder: (column) => column,
+  );
 }
 
 class $$ExpensesTableTableManager
@@ -37347,6 +42611,8 @@ class $$ExpensesTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> expenseType = const Value.absent(),
                 Value<int?> relatedId = const Value.absent(),
@@ -37358,6 +42624,7 @@ class $$ExpensesTableTableManager
                 Value<String?> categoryUuid = const Value.absent(),
                 Value<String?> cashFlowUuid = const Value.absent(),
                 Value<bool> isAutoGenerated = const Value.absent(),
+                Value<String?> employeeUuid = const Value.absent(),
               }) => ExpensesCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -37373,6 +42640,8 @@ class $$ExpensesTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 expenseType: expenseType,
                 relatedId: relatedId,
@@ -37384,6 +42653,7 @@ class $$ExpensesTableTableManager
                 categoryUuid: categoryUuid,
                 cashFlowUuid: cashFlowUuid,
                 isAutoGenerated: isAutoGenerated,
+                employeeUuid: employeeUuid,
               ),
           createCompanionCallback:
               ({
@@ -37401,6 +42671,8 @@ class $$ExpensesTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String expenseType,
                 Value<int?> relatedId = const Value.absent(),
@@ -37412,6 +42684,7 @@ class $$ExpensesTableTableManager
                 Value<String?> categoryUuid = const Value.absent(),
                 Value<String?> cashFlowUuid = const Value.absent(),
                 Value<bool> isAutoGenerated = const Value.absent(),
+                Value<String?> employeeUuid = const Value.absent(),
               }) => ExpensesCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -37427,6 +42700,8 @@ class $$ExpensesTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 expenseType: expenseType,
                 relatedId: relatedId,
@@ -37438,6 +42713,7 @@ class $$ExpensesTableTableManager
                 categoryUuid: categoryUuid,
                 cashFlowUuid: cashFlowUuid,
                 isAutoGenerated: isAutoGenerated,
+                employeeUuid: employeeUuid,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -37477,6 +42753,8 @@ typedef $$CashTransactionsTableCreateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> registerId,
       required String transactionType,
@@ -37503,6 +42781,8 @@ typedef $$CashTransactionsTableUpdateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> registerId,
       Value<String> transactionType,
@@ -37621,6 +42901,16 @@ class $$CashTransactionsTableFilterComposer
 
   ColumnFilters<String> get vectorClock => $composableBuilder(
     column: $table.vectorClock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -37774,6 +43064,16 @@ class $$CashTransactionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -37882,6 +43182,14 @@ class $$CashTransactionsTableAnnotationComposer
 
   GeneratedColumn<String> get vectorClock => $composableBuilder(
     column: $table.vectorClock,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
     builder: (column) => column,
   );
 
@@ -37994,6 +43302,8 @@ class $$CashTransactionsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> registerId = const Value.absent(),
                 Value<String> transactionType = const Value.absent(),
@@ -38018,6 +43328,8 @@ class $$CashTransactionsTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 registerId: registerId,
                 transactionType: transactionType,
@@ -38044,6 +43356,8 @@ class $$CashTransactionsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> registerId = const Value.absent(),
                 required String transactionType,
@@ -38068,6 +43382,8 @@ class $$CashTransactionsTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 registerId: registerId,
                 transactionType: transactionType,
@@ -38152,6 +43468,8 @@ typedef $$PaymentsTableCreateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> serverPaymentId,
       Value<int?> bookingLocalId,
@@ -38191,6 +43509,8 @@ typedef $$PaymentsTableUpdateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> serverPaymentId,
       Value<int?> bookingLocalId,
@@ -38340,6 +43660,16 @@ class $$PaymentsTableFilterComposer
 
   ColumnFilters<String> get vectorClock => $composableBuilder(
     column: $table.vectorClock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -38569,6 +43899,16 @@ class $$PaymentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -38781,6 +44121,14 @@ class $$PaymentsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -38961,6 +44309,8 @@ class $$PaymentsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> serverPaymentId = const Value.absent(),
                 Value<int?> bookingLocalId = const Value.absent(),
@@ -38998,6 +44348,8 @@ class $$PaymentsTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 serverPaymentId: serverPaymentId,
                 bookingLocalId: bookingLocalId,
@@ -39037,6 +44389,8 @@ class $$PaymentsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> serverPaymentId = const Value.absent(),
                 Value<int?> bookingLocalId = const Value.absent(),
@@ -39074,6 +44428,8 @@ class $$PaymentsTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 serverPaymentId: serverPaymentId,
                 bookingLocalId: bookingLocalId,
@@ -39194,6 +44550,8 @@ typedef $$DebtsTableCreateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> bookingLocalId,
       required String guestName,
@@ -39231,6 +44589,8 @@ typedef $$DebtsTableUpdateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> bookingLocalId,
       Value<String> guestName,
@@ -39352,6 +44712,16 @@ class $$DebtsTableFilterComposer extends Composer<_$AppDatabase, $DebtsTable> {
 
   ColumnFilters<String> get vectorClock => $composableBuilder(
     column: $table.vectorClock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -39553,6 +44923,16 @@ class $$DebtsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -39737,6 +45117,14 @@ class $$DebtsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -39886,6 +45274,8 @@ class $$DebtsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> bookingLocalId = const Value.absent(),
                 Value<String> guestName = const Value.absent(),
@@ -39921,6 +45311,8 @@ class $$DebtsTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 bookingLocalId: bookingLocalId,
                 guestName: guestName,
@@ -39958,6 +45350,8 @@ class $$DebtsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> bookingLocalId = const Value.absent(),
                 required String guestName,
@@ -39993,6 +45387,8 @@ class $$DebtsTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 bookingLocalId: bookingLocalId,
                 guestName: guestName,
@@ -40095,6 +45491,8 @@ typedef $$BookingNightsTableCreateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       required int bookingLocalId,
       required String hotelDayKey,
@@ -40125,6 +45523,8 @@ typedef $$BookingNightsTableUpdateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       Value<int> bookingLocalId,
       Value<String> hotelDayKey,
@@ -40244,6 +45644,16 @@ class $$BookingNightsTableFilterComposer
 
   ColumnFilters<String> get vectorClock => $composableBuilder(
     column: $table.vectorClock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -40410,6 +45820,16 @@ class $$BookingNightsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -40559,6 +45979,14 @@ class $$BookingNightsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -40675,6 +46103,8 @@ class $$BookingNightsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int> bookingLocalId = const Value.absent(),
                 Value<String> hotelDayKey = const Value.absent(),
@@ -40703,6 +46133,8 @@ class $$BookingNightsTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 bookingLocalId: bookingLocalId,
                 hotelDayKey: hotelDayKey,
@@ -40733,6 +46165,8 @@ class $$BookingNightsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required int bookingLocalId,
                 required String hotelDayKey,
@@ -40761,6 +46195,8 @@ class $$BookingNightsTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 bookingLocalId: bookingLocalId,
                 hotelDayKey: hotelDayKey,
@@ -40858,6 +46294,8 @@ typedef $$HotelDayLedgerTableCreateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       required String hotelDayKey,
       Value<double> totalIncome,
@@ -40886,6 +46324,8 @@ typedef $$HotelDayLedgerTableUpdateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> hotelDayKey,
       Value<double> totalIncome,
@@ -40975,6 +46415,16 @@ class $$HotelDayLedgerTableFilterComposer
 
   ColumnFilters<String> get vectorClock => $composableBuilder(
     column: $table.vectorClock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -41113,6 +46563,16 @@ class $$HotelDayLedgerTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -41234,6 +46694,14 @@ class $$HotelDayLedgerTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -41337,6 +46805,8 @@ class $$HotelDayLedgerTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> hotelDayKey = const Value.absent(),
                 Value<double> totalIncome = const Value.absent(),
@@ -41363,6 +46833,8 @@ class $$HotelDayLedgerTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 hotelDayKey: hotelDayKey,
                 totalIncome: totalIncome,
@@ -41391,6 +46863,8 @@ class $$HotelDayLedgerTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String hotelDayKey,
                 Value<double> totalIncome = const Value.absent(),
@@ -41417,6 +46891,8 @@ class $$HotelDayLedgerTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 hotelDayKey: hotelDayKey,
                 totalIncome: totalIncome,
@@ -42588,6 +48064,8 @@ typedef $$SalaryCyclesTableCreateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       required int employeeId,
       required String cycleKey,
@@ -42614,6 +48092,8 @@ typedef $$SalaryCyclesTableUpdateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       Value<int> employeeId,
       Value<String> cycleKey,
@@ -42746,6 +48226,16 @@ class $$SalaryCyclesTableFilterComposer
 
   ColumnFilters<String> get vectorClock => $composableBuilder(
     column: $table.vectorClock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -42917,6 +48407,16 @@ class $$SalaryCyclesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -43046,6 +48546,14 @@ class $$SalaryCyclesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -43171,6 +48679,8 @@ class $$SalaryCyclesTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int> employeeId = const Value.absent(),
                 Value<String> cycleKey = const Value.absent(),
@@ -43195,6 +48705,8 @@ class $$SalaryCyclesTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 employeeId: employeeId,
                 cycleKey: cycleKey,
@@ -43221,6 +48733,8 @@ class $$SalaryCyclesTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required int employeeId,
                 required String cycleKey,
@@ -43245,6 +48759,8 @@ class $$SalaryCyclesTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 employeeId: employeeId,
                 cycleKey: cycleKey,
@@ -43365,6 +48881,8 @@ typedef $$SalaryPaymentsTableCreateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       required int cycleId,
       Value<int> amount,
@@ -43389,6 +48907,8 @@ typedef $$SalaryPaymentsTableUpdateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       Value<int> cycleId,
       Value<int> amount,
@@ -43502,6 +49022,16 @@ class $$SalaryPaymentsTableFilterComposer
 
   ColumnFilters<String> get vectorClock => $composableBuilder(
     column: $table.vectorClock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -43638,6 +49168,16 @@ class $$SalaryPaymentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -43757,6 +49297,14 @@ class $$SalaryPaymentsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -43849,6 +49397,8 @@ class $$SalaryPaymentsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int> cycleId = const Value.absent(),
                 Value<int> amount = const Value.absent(),
@@ -43871,6 +49421,8 @@ class $$SalaryPaymentsTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 cycleId: cycleId,
                 amount: amount,
@@ -43895,6 +49447,8 @@ class $$SalaryPaymentsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required int cycleId,
                 Value<int> amount = const Value.absent(),
@@ -43917,6 +49471,8 @@ class $$SalaryPaymentsTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 cycleId: cycleId,
                 amount: amount,
@@ -44009,6 +49565,8 @@ typedef $$OutboxTableCreateCompanionBuilder =
       Value<int?> processingStartedAt,
       Value<String?> processingWorker,
       Value<String> source,
+      Value<bool> deliveredToPrimary,
+      Value<bool> deliveredToSecondary,
     });
 typedef $$OutboxTableUpdateCompanionBuilder =
     OutboxCompanion Function({
@@ -44026,6 +49584,8 @@ typedef $$OutboxTableUpdateCompanionBuilder =
       Value<int?> processingStartedAt,
       Value<String?> processingWorker,
       Value<String> source,
+      Value<bool> deliveredToPrimary,
+      Value<bool> deliveredToSecondary,
     });
 
 class $$OutboxTableFilterComposer
@@ -44104,6 +49664,16 @@ class $$OutboxTableFilterComposer
 
   ColumnFilters<String> get source => $composableBuilder(
     column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deliveredToPrimary => $composableBuilder(
+    column: $table.deliveredToPrimary,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deliveredToSecondary => $composableBuilder(
+    column: $table.deliveredToSecondary,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -44186,6 +49756,16 @@ class $$OutboxTableOrderingComposer
     column: $table.source,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get deliveredToPrimary => $composableBuilder(
+    column: $table.deliveredToPrimary,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get deliveredToSecondary => $composableBuilder(
+    column: $table.deliveredToSecondary,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$OutboxTableAnnotationComposer
@@ -44246,6 +49826,16 @@ class $$OutboxTableAnnotationComposer
 
   GeneratedColumn<String> get source =>
       $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<bool> get deliveredToPrimary => $composableBuilder(
+    column: $table.deliveredToPrimary,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get deliveredToSecondary => $composableBuilder(
+    column: $table.deliveredToSecondary,
+    builder: (column) => column,
+  );
 }
 
 class $$OutboxTableTableManager
@@ -44290,6 +49880,8 @@ class $$OutboxTableTableManager
                 Value<int?> processingStartedAt = const Value.absent(),
                 Value<String?> processingWorker = const Value.absent(),
                 Value<String> source = const Value.absent(),
+                Value<bool> deliveredToPrimary = const Value.absent(),
+                Value<bool> deliveredToSecondary = const Value.absent(),
               }) => OutboxCompanion(
                 id: id,
                 entity: entity,
@@ -44305,6 +49897,8 @@ class $$OutboxTableTableManager
                 processingStartedAt: processingStartedAt,
                 processingWorker: processingWorker,
                 source: source,
+                deliveredToPrimary: deliveredToPrimary,
+                deliveredToSecondary: deliveredToSecondary,
               ),
           createCompanionCallback:
               ({
@@ -44322,6 +49916,8 @@ class $$OutboxTableTableManager
                 Value<int?> processingStartedAt = const Value.absent(),
                 Value<String?> processingWorker = const Value.absent(),
                 Value<String> source = const Value.absent(),
+                Value<bool> deliveredToPrimary = const Value.absent(),
+                Value<bool> deliveredToSecondary = const Value.absent(),
               }) => OutboxCompanion.insert(
                 id: id,
                 entity: entity,
@@ -44337,6 +49933,8 @@ class $$OutboxTableTableManager
                 processingStartedAt: processingStartedAt,
                 processingWorker: processingWorker,
                 source: source,
+                deliveredToPrimary: deliveredToPrimary,
+                deliveredToSecondary: deliveredToSecondary,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -45945,6 +51543,8 @@ typedef $$PriceAdjustmentsTableCreateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       required String targetType,
       required String targetUuid,
@@ -45975,6 +51575,8 @@ typedef $$PriceAdjustmentsTableUpdateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> targetType,
       Value<String> targetUuid,
@@ -46066,6 +51668,16 @@ class $$PriceAdjustmentsTableFilterComposer
 
   ColumnFilters<String> get vectorClock => $composableBuilder(
     column: $table.vectorClock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -46214,6 +51826,16 @@ class $$PriceAdjustmentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -46345,6 +51967,14 @@ class $$PriceAdjustmentsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -46454,6 +52084,8 @@ class $$PriceAdjustmentsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> targetType = const Value.absent(),
                 Value<String> targetUuid = const Value.absent(),
@@ -46482,6 +52114,8 @@ class $$PriceAdjustmentsTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 targetType: targetType,
                 targetUuid: targetUuid,
@@ -46512,6 +52146,8 @@ class $$PriceAdjustmentsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String targetType,
                 required String targetUuid,
@@ -46540,6 +52176,8 @@ class $$PriceAdjustmentsTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 targetType: targetType,
                 targetUuid: targetUuid,
@@ -46595,6 +52233,8 @@ typedef $$BookingPriceAdjustmentsTableCreateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       required String bookingLocalUuid,
       Value<int?> bookingLocalId,
@@ -46626,6 +52266,8 @@ typedef $$BookingPriceAdjustmentsTableUpdateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> bookingLocalUuid,
       Value<int?> bookingLocalId,
@@ -46776,6 +52418,16 @@ class $$BookingPriceAdjustmentsTableFilterComposer
 
   ColumnFilters<String> get vectorClock => $composableBuilder(
     column: $table.vectorClock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -46965,6 +52617,16 @@ class $$BookingPriceAdjustmentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -47137,6 +52799,14 @@ class $$BookingPriceAdjustmentsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -47287,6 +52957,8 @@ class $$BookingPriceAdjustmentsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> bookingLocalUuid = const Value.absent(),
                 Value<int?> bookingLocalId = const Value.absent(),
@@ -47316,6 +52988,8 @@ class $$BookingPriceAdjustmentsTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 bookingLocalUuid: bookingLocalUuid,
                 bookingLocalId: bookingLocalId,
@@ -47347,6 +53021,8 @@ class $$BookingPriceAdjustmentsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String bookingLocalUuid,
                 Value<int?> bookingLocalId = const Value.absent(),
@@ -47376,6 +53052,8 @@ class $$BookingPriceAdjustmentsTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 bookingLocalUuid: bookingLocalUuid,
                 bookingLocalId: bookingLocalId,
@@ -47478,8 +53156,23 @@ typedef $$BookingPriceAdjustmentsTableProcessedTableManager =
     >;
 typedef $$AuditLogsTableCreateCompanionBuilder =
     AuditLogsCompanion Function({
-      Value<int> id,
       required String localUuid,
+      Value<int?> serverId,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      required int lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
+      Value<int> id,
       required String operationType,
       required String entityType,
       required String entityUuid,
@@ -47488,19 +53181,32 @@ typedef $$AuditLogsTableCreateCompanionBuilder =
       Value<String?> newState,
       Value<String?> changedFields,
       required String performedBy,
-      required String deviceId,
       Value<String?> ipAddress,
       required String hotelDayKey,
       required int timestamp,
       required String timestampIso,
       Value<bool> isFinancial,
       Value<int?> amountImpact,
-      required int createdAt,
     });
 typedef $$AuditLogsTableUpdateCompanionBuilder =
     AuditLogsCompanion Function({
-      Value<int> id,
       Value<String> localUuid,
+      Value<int?> serverId,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
+      Value<int> id,
       Value<String> operationType,
       Value<String> entityType,
       Value<String> entityUuid,
@@ -47509,14 +53215,12 @@ typedef $$AuditLogsTableUpdateCompanionBuilder =
       Value<String?> newState,
       Value<String?> changedFields,
       Value<String> performedBy,
-      Value<String> deviceId,
       Value<String?> ipAddress,
       Value<String> hotelDayKey,
       Value<int> timestamp,
       Value<String> timestampIso,
       Value<bool> isFinancial,
       Value<int?> amountImpact,
-      Value<int> createdAt,
     });
 
 class $$AuditLogsTableFilterComposer
@@ -47528,13 +53232,88 @@ class $$AuditLogsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnFilters<int> get id => $composableBuilder(
-    column: $table.id,
+  ColumnFilters<String> get localUuid => $composableBuilder(
+    column: $table.localUuid,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get localUuid => $composableBuilder(
-    column: $table.localUuid,
+  ColumnFilters<int> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAtIso => $composableBuilder(
+    column: $table.createdAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updatedAtIso => $composableBuilder(
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedAtIso => $composableBuilder(
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAtEpoch => $composableBuilder(
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get origin => $composableBuilder(
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get vectorClock => $composableBuilder(
+    column: $table.vectorClock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -47578,11 +53357,6 @@ class $$AuditLogsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get deviceId => $composableBuilder(
-    column: $table.deviceId,
-    builder: (column) => ColumnFilters(column),
-  );
-
   ColumnFilters<String> get ipAddress => $composableBuilder(
     column: $table.ipAddress,
     builder: (column) => ColumnFilters(column),
@@ -47612,11 +53386,6 @@ class $$AuditLogsTableFilterComposer
     column: $table.amountImpact,
     builder: (column) => ColumnFilters(column),
   );
-
-  ColumnFilters<int> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnFilters(column),
-  );
 }
 
 class $$AuditLogsTableOrderingComposer
@@ -47628,13 +53397,88 @@ class $$AuditLogsTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  ColumnOrderings<int> get id => $composableBuilder(
-    column: $table.id,
+  ColumnOrderings<String> get localUuid => $composableBuilder(
+    column: $table.localUuid,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get localUuid => $composableBuilder(
-    column: $table.localUuid,
+  ColumnOrderings<int> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAtIso => $composableBuilder(
+    column: $table.createdAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updatedAtIso => $composableBuilder(
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deletedAtIso => $composableBuilder(
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get origin => $composableBuilder(
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get vectorClock => $composableBuilder(
+    column: $table.vectorClock,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -47678,11 +53522,6 @@ class $$AuditLogsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get deviceId => $composableBuilder(
-    column: $table.deviceId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get ipAddress => $composableBuilder(
     column: $table.ipAddress,
     builder: (column) => ColumnOrderings(column),
@@ -47712,11 +53551,6 @@ class $$AuditLogsTableOrderingComposer
     column: $table.amountImpact,
     builder: (column) => ColumnOrderings(column),
   );
-
-  ColumnOrderings<int> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnOrderings(column),
-  );
 }
 
 class $$AuditLogsTableAnnotationComposer
@@ -47728,11 +53562,72 @@ class $$AuditLogsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
-  GeneratedColumn<int> get id =>
-      $composableBuilder(column: $table.id, builder: (column) => column);
-
   GeneratedColumn<String> get localUuid =>
       $composableBuilder(column: $table.localUuid, builder: (column) => column);
+
+  GeneratedColumn<int> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get createdAtIso => $composableBuilder(
+    column: $table.createdAtIso,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get updatedAtIso => $composableBuilder(
+    column: $table.updatedAtIso,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deletedAtIso => $composableBuilder(
+    column: $table.deletedAtIso,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
+    column: $table.createdAtEpoch,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
+    column: $table.lastModifiedEpoch,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get origin =>
+      $composableBuilder(column: $table.origin, builder: (column) => column);
+
+  GeneratedColumn<String> get vectorClock => $composableBuilder(
+    column: $table.vectorClock,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
 
   GeneratedColumn<String> get operationType => $composableBuilder(
     column: $table.operationType,
@@ -47770,9 +53665,6 @@ class $$AuditLogsTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get deviceId =>
-      $composableBuilder(column: $table.deviceId, builder: (column) => column);
-
   GeneratedColumn<String> get ipAddress =>
       $composableBuilder(column: $table.ipAddress, builder: (column) => column);
 
@@ -47798,9 +53690,6 @@ class $$AuditLogsTableAnnotationComposer
     column: $table.amountImpact,
     builder: (column) => column,
   );
-
-  GeneratedColumn<int> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
 }
 
 class $$AuditLogsTableTableManager
@@ -47831,8 +53720,23 @@ class $$AuditLogsTableTableManager
               $$AuditLogsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
                 Value<String> localUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> lastModified = const Value.absent(),
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
+                Value<int> id = const Value.absent(),
                 Value<String> operationType = const Value.absent(),
                 Value<String> entityType = const Value.absent(),
                 Value<String> entityUuid = const Value.absent(),
@@ -47841,17 +53745,30 @@ class $$AuditLogsTableTableManager
                 Value<String?> newState = const Value.absent(),
                 Value<String?> changedFields = const Value.absent(),
                 Value<String> performedBy = const Value.absent(),
-                Value<String> deviceId = const Value.absent(),
                 Value<String?> ipAddress = const Value.absent(),
                 Value<String> hotelDayKey = const Value.absent(),
                 Value<int> timestamp = const Value.absent(),
                 Value<String> timestampIso = const Value.absent(),
                 Value<bool> isFinancial = const Value.absent(),
                 Value<int?> amountImpact = const Value.absent(),
-                Value<int> createdAt = const Value.absent(),
               }) => AuditLogsCompanion(
-                id: id,
                 localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
+                id: id,
                 operationType: operationType,
                 entityType: entityType,
                 entityUuid: entityUuid,
@@ -47860,19 +53777,32 @@ class $$AuditLogsTableTableManager
                 newState: newState,
                 changedFields: changedFields,
                 performedBy: performedBy,
-                deviceId: deviceId,
                 ipAddress: ipAddress,
                 hotelDayKey: hotelDayKey,
                 timestamp: timestamp,
                 timestampIso: timestampIso,
                 isFinancial: isFinancial,
                 amountImpact: amountImpact,
-                createdAt: createdAt,
               ),
           createCompanionCallback:
               ({
-                Value<int> id = const Value.absent(),
                 required String localUuid,
+                Value<int?> serverId = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                required int lastModified,
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
+                Value<int> id = const Value.absent(),
                 required String operationType,
                 required String entityType,
                 required String entityUuid,
@@ -47881,17 +53811,30 @@ class $$AuditLogsTableTableManager
                 Value<String?> newState = const Value.absent(),
                 Value<String?> changedFields = const Value.absent(),
                 required String performedBy,
-                required String deviceId,
                 Value<String?> ipAddress = const Value.absent(),
                 required String hotelDayKey,
                 required int timestamp,
                 required String timestampIso,
                 Value<bool> isFinancial = const Value.absent(),
                 Value<int?> amountImpact = const Value.absent(),
-                required int createdAt,
               }) => AuditLogsCompanion.insert(
-                id: id,
                 localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
+                id: id,
                 operationType: operationType,
                 entityType: entityType,
                 entityUuid: entityUuid,
@@ -47900,14 +53843,12 @@ class $$AuditLogsTableTableManager
                 newState: newState,
                 changedFields: changedFields,
                 performedBy: performedBy,
-                deviceId: deviceId,
                 ipAddress: ipAddress,
                 hotelDayKey: hotelDayKey,
                 timestamp: timestamp,
                 timestampIso: timestampIso,
                 isFinancial: isFinancial,
                 amountImpact: amountImpact,
-                createdAt: createdAt,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -47947,6 +53888,8 @@ typedef $$PaymentVoidsTableCreateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       required String originalPaymentUuid,
       required int originalPaymentId,
@@ -47959,6 +53902,9 @@ typedef $$PaymentVoidsTableCreateCompanionBuilder =
       required String hotelDayKey,
       Value<String?> reversalPaymentUuid,
       Value<String?> approvedBy,
+      Value<String?> note,
+      Value<double?> originalAmount,
+      Value<String?> paymentUuid,
     });
 typedef $$PaymentVoidsTableUpdateCompanionBuilder =
     PaymentVoidsCompanion Function({
@@ -47976,6 +53922,8 @@ typedef $$PaymentVoidsTableUpdateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> originalPaymentUuid,
       Value<int> originalPaymentId,
@@ -47988,6 +53936,9 @@ typedef $$PaymentVoidsTableUpdateCompanionBuilder =
       Value<String> hotelDayKey,
       Value<String?> reversalPaymentUuid,
       Value<String?> approvedBy,
+      Value<String?> note,
+      Value<double?> originalAmount,
+      Value<String?> paymentUuid,
     });
 
 class $$PaymentVoidsTableFilterComposer
@@ -48069,6 +54020,16 @@ class $$PaymentVoidsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnFilters(column),
@@ -48126,6 +54087,21 @@ class $$PaymentVoidsTableFilterComposer
 
   ColumnFilters<String> get approvedBy => $composableBuilder(
     column: $table.approvedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get originalAmount => $composableBuilder(
+    column: $table.originalAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get paymentUuid => $composableBuilder(
+    column: $table.paymentUuid,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -48209,6 +54185,16 @@ class $$PaymentVoidsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -48266,6 +54252,21 @@ class $$PaymentVoidsTableOrderingComposer
 
   ColumnOrderings<String> get approvedBy => $composableBuilder(
     column: $table.approvedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get originalAmount => $composableBuilder(
+    column: $table.originalAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get paymentUuid => $composableBuilder(
+    column: $table.paymentUuid,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -48335,6 +54336,14 @@ class $$PaymentVoidsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -48388,6 +54397,19 @@ class $$PaymentVoidsTableAnnotationComposer
     column: $table.approvedBy,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<double> get originalAmount => $composableBuilder(
+    column: $table.originalAmount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get paymentUuid => $composableBuilder(
+    column: $table.paymentUuid,
+    builder: (column) => column,
+  );
 }
 
 class $$PaymentVoidsTableTableManager
@@ -48435,6 +54457,8 @@ class $$PaymentVoidsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> originalPaymentUuid = const Value.absent(),
                 Value<int> originalPaymentId = const Value.absent(),
@@ -48447,6 +54471,9 @@ class $$PaymentVoidsTableTableManager
                 Value<String> hotelDayKey = const Value.absent(),
                 Value<String?> reversalPaymentUuid = const Value.absent(),
                 Value<String?> approvedBy = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<double?> originalAmount = const Value.absent(),
+                Value<String?> paymentUuid = const Value.absent(),
               }) => PaymentVoidsCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -48462,6 +54489,8 @@ class $$PaymentVoidsTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 originalPaymentUuid: originalPaymentUuid,
                 originalPaymentId: originalPaymentId,
@@ -48474,6 +54503,9 @@ class $$PaymentVoidsTableTableManager
                 hotelDayKey: hotelDayKey,
                 reversalPaymentUuid: reversalPaymentUuid,
                 approvedBy: approvedBy,
+                note: note,
+                originalAmount: originalAmount,
+                paymentUuid: paymentUuid,
               ),
           createCompanionCallback:
               ({
@@ -48491,6 +54523,8 @@ class $$PaymentVoidsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String originalPaymentUuid,
                 required int originalPaymentId,
@@ -48503,6 +54537,9 @@ class $$PaymentVoidsTableTableManager
                 required String hotelDayKey,
                 Value<String?> reversalPaymentUuid = const Value.absent(),
                 Value<String?> approvedBy = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<double?> originalAmount = const Value.absent(),
+                Value<String?> paymentUuid = const Value.absent(),
               }) => PaymentVoidsCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -48518,6 +54555,8 @@ class $$PaymentVoidsTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 originalPaymentUuid: originalPaymentUuid,
                 originalPaymentId: originalPaymentId,
@@ -48530,6 +54569,9 @@ class $$PaymentVoidsTableTableManager
                 hotelDayKey: hotelDayKey,
                 reversalPaymentUuid: reversalPaymentUuid,
                 approvedBy: approvedBy,
+                note: note,
+                originalAmount: originalAmount,
+                paymentUuid: paymentUuid,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -48572,6 +54614,8 @@ typedef $$GuestInfosTableCreateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       required String roomNumber,
       required String guestName,
@@ -48599,6 +54643,8 @@ typedef $$GuestInfosTableUpdateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> roomNumber,
       Value<String> guestName,
@@ -48687,6 +54733,16 @@ class $$GuestInfosTableFilterComposer
 
   ColumnFilters<String> get vectorClock => $composableBuilder(
     column: $table.vectorClock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -48820,6 +54876,16 @@ class $$GuestInfosTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -48936,6 +55002,14 @@ class $$GuestInfosTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -49020,6 +55094,8 @@ class $$GuestInfosTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> roomNumber = const Value.absent(),
                 Value<String> guestName = const Value.absent(),
@@ -49045,6 +55121,8 @@ class $$GuestInfosTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 roomNumber: roomNumber,
                 guestName: guestName,
@@ -49072,6 +55150,8 @@ class $$GuestInfosTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String roomNumber,
                 required String guestName,
@@ -49097,6 +55177,8 @@ class $$GuestInfosTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 roomNumber: roomNumber,
                 guestName: guestName,
@@ -49146,6 +55228,8 @@ typedef $$SalaryWithdrawalsTableCreateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       required int employeeId,
       required double amount,
@@ -49154,6 +55238,7 @@ typedef $$SalaryWithdrawalsTableCreateCompanionBuilder =
       Value<String?> hotelDayKey,
       Value<String?> withdrawalType,
       Value<String?> description,
+      Value<int?> expenseId,
     });
 typedef $$SalaryWithdrawalsTableUpdateCompanionBuilder =
     SalaryWithdrawalsCompanion Function({
@@ -49171,6 +55256,8 @@ typedef $$SalaryWithdrawalsTableUpdateCompanionBuilder =
       Value<int> version,
       Value<String> origin,
       Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
       Value<int> id,
       Value<int> employeeId,
       Value<double> amount,
@@ -49179,6 +55266,7 @@ typedef $$SalaryWithdrawalsTableUpdateCompanionBuilder =
       Value<String?> hotelDayKey,
       Value<String?> withdrawalType,
       Value<String?> description,
+      Value<int?> expenseId,
     });
 
 final class $$SalaryWithdrawalsTableReferences
@@ -49293,6 +55381,16 @@ class $$SalaryWithdrawalsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnFilters(column),
@@ -49325,6 +55423,11 @@ class $$SalaryWithdrawalsTableFilterComposer
 
   ColumnFilters<String> get description => $composableBuilder(
     column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get expenseId => $composableBuilder(
+    column: $table.expenseId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -49431,6 +55534,16 @@ class $$SalaryWithdrawalsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -49463,6 +55576,11 @@ class $$SalaryWithdrawalsTableOrderingComposer
 
   ColumnOrderings<String> get description => $composableBuilder(
     column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get expenseId => $composableBuilder(
+    column: $table.expenseId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -49555,6 +55673,14 @@ class $$SalaryWithdrawalsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<int> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -49583,6 +55709,9 @@ class $$SalaryWithdrawalsTableAnnotationComposer
     column: $table.description,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get expenseId =>
+      $composableBuilder(column: $table.expenseId, builder: (column) => column);
 
   $$EmployeesTableAnnotationComposer get employeeId {
     final $$EmployeesTableAnnotationComposer composer = $composerBuilder(
@@ -49655,6 +55784,8 @@ class $$SalaryWithdrawalsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int> employeeId = const Value.absent(),
                 Value<double> amount = const Value.absent(),
@@ -49663,6 +55794,7 @@ class $$SalaryWithdrawalsTableTableManager
                 Value<String?> hotelDayKey = const Value.absent(),
                 Value<String?> withdrawalType = const Value.absent(),
                 Value<String?> description = const Value.absent(),
+                Value<int?> expenseId = const Value.absent(),
               }) => SalaryWithdrawalsCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -49678,6 +55810,8 @@ class $$SalaryWithdrawalsTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 employeeId: employeeId,
                 amount: amount,
@@ -49686,6 +55820,7 @@ class $$SalaryWithdrawalsTableTableManager
                 hotelDayKey: hotelDayKey,
                 withdrawalType: withdrawalType,
                 description: description,
+                expenseId: expenseId,
               ),
           createCompanionCallback:
               ({
@@ -49703,6 +55838,8 @@ class $$SalaryWithdrawalsTableTableManager
                 Value<int> version = const Value.absent(),
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required int employeeId,
                 required double amount,
@@ -49711,6 +55848,7 @@ class $$SalaryWithdrawalsTableTableManager
                 Value<String?> hotelDayKey = const Value.absent(),
                 Value<String?> withdrawalType = const Value.absent(),
                 Value<String?> description = const Value.absent(),
+                Value<int?> expenseId = const Value.absent(),
               }) => SalaryWithdrawalsCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -49726,6 +55864,8 @@ class $$SalaryWithdrawalsTableTableManager
                 version: version,
                 origin: origin,
                 vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
                 id: id,
                 employeeId: employeeId,
                 amount: amount,
@@ -49734,6 +55874,7 @@ class $$SalaryWithdrawalsTableTableManager
                 hotelDayKey: hotelDayKey,
                 withdrawalType: withdrawalType,
                 description: description,
+                expenseId: expenseId,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -49804,6 +55945,945 @@ typedef $$SalaryWithdrawalsTableProcessedTableManager =
       SalaryWithdrawal,
       PrefetchHooks Function({bool employeeId})
     >;
+typedef $$SalaryCarryOverLogsTableCreateCompanionBuilder =
+    SalaryCarryOverLogsCompanion Function({
+      required String localUuid,
+      Value<int?> serverId,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      required int lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
+      Value<int> id,
+      required int employeeId,
+      required double amount,
+      required String previousCycleStart,
+      required String previousCycleEnd,
+      required String newCycleStart,
+      required String newCycleEnd,
+      required String reason,
+      required int carriedAt,
+    });
+typedef $$SalaryCarryOverLogsTableUpdateCompanionBuilder =
+    SalaryCarryOverLogsCompanion Function({
+      Value<String> localUuid,
+      Value<int?> serverId,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<String?> idempotencyKey,
+      Value<int> id,
+      Value<int> employeeId,
+      Value<double> amount,
+      Value<String> previousCycleStart,
+      Value<String> previousCycleEnd,
+      Value<String> newCycleStart,
+      Value<String> newCycleEnd,
+      Value<String> reason,
+      Value<int> carriedAt,
+    });
+
+final class $$SalaryCarryOverLogsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $SalaryCarryOverLogsTable,
+          SalaryCarryOverLog
+        > {
+  $$SalaryCarryOverLogsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $EmployeesTable _employeeIdTable(_$AppDatabase db) =>
+      db.employees.createAlias(
+        $_aliasNameGenerator(
+          db.salaryCarryOverLogs.employeeId,
+          db.employees.id,
+        ),
+      );
+
+  $$EmployeesTableProcessedTableManager get employeeId {
+    final $_column = $_itemColumn<int>('employee_id')!;
+
+    final manager = $$EmployeesTableTableManager(
+      $_db,
+      $_db.employees,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_employeeIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SalaryCarryOverLogsTableFilterComposer
+    extends Composer<_$AppDatabase, $SalaryCarryOverLogsTable> {
+  $$SalaryCarryOverLogsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get localUuid => $composableBuilder(
+    column: $table.localUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAtIso => $composableBuilder(
+    column: $table.createdAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updatedAtIso => $composableBuilder(
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedAtIso => $composableBuilder(
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAtEpoch => $composableBuilder(
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get origin => $composableBuilder(
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get vectorClock => $composableBuilder(
+    column: $table.vectorClock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get previousCycleStart => $composableBuilder(
+    column: $table.previousCycleStart,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get previousCycleEnd => $composableBuilder(
+    column: $table.previousCycleEnd,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get newCycleStart => $composableBuilder(
+    column: $table.newCycleStart,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get newCycleEnd => $composableBuilder(
+    column: $table.newCycleEnd,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get carriedAt => $composableBuilder(
+    column: $table.carriedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$EmployeesTableFilterComposer get employeeId {
+    final $$EmployeesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.employeeId,
+      referencedTable: $db.employees,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableFilterComposer(
+            $db: $db,
+            $table: $db.employees,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SalaryCarryOverLogsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SalaryCarryOverLogsTable> {
+  $$SalaryCarryOverLogsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get localUuid => $composableBuilder(
+    column: $table.localUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAtIso => $composableBuilder(
+    column: $table.createdAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updatedAtIso => $composableBuilder(
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deletedAtIso => $composableBuilder(
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get origin => $composableBuilder(
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get vectorClock => $composableBuilder(
+    column: $table.vectorClock,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get previousCycleStart => $composableBuilder(
+    column: $table.previousCycleStart,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get previousCycleEnd => $composableBuilder(
+    column: $table.previousCycleEnd,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get newCycleStart => $composableBuilder(
+    column: $table.newCycleStart,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get newCycleEnd => $composableBuilder(
+    column: $table.newCycleEnd,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reason => $composableBuilder(
+    column: $table.reason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get carriedAt => $composableBuilder(
+    column: $table.carriedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$EmployeesTableOrderingComposer get employeeId {
+    final $$EmployeesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.employeeId,
+      referencedTable: $db.employees,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableOrderingComposer(
+            $db: $db,
+            $table: $db.employees,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SalaryCarryOverLogsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SalaryCarryOverLogsTable> {
+  $$SalaryCarryOverLogsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get localUuid =>
+      $composableBuilder(column: $table.localUuid, builder: (column) => column);
+
+  GeneratedColumn<int> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get createdAtIso => $composableBuilder(
+    column: $table.createdAtIso,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get updatedAtIso => $composableBuilder(
+    column: $table.updatedAtIso,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deletedAtIso => $composableBuilder(
+    column: $table.deletedAtIso,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
+    column: $table.createdAtEpoch,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
+    column: $table.lastModifiedEpoch,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get origin =>
+      $composableBuilder(column: $table.origin, builder: (column) => column);
+
+  GeneratedColumn<String> get vectorClock => $composableBuilder(
+    column: $table.vectorClock,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get previousCycleStart => $composableBuilder(
+    column: $table.previousCycleStart,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get previousCycleEnd => $composableBuilder(
+    column: $table.previousCycleEnd,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get newCycleStart => $composableBuilder(
+    column: $table.newCycleStart,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get newCycleEnd => $composableBuilder(
+    column: $table.newCycleEnd,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get reason =>
+      $composableBuilder(column: $table.reason, builder: (column) => column);
+
+  GeneratedColumn<int> get carriedAt =>
+      $composableBuilder(column: $table.carriedAt, builder: (column) => column);
+
+  $$EmployeesTableAnnotationComposer get employeeId {
+    final $$EmployeesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.employeeId,
+      referencedTable: $db.employees,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$EmployeesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.employees,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SalaryCarryOverLogsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SalaryCarryOverLogsTable,
+          SalaryCarryOverLog,
+          $$SalaryCarryOverLogsTableFilterComposer,
+          $$SalaryCarryOverLogsTableOrderingComposer,
+          $$SalaryCarryOverLogsTableAnnotationComposer,
+          $$SalaryCarryOverLogsTableCreateCompanionBuilder,
+          $$SalaryCarryOverLogsTableUpdateCompanionBuilder,
+          (SalaryCarryOverLog, $$SalaryCarryOverLogsTableReferences),
+          SalaryCarryOverLog,
+          PrefetchHooks Function({bool employeeId})
+        > {
+  $$SalaryCarryOverLogsTableTableManager(
+    _$AppDatabase db,
+    $SalaryCarryOverLogsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SalaryCarryOverLogsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SalaryCarryOverLogsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$SalaryCarryOverLogsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> localUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> lastModified = const Value.absent(),
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                Value<int> employeeId = const Value.absent(),
+                Value<double> amount = const Value.absent(),
+                Value<String> previousCycleStart = const Value.absent(),
+                Value<String> previousCycleEnd = const Value.absent(),
+                Value<String> newCycleStart = const Value.absent(),
+                Value<String> newCycleEnd = const Value.absent(),
+                Value<String> reason = const Value.absent(),
+                Value<int> carriedAt = const Value.absent(),
+              }) => SalaryCarryOverLogsCompanion(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
+                id: id,
+                employeeId: employeeId,
+                amount: amount,
+                previousCycleStart: previousCycleStart,
+                previousCycleEnd: previousCycleEnd,
+                newCycleStart: newCycleStart,
+                newCycleEnd: newCycleEnd,
+                reason: reason,
+                carriedAt: carriedAt,
+              ),
+          createCompanionCallback:
+              ({
+                required String localUuid,
+                Value<int?> serverId = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                required int lastModified,
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                required int employeeId,
+                required double amount,
+                required String previousCycleStart,
+                required String previousCycleEnd,
+                required String newCycleStart,
+                required String newCycleEnd,
+                required String reason,
+                required int carriedAt,
+              }) => SalaryCarryOverLogsCompanion.insert(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                vectorClock: vectorClock,
+                deviceId: deviceId,
+                idempotencyKey: idempotencyKey,
+                id: id,
+                employeeId: employeeId,
+                amount: amount,
+                previousCycleStart: previousCycleStart,
+                previousCycleEnd: previousCycleEnd,
+                newCycleStart: newCycleStart,
+                newCycleEnd: newCycleEnd,
+                reason: reason,
+                carriedAt: carriedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SalaryCarryOverLogsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({employeeId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (employeeId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.employeeId,
+                                referencedTable:
+                                    $$SalaryCarryOverLogsTableReferences
+                                        ._employeeIdTable(db),
+                                referencedColumn:
+                                    $$SalaryCarryOverLogsTableReferences
+                                        ._employeeIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SalaryCarryOverLogsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SalaryCarryOverLogsTable,
+      SalaryCarryOverLog,
+      $$SalaryCarryOverLogsTableFilterComposer,
+      $$SalaryCarryOverLogsTableOrderingComposer,
+      $$SalaryCarryOverLogsTableAnnotationComposer,
+      $$SalaryCarryOverLogsTableCreateCompanionBuilder,
+      $$SalaryCarryOverLogsTableUpdateCompanionBuilder,
+      (SalaryCarryOverLog, $$SalaryCarryOverLogsTableReferences),
+      SalaryCarryOverLog,
+      PrefetchHooks Function({bool employeeId})
+    >;
+typedef $$AncestorCacheTableCreateCompanionBuilder =
+    AncestorCacheCompanion Function({
+      Value<int> id,
+      required String entity,
+      required String localUuid,
+      required String dataJson,
+      required int capturedAt,
+    });
+typedef $$AncestorCacheTableUpdateCompanionBuilder =
+    AncestorCacheCompanion Function({
+      Value<int> id,
+      Value<String> entity,
+      Value<String> localUuid,
+      Value<String> dataJson,
+      Value<int> capturedAt,
+    });
+
+class $$AncestorCacheTableFilterComposer
+    extends Composer<_$AppDatabase, $AncestorCacheTable> {
+  $$AncestorCacheTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get entity => $composableBuilder(
+    column: $table.entity,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get localUuid => $composableBuilder(
+    column: $table.localUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dataJson => $composableBuilder(
+    column: $table.dataJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AncestorCacheTableOrderingComposer
+    extends Composer<_$AppDatabase, $AncestorCacheTable> {
+  $$AncestorCacheTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entity => $composableBuilder(
+    column: $table.entity,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get localUuid => $composableBuilder(
+    column: $table.localUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dataJson => $composableBuilder(
+    column: $table.dataJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AncestorCacheTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AncestorCacheTable> {
+  $$AncestorCacheTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get entity =>
+      $composableBuilder(column: $table.entity, builder: (column) => column);
+
+  GeneratedColumn<String> get localUuid =>
+      $composableBuilder(column: $table.localUuid, builder: (column) => column);
+
+  GeneratedColumn<String> get dataJson =>
+      $composableBuilder(column: $table.dataJson, builder: (column) => column);
+
+  GeneratedColumn<int> get capturedAt => $composableBuilder(
+    column: $table.capturedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$AncestorCacheTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AncestorCacheTable,
+          AncestorCacheData,
+          $$AncestorCacheTableFilterComposer,
+          $$AncestorCacheTableOrderingComposer,
+          $$AncestorCacheTableAnnotationComposer,
+          $$AncestorCacheTableCreateCompanionBuilder,
+          $$AncestorCacheTableUpdateCompanionBuilder,
+          (
+            AncestorCacheData,
+            BaseReferences<
+              _$AppDatabase,
+              $AncestorCacheTable,
+              AncestorCacheData
+            >,
+          ),
+          AncestorCacheData,
+          PrefetchHooks Function()
+        > {
+  $$AncestorCacheTableTableManager(_$AppDatabase db, $AncestorCacheTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AncestorCacheTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AncestorCacheTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AncestorCacheTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> entity = const Value.absent(),
+                Value<String> localUuid = const Value.absent(),
+                Value<String> dataJson = const Value.absent(),
+                Value<int> capturedAt = const Value.absent(),
+              }) => AncestorCacheCompanion(
+                id: id,
+                entity: entity,
+                localUuid: localUuid,
+                dataJson: dataJson,
+                capturedAt: capturedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String entity,
+                required String localUuid,
+                required String dataJson,
+                required int capturedAt,
+              }) => AncestorCacheCompanion.insert(
+                id: id,
+                entity: entity,
+                localUuid: localUuid,
+                dataJson: dataJson,
+                capturedAt: capturedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AncestorCacheTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AncestorCacheTable,
+      AncestorCacheData,
+      $$AncestorCacheTableFilterComposer,
+      $$AncestorCacheTableOrderingComposer,
+      $$AncestorCacheTableAnnotationComposer,
+      $$AncestorCacheTableCreateCompanionBuilder,
+      $$AncestorCacheTableUpdateCompanionBuilder,
+      (
+        AncestorCacheData,
+        BaseReferences<_$AppDatabase, $AncestorCacheTable, AncestorCacheData>,
+      ),
+      AncestorCacheData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -49867,4 +56947,8 @@ class $AppDatabaseManager {
       $$GuestInfosTableTableManager(_db, _db.guestInfos);
   $$SalaryWithdrawalsTableTableManager get salaryWithdrawals =>
       $$SalaryWithdrawalsTableTableManager(_db, _db.salaryWithdrawals);
+  $$SalaryCarryOverLogsTableTableManager get salaryCarryOverLogs =>
+      $$SalaryCarryOverLogsTableTableManager(_db, _db.salaryCarryOverLogs);
+  $$AncestorCacheTableTableManager get ancestorCache =>
+      $$AncestorCacheTableTableManager(_db, _db.ancestorCache);
 }

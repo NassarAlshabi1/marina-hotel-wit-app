@@ -9,6 +9,9 @@ on:
     branches:
       - marina
       - yy
+      - refactor/clean-v2
+      - refactor/performance-fixes-v1
+      - refactor/performance-fixes-v2
     paths:
       - 'mobile/**'
       - '.github/workflows/main.yml'
@@ -40,18 +43,19 @@ jobs:
 
       # ─── إعداد Java 17 ───────────────────────────────────
       - name: Set up Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
       # ─── إعداد Flutter ───────────────────────────────────
       - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@v2.23.0
         with:
-          flutter-version: '3.44.1'
+          flutter-version: '3.44.4'
           channel: 'stable'
           cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
 
       # ─── تثبيت مكونات Android SDK ────────────────────────
       - name: Install Android SDK components
@@ -81,20 +85,15 @@ jobs:
         run: flutter pub get
 
       # ─── تحديد رقم الإصدار ──────────────────────────────
-      # ✅ إصلاح: كل بناء يحصل على tag فريد يتضمن رقم البناء
-      # لتجنب خطأ "Cannot delete asset from an immutable release"
-      # التنسيق: v1.2.0-build1173 بدلاً من v1.2.0 الثابت
       - name: Determine build version
         id: version
         run: |
           BASE_VERSION=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d'+' -f1)
           BUILD_NUMBER=${GITHUB_RUN_NUMBER}
-          BUILD_NAME="${BASE_VERSION}"
-          TAG_NAME="v${BASE_VERSION}-build${BUILD_NUMBER}"
+          BUILD_NAME="${BASE_VERSION}+${BUILD_NUMBER}"
           echo "build_name=$BUILD_NAME" >> $GITHUB_OUTPUT
           echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
-          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
-          echo "Building: $BUILD_NAME ($BUILD_NUMBER) — Tag: $TAG_NAME"
+          echo "Building: $BUILD_NAME"
 
       # ─── توليد الكود ────────────────────────────────────
       - name: Generate code (build_runner)
@@ -105,17 +104,19 @@ jobs:
       # ─── بناء الـ APK الشامل ────────────────────────────
       # minSdkVersion = 21 (Android 5.0 Lollipop)
       # targetSdk = 36 (Android 16)
-      # جميع المعماريات: arm64-v8a, armeabi-v7a, x86_64
+      # المعماريات: arm64-v8a, armeabi-v7a
       - name: Build universal release APK
         run: >
           flutter build apk --release
+          --target-platform android-arm64,android-arm
           --build-name ${{ steps.version.outputs.build_name }}
           --build-number ${{ steps.version.outputs.build_number }}
           --dart-define=BASE_API_URL=http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1
           --dart-define=AGENT_ROUTER_API_KEY=${{ secrets.AGENTROUTER_API_KEY }}
           --dart-define=AGENT_ROUTER_BASE_URL=https://openrouter.ai/api/v1
         env:
-          GRADLE_OPTS: "-Xmx4g -XX:MaxMetaspaceSize=512m"
+          GRADLE_OPTS: "-Xmx6g -XX:MaxMetaspaceSize=1g -Dorg.gradle.daemon=false"
+          JAVA_TOOL_OPTIONS: "-Xmx6g -XX:MaxMetaspaceSize=1g"
 
       # ─── عرض معلومات الـ APK المبني ─────────────────────
       - name: Inspect APK info
@@ -127,7 +128,7 @@ jobs:
 
       # ─── رفع الـ APK كـ artifact ────────────────────────
       - name: Upload release APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: 'marina-hotel-release-${{ steps.version.outputs.build_name }}'
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
@@ -135,21 +136,19 @@ jobs:
           retention-days: 90
 
       # ─── إنشاء GitHub Release ────────────────────────────
-      # ✅ إصلاح: استخدام tag فريد لكل بناء بدلاً من tag ثابت
-      # لتجنب خطأ "Cannot delete asset from an immutable release"
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
-          tag_name: '${{ steps.version.outputs.tag_name }}'
-          name: 'Marina Hotel v${{ steps.version.outputs.build_name }} (#${{ steps.version.outputs.build_number }})'
+          tag_name: 'v${{ steps.version.outputs.build_name }}'
+          name: 'Marina Hotel v${{ steps.version.outputs.build_name }}'
           body: |
-            ## Marina Hotel v${{ steps.version.outputs.build_name }} — Build ${{ steps.version.outputs.build_number }}
+            ## Marina Hotel v${{ steps.version.outputs.build_name }}
 
             **APK شامل يعمل على جميع أجهزة اندرويد**
 
             - الحد الأدنى: Android 5.0 (API 21)
             - المستهدف: Android 16 (API 36)
-            - المعالجات المدعومة: arm64-v8a, armeabi-v7a, x86_64
+            - المعالجات المدعومة: arm64-v8a, armeabi-v7a
             - رقم البناء: ${{ steps.version.outputs.build_number }}
 
             ### طريقة التثبيت

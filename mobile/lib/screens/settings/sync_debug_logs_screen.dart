@@ -3,32 +3,22 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
-import '../../services/smart_sync_manager.dart';
+import '../../providers/smart_sync_provider.dart';
 import '../../utils/debug_logs.dart';
 
 class SyncDebugLogsScreen extends ConsumerStatefulWidget {
   const SyncDebugLogsScreen({super.key});
 
   @override
-  ConsumerState<SyncDebugLogsScreen> createState() =>
-      _SyncDebugLogsScreenState();
+  ConsumerState<SyncDebugLogsScreen> createState() => _SyncDebugLogsScreenState();
 }
 
 class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
-  Map<String, dynamic>? _status;
   bool _isBusy = false;
 
   @override
   void initState() {
     super.initState();
-    _loadStatus();
-  }
-
-  Future<void> _loadStatus() async {
-    final status = await SmartSyncManager.instance.getStatus();
-    if (mounted) {
-      setState(() => _status = status);
-    }
   }
 
   Future<void> _withBusy(Future<void> Function() action) async {
@@ -47,22 +37,22 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
 
   Future<void> _forceSync() async {
     await _withBusy(() async {
-      await SmartSyncManager.instance.forceSyncNow();
-      await _loadStatus();
+      await ref.read(smartSyncManagerProvider).forceSyncNow();
+      ref.invalidate(smartSyncStatusProvider);
     });
   }
 
   Future<void> _pushLocal() async {
     await _withBusy(() async {
-      await SmartSyncManager.instance.pushLocalChanges();
-      await _loadStatus();
+      await ref.read(smartSyncManagerProvider).pushLocalChanges();
+      ref.invalidate(smartSyncStatusProvider);
     });
   }
 
   Future<void> _pullRemote() async {
     await _withBusy(() async {
-      await SmartSyncManager.instance.pullRemoteChanges();
-      await _loadStatus();
+      await ref.read(smartSyncManagerProvider).pullRemoteChanges();
+      ref.invalidate(smartSyncStatusProvider);
     });
   }
 
@@ -76,16 +66,12 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
       return;
     }
     Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('تم نسخ جميع السجلات.')));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نسخ جميع السجلات.')));
   }
 
   void _copyEntry(String entry) {
     Clipboard.setData(ClipboardData(text: entry));
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('تم نسخ السطر.')));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نسخ السطر.')));
   }
 
   @override
@@ -123,17 +109,8 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
                     final entry = logs[logs.length - 1 - index];
                     return ListTile(
                       dense: true,
-                      title: SelectableText(
-                        entry,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.copy, size: 18),
-                        onPressed: () => _copyEntry(entry),
-                      ),
+                      title: SelectableText(entry, style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
+                      trailing: IconButton(icon: const Icon(Icons.copy, size: 18), onPressed: () => _copyEntry(entry)),
                     );
                   },
                 );
@@ -146,49 +123,33 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
   }
 
   Widget _buildStatusCard(BuildContext context) {
-    final status = _status;
+    final statusAsync = ref.watch(smartSyncStatusProvider);
     return Card(
       margin: const EdgeInsets.all(16),
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: status == null
-            ? const Center(child: CircularProgressIndicator())
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: statusAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('خطأ: $e')),
+          data: (status) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.memory,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'حالة مدير المزامنة',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _buildStatusRow('معرف الجهاز', (status['device_id'] ?? '---') as String),
-                  _buildStatusRow(
-                    'تفعيل المزامنة',
-                    (status['enabled'] as bool? ?? false) ? 'مفعل' : 'معطل',
-                  ),
-                  _buildStatusRow(
-                    'تسجيل الدخول',
-                    (status['signed_in'] as bool? ?? false) ? 'متصل' : 'غير متصل',
-                  ),
-                  _buildStatusRow(
-                    'المراقبة الدورية',
-                    (status['monitoring_active'] as bool? ?? false) ? 'نشطة' : 'متوقفة',
-                  ),
-                  _buildStatusRow(
-                    'آخر فحص',
-                    (status['last_sync_check'] ?? '---') as String,
-                  ),
+                  Icon(Icons.memory, color: Theme.of(context).colorScheme.primary),
+                  const SizedBox(width: 8),
+                  const Text('حالة مدير المزامنة', style: TextStyle(fontWeight: FontWeight.bold)),
                 ],
               ),
+              const SizedBox(height: 12),
+              _buildStatusRow('معرف الجهاز', (status['device_id'] ?? '---') as String),
+              _buildStatusRow('تفعيل المزامنة', (status['enabled'] as bool? ?? false) ? 'مفعل' : 'معطل'),
+              _buildStatusRow('تسجيل الدخول', (status['signed_in'] as bool? ?? false) ? 'متصل' : 'غير متصل'),
+              _buildStatusRow('المراقبة الدورية', (status['monitoring_active'] as bool? ?? false) ? 'نشطة' : 'متوقفة'),
+              _buildStatusRow('آخر فحص', (status['last_sync_check'] ?? '---') as String),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -222,19 +183,11 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
     );
   }
 
-  Widget _buildActionButton(
-    IconData icon,
-    String label,
-    Future<void> Function() onPressed,
-  ) {
+  Widget _buildActionButton(IconData icon, String label, Future<void> Function() onPressed) {
     return ElevatedButton.icon(
       onPressed: _isBusy ? null : () => onPressed(),
       icon: _isBusy
-          ? const SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
+          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
           : Icon(icon, size: 18),
       label: Text(label),
     );

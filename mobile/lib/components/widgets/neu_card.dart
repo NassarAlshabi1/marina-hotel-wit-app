@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 
 class NeuCard extends StatelessWidget {
-
-  const NeuCard({
-    super.key,
-    required this.child,
-    this.padding,
-    this.margin,
-    this.onTap,
-    this.borderRadius = 16,
+  const NeuCard({      required this.child,
+      super.key,
+      this.padding,
+      this.margin,
+      this.onTap,
+      this.borderRadius = 16,
   });
   final Widget child;
   final EdgeInsetsGeometry? padding;
@@ -30,16 +28,8 @@ class NeuCard extends StatelessWidget {
         color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF5F7F9),
         borderRadius: BorderRadius.circular(borderRadius),
         boxShadow: [
-          BoxShadow(
-            color: shadowDark.withValues(alpha: 0.3),
-            offset: const Offset(4, 4),
-            blurRadius: 8,
-          ),
-          BoxShadow(
-            color: shadowLight.withValues(alpha: 0.8),
-            offset: const Offset(-4, -4),
-            blurRadius: 8,
-          ),
+          BoxShadow(color: shadowDark.withValues(alpha: 0.3), offset: const Offset(4, 4), blurRadius: 4),
+          BoxShadow(color: shadowLight.withValues(alpha: 0.8), offset: const Offset(-4, -4), blurRadius: 4),
         ],
       ),
       child: child,
@@ -53,15 +43,13 @@ class NeuCard extends StatelessWidget {
 }
 
 class NeuStatCard extends StatelessWidget {
-
-  const NeuStatCard({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.value,
-    this.iconColor,
-    this.valueColor,
-    this.emphasize = false,
+  const NeuStatCard({      required this.icon,
+      required this.title,
+      required this.value,
+      super.key,
+      this.iconColor,
+      this.valueColor,
+      this.emphasize = false,
   });
   final IconData icon;
   final String title;
@@ -118,12 +106,10 @@ class NeuStatCard extends StatelessWidget {
 }
 
 class NeuDateButton extends StatelessWidget {
-
-  const NeuDateButton({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.onTap,
+  const NeuDateButton({      required this.icon,
+      required this.label,
+      required this.onTap,
+      super.key,
   });
   final IconData icon;
   final String label;
@@ -151,11 +137,7 @@ class NeuDateButton extends StatelessWidget {
           Flexible(
             child: Text(
               label,
-              style: TextStyle(
-                color: scheme.onSurface,
-                fontWeight: FontWeight.w700,
-                fontSize: 11,
-              ),
+              style: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w700, fontSize: 11),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -166,12 +148,10 @@ class NeuDateButton extends StatelessWidget {
 }
 
 class NeuQuickFilterChip extends StatelessWidget {
-
-  const NeuQuickFilterChip({
-    super.key,
-    required this.label,
-    required this.selected,
-    required this.onTap,
+  const NeuQuickFilterChip({      required this.label,
+      required this.selected,
+      required this.onTap,
+      super.key,
   });
   final String label;
   final bool selected;
@@ -189,17 +169,9 @@ class NeuQuickFilterChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? scheme.primary : scheme.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selected ? scheme.primary : scheme.outline.withValues(alpha: 0.3),
-          ),
+          border: Border.all(color: selected ? scheme.primary : scheme.outline.withValues(alpha: 0.3)),
           boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: scheme.primary.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
+              ? [BoxShadow(color: scheme.primary.withValues(alpha: 0.3), blurRadius: 4, offset: const Offset(0, 2))]
               : null,
         ),
         child: Text(
@@ -216,13 +188,11 @@ class NeuQuickFilterChip extends StatelessWidget {
 }
 
 class NeuSectionHeader extends StatelessWidget {
-
-  const NeuSectionHeader({
-    super.key,
-    required this.icon,
-    required this.title,
-    this.trailing,
-    this.iconColor,
+  const NeuSectionHeader({      required this.icon,
+      required this.title,
+      super.key,
+      this.trailing,
+      this.iconColor,
   });
   final IconData icon;
   final String title;
@@ -239,10 +209,7 @@ class NeuSectionHeader extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
             padding: const EdgeInsets.all(8),
             child: Icon(icon, color: color, size: 20),
           ),
@@ -250,11 +217,7 @@ class NeuSectionHeader extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: TextStyle(
-                color: scheme.onSurface,
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-              ),
+              style: TextStyle(color: scheme.onSurface, fontSize: 15, fontWeight: FontWeight.w800),
             ),
           ),
           if (trailing != null)

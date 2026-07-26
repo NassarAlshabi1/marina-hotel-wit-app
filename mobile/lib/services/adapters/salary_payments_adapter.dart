@@ -8,8 +8,7 @@ import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
 
-class SalaryPaymentsAdapter
-    extends EntityAdapter<SalaryPayment, SalaryPaymentsCompanion> {
+class SalaryPaymentsAdapter extends EntityAdapter<SalaryPayment, SalaryPaymentsCompanion> {
   SalaryPaymentsAdapter(this.resolver);
   final IdResolver resolver;
 
@@ -23,42 +22,32 @@ class SalaryPaymentsAdapter
   String get tableName => 'salary_payments';
 
   @override
-  Future<ResolveResult> resolveRefs(
-    AppDatabase db,
-    Map<String, dynamic> json, {
-    required Source src,
-  }) async {
+  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
     // ✅ حل FK دورة الراتب - التحقق من وجود الدورة محلياً قبل الإدراج
-    final remoteCycleId =
-        _asInt(json, 'cycleId', src) ?? _asInt(json, 'cycle_id', src);
-    final cycleUuid =
-        _asString(json, 'cycleLocalUuid', src) ??
-        _asString(json, 'cycle_local_uuid', src);
+    final remoteCycleId = _asInt(json, 'cycleId', src) ?? _asInt(json, 'cycle_id', src);
+    final cycleUuid = _asString(json, 'cycleLocalUuid', src) ?? _asString(json, 'cycle_local_uuid', src);
 
     // ✅ إصلاح دقيق: حل شامل للمعرّف البعيد
     int? resolvedCycleId;
 
     // الطريقة 1: البحث بالـ UUID
     if (cycleUuid != null && cycleUuid.isNotEmpty) {
-      resolvedCycleId = await resolver.resolveSalaryCycle(
-        uuid: cycleUuid,
-      );
+      resolvedCycleId = await resolver.resolveSalaryCycle(uuid: cycleUuid);
     }
 
     // الطريقة 2: البحث بالـ id البعيد (كـ localId)
     if (resolvedCycleId == null && remoteCycleId != null) {
-      resolvedCycleId = await resolver.resolveSalaryCycle(
-        localId: remoteCycleId,
-      );
+      resolvedCycleId = await resolver.resolveSalaryCycle(localId: remoteCycleId);
     }
 
     // الطريقة 3: البحث بالـ serverId
     if (resolvedCycleId == null && remoteCycleId != null) {
       try {
-        final row = await (db.select(db.salaryCycles)
-              ..where((c) => c.serverId.equals(remoteCycleId))
-              ..limit(1))
-            .getSingleOrNull();
+        final row =
+            await (db.select(db.salaryCycles)
+                  ..where((c) => c.serverId.equals(remoteCycleId))
+                  ..limit(1))
+                .getSingleOrNull();
         if (row != null) {
           resolvedCycleId = row.id;
         }
@@ -67,33 +56,33 @@ class SalaryPaymentsAdapter
 
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
+
+    // ✅ إصلاح حرج: إذا لم يتم العثور على دورة الراتب المرتبطة، نُعلم السجل للتخطي
+    // لأن cycleId حقل مطلوب (NOT NULL FK) في جدول salary_payments
+    final shouldSkip = resolvedCycleId == null && (src == Source.appwrite || src == Source.drive);
+    final skipReason = shouldSkip
+        ? 'salary_payment: لا يمكن العثور على دورة الراتب المرتبطة '
+              '(cycleUuid=$cycleUuid, remoteCycleId=$remoteCycleId) '
+              '— تم التخطي لتجنب InvalidDataException'
+        : null;
+
     return ResolveResult(
       salaryCycleLocalId: resolvedCycleId,
       createdAtEpoch: createdAt,
       lastModifiedEpoch: lastModified,
+      shouldSkip: shouldSkip,
+      skipReason: skipReason,
     );
   }
 
   @override
-  SalaryPaymentsCompanion fromJson(
-    Map<String, dynamic> json, {
-    required Source src,
-    required ResolveResult refs,
-  }) {
+  SalaryPaymentsCompanion fromJson(Map<String, dynamic> json, {required Source src, required ResolveResult refs}) {
     final now = Time.nowEpoch();
-    final createdAt =
-        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified =
-        refs.lastModifiedEpoch ??
-        _epoch(json, 'lastModified', src) ??
-        createdAt;
+    final createdAt = refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final lastModified = refs.lastModifiedEpoch ?? _epoch(json, 'lastModified', src) ?? createdAt;
     return SalaryPaymentsCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(
-        _asString(json, 'localUuid', src) ??
-            _asString(json, 'local_uuid', src) ??
-            IdGen.uuid(),
-      ),
+      localUuid: d.Value(_asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src) ?? IdGen.uuid()),
       serverId: _vInt(json, 'serverId', src),
       // ✅ إصلاح دقيق: استخدام salaryCycleLocalId المحلول بدل القيمة الخامة
       // إذا لم يتم حل الدورة (لا توجد محلياً — يتيمة)، نتخطى الحقل بـ absent()
@@ -101,17 +90,11 @@ class SalaryPaymentsAdapter
       cycleId: refs.salaryCycleLocalId != null
           ? d.Value(refs.salaryCycleLocalId!)
           : (src == Source.appwrite || src == Source.drive)
-              ? const d.Value.absent() // يتيمة — لا نستخدم القيمة الخامة البعيدة
-              : _vInt(json, 'cycleId', src, altKey: 'cycle_id', fallback: 0),
-      amount: _vInt(json, 'amount', src, fallback: 0),
+          ? const d.Value.absent() // يتيمة — لا نستخدم القيمة الخامة البعيدة
+          : _vInt(json, 'cycleId', src, altKey: 'cycle_id', fallback: 0),
+      amount: _vInt(json, 'amount', src),
       hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
-      paymentDateIso: _vStr(
-        json,
-        'paymentDateIso',
-        src,
-        altKey: 'payment_date_iso',
-        fallback: '',
-      ),
+      paymentDateIso: _vStr(json, 'paymentDateIso', src, altKey: 'payment_date_iso', fallback: ''),
       method: _vStr(json, 'method', src),
       isAutoGenerated: _vBool(json, 'isAutoGenerated', src, fallback: false),
       createdAt: d.Value(createdAt),
@@ -122,12 +105,7 @@ class SalaryPaymentsAdapter
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
       createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
-      lastModifiedEpoch: _vInt(
-        json,
-        'lastModifiedEpoch',
-        src,
-        fallback: lastModified,
-      ),
+      lastModifiedEpoch: _vInt(json, 'lastModifiedEpoch', src, fallback: lastModified),
       version: _vInt(json, 'version', src, fallback: 1),
       // ✅ إصلاح: عند src=Source.appwrite، نصر على origin='server' دائماً
       // لمنع مشكلة أن البيانات المسحوبة من السيرفر تحمل origin='mobile'
@@ -135,13 +113,9 @@ class SalaryPaymentsAdapter
       origin: src == Source.appwrite || src == Source.drive
           ? const d.Value('server')
           : _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vStr(
-        json,
-        'vectorClock',
-        src,
-        altKey: 'vector_clock',
-        fallback: '{}',
-      ),
+      vectorClock: _vStr(json, 'vectorClock', src, altKey: 'vector_clock', fallback: '{}'),
+      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
+      deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
 
@@ -160,55 +134,35 @@ class SalaryPaymentsAdapter
       _k(src, 'method', 'method'): model.method,
       _k(src, 'isAutoGenerated', 'is_auto_generated'): model.isAutoGenerated,
       _k(src, 'createdAt', 'created_at'): model.createdAt,
+      _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
+      _k(src, 'createdAtIso', 'created_at_iso'): model.createdAtIso,
       _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
+      _k(src, 'updatedAtIso', 'updated_at_iso'): model.updatedAtIso,
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
+      _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      'idempotencyKey': model.idempotencyKey,
+      'deviceId': model.deviceId,
     };
   }
 }
 
-d.Value<int> _vInt(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  int? fallback,
-}) {
-  final v =
-      _asInt(json, key, src) ??
-      (altKey != null ? _asInt(json, altKey, src) : null) ??
-      fallback;
+d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src, {String? altKey, int? fallback}) {
+  final v = _asInt(json, key, src) ?? (altKey != null ? _asInt(json, altKey, src) : null) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String> _vStr(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  String? fallback,
-}) {
-  final v =
-      _asString(json, key, src) ??
-      (altKey != null ? _asString(json, altKey, src) : null) ??
-      fallback;
+d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src, {String? altKey, String? fallback}) {
+  final v = _asString(json, key, src) ?? (altKey != null ? _asString(json, altKey, src) : null) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<bool> _vBool(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  bool? fallback,
-}) {
-  final v =
-      _asBool(json, key, src) ??
-      (altKey != null ? _asBool(json, altKey, src) : null) ??
-      fallback;
+d.Value<bool> _vBool(Map<String, dynamic> json, String key, Source src, {String? altKey, bool? fallback}) {
+  final v = _asBool(json, key, src) ?? (altKey != null ? _asBool(json, altKey, src) : null) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
@@ -283,13 +237,10 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) =>
-    src == Source.drive ? snake : camel;
+String _k(Source src, String camel, String snake) => src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
-  if (src == Source.drive) {
-    return camel;
-  }
+  // ✅ إصلاح: تحويل camelCase → snake_case لجميع المصادر بما فيها Drive
   final buf = StringBuffer();
   for (var i = 0; i < camel.length; i++) {
     final c = camel[i];

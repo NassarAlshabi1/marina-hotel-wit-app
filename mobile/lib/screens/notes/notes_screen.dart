@@ -16,8 +16,7 @@ class NotesScreen extends ConsumerStatefulWidget {
   ConsumerState<NotesScreen> createState() => _NotesScreenState();
 }
 
-class _NotesScreenState extends ConsumerState<NotesScreen>
-    with SingleTickerProviderStateMixin, SyncOnExitMixin {
+class _NotesScreenState extends ConsumerState<NotesScreen> with SingleTickerProviderStateMixin, SyncOnExitMixin {
   @override
   String get screenId => 'notes_screen';
   late TabController _tabController;
@@ -39,13 +38,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     return wrapWithSyncOnExit(
       child: AppScaffold(
         title: 'الملاحظات والتنبيهات',
-        actions: [
-          IconButton(
-            onPressed: _addNote,
-            icon: const Icon(Icons.add),
-            tooltip: 'إضافة ملاحظة',
-          ),
-        ],
+        actions: [IconButton(onPressed: _addNote, icon: const Icon(Icons.add), tooltip: 'إضافة ملاحظة')],
         body: Column(
           children: [
             // أشرطة التبويب
@@ -55,11 +48,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
             Expanded(
               child: TabBarView(
                 controller: _tabController,
-                children: [
-                  _buildAllNotesTab(),
-                  _buildUnreadNotesTab(),
-                  _buildHighPriorityNotesTab(),
-                ],
+                children: [_buildAllNotesTab(), _buildUnreadNotesTab(), _buildHighPriorityNotesTab()],
               ),
             ),
           ],
@@ -71,16 +60,10 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
   Widget _buildTabs() {
     return Container(
       margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(25),
-      ),
+      decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(25)),
       child: TabBar(
         controller: _tabController,
-        indicator: BoxDecoration(
-          borderRadius: BorderRadius.circular(25),
-          color: Colors.blue,
-        ),
+        indicator: BoxDecoration(borderRadius: BorderRadius.circular(25), color: Colors.blue),
         indicatorSize: TabBarIndicatorSize.tab,
         labelColor: Colors.white,
         unselectedLabelColor: Colors.grey.shade600,
@@ -150,12 +133,12 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     return RefreshIndicator(
       onRefresh: _refreshData,
       child: ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: notes.length,
-      itemBuilder: (context, index) {
-        final note = notes[index];
-        return _buildNoteCard(note);
-      },
+        padding: const EdgeInsets.all(16),
+        itemCount: notes.length,
+        itemBuilder: (context, index) {
+          final note = notes[index];
+          return RepaintBoundary(child: _buildNoteCard(note));
+        },
       ),
     );
   }
@@ -173,20 +156,14 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         leading: Container(width: 4, height: 50, color: priorityColor),
         title: Text(
           note.title,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: note.isRead ? Colors.grey : Colors.black,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, color: note.isRead ? Colors.grey : Colors.black),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(note.content),
             const SizedBox(height: 4),
-            Text(
-              _formatDate(note.createdAt),
-              style: const TextStyle(fontSize: 12),
-            ),
+            Text(_formatDate(note.createdAt), style: const TextStyle(fontSize: 12)),
           ],
         ),
         trailing: Row(
@@ -196,18 +173,11 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
               Container(
                 width: 8,
                 height: 8,
-                decoration: const BoxDecoration(
-                  color: Colors.blue,
-                  shape: BoxShape.circle,
-                ),
+                decoration: const BoxDecoration(color: Colors.blue, shape: BoxShape.circle),
               ),
             PopupMenuButton(
               itemBuilder: (context) => [
-                if (!note.isRead)
-                  const PopupMenuItem(
-                    value: 'read',
-                    child: Text('وضع علامة مقروء'),
-                  ),
+                if (!note.isRead) const PopupMenuItem(value: 'read', child: Text('وضع علامة مقروء')),
                 const PopupMenuItem(value: 'edit', child: Text('تعديل')),
                 const PopupMenuItem(value: 'delete', child: Text('حذف')),
               ],
@@ -252,10 +222,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         title: const Text('حذف الملاحظة'),
         content: const Text('هل تريد حذف هذه الملاحظة؟'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop<bool>(context, false),
-            child: const Text('إلغاء'),
-          ),
+          TextButton(onPressed: () => Navigator.pop<bool>(context, false), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () => Navigator.pop<bool>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -273,12 +240,9 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         if (!mounted) {
           return;
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('فشل حذف الملاحظة: $e'),
-            backgroundColor: Colors.red.shade900,
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('فشل حذف الملاحظة: $e'), backgroundColor: Colors.red.shade900));
       }
     }
   }
@@ -300,27 +264,18 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
             children: [
               TextField(
                 controller: titleController,
-                decoration: const InputDecoration(
-                  labelText: 'العنوان',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: 'العنوان', border: OutlineInputBorder()),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: contentController,
-                decoration: const InputDecoration(
-                  labelText: 'المحتوى',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: 'المحتوى', border: OutlineInputBorder()),
                 maxLines: 3,
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: priority,
-                decoration: const InputDecoration(
-                  labelText: 'الأولوية',
-                  border: OutlineInputBorder(),
-                ),
+                initialValue: priority,
+                decoration: const InputDecoration(labelText: 'الأولوية', border: OutlineInputBorder()),
                 items: const [
                   DropdownMenuItem(value: 'low', child: Text('منخفضة')),
                   DropdownMenuItem(value: 'medium', child: Text('متوسطة')),
@@ -331,21 +286,11 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('إلغاء'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
             ElevatedButton(
               onPressed: () {
-                if (titleController.text.trim().isNotEmpty &&
-                    contentController.text.trim().isNotEmpty) {
-                  _saveNote(
-                    note,
-                    titleController.text.trim(),
-                    contentController.text.trim(),
-                    priority,
-                    shiftType,
-                  );
+                if (titleController.text.trim().isNotEmpty && contentController.text.trim().isNotEmpty) {
+                  _saveNote(note, titleController.text.trim(), contentController.text.trim(), priority, shiftType);
                   Navigator.pop(context);
                 }
               },
@@ -360,33 +305,16 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     });
   }
 
-  Future<void> _saveNote(
-    ShiftNote? note,
-    String title,
-    String content,
-    String priority,
-    String shiftType,
-  ) async {
+  Future<void> _saveNote(ShiftNote? note, String title, String content, String priority, String shiftType) async {
     final repo = ref.read(simpleNotesRepoProvider);
 
     try {
       if (note == null) {
         // إضافة جديدة
-        await repo.addNote(
-          title: title,
-          content: content,
-          priority: priority,
-          shiftType: shiftType,
-        );
+        await repo.addNote(title: title, content: content, priority: priority, shiftType: shiftType);
       } else {
         // تحديث موجود
-        await repo.updateNote(
-          note.id,
-          title: title,
-          content: content,
-          priority: priority,
-          shiftType: shiftType,
-        );
+        await repo.updateNote(note.id, title: title, content: content, priority: priority, shiftType: shiftType);
       }
 
       markDataChanged();
@@ -395,12 +323,9 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('فشل حفظ الملاحظة: $e'),
-          backgroundColor: Colors.red.shade900,
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('فشل حفظ الملاحظة: $e'), backgroundColor: Colors.red.shade900));
     }
   }
 

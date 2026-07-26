@@ -22,77 +22,30 @@ class RoomsAdapter extends EntityAdapter<Room, RoomsCompanion> {
   String get tableName => 'rooms';
 
   @override
-  Future<ResolveResult> resolveRefs(
-    AppDatabase db,
-    Map<String, dynamic> json, {
-    required Source src,
-  }) async {
+  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
-    return ResolveResult(
-      createdAtEpoch: createdAt,
-      lastModifiedEpoch: lastModified,
-    );
+    return ResolveResult(createdAtEpoch: createdAt, lastModifiedEpoch: lastModified);
   }
 
   @override
-  RoomsCompanion fromJson(
-    Map<String, dynamic> json, {
-    required Source src,
-    required ResolveResult refs,
-  }) {
+  RoomsCompanion fromJson(Map<String, dynamic> json, {required Source src, required ResolveResult refs}) {
     final now = Time.nowEpoch();
-    final createdAt =
-        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified =
-        refs.lastModifiedEpoch ??
-        _epoch(json, 'lastModified', src) ??
-        createdAt;
+    final createdAt = refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final lastModified = refs.lastModifiedEpoch ?? _epoch(json, 'lastModified', src) ?? createdAt;
     return RoomsCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(
-        _asString(json, 'localUuid', src) ??
-            _asString(json, 'local_uuid', src) ??
-            IdGen.uuid(),
-      ),
+      localUuid: d.Value(_asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src) ?? IdGen.uuid()),
       serverId: _vInt(json, 'serverId', src),
-      roomNumber: _vStr(
-        json,
-        'roomNumber',
-        src,
-        altKey: 'room_number',
-        fallback: '',
-      ),
+      roomNumber: _vStr(json, 'roomNumber', src, altKey: 'room_number', fallback: ''),
       type: _vStr(json, 'type', src, fallback: ''),
-      price: _vDouble(json, 'price', src, fallback: 0),
+      price: _vDouble(json, 'price', src),
       status: _vStr(json, 'status', src, fallback: ''),
       imageUrl: _vStr(json, 'imageUrl', src, altKey: 'image_url'),
-      cleaningStatus: _vStr(
-        json,
-        'cleaningStatus',
-        src,
-        altKey: 'cleaning_status',
-        fallback: 'clean',
-      ),
-      lastCleanedHotelDay: _vStr(
-        json,
-        'lastCleanedHotelDay',
-        src,
-        altKey: 'last_cleaned_hotel_day',
-      ),
-      lastOccupiedHotelDay: _vStr(
-        json,
-        'lastOccupiedHotelDay',
-        src,
-        altKey: 'last_occupied_hotel_day',
-      ),
-      requiresMaintenance: _vBool(
-        json,
-        'requiresMaintenance',
-        src,
-        altKey: 'requires_maintenance',
-        fallback: false,
-      ),
+      cleaningStatus: _vStr(json, 'cleaningStatus', src, altKey: 'cleaning_status', fallback: 'clean'),
+      lastCleanedHotelDay: _vStr(json, 'lastCleanedHotelDay', src, altKey: 'last_cleaned_hotel_day'),
+      lastOccupiedHotelDay: _vStr(json, 'lastOccupiedHotelDay', src, altKey: 'last_occupied_hotel_day'),
+      requiresMaintenance: _vBool(json, 'requiresMaintenance', src, altKey: 'requires_maintenance', fallback: false),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
@@ -101,12 +54,7 @@ class RoomsAdapter extends EntityAdapter<Room, RoomsCompanion> {
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
       createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
-      lastModifiedEpoch: _vInt(
-        json,
-        'lastModifiedEpoch',
-        src,
-        fallback: lastModified,
-      ),
+      lastModifiedEpoch: _vInt(json, 'lastModifiedEpoch', src, fallback: lastModified),
       version: _vInt(json, 'version', src, fallback: 1),
       // ✅ إصلاح: عند src=Source.appwrite، نصر على origin='server' دائماً
       // لمنع مشكلة أن البيانات المسحوبة من السيرفر تحمل origin='mobile'
@@ -114,13 +62,9 @@ class RoomsAdapter extends EntityAdapter<Room, RoomsCompanion> {
       origin: src == Source.appwrite || src == Source.drive
           ? const d.Value('server')
           : _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vStr(
-        json,
-        'vectorClock',
-        src,
-        altKey: 'vector_clock',
-        fallback: '{}',
-      ),
+      vectorClock: _vStr(json, 'vectorClock', src, altKey: 'vector_clock', fallback: '{}'),
+      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
+      deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
 
@@ -136,76 +80,44 @@ class RoomsAdapter extends EntityAdapter<Room, RoomsCompanion> {
       _k(src, 'status', 'status'): model.status,
       _k(src, 'imageUrl', 'image_url'): model.imageUrl,
       _k(src, 'cleaningStatus', 'cleaning_status'): model.cleaningStatus,
-      _k(src, 'lastCleanedHotelDay', 'last_cleaned_hotel_day'):
-          model.lastCleanedHotelDay,
-      _k(src, 'lastOccupiedHotelDay', 'last_occupied_hotel_day'):
-          model.lastOccupiedHotelDay,
-      _k(src, 'requiresMaintenance', 'requires_maintenance'):
-          model.requiresMaintenance,
+      _k(src, 'lastCleanedHotelDay', 'last_cleaned_hotel_day'): model.lastCleanedHotelDay,
+      _k(src, 'lastOccupiedHotelDay', 'last_occupied_hotel_day'): model.lastOccupiedHotelDay,
+      _k(src, 'requiresMaintenance', 'requires_maintenance'): model.requiresMaintenance,
       _k(src, 'createdAt', 'created_at'): model.createdAt,
+      _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
+      _k(src, 'createdAtIso', 'created_at_iso'): model.createdAtIso,
       _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
+      _k(src, 'updatedAtIso', 'updated_at_iso'): model.updatedAtIso,
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
+      _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      'idempotencyKey': model.idempotencyKey,
+      'deviceId': model.deviceId,
     };
   }
 }
 
-d.Value<int> _vInt(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  int? fallback,
-}) {
-  final v =
-      _asInt(json, key, src) ??
-      (altKey != null ? _asInt(json, altKey, src) : null) ??
-      fallback;
+d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src, {String? altKey, int? fallback}) {
+  final v = _asInt(json, key, src) ?? (altKey != null ? _asInt(json, altKey, src) : null) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String> _vStr(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  String? fallback,
-}) {
-  final v =
-      _asString(json, key, src) ??
-      (altKey != null ? _asString(json, altKey, src) : null) ??
-      fallback;
+d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src, {String? altKey, String? fallback}) {
+  final v = _asString(json, key, src) ?? (altKey != null ? _asString(json, altKey, src) : null) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<double> _vDouble(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  double? fallback,
-}) {
-  final v =
-      _asDouble(json, key, src) ??
-      (altKey != null ? _asDouble(json, altKey, src) : null) ??
-      fallback;
+d.Value<double> _vDouble(Map<String, dynamic> json, String key, Source src, {String? altKey, double? fallback}) {
+  final v = _asDouble(json, key, src) ?? (altKey != null ? _asDouble(json, altKey, src) : null) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<bool> _vBool(
-  Map<String, dynamic> json,
-  String key,
-  Source src, {
-  String? altKey,
-  bool? fallback,
-}) {
-  final v =
-      _asBool(json, key, src) ??
-      (altKey != null ? _asBool(json, altKey, src) : null) ??
-      fallback;
+d.Value<bool> _vBool(Map<String, dynamic> json, String key, Source src, {String? altKey, bool? fallback}) {
+  final v = _asBool(json, key, src) ?? (altKey != null ? _asBool(json, altKey, src) : null) ?? fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
@@ -298,13 +210,10 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) =>
-    src == Source.drive ? snake : camel;
+String _k(Source src, String camel, String snake) => src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
-  if (src == Source.drive) {
-    return camel;
-  }
+  // ✅ إصلاح: تحويل camelCase → snake_case لجميع المصادر بما فيها Drive
   final buf = StringBuffer();
   for (var i = 0; i < camel.length; i++) {
     final c = camel[i];

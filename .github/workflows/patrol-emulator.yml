@@ -1,0 +1,265 @@
+# ════════════════════════════════════════════════════════════════════════════
+#  Marina Hotel — Patrol Integration Tests (Android Emulator)
+#  ════════════════════════════════════════════════════════════════════════════
+#
+#  يحل محل android-emulator.yml القديم. الفروق الجوهرية:
+#
+#  1. يستخدم Patrol 4.7.x (patrolTest + $ custom finders) بدلاً من
+#     integration_test العادي. هذا يوفِّر:
+#       - Native automation (permissions, notifications, WebView, share sheet)
+#       - Custom finders أسرع وأوضح ($(Key).tap() بدلاً من tester.tap(find...))
+#       - Hot Restart أثناء التطوير المحلي
+#
+#  2. يُجمِّع كل اختبارات integration_test/*_test.dart في APK واحد عبر
+#     `patrol build android` ثم يشغِّلها في invocation واحد بدلاً من
+#     N invocations منفصلة (مما يقلِّل وقت الـ CI بشكل كبير).
+#
+#  3. يستخدم `patrol test` مع --retry لمعالجة flakiness تلقائياً.
+#
+#  4. AVD caching يبقى كما هو (snapshot للـ system image).
+#
+#  المرجع: https://patrol.leancode.co/documentation
+# ════════════════════════════════════════════════════════════════════════════
+
+name: Patrol Integration Tests
+
+concurrency:
+  group: patrol-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+on:
+  pull_request:
+    branches: [main, marina, 'refactor/**', 'feature/**']
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/patrol-emulator.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/patrol-emulator.yml'
+  workflow_dispatch: # يسمح بالتشغيل اليدوي من GitHub UI
+
+jobs:
+  # ═════════════════════════════════════════════════════════════════════════
+  #  Job 1: تشغيل اختبارات Patrol على Android emulator
+  # ═════════════════════════════════════════════════════════════════════════
+  patrol-test:
+    name: Patrol Tests (API ${{ matrix.api-level }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [34]
+        target: [google_apis]
+        arch: [x86_64]
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      # ─────────────────────────────────────────────────────────────────────
+      #  1. Checkout الكود
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 📥 Checkout code
+        uses: actions/checkout@v5
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  2. تفعيل KVM — ضروري لـ hardware acceleration
+      # ─────────────────────────────────────────────────────────────────────
+      - name: ⚡ Enable KVM group perms
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  4. تثبيت Java 17 (مطلوب لـ Android Gradle Plugin 8+)
+      # ─────────────────────────────────────────────────────────────────────
+      - name: ☕ Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  5. تثبيت Flutter 3.44.4 (مطابق للإصدار المُستخدم محلياً)
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 🐦 Set up Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  6. إعداد ANDROID_HOME — Ubuntu runners لديها Android SDK مثبَّت مسبقاً
+      #     في /usr/local/lib/android/sdk. نحتاج فقط تصديره لـ patrol_cli.
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 🤖 Configure Android SDK
+        run: |
+          # Ubuntu runners have Android SDK preinstalled here
+          export ANDROID_HOME=/usr/local/lib/android/sdk
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+
+          # Find sdkmanager (path varies between runner images — could be
+          # cmdline-tools/latest/bin or cmdline-tools/<version>/bin)
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -1 || true)
+          if [ -z "$SDKMANAGER" ]; then
+            echo "::error::sdkmanager not found under $ANDROID_HOME/cmdline-tools"
+            ls -la "$ANDROID_HOME/cmdline-tools/" || true
+            exit 1
+          fi
+          echo "Found sdkmanager: $SDKMANAGER"
+          SDKMANAGER_DIR=$(dirname "$SDKMANAGER")
+          echo "$SDKMANAGER_DIR" >> $GITHUB_PATH
+          "$SDKMANAGER" --version
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  7. تثبيت patrol_cli
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 🔧 Install patrol_cli
+        run: dart pub global activate patrol_cli 4.5.1
+
+      - name: 🩺 Patrol doctor
+        run: |
+          export PATH="$HOME/.pub-cache/bin:$PATH"
+          patrol doctor || true
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  8. تثبيت dependencies
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 📦 Install dependencies
+        run: flutter pub get
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  9. توليد ملفات drift/freezed اللازمة قبل البناء
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 🔧 Generate build_runner files
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  10. AVD cache — يُسرِّع الـ runs القادمة بشكل كبير
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 💾 AVD cache
+        uses: actions/cache@v5
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-patrol-${{ matrix.api-level }}-${{ matrix.target }}-${{ matrix.arch }}-v1
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  11. تشغيل الاختبارات على الـ emulator
+      #      patrol test يبني الـ APK ويُشغِّل الاختبارات في خطوة واحدة.
+      #      نستخدم cold-boot لتفادي مشاكل snapshot corruption.
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 🧪 Run Patrol tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          target: ${{ matrix.target }}
+          arch: ${{ matrix.arch }}
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
+          disable-animations: true
+          script: |
+            # android-emulator-runner passes the script to /usr/bin/sh -c.
+            # We use a single-line command with && so cd persists to patrol test.
+            # Note: patrol test doesn't have --retry (only --web-retries for web).
+            cd "${{ github.workspace }}/mobile" && export PATH="$HOME/.pub-cache/bin:$PATH" && patrol test --target integration_test/ --exclude-tags skip-ci --verbose
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  12. رفع تقارير الاختبار كـ artifact (في حال الفشل)
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 📊 Upload test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: patrol-test-results-api-${{ matrix.api-level }}
+          path: |
+            mobile/build/
+            mobile/.dart_tool/
+            mobile/patrol_test/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  13. ملخّص في PR — يعرض نتيجة الاختبارات
+      # ─────────────────────────────────────────────────────────────────────
+      - name: ✅ Report success
+        if: success()
+        run: |
+          echo "### ✅ Patrol Integration Tests — نجحت" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **API level:** ${{ matrix.api-level }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Target:** ${{ matrix.target }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Architecture:** ${{ matrix.arch }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **AVD cached:** ${{ steps.avd-cache.outputs.cache-hit == 'true' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Patrol CLI:** 4.5.1" >> $GITHUB_STEP_SUMMARY
+          echo "- **Patrol runtime:** 4.7.1" >> $GITHUB_STEP_SUMMARY
+
+      - name: ❌ Report failure
+        if: failure()
+        run: |
+          echo "### ❌ Patrol Integration Tests — فشلت" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "تحقق من الـ logs أعلاه. الأسباب الشائعة:" >> $GITHUB_STEP_SUMMARY
+          echo "- الـ emulator فشل في البدء (KVM غير مفعَّل)" >> $GITHUB_STEP_SUMMARY
+          echo "- مشكلة في Patrol setup (patrol doctor)" >> $GITHUB_STEP_SUMMARY
+          echo "- اختبار يحاول الاتصال بـ Firebase/Appwrite الحقيقي" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "لإعادة التشغيل: Actions → Re-run failed jobs" >> $GITHUB_STEP_SUMMARY
+
+  # ═════════════════════════════════════════════════════════════════════════
+  #  Job 2: فحص جاهزية اختبارات Patrol (سريع — بدون emulator)
+  # ═════════════════════════════════════════════════════════════════════════
+  patrol-syntax-check:
+    name: Patrol Test Syntax Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v5
+
+      - name: 🐦 Set up Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
+
+      - name: 📦 Install dependencies
+        run: flutter pub get
+
+      - name: 🔍 Verify integration test files compile
+        run: |
+          echo "=== فحص أن ملفات integration_test تُترجم بدون أخطاء ==="
+          flutter analyze integration_test/ --no-fatal-infos --no-fatal-warnings
+
+      - name: 📊 List integration test files
+        run: |
+          echo "=== ملفات integration_test الموجودة ==="
+          ls -la integration_test/
+          echo ""
+          echo "=== عدد اختبارات patrolTest ==="
+          grep -r "patrolTest(" integration_test/ | wc -l

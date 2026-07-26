@@ -8,7 +8,6 @@ import 'package:uuid/uuid.dart';
 
 import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
-import '../utils/time.dart';
 import 'booking_derived_fields_service.dart';
 import 'local_db.dart';
 import 'price_adjustment_service.dart';
@@ -29,11 +28,10 @@ class AiQueryCommand extends AiCommand {
 
 /// تغيير سعر غرفة (مع إعادة حساب الحجوزات النشطة)
 class AiUpdateRoomPriceCommand extends AiCommand {
-  const AiUpdateRoomPriceCommand({
-    required this.roomNumber,
-    required this.newPrice,
-    this.reason,
-    required super.description,
+  const AiUpdateRoomPriceCommand({      required this.roomNumber,
+      required this.newPrice,
+      required super.description,
+      this.reason,
   });
   final String roomNumber;
   final double newPrice;
@@ -44,12 +42,11 @@ class AiUpdateRoomPriceCommand extends AiCommand {
 /// مثال: زيادة 10% على غرف doubles
 /// مثال: تخفيض 5000 ريال من جميع الغرف
 class AiBulkPriceAdjustCommand extends AiCommand {
-  const AiBulkPriceAdjustCommand({
-    this.roomType,
-    required this.mode,
-    required this.value,
-    this.reason,
-    required super.description,
+  const AiBulkPriceAdjustCommand({      required this.mode,
+      required this.value,
+      required super.description,
+      this.roomType,
+      this.reason,
   });
   final String? roomType;
   final String mode; // 'percent_increase', 'percent_decrease', 'fixed_increase', 'fixed_decrease'
@@ -59,12 +56,11 @@ class AiBulkPriceAdjustCommand extends AiCommand {
 
 /// تخفيض على حجز معين (خصم ليلي أو إجمالي)
 class AiBookingDiscountCommand extends AiCommand {
-  const AiBookingDiscountCommand({
-    required this.roomNumber,
-    required this.discountAmount,
-    required this.discountType,
-    this.reason,
-    required super.description,
+  const AiBookingDiscountCommand({      required this.roomNumber,
+      required this.discountAmount,
+      required this.discountType,
+      required super.description,
+      this.reason,
   });
   final String roomNumber;
   final double discountAmount;
@@ -74,11 +70,7 @@ class AiBookingDiscountCommand extends AiCommand {
 
 /// تغيير حالة غرفة
 class AiUpdateRoomStatusCommand extends AiCommand {
-  const AiUpdateRoomStatusCommand({
-    required this.roomNumber,
-    required this.newStatus,
-    required super.description,
-  });
+  const AiUpdateRoomStatusCommand({required this.roomNumber, required this.newStatus, required super.description});
   final String roomNumber;
   final String newStatus;
 }
@@ -98,11 +90,10 @@ class AiAddExpenseCommand extends AiCommand {
 
 /// تسجيل دفعة لحجز
 class AiAddPaymentCommand extends AiCommand {
-  const AiAddPaymentCommand({
-    required this.roomNumber,
-    required this.amount,
-    this.notes,
-    required super.description,
+  const AiAddPaymentCommand({      required this.roomNumber,
+      required this.amount,
+      required super.description,
+      this.notes,
   });
   final String roomNumber;
   final double amount;
@@ -111,29 +102,22 @@ class AiAddPaymentCommand extends AiCommand {
 
 /// إنهاء حجز (تسجيل خروج)
 class AiCheckoutCommand extends AiCommand {
-  const AiCheckoutCommand({
-    required this.roomNumber,
-    required super.description,
-  });
+  const AiCheckoutCommand({required this.roomNumber, required super.description});
   final String roomNumber;
 }
 
 /// إصلاح دفعات غرفة — إعادة حساب الليالي والمستحقات والمدفوعات المخزّنة
 class AiFixPaymentsCommand extends AiCommand {
-  const AiFixPaymentsCommand({
-    required this.roomNumber,
-    required super.description,
-  });
+  const AiFixPaymentsCommand({required this.roomNumber, required super.description});
   final String roomNumber;
 }
 
 /// تسوية دين
 class AiSettleDebtCommand extends AiCommand {
-  const AiSettleDebtCommand({
-    this.debtId,
-    required this.guestName,
-    required this.amount,
-    required super.description,
+  const AiSettleDebtCommand({      required this.guestName,
+      required this.amount,
+      required super.description,
+      this.debtId,
   });
   final int? debtId;
   final String guestName;
@@ -142,15 +126,14 @@ class AiSettleDebtCommand extends AiCommand {
 
 /// إضافة حجز جديد
 class AiAddBookingCommand extends AiCommand {
-  const AiAddBookingCommand({
-    required this.roomNumber,
-    required this.guestName,
-    required this.guestPhone,
-    required this.guestNationality,
-    required this.checkinDate,
-    required this.expectedNights,
-    this.price,
-    required super.description,
+  const AiAddBookingCommand({      required this.roomNumber,
+      required this.guestName,
+      required this.guestPhone,
+      required this.guestNationality,
+      required this.checkinDate,
+      required this.expectedNights,
+      required super.description,
+      this.price,
   });
   final String roomNumber;
   final String guestName;
@@ -163,12 +146,11 @@ class AiAddBookingCommand extends AiCommand {
 
 /// تحديث بيانات ضيف
 class AiUpdateBookingGuestCommand extends AiCommand {
-  const AiUpdateBookingGuestCommand({
-    required this.roomNumber,
-    this.guestName,
-    this.guestPhone,
-    this.extendNights,
-    required super.description,
+  const AiUpdateBookingGuestCommand({      required this.roomNumber,
+      required super.description,
+      this.guestName,
+      this.guestPhone,
+      this.extendNights,
   });
   final String roomNumber;
   final String? guestName;
@@ -178,11 +160,10 @@ class AiUpdateBookingGuestCommand extends AiCommand {
 
 /// طلب تقرير (يُنفذ فوراً بدون تأكيد)
 class AiReportCommand extends AiCommand {
-  const AiReportCommand({
-    required this.reportType,
-    this.dateFrom,
-    this.dateTo,
-    required super.description,
+  const AiReportCommand({      required this.reportType,
+      required super.description,
+      this.dateFrom,
+      this.dateTo,
   });
   final String reportType; // daily, revenue, occupancy, debts, expenses, room_prices
   final String? dateFrom;
@@ -199,16 +180,14 @@ class AiNoActionCommand extends AiCommand {
 // ═══════════════════════════════════════════════════════════════
 
 class AiAuditLog {
-
-  const AiAuditLog({
-    required this.id,
-    required this.userMessage,
-    required this.aiResponse,
-    this.commandType,
-    this.commandDescription,
-    required this.executionResult,
-    required this.timestamp,
-    required this.wasConfirmed,
+  const AiAuditLog({      required this.id,
+      required this.userMessage,
+      required this.aiResponse,
+      required this.executionResult,
+      required this.timestamp,
+      required this.wasConfirmed,
+      this.commandType,
+      this.commandDescription,
   });
   final String id;
   final String userMessage;
@@ -220,15 +199,15 @@ class AiAuditLog {
   final bool wasConfirmed;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'userMessage': userMessage,
-        'aiResponse': aiResponse,
-        'commandType': commandType,
-        'commandDescription': commandDescription,
-        'executionResult': executionResult,
-        'timestamp': timestamp.toIso8601String(),
-        'wasConfirmed': wasConfirmed,
-      };
+    'id': id,
+    'userMessage': userMessage,
+    'aiResponse': aiResponse,
+    'commandType': commandType,
+    'commandDescription': commandDescription,
+    'executionResult': executionResult,
+    'timestamp': timestamp.toIso8601String(),
+    'wasConfirmed': wasConfirmed,
+  };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -383,9 +362,7 @@ class GeminiService {
       // ═══════════════════════════════════════════════════════════
       //  1. بيانات الغرف الشاملة
       // ═══════════════════════════════════════════════════════════
-      final allRooms = await (db.select(db.rooms)
-            ..where((r) => r.deletedAt.isNull()))
-          .get();
+      final allRooms = await (db.select(db.rooms)..where((r) => r.deletedAt.isNull())).get();
       final roomMap = {for (final r in allRooms) r.roomNumber: r};
 
       final available = allRooms.where((r) => r.status == 'available').length;
@@ -407,19 +384,18 @@ class GeminiService {
         final avg = entry.value.reduce((a, b) => a + b) / entry.value.length;
         final min = entry.value.reduce((a, b) => a < b ? a : b);
         final max = entry.value.reduce((a, b) => a > b ? a : b);
-        s.writeln('  ${entry.key}: ${entry.value.length} غرفة | متوسط ${avg.toStringAsFixed(0)} | أقل ${min.toStringAsFixed(0)} | أعلى ${max.toStringAsFixed(0)} ريال');
+        s.writeln(
+          '  ${entry.key}: ${entry.value.length} غرفة | متوسط ${avg.toStringAsFixed(0)} | أقل ${min.toStringAsFixed(0)} | أعلى ${max.toStringAsFixed(0)} ريال',
+        );
       }
 
       if (allRooms.isNotEmpty) {
         final typeStatusStats = <String, Map<String, int>>{};
         for (final r in allRooms) {
-          final row = typeStatusStats.putIfAbsent(r.type, () => <String, int>{
-                'available': 0,
-                'occupied': 0,
-                'maintenance': 0,
-                'cleaning': 0,
-                'other': 0,
-              });
+          final row = typeStatusStats.putIfAbsent(
+            r.type,
+            () => <String, int>{'available': 0, 'occupied': 0, 'maintenance': 0, 'cleaning': 0, 'other': 0},
+          );
           final status = r.status;
           if (row.containsKey(status)) {
             row[status] = (row[status] ?? 0) + 1;
@@ -430,14 +406,14 @@ class GeminiService {
 
         s.writeln();
         s.writeln('تفصيل الإشغال حسب النوع:');
-        for (final entry in typeStatusStats.entries.toList()
-          ..sort((a, b) => a.key.compareTo(b.key))) {
+        for (final entry in typeStatusStats.entries.toList()..sort((a, b) => a.key.compareTo(b.key))) {
           final m = entry.value;
           final t = m.values.fold<int>(0, (s, v) => s + v);
           final occ = m['occupied'] ?? 0;
           final occRate = t > 0 ? (occ / t * 100) : 0.0;
           s.writeln(
-              '  ${entry.key}: إجمالي $t | إشغال $occ (${occRate.toStringAsFixed(0)}%) | شاغر ${m['available'] ?? 0} | تنظيف ${m['cleaning'] ?? 0} | صيانة ${m['maintenance'] ?? 0}');
+            '  ${entry.key}: إجمالي $t | إشغال $occ (${occRate.toStringAsFixed(0)}%) | شاغر ${m['available'] ?? 0} | تنظيف ${m['cleaning'] ?? 0} | صيانة ${m['maintenance'] ?? 0}',
+          );
         }
 
         final prices = allRooms.map((r) => r.price).toList()..sort();
@@ -460,7 +436,8 @@ class GeminiService {
         final p90 = percentile(0.90);
         s.writeln();
         s.writeln(
-            'إحصائيات الأسعار (لكل الغرف): أقل ${minPrice.toStringAsFixed(0)} | 10% ${p10.toStringAsFixed(0)} | 25% ${p25.toStringAsFixed(0)} | متوسط/وسيط ${p50.toStringAsFixed(0)} | 75% ${p75.toStringAsFixed(0)} | 90% ${p90.toStringAsFixed(0)} | أعلى ${maxPrice.toStringAsFixed(0)} ريال');
+          'إحصائيات الأسعار (لكل الغرف): أقل ${minPrice.toStringAsFixed(0)} | 10% ${p10.toStringAsFixed(0)} | 25% ${p25.toStringAsFixed(0)} | متوسط/وسيط ${p50.toStringAsFixed(0)} | 75% ${p75.toStringAsFixed(0)} | 90% ${p90.toStringAsFixed(0)} | أعلى ${maxPrice.toStringAsFixed(0)} ريال',
+        );
       }
 
       // الغرف الشاغرة مرتبة بالسعر
@@ -478,9 +455,8 @@ class GeminiService {
         }
       }
 
-      final maintenanceRooms =
-          allRooms.where((r) => r.status == 'maintenance').toList()
-            ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
+      final maintenanceRooms = allRooms.where((r) => r.status == 'maintenance').toList()
+        ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
       if (maintenanceRooms.isNotEmpty) {
         final limit = maintenanceRooms.length < 80 ? maintenanceRooms.length : 80;
         s.writeln();
@@ -493,9 +469,8 @@ class GeminiService {
         }
       }
 
-      final cleaningRooms =
-          allRooms.where((r) => r.status == 'cleaning').toList()
-            ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
+      final cleaningRooms = allRooms.where((r) => r.status == 'cleaning').toList()
+        ..sort((a, b) => a.roomNumber.compareTo(b.roomNumber));
       if (cleaningRooms.isNotEmpty) {
         final limit = cleaningRooms.length < 80 ? cleaningRooms.length : 80;
         s.writeln();
@@ -511,11 +486,12 @@ class GeminiService {
       // ═══════════════════════════════════════════════════════════
       //  2. الحجوزات النشطة — بيانات شاملة ومُفصّلة
       // ═══════════════════════════════════════════════════════════
-      final activeBookings = await (db.select(db.bookings)
-            ..where((b) => b.status.equals('checked_in'))
-            ..where((b) => b.deletedAt.isNull())
-            ..orderBy([(b) => OrderingTerm.asc(b.roomNumber)]))
-          .get();
+      final activeBookings =
+          await (db.select(db.bookings)
+                ..where((b) => b.status.equals('checked_in'))
+                ..where((b) => b.deletedAt.isNull())
+                ..orderBy([(b) => OrderingTerm.asc(b.roomNumber)]))
+              .get();
 
       if (activeBookings.isNotEmpty) {
         s.writeln();
@@ -536,14 +512,14 @@ class GeminiService {
           final nationality = b.guestNationality;
           final isFullyPaid = b.isFullyPaid;
           final isOverdue = b.isOverdue;
-          final stayDays = checkin != 'غير محدد'
-              ? now.difference(DateTime.parse(checkin)).inDays
-              : 0;
+          final stayDays = checkin != 'غير محدد' ? now.difference(DateTime.parse(checkin)).inDays : 0;
 
           s.writeln('  [${b.roomNumber}] ${b.guestName} | $nationality | ${b.guestPhone}');
           s.writeln('    النوع: $roomType | السعر: ${roomPrice.toStringAsFixed(0)} ريال/ليلة');
           s.writeln('    دخول: $checkin | مغادرة: $checkout | $nights ليلة | أقام $stayDays يوم');
-          s.writeln('    مدفوع: ${totalPaid.toStringAsFixed(0)} | مستحق: ${totalDue.toStringAsFixed(0)} | متبقي: ${remaining.toStringAsFixed(0)} ${isFullyPaid ? "(مكتمل)" : "(غير مكتمل)"}${isOverdue ? " ⚠️ متأخر" : ""}');
+          s.writeln(
+            '    مدفوع: ${totalPaid.toStringAsFixed(0)} | مستحق: ${totalDue.toStringAsFixed(0)} | متبقي: ${remaining.toStringAsFixed(0)} ${isFullyPaid ? "(مكتمل)" : "(غير مكتمل)"}${isOverdue ? " ⚠️ متأخر" : ""}',
+          );
           if (hasDiscount) {
             final discountLabel = b.discountType == 'per_night' ? 'ل كل ليلة' : 'إجمالي';
             s.writeln('    خصم: ${discount.toStringAsFixed(0)} ريال ($discountLabel)');
@@ -568,33 +544,29 @@ class GeminiService {
         final overdueCount = activeBookings.where((b) => b.isOverdue).length;
         s.writeln('حالة الدفع: مكتمل $fullyPaid | جزئي $partialPaid | لم يدفع $notPaid | متأخر $overdueCount');
 
-        final overdueBookings = activeBookings
-            .where((b) => b.isOverdue)
-            .toList()
+        final overdueBookings = activeBookings.where((b) => b.isOverdue).toList()
           ..sort((a, b) => b.remainingBalanceCached.compareTo(a.remainingBalanceCached));
         if (overdueBookings.isNotEmpty) {
-          final overdueLimit =
-              overdueBookings.length < 50 ? overdueBookings.length : 50;
+          final overdueLimit = overdueBookings.length < 50 ? overdueBookings.length : 50;
           s.writeln();
           s.writeln('الحجوزات المتأخرة في الدفع (${overdueBookings.length}) — عرض أول $overdueLimit:');
           for (final b in overdueBookings.take(overdueLimit)) {
             s.writeln(
-                '  [${b.roomNumber}] ${b.guestName} | متبقي ${b.remainingBalanceCached.toStringAsFixed(0)} ريال | دخول ${b.checkinDate.split('T').first}');
+              '  [${b.roomNumber}] ${b.guestName} | متبقي ${b.remainingBalanceCached.toStringAsFixed(0)} ريال | دخول ${b.checkinDate.split('T').first}',
+            );
           }
         }
 
-        final remainingBookings = activeBookings
-            .where((b) => b.remainingBalanceCached > 0.5)
-            .toList()
+        final remainingBookings = activeBookings.where((b) => b.remainingBalanceCached > 0.5).toList()
           ..sort((a, b) => b.remainingBalanceCached.compareTo(a.remainingBalanceCached));
         if (remainingBookings.isNotEmpty) {
-          final remLimit =
-              remainingBookings.length < 50 ? remainingBookings.length : 50;
+          final remLimit = remainingBookings.length < 50 ? remainingBookings.length : 50;
           s.writeln();
           s.writeln('أكبر المتبقيات على الحجوزات (${remainingBookings.length}) — عرض أول $remLimit:');
           for (final b in remainingBookings.take(remLimit)) {
             s.writeln(
-                '  [${b.roomNumber}] ${b.guestName} | متبقي ${b.remainingBalanceCached.toStringAsFixed(0)} ريال | مستحق ${b.totalDueCached.toStringAsFixed(0)} | مدفوع ${b.totalPaidCached.toStringAsFixed(0)}');
+              '  [${b.roomNumber}] ${b.guestName} | متبقي ${b.remainingBalanceCached.toStringAsFixed(0)} ريال | مستحق ${b.totalDueCached.toStringAsFixed(0)} | مدفوع ${b.totalPaidCached.toStringAsFixed(0)}',
+            );
           }
         }
       }
@@ -613,14 +585,18 @@ class GeminiService {
           s.writeln('مغادرة اليوم (${checkoutToday.length}):');
           for (final b in checkoutToday) {
             final rem = b.remainingBalanceCached;
-            s.writeln('  [${b.roomNumber}] ${b.guestName} | متبقي: ${rem.toStringAsFixed(0)} ريال ${rem > 0 ? "⚠️" : "✓"}');
+            s.writeln(
+              '  [${b.roomNumber}] ${b.guestName} | متبقي: ${rem.toStringAsFixed(0)} ريال ${rem > 0 ? "⚠️" : "✓"}',
+            );
           }
         }
         if (checkoutTomorrow.isNotEmpty) {
           s.writeln('مغادرة غداً (${checkoutTomorrow.length}):');
           for (final b in checkoutTomorrow) {
             final rem = b.remainingBalanceCached;
-            s.writeln('  [${b.roomNumber}] ${b.guestName} | متبقي: ${rem.toStringAsFixed(0)} ريال ${rem > 0 ? "⚠️" : "✓"}');
+            s.writeln(
+              '  [${b.roomNumber}] ${b.guestName} | متبقي: ${rem.toStringAsFixed(0)} ريال ${rem > 0 ? "⚠️" : "✓"}',
+            );
           }
         }
       }
@@ -628,22 +604,24 @@ class GeminiService {
       // ═══════════════════════════════════════════════════════════
       //  4. الديون غير المسددة — مع تفاصيل الرهن
       // ═══════════════════════════════════════════════════════════
-      final debts = await (db.select(db.debts)
-            ..where((d) => d.isSettled.equals(0))
-            ..where((d) => d.deletedAt.isNull())
-            ..orderBy([(d) => OrderingTerm.desc(d.dateRecorded)]))
-          .get();
+      final debts =
+          await (db.select(db.debts)
+                ..where((d) => d.isSettled.equals(0))
+                ..where((d) => d.deletedAt.isNull())
+                ..orderBy([(d) => OrderingTerm.desc(d.dateRecorded)]))
+              .get();
       if (debts.isNotEmpty) {
         final totalDebt = debts.fold<double>(0, (s, d) => s + d.remainingAmount);
         s.writeln();
         s.writeln('═══ الديون غير المسددة (${debts.length}) | إجمالي: ${totalDebt.toStringAsFixed(0)} ريال ═══');
         for (final d in debts.take(50)) {
           final pledgeInfo = d.pledge != null && d.pledge!.isNotEmpty ? ' | رهن: ${d.pledge}' : '';
-          s.writeln('  ${d.guestName}: متبقي ${d.remainingAmount.toStringAsFixed(0)} من ${d.totalAmount.toStringAsFixed(0)} ريال | سبب: ${d.debtReason}$pledgeInfo');
+          s.writeln(
+            '  ${d.guestName}: متبقي ${d.remainingAmount.toStringAsFixed(0)} من ${d.totalAmount.toStringAsFixed(0)} ريال | سبب: ${d.debtReason}$pledgeInfo',
+          );
         }
 
-        final topDebts = [...debts]
-          ..sort((a, b) => b.remainingAmount.compareTo(a.remainingAmount));
+        final topDebts = [...debts]..sort((a, b) => b.remainingAmount.compareTo(a.remainingAmount));
         s.writeln();
         s.writeln('أكبر الديون (أول 10):');
         for (final d in topDebts.take(10)) {
@@ -655,15 +633,17 @@ class GeminiService {
       // ═══════════════════════════════════════════════════════════
       //  5. الإيرادات والمصروفات اليوم — مع تفصيل حسب النوع
       // ═══════════════════════════════════════════════════════════
-      final todayPayments = await (db.select(db.payments)
-            ..where((p) => p.paymentDate.like('$today%'))
-            ..where((p) => p.deletedAt.isNull())
-            ..where((p) => p.isVoided.equals(false)))
-          .get();
-      final todayExpenses = await (db.select(db.expenses)
-            ..where((e) => e.date.like('$today%'))
-            ..where((e) => e.deletedAt.isNull()))
-          .get();
+      final todayPayments =
+          await (db.select(db.payments)
+                ..where((p) => p.paymentDate.like('$today%'))
+                ..where((p) => p.deletedAt.isNull())
+                ..where((p) => p.isVoided.equals(false)))
+              .get();
+      final todayExpenses =
+          await (db.select(db.expenses)
+                ..where((e) => e.date.like('$today%'))
+                ..where((e) => e.deletedAt.isNull()))
+              .get();
 
       final totalIncome = todayPayments.fold<double>(0, (s, p) => s + p.amount);
       final totalExpenses = todayExpenses.fold<double>(0, (s, e) => s + e.amount);
@@ -721,7 +701,9 @@ class GeminiService {
         for (final p in sorted.take(limit)) {
           final room = p.roomNumber ?? '-';
           final note = (p.notes?.trim().isNotEmpty ?? false) ? ' | ملاحظة: ${p.notes}' : '';
-          s.writeln('  $room | ${p.amount.toStringAsFixed(0)} ريال | ${p.paymentMethod} | ${p.revenueType} | ${p.paymentDate}$note');
+          s.writeln(
+            '  $room | ${p.amount.toStringAsFixed(0)} ريال | ${p.paymentMethod} | ${p.revenueType} | ${p.paymentDate}$note',
+          );
         }
       }
 
@@ -741,7 +723,8 @@ class GeminiService {
       // ═══════════════════════════════════════════════════════════
       final occupancyRate = total > 0 ? (occupied / total * 100) : 0.0;
       final totalRemaining = activeBookings.fold<double>(
-        0, (s, b) => s + (b.remainingBalanceCached > 0 ? b.remainingBalanceCached : 0),
+        0,
+        (s, b) => s + (b.remainingBalanceCached > 0 ? b.remainingBalanceCached : 0),
       );
       final avgPayment = todayPayments.isNotEmpty ? totalIncome / todayPayments.length : 0.0;
       final totalDueAll = activeBookings.fold<double>(0, (s, b) => s + b.totalDueCached);
@@ -764,35 +747,41 @@ class GeminiService {
       s.writeln('═══ اتجاه الإيرادات (آخر 14 يوم) ═══');
       for (var i = 13; i >= 0; i--) {
         final pastDate = now.subtract(Duration(days: i)).toIso8601String().split('T')[0];
-        final dayPayments = await (db.select(db.payments)
-              ..where((p) => p.paymentDate.like('$pastDate%'))
-              ..where((p) => p.deletedAt.isNull())
-              ..where((p) => p.isVoided.equals(false)))
-            .get();
-        final dayExpenses = await (db.select(db.expenses)
-              ..where((e) => e.date.like('$pastDate%'))
-              ..where((e) => e.deletedAt.isNull()))
-            .get();
+        final dayPayments =
+            await (db.select(db.payments)
+                  ..where((p) => p.paymentDate.like('$pastDate%'))
+                  ..where((p) => p.deletedAt.isNull())
+                  ..where((p) => p.isVoided.equals(false)))
+                .get();
+        final dayExpenses =
+            await (db.select(db.expenses)
+                  ..where((e) => e.date.like('$pastDate%'))
+                  ..where((e) => e.deletedAt.isNull()))
+                .get();
         final dayIncome = dayPayments.fold<double>(0, (s, p) => s + p.amount);
         final dayExpense = dayExpenses.fold<double>(0, (s, e) => s + e.amount);
         final dayNet = dayIncome - dayExpense;
         final isToday = i == 0;
         final marker = isToday ? ' ◄' : '';
-        s.writeln('  $pastDate: إيرادات ${dayIncome.toStringAsFixed(0)} | مصروفات ${dayExpense.toStringAsFixed(0)} | صافي ${dayNet.toStringAsFixed(0)}$marker');
+        s.writeln(
+          '  $pastDate: إيرادات ${dayIncome.toStringAsFixed(0)} | مصروفات ${dayExpense.toStringAsFixed(0)} | صافي ${dayNet.toStringAsFixed(0)}$marker',
+        );
       }
 
       // ═══════════════════════════════════════════════════════════
       //  8. دفتر اليوم الفندقي — آخر 5 أيام
       // ═══════════════════════════════════════════════════════════
-      final ledgerEntries = await (db.select(db.hotelDayLedger)
-            ..orderBy([(l) => OrderingTerm.desc(l.hotelDayKey)]))
-          .get();
+      final ledgerEntries = await (db.select(
+        db.hotelDayLedger,
+      )..orderBy([(l) => OrderingTerm.desc(l.hotelDayKey)])).get();
       if (ledgerEntries.isNotEmpty) {
         s.writeln();
         final limit = ledgerEntries.length < 10 ? ledgerEntries.length : 10;
         s.writeln('═══ دفتر اليوم الفندقي (آخر $limit) ═══');
         for (final l in ledgerEntries.take(limit)) {
-          s.writeln('  ${l.hotelDayKey}: دخل ${l.totalIncome.toStringAsFixed(0)} | مصروفات ${l.totalExpenses.toStringAsFixed(0)} | إشغال ${l.occupancyRate.toStringAsFixed(0)}% | حجوزات ${l.bookingsProcessed} | مدفوعات ${l.paymentsProcessed}');
+          s.writeln(
+            '  ${l.hotelDayKey}: دخل ${l.totalIncome.toStringAsFixed(0)} | مصروفات ${l.totalExpenses.toStringAsFixed(0)} | إشغال ${l.occupancyRate.toStringAsFixed(0)}% | حجوزات ${l.bookingsProcessed} | مدفوعات ${l.paymentsProcessed}',
+          );
         }
 
         final last30Limit = ledgerEntries.length < 30 ? ledgerEntries.length : 30;
@@ -804,14 +793,16 @@ class GeminiService {
         final avgOcc30 = last30.isNotEmpty
             ? last30.fold<double>(0, (s, e) => s + e.occupancyRate) / last30.length
             : 0.0;
-        final bestIncomeDay = [...last30]
-          ..sort((a, b) => b.totalIncome.compareTo(a.totalIncome));
-        final worstIncomeDay = [...last30]
-          ..sort((a, b) => a.totalIncome.compareTo(b.totalIncome));
+        final bestIncomeDay = [...last30]..sort((a, b) => b.totalIncome.compareTo(a.totalIncome));
+        final worstIncomeDay = [...last30]..sort((a, b) => a.totalIncome.compareTo(b.totalIncome));
         s.writeln();
         s.writeln('ملخص دفتر اليوم (آخر $last30Limit يوم):');
-        s.writeln('  إجمالي دخل: ${totalIncome30.toStringAsFixed(0)} | إجمالي مصروفات: ${totalExp30.toStringAsFixed(0)} | صافي: ${(totalIncome30 - totalExp30).toStringAsFixed(0)} ريال');
-        s.writeln('  متوسط يومي: دخل ${avgIncome30.toStringAsFixed(0)} | مصروفات ${avgExp30.toStringAsFixed(0)} | إشغال ${avgOcc30.toStringAsFixed(0)}%');
+        s.writeln(
+          '  إجمالي دخل: ${totalIncome30.toStringAsFixed(0)} | إجمالي مصروفات: ${totalExp30.toStringAsFixed(0)} | صافي: ${(totalIncome30 - totalExp30).toStringAsFixed(0)} ريال',
+        );
+        s.writeln(
+          '  متوسط يومي: دخل ${avgIncome30.toStringAsFixed(0)} | مصروفات ${avgExp30.toStringAsFixed(0)} | إشغال ${avgOcc30.toStringAsFixed(0)}%',
+        );
         if (bestIncomeDay.isNotEmpty) {
           final d = bestIncomeDay.first;
           s.writeln('  أعلى دخل: ${d.hotelDayKey} = ${d.totalIncome.toStringAsFixed(0)} ريال');
@@ -825,14 +816,16 @@ class GeminiService {
       // ═══════════════════════════════════════════════════════════
       //  9. ملاحظات الوردية النشطة
       // ═══════════════════════════════════════════════════════════
-      final activeNotes = await (db.select(db.shiftNotes)
-            ..where((n) => n.isRead.equals(0)))
-          .get();
+      final activeNotes = await (db.select(db.shiftNotes)..where((n) => n.isRead.equals(0))).get();
       if (activeNotes.isNotEmpty) {
         s.writeln();
         s.writeln('═══ ملاحظات وردية غير مقروءة (${activeNotes.length}) ═══');
         for (final n in activeNotes.take(10)) {
-          final priorityLabel = n.priority == 'high' ? '🔴' : n.priority == 'medium' ? '🟡' : '🟢';
+          final priorityLabel = n.priority == 'high'
+              ? '🔴'
+              : n.priority == 'medium'
+              ? '🟡'
+              : '🟢';
           s.writeln('  $priorityLabel [${n.shiftType}] ${n.title}: ${n.content}');
         }
       }
@@ -840,16 +833,19 @@ class GeminiService {
       // ═══════════════════════════════════════════════════════════
       //  10. تعديلات الأسعار الأخيرة
       // ═══════════════════════════════════════════════════════════
-      final recentAdjustments = await (db.select(db.priceAdjustments)
-            ..where((a) => a.isReversed.equals(false))
-            ..orderBy([(a) => OrderingTerm.desc(a.createdAt)]))
-          .get();
+      final recentAdjustments =
+          await (db.select(db.priceAdjustments)
+                ..where((a) => a.isReversed.equals(false))
+                ..orderBy([(a) => OrderingTerm.desc(a.createdAt)]))
+              .get();
       if (recentAdjustments.isNotEmpty) {
         s.writeln();
         final limit = recentAdjustments.length < 30 ? recentAdjustments.length : 30;
         s.writeln('═══ تعديلات أسعار حديثة (آخر $limit) ═══');
         for (final a in recentAdjustments.take(limit)) {
-          s.writeln('  ${a.targetType} | ${a.adjustmentType}: ${a.previousValue} -> ${a.newValue} | بواسطة: ${a.appliedBy} | ${a.reason ?? "بدون سبب"}');
+          s.writeln(
+            '  ${a.targetType} | ${a.adjustmentType}: ${a.previousValue} -> ${a.newValue} | بواسطة: ${a.appliedBy} | ${a.reason ?? "بدون سبب"}',
+          );
         }
       }
 
@@ -903,7 +899,9 @@ class GeminiService {
       } else {
         s.writeln('✗ فحص الرصيد السالب: ${negativeBalance.length} حجز برصيد سالب (المدفوع exceeds التكلفة):');
         for (final b in negativeBalance) {
-          s.writeln('  ✗ [${b.roomNumber}] ${b.guestName}: متبقي ${b.remainingBalanceCached.toStringAsFixed(0)} ريال (مدفوع ${b.totalPaidCached.toStringAsFixed(0)} exceeds مستحق ${b.totalDueCached.toStringAsFixed(0)})');
+          s.writeln(
+            '  ✗ [${b.roomNumber}] ${b.guestName}: متبقي ${b.remainingBalanceCached.toStringAsFixed(0)} ريال (مدفوع ${b.totalPaidCached.toStringAsFixed(0)} exceeds مستحق ${b.totalDueCached.toStringAsFixed(0)})',
+          );
         }
       }
 
@@ -915,7 +913,9 @@ class GeminiService {
         s.writeln('✗ فحص الدفعات الزائدة: ${overpayments.length} حجز بدفعات تتجاوز التكلفة:');
         for (final b in overpayments) {
           final overpay = b.totalPaidCached - b.totalDueCached;
-          s.writeln('  ✗ [${b.roomNumber}] ${b.guestName}: مدفوع ${b.totalPaidCached.toStringAsFixed(0)} > مستحق ${b.totalDueCached.toStringAsFixed(0)} | زيادة ${overpay.toStringAsFixed(0)} ريال');
+          s.writeln(
+            '  ✗ [${b.roomNumber}] ${b.guestName}: مدفوع ${b.totalPaidCached.toStringAsFixed(0)} > مستحق ${b.totalDueCached.toStringAsFixed(0)} | زيادة ${overpay.toStringAsFixed(0)} ريال',
+          );
         }
       }
 
@@ -926,10 +926,10 @@ class GeminiService {
       } else {
         s.writeln('✗ فحص الغرف بدون دفعات: ${noPayments.length} غرفة محجوزة بدون أي دفعة:');
         for (final b in noPayments) {
-          final stayDays = b.checkinDate.isNotEmpty
-              ? now.difference(DateTime.parse(b.checkinDate)).inDays
-              : 0;
-          s.writeln('  ✗ [${b.roomNumber}] ${b.guestName}: مستحق ${b.totalDueCached.toStringAsFixed(0)} ريال | مدفوع 0 | أقام $stayDays يوم ${stayDays >= 3 ? "⚠️ فترة طويلة بدون دفع!" : ""}');
+          final stayDays = b.checkinDate.isNotEmpty ? now.difference(DateTime.parse(b.checkinDate)).inDays : 0;
+          s.writeln(
+            '  ✗ [${b.roomNumber}] ${b.guestName}: مستحق ${b.totalDueCached.toStringAsFixed(0)} ريال | مدفوع 0 | أقام $stayDays يوم ${stayDays >= 3 ? "⚠️ فترة طويلة بدون دفع!" : ""}',
+          );
         }
       }
 
@@ -959,9 +959,7 @@ class GeminiService {
 
       // الغرف التي يتغير يومها الفندقي قريباً (تنبيه)
       final timeToNext = DateTime(now.year, now.month, now.day, 14, 1);
-      final actualNext = now.isAfter(timeToNext)
-          ? timeToNext.add(const Duration(days: 1))
-          : timeToNext;
+      final actualNext = now.isAfter(timeToNext) ? timeToNext.add(const Duration(days: 1)) : timeToNext;
       final remaining = actualNext.difference(now);
       s.writeln('الوقت المتبقي لبداية يوم فندقي جديد: ${remaining.inHours} ساعة و${remaining.inMinutes % 60} دقيقة');
 
@@ -984,60 +982,59 @@ class GeminiService {
       // ═══════════════════════════════════════════════════════════
       //  14. الموظفين والرواتب
       // ═══════════════════════════════════════════════════════════
-      final employees = await (db.select(db.employees)
-            ..where((e) => e.deletedAt.isNull()))
-          .get();
+      final employees = await (db.select(db.employees)..where((e) => e.deletedAt.isNull())).get();
 
       if (employees.isNotEmpty) {
         s.writeln();
         s.writeln('═══ الموظفين والرواتب (${employees.length}) ═══');
 
-        final activeEmp =
-            employees.where((e) => StatusUtils.isEmployeeActive(e.status)).length;
+        final activeEmp = employees.where((e) => StatusUtils.isEmployeeActive(e.status)).length;
         final inactiveEmp = employees.length - activeEmp;
         s.writeln('نشط: $activeEmp | غير نشط: $inactiveEmp');
 
         // رواتب الموظفين النشطين
-        for (final emp
-            in employees.where((e) => StatusUtils.isEmployeeActive(e.status))) {
-          s.writeln('  [${emp.id}] ${emp.name} | ${emp.position} | الراتب: ${emp.basicSalary.toStringAsFixed(0)} ريال | ${emp.phone}');
+        for (final emp in employees.where((e) => StatusUtils.isEmployeeActive(e.status))) {
+          s.writeln(
+            '  [${emp.id}] ${emp.name} | ${emp.position} | الراتب: ${emp.basicSalary.toStringAsFixed(0)} ريال | ${emp.phone}',
+          );
         }
 
         // دورات الرواتب النشطة
-        final salaryCycles = await (db.select(db.salaryCycles)
-              ..where((c) => c.status.equals('draft')))
-            .get();
+        final salaryCycles = await (db.select(db.salaryCycles)..where((c) => c.status.equals('draft'))).get();
         if (salaryCycles.isNotEmpty) {
           s.writeln();
           s.writeln('دورات رواتب غير مكتملة (${salaryCycles.length}):');
           for (final c in salaryCycles) {
             final emp = employees.where((e) => e.id == c.employeeId).firstOrNull;
             final empName = emp?.name ?? 'موظف محذوف';
-            s.writeln('  $empName | الدورة: ${c.cycleKey} | مستحق: ${c.expectedAmount} | مدفوع: ${c.actualPaid} | متبقي: ${c.remainingAmount}');
+            s.writeln(
+              '  $empName | الدورة: ${c.cycleKey} | مستحق: ${c.expectedAmount} | مدفوع: ${c.actualPaid} | متبقي: ${c.remainingAmount}',
+            );
           }
         }
 
         // المسحوبات الأخيرة
-        final recentWithdrawals = await (db.select(db.salaryWithdrawals)
-              ..where((w) => w.deletedAt.isNull())
-              ..orderBy([(w) => OrderingTerm.desc(w.id)]))
-            .get();
+        final recentWithdrawals =
+            await (db.select(db.salaryWithdrawals)
+                  ..where((w) => w.deletedAt.isNull())
+                  ..orderBy([(w) => OrderingTerm.desc(w.id)]))
+                .get();
         if (recentWithdrawals.isNotEmpty) {
           s.writeln();
           s.writeln('آخر المسحوبات (${recentWithdrawals.length.clamp(0, 5)}):');
           for (final w in recentWithdrawals.take(5)) {
             final emp = employees.where((e) => e.id == w.employeeId).firstOrNull;
             final empName = emp?.name ?? 'موظف محذوف';
-            s.writeln('  $empName | ${w.amount.toStringAsFixed(0)} ريال | ${w.withdrawalType ?? "عادي"} | ${w.reason ?? ""} | ${w.withdrawDate}');
+            s.writeln(
+              '  $empName | ${w.amount.toStringAsFixed(0)} ريال | ${w.withdrawalType ?? "عادي"} | ${w.reason ?? ""} | ${w.withdrawDate}',
+            );
           }
         }
 
         // إجمالي الرواتب المستحقة
-        final totalSalaries =
-            employees.where((e) => StatusUtils.isEmployeeActive(e.status)).fold<double>(
-                  0,
-                  (s, e) => s + e.basicSalary,
-                );
+        final totalSalaries = employees
+            .where((e) => StatusUtils.isEmployeeActive(e.status))
+            .fold<double>(0, (s, e) => s + e.basicSalary);
         s.writeln();
         s.writeln('إجمالي الرواتب الشهرية: ${totalSalaries.toStringAsFixed(0)} ريال');
       }
@@ -1049,14 +1046,18 @@ class GeminiService {
       s.writeln('═══ التسويات المالية والاستحقاقات ═══');
 
       // حركات الصندوق اليوم
-      final todayCashTransactions = await (db.select(db.cashTransactions)
-            ..where((t) => t.transactionTime.like('$today%')))
-          .get();
-      final cashIn = todayCashTransactions.where((t) => t.transactionType == 'income')
+      final todayCashTransactions = await (db.select(
+        db.cashTransactions,
+      )..where((t) => t.transactionTime.like('$today%'))).get();
+      final cashIn = todayCashTransactions
+          .where((t) => t.transactionType == 'income')
           .fold<double>(0, (s, t) => s + t.amount);
-      final cashOut = todayCashTransactions.where((t) => t.transactionType == 'expense')
+      final cashOut = todayCashTransactions
+          .where((t) => t.transactionType == 'expense')
           .fold<double>(0, (s, t) => s + t.amount);
-      s.writeln('حركة الصندوق اليوم: دخول ${cashIn.toStringAsFixed(0)} | خروج ${cashOut.toStringAsFixed(0)} | صافي ${(cashIn - cashOut).toStringAsFixed(0)} ريال');
+      s.writeln(
+        'حركة الصندوق اليوم: دخول ${cashIn.toStringAsFixed(0)} | خروج ${cashOut.toStringAsFixed(0)} | صافي ${(cashIn - cashOut).toStringAsFixed(0)} ريال',
+      );
       if (todayCashTransactions.isNotEmpty) {
         final sorted = [...todayCashTransactions]..sort((a, b) => b.transactionTime.compareTo(a.transactionTime));
         final limit = sorted.length < 60 ? sorted.length : 60;
@@ -1068,20 +1069,20 @@ class GeminiService {
       }
 
       // المدفوعات المعلقة (غير مُطابقة)
-      final pendingPayments = todayPayments.where((p) => p.isPendingBalance == true).toList();
+      final pendingPayments = todayPayments.where((p) => p.isPendingBalance).toList();
       if (pendingPayments.isNotEmpty) {
         s.writeln('مدفوعات معلقة (غير مُطابقة): ${pendingPayments.length}');
         for (final p in pendingPayments) {
-          s.writeln('  ${p.roomNumber ?? "?"} | ${p.amount.toStringAsFixed(0)} ريال | ${p.paymentMethod} | ${p.notes ?? ""}');
+          s.writeln(
+            '  ${p.roomNumber ?? "?"} | ${p.amount.toStringAsFixed(0)} ريال | ${p.paymentMethod} | ${p.notes ?? ""}',
+          );
         }
       } else {
         s.writeln('مدفوعات معلقة: لا توجد');
       }
 
       // المدفوعات الملغاة اليوم
-      final voidedPayments = await (db.select(db.paymentVoids)
-            ..where((v) => v.voidedAtIso.like('$today%')))
-          .get();
+      final voidedPayments = await (db.select(db.paymentVoids)..where((v) => v.voidedAtIso.like('$today%'))).get();
       if (voidedPayments.isNotEmpty) {
         s.writeln('مدفوعات ملغاة اليوم: ${voidedPayments.length}');
         for (final v in voidedPayments) {
@@ -1107,9 +1108,7 @@ class GeminiService {
       final collectedRemaining = activeBookings
           .where((b) => b.totalPaidCached > 0 && b.remainingBalanceCached < 0.5)
           .length;
-      final uncollectedRemaining = activeBookings
-          .where((b) => b.remainingBalanceCached >= 0.5)
-          .length;
+      final uncollectedRemaining = activeBookings.where((b) => b.remainingBalanceCached >= 0.5).length;
       s.writeln();
       s.writeln('استحقاقات الحجوزات: مكتملة $collectedRemaining | غير مكتملة $uncollectedRemaining');
 
@@ -1120,38 +1119,44 @@ class GeminiService {
       s.writeln('═══ ترحيل البيانات والمزامنة ═══');
 
       // حالة دفتر اليوم الفندقي
-      final todayLedger = await (db.select(db.hotelDayLedger)
-            ..where((l) => l.hotelDayKey.equals(today)))
-          .getSingleOrNull();
+      final todayLedger = await (db.select(
+        db.hotelDayLedger,
+      )..where((l) => l.hotelDayKey.equals(today))).getSingleOrNull();
       if (todayLedger != null) {
         s.writeln('دفتر اليوم ($today):');
-        s.writeln('  الحالة: ${todayLedger.status} | الدخل: ${todayLedger.totalIncome.toStringAsFixed(0)} | المصروفات: ${todayLedger.totalExpenses.toStringAsFixed(0)}');
-        s.writeln('  الأرصدة المعلقة: ${todayLedger.pendingBalances.toStringAsFixed(0)} | الإشغال: ${todayLedger.occupancyRate.toStringAsFixed(0)}%');
-        s.writeln('  حجوزات: ${todayLedger.bookingsProcessed} | مدفوعات: ${todayLedger.paymentsProcessed} | ديون: ${todayLedger.debtsProcessed} | مصروفات: ${todayLedger.expensesProcessed}');
+        s.writeln(
+          '  الحالة: ${todayLedger.status} | الدخل: ${todayLedger.totalIncome.toStringAsFixed(0)} | المصروفات: ${todayLedger.totalExpenses.toStringAsFixed(0)}',
+        );
+        s.writeln(
+          '  الأرصدة المعلقة: ${todayLedger.pendingBalances.toStringAsFixed(0)} | الإشغال: ${todayLedger.occupancyRate.toStringAsFixed(0)}%',
+        );
+        s.writeln(
+          '  حجوزات: ${todayLedger.bookingsProcessed} | مدفوعات: ${todayLedger.paymentsProcessed} | ديون: ${todayLedger.debtsProcessed} | مصروفات: ${todayLedger.expensesProcessed}',
+        );
       } else {
         s.writeln('دفتر اليوم ($today): لم يُرحّل بعد — يحتاج ترحيل');
       }
 
       // آخر عمليات AutoFix
-      final recentAutoFix = await (db.select(db.autoFixRuns)
-            ..orderBy([(a) => OrderingTerm.desc(a.startedAtEpoch)]))
-          .get();
+      final recentAutoFix = await (db.select(
+        db.autoFixRuns,
+      )..orderBy([(a) => OrderingTerm.desc(a.startedAtEpoch)])).get();
       if (recentAutoFix.isNotEmpty) {
         s.writeln();
         s.writeln('آخر عمليات الإصلاح التلقائي:');
         for (final run in recentAutoFix.take(3)) {
-          final statusLabel = run.status == 'completed' ? '✓' : run.status == 'running' ? '⟳' : '✗';
+          final statusLabel = run.status == 'completed'
+              ? '✓'
+              : run.status == 'running'
+              ? '⟳'
+              : '✗';
           s.writeln('  $statusLabel ${run.source}: ${run.status} | ${run.startedAtIso}');
         }
       }
 
       // حالة المزامنة
-      final pendingOutbox = await (db.select(db.outbox)
-            ..where((o) => o.processingStatus.equals('pending')))
-          .get();
-      final failedOutbox = await (db.select(db.outbox)
-            ..where((o) => o.processingStatus.equals('failed')))
-          .get();
+      final pendingOutbox = await (db.select(db.outbox)..where((o) => o.processingStatus.equals('pending'))).get();
+      final failedOutbox = await (db.select(db.outbox)..where((o) => o.processingStatus.equals('failed'))).get();
       s.writeln();
       s.writeln('حالة ترحيل البيانات للسيرفر:');
       s.writeln('  بانتظار الرفع: ${pendingOutbox.length}');
@@ -1162,7 +1167,9 @@ class GeminiService {
         s.writeln('تفاصيل عناصر بانتظار الرفع (آخر $limit من ${sorted.length}):');
         for (final o in sorted.take(limit)) {
           final err = (o.lastError?.trim().isNotEmpty ?? false) ? ' | آخر خطأ: ${o.lastError}' : '';
-          s.writeln('  ${o.entity}/${o.op} | uuid: ${o.localUuid} | محاولات: ${o.attempts} | مصدر: ${o.source} | الحالة: ${o.processingStatus}$err');
+          s.writeln(
+            '  ${o.entity}/${o.op} | uuid: ${o.localUuid} | محاولات: ${o.attempts} | مصدر: ${o.source} | الحالة: ${o.processingStatus}$err',
+          );
         }
       }
       if (failedOutbox.isNotEmpty) {
@@ -1171,22 +1178,22 @@ class GeminiService {
         s.writeln('تفاصيل عناصر فشل الرفع (آخر $limit من ${sorted.length}):');
         for (final o in sorted.take(limit)) {
           final err = (o.lastError?.trim().isNotEmpty ?? false) ? ' | آخر خطأ: ${o.lastError}' : '';
-          s.writeln('  ${o.entity}/${o.op} | uuid: ${o.localUuid} | محاولات: ${o.attempts} | مصدر: ${o.source} | الحالة: ${o.processingStatus}$err');
+          s.writeln(
+            '  ${o.entity}/${o.op} | uuid: ${o.localUuid} | محاولات: ${o.attempts} | مصدر: ${o.source} | الحالة: ${o.processingStatus}$err',
+          );
         }
       }
 
-      final syncStateRow = await (db.select(db.syncState)
-            ..where((s) => s.id.equals(1)))
-          .getSingleOrNull();
+      final syncStateRow = await (db.select(db.syncState)..where((s) => s.id.equals(1))).getSingleOrNull();
       if (syncStateRow != null) {
         s.writeln();
         s.writeln('حالة المزامنة المحلية (SyncState):');
-        s.writeln('  آخر Pull: ${syncStateRow.lastPullTs} | آخر Push: ${syncStateRow.lastPushTs} | آخر ServerTs: ${syncStateRow.lastServerTs} | هل يجري مزامنة: ${syncStateRow.isSyncing}');
+        s.writeln(
+          '  آخر Pull: ${syncStateRow.lastPullTs} | آخر Push: ${syncStateRow.lastPushTs} | آخر ServerTs: ${syncStateRow.lastServerTs} | هل يجري مزامنة: ${syncStateRow.isSyncing}',
+        );
       }
 
-      final syncQueuePending = await (db.select(db.syncQueue)
-            ..where((q) => q.status.equals('pending')))
-          .get();
+      final syncQueuePending = await (db.select(db.syncQueue)..where((q) => q.status.equals('pending'))).get();
       if (syncQueuePending.isNotEmpty) {
         s.writeln();
         s.writeln('طابور المزامنة (pending): ${syncQueuePending.length}');
@@ -1196,21 +1203,21 @@ class GeminiService {
         }
       }
 
-      final recentSyncLogs = await (db.select(db.syncLog)
-            ..orderBy([(l) => OrderingTerm.desc(l.createdAt)]))
-          .get();
+      final recentSyncLogs = await (db.select(db.syncLog)..orderBy([(l) => OrderingTerm.desc(l.createdAt)])).get();
       if (recentSyncLogs.isNotEmpty) {
         s.writeln();
         final limit = recentSyncLogs.length < 20 ? recentSyncLogs.length : 20;
         s.writeln('سجل المزامنة (آخر $limit):');
         for (final l in recentSyncLogs.take(limit)) {
-          s.writeln('  ${l.direction} | جهاز: ${l.deviceId} | حالة: ${l.status} | ${l.createdAt} -> ${l.completedAt ?? "-"} | checksum: ${l.checksumMatched}');
+          s.writeln(
+            '  ${l.direction} | جهاز: ${l.deviceId} | حالة: ${l.status} | ${l.createdAt} -> ${l.completedAt ?? "-"} | checksum: ${l.checksumMatched}',
+          );
         }
       }
 
-      final recentConflicts = await (db.select(db.syncConflicts)
-            ..orderBy([(c) => OrderingTerm.desc(c.createdAt)]))
-          .get();
+      final recentConflicts = await (db.select(
+        db.syncConflicts,
+      )..orderBy([(c) => OrderingTerm.desc(c.createdAt)])).get();
       if (recentConflicts.isNotEmpty) {
         s.writeln();
         final limit = recentConflicts.length < 20 ? recentConflicts.length : 20;
@@ -1220,22 +1227,22 @@ class GeminiService {
         }
       }
 
-      final restoreFixes = await (db.select(db.restoreFixLog)
-            ..orderBy([(r) => OrderingTerm.desc(r.executedAt)]))
-          .get();
+      final restoreFixes = await (db.select(db.restoreFixLog)..orderBy([(r) => OrderingTerm.desc(r.executedAt)])).get();
       if (restoreFixes.isNotEmpty) {
         s.writeln();
         final limit = restoreFixes.length < 20 ? restoreFixes.length : 20;
         s.writeln('سجل إصلاحات الاستعادة (آخر $limit):');
         for (final r in restoreFixes.take(limit)) {
-          s.writeln('  ${r.fixType} | ${r.targetTable}#${r.targetRecordId} | ${r.fieldName}: ${r.oldValue ?? "-"} -> ${r.newValue ?? "-"} | سبب: ${r.reason}');
+          s.writeln(
+            '  ${r.fixType} | ${r.targetTable}#${r.targetRecordId} | ${r.fieldName}: ${r.oldValue ?? "-"} -> ${r.newValue ?? "-"} | سبب: ${r.reason}',
+          );
         }
       }
 
       // BookingNights — ليالي مرحّلة
-      final recentNights = await (db.select(db.bookingNights)
-            ..orderBy([(n) => OrderingTerm.desc(n.hotelDayKey)]))
-          .get();
+      final recentNights = await (db.select(
+        db.bookingNights,
+      )..orderBy([(n) => OrderingTerm.desc(n.hotelDayKey)])).get();
       if (recentNights.isNotEmpty) {
         s.writeln();
         final limit = recentNights.length < 20 ? recentNights.length : 20;
@@ -1244,7 +1251,6 @@ class GeminiService {
           s.writeln('  ${n.hotelDayKey}: غرفة محجوزة | سعر ${n.finalRate.toStringAsFixed(0)} ريال');
         }
       }
-
     } catch (e) {
       debugPrint('⚠️ خطأ في بناء سياق الفندق: $e');
       s.writeln('(تعذر تحميل بعض البيانات: $e)');
@@ -1266,9 +1272,7 @@ class GeminiService {
   /// ChatSession يدير سجل المحادثة تلقائياً (لا حاجة لإدارة يدوية)
   Future<GeminiResponse> chat(String userMessage) async {
     if (!isAvailable) {
-      return const GeminiResponse(
-        text: 'المساعد الذكي غير متاح. تأكد من تفعيل AI Logic في Firebase Console.',
-      );
+      return const GeminiResponse(text: 'المساعد الذكي غير متاح. تأكد من تفعيل AI Logic في Firebase Console.');
     }
 
     // ── Cooldown: منع الإرسال السريع ──
@@ -1291,12 +1295,10 @@ class GeminiService {
 
       // ── إرسال عبر ChatSession — يدير التاريخ تلقائياً ──
       // تم تحسين _sendWithRetry للتعامل مع Gemini 2.5 Flash
-      final response = await _sendWithRetry(
-        () {
-          _chat ??= _model!.startChat();
-          return _chat!.sendMessage(Content.text(fullMessage));
-        },
-      );
+      final response = await _sendWithRetry(() {
+        _chat ??= _model!.startChat();
+        return _chat!.sendMessage(Content.text(fullMessage));
+      });
       _lastRequestTime = DateTime.now();
 
       // ⚠️ response.text يرمي FirebaseAIException عند الحظر (لا يُرجع null!)
@@ -1306,13 +1308,10 @@ class GeminiService {
       } on FirebaseAIException catch (e) {
         debugPrint('⚠️ response.text رمى استثناء: $e');
         // إذا كان الرد محظور بسبب السلامة — أعد المحاولة بدون سياق الفندق
-        if (e.message.contains('SAFETY') ||
-            e.message.contains('blocked')) {
+        if (e.message.contains('SAFETY') || e.message.contains('blocked')) {
           debugPrint('⚠️ الرد محظور — إعادة المحاولة برسالة المستخدم فقط');
           try {
-            final retryResponse = await _sendWithRetry(
-              () => _chat!.sendMessage(Content.text(userMessage)),
-            );
+            final retryResponse = await _sendWithRetry(() => _chat!.sendMessage(Content.text(userMessage)));
             responseText = retryResponse.text ?? '';
           } catch (retryE) {
             responseText = _friendlyErrorMessage(retryE);
@@ -1330,17 +1329,13 @@ class GeminiService {
       // التقارير وإصلاح الدفعات تُنفذ فوراً بدون تأكيد
       if (command is AiReportCommand || command is AiFixPaymentsCommand) {
         final reportResult = await executeCommand(command!);
-        return GeminiResponse(
-          text: reportResult,
-        );
+        return GeminiResponse(text: reportResult);
       }
 
       return GeminiResponse(
         text: cleanText,
         command: command,
-        requiresConfirmation: command != null &&
-            command is! AiQueryCommand &&
-            command is! AiNoActionCommand,
+        requiresConfirmation: command != null && command is! AiQueryCommand && command is! AiNoActionCommand,
       );
     } catch (e) {
       debugPrint('❌ خطأ في Gemini: $e');
@@ -1351,9 +1346,7 @@ class GeminiService {
         debugPrint('⚠️ إعادة تعيين الجلسة بسبب خطأ في الأدوار');
         _chat = _model!.startChat();
       }
-      return GeminiResponse(
-        text: _friendlyErrorMessage(e),
-      );
+      return GeminiResponse(text: _friendlyErrorMessage(e));
     }
   }
 
@@ -1383,16 +1376,14 @@ class GeminiService {
       } else if (firebaseMsg.contains('No content') || firebaseMsg.contains('empty')) {
         return 'لم يتم توليد رد. حاول إعادة صياغة السؤال.';
       }
-          return 'خطأ من خدمة AI: $firebaseMsg';
+      return 'خطأ من خدمة AI: $firebaseMsg';
     }
     return 'حدث خطأ أثناء معالجة طلبك: $e';
   }
 
   /// إعادة محاولة تلقائية مع exponential backoff عند تجاوز حد الطلبات
   /// يعمل مع أي نوع استثناء (QuotaExceeded, ServerException, أو عام)
-  Future<GenerateContentResponse> _sendWithRetry(
-    Future<GenerateContentResponse> Function() sendFn,
-  ) async {
+  Future<GenerateContentResponse> _sendWithRetry(Future<GenerateContentResponse> Function() sendFn) async {
     var delay = const Duration(seconds: 4);
     const maxDelay = Duration(seconds: 30);
 
@@ -1402,7 +1393,8 @@ class GeminiService {
       } catch (e) {
         final msg = e.toString();
         // فحص إذا كان الخطأ قابلاً لإعادة المحاولة
-        final isRetryable = e is QuotaExceeded ||
+        final isRetryable =
+            e is QuotaExceeded ||
             e is ServerException ||
             msg.contains('QUOTA') ||
             msg.contains('RESOURCE_EXHAUSTED') ||
@@ -1423,9 +1415,7 @@ class GeminiService {
         await Future<void>.delayed(actualDelay);
 
         // مضاعفة التأخير للمحاولة التالية
-        delay = Duration(
-          milliseconds: (delay.inMilliseconds * 2).clamp(0, maxDelay.inMilliseconds),
-        );
+        delay = Duration(milliseconds: (delay.inMilliseconds * 2).clamp(0, maxDelay.inMilliseconds));
       }
     }
     throw StateError('Unreachable');
@@ -1450,21 +1440,15 @@ class GeminiService {
         //  تغيير سعر غرفة — باستخدام PriceAdjustmentService
         //  (إعادة حساب حجوزات الغرفة النشطة تلقائياً)
         // ═══════════════════════════════════════════════════
-        case AiUpdateRoomPriceCommand(
-            :final roomNumber,
-            :final newPrice,
-            :final reason
-          ):
-          final rooms = await (db.select(db.rooms)
-            ..where((r) => r.roomNumber.equals(roomNumber))).get();
+        case AiUpdateRoomPriceCommand(:final roomNumber, :final newPrice, :final reason):
+          final rooms = await (db.select(db.rooms)..where((r) => r.roomNumber.equals(roomNumber))).get();
           if (rooms.isEmpty) {
             result = 'الغرفة $roomNumber غير موجودة';
             break;
           }
           final oldPrice = rooms.first.price;
 
-          final priceResult = await PriceAdjustmentService(db)
-              .applyRoomPriceChange(
+          final priceResult = await PriceAdjustmentService(db).applyRoomPriceChange(
             roomNumber: roomNumber,
             oldPrice: oldPrice,
             newPrice: newPrice,
@@ -1478,8 +1462,7 @@ class GeminiService {
           }
 
           final details = <String>[];
-          details.add(
-              'سعر الغرفة $roomNumber: ${oldPrice.toStringAsFixed(0)} -> ${newPrice.toStringAsFixed(0)} ريال',);
+          details.add('سعر الغرفة $roomNumber: ${oldPrice.toStringAsFixed(0)} -> ${newPrice.toStringAsFixed(0)} ريال');
           if (priceResult.bookingsAffected > 0) {
             details.add('حجوزات متأثرة: ${priceResult.bookingsAffected}');
             details.add('ليالي مُعاد حسابها: ${priceResult.nightsUpdated}');
@@ -1489,22 +1472,14 @@ class GeminiService {
         // ═══════════════════════════════════════════════════
         //  تخفيض/زيادة جماعية — لجميع الغرف أو نوع معين
         // ═══════════════════════════════════════════════════
-        case AiBulkPriceAdjustCommand(
-            :final roomType,
-            :final mode,
-            :final value,
-            :final reason
-          ):
+        case AiBulkPriceAdjustCommand(:final roomType, :final mode, :final value, :final reason):
           final allRooms = await db.select(db.rooms).get();
           var targetRooms = allRooms.where((r) => r.deletedAt == null).toList();
           if (roomType != null && roomType.isNotEmpty) {
-            targetRooms =
-                targetRooms.where((r) => r.type == roomType).toList();
+            targetRooms = targetRooms.where((r) => r.type == roomType).toList();
           }
           if (targetRooms.isEmpty) {
-            result = roomType != null
-                ? 'لا توجد غرف من نوع "$roomType"'
-                : 'لا توجد غرف';
+            result = roomType != null ? 'لا توجد غرف من نوع "$roomType"' : 'لا توجد غرف';
             break;
           }
 
@@ -1517,29 +1492,25 @@ class GeminiService {
               case 'percent_increase':
                 newPrice = oldPrice * (1 + value / 100);
               case 'percent_decrease':
-                newPrice = (oldPrice * (1 - value / 100))
-                    .clamp(0.0, double.infinity).toDouble();
+                newPrice = (oldPrice * (1 - value / 100)).clamp(0.0, double.infinity);
               case 'fixed_increase':
                 newPrice = oldPrice + value;
               case 'fixed_decrease':
-                newPrice = (oldPrice - value).clamp(0.0, double.infinity).toDouble();
+                newPrice = (oldPrice - value).clamp(0.0, double.infinity);
               default:
                 newPrice = oldPrice;
             }
 
-            final priceResult = await PriceAdjustmentService(db)
-                .applyRoomPriceChange(
+            final priceResult = await PriceAdjustmentService(db).applyRoomPriceChange(
               roomNumber: room.roomNumber,
               oldPrice: oldPrice,
               newPrice: newPrice,
               appliedBy: 'AI - Gemini',
-              reason: reason ??
-                  'تعديل جماعي: $mode ${value.toStringAsFixed(0)}',
+              reason: reason ?? 'تعديل جماعي: $mode ${value.toStringAsFixed(0)}',
             );
             if (priceResult.success) {
               updated++;
-              details.add(
-                  '${room.roomNumber}: ${oldPrice.toStringAsFixed(0)} -> ${newPrice.toStringAsFixed(0)}',);
+              details.add('${room.roomNumber}: ${oldPrice.toStringAsFixed(0)} -> ${newPrice.toStringAsFixed(0)}');
             }
           }
 
@@ -1550,24 +1521,20 @@ class GeminiService {
         // ═══════════════════════════════════════════════════
         //  تخفيض على حجز معين (خصم ليلي أو إجمالي)
         // ═══════════════════════════════════════════════════
-        case AiBookingDiscountCommand(
-            :final roomNumber,
-            :final discountAmount,
-            :final discountType,
-          ):
-          final bookings = await (db.select(db.bookings)
-                ..where((b) => b.roomNumber.equals(roomNumber))
-                ..where((b) => b.status.equals('checked_in'))
-                ..where((b) => b.deletedAt.isNull()))
-              .get();
+        case AiBookingDiscountCommand(:final roomNumber, :final discountAmount, :final discountType):
+          final bookings =
+              await (db.select(db.bookings)
+                    ..where((b) => b.roomNumber.equals(roomNumber))
+                    ..where((b) => b.status.equals('checked_in'))
+                    ..where((b) => b.deletedAt.isNull()))
+                  .get();
           if (bookings.isEmpty) {
             result = 'لا يوجد حجز نشط للغرفة $roomNumber';
             break;
           }
           final booking = bookings.first;
 
-          await (db.update(db.bookings)
-            ..where((b) => b.id.equals(booking.id))).write(
+          await (db.update(db.bookings)..where((b) => b.id.equals(booking.id))).write(
             BookingsCompanion(
               discount: Value(discountAmount),
               discountType: Value(discountType),
@@ -1579,14 +1546,12 @@ class GeminiService {
 
           // إعادة حساب الليالي عبر BookingDerivedFieldsService
           try {
-            await BookingDerivedFieldsService(db)
-                .refreshForBookingId(booking.id, forceRebuild: true);
+            await BookingDerivedFieldsService(db).refreshForBookingId(booking.id, forceRebuild: true);
           } catch (e) {
             debugPrint('⚠️ خطأ في إعادة حساب الحجز: $e');
           }
 
-          final typeLabel =
-              discountType == 'per_night' ? 'لكل ليلة' : 'إجمالي';
+          final typeLabel = discountType == 'per_night' ? 'لكل ليلة' : 'إجمالي';
           result =
               'تم تطبيق خصم ${discountAmount.toStringAsFixed(0)} ريال ($typeLabel) على حجز الغرفة $roomNumber - ${booking.guestName}';
 
@@ -1594,15 +1559,13 @@ class GeminiService {
         //  تغيير حالة غرفة
         // ═══════════════════════════════════════════════════
         case AiUpdateRoomStatusCommand(:final roomNumber, :final newStatus):
-          final rooms = await (db.select(db.rooms)
-            ..where((r) => r.roomNumber.equals(roomNumber))).get();
+          final rooms = await (db.select(db.rooms)..where((r) => r.roomNumber.equals(roomNumber))).get();
           if (rooms.isEmpty) {
             result = 'الغرفة $roomNumber غير موجودة';
             break;
           }
           final oldStatus = rooms.first.status;
-          await (db.update(db.rooms)
-            ..where((r) => r.roomNumber.equals(roomNumber))).write(
+          await (db.update(db.rooms)..where((r) => r.roomNumber.equals(roomNumber))).write(
             RoomsCompanion(
               status: Value(newStatus),
               updatedAt: Value(now.millisecondsSinceEpoch),
@@ -1610,83 +1573,73 @@ class GeminiService {
               updatedAtIso: Value(now.toIso8601String()),
             ),
           );
-          result =
-              'تم تغيير حالة الغرفة $roomNumber من $oldStatus إلى $newStatus';
+          result = 'تم تغيير حالة الغرفة $roomNumber من $oldStatus إلى $newStatus';
 
         // ═══════════════════════════════════════════════════
         //  إضافة مصروف
         // ═══════════════════════════════════════════════════
-        case AiAddExpenseCommand(
-            :final expenseType,
-            :final desc,
-            :final amount
-          ):
+        case AiAddExpenseCommand(:final expenseType, :final desc, :final amount):
           final uuid = _uuid.v4();
           final expenseDate = now.toIso8601String().split('T')[0];
-          await db.into(db.expenses).insert(
-            ExpensesCompanion(
-              expenseType: Value(expenseType),
-              description: Value(desc),
-              amount: Value(amount),
-              date: Value(expenseDate),
-              // ✅ إصلاح: حساب hotelDayKey من الوقت الفعلي بدلاً من التاريخ التقويمي
-              hotelDayKey: Value(HotelTimeEngine.getHotelDayKey()),
-              localUuid: Value(uuid),
-              createdAt: Value(now.millisecondsSinceEpoch),
-              updatedAt: Value(now.millisecondsSinceEpoch),
-              lastModified: Value(now.millisecondsSinceEpoch),
-              createdAtIso: Value(now.toIso8601String()),
-              updatedAtIso: Value(now.toIso8601String()),
-            ),
-          );
+          await db
+              .into(db.expenses)
+              .insert(
+                ExpensesCompanion(
+                  expenseType: Value(expenseType),
+                  description: Value(desc),
+                  amount: Value(amount),
+                  date: Value(expenseDate),
+                  // ✅ إصلاح: حساب hotelDayKey من الوقت الفعلي بدلاً من التاريخ التقويمي
+                  hotelDayKey: Value(HotelTimeEngine.getHotelDayKey()),
+                  localUuid: Value(uuid),
+                  createdAt: Value(now.millisecondsSinceEpoch),
+                  updatedAt: Value(now.millisecondsSinceEpoch),
+                  lastModified: Value(now.millisecondsSinceEpoch),
+                  createdAtIso: Value(now.toIso8601String()),
+                  updatedAtIso: Value(now.toIso8601String()),
+                ),
+              );
           result = 'تم إضافة مصروف: $desc - ${amount.toStringAsFixed(0)} ريال';
 
         // ═══════════════════════════════════════════════════
         //  تسجيل دفعة
         // ═══════════════════════════════════════════════════
-        case AiAddPaymentCommand(
-            :final roomNumber,
-            :final amount,
-            :final notes
-          ):
-          final bookings = await (db.select(db.bookings)
-            ..where((b) => b.roomNumber.equals(roomNumber))).get();
-          final activeBooking =
-              bookings.where((b) => b.status == 'checked_in').firstOrNull;
+        case AiAddPaymentCommand(:final roomNumber, :final amount, :final notes):
+          final bookings = await (db.select(db.bookings)..where((b) => b.roomNumber.equals(roomNumber))).get();
+          final activeBooking = bookings.where((b) => b.status == 'checked_in').firstOrNull;
           if (activeBooking == null) {
             result = 'لا يوجد حجز نشط للغرفة $roomNumber';
             break;
           }
 
           final uuid = _uuid.v4();
-          await db.into(db.payments).insert(
-            PaymentsCompanion(
-              bookingLocalId: Value(activeBooking.id),
-              roomNumber: Value(roomNumber),
-              amount: Value(amount),
-              paymentDate: Value(now.toIso8601String().split('T')[0]),
-              paymentMethod: const Value('cash'),
-              revenueType: const Value('room_rent'),
-              notes: Value(notes),
-              localUuid: Value(uuid),
-              createdAt: Value(now.millisecondsSinceEpoch),
-              updatedAt: Value(now.millisecondsSinceEpoch),
-              lastModified: Value(now.millisecondsSinceEpoch),
-              createdAtIso: Value(now.toIso8601String()),
-              updatedAtIso: Value(now.toIso8601String()),
-            ),
-          );
-          result =
-              'تم تسجيل دفعة ${amount.toStringAsFixed(0)} ريال للغرفة $roomNumber';
+          await db
+              .into(db.payments)
+              .insert(
+                PaymentsCompanion(
+                  bookingLocalId: Value(activeBooking.id),
+                  roomNumber: Value(roomNumber),
+                  amount: Value(amount),
+                  paymentDate: Value(now.toIso8601String().split('T')[0]),
+                  paymentMethod: const Value('cash'),
+                  revenueType: const Value('room_rent'),
+                  notes: Value(notes),
+                  localUuid: Value(uuid),
+                  createdAt: Value(now.millisecondsSinceEpoch),
+                  updatedAt: Value(now.millisecondsSinceEpoch),
+                  lastModified: Value(now.millisecondsSinceEpoch),
+                  createdAtIso: Value(now.toIso8601String()),
+                  updatedAtIso: Value(now.toIso8601String()),
+                ),
+              );
+          result = 'تم تسجيل دفعة ${amount.toStringAsFixed(0)} ريال للغرفة $roomNumber';
 
         // ═══════════════════════════════════════════════════
         //  إنهاء حجز (تسجيل خروج)
         // ═══════════════════════════════════════════════════
         case AiCheckoutCommand(:final roomNumber):
-          final bookings = await (db.select(db.bookings)
-            ..where((b) => b.roomNumber.equals(roomNumber))).get();
-          final activeBooking =
-              bookings.where((b) => b.status == 'checked_in').firstOrNull;
+          final bookings = await (db.select(db.bookings)..where((b) => b.roomNumber.equals(roomNumber))).get();
+          final activeBooking = bookings.where((b) => b.status == 'checked_in').firstOrNull;
           if (activeBooking == null) {
             result = 'لا يوجد حجز نشط للغرفة $roomNumber';
             break;
@@ -1694,8 +1647,7 @@ class GeminiService {
 
           final today = now.toIso8601String().split('T')[0];
 
-          await (db.update(db.bookings)
-            ..where((b) => b.id.equals(activeBooking.id))).write(
+          await (db.update(db.bookings)..where((b) => b.id.equals(activeBooking.id))).write(
             BookingsCompanion(
               status: const Value('checked_out'),
               actualCheckout: Value(today),
@@ -1705,8 +1657,7 @@ class GeminiService {
             ),
           );
 
-          await (db.update(db.rooms)
-            ..where((r) => r.roomNumber.equals(roomNumber))).write(
+          await (db.update(db.rooms)..where((r) => r.roomNumber.equals(roomNumber))).write(
             RoomsCompanion(
               status: const Value('available'),
               updatedAt: Value(now.millisecondsSinceEpoch),
@@ -1714,17 +1665,14 @@ class GeminiService {
               updatedAtIso: Value(now.toIso8601String()),
             ),
           );
-          result =
-              'تم إنهاء حجز الغرفة $roomNumber وتسجيل خروج الضيف ${activeBooking.guestName}';
+          result = 'تم إنهاء حجز الغرفة $roomNumber وتسجيل خروج الضيف ${activeBooking.guestName}';
 
         // ═══════════════════════════════════════════════════
         //  إصلاح دفعات غرفة — إعادة حساب كاملة
         // ═══════════════════════════════════════════════════
         case AiFixPaymentsCommand(:final roomNumber):
-          final bookings = await (db.select(db.bookings)
-            ..where((b) => b.roomNumber.equals(roomNumber))).get();
-          final activeBooking =
-              bookings.where((b) => b.status == 'checked_in').firstOrNull;
+          final bookings = await (db.select(db.bookings)..where((b) => b.roomNumber.equals(roomNumber))).get();
+          final activeBooking = bookings.where((b) => b.status == 'checked_in').firstOrNull;
           if (activeBooking == null) {
             result = 'لا يوجد حجز نشط للغرفة $roomNumber';
             break;
@@ -1738,8 +1686,7 @@ class GeminiService {
 
           // إعادة حساب كاملة عبر BookingDerivedFieldsService
           try {
-            await BookingDerivedFieldsService(db)
-                .refreshForBookingId(activeBooking.id, forceRebuild: true);
+            await BookingDerivedFieldsService(db).refreshForBookingId(activeBooking.id, forceRebuild: true);
           } catch (e) {
             debugPrint('⚠️ خطأ في إعادة حساب الحجز: $e');
             result = 'فشل إعادة حساب الحجز $roomNumber: $e';
@@ -1747,9 +1694,9 @@ class GeminiService {
           }
 
           // قراءة القيم الجديدة بعد الإصلاح
-          final refreshed = await (db.select(db.bookings)
-            ..where((b) => b.id.equals(activeBooking.id)))
-              .getSingleOrNull();
+          final refreshed = await (db.select(
+            db.bookings,
+          )..where((b) => b.id.equals(activeBooking.id))).getSingleOrNull();
 
           if (refreshed == null) {
             result = 'فشل قراءة الحجد بعد الإصلاح';
@@ -1784,20 +1731,14 @@ class GeminiService {
         // ═══════════════════════════════════════════════════
         //  تسوية دين
         // ═══════════════════════════════════════════════════
-        case AiSettleDebtCommand(
-            :final debtId,
-            :final guestName,
-            :final amount
-          ):
+        case AiSettleDebtCommand(:final debtId, :final guestName, :final amount):
           Debt? targetDebt;
           if (debtId != null) {
-            targetDebt = await (db.select(db.debts)
-              ..where((d) => d.id.equals(debtId))).getSingleOrNull();
+            targetDebt = await (db.select(db.debts)..where((d) => d.id.equals(debtId))).getSingleOrNull();
           } else {
-            final debts = await (db.select(db.debts)
-                  ..where((d) =>
-                      d.isSettled.equals(0) & d.guestName.contains(guestName),))
-                .get();
+            final debts = await (db.select(
+              db.debts,
+            )..where((d) => d.isSettled.equals(0) & d.guestName.contains(guestName))).get();
             targetDebt = debts.firstOrNull;
           }
 
@@ -1809,14 +1750,10 @@ class GeminiService {
           final newPaid = targetDebt.paidAmount + amount;
           final isFullySettled = newPaid >= targetDebt.totalAmount;
 
-          await (db.update(db.debts)
-            ..where((d) => d.id.equals(targetDebt!.id))).write(
+          await (db.update(db.debts)..where((d) => d.id.equals(targetDebt!.id))).write(
             DebtsCompanion(
               paidAmount: Value(newPaid),
-              remainingAmount: Value(
-                (targetDebt.totalAmount - newPaid)
-                    .clamp(0.0, double.infinity),
-              ),
+              remainingAmount: Value((targetDebt.totalAmount - newPaid).clamp(0.0, double.infinity)),
               isSettled: Value(isFullySettled ? 1 : 0),
               paymentDate: Value(now.toIso8601String().split('T')[0]),
               updatedAt: Value(now.millisecondsSinceEpoch),
@@ -1832,52 +1769,51 @@ class GeminiService {
         //  إضافة حجز جديد
         // ═══════════════════════════════════════════════════
         case AiAddBookingCommand(
-            :final roomNumber,
-            :final guestName,
-            :final guestPhone,
-            :final guestNationality,
-            :final checkinDate,
-            :final expectedNights,
-            :final price
-          ):
-          final rooms = await (db.select(db.rooms)
-            ..where((r) => r.roomNumber.equals(roomNumber))).get();
+          :final roomNumber,
+          :final guestName,
+          :final guestPhone,
+          :final guestNationality,
+          :final checkinDate,
+          :final expectedNights,
+          :final price,
+        ):
+          final rooms = await (db.select(db.rooms)..where((r) => r.roomNumber.equals(roomNumber))).get();
           if (rooms.isEmpty) {
             result = 'الغرفة $roomNumber غير موجودة';
             break;
           }
           if (rooms.first.status != 'available') {
-            result =
-                'الغرفة $roomNumber غير متاحة حالياً. حالتها: ${rooms.first.status}';
+            result = 'الغرفة $roomNumber غير متاحة حالياً. حالتها: ${rooms.first.status}';
             break;
           }
 
           final roomPrice = price ?? rooms.first.price;
           final uuid = _uuid.v4();
 
-          await db.into(db.bookings).insert(
-            BookingsCompanion(
-              roomNumber: Value(roomNumber),
-              guestName: Value(guestName),
-              guestPhone: Value(guestPhone),
-              guestNationality: Value(guestNationality),
-              checkinDate: Value(checkinDate),
-              status: const Value('checked_in'),
-              expectedNights: Value(expectedNights),
-              calculatedNights: Value(expectedNights),
-              discount: const Value(0),
-              localUuid: Value(uuid),
-              createdAt: Value(now.millisecondsSinceEpoch),
-              updatedAt: Value(now.millisecondsSinceEpoch),
-              lastModified: Value(now.millisecondsSinceEpoch),
-              createdAtIso: Value(now.toIso8601String()),
-              updatedAtIso: Value(now.toIso8601String()),
-              hotelDayCheckin: Value(checkinDate),
-            ),
-          );
+          await db
+              .into(db.bookings)
+              .insert(
+                BookingsCompanion(
+                  roomNumber: Value(roomNumber),
+                  guestName: Value(guestName),
+                  guestPhone: Value(guestPhone),
+                  guestNationality: Value(guestNationality),
+                  checkinDate: Value(checkinDate),
+                  status: const Value('checked_in'),
+                  expectedNights: Value(expectedNights),
+                  calculatedNights: Value(expectedNights),
+                  discount: const Value(0),
+                  localUuid: Value(uuid),
+                  createdAt: Value(now.millisecondsSinceEpoch),
+                  updatedAt: Value(now.millisecondsSinceEpoch),
+                  lastModified: Value(now.millisecondsSinceEpoch),
+                  createdAtIso: Value(now.toIso8601String()),
+                  updatedAtIso: Value(now.toIso8601String()),
+                  hotelDayCheckin: Value(checkinDate),
+                ),
+              );
 
-          await (db.update(db.rooms)
-            ..where((r) => r.roomNumber.equals(roomNumber))).write(
+          await (db.update(db.rooms)..where((r) => r.roomNumber.equals(roomNumber))).write(
             RoomsCompanion(
               status: const Value('occupied'),
               price: Value(roomPrice),
@@ -1893,16 +1829,9 @@ class GeminiService {
         // ═══════════════════════════════════════════════════
         //  تحديث بيانات ضيف
         // ═══════════════════════════════════════════════════
-        case AiUpdateBookingGuestCommand(
-            :final roomNumber,
-            :final guestName,
-            :final guestPhone,
-            :final extendNights
-          ):
-          final bookings = await (db.select(db.bookings)
-            ..where((b) => b.roomNumber.equals(roomNumber))).get();
-          final activeBooking =
-              bookings.where((b) => b.status == 'checked_in').firstOrNull;
+        case AiUpdateBookingGuestCommand(:final roomNumber, :final guestName, :final guestPhone, :final extendNights):
+          final bookings = await (db.select(db.bookings)..where((b) => b.roomNumber.equals(roomNumber))).get();
+          final activeBooking = bookings.where((b) => b.status == 'checked_in').firstOrNull;
           if (activeBooking == null) {
             result = 'لا يوجد حجز نشط للغرفة $roomNumber';
             break;
@@ -1926,15 +1855,10 @@ class GeminiService {
             break;
           }
 
-          await (db.update(db.bookings)
-            ..where((b) => b.id.equals(activeBooking.id))).write(
+          await (db.update(db.bookings)..where((b) => b.id.equals(activeBooking.id))).write(
             BookingsCompanion(
-              guestName: guestName != null && guestName.isNotEmpty
-                  ? Value(guestName)
-                  : const Value.absent(),
-              guestPhone: guestPhone != null && guestPhone.isNotEmpty
-                  ? Value(guestPhone)
-                  : const Value.absent(),
+              guestName: guestName != null && guestName.isNotEmpty ? Value(guestName) : const Value.absent(),
+              guestPhone: guestPhone != null && guestPhone.isNotEmpty ? Value(guestPhone) : const Value.absent(),
               expectedNights: extendNights != null
                   ? Value(activeBooking.expectedNights + extendNights)
                   : const Value.absent(),
@@ -1947,16 +1871,14 @@ class GeminiService {
             ),
           );
 
-          final changes =
-              updates.entries.map((e) => '${e.key}: ${e.value}').join(' | ');
+          final changes = updates.entries.map((e) => '${e.key}: ${e.value}').join(' | ');
           result = 'تم تحديث بيانات الغرفة $roomNumber: $changes';
 
         // ═══════════════════════════════════════════════════
         //  التقارير
         // ═══════════════════════════════════════════════════
         case AiReportCommand(:final reportType):
-          result = await _generateReport(
-              db, reportType, command.dateFrom, command.dateTo,);
+          result = await _generateReport(db, reportType, command.dateFrom, command.dateTo);
 
         case AiNoActionCommand():
           result = command.description;
@@ -1970,24 +1892,25 @@ class GeminiService {
   }
 
   /// تسجيل في سجل التدقيق
-  void logToAudit({
-    required String userMessage,
-    required String aiResponse,
-    AiCommand? command,
-    required String executionResult,
-    required bool wasConfirmed,
+  void logToAudit({      required String userMessage,
+      required String aiResponse,
+      required String executionResult,
+      required bool wasConfirmed,
+      AiCommand? command,
   }) {
     final auditNow = DateTime.now();
-    _auditLog.add(AiAuditLog(
-      id: auditNow.millisecondsSinceEpoch.toString(),
-      userMessage: userMessage,
-      aiResponse: aiResponse,
-      commandType: command?.runtimeType.toString(),
-      commandDescription: command?.description,
-      executionResult: executionResult,
-      timestamp: auditNow,
-      wasConfirmed: wasConfirmed,
-    ),);
+    _auditLog.add(
+      AiAuditLog(
+        id: auditNow.millisecondsSinceEpoch.toString(),
+        userMessage: userMessage,
+        aiResponse: aiResponse,
+        commandType: command?.runtimeType.toString(),
+        commandDescription: command?.description,
+        executionResult: executionResult,
+        timestamp: auditNow,
+        wasConfirmed: wasConfirmed,
+      ),
+    );
   }
 
   // ───────────────────────────────────────────────────────────
@@ -2050,7 +1973,7 @@ class GeminiService {
   - يُخزّن في المدفوعات والمصروفات والحجوزات لضمان الفلترة الصحيحة
   - عند الفلترة: كل المدفوعات/المصروفات في "اليوم الحالي" تُفلتر بـ hotelDayKey وليس بالتاريخ التقويمي
 
-▸ الوقت الحالي الآن: $today | اليوم الفندقي الحالي: $todayHotelDay | متبقي حتى اليوم الفندقي التالي: ${hoursLeft}س ${minsLeft}د
+▸ الوقت الحالي الآن: $today | اليوم الفندقي الحالي: $todayHotelDay | متبقي حتى اليوم الفندقي التالي: $hoursLeftس $minsLeftد
 
 ═══ دورة حياة الحجز ═══
 ▸ الحالات بالترتيب:
@@ -2243,8 +2166,7 @@ class GeminiService {
             roomNumber: json['room_number'] as String? ?? '',
             newPrice: (json['new_price'] as num).toDouble(),
             reason: json['reason'] as String?,
-            description:
-                'تغيير سعر الغرفة ${json['room_number']} إلى ${json['new_price']} (مع إعادة حساب الحجوزات)',
+            description: 'تغيير سعر الغرفة ${json['room_number']} إلى ${json['new_price']} (مع إعادة حساب الحجوزات)',
           );
 
         case 'bulk_price_adjust':
@@ -2271,8 +2193,7 @@ class GeminiService {
           return AiUpdateRoomStatusCommand(
             roomNumber: json['room_number'] as String? ?? '',
             newStatus: json['new_status'] as String? ?? '',
-            description:
-                'تغيير حالة الغرفة ${json['room_number']} إلى ${json['new_status']}',
+            description: 'تغيير حالة الغرفة ${json['room_number']} إلى ${json['new_status']}',
           );
 
         case 'add_expense':
@@ -2280,8 +2201,7 @@ class GeminiService {
             expenseType: json['expense_type'] as String? ?? 'أخرى',
             desc: json['description'] as String? ?? '',
             amount: (json['amount'] as num).toDouble(),
-            description:
-                'إضافة مصروف: ${json['description']} - ${json['amount']}',
+            description: 'إضافة مصروف: ${json['description']} - ${json['amount']}',
           );
 
         case 'add_payment':
@@ -2289,8 +2209,7 @@ class GeminiService {
             roomNumber: json['room_number'] as String? ?? '',
             amount: (json['amount'] as num).toDouble(),
             notes: json['notes'] as String?,
-            description:
-                'تسجيل دفعة ${json['amount']} للغرفة ${json['room_number']}',
+            description: 'تسجيل دفعة ${json['amount']} للغرفة ${json['room_number']}',
           );
 
         case 'checkout':
@@ -2310,8 +2229,7 @@ class GeminiService {
             debtId: json['debt_id'] as int?,
             guestName: json['guest_name'] as String? ?? '',
             amount: (json['amount'] as num).toDouble(),
-            description:
-                'تسوية دين ${json['guest_name']}: ${json['amount']} ريال',
+            description: 'تسوية دين ${json['guest_name']}: ${json['amount']} ريال',
           );
 
         case 'add_booking':
@@ -2319,16 +2237,11 @@ class GeminiService {
             roomNumber: json['room_number'] as String? ?? '',
             guestName: json['guest_name'] as String? ?? '',
             guestPhone: json['guest_phone'] as String? ?? '',
-            guestNationality:
-                json['guest_nationality'] as String? ?? 'يمني',
-            checkinDate: json['checkin_date'] as String? ??
-                DateTime.now().toIso8601String().split('T')[0],
+            guestNationality: json['guest_nationality'] as String? ?? 'يمني',
+            checkinDate: json['checkin_date'] as String? ?? DateTime.now().toIso8601String().split('T')[0],
             expectedNights: json['expected_nights'] as int? ?? 1,
-            price: json['price'] != null
-                ? (json['price'] as num).toDouble()
-                : null,
-            description:
-                'حجز غرفة ${json['room_number']} للضيف ${json['guest_name']}',
+            price: json['price'] != null ? (json['price'] as num).toDouble() : null,
+            description: 'حجز غرفة ${json['room_number']} للضيف ${json['guest_name']}',
           );
 
         case 'update_booking_guest':
@@ -2337,8 +2250,7 @@ class GeminiService {
             guestName: json['guest_name'] as String?,
             guestPhone: json['guest_phone'] as String?,
             extendNights: json['extend_nights'] as int?,
-            description:
-                'تحديث بيانات الغرفة ${json['room_number']}',
+            description: 'تحديث بيانات الغرفة ${json['room_number']}',
           );
 
         case 'report':
@@ -2369,12 +2281,7 @@ class GeminiService {
   //  توليد التقارير من قاعدة البيانات
   // ───────────────────────────────────────────────────────────
 
-  Future<String> _generateReport(
-    AppDatabase db,
-    String reportType,
-    String? dateFrom,
-    String? dateTo,
-  ) async {
+  Future<String> _generateReport(AppDatabase db, String reportType, String? dateFrom, String? dateTo) async {
     try {
       final today = DateTime.now().toIso8601String().split('T')[0];
 
@@ -2411,8 +2318,7 @@ class GeminiService {
 
       if (resolvedFrom == 'month' || resolvedFrom == 'this_month') {
         final now = DateTime.now();
-        resolvedFrom =
-            '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
+        resolvedFrom = '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
         resolvedTo = today;
       }
 
@@ -2429,8 +2335,7 @@ class GeminiService {
 
       if (resolvedFrom == null && resolvedTo == null) {
         final now = DateTime.now();
-        resolvedFrom =
-            '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
+        resolvedFrom = '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
         resolvedTo = today;
       }
 
@@ -2465,76 +2370,71 @@ class GeminiService {
     final lines = <String>['📊 تقرير يومي - $today', ''];
 
     // الإيرادات
-    final todayPayments = await (db.select(db.payments)
-          ..where((p) => p.paymentDate.like('$today%'))
-          ..where((p) => p.deletedAt.isNull())
-          ..where((p) => p.isVoided.equals(false)))
-        .get();
+    final todayPayments =
+        await (db.select(db.payments)
+              ..where((p) => p.paymentDate.like('$today%'))
+              ..where((p) => p.deletedAt.isNull())
+              ..where((p) => p.isVoided.equals(false)))
+            .get();
     final totalIncome = todayPayments.fold<double>(0, (s, p) => s + p.amount);
 
     // المصروفات
-    final todayExpenses = await (db.select(db.expenses)
-          ..where((e) => e.date.like('$today%'))
-          ..where((e) => e.deletedAt.isNull()))
-        .get();
-    final totalExpenses =
-        todayExpenses.fold<double>(0, (s, e) => s + e.amount);
+    final todayExpenses =
+        await (db.select(db.expenses)
+              ..where((e) => e.date.like('$today%'))
+              ..where((e) => e.deletedAt.isNull()))
+            .get();
+    final totalExpenses = todayExpenses.fold<double>(0, (s, e) => s + e.amount);
 
-    final payrollPayments = await (db.select(db.salaryPayments)
-          ..where((p) => p.paymentDateIso.like('$today%'))
-          ..where((p) => p.deletedAt.isNull()))
-        .get();
-    final payrollWithdrawals = await (db.select(db.salaryWithdrawals)
-          ..where((w) => w.withdrawDate.like('$today%'))
-          ..where((w) => w.deletedAt.isNull()))
-        .get();
-    final totalPayroll = payrollPayments.fold<int>(0, (s, p) => s + p.amount) +
+    final payrollPayments =
+        await (db.select(db.salaryPayments)
+              ..where((p) => p.paymentDateIso.like('$today%'))
+              ..where((p) => p.deletedAt.isNull()))
+            .get();
+    final payrollWithdrawals =
+        await (db.select(db.salaryWithdrawals)
+              ..where((w) => w.withdrawDate.like('$today%'))
+              ..where((w) => w.deletedAt.isNull()))
+            .get();
+    final totalPayroll =
+        payrollPayments.fold<int>(0, (s, p) => s + p.amount) +
         payrollWithdrawals.fold<double>(0, (s, w) => s + w.amount).round();
 
     // الغرف
     final allRooms = await db.select(db.rooms).get();
-    final available =
-        allRooms.where((r) => r.status == 'available' && r.deletedAt == null).length;
-    final occupied =
-        allRooms.where((r) => r.status == 'occupied' && r.deletedAt == null).length;
+    final available = allRooms.where((r) => r.status == 'available' && r.deletedAt == null).length;
+    final occupied = allRooms.where((r) => r.status == 'occupied' && r.deletedAt == null).length;
     final total = allRooms.where((r) => r.deletedAt == null).length;
-    final occRate =
-        total > 0 ? (occupied * 100 / total).toStringAsFixed(1) : '0';
+    final occRate = total > 0 ? (occupied * 100 / total).toStringAsFixed(1) : '0';
 
-    lines.add(
-        '💰 الإيرادات: ${totalIncome.toStringAsFixed(0)} ريال (${todayPayments.length} دفعة)',);
-    lines.add(
-        '📉 المصروفات: ${totalExpenses.toStringAsFixed(0)} ريال (${todayExpenses.length} مصروف)',);
-    lines.add('👥 الرواتب/السلف: ${totalPayroll.toStringAsFixed(0)} ريال',);
-    lines.add(
-        '📊 صافي الربح: ${(totalIncome - totalExpenses).toStringAsFixed(0)} ريال',);
-    lines.add(
-        '📌 صافي بعد الرواتب: ${(totalIncome - totalExpenses - totalPayroll).toStringAsFixed(0)} ريال',);
+    lines.add('💰 الإيرادات: ${totalIncome.toStringAsFixed(0)} ريال (${todayPayments.length} دفعة)');
+    lines.add('📉 المصروفات: ${totalExpenses.toStringAsFixed(0)} ريال (${todayExpenses.length} مصروف)');
+    lines.add('👥 الرواتب/السلف: ${totalPayroll.toStringAsFixed(0)} ريال');
+    lines.add('📊 صافي الربح: ${(totalIncome - totalExpenses).toStringAsFixed(0)} ريال');
+    lines.add('📌 صافي بعد الرواتب: ${(totalIncome - totalExpenses - totalPayroll).toStringAsFixed(0)} ريال');
     lines.add('');
-    lines.add(
-        '🏠 إجمالي الغرف: $total | شاغرة: $available | مشغولة: $occupied',);
+    lines.add('🏠 إجمالي الغرف: $total | شاغرة: $available | مشغولة: $occupied');
     lines.add('📈 نسبة الإشغال: $occRate%');
 
     // حجوزات جديدة اليوم
-    final todayBookings = await (db.select(db.bookings)
-          ..where((b) => b.checkinDate.like('$today%'))
-          ..where((b) => b.deletedAt.isNull()))
-        .get();
+    final todayBookings =
+        await (db.select(db.bookings)
+              ..where((b) => b.checkinDate.like('$today%'))
+              ..where((b) => b.deletedAt.isNull()))
+            .get();
     lines.add('📋 حجوزات جديدة اليوم: ${todayBookings.length}');
 
     // خروج اليوم
-    final todayCheckouts = await (db.select(db.bookings)
-          ..where((b) => b.actualCheckout.like('$today%'))
-          ..where((b) => b.deletedAt.isNull()))
-        .get();
+    final todayCheckouts =
+        await (db.select(db.bookings)
+              ..where((b) => b.actualCheckout.like('$today%'))
+              ..where((b) => b.deletedAt.isNull()))
+            .get();
     lines.add('🚪 تسجيلات خروج اليوم: ${todayCheckouts.length}');
 
-    final employees = await (db.select(db.employees)
-          ..where((e) => e.deletedAt.isNull()))
-        .get();
+    final employees = await (db.select(db.employees)..where((e) => e.deletedAt.isNull())).get();
     if (employees.isNotEmpty) {
-      final activeEmp =
-          employees.where((e) => StatusUtils.isEmployeeActive(e.status)).length;
+      final activeEmp = employees.where((e) => StatusUtils.isEmployeeActive(e.status)).length;
       final inactiveEmp = employees.length - activeEmp;
       lines.add('👤 الموظفون: إجمالي ${employees.length} | نشط $activeEmp | غير نشط $inactiveEmp');
     }
@@ -2542,32 +2442,28 @@ class GeminiService {
     return lines.join('\n');
   }
 
-  Future<String> _generateRevenueReport(
-      AppDatabase db, String? from, String? to,) async {
+  Future<String> _generateRevenueReport(AppDatabase db, String? from, String? to) async {
     final now = DateTime.now();
-    final dateFrom =
-        from ?? '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
+    final dateFrom = from ?? '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
     final dateTo = to ?? now.toIso8601String().split('T')[0];
     final dateToEnd = '${dateTo}T23:59:59.999';
 
-    final lines =
-        <String>['💰 تقرير الإيرادات: $dateFrom إلى $dateTo', ''];
+    final lines = <String>['💰 تقرير الإيرادات: $dateFrom إلى $dateTo', ''];
 
-    final payments = await (db.select(db.payments)
-          ..where((p) => p.paymentDate.isBiggerOrEqualValue(dateFrom))
-          ..where((p) => p.paymentDate.isSmallerOrEqualValue(dateToEnd))
-          ..where((p) => p.deletedAt.isNull())
-          ..where((p) => p.isVoided.equals(false)))
-        .get();
+    final payments =
+        await (db.select(db.payments)
+              ..where((p) => p.paymentDate.isBiggerOrEqualValue(dateFrom))
+              ..where((p) => p.paymentDate.isSmallerOrEqualValue(dateToEnd))
+              ..where((p) => p.deletedAt.isNull())
+              ..where((p) => p.isVoided.equals(false)))
+            .get();
 
-    final totalIncome =
-        payments.fold<double>(0, (s, p) => s + p.amount);
+    final totalIncome = payments.fold<double>(0, (s, p) => s + p.amount);
 
     // تجميع حسب طريقة الدفع
     final byMethod = <String, double>{};
     for (final p in payments) {
-      byMethod[p.paymentMethod] =
-          (byMethod[p.paymentMethod] ?? 0) + p.amount;
+      byMethod[p.paymentMethod] = (byMethod[p.paymentMethod] ?? 0) + p.amount;
     }
 
     // تجميع حسب النوع
@@ -2576,8 +2472,7 @@ class GeminiService {
       byType[p.revenueType] = (byType[p.revenueType] ?? 0) + p.amount;
     }
 
-    lines.add(
-        'إجمالي الإيرادات: ${totalIncome.toStringAsFixed(0)} ريال (${payments.length} دفعة)',);
+    lines.add('إجمالي الإيرادات: ${totalIncome.toStringAsFixed(0)} ريال (${payments.length} دفعة)');
     lines.add('');
     lines.add('حسب طريقة الدفع:');
     for (final entry in byMethod.entries) {
@@ -2592,63 +2487,50 @@ class GeminiService {
     return lines.join('\n');
   }
 
-  Future<String> _generatePayrollReport(
-    AppDatabase db,
-    String? from,
-    String? to,
-  ) async {
+  Future<String> _generatePayrollReport(AppDatabase db, String? from, String? to) async {
     final now = DateTime.now();
-    final dateFrom =
-        from ?? '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
+    final dateFrom = from ?? '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
     final dateTo = to ?? now.toIso8601String().split('T')[0];
     final dateToEnd = '${dateTo}T23:59:59.999';
 
-    final lines = <String>[
-      '👥 تقرير الرواتب والموظفين: $dateFrom إلى $dateTo',
-      '',
-    ];
+    final lines = <String>['👥 تقرير الرواتب والموظفين: $dateFrom إلى $dateTo', ''];
 
-    final employees = await (db.select(db.employees)
-          ..where((e) => e.deletedAt.isNull()))
-        .get();
+    final employees = await (db.select(db.employees)..where((e) => e.deletedAt.isNull())).get();
     if (employees.isNotEmpty) {
-      final activeEmp =
-          employees.where((e) => StatusUtils.isEmployeeActive(e.status)).length;
+      final activeEmp = employees.where((e) => StatusUtils.isEmployeeActive(e.status)).length;
       final inactiveEmp = employees.length - activeEmp;
       final totalBaseSalaries = employees
           .where((e) => StatusUtils.isEmployeeActive(e.status))
           .fold<double>(0, (s, e) => s + e.basicSalary);
       lines.add('👤 الموظفون: إجمالي ${employees.length} | نشط $activeEmp | غير نشط $inactiveEmp');
-      lines.add(
-          '💼 إجمالي الرواتب الأساسية (للنشطين): ${totalBaseSalaries.toStringAsFixed(0)} ريال',);
+      lines.add('💼 إجمالي الرواتب الأساسية (للنشطين): ${totalBaseSalaries.toStringAsFixed(0)} ريال');
     } else {
       lines.add('لا يوجد موظفون مسجلون.');
     }
 
     lines.add('');
 
-    final salaryPayments = await (db.select(db.salaryPayments)
-          ..where((p) => p.paymentDateIso.isBiggerOrEqualValue(dateFrom))
-          ..where((p) => p.paymentDateIso.isSmallerOrEqualValue(dateToEnd))
-          ..where((p) => p.deletedAt.isNull()))
-        .get();
-    final withdrawals = await (db.select(db.salaryWithdrawals)
-          ..where((w) => w.withdrawDate.isBiggerOrEqualValue(dateFrom))
-          ..where((w) => w.withdrawDate.isSmallerOrEqualValue(dateToEnd))
-          ..where((w) => w.deletedAt.isNull()))
-        .get();
+    final salaryPayments =
+        await (db.select(db.salaryPayments)
+              ..where((p) => p.paymentDateIso.isBiggerOrEqualValue(dateFrom))
+              ..where((p) => p.paymentDateIso.isSmallerOrEqualValue(dateToEnd))
+              ..where((p) => p.deletedAt.isNull()))
+            .get();
+    final withdrawals =
+        await (db.select(db.salaryWithdrawals)
+              ..where((w) => w.withdrawDate.isBiggerOrEqualValue(dateFrom))
+              ..where((w) => w.withdrawDate.isSmallerOrEqualValue(dateToEnd))
+              ..where((w) => w.deletedAt.isNull()))
+            .get();
 
-    final totalSalaryPayments =
-        salaryPayments.fold<int>(0, (s, p) => s + p.amount);
-    final totalWithdrawals =
-        withdrawals.fold<double>(0, (s, w) => s + w.amount).round();
+    final totalSalaryPayments = salaryPayments.fold<int>(0, (s, p) => s + p.amount);
+    final totalWithdrawals = withdrawals.fold<double>(0, (s, w) => s + w.amount).round();
 
     lines.add(
-        '💸 مدفوعات رواتب خلال الفترة: ${totalSalaryPayments.toStringAsFixed(0)} ريال (${salaryPayments.length})',);
-    lines.add(
-        '💳 سلف/مسحوبات خلال الفترة: ${totalWithdrawals.toStringAsFixed(0)} ريال (${withdrawals.length})',);
-    lines.add(
-        '📌 إجمالي المصروف على الموظفين: ${(totalSalaryPayments + totalWithdrawals).toStringAsFixed(0)} ريال',);
+      '💸 مدفوعات رواتب خلال الفترة: ${totalSalaryPayments.toStringAsFixed(0)} ريال (${salaryPayments.length})',
+    );
+    lines.add('💳 سلف/مسحوبات خلال الفترة: ${totalWithdrawals.toStringAsFixed(0)} ريال (${withdrawals.length})');
+    lines.add('📌 إجمالي المصروف على الموظفين: ${(totalSalaryPayments + totalWithdrawals).toStringAsFixed(0)} ريال');
 
     if (employees.isNotEmpty && (salaryPayments.isNotEmpty || withdrawals.isNotEmpty)) {
       final byEmpPaid = <int, double>{};
@@ -2658,8 +2540,7 @@ class GeminiService {
       for (final p in salaryPayments) {
         final cycle = cycleById[p.cycleId];
         if (cycle != null) {
-          byEmpPaid[cycle.employeeId] =
-              (byEmpPaid[cycle.employeeId] ?? 0) + p.amount;
+          byEmpPaid[cycle.employeeId] = (byEmpPaid[cycle.employeeId] ?? 0) + p.amount;
         }
       }
       for (final w in withdrawals) {
@@ -2667,8 +2548,7 @@ class GeminiService {
       }
 
       final empById = {for (final e in employees) e.id: e};
-      final sorted = byEmpPaid.entries.toList()
-        ..sort((a, b) => b.value.compareTo(a.value));
+      final sorted = byEmpPaid.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
 
       lines.add('');
       lines.add('تفصيل حسب الموظف (الأعلى أولاً):');
@@ -2677,8 +2557,7 @@ class GeminiService {
         final emp = empById[entry.key];
         final name = emp?.name ?? 'موظف غير معروف';
         final pos = emp?.position ?? '';
-        lines.add(
-            '  $name ${pos.isNotEmpty ? "($pos)" : ""}: ${entry.value.toStringAsFixed(0)} ريال',);
+        lines.add('  $name ${pos.isNotEmpty ? "($pos)" : ""}: ${entry.value.toStringAsFixed(0)} ريال');
       }
       if (sorted.length > limit) {
         lines.add('  ... (${sorted.length - limit} موظف/سجل آخر)');
@@ -2688,19 +2567,14 @@ class GeminiService {
     if (employees.isNotEmpty) {
       lines.add('');
       lines.add('قائمة الموظفين (مختصر):');
-      final active = employees
-          .where((e) => StatusUtils.isEmployeeActive(e.status))
-          .toList()
+      final active = employees.where((e) => StatusUtils.isEmployeeActive(e.status)).toList()
         ..sort((a, b) => a.name.compareTo(b.name));
-      final inactive = employees
-          .where((e) => !StatusUtils.isEmployeeActive(e.status))
-          .toList()
+      final inactive = employees.where((e) => !StatusUtils.isEmployeeActive(e.status)).toList()
         ..sort((a, b) => a.name.compareTo(b.name));
 
       final showActive = active.length < 60 ? active.length : 60;
       for (final e in active.take(showActive)) {
-        lines.add(
-            '  ✓ ${e.name} | ${e.position} | ${e.basicSalary.toStringAsFixed(0)} ريال | ${e.phone}',);
+        lines.add('  ✓ ${e.name} | ${e.position} | ${e.basicSalary.toStringAsFixed(0)} ريال | ${e.phone}');
       }
       if (active.length > showActive) {
         lines.add('  ... (${active.length - showActive} موظف نشط آخر)');
@@ -2722,51 +2596,47 @@ class GeminiService {
     return lines.join('\n');
   }
 
-  Future<String> _generateFinanceReport(
-    AppDatabase db,
-    String? from,
-    String? to,
-  ) async {
+  Future<String> _generateFinanceReport(AppDatabase db, String? from, String? to) async {
     final now = DateTime.now();
-    final dateFrom =
-        from ?? '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
+    final dateFrom = from ?? '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
     final dateTo = to ?? now.toIso8601String().split('T')[0];
     final dateToEnd = '${dateTo}T23:59:59.999';
 
-    final lines = <String>[
-      '📊 تقرير مالي شامل: $dateFrom إلى $dateTo',
-      '',
-    ];
+    final lines = <String>['📊 تقرير مالي شامل: $dateFrom إلى $dateTo', ''];
 
-    final payments = await (db.select(db.payments)
-          ..where((p) => p.paymentDate.isBiggerOrEqualValue(dateFrom))
-          ..where((p) => p.paymentDate.isSmallerOrEqualValue(dateToEnd))
-          ..where((p) => p.deletedAt.isNull())
-          ..where((p) => p.isVoided.equals(false)))
-        .get();
+    final payments =
+        await (db.select(db.payments)
+              ..where((p) => p.paymentDate.isBiggerOrEqualValue(dateFrom))
+              ..where((p) => p.paymentDate.isSmallerOrEqualValue(dateToEnd))
+              ..where((p) => p.deletedAt.isNull())
+              ..where((p) => p.isVoided.equals(false)))
+            .get();
 
-    final expenses = await (db.select(db.expenses)
-          ..where((e) => e.date.isBiggerOrEqualValue(dateFrom))
-          ..where((e) => e.date.isSmallerOrEqualValue(dateToEnd))
-          ..where((e) => e.deletedAt.isNull()))
-        .get();
+    final expenses =
+        await (db.select(db.expenses)
+              ..where((e) => e.date.isBiggerOrEqualValue(dateFrom))
+              ..where((e) => e.date.isSmallerOrEqualValue(dateToEnd))
+              ..where((e) => e.deletedAt.isNull()))
+            .get();
 
-    final salaryPayments = await (db.select(db.salaryPayments)
-          ..where((p) => p.paymentDateIso.isBiggerOrEqualValue(dateFrom))
-          ..where((p) => p.paymentDateIso.isSmallerOrEqualValue(dateToEnd))
-          ..where((p) => p.deletedAt.isNull()))
-        .get();
-    final withdrawals = await (db.select(db.salaryWithdrawals)
-          ..where((w) => w.withdrawDate.isBiggerOrEqualValue(dateFrom))
-          ..where((w) => w.withdrawDate.isSmallerOrEqualValue(dateToEnd))
-          ..where((w) => w.deletedAt.isNull()))
-        .get();
+    final salaryPayments =
+        await (db.select(db.salaryPayments)
+              ..where((p) => p.paymentDateIso.isBiggerOrEqualValue(dateFrom))
+              ..where((p) => p.paymentDateIso.isSmallerOrEqualValue(dateToEnd))
+              ..where((p) => p.deletedAt.isNull()))
+            .get();
+    final withdrawals =
+        await (db.select(db.salaryWithdrawals)
+              ..where((w) => w.withdrawDate.isBiggerOrEqualValue(dateFrom))
+              ..where((w) => w.withdrawDate.isSmallerOrEqualValue(dateToEnd))
+              ..where((w) => w.deletedAt.isNull()))
+            .get();
 
     final totalIncome = payments.fold<double>(0, (s, p) => s + p.amount);
     final totalExpenses = expenses.fold<double>(0, (s, e) => s + e.amount);
     final totalPayroll =
         salaryPayments.fold<int>(0, (s, p) => s + p.amount) +
-            withdrawals.fold<double>(0, (s, w) => s + w.amount).round();
+        withdrawals.fold<double>(0, (s, w) => s + w.amount).round();
 
     final netBeforePayroll = totalIncome - totalExpenses;
     final netAfterPayroll = netBeforePayroll - totalPayroll;
@@ -2781,36 +2651,30 @@ class GeminiService {
     final byRevenueType = <String, double>{};
     final byPayMethod = <String, double>{};
     for (final p in payments) {
-      byRevenueType[p.revenueType] =
-          (byRevenueType[p.revenueType] ?? 0) + p.amount;
-      byPayMethod[p.paymentMethod] =
-          (byPayMethod[p.paymentMethod] ?? 0) + p.amount;
+      byRevenueType[p.revenueType] = (byRevenueType[p.revenueType] ?? 0) + p.amount;
+      byPayMethod[p.paymentMethod] = (byPayMethod[p.paymentMethod] ?? 0) + p.amount;
     }
 
     final byExpenseType = <String, double>{};
     for (final e in expenses) {
-      byExpenseType[e.expenseType] =
-          (byExpenseType[e.expenseType] ?? 0) + e.amount;
+      byExpenseType[e.expenseType] = (byExpenseType[e.expenseType] ?? 0) + e.amount;
     }
 
     lines.add('');
     lines.add('تفصيل الإيرادات حسب النوع:');
-    for (final entry in byRevenueType.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value))) {
+    for (final entry in byRevenueType.entries.toList()..sort((a, b) => b.value.compareTo(a.value))) {
       lines.add('  ${entry.key}: ${entry.value.toStringAsFixed(0)} ريال');
     }
 
     lines.add('');
     lines.add('تفصيل الإيرادات حسب طريقة الدفع:');
-    for (final entry in byPayMethod.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value))) {
+    for (final entry in byPayMethod.entries.toList()..sort((a, b) => b.value.compareTo(a.value))) {
       lines.add('  ${entry.key}: ${entry.value.toStringAsFixed(0)} ريال');
     }
 
     lines.add('');
     lines.add('تفصيل المصروفات حسب الفئة:');
-    for (final entry in byExpenseType.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value))) {
+    for (final entry in byExpenseType.entries.toList()..sort((a, b) => b.value.compareTo(a.value))) {
       lines.add('  ${entry.key}: ${entry.value.toStringAsFixed(0)} ريال');
     }
 
@@ -2831,25 +2695,17 @@ class GeminiService {
       return 'لا توجد غرف مسجلة';
     }
 
-    final occupied =
-        activeRooms.where((r) => r.status == 'occupied').length;
-    final available =
-        activeRooms.where((r) => r.status == 'available').length;
-    final cleaning =
-        activeRooms.where((r) => r.status == 'cleaning').length;
-    final maintenance =
-        activeRooms.where((r) => r.status == 'maintenance').length;
+    final occupied = activeRooms.where((r) => r.status == 'occupied').length;
+    final available = activeRooms.where((r) => r.status == 'available').length;
+    final cleaning = activeRooms.where((r) => r.status == 'cleaning').length;
+    final maintenance = activeRooms.where((r) => r.status == 'maintenance').length;
     final occRate = (occupied * 100 / total).toStringAsFixed(1);
 
     lines.add('إجمالي الغرف: $total');
-    lines.add(
-        'مشغولة: $occupied (${(occupied * 100 / total).toStringAsFixed(1)}%)',);
-    lines.add(
-        'شاغرة: $available (${(available * 100 / total).toStringAsFixed(1)}%)',);
-    lines.add(
-        'تنظيف: $cleaning (${(cleaning * 100 / total).toStringAsFixed(1)}%)',);
-    lines.add(
-        'صيانة: $maintenance (${(maintenance * 100 / total).toStringAsFixed(1)}%)',);
+    lines.add('مشغولة: $occupied (${(occupied * 100 / total).toStringAsFixed(1)}%)');
+    lines.add('شاغرة: $available (${(available * 100 / total).toStringAsFixed(1)}%)');
+    lines.add('تنظيف: $cleaning (${(cleaning * 100 / total).toStringAsFixed(1)}%)');
+    lines.add('صيانة: $maintenance (${(maintenance * 100 / total).toStringAsFixed(1)}%)');
     lines.add('');
     lines.add('نسبة الإشغال: $occRate%');
 
@@ -2876,27 +2732,24 @@ class GeminiService {
   Future<String> _generateDebtsReport(AppDatabase db) async {
     final lines = <String>['📋 تقرير الديون غير المسددة', ''];
 
-    final debts = await (db.select(db.debts)
-          ..where((d) => d.isSettled.equals(0))
-          ..where((d) => d.deletedAt.isNull())
-          ..orderBy([(d) => OrderingTerm.desc(d.remainingAmount)]))
-        .get();
+    final debts =
+        await (db.select(db.debts)
+              ..where((d) => d.isSettled.equals(0))
+              ..where((d) => d.deletedAt.isNull())
+              ..orderBy([(d) => OrderingTerm.desc(d.remainingAmount)]))
+            .get();
 
     if (debts.isEmpty) {
       lines.add('لا توجد ديون غير مسددة.');
       return lines.join('\n');
     }
 
-    final totalDebt =
-        debts.fold<double>(0, (s, d) => s + d.remainingAmount);
-    final totalPaid =
-        debts.fold<double>(0, (s, d) => s + d.paidAmount);
+    final totalDebt = debts.fold<double>(0, (s, d) => s + d.remainingAmount);
+    final totalPaid = debts.fold<double>(0, (s, d) => s + d.paidAmount);
 
     lines.add('عدد الديون: ${debts.length}');
-    lines.add(
-        'إجمالي المبالغ المتبقية: ${totalDebt.toStringAsFixed(0)} ريال',);
-    lines.add(
-        'إجمالي المدفوع: ${totalPaid.toStringAsFixed(0)} ريال',);
+    lines.add('إجمالي المبالغ المتبقية: ${totalDebt.toStringAsFixed(0)} ريال');
+    lines.add('إجمالي المدفوع: ${totalPaid.toStringAsFixed(0)} ريال');
     lines.add('');
     lines.add('تفاصيل (الأعلى أولاً):');
     for (final d in debts.take(15)) {
@@ -2911,30 +2764,27 @@ class GeminiService {
     return lines.join('\n');
   }
 
-  Future<String> _generateExpensesReport(
-      AppDatabase db, String? from, String? to,) async {
+  Future<String> _generateExpensesReport(AppDatabase db, String? from, String? to) async {
     final now = DateTime.now();
-    final dateFrom =
-        from ?? '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
+    final dateFrom = from ?? '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
     final dateTo = to ?? now.toIso8601String().split('T')[0];
     final dateToEnd = '${dateTo}T23:59:59.999';
 
-    final lines =
-        <String>['📉 تقرير المصروفات: $dateFrom إلى $dateTo', ''];
+    final lines = <String>['📉 تقرير المصروفات: $dateFrom إلى $dateTo', ''];
 
-    final expenses = await (db.select(db.expenses)
-          ..where((e) => e.date.isBiggerOrEqualValue(dateFrom))
-          ..where((e) => e.date.isSmallerOrEqualValue(dateToEnd))
-          ..where((e) => e.deletedAt.isNull()))
-        .get();
+    final expenses =
+        await (db.select(db.expenses)
+              ..where((e) => e.date.isBiggerOrEqualValue(dateFrom))
+              ..where((e) => e.date.isSmallerOrEqualValue(dateToEnd))
+              ..where((e) => e.deletedAt.isNull()))
+            .get();
 
     if (expenses.isEmpty) {
       lines.add('لا توجد مصروفات في الفترة المحددة.');
       return lines.join('\n');
     }
 
-    final totalExpenses =
-        expenses.fold<double>(0, (s, e) => s + e.amount);
+    final totalExpenses = expenses.fold<double>(0, (s, e) => s + e.amount);
 
     // تجميع حسب النوع
     final byType = <String, double>{};
@@ -2942,12 +2792,10 @@ class GeminiService {
       byType[e.expenseType] = (byType[e.expenseType] ?? 0) + e.amount;
     }
 
-    lines.add(
-        'إجمالي المصروفات: ${totalExpenses.toStringAsFixed(0)} ريال (${expenses.length} مصروف)',);
+    lines.add('إجمالي المصروفات: ${totalExpenses.toStringAsFixed(0)} ريال (${expenses.length} مصروف)');
     lines.add('');
     lines.add('حسب النوع:');
-    final sorted = byType.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+    final sorted = byType.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
     for (final entry in sorted) {
       final pct = (entry.value * 100 / totalExpenses).toStringAsFixed(1);
       lines.add('  ${entry.key}: ${entry.value.toStringAsFixed(0)} ريال ($pct%)');
@@ -2986,8 +2834,7 @@ class GeminiService {
       }
       totalPrice += r.price;
     }
-    final avgPrice =
-        activeRooms.isNotEmpty ? totalPrice / activeRooms.length : 0;
+    final avgPrice = activeRooms.isNotEmpty ? totalPrice / activeRooms.length : 0;
 
     lines.add('إجمالي الغرف: ${activeRooms.length}');
     lines.add('أقل سعر: ${minPrice.toStringAsFixed(0)} ريال');
@@ -2999,15 +2846,10 @@ class GeminiService {
       final rooms = entry.value;
       final typeTotal = rooms.fold<double>(0, (s, r) => s + r.price);
       final typeAvg = rooms.isNotEmpty ? typeTotal / rooms.length : 0;
-      lines.add(
-          '${entry.key} (${rooms.length} غرف — متوسط ${typeAvg.toStringAsFixed(0)}):',);
-      for (final r
-          in rooms..sort((a, b) => a.roomNumber.compareTo(b.roomNumber))) {
-        final statusEmoji = r.status == 'available'
-            ? '✅'
-            : (r.status == 'occupied' ? '🔴' : '⚪');
-        lines.add(
-            '  $statusEmoji ${r.roomNumber}: ${r.price.toStringAsFixed(0)} ريال (${r.status})',);
+      lines.add('${entry.key} (${rooms.length} غرف — متوسط ${typeAvg.toStringAsFixed(0)}):');
+      for (final r in rooms..sort((a, b) => a.roomNumber.compareTo(b.roomNumber))) {
+        final statusEmoji = r.status == 'available' ? '✅' : (r.status == 'occupied' ? '🔴' : '⚪');
+        lines.add('  $statusEmoji ${r.roomNumber}: ${r.price.toStringAsFixed(0)} ريال (${r.status})');
       }
       lines.add('');
     }
@@ -3036,19 +2878,13 @@ class GeminiService {
 // ═══════════════════════════════════════════════════════════════
 
 class GeminiResponse {
-
-  const GeminiResponse({
-    required this.text,
-    this.command,
-    this.requiresConfirmation = false,
-  });
+  const GeminiResponse({required this.text, this.command, this.requiresConfirmation = false});
   final String text;
   final AiCommand? command;
   final bool requiresConfirmation;
 }
 
 class ChatMessage {
-
   ChatMessage({
     required this.id,
     required this.text,

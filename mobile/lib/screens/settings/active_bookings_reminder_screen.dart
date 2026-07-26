@@ -1,3 +1,4 @@
+// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 import 'dart:ui' as ui;
 
@@ -10,7 +11,7 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
-import '../../utils/whatsapp_template_manager.dart';
+// ✅ whatsapp_template_manager ملغي — البناء مباشر
 
 /// شاشة إرسال تذكير واتساب بالمبلغ المتبقي للحجوزات النشطة
 /// تعرض جميع الحجوزات النشطة التي لديها مبلغ متبقي مع إمكانية إرسال رسالة تذكير
@@ -18,12 +19,10 @@ class ActiveBookingsReminderScreen extends ConsumerStatefulWidget {
   const ActiveBookingsReminderScreen({super.key});
 
   @override
-  ConsumerState<ActiveBookingsReminderScreen> createState() =>
-      _ActiveBookingsReminderScreenState();
+  ConsumerState<ActiveBookingsReminderScreen> createState() => _ActiveBookingsReminderScreenState();
 }
 
-class _ActiveBookingsReminderScreenState
-    extends ConsumerState<ActiveBookingsReminderScreen> {
+class _ActiveBookingsReminderScreenState extends ConsumerState<ActiveBookingsReminderScreen> {
   String _searchQuery = '';
   String _filterStatus = 'all'; // all, partial, unpaid
   final Set<int> _selectedIds = {};
@@ -119,35 +118,28 @@ class _ActiveBookingsReminderScreenState
     final remaining = booking.remainingBalanceCached;
     final daysSinceCheckout = _getDaysSinceCheckout(booking);
 
-    final overdueWarning = daysSinceCheckout > 0
-        ? '\nتنبيه: تجاوزتم موعد المغادرة بـ $daysSinceCheckout يوم\n'
-        : '';
+    final overdueWarning = daysSinceCheckout > 0 ? '\nتنبيه: تجاوزتم موعد المغادرة بـ $daysSinceCheckout يوم\n' : '';
 
-    // استخدام النموذج المركزي
-    final message = await WhatsAppTemplateManager.buildMessage(
-      WhatsAppTemplateType.activeBookingReminder,
-      {
-        'guestName': booking.guestName,
-        'roomNumber': booking.roomNumber,
-        'checkin': checkin,
-        'checkout': checkout,
-        'nights': '$nights',
-        'total': CurrencyFormatter.formatAmount(total),
-        'paid': CurrencyFormatter.formatAmount(paid),
-        'remaining': CurrencyFormatter.formatAmount(remaining),
-        'overdueWarning': overdueWarning,
-      },
-    );
-
-    return message ?? _buildFallbackMessage(booking);
-  }
-
-  /// رسالة بديلة إذا كان النموذج معطّل
-  String _buildFallbackMessage(Booking booking) {
-    return 'عزيزي/عزيزتي ${booking.guestName}\n'
+    // بناء الرسالة مباشرة (بدون WhatsAppTemplateManager — ملغي)
+    final message =
+        'عزيزي/عزيزتي ${booking.guestName}\n'
+        '━━━━━━━━━━━━━━━\n\n'
+        'تحية طيبة من فندق مارينا\n\n'
+        'نتوجه لكم بتذكير بخصوص المبلغ المتبقي لإقامتكم:\n\n'
         'رقم الغرفة: ${booking.roomNumber}\n'
-        'المبلغ المتبقي: ${CurrencyFormatter.formatAmount(booking.remainingBalanceCached)} ريال\n'
-        'فندق مارينا';
+        'تاريخ الوصول: $checkin\n'
+        'تاريخ المغادرة: $checkout\n'
+        'عدد الليالي: $nights\n\n'
+        'الإجمالي: ${CurrencyFormatter.formatAmount(total)}\n'
+        'المدفوع: ${CurrencyFormatter.formatAmount(paid)}\n'
+        'المبلغ المتبقي: ${CurrencyFormatter.formatAmount(remaining)}\n'
+        '$overdueWarning\n\n'
+        'نرجو منكم التكرم بتسديد المبلغ المتبقي في أقرب وقت ممكن.\n\n'
+        'مع خالص التحية والتقدير\n'
+        'فندق مارينا\n'
+        'للاستفسار: 9677734587456';
+
+    return message;
   }
 
   /// إرسال رسالة واتساب لحجز واحد
@@ -164,9 +156,9 @@ class _ActiveBookingsReminderScreenState
     }
     final result = await whatsappService.sendMessage(phoneE164: phone, message: message);
     if (result.quotaMessage != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.quotaMessage!), backgroundColor: Colors.orange),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.quotaMessage!), backgroundColor: Colors.orange));
     }
     return result.success;
   }
@@ -174,12 +166,9 @@ class _ActiveBookingsReminderScreenState
   /// إرسال تذكير لجميع الحجوزات المحددة
   Future<void> _sendBulkReminders(List<Booking> bookings) async {
     if (bookings.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('لم تختر أي حجز لإرسال التذكير'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('لم تختر أي حجز لإرسال التذكير'), backgroundColor: Colors.orange));
       return;
     }
 
@@ -200,8 +189,7 @@ class _ActiveBookingsReminderScreenState
 
     if (mounted) {
       setState(() => _isSending = false);
-      final message =
-          'تم إرسال $_sentCount تذكير بنجاح${_failedCount > 0 ? ' وفشل $_failedCount' : ''}';
+      final message = 'تم إرسال $_sentCount تذكير بنجاح${_failedCount > 0 ? ' وفشل $_failedCount' : ''}';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
@@ -229,11 +217,7 @@ class _ActiveBookingsReminderScreenState
               const SizedBox(height: 16),
               Text(
                 'جاري تحديث بيانات الحجوزات...',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade600,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
               ),
             ],
           ),
@@ -249,23 +233,16 @@ class _ActiveBookingsReminderScreenState
             final scaffoldMessenger = ScaffoldMessenger.of(context);
             try {
               final db = ref.read(databaseProvider);
-              final refreshedCount = await BookingDerivedFieldsService(db)
-                  .refreshAllActiveBookings();
+              final refreshedCount = await BookingDerivedFieldsService(db).refreshAllActiveBookings();
               if (mounted) {
                 scaffoldMessenger.showSnackBar(
-                  SnackBar(
-                    content: Text('✅ تم تحديث بيانات $refreshedCount حجز نشط'),
-                    backgroundColor: Colors.green,
-                  ),
+                  SnackBar(content: Text('✅ تم تحديث بيانات $refreshedCount حجز نشط'), backgroundColor: Colors.green),
                 );
               }
             } catch (e) {
               if (mounted) {
                 scaffoldMessenger.showSnackBar(
-                  SnackBar(
-                    content: Text('❌ فشل تحديث البيانات: $e'),
-                    backgroundColor: Colors.red,
-                  ),
+                  SnackBar(content: Text('❌ فشل تحديث البيانات: $e'), backgroundColor: Colors.red),
                 );
               }
             }
@@ -277,10 +254,7 @@ class _ActiveBookingsReminderScreenState
           onPressed: () => _showBulkSendConfirmation(context),
           icon: const Icon(Icons.send),
           tooltip: 'إرسال للمحدد',
-          style: IconButton.styleFrom(
-            foregroundColor:
-                _selectedIds.isNotEmpty ? Colors.white : Colors.grey,
-          ),
+          style: IconButton.styleFrom(foregroundColor: _selectedIds.isNotEmpty ? Colors.white : Colors.grey),
         ),
       ],
       body: Column(
@@ -317,18 +291,10 @@ class _ActiveBookingsReminderScreenState
             style: const TextStyle(fontWeight: FontWeight.bold),
             decoration: InputDecoration(
               hintText: 'ابحث باسم النزيل أو رقم الغرفة...',
-              hintStyle: TextStyle(
-                fontWeight: FontWeight.normal,
-                color: Colors.grey[500],
-              ),
+              hintStyle: TextStyle(fontWeight: FontWeight.normal, color: Colors.grey[500]),
               prefixIcon: const Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(25),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(25)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             ),
             onChanged: (value) => setState(() => _searchQuery = value),
           ),
@@ -358,8 +324,7 @@ class _ActiveBookingsReminderScreenState
       color = Colors.blue;
     }
     return FilterChip(
-      label:
-          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+      label: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
       selected: isSelected,
       onSelected: (_) => setState(() => _filterStatus = value),
       selectedColor: color.withValues(alpha: 0.15),
@@ -375,26 +340,13 @@ class _ActiveBookingsReminderScreenState
       data: (bookings) {
         // فلترة: حجوزات نشطة فقط مع متبقي > 0
         final activeWithRemaining = bookings
-            .where(
-              (b) =>
-                  StatusUtils.isBookingActive(b) &&
-                  b.remainingBalanceCached > 0,
-            )
+            .where((b) => StatusUtils.isBookingActive(b) && b.remainingBalanceCached > 0)
             .toList();
 
-        final partialPaid = activeWithRemaining
-            .where((b) => b.totalPaidCached > 0)
-            .toList();
-        final unpaid = activeWithRemaining
-            .where((b) => b.totalPaidCached <= 0)
-            .toList();
-        final totalRemaining = activeWithRemaining.fold(
-          0.0,
-          (sum, b) => sum + b.remainingBalanceCached,
-        );
-        final overdue = activeWithRemaining
-            .where((b) => _getDaysSinceCheckout(b) > 0)
-            .toList();
+        final partialPaid = activeWithRemaining.where((b) => b.totalPaidCached > 0).toList();
+        final unpaid = activeWithRemaining.where((b) => b.totalPaidCached <= 0).toList();
+        final totalRemaining = activeWithRemaining.fold(0.0, (sum, b) => sum + b.remainingBalanceCached);
+        final overdue = activeWithRemaining.where((b) => _getDaysSinceCheckout(b) > 0).toList();
 
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -408,39 +360,18 @@ class _ActiveBookingsReminderScreenState
             children: [
               Row(
                 children: [
-                  Expanded(
-                    child: _buildMiniStat(
-                      'حجوزات متبقي',
-                      activeWithRemaining.length.toString(),
-                      Colors.blue,
-                    ),
-                  ),
+                  Expanded(child: _buildMiniStat('حجوزات متبقي', activeWithRemaining.length.toString(), Colors.blue)),
                   Container(width: 1, height: 40, color: Colors.blue.shade200),
-                  Expanded(
-                    child: _buildMiniStat(
-                      'دفع جزئي',
-                      partialPaid.length.toString(),
-                      Colors.orange,
-                    ),
-                  ),
+                  Expanded(child: _buildMiniStat('دفع جزئي', partialPaid.length.toString(), Colors.orange)),
                   Container(width: 1, height: 40, color: Colors.blue.shade200),
-                  Expanded(
-                    child: _buildMiniStat(
-                      'لم يدفع',
-                      unpaid.length.toString(),
-                      Colors.red,
-                    ),
-                  ),
+                  Expanded(child: _buildMiniStat('لم يدفع', unpaid.length.toString(), Colors.red)),
                 ],
               ),
               if (overdue.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade100,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
+                  decoration: BoxDecoration(color: Colors.red.shade100, borderRadius: BorderRadius.circular(6)),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -448,11 +379,7 @@ class _ActiveBookingsReminderScreenState
                       const SizedBox(width: 4),
                       Text(
                         '${overdue.length} حجز تجاوز تاريخ المغادرة',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.red.shade700,
-                        ),
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.red.shade700),
                       ),
                     ],
                   ),
@@ -461,10 +388,7 @@ class _ActiveBookingsReminderScreenState
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -472,11 +396,7 @@ class _ActiveBookingsReminderScreenState
                     const SizedBox(width: 6),
                     Text(
                       'إجمالي المبالغ المتبقية: ${CurrencyFormatter.formatAmount(totalRemaining)} ريال',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue.shade700,
-                      ),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.blue.shade700),
                     ),
                   ],
                 ),
@@ -493,11 +413,7 @@ class _ActiveBookingsReminderScreenState
       children: [
         Text(
           value,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color),
         ),
         Text(
           title,
@@ -524,22 +440,14 @@ class _ActiveBookingsReminderScreenState
           Expanded(
             child: Text(
               'تم اختيار ${_selectedIds.length} حجز لإرسال التذكير',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.green.shade700,
-                fontSize: 13,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade700, fontSize: 13),
             ),
           ),
           TextButton(
             onPressed: () => setState(_selectedIds.clear),
             child: Text(
               'إلغاء التحديد',
-              style: TextStyle(
-                color: Colors.green.shade700,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(color: Colors.green.shade700, fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -549,12 +457,7 @@ class _ActiveBookingsReminderScreenState
 
   List<Booking> _filterBookings(List<Booking> allBookings) {
     // فلترة: حجوزات نشطة فقط مع متبقي > 0
-    var filtered = allBookings
-        .where(
-          (b) =>
-              StatusUtils.isBookingActive(b) && b.remainingBalanceCached > 0,
-        )
-        .toList();
+    var filtered = allBookings.where((b) => StatusUtils.isBookingActive(b) && b.remainingBalanceCached > 0).toList();
 
     // بحث
     if (_searchQuery.isNotEmpty) {
@@ -572,11 +475,9 @@ class _ActiveBookingsReminderScreenState
 
     // تصفية حسب الحالة
     if (_filterStatus == 'partial') {
-      filtered =
-          filtered.where((b) => b.totalPaidCached > 0).toList();
+      filtered = filtered.where((b) => b.totalPaidCached > 0).toList();
     } else if (_filterStatus == 'unpaid') {
-      filtered =
-          filtered.where((b) => b.totalPaidCached <= 0).toList();
+      filtered = filtered.where((b) => b.totalPaidCached <= 0).toList();
     }
 
     // ترتيب: التي تجاوزت المغادرة أولاً، ثم حسب المبلغ المتبقي الأعلى
@@ -612,22 +513,14 @@ class _ActiveBookingsReminderScreenState
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.check_circle_outline,
-                size: 64, color: Colors.grey.shade400,),
+            Icon(Icons.check_circle_outline, size: 64, color: Colors.grey.shade400),
             const SizedBox(height: 16),
             Text(
               'لا توجد حجوزات بمبلغ متبقي',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey.shade600,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, color: Colors.grey.shade600, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            Text(
-              'جميع الحجوزات النشطة مسددة أو لا يوجد متبقي',
-              style: TextStyle(color: Colors.grey.shade400),
-            ),
+            Text('جميع الحجوزات النشطة مسددة أو لا يوجد متبقي', style: TextStyle(color: Colors.grey.shade400)),
           ],
         ),
       );
@@ -642,20 +535,12 @@ class _ActiveBookingsReminderScreenState
             const SizedBox(height: 20),
             Text(
               'جاري إرسال التذكيرات...',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.green.shade700,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green.shade700),
             ),
             const SizedBox(height: 8),
             Text(
               'نجاح: $_sentCount | فشل: $_failedCount',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade600,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade600, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -674,25 +559,22 @@ class _ActiveBookingsReminderScreenState
 
   Widget _buildBookingCard(Booking booking) {
     final isSelected = _selectedIds.contains(booking.id);
-    final hasPhone = booking.guestPhone.isNotEmpty &&
-        _cleanAndFormatPhone(booking.guestPhone).isNotEmpty;
+    final hasPhone = booking.guestPhone.isNotEmpty && _cleanAndFormatPhone(booking.guestPhone).isNotEmpty;
     final daysSinceCheckout = _getDaysSinceCheckout(booking);
     final isOverdue = daysSinceCheckout > 0;
-    final paidPercent = booking.totalDueCached > 0
-        ? (booking.totalPaidCached / booking.totalDueCached * 100)
-        : 0.0;
+    final paidPercent = booking.totalDueCached > 0 ? (booking.totalPaidCached / booking.totalDueCached * 100) : 0.0;
     final isUnpaid = booking.totalPaidCached <= 0;
 
     final Color cardColor = isOverdue
         ? Colors.red.shade50
         : isUnpaid
-            ? Colors.orange.shade50
-            : Colors.blue.shade50;
+        ? Colors.orange.shade50
+        : Colors.blue.shade50;
     final Color borderColor = isOverdue
         ? Colors.red.shade300
         : isUnpaid
-            ? Colors.orange.shade300
-            : Colors.blue.shade300;
+        ? Colors.orange.shade300
+        : Colors.blue.shade300;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -727,38 +609,33 @@ class _ActiveBookingsReminderScreenState
                         _selectedIds.add(booking.id);
                       }
                     }),
-                    activeColor:
-                        isOverdue ? Colors.red : isUnpaid ? Colors.orange : Colors.blue,
+                    activeColor: isOverdue
+                        ? Colors.red
+                        : isUnpaid
+                        ? Colors.orange
+                        : Colors.blue,
                   ),
                   Expanded(
-                    child: Text(
-                      booking.guestName,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: Text(booking.guestName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                   // شارة الحالة
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: (isOverdue
-                              ? Colors.red
-                              : isUnpaid
+                      color:
+                          (isOverdue
+                                  ? Colors.red
+                                  : isUnpaid
                                   ? Colors.orange
                                   : Colors.blue)
-                          .withValues(alpha: 0.1),
+                              .withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: isOverdue
                             ? Colors.red
                             : isUnpaid
-                                ? Colors.orange
-                                : Colors.blue,
+                            ? Colors.orange
+                            : Colors.blue,
                       ),
                     ),
                     child: Row(
@@ -768,30 +645,30 @@ class _ActiveBookingsReminderScreenState
                           isOverdue
                               ? Icons.warning_amber_rounded
                               : isUnpaid
-                                  ? Icons.money_off
-                                  : Icons.payment,
+                              ? Icons.money_off
+                              : Icons.payment,
                           size: 14,
                           color: isOverdue
                               ? Colors.red
                               : isUnpaid
-                                  ? Colors.orange
-                                  : Colors.blue,
+                              ? Colors.orange
+                              : Colors.blue,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           isOverdue
                               ? 'تجاوز +$daysSinceCheckout يوم'
                               : isUnpaid
-                                  ? 'لم يدفع'
-                                  : 'دفع جزئي',
+                              ? 'لم يدفع'
+                              : 'دفع جزئي',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                             color: isOverdue
                                 ? Colors.red
                                 : isUnpaid
-                                    ? Colors.orange
-                                    : Colors.blue,
+                                ? Colors.orange
+                                : Colors.blue,
                           ),
                         ),
                       ],
@@ -805,26 +682,12 @@ class _ActiveBookingsReminderScreenState
               // معلومات الحجز
               Row(
                 children: [
-                  Expanded(
-                    child: _buildInfoChip(
-                      Icons.hotel,
-                      booking.roomNumber,
-                    ),
-                  ),
+                  Expanded(child: _buildInfoChip(Icons.hotel, booking.roomNumber)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildInfoChip(Icons.nightlight_round, '${booking.calculatedNights} ليلة')),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: _buildInfoChip(
-                      Icons.nightlight_round,
-                      '${booking.calculatedNights} ليلة',
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _buildInfoChip(
-                      Icons.phone,
-                      hasPhone ? booking.guestPhone : 'بدون رقم',
-                      isValid: hasPhone,
-                    ),
+                    child: _buildInfoChip(Icons.phone, hasPhone ? booking.guestPhone : 'بدون رقم', isValid: hasPhone),
                   ),
                 ],
               ),
@@ -834,22 +697,18 @@ class _ActiveBookingsReminderScreenState
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Row(
                   children: [
-                    Icon(Icons.calendar_today,
-                        size: 12, color: Colors.grey.shade500,),
+                    Icon(Icons.calendar_today, size: 12, color: Colors.grey.shade500),
                     const SizedBox(width: 4),
                     Text(
                       'الوصول: ${booking.checkinDate.split(' ').first}',
-                      style: TextStyle(
-                          fontSize: 11, color: Colors.grey.shade600,),
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                     ),
                     const SizedBox(width: 12),
-                    Icon(Icons.event,
-                        size: 12, color: Colors.grey.shade500,),
+                    Icon(Icons.event, size: 12, color: Colors.grey.shade500),
                     const SizedBox(width: 4),
                     Text(
                       'المغادرة: ${booking.checkoutDate?.split(' ').first ?? '---'}',
-                      style: TextStyle(
-                          fontSize: 11, color: Colors.grey.shade600,),
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                     ),
                   ],
                 ),
@@ -860,10 +719,7 @@ class _ActiveBookingsReminderScreenState
               // شريط التقدم + المبالغ
               Container(
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
                 child: Column(
                   children: [
                     // شريط التقدم
@@ -872,20 +728,14 @@ class _ActiveBookingsReminderScreenState
                       children: [
                         Text(
                           'تقدم الدفع',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey.shade600,
-                          ),
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
                         ),
                         Text(
                           '${paidPercent.toStringAsFixed(0)}%',
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            color: paidPercent >= 100
-                                ? Colors.green
-                                : Colors.orange,
+                            color: paidPercent >= 100 ? Colors.green : Colors.orange,
                           ),
                         ),
                       ],
@@ -897,11 +747,7 @@ class _ActiveBookingsReminderScreenState
                         value: paidPercent.clamp(0.0, 100.0) / 100,
                         minHeight: 4,
                         backgroundColor: Colors.grey.shade300,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          paidPercent >= 100
-                              ? Colors.green
-                              : Colors.orange,
-                        ),
+                        valueColor: AlwaysStoppedAnimation<Color>(paidPercent >= 100 ? Colors.green : Colors.orange),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -911,24 +757,21 @@ class _ActiveBookingsReminderScreenState
                         Expanded(
                           child: _buildAmountColumn(
                             'الإجمالي',
-                            CurrencyFormatter.formatAmount(
-                                booking.totalDueCached,),
+                            CurrencyFormatter.formatAmount(booking.totalDueCached),
                             Colors.blue.shade700,
                           ),
                         ),
                         Expanded(
                           child: _buildAmountColumn(
                             'المدفوع',
-                            CurrencyFormatter.formatAmount(
-                                booking.totalPaidCached,),
+                            CurrencyFormatter.formatAmount(booking.totalPaidCached),
                             Colors.green.shade700,
                           ),
                         ),
                         Expanded(
                           child: _buildAmountColumn(
                             'المتبقي',
-                            CurrencyFormatter.formatAmount(
-                                booking.remainingBalanceCached,),
+                            CurrencyFormatter.formatAmount(booking.remainingBalanceCached),
                             Colors.red.shade700,
                           ),
                         ),
@@ -944,24 +787,15 @@ class _ActiveBookingsReminderScreenState
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: hasPhone
-                      ? () => _sendSingleReminderWithFeedback(booking)
-                      : null,
+                  onPressed: hasPhone ? () => _sendSingleReminderWithFeedback(booking) : null,
                   icon: const Icon(Icons.send, size: 16),
                   label: Text(
-                    hasPhone
-                        ? 'إرسال تذكير واتساب'
-                        : 'لا يوجد رقم هاتف',
-                    style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.bold,),
+                    hasPhone ? 'إرسال تذكير واتساب' : 'لا يوجد رقم هاتف',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                   ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.green.shade700,
-                    side: BorderSide(
-                      color: hasPhone
-                          ? Colors.green.shade300
-                          : Colors.grey.shade300,
-                    ),
+                    side: BorderSide(color: hasPhone ? Colors.green.shade300 : Colors.grey.shade300),
                     padding: const EdgeInsets.symmetric(vertical: 8),
                   ),
                 ),
@@ -999,16 +833,9 @@ class _ActiveBookingsReminderScreenState
       children: [
         Text(
           value,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color),
         ),
-        Text(
-          label,
-          style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
-        ),
+        Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
       ],
     );
   }
@@ -1018,7 +845,6 @@ class _ActiveBookingsReminderScreenState
     final message = await _buildReminderMessage(booking);
 
     final confirmed = await showDialog<bool>(
-      // ignore: use_build_context_synchronously
       context: context,
       builder: (ctx) => Directionality(
         textDirection: ui.TextDirection.rtl,
@@ -1038,55 +864,31 @@ class _ActiveBookingsReminderScreenState
               const SizedBox(height: 12),
               _buildPreviewRow('العميل', booking.guestName),
               _buildPreviewRow('الغرفة', booking.roomNumber),
-              _buildPreviewRow(
-                  'رقم الهاتف',
-                  booking.guestPhone.isNotEmpty
-                      ? booking.guestPhone
-                      : 'غير متوفر',),
+              _buildPreviewRow('رقم الهاتف', booking.guestPhone.isNotEmpty ? booking.guestPhone : 'غير متوفر'),
               _buildPreviewRow(
                 'المبلغ المتبقي',
                 '${CurrencyFormatter.formatAmount(booking.remainingBalanceCached)} ريال',
                 valueColor: Colors.red,
               ),
-              _buildPreviewRow(
-                'تاريخ المغادرة',
-                booking.checkoutDate?.split(' ').first ?? 'لم يحدد',
-              ),
+              _buildPreviewRow('تاريخ المغادرة', booking.checkoutDate?.split(' ').first ?? 'لم يحدد'),
               const Divider(),
-              const Text(
-                'معاينة الرسالة:',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-              ),
+              const Text('معاينة الرسالة:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
               const SizedBox(height: 6),
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
                 constraints: const BoxConstraints(maxHeight: 200),
-                child: SingleChildScrollView(
-                  child: Text(
-                    message,
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ),
+                child: SingleChildScrollView(child: Text(message, style: const TextStyle(fontSize: 12))),
               ),
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('إلغاء'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
             ElevatedButton.icon(
               onPressed: () => Navigator.pop(ctx, true),
               icon: const Icon(Icons.send, size: 16),
               label: const Text('إرسال'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
             ),
           ],
         ),
@@ -1097,20 +899,21 @@ class _ActiveBookingsReminderScreenState
       return;
     }
 
-    unawaited(showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => const AlertDialog(
-        content: Row(
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 20),
-            Text('جاري الإرسال...',
-                style: TextStyle(fontWeight: FontWeight.bold),),
-          ],
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 20),
+              Text('جاري الإرسال...', style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
         ),
       ),
-    ),);
+    );
 
     final success = await _sendSingleReminder(booking);
 
@@ -1138,10 +941,7 @@ class _ActiveBookingsReminderScreenState
           Text(label, style: const TextStyle(color: Colors.grey)),
           Text(
             value,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: valueColor ?? Colors.black,
-            ),
+            style: TextStyle(fontWeight: FontWeight.bold, color: valueColor ?? Colors.black),
           ),
         ],
       ),
@@ -1151,23 +951,16 @@ class _ActiveBookingsReminderScreenState
   /// تأكيد الإرسال المجمّع
   Future<void> _showBulkSendConfirmation(BuildContext context) async {
     if (_selectedIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('اختر حجزاً واحداً على الأقل'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('اختر حجزاً واحداً على الأقل'), backgroundColor: Colors.orange));
       return;
     }
 
     final bookingsAsync = ref.read(bookingsListProvider);
     final bookings = bookingsAsync.valueOrNull ?? [];
-    final selectedBookings =
-        bookings.where((b) => _selectedIds.contains(b.id)).toList();
-    final totalRemaining = selectedBookings.fold(
-      0.0,
-      (sum, b) => sum + b.remainingBalanceCached,
-    );
+    final selectedBookings = bookings.where((b) => _selectedIds.contains(b.id)).toList();
+    final totalRemaining = selectedBookings.fold(0.0, (sum, b) => sum + b.remainingBalanceCached);
 
     // التحقق من وجود أرقام هواتف
     int withoutPhone = 0;
@@ -1194,41 +987,25 @@ class _ActiveBookingsReminderScreenState
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'سيتم إرسال تذكير بالمبلغ المتبقي إلى ${selectedBookings.length} عميل:',
-              ),
+              Text('سيتم إرسال تذكير بالمبلغ المتبقي إلى ${selectedBookings.length} عميل:'),
               const SizedBox(height: 12),
-              _buildPreviewRow(
-                'عدد التذكيرات',
-                '${selectedBookings.length}',
-                valueColor: Colors.blue,
-              ),
+              _buildPreviewRow('عدد التذكيرات', '${selectedBookings.length}', valueColor: Colors.blue),
               _buildPreviewRow(
                 'إجمالي المبالغ المتبقية',
                 '${CurrencyFormatter.formatAmount(totalRemaining)} ريال',
                 valueColor: Colors.red,
               ),
               if (withoutPhone > 0)
-                _buildPreviewRow(
-                  'بدون رقم هاتف',
-                  '$withoutPhone (سيتم تخطيهم)',
-                  valueColor: Colors.orange,
-                ),
+                _buildPreviewRow('بدون رقم هاتف', '$withoutPhone (سيتم تخطيهم)', valueColor: Colors.orange),
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('إلغاء'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
             ElevatedButton.icon(
               onPressed: () => Navigator.pop(ctx, true),
               icon: const Icon(Icons.send, size: 16),
               label: const Text('إرسال الكل'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
             ),
           ],
         ),

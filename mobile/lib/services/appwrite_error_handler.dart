@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'appwrite_logger.dart';
 
 class AppwriteError {
-
   AppwriteError({
     required this.code,
     required this.message,
@@ -18,39 +17,68 @@ class AppwriteError {
   final bool isRecoverable;
 
   @override
-  String toString() =>
-      '[$code] $message${details != null ? '\nDetails: $details' : ''}';
+  String toString() => '[$code] $message${details != null ? '\nDetails: $details' : ''}';
 }
 
 class AppwriteErrorHandler {
   factory AppwriteErrorHandler() => _instance;
   AppwriteErrorHandler._internal();
-  static final AppwriteErrorHandler _instance =
-      AppwriteErrorHandler._internal();
+  static final AppwriteErrorHandler _instance = AppwriteErrorHandler._internal();
 
   final _logger = AppwriteLogger();
   final List<AppwriteError> _errorHistory = [];
   static const int _maxHistorySize = 100;
 
-  AppwriteError handleError(
-    dynamic error, {
-    String context = 'Unknown',
-    StackTrace? stackTrace,
-  }) {
+  AppwriteError handleError(dynamic error, {String context = 'Unknown', StackTrace? stackTrace}) {
     final appwriteError = _parseError(error, context);
     _errorHistory.add(appwriteError);
     if (_errorHistory.length > _maxHistorySize) {
       _errorHistory.removeRange(0, _errorHistory.length - _maxHistorySize);
     }
 
-    _logger.error(
-      '${appwriteError.message} (Context: $context)',
-      error: error,
-      stackTrace: stackTrace,
-      tag: 'ERROR_HANDLER',
-    );
+    // ✅ إصلاح (2026-06-28): كتم أخطاء 404 المتوقعة في تدفق upsert
+    // 404 من updateDocument متوقع تماماً للسجلات الجديدة. upsert يلتقطه
+    // داخلياً وينتقل إلى createDocument. لكن إذا تسرب الخطأ للـ catch
+    // الخارجي (نادر)، لا نسجّله كـ ERROR لأنه يُسبب ضوضاء كبيرة.
+    // نسجّله كـ DEBUG بدلاً من ذلك.
+    final isExpected404 = _isExpectedNotFound(error, context);
+    if (isExpected404) {
+      _logger.debug('${appwriteError.message} (Context: $context) — expected 404, suppressed', tag: 'ERROR_HANDLER');
+    } else {
+      _logger.error(
+        '${appwriteError.message} (Context: $context)',
+        error: error,
+        stackTrace: stackTrace,
+        tag: 'ERROR_HANDLER',
+      );
+    }
 
     return appwriteError;
+  }
+
+  /// ✅ تحقق إذا كان الخطأ 404 متوقعاً في سياق upsert (push)
+  /// في سياق push، 404 يعني أن السجل لم يُرفع للسحابة بعد — متوقع.
+  bool _isExpectedNotFound(dynamic error, String context) {
+    // سياقات push حيث upsert يُنتج 404 متوقع
+    if (!context.startsWith('push:')) {
+      return false;
+    }
+
+    // تحقق من نوع الخطأ
+    if (error is AppwriteException) {
+      final code = error.code;
+      final type = (error.type ?? '').toLowerCase();
+      if (code == 404 || type.contains('document_not_found') || type.contains('not_found')) {
+        return true;
+      }
+    }
+
+    final msg = error.toString().toLowerCase();
+    if (msg.contains('404') || msg.contains('document_not_found') || msg.contains('not found')) {
+      return true;
+    }
+
+    return false;
   }
 
   AppwriteError _parseError(dynamic error, String context) {
@@ -76,18 +104,10 @@ class AppwriteErrorHandler {
     }
 
     if (msg.contains('TimeoutException') || msg.contains('timed out')) {
-      return AppwriteError(
-        code: 'TIMEOUT_ERROR',
-        message: 'انتهت مهلة الاتصال',
-        details: 'استغرق الطلب وقتاً طويلاً',
-      );
+      return AppwriteError(code: 'TIMEOUT_ERROR', message: 'انتهت مهلة الاتصال', details: 'استغرق الطلب وقتاً طويلاً');
     }
 
-    return AppwriteError(
-      code: 'UNKNOWN_ERROR',
-      message: 'حدث خطأ غير متوقع',
-      details: msg,
-    );
+    return AppwriteError(code: 'UNKNOWN_ERROR', message: 'حدث خطأ غير متوقع', details: msg);
   }
 
   AppwriteError _parseAppwriteException(AppwriteException e) {
@@ -95,11 +115,7 @@ class AppwriteErrorHandler {
     final type = e.type ?? '';
 
     if (code == 401 || type.contains('unauthorized')) {
-      return AppwriteError(
-        code: 'AUTH_ERROR',
-        message: 'خطأ في المصادقة',
-        details: e.message,
-      );
+      return AppwriteError(code: 'AUTH_ERROR', message: 'خطأ في المصادقة', details: e.message);
     }
 
     if (code == 403 || type.contains('forbidden')) {
@@ -137,11 +153,7 @@ class AppwriteErrorHandler {
     }
 
     if (code != null && code >= 500) {
-      return AppwriteError(
-        code: 'SERVER_ERROR',
-        message: 'خطأ في الخادم',
-        details: e.message,
-      );
+      return AppwriteError(code: 'SERVER_ERROR', message: 'خطأ في الخادم', details: e.message);
     }
 
     return AppwriteError(
@@ -159,10 +171,7 @@ class AppwriteErrorHandler {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              error.message,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
+            Text(error.message, style: const TextStyle(fontWeight: FontWeight.bold)),
             if (error.details != null) ...[
               const SizedBox(height: 4),
               Text(error.details!, style: const TextStyle(fontSize: 12)),
@@ -170,11 +179,6 @@ class AppwriteErrorHandler {
           ],
         ),
         backgroundColor: error.isRecoverable ? Colors.orange : Colors.red,
-        action: SnackBarAction(
-          label: 'إغلاق',
-          textColor: Colors.white,
-          onPressed: () {},
-        ),
       ),
     );
   }
@@ -198,30 +202,16 @@ class AppwriteErrorHandler {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              error.message,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
+            Text(error.message, style: const TextStyle(fontWeight: FontWeight.bold)),
             if (error.details != null) ...[
               const SizedBox(height: 12),
-              Text(
-                error.details!,
-                style: const TextStyle(fontSize: 14, color: Colors.grey),
-              ),
+              Text(error.details!, style: const TextStyle(fontSize: 14, color: Colors.grey)),
             ],
             const SizedBox(height: 8),
-            Text(
-              'الكود: ${error.code}',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
+            Text('الكود: ${error.code}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('حسناً'),
-          ),
-        ],
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('حسناً'))],
       ),
     );
   }
@@ -233,8 +223,7 @@ class AppwriteErrorHandler {
   int get errorCount => _errorHistory.length;
 
   /// الحصول على آخر خطأ
-  AppwriteError? get lastError =>
-      _errorHistory.isNotEmpty ? _errorHistory.last : null;
+  AppwriteError? get lastError => _errorHistory.isNotEmpty ? _errorHistory.last : null;
 
   /// مسح سجل الأخطاء
   void clearHistory() {

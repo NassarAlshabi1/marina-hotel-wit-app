@@ -27,9 +27,9 @@ class BatchOperationsService {
 
   final local_db.AppDatabase db;
   static const int defaultBatchSize = 100;
-  
+
   /// ─── BATCH INSERT ───
-  
+
   /// Insert many records with transaction
   Future<DriftBatchResult<local_db.Room>> batchInsertRooms(
     List<local_db.RoomsCompanion> rooms, {
@@ -40,17 +40,13 @@ class BatchOperationsService {
     int fail = 0;
     final successes = <local_db.Room>[];
     final failures = <dynamic>[];
-    
+
     await db.transaction(() async {
       for (var i = 0; i < rooms.length; i += batchSize) {
         final batch = rooms.skip(i).take(batchSize).toList();
         try {
           await db.batch((b) {
-            b.insertAll(
-              db.rooms,
-              batch,
-              mode: InsertMode.insertOrReplace,
-            );
+            b.insertAll(db.rooms, batch, mode: InsertMode.insertOrReplace);
           });
           success += batch.length;
         } catch (e) {
@@ -59,15 +55,10 @@ class BatchOperationsService {
         }
       }
     });
-    
-    return DriftBatchResult(
-      successCount: success,
-      failureCount: fail,
-      successes: successes,
-      failures: failures,
-    );
+
+    return DriftBatchResult(successCount: success, failureCount: fail, successes: successes, failures: failures);
   }
-  
+
   /// Insert payments in batch (15x faster than individual)
   Future<DriftBatchResult<local_db.Payment>> batchInsertPayments(
     List<local_db.PaymentsCompanion> payments, {
@@ -76,25 +67,21 @@ class BatchOperationsService {
     return _batchInsert<local_db.Payment, local_db.PaymentsCompanion>(
       payments,
       inserter: (batch) => db.batch((b) {
-        b.insertAll(
-          db.payments,
-          batch,
-          mode: InsertMode.insertOrReplace,
-        );
+        b.insertAll(db.payments, batch, mode: InsertMode.insertOrReplace);
       }),
       batchSize: batchSize,
     );
   }
-  
+
   /// ─── BATCH UPDATE ───
-  
+
   /// Update multiple records efficiently
   Future<DriftBatchResult<local_db.Room>> batchUpdateRooms(
     List<local_db.Room> rooms, {
     int batchSize = defaultBatchSize,
   }) async {
     int success = 0, fail = 0;
-    
+
     await db.transaction(() async {
       for (var i = 0; i < rooms.length; i += batchSize) {
         final batch = rooms.skip(i).take(batchSize).toList();
@@ -110,45 +97,34 @@ class BatchOperationsService {
         }
       }
     });
-    
-    return DriftBatchResult(
-      successCount: success,
-      failureCount: fail,
-      successes: rooms,
-      failures: [],
-    );
+
+    return DriftBatchResult(successCount: success, failureCount: fail, successes: rooms, failures: []);
   }
-  
+
   /// ─── BATCH DELETE ───
-  
+
   /// Delete by IDs (much faster than SELECT then DELETE)
-  Future<int> batchDeleteByIds(
-    String tableName,
-    List<int> ids, {
-    int batchSize = 500,
-  }) async {
+  Future<int> batchDeleteByIds(String tableName, List<int> ids, {int batchSize = 500}) async {
     int totalDeleted = 0;
-    
+
     for (var i = 0; i < ids.length; i += batchSize) {
       final batch = ids.skip(i).take(batchSize).toList();
       final placeholders = List.filled(batch.length, '?').join(',');
-      
+
       await db.customUpdate(
         'DELETE FROM $tableName '
         'WHERE id IN ($placeholders)',
-        variables: [
-          for (final id in batch) Variable<int>(id),
-        ],
+        variables: [for (final id in batch) Variable<int>(id)],
       );
-      
+
       totalDeleted += batch.length;
     }
-    
+
     return totalDeleted;
   }
-  
+
   /// ─── BATCH UPSERT (INSERT or UPDATE) ───
-  
+
   /// Smart upsert based on localUuid
   Future<DriftBatchResult<Insertable<T>>> batchUpsert<T extends Table>(
     List<Insertable<T>> items, {
@@ -156,7 +132,7 @@ class BatchOperationsService {
     int batchSize = defaultBatchSize,
   }) async {
     int success = 0, fail = 0;
-    
+
     await db.transaction(() async {
       for (var i = 0; i < items.length; i += batchSize) {
         final batch = items.skip(i).take(batchSize).toList();
@@ -170,24 +146,19 @@ class BatchOperationsService {
         }
       }
     });
-    
-    return DriftBatchResult(
-      successCount: success,
-      failureCount: fail,
-      successes: items,
-      failures: [],
-    );
+
+    return DriftBatchResult(successCount: success, failureCount: fail, successes: items, failures: []);
   }
-  
+
   /// ─── HELPER ───
-  
+
   Future<DriftBatchResult<T>> _batchInsert<T, C extends Insertable<T>>(
     List<C> items, {
     required Future<void> Function(List<C>) inserter,
     int batchSize = defaultBatchSize,
   }) async {
     int success = 0, fail = 0;
-    
+
     await db.transaction(() async {
       for (var i = 0; i < items.length; i += batchSize) {
         final batch = items.skip(i).take(batchSize).toList();
@@ -199,30 +170,25 @@ class BatchOperationsService {
         }
       }
     });
-    
-    return DriftBatchResult(
-      successCount: success,
-      failureCount: fail,
-      successes: <T>[],
-      failures: [],
-    );
+
+    return DriftBatchResult(successCount: success, failureCount: fail, successes: <T>[], failures: []);
   }
-  
+
   /// ─── SMART BATCH: Auto-sized based on record size ───
-  
+
   static int calculateOptimalBatchSize<T>(List<T> items) {
     // Rough estimate: if objects are small (< 1KB), use larger batches
     final avgSize = items.isNotEmpty ? _estimateItemSize(items.first) : 100;
-    
+
     if (avgSize < 1024) {
-      return 500;  // Small: 500 per batch
+      return 500; // Small: 500 per batch
     }
     if (avgSize < 10240) {
       return 200; // Medium: 200
     }
     return 100; // Large: 100
   }
-  
+
   static int _estimateItemSize(dynamic item) {
     // Crude estimate - in reality use reflection or assume average
     return 2048; // Assume 2KB per record
@@ -253,10 +219,7 @@ extension BatchExtensions on BatchOperationsService {
           final chunk = records.skip(i).take(batchSize);
           for (final record in chunk) {
             final values = keys.map((k) => record[k]).toList();
-            batch.customStatement(
-              'INSERT OR REPLACE INTO $table ($columns) VALUES ($placeholders)',
-              values,
-            );
+            batch.customStatement('INSERT OR REPLACE INTO $table ($columns) VALUES ($placeholders)', values);
           }
         }
       });

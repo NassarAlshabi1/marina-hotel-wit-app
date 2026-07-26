@@ -5,7 +5,6 @@ import 'appwrite_config.dart';
 
 /// نموذج عنصر الذاكرة المؤقتة
 class CacheEntry<T> {
-
   CacheEntry({required this.data, required this.timestamp, required this.ttl});
   final T data;
   final DateTime timestamp;
@@ -24,7 +23,6 @@ class CacheEntry<T> {
 
 /// إحصائيات الذاكرة المؤقتة
 class CacheStatistics {
-
   CacheStatistics({
     required this.totalEntries,
     required this.validEntries,
@@ -44,8 +42,7 @@ class CacheStatistics {
   final int hits;
   final int misses;
 
-  double get usagePercentage =>
-      maxSizeBytes > 0 ? (totalSizeBytes / maxSizeBytes) * 100 : 0;
+  double get usagePercentage => maxSizeBytes > 0 ? (totalSizeBytes / maxSizeBytes) * 100 : 0;
 
   String get totalSizeMB => (totalSizeBytes / (1024 * 1024)).toStringAsFixed(2);
   String get maxSizeMB => (maxSizeBytes / (1024 * 1024)).toStringAsFixed(2);
@@ -55,8 +52,7 @@ class CacheStatistics {
 class AppwriteCacheManager {
   factory AppwriteCacheManager() => _instance;
   AppwriteCacheManager._internal();
-  static final AppwriteCacheManager _instance =
-      AppwriteCacheManager._internal();
+  static final AppwriteCacheManager _instance = AppwriteCacheManager._internal();
 
   final Map<String, CacheEntry<dynamic>> _cache = HashMap<String, CacheEntry<dynamic>>();
   Timer? _cleanupTimer;
@@ -92,11 +88,7 @@ class AppwriteCacheManager {
       return;
     }
 
-    final entry = CacheEntry<T>(
-      data: data,
-      timestamp: DateTime.now(),
-      ttl: ttl ?? _defaultTTL,
-    );
+    final entry = CacheEntry<T>(data: data, timestamp: DateTime.now(), ttl: ttl ?? _defaultTTL);
 
     _cache[key] = entry;
     _evictIfNeeded();
@@ -174,9 +166,7 @@ class AppwriteCacheManager {
   /// مسح العناصر بناءً على نمط (pattern)
   int clearByPattern(String pattern) {
     final regex = RegExp(pattern);
-    final keysToRemove = _cache.keys
-        .where(regex.hasMatch)
-        .toList();
+    final keysToRemove = _cache.keys.where(regex.hasMatch).toList();
 
     keysToRemove.forEach(_cache.remove);
 
@@ -187,11 +177,7 @@ class AppwriteCacheManager {
   void _evictIfNeeded() {
     while (_getTotalSize() > _maxSizeBytes && _cache.isNotEmpty) {
       // إزالة أقدم عنصر
-      final oldestKey = _cache.entries
-          .reduce(
-            (a, b) => a.value.timestamp.isBefore(b.value.timestamp) ? a : b,
-          )
-          .key;
+      final oldestKey = _cache.entries.reduce((a, b) => a.value.timestamp.isBefore(b.value.timestamp) ? a : b).key;
       _cache.remove(oldestKey);
     }
   }

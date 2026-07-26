@@ -29,17 +29,10 @@ permissions:
   pull-requests: write
 
 on:
-  pull_request:
-    branches: [main, marina, 'refactor/**', 'feature/**']
-    paths:
-      - 'mobile/**'
-      - '.github/workflows/android-emulator.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'mobile/**'
-      - '.github/workflows/android-emulator.yml'
-  workflow_dispatch: # يسمح بالتشغيل اليدوي من GitHub UI
+  # ⚠️ deprecated: تم استبدال هذا الـ workflow بـ patrol-emulator.yml
+  # تركنا الـ trigger معطَّل عن قصد حتى لا يُشغِّل نفسه مع كل PR.
+  # للتراجع: أعد تفعيل الـ pull_request/push triggers.
+  workflow_dispatch:
 
 jobs:
   # ═════════════════════════════════════════════════════════════════════════
@@ -147,18 +140,47 @@ jobs:
           script: |
             cd ${{ github.workspace }}/mobile
             echo "=== تشغيل flutter test integration_test ==="
-            # نُحدِّد الملفات بشكل صريح بدلاً من flutter test integration_test/
-            # لأن Flutter 3.44+ يرفض تمرير مجلد integration_test/ لوحده
-            # عندما يجد testWidgets() مع IntegrationTestWidgetsFlutterBinding
-            # (يراه كـ mix بين unit tests و integration tests)
-            flutter test integration_test/app_test.dart integration_test/booking_payment_test.dart \
+            # ✅ تشغيل كل ملف integration_test على حدة
+            # Flutter 3.44+ يرفض تشغيل عدة ملفات integration_test في invocation واحد
+            # حتى لو كانت كلها testWidgets() — يجب فصلها
+            
+            echo "--- app_test.dart ---"
+            flutter test integration_test/app_test.dart \
               --reporter expanded \
               --timeout 300s \
-              --exclude-tags skip-ci || \
-            echo "::warning::بعض اختبارات integration فشلت — تحقق من logs"
+              --exclude-tags skip-ci || echo "::warning::app_test.dart فشل"
+            
+            echo "--- booking_payment_test.dart ---"
+            flutter test integration_test/booking_payment_test.dart \
+              --reporter expanded \
+              --timeout 300s \
+              --exclude-tags skip-ci || echo "::warning::booking_payment_test.dart فشل"
 
       # ─────────────────────────────────────────────────────────────────────
-      #  9. رفع تقارير الاختبار كـ artifact (في حال الفشل)
+      #  9. تشغيل اختبارات قياس الأداء (Performance Benchmarks)
+      # ─────────────────────────────────────────────────────────────────────
+      - name: 🚀 Run Performance Benchmarks
+        run: |
+          flutter test test/performance/             --concurrency=1             --timeout=120s             --reporter expanded             --machine > build/performance/benchmark_results.json             2>&1 || true
+          echo "### 🚀 Performance Benchmarks" >> $GITHUB_STEP_SUMMARY
+          if [ -f build/performance/benchmark_results.json ]; then
+            echo "تم حفظ نتائج الـ benchmarks في build/performance/"
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            flutter test test/performance/               --concurrency=1               --timeout=120s               --reporter compact               2>&1 | tail -30 >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: 📤 Upload Benchmark Results
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: benchmark-results-api-${{ matrix.api-level }}
+          path: mobile/build/performance/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      # ─────────────────────────────────────────────────────────────────────
+      #  10. رفع تقارير الاختبار كـ artifact (في حال الفشل)
       # ─────────────────────────────────────────────────────────────────────
       - name: 📊 Upload test results on failure
         if: failure()

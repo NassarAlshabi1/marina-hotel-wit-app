@@ -2,11 +2,10 @@ import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 
 /// استراتيجية حل التضارب
-enum ConflictStrategy { newerWins, devicePriority, manualResolve }
+enum ConflictStrategy { newerWins, devicePriority }
 
 /// معلومات التضارب
 class DataConflict {
-
   DataConflict({
     required this.table,
     required this.uuid,
@@ -42,21 +41,14 @@ class DataConflict {
 /// final resolved = await resolver.resolveConflicts(conflicts);
 /// ```
 class ConflictResolver {
-  ConflictResolver({
-    required this.deviceId,
-    this.strategy = ConflictStrategy.newerWins,
-    this.devicePriority = 100,
-  });
+  ConflictResolver({required this.deviceId, this.strategy = ConflictStrategy.newerWins, this.devicePriority = 100});
 
   final String deviceId;
   final ConflictStrategy strategy;
   final int devicePriority;
 
   /// كشف التضارب بين البيانات المحلية والبعيدة
-  Future<List<DataConflict>> detectConflicts(
-    Map<String, dynamic> localData,
-    Map<String, dynamic> remoteData,
-  ) async {
+  Future<List<DataConflict>> detectConflicts(Map<String, dynamic> localData, Map<String, dynamic> remoteData) async {
     final conflicts = <DataConflict>[];
 
     for (final table in localData.keys) {
@@ -79,12 +71,7 @@ class ConflictResolver {
         final remoteUpdated = _parseTimestamp(remoteRecord['updated_at']);
 
         if (localUpdated != null && remoteUpdated != null) {
-          if (_hasConflict(
-            localRecord,
-            remoteRecord,
-            localUpdated,
-            remoteUpdated,
-          )) {
+          if (_hasConflict(localRecord, remoteRecord, localUpdated, remoteUpdated)) {
             conflicts.add(
               DataConflict(
                 table: table,
@@ -109,19 +96,12 @@ class ConflictResolver {
   /// يستخدم مقارنة عميقة (deep comparison) لضمان دقة اكتشاف التضاربات.
   /// أي اختلاف في المحتوى يُعتبر تضارباً محتملاً.
   /// الاستراتيجية المحددة (مثل newerWins) ستحدد الفائز بناءً على التوقيت.
-  bool _hasConflict(
-    Map<String, dynamic> local,
-    Map<String, dynamic> remote,
-    DateTime localTs,
-    DateTime remoteTs,
-  ) {
+  bool _hasConflict(Map<String, dynamic> local, Map<String, dynamic> remote, DateTime localTs, DateTime remoteTs) {
     return !const DeepCollectionEquality().equals(local, remote);
   }
 
   /// حل التضارب حسب الاستراتيجية المختارة
-  Future<Map<String, Map<String, dynamic>>> resolveConflicts(
-    List<DataConflict> conflicts,
-  ) async {
+  Future<Map<String, Map<String, dynamic>>> resolveConflicts(List<DataConflict> conflicts) async {
     final resolved = <String, Map<String, dynamic>>{};
 
     for (final conflict in conflicts) {
@@ -133,9 +113,7 @@ class ConflictResolver {
       resolved[conflict.table]![conflict.uuid] = winner;
 
       final winnerType = winner == conflict.localData ? 'محلي' : 'بعيد';
-      debugPrint(
-        '✅ ConflictResolver: حُل تضارب ${conflict.table}/${conflict.uuid} - الفائز: $winnerType',
-      );
+      debugPrint('✅ ConflictResolver: حُل تضارب ${conflict.table}/${conflict.uuid} - الفائز: $winnerType');
     }
 
     return resolved;
@@ -148,22 +126,13 @@ class ConflictResolver {
         return conflict.isLocalNewer ? conflict.localData : conflict.remoteData;
 
       case ConflictStrategy.devicePriority:
-        // ignore: unused_local_variable
-        final remoteDevice = conflict.remoteData['device_id'] as String?;
-        final remotePriority =
-            conflict.remoteData['device_priority'] as int? ?? 100;
+        final remotePriority = conflict.remoteData['device_priority'] as int? ?? 100;
 
         if (devicePriority >= remotePriority) {
           return conflict.localData;
         } else {
           return conflict.remoteData;
         }
-
-      case ConflictStrategy.manualResolve:
-        // ✅ إصلاح: بدلاً من السقوط الصامت إلى newerWins، نُرجع البيانات المحلية
-        // كإجراء آمن مع تسجيل الحاجة لمراجعة يدوية
-        debugPrint('⚠️ ConflictResolver: تعارض يحتاج مراجعة يدوية — تم الاحتفاظ بالبيانات المحلية كإجراء آمن: ${conflict.table}/${conflict.uuid}');
-        return conflict.localData;
     }
   }
 

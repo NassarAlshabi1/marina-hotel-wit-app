@@ -222,10 +222,7 @@ class FieldMapper {
     return _phpToFlutter[entity]?[phpField] ?? _snakeToCamel(phpField);
   }
 
-  static Map<String, dynamic> toPhpMap(
-    String entity,
-    Map<String, dynamic> flutterMap,
-  ) {
+  static Map<String, dynamic> toPhpMap(String entity, Map<String, dynamic> flutterMap) {
     final result = <String, dynamic>{};
     for (final entry in flutterMap.entries) {
       final phpKey = toPhpField(entity, entry.key);
@@ -234,10 +231,7 @@ class FieldMapper {
     return result;
   }
 
-  static Map<String, dynamic> toFlutterMap(
-    String entity,
-    Map<String, dynamic> phpMap,
-  ) {
+  static Map<String, dynamic> toFlutterMap(String entity, Map<String, dynamic> phpMap) {
     _buildReverseMap();
     final result = <String, dynamic>{};
     for (final entry in phpMap.entries) {
@@ -247,20 +241,12 @@ class FieldMapper {
     return result;
   }
 
-  static List<Map<String, dynamic>> toPhpList(
-    String entity,
-    List<Map<String, dynamic>> flutterList,
-  ) {
+  static List<Map<String, dynamic>> toPhpList(String entity, List<Map<String, dynamic>> flutterList) {
     return flutterList.map((m) => toPhpMap(entity, m)).toList();
   }
 
-  static List<Map<String, dynamic>> toFlutterList(
-    String entity,
-    List<dynamic> phpList,
-  ) {
-    return phpList
-        .map((m) => toFlutterMap(entity, Map<String, dynamic>.from(m as Map)))
-        .toList();
+  static List<Map<String, dynamic>> toFlutterList(String entity, List<dynamic> phpList) {
+    return phpList.map((m) => toFlutterMap(entity, Map<String, dynamic>.from(m as Map))).toList();
   }
 
   static dynamic _convertValueToPhp(dynamic value) {
@@ -309,17 +295,11 @@ class FieldMapper {
   }
 
   static String _camelToSnake(String input) {
-    return input.replaceAllMapped(
-      RegExp('[A-Z]'),
-      (match) => '_${match.group(0)!.toLowerCase()}',
-    );
+    return input.replaceAllMapped(RegExp('[A-Z]'), (match) => '_${match.group(0)!.toLowerCase()}');
   }
 
   static String _snakeToCamel(String input) {
-    return input.replaceAllMapped(
-      RegExp('_([a-z])'),
-      (match) => match.group(1)!.toUpperCase(),
-    );
+    return input.replaceAllMapped(RegExp('_([a-z])'), (match) => match.group(1)!.toUpperCase());
   }
 
   static List<String> getEntityFields(String entity) {
@@ -346,9 +326,7 @@ class FieldMapper {
       'origin',
       'vectorClock',
     ];
-    return Map.fromEntries(
-      data.entries.where((e) => syncFields.contains(e.key)),
-    );
+    return Map.fromEntries(data.entries.where((e) => syncFields.contains(e.key)));
   }
 
   static Map<String, dynamic> excludeSyncFields(Map<String, dynamic> data) {
@@ -368,16 +346,10 @@ class FieldMapper {
       'createdAtEpoch',
       'lastModifiedEpoch',
     ];
-    return Map.fromEntries(
-      data.entries.where((e) => !syncFields.contains(e.key)),
-    );
+    return Map.fromEntries(data.entries.where((e) => !syncFields.contains(e.key)));
   }
 
-  static Map<String, dynamic> prepareForInsert(
-    String entity,
-    Map<String, dynamic> data, {
-    bool includeId = false,
-  }) {
+  static Map<String, dynamic> prepareForInsert(String entity, Map<String, dynamic> data, {bool includeId = false}) {
     final phpData = toPhpMap(entity, data);
     if (!includeId) {
       phpData.remove('id');
@@ -386,10 +358,7 @@ class FieldMapper {
     return phpData;
   }
 
-  static Map<String, dynamic> prepareForUpdate(
-    String entity,
-    Map<String, dynamic> data,
-  ) {
+  static Map<String, dynamic> prepareForUpdate(String entity, Map<String, dynamic> data) {
     final phpData = toPhpMap(entity, data);
     phpData.remove('id');
     phpData.remove('local_uuid');
@@ -400,24 +369,14 @@ class FieldMapper {
 
   static final Map<String, List<String>> _requiredFields = {
     'rooms': ['room_number', 'type', 'price', 'status'],
-    'bookings': [
-      'room_number',
-      'guest_name',
-      'guest_phone',
-      'guest_nationality',
-      'checkin_date',
-      'status',
-    ],
+    'bookings': ['room_number', 'guest_name', 'guest_phone', 'guest_nationality', 'checkin_date', 'status'],
     'employees': ['name', 'basic_salary', 'status'],
     'expenses': ['expense_type', 'description', 'amount', 'date'],
     'payments': ['amount', 'payment_date', 'payment_method', 'revenue_type'],
     'cash_transactions': ['transaction_type', 'amount', 'transaction_time'],
   };
 
-  static List<String> validateRequiredFields(
-    String entity,
-    Map<String, dynamic> phpData,
-  ) {
+  static List<String> validateRequiredFields(String entity, Map<String, dynamic> phpData) {
     final required = _requiredFields[entity] ?? [];
     final missing = <String>[];
     for (final field in required) {
@@ -446,7 +405,6 @@ class FieldMapper {
 }
 
 class FieldMappingException implements Exception {
-
   FieldMappingException(this.message, {this.entity, this.field});
   final String message;
   final String? entity;

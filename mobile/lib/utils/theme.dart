@@ -1,38 +1,55 @@
 import 'package:flutter/material.dart';
 
-// Color scheme matching PHP Bootstrap admin design
+// ═══════════════════════════════════════════════════════════════════════════
+// MarketKy Theme — مستوحى من https://github.com/mrezkys/marketky
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// لوحة الألوان:
+//   Primary     : #242476 (Indigo عميق — اللون الأساسي)
+//   PrimarySoft : #EAEAF2 (لافندر فاتح — خلفيات ناعمة)
+//   Secondary   : #0A0E2F (كحلي داكن — نص/أسطح داكنة)
+//   Accent      : #FABA3E (ذهبي — إبرازات)
+//   Border      : #D3D3E4 (رمادي لافندر — فواصل)
+//
+// الخطوط: Nunito (body) + Poppins (headings) — نُبقي Tajawal للعربية
+// ═══════════════════════════════════════════════════════════════════════════
+
 class AppColors {
-  // Primary colors - main accent for borders and highlights
-  static const Color primaryColor = Color(0xFF6A1B9A);  // Deep purple - light mode
-  static const Color primaryDark = Color(0xFFB070DB);   // Lighter purple - dark mode accent
-  static const Color primaryLight = Color(0xFF9650BE);  // Intermediate shade
+  // ─── Primary: MarketKy Indigo #242476 ────────────────────────────────
+  static const Color primaryColor = Color(0xFF242476); // MarketKy primary
+  static const Color primaryDark = Color(0xFF3D3D9E); // أخف للوضع الداكن
+  static const Color primaryLight = Color(0xFFEAEAF2); // MarketKy primarySoft
 
-  // Background colors
-  static const Color backgroundColor = Color(0xFFf8f9fa); // Bootstrap bg-light
-  static const Color surfaceColor = Color(0xFFffffff);
+  // ─── Background colors ───────────────────────────────────────────────
+  static const Color backgroundColor = Color(0xFFF8F8FC); // أبيض مائل لللافندر
+  static const Color surfaceColor = Color(0xFFFFFFFF);
 
-  // Text colors
-  static const Color textPrimary = Color(0xFF212529); // Bootstrap text-dark
-  static const Color textSecondary = Color(0xFF6c757d); // Bootstrap text-muted
+  // ─── Text colors ─────────────────────────────────────────────────────
+  static const Color textPrimary = Color(0xFF0A0E2F); // MarketKy secondary
+  static const Color textSecondary = Color(0xFF6C6F8F); // كحلي باهت
 
-  // Status colors - matching PHP badges
-  static const Color successColor = Color(0xFF28a745); // Bootstrap success
-  static const Color dangerColor = Color(0xFFdc3545); // Bootstrap danger
-  static const Color warningColor = Color(0xFFffc107); // Bootstrap warning
-  static const Color infoColor = Color(0xFF17a2b8); // Bootstrap info
+  // ─── Status colors ───────────────────────────────────────────────────
+  static const Color successColor = Color(0xFF2E7D5B);
+  static const Color dangerColor = Color(0xFFE5484D);
+  static const Color warningColor = Color(0xFFFABA3E); // MarketKy accent
+  static const Color infoColor = Color(0xFF242476); // نفس primary
 
-  // Gray colors
-  static const Color lightGray = Color(0xFFe9ecef); // Bootstrap gray-200
-  static const Color mediumGray = Color(0xFF6c757d); // Bootstrap gray-600
-  static const Color darkGray = Color(0xFF343a40); // Bootstrap dark
+  // ─── Gray colors ─────────────────────────────────────────────────────
+  static const Color lightGray = Color(0xFFEAEAF2); // primarySoft
+  static const Color mediumGray = Color(0xFF6C6F8F);
+  static const Color darkGray = Color(0xFF0A0E2F); // secondary
 
-  // Card and component colors
+  // ─── Card and component colors ───────────────────────────────────────
   static const Color cardBackground = Colors.white;
-  static const Color dividerColor = Color(0xFFdee2e6); // Bootstrap border color
+  static const Color dividerColor = Color(0xFFD3D3E4); // MarketKy border
 
-  // Admin sidebar colors
-  static const Color sidebarColor = Color(0xFF0F172A);
-  static const Color sidebarAccent = Color(0xFF16213C);
+  // ─── Admin sidebar colors ────────────────────────────────────────────
+  static const Color sidebarColor = Color(0xFF0A0E2F); // MarketKy secondary
+  static const Color sidebarAccent = Color(0xFF242476); // MarketKy primary
+
+  // ─── MarketKy accent (جديد) ──────────────────────────────────────────
+  static const Color accentColor = Color(0xFFFABA3E); // MarketKy accent
+  static const Color accentSoft = Color(0xFFFFF3DC); // accent فاتح
 }
 
 ThemeData buildTheme() {
@@ -48,47 +65,52 @@ ThemeData buildTheme() {
     primaryColor: AppColors.primaryColor,
     colorScheme: const ColorScheme.light(
       primary: AppColors.primaryColor,
-      secondary: AppColors.infoColor,
+      secondary: AppColors.accentColor,
       error: AppColors.dangerColor,
-      onSecondary: Colors.white,
+      // مطابق للقيمة الافتراضية، لكن نُبقيه صراحةً للقراءة (نص أبيض على اللون الأساسي).
+      onPrimary: Colors.white, // ignore: avoid_redundant_argument_values
+      onSecondary: Color(0xFF0A0E2F),
       onSurface: AppColors.textPrimary,
+      // مطابق للقيمة الافتراضية حاليًا (أبيض)، لكن نُبقي الإشارة إلى
+      // AppColors.surfaceColor لضمان تبعية الثيم لأي تغيير مستقبلي على هذا الثابت الدلالي.
+      surface: AppColors.surfaceColor, // ignore: avoid_redundant_argument_values
     ),
 
-    // AppBar theme - main accent color
+    // AppBar theme — MarketKy style: خلفية بيضاء + نص كحلي
     appBarTheme: const AppBarTheme(
-      backgroundColor: AppColors.primaryColor,
-      foregroundColor: Colors.white,
-      elevation: 1,
+      backgroundColor: Colors.white,
+      foregroundColor: AppColors.textPrimary,
+      elevation: 0,
       centerTitle: false,
       titleTextStyle: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.w600,
-        color: Colors.white,
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+        color: AppColors.textPrimary,
         fontFamily: 'Tajawal',
       ),
-      iconTheme: IconThemeData(color: Colors.white),
+      iconTheme: IconThemeData(color: AppColors.primaryColor),
     ),
 
-    // Card theme matching Bootstrap cards
+    // Card theme — MarketKy style: حواف 12 + حدود لافندر
     cardTheme: const CardThemeData(
       color: AppColors.cardBackground,
-      elevation: 1,
+      elevation: 0,
       margin: EdgeInsets.all(8),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(8)),
-        side: BorderSide(color: Color(0xFFE8D5F0)), // Light purple border
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+        side: BorderSide(color: AppColors.dividerColor),
       ),
     ),
 
-    // Button themes matching Bootstrap buttons
+    // Button themes — MarketKy style
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primaryColor,
         foregroundColor: Colors.white,
         elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-        textStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, fontFamily: 'Tajawal'),
       ),
     ),
 
@@ -96,65 +118,68 @@ ThemeData buildTheme() {
       style: OutlinedButton.styleFrom(
         foregroundColor: AppColors.primaryColor,
         side: const BorderSide(color: AppColors.primaryColor),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-        textStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, fontFamily: 'Tajawal'),
       ),
     ),
 
-    // Input theme - borders use primary purple
+    // Input theme — MarketKy border
     inputDecorationTheme: const InputDecorationTheme(
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.all(Radius.circular(6)),
-        borderSide: BorderSide(color: AppColors.lightGray),
+        borderRadius: BorderRadius.all(Radius.circular(8)),
+        borderSide: BorderSide(color: AppColors.dividerColor),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.all(Radius.circular(6)),
-        borderSide: BorderSide(color: AppColors.lightGray),
+        borderRadius: BorderRadius.all(Radius.circular(8)),
+        borderSide: BorderSide(color: AppColors.dividerColor),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.all(Radius.circular(6)),
+        borderRadius: BorderRadius.all(Radius.circular(8)),
         borderSide: BorderSide(color: AppColors.primaryColor, width: 2),
       ),
-      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       labelStyle: TextStyle(color: AppColors.textSecondary),
       hintStyle: TextStyle(color: AppColors.textSecondary),
     ),
 
     // Table theme
     dataTableTheme: const DataTableThemeData(
-      headingRowColor: WidgetStatePropertyAll(AppColors.darkGray),
+      headingRowColor: WidgetStatePropertyAll(AppColors.primaryColor),
       headingTextStyle: TextStyle(
         color: Colors.white,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w700,
         fontSize: 14,
+        fontFamily: 'Tajawal',
       ),
-      dataTextStyle: TextStyle(color: AppColors.textPrimary, fontSize: 14),
+      dataTextStyle: TextStyle(color: AppColors.textPrimary, fontSize: 14, fontFamily: 'Tajawal'),
       columnSpacing: 24,
       horizontalMargin: 16,
-      dataRowMinHeight: 44,
+      dataRowMinHeight: 48,
     ),
 
     // List tile theme
     listTileTheme: const ListTileThemeData(
       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       dense: true,
+      iconColor: AppColors.primaryColor,
+      textColor: AppColors.textPrimary,
     ),
 
-    // Divider color
-    dividerColor: const Color(0xFFE0D0EA), // Soft purple divider
+    // Divider color — MarketKy border
+    dividerColor: AppColors.dividerColor,
 
     visualDensity: VisualDensity.adaptivePlatformDensity,
   );
 }
 
 ThemeData buildDarkTheme() {
-  // Dark mode uses lighter primary for visibility on dark surfaces
-  const darkPrimary = AppColors.primaryDark; // Lighter purple for dark mode
-  const darkSurface = Color(0xFF1E1E1E);
-  const darkBackground = Color(0xFF121212);
-  const darkInputBorder = Color(0xFF2C2C2C);
-  const darkAppBar = Color(0xFF4A1070); // Lighter purple for dark AppBar
+  // ✅ MarketKy dark mode: كحلي داكن (#0A0E2F) + indigo أخف
+  const darkPrimary = AppColors.primaryDark; // #3D3D9E
+  const darkSurface = Color(0xFF11142B); // كحلي داكن للأسطح
+  const darkBackground = Color(0xFF0A0E2F); // خلفية كحلي
+  const darkInputBorder = Color(0xFF2A2D4A); // حدود داكنة
+  const darkAccent = AppColors.accentColor; // #FABA3E
 
   final base = ThemeData(
     useMaterial3: false,
@@ -168,50 +193,45 @@ ThemeData buildDarkTheme() {
     primaryColor: darkPrimary,
     colorScheme: const ColorScheme.dark(
       primary: darkPrimary,
-      secondary: Color(0xFF5BACD4), // Lighter blue for dark mode
+      secondary: darkAccent,
       surface: darkSurface,
-      error: Color(0xFFEF5350), // Lighter red for dark mode
+      error: Color(0xFFF25555),
       onPrimary: Colors.white,
-      onSecondary: Colors.white,
-      onSurface: Color(0xFFE0E0E0),
+      onSecondary: Color(0xFF0A0E2F),
+      onSurface: Color(0xFFE8E8F0),
       onError: Colors.white,
     ),
 
-    // Dark AppBar - lighter shade for contrast
+    // Dark AppBar — MarketKy style: خلفية كحلي + نص فاتح
     appBarTheme: const AppBarTheme(
-      backgroundColor: darkAppBar,
-      foregroundColor: Color(0xFFE0D5F0), // Light purple text/icons
-      elevation: 1,
+      backgroundColor: darkBackground,
+      foregroundColor: Colors.white,
+      elevation: 0,
       centerTitle: false,
-      titleTextStyle: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.w600,
-        color: Color(0xFFE0D5F0),
-        fontFamily: 'Tajawal',
-      ),
-      iconTheme: IconThemeData(color: Color(0xFFE0D5F0)),
+      titleTextStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white, fontFamily: 'Tajawal'),
+      iconTheme: IconThemeData(color: darkAccent),
     ),
 
-    // Dark cards with purple tinted border
+    // Dark cards — MarketKy style: حواف 12 + حدود داكنة
     cardTheme: const CardThemeData(
       color: darkSurface,
-      elevation: 1,
+      elevation: 0,
       margin: EdgeInsets.all(8),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(8)),
-        side: BorderSide(color: Color(0xFF3D2048)), // Dark purple border for dark mode
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+        side: BorderSide(color: darkInputBorder),
       ),
     ),
 
-    // Dark elevated buttons - lighter purple
+    // Dark elevated buttons
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: darkPrimary,
         foregroundColor: Colors.white,
         elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-        textStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, fontFamily: 'Tajawal'),
       ),
     ),
 
@@ -220,54 +240,55 @@ ThemeData buildDarkTheme() {
       style: OutlinedButton.styleFrom(
         foregroundColor: darkPrimary,
         side: const BorderSide(color: darkPrimary),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-        textStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, fontFamily: 'Tajawal'),
       ),
     ),
 
-    // Dark inputs - purple tinted focus
+    // Dark inputs
     inputDecorationTheme: const InputDecorationTheme(
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.all(Radius.circular(6)),
+        borderRadius: BorderRadius.all(Radius.circular(8)),
         borderSide: BorderSide(color: darkInputBorder),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.all(Radius.circular(6)),
+        borderRadius: BorderRadius.all(Radius.circular(8)),
         borderSide: BorderSide(color: darkInputBorder),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.all(Radius.circular(6)),
+        borderRadius: BorderRadius.all(Radius.circular(8)),
         borderSide: BorderSide(color: darkPrimary, width: 2),
       ),
-      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 15),
-      labelStyle: TextStyle(color: Colors.white70),
-      hintStyle: TextStyle(color: Colors.white54),
+      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      labelStyle: TextStyle(color: Color(0xFFAAAAD0)),
+      hintStyle: TextStyle(color: Color(0xFF707090)),
     ),
 
     // Dark table
     dataTableTheme: const DataTableThemeData(
-      headingRowColor: WidgetStatePropertyAll(Color(0xFF2C2C2C)),
+      headingRowColor: WidgetStatePropertyAll(darkPrimary),
       headingTextStyle: TextStyle(
-        color: Color(0xFFE0D5F0), // Light purple heading text
-        fontWeight: FontWeight.w600,
+        color: Colors.white,
+        fontWeight: FontWeight.w700,
         fontSize: 14,
+        fontFamily: 'Tajawal',
       ),
-      dataTextStyle: TextStyle(color: Colors.white, fontSize: 14),
+      dataTextStyle: TextStyle(color: Color(0xFFE8E8F0), fontSize: 14, fontFamily: 'Tajawal'),
       columnSpacing: 24,
       horizontalMargin: 16,
-      dataRowMinHeight: 44,
+      dataRowMinHeight: 48,
     ),
 
     listTileTheme: const ListTileThemeData(
       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       dense: true,
-      iconColor: Color(0xFFD4A0E8), // Light purple icons in dark
+      iconColor: darkAccent,
       textColor: Colors.white,
     ),
 
-    // Dark divider - subtle purple tint
-    dividerColor: const Color(0xFF3D2048),
+    // Dark divider
+    dividerColor: darkInputBorder,
 
     visualDensity: VisualDensity.adaptivePlatformDensity,
   );

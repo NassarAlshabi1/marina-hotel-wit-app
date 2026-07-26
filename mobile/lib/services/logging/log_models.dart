@@ -12,7 +12,6 @@ enum LogLevel {
 }
 
 class LogEntry {
-
   const LogEntry({
     required this.timestamp,
     required this.level,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -21,17 +22,14 @@ class GoogleDriveBackupScreen extends ConsumerWidget {
       actions: [
         IconButton(
           onPressed: () {
-            Navigator.of(context).push<void>(
-              MaterialPageRoute<void>(builder: (_) => const GoogleDriveLogsScreen()),
-            );
+            Navigator.of(context).push<void>(MaterialPageRoute<void>(builder: (_) => const GoogleDriveLogsScreen()));
           },
           icon: const Icon(Icons.article_outlined),
           tooltip: 'سجلات Google Drive',
         ),
         if (backupState.isSignedIn)
           IconButton(
-            onPressed: () =>
-                ref.read(backupStatusProvider.notifier).refreshBackupsList(),
+            onPressed: () => ref.read(backupStatusProvider.notifier).refreshBackupsList(),
             icon: const Icon(Icons.refresh),
             tooltip: 'تحديث قائمة النسخ',
           ),
@@ -45,12 +43,10 @@ class GoogleDriveBackupContent extends ConsumerStatefulWidget {
   const GoogleDriveBackupContent({super.key});
 
   @override
-  ConsumerState<GoogleDriveBackupContent> createState() =>
-      _GoogleDriveBackupContentState();
+  ConsumerState<GoogleDriveBackupContent> createState() => _GoogleDriveBackupContentState();
 }
 
-class _GoogleDriveBackupContentState
-    extends ConsumerState<GoogleDriveBackupContent> {
+class _GoogleDriveBackupContentState extends ConsumerState<GoogleDriveBackupContent> {
   @override
   void initState() {
     super.initState();
@@ -67,10 +63,7 @@ class _GoogleDriveBackupContentState
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
-          if (backupState.message != null) ...[
-            _buildStatusMessage(backupState),
-            const SizedBox(height: 16),
-          ],
+          if (backupState.message != null) ...[_buildStatusMessage(backupState), const SizedBox(height: 16)],
           Expanded(
             child: ListView(
               children: [
@@ -127,8 +120,7 @@ class _GoogleDriveBackupContentState
             ),
             if (state.status != BackupStatus.error)
               IconButton(
-                onPressed: () =>
-                    ref.read(backupStatusProvider.notifier).clearMessage(),
+                onPressed: () => ref.read(backupStatusProvider.notifier).clearMessage(),
                 icon: Icon(Icons.close, color: color, size: 20),
               ),
           ],
@@ -146,17 +138,11 @@ class _GoogleDriveBackupContentState
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.cloud,
-                  color: state.isSignedIn ? Colors.green : Colors.grey,
-                  size: 24,
-                ),
+                Icon(Icons.cloud, color: state.isSignedIn ? Colors.green : Colors.grey, size: 24),
                 const SizedBox(width: 12),
                 Text(
                   'Google Drive',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -178,15 +164,10 @@ class _GoogleDriveBackupContentState
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: state.isWorking
-                      ? null
-                      : () => ref.read(backupStatusProvider.notifier).signOut(),
+                  onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).signOut(),
                   icon: const Icon(Icons.logout),
                   label: const Text('قطع الاتصال'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
-                  ),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
                 ),
               ),
             ] else ...[
@@ -198,23 +179,11 @@ class _GoogleDriveBackupContentState
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: state.isWorking
-                      ? null
-                      : () => ref
-                            .read(backupStatusProvider.notifier)
-                            .signInToDrive(),
+                  onPressed: state.isWorking ? null : () => ref.read(backupStatusProvider.notifier).signInToDrive(),
                   icon: state.status == BackupStatus.signIn
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.login),
-                  label: Text(
-                    state.status == BackupStatus.signIn
-                        ? 'جاري تسجيل الدخول...'
-                        : 'تسجيل الدخول',
-                  ),
+                  label: Text(state.status == BackupStatus.signIn ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryColor,
                     foregroundColor: Colors.white,
@@ -246,9 +215,7 @@ class _GoogleDriveBackupContentState
                 const SizedBox(width: 12),
                 Text(
                   'معلومات النظام',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -257,17 +224,11 @@ class _GoogleDriveBackupContentState
             const SizedBox(height: 8),
             _buildInfoRow(
               'آخر نسخة احتياطية',
-              state.lastBackupTime != null
-                  ? dateFormatter.format(state.lastBackupTime!)
-                  : 'لا توجد نسخ سابقة',
+              state.lastBackupTime != null ? dateFormatter.format(state.lastBackupTime!) : 'لا توجد نسخ سابقة',
               Icons.history,
             ),
             const SizedBox(height: 8),
-            _buildInfoRow(
-              'النسخ المتاحة',
-              '${state.availableBackups.length} نسخة',
-              Icons.backup,
-            ),
+            _buildInfoRow('النسخ المتاحة', '${state.availableBackups.length} نسخة', Icons.backup),
           ],
         ),
       ),
@@ -300,9 +261,7 @@ class _GoogleDriveBackupContentState
                 const SizedBox(width: 12),
                 Text(
                   'إنشاء نسخة احتياطية',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -311,56 +270,114 @@ class _GoogleDriveBackupContentState
               'إنشاء نسخة احتياطية فورية من جميع بيانات التطبيق ورفعها إلى Google Drive',
               style: TextStyle(color: Colors.grey),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'التنسيق الحالي: ${state.autoSettings.backupFormat == BackupFormat.sqlite ? 'SQLite' : 'JSON'}',
-              style: const TextStyle(color: Colors.grey),
-            ),
             const SizedBox(height: 16),
-            if (state.status == BackupStatus.uploading &&
-                state.progress != null) ...[
-              LinearProgressIndicator(
-                value: state.progress,
-                backgroundColor: Colors.grey[300],
-                valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '${(state.progress! * 100).round()}% - ${state.message ?? "جاري الرفع..."}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              const SizedBox(height: 12),
-            ],
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: state.isWorking
-                    ? null
-                    : () => ref
-                          .read(backupStatusProvider.notifier)
-                          .createBackup(),
-                icon: state.status == BackupStatus.uploading
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.cloud_upload),
-                label: Text(
-                  state.status == BackupStatus.uploading
-                      ? 'جاري الرفع...'
-                      : 'إنشاء نسخة احتياطية الآن',
+            // اختيار نوع النسخة
+            Row(
+              children: [
+                Expanded(
+                  child: _buildBackupTypeButton(
+                    context,
+                    ref,
+                    'JSON',
+                    Icons.data_object,
+                    Colors.blue,
+                    () => _createJsonBackup(ref),
+                    state,
+                  ),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildBackupTypeButton(
+                    context,
+                    ref,
+                    '.db',
+                    Icons.storage,
+                    Colors.purple,
+                    () => _createDbBackup(ref),
+                    state,
+                  ),
                 ),
-              ),
+              ],
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildBackupTypeButton(
+    BuildContext context,
+    WidgetRef ref,
+    String label,
+    IconData icon,
+    Color color,
+    VoidCallback onPressed,
+    BackupState state,
+  ) {
+    return OutlinedButton.icon(
+      onPressed: state.isWorking ? null : onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text('نسخ $label'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: color,
+        side: BorderSide(color: color),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+      ),
+    );
+  }
+
+  Future<void> _createJsonBackup(WidgetRef ref) async {
+    await ref.read(backupStatusProvider.notifier).createBackup();
+  }
+
+  Future<void> _createDbBackup(WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.storage, color: Colors.purple),
+            SizedBox(width: 8),
+            Text('نسخة .db'),
+          ],
+        ),
+        content: const Text(
+          'سيتم إنشاء نسخة احتياطية بصيغة .db (ملف قاعدة البيانات الأصلي).\n\n'
+          '✅ المميزات:\n'
+          '• نسخة كاملة من قاعدة البيانات\n'
+          '• استعادة سريعة جداً\n'
+          '• جميع البيانات محفوظة\n\n'
+          '⚠️ ملاحظة: حجم الملف قد يكون كبيراً',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
+            child: const Text('إنشاء نسخة .db'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed ?? false) {
+      try {
+        final service = ref.read(googleDriveBackupServiceProvider);
+        await service.uploadDbBackup();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('✅ تم إنشاء نسخة .db ورفعها بنجاح'), backgroundColor: Colors.green),
+          );
+          // تجاهل الفيوتشر لأن الـ Provider يُدير دورة حياته داخلياً
+          // (refreshBackupsList يطلق تحديث الحالة بدون الحاجة لـ await هنا).
+          unawaited(ref.read(backupStatusProvider.notifier).refreshBackupsList());
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('❌ خطأ: $e'), backgroundColor: Colors.red));
+        }
+      }
+    }
   }
 
   Widget _buildRestoreCard(BackupState state) {
@@ -376,15 +393,12 @@ class _GoogleDriveBackupContentState
                 const SizedBox(width: 12),
                 Text(
                   'استعادة النسخ الاحتياطية',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            if (state.status == BackupStatus.downloading ||
-                state.status == BackupStatus.restoring) ...[
+            if (state.status == BackupStatus.downloading || state.status == BackupStatus.restoring) ...[
               LinearProgressIndicator(
                 value: state.progress,
                 backgroundColor: Colors.grey[300],
@@ -400,15 +414,9 @@ class _GoogleDriveBackupContentState
               const SizedBox(height: 12),
             ],
             if (state.availableBackups.isEmpty) ...[
-              const Text(
-                'لا توجد نسخ احتياطية متاحة',
-                style: TextStyle(color: Colors.grey),
-              ),
+              const Text('لا توجد نسخ احتياطية متاحة', style: TextStyle(color: Colors.grey)),
             ] else ...[
-              const Text(
-                'اختر نسخة احتياطية للاستعادة:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+              const Text('اختر نسخة احتياطية للاستعادة:', style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Container(
                 height: 200,
@@ -433,27 +441,16 @@ class _GoogleDriveBackupContentState
 
   Widget _buildBackupItem(DriveBackupFile backup, bool isWorking) {
     final dateFormatter = DateFormat('yyyy/MM/dd - HH:mm', 'ar');
-    final sizeInMB = backup.size != null
-        ? (backup.size! / (1024 * 1024)).toStringAsFixed(2)
-        : '---';
+    final sizeInMB = backup.size != null ? (backup.size! / (1024 * 1024)).toStringAsFixed(2) : '---';
     final recordsCount =
-        (backup.metadata?['total_records'] as int?) ??
-        int.tryParse(backup.appProperties['records_count'] ?? '') ??
-        0;
+        (backup.metadata?['total_records'] as int?) ?? int.tryParse(backup.appProperties['records_count'] ?? '') ?? 0;
     final recordsLabel = recordsCount > 0 ? recordsCount.toString() : '---';
-    final formatLabel = backup.format == BackupFormat.sqlite
-        ? 'SQLite'
-        : 'JSON';
+    final formatLabel = backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
 
     return ListTile(
       leading: const Icon(Icons.backup, color: Colors.blue),
-      title: Text(
-        dateFormatter.format(backup.createdTime),
-        style: const TextStyle(fontWeight: FontWeight.bold),
-      ),
-      subtitle: Text(
-        'حجم: $sizeInMB ميجابايت\nالسجلات: $recordsLabel\nالتنسيق: $formatLabel',
-      ),
+      title: Text(dateFormatter.format(backup.createdTime), style: const TextStyle(fontWeight: FontWeight.bold)),
+      subtitle: Text('حجم: $sizeInMB ميجابايت\nالسجلات: $recordsLabel\nالتنسيق: $formatLabel'),
       trailing: IconButton(
         onPressed: isWorking ? null : () => _showRestoreConfirmation(backup),
         icon: const Icon(Icons.restore, color: Colors.orange),
@@ -466,15 +463,9 @@ class _GoogleDriveBackupContentState
   void _showRestoreConfirmation(DriveBackupFile backup) {
     final dateFormatter = DateFormat('yyyy/MM/dd - HH:mm', 'ar');
     final recordsCount =
-        (backup.metadata?['total_records'] as int?) ??
-        int.tryParse(backup.appProperties['records_count'] ?? '') ??
-        0;
-    final recordsLabel = recordsCount > 0
-        ? recordsCount.toString()
-        : 'غير معروف';
-    final formatLabel = backup.format == BackupFormat.sqlite
-        ? 'SQLite'
-        : 'JSON';
+        (backup.metadata?['total_records'] as int?) ?? int.tryParse(backup.appProperties['records_count'] ?? '') ?? 0;
+    final recordsLabel = recordsCount > 0 ? recordsCount.toString() : 'غير معروف';
+    final formatLabel = backup.format == BackupFormat.sqlite ? 'SQLite (.db)' : 'JSON';
 
     showDialog<void>(
       context: context,
@@ -486,33 +477,49 @@ class _GoogleDriveBackupContentState
           children: [
             const Text(
               '⚠️ سيتم استبدال جميع البيانات الحالية بالنسخة المختارة:',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.orange,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
             ),
             const SizedBox(height: 12),
             Text('التاريخ: ${dateFormatter.format(backup.createdTime)}'),
             Text('السجلات: $recordsLabel'),
             Text('التنسيق: $formatLabel'),
+            if (backup.format == BackupFormat.sqlite) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.purple.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.purple, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'نسخة .db: استعادة سريعة - قاعدة البيانات ستُغلق مؤقتاً',
+                        style: TextStyle(fontSize: 12, color: Colors.purple),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
-            const Text(
-              'هل أنت متأكد من المتابعة؟',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
+            const Text('هل أنت متأكد من المتابعة؟', style: TextStyle(fontWeight: FontWeight.bold)),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('إلغاء'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
-              ref
-                  .read(backupStatusProvider.notifier)
-                  .restoreFromBackup(backup.fileId);
+              // التحقق من نوع النسخة
+              if (backup.format == BackupFormat.sqlite) {
+                _restoreDbBackup(backup.fileId);
+              } else {
+                ref.read(backupStatusProvider.notifier).restoreFromBackup(backup.fileId);
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
             child: const Text('استعادة', style: TextStyle(color: Colors.white)),
@@ -520,6 +527,27 @@ class _GoogleDriveBackupContentState
         ],
       ),
     );
+  }
+
+  Future<void> _restoreDbBackup(String fileId) async {
+    try {
+      ref.read(backupStatusProvider.notifier).setStatus(BackupStatus.downloading, 'جاري تنزيل نسخة .db...');
+
+      final service = ref.read(googleDriveBackupServiceProvider);
+      await service.restoreDbBackup(fileId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('✅ تم استعادة نسخة .db بنجاح'), backgroundColor: Colors.green));
+        ref.read(backupStatusProvider.notifier).setStatus(BackupStatus.success, 'تمت استعادة قاعدة البيانات بنجاح');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('❌ خطأ: $e'), backgroundColor: Colors.red));
+        ref.read(backupStatusProvider.notifier).setStatus(BackupStatus.error, 'فشل الاستعادة: $e');
+      }
+    }
   }
 
   Widget _buildSyncControlCard(BackupState state) {
@@ -540,26 +568,18 @@ class _GoogleDriveBackupContentState
                 Expanded(
                   child: Text(
                     'المزامنة التلقائية',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                   ),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: syncEnabled
-                        ? Colors.teal.withValues(alpha: 0.1)
-                        : Colors.grey.withValues(alpha: 0.1),
+                    color: syncEnabled ? Colors.teal.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     statusText,
-                    style: TextStyle(
-                      color: activeColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(color: activeColor, fontSize: 12, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -567,27 +587,19 @@ class _GoogleDriveBackupContentState
             const SizedBox(height: 8),
             Text(
               'مزامنة تلقائية للتغييرات بين التطبيق و Google Drive. عند التفعيل، يتم رفع التغييرات وسحب التحديثات تلقائياً.',
-              style: TextStyle(
-                color: Theme.of(context).textTheme.bodySmall?.color,
-                fontSize: 13,
-              ),
+              style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color, fontSize: 13),
             ),
             const SizedBox(height: 16),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text(
-                'تفعيل المزامنة التلقائية',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+              title: const Text('تفعيل المزامنة التلقائية', style: TextStyle(fontWeight: FontWeight.bold)),
               subtitle: Text(
                 syncEnabled
                     ? 'يتم مزامنة البيانات تلقائياً مع Google Drive'
                     : 'المزامنة التلقائية معطّلة - لن يتم رفع أو سحب التغييرات تلقائياً',
               ),
               value: syncEnabled,
-              onChanged: (value) => ref
-                  .read(backupStatusProvider.notifier)
-                  .setGoogleDriveSyncEnabled(value),
+              onChanged: (value) => ref.read(backupStatusProvider.notifier).setGoogleDriveSyncEnabled(value),
               activeThumbColor: Colors.teal,
             ),
             if (!syncEnabled) ...[
@@ -632,18 +644,14 @@ class _GoogleDriveBackupContentState
                 const SizedBox(width: 12),
                 Text(
                   'النسخ التلقائي',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             const SizedBox(height: 12),
             SwitchListTile(
               title: const Text('تفعيل النسخ التلقائي'),
-              subtitle: const Text(
-                'إنشاء نسخ احتياطية تلقائية حسب الجدولة المحددة',
-              ),
+              subtitle: const Text('إنشاء نسخ احتياطية تلقائية حسب الجدولة المحددة'),
               value: state.autoSettings.isEnabled,
               onChanged: _updateAutoBackupEnabled,
             ),
@@ -652,9 +660,7 @@ class _GoogleDriveBackupContentState
               ListTile(
                 leading: const Icon(Icons.repeat),
                 title: const Text('التكرار'),
-                subtitle: Text(
-                  _getFrequencyDisplayName(state.autoSettings.frequency),
-                ),
+                subtitle: Text(_getFrequencyDisplayName(state.autoSettings.frequency)),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                 onTap: () => _showFrequencySelection(state.autoSettings),
               ),
@@ -687,9 +693,7 @@ class _GoogleDriveBackupContentState
 
   void _updateAutoBackupEnabled(bool enabled) {
     final currentSettings = ref.read(backupStatusProvider).autoSettings;
-    ref
-        .read(backupStatusProvider.notifier)
-        .updateAutoBackupSettings(currentSettings.copyWith(isEnabled: enabled));
+    ref.read(backupStatusProvider.notifier).updateAutoBackupSettings(currentSettings.copyWith(isEnabled: enabled));
   }
 
   void _showFrequencySelection(AutoBackupSettings currentSettings) {
@@ -705,33 +709,24 @@ class _GoogleDriveBackupContentState
             _buildFrequencyOption('monthly', 'شهرياً', currentSettings),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('إلغاء'),
-          ),
-        ],
+        actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('إلغاء'))],
       ),
     );
   }
 
-  Widget _buildFrequencyOption(
-    String value,
-    String label,
-    AutoBackupSettings currentSettings,
-  ) {
+  Widget _buildFrequencyOption(String value, String label, AutoBackupSettings currentSettings) {
     return RadioListTile<String>(
       title: Text(label),
       value: value,
+      // ignore: deprecated_member_use
       groupValue: currentSettings.frequency,
+      // ignore: deprecated_member_use
       onChanged: (selectedValue) {
         if (selectedValue != null) {
           Navigator.of(context).pop();
           ref
               .read(backupStatusProvider.notifier)
-              .updateAutoBackupSettings(
-                currentSettings.copyWith(frequency: selectedValue),
-              );
+              .updateAutoBackupSettings(currentSettings.copyWith(frequency: selectedValue));
         }
       },
     );
@@ -739,29 +734,19 @@ class _GoogleDriveBackupContentState
 
   void _showTimeSelection(AutoBackupSettings currentSettings) {
     final timeParts = currentSettings.time.split(':');
-    final currentTime = TimeOfDay(
-      hour: int.tryParse(timeParts[0]) ?? 0,
-      minute: int.tryParse(timeParts[1]) ?? 0,
-    );
+    final currentTime = TimeOfDay(hour: int.tryParse(timeParts[0]) ?? 0, minute: int.tryParse(timeParts[1]) ?? 0);
 
     showTimePicker(
       context: context,
       initialTime: currentTime,
       builder: (context, child) {
-        return Directionality(
-          textDirection: ui.TextDirection.rtl,
-          child: child!,
-        );
+        return Directionality(textDirection: ui.TextDirection.rtl, child: child!);
       },
     ).then((selectedTime) {
       if (selectedTime != null) {
         final timeString =
             '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
-        ref
-            .read(backupStatusProvider.notifier)
-            .updateAutoBackupSettings(
-              currentSettings.copyWith(time: timeString),
-            );
+        ref.read(backupStatusProvider.notifier).updateAutoBackupSettings(currentSettings.copyWith(time: timeString));
       }
     });
   }

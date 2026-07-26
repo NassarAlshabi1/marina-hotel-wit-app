@@ -13,14 +13,30 @@ import '../../utils/status_utils.dart';
 import '../bookings/booking_edit.dart';
 import '../payments/booking_payment_screen.dart';
 
-class RoomsDashboard extends ConsumerWidget {
+class RoomsDashboard extends ConsumerStatefulWidget {
   const RoomsDashboard({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // استخدام البروفايدر الجديد الذي يدمج الغرف مع حالة السداد
-    final roomsWithStatusAsync = ref.watch(roomsWithPaymentStatusProvider);
+  ConsumerState<RoomsDashboard> createState() => _RoomsDashboardState();
+}
 
+class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
+  // ✅ ValueNotifier — يمنع إعادة بناء AppScaffold مع كل تغيير
+  // يستخدم ref.listen (بدون StreamSubscription) للأداء الأقصى
+  final ValueNotifier<AsyncValue<List<RoomWithPaymentStatus>>> _roomsNotifier =
+      ValueNotifier<AsyncValue<List<RoomWithPaymentStatus>>>(const AsyncValue<List<RoomWithPaymentStatus>>.loading());
+
+  @override
+  void dispose() {
+    _roomsNotifier.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen(roomsWithPaymentStatusProvider, (prev, next) {
+      _roomsNotifier.value = next;
+    });
     return AppScaffold(
       title: 'حالة الغرف',
       actions: [
@@ -30,43 +46,53 @@ class RoomsDashboard extends ConsumerWidget {
           tooltip: 'مزامنة',
         ),
       ],
-      body: roomsWithStatusAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, st) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              Text('خطأ: $e', textAlign: TextAlign.center),
-            ],
-          ),
-        ),
-        data: (roomsWithStatus) {
-          if (roomsWithStatus.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.hotel, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('لا توجد غرف مسجلة', style: TextStyle(fontSize: 18)),
-                ],
-              ),
-            );
-          }
-
-          return _buildFloorsView(context, ref, roomsWithStatus);
+      // ✅ P0: ValueListenableBuilder — فقط الـ body يُعاد بناؤه، الـ Scaffold لا يتأثر
+      body: ValueListenableBuilder<AsyncValue<List<RoomWithPaymentStatus>>>(
+        valueListenable: _roomsNotifier,
+        builder: (context, roomsWithStatusAsync, _) {
+          return roomsWithStatusAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, st) {
+              debugPrint('❌ RoomsDashboard error: $e\n$st');
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error, size: 64, color: Colors.red),
+                    SizedBox(height: 16),
+                    Text('حدث خطأ أثناء تحميل الغرف', textAlign: TextAlign.center, style: TextStyle(fontSize: 16)),
+                    SizedBox(height: 8),
+                    Text(
+                      'تحقّق من اتصال الشبكة وحاول مرة أخرى.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              );
+            },
+            data: (roomsWithStatus) {
+              if (roomsWithStatus.isEmpty) {
+                return const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.hotel, size: 64, color: Colors.grey),
+                      SizedBox(height: 16),
+                      Text('لا توجد غرف مسجلة', style: TextStyle(fontSize: 18)),
+                    ],
+                  ),
+                );
+              }
+              return _buildFloorsView(context, ref, roomsWithStatus);
+            },
+          );
         },
       ),
     );
   }
 
-  Widget _buildFloorsView(
-    BuildContext context,
-    WidgetRef ref,
-    List<RoomWithPaymentStatus> roomsWithStatus,
-  ) {
+  Widget _buildFloorsView(BuildContext context, WidgetRef ref, List<RoomWithPaymentStatus> roomsWithStatus) {
     // تنظيم الغرف حسب الطوابق
     final Map<String, List<RoomWithPaymentStatus>> floorMap = {};
 
@@ -89,9 +115,7 @@ class RoomsDashboard extends ConsumerWidget {
     // ترتيب الطوابق والغرف
     final sortedFloors = floorMap.keys.toList()..sort();
     for (final floor in sortedFloors) {
-      floorMap[floor]!.sort(
-        (a, b) => _compareRoomNumbers(a.room.roomNumber, b.room.roomNumber),
-      );
+      floorMap[floor]!.sort((a, b) => _compareRoomNumbers(a.room.roomNumber, b.room.roomNumber));
     }
 
     return RefreshIndicator(
@@ -134,8 +158,7 @@ class RoomsDashboard extends ConsumerWidget {
       showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text('غرفة ${room.roomNumber}'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -143,19 +166,10 @@ class RoomsDashboard extends ConsumerWidget {
             children: [
               _buildDetailRow('الحالة', room.status),
               if (room.type.isNotEmpty) _buildDetailRow('النوع', room.type),
-              if (room.price > 0)
-                _buildDetailRow(
-                  'السعر',
-                  '${room.price.toStringAsFixed(0)} ريال',
-                ),
+              if (room.price > 0) _buildDetailRow('السعر', '${room.price.toStringAsFixed(0)} ريال'),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('إغلاق'),
-            ),
-          ],
+          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق'))],
         ),
       );
     }
@@ -166,10 +180,7 @@ class RoomsDashboard extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Text(
-            '$label: ',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
+          Text('$label: ', style: const TextStyle(fontWeight: FontWeight.bold)),
           Text(value),
         ],
       ),
@@ -177,30 +188,20 @@ class RoomsDashboard extends ConsumerWidget {
   }
 
   void _navigateToBooking(BuildContext context, String roomNumber) {
-    Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push<void>(MaterialPageRoute<void>(builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber)));
   }
 
-  Future<void> _showRoomBookings(
-    BuildContext context,
-    WidgetRef ref,
-    String roomNumber,
-  ) async {
+  Future<void> _showRoomBookings(BuildContext context, WidgetRef ref, String roomNumber) async {
     try {
       final bookingsRepo = ref.read(bookingsRepoProvider);
-      final activeBooking = await bookingsRepo.getActiveBookingForRoom(
-        roomNumber,
-      );
+      final activeBooking = await bookingsRepo.getActiveBookingForRoom(roomNumber);
 
       if (activeBooking == null) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('لا يوجد حجز محجوز للغرفة $roomNumber'),
-              backgroundColor: Colors.orange,
-            ),
+            SnackBar(content: Text('لا يوجد حجز محجوز للغرفة $roomNumber'), backgroundColor: Colors.orange),
           );
         }
         return;
@@ -210,10 +211,11 @@ class RoomsDashboard extends ConsumerWidget {
         return;
       }
 
-      unawaited(Navigator.of(context).push<void>(
-        MaterialPageRoute<void>(builder: (_) => BookingPaymentScreen(booking: activeBooking),
-        ),
-      ),);
+      unawaited(
+        Navigator.of(
+          context,
+        ).push<void>(MaterialPageRoute<void>(builder: (_) => BookingPaymentScreen(booking: activeBooking))),
+      );
     } catch (e) {
       if (!context.mounted) {
         return;
@@ -222,13 +224,7 @@ class RoomsDashboard extends ConsumerWidget {
         SnackBar(
           content: Text('خطأ في تحميل الحجز: $e'),
           backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'إغلاق',
-            textColor: Colors.white,
-            onPressed: () =>
-                ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-          ),
+          duration: const Duration(seconds: 3),
         ),
       );
     }

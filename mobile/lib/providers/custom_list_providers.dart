@@ -25,6 +25,7 @@ const List<String> kDefaultExpenseTypes = [
   'فواتير كهرباء ومياه',
   'مستلزمات',
   'مساعدة محتاج',
+  'أغذية',
   'اخرى',
 ];
 
@@ -37,10 +38,7 @@ const List<String> kDefaultIdTypes = [
   'شهادة ميلاد',
 ];
 
-const List<String> kDefaultPaymentMethods = [
-  'نقدي',
-  'تحويل بنكي',
-];
+const List<String> kDefaultPaymentMethods = ['نقدي', 'تحويل بنكي'];
 
 // ── نموذج عنصر القائمة ─────────────────────────────────────────
 
@@ -76,16 +74,17 @@ class CustomListItem {
 // ── Providers (للقراءة فقط) ─────────────────────────────────────
 
 /// جلب جميع عناصر قائمة معينة (النشطة فقط للعرض)
-final customListProvider =
-    FutureProvider.family<List<CustomListItem>, String>((ref, listKey) async {
+final customListProvider = FutureProvider.family<List<CustomListItem>, String>((ref, listKey) async {
   final db = ref.read(databaseProvider);
   try {
-    final rows = await db.customSelect(
-      'SELECT * FROM custom_list_items '
-      'WHERE list_key = ? AND is_active = 1 '
-      'ORDER BY sort_order ASC, id ASC',
-      variables: [drift.Variable<String>(listKey)],
-    ).get();
+    final rows = await db
+        .customSelect(
+          'SELECT * FROM custom_list_items '
+          'WHERE list_key = ? AND is_active = 1 '
+          'ORDER BY sort_order ASC, id ASC',
+          variables: [drift.Variable<String>(listKey)],
+        )
+        .get();
     if (rows.isEmpty) {
       return _fallbackItems(listKey);
     }
@@ -97,16 +96,17 @@ final customListProvider =
 
 /// جلب جميع عناصر قائمة معينة (بما فيها المعطلة) لإدارة الإعدادات
 /// ملاحظة: لا يستخدم fallback — إذا كان الجدول فارغاً يُعرض فارغاً
-final customListAllProvider =
-    FutureProvider.family<List<CustomListItem>, String>((ref, listKey) async {
+final customListAllProvider = FutureProvider.family<List<CustomListItem>, String>((ref, listKey) async {
   final db = ref.read(databaseProvider);
   try {
-    final rows = await db.customSelect(
-      'SELECT * FROM custom_list_items '
-      'WHERE list_key = ? '
-      'ORDER BY sort_order ASC, id ASC',
-      variables: [drift.Variable<String>(listKey)],
-    ).get();
+    final rows = await db
+        .customSelect(
+          'SELECT * FROM custom_list_items '
+          'WHERE list_key = ? '
+          'ORDER BY sort_order ASC, id ASC',
+          variables: [drift.Variable<String>(listKey)],
+        )
+        .get();
     return rows.map((r) => CustomListItem.fromRow(r.data)).toList();
   } catch (e) {
     return const [];
@@ -114,8 +114,7 @@ final customListAllProvider =
 });
 
 /// أسماء عناصر القائمة النشطة فقط (للاستخدام المباشر في DropdownButton)
-final customListNamesProvider =
-    FutureProvider.family<List<String>, String>((ref, listKey) async {
+final customListNamesProvider = FutureProvider.family<List<String>, String>((ref, listKey) async {
   final items = await ref.watch(customListProvider(listKey).future);
   return items.map((e) => e.name).toList();
 });
@@ -123,27 +122,27 @@ final customListNamesProvider =
 // ── إجراءات CRUD (دوال async مباشرة — ليست Providers) ──────────
 
 /// إضافة عنصر جديد إلى قائمة
-Future<void> addCustomListItem(
-  WidgetRef ref,
-  String listKey,
-  String name,
-) async {
+Future<void> addCustomListItem(WidgetRef ref, String listKey, String name) async {
   final db = ref.read(databaseProvider);
   // فحص التكرار: هل يوجد عنصر بنفس الاسم في نفس القائمة؟
-  final existing = await db.customSelect(
-    'SELECT id FROM custom_list_items '
-    'WHERE list_key = ? AND name = ?',
-    variables: [drift.Variable<String>(listKey), drift.Variable<String>(name)],
-  ).get();
+  final existing = await db
+      .customSelect(
+        'SELECT id FROM custom_list_items '
+        'WHERE list_key = ? AND name = ?',
+        variables: [drift.Variable<String>(listKey), drift.Variable<String>(name)],
+      )
+      .get();
   if (existing.isNotEmpty) {
     throw Exception('يوجد عنصر بنفس الاسم "$name" بالفعل');
   }
   // حساب sort_order التالي
-  final maxRow = await db.customSelect(
-    'SELECT MAX(sort_order) as max_order FROM custom_list_items '
-    'WHERE list_key = ?',
-    variables: [drift.Variable<String>(listKey)],
-  ).get();
+  final maxRow = await db
+      .customSelect(
+        'SELECT MAX(sort_order) as max_order FROM custom_list_items '
+        'WHERE list_key = ?',
+        variables: [drift.Variable<String>(listKey)],
+      )
+      .get();
   final nextOrder = (maxRow.first.data['max_order'] as int? ?? 0) + 1;
   await db.customStatement(
     'INSERT INTO custom_list_items (list_key, name, sort_order, is_active, is_system) '
@@ -154,75 +153,43 @@ Future<void> addCustomListItem(
 }
 
 /// تعديل اسم عنصر في القائمة
-Future<void> updateCustomListItem(
-  WidgetRef ref,
-  String listKey,
-  int id,
-  String newName,
-) async {
+Future<void> updateCustomListItem(WidgetRef ref, String listKey, int id, String newName) async {
   final db = ref.read(databaseProvider);
   // فحص التكرار: هل يوجد عنصر آخر بنفس الاسم الجديد في نفس القائمة؟
-  final existing = await db.customSelect(
-    'SELECT id FROM custom_list_items '
-    'WHERE list_key = ? AND name = ? AND id != ?',
-    variables: [
-      drift.Variable<String>(listKey),
-      drift.Variable<String>(newName),
-      drift.Variable.withInt(id),
-    ],
-  ).get();
+  final existing = await db
+      .customSelect(
+        'SELECT id FROM custom_list_items '
+        'WHERE list_key = ? AND name = ? AND id != ?',
+        variables: [drift.Variable<String>(listKey), drift.Variable<String>(newName), drift.Variable.withInt(id)],
+      )
+      .get();
   if (existing.isNotEmpty) {
     throw Exception('يوجد عنصر آخر بنفس الاسم بالفعل');
   }
-  await db.customStatement(
-    'UPDATE custom_list_items SET name = ? WHERE id = ?',
-    [newName, id],
-  );
+  await db.customStatement('UPDATE custom_list_items SET name = ? WHERE id = ?', [newName, id]);
   _invalidateAll(ref, listKey);
 }
 
 /// حذف عنصر من القائمة
-Future<void> deleteCustomListItem(
-  WidgetRef ref,
-  String listKey,
-  int id,
-) async {
+Future<void> deleteCustomListItem(WidgetRef ref, String listKey, int id) async {
   final db = ref.read(databaseProvider);
-  await db.customStatement(
-    'DELETE FROM custom_list_items WHERE id = ?',
-    [id],
-  );
+  await db.customStatement('DELETE FROM custom_list_items WHERE id = ?', [id]);
   _invalidateAll(ref, listKey);
 }
 
 /// تفعيل/تعطيل عنصر
-Future<void> toggleCustomListItem(
-  WidgetRef ref,
-  String listKey,
-  int id,
-  bool active,
-) async {
+Future<void> toggleCustomListItem(WidgetRef ref, String listKey, int id, bool active) async {
   final db = ref.read(databaseProvider);
-  await db.customStatement(
-    'UPDATE custom_list_items SET is_active = ? WHERE id = ?',
-    [if (active) 1 else 0, id],
-  );
+  await db.customStatement('UPDATE custom_list_items SET is_active = ? WHERE id = ?', [if (active) 1 else 0, id]);
   _invalidateAll(ref, listKey);
 }
 
 /// إعادة ترتيب العناصر
-Future<void> reorderCustomListItems(
-  WidgetRef ref,
-  String listKey,
-  List<int> ids,
-) async {
+Future<void> reorderCustomListItems(WidgetRef ref, String listKey, List<int> ids) async {
   final db = ref.read(databaseProvider);
   await db.transaction(() async {
     for (var i = 0; i < ids.length; i++) {
-      await db.customStatement(
-        'UPDATE custom_list_items SET sort_order = ? WHERE id = ?',
-        [i + 1, ids[i]],
-      );
+      await db.customStatement('UPDATE custom_list_items SET sort_order = ? WHERE id = ?', [i + 1, ids[i]]);
     }
   });
   _invalidateAll(ref, listKey);

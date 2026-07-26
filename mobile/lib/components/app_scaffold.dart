@@ -1,15 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/repository_providers.dart';
-import '../screens/notes/notes_screen.dart';
+import '../screens/notes/notes_screen.dart' deferred as notes;
+import '../utils/performance_monitor.dart';
 import 'widgets/sync_action_button.dart';
 
 class AppScaffold extends ConsumerWidget {
   const AppScaffold({
-    super.key,
     required this.title,
     required this.body,
+    super.key,
     this.actions,
     this.fab,
     this.subtitle,
@@ -43,14 +46,10 @@ class AppScaffold extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final unreadCountAsync = ref.watch(simpleNotesUnreadCountProvider);
-    final unreadCount = unreadCountAsync.maybeWhen(
-      data: (count) => count,
-      orElse: () => 0,
-    );
+    final unreadCount = unreadCountAsync.maybeWhen(data: (count) => count, orElse: () => 0);
     final hasUnread = unreadCount > 0;
 
-    final isLightBg = appBarBackgroundColor != null &&
-        appBarBackgroundColor!.computeLuminance() > 0.5;
+    final isLightBg = appBarBackgroundColor != null && appBarBackgroundColor!.computeLuminance() > 0.5;
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -62,9 +61,7 @@ class AppScaffold extends ConsumerWidget {
           elevation: appBarBackgroundColor != null ? 1 : null,
           title: subtitle != null
               ? Column(
-                  crossAxisAlignment: titleAlign == TextAlign.end
-                      ? CrossAxisAlignment.end
-                      : CrossAxisAlignment.center,
+                  crossAxisAlignment: titleAlign == TextAlign.end ? CrossAxisAlignment.end : CrossAxisAlignment.center,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
@@ -90,41 +87,30 @@ class AppScaffold extends ConsumerWidget {
               : Text(title),
           actions: [
             IconButton(
-              onPressed: () {
-                Navigator.of(
-                  context,
-                ).push<void>(MaterialPageRoute<void>(builder: (_) => const NotesScreen()));
+              onPressed: () async {
+                await notes.loadLibrary();
+                if (context.mounted) {
+                  unawaited(
+                    Navigator.of(context).push<void>(MaterialPageRoute<void>(builder: (_) => notes.NotesScreen())),
+                  );
+                }
               },
               tooltip: 'التنبيهات',
               icon: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  Icon(
-                    hasUnread
-                        ? Icons.notifications_active
-                        : Icons.notifications_none,
-                  ),
+                  Icon(hasUnread ? Icons.notifications_active : Icons.notifications_none),
                   if (hasUnread)
                     Positioned(
                       right: -2,
                       top: -2,
                       child: Container(
                         padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
+                        decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
                         child: Text(
                           unreadCount > 9 ? '9+' : '$unreadCount',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -136,7 +122,12 @@ class AppScaffold extends ConsumerWidget {
             if (actions != null) ...actions!,
           ],
         ),
-        body: SafeArea(child: body),
+        body: SafeArea(
+          child: PerformanceInspector(
+            name: title,
+            child: body,
+          ),
+        ),
         floatingActionButton: fab,
       ),
     );

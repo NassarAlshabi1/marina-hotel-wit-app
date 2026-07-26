@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 
 /// حدث تضارب في المزامنة
 class SyncConflictEvent {
-
   SyncConflictEvent({
     required this.table,
     required this.localUuid,
@@ -18,8 +17,7 @@ class SyncConflictEvent {
   final DateTime timestamp;
 
   @override
-  String toString() =>
-      'SyncConflictEvent($table/$localUuid → $winnerSide: $reason)';
+  String toString() => 'SyncConflictEvent($table/$localUuid → $winnerSide: $reason)';
 }
 
 /// ناقل أحداث تضاربات المزامنة
@@ -76,12 +74,7 @@ class SyncConflictEventBus {
     required String winnerSide,
     required String reason,
   }) {
-    emit(SyncConflictEvent(
-      table: table,
-      localUuid: localUuid,
-      winnerSide: winnerSide,
-      reason: reason,
-    ),);
+    emit(SyncConflictEvent(table: table, localUuid: localUuid, winnerSide: winnerSide, reason: reason));
   }
 
   /// مسح الأحداث الأخيرة (بعد عرضها للمستخدم)

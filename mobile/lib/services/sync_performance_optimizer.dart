@@ -4,20 +4,19 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'appwrite_config.dart';
+
 /// مُحسِّن أداء المزامنة
 /// يراقب حالة الاتصال ويحسن أداء المزامنة بناءً على نوع الشبكة
 class SyncPerformanceOptimizer {
-
   factory SyncPerformanceOptimizer() => _instance;
 
   SyncPerformanceOptimizer._internal();
-  static final SyncPerformanceOptimizer _instance =
-      SyncPerformanceOptimizer._internal();
+  static final SyncPerformanceOptimizer _instance = SyncPerformanceOptimizer._internal();
 
   // إضافة static getter instance للوصول للـ singleton
   static SyncPerformanceOptimizer get instance => _instance;
 
-  // إصلاح المشكلة الأولى: تغيير نوع البيانات من ConnectivityResult إلى List<ConnectivityResult>
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   bool _isOnWiFi = false;
@@ -25,26 +24,25 @@ class SyncPerformanceOptimizer {
   DateTime? _lastSyncTime;
   int _syncAttempts = 0;
 
+  HttpClient? _cachedHttpClient;
+  DateTime? _httpClientCreatedAt;
+  static const Duration _httpClientTtl = Duration(minutes: 5);
+
   // إعدادات الأداء حسب نوع الشبكة
   static const Map<String, Map<String, dynamic>> _performanceSettings = {
     'wifi': {
-      'batchSize': 100,
-      'timeout': 30,
+      'batchSize': 80,
+      'timeout': 25,
       'retryAttempts': 3,
       'syncInterval': 60, // ثواني
     },
     'mobile': {
-      'batchSize': 50,
-      'timeout': 15,
-      'retryAttempts': 2,
-      'syncInterval': 120, // ثواني
+      'batchSize': 15,
+      'timeout': 12,
+      'retryAttempts': 4,
+      'syncInterval': 90, // ثواني
     },
-    'none': {
-      'batchSize': 0,
-      'timeout': 0,
-      'retryAttempts': 0,
-      'syncInterval': 0,
-    },
+    'none': {'batchSize': 0, 'timeout': 0, 'retryAttempts': 0, 'syncInterval': 0},
   };
 
   /// تهيئة مراقب الاتصال
@@ -191,8 +189,7 @@ class SyncPerformanceOptimizer {
     if (_syncAttempts >= (settings['retryAttempts'] as num)) {
       // ✅ إصلاح: بدلاً من التخطي الدائم، نتحقق من مرور فترة cooldown
       const cooldownMinutes = 30;
-      if (_lastSyncTime != null &&
-          DateTime.now().difference(_lastSyncTime!).inMinutes >= cooldownMinutes) {
+      if (_lastSyncTime != null && DateTime.now().difference(_lastSyncTime!).inMinutes >= cooldownMinutes) {
         debugPrint('🔄 انتهت فترة cooldown - إعادة تعيين المحاولات والمحاولة مجدداً');
         _syncAttempts = 0;
         return false;
@@ -206,11 +203,15 @@ class SyncPerformanceOptimizer {
 
   /// التحقق من وجود اتصال إنترنت فعلي
   Future<bool> _hasInternetConnection() async {
+    // ✅ إعادة استخدام HttpClient بدلاً من إنشاء واحد جديد كل مرة
+    final client = _getOrCreateHttpClient();
     try {
-      final result = await InternetAddress.lookup(
-        'google.com',
-      ).timeout(const Duration(seconds: 5));
-      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+      final uri = Uri.parse(AppwriteConfig.endpoint);
+      final request = await client.getUrl(uri).timeout(const Duration(seconds: 2));
+      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      final response = await request.close().timeout(const Duration(seconds: 2));
+      await response.drain<void>();
+      return response.statusCode < HttpStatus.internalServerError;
     } on SocketException catch (_) {
       return false;
     } on TimeoutException catch (_) {
@@ -219,6 +220,18 @@ class SyncPerformanceOptimizer {
       debugPrint('❌ خطأ في فحص الاتصال: $e');
       return false;
     }
+  }
+
+  HttpClient _getOrCreateHttpClient() {
+    final now = DateTime.now();
+    if (_cachedHttpClient == null ||
+        _httpClientCreatedAt == null ||
+        now.difference(_httpClientCreatedAt!) > _httpClientTtl) {
+      _cachedHttpClient?.close(force: true);
+      _cachedHttpClient = HttpClient()..connectionTimeout = const Duration(seconds: 2);
+      _httpClientCreatedAt = now;
+    }
+    return _cachedHttpClient!;
   }
 
   /// التحقق من إعدادات WiFi Only
@@ -240,9 +253,7 @@ class SyncPerformanceOptimizer {
       debugPrint('✅ تم تسجيل مزامنة ناجحة');
     } else {
       _syncAttempts++;
-      debugPrint(
-        '❌ تم تسجيل محاولة مزامنة فاشلة (المحاولة رقم $_syncAttempts)',
-      );
+      debugPrint('❌ تم تسجيل محاولة مزامنة فاشلة (المحاولة رقم $_syncAttempts)');
     }
   }
 
@@ -374,9 +385,7 @@ class SyncPerformanceOptimizer {
         optimizedInterval += _syncAttempts * 30; // إضافة 30 ثانية لكل فشل
       }
 
-      debugPrint(
-        '🔧 فترة محسنة: ${optimizedInterval}s (أساسية: ${baseInterval}s، فشل: $_syncAttempts)',
-      );
+      debugPrint('🔧 فترة محسنة: ${optimizedInterval}s (أساسية: ${baseInterval}s، فشل: $_syncAttempts)');
       return optimizedInterval;
     } catch (e) {
       debugPrint('❌ خطأ في حساب الفترة المحسنة: $e');
@@ -400,6 +409,9 @@ class SyncPerformanceOptimizer {
   void dispose() {
     _connectivitySubscription?.cancel();
     _connectivitySubscription = null;
+    _cachedHttpClient?.close(force: true);
+    _cachedHttpClient = null;
+    _httpClientCreatedAt = null;
     _isInitialized = false;
     debugPrint('🧹 تم تنظيف موارد مُحسِّن أداء المزامنة');
   }

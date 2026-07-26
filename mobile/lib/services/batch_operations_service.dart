@@ -6,7 +6,6 @@ import 'appwrite_service.dart';
 
 /// نتيجة عملية Batch
 class BatchResult<T> {
-
   BatchResult({
     required this.total,
     required this.successful,
@@ -36,8 +35,7 @@ class BatchResult<T> {
 class BatchOperationsService {
   factory BatchOperationsService() => _instance;
   BatchOperationsService._internal();
-  static final BatchOperationsService _instance =
-      BatchOperationsService._internal();
+  static final BatchOperationsService _instance = BatchOperationsService._internal();
 
   final _logger = AppwriteLogger();
   final _errorHandler = AppwriteErrorHandler();
@@ -55,10 +53,7 @@ class BatchOperationsService {
     required List<String> documentIds,
     bool parallel = true,
   }) async {
-    _logger.info(
-      'Deleting ${documentIds.length} documents from $collectionId',
-      tag: 'BATCH',
-    );
+    _logger.info('Deleting ${documentIds.length} documents from $collectionId', tag: 'BATCH');
 
     final successfulItems = <String>[];
     final errors = <String, String>{};
@@ -68,17 +63,10 @@ class BatchOperationsService {
       final results = await Future.wait(
         documentIds.map((id) async {
           try {
-            await _appwriteService.deleteDocument(
-              collectionId: collectionId,
-              documentId: id,
-            );
+            await _appwriteService.deleteDocument(collectionId: collectionId, documentId: id);
             return {'id': id, 'success': true};
           } catch (e) {
-            return {
-              'id': id,
-              'success': false,
-              'error': _errorHandler.handleError(e).message,
-            };
+            return {'id': id, 'success': false, 'error': _errorHandler.handleError(e).message};
           }
         }),
       );
@@ -86,19 +74,16 @@ class BatchOperationsService {
       // معالجة النتائج
       for (final result in results) {
         if (result['success'] == true) {
-          successfulItems.add(result['id'] as String);
+          successfulItems.add(result['id']! as String);
         } else {
-          errors[result['id'] as String] = result['error'] as String;
+          errors[result['id']! as String] = result['error']! as String;
         }
       }
     } else {
       // تنفيذ تسلسلي
       for (final id in documentIds) {
         try {
-          await _appwriteService.deleteDocument(
-            collectionId: collectionId,
-            documentId: id,
-          );
+          await _appwriteService.deleteDocument(collectionId: collectionId, documentId: id);
           successfulItems.add(id);
         } catch (e) {
           errors[id] = _errorHandler.handleError(e).message;
@@ -130,10 +115,7 @@ class BatchOperationsService {
     required List<Map<String, dynamic>> documents,
     bool parallel = true,
   }) async {
-    _logger.info(
-      'Creating ${documents.length} documents in $collectionId',
-      tag: 'BATCH',
-    );
+    _logger.info('Creating ${documents.length} documents in $collectionId', tag: 'BATCH');
 
     final successfulItems = <models.Document>[];
     final errors = <String, String>{};
@@ -153,11 +135,7 @@ class BatchOperationsService {
             );
             return {'index': index, 'success': true, 'document': doc};
           } catch (e) {
-            return {
-              'index': index,
-              'success': false,
-              'error': _errorHandler.handleError(e).message,
-            };
+            return {'index': index, 'success': false, 'error': _errorHandler.handleError(e).message};
           }
         }),
       );
@@ -165,9 +143,9 @@ class BatchOperationsService {
       // معالجة النتائج
       for (final result in results) {
         if (result['success'] == true) {
-          successfulItems.add(result['document'] as models.Document);
+          successfulItems.add(result['document']! as models.Document);
         } else {
-          errors['document_${result['index']}'] = result['error'] as String;
+          errors['document_${result['index']}'] = result['error']! as String;
         }
       }
     } else {
@@ -210,10 +188,7 @@ class BatchOperationsService {
     required List<Map<String, dynamic>> updates,
     bool parallel = true,
   }) async {
-    _logger.info(
-      'Updating ${updates.length} documents in $collectionId',
-      tag: 'BATCH',
-    );
+    _logger.info('Updating ${updates.length} documents in $collectionId', tag: 'BATCH');
 
     final successfulItems = <models.Document>[];
     final errors = <String, String>{};
@@ -226,18 +201,10 @@ class BatchOperationsService {
           final data = update['data'] as Map<String, dynamic>;
 
           try {
-            final doc = await _appwriteService.updateDocument(
-              collectionId: collectionId,
-              documentId: id,
-              data: data,
-            );
+            final doc = await _appwriteService.updateDocument(collectionId: collectionId, documentId: id, data: data);
             return {'id': id, 'success': true, 'document': doc};
           } catch (e) {
-            return {
-              'id': id,
-              'success': false,
-              'error': _errorHandler.handleError(e).message,
-            };
+            return {'id': id, 'success': false, 'error': _errorHandler.handleError(e).message};
           }
         }),
       );
@@ -245,9 +212,9 @@ class BatchOperationsService {
       // معالجة النتائج
       for (final result in results) {
         if (result['success'] == true) {
-          successfulItems.add(result['document'] as models.Document);
+          successfulItems.add(result['document']! as models.Document);
         } else {
-          errors[result['id'] as String] = result['error'] as String;
+          errors[result['id']! as String] = result['error']! as String;
         }
       }
     } else {
@@ -257,11 +224,7 @@ class BatchOperationsService {
         final data = update['data'] as Map<String, dynamic>;
 
         try {
-          final doc = await _appwriteService.updateDocument(
-            collectionId: collectionId,
-            documentId: id,
-            data: data,
-          );
+          final doc = await _appwriteService.updateDocument(collectionId: collectionId, documentId: id, data: data);
           successfulItems.add(doc);
         } catch (e) {
           errors[id] = _errorHandler.handleError(e).message;
@@ -288,10 +251,7 @@ class BatchOperationsService {
     required List<BatchOperation> operations,
     bool parallel = true,
   }) async {
-    _logger.info(
-      'Executing ${operations.length} mixed operations',
-      tag: 'BATCH',
-    );
+    _logger.info('Executing ${operations.length} mixed operations', tag: 'BATCH');
 
     final results = <String, BatchResult<dynamic>>{};
 
@@ -320,12 +280,7 @@ abstract class BatchOperation {
 
 /// عملية حذف Batch
 class BatchDeleteOperation extends BatchOperation {
-
-  BatchDeleteOperation({
-    required this.databaseId,
-    required this.collectionId,
-    required this.documentIds,
-  });
+  BatchDeleteOperation({required this.databaseId, required this.collectionId, required this.documentIds});
   final String databaseId;
   final String collectionId;
   final List<String> documentIds;
@@ -345,12 +300,7 @@ class BatchDeleteOperation extends BatchOperation {
 
 /// عملية إنشاء Batch
 class BatchCreateOperation extends BatchOperation {
-
-  BatchCreateOperation({
-    required this.databaseId,
-    required this.collectionId,
-    required this.documents,
-  });
+  BatchCreateOperation({required this.databaseId, required this.collectionId, required this.documents});
   final String databaseId;
   final String collectionId;
   final List<Map<String, dynamic>> documents;

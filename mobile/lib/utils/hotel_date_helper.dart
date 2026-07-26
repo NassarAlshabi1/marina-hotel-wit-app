@@ -33,18 +33,11 @@ class HotelDateHelper {
   /// مثال 1: 01/01 14:01 → 02/01 14:00 = 1 يوم ✅
   /// مثال 2: 01/01 14:01 → 02/01 14:01 = 2 يوم ✅
   static DateTime getHotelDay(DateTime dateTime) {
-    final cutoff = DateTime(
-      dateTime.year,
-      dateTime.month,
-      dateTime.day,
-      hotelStartHour,
-      hotelStartMinute,
-    );
+    final cutoff = DateTime(dateTime.year, dateTime.month, dateTime.day, hotelStartHour, hotelStartMinute);
     if (!dateTime.isBefore(cutoff)) {
       return DateTime(dateTime.year, dateTime.month, dateTime.day);
     } else {
-      return DateTime(dateTime.year, dateTime.month, dateTime.day)
-          .subtract(const Duration(days: 1));
+      return DateTime(dateTime.year, dateTime.month, dateTime.day).subtract(const Duration(days: 1));
     }
   }
 
@@ -60,9 +53,7 @@ class HotelDateHelper {
       return getHotelDayKey();
     }
     try {
-      final normalized = isoString.trim().contains('T')
-          ? isoString.trim()
-          : isoString.trim().replaceFirst(' ', 'T');
+      final normalized = isoString.trim().contains('T') ? isoString.trim() : isoString.trim().replaceFirst(' ', 'T');
       final dt = DateTime.parse(normalized);
       return getHotelDayKey(dateTime: dt);
     } catch (_) {
@@ -79,14 +70,8 @@ class HotelDateHelper {
   /// - نفس اليوم = ليلة واحدة كحد أدنى
   /// - إذا وقت الخروج بعد 14:00:00 (حتى ثانية واحدة) = ليلة إضافية
   /// - عند 14:00:00 بالضبط = لا تُحتسب ليلة إضافية
-  static int calculateNights({
-    required DateTime checkIn,
-    DateTime? checkOut,
-  }) {
-    return Time.nightsWithCutoff(
-      checkIn,
-      checkout: checkOut,
-    );
+  static int calculateNights({required DateTime checkIn, DateTime? checkOut}) {
+    return Time.nightsWithCutoff(checkIn, checkout: checkOut);
   }
 
   /// حساب عدد الليالي مع مراعاة تاريخ بداية الخصم.
@@ -106,8 +91,7 @@ class HotelDateHelper {
       hotelStartHour,
       hotelStartMinute,
     );
-    final effectiveStart =
-        discountDayStart.isAfter(checkIn) ? discountDayStart : checkIn;
+    final effectiveStart = discountDayStart.isAfter(checkIn) ? discountDayStart : checkIn;
     if (!checkOut.isAfter(effectiveStart)) {
       return 0;
     }
@@ -120,14 +104,12 @@ class HotelDateHelper {
   /// true إذا الوقت >= 14:01:00.
   static bool isNowAfterCutoff() {
     final now = DateTime.now();
-    return now.hour > hotelStartHour ||
-        (now.hour == hotelStartHour && now.minute >= hotelStartMinute);
+    return now.hour > hotelStartHour || (now.hour == hotelStartHour && now.minute >= hotelStartMinute);
   }
 
   /// هل الوقت المحدد بعد ساعة بداية اليوم الفندقي؟
   static bool isAfterCutoff(DateTime dateTime) {
-    return dateTime.hour > hotelStartHour ||
-        (dateTime.hour == hotelStartHour && dateTime.minute >= hotelStartMinute);
+    return dateTime.hour > hotelStartHour || (dateTime.hour == hotelStartHour && dateTime.minute >= hotelStartMinute);
   }
 
   // ─── تحديث تلقائي ──────────────────────────────────────────────
@@ -175,10 +157,7 @@ class HotelDateHelper {
 
   /// إنشاء Timer دوري كل 30 ثانية (للشاشات التي تحتاج دقة أعلى).
   static Timer createPeriodicRefreshTimer(VoidCallback onTick) {
-    return Timer.periodic(
-      const Duration(seconds: 30),
-      (_) => onTick(),
-    );
+    return Timer.periodic(const Duration(seconds: 30), (_) => onTick());
   }
 
   // ─── الحقول المحسوبة (لا تُزامن إلى Appwrite) ───────────────
@@ -194,9 +173,9 @@ class HotelDateHelper {
   ///   remainingBalanceCached, isFullyPaid, hotelDayCheckin, hotelDayCheckout
   static const bookingComputedFields = <String>{
     // ── حقول ديناميكية تعتمد على الوقت الحالي — لا تُزامن ──
-    'stayDurationIso',   // حساب مدة البقاء — يختلف حسب وقت الاستعلام
-    'lastNightEpoch',    // حساب آخر ليلة — يختلف حسب وقت الاستعلام
-    'isOverdue',         // يعتمد على الوقت الحالي
+    'stayDurationIso', // حساب مدة البقاء — يختلف حسب وقت الاستعلام
+    'lastNightEpoch', // حساب آخر ليلة — يختلف حسب وقت الاستعلام
+    'isOverdue', // يعتمد على الوقت الحالي
     'needsCheckoutReview', // يعتمد على الوقت الحالي
   };
 
@@ -208,10 +187,7 @@ class HotelDateHelper {
   /// تصفية بيانات الحجز من الحقول المحسوبة قبل الرفع إلى Appwrite.
   ///
   /// يُستدعى من `_sanitizePayload` في Delta Sync.
-  static Map<String, dynamic> stripComputedFieldsForEntity(
-    String entity,
-    Map<String, dynamic> payload,
-  ) {
+  static Map<String, dynamic> stripComputedFieldsForEntity(String entity, Map<String, dynamic> payload) {
     if (entity != 'bookings') {
       return payload;
     }

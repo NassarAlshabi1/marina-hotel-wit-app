@@ -22,8 +22,7 @@ class DateParser {
       return null;
     }
     final normalized = v.contains('T') ? v : v.replaceFirst(' ', 'T');
-    final withSeconds =
-        normalized.length == 16 ? '$normalized:00' : normalized;
+    final withSeconds = normalized.length == 16 ? '$normalized:00' : normalized;
     try {
       return DateTime.parse(withSeconds);
     } catch (_) {

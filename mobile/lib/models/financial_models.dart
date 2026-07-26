@@ -1,12 +1,5 @@
 class AppliedAdjustment {
-
-  const AppliedAdjustment({
-    required this.uuid,
-    required this.type,
-    required this.amount,
-    this.reason,
-    this.appliedBy,
-  });
+  const AppliedAdjustment({required this.uuid, required this.type, required this.amount, this.reason, this.appliedBy});
 
   factory AppliedAdjustment.fromJson(Map<String, dynamic> json) {
     return AppliedAdjustment(
@@ -33,7 +26,6 @@ class AppliedAdjustment {
 }
 
 class NightlyBreakdown {
-
   const NightlyBreakdown({
     required this.hotelDayKey,
     required this.nightStart,
@@ -52,9 +44,9 @@ class NightlyBreakdown {
       baseRate: (json['baseRate'] as num?)?.toInt() ?? 0,
       adjustmentAmount: (json['adjustmentAmount'] as num?)?.toInt() ?? 0,
       finalRate: (json['finalRate'] as num?)?.toInt() ?? 0,
-      appliedAdjustments: (json['appliedAdjustments'] as List<dynamic>?)
-              ?.map((e) => AppliedAdjustment.fromJson(
-                  Map<String, dynamic>.from(e as Map),),)
+      appliedAdjustments:
+          (json['appliedAdjustments'] as List<dynamic>?)
+              ?.map((e) => AppliedAdjustment.fromJson(Map<String, dynamic>.from(e as Map)))
               .toList() ??
           [],
     );
@@ -74,13 +66,11 @@ class NightlyBreakdown {
     'baseRate': baseRate,
     'adjustmentAmount': adjustmentAmount,
     'finalRate': finalRate,
-    'appliedAdjustments':
-        appliedAdjustments.map((a) => a.toJson()).toList(),
+    'appliedAdjustments': appliedAdjustments.map((a) => a.toJson()).toList(),
   };
 }
 
 class FinancialSummary {
-
   const FinancialSummary({
     required this.subtotal,
     required this.totalAdjustments,
@@ -94,12 +84,10 @@ class FinancialSummary {
   factory FinancialSummary.fromJson(Map<String, dynamic> json) {
     return FinancialSummary(
       subtotal: (json['subtotal'] as num?)?.toInt() ?? 0,
-      totalAdjustments:
-          (json['totalAdjustments'] as num?)?.toInt() ?? 0,
+      totalAdjustments: (json['totalAdjustments'] as num?)?.toInt() ?? 0,
       totalDue: (json['totalDue'] as num?)?.toInt() ?? 0,
       totalPaid: (json['totalPaid'] as num?)?.toInt() ?? 0,
-      remainingBalance:
-          (json['remainingBalance'] as num?)?.toInt() ?? 0,
+      remainingBalance: (json['remainingBalance'] as num?)?.toInt() ?? 0,
       totalNights: (json['totalNights'] as num?)?.toInt() ?? 0,
       isFullyPaid: (json['isFullyPaid'] as bool?) ?? false,
     );

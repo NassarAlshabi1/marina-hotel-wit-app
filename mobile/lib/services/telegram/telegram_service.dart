@@ -7,9 +7,9 @@ import 'telegram_config.dart';
 
 /// عميل API للتواصل مع Telegram Bot API
 class TelegramApiClient {
-
   TelegramApiClient._();
   static TelegramApiClient? _instance;
+  // ignore: prefer_constructors_over_static_methods
   static TelegramApiClient get instance => _instance ??= TelegramApiClient._();
 
   final http.Client _client = http.Client();
@@ -74,21 +74,14 @@ class TelegramApiClient {
   }
 
   /// إرسال رسالة إلى Chat ID المحفوظ في الإعدادات
-  Future<bool> sendToDefaultChat({
-    required String text,
-    String parseMode = 'HTML',
-  }) async {
+  Future<bool> sendToDefaultChat({required String text, String parseMode = 'HTML'}) async {
     final chatId = await TelegramConfig.getChatId();
     if (chatId.isEmpty) {
       debugPrint('⚠️ Telegram: Chat ID غير مضبوط');
       return false;
     }
 
-    return sendMessage(
-      chatId: chatId,
-      text: text,
-      parseMode: parseMode,
-    );
+    return sendMessage(chatId: chatId, text: text, parseMode: parseMode);
   }
 
   /// إرسال رسالة منسقة (Bold + ضربات)
@@ -108,10 +101,7 @@ class TelegramApiClient {
       buffer.writeln('<i>$footer</i>');
     }
 
-    return sendMessage(
-      chatId: chatId,
-      text: buffer.toString().trimRight(),
-    );
+    return sendMessage(chatId: chatId, text: buffer.toString().trimRight());
   }
 
   /// اختبار الاتصال بالبوت
@@ -119,9 +109,7 @@ class TelegramApiClient {
     try {
       await _updateToken();
 
-      final response = await _client.get(
-        Uri.parse(_apiUrl('getMe')),
-      );
+      final response = await _client.get(Uri.parse(_apiUrl('getMe')));
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       return data['ok'] == true;

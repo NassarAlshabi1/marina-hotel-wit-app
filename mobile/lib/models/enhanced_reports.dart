@@ -7,13 +7,11 @@ import '../utils/enhanced_pdf_utils.dart';
 
 /// تقرير دفوعات محسّن
 class EnhancedPaymentsReport {
-
-  EnhancedPaymentsReport({
-    required this.payments,
-    required this.fromDate,
-    required this.toDate,
-    this.roomFilter,
-    required this.generatedBy,
+  EnhancedPaymentsReport({      required this.payments,
+      required this.fromDate,
+      required this.toDate,
+      required this.generatedBy,
+      this.roomFilter,
   });
   final List<PaymentReportItem> payments;
   final DateTime fromDate;
@@ -21,14 +19,9 @@ class EnhancedPaymentsReport {
   final String? roomFilter;
   final String generatedBy;
 
-  double get totalAmount =>
-      payments.fold(0, (sum, payment) => sum + payment.amount);
-  double get cashPayments => payments
-      .where((p) => p.method == 'cash')
-      .fold(0, (sum, p) => sum + p.amount);
-  double get cardPayments => payments
-      .where((p) => p.method == 'card')
-      .fold(0, (sum, p) => sum + p.amount);
+  double get totalAmount => payments.fold(0, (sum, payment) => sum + payment.amount);
+  double get cashPayments => payments.where((p) => p.method == 'cash').fold(0, (sum, p) => sum + p.amount);
+  double get cardPayments => payments.where((p) => p.method == 'card').fold(0, (sum, p) => sum + p.amount);
   int get totalTransactions => payments.length;
 
   Future<void> generatePDF() async {
@@ -49,8 +42,7 @@ class EnhancedPaymentsReport {
 
     await Printing.sharePdf(
       bytes: await pdf.save(),
-      filename:
-          'payments-report-${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf',
+      filename: 'payments-report-${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf',
     );
   }
 
@@ -72,21 +64,13 @@ class EnhancedPaymentsReport {
     return pw.Container(
       padding: const pw.EdgeInsets.only(top: 16),
       decoration: const pw.BoxDecoration(
-        border: pw.Border(
-          top: pw.BorderSide(color: PdfColors.textLight),
-        ),
+        border: pw.Border(top: pw.BorderSide(color: PdfColors.textLight)),
       ),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(
-            'تم إنشاء التقرير بواسطة: $generatedBy',
-            style: PdfTextStyles.caption(fonts.regular),
-          ),
-          pw.Text(
-            'صفحة ${context.pageNumber} من ${context.pagesCount}',
-            style: PdfTextStyles.caption(fonts.regular),
-          ),
+          pw.Text('تم إنشاء التقرير بواسطة: $generatedBy', style: PdfTextStyles.caption(fonts.regular)),
+          pw.Text('صفحة ${context.pageNumber} من ${context.pagesCount}', style: PdfTextStyles.caption(fonts.regular)),
         ],
       ),
     );
@@ -120,8 +104,7 @@ class EnhancedPaymentsReport {
   }
 
   pw.Widget _buildReportInfo(ArabicPdfFonts fonts) {
-    final periodLabel =
-        '${EnhancedPdfUtils.formatDateTime(fromDate)} - ${EnhancedPdfUtils.formatDateTime(toDate)}';
+    final periodLabel = '${EnhancedPdfUtils.formatDateTime(fromDate)} - ${EnhancedPdfUtils.formatDateTime(toDate)}';
     final roomLabel = roomFilter != null ? 'الغرفة: $roomFilter' : 'جميع الغرف';
 
     return EnhancedPdfUtils.buildInfoCard(
@@ -133,11 +116,7 @@ class EnhancedPaymentsReport {
         pw.SizedBox(height: 6),
         _buildInfoRow('نطاق البيانات:', roomLabel, fonts),
         pw.SizedBox(height: 6),
-        _buildInfoRow(
-          'تاريخ الإنشاء:',
-          EnhancedPdfUtils.formatDateTime(DateTime.now()),
-          fonts,
-        ),
+        _buildInfoRow('تاريخ الإنشاء:', EnhancedPdfUtils.formatDateTime(DateTime.now()), fonts),
         pw.SizedBox(height: 6),
         _buildInfoRow('عدد المعاملات:', '$totalTransactions معاملة', fonts),
       ],
@@ -172,9 +151,7 @@ class EnhancedPaymentsReport {
         pw.Expanded(
           child: EnhancedPdfUtils.buildStatisticsBox(
             title: 'متوسط المعاملة',
-            value: EnhancedPdfUtils.formatNumber(
-              totalTransactions > 0 ? totalAmount / totalTransactions : 0,
-            ),
+            value: EnhancedPdfUtils.formatNumber(totalTransactions > 0 ? totalAmount / totalTransactions : 0),
             // subtitle: '',
             fonts: fonts,
             color: PdfColors.accent,
@@ -186,12 +163,8 @@ class EnhancedPaymentsReport {
   }
 
   pw.Widget _buildPaymentMethodAnalysis(ArabicPdfFonts fonts) {
-    final transferPayments = payments
-        .where((p) => p.method == 'transfer')
-        .fold(0.0, (sum, p) => sum + p.amount);
-    final checkPayments = payments
-        .where((p) => p.method == 'check')
-        .fold(0.0, (sum, p) => sum + p.amount);
+    final transferPayments = payments.where((p) => p.method == 'transfer').fold(0.0, (sum, p) => sum + p.amount);
+    final checkPayments = payments.where((p) => p.method == 'check').fold(0.0, (sum, p) => sum + p.amount);
 
     return EnhancedPdfUtils.buildInfoCard(
       title: '💳 تحليل طرق الدفع',
@@ -199,12 +172,7 @@ class EnhancedPaymentsReport {
       borderColor: PdfColors.secondary,
       content: [
         EnhancedPdfUtils.buildProfessionalTable(
-          headers: [
-            'طريقة الدفع',
-            'عدد المعاملات',
-            'إجمالي المبلغ',
-            'النسبة المئوية',
-          ],
+          headers: ['طريقة الدفع', 'عدد المعاملات', 'إجمالي المبلغ', 'النسبة المئوية'],
           data: [
             [
               'نقداً',
@@ -246,14 +214,7 @@ class EnhancedPaymentsReport {
       borderColor: PdfColors.primary,
       content: [
         EnhancedPdfUtils.buildProfessionalTable(
-          headers: [
-            'التاريخ',
-            'النزيل',
-            'الغرفة',
-            'المبلغ',
-            'طريقة الدفع',
-            'المحاسب',
-          ],
+          headers: ['التاريخ', 'النزيل', 'الغرفة', 'المبلغ', 'طريقة الدفع', 'المحاسب'],
           data: payments
               .map(
                 (payment) => [
@@ -280,18 +241,13 @@ class EnhancedPaymentsReport {
     for (final payment in payments) {
       final dateKey = DateFormat('yyyy-MM-dd').format(payment.paymentDate);
       if (!dailySummaries.containsKey(dateKey)) {
-        dailySummaries[dateKey] = DailySummary(
-          date: payment.paymentDate,
-          totalAmount: 0,
-          transactionCount: 0,
-        );
+        dailySummaries[dateKey] = DailySummary(date: payment.paymentDate, totalAmount: 0, transactionCount: 0);
       }
       dailySummaries[dateKey]!.totalAmount += payment.amount;
       dailySummaries[dateKey]!.transactionCount++;
     }
 
-    final sortedSummaries = dailySummaries.values.toList()
-      ..sort((a, b) => a.date.compareTo(b.date));
+    final sortedSummaries = dailySummaries.values.toList()..sort((a, b) => a.date.compareTo(b.date));
 
     return EnhancedPdfUtils.buildInfoCard(
       title: '📅 ملخص يومي',
@@ -300,12 +256,7 @@ class EnhancedPaymentsReport {
       content: [
         if (sortedSummaries.isNotEmpty)
           EnhancedPdfUtils.buildProfessionalTable(
-            headers: [
-              'التاريخ',
-              'عدد المعاملات',
-              'إجمالي المبلغ',
-              'متوسط المعاملة',
-            ],
+            headers: ['التاريخ', 'عدد المعاملات', 'إجمالي المبلغ', 'متوسط المعاملة'],
             data: sortedSummaries
                 .map(
                   (summary) => [
@@ -313,9 +264,7 @@ class EnhancedPaymentsReport {
                     summary.transactionCount.toString(),
                     EnhancedPdfUtils.formatCurrency(summary.totalAmount),
                     EnhancedPdfUtils.formatCurrency(
-                      summary.transactionCount > 0
-                          ? summary.totalAmount / summary.transactionCount
-                          : 0,
+                      summary.transactionCount > 0 ? summary.totalAmount / summary.transactionCount : 0,
                     ),
                   ],
                 )
@@ -338,9 +287,7 @@ class EnhancedPaymentsReport {
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
         pw.Text(label, style: PdfTextStyles.bodyBold(fonts.bold)),
-        pw.Flexible(
-          child: pw.Text(value, style: PdfTextStyles.body(fonts.regular)),
-        ),
+        pw.Flexible(child: pw.Text(value, style: PdfTextStyles.body(fonts.regular))),
       ],
     );
   }
@@ -363,7 +310,6 @@ class EnhancedPaymentsReport {
 
 /// عنصر تقرير الدفعة
 class PaymentReportItem {
-
   PaymentReportItem({
     required this.guestName,
     required this.roomNumber,
@@ -384,12 +330,7 @@ class PaymentReportItem {
 
 /// ملخص يومي
 class DailySummary {
-
-  DailySummary({
-    required this.date,
-    required this.totalAmount,
-    required this.transactionCount,
-  });
+  DailySummary({required this.date, required this.totalAmount, required this.transactionCount});
   final DateTime date;
   double totalAmount;
   int transactionCount;
@@ -397,13 +338,11 @@ class DailySummary {
 
 /// تقرير المصروفات المحسّن
 class EnhancedExpensesReport {
-
-  EnhancedExpensesReport({
-    required this.expenses,
-    required this.fromDate,
-    required this.toDate,
-    this.categoryFilter,
-    required this.generatedBy,
+  EnhancedExpensesReport({      required this.expenses,
+      required this.fromDate,
+      required this.toDate,
+      required this.generatedBy,
+      this.categoryFilter,
   });
   final List<ExpenseReportItem> expenses;
   final DateTime fromDate;
@@ -411,8 +350,7 @@ class EnhancedExpensesReport {
   final String? categoryFilter;
   final String generatedBy;
 
-  double get totalAmount =>
-      expenses.fold(0, (sum, expense) => sum + expense.amount);
+  double get totalAmount => expenses.fold(0, (sum, expense) => sum + expense.amount);
   int get totalTransactions => expenses.length;
 
   Future<void> generatePDF() async {
@@ -438,8 +376,7 @@ class EnhancedExpensesReport {
 
     await Printing.sharePdf(
       bytes: await pdf.save(),
-      filename:
-          'expenses-report-${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf',
+      filename: 'expenses-report-${DateFormat('yyyy-MM-dd').format(DateTime.now())}.pdf',
     );
   }
 
@@ -468,11 +405,8 @@ class EnhancedExpensesReport {
   }
 
   pw.Widget _buildExpenseReportInfo(ArabicPdfFonts fonts) {
-    final periodLabel =
-        '${EnhancedPdfUtils.formatDateTime(fromDate)} - ${EnhancedPdfUtils.formatDateTime(toDate)}';
-    final categoryLabel = categoryFilter != null
-        ? 'الفئة: $categoryFilter'
-        : 'جميع الفئات';
+    final periodLabel = '${EnhancedPdfUtils.formatDateTime(fromDate)} - ${EnhancedPdfUtils.formatDateTime(toDate)}';
+    final categoryLabel = categoryFilter != null ? 'الفئة: $categoryFilter' : 'جميع الفئات';
 
     return EnhancedPdfUtils.buildInfoCard(
       title: '📊 معلومات التقرير',
@@ -483,11 +417,7 @@ class EnhancedExpensesReport {
         pw.SizedBox(height: 6),
         _buildInfoRow('نطاق البيانات:', categoryLabel, fonts),
         pw.SizedBox(height: 6),
-        _buildInfoRow(
-          'تاريخ الإنشاء:',
-          EnhancedPdfUtils.formatDateTime(DateTime.now()),
-          fonts,
-        ),
+        _buildInfoRow('تاريخ الإنشاء:', EnhancedPdfUtils.formatDateTime(DateTime.now()), fonts),
         pw.SizedBox(height: 6),
         _buildInfoRow('عدد المصروفات:', '$totalTransactions مصروف', fonts),
       ],
@@ -495,9 +425,7 @@ class EnhancedExpensesReport {
   }
 
   pw.Widget _buildExpenseQuickStats(ArabicPdfFonts fonts) {
-    final highestExpense = expenses.isNotEmpty
-        ? expenses.reduce((a, b) => a.amount > b.amount ? a : b).amount
-        : 0.0;
+    final highestExpense = expenses.isNotEmpty ? expenses.reduce((a, b) => a.amount > b.amount ? a : b).amount : 0.0;
 
     return pw.Row(
       children: [
@@ -543,18 +471,13 @@ class EnhancedExpensesReport {
 
     for (final expense in expenses) {
       if (!categories.containsKey(expense.category)) {
-        categories[expense.category] = CategorySummary(
-          category: expense.category,
-          totalAmount: 0,
-          count: 0,
-        );
+        categories[expense.category] = CategorySummary(category: expense.category, totalAmount: 0, count: 0);
       }
       categories[expense.category]!.totalAmount += expense.amount;
       categories[expense.category]!.count++;
     }
 
-    final sortedCategories = categories.values.toList()
-      ..sort((a, b) => b.totalAmount.compareTo(a.totalAmount));
+    final sortedCategories = categories.values.toList()..sort((a, b) => b.totalAmount.compareTo(a.totalAmount));
 
     return EnhancedPdfUtils.buildInfoCard(
       title: '🏷️ تحليل الفئات',
@@ -563,12 +486,7 @@ class EnhancedExpensesReport {
       content: [
         if (sortedCategories.isNotEmpty)
           EnhancedPdfUtils.buildProfessionalTable(
-            headers: [
-              'الفئة',
-              'عدد المصروفات',
-              'إجمالي المبلغ',
-              'النسبة المئوية',
-            ],
+            headers: ['الفئة', 'عدد المصروفات', 'إجمالي المبلغ', 'النسبة المئوية'],
             data: sortedCategories
                 .map(
                   (cat) => [
@@ -629,21 +547,13 @@ class EnhancedExpensesReport {
     return pw.Container(
       padding: const pw.EdgeInsets.only(top: 16),
       decoration: const pw.BoxDecoration(
-        border: pw.Border(
-          top: pw.BorderSide(color: PdfColors.textLight),
-        ),
+        border: pw.Border(top: pw.BorderSide(color: PdfColors.textLight)),
       ),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(
-            'تم إنشاء التقرير بواسطة: $generatedBy',
-            style: PdfTextStyles.caption(fonts.regular),
-          ),
-          pw.Text(
-            'صفحة ${context.pageNumber} من ${context.pagesCount}',
-            style: PdfTextStyles.caption(fonts.regular),
-          ),
+          pw.Text('تم إنشاء التقرير بواسطة: $generatedBy', style: PdfTextStyles.caption(fonts.regular)),
+          pw.Text('صفحة ${context.pageNumber} من ${context.pagesCount}', style: PdfTextStyles.caption(fonts.regular)),
         ],
       ),
     );
@@ -654,9 +564,7 @@ class EnhancedExpensesReport {
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
         pw.Text(label, style: PdfTextStyles.bodyBold(fonts.bold)),
-        pw.Flexible(
-          child: pw.Text(value, style: PdfTextStyles.body(fonts.regular)),
-        ),
+        pw.Flexible(child: pw.Text(value, style: PdfTextStyles.body(fonts.regular))),
       ],
     );
   }
@@ -664,7 +572,6 @@ class EnhancedExpensesReport {
 
 /// عنصر تقرير المصروف
 class ExpenseReportItem {
-
   ExpenseReportItem({
     required this.description,
     required this.category,
@@ -681,12 +588,7 @@ class ExpenseReportItem {
 
 /// ملخص الفئة
 class CategorySummary {
-
-  CategorySummary({
-    required this.category,
-    required this.totalAmount,
-    required this.count,
-  });
+  CategorySummary({required this.category, required this.totalAmount, required this.count});
   final String category;
   double totalAmount;
   int count;

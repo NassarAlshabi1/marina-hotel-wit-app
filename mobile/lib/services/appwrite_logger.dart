@@ -46,8 +46,7 @@ class AppwriteLogger {
         await logsDir.create(recursive: true);
       }
 
-      final fileName =
-          'appwrite_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.log';
+      final fileName = 'appwrite_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.log';
       _logFile = File('${logsDir.path}/$fileName');
     } catch (e) {
       debugPrint('Error initializing log file: $e');
@@ -80,15 +79,127 @@ class AppwriteLogger {
       _logs.removeRange(0, _logs.length - _maxLogEntries);
     }
 
-    // طباعة في وضع Debug
-    if (_enableConsole && kDebugMode) {
+    if (_enableConsole) {
       _printToConsole(entry);
     }
 
-    // كتابة إلى الملف
     if (_enableFile && _logFile != null) {
       _writeToFile(entry);
     }
+  }
+
+  /// تسجيل خطأ في الجدول
+  void logTableError({
+    required String tableName,
+    required String operation,
+    required String errorMessage,
+    String? recordId,
+    Map<String, dynamic>? recordData,
+    StackTrace? stackTrace,
+  }) {
+    final message = StringBuffer();
+    message.writeln('❌ خطأ في الجدول: $tableName');
+    message.writeln('   العملية: $operation');
+    if (recordId != null) {
+      message.writeln('   معرف السجل: $recordId');
+    }
+    if (recordData != null) {
+      message.writeln('   البيانات: $recordData');
+    }
+    message.write('   الخطأ: $errorMessage');
+
+    log(message.toString(), level: LogLevel.error, tag: 'TABLE_ERROR', error: errorMessage, stackTrace: stackTrace);
+  }
+
+  /// تسجيل خطأ في الحقل
+  void logFieldError({
+    required String tableName,
+    required String fieldName,
+    required String errorMessage,
+    String? recordId,
+    dynamic fieldValue,
+    StackTrace? stackTrace,
+  }) {
+    final message = StringBuffer();
+    message.writeln('❌ خطأ في الحقل: $tableName.$fieldName');
+    message.writeln('   نوع الخطأ: $errorMessage');
+    if (recordId != null) {
+      message.writeln('   معرف السجل: $recordId');
+    }
+    if (fieldValue != null) {
+      message.writeln('   قيمة الحقل: $fieldValue');
+    }
+
+    log(message.toString(), level: LogLevel.error, tag: 'FIELD_ERROR', error: errorMessage, stackTrace: stackTrace);
+  }
+
+  /// تسجيل خطأ في المخطط (Schema)
+  void logSchemaError({
+    required String collectionName,
+    required String errorMessage,
+    String? expectedField,
+    String? actualField,
+    StackTrace? stackTrace,
+  }) {
+    final message = StringBuffer();
+    message.writeln('⚠️ خطأ في مخطط Appwrite: $collectionName');
+    message.writeln('   الرسالة: $errorMessage');
+    if (expectedField != null) {
+      message.writeln('   الحقل المتوقع: $expectedField');
+    }
+    if (actualField != null) {
+      message.writeln('   الحقل الفعلي: $actualField');
+    }
+
+    log(message.toString(), level: LogLevel.warning, tag: 'SCHEMA_ERROR', error: errorMessage, stackTrace: stackTrace);
+  }
+
+  /// تسجيل عدم تطابق الحقول
+  void logFieldMismatch({
+    required String tableName,
+    required List<String> missingFields,
+    required List<String> extraFields,
+    StackTrace? stackTrace,
+  }) {
+    final message = StringBuffer();
+    message.writeln('🔍 عدم تطابق الحقول: $tableName');
+    if (missingFields.isNotEmpty) {
+      message.writeln('   حقول مفقودة: ${missingFields.join(', ')}');
+    }
+    if (extraFields.isNotEmpty) {
+      message.writeln('   حقول إضافية: ${extraFields.join(', ')}');
+    }
+
+    log(
+      message.toString(),
+      level: LogLevel.warning,
+      tag: 'FIELD_MISMATCH',
+      error: 'Missing: ${missingFields.length}, Extra: ${extraFields.length}',
+      stackTrace: stackTrace,
+    );
+  }
+
+  /// تسجيل فشل المزامنة
+  void logSyncError({
+    required String tableName,
+    required String operation,
+    required String errorMessage,
+    String? localId,
+    String? serverId,
+    StackTrace? stackTrace,
+  }) {
+    final message = StringBuffer();
+    message.writeln('🔄 فشل المزامنة: $tableName');
+    message.writeln('   العملية: $operation');
+    if (localId != null) {
+      message.writeln('   المحلي ID: $localId');
+    }
+    if (serverId != null) {
+      message.writeln('   السيرفر ID: $serverId');
+    }
+    message.write('   الخطأ: $errorMessage');
+
+    log(message.toString(), level: LogLevel.error, tag: 'SYNC_ERROR', error: errorMessage, stackTrace: stackTrace);
   }
 
   /// طباعة إلى Console
@@ -100,10 +211,7 @@ class AppwriteLogger {
   /// كتابة إلى الملف
   Future<void> _writeToFile(LogEntry entry) async {
     try {
-      await _logFile?.writeAsString(
-        '${entry.toFormattedString()}\n',
-        mode: FileMode.append,
-      );
+      await _logFile?.writeAsString('${entry.toFormattedString()}\n', mode: FileMode.append);
     } catch (e) {
       debugPrint('Error writing to log file: $e');
     }
@@ -134,49 +242,16 @@ class AppwriteLogger {
     log(message, tag: tag);
   }
 
-  void warning(
-    String message, {
-    String tag = 'APPWRITE',
-    dynamic error,
-    StackTrace? stackTrace,
-  }) {
-    log(
-      message,
-      level: LogLevel.warning,
-      tag: tag,
-      error: error,
-      stackTrace: stackTrace,
-    );
+  void warning(String message, {String tag = 'APPWRITE', dynamic error, StackTrace? stackTrace}) {
+    log(message, level: LogLevel.warning, tag: tag, error: error, stackTrace: stackTrace);
   }
 
-  void error(
-    String message, {
-    String tag = 'APPWRITE',
-    dynamic error,
-    StackTrace? stackTrace,
-  }) {
-    log(
-      message,
-      level: LogLevel.error,
-      tag: tag,
-      error: error,
-      stackTrace: stackTrace,
-    );
+  void error(String message, {String tag = 'APPWRITE', dynamic error, StackTrace? stackTrace}) {
+    log(message, level: LogLevel.error, tag: tag, error: error, stackTrace: stackTrace);
   }
 
-  void critical(
-    String message, {
-    String tag = 'APPWRITE',
-    dynamic error,
-    StackTrace? stackTrace,
-  }) {
-    log(
-      message,
-      level: LogLevel.critical,
-      tag: tag,
-      error: error,
-      stackTrace: stackTrace,
-    );
+  void critical(String message, {String tag = 'APPWRITE', dynamic error, StackTrace? stackTrace}) {
+    log(message, level: LogLevel.critical, tag: tag, error: error, stackTrace: stackTrace);
   }
 
   /// الحصول على جميع السجلات
@@ -208,8 +283,7 @@ class AppwriteLogger {
   Future<File?> exportLogs() async {
     try {
       final directory = await getApplicationDocumentsDirectory();
-      final fileName =
-          'appwrite_logs_export_${DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now())}.txt';
+      final fileName = 'appwrite_logs_export_${DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now())}.txt';
       final file = File('${directory.path}/$fileName');
 
       final buffer = StringBuffer();

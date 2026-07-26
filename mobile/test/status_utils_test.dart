@@ -20,15 +20,12 @@ void main() {
   test('roomStatusForOccupancy returns proper fallback', () {
     expect(StatusUtils.roomStatusForOccupancy(true), 'محجوزة');
     expect(StatusUtils.roomStatusForOccupancy(false), 'شاغرة');
-    expect(
-      StatusUtils.roomStatusForOccupancy(true, fallbackOccupied: 'X'),
-      'X',
-    );
+    expect(StatusUtils.roomStatusForOccupancy(true, fallbackOccupied: 'X'), 'X');
   });
 
   test('isBookingActive reads from booking model', () async {
     final database = AppDatabase.forTesting(NativeDatabase.memory());
-    addTearDown(database.close);
+    addTearDown(() => database.close());
 
     await database
         .into(database.rooms)
@@ -62,9 +59,7 @@ void main() {
           ),
         );
 
-    final booking = await (database.select(
-      database.bookings,
-    )..where((tbl) => tbl.id.equals(bookingId))).getSingle();
+    final booking = await (database.select(database.bookings)..where((tbl) => tbl.id.equals(bookingId))).getSingle();
 
     expect(StatusUtils.isBookingActive(booking), isTrue);
   });

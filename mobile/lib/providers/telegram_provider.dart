@@ -10,17 +10,10 @@ import '../services/telegram/telegram_service.dart';
 import '../utils/env.dart';
 
 /// حالة إعداد Telegram
-enum TelegramSetupStatus {
-  idle,
-  testing,
-  success,
-  error,
-  sendingReport,
-}
+enum TelegramSetupStatus { idle, testing, success, error, sendingReport }
 
 /// حالة Telegram الكاملة
 class TelegramState {
-
   const TelegramState({
     this.status = TelegramSetupStatus.idle,
     this.message,
@@ -124,20 +117,14 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
   Future<void> setBotToken(String token) async {
     await TelegramConfig.setBotToken(token);
     final configured = await TelegramConfig.isConfigured();
-    state = state.copyWith(
-      botToken: token,
-      isConfigured: configured,
-    );
+    state = state.copyWith(botToken: token, isConfigured: configured);
   }
 
   /// تحديث Chat ID
   Future<void> setChatId(String id) async {
     await TelegramConfig.setChatId(id);
     final configured = await TelegramConfig.isConfigured();
-    state = state.copyWith(
-      chatId: id,
-      isConfigured: configured,
-    );
+    state = state.copyWith(chatId: id, isConfigured: configured);
   }
 
   /// تفعيل/تعطيل الإشعارات الفورية
@@ -163,10 +150,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
     try {
       if (enabled && state.isEnabled) {
         final parts = state.dailyReportTime.split(':');
-        await AlarmBackup.rescheduleTelegramReport(
-          int.parse(parts[0]),
-          int.parse(parts[1]),
-        );
+        await AlarmBackup.rescheduleTelegramReport(int.parse(parts[0]), int.parse(parts[1]));
       } else {
         await AlarmBackup.cancelTelegramReportAlarm();
       }
@@ -184,10 +168,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
     try {
       if (state.isDailyReportEnabled && state.isEnabled) {
         final parts = time.split(':');
-        await AlarmBackup.rescheduleTelegramReport(
-          int.parse(parts[0]),
-          int.parse(parts[1]),
-        );
+        await AlarmBackup.rescheduleTelegramReport(int.parse(parts[0]), int.parse(parts[1]));
       }
     } catch (e) {
       debugPrint('⚠️ خطأ في إعادة جدولة إنذار Telegram: $e');
@@ -196,10 +177,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
 
   /// اختبار الاتصال
   Future<void> testConnection() async {
-    state = state.copyWith(
-      status: TelegramSetupStatus.testing,
-      message: 'جاري اختبار الاتصال...',
-    );
+    state = state.copyWith(status: TelegramSetupStatus.testing, message: 'جاري اختبار الاتصال...');
 
     try {
       final success = await _api.testSendMessage();
@@ -216,10 +194,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
         );
       }
     } catch (e) {
-      state = state.copyWith(
-        status: TelegramSetupStatus.error,
-        message: '❌ خطأ في الاتصال: $e',
-      );
+      state = state.copyWith(status: TelegramSetupStatus.error, message: '❌ خطأ في الاتصال: $e');
     }
 
     _clearMessageAfterDelay();
@@ -227,30 +202,18 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
 
   /// إرسال تقرير تجريبي
   Future<void> sendTestReport() async {
-    state = state.copyWith(
-      status: TelegramSetupStatus.sendingReport,
-      message: 'جاري تجميع وإرسال التقرير...',
-    );
+    state = state.copyWith(status: TelegramSetupStatus.sendingReport, message: 'جاري تجميع وإرسال التقرير...');
 
     try {
       final success = await _reports.sendReportNow();
 
       if (success) {
-        state = state.copyWith(
-          status: TelegramSetupStatus.success,
-          message: '✅ تم إرسال التقرير التجريبي بنجاح!',
-        );
+        state = state.copyWith(status: TelegramSetupStatus.success, message: '✅ تم إرسال التقرير التجريبي بنجاح!');
       } else {
-        state = state.copyWith(
-          status: TelegramSetupStatus.error,
-          message: '❌ فشل إرسال التقرير — تحقق من الإعدادات',
-        );
+        state = state.copyWith(status: TelegramSetupStatus.error, message: '❌ فشل إرسال التقرير — تحقق من الإعدادات');
       }
     } catch (e) {
-      state = state.copyWith(
-        status: TelegramSetupStatus.error,
-        message: '❌ خطأ في إرسال التقرير: $e',
-      );
+      state = state.copyWith(status: TelegramSetupStatus.error, message: '❌ خطأ في إرسال التقرير: $e');
     }
 
     _clearMessageAfterDelay();
@@ -272,8 +235,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
       if (!_mounted) {
         return;
       }
-      if (state.status == TelegramSetupStatus.success ||
-          state.status == TelegramSetupStatus.error) {
+      if (state.status == TelegramSetupStatus.success || state.status == TelegramSetupStatus.error) {
         state = state.copyWith(status: TelegramSetupStatus.idle);
       }
     });
@@ -293,9 +255,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
 }
 
 /// Provider رئيسي لـ Telegram
-final telegramProvider = StateNotifierProvider<TelegramNotifier, TelegramState>(
-  (ref) => TelegramNotifier(),
-);
+final telegramProvider = StateNotifierProvider<TelegramNotifier, TelegramState>((ref) => TelegramNotifier());
 
 /// Provider للوصول إلى خدمة الإشعارات
 final telegramNotificationServiceProvider = Provider<TelegramNotificationService>(
@@ -303,6 +263,4 @@ final telegramNotificationServiceProvider = Provider<TelegramNotificationService
 );
 
 /// Provider للوصول إلى خدمة التقارير
-final telegramReportServiceProvider = Provider<TelegramReportService>(
-  (ref) => TelegramReportService.instance,
-);
+final telegramReportServiceProvider = Provider<TelegramReportService>((ref) => TelegramReportService.instance);

@@ -1,8 +1,9 @@
 import 'package:drift/drift.dart' as d;
-import 'package:flutter/foundation.dart';
 
-import '../utils/expense_reason_matcher.dart';
+import '../utils/debug_log.dart';
 import '../utils/hotel_time_engine.dart';
+import '../utils/time.dart';
+import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 
 /// ✅ خدمة إصلاح hotelDayKey لجميع الجداول
@@ -42,7 +43,7 @@ class HotelDayKeyFixService {
     if (_applied) return;
     _applied = true;
 
-    debugPrint('🔧 HotelDayKeyFixService: بدء فحص وإصلاح hotelDayKey...');
+    dlog('🔧 HotelDayKeyFixService: بدء فحص وإصلاح hotelDayKey...');
 
     int totalFixed = 0;
 
@@ -57,13 +58,13 @@ class HotelDayKeyFixService {
       totalFixed += await _fixPaymentVoids(db);
       totalFixed += await _fixAuditLogs(db);
     } catch (e) {
-      debugPrint('⚠️ HotelDayKeyFixService: خطأ أثناء الإصلاح: $e');
+      dwarn(() => '⚠️ HotelDayKeyFixService: خطأ أثناء الإصلاح: $e');
     }
 
     if (totalFixed > 0) {
-      debugPrint('✅ HotelDayKeyFixService: تم إصلاح $totalFixed سجل إجمالاً');
+      dlog(() => '✅ HotelDayKeyFixService: تم إصلاح $totalFixed سجل إجمالاً');
     } else {
-      debugPrint('✅ HotelDayKeyFixService: لا توجد سجلات تحتاج إصلاح');
+      dlog('✅ HotelDayKeyFixService: لا توجد سجلات تحتاج إصلاح');
     }
   }
 
@@ -90,77 +91,104 @@ class HotelDayKeyFixService {
       final year = int.tryParse(parts[0]) ?? 1;
       final month = int.tryParse(parts[1]) ?? 1;
       final day = int.tryParse(parts[2]) ?? 1;
-      return HotelTimeEngine.getHotelDayKey(
-        dateTime: DateTime(year, month, day, 14, 1),
-      );
+      return HotelTimeEngine.getHotelDayKey(dateTime: DateTime(year, month, day, 14, 1));
     } catch (_) {
       return HotelTimeEngine.getHotelDayKey();
     }
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // إصلاح كل جدول
+  // إصلاح كل جدول — تحسين أداء: batch updates + mergeBatch
   // ═══════════════════════════════════════════════════════════════
 
   /// إصلاح expenses
-  /// حقل التاريخ: date (yyyy-MM-dd تقويمي)
-  /// hotelDayKey: nullable text
+  /// ✅ تحسين أداء: تحويل N × (update + merge) إلى batch update + mergeBatch
+  /// سابقاً: N سجل خاطئ → 2N معاملة منفصلة (N update + N merge)
+  /// الآن: 1 معاملة للتحديث + 1 معاملة لـ mergeBatch = 2 معاملة فقط
   Future<int> _fixExpenses(AppDatabase db) async {
     try {
-      final rows = await (db.select(db.expenses)
-            ..where((t) => t.deletedAt.isNull()))
-          .get();
-      int fixed = 0;
+      final rows = await (db.select(db.expenses)..where((t) => t.deletedAt.isNull())).get();
+      final toFix = <({int id, String localUuid, String correctKey, int version})>[];
       for (final row in rows) {
         final correctKey = computeCorrectHotelDayKey(row.date);
         if (row.hotelDayKey != correctKey) {
-          await (db.update(db.expenses)
-                ..where((t) => t.id.equals(row.id)))
-              .write(ExpensesCompanion(
-            hotelDayKey: d.Value(correctKey),
-          ));
-          fixed++;
+          toFix.add((id: row.id, localUuid: row.localUuid, correctKey: correctKey, version: row.version));
         }
       }
-      if (fixed > 0) debugPrint('  📋 expenses: تم إصلاح $fixed سجل');
-      return fixed;
+      if (toFix.isEmpty) return 0;
+
+      await db.transaction(() async {
+        for (final item in toFix) {
+          await (db.update(db.expenses)..where((t) => t.id.equals(item.id))).write(
+            ExpensesCompanion(hotelDayKey: d.Value(item.correctKey), version: d.Value(item.version + 1)),
+          );
+        }
+      });
+
+      final outboxDao = OutboxDao(db);
+      final now = Time.nowEpoch();
+      await outboxDao.mergeBatch(
+        toFix.map((item) => <String, dynamic>{
+          'entity': 'expenses',
+          'op': 'update',
+          'localUuid': item.localUuid,
+          'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+          'clientTs': now,
+        }).toList(),
+      );
+
+      dlog(() => '  📋 expenses: تم إصلاح ${toFix.length} سجل');
+      return toFix.length;
     } catch (e) {
-      debugPrint('  ⚠️ expenses: خطأ $e');
+      dwarn(() => '  ⚠️ expenses: خطأ $e');
       return 0;
     }
   }
 
   /// إصلاح salary_withdrawals
-  /// حقل التاريخ: withdrawDate (yyyy-MM-dd تقويمي)
-  /// hotelDayKey: nullable text
+  /// ✅ تحسين أداء: نفس نمط _fixExpenses — batch + mergeBatch
   Future<int> _fixSalaryWithdrawals(AppDatabase db) async {
     try {
-      final rows = await (db.select(db.salaryWithdrawals)
-            ..where((t) => t.deletedAt.isNull()))
-          .get();
-      int fixed = 0;
+      final rows = await (db.select(db.salaryWithdrawals)..where((t) => t.deletedAt.isNull())).get();
+      final toFix = <({int id, String localUuid, String correctKey, int version})>[];
       for (final row in rows) {
         final correctKey = computeCorrectHotelDayKey(row.withdrawDate);
         if (row.hotelDayKey != correctKey) {
-          await (db.update(db.salaryWithdrawals)
-                ..where((t) => t.id.equals(row.id)))
-              .write(SalaryWithdrawalsCompanion(
-            hotelDayKey: d.Value(correctKey),
-          ));
-          fixed++;
+          toFix.add((id: row.id, localUuid: row.localUuid, correctKey: correctKey, version: row.version));
         }
       }
-      if (fixed > 0) {
-        debugPrint('  📋 salary_withdrawals: تم إصلاح $fixed سجل');
-      }
-      return fixed;
+      if (toFix.isEmpty) return 0;
+
+      await db.transaction(() async {
+        for (final item in toFix) {
+          await (db.update(db.salaryWithdrawals)..where((t) => t.id.equals(item.id))).write(
+            SalaryWithdrawalsCompanion(hotelDayKey: d.Value(item.correctKey), version: d.Value(item.version + 1)),
+          );
+        }
+      });
+
+      final outboxDao = OutboxDao(db);
+      final now = Time.nowEpoch();
+      await outboxDao.mergeBatch(
+        toFix.map((item) => <String, dynamic>{
+          'entity': 'salary_withdrawals',
+          'op': 'update',
+          'localUuid': item.localUuid,
+          'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+          'clientTs': now,
+        }).toList(),
+      );
+
+      dlog(() => '  📋 salary_withdrawals: تم إصلاح ${toFix.length} سجل');
+      return toFix.length;
     } catch (e) {
-      debugPrint('  ⚠️ salary_withdrawals: خطأ $e');
+      dwarn(() => '  ⚠️ salary_withdrawals: خطأ $e');
       return 0;
     }
   }
 
   /// ✅ إصلاح ربط سحوبات الرواتب بالمصروفات + تعبئة expense_id
+  /// + إنشاء outbox للمزامنة مع Appwrite Cloud
   ///
   /// **المشكلة:**
   /// سجلات salary_withdrawals القديمة قد:
@@ -173,44 +201,45 @@ class HotelDayKeyFixService {
   /// لكل سحب راتب بدون exp_XX وبدون expense_id:
   ///   - نبحث عن مصروف راتب مطابق بنفس: employeeId + hotelDayKey + amount
   ///   - إذا وُجد: نحدّث reason = 'exp_{expenseId}' + نعبّئ expense_id
+  ///   - نُنشئ عنصر outbox (op='update') لمزامنة التغيير مع Appwrite
   ///   - السحوبات المباشرة (reason يبدأ بـ direct_withdrawal_) لا تُعالج
   ///
   /// كذلك نعبّئ expense_id للسجلات التي تحتوي exp_XX لكن expense_id فارغ
+  ///
+  /// ✅ تحسين أداء: batch updates + mergeBatch بدل N × (update + merge)
   Future<int> _fixExpenseWithdrawalLinks(AppDatabase db) async {
+    final outboxDao = OutboxDao(db);
+
     try {
       // ─── الخطوة 1: تعبئة expense_id من reason للسجلات الحديثة ───
       int step1Fixed = 0;
       try {
         await db.customStatement(
-          "UPDATE salary_withdrawals SET expense_id = CAST(SUBSTR(reason, 5) AS INTEGER) "
+          'UPDATE salary_withdrawals SET expense_id = CAST(SUBSTR(reason, 5) AS INTEGER) '
           "WHERE reason LIKE 'exp_%' "
-          "AND reason NOT LIKE 'exp_%\\_%' ESCAPE '\\' "
-          "AND expense_id IS NULL "
-          "AND deleted_at IS NULL",
+          r"AND reason NOT LIKE 'exp_%\_%' ESCAPE '\' "
+          'AND expense_id IS NULL '
+          'AND deleted_at IS NULL',
         );
         // customStatement() يُرجع void — لا يمكننا معرفة عدد الصفوف المتأثرة
         // نعتبر العملية ناجحة إذا لم تُطلق استثناءً
         step1Fixed = -1; // علامة على أن العملية تمت بدون خطأ
       } catch (e) {
         // العمود قد لا يكون موجوداً بعد
-        debugPrint('  ⚠️ fixExpenseWithdrawalLinks step1: $e');
+        dwarn(() => '  ⚠️ fixExpenseWithdrawalLinks step1: $e');
       }
 
       // ─── الخطوة 2: ربط السحوبات القديمة (بدون exp_XX) بالمصروفات ───
+      // ✅ مع إنشاء outbox للمزامنة مع Appwrite Cloud
       int step2Fixed = 0;
+      final outboxItems = <Map<String, dynamic>>[];
       try {
         // جلب مصروفات الرواتب النشطة
-        final salaryExpenses = await (db.select(db.expenses)
-              ..where((t) => t.deletedAt.isNull()))
-            .get();
-        final salaryTypeExpenses = salaryExpenses
-            .where((e) => _isSalaryType(e.expenseType))
-            .toList();
+        final salaryExpenses = await (db.select(db.expenses)..where((t) => t.deletedAt.isNull())).get();
+        final salaryTypeExpenses = salaryExpenses.where((e) => _isSalaryType(e.expenseType)).toList();
 
         // جلب سحوبات الرواتب النشطة
-        final withdrawals = await (db.select(db.salaryWithdrawals)
-              ..where((t) => t.deletedAt.isNull()))
-            .get();
+        final withdrawals = await (db.select(db.salaryWithdrawals)..where((t) => t.deletedAt.isNull())).get();
 
         // بناء خريطة مصروفات الرواتب: (employeeId, hotelDayKey) → List<Expense>
         final expenseMap = <String, List<Expense>>{};
@@ -220,6 +249,17 @@ class HotelDayKeyFixService {
           expenseMap.putIfAbsent(key, () => []).add(exp);
         }
 
+        // جلب الموظفين لبناء خريطة id → localUuid (لـ employeeUuid في outbox)
+        final employees = await (db.select(db.employees)..where((t) => t.deletedAt.isNull())).get();
+        final empUuidMap = <int, String>{};
+        for (final emp in employees) {
+          empUuidMap[emp.id] = emp.localUuid;
+        }
+
+        // ✅ تحسين: جمع كل التحديثات ثم تنفيذها كدفقة واحدة
+        final dbUpdates = <({int id, String newReason, int matchedExpId, int version})>[];
+        final customSqlUpdates = <({int id, int expenseId})>[];
+
         for (final sw in withdrawals) {
           // تخطي السحوبات المباشرة (ليس لها مصروف مقابل)
           if (sw.reason != null && sw.reason!.startsWith('direct_withdrawal_')) {
@@ -227,8 +267,7 @@ class HotelDayKeyFixService {
           }
 
           // تخطي السحوبات المرتبطة بالفعل
-          final hasExpRef = sw.reason != null &&
-              RegExp(r'exp_(\d+)').hasMatch(sw.reason!);
+          final hasExpRef = sw.reason != null && RegExp(r'exp_(\d+)').hasMatch(sw.reason!);
           if (hasExpRef) continue;
 
           // البحث عن مصروف مطابق
@@ -247,42 +286,87 @@ class HotelDayKeyFixService {
           }
           if (matched == null) continue;
 
-          // تحديث reason + expense_id
-          final newReason = 'exp_${matched.id}';
+          // تسجيل التحديثات للتنفيذ الدفعي — matched مضمون non-null هنا
+          final matchedId = matched.id;
+          final newReason = 'exp_$matchedId';
+          dbUpdates.add((id: sw.id, newReason: newReason, matchedExpId: matchedId, version: sw.version));
+          customSqlUpdates.add((id: sw.id, expenseId: matchedId));
 
-          // تحديث reason عبر Drift API
-          await (db.update(db.salaryWithdrawals)
-                ..where((t) => t.id.equals(sw.id)))
-              .write(SalaryWithdrawalsCompanion(
-            reason: d.Value(newReason),
-          ));
+          // تسجيل عنصر outbox
+          final now = Time.nowEpoch();
+          final empUuid = empUuidMap[sw.employeeId];
+          outboxItems.add(<String, dynamic>{
+            'entity': 'salary_withdrawals',
+            'op': 'update',
+            'localUuid': sw.localUuid,
+            'serverId': sw.serverId,
+            'payload': <String, dynamic>{
+              'employeeId': sw.employeeId,
+              'amount': sw.amount,
+              'reason': newReason,
+              'expenseId': matchedId,
+              'withdrawDate': sw.withdrawDate,
+              'hotelDayKey': sw.hotelDayKey ?? swDayKey,
+              'withdrawalType': sw.withdrawalType,
+              'description': sw.description,
+              'lastModified': now,
+              if (empUuid != null) 'employeeUuid': empUuid,
+            },
+            'clientTs': now,
+          });
 
-          // تحديث expense_id عبر SQL خام
+          step2Fixed++;
+          dlog(() =>
+            '  🔗 ربط سحب راتب قديم: sw.id=${sw.id} → expense.id=$matchedId '
+            '(موظف=${sw.employeeId}, يوم=$swDayKey, مبلغ=${sw.amount})',
+          );
+        }
+
+        // ✅ تنفيذ التحديثات دفعة واحدة في معاملة واحدة
+        if (dbUpdates.isNotEmpty) {
+          final now = Time.nowEpoch();
+          await db.transaction(() async {
+            for (final item in dbUpdates) {
+              await (db.update(db.salaryWithdrawals)..where((t) => t.id.equals(item.id))).write(
+                SalaryWithdrawalsCompanion(
+                  reason: d.Value(item.newReason),
+                  updatedAt: d.Value(now),
+                  lastModified: d.Value(now),
+                  version: d.Value(item.version + 1),
+                ),
+              );
+            }
+          });
+
+          // تحديث expense_id عبر SQL خام — دفعة واحدة
           try {
-            await db.customStatement(
-              'UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?',
-              [matched.id, sw.id],
-            );
+            for (final item in customSqlUpdates) {
+              await db.customStatement(
+                'UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?',
+                [item.expenseId, item.id],
+              );
+            }
           } catch (_) {
             // العمود قد لا يكون موجوداً
           }
 
-          step2Fixed++;
+          // ✅ mergeBatch لكل عناصر outbox
+          await outboxDao.mergeBatch(outboxItems);
         }
       } catch (e) {
-        debugPrint('  ⚠️ fixExpenseWithdrawalLinks step2: $e');
+        dwarn(() => '  ⚠️ fixExpenseWithdrawalLinks step2: $e');
       }
 
       final total = step1Fixed + step2Fixed;
       if (total > 0) {
-        debugPrint(
+        dlog(() =>
           '  🔗 expense_withdrawal_links: تم إصلاح $total سجل '
-          '(step1=$step1Fixed, step2=$step2Fixed)',
+          '(step1=$step1Fixed, step2=$step2Fixed, outbox=${outboxItems.length})',
         );
       }
       return total;
     } catch (e) {
-      debugPrint('  ⚠️ expense_withdrawal_links: خطأ $e');
+      dwarn(() => '  ⚠️ expense_withdrawal_links: خطأ $e');
       return 0;
     }
   }
@@ -320,21 +404,17 @@ class HotelDayKeyFixService {
   Future<int> _fixSalaryWithdrawalsEmployeeUuid(AppDatabase db) async {
     try {
       // جلب الموظفين لبناء خريطة id → localUuid
-      final employees = await (db.select(db.employees)
-            ..where((t) => t.deletedAt.isNull()))
-          .get();
+      final employees = await (db.select(db.employees)..where((t) => t.deletedAt.isNull())).get();
       final empUuidMap = <int, String>{};
       for (final emp in employees) {
         empUuidMap[emp.id] = emp.localUuid;
       }
 
       // جلب سجلات salary_withdrawals النشطة
-      final rows = await (db.select(db.salaryWithdrawals)
-            ..where((t) => t.deletedAt.isNull()))
-          .get();
+      final rows = await (db.select(db.salaryWithdrawals)..where((t) => t.deletedAt.isNull())).get();
 
-      int fixed = 0;
-      for (final row in rows) {
+      const int fixed = 0;
+      for (final _ in rows) {
         // لا نحتاج إصلاح employeeUuid محلياً لأن SQLite لا يخزنه
         // لكن نحتاج التأكد أن outbox سيرفعه مع employeeUuid
         // هذا يتم تلقائياً في _processSalaryWithdrawalEntry
@@ -343,144 +423,222 @@ class HotelDayKeyFixService {
       }
       return fixed;
     } catch (e) {
-      debugPrint('  ⚠️ salary_withdrawals employeeUuid: خطأ $e');
+      dwarn(() => '  ⚠️ salary_withdrawals employeeUuid: خطأ $e');
       return 0;
     }
   }
 
   /// إصلاح payments
-  /// حقل التاريخ: paymentDate (ISO format مع وقت)
-  /// hotelDayKey: nullable text
+  /// ✅ تحسين أداء: batch + mergeBatch
   Future<int> _fixPayments(AppDatabase db) async {
     try {
-      final rows = await (db.select(db.payments)
-            ..where((t) => t.deletedAt.isNull()))
-          .get();
-      int fixed = 0;
+      final rows = await (db.select(db.payments)..where((t) => t.deletedAt.isNull())).get();
+      final toFix = <({int id, String localUuid, String correctKey, int version})>[];
       for (final row in rows) {
         if (row.paymentDate.isEmpty) continue;
         final correctKey = computeCorrectHotelDayKey(row.paymentDate);
         if (row.hotelDayKey != correctKey) {
-          await (db.update(db.payments)
-                ..where((t) => t.id.equals(row.id)))
-              .write(PaymentsCompanion(
-            hotelDayKey: d.Value(correctKey),
-          ));
-          fixed++;
+          toFix.add((id: row.id, localUuid: row.localUuid, correctKey: correctKey, version: row.version));
         }
       }
-      if (fixed > 0) debugPrint('  📋 payments: تم إصلاح $fixed سجل');
-      return fixed;
+      if (toFix.isEmpty) return 0;
+
+      await db.transaction(() async {
+        for (final item in toFix) {
+          await (db.update(db.payments)..where((t) => t.id.equals(item.id))).write(
+            PaymentsCompanion(hotelDayKey: d.Value(item.correctKey), version: d.Value(item.version + 1)),
+          );
+        }
+      });
+
+      final outboxDao = OutboxDao(db);
+      final now = Time.nowEpoch();
+      await outboxDao.mergeBatch(
+        toFix.map((item) => <String, dynamic>{
+          'entity': 'payments',
+          'op': 'update',
+          'localUuid': item.localUuid,
+          'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+          'clientTs': now,
+        }).toList(),
+      );
+
+      dlog(() => '  📋 payments: تم إصلاح ${toFix.length} سجل');
+      return toFix.length;
     } catch (e) {
-      debugPrint('  ⚠️ payments: خطأ $e');
+      dwarn(() => '  ⚠️ payments: خطأ $e');
       return 0;
     }
   }
 
   /// إصلاح booking_nights
-  /// حقل التاريخ: nightStart (ISO format)
-  /// hotelDayKey: text (غير nullable)
+  /// ✅ تحسين أداء: batch + mergeBatch
   Future<int> _fixBookingNights(AppDatabase db) async {
     try {
       final rows = await db.select(db.bookingNights).get();
-      int fixed = 0;
+      final toFix = <({int id, String localUuid, String correctKey, int version})>[];
       for (final row in rows) {
         if (row.nightStart.isEmpty) continue;
         final correctKey = computeCorrectHotelDayKey(row.nightStart);
         if (row.hotelDayKey != correctKey) {
-          await (db.update(db.bookingNights)
-                ..where((t) => t.id.equals(row.id)))
-              .write(BookingNightsCompanion(
-            hotelDayKey: d.Value(correctKey),
-          ));
-          fixed++;
+          toFix.add((id: row.id, localUuid: row.localUuid, correctKey: correctKey, version: row.version));
         }
       }
-      if (fixed > 0) debugPrint('  📋 booking_nights: تم إصلاح $fixed سجل');
-      return fixed;
+      if (toFix.isEmpty) return 0;
+
+      await db.transaction(() async {
+        for (final item in toFix) {
+          await (db.update(db.bookingNights)..where((t) => t.id.equals(item.id))).write(
+            BookingNightsCompanion(hotelDayKey: d.Value(item.correctKey), version: d.Value(item.version + 1)),
+          );
+        }
+      });
+
+      final outboxDao = OutboxDao(db);
+      final now = Time.nowEpoch();
+      await outboxDao.mergeBatch(
+        toFix.map((item) => <String, dynamic>{
+          'entity': 'booking_nights',
+          'op': 'update',
+          'localUuid': item.localUuid,
+          'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+          'clientTs': now,
+        }).toList(),
+      );
+
+      dlog(() => '  📋 booking_nights: تم إصلاح ${toFix.length} سجل');
+      return toFix.length;
     } catch (e) {
-      debugPrint('  ⚠️ booking_nights: خطأ $e');
+      dwarn(() => '  ⚠️ booking_nights: خطأ $e');
       return 0;
     }
   }
 
   /// إصلاح salary_payments
-  /// حقل التاريخ: paymentDateIso (ISO format)
-  /// hotelDayKey: nullable text
+  /// ✅ تحسين أداء: batch + mergeBatch
   Future<int> _fixSalaryPayments(AppDatabase db) async {
     try {
       final rows = await db.select(db.salaryPayments).get();
-      int fixed = 0;
+      final toFix = <({int id, String localUuid, String correctKey, int version})>[];
       for (final row in rows) {
         if (row.paymentDateIso.isEmpty) continue;
         final correctKey = computeCorrectHotelDayKey(row.paymentDateIso);
         if (row.hotelDayKey != correctKey) {
-          await (db.update(db.salaryPayments)
-                ..where((t) => t.id.equals(row.id)))
-              .write(SalaryPaymentsCompanion(
-            hotelDayKey: d.Value(correctKey),
-          ));
-          fixed++;
+          toFix.add((id: row.id, localUuid: row.localUuid, correctKey: correctKey, version: row.version));
         }
       }
-      if (fixed > 0) debugPrint('  📋 salary_payments: تم إصلاح $fixed سجل');
-      return fixed;
+      if (toFix.isEmpty) return 0;
+
+      await db.transaction(() async {
+        for (final item in toFix) {
+          await (db.update(db.salaryPayments)..where((t) => t.id.equals(item.id))).write(
+            SalaryPaymentsCompanion(hotelDayKey: d.Value(item.correctKey), version: d.Value(item.version + 1)),
+          );
+        }
+      });
+
+      final outboxDao = OutboxDao(db);
+      final now = Time.nowEpoch();
+      await outboxDao.mergeBatch(
+        toFix.map((item) => <String, dynamic>{
+          'entity': 'salary_payments',
+          'op': 'update',
+          'localUuid': item.localUuid,
+          'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+          'clientTs': now,
+        }).toList(),
+      );
+
+      dlog(() => '  📋 salary_payments: تم إصلاح ${toFix.length} سجل');
+      return toFix.length;
     } catch (e) {
-      debugPrint('  ⚠️ salary_payments: خطأ $e');
+      dwarn(() => '  ⚠️ salary_payments: خطأ $e');
       return 0;
     }
   }
 
   /// إصلاح payment_voids
-  /// حقل التاريخ: voidedAtIso (ISO format)
-  /// hotelDayKey: text (غير nullable)
+  /// ✅ تحسين أداء: batch + mergeBatch
   Future<int> _fixPaymentVoids(AppDatabase db) async {
     try {
       final rows = await db.select(db.paymentVoids).get();
-      int fixed = 0;
+      final toFix = <({int id, String localUuid, String correctKey, int version})>[];
       for (final row in rows) {
         if (row.voidedAtIso.isEmpty) continue;
         final correctKey = computeCorrectHotelDayKey(row.voidedAtIso);
         if (row.hotelDayKey != correctKey) {
-          await (db.update(db.paymentVoids)
-                ..where((t) => t.id.equals(row.id)))
-              .write(PaymentVoidsCompanion(
-            hotelDayKey: d.Value(correctKey),
-          ));
-          fixed++;
+          toFix.add((id: row.id, localUuid: row.localUuid, correctKey: correctKey, version: row.version));
         }
       }
-      if (fixed > 0) debugPrint('  📋 payment_voids: تم إصلاح $fixed سجل');
-      return fixed;
+      if (toFix.isEmpty) return 0;
+
+      await db.transaction(() async {
+        for (final item in toFix) {
+          await (db.update(db.paymentVoids)..where((t) => t.id.equals(item.id))).write(
+            PaymentVoidsCompanion(hotelDayKey: d.Value(item.correctKey), version: d.Value(item.version + 1)),
+          );
+        }
+      });
+
+      final outboxDao = OutboxDao(db);
+      final now = Time.nowEpoch();
+      await outboxDao.mergeBatch(
+        toFix.map((item) => <String, dynamic>{
+          'entity': 'payment_voids',
+          'op': 'update',
+          'localUuid': item.localUuid,
+          'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+          'clientTs': now,
+        }).toList(),
+      );
+
+      dlog(() => '  📋 payment_voids: تم إصلاح ${toFix.length} سجل');
+      return toFix.length;
     } catch (e) {
-      debugPrint('  ⚠️ payment_voids: خطأ $e');
+      dwarn(() => '  ⚠️ payment_voids: خطأ $e');
       return 0;
     }
   }
 
   /// إصلاح audit_logs
-  /// حقل التاريخ: timestampIso (ISO format)
-  /// hotelDayKey: text (غير nullable)
+  /// ✅ تحسين أداء: batch + mergeBatch
   Future<int> _fixAuditLogs(AppDatabase db) async {
     try {
       final rows = await db.select(db.auditLogs).get();
-      int fixed = 0;
+      final toFix = <({int id, String localUuid, String correctKey, int version})>[];
       for (final row in rows) {
         if (row.timestampIso.isEmpty) continue;
         final correctKey = computeCorrectHotelDayKey(row.timestampIso);
         if (row.hotelDayKey != correctKey) {
-          await (db.update(db.auditLogs)
-                ..where((t) => t.id.equals(row.id)))
-              .write(AuditLogsCompanion(
-            hotelDayKey: d.Value(correctKey),
-          ));
-          fixed++;
+          toFix.add((id: row.id, localUuid: row.localUuid, correctKey: correctKey, version: row.version));
         }
       }
-      if (fixed > 0) debugPrint('  📋 audit_logs: تم إصلاح $fixed سجل');
-      return fixed;
+      if (toFix.isEmpty) return 0;
+
+      await db.transaction(() async {
+        for (final item in toFix) {
+          await (db.update(db.auditLogs)..where((t) => t.id.equals(item.id))).write(
+            AuditLogsCompanion(hotelDayKey: d.Value(item.correctKey), version: d.Value(item.version + 1)),
+          );
+        }
+      });
+
+      final outboxDao = OutboxDao(db);
+      final now = Time.nowEpoch();
+      await outboxDao.mergeBatch(
+        toFix.map((item) => <String, dynamic>{
+          'entity': 'audit_logs',
+          'op': 'update',
+          'localUuid': item.localUuid,
+          'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+          'clientTs': now,
+        }).toList(),
+      );
+
+      dlog(() => '  📋 audit_logs: تم إصلاح ${toFix.length} سجل');
+      return toFix.length;
     } catch (e) {
-      debugPrint('  ⚠️ audit_logs: خطأ $e');
+      dwarn(() => '  ⚠️ audit_logs: خطأ $e');
       return 0;
     }
   }

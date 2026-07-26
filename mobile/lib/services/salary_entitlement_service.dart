@@ -1,8 +1,13 @@
+import 'package:drift/drift.dart' as d;
+import 'package:flutter/foundation.dart';
+
+import '../utils/id.dart';
 import '../utils/status_utils.dart';
+import '../utils/time.dart';
+import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 
 class SalaryEntitlement {
-
   SalaryEntitlement({
     required this.employee,
     required this.hireDate,
@@ -10,8 +15,9 @@ class SalaryEntitlement {
     required this.basicSalary,
     required this.totalEntitlement,
     required this.totalWithdrawals,
+    required this.totalAdvances,
+    required this.installmentsPaid,
     required this.totalDeductions,
-    required this.totalDeducted,
     required this.netEntitlement,
     required this.transactions,
   });
@@ -19,55 +25,46 @@ class SalaryEntitlement {
   final DateTime hireDate;
   final int totalMonthsWorked;
   final double basicSalary;
-
-  /// إجمالي الاستحقاق = عدد الأشهر × الراتب الشهري
   final double totalEntitlement;
 
-  /// سحب من الراتب = جميع المبالغ التي استلمها الموظف فعلاً
-  /// يشمل: سحب راتب / رواتب / سحب من الراتب / سلفة
+  /// سحب راتب مباشر (سحب راتب / رواتب / سحب من الراتب)
   final double totalWithdrawals;
 
-  /// خصم من الراتب = جميع الخصومات الحقيقية
-  /// يشمل: خصم من الراتب (يدوي) / خصم راتب / خصم / غياب
-  /// لا يشمل: أقساط السلفة (لأن السلفة محسوبة ضمن السحب)
+  /// إجمالي السلف المعطاة (كل أنواع السلفة)
+  final double totalAdvances;
+
+  /// إجمالي أقساط السلف المسددة (خصم من الراتب تلقائي = قسط سلفة)
+  final double installmentsPaid;
+
+  /// خصوم حقيقية (غياب / خصم / خصم راتب / خصم من الراتب يدوي)
   final double totalDeductions;
 
-  /// الاستحقاق = سحب من الراتب + خصم من الراتب
-  final double totalDeducted;
-
-  /// المتبقي = إجمالي الاستحقاق - الاستحقاق
   final double netEntitlement;
-
   final List<SalaryTransaction> transactions;
+
+  /// رصيد السلف المتبقي = إجمالي السلف - الأقساط المسددة
+  double get advanceBalance => totalAdvances - installmentsPaid;
 }
 
 class SalaryTransaction {
-
-  SalaryTransaction({
-    required this.type,
-    required this.amount,
-    required this.date,
-    this.note,
-    this.category,
-  });
-  final String type; // 'سحب من الراتب', 'خصم من الراتب'
+  SalaryTransaction({required this.type, required this.amount, required this.date, this.note, this.category});
+  final String type; // 'سحب', 'سلفة', 'خصم'
   final double amount;
   final String date;
   final String? note;
-  final String? category;
+  final String? category; // 'سحب راتب', 'سلفة', 'غياب', 'خصم راتب', 'خصم من الراتب', ...
 }
 
 class SalaryEntitlementService {
-
   SalaryEntitlementService(this._db);
   final AppDatabase _db;
 
   Future<List<SalaryEntitlement>> calculateAllEntitlements() async {
-    final employees = await (_db.select(
-      _db.employees,
-    )..where((e) => e.deletedAt.isNull())
-     ..where((e) => e.status.isIn(StatusUtils.activeEmployeeStatuses)))
-        .get();
+    final employees =
+        await (_db.select(_db.employees)
+              ..where((e) => e.deletedAt.isNull())
+              ..where((e) => e.status.isIn(StatusUtils.activeEmployeeStatuses)))
+            .get();
 
     final entitlements = <SalaryEntitlement>[];
     for (final employee in employees) {
@@ -77,15 +74,11 @@ class SalaryEntitlementService {
     return entitlements;
   }
 
-  Future<SalaryEntitlement> calculateEmployeeEntitlement(
-    Employee employee,
-  ) async {
+  Future<SalaryEntitlement> calculateEmployeeEntitlement(Employee employee) async {
     final now = DateTime.now();
     DateTime hireDate;
     try {
-      hireDate = employee.hireDate.isNotEmpty
-          ? DateTime.parse(employee.hireDate)
-          : now;
+      hireDate = employee.hireDate.isNotEmpty ? DateTime.parse(employee.hireDate) : now;
     } catch (e) {
       hireDate = now;
     }
@@ -93,39 +86,41 @@ class SalaryEntitlementService {
     final totalMonthsWorked = _calculateMonthsDifference(hireDate, now);
     final totalEntitlement = totalMonthsWorked * employee.basicSalary;
 
-    final expenses = await (_db.select(
-      _db.expenses,
-    )..where((e) => e.relatedId.equals(employee.id))
-     ..where((e) => e.deletedAt.isNull()))
-        .get();
+    final expenses =
+        await (_db.select(_db.expenses)
+              ..where((e) => e.relatedId.equals(employee.id))
+              ..where((e) => e.deletedAt.isNull()))
+            .get();
 
-    // ✅ المعادلة: الاستحقاق = سحب من الراتب + خصم من الراتب
-    double totalWithdrawals = 0; // سحب من الراتب (يشمل السلفة)
-    double totalDeductions = 0; // خصم من الراتب (حقيقي فقط)
+    double totalWithdrawals = 0; // سحب راتب فقط
+    double totalAdvances = 0; // سلفة فقط
+    double installmentsPaid = 0; // أقساط سلفة مسددة
+    double totalDeductions = 0; // خصوم حقيقية
     final transactions = <SalaryTransaction>[];
 
     for (final expense in expenses) {
       final type = expense.expenseType.trim();
 
       if (type == 'سحب راتب' || type == 'رواتب' || type == 'سحب من الراتب') {
-        // ✅ سحب من الراتب — الموظف استلم المبلغ فعلاً
+        // ✅ سحب راتب مباشر
         totalWithdrawals += expense.amount;
         transactions.add(
           SalaryTransaction(
-            type: 'سحب من الراتب',
+            type: 'سحب',
             amount: expense.amount,
             date: expense.date,
             note: expense.description,
-            category: type,
+            category: 'سحب راتب',
           ),
         );
       } else if (type == 'سلفة') {
-        // ✅ السلفة = سحب من الراتب — الموظف استلم المبلغ فعلاً
-        // لا تُحسب مرة أخرى عند خصم الأقساط
-        totalWithdrawals += expense.amount;
+        // ✅ إصلاح حرج: جميع السلف تُحسب كـ سحب — الموظف استلم المبلغ فعلاً
+        // سابقاً كان isAutoGenerated يُستبعد مما يسبب ازدواج:
+        // السلفة لا تظهر كـ سحب + أقساطها تظهر كخصم = حساب مزدوج
+        totalAdvances += expense.amount;
         transactions.add(
           SalaryTransaction(
-            type: 'سحب من الراتب',
+            type: 'سلفة',
             amount: expense.amount,
             date: expense.date,
             note: expense.description,
@@ -133,16 +128,19 @@ class SalaryEntitlementService {
           ),
         );
       } else if (type == 'خصم من الراتب') {
-        // ✅ أقساط السلفة لا تُحسب كخصم — السلفة محسوبة ضمن السحب أعلاه
+        // ✅ إصلاح حرج: أقساط السلفة لا تُحسب كخصم — السلفة محسوبة كـ سحب
         // قسط السلفة = سداد للسلفة وليس خصماً جديداً
-        final isInstallment = expense.isAutoGenerated &&
-            expense.description.contains('قسط سلفة');
-        if (!isInstallment) {
+        final isInstallment = expense.isAutoGenerated && expense.description.contains('قسط سلفة');
+        if (isInstallment) {
+          // قسط سلفة — يُسجل كمسدد من رصيد السلفة
+          installmentsPaid += expense.amount;
+          // لا نضيفه للمعاملات لأن السلفة نفسها معروضة كـ سحب
+        } else {
           // خصم يدوي من الراتب — خصم حقيقي
           totalDeductions += expense.amount;
           transactions.add(
             SalaryTransaction(
-              type: 'خصم من الراتب',
+              type: 'خصم',
               amount: expense.amount,
               date: expense.date,
               note: expense.description,
@@ -150,13 +148,12 @@ class SalaryEntitlementService {
             ),
           );
         }
-        // أقساط السلفة تُتجاهل — السلفة محسوبة كاملة ضمن سحب من الراتب
       } else if (type == 'خصم راتب' || type == 'خصم' || type == 'غياب') {
         // خصوم حقيقية
         totalDeductions += expense.amount;
         transactions.add(
           SalaryTransaction(
-            type: 'خصم من الراتب',
+            type: 'خصم',
             amount: expense.amount,
             date: expense.date,
             note: expense.description,
@@ -167,11 +164,9 @@ class SalaryEntitlementService {
     }
 
     transactions.sort((a, b) => b.date.compareTo(a.date));
-
-    // ✅ المعادلة: الاستحقاق = سحب من الراتب + خصم من الراتب
-    final totalDeducted = totalWithdrawals + totalDeductions;
-    // المتبقي = إجمالي الاستحقاق - الاستحقاق
-    final netEntitlement = totalEntitlement - totalDeducted;
+    // ✅ إصلاح: صافي المستحقات = الاستحقاق - السحبيات - السلف - الخصومات
+    // السلفة مبلغ استلمه الموظف فعلاً فيجب خصمه من المستحقات
+    final netEntitlement = totalEntitlement - totalWithdrawals - totalAdvances - totalDeductions;
 
     return SalaryEntitlement(
       employee: employee,
@@ -180,8 +175,9 @@ class SalaryEntitlementService {
       basicSalary: employee.basicSalary,
       totalEntitlement: totalEntitlement,
       totalWithdrawals: totalWithdrawals,
+      totalAdvances: totalAdvances,
+      installmentsPaid: installmentsPaid,
       totalDeductions: totalDeductions,
-      totalDeducted: totalDeducted,
       netEntitlement: netEntitlement,
       transactions: transactions,
     );
@@ -197,26 +193,421 @@ class SalaryEntitlementService {
 
   Future<Map<String, dynamic>> getSummary() async {
     final entitlements = await calculateAllEntitlements();
-    double totalEntitlements = 0,
-        totalWithdrawals = 0,
-        totalDeductions = 0,
-        totalDeducted = 0,
-        totalNet = 0;
+    double totalEntitlements = 0, totalWithdrawals = 0, totalAdvances = 0, totalDeductions = 0, totalNet = 0;
     for (final e in entitlements) {
       totalEntitlements += e.totalEntitlement;
       totalWithdrawals += e.totalWithdrawals;
+      totalAdvances += e.totalAdvances;
       totalDeductions += e.totalDeductions;
-      totalDeducted += e.totalDeducted;
       totalNet += e.netEntitlement;
     }
     return {
       'count': entitlements.length,
       'totalEntitlements': totalEntitlements,
       'totalWithdrawals': totalWithdrawals,
+      'totalAdvances': totalAdvances,
       'totalDeductions': totalDeductions,
-      'totalDeducted': totalDeducted,
       'totalNet': totalNet,
       'entitlements': entitlements,
     };
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  // نظام الدورات الشهرية + الترحيل التلقائي
+  // ═══════════════════════════════════════════════════════════════
+
+  /// حساب الدورة الشهرية الحالية للموظف
+  Future<MonthlySalaryCycle> calculateCurrentCycle(Employee employee) async {
+    final now = DateTime.now();
+    final hireDate = _parseDate(employee.hireDate) ?? now;
+
+    final cycleStart = _getCycleStart(hireDate, now);
+    final cycleEnd = _getCycleEnd(cycleStart);
+
+    final carriedOver = await _calculateAccumulatedCarryOver(employee, hireDate, cycleStart);
+    final cycleTxns = await _getCycleTransactions(employee, cycleStart, cycleEnd);
+    final carryOverLogs = await _getCarryOverLogsForCycle(employee.id, cycleStart);
+
+    return MonthlySalaryCycle(
+      employee: employee,
+      cycleStart: cycleStart,
+      cycleEnd: cycleEnd,
+      basicSalary: employee.basicSalary,
+      totalWithdrawals: cycleTxns.withdrawals,
+      totalDeductions: cycleTxns.deductions,
+      totalAdvances: cycleTxns.advances,
+      carriedOverFromPrevious: carriedOver,
+      transactions: cycleTxns.transactions,
+      carryOverLogs: carryOverLogs,
+    );
+  }
+
+  /// حساب كل الدورات الشهرية للموظف
+  Future<List<MonthlySalaryCycle>> calculateAllCycles(Employee employee) async {
+    final now = DateTime.now();
+    final hireDate = _parseDate(employee.hireDate) ?? now;
+
+    final cycles = <MonthlySalaryCycle>[];
+    var cycleStart = _getCycleStart(hireDate, hireDate);
+    var carriedOver = 0.0;
+
+    while (cycleStart.isBefore(now) || cycleStart.isAtSameMomentAs(now)) {
+      final cycleEnd = _getCycleEnd(cycleStart);
+      final txns = await _getCycleTransactions(employee, cycleStart, cycleEnd);
+      final carryOverLogs = await _getCarryOverLogsForCycle(employee.id, cycleStart);
+
+      final displayTxns = List<SalaryCycleTransaction>.from(txns.transactions);
+      if (carriedOver > 0) {
+        displayTxns.insert(
+          0,
+          SalaryCycleTransaction(
+            type: 'ترحيل',
+            amount: carriedOver,
+            date: _formatDate(cycleStart),
+            note: 'مبلغ مرحّل من الدورة السابقة لتجاوز السحب',
+            category: 'ترحيل',
+            isCarryOver: true,
+          ),
+        );
+      }
+
+      final cycle = MonthlySalaryCycle(
+        employee: employee,
+        cycleStart: cycleStart,
+        cycleEnd: cycleEnd,
+        basicSalary: employee.basicSalary,
+        totalWithdrawals: txns.withdrawals,
+        totalDeductions: txns.deductions,
+        totalAdvances: txns.advances,
+        carriedOverFromPrevious: carriedOver,
+        transactions: displayTxns,
+        carryOverLogs: carryOverLogs,
+      );
+
+      carriedOver = cycle.carryOverToNext;
+      cycles.add(cycle);
+
+      final nextStart = cycleEnd.add(const Duration(days: 1));
+      if (nextStart.isAfter(now)) break;
+      cycleStart = nextStart;
+    }
+
+    return cycles.reversed.toList();
+  }
+
+  /// الترحيل التلقائي — ينشئ سجل عند تجاوز الراتب
+  Future<void> processAutoCarryOver(Employee employee) async {
+    final now = DateTime.now();
+    final hireDate = _parseDate(employee.hireDate) ?? now;
+    final currentCycleStart = _getCycleStart(hireDate, now);
+    final previousCycleEnd = currentCycleStart.subtract(const Duration(days: 1));
+    final previousCycleStart = _getCycleStart(hireDate, previousCycleEnd);
+
+    if (previousCycleStart.isBefore(hireDate)) return;
+
+    final carriedOver = await _calculateAccumulatedCarryOver(employee, hireDate, currentCycleStart);
+    if (carriedOver <= 0) return;
+
+    // منع التكرار
+    final existing = await _checkExistingCarryOver(employee.id, previousCycleStart, currentCycleStart);
+    if (existing) return;
+
+    final currentCycleEnd = _getCycleEnd(currentCycleStart);
+    final reason =
+        'تم ترحيل مبلغ ${carriedOver.toStringAsFixed(0)} ريال '
+        'إلى دورة الراتب التالية '
+        'بسبب تجاوز إجمالي السحوبات والخصومات للراتب '
+        'في دورة ${_formatDate(previousCycleStart)} إلى ${_formatDate(previousCycleEnd)}.';
+
+    final nowEpoch = Time.nowEpoch();
+    final carryLogUuid = IdGen.uuid();
+    await _db
+        .into(_db.salaryCarryOverLogs)
+        .insert(
+          SalaryCarryOverLogsCompanion.insert(
+            employeeId: employee.id,
+            amount: carriedOver,
+            previousCycleStart: _formatDate(previousCycleStart),
+            previousCycleEnd: _formatDate(previousCycleEnd),
+            newCycleStart: _formatDate(currentCycleStart),
+            newCycleEnd: _formatDate(currentCycleEnd),
+            reason: reason,
+            carriedAt: nowEpoch,
+            localUuid: carryLogUuid,
+            createdAt: nowEpoch,
+            updatedAt: nowEpoch,
+            lastModified: nowEpoch,
+          ),
+        );
+
+    // ✅ تسجيل في outbox للمزامنة مع Appwrite Cloud
+    try {
+      await OutboxDao(_db).merge(
+        entity: 'salary_carry_over_logs',
+        op: 'create',
+        localUuid: carryLogUuid,
+        clientTs: nowEpoch,
+        payload: {
+          'employeeId': employee.id,
+          'amount': carriedOver,
+          'previousCycleStart': _formatDate(previousCycleStart),
+          'previousCycleEnd': _formatDate(previousCycleEnd),
+          'newCycleStart': _formatDate(currentCycleStart),
+          'newCycleEnd': _formatDate(currentCycleEnd),
+          'reason': reason,
+          'carriedAt': nowEpoch,
+        },
+      );
+    } catch (e) {
+      debugPrint('⚠️ فشل تسجيل salary_carry_over_log في outbox: $e');
+    }
+
+    debugPrint('📝 ترحيل تلقائي: $carriedOver للموظف ${employee.name}');
+  }
+
+  /// جلب كل سجلات الترحيل لموظف
+  Future<List<SalaryCarryOverLog>> getAllCarryOverLogs(int employeeId) async {
+    return (_db.select(_db.salaryCarryOverLogs)
+          ..where((t) => t.employeeId.equals(employeeId))
+          ..where((t) => t.deletedAt.isNull())
+          ..orderBy([(t) => d.OrderingTerm.desc(t.carriedAt)]))
+        .get();
+  }
+
+  // ─── أدوات مساعدة للدورات ───
+
+  Future<double> _calculateAccumulatedCarryOver(Employee employee, DateTime hireDate, DateTime targetCycleStart) async {
+    var cycleStart = _getCycleStart(hireDate, hireDate);
+    var carryOver = 0.0;
+
+    while (cycleStart.isBefore(targetCycleStart)) {
+      final cycleEnd = _getCycleEnd(cycleStart);
+      final txns = await _getCycleTransactions(employee, cycleStart, cycleEnd);
+      final totalDeductions = txns.withdrawals + txns.deductions + txns.advances + carryOver;
+      final remaining = employee.basicSalary - totalDeductions;
+      carryOver = remaining < 0 ? remaining.abs() : 0.0;
+      cycleStart = cycleEnd.add(const Duration(days: 1));
+    }
+
+    return carryOver;
+  }
+
+  Future<_CycleTxns> _getCycleTransactions(Employee employee, DateTime cycleStart, DateTime cycleEnd) async {
+    final expenses =
+        await (_db.select(_db.expenses)
+              ..where((e) => e.relatedId.equals(employee.id))
+              ..where((e) => e.deletedAt.isNull()))
+            .get();
+
+    double withdrawals = 0, deductions = 0, advances = 0;
+    final transactions = <SalaryCycleTransaction>[];
+
+    for (final expense in expenses) {
+      final expDate = _parseDate(expense.date);
+      if (expDate == null) continue;
+      if (expDate.isBefore(cycleStart) || expDate.isAfter(cycleEnd)) continue;
+
+      final type = expense.expenseType.trim();
+
+      if (type == 'سحب راتب' || type == 'رواتب' || type == 'سحب من الراتب') {
+        withdrawals += expense.amount;
+        transactions.add(
+          SalaryCycleTransaction(
+            type: 'سحب',
+            amount: expense.amount,
+            date: expense.date,
+            note: expense.description,
+            category: 'سحب راتب',
+          ),
+        );
+      } else if (type == 'سلفة') {
+        advances += expense.amount;
+        transactions.add(
+          SalaryCycleTransaction(
+            type: 'سلفة',
+            amount: expense.amount,
+            date: expense.date,
+            note: expense.description,
+            category: 'سلفة',
+          ),
+        );
+      } else if (type == 'خصم من الراتب') {
+        final isInstallment = expense.isAutoGenerated && expense.description.contains('قسط سلفة');
+        if (!isInstallment) {
+          deductions += expense.amount;
+          transactions.add(
+            SalaryCycleTransaction(
+              type: 'خصم',
+              amount: expense.amount,
+              date: expense.date,
+              note: expense.description,
+              category: 'خصم من الراتب',
+            ),
+          );
+        }
+      } else if (type == 'خصم راتب' || type == 'خصم' || type == 'غياب') {
+        deductions += expense.amount;
+        transactions.add(
+          SalaryCycleTransaction(
+            type: 'خصم',
+            amount: expense.amount,
+            date: expense.date,
+            note: expense.description,
+            category: type,
+          ),
+        );
+      }
+    }
+
+    transactions.sort((a, b) => b.date.compareTo(a.date));
+    return _CycleTxns(withdrawals, deductions, advances, transactions);
+  }
+
+  Future<bool> _checkExistingCarryOver(int employeeId, DateTime prevStart, DateTime newStart) async {
+    final result =
+        await (_db.select(_db.salaryCarryOverLogs)
+              ..where((t) => t.employeeId.equals(employeeId))
+              ..where((t) => t.previousCycleStart.equals(_formatDate(prevStart)))
+              ..where((t) => t.newCycleStart.equals(_formatDate(newStart)))
+              ..where((t) => t.deletedAt.isNull())
+              ..limit(1))
+            .get();
+    return result.isNotEmpty;
+  }
+
+  Future<List<SalaryCarryOverLog>> _getCarryOverLogsForCycle(int employeeId, DateTime cycleStart) async {
+    final startStr = _formatDate(cycleStart);
+    return (_db.select(_db.salaryCarryOverLogs)
+          ..where((t) => t.employeeId.equals(employeeId))
+          ..where((t) => t.deletedAt.isNull())
+          ..where((t) => t.newCycleStart.equals(startStr) | t.previousCycleStart.equals(startStr))
+          ..orderBy([(t) => d.OrderingTerm.desc(t.carriedAt)]))
+        .get();
+  }
+
+  DateTime _getCycleStart(DateTime hireDate, DateTime referenceDate) {
+    final int day = hireDate.day;
+    int year = referenceDate.year;
+    int month = referenceDate.month;
+    if (referenceDate.day < day) {
+      month--;
+      if (month < 1) {
+        month = 12;
+        year--;
+      }
+    }
+    final daysInMonth = DateTime(year, month + 1, 0).day;
+    final actualDay = day > daysInMonth ? daysInMonth : day;
+    return DateTime(year, month, actualDay);
+  }
+
+  DateTime _getCycleEnd(DateTime cycleStart) {
+    final nextStart = DateTime(cycleStart.year, cycleStart.month + 1, cycleStart.day);
+    return nextStart.subtract(const Duration(days: 1));
+  }
+
+  DateTime? _parseDate(String dateStr) {
+    if (dateStr.isEmpty) return null;
+    try {
+      final normalized = dateStr.contains('T') ? dateStr : dateStr.replaceFirst(' ', 'T');
+      final withSeconds = normalized.length == 16 ? '$normalized:00' : normalized;
+      return DateTime.parse(withSeconds);
+    } catch (_) {
+      try {
+        return DateTime.parse(dateStr.split(' ').first);
+      } catch (_) {
+        return null;
+      }
+    }
+  }
+
+  String _formatDate(DateTime dt) {
+    return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// نماذج الدورة الشهرية
+// ═══════════════════════════════════════════════════════════════
+
+class MonthlySalaryCycle {
+  MonthlySalaryCycle({
+    required this.employee,
+    required this.cycleStart,
+    required this.cycleEnd,
+    required this.basicSalary,
+    required this.totalWithdrawals,
+    required this.totalDeductions,
+    required this.totalAdvances,
+    required this.carriedOverFromPrevious,
+    required this.transactions,
+    required this.carryOverLogs,
+  });
+
+  final Employee employee;
+  final DateTime cycleStart;
+  final DateTime cycleEnd;
+  final double basicSalary;
+  final double totalWithdrawals;
+  final double totalDeductions;
+  final double totalAdvances;
+  final double carriedOverFromPrevious;
+  final List<SalaryCycleTransaction> transactions;
+  final List<SalaryCarryOverLog> carryOverLogs;
+
+  double get totalDeductionsAndWithdrawals =>
+      totalWithdrawals + totalDeductions + totalAdvances + carriedOverFromPrevious;
+  double get remainingBalance => basicSalary - totalDeductionsAndWithdrawals;
+  bool get hasExceeded => remainingBalance < 0;
+  double get carryOverToNext => hasExceeded ? remainingBalance.abs() : 0.0;
+  double get availableToWithdraw => remainingBalance > 0 ? remainingBalance : 0.0;
+
+  String get cycleKey =>
+      '${cycleStart.day}/${cycleStart.month}/${cycleStart.year} → '
+      '${cycleEnd.day}/${cycleEnd.month}/${cycleEnd.year}';
+
+  String get monthLabel {
+    const months = [
+      '',
+      'يناير',
+      'فبراير',
+      'مارس',
+      'أبريل',
+      'مايو',
+      'يونيو',
+      'يوليو',
+      'أغسطس',
+      'سبتمبر',
+      'أكتوبر',
+      'نوفمبر',
+      'ديسمبر',
+    ];
+    return '${months[cycleStart.month]} ${cycleStart.year}';
+  }
+}
+
+class SalaryCycleTransaction {
+  SalaryCycleTransaction({
+    required this.type,
+    required this.amount,
+    required this.date,
+    this.note,
+    this.category,
+    this.isCarryOver = false,
+  });
+
+  final String type;
+  final double amount;
+  final String date;
+  final String? note;
+  final String? category;
+  final bool isCarryOver;
+}
+
+class _CycleTxns {
+  _CycleTxns(this.withdrawals, this.deductions, this.advances, this.transactions);
+  final double withdrawals;
+  final double deductions;
+  final double advances;
+  final List<SalaryCycleTransaction> transactions;
 }

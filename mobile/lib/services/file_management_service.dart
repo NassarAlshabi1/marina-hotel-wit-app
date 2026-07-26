@@ -22,8 +22,7 @@ class FileManagementService {
 
       // تصدير كل جدول إلى CSV منفصل
       final timestamp = DateTime.now();
-      final folderName =
-          'marina_hotel_csv_export_${timestamp.millisecondsSinceEpoch}';
+      final folderName = 'marina_hotel_csv_export_${timestamp.millisecondsSinceEpoch}';
       final csvFolder = Directory('${exportDir.path}/$folderName');
       await csvFolder.create(recursive: true);
 
@@ -33,11 +32,7 @@ class FileManagementService {
       await _exportTableToCSV(csvFolder, 'booking_notes', 'booking_notes');
       await _exportTableToCSV(csvFolder, 'employees', 'employees');
       await _exportTableToCSV(csvFolder, 'expenses', 'expenses');
-      await _exportTableToCSV(
-        csvFolder,
-        'cash_transactions',
-        'cash_transactions',
-      );
+      await _exportTableToCSV(csvFolder, 'cash_transactions', 'cash_transactions');
       await _exportTableToCSV(csvFolder, 'payments', 'payments');
 
       debugPrint('✅ تم تصدير البيانات إلى: ${csvFolder.path}');
@@ -74,15 +69,13 @@ class FileManagementService {
             'عدد_الموظفين': (backupData['employees'] as List).length,
             'عدد_المصروفات': (backupData['expenses'] as List).length,
             'عدد_المدفوعات': (backupData['payments'] as List).length,
-            'عدد_المعاملات_النقدية':
-                (backupData['cash_transactions'] as List).length,
+            'عدد_المعاملات_النقدية': (backupData['cash_transactions'] as List).length,
           },
           'بيانات_مفصلة': backupData,
         },
       };
 
-      final fileName =
-          'marina_hotel_report_${timestamp.toIso8601String().split('T')[0]}.json';
+      final fileName = 'marina_hotel_report_${timestamp.toIso8601String().split('T')[0]}.json';
       final filePath = '${exportDir.path}/$fileName';
 
       final file = File(filePath);
@@ -98,10 +91,7 @@ class FileManagementService {
   }
 
   /// مشاركة متعددة الملفات
-  Future<void> shareMultipleFiles(
-    List<String> filePaths, {
-    String? customMessage,
-  }) async {
+  Future<void> shareMultipleFiles(List<String> filePaths, {String? customMessage}) async {
     try {
       if (filePaths.isEmpty) {
         throw Exception('لا توجد ملفات للمشاركة');
@@ -112,9 +102,7 @@ class FileManagementService {
       await Share.shareXFiles(
         xFiles,
         subject: 'ملفات مارينا هوتيل',
-        text:
-            customMessage ??
-            'ملفات مُصدرة من تطبيق مارينا هوتيل لإدارة الفنادق',
+        text: customMessage ?? 'ملفات مُصدرة من تطبيق مارينا هوتيل لإدارة الفنادق',
       );
 
       debugPrint('✅ تم مشاركة ${filePaths.length} ملف');
@@ -164,9 +152,7 @@ class FileManagementService {
   }
 
   /// تنظيم الملفات بحسب التاريخ
-  Future<Map<String, List<String>>> organizeBackupsByDate(
-    List<String> backupPaths,
-  ) async {
+  Future<Map<String, List<String>>> organizeBackupsByDate(List<String> backupPaths) async {
     final organized = <String, List<String>>{};
 
     for (final path in backupPaths) {
@@ -190,10 +176,7 @@ class FileManagementService {
   }
 
   /// ضغط ملفات متعددة (محاكاة ZIP)
-  Future<String> createArchive(
-    List<String> filePaths,
-    String archiveName,
-  ) async {
+  Future<String> createArchive(List<String> filePaths, String archiveName) async {
     try {
       debugPrint('📦 إنشاء أرشيف: $archiveName');
 
@@ -219,9 +202,7 @@ class FileManagementService {
           .entries
           .map((entry) => '${entry.key + 1}. ${entry.value.split('/').last}')
           .join('\n');
-      await indexFile.writeAsString(
-        'محتويات أرشيف مارينا هوتيل\n\n$indexContent',
-      );
+      await indexFile.writeAsString('محتويات أرشيف مارينا هوتيل\n\n$indexContent');
 
       debugPrint('✅ تم إنشاء الأرشيف: ${archiveFolder.path}');
       return archiveFolder.path;
@@ -247,10 +228,7 @@ class FileManagementService {
         };
       }
 
-      final totalSize = localBackups.fold<int>(
-        0,
-        (sum, backup) => sum + backup.sizeBytes,
-      );
+      final totalSize = localBackups.fold<int>(0, (sum, backup) => sum + backup.sizeBytes);
       final averageSize = totalSize / localBackups.length;
 
       localBackups.sort((a, b) => a.createdTime.compareTo(b.createdTime));
@@ -274,8 +252,7 @@ class FileManagementService {
     final byMonth = <String, int>{};
 
     for (final backup in backups) {
-      final monthKey =
-          '${backup.createdTime.year}-${backup.createdTime.month.toString().padLeft(2, '0')}';
+      final monthKey = '${backup.createdTime.year}-${backup.createdTime.month.toString().padLeft(2, '0')}';
       byMonth[monthKey] = (byMonth[monthKey] ?? 0) + 1;
     }
 
@@ -318,11 +295,7 @@ class FileManagementService {
   }
 
   /// تصدير جدول واحد إلى CSV
-  Future<void> _exportTableToCSV(
-    Directory csvFolder,
-    String tableName,
-    String tableKey,
-  ) async {
+  Future<void> _exportTableToCSV(Directory csvFolder, String tableName, String tableKey) async {
     try {
       // الحصول على البيانات من الخدمة
       final backupService = GoogleDriveBackupService();
@@ -345,9 +318,7 @@ class FileManagementService {
 
       // إضافة العناوين
       final firstRow = tableData.first as Map<String, dynamic>;
-      final headers = firstRow.keys
-          .map(_translateColumnName)
-          .join(',');
+      final headers = firstRow.keys.map(_translateColumnName).join(',');
       csvContent.writeln(headers);
 
       // إضافة البيانات
@@ -401,10 +372,7 @@ class FileManagementService {
   }
 
   /// دمج نسخ متعددة
-  Future<String> mergeBackupFiles(
-    List<String> backupPaths,
-    String mergedFileName,
-  ) async {
+  Future<String> mergeBackupFiles(List<String> backupPaths, String mergedFileName) async {
     try {
       debugPrint('🔗 بدء دمج ${backupPaths.length} نسخة احتياطية...');
 
@@ -437,10 +405,7 @@ class FileManagementService {
                 final uuid = recordMap['localUuid'];
 
                 if (uuid != null) {
-                  final exists = mergedData[key]!.any(
-                    (existing) =>
-                        existing is Map && existing['localUuid'] == uuid,
-                  );
+                  final exists = mergedData[key]!.any((existing) => existing is Map && existing['localUuid'] == uuid);
 
                   if (!exists) {
                     mergedData[key]!.add(record);
@@ -455,13 +420,8 @@ class FileManagementService {
           if (backupData.containsKey('metadata')) {
             final metadataSource = backupData['metadata'];
             if (metadataSource is Map) {
-              final metadata = BackupMetadata.fromJson(
-                Map<String, dynamic>.from(metadataSource),
-              );
-              if (latestMetadata == null ||
-                  metadata.backupTimestamp.isAfter(
-                    latestMetadata.backupTimestamp,
-                  )) {
+              final metadata = BackupMetadata.fromJson(Map<String, dynamic>.from(metadataSource));
+              if (latestMetadata == null || metadata.backupTimestamp.isAfter(latestMetadata.backupTimestamp)) {
                 latestMetadata = metadata;
               }
             }
@@ -489,9 +449,7 @@ class FileManagementService {
       final mergedPath = '${exportDir.path}/$mergedFileName';
       final mergedFile = File(mergedPath);
 
-      final jsonString = const JsonEncoder.withIndent(
-        '  ',
-      ).convert(mergedBackup);
+      final jsonString = const JsonEncoder.withIndent('  ').convert(mergedBackup);
       await mergedFile.writeAsString(jsonString);
 
       debugPrint('✅ تم دمج النسخ بنجاح: $mergedPath');
@@ -520,15 +478,9 @@ class FileManagementService {
         final metadata = backupData['metadata'];
         readableContent.writeln('📋 معلومات النسخة الاحتياطية:');
         readableContent.writeln('   إصدار التطبيق: ${metadata['app_version']}');
-        readableContent.writeln(
-          '   تاريخ النسخة: ${metadata['backup_timestamp']}',
-        );
-        readableContent.writeln(
-          '   إجمالي السجلات: ${metadata['total_records']}',
-        );
-        readableContent.writeln(
-          '   معلومات الجهاز: ${metadata['device_info']}\n',
-        );
+        readableContent.writeln('   تاريخ النسخة: ${metadata['backup_timestamp']}');
+        readableContent.writeln('   إجمالي السجلات: ${metadata['total_records']}');
+        readableContent.writeln('   معلومات الجهاز: ${metadata['device_info']}\n');
       }
 
       // تفاصيل كل جدول
@@ -552,15 +504,11 @@ class FileManagementService {
           if (data.isNotEmpty) {
             for (int i = 0; i < data.length && i < 5; i++) {
               final record = data[i] as Map<String, dynamic>;
-              readableContent.writeln(
-                '   ${i + 1}. ${_formatRecordForDisplay(record, key)}',
-              );
+              readableContent.writeln('   ${i + 1}. ${_formatRecordForDisplay(record, key)}');
             }
 
             if (data.length > 5) {
-              readableContent.writeln(
-                '   ... وسجلات أخرى (${data.length - 5})',
-              );
+              readableContent.writeln('   ... وسجلات أخرى (${data.length - 5})');
             }
           }
 
@@ -571,8 +519,7 @@ class FileManagementService {
       // حفظ التقرير القابل للقراءة
       final exportDir = await _getExportDirectory();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final readablePath =
-          '${exportDir.path}/marina_hotel_readable_$timestamp.txt';
+      final readablePath = '${exportDir.path}/marina_hotel_readable_$timestamp.txt';
 
       final readableFile = File(readablePath);
       await readableFile.writeAsString(readableContent.toString());
@@ -585,10 +532,7 @@ class FileManagementService {
     }
   }
 
-  String _formatRecordForDisplay(
-    Map<String, dynamic> record,
-    String tableType,
-  ) {
+  String _formatRecordForDisplay(Map<String, dynamic> record, String tableType) {
     switch (tableType) {
       case 'rooms':
         return 'غرفة ${record['roomNumber'] ?? 'N/A'} - ${record['type'] ?? 'N/A'} - ${record['price'] ?? 'N/A'}';
@@ -625,10 +569,7 @@ class FileManagementService {
     }
   }
 
-  Future<void> _cleanDirectoryOlderThan(
-    Directory dir,
-    Duration duration,
-  ) async {
+  Future<void> _cleanDirectoryOlderThan(Directory dir, Duration duration) async {
     if (!dir.existsSync()) {
       return;
     }

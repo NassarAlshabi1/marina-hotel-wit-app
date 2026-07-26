@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
@@ -37,11 +39,7 @@ class DeltaSyncChange {
 }
 
 class DeltaSyncComputation {
-  DeltaSyncComputation({
-    required this.changes,
-    required this.mirrorSnapshot,
-    required this.fallbackTables,
-  });
+  DeltaSyncComputation({required this.changes, required this.mirrorSnapshot, required this.fallbackTables});
 
   final List<DeltaSyncChange> changes;
   final Map<String, Map<String, MirrorRow>> mirrorSnapshot;
@@ -59,146 +57,67 @@ class DeltaSyncService {
   bool _mirrorTableReady = false;
 
   Future<DeltaSyncComputation> compute({int? since}) async {
-    final state = await (db.select(
-      db.syncState,
-    )..where((t) => t.id.equals(1))).getSingleOrNull();
+    final state = await (db.select(db.syncState)..where((t) => t.id.equals(1))).getSingleOrNull();
     final baseSince = since ?? state?.lastPushTs ?? 0;
     final normalizedSince = _normalizeTimestamp(baseSince);
     final previousMirror = await _loadMirror();
     final configs = _entityConfigs();
     final nowTs = _normalizeTimestamp(Time.nowEpoch());
-    final changes = <DeltaSyncChange>[];
-    final snapshot = <String, Map<String, MirrorRow>>{};
     final fallbackTables = <String>{};
 
+    final entityInputs = <_DeltaSyncEntityInput>[];
     for (final config in configs) {
       final rows = await config.fetchAll();
-      final existingMirror = previousMirror[config.entity] ?? {};
       final hasMirror = previousMirror.containsKey(config.entity);
       if (!hasMirror) {
         fallbackTables.add(config.entity);
-        debugPrint(
-          '⚠️ تعذر إعادة بناء مرآة جدول ${config.entity}، سيتم الاعتماد على createdAt فقط',
-        );
+        debugPrint('⚠️ تعذر إعادة بناء مرآة جدول ${config.entity}، سيتم الاعتماد على createdAt فقط');
       }
-      final tableSnapshot = <String, MirrorRow>{};
-      final seen = <String>{};
 
+      final rowDataList = <_EntityRowData>[];
       for (final row in rows) {
         final localUuid = config.localUuid(row);
-        if (localUuid.isEmpty) {
-          continue;
-        }
-        final sanitized = _preparePayload(config.toJson(row));
-        sanitized['local_uuid'] = localUuid;
-        final rowHash = _hashPayload(sanitized);
-        final payload = Map<String, dynamic>.from(sanitized);
-        payload['row_hash'] = rowHash;
-        final createdAt = _asInt(sanitized['created_at']);
-        final lastModified = _asInt(sanitized['last_modified']);
-        final deletedAt = _asInt(sanitized['deleted_at']);
-        final previous = existingMirror[localUuid];
-        final clientTs = nowTs;
-
-        if (deletedAt != null && deletedAt > normalizedSince) {
-          payload['deleted_at'] = deletedAt;
-          // ✅ نستخدم 'update' بدلاً من 'delete' — softDelete يحدّث deletedAt
-          // ولا يحذف المستند من Appwrite — الجهاز الآخر يحتاج رؤية deletedAt
-          changes.add(
-            DeltaSyncChange(
-              entity: config.entity,
-              operation: 'update',
-              data: payload,
-              rowHash: rowHash,
-              localUuid: localUuid,
-              clientTimestamp: clientTs,
-            ),
-          );
-          debugPrint('إرسال كـ UPDATE (softDelete): ${config.entity}/$localUuid');
-        } else {
-          final isFirstSyncForTable = !hasMirror;
-          final isNewRecordInMirror = previous == null;
-          final createdAfterLastSync =
-              createdAt != null && createdAt > normalizedSince;
-
-          final shouldInsert =
-              isFirstSyncForTable ||
-              (hasMirror && isNewRecordInMirror) ||
-              createdAfterLastSync;
-
-          if (shouldInsert) {
-            changes.add(
-              DeltaSyncChange(
-                entity: config.entity,
-                operation: 'insert',
-                data: payload,
-                rowHash: rowHash,
-                localUuid: localUuid,
-                clientTimestamp: clientTs,
-              ),
-            );
-            debugPrint('إرسال كـ INSERT: ${config.entity}/$localUuid');
-          } else if (previous != null &&
-              lastModified != null &&
-              lastModified > normalizedSince) {
-            changes.add(
-              DeltaSyncChange(
-                entity: config.entity,
-                operation: 'update',
-                data: payload,
-                rowHash: rowHash,
-                localUuid: localUuid,
-                clientTimestamp: clientTs,
-              ),
-            );
-            debugPrint('إرسال كـ UPDATE: ${config.entity}/$localUuid');
-          }
-        }
-
-        tableSnapshot[localUuid] = MirrorRow(
-          localUuid: localUuid,
-          rowHash: rowHash,
-          payload: Map<String, dynamic>.from(sanitized),
-          lastSeenAt: nowTs,
-        );
-        seen.add(localUuid);
-      }
-
-      final missing = existingMirror.keys
-          .where((uuid) => !seen.contains(uuid))
-          .toList();
-      for (final uuid in missing) {
-        final previous = existingMirror[uuid];
-        if (previous == null) {
-          continue;
-        }
-        final payload = Map<String, dynamic>.from(previous.payload);
-        final previousDeletedAt = _asInt(payload['deleted_at']);
-        final deleteStamp = previousDeletedAt ?? nowTs;
-        payload['deleted_at'] = deleteStamp;
-        payload['row_hash'] = previous.rowHash;
-        // ✅ نستخدم 'update' بدلاً من 'delete' — hardDelete حقيقي يحتاج 'delete'
-        // لكن السجلات المفقودة من المرآة قد تكون softDelete أو hardDelete
-        // نستخدم 'update' ليتم تحديث المستند في Appwrite بدلاً من حذفه
-        changes.add(
-          DeltaSyncChange(
-            entity: config.entity,
-            operation: 'update',
-            data: payload,
-            rowHash: previous.rowHash,
-            localUuid: uuid,
-            clientTimestamp: deleteStamp,
+        if (localUuid.isEmpty) continue;
+        rowDataList.add(
+          _EntityRowData(
+            localUuid: localUuid,
+            toJson: config.toJson(row),
+            createdAt: config.createdAt(row),
+            lastModified: config.lastModified(row),
+            deletedAt: config.deletedAt(row),
           ),
         );
-        debugPrint('إرسال كـ UPDATE (missing→softDelete): ${config.entity}/$uuid');
       }
 
-      snapshot[config.entity] = tableSnapshot;
+      entityInputs.add(_DeltaSyncEntityInput(entity: config.entity, rows: rowDataList, hasMirror: hasMirror));
     }
+
+    final isolateInput = _DeltaSyncIsolateInput(
+      entities: entityInputs,
+      previousMirror: previousMirror,
+      normalizedSince: normalizedSince,
+      nowTs: nowTs,
+      fallbackTables: fallbackTables,
+    );
+
+    final output = await Isolate.run(() => _computeDeltaSyncInIsolate(isolateInput));
+
+    final changes = output.changes
+        .map(
+          (m) => DeltaSyncChange(
+            entity: m['entity'] as String,
+            operation: m['op'] as String,
+            data: m['data'] as Map<String, dynamic>,
+            rowHash: m['row_hash'] as String,
+            localUuid: m['local_uuid'] as String,
+            clientTimestamp: m['client_ts'] as int,
+          ),
+        )
+        .toList();
 
     final computation = DeltaSyncComputation(
       changes: changes,
-      mirrorSnapshot: snapshot,
+      mirrorSnapshot: output.mirrorSnapshot,
       fallbackTables: fallbackTables,
     );
 
@@ -209,10 +128,7 @@ class DeltaSyncService {
     return computation;
   }
 
-  Future<void> persistMirror(
-    DeltaSyncComputation computation, {
-    bool useExistingTransaction = false,
-  }) async {
+  Future<void> persistMirror(DeltaSyncComputation computation, {bool useExistingTransaction = false}) async {
     final snapshot = computation.mirrorSnapshot;
     await _ensureMirrorTable();
     if (useExistingTransaction) {
@@ -224,24 +140,14 @@ class DeltaSyncService {
     }
   }
 
-  Future<void> _persistMirrorSnapshot(
-    Map<String, Map<String, MirrorRow>> snapshot,
-  ) async {
+  Future<void> _persistMirrorSnapshot(Map<String, Map<String, MirrorRow>> snapshot) async {
     for (final entry in snapshot.entries) {
       final table = entry.key;
-      await db.customStatement('DELETE FROM sync_mirror WHERE table_name = ?', [
-        table,
-      ]);
+      await db.customStatement('DELETE FROM sync_mirror WHERE table_name = ?', [table]);
       for (final row in entry.value.values) {
         await db.customStatement(
           'REPLACE INTO sync_mirror (table_name, local_uuid, row_hash, payload, last_seen_at) VALUES (?, ?, ?, ?, ?)',
-          [
-            table,
-            row.localUuid,
-            row.rowHash,
-            jsonEncode(row.payload),
-            row.lastSeenAt,
-          ],
+          [table, row.localUuid, row.rowHash, jsonEncode(row.payload), row.lastSeenAt],
         );
       }
     }
@@ -260,16 +166,13 @@ class DeltaSyncService {
   Future<Map<String, Map<String, MirrorRow>>> _loadMirror() async {
     await _ensureMirrorTable();
     final rows = await db
-        .customSelect(
-          'SELECT table_name, local_uuid, row_hash, payload, last_seen_at FROM sync_mirror',
-        )
+        .customSelect('SELECT table_name, local_uuid, row_hash, payload, last_seen_at FROM sync_mirror')
         .get();
     final result = <String, Map<String, MirrorRow>>{};
     for (final row in rows) {
       final table = row.read<String>('table_name');
       final uuid = row.read<String>('local_uuid');
-      final payload =
-          jsonDecode(row.read<String>('payload')) as Map<String, dynamic>;
+      final payload = jsonDecode(row.read<String>('payload')) as Map<String, dynamic>;
       result.putIfAbsent(table, () => {})[uuid] = MirrorRow(
         localUuid: uuid,
         rowHash: row.read<String>('row_hash'),
@@ -325,11 +228,7 @@ class DeltaSyncService {
       }
     }
 
-    return MirrorValidationResult(
-      isValid: issues.isEmpty,
-      issues: issues,
-      validatedAt: DateTime.now(),
-    );
+    return MirrorValidationResult(isValid: issues.isEmpty, issues: issues, validatedAt: DateTime.now());
   }
 
   /// إصلاح Mirror تلقائياً إذا كان غير متسق
@@ -368,9 +267,7 @@ class DeltaSyncService {
             [config.entity, uuid, rowHash, jsonEncode(sanitized), nowTs],
           );
         }
-        debugPrint(
-          '✅ Rebuilt mirror for ${config.entity} (${rows.length} rows)',
-        );
+        debugPrint('✅ Rebuilt mirror for ${config.entity} (${rows.length} rows)');
       } catch (e) {
         debugPrint('❌ Failed to rebuild mirror for ${config.entity}: $e');
       }
@@ -397,7 +294,13 @@ class DeltaSyncService {
         createdAt: (dynamic row) => (row as Booking).createdAt,
         lastModified: (dynamic row) => (row as Booking).lastModified,
         deletedAt: (dynamic row) => (row as Booking).deletedAt,
-        toJson: (dynamic row) => (row as Booking).toJson(),
+        toJson: (dynamic row) {
+          final b = row as Booking;
+          final j = b.toJson();
+          // ✅ حقل amount الموحّد لجدول bookings (مشتق من المبلغ المستحق).
+          j['amount'] = b.totalDueCached;
+          return j;
+        },
       ),
       _EntityConfig(
         entity: 'booking_notes',
@@ -480,6 +383,15 @@ class DeltaSyncService {
         deletedAt: (dynamic row) => (row as SalaryWithdrawal).deletedAt,
         toJson: (dynamic row) => (row as SalaryWithdrawal).toJson(),
       ),
+      _EntityConfig(
+        entity: 'salary_carry_over_logs',
+        fetchAll: () => db.select(db.salaryCarryOverLogs).get(),
+        localUuid: (dynamic row) => (row as SalaryCarryOverLog).localUuid,
+        createdAt: (dynamic row) => (row as SalaryCarryOverLog).createdAt,
+        lastModified: (dynamic row) => (row as SalaryCarryOverLog).lastModified,
+        deletedAt: (dynamic row) => (row as SalaryCarryOverLog).deletedAt,
+        toJson: (dynamic row) => (row as SalaryCarryOverLog).toJson(),
+      ),
       // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
       _EntityConfig(
         entity: 'shift_notes',
@@ -549,12 +461,7 @@ class DeltaSyncService {
 }
 
 class MirrorRow {
-  MirrorRow({
-    required this.localUuid,
-    required this.rowHash,
-    required this.payload,
-    required this.lastSeenAt,
-  });
+  MirrorRow({required this.localUuid, required this.rowHash, required this.payload, required this.lastSeenAt});
 
   final String localUuid;
   final String rowHash;
@@ -580,6 +487,158 @@ class _EntityConfig {
   final int? Function(dynamic row) lastModified;
   final int? Function(dynamic row) deletedAt;
   final Map<String, dynamic> Function(dynamic row) toJson;
+}
+
+class _EntityRowData {
+  const _EntityRowData({
+    required this.localUuid,
+    required this.toJson,
+    required this.createdAt,
+    required this.lastModified,
+    required this.deletedAt,
+  });
+
+  final String localUuid;
+  final Map<String, dynamic> toJson;
+  final int? createdAt;
+  final int? lastModified;
+  final int? deletedAt;
+}
+
+class _DeltaSyncIsolateInput {
+  const _DeltaSyncIsolateInput({
+    required this.entities,
+    required this.previousMirror,
+    required this.normalizedSince,
+    required this.nowTs,
+    required this.fallbackTables,
+  });
+
+  final List<_DeltaSyncEntityInput> entities;
+  final Map<String, Map<String, MirrorRow>> previousMirror;
+  final int normalizedSince;
+  final int nowTs;
+  final Set<String> fallbackTables;
+}
+
+class _DeltaSyncEntityInput {
+  const _DeltaSyncEntityInput({required this.entity, required this.rows, required this.hasMirror});
+
+  final String entity;
+  final List<_EntityRowData> rows;
+  final bool hasMirror;
+}
+
+class _DeltaSyncIsolateOutput {
+  const _DeltaSyncIsolateOutput({required this.changes, required this.mirrorSnapshot});
+
+  final List<Map<String, dynamic>> changes;
+  final Map<String, Map<String, MirrorRow>> mirrorSnapshot;
+}
+
+_DeltaSyncIsolateOutput _computeDeltaSyncInIsolate(_DeltaSyncIsolateInput input) {
+  final changes = <DeltaSyncChange>[];
+  final snapshot = <String, Map<String, MirrorRow>>{};
+
+  for (final entityData in input.entities) {
+    final existingMirror = input.previousMirror[entityData.entity] ?? {};
+    final hasMirror = entityData.hasMirror;
+    final tableSnapshot = <String, MirrorRow>{};
+    final seen = <String>{};
+
+    for (final row in entityData.rows) {
+      final localUuid = row.localUuid;
+      if (localUuid.isEmpty) continue;
+
+      final sanitized = _preparePayload(row.toJson);
+      sanitized['local_uuid'] = localUuid;
+      final rowHash = _hashPayload(sanitized);
+      final payload = Map<String, dynamic>.from(sanitized);
+      payload['row_hash'] = rowHash;
+      final createdAt = _asInt(sanitized['created_at']);
+      final lastModified = _asInt(sanitized['last_modified']);
+      final deletedAt = _asInt(sanitized['deleted_at']);
+      final previous = existingMirror[localUuid];
+      final clientTs = input.nowTs;
+
+      if (deletedAt != null && deletedAt > input.normalizedSince) {
+        payload['deleted_at'] = deletedAt;
+        changes.add(
+          DeltaSyncChange(
+            entity: entityData.entity,
+            operation: 'update',
+            data: payload,
+            rowHash: rowHash,
+            localUuid: localUuid,
+            clientTimestamp: clientTs,
+          ),
+        );
+      } else {
+        final isFirstSyncForTable = !hasMirror;
+        final isNewRecordInMirror = previous == null;
+        final createdAfterLastSync = createdAt != null && createdAt > input.normalizedSince;
+
+        final shouldInsert = isFirstSyncForTable || (hasMirror && isNewRecordInMirror) || createdAfterLastSync;
+
+        if (shouldInsert) {
+          changes.add(
+            DeltaSyncChange(
+              entity: entityData.entity,
+              operation: 'insert',
+              data: payload,
+              rowHash: rowHash,
+              localUuid: localUuid,
+              clientTimestamp: clientTs,
+            ),
+          );
+        } else if (previous != null && lastModified != null && lastModified > input.normalizedSince) {
+          changes.add(
+            DeltaSyncChange(
+              entity: entityData.entity,
+              operation: 'update',
+              data: payload,
+              rowHash: rowHash,
+              localUuid: localUuid,
+              clientTimestamp: clientTs,
+            ),
+          );
+        }
+      }
+
+      tableSnapshot[localUuid] = MirrorRow(
+        localUuid: localUuid,
+        rowHash: rowHash,
+        payload: Map<String, dynamic>.from(sanitized),
+        lastSeenAt: input.nowTs,
+      );
+      seen.add(localUuid);
+    }
+
+    final missing = existingMirror.keys.where((uuid) => !seen.contains(uuid)).toList();
+    for (final uuid in missing) {
+      final previous = existingMirror[uuid];
+      if (previous == null) continue;
+      final payload = Map<String, dynamic>.from(previous.payload);
+      final previousDeletedAt = _asInt(payload['deleted_at']);
+      final deleteStamp = previousDeletedAt ?? input.nowTs;
+      payload['deleted_at'] = deleteStamp;
+      payload['row_hash'] = previous.rowHash;
+      changes.add(
+        DeltaSyncChange(
+          entity: entityData.entity,
+          operation: 'update',
+          data: payload,
+          rowHash: previous.rowHash,
+          localUuid: uuid,
+          clientTimestamp: deleteStamp,
+        ),
+      );
+    }
+
+    snapshot[entityData.entity] = tableSnapshot;
+  }
+
+  return _DeltaSyncIsolateOutput(changes: changes.map((c) => c.toMap()).toList(), mirrorSnapshot: snapshot);
 }
 
 int _normalizeTimestamp(int value) {
@@ -669,10 +728,7 @@ Map<String, dynamic> _sortedMap(Map<String, dynamic> source) {
 }
 
 String _toSnakeCase(String input) {
-  final snake = input.replaceAllMapped(
-    RegExp('([a-z0-9])([A-Z])'),
-    (match) => '${match.group(1)}_${match.group(2)}',
-  );
+  final snake = input.replaceAllMapped(RegExp('([a-z0-9])([A-Z])'), (match) => '${match.group(1)}_${match.group(2)}');
   return snake.replaceAll('-', '_').toLowerCase();
 }
 
