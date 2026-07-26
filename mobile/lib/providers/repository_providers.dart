@@ -1,1 +1,407 @@
-aW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXJfcml2ZXJwb2QvZmx1dHRlcl9yaXZlcnBvZC5kYXJ0JzsKaW1wb3J0ICdwYWNrYWdlOnNoYXJlZF9wcmVmZXJlbmNlcy9zaGFyZWRfcHJlZmVyZW5jZXMuZGFydCc7CgppbXBvcnQgJy4uL3NlcnZpY2VzL2FkYXB0ZXJzL2FkYXB0ZXJfcmVnaXN0cnkuZGFydCc7CmltcG9ydCAnLi4vc2VydmljZXMvYXV0aF9sb2NhbF9zdG9yZS5kYXJ0JzsKaW1wb3J0ICcuLi9zZXJ2aWNlcy9kYW9zL2Jvb2tpbmdzX2Rhby5kYXJ0JzsKaW1wb3J0ICcuLi9zZXJ2aWNlcy9kYW9zL2RlYnRzX2Rhby5kYXJ0JzsKaW1wb3J0ICcuLi9zZXJ2aWNlcy9kYW9zL2VtcGxveWVlc19kYW8uZGFydCc7CmltcG9ydCAnLi4vc2VydmljZXMvZGFvcy9leHBlbnNlc19kYW8uZGFydCc7CmltcG9ydCAnLi4vc2VydmljZXMvZGFvcy9vdXRib3hfZGFvLmRhcnQnOwppbXBvcnQgJy4uL3NlcnZpY2VzL2Rhb3MvcGF5bWVudHNfZGFvLmRhcnQnOwppbXBvcnQgJy4uL3NlcnZpY2VzL2RpYWdub3N0aWNzL2RpYWdub3N0aWNzX2xvZ2dlci5kYXJ0JzsKaW1wb3J0ICcuLi9zZXJ2aWNlcy9sb2NhbF9kYi5kYXJ0JzsKaW1wb3J0ICcuLi9zZXJ2aWNlcy9yZXBvc2l0b3JpZXMvYmxhY2tsaXN0X3JlcG9zaXRvcnkuZGFydCc7CmltcG9ydCAnLi4vc2VydmljZXMvcmVwb3NpdG9yaWVzL2Jvb2tpbmdzX3JlcG9zaXRvcnkuZGFydCc7CmltcG9ydCAnLi4vc2VydmljZXMvcmVwb3NpdG9yaWVzL2Nhc2hfcmVwb3NpdG9yeS5kYXJ0JzsKaW1wb3J0ICcuLi9zZXJ2aWNlcy9yZXBvc2l0b3JpZXMvZGVidHNfcmVwb3NpdG9yeS5kYXJ0JzsKaW1wb3J0ICcuLi9zZXJ2aWNlcy9yZXBvc2l0b3JpZXMvZW1wbG95ZWVzX3JlcG9zaXRvcnkuZGFydCc7CmltcG9ydCAnLi4vc2VydmljZXMvcmVwb3NpdG9yaWVzL2V4cGVuc2VzX3JlcG9zaXRvcnkuZGFydCc7CmltcG9ydCAnLi4vc2VydmljZXMvcmVwb3NpdG9yaWVzL2d1ZXN0X2luZm9zX3JlcG9zaXRvcnkuZGFydCc7CmltcG9ydCAnLi4vc2VydmljZXMvcmVwb3NpdG9yaWVzL25vdGVzX3JlcG9zaXRvcnkuZGFydCc7CmltcG9ydCAnLi4vc2VydmljZXMvcmVwb3NpdG9yaWVzL3BheW1lbnRzX3JlcG9zaXRvcnkuZGFydCc7CmltcG9ydCAnLi4vc2VydmljZXMvcmVwb3NpdG9yaWVzL3Jvb21zX3JlcG9zaXRvcnkuZGFydCc7CmltcG9ydCAnLi4vc2VydmljZXMvcmVwb3NpdG9yaWVzL3NhbGFyeV93aXRoZHJhd2Fsc19yZXBvc2l0b3J5LmRhcnQnOwppbXBvcnQgJy4uL3NlcnZpY2VzL3JlcG9zaXRvcmllcy9zaGlmdF9ub3Rlc19yZXBvc2l0b3J5LmRhcnQnOwppbXBvcnQgJy4uL3NlcnZpY2VzL3JlcG9zaXRvcmllcy9zaW1wbGVfbm90ZXNfcmVwb3NpdG9yeS5kYXJ0JzsKaW1wb3J0ICcuLi9zZXJ2aWNlcy9zYWxhcnlfYWR2YW5jZV9pbnN0YWxsbWVudHNfc2VydmljZS5kYXJ0JzsKaW1wb3J0ICcuLi9zZXJ2aWNlcy9zeW5jX2d1YXJkaWFuLmRhcnQnOwppbXBvcnQgJy4uL3NlcnZpY2VzL3doYXRzYXBwX3NlcnZpY2UuZGFydCc7CmltcG9ydCAnLi4vdXRpbHMvZW52LmRhcnQnOwppbXBvcnQgJy4uL3V0aWxzL2hvdGVsX3RpbWVfZW5naW5lLmRhcnQnOwppbXBvcnQgJy4uL3V0aWxzL3N0YXR1c191dGlscy5kYXJ0JzsKaW1wb3J0ICcuLi91dGlscy9zdHJlYW1faGVscGVycy5kYXJ0JzsKCi8vINil2LbYp9mB2KkgQXV0byBCYWNrdXAgUHJvdmlkZXJzCmV4cG9ydCAnLi4vcHJvdmlkZXJzL2F1dG9fYmFja3VwX3Byb3ZpZGVyLmRhcnQnOwovLyDYpdi22KfZgdipIEJhY2t1cCBQcm92aWRlcnMKZXhwb3J0ICcuLi9wcm92aWRlcnMvYmFja3VwX3Byb3ZpZGVyLmRhcnQnOwovLyDYpdi22KfZgdipIFNtYXJ0IFN5bmMgUHJvdmlkZXJzCmV4cG9ydCAnLi4vcHJvdmlkZXJzL3NtYXJ0X3N5bmNfcHJvdmlkZXIuZGFydCc7CgpmaW5hbCBzeW5jR3VhcmRpYW5Qcm92aWRlciA9IFByb3ZpZGVyPFN5bmNHdWFyZGlhbj4oCiAgKHJlZikgPT4gU3luY0d1YXJkaWFuLmluc3RhbmNlLAopOwpmaW5hbCBzeW5jSGVhbHRoUHJvdmlkZXIgPSBTdHJlYW1Qcm92aWRlcjxTeW5jSGVhbHRoU25hcHNob3Q+KAogIChyZWYpID0+IHJlZi53YXRjaChzeW5jR3VhcmRpYW5Qcm92aWRlcikud2F0Y2hIZWFsdGgoKSwKKTsKCmZpbmFsIGRpYWdub3N0aWNzTG9nZ2VyUHJvdmlkZXIgPSBDaGFuZ2VOb3RpZmllclByb3ZpZGVyPERpYWdub3N0aWNzTG9nZ2VyPigKICAocmVmKSA9PiBEaWFnbm9zdGljc0xvZ2dlci5pbnN0YW5jZSwKKTsKCmZpbmFsIGRhdGFiYXNlUHJvdmlkZXIgPSBQcm92aWRlcjxBcHBEYXRhYmFzZT4oCiAgKHJlZikgPT4gRGF0YWJhc2VNYW5hZ2VyLmluc3RhbmNlLAopOwpmaW5hbCBhZGFwdGVyUmVnaXN0cnlQcm92aWRlciA9IFByb3ZpZGVyPEFkYXB0ZXJSZWdpc3RyeT4oCiAgKHJlZikgPT4gQWRhcHRlclJlZ2lzdHJ5Lmluc3RhbmNlLAopOwoKZmluYWwgb3V0Ym94RGFvUHJvdmlkZXIgPSBQcm92aWRlcjxPdXRib3hEYW8+KAogIChyZWYpID0+CiAgICAgIE91dGJveERhbyhyZWYucmVhZChkYXRhYmFzZVByb3ZpZGVyKSwgcmVmLnJlYWQoYWRhcHRlclJlZ2lzdHJ5UHJvdmlkZXIpKSwKKTsKZmluYWwgYm9va2luZ3NEYW9Qcm92aWRlciA9IFByb3ZpZGVyPEJvb2tpbmdzRGFvPigKICAocmVmKSA9PiBCb29raW5nc0RhbygKICAgIHJlZi5yZWFkKGRhdGFiYXNlUHJvdmlkZXIpLAogICAgcmVmLnJlYWQob3V0Ym94RGFvUHJvdmlkZXIpLAogICAgcmVmLnJlYWQoYWRhcHRlclJlZ2lzdHJ5UHJvdmlkZXIpLAogICksCik7CmZpbmFsIHBheW1lbnRzRGFvUHJvdmlkZXIgPSBQcm92aWRlcjxQYXltZW50c0Rhbz4oCiAgKHJlZikgPT4gUGF5bWVudHNEYW8oCiAgICByZWYucmVhZChkYXRhYmFzZVByb3ZpZGVyKSwKICAgIHJlZi5yZWFkKG91dGJveERhb1Byb3ZpZGVyKSwKICAgIHJlZi5yZWFkKGFkYXB0ZXJSZWdpc3RyeVByb3ZpZGVyKSwKICApLAopOwpmaW5hbCBleHBlbnNlc0Rhb1Byb3ZpZGVyID0gUHJvdmlkZXI8RXhwZW5zZXNEYW8+KAogIChyZWYpID0+IEV4cGVuc2VzRGFvKAogICAgcmVmLnJlYWQoZGF0YWJhc2VQcm92aWRlciksCiAgICByZWYucmVhZChvdXRib3hEYW9Qcm92aWRlciksCiAgICByZWYucmVhZChhZGFwdGVyUmVnaXN0cnlQcm92aWRlciksCiAgKSwKKTsKZmluYWwgZGVidHNEYW9Qcm92aWRlciA9IFByb3ZpZGVyPERlYnRzRGFvPigKICAocmVmKSA9PiBEZWJ0c0RhbygKICAgIHJlZi5yZWFkKGRhdGFiYXNlUHJvdmlkZXIpLAogICAgcmVmLnJlYWQob3V0Ym94RGFvUHJvdmlkZXIpLAogICAgcmVmLnJlYWQoYWRhcHRlclJlZ2lzdHJ5UHJvdmlkZXIpLAogICksCik7CmZpbmFsIGVtcGxveWVlc0Rhb1Byb3ZpZGVyID0gUHJvdmlkZXI8RW1wbG95ZWVzRGFvPigKICAocmVmKSA9PiBFbXBsb3llZXNEYW8oCiAgICByZWYucmVhZChkYXRhYmFzZVByb3ZpZGVyKSwKICAgIHJlZi5yZWFkKG91dGJveERhb1Byb3ZpZGVyKSwKICAgIHJlZi5yZWFkKGFkYXB0ZXJSZWdpc3RyeVByb3ZpZGVyKSwKICApLAopOwoKZmluYWwgcm9vbXNSZXBvUHJvdmlkZXIgPSBQcm92aWRlcjxSb29tc1JlcG9zaXRvcnk+KAogIChyZWYpID0+IFJvb21zUmVwb3NpdG9yeShyZWYucmVhZChkYXRhYmFzZVByb3ZpZGVyKSksCik7CmZpbmFsIGJvb2tpbmdzUmVwb1Byb3ZpZGVyID0gUHJvdmlkZXI8Qm9va2luZ3NSZXBvc2l0b3J5PigKICAocmVmKSA9PiBCb29raW5nc1JlcG9zaXRvcnkocmVmLnJlYWQoZGF0YWJhc2VQcm92aWRlcikpLAopOwpmaW5hbCBlbXBsb3llZXNSZXBvUHJvdmlkZXIgPSBQcm92aWRlcjxFbXBsb3llZXNSZXBvc2l0b3J5PigKICAocmVmKSA9PiBFbXBsb3llZXNSZXBvc2l0b3J5KHJlZi5yZWFkKGRhdGFiYXNlUHJvdmlkZXIpKSwKKTsKZmluYWwgZ3Vlc3RJbmZvUmVwb1Byb3ZpZGVyID0gUHJvdmlkZXI8R3Vlc3RJbmZvc1JlcG9zaXRvcnk+KAogIChyZWYpID0+IEd1ZXN0SW5mb3NSZXBvc2l0b3J5KHJlZi5yZWFkKGRhdGFiYXNlUHJvdmlkZXIpKSwKKTsKZmluYWwgZXhwZW5zZXNSZXBvUHJvdmlkZXIgPSBQcm92aWRlcjxFeHBlbnNlc1JlcG9zaXRvcnk+KAogIChyZWYpID0+IEV4cGVuc2VzUmVwb3NpdG9yeShyZWYucmVhZChkYXRhYmFzZVByb3ZpZGVyKSksCik7CmZpbmFsIGNhc2hSZXBvUHJvdmlkZXIgPSBQcm92aWRlcjxDYXNoUmVwb3NpdG9yeT4oCiAgKHJlZikgPT4gQ2FzaFJlcG9zaXRvcnkocmVmLnJlYWQoZGF0YWJhc2VQcm92aWRlcikpLAopOwpmaW5hbCBwYXltZW50c1JlcG9Qcm92aWRlciA9IFByb3ZpZGVyPFBheW1lbnRzUmVwb3NpdG9yeT4oCiAgKHJlZikgPT4gUGF5bWVudHNSZXBvc2l0b3J5KHJlZi5yZWFkKGRhdGFiYXNlUHJvdmlkZXIpKSwKKTsKZmluYWwgZGVidHNSZXBvUHJvdmlkZXIgPSBQcm92aWRlcjxEZWJ0c1JlcG9zaXRvcnk+KAogIChyZWYpID0+IERlYnRzUmVwb3NpdG9yeShyZWYucmVhZChkYXRhYmFzZVByb3ZpZGVyKSksCik7CmZpbmFsIG5vdGVzUmVwb1Byb3ZpZGVyID0gUHJvdmlkZXI8Tm90ZXNSZXBvc2l0b3J5PigKICAocmVmKSA9PiBOb3Rlc1JlcG9zaXRvcnkocmVmLnJlYWQoZGF0YWJhc2VQcm92aWRlcikpLAopOwpmaW5hbCBzYWxhcnlXaXRoZHJhd2Fsc1JlcG9Qcm92aWRlciA9IFByb3ZpZGVyPFNhbGFyeVdpdGhkcmF3YWxzUmVwb3NpdG9yeT4oCiAgKHJlZikgPT4gU2FsYXJ5V2l0aGRyYXdhbHNSZXBvc2l0b3J5KHJlZi5yZWFkKGRhdGFiYXNlUHJvdmlkZXIpKSwKKTsKZmluYWwgc2FsYXJ5QWR2YW5jZUluc3RhbGxtZW50c1NlcnZpY2VQcm92aWRlciA9CiAgICBQcm92aWRlcjxTYWxhcnlBZHZhbmNlSW5zdGFsbG1lbnRzU2VydmljZT4oCiAgICAgIChyZWYpID0+IFNhbGFyeUFkdmFuY2VJbnN0YWxsbWVudHNTZXJ2aWNlKAogICAgICAgIHJlZi5yZWFkKGRhdGFiYXNlUHJvdmlkZXIpLAogICAgICAgIHJlZi5yZWFkKGV4cGVuc2VzUmVwb1Byb3ZpZGVyKSwKICAgICAgICByZWYucmVhZChzYWxhcnlXaXRoZHJhd2Fsc1JlcG9Qcm92aWRlciksCiAgICAgICksCiAgICApOwpmaW5hbCBzaW1wbGVOb3Rlc1JlcG9Qcm92aWRlciA9IFByb3ZpZGVyPFNpbXBsZU5vdGVzUmVwb3NpdG9yeT4oCiAgKHJlZikgPT4gU2ltcGxlTm90ZXNSZXBvc2l0b3J5KHJlZi5yZWFkKGRhdGFiYXNlUHJvdmlkZXIpKSwKKTsKZmluYWwgc2hpZnROb3Rlc1JlcG9Qcm92aWRlciA9IFByb3ZpZGVyPFNoaWZ0Tm90ZXNSZXBvc2l0b3J5PigKICAocmVmKSA9PiBTaGlmdE5vdGVzUmVwb3NpdG9yeShyZWYucmVhZChkYXRhYmFzZVByb3ZpZGVyKSksCik7CmZpbmFsIGJsYWNrbGlzdFJlcG9Qcm92aWRlciA9IFByb3ZpZGVyPEJsYWNrbGlzdFJlcG9zaXRvcnk+KAogIChyZWYpID0+IEJsYWNrbGlzdFJlcG9zaXRvcnkocmVmLnJlYWQoZGF0YWJhc2VQcm92aWRlcikpLAopOwpmaW5hbCB3aGF0c2FwcFNldHRpbmdzUHJvdmlkZXIgPSBGdXR1cmVQcm92aWRlcjxNYXA8U3RyaW5nLCBTdHJpbmc+PigoCiAgcmVmLAopIGFzeW5jIHsKICBmaW5hbCBwcmVmcyA9IGF3YWl0IFNoYXJlZFByZWZlcmVuY2VzLmdldEluc3RhbmNlKCk7CiAgcmV0dXJuIHsKICAgICdhcGlUeXBlJzogcHJlZnMuZ2V0U3RyaW5nKCd3YV9hcGlfdHlwZScpID8/ICdjdXN0b20nLAogICAgJ2Jhc2VVcmwnOgogICAgICAgIHByZWZzLmdldFN0cmluZygnd2FfYXBpX2Jhc2VfdXJsJykgPz8gJ2h0dHBzOi8vNzEwMy5hcGkuZ3JlZW5hcGkuY29tJywKICAgICdpbnN0YW5jZUlkJzoKICAgICAgICBwcmVmcy5nZXRTdHJpbmcoJ3dhX2FwaV9pbnN0YW5jZV9pZCcpID8/IEVudi53aGF0c2FwcEluc3RhbmNlSWQsCiAgICAndG9rZW4nOiBwcmVmcy5nZXRTdHJpbmcoJ3dhX2FwaV90b2tlbicpID8/IEVudi53aGF0c2FwcEFwaVRva2VuLAogICAgJ2N1c3RvbVVybFRlbXBsYXRlJzogcHJlZnMuZ2V0U3RyaW5nKCd3YV9jdXN0b21fdXJsX3RlbXBsYXRlJykgPz8gJycsCiAgfTsKfSk7CgpXaGF0c0FwcEFwaVR5cGUgX3BhcnNlQXBpVHlwZShTdHJpbmc/IHR5cGUpIHsKICBzd2l0Y2ggKHR5cGUpIHsKICAgIGNhc2UgJ2N1c3RvbSc6CiAgICAgIHJldHVybiBXaGF0c0FwcEFwaVR5cGUuY3VzdG9tOwogICAgZGVmYXVsdDoKICAgICAgcmV0dXJuIFdoYXRzQXBwQXBpVHlwZS5jdXN0b207CiAgfQp9CgpmaW5hbCB3aGF0c2FwcFNlcnZpY2VQcm92aWRlciA9IFByb3ZpZGVyPFdoYXRzQXBwU2VydmljZT4oKHJlZikgewogIGZpbmFsIHNldHRpbmdzQXN5bmMgPSByZWYud2F0Y2god2hhdHNhcHBTZXR0aW5nc1Byb3ZpZGVyKTsKICBmaW5hbCBzZXR0aW5ncyA9CiAgICAgIHNldHRpbmdzQXN5bmMudmFsdWVPck51bGwgPz8KICAgICAgY29uc3QgewogICAgICAgICdhcGlUeXBlJzogJ2N1c3RvbScsCiAgICAgICAgJ2Jhc2VVcmwnOiAnaHR0cHM6Ly83MTAzLmFwaS5ncmVlbmFwaS5jb20nLAogICAgICAgICdpbnN0YW5jZUlkJzogRW52LndoYXRzYXBwSW5zdGFuY2VJZCwKICAgICAgICAndG9rZW4nOiBFbnYud2hhdHNhcHBBcGlUb2tlbiwKICAgICAgICAnY3VzdG9tVXJsVGVtcGxhdGUnOiAnJywKICAgICAgfTsKICByZXR1cm4gV2hhdHNBcHBTZXJ2aWNlKAogICAgYXBpVHlwZTogX3BhcnNlQXBpVHlwZShzZXR0aW5nc1snYXBpVHlwZSddKSwKICAgIGJhc2VVcmw6IHNldHRpbmdzWydiYXNlVXJsJ10sCiAgICBpbnN0YW5jZUlkOiBzZXR0aW5nc1snaW5zdGFuY2VJZCddLAogICAgdG9rZW46IHNldHRpbmdzWyd0b2tlbiddLAogICAgY3VzdG9tVXJsVGVtcGxhdGU6IHNldHRpbmdzWydjdXN0b21VcmxUZW1wbGF0ZSddLAogICk7Cn0pOwoKZmluYWwgcm9vbXNMaXN0UHJvdmlkZXIgPSBTdHJlYW1Qcm92aWRlci5hdXRvRGlzcG9zZTxMaXN0PFJvb20+PigKICAocmVmKSA9PiBkZWJvdW5jZVN0cmVhbSgKICAgIHJlZi53YXRjaChyb29tc1JlcG9Qcm92aWRlcikud2F0Y2hBbGwoKSwKICAgIGNvbnN0IER1cmF0aW9uKG1pbGxpc2Vjb25kczogMTUwKSwKICApLAopOwpmaW5hbCBhdmFpbGFibGVSb29tc1Byb3ZpZGVyID0gU3RyZWFtUHJvdmlkZXIuYXV0b0Rpc3Bvc2UoCiAgKHJlZikgPT4KICAgICAgZGVib3VuY2VTdHJlYW0oCiAgICAgICAgcmVmLndhdGNoKHJvb21zUmVwb1Byb3ZpZGVyKS53YXRjaEFsbCgpLAogICAgICAgIGNvbnN0IER1cmF0aW9uKG1pbGxpc2Vjb25kczogMTUwKSwKICAgICAgKS5tYXAoCiAgICAgICAgKHJvb21zKSA9PiByb29tcwogICAgICAgICAgICAud2hlcmUoKHJvb20pID0+IFN0YXR1c1V0aWxzLmlzUm9vbUF2YWlsYWJsZShyb29tLnN0YXR1cykpCiAgICAgICAgICAgIC50b0xpc3QoKSwKICAgICAgKSwKKTsKCmZpbmFsIGJvb2tpbmdzTGlzdFByb3ZpZGVyID0gU3RyZWFtUHJvdmlkZXIuYXV0b0Rpc3Bvc2U8TGlzdDxCb29raW5nPj4oCiAgKHJlZikgPT4gZGVib3VuY2VTdHJlYW0oCiAgICByZWYud2F0Y2goYm9va2luZ3NSZXBvUHJvdmlkZXIpLndhdGNoKCksCiAgICBjb25zdCBEdXJhdGlvbihtaWxsaXNlY29uZHM6IDE1MCksCiAgKSwKKTsKZmluYWwgYWN0aXZlTm90ZXNQcm92aWRlciA9IEZ1dHVyZVByb3ZpZGVyLmF1dG9EaXNwb3NlKAogIChyZWYpID0+IHJlZi53YXRjaChub3Rlc1JlcG9Qcm92aWRlcikubGlzdEFsbEFjdGl2ZSgpLAopOwoKLy8gU2ltcGxlIE5vdGVzIFByb3ZpZGVycwpmaW5hbCBzaW1wbGVOb3Rlc0xpc3RQcm92aWRlciA9IFN0cmVhbVByb3ZpZGVyLmF1dG9EaXNwb3NlKAogIChyZWYpID0+IGRlYm91bmNlU3RyZWFtKAogICAgcmVmLndhdGNoKHNpbXBsZU5vdGVzUmVwb1Byb3ZpZGVyKS53YXRjaEFsbE5vdGVzKCksCiAgICBjb25zdCBEdXJhdGlvbihtaWxsaXNlY29uZHM6IDE1MCksCiAgKSwKKTsKZmluYWwgc2ltcGxlTm90ZXNVbnJlYWRDb3VudFByb3ZpZGVyID0gU3RyZWFtUHJvdmlkZXIuYXV0b0Rpc3Bvc2UoCiAgKHJlZikgPT4gZGVib3VuY2VTdHJlYW0oCiAgICByZWYud2F0Y2goc2ltcGxlTm90ZXNSZXBvUHJvdmlkZXIpLndhdGNoVW5yZWFkQ291bnQoKSwKICAgIGNvbnN0IER1cmF0aW9uKG1pbGxpc2Vjb25kczogMTUwKSwKICApLAopOwpmaW5hbCBhbGxTaW1wbGVOb3Rlc1Byb3ZpZGVyID0gRnV0dXJlUHJvdmlkZXIuYXV0b0Rpc3Bvc2UoCiAgKHJlZikgPT4gcmVmLndhdGNoKHNpbXBsZU5vdGVzUmVwb1Byb3ZpZGVyKS5nZXRBbGxOb3RlcygpLAopOwpmaW5hbCB1bnJlYWRTaW1wbGVOb3Rlc1Byb3ZpZGVyID0gRnV0dXJlUHJvdmlkZXIuYXV0b0Rpc3Bvc2UoCiAgKHJlZikgPT4gcmVmLndhdGNoKHNpbXBsZU5vdGVzUmVwb1Byb3ZpZGVyKS5nZXRVbnJlYWROb3RlcygpLAopOwpmaW5hbCBoaWdoUHJpb3JpdHlTaW1wbGVOb3Rlc1Byb3ZpZGVyID0gRnV0dXJlUHJvdmlkZXIuYXV0b0Rpc3Bvc2UoCiAgKHJlZikgPT4gcmVmLndhdGNoKHNpbXBsZU5vdGVzUmVwb1Byb3ZpZGVyKS5nZXRIaWdoUHJpb3JpdHlOb3RlcygpLAopOwoKZmluYWwgZW1wbG95ZWVzTGlzdFByb3ZpZGVyID0gU3RyZWFtUHJvdmlkZXIuYXV0b0Rpc3Bvc2U8TGlzdDxFbXBsb3llZT4+KAogIChyZWYpID0+IGRlYm91bmNlU3RyZWFtKAogICAgcmVmLndhdGNoKGVtcGxveWVlc1JlcG9Qcm92aWRlcikud2F0Y2hBbGwoKSwKICAgIGNvbnN0IER1cmF0aW9uKG1pbGxpc2Vjb25kczogMTUwKSwKICApLAopOwoKZmluYWwgZ3Vlc3RJbmZvTGlzdFByb3ZpZGVyID0gU3RyZWFtUHJvdmlkZXIuYXV0b0Rpc3Bvc2UoCiAgKHJlZikgPT4gZGVib3VuY2VTdHJlYW0oCiAgICByZWYud2F0Y2goZ3Vlc3RJbmZvUmVwb1Byb3ZpZGVyKS53YXRjaEFsbCgpLAogICAgY29uc3QgRHVyYXRpb24obWlsbGlzZWNvbmRzOiAxNTApLAogICksCik7CgpmaW5hbCBleHBlbnNlc0xpc3RQcm92aWRlciA9IFN0cmVhbVByb3ZpZGVyLmF1dG9EaXNwb3NlKAogIChyZWYpID0+IGRlYm91bmNlU3RyZWFtKAogICAgcmVmLndhdGNoKGV4cGVuc2VzUmVwb1Byb3ZpZGVyKS53YXRjaEFsbCgpLAogICAgY29uc3QgRHVyYXRpb24obWlsbGlzZWNvbmRzOiAxNTApLAogICksCik7CgpmaW5hbCBzYWxhcnlXaXRoZHJhd2Fsc0xpc3RQcm92aWRlciA9IEZ1dHVyZVByb3ZpZGVyLmF1dG9EaXNwb3NlKChyZWYpIHsKICByZXR1cm4gcmVmLndhdGNoKHNhbGFyeVdpdGhkcmF3YWxzUmVwb1Byb3ZpZGVyKS5saXN0QWxsKCk7Cn0pOwoKZmluYWwgY2FzaFRyYW5zYWN0aW9uc0xpc3RQcm92aWRlciA9IFN0cmVhbVByb3ZpZGVyLmF1dG9EaXNwb3NlKAogIChyZWYpID0+IGRlYm91bmNlU3RyZWFtKAogICAgcmVmLndhdGNoKGNhc2hSZXBvUHJvdmlkZXIpLndhdGNoQWxsKCksCiAgICBjb25zdCBEdXJhdGlvbihtaWxsaXNlY29uZHM6IDE1MCksCiAgKSwKKTsKCi8vIFVzZXJzIGNvdW50IGJhc2VkIG9uIEF1dGhMb2NhbFN0b3JlIChmaXhlZCBhY2NvdW50cyArIHNhdmVkIHVzZXJzKQpmaW5hbCB1c2Vyc0NvdW50UHJvdmlkZXIgPSBGdXR1cmVQcm92aWRlci5hdXRvRGlzcG9zZTxpbnQ+KChyZWYpIGFzeW5jIHsKICBmaW5hbCBzdG9yZSA9IEF1dGhMb2NhbFN0b3JlKCk7CiAgcmV0dXJuIHN0b3JlLmdldFVzZXJzQ291bnQoKTsKfSk7CgovLyBEYWlseSBTdGF0aXN0aWNzIFByb3ZpZGVycyDigJQg2KrYrdiv2YrYqyDZgdmI2LHZiiDYudio2LEgU3RyZWFtINmF2YYg2YLYp9i52K/YqSDYp9mE2KjZitin2YbYp9iqCmZpbmFsIHRvZGF5UGF5bWVudHNQcm92aWRlciA9IFN0cmVhbVByb3ZpZGVyLmF1dG9EaXNwb3NlPGRvdWJsZT4oKHJlZikgewogIGZpbmFsIHBheW1lbnRzUmVwbyA9IHJlZi53YXRjaChwYXltZW50c1JlcG9Qcm92aWRlcik7CiAgLy8g4pyFINin2LPYqtiu2K/Yp9mFIEhvdGVsVGltZUVuZ2luZSDZhNmE2KrZiNin2YHZgiDZhdi5INin2YTYqNmK2KfZhtin2Kog2KfZhNmF2Y/Yrtiy2YbYqQogIGZpbmFsIGhvdGVsRGF5ID0gSG90ZWxUaW1lRW5naW5lLmdldEhvdGVsRGF5S2V5KCk7CiAgLy8g2KfZhNmB2YTYqtixINi52YTZiSDZhdiz2KrZiNmJINmC2KfYudiv2Kkg2KfZhNio2YrYp9mG2KfYqiDYqNiv2YTYp9mLINmF2YYg2KrYrdmF2YrZhCDZg9mEINin2YTZhdiv2YHZiNi52KfYqgogIHJldHVybiBwYXltZW50c1JlcG8ud2F0Y2hUb3RhbEJ5SG90ZWxEYXlLZXkoaG90ZWxEYXkpOwp9KTsKCmZpbmFsIHRvZGF5RXhwZW5zZXNQcm92aWRlciA9IFN0cmVhbVByb3ZpZGVyLmF1dG9EaXNwb3NlPGRvdWJsZT4oKHJlZikgewogIGZpbmFsIGV4cGVuc2VzUmVwbyA9IHJlZi53YXRjaChleHBlbnNlc1JlcG9Qcm92aWRlcik7CiAgLy8g4pyFINin2LPYqtiu2K/Yp9mFIEhvdGVsVGltZUVuZ2luZSDZhNmE2KrZiNin2YHZgiDZhdi5INin2YTYqNmK2KfZhtin2Kog2KfZhNmF2Y/Yrtiy2YbYqQogIGZpbmFsIGhvdGVsRGF5ID0gSG90ZWxUaW1lRW5naW5lLmdldEhvdGVsRGF5S2V5KCk7CiAgLy8g4pyFIFNRTCBTVU0oKSDYudmE2Ykg2YXYs9iq2YjZiSDZgtin2LnYr9ipINin2YTYqNmK2KfZhtin2Kog2KjYr9mE2KfZiyDZhdmGINiq2K3ZhdmK2YQg2KzZhdmK2Lkg2KfZhNmF2LXYsdmI2YHYp9iqCiAgLy8g2YjYrNmF2LnZh9inINmB2YogRGFydC4g2KPYr9in2KEg2KPZgdi22YQg2KjYtNmD2YQg2YXZhNit2YjYuCDYrtin2LXYqdmLINmF2Lkg2YbZhdmIINin2YTYqNmK2KfZhtin2KouCiAgcmV0dXJuIGV4cGVuc2VzUmVwby53YXRjaFRvdGFsQnlIb3RlbERheUtleShob3RlbERheSk7Cn0pOwoKZmluYWwgdG9kYXlFeHBlbnNlc1N1bW1hcnlQcm92aWRlciA9IEZ1dHVyZVByb3ZpZGVyLmF1dG9EaXNwb3NlKChyZWYpIGFzeW5jIHsKICAvLyDinIUg2KfYs9iq2K7Yr9in2YUgSG90ZWxUaW1lRW5naW5lINmE2YTYqtmI2KfZgdmCINmF2Lkg2KfZhNio2YrYp9mG2KfYqiDYp9mE2YXZj9iu2LLZhtipCiAgZmluYWwgaG90ZWxEYXkgPSBIb3RlbFRpbWVFbmdpbmUuZ2V0SG90ZWxEYXlLZXkoKTsKICBmaW5hbCByZXBvID0gcmVmLndhdGNoKGV4cGVuc2VzUmVwb1Byb3ZpZGVyKTsKICAvLyDinIUg2KfYs9iq2KjYudin2K8g2KfZhNiz2YTZgdipIOKAlCDYqtiz2KjYqCDYqtmD2LHYp9ixINio2YrYp9mG2KfYqgogIGZpbmFsIGV4cGVuc2VzID0gYXdhaXQgcmVwby5saXN0RmlsdGVyZWRCeUhvdGVsRGF5KAogICAgZnJvbUhvdGVsRGF5OiBob3RlbERheSwKICAgIHRvSG90ZWxEYXk6IGhvdGVsRGF5LAogICAgZXhjbHVkZUFkdmFuY2U6IHRydWUsCiAgKTsKICBmaW5hbCB0b3RhbCA9IGV4cGVuc2VzLmZvbGQ8ZG91YmxlPigwLCAoc3VtLCBlKSA9PiBzdW0gKyBlLmFtb3VudCk7CiAgcmV0dXJuIChjb3VudDogZXhwZW5zZXMubGVuZ3RoLCB0b3RhbDogdG90YWwpOwp9KTsKZmluYWwgYm9va2luZ1BheW1lbnRzUHJvdmlkZXIgPSBTdHJlYW1Qcm92aWRlci5mYW1pbHkKICAgIC5hdXRvRGlzcG9zZTxMaXN0PFBheW1lbnQ+LCBpbnQ+KChyZWYsIGJvb2tpbmdJZCkgewogICAgICBmaW5hbCBwYXltZW50c1JlcG8gPSByZWYud2F0Y2gocGF5bWVudHNSZXBvUHJvdmlkZXIpOwogICAgICByZXR1cm4gZGVib3VuY2VTdHJlYW0oCiAgICAgICAgcGF5bWVudHNSZXBvLnBheW1lbnRzQnlCb29raW5nKGJvb2tpbmdJZCksCiAgICAgICAgY29uc3QgRHVyYXRpb24obWlsbGlzZWNvbmRzOiAxNTApLAogICAgICApOwogICAgfSk7CgovLy8g2KXYrNmF2KfZhNmKINin2YTZhdiv2YHZiNi5INmE2K3YrNiyINmF2K3Yr9ivINi52KjYsSBTUUwgU1VNKCkg4oCUINio2K/ZitmEINiu2YHZitmBINin2YTZiNiy2YYg2YTZgCBbYm9va2luZ1BheW1lbnRzUHJvdmlkZXJdCi8vLyDYudmG2K/ZhdinINmK2K3Yqtin2Kwg2KfZhNmF2LPYqtmH2YTZgyDZgdmC2Lcg2YTZhNmF2KzZhdmI2LkgKNmF2KvZhCDYqNi32KfZgtipINin2YTYrdis2LIg2YHZiiDYp9mE2YLYp9im2YXYqSkuINmK2KrYrNmG2Kgg2KrYrdmF2YrZhAovLy8g2KzZhdmK2Lkg2LXZgdmI2YEg2KfZhNmF2K/ZgdmI2LnYp9iqICgzOCDYudmF2YjYryDZhNmD2YQg2LXZgSkg2YjZgdmDINiq2LTZgdmK2LHZh9inINmB2YLYtyDZhNis2YXYuSBgYW1vdW50YC4KLy8vINin2LPYqtiu2K/ZhSBbYm9va2luZ1BheW1lbnRzUHJvdmlkZXJdINil2LDYpyDZg9mG2Kog2KrYrdiq2KfYrCDZhNiq2YHYp9i12YrZhCDZg9mEINiv2YHYudipLgpmaW5hbCBib29raW5nUGFpZEFtb3VudFByb3ZpZGVyID0gU3RyZWFtUHJvdmlkZXIuZmFtaWx5CiAgICAuYXV0b0Rpc3Bvc2U8ZG91YmxlLCBpbnQ+KChyZWYsIGJvb2tpbmdJZCkgewogICAgICBmaW5hbCBwYXltZW50c1JlcG8gPSByZWYud2F0Y2gocGF5bWVudHNSZXBvUHJvdmlkZXIpOwogICAgICByZXR1cm4gcGF5bWVudHNSZXBvLndhdGNoVG90YWxQYWlkRm9yQm9va2luZyhib29raW5nSWQpOwogICAgfSk7CgpmaW5hbCBkZWJ0c0xpc3RQcm92aWRlciA9IFN0cmVhbVByb3ZpZGVyLmF1dG9EaXNwb3NlKAogIChyZWYpID0+IGRlYm91bmNlU3RyZWFtKAogICAgcmVmLndhdGNoKGRlYnRzUmVwb1Byb3ZpZGVyKS53YXRjaEFsbCgpLAogICAgY29uc3QgRHVyYXRpb24obWlsbGlzZWNvbmRzOiAxNTApLAogICksCik7CmZpbmFsIHBlbmRpbmdEZWJ0c1Byb3ZpZGVyID0gUHJvdmlkZXIuYXV0b0Rpc3Bvc2U8TGlzdDxEZWJ0Pj4oKHJlZikgewogIGZpbmFsIGFsbERlYnRzID0gcmVmLndhdGNoKGRlYnRzTGlzdFByb3ZpZGVyKS52YWx1ZU9yTnVsbCA/PyBbXTsKICByZXR1cm4gYWxsRGVidHMKICAgICAgLndoZXJlKChkZWJ0KSA9PiBkZWJ0LmlzU2V0dGxlZCA9PSAwICYmIGRlYnQucmVtYWluaW5nQW1vdW50ID4gMCkKICAgICAgLnRvTGlzdCgpOwp9KTsKZmluYWwgc2V0dGxlZERlYnRzUHJvdmlkZXIgPSBQcm92aWRlci5hdXRvRGlzcG9zZTxMaXN0PERlYnQ+PigocmVmKSB7CiAgZmluYWwgYWxsRGVidHMgPSByZWYud2F0Y2goZGVidHNMaXN0UHJvdmlkZXIpLnZhbHVlT3JOdWxsID8/IFtdOwogIHJldHVybiBhbGxEZWJ0cwogICAgICAud2hlcmUoKGRlYnQpID0+IGRlYnQuaXNTZXR0bGVkID09IDEgfHwgZGVidC5yZW1haW5pbmdBbW91bnQgPD0gMCkKICAgICAgLnRvTGlzdCgpOwp9KTsKCi8vINiv2KfZhNipINmE2YTYrdi12YjZhCDYudmE2YkgRGF0YWJhc2UgaW5zdGFuY2UgKHNpbmdsZXRvbikKQXBwRGF0YWJhc2UgZ2V0RGF0YWJhc2UoKSA9PiBEYXRhYmFzZU1hbmFnZXIuaW5zdGFuY2U7CgovLyDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZAKLy8gUHJvdmlkZXJzINmE2YAgQm9va2luZ1BheW1lbnRTY3JlZW4g4oCUINio2K/ZitmEIFJpdmVycG9kINmE2YTZgCBTdHJlYW1CdWlsZGVycwovLyDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZAKLy8g2YLYqNmEINin2YTYpdi12YTYp9itOiDZg9in2YbYqiDYp9mE2LTYp9i02Kkg2KrYs9iq2K7Yr9mFIDUgU3RyZWFtQnVpbGRlcnMg2YXYqtiv2KfYrtmE2KkgKHB5cmFtaWQgb2YgZG9vbSk6Ci8vICAgU3RyZWFtQnVpbGRlcjxCb29raW5nPz4g4oaSIFN0cmVhbUJ1aWxkZXI8Um9vbT8+IOKGkiBTdHJlYW1CdWlsZGVyPC4uLkFkanVzdG1lbnQ+Ci8vICAgICDihpIgU3RyZWFtQnVpbGRlcjwuLi5OaWdodD4g4oaSIFN0cmVhbUJ1aWxkZXI8Li4uUGF5bWVudD4KLy8g2YPZhCBzdHJlYW0g2YrZj9i52YrYryDYqNmG2KfYoSDZg9mEINin2YTZgCBjaGlsZHJlbiDYudmG2K8g2KPZiiDYqti62YrZitixIOKGkiDYo9iv2KfYoSDYs9mK2KEuCi8vCi8vINio2LnYryDYp9mE2KXYtdmE2KfYrTog2YPZhCBzdHJlYW0g2YrZj9iv2KfYsSDYudio2LEgUml2ZXJwb2QgcHJvdmlkZXIg2YXYs9iq2YLZhC4g2KfZhNi02KfYtNipINiq2LPYqtiu2K/ZhQovLyByZWYud2F0Y2gg2YTZgtix2KfYodipIEFzeW5jVmFsdWUg2YTZg9mEIHByb3ZpZGVyINio2LTZg9mEINmF2LPYt9itIChmbGF0KSDigJQg2YTYpyDYqtiv2KfYrtmELgoKLy8vINio2YrYp9mG2KfYqiDYp9mE2K3YrNiyINin2YTZhdio2KfYtNix2KkgKNio2K/ZitmEIFN0cmVhbUJ1aWxkZXI8Qm9va2luZz8+KS4KZmluYWwgbGl2ZUJvb2tpbmdQcm92aWRlciA9IFN0cmVhbVByb3ZpZGVyLmF1dG9EaXNwb3NlLmZhbWlseTxCb29raW5nPywgaW50PigoCiAgcmVmLAogIGJvb2tpbmdJZCwKKSB7CiAgZmluYWwgcmVwbyA9IHJlZi53YXRjaChib29raW5nc1JlcG9Qcm92aWRlcik7CiAgcmV0dXJuIHJlcG8ud2F0Y2hPbmUoYm9va2luZ0lkKTsKfSk7CgovLy8g2KjZitin2YbYp9iqINin2YTYutix2YHYqSDYqNin2YTYsdmC2YUgKNio2K/ZitmEIFN0cmVhbUJ1aWxkZXI8Um9vbT8+KS4KZmluYWwgbGl2ZVJvb21CeU51bWJlclByb3ZpZGVyID0gU3RyZWFtUHJvdmlkZXIuYXV0b0Rpc3Bvc2UKICAgIC5mYW1pbHk8Um9vbT8sIFN0cmluZz4oKHJlZiwgcm9vbU51bWJlcikgewogICAgICBmaW5hbCByZXBvID0gcmVmLndhdGNoKHJvb21zUmVwb1Byb3ZpZGVyKTsKICAgICAgcmV0dXJuIHJlcG8ud2F0Y2hCeU51bWJlcihyb29tTnVtYmVyKTsKICAgIH0pOwoKLy8vINiq2LnYr9mK2YTYp9iqINin2YTYo9iz2LnYp9ixINin2YTZhti02LfYqSDZhNit2KzYsiDZhdit2K/YryAo2KjYr9mK2YQgU3RyZWFtQnVpbGRlcjxMaXN0PEJvb2tpbmdQcmljZUFkanVzdG1lbnQ+PikuCmZpbmFsIGJvb2tpbmdQcmljZUFkanVzdG1lbnRzUHJvdmlkZXIgPSBTdHJlYW1Qcm92aWRlci5hdXRvRGlzcG9zZQogICAgLmZhbWlseTxMaXN0PEJvb2tpbmdQcmljZUFkanVzdG1lbnQ+LCBpbnQ+KChyZWYsIGJvb2tpbmdJZCkgewogICAgICBmaW5hbCBkYiA9IHJlZi53YXRjaChkYXRhYmFzZVByb3ZpZGVyKTsKICAgICAgcmV0dXJuIChkYi5zZWxlY3QoZGIuYm9va2luZ1ByaWNlQWRqdXN0bWVudHMpCiAgICAgICAgICAgIC4ud2hlcmUoKGEpID0+IGEuYm9va2luZ0xvY2FsSWQuZXF1YWxzKGJvb2tpbmdJZCkpCiAgICAgICAgICAgIC4ud2hlcmUoKGEpID0+IGEuaXNBY3RpdmUuZXF1YWxzKHRydWUpKQogICAgICAgICAgICAuLndoZXJlKChhKSA9PiBhLmRlbGV0ZWRBdC5pc051bGwoKSkpCiAgICAgICAgICAud2F0Y2goKTsKICAgIH0pOwoKLy8vINmE2YrYp9mE2Yog2KfZhNit2KzYsiAo2KjYr9mK2YQgU3RyZWFtQnVpbGRlcjxMaXN0PEJvb2tpbmdOaWdodD4+KS4KZmluYWwgYm9va2luZ05pZ2h0c1Byb3ZpZGVyID0gU3RyZWFtUHJvdmlkZXIuYXV0b0Rpc3Bvc2UKICAgIC5mYW1pbHk8TGlzdDxCb29raW5nTmlnaHQ+LCBpbnQ+KChyZWYsIGJvb2tpbmdJZCkgewogICAgICBmaW5hbCBkYiA9IHJlZi53YXRjaChkYXRhYmFzZVByb3ZpZGVyKTsKICAgICAgcmV0dXJuIChkYi5zZWxlY3QoZGIuYm9va2luZ05pZ2h0cykKICAgICAgICAgICAgLi53aGVyZSgobikgPT4gbi5ib29raW5nTG9jYWxJZC5lcXVhbHMoYm9va2luZ0lkKSkKICAgICAgICAgICAgLi53aGVyZSgobikgPT4gbi5kZWxldGVkQXQuaXNOdWxsKCkpKQogICAgICAgICAgLndhdGNoKCk7CiAgICB9KTsKCi8vLyDZhdiv2YHZiNi52KfYqiDYp9mE2K3YrNiyICjYqNiv2YrZhCBTdHJlYW1CdWlsZGVyPExpc3Q8UGF5bWVudD4+KS4KLy8vINmF2YTYp9it2LjYqTogYm9va2luZ1BheW1lbnRzUHJvdmlkZXIg2YXZiNis2YjYryDYqNin2YTZgdi52YQgKGxpbmUgMjIwKSDZhNmD2YbZhyDZitiz2KrYrtiv2YUKLy8vIGRlYm91bmNlU3RyZWFtLiDZh9iw2Kcg2KfZhNmAIHByb3ZpZGVyINio2K/ZitmEINmF2KjYp9i02LEg2KjYr9mI2YYgZGVib3VuY2UuCmZpbmFsIGJvb2tpbmdQYXltZW50c0RpcmVjdFByb3ZpZGVyID0gU3RyZWFtUHJvdmlkZXIuYXV0b0Rpc3Bvc2UKICAgIC5mYW1pbHk8TGlzdDxQYXltZW50PiwgaW50PigocmVmLCBib29raW5nSWQpIHsKICAgICAgZmluYWwgcmVwbyA9IHJlZi53YXRjaChwYXltZW50c1JlcG9Qcm92aWRlcik7CiAgICAgIHJldHVybiByZXBvLnBheW1lbnRzQnlCb29raW5nKGJvb2tpbmdJZCk7CiAgICB9KTsK
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../services/adapters/adapter_registry.dart';
+import '../services/auth_local_store.dart';
+import '../services/daos/bookings_dao.dart';
+import '../services/daos/debts_dao.dart';
+import '../services/daos/employees_dao.dart';
+import '../services/daos/expenses_dao.dart';
+import '../services/daos/outbox_dao.dart';
+import '../services/daos/payments_dao.dart';
+import '../services/diagnostics/diagnostics_logger.dart';
+import '../services/local_db.dart';
+import '../services/repositories/blacklist_repository.dart';
+import '../services/repositories/bookings_repository.dart';
+import '../services/repositories/cash_repository.dart';
+import '../services/repositories/debts_repository.dart';
+import '../services/repositories/employees_repository.dart';
+import '../services/repositories/expenses_repository.dart';
+import '../services/repositories/guest_infos_repository.dart';
+import '../services/repositories/notes_repository.dart';
+import '../services/repositories/payments_repository.dart';
+import '../services/repositories/rooms_repository.dart';
+import '../services/repositories/salary_withdrawals_repository.dart';
+import '../services/repositories/shift_notes_repository.dart';
+import '../services/repositories/simple_notes_repository.dart';
+import '../services/salary_advance_installments_service.dart';
+import '../services/sync_guardian.dart';
+import '../services/whatsapp_service.dart';
+import '../utils/env.dart';
+import '../utils/hotel_time_engine.dart';
+import '../utils/status_utils.dart';
+import '../utils/stream_helpers.dart';
+
+// إضافة Auto Backup Providers
+export '../providers/auto_backup_provider.dart';
+// إضافة Backup Providers
+export '../providers/backup_provider.dart';
+// إضافة Smart Sync Providers
+export '../providers/smart_sync_provider.dart';
+
+final syncGuardianProvider = Provider<SyncGuardian>(
+  (ref) => SyncGuardian.instance,
+);
+final syncHealthProvider = StreamProvider<SyncHealthSnapshot>(
+  (ref) => ref.watch(syncGuardianProvider).watchHealth(),
+);
+
+final diagnosticsLoggerProvider = ChangeNotifierProvider<DiagnosticsLogger>(
+  (ref) => DiagnosticsLogger.instance,
+);
+
+final databaseProvider = Provider<AppDatabase>(
+  (ref) => DatabaseManager.instance,
+);
+final adapterRegistryProvider = Provider<AdapterRegistry>(
+  (ref) => AdapterRegistry.instance,
+);
+
+final outboxDaoProvider = Provider<OutboxDao>(
+  (ref) =>
+      OutboxDao(ref.read(databaseProvider), ref.read(adapterRegistryProvider)),
+);
+final bookingsDaoProvider = Provider<BookingsDao>(
+  (ref) => BookingsDao(
+    ref.read(databaseProvider),
+    ref.read(outboxDaoProvider),
+    ref.read(adapterRegistryProvider),
+  ),
+);
+final paymentsDaoProvider = Provider<PaymentsDao>(
+  (ref) => PaymentsDao(
+    ref.read(databaseProvider),
+    ref.read(outboxDaoProvider),
+    ref.read(adapterRegistryProvider),
+  ),
+);
+final expensesDaoProvider = Provider<ExpensesDao>(
+  (ref) => ExpensesDao(
+    ref.read(databaseProvider),
+    ref.read(outboxDaoProvider),
+    ref.read(adapterRegistryProvider),
+  ),
+);
+final debtsDaoProvider = Provider<DebtsDao>(
+  (ref) => DebtsDao(
+    ref.read(databaseProvider),
+    ref.read(outboxDaoProvider),
+    ref.read(adapterRegistryProvider),
+  ),
+);
+final employeesDaoProvider = Provider<EmployeesDao>(
+  (ref) => EmployeesDao(
+    ref.read(databaseProvider),
+    ref.read(outboxDaoProvider),
+    ref.read(adapterRegistryProvider),
+  ),
+);
+
+final roomsRepoProvider = Provider<RoomsRepository>(
+  (ref) => RoomsRepository(ref.read(databaseProvider)),
+);
+final bookingsRepoProvider = Provider<BookingsRepository>(
+  (ref) => BookingsRepository(ref.read(databaseProvider)),
+);
+final employeesRepoProvider = Provider<EmployeesRepository>(
+  (ref) => EmployeesRepository(ref.read(databaseProvider)),
+);
+final guestInfoRepoProvider = Provider<GuestInfosRepository>(
+  (ref) => GuestInfosRepository(ref.read(databaseProvider)),
+);
+final expensesRepoProvider = Provider<ExpensesRepository>(
+  (ref) => ExpensesRepository(ref.read(databaseProvider)),
+);
+final cashRepoProvider = Provider<CashRepository>(
+  (ref) => CashRepository(ref.read(databaseProvider)),
+);
+final paymentsRepoProvider = Provider<PaymentsRepository>(
+  (ref) => PaymentsRepository(ref.read(databaseProvider)),
+);
+final debtsRepoProvider = Provider<DebtsRepository>(
+  (ref) => DebtsRepository(ref.read(databaseProvider)),
+);
+final notesRepoProvider = Provider<NotesRepository>(
+  (ref) => NotesRepository(ref.read(databaseProvider)),
+);
+final salaryWithdrawalsRepoProvider = Provider<SalaryWithdrawalsRepository>(
+  (ref) => SalaryWithdrawalsRepository(ref.read(databaseProvider)),
+);
+final salaryAdvanceInstallmentsServiceProvider =
+    Provider<SalaryAdvanceInstallmentsService>(
+      (ref) => SalaryAdvanceInstallmentsService(
+        ref.read(databaseProvider),
+        ref.read(expensesRepoProvider),
+        ref.read(salaryWithdrawalsRepoProvider),
+      ),
+    );
+final simpleNotesRepoProvider = Provider<SimpleNotesRepository>(
+  (ref) => SimpleNotesRepository(ref.read(databaseProvider)),
+);
+final shiftNotesRepoProvider = Provider<ShiftNotesRepository>(
+  (ref) => ShiftNotesRepository(ref.read(databaseProvider)),
+);
+final blacklistRepoProvider = Provider<BlacklistRepository>(
+  (ref) => BlacklistRepository(ref.read(databaseProvider)),
+);
+final whatsappSettingsProvider = FutureProvider<Map<String, String>>((
+  ref,
+) async {
+  final prefs = await SharedPreferences.getInstance();
+  return {
+    'apiType': prefs.getString('wa_api_type') ?? 'custom',
+    'baseUrl':
+        prefs.getString('wa_api_base_url') ?? 'https://7103.api.greenapi.com',
+    'instanceId':
+        prefs.getString('wa_api_instance_id') ?? Env.whatsappInstanceId,
+    'token': prefs.getString('wa_api_token') ?? Env.whatsappApiToken,
+    'customUrlTemplate': prefs.getString('wa_custom_url_template') ?? '',
+  };
+});
+
+WhatsAppApiType _parseApiType(String? type) {
+  switch (type) {
+    case 'custom':
+      return WhatsAppApiType.custom;
+    default:
+      return WhatsAppApiType.custom;
+  }
+}
+
+final whatsappServiceProvider = Provider<WhatsAppService>((ref) {
+  final settingsAsync = ref.watch(whatsappSettingsProvider);
+  final settings =
+      settingsAsync.valueOrNull ??
+      const {
+        'apiType': 'custom',
+        'baseUrl': 'https://7103.api.greenapi.com',
+        'instanceId': Env.whatsappInstanceId,
+        'token': Env.whatsappApiToken,
+        'customUrlTemplate': '',
+      };
+  return WhatsAppService(
+    apiType: _parseApiType(settings['apiType']),
+    baseUrl: settings['baseUrl'],
+    instanceId: settings['instanceId'],
+    token: settings['token'],
+    customUrlTemplate: settings['customUrlTemplate'],
+  );
+});
+
+final roomsListProvider = StreamProvider.autoDispose<List<Room>>(
+  (ref) => debounceStream(
+    ref.watch(roomsRepoProvider).watchAll(),
+    const Duration(milliseconds: 150),
+  ),
+);
+final availableRoomsProvider = StreamProvider.autoDispose(
+  (ref) =>
+      debounceStream(
+        ref.watch(roomsRepoProvider).watchAll(),
+        const Duration(milliseconds: 150),
+      ).map(
+        (rooms) => rooms
+            .where((room) => StatusUtils.isRoomAvailable(room.status))
+            .toList(),
+      ),
+);
+
+final bookingsListProvider = StreamProvider.autoDispose<List<Booking>>(
+  (ref) => debounceStream(
+    ref.watch(bookingsRepoProvider).watch(),
+    const Duration(milliseconds: 150),
+  ),
+);
+final activeNotesProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(notesRepoProvider).listAllActive(),
+);
+
+// Simple Notes Providers
+final simpleNotesListProvider = StreamProvider.autoDispose(
+  (ref) => debounceStream(
+    ref.watch(simpleNotesRepoProvider).watchAllNotes(),
+    const Duration(milliseconds: 150),
+  ),
+);
+final simpleNotesUnreadCountProvider = StreamProvider.autoDispose(
+  (ref) => debounceStream(
+    ref.watch(simpleNotesRepoProvider).watchUnreadCount(),
+    const Duration(milliseconds: 150),
+  ),
+);
+final allSimpleNotesProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(simpleNotesRepoProvider).getAllNotes(),
+);
+final unreadSimpleNotesProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(simpleNotesRepoProvider).getUnreadNotes(),
+);
+final highPrioritySimpleNotesProvider = FutureProvider.autoDispose(
+  (ref) => ref.watch(simpleNotesRepoProvider).getHighPriorityNotes(),
+);
+
+final employeesListProvider = StreamProvider.autoDispose<List<Employee>>(
+  (ref) => debounceStream(
+    ref.watch(employeesRepoProvider).watchAll(),
+    const Duration(milliseconds: 150),
+  ),
+);
+
+final guestInfoListProvider = StreamProvider.autoDispose(
+  (ref) => debounceStream(
+    ref.watch(guestInfoRepoProvider).watchAll(),
+    const Duration(milliseconds: 150),
+  ),
+);
+
+final expensesListProvider = StreamProvider.autoDispose(
+  (ref) => debounceStream(
+    ref.watch(expensesRepoProvider).watchAll(),
+    const Duration(milliseconds: 150),
+  ),
+);
+
+final salaryWithdrawalsListProvider = FutureProvider.autoDispose((ref) {
+  return ref.watch(salaryWithdrawalsRepoProvider).listAll();
+});
+
+final cashTransactionsListProvider = StreamProvider.autoDispose(
+  (ref) => debounceStream(
+    ref.watch(cashRepoProvider).watchAll(),
+    const Duration(milliseconds: 150),
+  ),
+);
+
+// Users count based on AuthLocalStore (fixed accounts + saved users)
+final usersCountProvider = FutureProvider.autoDispose<int>((ref) async {
+  final store = AuthLocalStore();
+  return store.getUsersCount();
+});
+
+// Daily Statistics Providers — تحديث فوري عبر Stream من قاعدة البيانات
+final todayPaymentsProvider = StreamProvider.autoDispose<double>((ref) {
+  final paymentsRepo = ref.watch(paymentsRepoProvider);
+  // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
+  final hotelDay = HotelTimeEngine.getHotelDayKey();
+  // الفلتر على مستوى قاعدة البيانات بدلاً من تحميل كل المدفوعات
+  return paymentsRepo.watchTotalByHotelDayKey(hotelDay);
+});
+
+final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {
+  final expensesRepo = ref.watch(expensesRepoProvider);
+  // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
+  final hotelDay = HotelTimeEngine.getHotelDayKey();
+  // ✅ SQL SUM() على مستوى قاعدة البيانات بدلاً من تحميل جميع المصروفات
+  // وجمعها في Dart. أداء أفضل بشكل ملحوظ خاصةً مع نمو البيانات.
+  return expensesRepo.watchTotalByHotelDayKey(hotelDay);
+});
+
+final todayExpensesSummaryProvider = FutureProvider.autoDispose((ref) async {
+  // ✅ استخدام HotelTimeEngine للتوافق مع البيانات المُخزنة
+  final hotelDay = HotelTimeEngine.getHotelDayKey();
+  final repo = ref.watch(expensesRepoProvider);
+  // ✅ استبعاد السلفة — تسبب تكرار بيانات
+  final expenses = await repo.listFilteredByHotelDay(
+    fromHotelDay: hotelDay,
+    toHotelDay: hotelDay,
+    excludeAdvance: true,
+  );
+  final total = expenses.fold<double>(0, (sum, e) => sum + e.amount);
+  return (count: expenses.length, total: total);
+});
+final bookingPaymentsProvider = StreamProvider.family
+    .autoDispose<List<Payment>, int>((ref, bookingId) {
+      final paymentsRepo = ref.watch(paymentsRepoProvider);
+      return debounceStream(
+        paymentsRepo.paymentsByBooking(bookingId),
+        const Duration(milliseconds: 150),
+      );
+    });
+
+/// إجمالي المدفوع لحجز محدد عبر SQL SUM() — بديل خفيف الوزن لـ [bookingPaymentsProvider]
+/// عندما يحتاج المستهلك فقط للمجموع (مثل بطاقة الحجز في القائمة). يتجنب تحميل
+/// جميع صفوف المدفوعات (38 عمود لكل صف) وفك تشفيرها فقط لجمع `amount`.
+/// استخدم [bookingPaymentsProvider] إذا كنت تحتاج لتفاصيل كل دفعة.
+final bookingPaidAmountProvider = StreamProvider.family
+    .autoDispose<double, int>((ref, bookingId) {
+      final paymentsRepo = ref.watch(paymentsRepoProvider);
+      return paymentsRepo.watchTotalPaidForBooking(bookingId);
+    });
+
+final debtsListProvider = StreamProvider.autoDispose(
+  (ref) => debounceStream(
+    ref.watch(debtsRepoProvider).watchAll(),
+    const Duration(milliseconds: 150),
+  ),
+);
+final pendingDebtsProvider = Provider.autoDispose<List<Debt>>((ref) {
+  final allDebts = ref.watch(debtsListProvider).valueOrNull ?? [];
+  return allDebts
+      .where((debt) => debt.isSettled == 0 && debt.remainingAmount > 0)
+      .toList();
+});
+final settledDebtsProvider = Provider.autoDispose<List<Debt>>((ref) {
+  final allDebts = ref.watch(debtsListProvider).valueOrNull ?? [];
+  return allDebts
+      .where((debt) => debt.isSettled == 1 || debt.remainingAmount <= 0)
+      .toList();
+});
+
+// دالة للحصول على Database instance (singleton)
+AppDatabase getDatabase() => DatabaseManager.instance;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Providers لـ BookingPaymentScreen — بديل Riverpod للـ StreamBuilders
+// ═══════════════════════════════════════════════════════════════════════════
+// قبل الإصلاح: كانت الشاشة تستخدم 5 StreamBuilders متداخلة (pyramid of doom):
+//   StreamBuilder<Booking?> → StreamBuilder<Room?> → StreamBuilder<...Adjustment>
+//     → StreamBuilder<...Night> → StreamBuilder<...Payment>
+// كل stream يُعيد بناء كل الـ children عند أي تغيير → أداء سيء.
+//
+// بعد الإصلاح: كل stream يُدار عبر Riverpod provider مستقل. الشاشة تستخدم
+// ref.watch لقراءة AsyncValue لكل provider بشكل مسطح (flat) — لا تداخل.
+
+/// بيانات الحجز المباشرة (بديل StreamBuilder<Booking?>).
+final liveBookingProvider = StreamProvider.autoDispose.family<Booking?, int>((
+  ref,
+  bookingId,
+) {
+  final repo = ref.watch(bookingsRepoProvider);
+  return repo.watchOne(bookingId);
+});
+
+/// بيانات الغرفة بالرقم (بديل StreamBuilder<Room?>).
+final liveRoomByNumberProvider = StreamProvider.autoDispose
+    .family<Room?, String>((ref, roomNumber) {
+      final repo = ref.watch(roomsRepoProvider);
+      return repo.watchByNumber(roomNumber);
+    });
+
+/// تعديلات الأسعار النشطة لحجز محدد (بديل StreamBuilder<List<BookingPriceAdjustment>>).
+final bookingPriceAdjustmentsProvider = StreamProvider.autoDispose
+    .family<List<BookingPriceAdjustment>, int>((ref, bookingId) {
+      final db = ref.watch(databaseProvider);
+      return (db.select(db.bookingPriceAdjustments)
+            ..where((a) => a.bookingLocalId.equals(bookingId))
+            ..where((a) => a.isActive.equals(true))
+            ..where((a) => a.deletedAt.isNull()))
+          .watch();
+    });
+
+/// ليالي الحجز (بديل StreamBuilder<List<BookingNight>>).
+final bookingNightsProvider = StreamProvider.autoDispose
+    .family<List<BookingNight>, int>((ref, bookingId) {
+      final db = ref.watch(databaseProvider);
+      return (db.select(db.bookingNights)
+            ..where((n) => n.bookingLocalId.equals(bookingId))
+            ..where((n) => n.deletedAt.isNull()))
+          .watch();
+    });
+
+/// مدفوعات الحجز (بديل StreamBuilder<List<Payment>>).
+/// ملاحظة: bookingPaymentsProvider موجود بالفعل (line 220) لكنه يستخدم
+/// debounceStream. هذا الـ provider بديل مباشر بدون debounce.
+final bookingPaymentsDirectProvider = StreamProvider.autoDispose
+    .family<List<Payment>, int>((ref, bookingId) {
+      final repo = ref.watch(paymentsRepoProvider);
+      return repo.paymentsByBooking(bookingId);
+    });
