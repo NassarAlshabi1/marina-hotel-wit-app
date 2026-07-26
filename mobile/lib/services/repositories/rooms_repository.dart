@@ -18,9 +18,11 @@ class RoomsRepository {
   late final OutboxDao outbox;
   late final RoomsDao dao;
 
-  Stream<List<Room>> watchAll({String? search}) => dao.watchList(search: search);
+  Stream<List<Room>> watchAll({String? search}) =>
+      dao.watchList(search: search);
   Stream<Room?> watchRoom(String roomNumber) => dao.watchByNumber(roomNumber);
-  Stream<Room?> watchByNumber(String roomNumber) => dao.watchByNumber(roomNumber);
+  Stream<Room?> watchByNumber(String roomNumber) =>
+      dao.watchByNumber(roomNumber);
 
   Future<String> create({
     required String roomNumber,
@@ -39,7 +41,13 @@ class RoomsRepository {
           imageUrl: d.Value(imageUrl),
         ),
       );
-      unawaited(AutoBackupManager.instance.onDataChange('rooms', 'INSERT', recordData: {'room_number': roomNumber}));
+      unawaited(
+        AutoBackupManager.instance.onDataChange(
+          'rooms',
+          'INSERT',
+          recordData: {'room_number': roomNumber},
+        ),
+      );
       return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
@@ -54,7 +62,13 @@ class RoomsRepository {
     }
   }
 
-  Future<int> update(int id, {String? type, double? price, String? status, String? imageUrl}) async {
+  Future<int> update(
+    int id, {
+    String? type,
+    double? price,
+    String? status,
+    String? imageUrl,
+  }) async {
     try {
       final result = await dao.updateById(
         id,
@@ -62,11 +76,19 @@ class RoomsRepository {
           type: type != null ? d.Value(type) : const d.Value.absent(),
           price: price != null ? d.Value(price) : const d.Value.absent(),
           status: status != null ? d.Value(status) : const d.Value.absent(),
-          imageUrl: imageUrl != null ? d.Value(imageUrl) : const d.Value.absent(),
+          imageUrl: imageUrl != null
+              ? d.Value(imageUrl)
+              : const d.Value.absent(),
         ),
       );
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange('rooms', 'UPDATE', recordData: {'id': id}));
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
+            'rooms',
+            'UPDATE',
+            recordData: {'id': id},
+          ),
+        );
       }
       return result;
     } catch (e, stack) {
@@ -96,12 +118,20 @@ class RoomsRepository {
           type: type != null ? d.Value(type) : const d.Value.absent(),
           price: price != null ? d.Value(price) : const d.Value.absent(),
           status: status != null ? d.Value(status) : const d.Value.absent(),
-          imageUrl: imageUrl != null ? d.Value(imageUrl) : const d.Value.absent(),
+          imageUrl: imageUrl != null
+              ? d.Value(imageUrl)
+              : const d.Value.absent(),
         ),
         originIsServer: originIsServer,
       );
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange('rooms', 'UPDATE', recordData: {'room_number': roomNumber}));
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
+            'rooms',
+            'UPDATE',
+            recordData: {'room_number': roomNumber},
+          ),
+        );
       }
       return result;
     } catch (e, stack) {
@@ -134,7 +164,13 @@ class RoomsRepository {
       }
       final result = await dao.softDelete(roomNumber);
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange('rooms', 'DELETE', recordData: {'room_number': roomNumber}));
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
+            'rooms',
+            'DELETE',
+            recordData: {'room_number': roomNumber},
+          ),
+        );
       }
       return result;
     } catch (e, stack) {
@@ -166,7 +202,9 @@ class RoomsRepository {
   /// استيراد بيانات الغرف
   Future<void> importData(Map<String, dynamic> data) async {
     if (data.containsKey('data') && data['data'] is List) {
-      await dao.importFromJson(List<Map<String, dynamic>>.from(data['data'] as List));
+      await dao.importFromJson(
+        List<Map<String, dynamic>>.from(data['data'] as List),
+      );
     }
   }
 
@@ -185,11 +223,18 @@ class RoomsRepository {
     // استعلام roomNumber فقط بدلاً من صفوف كاملة لتقليل استهلاك الذاكرة
     final occupiedRoomsQuery = db.selectOnly(db.bookings)
       ..addColumns([db.bookings.roomNumber])
-      ..where(db.bookings.deletedAt.isNull() & db.bookings.status.isIn(activeStatuses));
+      ..where(
+        db.bookings.deletedAt.isNull() &
+            db.bookings.status.isIn(activeStatuses),
+      );
     final occupiedRows = await occupiedRoomsQuery.get();
-    final occupiedRooms = <String>{for (final row in occupiedRows) row.read(db.bookings.roomNumber)!};
+    final occupiedRooms = <String>{
+      for (final row in occupiedRows) row.read(db.bookings.roomNumber)!,
+    };
 
-    final rooms = await (db.select(db.rooms)..where((tbl) => tbl.deletedAt.isNull())).get();
+    final rooms = await (db.select(
+      db.rooms,
+    )..where((tbl) => tbl.deletedAt.isNull())).get();
     for (final room in rooms) {
       final shouldBeOccupied = occupiedRooms.contains(room.roomNumber);
       final isCurrentlyOccupied = StatusUtils.isRoomOccupied(room.status);
@@ -197,9 +242,17 @@ class RoomsRepository {
       final target = StatusUtils.roomStatusForOccupancy(shouldBeOccupied);
 
       if (shouldBeOccupied && !isCurrentlyOccupied) {
-        await updateByRoomNumber(room.roomNumber, status: target, originIsServer: originIsServer);
+        await updateByRoomNumber(
+          room.roomNumber,
+          status: target,
+          originIsServer: originIsServer,
+        );
       } else if (!shouldBeOccupied && !isCurrentlyAvailable) {
-        await updateByRoomNumber(room.roomNumber, status: target, originIsServer: originIsServer);
+        await updateByRoomNumber(
+          room.roomNumber,
+          status: target,
+          originIsServer: originIsServer,
+        );
       }
     }
   }
