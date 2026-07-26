@@ -1,1 +1,115 @@
-aW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXIvbWF0ZXJpYWwuZGFydCc7CmltcG9ydCAncGFja2FnZTpmbHV0dGVyX3JpdmVycG9kL2ZsdXR0ZXJfcml2ZXJwb2QuZGFydCc7CgppbXBvcnQgJy4uLy4uLy4uL2NvbXBvbmVudHMvYXBwX3NjYWZmb2xkLmRhcnQnOwppbXBvcnQgJy4uLy4uLy4uL2NvcmUvY29yZS5kYXJ0JzsKaW1wb3J0ICd0YWJzL2dvb2dsZV9kcml2ZV90YWIuZGFydCc7CmltcG9ydCAndGFicy9sb2NhbF9iYWNrdXBzX3RhYi5kYXJ0JzsKCi8vLyBDb21wcmVoZW5zaXZlIEJhY2t1cCBTY3JlZW4gLSDYp9mE2LTYp9i02Kkg2KfZhNix2KbZitiz2YrYqSDZhNmE2YbYs9iuINin2YTYp9it2KrZitin2LfZigovLy8KLy8vIOKchSDYqtit2LPZitmGIChhdWRpdCBhZ2VudC05KToKLy8vINiq2YUg2KXYstin2YTYqSDYqtio2YjZitioICLZhti42LHYqSDYudin2YXYqSIgKNmD2KfZhiBtb2NrINio2KjZitin2YbYp9iqIGhhcmRjb2RlZCDZhdmGIDIwMjQtMDEtMjkpCi8vLyDZiNiq2KjZiNmK2KggItil2K/Yp9ix2Kkg2KfZhNmF2YTZgdin2KoiICjZg9in2YYgbW9jayDYqNij2LLYsdin2LEg2YTYpyDYqti52YXZhCkuCi8vLyDYp9mE2KLZhiDYp9mE2LTYp9i02Kkg2KrYrdiq2YjZiiDZgdmC2Lcg2LnZhNmJINin2YTYqtio2YjZitio2KfYqiDYp9mE2YjYuNmK2YHZitipOgovLy8gLSBHb29nbGUgRHJpdmU6INmE2YTZhtiz2K4g2KfZhNiz2K3Yp9io2YoKLy8vIC0g2KfZhNmG2LPYriDYp9mE2YXYrdmE2YrYqTog2YTZhNmG2LPYriDYudmE2Ykg2KfZhNis2YfYp9iyCi8vLwovLy8g2YPZhdinINiq2YU6Ci8vLyAtINil2LLYp9mE2Kkg2LLYsSDYp9mE2KrYrdiv2YrYqyDYp9mE2LDZiiDZg9in2YYg2YrYudix2LYgc25hY2tiYXIg2YPYp9iw2Kgg2K/ZiNmGINmB2LnZhCDYtNmK2KEKLy8vIC0g2KXYstin2YTYqSDYudmG2LXYsSAi2KXYudiv2KfYr9in2Kog2KfZhNmG2LPYriDYp9mE2KfYrdiq2YrYp9i32YoiINmF2YYg2KfZhNmC2KfYptmF2KkgKNmD2KfZhiDZhNinINmK2YLZiNmFINio2KPZiiDYtNmK2KEpCi8vLyAtINil2KjZgtin2KEgItmF2LPYp9i52K/YqSIg2Ygi2K3ZiNmEIiDZgdmC2LcKY2xhc3MgQ29tcHJlaGVuc2l2ZUJhY2t1cFNjcmVlbiBleHRlbmRzIENvbnN1bWVyU3RhdGVmdWxXaWRnZXQgewogIGNvbnN0IENvbXByZWhlbnNpdmVCYWNrdXBTY3JlZW4oe3N1cGVyLmtleX0pOwoKICBAb3ZlcnJpZGUKICBDb25zdW1lclN0YXRlPENvbXByZWhlbnNpdmVCYWNrdXBTY3JlZW4+IGNyZWF0ZVN0YXRlKCkgPT4KICAgICAgX0NvbXByZWhlbnNpdmVCYWNrdXBTY3JlZW5TdGF0ZSgpOwp9CgpjbGFzcyBfQ29tcHJlaGVuc2l2ZUJhY2t1cFNjcmVlblN0YXRlCiAgICBleHRlbmRzIENvbnN1bWVyU3RhdGU8Q29tcHJlaGVuc2l2ZUJhY2t1cFNjcmVlbj4KICAgIHdpdGggU2luZ2xlVGlja2VyUHJvdmlkZXJTdGF0ZU1peGluIHsKICBsYXRlIFRhYkNvbnRyb2xsZXIgX3RhYkNvbnRyb2xsZXI7CgogIEBvdmVycmlkZQogIHZvaWQgaW5pdFN0YXRlKCkgewogICAgc3VwZXIuaW5pdFN0YXRlKCk7CiAgICBfdGFiQ29udHJvbGxlciA9IFRhYkNvbnRyb2xsZXIobGVuZ3RoOiAyLCB2c3luYzogdGhpcyk7CiAgfQoKICBAb3ZlcnJpZGUKICB2b2lkIGRpc3Bvc2UoKSB7CiAgICBfdGFiQ29udHJvbGxlci5kaXNwb3NlKCk7CiAgICBzdXBlci5kaXNwb3NlKCk7CiAgfQoKICBAb3ZlcnJpZGUKICBXaWRnZXQgYnVpbGQoQnVpbGRDb250ZXh0IGNvbnRleHQpIHsKICAgIHJldHVybiBBcHBTY2FmZm9sZCgKICAgICAgdGl0bGU6ICfYp9mE2YbYs9iuINin2YTYp9it2KrZitin2LfZiicsCiAgICAgIGFjdGlvbnM6IFsKICAgICAgICBJY29uQnV0dG9uKAogICAgICAgICAgb25QcmVzc2VkOiBfc2hvd0hlbHBEaWFsb2csCiAgICAgICAgICBpY29uOiBjb25zdCBJY29uKEljb25zLmhlbHBfb3V0bGluZSksCiAgICAgICAgICB0b29sdGlwOiAn2YXYs9in2LnYr9ipJywKICAgICAgICApLAogICAgICBdLAogICAgICBib2R5OiBDb2x1bW4oCiAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgIC8vIFRhYiBCYXIKICAgICAgICAgIENvbG9yZWRCb3goCiAgICAgICAgICAgIGNvbG9yOiBDb2xvcnMuZ3JleS5zaGFkZTEwMCwKICAgICAgICAgICAgY2hpbGQ6IFRhYkJhcigKICAgICAgICAgICAgICBjb250cm9sbGVyOiBfdGFiQ29udHJvbGxlciwKICAgICAgICAgICAgICBsYWJlbENvbG9yOiBVSUNvbnN0YW50cy5iYWNrdXBDb2xvciwKICAgICAgICAgICAgICB1bnNlbGVjdGVkTGFiZWxDb2xvcjogQ29sb3JzLmdyZXksCiAgICAgICAgICAgICAgaW5kaWNhdG9yQ29sb3I6IFVJQ29uc3RhbnRzLmJhY2t1cENvbG9yLAogICAgICAgICAgICAgIHRhYnM6IGNvbnN0IFsKICAgICAgICAgICAgICAgIFRhYihpY29uOiBJY29uKEljb25zLmNsb3VkKSwgdGV4dDogJ0dvb2dsZSBEcml2ZScpLAogICAgICAgICAgICAgICAgVGFiKGljb246IEljb24oSWNvbnMucGhvbmVfYW5kcm9pZCksIHRleHQ6ICfYp9mE2YbYs9iuINin2YTZhdit2YTZitipJyksCiAgICAgICAgICAgICAgXSwKICAgICAgICAgICAgKSwKICAgICAgICAgICksCgogICAgICAgICAgLy8gVGFiIFZpZXdzCiAgICAgICAgICBFeHBhbmRlZCgKICAgICAgICAgICAgY2hpbGQ6IFRhYkJhclZpZXcoCiAgICAgICAgICAgICAgY29udHJvbGxlcjogX3RhYkNvbnRyb2xsZXIsCiAgICAgICAgICAgICAgY2hpbGRyZW46IGNvbnN0IFtHb29nbGVEcml2ZVRhYigpLCBMb2NhbEJhY2t1cHNUYWIoKV0sCiAgICAgICAgICAgICksCiAgICAgICAgICApLAogICAgICAgIF0sCiAgICAgICksCiAgICApOwogIH0KCiAgdm9pZCBfc2hvd0hlbHBEaWFsb2coKSB7CiAgICBzaG93RGlhbG9nPHZvaWQ+KAogICAgICBjb250ZXh0OiBjb250ZXh0LAogICAgICBidWlsZGVyOiAoY29udGV4dCkgPT4gQWxlcnREaWFsb2coCiAgICAgICAgdGl0bGU6IGNvbnN0IFRleHQoJ9mF2LPYp9i52K/YqScpLAogICAgICAgIGNvbnRlbnQ6IGNvbnN0IFNpbmdsZUNoaWxkU2Nyb2xsVmlldygKICAgICAgICAgIGNoaWxkOiBUZXh0KAogICAgICAgICAgICAn2YbYuNin2YUg2KfZhNmG2LPYriDYp9mE2KfYrdiq2YrYp9i32Yo6XG5cbicKICAgICAgICAgICAgJ+KAoiBHb29nbGUgRHJpdmU6INmG2LPYriDYp9it2KrZitin2LfZiiDYs9it2KfYqNmKINiq2YTZgtin2KbZiiDZiNmK2K/ZiNmKXG4nCiAgICAgICAgICAgICcgIC0g2YrYs9is2YQg2KfZhNiv2K7ZiNmEINio2K3Ys9in2KggR29vZ2xlXG4nCiAgICAgICAgICAgICcgIC0g2YrYsdmB2Lkg2KfZhNmG2LPYriDZhdi02YHZkdix2Kkg2YjZhdi22LrZiNi32KlcbicKICAgICAgICAgICAgJyAgLSDZitiv2LnZhSDYp9mE2YXYstin2YXZhtipINin2YTYqtmB2KfYttmE2YrYqSAoRGVsdGEgU3luYylcblxuJwogICAgICAgICAgICAn4oCiINin2YTZhtiz2K4g2KfZhNmF2K3ZhNmK2Kk6INmG2LPYriDYudmE2Ykg2LDYp9mD2LHYqSDYp9mE2KzZh9in2LJcbicKICAgICAgICAgICAgJyAgLSDYpdmG2LTYp9ihINmG2LPYrtipINin2K3YqtmK2KfYt9mK2Kkg2YXYrdmE2YrYqVxuJwogICAgICAgICAgICAnICAtINin2LPYqti52KfYr9ipINmF2YYg2YbYs9iu2Kkg2YXYrdmE2YrYqVxuJwogICAgICAgICAgICAnICAtINmF2LTYp9ix2YPYqSDYo9mIINit2LDZgSDYp9mE2YbYs9iuINin2YTZgtiv2YrZhdipXG4nCiAgICAgICAgICAgICcgIC0g2KfYs9iq2YrYsdin2K8g2YbYs9iu2Kkg2YXZhiDZhdmE2YEg2K7Yp9ix2KzZiicsCiAgICAgICAgICApLAogICAgICAgICksCiAgICAgICAgYWN0aW9uczogWwogICAgICAgICAgVGV4dEJ1dHRvbigKICAgICAgICAgICAgb25QcmVzc2VkOiAoKSA9PiBOYXZpZ2F0b3IucG9wKGNvbnRleHQpLAogICAgICAgICAgICBjaGlsZDogY29uc3QgVGV4dCgn2K3Ys9mG2KfZiycpLAogICAgICAgICAgKSwKICAgICAgICBdLAogICAgICApLAogICAgKTsKICB9Cn0K
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../components/app_scaffold.dart';
+import '../../../core/core.dart';
+import 'tabs/google_drive_tab.dart';
+import 'tabs/local_backups_tab.dart';
+
+/// Comprehensive Backup Screen - الشاشة الرئيسية للنسخ الاحتياطي
+///
+/// ✅ تحسين (audit agent-9):
+/// تم إزالة تبويب "نظرة عامة" (كان mock ببيانات hardcoded من 2024-01-29)
+/// وتبويب "إدارة الملفات" (كان mock بأزرار لا تعمل).
+/// الآن الشاشة تحتوي فقط على التبويبات الوظيفية:
+/// - Google Drive: للنسخ السحابي
+/// - النسخ المحلية: للنسخ على الجهاز
+///
+/// كما تم:
+/// - إزالة زر التحديث الذي كان يعرض snackbar كاذب دون فعل شيء
+/// - إزالة عنصر "إعدادات النسخ الاحتياطي" من القائمة (كان لا يقوم بأي شيء)
+/// - إبقاء "مساعدة" و"حول" فقط
+class ComprehensiveBackupScreen extends ConsumerStatefulWidget {
+  const ComprehensiveBackupScreen({super.key});
+
+  @override
+  ConsumerState<ComprehensiveBackupScreen> createState() =>
+      _ComprehensiveBackupScreenState();
+}
+
+class _ComprehensiveBackupScreenState
+    extends ConsumerState<ComprehensiveBackupScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppScaffold(
+      title: 'النسخ الاحتياطي',
+      actions: [
+        IconButton(
+          onPressed: _showHelpDialog,
+          icon: const Icon(Icons.help_outline),
+          tooltip: 'مساعدة',
+        ),
+      ],
+      body: Column(
+        children: [
+          // Tab Bar
+          ColoredBox(
+            color: Colors.grey.shade100,
+            child: TabBar(
+              controller: _tabController,
+              labelColor: UIConstants.backupColor,
+              unselectedLabelColor: Colors.grey,
+              indicatorColor: UIConstants.backupColor,
+              tabs: const [
+                Tab(icon: Icon(Icons.cloud), text: 'Google Drive'),
+                Tab(icon: Icon(Icons.phone_android), text: 'النسخ المحلية'),
+              ],
+            ),
+          ),
+
+          // Tab Views
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: const [GoogleDriveTab(), LocalBackupsTab()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showHelpDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('مساعدة'),
+        content: const SingleChildScrollView(
+          child: Text(
+            'نظام النسخ الاحتياطي:\n\n'
+            '• Google Drive: نسخ احتياطي سحابي تلقائي ويدوي\n'
+            '  - يسجل الدخول بحساب Google\n'
+            '  - يرفع النسخ مشفّرة ومضغوطة\n'
+            '  - يدعم المزامنة التفاضلية (Delta Sync)\n\n'
+            '• النسخ المحلية: نسخ على ذاكرة الجهاز\n'
+            '  - إنشاء نسخة احتياطية محلية\n'
+            '  - استعادة من نسخة محلية\n'
+            '  - مشاركة أو حذف النسخ القديمة\n'
+            '  - استيراد نسخة من ملف خارجي',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('حسناً'),
+          ),
+        ],
+      ),
+    );
+  }
+}
