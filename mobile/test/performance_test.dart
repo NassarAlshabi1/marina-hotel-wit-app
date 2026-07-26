@@ -27,8 +27,11 @@
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('performance_test suite placeholder — see test/performance/ subdirectory', () {
-    // Ensures `flutter test test/performance_test.dart` does not break CI.
-    expect(true, isTrue);
-  });
+  test(
+    'performance_test suite placeholder — see test/performance/ subdirectory',
+    () {
+      // Ensures `flutter test test/performance_test.dart` does not break CI.
+      expect(true, isTrue);
+    },
+  );
 }
