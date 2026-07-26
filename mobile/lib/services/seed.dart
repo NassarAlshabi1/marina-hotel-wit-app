@@ -7,7 +7,10 @@ class Seeder {
   final AppDatabase db;
 
   Future<void> seedIfEmpty() async {
-    final roomsCount = (await db.customSelect('SELECT COUNT(*) c FROM rooms').getSingle()).data['c'] as int;
+    final roomsCount =
+        (await db.customSelect('SELECT COUNT(*) c FROM rooms').getSingle())
+                .data['c']
+            as int;
     if (roomsCount > 0) {
       return;
     }
@@ -111,7 +114,9 @@ class Seeder {
             guestNationality: const d.Value('يمني'),
             guestEmail: const d.Value(null),
             guestAddress: const d.Value(null),
-            checkinDate: d.Value(now.subtract(const Duration(days: 1)).toIso8601String()),
+            checkinDate: d.Value(
+              now.subtract(const Duration(days: 1)).toIso8601String(),
+            ),
             checkoutDate: const d.Value(null),
             status: const d.Value('محجوزة'),
             notes: const d.Value(null),
@@ -200,7 +205,9 @@ class Seeder {
             expenseType: const d.Value('utilities'),
             description: const d.Value('فاتورة كهرباء'),
             amount: const d.Value(450000),
-            date: d.Value(Time.dateToString(now.subtract(const Duration(days: 10)))),
+            date: d.Value(
+              Time.dateToString(now.subtract(const Duration(days: 10))),
+            ),
             localUuid: const d.Value('x-1'),
             createdAt: d.Value(Time.nowEpoch()),
             updatedAt: d.Value(Time.nowEpoch()),
@@ -216,7 +223,9 @@ class Seeder {
             expenseType: const d.Value('other'),
             description: const d.Value('ديزل'),
             amount: const d.Value(21500),
-            date: d.Value(Time.dateToString(now.subtract(const Duration(days: 1)))),
+            date: d.Value(
+              Time.dateToString(now.subtract(const Duration(days: 1))),
+            ),
             localUuid: const d.Value('x-2'),
             createdAt: d.Value(Time.nowEpoch()),
             updatedAt: d.Value(Time.nowEpoch()),
@@ -302,8 +311,12 @@ class Seeder {
           DebtsCompanion(
             bookingLocalId: d.Value(b1),
             guestName: const d.Value('محمد علي'),
-            checkinDate: d.Value(Time.dateToString(now.subtract(const Duration(days: 3)))),
-            checkoutDate: d.Value(Time.dateToString(now.add(const Duration(days: 1)))),
+            checkinDate: d.Value(
+              Time.dateToString(now.subtract(const Duration(days: 3))),
+            ),
+            checkoutDate: d.Value(
+              Time.dateToString(now.add(const Duration(days: 1))),
+            ),
             totalAmount: const d.Value(120000),
             paidAmount: const d.Value(50000),
             remainingAmount: const d.Value(70000),
