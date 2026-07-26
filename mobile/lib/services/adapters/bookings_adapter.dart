@@ -1,1 +1,471 @@
-aW1wb3J0ICdwYWNrYWdlOmRyaWZ0L2RyaWZ0LmRhcnQnIGFzIGQ7CgppbXBvcnQgJy4uLy4uL3V0aWxzL2lkLmRhcnQnOwppbXBvcnQgJy4uLy4uL3V0aWxzL3RpbWUuZGFydCc7CmltcG9ydCAnLi4vbG9jYWxfZGIuZGFydCc7CmltcG9ydCAnZW50aXR5X2FkYXB0ZXIuZGFydCc7CmltcG9ydCAnaWRfcmVzb2x2ZXIuZGFydCc7CmltcG9ydCAncmVzb2x2ZV9yZXN1bHQuZGFydCc7CmltcG9ydCAnc291cmNlLmRhcnQnOwoKY2xhc3MgQm9va2luZ3NBZGFwdGVyIGV4dGVuZHMgRW50aXR5QWRhcHRlcjxCb29raW5nLCBCb29raW5nc0NvbXBhbmlvbj4gewogIEJvb2tpbmdzQWRhcHRlcih0aGlzLnJlc29sdmVyKTsKICBmaW5hbCBJZFJlc29sdmVyIHJlc29sdmVyOwoKICBAb3ZlcnJpZGUKICBTdHJpbmcgZ2V0IGNvbGxlY3Rpb25JZCA9PiAnYm9va2luZ3MnOwoKICBAb3ZlcnJpZGUKICBTdHJpbmcgZ2V0IGRyaXZlUGF0aCA9PiAnYm9va2luZ3MuanNvbic7CgogIEBvdmVycmlkZQogIFN0cmluZyBnZXQgdGFibGVOYW1lID0+ICdib29raW5ncyc7CgogIEBvdmVycmlkZQogIEZ1dHVyZTxSZXNvbHZlUmVzdWx0PiByZXNvbHZlUmVmcygKICAgIEFwcERhdGFiYXNlIGRiLAogICAgTWFwPFN0cmluZywgZHluYW1pYz4ganNvbiwgewogICAgcmVxdWlyZWQgU291cmNlIHNyYywKICB9KSBhc3luYyB7CiAgICBmaW5hbCBib29raW5nVXVpZCA9CiAgICAgICAgX2FzU3RyaW5nKGpzb24sICdsb2NhbFV1aWQnLCBzcmMpID8/CiAgICAgICAgX2FzU3RyaW5nKGpzb24sICdib29raW5nX3V1aWQnLCBzcmMpID8/CiAgICAgICAgX2FzU3RyaW5nKGpzb24sICdib29raW5nVXVpZCcsIHNyYyk7CiAgICBmaW5hbCBzZXJ2ZXJCb29raW5nSWQgPQogICAgICAgIF9hc0ludChqc29uLCAnc2VydmVyQm9va2luZ0lkJywgc3JjKSA/PyBfYXNJbnQoanNvbiwgJ2Jvb2tpbmdfaWQnLCBzcmMpOwogICAgZmluYWwgbG9jYWxJZCA9IF9hc0ludChqc29uLCAnaWQnLCBzcmMpOwogICAgZmluYWwgcmVzb2x2ZWRJZCA9IGF3YWl0IHJlc29sdmVyLnJlc29sdmVCb29raW5nKAogICAgICBsb2NhbElkOiBsb2NhbElkLAogICAgICBzZXJ2ZXJJZDogc2VydmVyQm9va2luZ0lkLAogICAgICB1dWlkOiBib29raW5nVXVpZCwKICAgICk7CiAgICBmaW5hbCBjcmVhdGVkQXQgPSBfZXBvY2goanNvbiwgJ2NyZWF0ZWRBdCcsIHNyYyk7CiAgICBmaW5hbCBsYXN0TW9kaWZpZWQgPSBfZXBvY2goanNvbiwgJ2xhc3RNb2RpZmllZCcsIHNyYyk7CiAgICByZXR1cm4gUmVzb2x2ZVJlc3VsdCgKICAgICAgYm9va2luZ0xvY2FsSWQ6IHJlc29sdmVkSWQsCiAgICAgIGJvb2tpbmdVdWlkQ2FjaGU6IGJvb2tpbmdVdWlkLAogICAgICBjcmVhdGVkQXRFcG9jaDogY3JlYXRlZEF0LAogICAgICBsYXN0TW9kaWZpZWRFcG9jaDogbGFzdE1vZGlmaWVkLAogICAgKTsKICB9CgogIEBvdmVycmlkZQogIEJvb2tpbmdzQ29tcGFuaW9uIGZyb21Kc29uKAogICAgTWFwPFN0cmluZywgZHluYW1pYz4ganNvbiwgewogICAgcmVxdWlyZWQgU291cmNlIHNyYywKICAgIHJlcXVpcmVkIFJlc29sdmVSZXN1bHQgcmVmcywKICB9KSB7CiAgICBmaW5hbCBub3cgPSBUaW1lLm5vd0Vwb2NoKCk7CiAgICBmaW5hbCBjcmVhdGVkQXQgPQogICAgICAgIHJlZnMuY3JlYXRlZEF0RXBvY2ggPz8gX2Vwb2NoKGpzb24sICdjcmVhdGVkQXQnLCBzcmMpID8/IG5vdzsKICAgIGZpbmFsIGxhc3RNb2RpZmllZCA9CiAgICAgICAgcmVmcy5sYXN0TW9kaWZpZWRFcG9jaCA/PwogICAgICAgIF9lcG9jaChqc29uLCAnbGFzdE1vZGlmaWVkJywgc3JjKSA/PwogICAgICAgIGNyZWF0ZWRBdDsKICAgIHJldHVybiBCb29raW5nc0NvbXBhbmlvbigKICAgICAgaWQ6IF92SW50KGpzb24sICdpZCcsIHNyYyksCiAgICAgIGxvY2FsVXVpZDogZC5WYWx1ZSgKICAgICAgICBfYXNTdHJpbmcoanNvbiwgJ2xvY2FsVXVpZCcsIHNyYykgPz8KICAgICAgICAgICAgX2FzU3RyaW5nKGpzb24sICdsb2NhbF91dWlkJywgc3JjKSA/PwogICAgICAgICAgICBJZEdlbi51dWlkKCksCiAgICAgICksCiAgICAgIHNlcnZlcklkOiBfdkludChqc29uLCAnc2VydmVySWQnLCBzcmMpLAogICAgICBzZXJ2ZXJCb29raW5nSWQ6IF92SW50KAogICAgICAgIGpzb24sCiAgICAgICAgJ3NlcnZlckJvb2tpbmdJZCcsCiAgICAgICAgc3JjLAogICAgICAgIGFsdEtleTogJ2Jvb2tpbmdfaWQnLAogICAgICApLAogICAgICByb29tTnVtYmVyOiBfdlN0cigKICAgICAgICBqc29uLAogICAgICAgICdyb29tTnVtYmVyJywKICAgICAgICBzcmMsCiAgICAgICAgYWx0S2V5OiAncm9vbV9udW1iZXInLAogICAgICAgIGZhbGxiYWNrOiAnJywKICAgICAgKSwKICAgICAgZ3Vlc3ROYW1lOiBfdlN0cigKICAgICAgICBqc29uLAogICAgICAgICdndWVzdE5hbWUnLAogICAgICAgIHNyYywKICAgICAgICBhbHRLZXk6ICdndWVzdF9uYW1lJywKICAgICAgICBmYWxsYmFjazogJycsCiAgICAgICksCiAgICAgIGd1ZXN0UGhvbmU6IF92U3RyKAogICAgICAgIGpzb24sCiAgICAgICAgJ2d1ZXN0UGhvbmUnLAogICAgICAgIHNyYywKICAgICAgICBhbHRLZXk6ICdndWVzdF9waG9uZScsCiAgICAgICAgZmFsbGJhY2s6ICcnLAogICAgICApLAogICAgICBndWVzdElkVHlwZTogX3ZTdHIoCiAgICAgICAganNvbiwKICAgICAgICAnZ3Vlc3RJZFR5cGUnLAogICAgICAgIHNyYywKICAgICAgICBhbHRLZXk6ICdndWVzdF9pZF90eXBlJywKICAgICAgICBmYWxsYmFjazogJ9io2LfYp9mC2Kkg2LTYrti12YrYqScsCiAgICAgICksCiAgICAgIGd1ZXN0SWROdW1iZXI6IF92U3RyKAogICAgICAgIGpzb24sCiAgICAgICAgJ2d1ZXN0SWROdW1iZXInLAogICAgICAgIHNyYywKICAgICAgICBhbHRLZXk6ICdndWVzdF9pZF9udW1iZXInLAogICAgICAgIGZhbGxiYWNrOiAnJywKICAgICAgKSwKICAgICAgZ3Vlc3RJZElzc3VlRGF0ZTogX3ZTdHIoCiAgICAgICAganNvbiwKICAgICAgICAnZ3Vlc3RJZElzc3VlRGF0ZScsCiAgICAgICAgc3JjLAogICAgICAgIGFsdEtleTogJ2d1ZXN0X2lkX2lzc3VlX2RhdGUnLAogICAgICApLAogICAgICBndWVzdElkSXNzdWVQbGFjZTogX3ZTdHIoCiAgICAgICAganNvbiwKICAgICAgICAnZ3Vlc3RJZElzc3VlUGxhY2UnLAogICAgICAgIHNyYywKICAgICAgICBhbHRLZXk6ICdndWVzdF9pZF9pc3N1ZV9wbGFjZScsCiAgICAgICksCiAgICAgIGd1ZXN0TmF0aW9uYWxpdHk6IF92U3RyKAogICAgICAgIGpzb24sCiAgICAgICAgJ2d1ZXN0TmF0aW9uYWxpdHknLAogICAgICAgIHNyYywKICAgICAgICBhbHRLZXk6ICdndWVzdF9uYXRpb25hbGl0eScsCiAgICAgICAgZmFsbGJhY2s6ICcnLAogICAgICApLAogICAgICBndWVzdEVtYWlsOiBfdlN0cihqc29uLCAnZ3Vlc3RFbWFpbCcsIHNyYywgYWx0S2V5OiAnZ3Vlc3RfZW1haWwnKSwKICAgICAgZ3Vlc3RBZGRyZXNzOiBfdlN0cihqc29uLCAnZ3Vlc3RBZGRyZXNzJywgc3JjLCBhbHRLZXk6ICdndWVzdF9hZGRyZXNzJyksCiAgICAgIGNoZWNraW5EYXRlOiBfdlN0cigKICAgICAgICBqc29uLAogICAgICAgICdjaGVja2luRGF0ZScsCiAgICAgICAgc3JjLAogICAgICAgIGFsdEtleTogJ2NoZWNraW5fZGF0ZScsCiAgICAgICAgZmFsbGJhY2s6ICcnLAogICAgICApLAogICAgICBjaGVja291dERhdGU6IF92U3RyKGpzb24sICdjaGVja291dERhdGUnLCBzcmMsIGFsdEtleTogJ2NoZWNrb3V0X2RhdGUnKSwKICAgICAgLy8g4pyFINil2LXZhNin2K0g2K3YsdisOiBhY3R1YWxDaGVja291dCDZitis2Kgg2KPZhiDZitmP2LHYs9mEINiv2KfYptmF2KfZiyAo2K3YqtmJINmE2YggbnVsbCkKICAgICAgLy8g2YTYo9mGIFZhbHVlLmFic2VudCgpINmK2YXZhti5IGluc2VydE9uQ29uZmxpY3RVcGRhdGUg2YXZhiDYqtit2K/ZitirINin2YTYrdmC2YQKICAgICAgLy8g2LnZhtivINin2YTYqti52KfYsdi2IOKAlCDZhdmF2Kcg2YrYqNmC2YogYWN0dWFsQ2hlY2tvdXQ9bnVsbCDYrdiq2Ykg2YTZiCDZg9in2YbYqiDYp9mE2KjZitin2YbYp9iqCiAgICAgIC8vINin2YTYqNi52YrYr9ipINiq2K3Yr9ivINmC2YrZhdipICjZhdir2YQg2KrYp9ix2YrYriDYqtiz2KzZitmEINin2YTYrtix2YjYrCkKICAgICAgYWN0dWFsQ2hlY2tvdXQ6IGQuVmFsdWUoCiAgICAgICAgX2FzU3RyaW5nKGpzb24sICdhY3R1YWxDaGVja291dCcsIHNyYykgPz8KICAgICAgICAgICAgX2FzU3RyaW5nKGpzb24sICdhY3R1YWxfY2hlY2tvdXQnLCBzcmMpLAogICAgICApLAogICAgICBzdGF0dXM6IF92U3RyKGpzb24sICdzdGF0dXMnLCBzcmMsIGZhbGxiYWNrOiAnJyksCiAgICAgIG5vdGVzOiBfdlN0cihqc29uLCAnbm90ZXMnLCBzcmMpLAogICAgICBkaXNjb3VudDogX3ZEb3VibGUoanNvbiwgJ2Rpc2NvdW50Jywgc3JjLCBhbHRLZXk6ICdkaXNjb3VudCcpLAogICAgICBkaXNjb3VudFR5cGU6IF92U3RyKAogICAgICAgIGpzb24sCiAgICAgICAgJ2Rpc2NvdW50VHlwZScsCiAgICAgICAgc3JjLAogICAgICAgIGFsdEtleTogJ2Rpc2NvdW50X3R5cGUnLAogICAgICAgIGZhbGxiYWNrOiAncGVyX25pZ2h0JywKICAgICAgKSwKICAgICAgZGlzY291bnRTdGFydERhdGU6IF92U3RyKAogICAgICAgIGpzb24sCiAgICAgICAgJ2Rpc2NvdW50U3RhcnREYXRlJywKICAgICAgICBzcmMsCiAgICAgICAgYWx0S2V5OiAnZGlzY291bnRfc3RhcnRfZGF0ZScsCiAgICAgICksCiAgICAgIGV4cGVjdGVkTmlnaHRzOiBfdkludCgKICAgICAgICBqc29uLAogICAgICAgICdleHBlY3RlZE5pZ2h0cycsCiAgICAgICAgc3JjLAogICAgICAgIGFsdEtleTogJ2V4cGVjdGVkX25pZ2h0cycsCiAgICAgICAgZmFsbGJhY2s6IDEsCiAgICAgICksCiAgICAgIGNhbGN1bGF0ZWROaWdodHM6IF92SW50KAogICAgICAgIGpzb24sCiAgICAgICAgJ2NhbGN1bGF0ZWROaWdodHMnLAogICAgICAgIHNyYywKICAgICAgICBhbHRLZXk6ICdjYWxjdWxhdGVkX25pZ2h0cycsCiAgICAgICksCiAgICAgIHRvdGFsTmlnaHRzQ2FjaGVkOiBfdkludChqc29uLCAndG90YWxOaWdodHNDYWNoZWQnLCBzcmMpLAogICAgICBzdGF5RHVyYXRpb25Jc286IF92U3RyKAogICAgICAgIGpzb24sCiAgICAgICAgJ3N0YXlEdXJhdGlvbklzbycsCiAgICAgICAgc3JjLAogICAgICAgIGFsdEtleTogJ3N0YXlfZHVyYXRpb25faXNvJywKICAgICAgKSwKICAgICAgbGFzdE5pZ2h0RXBvY2g6IF92SW50KGpzb24sICdsYXN0TmlnaHRFcG9jaCcsIHNyYyksCiAgICAgIGlzT3ZlcmR1ZTogX3ZCb29sKGpzb24sICdpc092ZXJkdWUnLCBzcmMpLAogICAgICBuZWVkc0NoZWNrb3V0UmV2aWV3OiBfdkJvb2woanNvbiwgJ25lZWRzQ2hlY2tvdXRSZXZpZXcnLCBzcmMpLAogICAgICAvLyDZhNinINmG2YLYsdijINin2YTYrdmC2YjZhCDYp9mE2YXYrdiz2YjYqNipINmF2YYgQXBwd3JpdGUvRHJpdmUg4oCUINiq2Y/Yudin2K8g2K3Ys9in2KjZh9inINmF2K3ZhNmK2KfZiwogICAgICAvLyDYudio2LEgQm9va2luZ0Rlcml2ZWRGaWVsZHNTZXJ2aWNlINmE2LbZhdin2YYg2K/ZgtipINin2YTYo9ix2YLYp9mFCiAgICAgIC8vIHRvdGFsRHVlQ2FjaGVkLCB0b3RhbFBhaWRDYWNoZWQsIHJlbWFpbmluZ0JhbGFuY2VDYWNoZWQsIGlzRnVsbHlQYWlkCiAgICAgIC8vINiq2Y/Yqtix2YMg2YPZgCBWYWx1ZS5hYnNlbnQoKSDYrdiq2Ykg2YrZj9i52KfYryDYrdiz2KfYqNmH2KcKICAgICAgaG90ZWxEYXlDaGVja2luOiBfdlN0cigKICAgICAgICBqc29uLAogICAgICAgICdob3RlbERheUNoZWNraW4nLAogICAgICAgIHNyYywKICAgICAgICBhbHRLZXk6ICdob3RlbF9kYXlfY2hlY2tpbicsCiAgICAgICksCiAgICAgIGhvdGVsRGF5Q2hlY2tvdXQ6IF92U3RyKAogICAgICAgIGpzb24sCiAgICAgICAgJ2hvdGVsRGF5Q2hlY2tvdXQnLAogICAgICAgIHNyYywKICAgICAgICBhbHRLZXk6ICdob3RlbF9kYXlfY2hlY2tvdXQnLAogICAgICApLAogICAgICBjcmVhdGVkQXQ6IGQuVmFsdWUoY3JlYXRlZEF0KSwKICAgICAgdXBkYXRlZEF0OiBkLlZhbHVlKF9lcG9jaChqc29uLCAndXBkYXRlZEF0Jywgc3JjKSA/PyBjcmVhdGVkQXQpLAogICAgICBkZWxldGVkQXQ6IF92SW50KGpzb24sICdkZWxldGVkQXQnLCBzcmMpLAogICAgICBsYXN0TW9kaWZpZWQ6IGQuVmFsdWUobGFzdE1vZGlmaWVkKSwKICAgICAgY3JlYXRlZEF0SXNvOiBfdlN0cihqc29uLCAnY3JlYXRlZEF0SXNvJywgc3JjKSwKICAgICAgdXBkYXRlZEF0SXNvOiBfdlN0cihqc29uLCAndXBkYXRlZEF0SXNvJywgc3JjKSwKICAgICAgZGVsZXRlZEF0SXNvOiBfdlN0cihqc29uLCAnZGVsZXRlZEF0SXNvJywgc3JjKSwKICAgICAgY3JlYXRlZEF0RXBvY2g6IF92SW50KGpzb24sICdjcmVhdGVkQXRFcG9jaCcsIHNyYywgZmFsbGJhY2s6IGNyZWF0ZWRBdCksCiAgICAgIGxhc3RNb2RpZmllZEVwb2NoOiBfdkludCgKICAgICAgICBqc29uLAogICAgICAgICdsYXN0TW9kaWZpZWRFcG9jaCcsCiAgICAgICAgc3JjLAogICAgICAgIGZhbGxiYWNrOiBsYXN0TW9kaWZpZWQsCiAgICAgICksCiAgICAgIHZlcnNpb246IF92SW50KGpzb24sICd2ZXJzaW9uJywgc3JjLCBmYWxsYmFjazogMSksCiAgICAgIC8vIOKchSDYpdi12YTYp9itOiDYudmG2K8gc3JjPVNvdXJjZS5hcHB3cml0ZdiMINmG2LXYsSDYudmE2Ykgb3JpZ2luPSdzZXJ2ZXInINiv2KfYptmF2KfZiwogICAgICAvLyDZhNmF2YbYuSDZhdi02YPZhNipINij2YYg2KfZhNio2YrYp9mG2KfYqiDYp9mE2YXYs9it2YjYqNipINmF2YYg2KfZhNiz2YrYsdmB2LEg2KrYrdmF2YQgb3JpZ2luPSdtb2JpbGUnCiAgICAgIC8vINmF2YXYpyDZitmF2YbYuSBfY2xlYW51cE91dGJveEFmdGVyUHVsbCDZhdmGINiq2YbYuNmK2YEg2LnZhtin2LXYsSBvdXRib3gg2KjYtNmD2YQg2LXYrdmK2K0KICAgICAgb3JpZ2luOiBzcmMgPT0gU291cmNlLmFwcHdyaXRlIHx8IHNyYyA9PSBTb3VyY2UuZHJpdmUKICAgICAgICAgID8gY29uc3QgZC5WYWx1ZSgnc2VydmVyJykKICAgICAgICAgIDogX3ZTdHIoanNvbiwgJ29yaWdpbicsIHNyYywgZmFsbGJhY2s6ICdzZXJ2ZXInKSwKICAgICAgdmVjdG9yQ2xvY2s6IF92U3RyKAogICAgICAgIGpzb24sCiAgICAgICAgJ3ZlY3RvckNsb2NrJywKICAgICAgICBzcmMsCiAgICAgICAgYWx0S2V5OiAndmVjdG9yX2Nsb2NrJywKICAgICAgICBmYWxsYmFjazogJ3t9JywKICAgICAgKSwKICAgICAgaWRlbXBvdGVuY3lLZXk6IF92U3RyKAogICAgICAgIGpzb24sCiAgICAgICAgJ2lkZW1wb3RlbmN5S2V5JywKICAgICAgICBzcmMsCiAgICAgICAgYWx0S2V5OiAnaWRlbXBvdGVuY3lfa2V5JywKICAgICAgKSwKICAgICAgZGV2aWNlSWQ6IF92U3RyKGpzb24sICdkZXZpY2VJZCcsIHNyYywgYWx0S2V5OiAnZGV2aWNlX2lkJywgZmFsbGJhY2s6ICcnKSwKICAgICk7CiAgfQoKICBAb3ZlcnJpZGUKICBNYXA8U3RyaW5nLCBkeW5hbWljPiB0b0pzb24oQm9va2luZyBtb2RlbCwge3JlcXVpcmVkIFNvdXJjZSBzcmN9KSB7CiAgICByZXR1cm4gewogICAgICBfayhzcmMsICdpZCcsICdpZCcpOiBtb2RlbC5pZCwKICAgICAgX2soc3JjLCAnbG9jYWxVdWlkJywgJ2xvY2FsX3V1aWQnKTogbW9kZWwubG9jYWxVdWlkLAogICAgICBfayhzcmMsICdzZXJ2ZXJJZCcsICdzZXJ2ZXJfaWQnKTogbW9kZWwuc2VydmVySWQsCiAgICAgIF9rKHNyYywgJ3NlcnZlckJvb2tpbmdJZCcsICdib29raW5nX2lkJyk6IG1vZGVsLnNlcnZlckJvb2tpbmdJZCwKICAgICAgX2soc3JjLCAncm9vbU51bWJlcicsICdyb29tX251bWJlcicpOiBtb2RlbC5yb29tTnVtYmVyLAogICAgICBfayhzcmMsICdndWVzdE5hbWUnLCAnZ3Vlc3RfbmFtZScpOiBtb2RlbC5ndWVzdE5hbWUsCiAgICAgIF9rKHNyYywgJ2d1ZXN0UGhvbmUnLCAnZ3Vlc3RfcGhvbmUnKTogbW9kZWwuZ3Vlc3RQaG9uZSwKICAgICAgX2soc3JjLCAnZ3Vlc3RJZFR5cGUnLCAnZ3Vlc3RfaWRfdHlwZScpOiBtb2RlbC5ndWVzdElkVHlwZSwKICAgICAgX2soc3JjLCAnZ3Vlc3RJZE51bWJlcicsICdndWVzdF9pZF9udW1iZXInKTogbW9kZWwuZ3Vlc3RJZE51bWJlciwKICAgICAgX2soc3JjLCAnZ3Vlc3RJZElzc3VlRGF0ZScsICdndWVzdF9pZF9pc3N1ZV9kYXRlJyk6CiAgICAgICAgICBtb2RlbC5ndWVzdElkSXNzdWVEYXRlLAogICAgICBfayhzcmMsICdndWVzdElkSXNzdWVQbGFjZScsICdndWVzdF9pZF9pc3N1ZV9wbGFjZScpOgogICAgICAgICAgbW9kZWwuZ3Vlc3RJZElzc3VlUGxhY2UsCiAgICAgIF9rKHNyYywgJ2d1ZXN0TmF0aW9uYWxpdHknLCAnZ3Vlc3RfbmF0aW9uYWxpdHknKTogbW9kZWwuZ3Vlc3ROYXRpb25hbGl0eSwKICAgICAgX2soc3JjLCAnZ3Vlc3RFbWFpbCcsICdndWVzdF9lbWFpbCcpOiBtb2RlbC5ndWVzdEVtYWlsLAogICAgICBfayhzcmMsICdndWVzdEFkZHJlc3MnLCAnZ3Vlc3RfYWRkcmVzcycpOiBtb2RlbC5ndWVzdEFkZHJlc3MsCiAgICAgIF9rKHNyYywgJ2NoZWNraW5EYXRlJywgJ2NoZWNraW5fZGF0ZScpOiBtb2RlbC5jaGVja2luRGF0ZSwKICAgICAgX2soc3JjLCAnY2hlY2tvdXREYXRlJywgJ2NoZWNrb3V0X2RhdGUnKTogbW9kZWwuY2hlY2tvdXREYXRlLAogICAgICBfayhzcmMsICdhY3R1YWxDaGVja291dCcsICdhY3R1YWxfY2hlY2tvdXQnKTogbW9kZWwuYWN0dWFsQ2hlY2tvdXQsCiAgICAgIF9rKHNyYywgJ3N0YXR1cycsICdzdGF0dXMnKTogbW9kZWwuc3RhdHVzLAogICAgICBfayhzcmMsICdub3RlcycsICdub3RlcycpOiBtb2RlbC5ub3RlcywKICAgICAgX2soc3JjLCAnZGlzY291bnQnLCAnZGlzY291bnQnKTogbW9kZWwuZGlzY291bnQsCiAgICAgIF9rKHNyYywgJ2Rpc2NvdW50VHlwZScsICdkaXNjb3VudF90eXBlJyk6IG1vZGVsLmRpc2NvdW50VHlwZSwKICAgICAgX2soc3JjLCAnZGlzY291bnRTdGFydERhdGUnLCAnZGlzY291bnRfc3RhcnRfZGF0ZScpOgogICAgICAgICAgbW9kZWwuZGlzY291bnRTdGFydERhdGUsCiAgICAgIF9rKHNyYywgJ2V4cGVjdGVkTmlnaHRzJywgJ2V4cGVjdGVkX25pZ2h0cycpOiBtb2RlbC5leHBlY3RlZE5pZ2h0cywKICAgICAgX2soc3JjLCAnY2FsY3VsYXRlZE5pZ2h0cycsICdjYWxjdWxhdGVkX25pZ2h0cycpOiBtb2RlbC5jYWxjdWxhdGVkTmlnaHRzLAogICAgICBfayhzcmMsICd0b3RhbE5pZ2h0c0NhY2hlZCcsICd0b3RhbF9uaWdodHNfY2FjaGVkJyk6CiAgICAgICAgICBtb2RlbC50b3RhbE5pZ2h0c0NhY2hlZCwKICAgICAgX2soc3JjLCAnc3RheUR1cmF0aW9uSXNvJywgJ3N0YXlfZHVyYXRpb25faXNvJyk6IG1vZGVsLnN0YXlEdXJhdGlvbklzbywKICAgICAgX2soc3JjLCAnbGFzdE5pZ2h0RXBvY2gnLCAnbGFzdF9uaWdodF9lcG9jaCcpOiBtb2RlbC5sYXN0TmlnaHRFcG9jaCwKICAgICAgX2soc3JjLCAnaXNPdmVyZHVlJywgJ2lzX292ZXJkdWUnKTogbW9kZWwuaXNPdmVyZHVlLAogICAgICBfayhzcmMsICduZWVkc0NoZWNrb3V0UmV2aWV3JywgJ25lZWRzX2NoZWNrb3V0X3JldmlldycpOgogICAgICAgICAgbW9kZWwubmVlZHNDaGVja291dFJldmlldywKICAgICAgX2soc3JjLCAndG90YWxEdWVDYWNoZWQnLCAndG90YWxfZHVlX2NhY2hlZCcpOiBtb2RlbC50b3RhbER1ZUNhY2hlZCwKICAgICAgX2soc3JjLCAndG90YWxQYWlkQ2FjaGVkJywgJ3RvdGFsX3BhaWRfY2FjaGVkJyk6IG1vZGVsLnRvdGFsUGFpZENhY2hlZCwKICAgICAgX2soc3JjLCAncmVtYWluaW5nQmFsYW5jZUNhY2hlZCcsICdyZW1haW5pbmdfYmFsYW5jZV9jYWNoZWQnKToKICAgICAgICAgIG1vZGVsLnJlbWFpbmluZ0JhbGFuY2VDYWNoZWQsCiAgICAgIF9rKHNyYywgJ2lzRnVsbHlQYWlkJywgJ2lzX2Z1bGx5X3BhaWQnKTogbW9kZWwuaXNGdWxseVBhaWQsCiAgICAgIF9rKHNyYywgJ2hvdGVsRGF5Q2hlY2tpbicsICdob3RlbF9kYXlfY2hlY2tpbicpOiBtb2RlbC5ob3RlbERheUNoZWNraW4sCiAgICAgIF9rKHNyYywgJ2hvdGVsRGF5Q2hlY2tvdXQnLCAnaG90ZWxfZGF5X2NoZWNrb3V0Jyk6IG1vZGVsLmhvdGVsRGF5Q2hlY2tvdXQsCiAgICAgIF9rKHNyYywgJ2NyZWF0ZWRBdCcsICdjcmVhdGVkX2F0Jyk6IG1vZGVsLmNyZWF0ZWRBdCwKICAgICAgX2soc3JjLCAnY3JlYXRlZEF0RXBvY2gnLCAnY3JlYXRlZF9hdF9lcG9jaCcpOiBtb2RlbC5jcmVhdGVkQXRFcG9jaCwKICAgICAgX2soc3JjLCAnY3JlYXRlZEF0SXNvJywgJ2NyZWF0ZWRfYXRfaXNvJyk6IG1vZGVsLmNyZWF0ZWRBdElzbywKICAgICAgX2soc3JjLCAndXBkYXRlZEF0JywgJ3VwZGF0ZWRfYXQnKTogbW9kZWwudXBkYXRlZEF0LAogICAgICBfayhzcmMsICd1cGRhdGVkQXRJc28nLCAndXBkYXRlZF9hdF9pc28nKTogbW9kZWwudXBkYXRlZEF0SXNvLAogICAgICBfayhzcmMsICdkZWxldGVkQXQnLCAnZGVsZXRlZF9hdCcpOiBtb2RlbC5kZWxldGVkQXQsCiAgICAgIF9rKHNyYywgJ2RlbGV0ZWRBdElzbycsICdkZWxldGVkX2F0X2lzbycpOiBtb2RlbC5kZWxldGVkQXRJc28sCiAgICAgIF9rKHNyYywgJ2xhc3RNb2RpZmllZCcsICdsYXN0X21vZGlmaWVkJyk6IG1vZGVsLmxhc3RNb2RpZmllZCwKICAgICAgX2soc3JjLCAnbGFzdE1vZGlmaWVkRXBvY2gnLCAnbGFzdF9tb2RpZmllZF9lcG9jaCcpOgogICAgICAgICAgbW9kZWwubGFzdE1vZGlmaWVkRXBvY2gsCiAgICAgIF9rKHNyYywgJ3ZlcnNpb24nLCAndmVyc2lvbicpOiBtb2RlbC52ZXJzaW9uLAogICAgICBfayhzcmMsICdvcmlnaW4nLCAnb3JpZ2luJyk6IG1vZGVsLm9yaWdpbiwKICAgICAgX2soc3JjLCAndmVjdG9yQ2xvY2snLCAndmVjdG9yX2Nsb2NrJyk6IG1vZGVsLnZlY3RvckNsb2NrLAogICAgICAnaWRlbXBvdGVuY3lLZXknOiBtb2RlbC5pZGVtcG90ZW5jeUtleSwKICAgICAgJ2RldmljZUlkJzogbW9kZWwuZGV2aWNlSWQsCiAgICB9OwogIH0KfQoKZC5WYWx1ZTxpbnQ+IF92SW50KAogIE1hcDxTdHJpbmcsIGR5bmFtaWM+IGpzb24sCiAgU3RyaW5nIGtleSwKICBTb3VyY2Ugc3JjLCB7CiAgU3RyaW5nPyBhbHRLZXksCiAgaW50PyBmYWxsYmFjaywKfSkgewogIGZpbmFsIHYgPQogICAgICBfYXNJbnQoanNvbiwga2V5LCBzcmMpID8/CiAgICAgIChhbHRLZXkgIT0gbnVsbCA/IF9hc0ludChqc29uLCBhbHRLZXksIHNyYykgOiBudWxsKSA/PwogICAgICBmYWxsYmFjazsKICByZXR1cm4gdiA9PSBudWxsID8gY29uc3QgZC5WYWx1ZS5hYnNlbnQoKSA6IGQuVmFsdWUodik7Cn0KCmQuVmFsdWU8U3RyaW5nPiBfdlN0cigKICBNYXA8U3RyaW5nLCBkeW5hbWljPiBqc29uLAogIFN0cmluZyBrZXksCiAgU291cmNlIHNyYywgewogIFN0cmluZz8gYWx0S2V5LAogIFN0cmluZz8gZmFsbGJhY2ssCn0pIHsKICBmaW5hbCB2ID0KICAgICAgX2FzU3RyaW5nKGpzb24sIGtleSwgc3JjKSA/PwogICAgICAoYWx0S2V5ICE9IG51bGwgPyBfYXNTdHJpbmcoanNvbiwgYWx0S2V5LCBzcmMpIDogbnVsbCkgPz8KICAgICAgZmFsbGJhY2s7CiAgcmV0dXJuIHYgPT0gbnVsbCA/IGNvbnN0IGQuVmFsdWUuYWJzZW50KCkgOiBkLlZhbHVlKHYpOwp9CgpkLlZhbHVlPGRvdWJsZT4gX3ZEb3VibGUoCiAgTWFwPFN0cmluZywgZHluYW1pYz4ganNvbiwKICBTdHJpbmcga2V5LAogIFNvdXJjZSBzcmMsIHsKICBTdHJpbmc/IGFsdEtleSwKICBkb3VibGU/IGZhbGxiYWNrLAp9KSB7CiAgZmluYWwgdiA9CiAgICAgIF9hc0RvdWJsZShqc29uLCBrZXksIHNyYykgPz8KICAgICAgKGFsdEtleSAhPSBudWxsID8gX2FzRG91YmxlKGpzb24sIGFsdEtleSwgc3JjKSA6IG51bGwpID8/CiAgICAgIGZhbGxiYWNrOwogIHJldHVybiB2ID09IG51bGwgPyBjb25zdCBkLlZhbHVlLmFic2VudCgpIDogZC5WYWx1ZSh2KTsKfQoKZC5WYWx1ZTxib29sPiBfdkJvb2woCiAgTWFwPFN0cmluZywgZHluYW1pYz4ganNvbiwKICBTdHJpbmcga2V5LAogIFNvdXJjZSBzcmMsIHsKICBTdHJpbmc/IGFsdEtleSwKICBib29sPyBmYWxsYmFjaywKfSkgewogIGZpbmFsIHYgPQogICAgICBfYXNCb29sKGpzb24sIGtleSwgc3JjKSA/PwogICAgICAoYWx0S2V5ICE9IG51bGwgPyBfYXNCb29sKGpzb24sIGFsdEtleSwgc3JjKSA6IG51bGwpID8/CiAgICAgIGZhbGxiYWNrOwogIHJldHVybiB2ID09IG51bGwgPyBjb25zdCBkLlZhbHVlLmFic2VudCgpIDogZC5WYWx1ZSh2KTsKfQoKaW50PyBfZXBvY2goTWFwPFN0cmluZywgZHluYW1pYz4ganNvbiwgU3RyaW5nIGtleSwgU291cmNlIHNyYykgewogIGZpbmFsIHYgPSBfYXNJbnQoanNvbiwga2V5LCBzcmMpOwogIGlmICh2ICE9IG51bGwpIHsKICAgIHJldHVybiB2OwogIH0KICBmaW5hbCBzID0gX2FzU3RyaW5nKGpzb24sIGtleSwgc3JjKTsKICBpZiAocyA9PSBudWxsKSB7CiAgICByZXR1cm4gbnVsbDsKICB9CiAgZmluYWwgcGFyc2VkID0gaW50LnRyeVBhcnNlKHMpOwogIHJldHVybiBwYXJzZWQ7Cn0KCmludD8gX2FzSW50KE1hcDxTdHJpbmcsIGR5bmFtaWM+IGpzb24sIFN0cmluZyBrZXksIFNvdXJjZSBzcmMpIHsKICBmaW5hbCB2ID0gX3Jhdyhqc29uLCBrZXksIHNyYyk7CiAgaWYgKHYgaXMgYm9vbCkgewogICAgcmV0dXJuIHYgPyAxIDogMDsKICB9CiAgaWYgKHYgaXMgaW50KSB7CiAgICByZXR1cm4gdjsKICB9CiAgaWYgKHYgaXMgbnVtKSB7CiAgICByZXR1cm4gdi50b0ludCgpOwogIH0KICBpZiAodiBpcyBTdHJpbmcpIHsKICAgIC8vINiq2KzYp9mH2YQgVVVJRCDYo9mIIHN0cmluZ3Mg2LfZiNmK2YTYqQogICAgaWYgKHYuY29udGFpbnMoJy0nKSB8fCB2Lmxlbmd0aCA+IDIwKSB7CiAgICAgIHJldHVybiBudWxsOwogICAgfQogICAgcmV0dXJuIGludC50cnlQYXJzZSh2KTsKICB9CiAgcmV0dXJuIG51bGw7Cn0KCmRvdWJsZT8gX2FzRG91YmxlKE1hcDxTdHJpbmcsIGR5bmFtaWM+IGpzb24sIFN0cmluZyBrZXksIFNvdXJjZSBzcmMpIHsKICBmaW5hbCB2ID0gX3Jhdyhqc29uLCBrZXksIHNyYyk7CiAgaWYgKHYgaXMgZG91YmxlKSB7CiAgICByZXR1cm4gdjsKICB9CiAgaWYgKHYgaXMgaW50KSB7CiAgICByZXR1cm4gdi50b0RvdWJsZSgpOwogIH0KICBpZiAodiBpcyBudW0pIHsKICAgIHJldHVybiB2LnRvRG91YmxlKCk7CiAgfQogIGlmICh2IGlzIFN0cmluZykgewogICAgcmV0dXJuIGRvdWJsZS50cnlQYXJzZSh2KTsKICB9CiAgcmV0dXJuIG51bGw7Cn0KClN0cmluZz8gX2FzU3RyaW5nKE1hcDxTdHJpbmcsIGR5bmFtaWM+IGpzb24sIFN0cmluZyBrZXksIFNvdXJjZSBzcmMpIHsKICBmaW5hbCB2ID0gX3Jhdyhqc29uLCBrZXksIHNyYyk7CiAgaWYgKHYgPT0gbnVsbCkgewogICAgcmV0dXJuIG51bGw7CiAgfQogIHJldHVybiB2LnRvU3RyaW5nKCk7Cn0KCmJvb2w/IF9hc0Jvb2woTWFwPFN0cmluZywgZHluYW1pYz4ganNvbiwgU3RyaW5nIGtleSwgU291cmNlIHNyYykgewogIGZpbmFsIHYgPSBfcmF3KGpzb24sIGtleSwgc3JjKTsKICBpZiAodiBpcyBib29sKSB7CiAgICByZXR1cm4gdjsKICB9CiAgaWYgKHYgaXMgbnVtKSB7CiAgICByZXR1cm4gdiAhPSAwOwogIH0KICBpZiAodiBpcyBTdHJpbmcpIHsKICAgIGZpbmFsIHQgPSB2LnRvTG93ZXJDYXNlKCk7CiAgICBpZiAodCA9PSAndHJ1ZScgfHwgdCA9PSAnMScpIHsKICAgICAgcmV0dXJuIHRydWU7CiAgICB9CiAgICBpZiAodCA9PSAnZmFsc2UnIHx8IHQgPT0gJzAnKSB7CiAgICAgIHJldHVybiBmYWxzZTsKICAgIH0KICB9CiAgcmV0dXJuIG51bGw7Cn0KCk9iamVjdD8gX3JhdyhNYXA8U3RyaW5nLCBkeW5hbWljPiBqc29uLCBTdHJpbmcga2V5LCBTb3VyY2Ugc3JjKSB7CiAgaWYgKGpzb24uY29udGFpbnNLZXkoa2V5KSkgewogICAgcmV0dXJuIGpzb25ba2V5XTsKICB9CiAgZmluYWwgYWx0ID0gX2FsdEtleShrZXksIHNyYyk7CiAgaWYgKGFsdCAhPSBudWxsICYmIGpzb24uY29udGFpbnNLZXkoYWx0KSkgewogICAgcmV0dXJuIGpzb25bYWx0XTsKICB9CiAgcmV0dXJuIG51bGw7Cn0KCi8vLyDYqtit2YjZitmEINin2LPZhSDYp9mE2K3ZgtmEINio2YrZhiBjYW1lbENhc2Ug2Yggc25ha2VfY2FzZSDYrdiz2Kgg2KfZhNmF2LXYr9ixLgovLy8g2YrYr9i52YUg2KfYs9iq2K/Yudin2KEg2KjYp9ix2KfZhdmK2KrYsdmK2YYgKGNhbWVsINmB2YLYtykg2KPZiCDYq9mE2KfYq9ipIChjYW1lbCArIHNuYWtlKS4KU3RyaW5nIF9rKFNvdXJjZSBzcmMsIFN0cmluZyBjYW1lbCwgW1N0cmluZz8gc25ha2VdKSA9PgogICAgc3JjID09IFNvdXJjZS5kcml2ZSA/IChzbmFrZSA/PyBjYW1lbCkgOiBjYW1lbDsKClN0cmluZz8gX2FsdEtleShTdHJpbmcgY2FtZWwsIFNvdXJjZSBzcmMpIHsKICAvLyDinIUg2KXYtdmE2KfYrTog2KrYrdmI2YrZhCBjYW1lbENhc2Ug4oaSIHNuYWtlX2Nhc2Ug2YTYrNmF2YrYuSDYp9mE2YXYtdin2K/YsSDYqNmF2Kcg2YHZitmH2KcgRHJpdmUKICBmaW5hbCBidWYgPSBTdHJpbmdCdWZmZXIoKTsKICBmb3IgKHZhciBpID0gMDsgaSA8IGNhbWVsLmxlbmd0aDsgaSsrKSB7CiAgICBmaW5hbCBjID0gY2FtZWxbaV07CiAgICBpZiAoYy50b1VwcGVyQ2FzZSgpID09IGMgJiYgYy50b0xvd2VyQ2FzZSgpICE9IGMpIHsKICAgICAgYnVmLndyaXRlKCdfJyk7CiAgICAgIGJ1Zi53cml0ZShjLnRvTG93ZXJDYXNlKCkpOwogICAgfSBlbHNlIHsKICAgICAgYnVmLndyaXRlKGMpOwogICAgfQogIH0KICByZXR1cm4gYnVmLnRvU3RyaW5nKCk7Cn0K
+import 'package:drift/drift.dart' as d;
+
+import '../../utils/id.dart';
+import '../../utils/time.dart';
+import '../local_db.dart';
+import 'entity_adapter.dart';
+import 'id_resolver.dart';
+import 'resolve_result.dart';
+import 'source.dart';
+
+class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
+  BookingsAdapter(this.resolver);
+  final IdResolver resolver;
+
+  @override
+  String get collectionId => 'bookings';
+
+  @override
+  String get drivePath => 'bookings.json';
+
+  @override
+  String get tableName => 'bookings';
+
+  @override
+  Future<ResolveResult> resolveRefs(
+    AppDatabase db,
+    Map<String, dynamic> json, {
+    required Source src,
+  }) async {
+    final bookingUuid =
+        _asString(json, 'localUuid', src) ??
+        _asString(json, 'booking_uuid', src) ??
+        _asString(json, 'bookingUuid', src);
+    final serverBookingId =
+        _asInt(json, 'serverBookingId', src) ?? _asInt(json, 'booking_id', src);
+    final localId = _asInt(json, 'id', src);
+    final resolvedId = await resolver.resolveBooking(
+      localId: localId,
+      serverId: serverBookingId,
+      uuid: bookingUuid,
+    );
+    final createdAt = _epoch(json, 'createdAt', src);
+    final lastModified = _epoch(json, 'lastModified', src);
+    return ResolveResult(
+      bookingLocalId: resolvedId,
+      bookingUuidCache: bookingUuid,
+      createdAtEpoch: createdAt,
+      lastModifiedEpoch: lastModified,
+    );
+  }
+
+  @override
+  BookingsCompanion fromJson(
+    Map<String, dynamic> json, {
+    required Source src,
+    required ResolveResult refs,
+  }) {
+    final now = Time.nowEpoch();
+    final createdAt =
+        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final lastModified =
+        refs.lastModifiedEpoch ??
+        _epoch(json, 'lastModified', src) ??
+        createdAt;
+    return BookingsCompanion(
+      id: _vInt(json, 'id', src),
+      localUuid: d.Value(
+        _asString(json, 'localUuid', src) ??
+            _asString(json, 'local_uuid', src) ??
+            IdGen.uuid(),
+      ),
+      serverId: _vInt(json, 'serverId', src),
+      serverBookingId: _vInt(
+        json,
+        'serverBookingId',
+        src,
+        altKey: 'booking_id',
+      ),
+      roomNumber: _vStr(
+        json,
+        'roomNumber',
+        src,
+        altKey: 'room_number',
+        fallback: '',
+      ),
+      guestName: _vStr(
+        json,
+        'guestName',
+        src,
+        altKey: 'guest_name',
+        fallback: '',
+      ),
+      guestPhone: _vStr(
+        json,
+        'guestPhone',
+        src,
+        altKey: 'guest_phone',
+        fallback: '',
+      ),
+      guestIdType: _vStr(
+        json,
+        'guestIdType',
+        src,
+        altKey: 'guest_id_type',
+        fallback: 'بطاقة شخصية',
+      ),
+      guestIdNumber: _vStr(
+        json,
+        'guestIdNumber',
+        src,
+        altKey: 'guest_id_number',
+        fallback: '',
+      ),
+      guestIdIssueDate: _vStr(
+        json,
+        'guestIdIssueDate',
+        src,
+        altKey: 'guest_id_issue_date',
+      ),
+      guestIdIssuePlace: _vStr(
+        json,
+        'guestIdIssuePlace',
+        src,
+        altKey: 'guest_id_issue_place',
+      ),
+      guestNationality: _vStr(
+        json,
+        'guestNationality',
+        src,
+        altKey: 'guest_nationality',
+        fallback: '',
+      ),
+      guestEmail: _vStr(json, 'guestEmail', src, altKey: 'guest_email'),
+      guestAddress: _vStr(json, 'guestAddress', src, altKey: 'guest_address'),
+      checkinDate: _vStr(
+        json,
+        'checkinDate',
+        src,
+        altKey: 'checkin_date',
+        fallback: '',
+      ),
+      checkoutDate: _vStr(json, 'checkoutDate', src, altKey: 'checkout_date'),
+      // ✅ إصلاح حرج: actualCheckout يجب أن يُرسل دائماً (حتى لو null)
+      // لأن Value.absent() يمنع insertOnConflictUpdate من تحديث الحقل
+      // عند التعارض — مما يبقي actualCheckout=null حتى لو كانت البيانات
+      // البعيدة تحدد قيمة (مثل تاريخ تسجيل الخروج)
+      actualCheckout: d.Value(
+        _asString(json, 'actualCheckout', src) ??
+            _asString(json, 'actual_checkout', src),
+      ),
+      status: _vStr(json, 'status', src, fallback: ''),
+      notes: _vStr(json, 'notes', src),
+      discount: _vDouble(json, 'discount', src, altKey: 'discount'),
+      discountType: _vStr(
+        json,
+        'discountType',
+        src,
+        altKey: 'discount_type',
+        fallback: 'per_night',
+      ),
+      discountStartDate: _vStr(
+        json,
+        'discountStartDate',
+        src,
+        altKey: 'discount_start_date',
+      ),
+      expectedNights: _vInt(
+        json,
+        'expectedNights',
+        src,
+        altKey: 'expected_nights',
+        fallback: 1,
+      ),
+      calculatedNights: _vInt(
+        json,
+        'calculatedNights',
+        src,
+        altKey: 'calculated_nights',
+      ),
+      totalNightsCached: _vInt(json, 'totalNightsCached', src),
+      stayDurationIso: _vStr(
+        json,
+        'stayDurationIso',
+        src,
+        altKey: 'stay_duration_iso',
+      ),
+      lastNightEpoch: _vInt(json, 'lastNightEpoch', src),
+      isOverdue: _vBool(json, 'isOverdue', src),
+      needsCheckoutReview: _vBool(json, 'needsCheckoutReview', src),
+      // لا نقرأ الحقول المحسوبة من Appwrite/Drive — تُعاد حسابها محلياً
+      // عبر BookingDerivedFieldsService لضمان دقة الأرقام
+      // totalDueCached, totalPaidCached, remainingBalanceCached, isFullyPaid
+      // تُترك كـ Value.absent() حتى يُعاد حسابها
+      hotelDayCheckin: _vStr(
+        json,
+        'hotelDayCheckin',
+        src,
+        altKey: 'hotel_day_checkin',
+      ),
+      hotelDayCheckout: _vStr(
+        json,
+        'hotelDayCheckout',
+        src,
+        altKey: 'hotel_day_checkout',
+      ),
+      createdAt: d.Value(createdAt),
+      updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
+      deletedAt: _vInt(json, 'deletedAt', src),
+      lastModified: d.Value(lastModified),
+      createdAtIso: _vStr(json, 'createdAtIso', src),
+      updatedAtIso: _vStr(json, 'updatedAtIso', src),
+      deletedAtIso: _vStr(json, 'deletedAtIso', src),
+      createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
+      lastModifiedEpoch: _vInt(
+        json,
+        'lastModifiedEpoch',
+        src,
+        fallback: lastModified,
+      ),
+      version: _vInt(json, 'version', src, fallback: 1),
+      // ✅ إصلاح: عند src=Source.appwrite، نصر على origin='server' دائماً
+      // لمنع مشكلة أن البيانات المسحوبة من السيرفر تحمل origin='mobile'
+      // مما يمنع _cleanupOutboxAfterPull من تنظيف عناصر outbox بشكل صحيح
+      origin: src == Source.appwrite || src == Source.drive
+          ? const d.Value('server')
+          : _vStr(json, 'origin', src, fallback: 'server'),
+      vectorClock: _vStr(
+        json,
+        'vectorClock',
+        src,
+        altKey: 'vector_clock',
+        fallback: '{}',
+      ),
+      idempotencyKey: _vStr(
+        json,
+        'idempotencyKey',
+        src,
+        altKey: 'idempotency_key',
+      ),
+      deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
+    );
+  }
+
+  @override
+  Map<String, dynamic> toJson(Booking model, {required Source src}) {
+    return {
+      _k(src, 'id', 'id'): model.id,
+      _k(src, 'localUuid', 'local_uuid'): model.localUuid,
+      _k(src, 'serverId', 'server_id'): model.serverId,
+      _k(src, 'serverBookingId', 'booking_id'): model.serverBookingId,
+      _k(src, 'roomNumber', 'room_number'): model.roomNumber,
+      _k(src, 'guestName', 'guest_name'): model.guestName,
+      _k(src, 'guestPhone', 'guest_phone'): model.guestPhone,
+      _k(src, 'guestIdType', 'guest_id_type'): model.guestIdType,
+      _k(src, 'guestIdNumber', 'guest_id_number'): model.guestIdNumber,
+      _k(src, 'guestIdIssueDate', 'guest_id_issue_date'):
+          model.guestIdIssueDate,
+      _k(src, 'guestIdIssuePlace', 'guest_id_issue_place'):
+          model.guestIdIssuePlace,
+      _k(src, 'guestNationality', 'guest_nationality'): model.guestNationality,
+      _k(src, 'guestEmail', 'guest_email'): model.guestEmail,
+      _k(src, 'guestAddress', 'guest_address'): model.guestAddress,
+      _k(src, 'checkinDate', 'checkin_date'): model.checkinDate,
+      _k(src, 'checkoutDate', 'checkout_date'): model.checkoutDate,
+      _k(src, 'actualCheckout', 'actual_checkout'): model.actualCheckout,
+      _k(src, 'status', 'status'): model.status,
+      _k(src, 'notes', 'notes'): model.notes,
+      _k(src, 'discount', 'discount'): model.discount,
+      _k(src, 'discountType', 'discount_type'): model.discountType,
+      _k(src, 'discountStartDate', 'discount_start_date'):
+          model.discountStartDate,
+      _k(src, 'expectedNights', 'expected_nights'): model.expectedNights,
+      _k(src, 'calculatedNights', 'calculated_nights'): model.calculatedNights,
+      _k(src, 'totalNightsCached', 'total_nights_cached'):
+          model.totalNightsCached,
+      _k(src, 'stayDurationIso', 'stay_duration_iso'): model.stayDurationIso,
+      _k(src, 'lastNightEpoch', 'last_night_epoch'): model.lastNightEpoch,
+      _k(src, 'isOverdue', 'is_overdue'): model.isOverdue,
+      _k(src, 'needsCheckoutReview', 'needs_checkout_review'):
+          model.needsCheckoutReview,
+      _k(src, 'totalDueCached', 'total_due_cached'): model.totalDueCached,
+      _k(src, 'totalPaidCached', 'total_paid_cached'): model.totalPaidCached,
+      _k(src, 'remainingBalanceCached', 'remaining_balance_cached'):
+          model.remainingBalanceCached,
+      _k(src, 'isFullyPaid', 'is_fully_paid'): model.isFullyPaid,
+      _k(src, 'hotelDayCheckin', 'hotel_day_checkin'): model.hotelDayCheckin,
+      _k(src, 'hotelDayCheckout', 'hotel_day_checkout'): model.hotelDayCheckout,
+      _k(src, 'createdAt', 'created_at'): model.createdAt,
+      _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
+      _k(src, 'createdAtIso', 'created_at_iso'): model.createdAtIso,
+      _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
+      _k(src, 'updatedAtIso', 'updated_at_iso'): model.updatedAtIso,
+      _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
+      _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
+      _k(src, 'lastModified', 'last_modified'): model.lastModified,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'):
+          model.lastModifiedEpoch,
+      _k(src, 'version', 'version'): model.version,
+      _k(src, 'origin', 'origin'): model.origin,
+      _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
+      'idempotencyKey': model.idempotencyKey,
+      'deviceId': model.deviceId,
+    };
+  }
+}
+
+d.Value<int> _vInt(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  int? fallback,
+}) {
+  final v =
+      _asInt(json, key, src) ??
+      (altKey != null ? _asInt(json, altKey, src) : null) ??
+      fallback;
+  return v == null ? const d.Value.absent() : d.Value(v);
+}
+
+d.Value<String> _vStr(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  String? fallback,
+}) {
+  final v =
+      _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null) ??
+      fallback;
+  return v == null ? const d.Value.absent() : d.Value(v);
+}
+
+d.Value<double> _vDouble(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  double? fallback,
+}) {
+  final v =
+      _asDouble(json, key, src) ??
+      (altKey != null ? _asDouble(json, altKey, src) : null) ??
+      fallback;
+  return v == null ? const d.Value.absent() : d.Value(v);
+}
+
+d.Value<bool> _vBool(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  bool? fallback,
+}) {
+  final v =
+      _asBool(json, key, src) ??
+      (altKey != null ? _asBool(json, altKey, src) : null) ??
+      fallback;
+  return v == null ? const d.Value.absent() : d.Value(v);
+}
+
+int? _epoch(Map<String, dynamic> json, String key, Source src) {
+  final v = _asInt(json, key, src);
+  if (v != null) {
+    return v;
+  }
+  final s = _asString(json, key, src);
+  if (s == null) {
+    return null;
+  }
+  final parsed = int.tryParse(s);
+  return parsed;
+}
+
+int? _asInt(Map<String, dynamic> json, String key, Source src) {
+  final v = _raw(json, key, src);
+  if (v is bool) {
+    return v ? 1 : 0;
+  }
+  if (v is int) {
+    return v;
+  }
+  if (v is num) {
+    return v.toInt();
+  }
+  if (v is String) {
+    // تجاهل UUID أو strings طويلة
+    if (v.contains('-') || v.length > 20) {
+      return null;
+    }
+    return int.tryParse(v);
+  }
+  return null;
+}
+
+double? _asDouble(Map<String, dynamic> json, String key, Source src) {
+  final v = _raw(json, key, src);
+  if (v is double) {
+    return v;
+  }
+  if (v is int) {
+    return v.toDouble();
+  }
+  if (v is num) {
+    return v.toDouble();
+  }
+  if (v is String) {
+    return double.tryParse(v);
+  }
+  return null;
+}
+
+String? _asString(Map<String, dynamic> json, String key, Source src) {
+  final v = _raw(json, key, src);
+  if (v == null) {
+    return null;
+  }
+  return v.toString();
+}
+
+bool? _asBool(Map<String, dynamic> json, String key, Source src) {
+  final v = _raw(json, key, src);
+  if (v is bool) {
+    return v;
+  }
+  if (v is num) {
+    return v != 0;
+  }
+  if (v is String) {
+    final t = v.toLowerCase();
+    if (t == 'true' || t == '1') {
+      return true;
+    }
+    if (t == 'false' || t == '0') {
+      return false;
+    }
+  }
+  return null;
+}
+
+Object? _raw(Map<String, dynamic> json, String key, Source src) {
+  if (json.containsKey(key)) {
+    return json[key];
+  }
+  final alt = _altKey(key, src);
+  if (alt != null && json.containsKey(alt)) {
+    return json[alt];
+  }
+  return null;
+}
+
+/// تحويل اسم الحقل بين camelCase و snake_case حسب المصدر.
+/// يدعم استدعاء باراميترين (camel فقط) أو ثلاثة (camel + snake).
+String _k(Source src, String camel, [String? snake]) =>
+    src == Source.drive ? (snake ?? camel) : camel;
+
+String? _altKey(String camel, Source src) {
+  // ✅ إصلاح: تحويل camelCase → snake_case لجميع المصادر بما فيها Drive
+  final buf = StringBuffer();
+  for (var i = 0; i < camel.length; i++) {
+    final c = camel[i];
+    if (c.toUpperCase() == c && c.toLowerCase() != c) {
+      buf.write('_');
+      buf.write(c.toLowerCase());
+    } else {
+      buf.write(c);
+    }
+  }
+  return buf.toString();
+}
