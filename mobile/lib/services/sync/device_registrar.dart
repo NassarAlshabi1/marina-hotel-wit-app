@@ -1,4 +1,3 @@
-
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
@@ -64,7 +63,11 @@ class DeviceRegistrar {
   }
 
   /// تسجيل الجهاز تلقائياً
-  Future<String> registerDevice({String? deviceName, String? deviceModel, String? osVersion}) async {
+  Future<String> registerDevice({
+    String? deviceName,
+    String? deviceModel,
+    String? osVersion,
+  }) async {
     try {
       String finalDeviceName = deviceName ?? 'Unknown Device';
       String finalDeviceModel = deviceModel ?? 'Unknown Model';
@@ -91,7 +94,8 @@ class DeviceRegistrar {
       final nowIso = Time.nowIso();
       final nowEpoch = Time.nowEpoch();
 
-      _deviceLocalUuid ??= 'marina_${finalDeviceModel.replaceAll(RegExp('[^a-zA-Z0-9_-]'), '_')}_${IdGen.shortId()}';
+      _deviceLocalUuid ??=
+          'marina_${finalDeviceModel.replaceAll(RegExp('[^a-zA-Z0-9_-]'), '_')}_${IdGen.shortId()}';
       _deviceCreatedAtEpoch ??= nowEpoch;
 
       if (_currentDeviceId != null) {
@@ -101,7 +105,8 @@ class DeviceRegistrar {
             documentId: _currentDeviceId!,
           );
           final currentRemoteVersion = _asInt(existingDoc.data['version']);
-          if (_deviceVersion == null || _deviceVersion! <= currentRemoteVersion) {
+          if (_deviceVersion == null ||
+              _deviceVersion! <= currentRemoteVersion) {
             _deviceVersion = currentRemoteVersion + 1;
           }
 
@@ -159,7 +164,12 @@ class DeviceRegistrar {
         return _currentDeviceId!;
       }
     } catch (e, stackTrace) {
-      logger.error('Failed to register device', error: e, stackTrace: stackTrace, tag: 'SYNC');
+      logger.error(
+        'Failed to register device',
+        error: e,
+        stackTrace: stackTrace,
+        tag: 'SYNC',
+      );
       rethrow;
     }
   }
