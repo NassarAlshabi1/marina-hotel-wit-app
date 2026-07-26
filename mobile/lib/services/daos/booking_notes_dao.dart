@@ -1,1 +1,264 @@
-aW1wb3J0ICdwYWNrYWdlOmRyaWZ0L2RyaWZ0LmRhcnQnOwppbXBvcnQgJy4uLy4uL3V0aWxzL2lkLmRhcnQnOwppbXBvcnQgJy4uLy4uL3V0aWxzL3RpbWUuZGFydCc7CmltcG9ydCAnLi4vYXBwd3JpdGVfc3luY19tYW5hZ2VyLmRhcnQnOwppbXBvcnQgJy4uL2xvY2FsX2RiLmRhcnQnOwppbXBvcnQgJ291dGJveF9kYW8uZGFydCc7CgpwYXJ0ICdib29raW5nX25vdGVzX2Rhby5nLmRhcnQnOwoKQERyaWZ0QWNjZXNzb3IodGFibGVzOiBbQm9va2luZ05vdGVzXSkKY2xhc3MgQm9va2luZ05vdGVzRGFvIGV4dGVuZHMgRGF0YWJhc2VBY2Nlc3NvcjxBcHBEYXRhYmFzZT4KICAgIHdpdGggXyRCb29raW5nTm90ZXNEYW9NaXhpbiB7CiAgQm9va2luZ05vdGVzRGFvKHN1cGVyLmRiLCB0aGlzLm91dGJveERhbyk7CiAgZmluYWwgT3V0Ym94RGFvIG91dGJveERhbzsKCiAgRnV0dXJlPExpc3Q8Qm9va2luZ05vdGU+PiBsaXN0KHsKICAgIGludD8gYm9va2luZ0lkLAogICAgYm9vbCBpbmNsdWRlRGVsZXRlZCA9IGZhbHNlLAogIH0pIGFzeW5jIHsKICAgIGZpbmFsIHEgPSBzZWxlY3QoYm9va2luZ05vdGVzKTsKICAgIGlmICghaW5jbHVkZURlbGV0ZWQpIHsKICAgICAgcS53aGVyZSgodCkgPT4gdC5kZWxldGVkQXQuaXNOdWxsKCkpOwogICAgfQogICAgaWYgKGJvb2tpbmdJZCAhPSBudWxsKSB7CiAgICAgIHEud2hlcmUoKHQpID0+IHQuYm9va2luZ0lkLmVxdWFscyhib29raW5nSWQpKTsKICAgIH0KICAgIHJldHVybiBxLmdldCgpOwogIH0KCiAgRnV0dXJlPExpc3Q8Qm9va2luZ05vdGU+PiBsaXN0RmlsdGVyZWQoewogICAgaW50PyBib29raW5nSWQsCiAgICBib29sPyBpc0FjdGl2ZSwKICAgIGludD8gbGltaXQsCiAgfSkgYXN5bmMgewogICAgZmluYWwgcSA9IHNlbGVjdChib29raW5nTm90ZXMpOwogICAgX2FwcGx5Q29tbW9uRmlsdGVycyhxLCBib29raW5nSWQ6IGJvb2tpbmdJZCwgaXNBY3RpdmU6IGlzQWN0aXZlKTsKICAgIGlmIChsaW1pdCAhPSBudWxsKSB7CiAgICAgIHEubGltaXQobGltaXQpOwogICAgfQogICAgcS5vcmRlckJ5KFsodCkgPT4gT3JkZXJpbmdUZXJtLmRlc2ModC5jcmVhdGVkQXQpXSk7CiAgICByZXR1cm4gcS5nZXQoKTsKICB9CgogIEZ1dHVyZTxpbnQ+IGNvdW50RmlsdGVyZWQoe2ludD8gYm9va2luZ0lkLCBib29sPyBpc0FjdGl2ZX0pIGFzeW5jIHsKICAgIGZpbmFsIHF1ZXJ5ID0gc2VsZWN0T25seShib29raW5nTm90ZXMpCiAgICAgIC4uYWRkQ29sdW1ucyhbYm9va2luZ05vdGVzLmlkLmNvdW50KCldKQogICAgICAuLndoZXJlKGJvb2tpbmdOb3Rlcy5kZWxldGVkQXQuaXNOdWxsKCkpOwogICAgaWYgKGJvb2tpbmdJZCAhPSBudWxsKSB7CiAgICAgIHF1ZXJ5LndoZXJlKGJvb2tpbmdOb3Rlcy5ib29raW5nSWQuZXF1YWxzKGJvb2tpbmdJZCkpOwogICAgfQogICAgaWYgKGlzQWN0aXZlICE9IG51bGwpIHsKICAgICAgcXVlcnkud2hlcmUoYm9va2luZ05vdGVzLmlzQWN0aXZlLmVxdWFscyhpc0FjdGl2ZSA/IDEgOiAwKSk7CiAgICB9CiAgICBmaW5hbCByZXN1bHQgPSBhd2FpdCBxdWVyeS5nZXRTaW5nbGUoKTsKICAgIHJldHVybiByZXN1bHQucmVhZChib29raW5nTm90ZXMuaWQuY291bnQoKSkgPz8gMDsKICB9CgogIC8vLyDZgdmE2KfYqtixINmF2LTYqtix2YPYqSDYqNmK2YYgbGlzdEZpbHRlcmVkINmIIGNvdW50RmlsdGVyZWQKICB2b2lkIF9hcHBseUNvbW1vbkZpbHRlcnMoCiAgICBTaW1wbGVTZWxlY3RTdGF0ZW1lbnQ8Qm9va2luZ05vdGVzLCBCb29raW5nTm90ZT4gcSwgewogICAgaW50PyBib29raW5nSWQsCiAgICBib29sPyBpc0FjdGl2ZSwKICB9KSB7CiAgICBxLndoZXJlKCh0KSA9PiB0LmRlbGV0ZWRBdC5pc051bGwoKSk7CiAgICBpZiAoYm9va2luZ0lkICE9IG51bGwpIHsKICAgICAgcS53aGVyZSgodCkgPT4gdC5ib29raW5nSWQuZXF1YWxzKGJvb2tpbmdJZCkpOwogICAgfQogICAgaWYgKGlzQWN0aXZlICE9IG51bGwpIHsKICAgICAgcS53aGVyZSgodCkgPT4gdC5pc0FjdGl2ZS5lcXVhbHMoaXNBY3RpdmUgPyAxIDogMCkpOwogICAgfQogIH0KCiAgU3RyZWFtPExpc3Q8Qm9va2luZ05vdGU+PiB3YXRjaEJ5Qm9va2luZygKICAgIGludCBib29raW5nSWQsIHsKICAgIGJvb2wgaW5jbHVkZURlbGV0ZWQgPSBmYWxzZSwKICB9KSB7CiAgICBmaW5hbCBxID0gc2VsZWN0KGJvb2tpbmdOb3RlcykuLndoZXJlKCh0KSA9PiB0LmJvb2tpbmdJZC5lcXVhbHMoYm9va2luZ0lkKSk7CiAgICBpZiAoIWluY2x1ZGVEZWxldGVkKSB7CiAgICAgIHEud2hlcmUoKHQpID0+IHQuZGVsZXRlZEF0LmlzTnVsbCgpKTsKICAgIH0KICAgIHJldHVybiBxLndhdGNoKCk7CiAgfQoKICBGdXR1cmU8Qm9va2luZ05vdGU/PiBnZXRCeUlkKGludCBpZCkgPT4KICAgICAgKHNlbGVjdChib29raW5nTm90ZXMpLi53aGVyZSgodCkgPT4gdC5pZC5lcXVhbHMoaWQpKSkuZ2V0U2luZ2xlT3JOdWxsKCk7CiAgU3RyZWFtPEJvb2tpbmdOb3RlPz4gd2F0Y2hCeUlkKGludCBpZCkgPT4KICAgICAgKHNlbGVjdChib29raW5nTm90ZXMpLi53aGVyZSgodCkgPT4gdC5pZC5lcXVhbHMoaWQpKSkud2F0Y2hTaW5nbGVPck51bGwoKTsKCiAgRnV0dXJlPGludD4gaW5zZXJ0T25lKAogICAgQm9va2luZ05vdGVzQ29tcGFuaW9uIGRhdGEsIHsKICAgIGJvb2wgb3JpZ2luSXNTZXJ2ZXIgPSBmYWxzZSwKICB9KSBhc3luYyB7CiAgICByZXR1cm4gZGIudHJhbnNhY3Rpb24oKCkgYXN5bmMgewogICAgICBmaW5hbCBub3cgPSBUaW1lLm5vd0Vwb2NoKCk7CiAgICAgIGZpbmFsIHV1ID0gZGF0YS5sb2NhbFV1aWQucHJlc2VudCA/IGRhdGEubG9jYWxVdWlkLnZhbHVlIDogSWRHZW4udXVpZCgpOwogICAgICBmaW5hbCBjb21wID0gZGF0YS5jb3B5V2l0aCgKICAgICAgICBsb2NhbFV1aWQ6IFZhbHVlKHV1KSwKICAgICAgICBjcmVhdGVkQXQ6IFZhbHVlKG5vdyksCiAgICAgICAgdXBkYXRlZEF0OiBWYWx1ZShub3cpLAogICAgICAgIGxhc3RNb2RpZmllZDogVmFsdWUobm93KSwKICAgICAgICBvcmlnaW46IFZhbHVlKG9yaWdpbklzU2VydmVyID8gJ3NlcnZlcicgOiAnbG9jYWwnKSwKICAgICAgICBkZXZpY2VJZDogb3JpZ2luSXNTZXJ2ZXIKICAgICAgICAgICAgPyBjb25zdCBWYWx1ZS5hYnNlbnQoKQogICAgICAgICAgICA6IFZhbHVlKEFwcHdyaXRlU3luY01hbmFnZXIuY3VycmVudERldmljZUlkU3RhdGljID8/ICcnKSwKICAgICAgKTsKICAgICAgZmluYWwgaWQgPSBhd2FpdCBpbnRvKGJvb2tpbmdOb3RlcykuaW5zZXJ0KGNvbXApOwogICAgICBpZiAoIW9yaWdpbklzU2VydmVyKSB7CiAgICAgICAgYXdhaXQgb3V0Ym94RGFvLm1lcmdlKAogICAgICAgICAgZW50aXR5OiAnYm9va2luZ19ub3RlcycsCiAgICAgICAgICBvcDogJ2NyZWF0ZScsCiAgICAgICAgICBsb2NhbFV1aWQ6IHV1LAogICAgICAgICAgc2VydmVySWQ6IGNvbXAuc2VydmVySWQucHJlc2VudCA/IGNvbXAuc2VydmVySWQudmFsdWUgOiBudWxsLAogICAgICAgICAgcGF5bG9hZDogX3BheWxvYWRGcm9tKGNvbXApLAogICAgICAgICAgY2xpZW50VHM6IG5vdywKICAgICAgICApOwogICAgICB9CiAgICAgIHJldHVybiBpZDsKICAgIH0pOwogIH0KCiAgRnV0dXJlPGludD4gdXBkYXRlQnlJZCgKICAgIGludCBpZCwKICAgIEJvb2tpbmdOb3Rlc0NvbXBhbmlvbiBkYXRhLCB7CiAgICBib29sIG9yaWdpbklzU2VydmVyID0gZmFsc2UsCiAgfSkgYXN5bmMgewogICAgcmV0dXJuIGRiLnRyYW5zYWN0aW9uKCgpIGFzeW5jIHsKICAgICAgZmluYWwgbm93ID0gVGltZS5ub3dFcG9jaCgpOwogICAgICBmaW5hbCBleGlzdGluZyA9IGF3YWl0IGdldEJ5SWQoaWQpOwogICAgICBpZiAoZXhpc3RpbmcgPT0gbnVsbCkgewogICAgICAgIHJldHVybiAwOwogICAgICB9CiAgICAgIC8vIOKchSDYpdi12YTYp9itOiDYudmG2K8gb3JpZ2luSXNTZXJ2ZXI9dHJ1ZdiMINmG2LPYqtiu2K/ZhSBsYXN0TW9kaWZpZWQg2YXZhiDYp9mE2KjZitin2YbYp9iqINin2YTZiNin2LHYr9ipCiAgICAgIC8vINio2K/ZhNin2Ysg2YXZhiDYqti52YrZitmGIG5vd9iMINmE2YXZhti5INil2LnYp9iv2Kkg2LHZgdi5INin2YTYqNmK2KfZhtin2Kog2KfZhNmF2LPYrdmI2KjYqSDZhdmGINin2YTYs9mK2LHZgdixCiAgICAgIGZpbmFsIGVmZmVjdGl2ZUxhc3RNb2RpZmllZCA9IG9yaWdpbklzU2VydmVyICYmIGRhdGEubGFzdE1vZGlmaWVkLnByZXNlbnQKICAgICAgICAgID8gZGF0YS5sYXN0TW9kaWZpZWQKICAgICAgICAgIDogVmFsdWUobm93KTsKICAgICAgZmluYWwgY29tcCA9IGRhdGEuY29weVdpdGgoCiAgICAgICAgdXBkYXRlZEF0OiBWYWx1ZShub3cpLAogICAgICAgIGxhc3RNb2RpZmllZDogZWZmZWN0aXZlTGFzdE1vZGlmaWVkLAogICAgICAgIHZlcnNpb246IFZhbHVlKGV4aXN0aW5nLnZlcnNpb24gKyAxKSwKICAgICAgKTsKICAgICAgZmluYWwgcm93cyA9IGF3YWl0ICh1cGRhdGUoCiAgICAgICAgYm9va2luZ05vdGVzLAogICAgICApLi53aGVyZSgodCkgPT4gdC5pZC5lcXVhbHMoaWQpKSkud3JpdGUoY29tcCk7CiAgICAgIGlmIChyb3dzID4gMCAmJiAhb3JpZ2luSXNTZXJ2ZXIpIHsKICAgICAgICBhd2FpdCBvdXRib3hEYW8ubWVyZ2UoCiAgICAgICAgICBlbnRpdHk6ICdib29raW5nX25vdGVzJywKICAgICAgICAgIG9wOiAndXBkYXRlJywKICAgICAgICAgIGxvY2FsVXVpZDogZXhpc3RpbmcubG9jYWxVdWlkLAogICAgICAgICAgc2VydmVySWQ6IGV4aXN0aW5nLnNlcnZlcklkLAogICAgICAgICAgcGF5bG9hZDogX3BheWxvYWRGcm9tKGNvbXAsIGJhc2U6IGV4aXN0aW5nKSwKICAgICAgICAgIGNsaWVudFRzOiBub3csCiAgICAgICAgKTsKICAgICAgfQogICAgICByZXR1cm4gcm93czsKICAgIH0pOwogIH0KCiAgRnV0dXJlPGludD4gc29mdERlbGV0ZShpbnQgaWQsIHtib29sIG9yaWdpbklzU2VydmVyID0gZmFsc2V9KSBhc3luYyB7CiAgICByZXR1cm4gZGIudHJhbnNhY3Rpb24oKCkgYXN5bmMgewogICAgICBmaW5hbCBub3cgPSBUaW1lLm5vd0Vwb2NoKCk7CiAgICAgIGZpbmFsIGV4aXN0aW5nID0gYXdhaXQgZ2V0QnlJZChpZCk7CiAgICAgIGlmIChleGlzdGluZyA9PSBudWxsKSB7CiAgICAgICAgcmV0dXJuIDA7CiAgICAgIH0KICAgICAgZmluYWwgcm93cyA9IGF3YWl0ICh1cGRhdGUoYm9va2luZ05vdGVzKS4ud2hlcmUoKHQpID0+IHQuaWQuZXF1YWxzKGlkKSkpCiAgICAgICAgICAud3JpdGUoCiAgICAgICAgICAgIEJvb2tpbmdOb3Rlc0NvbXBhbmlvbigKICAgICAgICAgICAgICBkZWxldGVkQXQ6IFZhbHVlKG5vdyksCiAgICAgICAgICAgICAgdXBkYXRlZEF0OiBWYWx1ZShub3cpLAogICAgICAgICAgICAgIGxhc3RNb2RpZmllZDogVmFsdWUobm93KSwKICAgICAgICAgICAgKSwKICAgICAgICAgICk7CiAgICAgIGlmIChyb3dzID4gMCAmJiAhb3JpZ2luSXNTZXJ2ZXIpIHsKICAgICAgICAvLyDinIUg2YbYs9iq2K7Yr9mFICd1cGRhdGUnINio2K/ZhNin2Ysg2YXZhiAnZGVsZXRlJyDZhNij2YYgc29mdERlbGV0ZSDZitit2K/ZkdirIGRlbGV0ZWRBdAogICAgICAgIC8vINmI2YTYpyDZitit2LDZgSDYp9mE2YXYs9iq2YbYryDZhdmGIEFwcHdyaXRlIOKAlCDYp9mE2KzZh9in2LIg2KfZhNii2K7YsSDZitit2KrYp9isINix2KTZitipIGRlbGV0ZWRBdAogICAgICAgIGF3YWl0IG91dGJveERhby5tZXJnZSgKICAgICAgICAgIGVudGl0eTogJ2Jvb2tpbmdfbm90ZXMnLAogICAgICAgICAgb3A6ICd1cGRhdGUnLAogICAgICAgICAgbG9jYWxVdWlkOiBleGlzdGluZy5sb2NhbFV1aWQsCiAgICAgICAgICBzZXJ2ZXJJZDogZXhpc3Rpbmcuc2VydmVySWQsCiAgICAgICAgICBwYXlsb2FkOiB7J2lkJzogaWR9LAogICAgICAgICAgY2xpZW50VHM6IG5vdywKICAgICAgICApOwogICAgICB9CiAgICAgIHJldHVybiByb3dzOwogICAgfSk7CiAgfQoKICBNYXA8U3RyaW5nLCBkeW5hbWljPiBfcGF5bG9hZEZyb20oCiAgICBCb29raW5nTm90ZXNDb21wYW5pb24gY29tcCwgewogICAgQm9va2luZ05vdGU/IGJhc2UsCiAgfSkgewogICAgZmluYWwgbSA9IDxTdHJpbmcsIGR5bmFtaWM+e307CiAgICBpZiAoY29tcC5ib29raW5nSWQucHJlc2VudCkgewogICAgICBtWydib29raW5nX2lkJ10gPSBjb21wLmJvb2tpbmdJZC52YWx1ZTsKICAgIH0KICAgIGlmIChjb21wLm5vdGVUZXh0LnByZXNlbnQpIHsKICAgICAgbVsnbm90ZV90ZXh0J10gPSBjb21wLm5vdGVUZXh0LnZhbHVlOwogICAgfQogICAgaWYgKGNvbXAuYWxlcnRUeXBlLnByZXNlbnQpIHsKICAgICAgbVsnYWxlcnRfdHlwZSddID0gY29tcC5hbGVydFR5cGUudmFsdWU7CiAgICB9CiAgICBpZiAoY29tcC5hbGVydFVudGlsLnByZXNlbnQpIHsKICAgICAgbVsnYWxlcnRfdW50aWwnXSA9IGNvbXAuYWxlcnRVbnRpbC52YWx1ZTsKICAgIH0KICAgIGlmIChjb21wLmlzQWN0aXZlLnByZXNlbnQpIHsKICAgICAgbVsnaXNfYWN0aXZlJ10gPSBjb21wLmlzQWN0aXZlLnZhbHVlOwogICAgfQogICAgcmV0dXJuIG07CiAgfQoKICAvLyDYr9mI2KfZhCDYp9mE2YbYs9iuINin2YTYp9it2KrZitin2LfZigoKICAvLy8g2KrYtdiv2YrYsSDYrNmF2YrYuSDZhdmE2KfYrdi42KfYqiDYp9mE2K3YrNmI2LLYp9iqINil2YTZiSBKU09OCiAgRnV0dXJlPExpc3Q8TWFwPFN0cmluZywgZHluYW1pYz4+PiBleHBvcnRUb0pzb24oKSBhc3luYyB7CiAgICBmaW5hbCBub3Rlc0xpc3QgPSBhd2FpdCBsaXN0KCk7CiAgICByZXR1cm4gbm90ZXNMaXN0Lm1hcCgobm90ZSkgPT4gbm90ZS50b0pzb24oKSkudG9MaXN0KCk7CiAgfQoKICAvLy8g2KfYs9iq2YrYsdin2K8g2YXZhNin2K3YuNin2Kog2KfZhNit2KzZiNiy2KfYqiDZhdmGIEpTT04KICBGdXR1cmU8dm9pZD4gaW1wb3J0RnJvbUpzb24oCiAgICBMaXN0PE1hcDxTdHJpbmcsIGR5bmFtaWM+PiBkYXRhLCB7CiAgICBib29sIGNsZWFyRXhpc3RpbmcgPSBmYWxzZSwKICB9KSBhc3luYyB7CiAgICBpZiAoY2xlYXJFeGlzdGluZykgewogICAgICBhd2FpdCBkZWxldGUoYm9va2luZ05vdGVzKS5nbygpOwogICAgfQoKICAgIGZvciAoZmluYWwgbm90ZUpzb24gaW4gZGF0YSkgewogICAgICBmaW5hbCBub3RlID0gQm9va2luZ05vdGUuZnJvbUpzb24obm90ZUpzb24pOwogICAgICBhd2FpdCBpbnRvKGJvb2tpbmdOb3RlcykuaW5zZXJ0T25Db25mbGljdFVwZGF0ZSgKICAgICAgICBCb29raW5nTm90ZXNDb21wYW5pb24oCiAgICAgICAgICBib29raW5nSWQ6IFZhbHVlKG5vdGUuYm9va2luZ0lkKSwKICAgICAgICAgIG5vdGVUZXh0OiBWYWx1ZShub3RlLm5vdGVUZXh0KSwKICAgICAgICAgIGFsZXJ0VHlwZTogVmFsdWUobm90ZS5hbGVydFR5cGUpLAogICAgICAgICAgYWxlcnRVbnRpbDogVmFsdWUobm90ZS5hbGVydFVudGlsKSwKICAgICAgICAgIGlzQWN0aXZlOiBWYWx1ZShub3RlLmlzQWN0aXZlKSwKICAgICAgICAgIGxvY2FsVXVpZDogVmFsdWUobm90ZS5sb2NhbFV1aWQpLAogICAgICAgICAgc2VydmVySWQ6IFZhbHVlKG5vdGUuc2VydmVySWQpLAogICAgICAgICAgY3JlYXRlZEF0OiBWYWx1ZShub3RlLmNyZWF0ZWRBdCksCiAgICAgICAgICB1cGRhdGVkQXQ6IFZhbHVlKG5vdGUudXBkYXRlZEF0KSwKICAgICAgICAgIGRlbGV0ZWRBdDogVmFsdWUobm90ZS5kZWxldGVkQXQpLAogICAgICAgICAgbGFzdE1vZGlmaWVkOiBWYWx1ZShub3RlLmxhc3RNb2RpZmllZCksCiAgICAgICAgICB2ZXJzaW9uOiBWYWx1ZShub3RlLnZlcnNpb24pLAogICAgICAgICAgb3JpZ2luOiBWYWx1ZShub3RlLm9yaWdpbiksCiAgICAgICAgKSwKICAgICAgKTsKICAgIH0KICB9CgogIC8vLyDYp9mE2K3YtdmI2YQg2LnZhNmJINi52K/YryDYp9mE2LPYrNmE2KfYqgogIEZ1dHVyZTxpbnQ+IGdldFJlY29yZENvdW50KCkgYXN5bmMgewogICAgZmluYWwgcXVlcnkgPSBzZWxlY3RPbmx5KGJvb2tpbmdOb3RlcykKICAgICAgLi5hZGRDb2x1bW5zKFtib29raW5nTm90ZXMuaWQuY291bnQoKV0pOwogICAgZmluYWwgcmVzdWx0ID0gYXdhaXQgcXVlcnkuZ2V0U2luZ2xlKCk7CiAgICByZXR1cm4gcmVzdWx0LnJlYWQoYm9va2luZ05vdGVzLmlkLmNvdW50KCkpID8/IDA7CiAgfQoKICAvLy8g2YXYs9itINis2YXZiti5INin2YTYqNmK2KfZhtin2KoKICBGdXR1cmU8dm9pZD4gY2xlYXJBbGxEYXRhKCkgYXN5bmMgewogICAgYXdhaXQgZGVsZXRlKGJvb2tpbmdOb3RlcykuZ28oKTsKICB9Cn0K
+import 'package:drift/drift.dart';
+import '../../utils/id.dart';
+import '../../utils/time.dart';
+import '../appwrite_sync_manager.dart';
+import '../local_db.dart';
+import 'outbox_dao.dart';
+
+part 'booking_notes_dao.g.dart';
+
+@DriftAccessor(tables: [BookingNotes])
+class BookingNotesDao extends DatabaseAccessor<AppDatabase>
+    with _$BookingNotesDaoMixin {
+  BookingNotesDao(super.db, this.outboxDao);
+  final OutboxDao outboxDao;
+
+  Future<List<BookingNote>> list({
+    int? bookingId,
+    bool includeDeleted = false,
+  }) async {
+    final q = select(bookingNotes);
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
+    if (bookingId != null) {
+      q.where((t) => t.bookingId.equals(bookingId));
+    }
+    return q.get();
+  }
+
+  Future<List<BookingNote>> listFiltered({
+    int? bookingId,
+    bool? isActive,
+    int? limit,
+  }) async {
+    final q = select(bookingNotes);
+    _applyCommonFilters(q, bookingId: bookingId, isActive: isActive);
+    if (limit != null) {
+      q.limit(limit);
+    }
+    q.orderBy([(t) => OrderingTerm.desc(t.createdAt)]);
+    return q.get();
+  }
+
+  Future<int> countFiltered({int? bookingId, bool? isActive}) async {
+    final query = selectOnly(bookingNotes)
+      ..addColumns([bookingNotes.id.count()])
+      ..where(bookingNotes.deletedAt.isNull());
+    if (bookingId != null) {
+      query.where(bookingNotes.bookingId.equals(bookingId));
+    }
+    if (isActive != null) {
+      query.where(bookingNotes.isActive.equals(isActive ? 1 : 0));
+    }
+    final result = await query.getSingle();
+    return result.read(bookingNotes.id.count()) ?? 0;
+  }
+
+  /// فلاتر مشتركة بين listFiltered و countFiltered
+  void _applyCommonFilters(
+    SimpleSelectStatement<BookingNotes, BookingNote> q, {
+    int? bookingId,
+    bool? isActive,
+  }) {
+    q.where((t) => t.deletedAt.isNull());
+    if (bookingId != null) {
+      q.where((t) => t.bookingId.equals(bookingId));
+    }
+    if (isActive != null) {
+      q.where((t) => t.isActive.equals(isActive ? 1 : 0));
+    }
+  }
+
+  Stream<List<BookingNote>> watchByBooking(
+    int bookingId, {
+    bool includeDeleted = false,
+  }) {
+    final q = select(bookingNotes)..where((t) => t.bookingId.equals(bookingId));
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
+    return q.watch();
+  }
+
+  Future<BookingNote?> getById(int id) =>
+      (select(bookingNotes)..where((t) => t.id.equals(id))).getSingleOrNull();
+  Stream<BookingNote?> watchById(int id) =>
+      (select(bookingNotes)..where((t) => t.id.equals(id))).watchSingleOrNull();
+
+  Future<int> insertOne(
+    BookingNotesCompanion data, {
+    bool originIsServer = false,
+  }) async {
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
+      final comp = data.copyWith(
+        localUuid: Value(uu),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+        origin: Value(originIsServer ? 'server' : 'local'),
+        deviceId: originIsServer
+            ? const Value.absent()
+            : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
+      );
+      final id = await into(bookingNotes).insert(comp);
+      if (!originIsServer) {
+        await outboxDao.merge(
+          entity: 'booking_notes',
+          op: 'create',
+          localUuid: uu,
+          serverId: comp.serverId.present ? comp.serverId.value : null,
+          payload: _payloadFrom(comp),
+          clientTs: now,
+        );
+      }
+      return id;
+    });
+  }
+
+  Future<int> updateById(
+    int id,
+    BookingNotesCompanion data, {
+    bool originIsServer = false,
+  }) async {
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final existing = await getById(id);
+      if (existing == null) {
+        return 0;
+      }
+      // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
+      // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
+      final effectiveLastModified = originIsServer && data.lastModified.present
+          ? data.lastModified
+          : Value(now);
+      final comp = data.copyWith(
+        updatedAt: Value(now),
+        lastModified: effectiveLastModified,
+        version: Value(existing.version + 1),
+      );
+      final rows = await (update(
+        bookingNotes,
+      )..where((t) => t.id.equals(id))).write(comp);
+      if (rows > 0 && !originIsServer) {
+        await outboxDao.merge(
+          entity: 'booking_notes',
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          payload: _payloadFrom(comp, base: existing),
+          clientTs: now,
+        );
+      }
+      return rows;
+    });
+  }
+
+  Future<int> softDelete(int id, {bool originIsServer = false}) async {
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final existing = await getById(id);
+      if (existing == null) {
+        return 0;
+      }
+      final rows = await (update(bookingNotes)..where((t) => t.id.equals(id)))
+          .write(
+            BookingNotesCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              lastModified: Value(now),
+            ),
+          );
+      if (rows > 0 && !originIsServer) {
+        // ✅ نستخدم 'update' بدلاً من 'delete' لأن softDelete يحدّث deletedAt
+        // ولا يحذف المستند من Appwrite — الجهاز الآخر يحتاج رؤية deletedAt
+        await outboxDao.merge(
+          entity: 'booking_notes',
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          payload: {'id': id},
+          clientTs: now,
+        );
+      }
+      return rows;
+    });
+  }
+
+  Map<String, dynamic> _payloadFrom(
+    BookingNotesCompanion comp, {
+    BookingNote? base,
+  }) {
+    final m = <String, dynamic>{};
+    if (comp.bookingId.present) {
+      m['booking_id'] = comp.bookingId.value;
+    }
+    if (comp.noteText.present) {
+      m['note_text'] = comp.noteText.value;
+    }
+    if (comp.alertType.present) {
+      m['alert_type'] = comp.alertType.value;
+    }
+    if (comp.alertUntil.present) {
+      m['alert_until'] = comp.alertUntil.value;
+    }
+    if (comp.isActive.present) {
+      m['is_active'] = comp.isActive.value;
+    }
+    return m;
+  }
+
+  // دوال النسخ الاحتياطي
+
+  /// تصدير جميع ملاحظات الحجوزات إلى JSON
+  Future<List<Map<String, dynamic>>> exportToJson() async {
+    final notesList = await list();
+    return notesList.map((note) => note.toJson()).toList();
+  }
+
+  /// استيراد ملاحظات الحجوزات من JSON
+  Future<void> importFromJson(
+    List<Map<String, dynamic>> data, {
+    bool clearExisting = false,
+  }) async {
+    if (clearExisting) {
+      await delete(bookingNotes).go();
+    }
+
+    for (final noteJson in data) {
+      final note = BookingNote.fromJson(noteJson);
+      await into(bookingNotes).insertOnConflictUpdate(
+        BookingNotesCompanion(
+          bookingId: Value(note.bookingId),
+          noteText: Value(note.noteText),
+          alertType: Value(note.alertType),
+          alertUntil: Value(note.alertUntil),
+          isActive: Value(note.isActive),
+          localUuid: Value(note.localUuid),
+          serverId: Value(note.serverId),
+          createdAt: Value(note.createdAt),
+          updatedAt: Value(note.updatedAt),
+          deletedAt: Value(note.deletedAt),
+          lastModified: Value(note.lastModified),
+          version: Value(note.version),
+          origin: Value(note.origin),
+        ),
+      );
+    }
+  }
+
+  /// الحصول على عدد السجلات
+  Future<int> getRecordCount() async {
+    final query = selectOnly(bookingNotes)
+      ..addColumns([bookingNotes.id.count()]);
+    final result = await query.getSingle();
+    return result.read(bookingNotes.id.count()) ?? 0;
+  }
+
+  /// مسح جميع البيانات
+  Future<void> clearAllData() async {
+    await delete(bookingNotes).go();
+  }
+}
