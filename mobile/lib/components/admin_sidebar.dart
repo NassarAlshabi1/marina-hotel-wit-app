@@ -1,1 +1,322 @@
-aW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXIvbWF0ZXJpYWwuZGFydCc7CmltcG9ydCAncGFja2FnZTpmbHV0dGVyX3JpdmVycG9kL2ZsdXR0ZXJfcml2ZXJwb2QuZGFydCc7CmltcG9ydCAnLi4vcHJvdmlkZXJzL2F1dGhfcHJvdmlkZXIuZGFydCc7CgpjbGFzcyBBZG1pblNpZGViYXIgZXh0ZW5kcyBDb25zdW1lcldpZGdldCB7CiAgY29uc3QgQWRtaW5TaWRlYmFyKHsKICAgIHJlcXVpcmVkIHRoaXMuY3VycmVudFJvdXRlLAogICAgcmVxdWlyZWQgdGhpcy5vblJvdXRlU2VsZWN0ZWQsCiAgICBzdXBlci5rZXksCiAgfSk7CiAgZmluYWwgU3RyaW5nIGN1cnJlbnRSb3V0ZTsKICBmaW5hbCB2b2lkIEZ1bmN0aW9uKFN0cmluZykgb25Sb3V0ZVNlbGVjdGVkOwoKICBAb3ZlcnJpZGUKICBXaWRnZXQgYnVpbGQoQnVpbGRDb250ZXh0IGNvbnRleHQsIFdpZGdldFJlZiByZWYpIHsKICAgIGZpbmFsIGF1dGggPSByZWYud2F0Y2goYXV0aFByb3ZpZGVyKTsKICAgIGJvb2wgY2FuKFN0cmluZyBrZXkpIHsKICAgICAgZmluYWwgdSA9IGF1dGguY3VycmVudFVzZXI7CiAgICAgIGlmICh1ID09IG51bGwpIHsKICAgICAgICByZXR1cm4gZmFsc2U7CiAgICAgIH0KICAgICAgaWYgKHUucGVybWlzc2lvbnMuY29udGFpbnMoJ2FsbCcpIHx8IHUudXNlclR5cGUgPT0gJ2FkbWluJykgewogICAgICAgIHJldHVybiB0cnVlOwogICAgICB9CiAgICAgIHJldHVybiB1LnBlcm1pc3Npb25zLmNvbnRhaW5zKGtleSk7CiAgICB9CgogICAgY29uc3Qgc2lkZWJhckNvbG9yID0gQ29sb3IoMHhGRjBGMTcyQSk7CiAgICBjb25zdCBoZWFkZXJDb2xvciA9IENvbG9yKDB4RkYxNjIxM0MpOwogICAgZmluYWwgY2FyZE92ZXJsYXkgPSBDb2xvcnMud2hpdGUud2l0aFZhbHVlcyhhbHBoYTogMC4wOCk7CiAgICBmaW5hbCBkaXZpZGVyQ29sb3IgPSBDb2xvcnMud2hpdGUud2l0aFZhbHVlcyhhbHBoYTogMC4xMik7CiAgICBmaW5hbCBpbmFjdGl2ZUNvbG9yID0gQ29sb3JzLndoaXRlLndpdGhWYWx1ZXMoYWxwaGE6IDAuNzIpOwoKICAgIHJldHVybiBDb250YWluZXIoCiAgICAgIHdpZHRoOiAyODAsCiAgICAgIGNvbG9yOiBzaWRlYmFyQ29sb3IsCiAgICAgIGNoaWxkOiBDb2x1bW4oCiAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgIENvbnRhaW5lcigKICAgICAgICAgICAgcGFkZGluZzogY29uc3QgRWRnZUluc2V0cy5hbGwoMjQpLAogICAgICAgICAgICBkZWNvcmF0aW9uOiBCb3hEZWNvcmF0aW9uKAogICAgICAgICAgICAgIGNvbG9yOiBoZWFkZXJDb2xvciwKICAgICAgICAgICAgICBib3JkZXI6IEJvcmRlcihib3R0b206IEJvcmRlclNpZGUoY29sb3I6IGRpdmlkZXJDb2xvcikpLAogICAgICAgICAgICApLAogICAgICAgICAgICBjaGlsZDogQ29sdW1uKAogICAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgICAvLyBMb2dvIHNlY3Rpb24KICAgICAgICAgICAgICAgIFJvdygKICAgICAgICAgICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgICAgICAgICBDb250YWluZXIoCiAgICAgICAgICAgICAgICAgICAgICBwYWRkaW5nOiBjb25zdCBFZGdlSW5zZXRzLmFsbCgxMiksCiAgICAgICAgICAgICAgICAgICAgICBkZWNvcmF0aW9uOiBCb3hEZWNvcmF0aW9uKAogICAgICAgICAgICAgICAgICAgICAgICBjb2xvcjogY2FyZE92ZXJsYXksCiAgICAgICAgICAgICAgICAgICAgICAgIGJvcmRlclJhZGl1czogQm9yZGVyUmFkaXVzLmNpcmN1bGFyKDEyKSwKICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgICBjaGlsZDogY29uc3QgSWNvbigKICAgICAgICAgICAgICAgICAgICAgICAgSWNvbnMuaG90ZWwsCiAgICAgICAgICAgICAgICAgICAgICAgIGNvbG9yOiBDb2xvcnMud2hpdGUsCiAgICAgICAgICAgICAgICAgICAgICAgIHNpemU6IDMyLAogICAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KHdpZHRoOiAxNiksCiAgICAgICAgICAgICAgICAgICAgY29uc3QgRXhwYW5kZWQoCiAgICAgICAgICAgICAgICAgICAgICBjaGlsZDogVGV4dCgKICAgICAgICAgICAgICAgICAgICAgICAgJ9mB2YbYr9mCINmF2KfYsdmK2YbYpyDYqNmE2KfYstinJywKICAgICAgICAgICAgICAgICAgICAgICAgc3R5bGU6IFRleHRTdHlsZSgKICAgICAgICAgICAgICAgICAgICAgICAgICBjb2xvcjogQ29sb3JzLndoaXRlLAogICAgICAgICAgICAgICAgICAgICAgICAgIGZvbnRTaXplOiAxOCwKICAgICAgICAgICAgICAgICAgICAgICAgICBmb250V2VpZ2h0OiBGb250V2VpZ2h0LmJvbGQsCiAgICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgIF0sCiAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgY29uc3QgU2l6ZWRCb3goaGVpZ2h0OiAyMCksCgogICAgICAgICAgICAgICAgLy8gVXNlciBpbmZvIHNlY3Rpb24KICAgICAgICAgICAgICAgIENvbnRhaW5lcigKICAgICAgICAgICAgICAgICAgcGFkZGluZzogY29uc3QgRWRnZUluc2V0cy5hbGwoMTIpLAogICAgICAgICAgICAgICAgICBkZWNvcmF0aW9uOiBCb3hEZWNvcmF0aW9uKAogICAgICAgICAgICAgICAgICAgIGNvbG9yOiBjYXJkT3ZlcmxheSwKICAgICAgICAgICAgICAgICAgICBib3JkZXJSYWRpdXM6IEJvcmRlclJhZGl1cy5jaXJjdWxhcigxMiksCiAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgIGNoaWxkOiBSb3coCiAgICAgICAgICAgICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgICAgICAgICAgIENpcmNsZUF2YXRhcigKICAgICAgICAgICAgICAgICAgICAgICAgYmFja2dyb3VuZENvbG9yOiBDb2xvcnMud2hpdGUud2l0aFZhbHVlcyhhbHBoYTogMC4yKSwKICAgICAgICAgICAgICAgICAgICAgICAgY2hpbGQ6IGNvbnN0IEljb24oSWNvbnMucGVyc29uLCBjb2xvcjogQ29sb3JzLndoaXRlKSwKICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveCh3aWR0aDogMTIpLAogICAgICAgICAgICAgICAgICAgICAgRXhwYW5kZWQoCiAgICAgICAgICAgICAgICAgICAgICAgIGNoaWxkOiBDb2x1bW4oCiAgICAgICAgICAgICAgICAgICAgICAgICAgY3Jvc3NBeGlzQWxpZ25tZW50OiBDcm9zc0F4aXNBbGlnbm1lbnQuc3RhcnQsCiAgICAgICAgICAgICAgICAgICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIFRleHQoCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGF1dGguY3VycmVudFVzZXI/Lm5hbWUgPz8gJ9mF2LPYqtiu2K/ZhScsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHN0eWxlOiBjb25zdCBUZXh0U3R5bGUoCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgY29sb3I6IENvbG9ycy53aGl0ZSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBmb250V2VpZ2h0OiBGb250V2VpZ2h0Lnc2MDAsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgZm9udFNpemU6IDE0LAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgIFRleHQoCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGF1dGguY3VycmVudFVzZXI/LnVzZXJUeXBlID09ICdhZG1pbicKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgID8gJ9mF2K/ZitixINin2YTZhti42KfZhScKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIDogJ9mF2YjYuNmBJywKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgc3R5bGU6IFRleHRTdHlsZSgKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBjb2xvcjogaW5hY3RpdmVDb2xvciwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBmb250U2l6ZTogMTIsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICAgICAgICAgIF0sCiAgICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICAgIF0sCiAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgIF0sCiAgICAgICAgICAgICksCiAgICAgICAgICApLAoKICAgICAgICAgIC8vIE1lbnUgSXRlbXMgLSBleGFjdGx5IG1hdGNoaW5nIFBIUCBzaWRlYmFyCiAgICAgICAgICBFeHBhbmRlZCgKICAgICAgICAgICAgY2hpbGQ6IExpc3RWaWV3KAogICAgICAgICAgICAgIHBhZGRpbmc6IGNvbnN0IEVkZ2VJbnNldHMuc3ltbWV0cmljKHZlcnRpY2FsOiAxNiksCiAgICAgICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgICAgIGlmIChjYW4oJ2Rhc2hib2FyZCcpKQogICAgICAgICAgICAgICAgICBfYnVpbGRNZW51SXRlbSgKICAgICAgICAgICAgICAgICAgICBpY29uOiBJY29ucy5kYXNoYm9hcmQsCiAgICAgICAgICAgICAgICAgICAgdGl0bGU6ICfZhNmI2K3YqSDYp9mE2KrYrdmD2YUnLAogICAgICAgICAgICAgICAgICAgIHJvdXRlOiAnL2Rhc2hib2FyZCcsCiAgICAgICAgICAgICAgICAgICAgaXNBY3RpdmU6IGN1cnJlbnRSb3V0ZSA9PSAnL2Rhc2hib2FyZCcsCiAgICAgICAgICAgICAgICAgICAgb25UYXA6ICgpID0+IG9uUm91dGVTZWxlY3RlZCgnL2Rhc2hib2FyZCcpLAogICAgICAgICAgICAgICAgICAgIGNvbnRleHQ6IGNvbnRleHQsCiAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICBpZiAoY2FuKCdyb29tcycpKQogICAgICAgICAgICAgICAgICBfYnVpbGRNZW51SXRlbSgKICAgICAgICAgICAgICAgICAgICBpY29uOiBJY29ucy5iZWQsCiAgICAgICAgICAgICAgICAgICAgdGl0bGU6ICfYpdiv2KfYsdipINin2YTYutix2YEnLAogICAgICAgICAgICAgICAgICAgIHJvdXRlOiAnL3Jvb21zJywKICAgICAgICAgICAgICAgICAgICBpc0FjdGl2ZTogY3VycmVudFJvdXRlLnN0YXJ0c1dpdGgoJy9yb29tcycpLAogICAgICAgICAgICAgICAgICAgIG9uVGFwOiAoKSA9PiBvblJvdXRlU2VsZWN0ZWQoJy9yb29tcycpLAogICAgICAgICAgICAgICAgICAgIGNvbnRleHQ6IGNvbnRleHQsCiAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICBpZiAoY2FuKCdib29raW5ncycpKQogICAgICAgICAgICAgICAgICBfYnVpbGRNZW51SXRlbSgKICAgICAgICAgICAgICAgICAgICBpY29uOiBJY29ucy5hc3NpZ25tZW50LAogICAgICAgICAgICAgICAgICAgIHRpdGxlOiAn2KXYr9in2LHYqSDYp9mE2K3YrNmI2LLYp9iqJywKICAgICAgICAgICAgICAgICAgICByb3V0ZTogJy9ib29raW5ncycsCiAgICAgICAgICAgICAgICAgICAgaXNBY3RpdmU6IGN1cnJlbnRSb3V0ZS5zdGFydHNXaXRoKCcvYm9va2luZ3MnKSwKICAgICAgICAgICAgICAgICAgICBvblRhcDogKCkgPT4gb25Sb3V0ZVNlbGVjdGVkKCcvYm9va2luZ3MnKSwKICAgICAgICAgICAgICAgICAgICBjb250ZXh0OiBjb250ZXh0LAogICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgaWYgKGNhbigncGF5bWVudHMnKSkKICAgICAgICAgICAgICAgICAgX2J1aWxkTWVudUl0ZW0oCiAgICAgICAgICAgICAgICAgICAgaWNvbjogSWNvbnMuYXR0YWNoX21vbmV5LAogICAgICAgICAgICAgICAgICAgIHRpdGxlOiAn2KXYr9in2LHYqSDYp9mE2YXYr9mB2YjYudin2KonLAogICAgICAgICAgICAgICAgICAgIHJvdXRlOiAnL3BheW1lbnRzJywKICAgICAgICAgICAgICAgICAgICBpc0FjdGl2ZTogY3VycmVudFJvdXRlLnN0YXJ0c1dpdGgoJy9wYXltZW50cycpLAogICAgICAgICAgICAgICAgICAgIG9uVGFwOiAoKSA9PiBvblJvdXRlU2VsZWN0ZWQoJy9wYXltZW50cycpLAogICAgICAgICAgICAgICAgICAgIGNvbnRleHQ6IGNvbnRleHQsCiAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICBpZiAoY2FuKCdkZWJ0cycpKQogICAgICAgICAgICAgICAgICBfYnVpbGRNZW51SXRlbSgKICAgICAgICAgICAgICAgICAgICBpY29uOiBJY29ucy5hY2NvdW50X2JhbGFuY2UsCiAgICAgICAgICAgICAgICAgICAgdGl0bGU6ICfYp9mE2K/ZitmI2YYnLAogICAgICAgICAgICAgICAgICAgIHJvdXRlOiAnL2RlYnRzJywKICAgICAgICAgICAgICAgICAgICBpc0FjdGl2ZTogY3VycmVudFJvdXRlLnN0YXJ0c1dpdGgoJy9kZWJ0cycpLAogICAgICAgICAgICAgICAgICAgIG9uVGFwOiAoKSA9PiBvblJvdXRlU2VsZWN0ZWQoJy9kZWJ0cycpLAogICAgICAgICAgICAgICAgICAgIGNvbnRleHQ6IGNvbnRleHQsCiAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICBpZiAoY2FuKCdleHBlbnNlcycpKQogICAgICAgICAgICAgICAgICBfYnVpbGRNZW51SXRlbSgKICAgICAgICAgICAgICAgICAgICBpY29uOiBJY29ucy5yZWNlaXB0X2xvbmcsCiAgICAgICAgICAgICAgICAgICAgdGl0bGU6ICfYpdiv2KfYsdipINin2YTZhdi12LHZiNmB2KfYqicsCiAgICAgICAgICAgICAgICAgICAgcm91dGU6ICcvZXhwZW5zZXMnLAogICAgICAgICAgICAgICAgICAgIGlzQWN0aXZlOiBjdXJyZW50Um91dGUuc3RhcnRzV2l0aCgnL2V4cGVuc2VzJyksCiAgICAgICAgICAgICAgICAgICAgb25UYXA6ICgpID0+IG9uUm91dGVTZWxlY3RlZCgnL2V4cGVuc2VzJyksCiAgICAgICAgICAgICAgICAgICAgY29udGV4dDogY29udGV4dCwKICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgIGlmIChjYW4oJ2ZpbmFuY2UnKSkKICAgICAgICAgICAgICAgICAgX2J1aWxkTWVudUl0ZW0oCiAgICAgICAgICAgICAgICAgICAgaWNvbjogSWNvbnMuYWNjb3VudF9iYWxhbmNlX3dhbGxldCwKICAgICAgICAgICAgICAgICAgICB0aXRsZTogJ9in2YTYtdmG2K/ZiNmCINmI2KfZhNmF2KfZhNmK2KknLAogICAgICAgICAgICAgICAgICAgIHJvdXRlOiAnL2ZpbmFuY2UnLAogICAgICAgICAgICAgICAgICAgIGlzQWN0aXZlOiBjdXJyZW50Um91dGUuc3RhcnRzV2l0aCgnL2ZpbmFuY2UnKSwKICAgICAgICAgICAgICAgICAgICBvblRhcDogKCkgPT4gb25Sb3V0ZVNlbGVjdGVkKCcvZmluYW5jZScpLAogICAgICAgICAgICAgICAgICAgIGNvbnRleHQ6IGNvbnRleHQsCiAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICBpZiAoY2FuKCdyZXBvcnRzJykpCiAgICAgICAgICAgICAgICAgIF9idWlsZE1lbnVJdGVtKAogICAgICAgICAgICAgICAgICAgIGljb246IEljb25zLmJhcl9jaGFydCwKICAgICAgICAgICAgICAgICAgICB0aXRsZTogJ9in2YTYqtmC2KfYsdmK2LEnLAogICAgICAgICAgICAgICAgICAgIHJvdXRlOiAnL3JlcG9ydHMnLAogICAgICAgICAgICAgICAgICAgIGlzQWN0aXZlOiBjdXJyZW50Um91dGUuc3RhcnRzV2l0aCgnL3JlcG9ydHMnKSwKICAgICAgICAgICAgICAgICAgICBvblRhcDogKCkgPT4gb25Sb3V0ZVNlbGVjdGVkKCcvcmVwb3J0cycpLAogICAgICAgICAgICAgICAgICAgIGNvbnRleHQ6IGNvbnRleHQsCiAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICBpZiAoY2FuKCdub3RlcycpKQogICAgICAgICAgICAgICAgICBfYnVpbGRNZW51SXRlbSgKICAgICAgICAgICAgICAgICAgICBpY29uOiBJY29ucy5ub3RlLAogICAgICAgICAgICAgICAgICAgIHRpdGxlOiAn2KfZhNmF2YTYp9it2LjYp9iqINmI2KfZhNiq2YbYqNmK2YfYp9iqJywKICAgICAgICAgICAgICAgICAgICByb3V0ZTogJy9ub3RlcycsCiAgICAgICAgICAgICAgICAgICAgaXNBY3RpdmU6IGN1cnJlbnRSb3V0ZS5zdGFydHNXaXRoKCcvbm90ZXMnKSwKICAgICAgICAgICAgICAgICAgICBvblRhcDogKCkgPT4gb25Sb3V0ZVNlbGVjdGVkKCcvbm90ZXMnKSwKICAgICAgICAgICAgICAgICAgICBjb250ZXh0OiBjb250ZXh0LAogICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgaWYgKGNhbignc2V0dGluZ3MnKSkKICAgICAgICAgICAgICAgICAgX2J1aWxkTWVudUl0ZW0oCiAgICAgICAgICAgICAgICAgICAgaWNvbjogSWNvbnMuZ2F2ZWwsCiAgICAgICAgICAgICAgICAgICAgdGl0bGU6ICfYp9mE2YLYp9im2YXYqSDYp9mE2LPZiNiv2KfYoScsCiAgICAgICAgICAgICAgICAgICAgcm91dGU6ICcvYmxhY2tsaXN0JywKICAgICAgICAgICAgICAgICAgICBpc0FjdGl2ZTogY3VycmVudFJvdXRlLnN0YXJ0c1dpdGgoJy9ibGFja2xpc3QnKSwKICAgICAgICAgICAgICAgICAgICBvblRhcDogKCkgPT4gb25Sb3V0ZVNlbGVjdGVkKCcvYmxhY2tsaXN0JyksCiAgICAgICAgICAgICAgICAgICAgY29udGV4dDogY29udGV4dCwKICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgIGlmIChjYW4oJ2luZm9ybWF0aW9uJykpCiAgICAgICAgICAgICAgICAgIF9idWlsZE1lbnVJdGVtKAogICAgICAgICAgICAgICAgICAgIGljb246IEljb25zLmJhZGdlLAogICAgICAgICAgICAgICAgICAgIHRpdGxlOiAn2LPYrNmEINin2YTZhdi52YTZiNmF2YrYqScsCiAgICAgICAgICAgICAgICAgICAgcm91dGU6ICcvaW5mb3JtYXRpb24nLAogICAgICAgICAgICAgICAgICAgIGlzQWN0aXZlOiBjdXJyZW50Um91dGUuc3RhcnRzV2l0aCgnL2luZm9ybWF0aW9uJyksCiAgICAgICAgICAgICAgICAgICAgb25UYXA6ICgpID0+IG9uUm91dGVTZWxlY3RlZCgnL2luZm9ybWF0aW9uJyksCiAgICAgICAgICAgICAgICAgICAgY29udGV4dDogY29udGV4dCwKICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgIGlmIChjYW4oJ3NldHRpbmdzJykpCiAgICAgICAgICAgICAgICAgIF9idWlsZE1lbnVJdGVtKAogICAgICAgICAgICAgICAgICAgIGljb246IEljb25zLnNtYXJ0X3RveSwKICAgICAgICAgICAgICAgICAgICB0aXRsZTogJ9in2YTZhdiz2KfYudivINin2YTYsNmD2YonLAogICAgICAgICAgICAgICAgICAgIHJvdXRlOiAnL2FpJywKICAgICAgICAgICAgICAgICAgICBpc0FjdGl2ZTogY3VycmVudFJvdXRlLnN0YXJ0c1dpdGgoJy9haScpLAogICAgICAgICAgICAgICAgICAgIG9uVGFwOiAoKSA9PiBvblJvdXRlU2VsZWN0ZWQoJy9haScpLAogICAgICAgICAgICAgICAgICAgIGNvbnRleHQ6IGNvbnRleHQsCiAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICBpZiAoY2FuKCdzZXR0aW5ncycpKQogICAgICAgICAgICAgICAgICBfYnVpbGRNZW51SXRlbSgKICAgICAgICAgICAgICAgICAgICBpY29uOiBJY29ucy5zZXR0aW5ncywKICAgICAgICAgICAgICAgICAgICB0aXRsZTogJ9in2YTYpdi52K/Yp9iv2KfYqicsCiAgICAgICAgICAgICAgICAgICAgcm91dGU6ICcvc2V0dGluZ3MnLAogICAgICAgICAgICAgICAgICAgIGlzQWN0aXZlOiBjdXJyZW50Um91dGUuc3RhcnRzV2l0aCgnL3NldHRpbmdzJyksCiAgICAgICAgICAgICAgICAgICAgb25UYXA6ICgpID0+IG9uUm91dGVTZWxlY3RlZCgnL3NldHRpbmdzJyksCiAgICAgICAgICAgICAgICAgICAgY29udGV4dDogY29udGV4dCwKICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICBdLAogICAgICAgICAgICApLAogICAgICAgICAgKSwKICAgICAgICAgIFBhZGRpbmcoCiAgICAgICAgICAgIHBhZGRpbmc6IGNvbnN0IEVkZ2VJbnNldHMuYWxsKDEyKSwKICAgICAgICAgICAgY2hpbGQ6IF9idWlsZE1lbnVJdGVtKAogICAgICAgICAgICAgIGljb246IEljb25zLmxvZ291dCwKICAgICAgICAgICAgICB0aXRsZTogJ9iq2LPYrNmK2YQg2KfZhNiu2LHZiNisJywKICAgICAgICAgICAgICByb3V0ZTogJy9sb2dvdXQnLAogICAgICAgICAgICAgIGlzQWN0aXZlOiBmYWxzZSwKICAgICAgICAgICAgICBvblRhcDogKCkgYXN5bmMgewogICAgICAgICAgICAgICAgLy8g2KXYutmE2KfZgiDYp9mE2YAgRHJhd2VyINmB2Yog2KfZhNmF2YjYqNin2YrZhCDZgtio2YQg2KrYs9is2YrZhCDYp9mE2K7YsdmI2KwKICAgICAgICAgICAgICAgIHRyeSB7CiAgICAgICAgICAgICAgICAgIGZpbmFsIGlzVGFibGV0ID0gTWVkaWFRdWVyeS5vZihjb250ZXh0KS5zaXplLndpZHRoID49IDc2ODsKICAgICAgICAgICAgICAgICAgaWYgKCFpc1RhYmxldCAmJiBOYXZpZ2F0b3Iub2YoY29udGV4dCkuY2FuUG9wKCkpIHsKICAgICAgICAgICAgICAgICAgICBOYXZpZ2F0b3Iub2YoY29udGV4dCkucG9wKCk7CiAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgICAgICAgICAgICAgLy8g2KrYrNin2YfZhCDYp9mE2KPYrti32KfYoQogICAgICAgICAgICAgICAgfQoKICAgICAgICAgICAgICAgIGF3YWl0IHJlZi5yZWFkKGF1dGhQcm92aWRlci5ub3RpZmllcikubG9nb3V0KCk7CiAgICAgICAgICAgICAgfSwKICAgICAgICAgICAgICBjb250ZXh0OiBjb250ZXh0LAogICAgICAgICAgICApLAogICAgICAgICAgKSwKICAgICAgICBdLAogICAgICApLAogICAgKTsKICB9CgogIFdpZGdldCBfYnVpbGRNZW51SXRlbSh7CiAgICByZXF1aXJlZCBJY29uRGF0YSBpY29uLAogICAgcmVxdWlyZWQgU3RyaW5nIHRpdGxlLAogICAgcmVxdWlyZWQgU3RyaW5nIHJvdXRlLAogICAgcmVxdWlyZWQgYm9vbCBpc0FjdGl2ZSwKICAgIHJlcXVpcmVkIFZvaWRDYWxsYmFjayBvblRhcCwKICAgIEJ1aWxkQ29udGV4dD8gY29udGV4dCwKICB9KSB7CiAgICByZXR1cm4gTWF0ZXJpYWwoCiAgICAgIGNvbG9yOiBpc0FjdGl2ZQogICAgICAgICAgPyBDb2xvcnMud2hpdGUud2l0aFZhbHVlcyhhbHBoYTogMC4xMikKICAgICAgICAgIDogQ29sb3JzLnRyYW5zcGFyZW50LAogICAgICBib3JkZXJSYWRpdXM6IEJvcmRlclJhZGl1cy5jaXJjdWxhcig4KSwKICAgICAgY2hpbGQ6IExpc3RUaWxlKAogICAgICAgIGxlYWRpbmc6IEljb24oCiAgICAgICAgICBpY29uLAogICAgICAgICAgY29sb3I6IGlzQWN0aXZlID8gQ29sb3JzLndoaXRlIDogQ29sb3JzLndoaXRlLndpdGhWYWx1ZXMoYWxwaGE6IDAuNzIpLAogICAgICAgICksCiAgICAgICAgdGl0bGU6IFRleHQoCiAgICAgICAgICB0aXRsZSwKICAgICAgICAgIHN0eWxlOiBUZXh0U3R5bGUoCiAgICAgICAgICAgIGNvbG9yOiBpc0FjdGl2ZQogICAgICAgICAgICAgICAgPyBDb2xvcnMud2hpdGUKICAgICAgICAgICAgICAgIDogQ29sb3JzLndoaXRlLndpdGhWYWx1ZXMoYWxwaGE6IDAuNzIpLAogICAgICAgICAgICBmb250V2VpZ2h0OiBpc0FjdGl2ZSA/IEZvbnRXZWlnaHQudzYwMCA6IEZvbnRXZWlnaHQubm9ybWFsLAogICAgICAgICAgKSwKICAgICAgICApLAogICAgICAgIG9uVGFwOiAoKSB7CiAgICAgICAgICAvLyDYpdi62YTYp9mCINin2YTZgCBEcmF3ZXIg2YHZiiDYp9mE2YXZiNio2KfZitmEINmC2KjZhCDYp9mE2KrZhtmC2YQKICAgICAgICAgIGlmIChjb250ZXh0ICE9IG51bGwpIHsKICAgICAgICAgICAgdHJ5IHsKICAgICAgICAgICAgICAvLyDYqtit2YLZgiDZhdmF2Kcg2KXYsNinINmD2KfZhiDZh9mG2KfZgyBkcmF3ZXIg2YXZgdiq2YjYrSDZiNij2LrZhNmC2YcKICAgICAgICAgICAgICBmaW5hbCBpc1RhYmxldCA9IE1lZGlhUXVlcnkub2YoY29udGV4dCkuc2l6ZS53aWR0aCA+PSA3Njg7CiAgICAgICAgICAgICAgaWYgKCFpc1RhYmxldCAmJiBOYXZpZ2F0b3Iub2YoY29udGV4dCkuY2FuUG9wKCkpIHsKICAgICAgICAgICAgICAgIE5hdmlnYXRvci5vZihjb250ZXh0KS5wb3AoKTsKICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgICAgICAgICAvLyDYqtis2KfZh9mEINin2YTYo9iu2LfYp9ihINmI2YXYqtin2KjYuQogICAgICAgICAgICB9CiAgICAgICAgICB9CiAgICAgICAgICBvblRhcCgpOwogICAgICAgIH0sCiAgICAgICAgY29udGVudFBhZGRpbmc6IGNvbnN0IEVkZ2VJbnNldHMuc3ltbWV0cmljKGhvcml6b250YWw6IDE2KSwKICAgICAgICBkZW5zZTogdHJ1ZSwKICAgICAgKSwKICAgICk7CiAgfQp9Cg==
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_provider.dart';
+
+class AdminSidebar extends ConsumerWidget {
+  const AdminSidebar({
+    required this.currentRoute,
+    required this.onRouteSelected,
+    super.key,
+  });
+  final String currentRoute;
+  final void Function(String) onRouteSelected;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authProvider);
+    bool can(String key) {
+      final u = auth.currentUser;
+      if (u == null) {
+        return false;
+      }
+      if (u.permissions.contains('all') || u.userType == 'admin') {
+        return true;
+      }
+      return u.permissions.contains(key);
+    }
+
+    const sidebarColor = Color(0xFF0F172A);
+    const headerColor = Color(0xFF16213C);
+    final cardOverlay = Colors.white.withValues(alpha: 0.08);
+    final dividerColor = Colors.white.withValues(alpha: 0.12);
+    final inactiveColor = Colors.white.withValues(alpha: 0.72);
+
+    return Container(
+      width: 280,
+      color: sidebarColor,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: headerColor,
+              border: Border(bottom: BorderSide(color: dividerColor)),
+            ),
+            child: Column(
+              children: [
+                // Logo section
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: cardOverlay,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.hotel,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    const Expanded(
+                      child: Text(
+                        'فندق مارينا بلازا',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // User info section
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: cardOverlay,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        backgroundColor: Colors.white.withValues(alpha: 0.2),
+                        child: const Icon(Icons.person, color: Colors.white),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              auth.currentUser?.name ?? 'مستخدم',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                            Text(
+                              auth.currentUser?.userType == 'admin'
+                                  ? 'مدير النظام'
+                                  : 'موظف',
+                              style: TextStyle(
+                                color: inactiveColor,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Menu Items - exactly matching PHP sidebar
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              children: [
+                if (can('dashboard'))
+                  _buildMenuItem(
+                    icon: Icons.dashboard,
+                    title: 'لوحة التحكم',
+                    route: '/dashboard',
+                    isActive: currentRoute == '/dashboard',
+                    onTap: () => onRouteSelected('/dashboard'),
+                    context: context,
+                  ),
+                if (can('rooms'))
+                  _buildMenuItem(
+                    icon: Icons.bed,
+                    title: 'إدارة الغرف',
+                    route: '/rooms',
+                    isActive: currentRoute.startsWith('/rooms'),
+                    onTap: () => onRouteSelected('/rooms'),
+                    context: context,
+                  ),
+                if (can('bookings'))
+                  _buildMenuItem(
+                    icon: Icons.assignment,
+                    title: 'إدارة الحجوزات',
+                    route: '/bookings',
+                    isActive: currentRoute.startsWith('/bookings'),
+                    onTap: () => onRouteSelected('/bookings'),
+                    context: context,
+                  ),
+                if (can('payments'))
+                  _buildMenuItem(
+                    icon: Icons.attach_money,
+                    title: 'إدارة المدفوعات',
+                    route: '/payments',
+                    isActive: currentRoute.startsWith('/payments'),
+                    onTap: () => onRouteSelected('/payments'),
+                    context: context,
+                  ),
+                if (can('debts'))
+                  _buildMenuItem(
+                    icon: Icons.account_balance,
+                    title: 'الديون',
+                    route: '/debts',
+                    isActive: currentRoute.startsWith('/debts'),
+                    onTap: () => onRouteSelected('/debts'),
+                    context: context,
+                  ),
+                if (can('expenses'))
+                  _buildMenuItem(
+                    icon: Icons.receipt_long,
+                    title: 'إدارة المصروفات',
+                    route: '/expenses',
+                    isActive: currentRoute.startsWith('/expenses'),
+                    onTap: () => onRouteSelected('/expenses'),
+                    context: context,
+                  ),
+                if (can('finance'))
+                  _buildMenuItem(
+                    icon: Icons.account_balance_wallet,
+                    title: 'الصندوق والمالية',
+                    route: '/finance',
+                    isActive: currentRoute.startsWith('/finance'),
+                    onTap: () => onRouteSelected('/finance'),
+                    context: context,
+                  ),
+                if (can('reports'))
+                  _buildMenuItem(
+                    icon: Icons.bar_chart,
+                    title: 'التقارير',
+                    route: '/reports',
+                    isActive: currentRoute.startsWith('/reports'),
+                    onTap: () => onRouteSelected('/reports'),
+                    context: context,
+                  ),
+                if (can('notes'))
+                  _buildMenuItem(
+                    icon: Icons.note,
+                    title: 'الملاحظات والتنبيهات',
+                    route: '/notes',
+                    isActive: currentRoute.startsWith('/notes'),
+                    onTap: () => onRouteSelected('/notes'),
+                    context: context,
+                  ),
+                if (can('settings'))
+                  _buildMenuItem(
+                    icon: Icons.gavel,
+                    title: 'القائمة السوداء',
+                    route: '/blacklist',
+                    isActive: currentRoute.startsWith('/blacklist'),
+                    onTap: () => onRouteSelected('/blacklist'),
+                    context: context,
+                  ),
+                if (can('information'))
+                  _buildMenuItem(
+                    icon: Icons.badge,
+                    title: 'سجل المعلومية',
+                    route: '/information',
+                    isActive: currentRoute.startsWith('/information'),
+                    onTap: () => onRouteSelected('/information'),
+                    context: context,
+                  ),
+                if (can('settings'))
+                  _buildMenuItem(
+                    icon: Icons.smart_toy,
+                    title: 'المساعد الذكي',
+                    route: '/ai',
+                    isActive: currentRoute.startsWith('/ai'),
+                    onTap: () => onRouteSelected('/ai'),
+                    context: context,
+                  ),
+                if (can('settings'))
+                  _buildMenuItem(
+                    icon: Icons.settings,
+                    title: 'الإعدادات',
+                    route: '/settings',
+                    isActive: currentRoute.startsWith('/settings'),
+                    onTap: () => onRouteSelected('/settings'),
+                    context: context,
+                  ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: _buildMenuItem(
+              icon: Icons.logout,
+              title: 'تسجيل الخروج',
+              route: '/logout',
+              isActive: false,
+              onTap: () async {
+                // إغلاق الـ Drawer في الموبايل قبل تسجيل الخروج
+                try {
+                  final isTablet = MediaQuery.of(context).size.width >= 768;
+                  if (!isTablet && Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  }
+                } catch (e) {
+                  // تجاهل الأخطاء
+                }
+
+                await ref.read(authProvider.notifier).logout();
+              },
+              context: context,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMenuItem({
+    required IconData icon,
+    required String title,
+    required String route,
+    required bool isActive,
+    required VoidCallback onTap,
+    BuildContext? context,
+  }) {
+    return Material(
+      color: isActive
+          ? Colors.white.withValues(alpha: 0.12)
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.72),
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: isActive
+                ? Colors.white
+                : Colors.white.withValues(alpha: 0.72),
+            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+        onTap: () {
+          // إغلاق الـ Drawer في الموبايل قبل التنقل
+          if (context != null) {
+            try {
+              // تحقق مما إذا كان هناك drawer مفتوح وأغلقه
+              final isTablet = MediaQuery.of(context).size.width >= 768;
+              if (!isTablet && Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              }
+            } catch (e) {
+              // تجاهل الأخطاء ومتابع
+            }
+          }
+          onTap();
+        },
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+        dense: true,
+      ),
+    );
+  }
+}
