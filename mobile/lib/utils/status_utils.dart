@@ -92,7 +92,14 @@ class StatusUtils {
   /// 'maintenance'` المكرر في عدة أماكن — يضمن اتساقاً كاملاً ويمنع bugs الترجمة.
   static bool isUnderMaintenance(String status) => _maintenanceRoomStatuses.contains(_normalize(status));
 
-  static bool isRoomOccupied(String status) => _occupiedRoomStatuses.contains(_normalize(status));
+  static bool isRoomOccupied(String status) {
+    final normalized = _normalize(status);
+    // إذا كانت الحالة "مكتمل" أو "checked_out" فهي ليست مشغولة
+    if (normalized == 'مكتمل' || normalized == 'completed' || normalized == 'checked_out' || normalized == 'checked out') {
+      return false;
+    }
+    return _occupiedRoomStatuses.contains(normalized);
+  }
 
   static bool isActiveBooking(String status) => _activeBookingStatuses.contains(_normalize(status));
 

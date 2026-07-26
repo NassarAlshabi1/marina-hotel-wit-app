@@ -1819,9 +1819,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         revenueType: 'room',
       );
 
-      // 3. تحرير الغرفة
+      // 3. تحرير الغرفة فوراً (تغيير الحالة إلى شاغرة لتظهر باللون الأخضر)
       final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
       if (room != null) {
+        debugPrint('🏠 [EarlyCheckout] Updating room ${room.roomNumber} status to available');
         await roomsRepo.update(room.id, status: 'شاغرة');
       }
 
@@ -2190,8 +2191,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         actualCheckout: nowIso,
         calculatedNights: actualNights,
       );
+      // 2. تحرير الغرفة فوراً (تغيير الحالة إلى شاغرة لتظهر باللون الأخضر)
       final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
       if (room != null) {
+        debugPrint('🏠 [Checkout] Updating room ${room.roomNumber} status to available');
         await roomsRepo.update(room.id, status: 'شاغرة');
       }
       // ✅ تسجيل تغيير المزامنة بعد تحرير الغرفة
