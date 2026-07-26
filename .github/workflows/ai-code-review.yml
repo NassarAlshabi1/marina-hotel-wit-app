@@ -21,12 +21,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a3267 # v4
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288c # v4
         with:
           node-version: "24"
 
@@ -44,7 +44,7 @@ jobs:
 
       - name: Comment on failure
         if: failure()
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f9 # v8
         with:
           script: |
             github.rest.issues.createComment({

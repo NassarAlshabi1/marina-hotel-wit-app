@@ -21,9 +21,9 @@
 - **Created**: October 26, 2025
 
 ## Unified Signing Configuration
-- **Store Password**: `Marina2025SecureKey`
+- **Store Password**: (see `mobile/android/key.properties` — should be moved to GitHub Secret for CI)
 - **Key Alias**: `marina-hotel-app` (نفس الـ alias لجميع البناءات)
-- **Key Password**: `Marina2025SecureKey`
+- **Key Password**: (see `mobile/android/key.properties` — should be moved to GitHub Secret for CI)
 
 ## Certificate Subject
 ```

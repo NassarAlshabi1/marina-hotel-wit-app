@@ -23,9 +23,9 @@ jobs:
         working-directory: mobile
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24 # v5
 
-      - uses: subosito/flutter-action@v2.23.0
+      - uses: subosito/flutter-action@1a449444c387 # v2.23.0
         with:
           flutter-version: '3.44.4'
           channel: 'stable'
@@ -44,7 +44,7 @@ jobs:
           BASE_API_URL: http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1
 
       - name: Upload PWA artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93 # v7
         with:
           name: marina-hotel-pwa-${{ github.run_number }}
           path: mobile/build/web

@@ -24,9 +24,9 @@ jobs:
         working-directory: mobile
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24 # v5
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387 # v2
         with:
           flutter-version: '3.44.6'
           channel: stable
@@ -95,7 +95,7 @@ jobs:
 
       - name: 💬 Comment PR with coverage
         if: github.event_name == 'pull_request' && always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34b # v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -143,7 +143,7 @@ jobs:
 
       - name: Upload coverage
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@ea165f8d65b6 # v4.6.2
         with:
           name: coverage-report-${{ github.ref_name }}-${{ github.run_id }}
           path: mobile/coverage
@@ -166,7 +166,7 @@ jobs:
       # ═══════════════════════════════════════════════════════════════════════
       - name: 📊 Upload coverage to Coveralls
         if: always() && hashFiles('mobile/coverage/lcov.info') != ''
-        uses: coverallsapp/github-action@v2
+        uses: coverallsapp/github-action@5cbfd81b66ca # v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           file: mobile/coverage/lcov.info

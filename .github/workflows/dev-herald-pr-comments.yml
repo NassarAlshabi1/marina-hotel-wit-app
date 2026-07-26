@@ -15,12 +15,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a3267 # v4
         with:
           fetch-depth: 0
 
       - name: Post PR Comment
-        uses: dev-herald/comment@v1
+        uses: dev-herald/comment@9a10bf115ea8 # v1
         with:
           api-key: ${{ secrets.DEV_HERALD_API_KEY }}
           pr-number: ${{ github.event.pull_request.number }}
@@ -40,7 +40,7 @@ jobs:
 
       - name: Post Test Results (if tests ran)
         if: always()
-        uses: dev-herald/comment@v1
+        uses: dev-herald/comment@9a10bf115ea8 # v1
         with:
           api-key: ${{ secrets.DEV_HERALD_API_KEY }}
           pr-number: ${{ github.event.pull_request.number }}

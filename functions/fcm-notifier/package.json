@@ -1,7 +1,7 @@
 {
   "name": "marina-fcm-notifier",
   "version": "1.0.0",
-  "description": "Appwrite Function — يُرسل إشعارات FCM للأجهزة عند تغيير البيانات",
+  "description": "Appwrite Function \u2014 \u064a\u064f\u0631\u0633\u0644 \u0625\u0634\u0639\u0627\u0631\u0627\u062a FCM \u0644\u0644\u0623\u062c\u0647\u0632\u0629 \u0639\u0646\u062f \u062a\u063a\u064a\u064a\u0631 \u0627\u0644\u0628\u064a\u0627\u0646\u0627\u062a",
   "main": "src/main.js",
   "type": "module",
   "scripts": {
@@ -13,5 +13,11 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "overrides": {
+    "fast-xml-parser": "^5.10.1",
+    "tar": "^7.5.21",
+    "uuid": "^11.0.0",
+    "google-gax": "^4.10.0"
   }
 }

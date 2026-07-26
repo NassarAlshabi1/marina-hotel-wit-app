@@ -46,7 +46,9 @@ class CacheManager {
             return null;
         }
         
-        $cache_data = unserialize(file_get_contents($cache_file));
+        // Security: use unserialize with allowed_classes=false to prevent object injection attacks.
+        // Cache is internally serialized via serialize() in set() — no objects expected.
+        $cache_data = unserialize(file_get_contents($cache_file), ['allowed_classes' => false]);
         
         // التحقق من انتهاء الصلاحية
         if ($cache_data['expires'] < time()) {

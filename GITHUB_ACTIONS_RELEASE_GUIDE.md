@@ -294,9 +294,9 @@ base64 release.keystore > keystore.txt
 
 # 2. Add to GitHub Secrets
 # KEYSTORE_BASE64: (content of keystore.txt)
-# KEYSTORE_PASSWORD: Marina2025SecureKey
+# KEYSTORE_PASSWORD: (see mobile/android/key.properties — should be moved to GitHub Secret)
 # KEY_ALIAS: marina-hotel-app
-# KEY_PASSWORD: Marina2025SecureKey
+# KEY_PASSWORD: (see mobile/android/key.properties — should be moved to GitHub Secret)
 
 # 3. Update workflow
 - name: Setup keystore

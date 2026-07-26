@@ -22,3 +22,8 @@ scripts/appwrite/backup_splits/
 # Python cache
 __pycache__/
 *.pyc
+mobile/.env
+mobile/.env.*
+
+# Appwrite backup files (contain guest PII — should never be committed)
+scripts/appwrite/backups/

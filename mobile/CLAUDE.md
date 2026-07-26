@@ -40,9 +40,9 @@ flutter_riverpod, drift, appwrite, sqflite, dio, firebase_core, firebase_crashly
 
 ## Critical Issues (Priority: HIGH)
 
-1. **API Key exposed in `.env`**: `AGENT_ROUTER_API_KEY=sk-ZN9FooZG5Ji40MUzKIu86CIAfZIGG1JfavQa6QivLKOLXpzH` is a real OpenRouter key in plain text. Revoke immediately. Add `.env` to `.gitignore`.
+1. **API Key exposed in `.env`** (RESOLVED 2026-07-26): `mobile/.env` removed from git tracking via `git rm --cached`. The file remains locally for development. The previously exposed `AGENT_ROUTER_API_KEY=sk-***` should still be **rotated immediately** on OpenRouter dashboard — it remains in git history.
 
-2. **XOR obfuscation instead of real encryption**: `secure_storage.dart:6` uses XOR with static key `'marina_hotel_sync_secret_2024'`. Package `encrypt: ^5.0.3` exists in pubspec.yaml but is NOT used in SecureStorage.
+2. **XOR obfuscation instead of real encryption**: `secure_storage.dart:6` uses XOR with static key (allowlisted in `.gitleaks.toml`). Package `encrypt: ^5.0.3` exists in pubspec.yaml but is NOT used in SecureStorage. The XOR layer only obfuscates non-sensitive `app_settings` — no credentials are stored through `SecureStorage`.
 
 ## Medium Priority Issues
 

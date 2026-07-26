@@ -38,18 +38,18 @@ jobs:
     steps:
       # ─── جلب الكود ───────────────────────────────────────
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24 # v5
 
       # ─── إعداد Java 17 ───────────────────────────────────
       - name: Set up Java 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@03ad4de0992f # v5
         with:
           distribution: temurin
           java-version: '17'
 
       # ─── إعداد Flutter ───────────────────────────────────
       - name: Set up Flutter
-        uses: subosito/flutter-action@v2.23.0
+        uses: subosito/flutter-action@1a449444c387 # v2.23.0
         with:
           flutter-version: '3.44.4'
           channel: 'stable'
@@ -127,7 +127,7 @@ jobs:
 
       # ─── رفع الـ APK كـ artifact ────────────────────────
       - name: Upload release APK artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93 # v7
         with:
           name: 'marina-hotel-release-${{ steps.version.outputs.build_name }}'
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
@@ -136,7 +136,7 @@ jobs:
 
       # ─── إنشاء GitHub Release ────────────────────────────
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@3d0d9888cb7f # v3
         with:
           tag_name: 'v${{ steps.version.outputs.build_name }}'
           name: 'Marina Hotel v${{ steps.version.outputs.build_name }}'
