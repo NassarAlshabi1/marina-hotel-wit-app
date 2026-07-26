@@ -1,0 +1,55 @@
+name: Dev Herald PR Comments
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Post PR Comment
+        uses: dev-herald/comment@v1
+        with:
+          api-key: ${{ secrets.DEV_HERALD_API_KEY }}
+          pr-number: ${{ github.event.pull_request.number }}
+          comment: |
+            ## 🤖 Automated PR Review
+
+            **Dev Herald** is analyzing this pull request...
+
+            ### Changes Summary
+            - **Files changed:** ${{ github.event.pull_request.changed_files }}
+            - **Commits:** ${{ github.event.pull_request.commits }}
+            - **Base:** `${{ github.event.pull_request.base.ref }}`
+            - **Head:** `${{ github.event.pull_request.head.ref }}`
+
+            ---
+            *Powered by [Dev Herald](https://dev-herald.com)* ⚡
+
+      - name: Post Test Results (if tests ran)
+        if: always()
+        uses: dev-herald/comment@v1
+        with:
+          api-key: ${{ secrets.DEV_HERALD_API_KEY }}
+          pr-number: ${{ github.event.pull_request.number }}
+          comment: |
+            ## 📊 CI Status
+
+            | Check | Status |
+            |-------|--------|
+            | Dev Herald PR Comment | ${{ job.status }} |
+
+            ---
+            *Updated by Dev Herald* ⚡
