@@ -51,7 +51,11 @@ class _FakeAuthNotifier extends AuthNotifier {
   @override
   Future<void> restoreSession() async {}
   @override
-  Future<void> login(String username, String password, {bool rememberMe = false}) async {}
+  Future<void> login(
+    String username,
+    String password, {
+    bool rememberMe = false,
+  }) async {}
   @override
   Future<void> logout() async {}
 }
@@ -79,10 +83,16 @@ Widget _buildTestWidget({required AppDatabase db, required Widget child}) {
       todayPaymentsProvider.overrideWith((ref) => Stream.value(0.0)),
       todayExpensesProvider.overrideWith((ref) => Stream.value(0.0)),
       roomsListProvider.overrideWith((ref) => Stream.value(const <Room>[])),
-      bookingsListProvider.overrideWith((ref) => Stream.value(const <Booking>[])),
-      employeesListProvider.overrideWith((ref) => Stream.value(const <Employee>[])),
+      bookingsListProvider.overrideWith(
+        (ref) => Stream.value(const <Booking>[]),
+      ),
+      employeesListProvider.overrideWith(
+        (ref) => Stream.value(const <Employee>[]),
+      ),
       debtsListProvider.overrideWith((ref) => Stream.value(const <Debt>[])),
-      expensesListProvider.overrideWith((ref) => Stream.value(const <Expense>[])),
+      expensesListProvider.overrideWith(
+        (ref) => Stream.value(const <Expense>[]),
+      ),
       appVersionProvider.overrideWith((ref) async => '1.0.0+1'),
       // ✅ تجنب MissingPluginException لـ SharedPreferences:
       authProvider.overrideWith((ref) => _FakeAuthNotifier()),
@@ -184,10 +194,12 @@ Future<List<_IterationMetrics>> _runIterations(
     metrics.afterRss = ProcessInfo.currentRss;
     results.add(metrics);
 
-    debugPrint('  Iteration ${i + 1}/$iterations: '
-        'before=${(metrics.beforeRss / 1024 / 1024).toStringAsFixed(1)}MB '
-        'after=${(metrics.afterRss / 1024 / 1024).toStringAsFixed(1)}MB '
-        'delta=${metrics.deltaMB >= 0 ? "+" : ""}${metrics.deltaMB.toStringAsFixed(2)}MB');
+    debugPrint(
+      '  Iteration ${i + 1}/$iterations: '
+      'before=${(metrics.beforeRss / 1024 / 1024).toStringAsFixed(1)}MB '
+      'after=${(metrics.afterRss / 1024 / 1024).toStringAsFixed(1)}MB '
+      'delta=${metrics.deltaMB >= 0 ? "+" : ""}${metrics.deltaMB.toStringAsFixed(2)}MB',
+    );
   }
 
   return results;
@@ -203,7 +215,10 @@ String _analyzeLeak(List<_IterationMetrics> results) {
   final totalGrowth = results.last.afterRss - results.first.beforeRss;
 
   // حساب متوسط delta آخر 3 iterations (بعد استقرار JIT)
-  final lateDeltas = results.skip(results.length - 3).map((m) => m.deltaBytes).toList();
+  final lateDeltas = results
+      .skip(results.length - 3)
+      .map((m) => m.deltaBytes)
+      .toList();
   final avgLateDelta = lateDeltas.reduce((a, b) => a + b) / lateDeltas.length;
 
   // leak threshold: إذا كان متوسط delta الأخير > 5MB → leak محتمل
@@ -211,11 +226,19 @@ String _analyzeLeak(List<_IterationMetrics> results) {
 
   debugPrint('');
   debugPrint('  📊 Leak Analysis:');
-  debugPrint('    First iteration delta: ${(firstDelta / 1024 / 1024).toStringAsFixed(2)}MB');
-  debugPrint('    Last iteration delta:  ${(lastDelta / 1024 / 1024).toStringAsFixed(2)}MB');
-  debugPrint('    Average late delta (last 3): ${(avgLateDelta / 1024 / 1024).toStringAsFixed(2)}MB');
-  debugPrint('    Total growth (iter 1 before → iter ${results.length} after): '
-      '${(totalGrowth / 1024 / 1024).toStringAsFixed(2)}MB');
+  debugPrint(
+    '    First iteration delta: ${(firstDelta / 1024 / 1024).toStringAsFixed(2)}MB',
+  );
+  debugPrint(
+    '    Last iteration delta:  ${(lastDelta / 1024 / 1024).toStringAsFixed(2)}MB',
+  );
+  debugPrint(
+    '    Average late delta (last 3): ${(avgLateDelta / 1024 / 1024).toStringAsFixed(2)}MB',
+  );
+  debugPrint(
+    '    Total growth (iter 1 before → iter ${results.length} after): '
+    '${(totalGrowth / 1024 / 1024).toStringAsFixed(2)}MB',
+  );
 
   if (avgLateDelta > leakThreshold) {
     return '⚠️ LEAK SUSPECTED: late delta average > 5MB';
@@ -251,9 +274,13 @@ void main() {
       // التحقق أن النمو الكلي < 100MB (على مدى 10 iterations)
       final totalGrowthMB =
           (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
-      expect(totalGrowthMB, lessThan(100),
-          reason: 'النمو الكلي عبر 10 iterations يجب أن يكون < 100MB. '
-          'الفعلي: ${totalGrowthMB.toStringAsFixed(2)}MB');
+      expect(
+        totalGrowthMB,
+        lessThan(100),
+        reason:
+            'النمو الكلي عبر 10 iterations يجب أن يكون < 100MB. '
+            'الفعلي: ${totalGrowthMB.toStringAsFixed(2)}MB',
+      );
     });
   });
 
@@ -274,9 +301,13 @@ void main() {
 
       final totalGrowthMB =
           (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
-      expect(totalGrowthMB, lessThan(100),
-          reason: 'النمو الكلي عبر 10 iterations يجب أن يكون < 100MB. '
-          'الفعلي: ${totalGrowthMB.toStringAsFixed(2)}MB');
+      expect(
+        totalGrowthMB,
+        lessThan(100),
+        reason:
+            'النمو الكلي عبر 10 iterations يجب أن يكون < 100MB. '
+            'الفعلي: ${totalGrowthMB.toStringAsFixed(2)}MB',
+      );
     });
   });
 
@@ -297,9 +328,13 @@ void main() {
 
       final totalGrowthMB =
           (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
-      expect(totalGrowthMB, lessThan(100),
-          reason: 'النمو الكلي عبر 10 iterations يجب أن يكون < 100MB. '
-          'الفعلي: ${totalGrowthMB.toStringAsFixed(2)}MB');
+      expect(
+        totalGrowthMB,
+        lessThan(100),
+        reason:
+            'النمو الكلي عبر 10 iterations يجب أن يكون < 100MB. '
+            'الفعلي: ${totalGrowthMB.toStringAsFixed(2)}MB',
+      );
     });
   });
 
@@ -320,9 +355,13 @@ void main() {
 
       final totalGrowthMB =
           (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
-      expect(totalGrowthMB, lessThan(100),
-          reason: 'النمو الكلي عبر 10 iterations يجب أن يكون < 100MB. '
-          'الفعلي: ${totalGrowthMB.toStringAsFixed(2)}MB');
+      expect(
+        totalGrowthMB,
+        lessThan(100),
+        reason:
+            'النمو الكلي عبر 10 iterations يجب أن يكون < 100MB. '
+            'الفعلي: ${totalGrowthMB.toStringAsFixed(2)}MB',
+      );
     });
   });
 
@@ -343,9 +382,13 @@ void main() {
 
       final totalGrowthMB =
           (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
-      expect(totalGrowthMB, lessThan(100),
-          reason: 'النمو الكلي عبر 10 iterations يجب أن يكون < 100MB. '
-          'الفعلي: ${totalGrowthMB.toStringAsFixed(2)}MB');
+      expect(
+        totalGrowthMB,
+        lessThan(100),
+        reason:
+            'النمو الكلي عبر 10 iterations يجب أن يكون < 100MB. '
+            'الفعلي: ${totalGrowthMB.toStringAsFixed(2)}MB',
+      );
     });
   });
 
