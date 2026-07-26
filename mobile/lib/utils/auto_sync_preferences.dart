@@ -13,11 +13,15 @@ Future<T> migrateAutoSyncPreference<T>({
 
   T value;
   if (T == int) {
-    final resolved = prefs.getInt(newKey) ?? prefs.getInt(legacyKey) ?? defaultValue as int;
+    final resolved =
+        prefs.getInt(newKey) ?? prefs.getInt(legacyKey) ?? defaultValue as int;
     await prefs.setInt(newKey, resolved);
     value = resolved as T;
   } else {
-    final resolved = prefs.getBool(newKey) ?? prefs.getBool(legacyKey) ?? defaultValue as bool;
+    final resolved =
+        prefs.getBool(newKey) ??
+        prefs.getBool(legacyKey) ??
+        defaultValue as bool;
     await prefs.setBool(newKey, resolved);
     value = resolved as T;
   }
