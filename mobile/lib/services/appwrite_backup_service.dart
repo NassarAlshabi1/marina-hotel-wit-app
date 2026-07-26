@@ -1,1 +1,202 @@
-aW1wb3J0ICdkYXJ0OmNvbnZlcnQnOwppbXBvcnQgJ2RhcnQ6aW8nOwppbXBvcnQgJ3BhY2thZ2U6YXBwd3JpdGUvYXBwd3JpdGUuZGFydCc7CmltcG9ydCAncGFja2FnZTppbnRsL2ludGwuZGFydCc7CmltcG9ydCAncGFja2FnZTpwYXRoX3Byb3ZpZGVyL3BhdGhfcHJvdmlkZXIuZGFydCc7CmltcG9ydCAnYXBwd3JpdGVfY29uZmlnLmRhcnQnOwppbXBvcnQgJ2FwcHdyaXRlX2NvbmZpZ19tYW5hZ2VyLmRhcnQnOwppbXBvcnQgJ2FwcHdyaXRlX3NlcnZpY2UuZGFydCc7CgpjbGFzcyBBcHB3cml0ZUJhY2t1cFJlc3VsdCB7CiAgY29uc3QgQXBwd3JpdGVCYWNrdXBSZXN1bHQoewogICAgcmVxdWlyZWQgdGhpcy5maWxlLAogICAgcmVxdWlyZWQgdGhpcy5jb3VudHMsCiAgICByZXF1aXJlZCB0aGlzLnRvdGFsUmVjb3JkcywKICAgIHJlcXVpcmVkIHRoaXMudGltZXN0YW1wLAogIH0pOwogIGZpbmFsIEZpbGUgZmlsZTsKICBmaW5hbCBNYXA8U3RyaW5nLCBpbnQ+IGNvdW50czsKICBmaW5hbCBpbnQgdG90YWxSZWNvcmRzOwogIGZpbmFsIERhdGVUaW1lIHRpbWVzdGFtcDsKfQoKY2xhc3MgQXBwd3JpdGVCYWNrdXBTZXJ2aWNlIHsKICBBcHB3cml0ZUJhY2t1cFNlcnZpY2Uoe0FwcHdyaXRlU2VydmljZT8gYXBwd3JpdGVTZXJ2aWNlfSkKICAgIDogX2FwcHdyaXRlU2VydmljZSA9IGFwcHdyaXRlU2VydmljZSA/PyBBcHB3cml0ZVNlcnZpY2UoKTsKCiAgZmluYWwgQXBwd3JpdGVTZXJ2aWNlIF9hcHB3cml0ZVNlcnZpY2U7CgogIHN0YXRpYyBjb25zdCBMaXN0PFN0cmluZz4gX2RlZmF1bHRDb2xsZWN0aW9uSWRzID0gWwogICAgQXBwd3JpdGVDb25maWcucm9vbXNDb2xsZWN0aW9uSWQsCiAgICBBcHB3cml0ZUNvbmZpZy5ib29raW5nc0NvbGxlY3Rpb25JZCwKICAgIEFwcHdyaXRlQ29uZmlnLmJvb2tpbmdOb3Rlc0NvbGxlY3Rpb25JZCwKICAgIEFwcHdyaXRlQ29uZmlnLmJvb2tpbmdOaWdodHNDb2xsZWN0aW9uSWQsCiAgICBBcHB3cml0ZUNvbmZpZy5wYXltZW50c0NvbGxlY3Rpb25JZCwKICAgIEFwcHdyaXRlQ29uZmlnLmV4cGVuc2VzQ29sbGVjdGlvbklkLAogICAgQXBwd3JpdGVDb25maWcuY2FzaFRyYW5zYWN0aW9uc0NvbGxlY3Rpb25JZCwKICAgIEFwcHdyaXRlQ29uZmlnLmRlYnRzQ29sbGVjdGlvbklkLAogICAgQXBwd3JpdGVDb25maWcuZW1wbG95ZWVzQ29sbGVjdGlvbklkLAogICAgQXBwd3JpdGVDb25maWcuc2FsYXJ5Q3ljbGVzQ29sbGVjdGlvbklkLAogICAgQXBwd3JpdGVDb25maWcuc2FsYXJ5UGF5bWVudHNDb2xsZWN0aW9uSWQsCiAgICAvLyDinYwgaG90ZWxEYXlMZWRnZXJDb2xsZWN0aW9uSWQg4oCUINis2K/ZiNmEINmF2K3ZhNmKINmB2YLYt9iMINmE2Kcg2YrYqtmFINmF2LLYp9mF2YbYqtmHCiAgICBBcHB3cml0ZUNvbmZpZy5zaGlmdE5vdGVzQ29sbGVjdGlvbklkLAogICAgQXBwd3JpdGVDb25maWcucHJpY2VBZGp1c3RtZW50c0NvbGxlY3Rpb25JZCwKICAgIEFwcHdyaXRlQ29uZmlnLmJvb2tpbmdQcmljZUFkanVzdG1lbnRzQ29sbGVjdGlvbklkLAogICAgQXBwd3JpdGVDb25maWcuYXVkaXRMb2dzQ29sbGVjdGlvbklkLAogICAgQXBwd3JpdGVDb25maWcucGF5bWVudFZvaWRzQ29sbGVjdGlvbklkLAogICAgQXBwd3JpdGVDb25maWcuZGV2aWNlc0NvbGxlY3Rpb25JZCwKICAgIEFwcHdyaXRlQ29uZmlnLnN5bmNMb2dzQ29sbGVjdGlvbklkLAogIF07CgogIEZ1dHVyZTxMaXN0PGR5bmFtaWM+PiBfbGlzdEFsbENvbGxlY3Rpb25zKCkgYXN5bmMgewogICAgZmluYWwgYWxsQ29sbGVjdGlvbnMgPSA8ZHluYW1pYz5bXTsKICAgIGNvbnN0IGxpbWl0ID0gQXBwd3JpdGVDb25maWcubWF4UGFnZVNpemU7CiAgICB2YXIgb2Zmc2V0ID0gMDsKICAgIHZhciB1c2VkRmFsbGJhY2sgPSBmYWxzZTsKCiAgICB3aGlsZSAodHJ1ZSkgewogICAgICB0cnkgewogICAgICAgIGZpbmFsIHJlc3VsdCA9IGF3YWl0IChfYXBwd3JpdGVTZXJ2aWNlLmRhdGFiYXNlcyBhcyBkeW5hbWljKQogICAgICAgICAgICAubGlzdENvbGxlY3Rpb25zKAogICAgICAgICAgICAgIGRhdGFiYXNlSWQ6IEFwcHdyaXRlQ29uZmlnTWFuYWdlci5kYXRhYmFzZUlkLAogICAgICAgICAgICAgIHF1ZXJpZXM6IFtRdWVyeS5saW1pdChsaW1pdCksIFF1ZXJ5Lm9mZnNldChvZmZzZXQpXSwKICAgICAgICAgICAgKTsKICAgICAgICBmaW5hbCBiYXRjaCA9IChyZXN1bHQgYXMgZHluYW1pYykuY29sbGVjdGlvbnMgYXMgTGlzdDxkeW5hbWljPj8gPz8gW107CiAgICAgICAgaWYgKGJhdGNoLmlzRW1wdHkpIHsKICAgICAgICAgIGJyZWFrOwogICAgICAgIH0KICAgICAgICBhbGxDb2xsZWN0aW9ucy5hZGRBbGwoYmF0Y2gpOwogICAgICAgIGlmIChiYXRjaC5sZW5ndGggPCBsaW1pdCkgewogICAgICAgICAgYnJlYWs7CiAgICAgICAgfQogICAgICAgIG9mZnNldCArPSBsaW1pdDsKICAgICAgfSBjYXRjaCAoXykgewogICAgICAgIHVzZWRGYWxsYmFjayA9IHRydWU7CiAgICAgICAgYnJlYWs7CiAgICAgIH0KICAgIH0KCiAgICBpZiAoYWxsQ29sbGVjdGlvbnMuaXNFbXB0eSAmJiB1c2VkRmFsbGJhY2spIHsKICAgICAgZm9yIChmaW5hbCBpZCBpbiBfZGVmYXVsdENvbGxlY3Rpb25JZHMpIHsKICAgICAgICB0cnkgewogICAgICAgICAgZmluYWwgY29sbGVjdGlvbiA9IGF3YWl0IChfYXBwd3JpdGVTZXJ2aWNlLmRhdGFiYXNlcyBhcyBkeW5hbWljKQogICAgICAgICAgICAgIC5nZXRDb2xsZWN0aW9uKAogICAgICAgICAgICAgICAgZGF0YWJhc2VJZDogQXBwd3JpdGVDb25maWdNYW5hZ2VyLmRhdGFiYXNlSWQsCiAgICAgICAgICAgICAgICBjb2xsZWN0aW9uSWQ6IGlkLAogICAgICAgICAgICAgICk7CiAgICAgICAgICBhbGxDb2xsZWN0aW9ucy5hZGQoY29sbGVjdGlvbik7CiAgICAgICAgfSBjYXRjaCAoXykgewogICAgICAgICAgYWxsQ29sbGVjdGlvbnMuYWRkKHtyJyRpZCc6IGlkfSk7CiAgICAgICAgfQogICAgICB9CiAgICB9CgogICAgcmV0dXJuIGFsbENvbGxlY3Rpb25zOwogIH0KCiAgTWFwPFN0cmluZywgZHluYW1pYz4gX3NlcmlhbGl6ZUNvbGxlY3Rpb24oZHluYW1pYyBjb2xsZWN0aW9uKSB7CiAgICBpZiAoY29sbGVjdGlvbiBpcyBNYXApIHsKICAgICAgcmV0dXJuIE1hcDxTdHJpbmcsIGR5bmFtaWM+LmZyb20oY29sbGVjdGlvbik7CiAgICB9CiAgICB0cnkgewogICAgICBmaW5hbCBtYXAgPSAoY29sbGVjdGlvbiBhcyBkeW5hbWljKS50b01hcCgpOwogICAgICByZXR1cm4gTWFwPFN0cmluZywgZHluYW1pYz4uZnJvbShtYXAgYXMgTWFwKTsKICAgIH0gY2F0Y2ggKF8pIHsKICAgICAgdHJ5IHsKICAgICAgICBmaW5hbCBkeW5hbWljIGMgPSBjb2xsZWN0aW9uOwogICAgICAgIHJldHVybiB7CiAgICAgICAgICByJyRpZCc6IGMuJGlkLAogICAgICAgICAgJ25hbWUnOiBjLm5hbWUsCiAgICAgICAgICAnZW5hYmxlZCc6IGMuZW5hYmxlZCwKICAgICAgICAgICdkb2N1bWVudFNlY3VyaXR5JzogYy5kb2N1bWVudFNlY3VyaXR5LAogICAgICAgICAgJ3Blcm1pc3Npb25zJzogYy5wZXJtaXNzaW9ucywKICAgICAgICB9OwogICAgICB9IGNhdGNoIChfKSB7CiAgICAgICAgcmV0dXJuIHsncmF3JzogY29sbGVjdGlvbi50b1N0cmluZygpfTsKICAgICAgfQogICAgfQogIH0KCiAgRnV0dXJlPEFwcHdyaXRlQmFja3VwUmVzdWx0PiBleHBvcnRCYWNrdXAoewogICAgU3RyaW5nPyBkZXZpY2VJZCwKICAgIGJvb2wgaW5jbHVkZVNjaGVtYSA9IGZhbHNlLAogICAgU3RyaW5nPyB0YXJnZXRQYXRoLAogIH0pIGFzeW5jIHsKICAgIGF3YWl0IF9hcHB3cml0ZVNlcnZpY2UuaW5pdGlhbGl6ZSgpOwoKICAgIGZpbmFsIHRpbWVzdGFtcCA9IERhdGVUaW1lLm5vdygpLnRvVXRjKCk7CiAgICBmaW5hbCBjb2xsZWN0aW9ucyA9IDxTdHJpbmcsIGR5bmFtaWM+e307CiAgICBmaW5hbCBjb3VudHMgPSA8U3RyaW5nLCBpbnQ+e307CiAgICBmaW5hbCBzY2hlbWFDb2xsZWN0aW9ucyA9IDxNYXA8U3RyaW5nLCBkeW5hbWljPj5bXTsKICAgIGZpbmFsIGNvbGxlY3Rpb25JZHMgPSA8U3RyaW5nPltdOwoKICAgIGlmIChpbmNsdWRlU2NoZW1hKSB7CiAgICAgIGZpbmFsIGNsb3VkQ29sbGVjdGlvbnMgPSBhd2FpdCBfbGlzdEFsbENvbGxlY3Rpb25zKCk7CiAgICAgIGZvciAoZmluYWwgY29sbGVjdGlvbiBpbiBjbG91ZENvbGxlY3Rpb25zKSB7CiAgICAgICAgZmluYWwgaWQgPSAoY29sbGVjdGlvbiBhcyBkeW5hbWljKS4kaWQ7CiAgICAgICAgaWYgKGlkIGlzIFN0cmluZykgewogICAgICAgICAgY29sbGVjdGlvbklkcy5hZGQoaWQpOwogICAgICAgIH0KICAgICAgICBzY2hlbWFDb2xsZWN0aW9ucy5hZGQoX3NlcmlhbGl6ZUNvbGxlY3Rpb24oY29sbGVjdGlvbikpOwogICAgICB9CiAgICB9IGVsc2UgewogICAgICBjb2xsZWN0aW9uSWRzLmFkZEFsbChfZGVmYXVsdENvbGxlY3Rpb25JZHMpOwogICAgfQoKICAgIGZvciAoZmluYWwgaWQgaW4gY29sbGVjdGlvbklkcykgewogICAgICBmaW5hbCBkb2NzID0gYXdhaXQgX2FwcHdyaXRlU2VydmljZS5saXN0QWxsRG9jdW1lbnRzKAogICAgICAgIGNvbGxlY3Rpb25JZDogaWQsCiAgICAgICAgdXNlQ2FjaGU6IGZhbHNlLAogICAgICApOwogICAgICBjb2xsZWN0aW9uc1tpZF0gPSBkb2NzCiAgICAgICAgICAubWFwKChkb2MpID0+IHtyJyRpZCc6IGRvYy4kaWQsIC4uLmRvYy5kYXRhfSkKICAgICAgICAgIC50b0xpc3QoKTsKICAgICAgY291bnRzW2lkXSA9IGRvY3MubGVuZ3RoOwogICAgfQoKICAgIGZpbmFsIHRvdGFsUmVjb3JkcyA9IGNvdW50cy52YWx1ZXMuZm9sZDxpbnQ+KDAsIChzdW0sIHYpID0+IHN1bSArIHYpOwoKICAgIGZpbmFsIHBheWxvYWQgPSB7CiAgICAgICdtZXRhZGF0YSc6IHsKICAgICAgICAndGltZXN0YW1wJzogdGltZXN0YW1wLnRvSXNvODYwMVN0cmluZygpLAogICAgICAgICdwcm9qZWN0SWQnOiBBcHB3cml0ZUNvbmZpZ01hbmFnZXIucHJvamVjdElkLAogICAgICAgICdkYXRhYmFzZUlkJzogQXBwd3JpdGVDb25maWdNYW5hZ2VyLmRhdGFiYXNlSWQsCiAgICAgICAgJ2RldmljZUlkJzogZGV2aWNlSWQsCiAgICAgICAgJ3RvdGFsUmVjb3Jkcyc6IHRvdGFsUmVjb3JkcywKICAgICAgICAnY291bnRzJzogY291bnRzLAogICAgICAgICdpbmNsdWRlc1NjaGVtYSc6IGluY2x1ZGVTY2hlbWEsCiAgICAgIH0sCiAgICAgIGlmIChpbmNsdWRlU2NoZW1hKSAnc2NoZW1hJzogeydjb2xsZWN0aW9ucyc6IHNjaGVtYUNvbGxlY3Rpb25zfSwKICAgICAgJ2NvbGxlY3Rpb25zJzogY29sbGVjdGlvbnMsCiAgICB9OwoKICAgIGZpbmFsIEZpbGUgZmlsZTsKICAgIGlmICh0YXJnZXRQYXRoICE9IG51bGwgJiYgdGFyZ2V0UGF0aC50cmltKCkuaXNOb3RFbXB0eSkgewogICAgICAvLyDinIUg2K3Zgdi4INmB2Yog2KfZhNmF2LPYp9ixINin2YTYsNmKINmK2K3Yr9mR2K/ZhyDYp9mE2YXYs9iq2K7Yr9mFICjYp9iu2KrZitin2LEg2LnYqNixIEZpbGVQaWNrZXIuc2F2ZUZpbGUpCiAgICAgIGZpbGUgPSBGaWxlKHRhcmdldFBhdGgpOwogICAgICBmaW5hbCBwYXJlbnQgPSBmaWxlLnBhcmVudDsKICAgICAgaWYgKCFwYXJlbnQuZXhpc3RzU3luYygpKSB7CiAgICAgICAgYXdhaXQgcGFyZW50LmNyZWF0ZShyZWN1cnNpdmU6IHRydWUpOwogICAgICB9CiAgICB9IGVsc2UgewogICAgICBmaW5hbCBkaXIgPSBhd2FpdCBnZXRBcHBsaWNhdGlvbkRvY3VtZW50c0RpcmVjdG9yeSgpOwogICAgICBmaW5hbCB0YXJnZXREaXIgPSBEaXJlY3RvcnkoJyR7ZGlyLnBhdGh9L2FwcHdyaXRlX2JhY2t1cHMnKTsKICAgICAgaWYgKCF0YXJnZXREaXIuZXhpc3RzU3luYygpKSB7CiAgICAgICAgYXdhaXQgdGFyZ2V0RGlyLmNyZWF0ZShyZWN1cnNpdmU6IHRydWUpOwogICAgICB9CgogICAgICBmaW5hbCBwcmVmaXggPSBpbmNsdWRlU2NoZW1hID8gJ2FwcHdyaXRlX2Z1bGxfYmFja3VwJyA6ICdhcHB3cml0ZV9iYWNrdXAnOwogICAgICBmaW5hbCBmaWxlTmFtZSA9CiAgICAgICAgICAnJHtwcmVmaXh9XyR7RGF0ZUZvcm1hdCgneXl5eU1NZGRfSEhtbXNzJykuZm9ybWF0KHRpbWVzdGFtcCl9Lmpzb24nOwogICAgICBmaWxlID0gRmlsZSgnJHt0YXJnZXREaXIucGF0aH0vJGZpbGVOYW1lJyk7CiAgICB9CiAgICBhd2FpdCBmaWxlLndyaXRlQXNTdHJpbmcoanNvbkVuY29kZShwYXlsb2FkKSk7CgogICAgcmV0dXJuIEFwcHdyaXRlQmFja3VwUmVzdWx0KAogICAgICBmaWxlOiBmaWxlLAogICAgICBjb3VudHM6IGNvdW50cywKICAgICAgdG90YWxSZWNvcmRzOiB0b3RhbFJlY29yZHMsCiAgICAgIHRpbWVzdGFtcDogdGltZXN0YW1wLAogICAgKTsKICB9Cn0K
+import 'dart:convert';
+import 'dart:io';
+import 'package:appwrite/appwrite.dart';
+import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'appwrite_config.dart';
+import 'appwrite_config_manager.dart';
+import 'appwrite_service.dart';
+
+class AppwriteBackupResult {
+  const AppwriteBackupResult({
+    required this.file,
+    required this.counts,
+    required this.totalRecords,
+    required this.timestamp,
+  });
+  final File file;
+  final Map<String, int> counts;
+  final int totalRecords;
+  final DateTime timestamp;
+}
+
+class AppwriteBackupService {
+  AppwriteBackupService({AppwriteService? appwriteService})
+    : _appwriteService = appwriteService ?? AppwriteService();
+
+  final AppwriteService _appwriteService;
+
+  static const List<String> _defaultCollectionIds = [
+    AppwriteConfig.roomsCollectionId,
+    AppwriteConfig.bookingsCollectionId,
+    AppwriteConfig.bookingNotesCollectionId,
+    AppwriteConfig.bookingNightsCollectionId,
+    AppwriteConfig.paymentsCollectionId,
+    AppwriteConfig.expensesCollectionId,
+    AppwriteConfig.cashTransactionsCollectionId,
+    AppwriteConfig.debtsCollectionId,
+    AppwriteConfig.employeesCollectionId,
+    AppwriteConfig.salaryCyclesCollectionId,
+    AppwriteConfig.salaryPaymentsCollectionId,
+    // ❌ hotelDayLedgerCollectionId — جدول محلي فقط، لا يتم مزامنته
+    AppwriteConfig.shiftNotesCollectionId,
+    AppwriteConfig.priceAdjustmentsCollectionId,
+    AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+    AppwriteConfig.auditLogsCollectionId,
+    AppwriteConfig.paymentVoidsCollectionId,
+    AppwriteConfig.devicesCollectionId,
+    AppwriteConfig.syncLogsCollectionId,
+  ];
+
+  Future<List<dynamic>> _listAllCollections() async {
+    final allCollections = <dynamic>[];
+    const limit = AppwriteConfig.maxPageSize;
+    var offset = 0;
+    var usedFallback = false;
+
+    while (true) {
+      try {
+        final result = await (_appwriteService.databases as dynamic)
+            .listCollections(
+              databaseId: AppwriteConfigManager.databaseId,
+              queries: [Query.limit(limit), Query.offset(offset)],
+            );
+        final batch = (result as dynamic).collections as List<dynamic>? ?? [];
+        if (batch.isEmpty) {
+          break;
+        }
+        allCollections.addAll(batch);
+        if (batch.length < limit) {
+          break;
+        }
+        offset += limit;
+      } catch (_) {
+        usedFallback = true;
+        break;
+      }
+    }
+
+    if (allCollections.isEmpty && usedFallback) {
+      for (final id in _defaultCollectionIds) {
+        try {
+          final collection = await (_appwriteService.databases as dynamic)
+              .getCollection(
+                databaseId: AppwriteConfigManager.databaseId,
+                collectionId: id,
+              );
+          allCollections.add(collection);
+        } catch (_) {
+          allCollections.add({r'$id': id});
+        }
+      }
+    }
+
+    return allCollections;
+  }
+
+  Map<String, dynamic> _serializeCollection(dynamic collection) {
+    if (collection is Map) {
+      return Map<String, dynamic>.from(collection);
+    }
+    try {
+      final map = (collection as dynamic).toMap();
+      return Map<String, dynamic>.from(map as Map);
+    } catch (_) {
+      try {
+        final dynamic c = collection;
+        return {
+          r'$id': c.$id,
+          'name': c.name,
+          'enabled': c.enabled,
+          'documentSecurity': c.documentSecurity,
+          'permissions': c.permissions,
+        };
+      } catch (_) {
+        return {'raw': collection.toString()};
+      }
+    }
+  }
+
+  Future<AppwriteBackupResult> exportBackup({
+    String? deviceId,
+    bool includeSchema = false,
+    String? targetPath,
+  }) async {
+    await _appwriteService.initialize();
+
+    final timestamp = DateTime.now().toUtc();
+    final collections = <String, dynamic>{};
+    final counts = <String, int>{};
+    final schemaCollections = <Map<String, dynamic>>[];
+    final collectionIds = <String>[];
+
+    if (includeSchema) {
+      final cloudCollections = await _listAllCollections();
+      for (final collection in cloudCollections) {
+        final id = (collection as dynamic).$id;
+        if (id is String) {
+          collectionIds.add(id);
+        }
+        schemaCollections.add(_serializeCollection(collection));
+      }
+    } else {
+      collectionIds.addAll(_defaultCollectionIds);
+    }
+
+    for (final id in collectionIds) {
+      final docs = await _appwriteService.listAllDocuments(
+        collectionId: id,
+        useCache: false,
+      );
+      collections[id] = docs
+          .map((doc) => {r'$id': doc.$id, ...doc.data})
+          .toList();
+      counts[id] = docs.length;
+    }
+
+    final totalRecords = counts.values.fold<int>(0, (sum, v) => sum + v);
+
+    final payload = {
+      'metadata': {
+        'timestamp': timestamp.toIso8601String(),
+        'projectId': AppwriteConfigManager.projectId,
+        'databaseId': AppwriteConfigManager.databaseId,
+        'deviceId': deviceId,
+        'totalRecords': totalRecords,
+        'counts': counts,
+        'includesSchema': includeSchema,
+      },
+      if (includeSchema) 'schema': {'collections': schemaCollections},
+      'collections': collections,
+    };
+
+    final File file;
+    if (targetPath != null && targetPath.trim().isNotEmpty) {
+      // ✅ حفظ في المسار الذي يحدّده المستخدم (اختيار عبر FilePicker.saveFile)
+      file = File(targetPath);
+      final parent = file.parent;
+      if (!parent.existsSync()) {
+        await parent.create(recursive: true);
+      }
+    } else {
+      final dir = await getApplicationDocumentsDirectory();
+      final targetDir = Directory('${dir.path}/appwrite_backups');
+      if (!targetDir.existsSync()) {
+        await targetDir.create(recursive: true);
+      }
+
+      final prefix = includeSchema ? 'appwrite_full_backup' : 'appwrite_backup';
+      final fileName =
+          '${prefix}_${DateFormat('yyyyMMdd_HHmmss').format(timestamp)}.json';
+      file = File('${targetDir.path}/$fileName');
+    }
+    await file.writeAsString(jsonEncode(payload));
+
+    return AppwriteBackupResult(
+      file: file,
+      counts: counts,
+      totalRecords: totalRecords,
+      timestamp: timestamp,
+    );
+  }
+}
