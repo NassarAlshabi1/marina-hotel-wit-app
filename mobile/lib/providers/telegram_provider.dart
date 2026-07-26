@@ -1,1 +1,307 @@
-aW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXIvZm91bmRhdGlvbi5kYXJ0JzsKaW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXJfcml2ZXJwb2QvZmx1dHRlcl9yaXZlcnBvZC5kYXJ0JzsKaW1wb3J0ICdwYWNrYWdlOnNoYXJlZF9wcmVmZXJlbmNlcy9zaGFyZWRfcHJlZmVyZW5jZXMuZGFydCc7CgppbXBvcnQgJy4uL3NlcnZpY2VzL2FsYXJtX2JhY2t1cC5kYXJ0JzsKaW1wb3J0ICcuLi9zZXJ2aWNlcy90ZWxlZ3JhbS90ZWxlZ3JhbV9jb25maWcuZGFydCc7CmltcG9ydCAnLi4vc2VydmljZXMvdGVsZWdyYW0vdGVsZWdyYW1fbm90aWZpY2F0aW9uX3NlcnZpY2UuZGFydCc7CmltcG9ydCAnLi4vc2VydmljZXMvdGVsZWdyYW0vdGVsZWdyYW1fcmVwb3J0X3NlcnZpY2UuZGFydCc7CmltcG9ydCAnLi4vc2VydmljZXMvdGVsZWdyYW0vdGVsZWdyYW1fc2VydmljZS5kYXJ0JzsKaW1wb3J0ICcuLi91dGlscy9lbnYuZGFydCc7CgovLy8g2K3Yp9mE2Kkg2KXYudiv2KfYryBUZWxlZ3JhbQplbnVtIFRlbGVncmFtU2V0dXBTdGF0dXMgeyBpZGxlLCB0ZXN0aW5nLCBzdWNjZXNzLCBlcnJvciwgc2VuZGluZ1JlcG9ydCB9CgovLy8g2K3Yp9mE2KkgVGVsZWdyYW0g2KfZhNmD2KfZhdmE2KkKY2xhc3MgVGVsZWdyYW1TdGF0ZSB7CiAgY29uc3QgVGVsZWdyYW1TdGF0ZSh7CiAgICB0aGlzLnN0YXR1cyA9IFRlbGVncmFtU2V0dXBTdGF0dXMuaWRsZSwKICAgIHRoaXMubWVzc2FnZSwKICAgIHRoaXMuaXNFbmFibGVkID0gdHJ1ZSwKICAgIHRoaXMuaXNDb25maWd1cmVkID0gdHJ1ZSwKICAgIHRoaXMuaXNOb3RpZmljYXRpb25zRW5hYmxlZCA9IHRydWUsCiAgICB0aGlzLmlzRGFpbHlSZXBvcnRFbmFibGVkID0gdHJ1ZSwKICAgIHRoaXMuYm90VG9rZW4gPSBFbnYudGVsZWdyYW1Cb3RUb2tlbiwKICAgIHRoaXMuY2hhdElkID0gRW52LnRlbGVncmFtQ2hhdElkLAogICAgdGhpcy5kYWlseVJlcG9ydFRpbWUgPSAnMDI6MDAnLAogICAgdGhpcy5sYXN0UmVwb3J0U2VudCwKICB9KTsKICBmaW5hbCBUZWxlZ3JhbVNldHVwU3RhdHVzIHN0YXR1czsKICBmaW5hbCBTdHJpbmc/IG1lc3NhZ2U7CiAgZmluYWwgYm9vbCBpc0VuYWJsZWQ7CiAgZmluYWwgYm9vbCBpc0NvbmZpZ3VyZWQ7CiAgZmluYWwgYm9vbCBpc05vdGlmaWNhdGlvbnNFbmFibGVkOwogIGZpbmFsIGJvb2wgaXNEYWlseVJlcG9ydEVuYWJsZWQ7CiAgZmluYWwgU3RyaW5nIGJvdFRva2VuOwogIGZpbmFsIFN0cmluZyBjaGF0SWQ7CiAgZmluYWwgU3RyaW5nIGRhaWx5UmVwb3J0VGltZTsKICBmaW5hbCBTdHJpbmc/IGxhc3RSZXBvcnRTZW50OwoKICBUZWxlZ3JhbVN0YXRlIGNvcHlXaXRoKHsKICAgIFRlbGVncmFtU2V0dXBTdGF0dXM/IHN0YXR1cywKICAgIFN0cmluZz8gbWVzc2FnZSwKICAgIGJvb2w/IGlzRW5hYmxlZCwKICAgIGJvb2w/IGlzQ29uZmlndXJlZCwKICAgIGJvb2w/IGlzTm90aWZpY2F0aW9uc0VuYWJsZWQsCiAgICBib29sPyBpc0RhaWx5UmVwb3J0RW5hYmxlZCwKICAgIFN0cmluZz8gYm90VG9rZW4sCiAgICBTdHJpbmc/IGNoYXRJZCwKICAgIFN0cmluZz8gZGFpbHlSZXBvcnRUaW1lLAogICAgU3RyaW5nPyBsYXN0UmVwb3J0U2VudCwKICB9KSB7CiAgICByZXR1cm4gVGVsZWdyYW1TdGF0ZSgKICAgICAgc3RhdHVzOiBzdGF0dXMgPz8gdGhpcy5zdGF0dXMsCiAgICAgIG1lc3NhZ2U6IG1lc3NhZ2UgPz8gdGhpcy5tZXNzYWdlLAogICAgICBpc0VuYWJsZWQ6IGlzRW5hYmxlZCA/PyB0aGlzLmlzRW5hYmxlZCwKICAgICAgaXNDb25maWd1cmVkOiBpc0NvbmZpZ3VyZWQgPz8gdGhpcy5pc0NvbmZpZ3VyZWQsCiAgICAgIGlzTm90aWZpY2F0aW9uc0VuYWJsZWQ6CiAgICAgICAgICBpc05vdGlmaWNhdGlvbnNFbmFibGVkID8/IHRoaXMuaXNOb3RpZmljYXRpb25zRW5hYmxlZCwKICAgICAgaXNEYWlseVJlcG9ydEVuYWJsZWQ6IGlzRGFpbHlSZXBvcnRFbmFibGVkID8/IHRoaXMuaXNEYWlseVJlcG9ydEVuYWJsZWQsCiAgICAgIGJvdFRva2VuOiBib3RUb2tlbiA/PyB0aGlzLmJvdFRva2VuLAogICAgICBjaGF0SWQ6IGNoYXRJZCA/PyB0aGlzLmNoYXRJZCwKICAgICAgZGFpbHlSZXBvcnRUaW1lOiBkYWlseVJlcG9ydFRpbWUgPz8gdGhpcy5kYWlseVJlcG9ydFRpbWUsCiAgICAgIGxhc3RSZXBvcnRTZW50OiBsYXN0UmVwb3J0U2VudCA/PyB0aGlzLmxhc3RSZXBvcnRTZW50LAogICAgKTsKICB9Cn0KCi8vLyBOb3RpZmllciDZhNmE2KrYrdmD2YUg2YHZiiDYrdin2YTYqSBUZWxlZ3JhbQpjbGFzcyBUZWxlZ3JhbU5vdGlmaWVyIGV4dGVuZHMgU3RhdGVOb3RpZmllcjxUZWxlZ3JhbVN0YXRlPiB7CiAgVGVsZWdyYW1Ob3RpZmllcigpIDogc3VwZXIoY29uc3QgVGVsZWdyYW1TdGF0ZSgpKSB7CiAgICBfaW5pdGlhbGl6ZSgpOwogIH0KCiAgZmluYWwgVGVsZWdyYW1BcGlDbGllbnQgX2FwaSA9IFRlbGVncmFtQXBpQ2xpZW50Lmluc3RhbmNlOwogIGZpbmFsIFRlbGVncmFtUmVwb3J0U2VydmljZSBfcmVwb3J0cyA9IFRlbGVncmFtUmVwb3J0U2VydmljZS5pbnN0YW5jZTsKICBib29sIF9tb3VudGVkID0gdHJ1ZTsKCiAgLy8vINiq2YfZitim2Kkg2KfZhNit2KfZhNipINmF2YYgU2hhcmVkUHJlZmVyZW5jZXMg4oCUINin2YTZgtmK2YUg2KfZhNin2YHYqtix2KfYttmK2Kkg2YXZj9it2YXZkdmE2Kkg2YXYs9io2YLYp9mLCiAgRnV0dXJlPHZvaWQ+IF9pbml0aWFsaXplKCkgYXN5bmMgewogICAgdHJ5IHsKICAgICAgZmluYWwgcHJlZnMgPSBhd2FpdCBTaGFyZWRQcmVmZXJlbmNlcy5nZXRJbnN0YW5jZSgpOwogICAgICBmaW5hbCBlbmFibGVkID0gcHJlZnMuZ2V0Qm9vbCgndGVsZWdyYW1fZW5hYmxlZCcpID8/IGZhbHNlOwogICAgICBmaW5hbCBib3RUb2tlbiA9CiAgICAgICAgICBwcmVmcy5nZXRTdHJpbmcoJ3RlbGVncmFtX2JvdF90b2tlbicpID8/CiAgICAgICAgICBUZWxlZ3JhbUNvbmZpZy5kZWZhdWx0Qm90VG9rZW47CiAgICAgIGZpbmFsIGNoYXRJZCA9CiAgICAgICAgICBwcmVmcy5nZXRTdHJpbmcoJ3RlbGVncmFtX2NoYXRfaWQnKSA/PyBUZWxlZ3JhbUNvbmZpZy5kZWZhdWx0Q2hhdElkOwogICAgICBmaW5hbCBub3RpZmljYXRpb25zRW5hYmxlZCA9CiAgICAgICAgICBwcmVmcy5nZXRCb29sKCd0ZWxlZ3JhbV9ub3RpZmljYXRpb25zX2VuYWJsZWQnKSA/PyBmYWxzZTsKICAgICAgZmluYWwgZGFpbHlSZXBvcnRFbmFibGVkID0KICAgICAgICAgIHByZWZzLmdldEJvb2woJ3RlbGVncmFtX2RhaWx5X3JlcG9ydF9lbmFibGVkJykgPz8gZmFsc2U7CiAgICAgIGZpbmFsIHJlcG9ydFRpbWUgPQogICAgICAgICAgcHJlZnMuZ2V0U3RyaW5nKCd0ZWxlZ3JhbV9kYWlseV9yZXBvcnRfdGltZScpID8/ICcwMjowMCc7CiAgICAgIGZpbmFsIGxhc3RSZXBvcnRTZW50ID0gcHJlZnMuZ2V0U3RyaW5nKCd0ZWxlZ3JhbV9sYXN0X3JlcG9ydF9zZW50Jyk7CiAgICAgIGZpbmFsIGNvbmZpZ3VyZWQgPSBhd2FpdCBUZWxlZ3JhbUNvbmZpZy5pc0NvbmZpZ3VyZWQoKTsKCiAgICAgIHN0YXRlID0gc3RhdGUuY29weVdpdGgoCiAgICAgICAgaXNFbmFibGVkOiBlbmFibGVkLAogICAgICAgIGJvdFRva2VuOiBib3RUb2tlbiwKICAgICAgICBjaGF0SWQ6IGNoYXRJZCwKICAgICAgICBpc0NvbmZpZ3VyZWQ6IGNvbmZpZ3VyZWQsCiAgICAgICAgaXNOb3RpZmljYXRpb25zRW5hYmxlZDogbm90aWZpY2F0aW9uc0VuYWJsZWQsCiAgICAgICAgaXNEYWlseVJlcG9ydEVuYWJsZWQ6IGRhaWx5UmVwb3J0RW5hYmxlZCwKICAgICAgICBkYWlseVJlcG9ydFRpbWU6IHJlcG9ydFRpbWUsCiAgICAgICAgbGFzdFJlcG9ydFNlbnQ6IGxhc3RSZXBvcnRTZW50LAogICAgICApOwogICAgfSBjYXRjaCAoZSkgewogICAgICBkZWJ1Z1ByaW50KCfinYwg2K7Yt9ijINmB2Yog2KrZh9mK2KbYqSBUZWxlZ3JhbU5vdGlmaWVyOiAkZScpOwogICAgfQogIH0KCiAgLy8vINiq2YHYudmK2YQv2KrYudi32YrZhCBUZWxlZ3JhbQogIEZ1dHVyZTx2b2lkPiBzZXRFbmFibGVkKGJvb2wgZW5hYmxlZCkgYXN5bmMgewogICAgYXdhaXQgVGVsZWdyYW1Db25maWcuc2V0RW5hYmxlZChlbmFibGVkKTsKICAgIHN0YXRlID0gc3RhdGUuY29weVdpdGgoCiAgICAgIGlzRW5hYmxlZDogZW5hYmxlZCwKICAgICAgc3RhdHVzOiBUZWxlZ3JhbVNldHVwU3RhdHVzLnN1Y2Nlc3MsCiAgICAgIG1lc3NhZ2U6IGVuYWJsZWQgPyAn2KrZhSDYqtmB2LnZitmEIFRlbGVncmFtJyA6ICfYqtmFINiq2LnYt9mK2YQgVGVsZWdyYW0nLAogICAgKTsKICAgIF9jbGVhck1lc3NhZ2VBZnRlckRlbGF5KCk7CiAgfQoKICAvLy8g2KrYrdiv2YrYqyBCb3QgVG9rZW4KICBGdXR1cmU8dm9pZD4gc2V0Qm90VG9rZW4oU3RyaW5nIHRva2VuKSBhc3luYyB7CiAgICBhd2FpdCBUZWxlZ3JhbUNvbmZpZy5zZXRCb3RUb2tlbih0b2tlbik7CiAgICBmaW5hbCBjb25maWd1cmVkID0gYXdhaXQgVGVsZWdyYW1Db25maWcuaXNDb25maWd1cmVkKCk7CiAgICBzdGF0ZSA9IHN0YXRlLmNvcHlXaXRoKGJvdFRva2VuOiB0b2tlbiwgaXNDb25maWd1cmVkOiBjb25maWd1cmVkKTsKICB9CgogIC8vLyDYqtit2K/ZitirIENoYXQgSUQKICBGdXR1cmU8dm9pZD4gc2V0Q2hhdElkKFN0cmluZyBpZCkgYXN5bmMgewogICAgYXdhaXQgVGVsZWdyYW1Db25maWcuc2V0Q2hhdElkKGlkKTsKICAgIGZpbmFsIGNvbmZpZ3VyZWQgPSBhd2FpdCBUZWxlZ3JhbUNvbmZpZy5pc0NvbmZpZ3VyZWQoKTsKICAgIHN0YXRlID0gc3RhdGUuY29weVdpdGgoY2hhdElkOiBpZCwgaXNDb25maWd1cmVkOiBjb25maWd1cmVkKTsKICB9CgogIC8vLyDYqtmB2LnZitmEL9iq2LnYt9mK2YQg2KfZhNil2LTYudin2LHYp9iqINin2YTZgdmI2LHZitipCiAgRnV0dXJlPHZvaWQ+IHNldE5vdGlmaWNhdGlvbnNFbmFibGVkKGJvb2wgZW5hYmxlZCkgYXN5bmMgewogICAgYXdhaXQgVGVsZWdyYW1Db25maWcuc2V0Tm90aWZpY2F0aW9uc0VuYWJsZWQoZW5hYmxlZCk7CiAgICBzdGF0ZSA9IHN0YXRlLmNvcHlXaXRoKAogICAgICBpc05vdGlmaWNhdGlvbnNFbmFibGVkOiBlbmFibGVkLAogICAgICBzdGF0dXM6IFRlbGVncmFtU2V0dXBTdGF0dXMuc3VjY2VzcywKICAgICAgbWVzc2FnZTogZW5hYmxlZAogICAgICAgICAgPyAn2KrZhSDYqtmB2LnZitmEINin2YTYpdi02LnYp9ix2KfYqiDYp9mE2YHZiNix2YrYqScKICAgICAgICAgIDogJ9iq2YUg2KrYudi32YrZhCDYp9mE2KXYtNi52KfYsdin2Kog2KfZhNmB2YjYsdmK2KknLAogICAgKTsKICAgIF9jbGVhck1lc3NhZ2VBZnRlckRlbGF5KCk7CiAgfQoKICAvLy8g2KrZgdi52YrZhC/Yqti52LfZitmEINin2YTYqtmC2LHZitixINin2YTZitmI2YXZigogIEZ1dHVyZTx2b2lkPiBzZXREYWlseVJlcG9ydEVuYWJsZWQoYm9vbCBlbmFibGVkKSBhc3luYyB7CiAgICBhd2FpdCBUZWxlZ3JhbUNvbmZpZy5zZXREYWlseVJlcG9ydEVuYWJsZWQoZW5hYmxlZCk7CiAgICBzdGF0ZSA9IHN0YXRlLmNvcHlXaXRoKAogICAgICBpc0RhaWx5UmVwb3J0RW5hYmxlZDogZW5hYmxlZCwKICAgICAgc3RhdHVzOiBUZWxlZ3JhbVNldHVwU3RhdHVzLnN1Y2Nlc3MsCiAgICAgIG1lc3NhZ2U6IGVuYWJsZWQKICAgICAgICAgID8gJ9iq2YUg2KrZgdi52YrZhCDYp9mE2KrZgtix2YrYsSDYp9mE2YrZiNmF2Yog2KfZhNiq2YTZgtin2KbZiicKICAgICAgICAgIDogJ9iq2YUg2KrYudi32YrZhCDYp9mE2KrZgtix2YrYsSDYp9mE2YrZiNmF2Yog2KfZhNiq2YTZgtin2KbZiicsCiAgICApOwogICAgLy8g2KzYr9mI2YTYqS/YpdmE2LrYp9ihINil2YbYsNin2LEg2KfZhNiq2YLYsdmK2LEg2KfZhNmK2YjZhdmKCiAgICB0cnkgewogICAgICBpZiAoZW5hYmxlZCAmJiBzdGF0ZS5pc0VuYWJsZWQpIHsKICAgICAgICBmaW5hbCBwYXJ0cyA9IHN0YXRlLmRhaWx5UmVwb3J0VGltZS5zcGxpdCgnOicpOwogICAgICAgIGF3YWl0IEFsYXJtQmFja3VwLnJlc2NoZWR1bGVUZWxlZ3JhbVJlcG9ydCgKICAgICAgICAgIGludC5wYXJzZShwYXJ0c1swXSksCiAgICAgICAgICBpbnQucGFyc2UocGFydHNbMV0pLAogICAgICAgICk7CiAgICAgIH0gZWxzZSB7CiAgICAgICAgYXdhaXQgQWxhcm1CYWNrdXAuY2FuY2VsVGVsZWdyYW1SZXBvcnRBbGFybSgpOwogICAgICB9CiAgICB9IGNhdGNoIChlKSB7CiAgICAgIGRlYnVnUHJpbnQoJ+KaoO+4jyDYrti32KMg2YHZiiDYrNiv2YjZhNipINil2YbYsNin2LEgVGVsZWdyYW06ICRlJyk7CiAgICB9CiAgICBfY2xlYXJNZXNzYWdlQWZ0ZXJEZWxheSgpOwogIH0KCiAgLy8vINiq2K3Yr9mK2Ksg2YjZgtiqINin2YTYqtmC2LHZitixCiAgRnV0dXJlPHZvaWQ+IHNldERhaWx5UmVwb3J0VGltZShTdHJpbmcgdGltZSkgYXN5bmMgewogICAgYXdhaXQgVGVsZWdyYW1Db25maWcuc2V0RGFpbHlSZXBvcnRUaW1lKHRpbWUpOwogICAgc3RhdGUgPSBzdGF0ZS5jb3B5V2l0aChkYWlseVJlcG9ydFRpbWU6IHRpbWUpOwogICAgLy8g2KXYudin2K/YqSDYrNiv2YjZhNipINil2YbYsNin2LEg2KfZhNiq2YLYsdmK2LEg2KjYp9mE2YjZgtiqINin2YTYrNiv2YrYrwogICAgdHJ5IHsKICAgICAgaWYgKHN0YXRlLmlzRGFpbHlSZXBvcnRFbmFibGVkICYmIHN0YXRlLmlzRW5hYmxlZCkgewogICAgICAgIGZpbmFsIHBhcnRzID0gdGltZS5zcGxpdCgnOicpOwogICAgICAgIGF3YWl0IEFsYXJtQmFja3VwLnJlc2NoZWR1bGVUZWxlZ3JhbVJlcG9ydCgKICAgICAgICAgIGludC5wYXJzZShwYXJ0c1swXSksCiAgICAgICAgICBpbnQucGFyc2UocGFydHNbMV0pLAogICAgICAgICk7CiAgICAgIH0KICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgZGVidWdQcmludCgn4pqg77iPINiu2LfYoyDZgdmKINil2LnYp9iv2Kkg2KzYr9mI2YTYqSDYpdmG2LDYp9ixIFRlbGVncmFtOiAkZScpOwogICAgfQogIH0KCiAgLy8vINin2K7Yqtio2KfYsSDYp9mE2KfYqti12KfZhAogIEZ1dHVyZTx2b2lkPiB0ZXN0Q29ubmVjdGlvbigpIGFzeW5jIHsKICAgIHN0YXRlID0gc3RhdGUuY29weVdpdGgoCiAgICAgIHN0YXR1czogVGVsZWdyYW1TZXR1cFN0YXR1cy50ZXN0aW5nLAogICAgICBtZXNzYWdlOiAn2KzYp9ix2Yog2KfYrtiq2KjYp9ixINin2YTYp9iq2LXYp9mELi4uJywKICAgICk7CgogICAgdHJ5IHsKICAgICAgZmluYWwgc3VjY2VzcyA9IGF3YWl0IF9hcGkudGVzdFNlbmRNZXNzYWdlKCk7CgogICAgICBpZiAoc3VjY2VzcykgewogICAgICAgIHN0YXRlID0gc3RhdGUuY29weVdpdGgoCiAgICAgICAgICBzdGF0dXM6IFRlbGVncmFtU2V0dXBTdGF0dXMuc3VjY2VzcywKICAgICAgICAgIG1lc3NhZ2U6ICfinIUg2KrZhSDYp9iu2KrYqNin2LEg2KfZhNin2KrYtdin2YQg2KjZhtis2KfYrSEg2KrYrdmC2YIg2YXZhiBUZWxlZ3JhbScsCiAgICAgICAgKTsKICAgICAgfSBlbHNlIHsKICAgICAgICBzdGF0ZSA9IHN0YXRlLmNvcHlXaXRoKAogICAgICAgICAgc3RhdHVzOiBUZWxlZ3JhbVNldHVwU3RhdHVzLmVycm9yLAogICAgICAgICAgbWVzc2FnZTogJ+KdjCDZgdi02YQg2KfYrtiq2KjYp9ixINin2YTYp9iq2LXYp9mEIOKAlCDYqtit2YLZgiDZhdmGIEJvdCBUb2tlbiDZiCBDaGF0IElEJywKICAgICAgICApOwogICAgICB9CiAgICB9IGNhdGNoIChlKSB7CiAgICAgIHN0YXRlID0gc3RhdGUuY29weVdpdGgoCiAgICAgICAgc3RhdHVzOiBUZWxlZ3JhbVNldHVwU3RhdHVzLmVycm9yLAogICAgICAgIG1lc3NhZ2U6ICfinYwg2K7Yt9ijINmB2Yog2KfZhNin2KrYtdin2YQ6ICRlJywKICAgICAgKTsKICAgIH0KCiAgICBfY2xlYXJNZXNzYWdlQWZ0ZXJEZWxheSgpOwogIH0KCiAgLy8vINil2LHYs9in2YQg2KrZgtix2YrYsSDYqtis2LHZitio2YoKICBGdXR1cmU8dm9pZD4gc2VuZFRlc3RSZXBvcnQoKSBhc3luYyB7CiAgICBzdGF0ZSA9IHN0YXRlLmNvcHlXaXRoKAogICAgICBzdGF0dXM6IFRlbGVncmFtU2V0dXBTdGF0dXMuc2VuZGluZ1JlcG9ydCwKICAgICAgbWVzc2FnZTogJ9is2KfYsdmKINiq2KzZhdmK2Lkg2YjYpdix2LPYp9mEINin2YTYqtmC2LHZitixLi4uJywKICAgICk7CgogICAgdHJ5IHsKICAgICAgZmluYWwgc3VjY2VzcyA9IGF3YWl0IF9yZXBvcnRzLnNlbmRSZXBvcnROb3coKTsKCiAgICAgIGlmIChzdWNjZXNzKSB7CiAgICAgICAgc3RhdGUgPSBzdGF0ZS5jb3B5V2l0aCgKICAgICAgICAgIHN0YXR1czogVGVsZWdyYW1TZXR1cFN0YXR1cy5zdWNjZXNzLAogICAgICAgICAgbWVzc2FnZTogJ+KchSDYqtmFINil2LHYs9in2YQg2KfZhNiq2YLYsdmK2LEg2KfZhNiq2KzYsdmK2KjZiiDYqNmG2KzYp9itIScsCiAgICAgICAgKTsKICAgICAgfSBlbHNlIHsKICAgICAgICBzdGF0ZSA9IHN0YXRlLmNvcHlXaXRoKAogICAgICAgICAgc3RhdHVzOiBUZWxlZ3JhbVNldHVwU3RhdHVzLmVycm9yLAogICAgICAgICAgbWVzc2FnZTogJ+KdjCDZgdi02YQg2KXYsdiz2KfZhCDYp9mE2KrZgtix2YrYsSDigJQg2KrYrdmC2YIg2YXZhiDYp9mE2KXYudiv2KfYr9in2KonLAogICAgICAgICk7CiAgICAgIH0KICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgc3RhdGUgPSBzdGF0ZS5jb3B5V2l0aCgKICAgICAgICBzdGF0dXM6IFRlbGVncmFtU2V0dXBTdGF0dXMuZXJyb3IsCiAgICAgICAgbWVzc2FnZTogJ+KdjCDYrti32KMg2YHZiiDYpdix2LPYp9mEINin2YTYqtmC2LHZitixOiAkZScsCiAgICAgICk7CiAgICB9CgogICAgX2NsZWFyTWVzc2FnZUFmdGVyRGVsYXkoKTsKICB9CgogIC8vLyDYpdix2LPYp9mEINin2YTYqtmC2LHZitixINin2YTZitmI2YXZigogIEZ1dHVyZTxib29sPiBzZW5kRGFpbHlSZXBvcnQoKSBhc3luYyB7CiAgICB0cnkgewogICAgICByZXR1cm4gYXdhaXQgX3JlcG9ydHMuc2VuZERhaWx5UmVwb3J0KCk7CiAgICB9IGNhdGNoIChlKSB7CiAgICAgIGRlYnVnUHJpbnQoJ+KdjCDYrti32KMg2YHZiiDYpdix2LPYp9mEINin2YTYqtmC2LHZitixINin2YTZitmI2YXZijogJGUnKTsKICAgICAgcmV0dXJuIGZhbHNlOwogICAgfQogIH0KCiAgLy8vINmF2LPYrSDYsdiz2KfZhNipINin2YTYrdin2YTYqQogIHZvaWQgX2NsZWFyTWVzc2FnZUFmdGVyRGVsYXkoKSB7CiAgICBGdXR1cmU8dm9pZD4uZGVsYXllZChjb25zdCBEdXJhdGlvbihzZWNvbmRzOiAzKSwgKCkgewogICAgICBpZiAoIV9tb3VudGVkKSB7CiAgICAgICAgcmV0dXJuOwogICAgICB9CiAgICAgIGlmIChzdGF0ZS5zdGF0dXMgPT0gVGVsZWdyYW1TZXR1cFN0YXR1cy5zdWNjZXNzIHx8CiAgICAgICAgICBzdGF0ZS5zdGF0dXMgPT0gVGVsZWdyYW1TZXR1cFN0YXR1cy5lcnJvcikgewogICAgICAgIHN0YXRlID0gc3RhdGUuY29weVdpdGgoc3RhdHVzOiBUZWxlZ3JhbVNldHVwU3RhdHVzLmlkbGUpOwogICAgICB9CiAgICB9KTsKICB9CgogIEBvdmVycmlkZQogIHZvaWQgZGlzcG9zZSgpIHsKICAgIF9tb3VudGVkID0gZmFsc2U7CiAgICBzdXBlci5kaXNwb3NlKCk7CiAgfQoKICAvLy8g2YXYs9itINit2KfZhNipINii2K7YsSDYqtmC2LHZitixCiAgRnV0dXJlPHZvaWQ+IHJlc2V0TGFzdFJlcG9ydCgpIGFzeW5jIHsKICAgIGF3YWl0IFRlbGVncmFtQ29uZmlnLmNsZWFyTGFzdFJlcG9ydCgpOwogICAgc3RhdGUgPSBzdGF0ZS5jb3B5V2l0aCgpOwogIH0KfQoKLy8vIFByb3ZpZGVyINix2KbZitiz2Yog2YTZgCBUZWxlZ3JhbQpmaW5hbCB0ZWxlZ3JhbVByb3ZpZGVyID0gU3RhdGVOb3RpZmllclByb3ZpZGVyPFRlbGVncmFtTm90aWZpZXIsIFRlbGVncmFtU3RhdGU+KAogIChyZWYpID0+IFRlbGVncmFtTm90aWZpZXIoKSwKKTsKCi8vLyBQcm92aWRlciDZhNmE2YjYtdmI2YQg2KXZhNmJINiu2K/ZhdipINin2YTYpdi02LnYp9ix2KfYqgpmaW5hbCB0ZWxlZ3JhbU5vdGlmaWNhdGlvblNlcnZpY2VQcm92aWRlciA9CiAgICBQcm92aWRlcjxUZWxlZ3JhbU5vdGlmaWNhdGlvblNlcnZpY2U+KAogICAgICAocmVmKSA9PiBUZWxlZ3JhbU5vdGlmaWNhdGlvblNlcnZpY2UuaW5zdGFuY2UsCiAgICApOwoKLy8vIFByb3ZpZGVyINmE2YTZiNi12YjZhCDYpdmE2Ykg2K7Yr9mF2Kkg2KfZhNiq2YLYp9ix2YrYsQpmaW5hbCB0ZWxlZ3JhbVJlcG9ydFNlcnZpY2VQcm92aWRlciA9IFByb3ZpZGVyPFRlbGVncmFtUmVwb3J0U2VydmljZT4oCiAgKHJlZikgPT4gVGVsZWdyYW1SZXBvcnRTZXJ2aWNlLmluc3RhbmNlLAopOwo=
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../services/alarm_backup.dart';
+import '../services/telegram/telegram_config.dart';
+import '../services/telegram/telegram_notification_service.dart';
+import '../services/telegram/telegram_report_service.dart';
+import '../services/telegram/telegram_service.dart';
+import '../utils/env.dart';
+
+/// حالة إعداد Telegram
+enum TelegramSetupStatus { idle, testing, success, error, sendingReport }
+
+/// حالة Telegram الكاملة
+class TelegramState {
+  const TelegramState({
+    this.status = TelegramSetupStatus.idle,
+    this.message,
+    this.isEnabled = true,
+    this.isConfigured = true,
+    this.isNotificationsEnabled = true,
+    this.isDailyReportEnabled = true,
+    this.botToken = Env.telegramBotToken,
+    this.chatId = Env.telegramChatId,
+    this.dailyReportTime = '02:00',
+    this.lastReportSent,
+  });
+  final TelegramSetupStatus status;
+  final String? message;
+  final bool isEnabled;
+  final bool isConfigured;
+  final bool isNotificationsEnabled;
+  final bool isDailyReportEnabled;
+  final String botToken;
+  final String chatId;
+  final String dailyReportTime;
+  final String? lastReportSent;
+
+  TelegramState copyWith({
+    TelegramSetupStatus? status,
+    String? message,
+    bool? isEnabled,
+    bool? isConfigured,
+    bool? isNotificationsEnabled,
+    bool? isDailyReportEnabled,
+    String? botToken,
+    String? chatId,
+    String? dailyReportTime,
+    String? lastReportSent,
+  }) {
+    return TelegramState(
+      status: status ?? this.status,
+      message: message ?? this.message,
+      isEnabled: isEnabled ?? this.isEnabled,
+      isConfigured: isConfigured ?? this.isConfigured,
+      isNotificationsEnabled:
+          isNotificationsEnabled ?? this.isNotificationsEnabled,
+      isDailyReportEnabled: isDailyReportEnabled ?? this.isDailyReportEnabled,
+      botToken: botToken ?? this.botToken,
+      chatId: chatId ?? this.chatId,
+      dailyReportTime: dailyReportTime ?? this.dailyReportTime,
+      lastReportSent: lastReportSent ?? this.lastReportSent,
+    );
+  }
+}
+
+/// Notifier للتحكم في حالة Telegram
+class TelegramNotifier extends StateNotifier<TelegramState> {
+  TelegramNotifier() : super(const TelegramState()) {
+    _initialize();
+  }
+
+  final TelegramApiClient _api = TelegramApiClient.instance;
+  final TelegramReportService _reports = TelegramReportService.instance;
+  bool _mounted = true;
+
+  /// تهيئة الحالة من SharedPreferences — القيم الافتراضية مُحمّلة مسبقاً
+  Future<void> _initialize() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final enabled = prefs.getBool('telegram_enabled') ?? false;
+      final botToken =
+          prefs.getString('telegram_bot_token') ??
+          TelegramConfig.defaultBotToken;
+      final chatId =
+          prefs.getString('telegram_chat_id') ?? TelegramConfig.defaultChatId;
+      final notificationsEnabled =
+          prefs.getBool('telegram_notifications_enabled') ?? false;
+      final dailyReportEnabled =
+          prefs.getBool('telegram_daily_report_enabled') ?? false;
+      final reportTime =
+          prefs.getString('telegram_daily_report_time') ?? '02:00';
+      final lastReportSent = prefs.getString('telegram_last_report_sent');
+      final configured = await TelegramConfig.isConfigured();
+
+      state = state.copyWith(
+        isEnabled: enabled,
+        botToken: botToken,
+        chatId: chatId,
+        isConfigured: configured,
+        isNotificationsEnabled: notificationsEnabled,
+        isDailyReportEnabled: dailyReportEnabled,
+        dailyReportTime: reportTime,
+        lastReportSent: lastReportSent,
+      );
+    } catch (e) {
+      debugPrint('❌ خطأ في تهيئة TelegramNotifier: $e');
+    }
+  }
+
+  /// تفعيل/تعطيل Telegram
+  Future<void> setEnabled(bool enabled) async {
+    await TelegramConfig.setEnabled(enabled);
+    state = state.copyWith(
+      isEnabled: enabled,
+      status: TelegramSetupStatus.success,
+      message: enabled ? 'تم تفعيل Telegram' : 'تم تعطيل Telegram',
+    );
+    _clearMessageAfterDelay();
+  }
+
+  /// تحديث Bot Token
+  Future<void> setBotToken(String token) async {
+    await TelegramConfig.setBotToken(token);
+    final configured = await TelegramConfig.isConfigured();
+    state = state.copyWith(botToken: token, isConfigured: configured);
+  }
+
+  /// تحديث Chat ID
+  Future<void> setChatId(String id) async {
+    await TelegramConfig.setChatId(id);
+    final configured = await TelegramConfig.isConfigured();
+    state = state.copyWith(chatId: id, isConfigured: configured);
+  }
+
+  /// تفعيل/تعطيل الإشعارات الفورية
+  Future<void> setNotificationsEnabled(bool enabled) async {
+    await TelegramConfig.setNotificationsEnabled(enabled);
+    state = state.copyWith(
+      isNotificationsEnabled: enabled,
+      status: TelegramSetupStatus.success,
+      message: enabled
+          ? 'تم تفعيل الإشعارات الفورية'
+          : 'تم تعطيل الإشعارات الفورية',
+    );
+    _clearMessageAfterDelay();
+  }
+
+  /// تفعيل/تعطيل التقرير اليومي
+  Future<void> setDailyReportEnabled(bool enabled) async {
+    await TelegramConfig.setDailyReportEnabled(enabled);
+    state = state.copyWith(
+      isDailyReportEnabled: enabled,
+      status: TelegramSetupStatus.success,
+      message: enabled
+          ? 'تم تفعيل التقرير اليومي التلقائي'
+          : 'تم تعطيل التقرير اليومي التلقائي',
+    );
+    // جدولة/إلغاء إنذار التقرير اليومي
+    try {
+      if (enabled && state.isEnabled) {
+        final parts = state.dailyReportTime.split(':');
+        await AlarmBackup.rescheduleTelegramReport(
+          int.parse(parts[0]),
+          int.parse(parts[1]),
+        );
+      } else {
+        await AlarmBackup.cancelTelegramReportAlarm();
+      }
+    } catch (e) {
+      debugPrint('⚠️ خطأ في جدولة إنذار Telegram: $e');
+    }
+    _clearMessageAfterDelay();
+  }
+
+  /// تحديث وقت التقرير
+  Future<void> setDailyReportTime(String time) async {
+    await TelegramConfig.setDailyReportTime(time);
+    state = state.copyWith(dailyReportTime: time);
+    // إعادة جدولة إنذار التقرير بالوقت الجديد
+    try {
+      if (state.isDailyReportEnabled && state.isEnabled) {
+        final parts = time.split(':');
+        await AlarmBackup.rescheduleTelegramReport(
+          int.parse(parts[0]),
+          int.parse(parts[1]),
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ خطأ في إعادة جدولة إنذار Telegram: $e');
+    }
+  }
+
+  /// اختبار الاتصال
+  Future<void> testConnection() async {
+    state = state.copyWith(
+      status: TelegramSetupStatus.testing,
+      message: 'جاري اختبار الاتصال...',
+    );
+
+    try {
+      final success = await _api.testSendMessage();
+
+      if (success) {
+        state = state.copyWith(
+          status: TelegramSetupStatus.success,
+          message: '✅ تم اختبار الاتصال بنجاح! تحقق من Telegram',
+        );
+      } else {
+        state = state.copyWith(
+          status: TelegramSetupStatus.error,
+          message: '❌ فشل اختبار الاتصال — تحقق من Bot Token و Chat ID',
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(
+        status: TelegramSetupStatus.error,
+        message: '❌ خطأ في الاتصال: $e',
+      );
+    }
+
+    _clearMessageAfterDelay();
+  }
+
+  /// إرسال تقرير تجريبي
+  Future<void> sendTestReport() async {
+    state = state.copyWith(
+      status: TelegramSetupStatus.sendingReport,
+      message: 'جاري تجميع وإرسال التقرير...',
+    );
+
+    try {
+      final success = await _reports.sendReportNow();
+
+      if (success) {
+        state = state.copyWith(
+          status: TelegramSetupStatus.success,
+          message: '✅ تم إرسال التقرير التجريبي بنجاح!',
+        );
+      } else {
+        state = state.copyWith(
+          status: TelegramSetupStatus.error,
+          message: '❌ فشل إرسال التقرير — تحقق من الإعدادات',
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(
+        status: TelegramSetupStatus.error,
+        message: '❌ خطأ في إرسال التقرير: $e',
+      );
+    }
+
+    _clearMessageAfterDelay();
+  }
+
+  /// إرسال التقرير اليومي
+  Future<bool> sendDailyReport() async {
+    try {
+      return await _reports.sendDailyReport();
+    } catch (e) {
+      debugPrint('❌ خطأ في إرسال التقرير اليومي: $e');
+      return false;
+    }
+  }
+
+  /// مسح رسالة الحالة
+  void _clearMessageAfterDelay() {
+    Future<void>.delayed(const Duration(seconds: 3), () {
+      if (!_mounted) {
+        return;
+      }
+      if (state.status == TelegramSetupStatus.success ||
+          state.status == TelegramSetupStatus.error) {
+        state = state.copyWith(status: TelegramSetupStatus.idle);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _mounted = false;
+    super.dispose();
+  }
+
+  /// مسح حالة آخر تقرير
+  Future<void> resetLastReport() async {
+    await TelegramConfig.clearLastReport();
+    state = state.copyWith();
+  }
+}
+
+/// Provider رئيسي لـ Telegram
+final telegramProvider = StateNotifierProvider<TelegramNotifier, TelegramState>(
+  (ref) => TelegramNotifier(),
+);
+
+/// Provider للوصول إلى خدمة الإشعارات
+final telegramNotificationServiceProvider =
+    Provider<TelegramNotificationService>(
+      (ref) => TelegramNotificationService.instance,
+    );
+
+/// Provider للوصول إلى خدمة التقارير
+final telegramReportServiceProvider = Provider<TelegramReportService>(
+  (ref) => TelegramReportService.instance,
+);
