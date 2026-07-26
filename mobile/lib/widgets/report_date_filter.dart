@@ -70,7 +70,14 @@ class DateFilterController {
             HotelTimeEngine.boundaryHour,
             HotelTimeEngine.boundaryMinute,
           ),
-          to: DateTime(hotelToday.year, hotelToday.month, hotelToday.day + 1, HotelTimeEngine.boundaryHour, 0, 59),
+          to: DateTime(
+            hotelToday.year,
+            hotelToday.month,
+            hotelToday.day + 1,
+            HotelTimeEngine.boundaryHour,
+            0,
+            59,
+          ),
         );
       case 'month':
         final monthStart = DateTime(now.year, now.month);
@@ -141,12 +148,13 @@ class DateFilterController {
 /// )
 /// ```
 class ReportDateFilterWidget extends StatefulWidget {
-  const ReportDateFilterWidget({      required this.onDateRangeChanged,
-      super.key,
-      this.controller,
-      this.extraChips,
-      this.dateButtonsBuilder,
-      this.dateButtonsFirst = false,
+  const ReportDateFilterWidget({
+    required this.onDateRangeChanged,
+    super.key,
+    this.controller,
+    this.extraChips,
+    this.dateButtonsBuilder,
+    this.dateButtonsFirst = false,
   });
 
   /// تحكم برمجي (اختياري) — للقراءة والتعديل من خارج الويدجت
@@ -162,7 +170,12 @@ class ReportDateFilterWidget extends StatefulWidget {
   ///
   /// عند توفيره، يُستدعى بدلاً من الأزرار الافتراضية (OutlinedButton).
   /// يُمرَّر `onPickFrom` و `onPickTo` لربطها بمُنتقي التاريخ الداخلي.
-  final List<Widget> Function(BuildContext context, VoidCallback onPickFrom, VoidCallback onPickTo)? dateButtonsBuilder;
+  final List<Widget> Function(
+    BuildContext context,
+    VoidCallback onPickFrom,
+    VoidCallback onPickTo,
+  )?
+  dateButtonsBuilder;
 
   /// إذا كان true، تظهر أزرار التاريخ قبل شيبس الفلترة.
   /// الافتراضي false (الشيبس أولاً ثم أزرار التاريخ).
@@ -256,11 +269,25 @@ class _ReportDateFilterWidgetState extends State<ReportDateFilterWidget> {
           );
           if (_fromDate.isAfter(_toDate)) {
             // نهاية اليوم الفندقي = 14:00:59 من اليوم التالي
-            _toDate = DateTime(picked.year, picked.month, picked.day + 1, HotelTimeEngine.boundaryHour, 0, 59);
+            _toDate = DateTime(
+              picked.year,
+              picked.month,
+              picked.day + 1,
+              HotelTimeEngine.boundaryHour,
+              0,
+              59,
+            );
           }
         } else {
           // ✅ ضبط الساعة 14:00:59 تلقائياً (نهاية اليوم الفندقي)
-          _toDate = DateTime(picked.year, picked.month, picked.day, HotelTimeEngine.boundaryHour, 0, 59);
+          _toDate = DateTime(
+            picked.year,
+            picked.month,
+            picked.day,
+            HotelTimeEngine.boundaryHour,
+            0,
+            59,
+          );
           if (_toDate.isBefore(_fromDate)) {
             _fromDate = _toDate.subtract(const Duration(days: 1));
             _fromDate = DateTime(
@@ -343,13 +370,28 @@ class _ReportDateFilterWidgetState extends State<ReportDateFilterWidget> {
             onTap: () => _applyQuickFilter('hotelDay'),
           ),
           const SizedBox(width: 6),
-          NeuQuickFilterChip(label: 'الأسبوع', selected: _isThisWeekActive(), onTap: () => _applyQuickFilter('week')),
+          NeuQuickFilterChip(
+            label: 'الأسبوع',
+            selected: _isThisWeekActive(),
+            onTap: () => _applyQuickFilter('week'),
+          ),
           const SizedBox(width: 6),
-          NeuQuickFilterChip(label: 'الشهر', selected: _isThisMonthActive(), onTap: () => _applyQuickFilter('month')),
+          NeuQuickFilterChip(
+            label: 'الشهر',
+            selected: _isThisMonthActive(),
+            onTap: () => _applyQuickFilter('month'),
+          ),
           const SizedBox(width: 6),
-          NeuQuickFilterChip(label: 'السنة', selected: _isThisYearActive(), onTap: () => _applyQuickFilter('year')),
+          NeuQuickFilterChip(
+            label: 'السنة',
+            selected: _isThisYearActive(),
+            onTap: () => _applyQuickFilter('year'),
+          ),
           // شيبس إضافية من الشاشة الأب
-          if (widget.extraChips != null) ...[const SizedBox(width: 6), ...widget.extraChips!],
+          if (widget.extraChips != null) ...[
+            const SizedBox(width: 6),
+            ...widget.extraChips!,
+          ],
         ],
       ),
     );
@@ -358,15 +400,27 @@ class _ReportDateFilterWidgetState extends State<ReportDateFilterWidget> {
     Widget dateButtons;
     if (widget.dateButtonsBuilder != null) {
       dateButtons = Row(
-        children: widget.dateButtonsBuilder!(context, () => _pickDate(isFrom: true), () => _pickDate(isFrom: false)),
+        children: widget.dateButtonsBuilder!(
+          context,
+          () => _pickDate(isFrom: true),
+          () => _pickDate(isFrom: false),
+        ),
       );
     } else {
       dateButtons = Wrap(
         spacing: 8,
         runSpacing: 8,
         children: [
-          _buildDefaultDateSelector(label: 'من (14:01)', value: _fromDate, onPressed: () => _pickDate(isFrom: true)),
-          _buildDefaultDateSelector(label: 'إلى (14:00)', value: _toDate, onPressed: () => _pickDate(isFrom: false)),
+          _buildDefaultDateSelector(
+            label: 'من (14:01)',
+            value: _fromDate,
+            onPressed: () => _pickDate(isFrom: true),
+          ),
+          _buildDefaultDateSelector(
+            label: 'إلى (14:00)',
+            value: _toDate,
+            onPressed: () => _pickDate(isFrom: false),
+          ),
         ],
       );
     }
@@ -384,7 +438,9 @@ class _ReportDateFilterWidgetState extends State<ReportDateFilterWidget> {
             const SizedBox(height: 6),
             Text(
               selectedRangeLabel,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.outline),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.outline,
+              ),
             ),
           ]
         : [
@@ -394,15 +450,25 @@ class _ReportDateFilterWidgetState extends State<ReportDateFilterWidget> {
             const SizedBox(height: 6),
             Text(
               selectedRangeLabel,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.outline),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.outline,
+              ),
             ),
           ];
 
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: children);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: children,
+    );
   }
 
   /// بناء زر تاريخ افتراضي (OutlinedButton)
-  Widget _buildDefaultDateSelector({required String label, required DateTime? value, required VoidCallback onPressed}) {
+  Widget _buildDefaultDateSelector({
+    required String label,
+    required DateTime? value,
+    required VoidCallback onPressed,
+  }) {
     final text = value != null ? DateFormat('yyyy-MM-dd').format(value) : '—';
     return OutlinedButton(
       onPressed: onPressed,
