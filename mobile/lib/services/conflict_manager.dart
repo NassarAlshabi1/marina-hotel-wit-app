@@ -1,1 +1,284 @@
-aW1wb3J0ICdkYXJ0OmFzeW5jJzsKaW1wb3J0ICdkYXJ0OmNvbnZlcnQnOwppbXBvcnQgJ3BhY2thZ2U6ZHJpZnQvZHJpZnQuZGFydCc7CmltcG9ydCAncGFja2FnZTpmbHV0dGVyL2ZvdW5kYXRpb24uZGFydCc7CmltcG9ydCAnbG9jYWxfZGIuZGFydCc7CgpjbGFzcyBQZW5kaW5nQ29uZmxpY3QgewogIGNvbnN0IFBlbmRpbmdDb25mbGljdCh7CiAgICByZXF1aXJlZCB0aGlzLmlkLAogICAgcmVxdWlyZWQgdGhpcy50YWJsZSwKICAgIHJlcXVpcmVkIHRoaXMudXVpZCwKICAgIHJlcXVpcmVkIHRoaXMubG9jYWxEYXRhLAogICAgcmVxdWlyZWQgdGhpcy5yZW1vdGVEYXRhLAogICAgcmVxdWlyZWQgdGhpcy5kZXRlY3RlZEF0LAogICAgdGhpcy5hdXRvUmVzb2x2ZWRBdCwKICAgIHRoaXMubWFudWFsUmVzb2x2ZWRBdCwKICAgIHRoaXMucmVzb2x1dGlvbiwKICB9KTsKCiAgZmluYWwgU3RyaW5nIGlkOwogIGZpbmFsIFN0cmluZyB0YWJsZTsKICBmaW5hbCBTdHJpbmcgdXVpZDsKICBmaW5hbCBNYXA8U3RyaW5nLCBkeW5hbWljPiBsb2NhbERhdGE7CiAgZmluYWwgTWFwPFN0cmluZywgZHluYW1pYz4gcmVtb3RlRGF0YTsKICBmaW5hbCBEYXRlVGltZSBkZXRlY3RlZEF0OwogIGZpbmFsIERhdGVUaW1lPyBhdXRvUmVzb2x2ZWRBdDsKICBmaW5hbCBEYXRlVGltZT8gbWFudWFsUmVzb2x2ZWRBdDsKICBmaW5hbCBNYXA8U3RyaW5nLCBkeW5hbWljPj8gcmVzb2x1dGlvbjsKCiAgYm9vbCBnZXQgaXNQZW5kaW5nID0+IHJlc29sdXRpb24gPT0gbnVsbDsKICBib29sIGdldCBpc1Jlc29sdmVkID0+IHJlc29sdXRpb24gIT0gbnVsbDsKICBib29sIGdldCB3YXNBdXRvUmVzb2x2ZWQgPT4gYXV0b1Jlc29sdmVkQXQgIT0gbnVsbDsKICBib29sIGdldCB3YXNNYW51YWxSZXNvbHZlZCA9PiBtYW51YWxSZXNvbHZlZEF0ICE9IG51bGw7Cn0KCi8vLyDZhdiv2YrYsSDYp9mE2KrYudin2LHYttin2KogLSDZitit2YHYuCDYp9mE2KrYudin2LHYttin2Kog2LrZitixINin2YTZhdit2YTZiNmE2Kkg2YTZhNmF2LHYp9is2LnYqQpjbGFzcyBDb25mbGljdE1hbmFnZXIgewogIENvbmZsaWN0TWFuYWdlcih0aGlzLmRiKTsKCiAgZmluYWwgQXBwRGF0YWJhc2UgZGI7CiAgZmluYWwgX2NvbmZsaWN0c0NvbnRyb2xsZXIgPQogICAgICBTdHJlYW1Db250cm9sbGVyPExpc3Q8UGVuZGluZ0NvbmZsaWN0Pj4uYnJvYWRjYXN0KCk7CiAgZmluYWwgTGlzdDxQZW5kaW5nQ29uZmxpY3Q+IF9wZW5kaW5nQ29uZmxpY3RzID0gW107CgogIFN0cmVhbTxMaXN0PFBlbmRpbmdDb25mbGljdD4+IGdldCBjb25mbGljdHNTdHJlYW0gPT4KICAgICAgX2NvbmZsaWN0c0NvbnRyb2xsZXIuc3RyZWFtOwogIExpc3Q8UGVuZGluZ0NvbmZsaWN0PiBnZXQgcGVuZGluZ0NvbmZsaWN0cyA9PgogICAgICBMaXN0LnVubW9kaWZpYWJsZShfcGVuZGluZ0NvbmZsaWN0cyk7CiAgaW50IGdldCBwZW5kaW5nQ291bnQgPT4gX3BlbmRpbmdDb25mbGljdHMubGVuZ3RoOwoKICBGdXR1cmU8dm9pZD4gcmVjb3JkQ29uZmxpY3QoewogICAgcmVxdWlyZWQgU3RyaW5nIHRhYmxlLAogICAgcmVxdWlyZWQgU3RyaW5nIHV1aWQsCiAgICByZXF1aXJlZCBNYXA8U3RyaW5nLCBkeW5hbWljPiBsb2NhbERhdGEsCiAgICByZXF1aXJlZCBNYXA8U3RyaW5nLCBkeW5hbWljPiByZW1vdGVEYXRhLAogICAgTWFwPFN0cmluZywgZHluYW1pYz4/IGF1dG9SZXNvbHV0aW9uLAogIH0pIGFzeW5jIHsKICAgIGZpbmFsIGNvbmZsaWN0SWQgPQogICAgICAgICcke3RhYmxlfV8ke3V1aWR9XyR7RGF0ZVRpbWUubm93KCkubWlsbGlzZWNvbmRzU2luY2VFcG9jaH0nOwoKICAgIGZpbmFsIGNvbmZsaWN0ID0gUGVuZGluZ0NvbmZsaWN0KAogICAgICBpZDogY29uZmxpY3RJZCwKICAgICAgdGFibGU6IHRhYmxlLAogICAgICB1dWlkOiB1dWlkLAogICAgICBsb2NhbERhdGE6IGxvY2FsRGF0YSwKICAgICAgcmVtb3RlRGF0YTogcmVtb3RlRGF0YSwKICAgICAgZGV0ZWN0ZWRBdDogRGF0ZVRpbWUubm93KCksCiAgICAgIGF1dG9SZXNvbHZlZEF0OiBhdXRvUmVzb2x1dGlvbiAhPSBudWxsID8gRGF0ZVRpbWUubm93KCkgOiBudWxsLAogICAgICByZXNvbHV0aW9uOiBhdXRvUmVzb2x1dGlvbiwKICAgICk7CgogICAgaWYgKGF1dG9SZXNvbHV0aW9uID09IG51bGwpIHsKICAgICAgX3BlbmRpbmdDb25mbGljdHMuYWRkKGNvbmZsaWN0KTsKICAgICAgX2NvbmZsaWN0c0NvbnRyb2xsZXIuYWRkKF9wZW5kaW5nQ29uZmxpY3RzKTsKICAgIH0KCiAgICBhd2FpdCBfcGVyc2lzdENvbmZsaWN0KGNvbmZsaWN0KTsKICB9CgogIEZ1dHVyZTx2b2lkPiByZXNvbHZlTWFudWFsbHkoewogICAgcmVxdWlyZWQgU3RyaW5nIGNvbmZsaWN0SWQsCiAgICByZXF1aXJlZCBNYXA8U3RyaW5nLCBkeW5hbWljPiByZXNvbHV0aW9uLAogIH0pIGFzeW5jIHsKICAgIGZpbmFsIGluZGV4ID0gX3BlbmRpbmdDb25mbGljdHMuaW5kZXhXaGVyZSgoYykgPT4gYy5pZCA9PSBjb25mbGljdElkKTsKICAgIGlmIChpbmRleCA9PSAtMSkgewogICAgICByZXR1cm47CiAgICB9CgogICAgZmluYWwgY29uZmxpY3QgPSBfcGVuZGluZ0NvbmZsaWN0c1tpbmRleF07CiAgICBmaW5hbCByZXNvbHZlZCA9IFBlbmRpbmdDb25mbGljdCgKICAgICAgaWQ6IGNvbmZsaWN0LmlkLAogICAgICB0YWJsZTogY29uZmxpY3QudGFibGUsCiAgICAgIHV1aWQ6IGNvbmZsaWN0LnV1aWQsCiAgICAgIGxvY2FsRGF0YTogY29uZmxpY3QubG9jYWxEYXRhLAogICAgICByZW1vdGVEYXRhOiBjb25mbGljdC5yZW1vdGVEYXRhLAogICAgICBkZXRlY3RlZEF0OiBjb25mbGljdC5kZXRlY3RlZEF0LAogICAgICBtYW51YWxSZXNvbHZlZEF0OiBEYXRlVGltZS5ub3coKSwKICAgICAgcmVzb2x1dGlvbjogcmVzb2x1dGlvbiwKICAgICk7CgogICAgX3BlbmRpbmdDb25mbGljdHNbaW5kZXhdID0gcmVzb2x2ZWQ7CiAgICBhd2FpdCBfdXBkYXRlQ29uZmxpY3RSZXNvbHV0aW9uKGNvbmZsaWN0SWQsIHJlc29sdXRpb24pOwoKICAgIF9wZW5kaW5nQ29uZmxpY3RzLnJlbW92ZUF0KGluZGV4KTsKICAgIF9jb25mbGljdHNDb250cm9sbGVyLmFkZChfcGVuZGluZ0NvbmZsaWN0cyk7CiAgfQoKICBGdXR1cmU8dm9pZD4gX3BlcnNpc3RDb25mbGljdChQZW5kaW5nQ29uZmxpY3QgY29uZmxpY3QpIGFzeW5jIHsKICAgIHRyeSB7CiAgICAgIGZpbmFsIGV4aXN0aW5nUXVlcnkgPSBkYi5zZWxlY3QoZGIuc3luY0NvbmZsaWN0cykKICAgICAgICAuLndoZXJlKAogICAgICAgICAgKHQpID0+CiAgICAgICAgICAgICAgdC50YXJnZXRUYWJsZS5lcXVhbHMoY29uZmxpY3QudGFibGUpICYKICAgICAgICAgICAgICB0LnV1aWQuZXF1YWxzKGNvbmZsaWN0LnV1aWQpLAogICAgICAgICk7CgogICAgICBmaW5hbCBleGlzdGluZyA9IGF3YWl0IGV4aXN0aW5nUXVlcnkuZ2V0U2luZ2xlT3JOdWxsKCk7CgogICAgICBpZiAoZXhpc3RpbmcgIT0gbnVsbCkgewogICAgICAgIGF3YWl0IChkYi51cGRhdGUoCiAgICAgICAgICBkYi5zeW5jQ29uZmxpY3RzLAogICAgICAgICkuLndoZXJlKCh0KSA9PiB0LmlkLmVxdWFscyhleGlzdGluZy5pZCkpKS53cml0ZSgKICAgICAgICAgIFN5bmNDb25mbGljdHNDb21wYW5pb24oCiAgICAgICAgICAgIGxvY2FsUGF5bG9hZDogVmFsdWUoanNvbkVuY29kZShjb25mbGljdC5sb2NhbERhdGEpKSwKICAgICAgICAgICAgcmVtb3RlUGF5bG9hZDogVmFsdWUoanNvbkVuY29kZShjb25mbGljdC5yZW1vdGVEYXRhKSksCiAgICAgICAgICAgIHJlc29sdXRpb246IFZhbHVlKAogICAgICAgICAgICAgIGNvbmZsaWN0LnJlc29sdXRpb24gIT0gbnVsbAogICAgICAgICAgICAgICAgICA/IGpzb25FbmNvZGUoY29uZmxpY3QucmVzb2x1dGlvbikKICAgICAgICAgICAgICAgICAgOiAnJywKICAgICAgICAgICAgKSwKICAgICAgICAgICksCiAgICAgICAgKTsKICAgICAgfSBlbHNlIHsKICAgICAgICAvLyBHZXQgbGF0ZXN0IHN5bmMgbG9nIElEIG9yIHVzZSAwCiAgICAgICAgZmluYWwgbGF0ZXN0TG9nID0KICAgICAgICAgICAgYXdhaXQgKGRiLnNlbGVjdChkYi5zeW5jTG9nKQogICAgICAgICAgICAgICAgICAuLm9yZGVyQnkoWyh0KSA9PiBPcmRlcmluZ1Rlcm0uZGVzYyh0LmlkKV0pCiAgICAgICAgICAgICAgICAgIC4ubGltaXQoMSkpCiAgICAgICAgICAgICAgICAuZ2V0U2luZ2xlT3JOdWxsKCk7CgogICAgICAgIGF3YWl0IGRiCiAgICAgICAgICAgIC5pbnRvKGRiLnN5bmNDb25mbGljdHMpCiAgICAgICAgICAgIC5pbnNlcnQoCiAgICAgICAgICAgICAgU3luY0NvbmZsaWN0c0NvbXBhbmlvbi5pbnNlcnQoCiAgICAgICAgICAgICAgICBsb2dJZDogbGF0ZXN0TG9nPy5pZCA/PyAwLAogICAgICAgICAgICAgICAgdGFyZ2V0VGFibGU6IGNvbmZsaWN0LnRhYmxlLAogICAgICAgICAgICAgICAgdXVpZDogY29uZmxpY3QudXVpZCwKICAgICAgICAgICAgICAgIGxvY2FsUGF5bG9hZDoganNvbkVuY29kZShjb25mbGljdC5sb2NhbERhdGEpLAogICAgICAgICAgICAgICAgcmVtb3RlUGF5bG9hZDoganNvbkVuY29kZShjb25mbGljdC5yZW1vdGVEYXRhKSwKICAgICAgICAgICAgICAgIHJlc29sdXRpb246IGNvbmZsaWN0LnJlc29sdXRpb24gIT0gbnVsbAogICAgICAgICAgICAgICAgICAgID8ganNvbkVuY29kZShjb25mbGljdC5yZXNvbHV0aW9uKQogICAgICAgICAgICAgICAgICAgIDogJycsCiAgICAgICAgICAgICAgICBjcmVhdGVkQXQ6IGNvbmZsaWN0LmRldGVjdGVkQXQudG9Jc284NjAxU3RyaW5nKCksCiAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgKTsKICAgICAgfQogICAgfSBjYXRjaCAoZSkgewogICAgICBkZWJ1Z1ByaW50KCfinYwg2YHYtNmEINit2YHYuCDYp9mE2KrYudin2LHYtjogJGUnKTsKICAgIH0KICB9CgogIEZ1dHVyZTx2b2lkPiBfdXBkYXRlQ29uZmxpY3RSZXNvbHV0aW9uKAogICAgU3RyaW5nIGNvbmZsaWN0SWQsCiAgICBNYXA8U3RyaW5nLCBkeW5hbWljPiByZXNvbHV0aW9uLAogICkgYXN5bmMgewogICAgdHJ5IHsKICAgICAgLy8g4pyFINin2LPYqtiu2LHYp9isINin2YTYrNiv2YjZhCDZiCBVVUlEINmF2YYgY29uZmxpY3RJZAogICAgICAvLyDYp9mE2LXZiti62Kk6ICR7dGFibGV9XyR7dXVpZH1fJHRpbWVzdGFtcAogICAgICAvLyBVVUlEINmE2Kcg2YrYrdiq2YjZiiDYudmE2YkgJ18nINij2KjYr9in2YsgKNmK2K3YqtmI2Yog2LnZhNmJICctJyDZgdmC2LcpCiAgICAgIC8vIHRpbWVzdGFtcCDZh9mIINij2LHZgtin2YUg2YHZgti3CiAgICAgIC8vINmE2LDZhNmDOiDYotiu2LEg2LnZhti12LEgPSB0aW1lc3RhbXDYjCDYp9mE2LnZhti12LEg2KfZhNiw2Yog2YrYrdiq2YjZiiAnLScgPSBVVUlE2Iwg2YjYp9mE2KjYp9mC2YogPSDYp9iz2YUg2KfZhNis2K/ZiNmECiAgICAgIGZpbmFsIHBhcnRzID0gY29uZmxpY3RJZC5zcGxpdCgnXycpOwogICAgICBpZiAocGFydHMubGVuZ3RoIDwgMykgewogICAgICAgIHJldHVybjsKICAgICAgfQoKICAgICAgLy8g2KLYrtixINi52YbYtdixINmH2Ygg2KfZhNi32KfYqNi5INin2YTYstmF2YbZiiAo2KPYsdmC2KfZhSkKICAgICAgLy8g2YbYqNit2Ksg2LnZhiBVVUlEINin2YTYsNmKINmK2K3YqtmI2Yog2LnZhNmJICctJyDZiNmE2Kcg2YrZhdmD2YYg2KPZhiDZitmD2YjZhiDYrNiy2KHYp9mLINmF2YYg2KfYs9mFINin2YTYrNiv2YjZhAogICAgICBTdHJpbmcgdGFibGUgPSAnJzsKICAgICAgU3RyaW5nIHV1aWQgPSAnJzsKICAgICAgYm9vbCB1dWlkRm91bmQgPSBmYWxzZTsKCiAgICAgIGZvciAoaW50IGkgPSAwOyBpIDwgcGFydHMubGVuZ3RoIC0gMTsgaSsrKSB7CiAgICAgICAgZmluYWwgcGFydCA9IHBhcnRzW2ldOwogICAgICAgIC8vIFVVSUQgZm9ybWF0OiB4eHh4eHh4eC14eHh4LXh4eHgteHh4eC14eHh4eHh4eHh4eHggKNmK2K3YqtmI2YogJy0nINmI2YTYpyDZitit2KrZiNmKICdfJykKICAgICAgICBpZiAoIXV1aWRGb3VuZCAmJiBwYXJ0LmNvbnRhaW5zKCctJykgJiYgcGFydC5sZW5ndGggPj0gMjApIHsKICAgICAgICAgIHV1aWQgPSBwYXJ0OwogICAgICAgICAgdXVpZEZvdW5kID0gdHJ1ZTsKICAgICAgICB9IGVsc2UgaWYgKCF1dWlkRm91bmQpIHsKICAgICAgICAgIHRhYmxlICs9ICh0YWJsZS5pc0VtcHR5ID8gJycgOiAnXycpICsgcGFydDsKICAgICAgICB9CiAgICAgIH0KCiAgICAgIGlmICh0YWJsZS5pc0VtcHR5IHx8IHV1aWQuaXNFbXB0eSkgewogICAgICAgIHJldHVybjsKICAgICAgfQoKICAgICAgZmluYWwgcXVlcnkgPSBkYi5zZWxlY3QoZGIuc3luY0NvbmZsaWN0cykKICAgICAgICAuLndoZXJlKCh0KSA9PiB0LnRhcmdldFRhYmxlLmVxdWFscyh0YWJsZSkgJiB0LnV1aWQuZXF1YWxzKHV1aWQpKTsKCiAgICAgIGZpbmFsIGV4aXN0aW5nID0gYXdhaXQgcXVlcnkuZ2V0U2luZ2xlT3JOdWxsKCk7CiAgICAgIGlmIChleGlzdGluZyAhPSBudWxsKSB7CiAgICAgICAgYXdhaXQgKGRiLnVwZGF0ZSgKICAgICAgICAgIGRiLnN5bmNDb25mbGljdHMsCiAgICAgICAgKS4ud2hlcmUoKHQpID0+IHQuaWQuZXF1YWxzKGV4aXN0aW5nLmlkKSkpLndyaXRlKAogICAgICAgICAgU3luY0NvbmZsaWN0c0NvbXBhbmlvbihyZXNvbHV0aW9uOiBWYWx1ZShqc29uRW5jb2RlKHJlc29sdXRpb24pKSksCiAgICAgICAgKTsKICAgICAgfQogICAgfSBjYXRjaCAoZSkgewogICAgICBkZWJ1Z1ByaW50KCfinYwg2YHYtNmEINiq2K3Yr9mK2Ksg2K3ZhCDYp9mE2KrYudin2LHYtjogJGUnKTsKICAgIH0KICB9CgogIEZ1dHVyZTx2b2lkPiBsb2FkUGVuZGluZ0NvbmZsaWN0cygpIGFzeW5jIHsKICAgIHRyeSB7CiAgICAgIGZpbmFsIGNvbmZsaWN0cyA9CiAgICAgICAgICBhd2FpdCAoZGIuc2VsZWN0KGRiLnN5bmNDb25mbGljdHMpCiAgICAgICAgICAgICAgICAuLndoZXJlKCh0KSA9PiB0LnJlc29sdXRpb24uZXF1YWxzKCcnKSkKICAgICAgICAgICAgICAgIC4ub3JkZXJCeShbKHQpID0+IE9yZGVyaW5nVGVybS5kZXNjKHQuaWQpXSkpCiAgICAgICAgICAgICAgLmdldCgpOwoKICAgICAgX3BlbmRpbmdDb25mbGljdHMuY2xlYXIoKTsKCiAgICAgIGZvciAoZmluYWwgcm93IGluIGNvbmZsaWN0cykgewogICAgICAgIE1hcDxTdHJpbmcsIGR5bmFtaWM+IGxvY2FsRGF0YSA9IHt9OwogICAgICAgIE1hcDxTdHJpbmcsIGR5bmFtaWM+IHJlbW90ZURhdGEgPSB7fTsKICAgICAgICBNYXA8U3RyaW5nLCBkeW5hbWljPj8gcmVzb2x1dGlvbkRhdGE7CgogICAgICAgIHRyeSB7CiAgICAgICAgICBsb2NhbERhdGEgPSBqc29uRGVjb2RlKHJvdy5sb2NhbFBheWxvYWQpIGFzIE1hcDxTdHJpbmcsIGR5bmFtaWM+OwogICAgICAgICAgcmVtb3RlRGF0YSA9IGpzb25EZWNvZGUocm93LnJlbW90ZVBheWxvYWQpIGFzIE1hcDxTdHJpbmcsIGR5bmFtaWM+OwogICAgICAgICAgaWYgKHJvdy5yZXNvbHV0aW9uLmlzTm90RW1wdHkpIHsKICAgICAgICAgICAgcmVzb2x1dGlvbkRhdGEgPQogICAgICAgICAgICAgICAganNvbkRlY29kZShyb3cucmVzb2x1dGlvbikgYXMgTWFwPFN0cmluZywgZHluYW1pYz4/OwogICAgICAgICAgfQogICAgICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgICAgIGRlYnVnUHJpbnQoJ+KdjCDZgdi02YQg2YHZiiDZgdmDINiq2LHZhdmK2LIg2KjZitin2YbYp9iqINin2YTYqti52KfYsdi2OiAkZScpOwogICAgICAgIH0KCiAgICAgICAgX3BlbmRpbmdDb25mbGljdHMuYWRkKAogICAgICAgICAgUGVuZGluZ0NvbmZsaWN0KAogICAgICAgICAgICBpZDogJyR7cm93LnRhcmdldFRhYmxlfV8ke3Jvdy51dWlkfV8ke0RhdGVUaW1lLnBhcnNlKHJvdy5jcmVhdGVkQXQpLm1pbGxpc2Vjb25kc1NpbmNlRXBvY2h9JywKICAgICAgICAgICAgdGFibGU6IHJvdy50YXJnZXRUYWJsZSwKICAgICAgICAgICAgdXVpZDogcm93LnV1aWQsCiAgICAgICAgICAgIGxvY2FsRGF0YTogbG9jYWxEYXRhLAogICAgICAgICAgICByZW1vdGVEYXRhOiByZW1vdGVEYXRhLAogICAgICAgICAgICBkZXRlY3RlZEF0OiBEYXRlVGltZS5wYXJzZShyb3cuY3JlYXRlZEF0KSwKICAgICAgICAgICAgcmVzb2x1dGlvbjogcmVzb2x1dGlvbkRhdGEsCiAgICAgICAgICApLAogICAgICAgICk7CiAgICAgIH0KCiAgICAgIF9jb25mbGljdHNDb250cm9sbGVyLmFkZChfcGVuZGluZ0NvbmZsaWN0cyk7CiAgICB9IGNhdGNoIChlKSB7CiAgICAgIGRlYnVnUHJpbnQoJ+KdjCDZgdi02YQg2KrYrdmF2YrZhCDYp9mE2KrYudin2LHYttin2Kog2KfZhNmF2LnZhNmC2Kk6ICRlJyk7CiAgICB9CiAgfQoKICAvLy8g2K3YsNmBINin2YTYqti52KfYsdi22KfYqiDYp9mE2KrZiiDYqtmFINit2YTZh9inINiq2YTZgtin2KbZitin2YsKICAvLy8gW29sZGVyVGhhbl0g4oCUINmK2K3YsNmBINmB2YLYtyDYp9mE2KrYudin2LHYttin2Kog2KfZhNij2YLYr9mFINmF2YYg2YfYsNmHINin2YTZhdiv2KkKICBGdXR1cmU8aW50PiBkZWxldGVSZXNvbHZlZENvbmZsaWN0cyh7CiAgICBEdXJhdGlvbiBvbGRlclRoYW4gPSBjb25zdCBEdXJhdGlvbihob3VyczogMSksCiAgfSkgYXN5bmMgewogICAgZmluYWwgY3V0b2ZmID0gRGF0ZVRpbWUubm93KCkuc3VidHJhY3Qob2xkZXJUaGFuKTsKICAgIGZpbmFsIHJvd3MgPQogICAgICAgIGF3YWl0IChkYi5kZWxldGUoZGIuc3luY0NvbmZsaWN0cykuLndoZXJlKAogICAgICAgICAgICAgICh0KSA9PgogICAgICAgICAgICAgICAgICB0LmNyZWF0ZWRBdC5pc1NtYWxsZXJPckVxdWFsVmFsdWUoY3V0b2ZmLnRvSXNvODYwMVN0cmluZygpKSAmCiAgICAgICAgICAgICAgICAgICh0LnJlc29sdXRpb24uZXF1YWxzKCcnKSkubm90KCksCiAgICAgICAgICAgICkpCiAgICAgICAgICAgIC5nbygpOwogICAgaWYgKHJvd3MgPiAwKSB7CiAgICAgIF9wZW5kaW5nQ29uZmxpY3RzLnJlbW92ZVdoZXJlKChjKSA9PiBjLmRldGVjdGVkQXQuaXNCZWZvcmUoY3V0b2ZmKSk7CiAgICAgIF9jb25mbGljdHNDb250cm9sbGVyLmFkZChfcGVuZGluZ0NvbmZsaWN0cyk7CiAgICB9CiAgICByZXR1cm4gcm93czsKICB9CgogIHZvaWQgZGlzcG9zZSgpIHsKICAgIGlmICghX2NvbmZsaWN0c0NvbnRyb2xsZXIuaXNDbG9zZWQpIHsKICAgICAgX2NvbmZsaWN0c0NvbnRyb2xsZXIuY2xvc2UoKTsKICAgIH0KICB9Cn0K
+import 'dart:async';
+import 'dart:convert';
+import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
+import 'local_db.dart';
+
+class PendingConflict {
+  const PendingConflict({
+    required this.id,
+    required this.table,
+    required this.uuid,
+    required this.localData,
+    required this.remoteData,
+    required this.detectedAt,
+    this.autoResolvedAt,
+    this.manualResolvedAt,
+    this.resolution,
+  });
+
+  final String id;
+  final String table;
+  final String uuid;
+  final Map<String, dynamic> localData;
+  final Map<String, dynamic> remoteData;
+  final DateTime detectedAt;
+  final DateTime? autoResolvedAt;
+  final DateTime? manualResolvedAt;
+  final Map<String, dynamic>? resolution;
+
+  bool get isPending => resolution == null;
+  bool get isResolved => resolution != null;
+  bool get wasAutoResolved => autoResolvedAt != null;
+  bool get wasManualResolved => manualResolvedAt != null;
+}
+
+/// مدير التعارضات - يحفظ التعارضات غير المحلولة للمراجعة
+class ConflictManager {
+  ConflictManager(this.db);
+
+  final AppDatabase db;
+  final _conflictsController =
+      StreamController<List<PendingConflict>>.broadcast();
+  final List<PendingConflict> _pendingConflicts = [];
+
+  Stream<List<PendingConflict>> get conflictsStream =>
+      _conflictsController.stream;
+  List<PendingConflict> get pendingConflicts =>
+      List.unmodifiable(_pendingConflicts);
+  int get pendingCount => _pendingConflicts.length;
+
+  Future<void> recordConflict({
+    required String table,
+    required String uuid,
+    required Map<String, dynamic> localData,
+    required Map<String, dynamic> remoteData,
+    Map<String, dynamic>? autoResolution,
+  }) async {
+    final conflictId =
+        '${table}_${uuid}_${DateTime.now().millisecondsSinceEpoch}';
+
+    final conflict = PendingConflict(
+      id: conflictId,
+      table: table,
+      uuid: uuid,
+      localData: localData,
+      remoteData: remoteData,
+      detectedAt: DateTime.now(),
+      autoResolvedAt: autoResolution != null ? DateTime.now() : null,
+      resolution: autoResolution,
+    );
+
+    if (autoResolution == null) {
+      _pendingConflicts.add(conflict);
+      _conflictsController.add(_pendingConflicts);
+    }
+
+    await _persistConflict(conflict);
+  }
+
+  Future<void> resolveManually({
+    required String conflictId,
+    required Map<String, dynamic> resolution,
+  }) async {
+    final index = _pendingConflicts.indexWhere((c) => c.id == conflictId);
+    if (index == -1) {
+      return;
+    }
+
+    final conflict = _pendingConflicts[index];
+    final resolved = PendingConflict(
+      id: conflict.id,
+      table: conflict.table,
+      uuid: conflict.uuid,
+      localData: conflict.localData,
+      remoteData: conflict.remoteData,
+      detectedAt: conflict.detectedAt,
+      manualResolvedAt: DateTime.now(),
+      resolution: resolution,
+    );
+
+    _pendingConflicts[index] = resolved;
+    await _updateConflictResolution(conflictId, resolution);
+
+    _pendingConflicts.removeAt(index);
+    _conflictsController.add(_pendingConflicts);
+  }
+
+  Future<void> _persistConflict(PendingConflict conflict) async {
+    try {
+      final existingQuery = db.select(db.syncConflicts)
+        ..where(
+          (t) =>
+              t.targetTable.equals(conflict.table) &
+              t.uuid.equals(conflict.uuid),
+        );
+
+      final existing = await existingQuery.getSingleOrNull();
+
+      if (existing != null) {
+        await (db.update(
+          db.syncConflicts,
+        )..where((t) => t.id.equals(existing.id))).write(
+          SyncConflictsCompanion(
+            localPayload: Value(jsonEncode(conflict.localData)),
+            remotePayload: Value(jsonEncode(conflict.remoteData)),
+            resolution: Value(
+              conflict.resolution != null
+                  ? jsonEncode(conflict.resolution)
+                  : '',
+            ),
+          ),
+        );
+      } else {
+        // Get latest sync log ID or use 0
+        final latestLog =
+            await (db.select(db.syncLog)
+                  ..orderBy([(t) => OrderingTerm.desc(t.id)])
+                  ..limit(1))
+                .getSingleOrNull();
+
+        await db
+            .into(db.syncConflicts)
+            .insert(
+              SyncConflictsCompanion.insert(
+                logId: latestLog?.id ?? 0,
+                targetTable: conflict.table,
+                uuid: conflict.uuid,
+                localPayload: jsonEncode(conflict.localData),
+                remotePayload: jsonEncode(conflict.remoteData),
+                resolution: conflict.resolution != null
+                    ? jsonEncode(conflict.resolution)
+                    : '',
+                createdAt: conflict.detectedAt.toIso8601String(),
+              ),
+            );
+      }
+    } catch (e) {
+      debugPrint('❌ فشل حفظ التعارض: $e');
+    }
+  }
+
+  Future<void> _updateConflictResolution(
+    String conflictId,
+    Map<String, dynamic> resolution,
+  ) async {
+    try {
+      // ✅ استخراج الجدول و UUID من conflictId
+      // الصيغة: ${table}_${uuid}_$timestamp
+      // UUID لا يحتوي على '_' أبداً (يحتوي على '-' فقط)
+      // timestamp هو أرقام فقط
+      // لذلك: آخر عنصر = timestamp، العنصر الذي يحتوي '-' = UUID، والباقي = اسم الجدول
+      final parts = conflictId.split('_');
+      if (parts.length < 3) {
+        return;
+      }
+
+      // آخر عنصر هو الطابع الزمني (أرقام)
+      // نبحث عن UUID الذي يحتوي على '-' ولا يمكن أن يكون جزءاً من اسم الجدول
+      String table = '';
+      String uuid = '';
+      bool uuidFound = false;
+
+      for (int i = 0; i < parts.length - 1; i++) {
+        final part = parts[i];
+        // UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (يحتوي '-' ولا يحتوي '_')
+        if (!uuidFound && part.contains('-') && part.length >= 20) {
+          uuid = part;
+          uuidFound = true;
+        } else if (!uuidFound) {
+          table += (table.isEmpty ? '' : '_') + part;
+        }
+      }
+
+      if (table.isEmpty || uuid.isEmpty) {
+        return;
+      }
+
+      final query = db.select(db.syncConflicts)
+        ..where((t) => t.targetTable.equals(table) & t.uuid.equals(uuid));
+
+      final existing = await query.getSingleOrNull();
+      if (existing != null) {
+        await (db.update(
+          db.syncConflicts,
+        )..where((t) => t.id.equals(existing.id))).write(
+          SyncConflictsCompanion(resolution: Value(jsonEncode(resolution))),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ فشل تحديث حل التعارض: $e');
+    }
+  }
+
+  Future<void> loadPendingConflicts() async {
+    try {
+      final conflicts =
+          await (db.select(db.syncConflicts)
+                ..where((t) => t.resolution.equals(''))
+                ..orderBy([(t) => OrderingTerm.desc(t.id)]))
+              .get();
+
+      _pendingConflicts.clear();
+
+      for (final row in conflicts) {
+        Map<String, dynamic> localData = {};
+        Map<String, dynamic> remoteData = {};
+        Map<String, dynamic>? resolutionData;
+
+        try {
+          localData = jsonDecode(row.localPayload) as Map<String, dynamic>;
+          remoteData = jsonDecode(row.remotePayload) as Map<String, dynamic>;
+          if (row.resolution.isNotEmpty) {
+            resolutionData =
+                jsonDecode(row.resolution) as Map<String, dynamic>?;
+          }
+        } catch (e) {
+          debugPrint('❌ فشل في فك ترميز بيانات التعارض: $e');
+        }
+
+        _pendingConflicts.add(
+          PendingConflict(
+            id: '${row.targetTable}_${row.uuid}_${DateTime.parse(row.createdAt).millisecondsSinceEpoch}',
+            table: row.targetTable,
+            uuid: row.uuid,
+            localData: localData,
+            remoteData: remoteData,
+            detectedAt: DateTime.parse(row.createdAt),
+            resolution: resolutionData,
+          ),
+        );
+      }
+
+      _conflictsController.add(_pendingConflicts);
+    } catch (e) {
+      debugPrint('❌ فشل تحميل التعارضات المعلقة: $e');
+    }
+  }
+
+  /// حذف التعارضات التي تم حلها تلقائياً
+  /// [olderThan] — يحذف فقط التعارضات الأقدم من هذه المدة
+  Future<int> deleteResolvedConflicts({
+    Duration olderThan = const Duration(hours: 1),
+  }) async {
+    final cutoff = DateTime.now().subtract(olderThan);
+    final rows =
+        await (db.delete(db.syncConflicts)..where(
+              (t) =>
+                  t.createdAt.isSmallerOrEqualValue(cutoff.toIso8601String()) &
+                  (t.resolution.equals('')).not(),
+            ))
+            .go();
+    if (rows > 0) {
+      _pendingConflicts.removeWhere((c) => c.detectedAt.isBefore(cutoff));
+      _conflictsController.add(_pendingConflicts);
+    }
+    return rows;
+  }
+
+  void dispose() {
+    if (!_conflictsController.isClosed) {
+      _conflictsController.close();
+    }
+  }
+}
