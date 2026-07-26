@@ -63,7 +63,10 @@ class SyncContinuationService {
     if (_initialized) return;
     WidgetsFlutterBinding.ensureInitialized();
     _initialized = true;
-    developer.log('✅ SyncContinuationService initialized', name: 'SyncContinuation');
+    developer.log(
+      '✅ SyncContinuationService initialized',
+      name: 'SyncContinuation',
+    );
   }
 
   /// جدولة مهمة إكمال المزامنة فوراً
@@ -75,9 +78,15 @@ class SyncContinuationService {
   /// - didChangeAppLifecycleState (paused/inactive)
   /// - dispose() عندما يُدمّر الـ widget
   /// - أي مكان يُغادر فيه المستخدم الشاشة أثناء مزامنة
-  static Future<void> scheduleSyncCompletion({bool push = true, bool pull = false}) async {
+  static Future<void> scheduleSyncCompletion({
+    bool push = true,
+    bool pull = false,
+  }) async {
     if (!_initialized) {
-      developer.log('⚠️ SyncContinuationService not initialized', name: 'SyncContinuation');
+      developer.log(
+        '⚠️ SyncContinuationService not initialized',
+        name: 'SyncContinuation',
+      );
       return;
     }
 
@@ -95,7 +104,10 @@ class SyncContinuationService {
 
       // تسجيل وقت البدء (للفحص الزمني)
       if (prefs.getInt(kSyncStartTimeKey) == null) {
-        await prefs.setInt(kSyncStartTimeKey, DateTime.now().millisecondsSinceEpoch);
+        await prefs.setInt(
+          kSyncStartTimeKey,
+          DateTime.now().millisecondsSinceEpoch,
+        );
       }
 
       // تسجيل مهمة WorkManager فورية
@@ -106,12 +118,22 @@ class SyncContinuationService {
         initialDelay: const Duration(seconds: 2), // تأخير بسيط
         constraints: Constraints(networkType: NetworkType.connected),
         existingWorkPolicy: ExistingWorkPolicy.replace,
-        inputData: <String, dynamic>{'push': push, 'pull': pull, 'scheduled_at': DateTime.now().toIso8601String()},
+        inputData: <String, dynamic>{
+          'push': push,
+          'pull': pull,
+          'scheduled_at': DateTime.now().toIso8601String(),
+        },
       );
 
-      developer.log('📅 SyncContinuation: تمت جدولة مهمة الإكمال (push=$push, pull=$pull)', name: 'SyncContinuation');
+      developer.log(
+        '📅 SyncContinuation: تمت جدولة مهمة الإكمال (push=$push, pull=$pull)',
+        name: 'SyncContinuation',
+      );
     } catch (e) {
-      developer.log('⚠️ SyncContinuation: فشل جدولة المهمة: $e', name: 'SyncContinuation');
+      developer.log(
+        '⚠️ SyncContinuation: فشل جدولة المهمة: $e',
+        name: 'SyncContinuation',
+      );
     }
   }
 
@@ -132,9 +154,15 @@ class SyncContinuationService {
         existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
       );
 
-      developer.log('📅 SyncContinuation: تم تسجيل الفحص الدوري (كل 15 دقيقة)', name: 'SyncContinuation');
+      developer.log(
+        '📅 SyncContinuation: تم تسجيل الفحص الدوري (كل 15 دقيقة)',
+        name: 'SyncContinuation',
+      );
     } catch (e) {
-      developer.log('⚠️ SyncContinuation: فشل تسجيل الفحص الدوري: $e', name: 'SyncContinuation');
+      developer.log(
+        '⚠️ SyncContinuation: فشل تسجيل الفحص الدوري: $e',
+        name: 'SyncContinuation',
+      );
     }
   }
 
@@ -145,16 +173,23 @@ class SyncContinuationService {
       await Workmanager().cancelByUniqueName(kSyncCompletionTask);
       final prefs = await SharedPreferences.getInstance();
       await _clearAllFlags(prefs);
-      developer.log('🧹 SyncContinuation: تم إلغاء جميع المهام', name: 'SyncContinuation');
+      developer.log(
+        '🧹 SyncContinuation: تم إلغاء جميع المهام',
+        name: 'SyncContinuation',
+      );
     } catch (e) {
-      developer.log('⚠️ SyncContinuation: فشل الإلغاء: $e', name: 'SyncContinuation');
+      developer.log(
+        '⚠️ SyncContinuation: فشل الإلغاء: $e',
+        name: 'SyncContinuation',
+      );
     }
   }
 
   /// هل توجد عمليات معلّقة؟
   static Future<bool> hasPendingOperations() async {
     final prefs = await SharedPreferences.getInstance();
-    return (prefs.getBool(kSyncPendingPushFlag) ?? false) || (prefs.getBool(kSyncPendingPullFlag) ?? false);
+    return (prefs.getBool(kSyncPendingPushFlag) ?? false) ||
+        (prefs.getBool(kSyncPendingPullFlag) ?? false);
   }
 
   /// استهلاك العمليات المعلّقة وتشغيل المزامنة في التطبيق الرئيسي
@@ -189,9 +224,15 @@ class SyncContinuationService {
       // إلغاء مهمة WorkManager (لم تعد ضرورية)
       await Workmanager().cancelByUniqueName(kSyncCompletionImmediateTask);
 
-      developer.log('✅ SyncContinuation: تم استهلاك المعلّق بنجاح', name: 'SyncContinuation');
+      developer.log(
+        '✅ SyncContinuation: تم استهلاك المعلّق بنجاح',
+        name: 'SyncContinuation',
+      );
     } catch (e) {
-      developer.log('⚠️ SyncContinuation: فشل استهلاك المعلّق: $e', name: 'SyncContinuation');
+      developer.log(
+        '⚠️ SyncContinuation: فشل استهلاك المعلّق: $e',
+        name: 'SyncContinuation',
+      );
     }
   }
 
@@ -213,7 +254,9 @@ class SyncContinuationService {
       'pending_pull': prefs.getBool(kSyncPendingPullFlag) ?? false,
       'start_time': prefs.getInt(kSyncStartTimeKey),
       'elapsed_seconds': prefs.getInt(kSyncStartTimeKey) != null
-          ? (DateTime.now().millisecondsSinceEpoch - prefs.getInt(kSyncStartTimeKey)!) ~/ 1000
+          ? (DateTime.now().millisecondsSinceEpoch -
+                    prefs.getInt(kSyncStartTimeKey)!) ~/
+                1000
           : 0,
     };
   }
