@@ -1,1 +1,183 @@
-aW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXIvbWF0ZXJpYWwuZGFydCc7CmltcG9ydCAncGFja2FnZTpmbHV0dGVyX3JpdmVycG9kL2ZsdXR0ZXJfcml2ZXJwb2QuZGFydCc7CgppbXBvcnQgJy4uLy4uL3Byb3ZpZGVycy9hdXRoX3Byb3ZpZGVyLmRhcnQnOwppbXBvcnQgJy4uLy4uL3NlcnZpY2VzL2F1dGhfbG9jYWxfc3RvcmUuZGFydCc7CmltcG9ydCAnLi4vLi4vdXRpbHMvcGVyZm9ybWFuY2VfbW9uaXRvci5kYXJ0JzsKaW1wb3J0ICcuLi8uLi91dGlscy90aGVtZS5kYXJ0JzsKCmNsYXNzIExvZ2luU2NyZWVuIGV4dGVuZHMgQ29uc3VtZXJTdGF0ZWZ1bFdpZGdldCB7CiAgY29uc3QgTG9naW5TY3JlZW4oe3N1cGVyLmtleX0pOwoKICBAb3ZlcnJpZGUKICBDb25zdW1lclN0YXRlPExvZ2luU2NyZWVuPiBjcmVhdGVTdGF0ZSgpID0+IF9Mb2dpblNjcmVlblN0YXRlKCk7Cn0KCmNsYXNzIF9Mb2dpblNjcmVlblN0YXRlIGV4dGVuZHMgQ29uc3VtZXJTdGF0ZTxMb2dpblNjcmVlbj4gewogIGZpbmFsIF9mb3JtS2V5ID0gR2xvYmFsS2V5PEZvcm1TdGF0ZT4oKTsKICBmaW5hbCBfdXNlcm5hbWVDdHJsID0gVGV4dEVkaXRpbmdDb250cm9sbGVyKCk7CiAgZmluYWwgX3Bhc3N3b3JkQ3RybCA9IFRleHRFZGl0aW5nQ29udHJvbGxlcigpOwogIGJvb2wgX29ic2N1cmUgPSB0cnVlOwogIGJvb2wgX3N1Ym1pdHRpbmcgPSBmYWxzZTsKICBib29sIF9yZW1lbWJlck1lID0gZmFsc2U7CgogIEBvdmVycmlkZQogIHZvaWQgaW5pdFN0YXRlKCkgewogICAgc3VwZXIuaW5pdFN0YXRlKCk7CiAgICBfbG9hZFJlbWVtYmVyTWUoKTsKICB9CgogIEZ1dHVyZTx2b2lkPiBfbG9hZFJlbWVtYmVyTWUoKSBhc3luYyB7CiAgICBmaW5hbCBzdG9yZSA9IEF1dGhMb2NhbFN0b3JlKCk7CiAgICBmaW5hbCByZW1lbWJlck1lID0gYXdhaXQgc3RvcmUuZ2V0UmVtZW1iZXJNZSgpOwogICAgaWYgKG1vdW50ZWQpIHsKICAgICAgc2V0U3RhdGUoKCkgPT4gX3JlbWVtYmVyTWUgPSByZW1lbWJlck1lKTsKICAgIH0KICB9CgogIEBvdmVycmlkZQogIHZvaWQgZGlzcG9zZSgpIHsKICAgIF91c2VybmFtZUN0cmwuZGlzcG9zZSgpOwogICAgX3Bhc3N3b3JkQ3RybC5kaXNwb3NlKCk7CiAgICBzdXBlci5kaXNwb3NlKCk7CiAgfQoKICBAb3ZlcnJpZGUKICBXaWRnZXQgYnVpbGQoQnVpbGRDb250ZXh0IGNvbnRleHQpIHsKICAgIGZpbmFsIGF1dGggPSByZWYud2F0Y2goYXV0aFByb3ZpZGVyKTsKCiAgICByZXR1cm4gUGVyZm9ybWFuY2VJbnNwZWN0b3IoCiAgICAgIG5hbWU6ICdMb2dpblNjcmVlbicsCiAgICAgIGNoaWxkOiBEaXJlY3Rpb25hbGl0eSgKICAgICAgICB0ZXh0RGlyZWN0aW9uOiBUZXh0RGlyZWN0aW9uLnJ0bCwKICAgICAgICBjaGlsZDogU2NhZmZvbGQoCiAgICAgICAgICBiYWNrZ3JvdW5kQ29sb3I6IEFwcENvbG9ycy5iYWNrZ3JvdW5kQ29sb3IsCiAgICAgICAgICBib2R5OiBDZW50ZXIoCiAgICAgICAgICAgIGNoaWxkOiBTaW5nbGVDaGlsZFNjcm9sbFZpZXcoCiAgICAgICAgICAgICAgcGFkZGluZzogY29uc3QgRWRnZUluc2V0cy5hbGwoMjQpLAogICAgICAgICAgICAgIGNoaWxkOiBDb25zdHJhaW5lZEJveCgKICAgICAgICAgICAgICAgIGNvbnN0cmFpbnRzOiBjb25zdCBCb3hDb25zdHJhaW50cyhtYXhXaWR0aDogNDIwKSwKICAgICAgICAgICAgICAgIGNoaWxkOiBDYXJkKAogICAgICAgICAgICAgICAgICBjaGlsZDogUGFkZGluZygKICAgICAgICAgICAgICAgICAgICBwYWRkaW5nOiBjb25zdCBFZGdlSW5zZXRzLmFsbCgyNCksCiAgICAgICAgICAgICAgICAgICAgY2hpbGQ6IEZvcm0oCiAgICAgICAgICAgICAgICAgICAgICBrZXk6IF9mb3JtS2V5LAogICAgICAgICAgICAgICAgICAgICAgY2hpbGQ6IENvbHVtbigKICAgICAgICAgICAgICAgICAgICAgICAgY3Jvc3NBeGlzQWxpZ25tZW50OiBDcm9zc0F4aXNBbGlnbm1lbnQuc3RyZXRjaCwKICAgICAgICAgICAgICAgICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgICAgICAgICAgICAgICBjb25zdCBSb3coCiAgICAgICAgICAgICAgICAgICAgICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgICAgICAgICAgICAgICAgICAgICBJY29uKAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIEljb25zLmxvY2ssCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgc2l6ZTogMjgsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgY29sb3I6IEFwcENvbG9ycy5wcmltYXJ5Q29sb3IsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIFNpemVkQm94KHdpZHRoOiA4KSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgVGV4dCgKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAn2KrYs9is2YrZhCDYp9mE2K/YrtmI2YQnLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHN0eWxlOiBUZXh0U3R5bGUoCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBmb250U2l6ZTogMjAsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBmb250V2VpZ2h0OiBGb250V2VpZ2h0LmJvbGQsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgIF0sCiAgICAgICAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDE2KSwKICAgICAgICAgICAgICAgICAgICAgICAgICBUZXh0Rm9ybUZpZWxkKAogICAgICAgICAgICAgICAgICAgICAgICAgICAgY29udHJvbGxlcjogX3VzZXJuYW1lQ3RybCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgIGRlY29yYXRpb246IGNvbnN0IElucHV0RGVjb3JhdGlvbigKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgbGFiZWxUZXh0OiAn2KfYs9mFINin2YTZhdiz2KrYrtiv2YUnLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICBoaW50VGV4dDogJ9ij2K/YrtmEINin2LPZhSDYp9mE2YXYs9iq2K7Yr9mFJywKICAgICAgICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgICAgICAgICB2YWxpZGF0b3I6ICh2KSA9PiAodiA9PSBudWxsIHx8IHYudHJpbSgpLmlzRW1wdHkpCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgPyAn2YrYsdis2Ykg2KXYr9iu2KfZhCDYp9iz2YUg2KfZhNmF2LPYqtiu2K/ZhScKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA6IG51bGwsCiAgICAgICAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDEyKSwKICAgICAgICAgICAgICAgICAgICAgICAgICBUZXh0Rm9ybUZpZWxkKAogICAgICAgICAgICAgICAgICAgICAgICAgICAgY29udHJvbGxlcjogX3Bhc3N3b3JkQ3RybCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgIG9ic2N1cmVUZXh0OiBfb2JzY3VyZSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgIGRlY29yYXRpb246IElucHV0RGVjb3JhdGlvbigKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgbGFiZWxUZXh0OiAn2YPZhNmF2Kkg2KfZhNmF2LHZiNixJywKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgaGludFRleHQ6ICfYo9iv2K7ZhCDZg9mE2YXYqSDYp9mE2YXYsdmI2LEnLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICBzdWZmaXhJY29uOiBJY29uQnV0dG9uKAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGljb246IEljb24oCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBfb2JzY3VyZQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgID8gSWNvbnMudmlzaWJpbGl0eQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIDogSWNvbnMudmlzaWJpbGl0eV9vZmYsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBvblByZXNzZWQ6ICgpID0+CiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHNldFN0YXRlKCgpID0+IF9vYnNjdXJlID0gIV9vYnNjdXJlKSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgICAgICAgICB2YWxpZGF0b3I6ICh2KSA9PiAodiA9PSBudWxsIHx8IHYuaXNFbXB0eSkKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA/ICfZitix2KzZiSDYpdiv2K7Yp9mEINmD2YTZhdipINin2YTZhdix2YjYsScKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA6IG51bGwsCiAgICAgICAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDgpLAogICAgICAgICAgICAgICAgICAgICAgICAgIFJvdygKICAgICAgICAgICAgICAgICAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIENoZWNrYm94KAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHZhbHVlOiBfcmVtZW1iZXJNZSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBvbkNoYW5nZWQ6ICh2YWx1ZSkgPT4gc2V0U3RhdGUoCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAoKSA9PiBfcmVtZW1iZXJNZSA9IHZhbHVlID8/IGZhbHNlLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGNvbnN0IFRleHQoJ9iq2LDZg9ix2YbZiicpLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgXSwKICAgICAgICAgICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogOCksCiAgICAgICAgICAgICAgICAgICAgICAgICAgaWYgKGF1dGguZXJyb3IgIT0gbnVsbCkgLi4uWwogICAgICAgICAgICAgICAgICAgICAgICAgICAgVGV4dCgKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgYXV0aC5lcnJvciEsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHN0eWxlOiBjb25zdCBUZXh0U3R5bGUoCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgY29sb3I6IEFwcENvbG9ycy5kYW5nZXJDb2xvciwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDgpLAogICAgICAgICAgICAgICAgICAgICAgICAgIF0sCiAgICAgICAgICAgICAgICAgICAgICAgICAgRWxldmF0ZWRCdXR0b24oCiAgICAgICAgICAgICAgICAgICAgICAgICAgICBvblByZXNzZWQ6IF9zdWJtaXR0aW5nID8gbnVsbCA6IF9vblN1Ym1pdCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgIGNoaWxkOiBfc3VibWl0dGluZwogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgID8gY29uc3QgU2l6ZWRCb3goCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGhlaWdodDogMTgsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHdpZHRoOiAxOCwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgY2hpbGQ6IENpcmN1bGFyUHJvZ3Jlc3NJbmRpY2F0b3IoCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgc3Ryb2tlV2lkdGg6IDIsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgY29sb3I6IENvbG9ycy53aGl0ZSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICkKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA6IGNvbnN0IFRleHQoJ9iv2K7ZiNmEJyksCiAgICAgICAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgICAgICAgXSwKICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgKSwKICAgICAgICAgICksCiAgICAgICAgKSwKICAgICAgKSwKICAgICk7CiAgfQoKICBGdXR1cmU8dm9pZD4gX29uU3VibWl0KCkgYXN5bmMgewogICAgaWYgKCFfZm9ybUtleS5jdXJyZW50U3RhdGUhLnZhbGlkYXRlKCkpIHsKICAgICAgcmV0dXJuOwogICAgfQogICAgc2V0U3RhdGUoKCkgPT4gX3N1Ym1pdHRpbmcgPSB0cnVlKTsKICAgIGF3YWl0IHJlZgogICAgICAgIC5yZWFkKGF1dGhQcm92aWRlci5ub3RpZmllcikKICAgICAgICAubG9naW4oCiAgICAgICAgICBfdXNlcm5hbWVDdHJsLnRleHQudHJpbSgpLAogICAgICAgICAgX3Bhc3N3b3JkQ3RybC50ZXh0LAogICAgICAgICAgcmVtZW1iZXJNZTogX3JlbWVtYmVyTWUsCiAgICAgICAgKTsKICAgIGlmICghbW91bnRlZCkgewogICAgICByZXR1cm47CiAgICB9CiAgICBzZXRTdGF0ZSgoKSA9PiBfc3VibWl0dGluZyA9IGZhbHNlKTsKICAgIC8vINiz2YrZgtmI2YUgUm9vdFJvdXRlciDYqNil2LjZh9in2LEg2KfZhNmI2KfYrNmH2Kkg2KfZhNix2KbZitiz2YrYqSDYqtmE2YLYp9im2YrZi9inINi52YbYryDZhtis2KfYrSDYp9mE2K/YrtmI2YQKICB9Cn0K
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../providers/auth_provider.dart';
+import '../../services/auth_local_store.dart';
+import '../../utils/performance_monitor.dart';
+import '../../utils/theme.dart';
+
+class LoginScreen extends ConsumerStatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends ConsumerState<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _usernameCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+  bool _obscure = true;
+  bool _submitting = false;
+  bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberMe();
+  }
+
+  Future<void> _loadRememberMe() async {
+    final store = AuthLocalStore();
+    final rememberMe = await store.getRememberMe();
+    if (mounted) {
+      setState(() => _rememberMe = rememberMe);
+    }
+  }
+
+  @override
+  void dispose() {
+    _usernameCtrl.dispose();
+    _passwordCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = ref.watch(authProvider);
+
+    return PerformanceInspector(
+      name: 'LoginScreen',
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
+          backgroundColor: AppColors.backgroundColor,
+          body: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(
+                                Icons.lock,
+                                size: 28,
+                                color: AppColors.primaryColor,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                'تسجيل الدخول',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _usernameCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'اسم المستخدم',
+                              hintText: 'أدخل اسم المستخدم',
+                            ),
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'يرجى إدخال اسم المستخدم'
+                                : null,
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _passwordCtrl,
+                            obscureText: _obscure,
+                            decoration: InputDecoration(
+                              labelText: 'كلمة المرور',
+                              hintText: 'أدخل كلمة المرور',
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscure
+                                      ? Icons.visibility
+                                      : Icons.visibility_off,
+                                ),
+                                onPressed: () =>
+                                    setState(() => _obscure = !_obscure),
+                              ),
+                            ),
+                            validator: (v) => (v == null || v.isEmpty)
+                                ? 'يرجى إدخال كلمة المرور'
+                                : null,
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Checkbox(
+                                value: _rememberMe,
+                                onChanged: (value) => setState(
+                                  () => _rememberMe = value ?? false,
+                                ),
+                              ),
+                              const Text('تذكرني'),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          if (auth.error != null) ...[
+                            Text(
+                              auth.error!,
+                              style: const TextStyle(
+                                color: AppColors.dangerColor,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+                          ElevatedButton(
+                            onPressed: _submitting ? null : _onSubmit,
+                            child: _submitting
+                                ? const SizedBox(
+                                    height: 18,
+                                    width: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text('دخول'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onSubmit() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+    setState(() => _submitting = true);
+    await ref
+        .read(authProvider.notifier)
+        .login(
+          _usernameCtrl.text.trim(),
+          _passwordCtrl.text,
+          rememberMe: _rememberMe,
+        );
+    if (!mounted) {
+      return;
+    }
+    setState(() => _submitting = false);
+    // سيقوم RootRouter بإظهار الواجهة الرئيسية تلقائيًا عند نجاح الدخول
+  }
+}
