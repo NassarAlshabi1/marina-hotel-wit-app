@@ -86,3 +86,6 @@ flutter:
   - assets/fonts/Tajawal-Regular.ttf
   - assets/fonts/Tajawal-Bold.ttf
   - assets/images/hotel_logo.jpg
+
+dependency_overrides:
+  pointycastle: ^4.0.0
