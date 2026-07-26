@@ -1,1 +1,26 @@
-aW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXJfcml2ZXJwb2QvZmx1dHRlcl9yaXZlcnBvZC5kYXJ0JzsKaW1wb3J0ICdwYWNrYWdlOnBhY2thZ2VfaW5mb19wbHVzL3BhY2thZ2VfaW5mb19wbHVzLmRhcnQnOwppbXBvcnQgJy4uL3NlcnZpY2VzL2xvY2FsX2RiLmRhcnQnOwppbXBvcnQgJy4uL3NlcnZpY2VzL3N5bmNfc2VydmljZS5kYXJ0JzsKCmZpbmFsIHN5bmNQcm92aWRlciA9IFByb3ZpZGVyPFN5bmNTZXJ2aWNlPigKICAocmVmKSA9PiBTeW5jU2VydmljZShEYXRhYmFzZU1hbmFnZXIuaW5zdGFuY2UpLAopOwoKLy8vIOKchSDYpdi12K/Yp9ixINin2YTYqti32KjZitmCINin2YTZg9in2YXZhCAodmVyc2lvbitidWlsZE51bWJlcikg4oCUINmK2Y/Zgtix2KMg2YXZhiBwYWNrYWdlX2luZm9fcGx1cy4KLy8vCi8vLyDZhdi12K/YsSDZiNin2K3YryDZhdmI2K3ZkdivINmE2YPZhCDYp9mE2LTYp9i02KfYqiDYp9mE2KrZiiDYqtit2KrYp9isINi52LHYtiDYsdmC2YUg2KfZhNil2LXYr9in2LEgKNmE2YjYrdipINin2YTYqtit2YPZhdiMCi8vLyDYp9mE2KXYudiv2KfYr9in2KrYjCDYtNin2LTYqSDYp9mE2LXZitin2YbYqdiMINin2YTZhtiz2K4g2KfZhNin2K3YqtmK2KfYt9mKKS4g2YrZj9it2YXZhCDZhdix2Kkg2YjYp9it2K/YqSDZgdmC2Lcg2LnYqNixCi8vLyBSaXZlcnBvZCBjYWNoZS4KLy8vCi8vLyDYp9mE2LXZiti62Kk6ICIxLjIuMCszIiAodmVyc2lvbiDZhdmGIHB1YnNwZWMueWFtbCArIGJ1aWxkTnVtYmVyINmF2YYgR3JhZGxlL3hjY29uZmlncykuCmZpbmFsIGFwcFZlcnNpb25Qcm92aWRlciA9IEZ1dHVyZVByb3ZpZGVyPFN0cmluZz4oKHJlZikgYXN5bmMgewogIHRyeSB7CiAgICBmaW5hbCBpbmZvID0gYXdhaXQgUGFja2FnZUluZm8uZnJvbVBsYXRmb3JtKCk7CiAgICByZXR1cm4gJyR7aW5mby52ZXJzaW9ufSske2luZm8uYnVpbGROdW1iZXJ9JzsKICB9IGNhdGNoIChfKSB7CiAgICAvLyBGYWxsYmFjayDYq9in2KjYqiDZgdmKINit2KfZhCDZgdi02YQgcGFja2FnZV9pbmZvX3BsdXMgKNmG2KfYr9ix2KfZi9iMINmK2K3Yr9irINmB2YLYtyDZgdmKCiAgICAvLyDYp9iu2KrYqNin2LHYp9iqINin2YTZiNit2K/YqSDYqNiv2YjZhiBGbHV0dGVyIGJpbmRpbmcg2YXZh9mK2ZHYoykuCiAgICByZXR1cm4gJzEuMi4wKzMnOwogIH0KfSk7Cg==
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import '../services/local_db.dart';
+import '../services/sync_service.dart';
+
+final syncProvider = Provider<SyncService>(
+  (ref) => SyncService(DatabaseManager.instance),
+);
+
+/// ✅ إصدار التطبيق الكامل (version+buildNumber) — يُقرأ من package_info_plus.
+///
+/// مصدر واحد موحّد لكل الشاشات التي تحتاج عرض رقم الإصدار (لوحة التحكم،
+/// الإعدادات، شاشة الصيانة، النسخ الاحتياطي). يُحمل مرة واحدة فقط عبر
+/// Riverpod cache.
+///
+/// الصيغة: "1.2.0+3" (version من pubspec.yaml + buildNumber من Gradle/xcconfigs).
+final appVersionProvider = FutureProvider<String>((ref) async {
+  try {
+    final info = await PackageInfo.fromPlatform();
+    return '${info.version}+${info.buildNumber}';
+  } catch (_) {
+    // Fallback ثابت في حال فشل package_info_plus (نادراً، يحدث فقط في
+    // اختبارات الوحدة بدون Flutter binding مهيّأ).
+    return '1.2.0+3';
+  }
+});
