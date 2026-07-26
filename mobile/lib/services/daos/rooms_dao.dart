@@ -10,11 +10,17 @@ import 'outbox_dao.dart';
 part 'rooms_dao.g.dart';
 
 @DriftAccessor(tables: [Rooms])
-class RoomsDao extends DatabaseAccessor<AppDatabase> with _$RoomsDaoMixin, OptimisticLockDaoMixin<Rooms, Room> {
+class RoomsDao extends DatabaseAccessor<AppDatabase>
+    with _$RoomsDaoMixin, OptimisticLockDaoMixin<Rooms, Room> {
   RoomsDao(super.db, this.outboxDao);
   final OutboxDao outboxDao;
 
-  Future<List<Room>> list({String? search, bool includeDeleted = false, int? limit, int? offset}) async {
+  Future<List<Room>> list({
+    String? search,
+    bool includeDeleted = false,
+    int? limit,
+    int? offset,
+  }) async {
     final q = select(rooms);
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
@@ -29,7 +35,12 @@ class RoomsDao extends DatabaseAccessor<AppDatabase> with _$RoomsDaoMixin, Optim
     return q.get();
   }
 
-  Stream<List<Room>> watchList({String? search, bool includeDeleted = false, int? limit, int offset = 0}) {
+  Stream<List<Room>> watchList({
+    String? search,
+    bool includeDeleted = false,
+    int? limit,
+    int offset = 0,
+  }) {
     final q = select(rooms);
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
@@ -44,14 +55,21 @@ class RoomsDao extends DatabaseAccessor<AppDatabase> with _$RoomsDaoMixin, Optim
     return q.watch();
   }
 
-  Future<Room?> getById(int id) => (select(rooms)..where((t) => t.id.equals(id))).getSingleOrNull();
-  Stream<Room?> watchById(int id) => (select(rooms)..where((t) => t.id.equals(id))).watchSingleOrNull();
-  Future<Room?> getByNumber(String roomNumber) =>
-      (select(rooms)..where((t) => t.roomNumber.equals(roomNumber))).getSingleOrNull();
-  Stream<Room?> watchByNumber(String roomNumber) =>
-      (select(rooms)..where((t) => t.roomNumber.equals(roomNumber))).watchSingleOrNull();
+  Future<Room?> getById(int id) =>
+      (select(rooms)..where((t) => t.id.equals(id))).getSingleOrNull();
+  Stream<Room?> watchById(int id) =>
+      (select(rooms)..where((t) => t.id.equals(id))).watchSingleOrNull();
+  Future<Room?> getByNumber(String roomNumber) => (select(
+    rooms,
+  )..where((t) => t.roomNumber.equals(roomNumber))).getSingleOrNull();
+  Stream<Room?> watchByNumber(String roomNumber) => (select(
+    rooms,
+  )..where((t) => t.roomNumber.equals(roomNumber))).watchSingleOrNull();
 
-  Future<String> insertOne(RoomsCompanion data, {bool originIsServer = false}) async {
+  Future<String> insertOne(
+    RoomsCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
@@ -61,7 +79,9 @@ class RoomsDao extends DatabaseAccessor<AppDatabase> with _$RoomsDaoMixin, Optim
         updatedAt: Value(now),
         lastModified: Value(now),
         origin: Value(originIsServer ? 'server' : 'local'),
-        deviceId: originIsServer ? const Value.absent() : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
+        deviceId: originIsServer
+            ? const Value.absent()
+            : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
       );
       await into(rooms).insert(comp);
       if (!originIsServer) {
@@ -77,7 +97,11 @@ class RoomsDao extends DatabaseAccessor<AppDatabase> with _$RoomsDaoMixin, Optim
     });
   }
 
-  Future<int> updateById(int id, RoomsCompanion data, {bool originIsServer = false}) async {
+  Future<int> updateById(
+    int id,
+    RoomsCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
@@ -86,13 +110,17 @@ class RoomsDao extends DatabaseAccessor<AppDatabase> with _$RoomsDaoMixin, Optim
       }
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified = originIsServer && data.lastModified.present ? data.lastModified : Value(now);
+      final effectiveLastModified = originIsServer && data.lastModified.present
+          ? data.lastModified
+          : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
         version: Value(existing.version + 1),
       );
-      final rows = await (update(rooms)..where((t) => t.id.equals(id))).write(comp);
+      final rows = await (update(
+        rooms,
+      )..where((t) => t.id.equals(id))).write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'rooms',
@@ -107,7 +135,11 @@ class RoomsDao extends DatabaseAccessor<AppDatabase> with _$RoomsDaoMixin, Optim
     });
   }
 
-  Future<int> updateByNumber(String roomNumber, RoomsCompanion data, {bool originIsServer = false}) async {
+  Future<int> updateByNumber(
+    String roomNumber,
+    RoomsCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getByNumber(roomNumber);
@@ -116,13 +148,17 @@ class RoomsDao extends DatabaseAccessor<AppDatabase> with _$RoomsDaoMixin, Optim
       }
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified = originIsServer && data.lastModified.present ? data.lastModified : Value(now);
+      final effectiveLastModified = originIsServer && data.lastModified.present
+          ? data.lastModified
+          : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
         version: Value(existing.version + 1),
       );
-      final rows = await (update(rooms)..where((t) => t.roomNumber.equals(roomNumber))).write(comp);
+      final rows = await (update(
+        rooms,
+      )..where((t) => t.roomNumber.equals(roomNumber))).write(comp);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'rooms',
@@ -137,16 +173,26 @@ class RoomsDao extends DatabaseAccessor<AppDatabase> with _$RoomsDaoMixin, Optim
     });
   }
 
-  Future<int> softDelete(String roomNumber, {bool originIsServer = false}) async {
+  Future<int> softDelete(
+    String roomNumber, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getByNumber(roomNumber);
       if (existing == null) {
         return 0;
       }
-      final rows = await (update(rooms)..where((t) => t.roomNumber.equals(roomNumber))).write(
-        RoomsCompanion(deletedAt: Value(now), updatedAt: Value(now), lastModified: Value(now)),
-      );
+      final rows =
+          await (update(
+            rooms,
+          )..where((t) => t.roomNumber.equals(roomNumber))).write(
+            RoomsCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              lastModified: Value(now),
+            ),
+          );
       if (rows > 0 && !originIsServer) {
         // ✅ نستخدم 'update' بدلاً من 'delete' لأن softDelete يحدّث deletedAt
         // ولا يحذف المستند من Appwrite — الجهاز الآخر يحتاج رؤية deletedAt
@@ -192,7 +238,10 @@ class RoomsDao extends DatabaseAccessor<AppDatabase> with _$RoomsDaoMixin, Optim
   }
 
   /// استيراد الغرف من JSON
-  Future<void> importFromJson(List<Map<String, dynamic>> data, {bool clearExisting = false}) async {
+  Future<void> importFromJson(
+    List<Map<String, dynamic>> data, {
+    bool clearExisting = false,
+  }) async {
     if (clearExisting) {
       await delete(rooms).go();
     }
