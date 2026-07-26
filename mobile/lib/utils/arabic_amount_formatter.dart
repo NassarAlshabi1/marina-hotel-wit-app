@@ -26,7 +26,12 @@ String _convertNumberToArabicWords(int number) {
   return segments.join(' و ');
 }
 
-String _formatWithScale(int value, String singular, String dual, String plural) {
+String _formatWithScale(
+  int value,
+  String singular,
+  String dual,
+  String plural,
+) {
   if (value == 1) {
     return singular;
   }
@@ -79,7 +84,18 @@ String _convertBelowHundred(int number) {
   return '$unitWord و$tensWord';
 }
 
-const _units = <String>['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'];
+const _units = <String>[
+  '',
+  'واحد',
+  'اثنان',
+  'ثلاثة',
+  'أربعة',
+  'خمسة',
+  'ستة',
+  'سبعة',
+  'ثمانية',
+  'تسعة',
+];
 
 const _teens = <String>[
   'أحد عشر',
@@ -93,7 +109,18 @@ const _teens = <String>[
   'تسعة عشر',
 ];
 
-const _tens = <String>['', '', 'عشرون', 'ثلاثون', 'أربعون', 'خمسون', 'ستون', 'سبعون', 'ثمانون', 'تسعون'];
+const _tens = <String>[
+  '',
+  '',
+  'عشرون',
+  'ثلاثون',
+  'أربعون',
+  'خمسون',
+  'ستون',
+  'سبعون',
+  'ثمانون',
+  'تسعون',
+];
 
 const _hundredsMap = <int, String>{
   1: 'مائة',
