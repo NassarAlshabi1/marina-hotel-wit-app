@@ -1,1 +1,451 @@
-Ly8gbGliL3NlcnZpY2VzL2NyYXNobHl0aWNzX3NlcnZpY2UuZGFydAovLyDYrtiv2YXYqSBDcmFzaGx5dGljcyDZhNiq2KrYqNi5INin2YTYo9iu2LfYp9ihINmI2KfZhNil2KjZhNin2Log2LnZhtmH2KcKLy8g2YXYsdiq2KjYt9ipINio2YAgRmlyZWJhc2UgQ3Jhc2hseXRpY3MgKyBEaWFnbm9zdGljc0xvZ2dlcgoKaW1wb3J0ICdkYXJ0OmFzeW5jJzsKaW1wb3J0ICdkYXJ0OmRldmVsb3BlcicgYXMgZGV2ZWxvcGVyOwppbXBvcnQgJ3BhY2thZ2U6ZmlyZWJhc2VfY3Jhc2hseXRpY3MvZmlyZWJhc2VfY3Jhc2hseXRpY3MuZGFydCc7CmltcG9ydCAncGFja2FnZTpmbHV0dGVyL2ZvdW5kYXRpb24uZGFydCc7CmltcG9ydCAndGVsZWdyYW0vd2hhdHNhcHBfbm90aWZpY2F0aW9uX3NlcnZpY2UuZGFydCc7CgovLy8g2YXYs9iq2YjZitin2Kog2KfZhNij2YfZhdmK2Kkg2YTZhNij2K7Yt9in2KEKZW51bSBDcmFzaGx5dGljc1NldmVyaXR5IHsKICBmYXRhbCwgLy8g2K7Yt9ijINmC2KfYqtmEIC0g2YrZiNmC2YEg2KfZhNmF2LLYp9mF2YbYqQogIGVycm9yLCAvLyDYrti32KMg2K7Yt9mK2LEgLSDZitis2Kgg2KfZhNil2LXZhNin2K0KICB3YXJuaW5nLCAvLyDYqtit2LDZitixIC0g2YrZhdmD2YYg2KfZhNin2LPYqtmF2LHYp9ixCiAgaW5mbywgLy8g2YXYudmE2YjZhdipIC0g2YTZhNiq2KrYqNi5INmB2YLYtwp9CgovLy8g2K7Yr9mF2KkgQ3Jhc2hseXRpY3Mg2YTYqtiq2KjYuSDYo9iu2LfYp9ihINin2YTYqti32KjZitmCINmI2KfZhNmF2LLYp9mF2YbYqQovLy8KLy8vINmK2LPYqtiu2K/ZhToKLy8vIC0gRmlyZWJhc2UgQ3Jhc2hseXRpY3Mg2YTYpdix2LPYp9mEINin2YTYqtmC2KfYsdmK2LEKLy8vIC0gRGlhZ25vc3RpY3NMb2dnZXIg2YTZhNiq2LPYrNmK2YQg2KfZhNmF2K3ZhNmKCi8vLwovLy8g2KfZhNin2LPYqtiu2K/Yp9mFOgovLy8gYGBgZGFydAovLy8gYXdhaXQgQ3Jhc2hseXRpY3NTZXJ2aWNlLmluc3RhbmNlLmluaXRpYWxpemUoKTsKLy8vCi8vLyAvLyDYqtiz2KzZitmEINiu2LfYoyDZgdmKINi02KfYtNipCi8vLyBhd2FpdCBDcmFzaGx5dGljc1NlcnZpY2UuaW5zdGFuY2UucmVjb3JkU2NyZWVuRXJyb3IoCi8vLyAgIHNjcmVlbjogJ1BheW1lbnRzU2NyZWVuJywKLy8vICAgYWN0aW9uOiAncHJvY2Vzc1BheW1lbnQnLAovLy8gICBlcnJvcjogZSwKLy8vICAgc3RhY2tUcmFjZTogc3RhY2ssCi8vLyApOwovLy8KLy8vIC8vINiq2LPYrNmK2YQg2K7Yt9ijINmF2LLYp9mF2YbYqQovLy8gYXdhaXQgQ3Jhc2hseXRpY3NTZXJ2aWNlLmluc3RhbmNlLnJlY29yZFN5bmNFcnJvcigKLy8vICAgb3BlcmF0aW9uOiAncHVzaF9ib29raW5ncycsCi8vLyAgIGVycm9yOiBlLnRvU3RyaW5nKCksCi8vLyAgIHNldmVyaXR5OiBDcmFzaGx5dGljc1NldmVyaXR5LmVycm9yLAovLy8gKTsKLy8vIGBgYApjbGFzcyBDcmFzaGx5dGljc1NlcnZpY2UgewogIGZhY3RvcnkgQ3Jhc2hseXRpY3NTZXJ2aWNlKCkgPT4gX2luc3RhbmNlOwogIENyYXNobHl0aWNzU2VydmljZS5faW50ZXJuYWwoKTsKICBzdGF0aWMgZmluYWwgQ3Jhc2hseXRpY3NTZXJ2aWNlIF9pbnN0YW5jZSA9IENyYXNobHl0aWNzU2VydmljZS5faW50ZXJuYWwoKTsKICBzdGF0aWMgQ3Jhc2hseXRpY3NTZXJ2aWNlIGdldCBpbnN0YW5jZSA9PiBfaW5zdGFuY2U7CgogIEZpcmViYXNlQ3Jhc2hseXRpY3M/IF9jcmFzaGx5dGljczsKICBib29sIF9pc0VuYWJsZWQgPSB0cnVlOwogIGJvb2wgX2lzSW5pdGlhbGl6ZWQgPSBmYWxzZTsKICBib29sIF9pc0ZpcmViYXNlQ29ubmVjdGVkID0gZmFsc2U7CiAgZmluYWwgTGlzdDxNYXA8U3RyaW5nLCBkeW5hbWljPj4gX2Vycm9ySGlzdG9yeSA9IFtdOwogIHN0YXRpYyBjb25zdCBpbnQgX21heEhpc3RvcnlTaXplID0gMTAwOwoKICAvLy8g2YfZhCDYqtmFINin2YTYqtmH2YrYptip2J8gKNiv2KfYptmF2KfZiyB0cnVlINio2LnYryDYp9mE2KrZh9mK2KbYqSkKICBib29sIGdldCBpc0luaXRpYWxpemVkID0+IF9pc0luaXRpYWxpemVkOwoKICAvLy8g2YfZhCBGaXJlYmFzZSDZhdiq2LXZhCDYqNmG2KzYp9it2J8KICBib29sIGdldCBpc0ZpcmViYXNlQ29ubmVjdGVkID0+IF9pc0ZpcmViYXNlQ29ubmVjdGVkOwoKICAvLy8g2KrZh9mK2KbYqSDYp9mE2K7Yr9mF2Kkg4oCUINmK2KzYqCDYp9iz2KrYr9i52KfYpNmH2Kcg2YHZiiBtYWluKCkKICAvLy8g2YrYudmF2YQg2K/Yp9im2YXYp9mLINit2KrZiSDZhNmIINmB2LTZhCBGaXJlYmFzZSDigJQg2KfZhNiq2LPYrNmK2YQg2KfZhNmF2K3ZhNmKINmF2KrYp9itCiAgRnV0dXJlPHZvaWQ+IGluaXRpYWxpemUoKSBhc3luYyB7CiAgICBpZiAoX2lzSW5pdGlhbGl6ZWQpIHsKICAgICAgcmV0dXJuOwogICAgfQoKICAgIHRyeSB7CiAgICAgIF9jcmFzaGx5dGljcyA9IEZpcmViYXNlQ3Jhc2hseXRpY3MuaW5zdGFuY2U7CgogICAgICAvLyDZgdmKINmI2LbYuSDYp9mE2KrYt9mI2YrYsTog2YbZgdi52ZHZhCBDcmFzaGx5dGljcyDYo9mK2LbYp9mLINmE2YTYp9iu2KrYqNin2LEKICAgICAgLy8g2YHZiiDZiNi22Lkg2KfZhNil2YbYqtin2Kw6INmK2Y/Zgdi52ZHZhCDYr9in2KbZhdin2YsKICAgICAgYXdhaXQgX2NyYXNobHl0aWNzIS5zZXRDcmFzaGx5dGljc0NvbGxlY3Rpb25FbmFibGVkKHRydWUpOwoKICAgICAgLy8g2KXYudiv2KfYryDZhdmB2KfYqtmK2K0g2YXYrti12LXYqSDYudin2YXYqQogICAgICBhd2FpdCBfY3Jhc2hseXRpY3MhLnNldEN1c3RvbUtleSgnYXBwX25hbWUnLCAnbWFyaW5hX2hvdGVsJyk7CiAgICAgIGF3YWl0IF9jcmFzaGx5dGljcyEuc2V0Q3VzdG9tS2V5KCdhcHBfdmVyc2lvbicsICcxLjAuMCcpOwogICAgICBhd2FpdCBfY3Jhc2hseXRpY3MhLmxvZygnQ3Jhc2hseXRpY3NTZXJ2aWNlIGluaXRpYWxpemVkJyk7CgogICAgICBfaXNGaXJlYmFzZUNvbm5lY3RlZCA9IHRydWU7CiAgICAgIF9pc0luaXRpYWxpemVkID0gdHJ1ZTsKCiAgICAgIGRldmVsb3Blci5sb2coCiAgICAgICAgJ+KchSBDcmFzaGx5dGljc1NlcnZpY2UgaW5pdGlhbGl6ZWQgKCR7a0RlYnVnTW9kZSA/ICdERUJVRycgOiAnUkVMRUFTRSd9KScsCiAgICAgICAgbmFtZTogJ0NyYXNobHl0aWNzU2VydmljZScsCiAgICAgICk7CiAgICB9IGNhdGNoIChlKSB7CiAgICAgIGRldmVsb3Blci5sb2coCiAgICAgICAgJ+KaoO+4jyBDcmFzaGx5dGljcyBGaXJlYmFzZSBmYWlsZWQg4oCUIGxvY2FsIGxvZ2dpbmcgYWN0aXZlOiAkZScsCiAgICAgICAgbmFtZTogJ0NyYXNobHl0aWNzU2VydmljZScsCiAgICAgICk7CiAgICAgIC8vINit2KrZiSDZhNmIINmB2LTZhCBGaXJlYmFzZdiMINin2YTYrtiv2YXYqSDYqti52YXZhCDYqNin2YTYqtiz2KzZitmEINin2YTZhdit2YTZigogICAgICBfaXNGaXJlYmFzZUNvbm5lY3RlZCA9IGZhbHNlOwogICAgICBfaXNJbml0aWFsaXplZCA9IHRydWU7CiAgICB9CiAgfQoKICAvLy8g2KrZh9mK2KbYqSDZhdi52KfZhNis2KfYqiDYp9mE2KPYrti32KfYoSDYp9mE2LnYp9mF2Kkg4oCUINmK2Y/Ys9iq2K/YudmJINio2LnYryBpbml0aWFsaXplKCkKICAvLy8KICAvLy8g2YrYsdio2LcgRmx1dHRlckVycm9yLm9uRXJyb3Ig2YggUGxhdGZvcm1EaXNwYXRjaGVyLm9uRXJyb3Ig2KjZgCBDcmFzaGx5dGljcwogIC8vLyDZhdi5INin2YTYrdmB2KfYuCDYudmE2YkgRGlhZ25vc3RpY3NMb2dnZXIKICB2b2lkIHNldHVwRXJyb3JIYW5kbGVycyh7CiAgICByZXF1aXJlZCB2b2lkIEZ1bmN0aW9uKEZsdXR0ZXJFcnJvckRldGFpbHMpIG9yaWdpbmFsRmx1dHRlckhhbmRsZXIsCiAgICByZXF1aXJlZCB2b2lkIEZ1bmN0aW9uKE9iamVjdCBlcnJvciwgU3RhY2tUcmFjZSBzdGFjaykKICAgIG9yaWdpbmFsUGxhdGZvcm1IYW5kbGVyLAogICAgcmVxdWlyZWQgdm9pZCBGdW5jdGlvbihPYmplY3QgZXJyb3IsIFN0YWNrVHJhY2Ugc3RhY2spIG9yaWdpbmFsWm9uZWRIYW5kbGVyLAogIH0pIHsKICAgIC8vIEZsdXR0ZXIgZXJyb3JzICjYqtmP2LHYs9mEINil2YTZiSBDcmFzaGx5dGljcyArINin2YTYo9i12YTZitipKQogICAgRmx1dHRlckVycm9yLm9uRXJyb3IgPSAoZGV0YWlscykgewogICAgICBfcmVjb3JkRmx1dHRlckVycm9yKGRldGFpbHMpOwogICAgICBvcmlnaW5hbEZsdXR0ZXJIYW5kbGVyKGRldGFpbHMpOyAvLyBEaWFnbm9zdGljc0xvZ2dlcgogICAgfTsKCiAgICAvLyBQbGF0Zm9ybSBlcnJvcnMgKElzb2xhdGUgZXJyb3JzKQogICAgUGxhdGZvcm1EaXNwYXRjaGVyLmluc3RhbmNlLm9uRXJyb3IgPSAoZXJyb3IsIHN0YWNrKSB7CiAgICAgIF9yZWNvcmRQbGF0Zm9ybUVycm9yKGVycm9yLCBzdGFjayk7CiAgICAgIG9yaWdpbmFsUGxhdGZvcm1IYW5kbGVyKGVycm9yLCBzdGFjayk7IC8vIERpYWdub3N0aWNzTG9nZ2VyCiAgICAgIHJldHVybiB0cnVlOwogICAgfTsKICB9CgogIC8vLyDYqtmF2YPZitmGL9iq2LnYt9mK2YQg2KfZhNiu2K/ZhdipCiAgdm9pZCBzZXRFbmFibGVkKGJvb2wgZW5hYmxlZCkgewogICAgX2lzRW5hYmxlZCA9IGVuYWJsZWQ7CiAgICBfY3Jhc2hseXRpY3M/LnNldENyYXNobHl0aWNzQ29sbGVjdGlvbkVuYWJsZWQoZW5hYmxlZCk7CiAgfQoKICAvLyDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZAKICAvLyAg2KrYs9is2YrZhCDYo9iu2LfYp9ihINin2YTYtNin2LTYp9iqCiAgLy8g4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQCgogIC8vLyDYqtiz2KzZitmEINiu2LfYoyDZgdmKINi02KfYtNipINmF2K3Yr9iv2KkKICAvLy8KICAvLy8g2YrZj9iz2KrYrtiv2YUg2K/Yp9iu2YQgdHJ5LWNhdGNoINmB2Yog2KPZiiDYtNin2LTYqToKICAvLy8gYGBgZGFydAogIC8vLyB0cnkgewogIC8vLyAgIGF3YWl0IHByb2Nlc3NQYXltZW50KCk7CiAgLy8vIH0gY2F0Y2ggKGUsIHN0YWNrKSB7CiAgLy8vICAgYXdhaXQgQ3Jhc2hseXRpY3NTZXJ2aWNlLmluc3RhbmNlLnJlY29yZFNjcmVlbkVycm9yKAogIC8vLyAgICAgc2NyZWVuOiAnUGF5bWVudHNTY3JlZW4nLAogIC8vLyAgICAgYWN0aW9uOiAncHJvY2Vzc1BheW1lbnQnLAogIC8vLyAgICAgZXJyb3I6IGUsCiAgLy8vICAgICBzdGFja1RyYWNlOiBzdGFjaywKICAvLy8gICApOwogIC8vLyB9CiAgLy8vIGBgYAogIEZ1dHVyZTx2b2lkPiByZWNvcmRTY3JlZW5FcnJvcih7CiAgICByZXF1aXJlZCBTdHJpbmcgc2NyZWVuLAogICAgcmVxdWlyZWQgU3RyaW5nIGFjdGlvbiwKICAgIHJlcXVpcmVkIGR5bmFtaWMgZXJyb3IsCiAgICBTdGFja1RyYWNlPyBzdGFja1RyYWNlLAogICAgQ3Jhc2hseXRpY3NTZXZlcml0eSBzZXZlcml0eSA9IENyYXNobHl0aWNzU2V2ZXJpdHkuZXJyb3IsCiAgICBNYXA8U3RyaW5nLCBkeW5hbWljPiBleHRyYSA9IGNvbnN0IHt9LAogIH0pIGFzeW5jIHsKICAgIGlmICghX2lzRW5hYmxlZCB8fCAhX2lzSW5pdGlhbGl6ZWQpIHsKICAgICAgcmV0dXJuOwogICAgfQoKICAgIGZpbmFsIGVycm9yU3RyID0gZXJyb3IudG9TdHJpbmcoKTsKCiAgICAvLyDYrdmB2Lgg2YHZiiDYp9mE2KrYp9ix2YrYriDYp9mE2YXYrdmE2YoKICAgIF9hZGRUb0hpc3RvcnkoJ3NjcmVlbicsIHNjcmVlbiwgYWN0aW9uLCBlcnJvclN0ciwgc2V2ZXJpdHkpOwoKICAgIC8vINiq2LPYrNmK2YQg2YHZiiBkZXZlbG9wZXIgbG9nCiAgICBkZXZlbG9wZXIubG9nKAogICAgICAn8J+SpSBbJHNjcmVlbl0gJGFjdGlvbjogJGVycm9yU3RyJywKICAgICAgbmFtZTogJ0NyYXNobHl0aWNzJywKICAgICAgZXJyb3I6IGVycm9yLAogICAgICBzdGFja1RyYWNlOiBzdGFja1RyYWNlLAogICAgKTsKCiAgICAvLyDYpdix2LPYp9mEINil2YTZiSBGaXJlYmFzZSBDcmFzaGx5dGljcwogICAgdHJ5IHsKICAgICAgYXdhaXQgX2NyYXNobHl0aWNzPy5zZXRDdXN0b21LZXkoJ3NjcmVlbicsIHNjcmVlbik7CiAgICAgIGF3YWl0IF9jcmFzaGx5dGljcz8uc2V0Q3VzdG9tS2V5KCdhY3Rpb24nLCBhY3Rpb24pOwogICAgICBhd2FpdCBfY3Jhc2hseXRpY3M/LnNldEN1c3RvbUtleSgnc2V2ZXJpdHknLCBzZXZlcml0eS5uYW1lKTsKCiAgICAgIGZvciAoZmluYWwgZW50cnkgaW4gZXh0cmEuZW50cmllcykgewogICAgICAgIGF3YWl0IF9jcmFzaGx5dGljcz8uc2V0Q3VzdG9tS2V5KAogICAgICAgICAgJ3NjcmVlbl8ke2VudHJ5LmtleX0nLAogICAgICAgICAgZW50cnkudmFsdWUudG9TdHJpbmcoKSwKICAgICAgICApOwogICAgICB9CgogICAgICBhd2FpdCBfY3Jhc2hseXRpY3M/LnJlY29yZEVycm9yKAogICAgICAgIGVycm9yLAogICAgICAgIHN0YWNrVHJhY2UgPz8gU3RhY2tUcmFjZS5jdXJyZW50LAogICAgICAgIHJlYXNvbjogJyRzY3JlZW4g4oCUICRhY3Rpb24nLAogICAgICAgIGZhdGFsOiBzZXZlcml0eSA9PSBDcmFzaGx5dGljc1NldmVyaXR5LmZhdGFsLAogICAgICAgIGluZm9ybWF0aW9uOiBbCiAgICAgICAgICAnU2NyZWVuOiAkc2NyZWVuJywKICAgICAgICAgICdBY3Rpb246ICRhY3Rpb24nLAogICAgICAgICAgJ1NldmVyaXR5OiAke3NldmVyaXR5Lm5hbWV9JywKICAgICAgICAgIC4uLmV4dHJhLmVudHJpZXMubWFwKChlKSA9PiAnJHtlLmtleX06ICR7ZS52YWx1ZX0nKSwKICAgICAgICBdLAogICAgICApOwogICAgfSBjYXRjaCAoXykgewogICAgICAvLyDZhNinINmG2YjZgtmBINin2YTYqti32KjZitmCINio2LPYqNioINmB2LTZhCBDcmFzaGx5dGljcwogICAgfQogIH0KCiAgLy8g4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQCiAgLy8gINiq2LPYrNmK2YQg2KPYrti32KfYoSDYp9mE2YXYstin2YXZhtipCiAgLy8g4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQCgogIC8vLyDYqtiz2KzZitmEINiu2LfYoyDZhdiy2KfZhdmG2KkKICBGdXR1cmU8dm9pZD4gcmVjb3JkU3luY0Vycm9yKHsKICAgIHJlcXVpcmVkIFN0cmluZyBvcGVyYXRpb24sCiAgICByZXF1aXJlZCBTdHJpbmcgZXJyb3IsCiAgICBTdGFja1RyYWNlPyBzdGFja1RyYWNlLAogICAgQ3Jhc2hseXRpY3NTZXZlcml0eSBzZXZlcml0eSA9IENyYXNobHl0aWNzU2V2ZXJpdHkuZXJyb3IsCiAgICBNYXA8U3RyaW5nLCBkeW5hbWljPiBjb250ZXh0ID0gY29uc3Qge30sCiAgfSkgYXN5bmMgewogICAgaWYgKCFfaXNFbmFibGVkIHx8ICFfaXNJbml0aWFsaXplZCkgewogICAgICByZXR1cm47CiAgICB9CgogICAgX2FkZFRvSGlzdG9yeSgnc3luYycsIG9wZXJhdGlvbiwgJycsIGVycm9yLCBzZXZlcml0eSk7CgogICAgZGV2ZWxvcGVyLmxvZygKICAgICAgJ/CfkqUgU3luYyBFcnJvciBbJHNldmVyaXR5XTogJG9wZXJhdGlvbiAtICRlcnJvcicsCiAgICAgIG5hbWU6ICdDcmFzaGx5dGljcycsCiAgICAgIGVycm9yOiBlcnJvciwKICAgICAgc3RhY2tUcmFjZTogc3RhY2tUcmFjZSwKICAgICk7CgogICAgdHJ5IHsKICAgICAgYXdhaXQgX2NyYXNobHl0aWNzPy5zZXRDdXN0b21LZXkoJ2xhc3Rfc3luY19vcGVyYXRpb24nLCBvcGVyYXRpb24pOwogICAgICBhd2FpdCBfY3Jhc2hseXRpY3M/LnNldEN1c3RvbUtleSgKICAgICAgICAnc3luY19lcnJvcl9jb3VudCcsCiAgICAgICAgX2Vycm9ySGlzdG9yeS5sZW5ndGgsCiAgICAgICk7CgogICAgICBmb3IgKGZpbmFsIGVudHJ5IGluIGNvbnRleHQuZW50cmllcykgewogICAgICAgIGF3YWl0IF9jcmFzaGx5dGljcz8uc2V0Q3VzdG9tS2V5KAogICAgICAgICAgJ3N5bmNfY3R4XyR7ZW50cnkua2V5fScsCiAgICAgICAgICBlbnRyeS52YWx1ZS50b1N0cmluZygpLAogICAgICAgICk7CiAgICAgIH0KCiAgICAgIGZpbmFsIGlzRmF0YWwgPSBzZXZlcml0eSA9PSBDcmFzaGx5dGljc1NldmVyaXR5LmZhdGFsOwogICAgICBhd2FpdCBfY3Jhc2hseXRpY3M/LnJlY29yZEVycm9yKAogICAgICAgIEV4Y2VwdGlvbignWyRvcGVyYXRpb25dICRlcnJvcicpLAogICAgICAgIHN0YWNrVHJhY2UgPz8gU3RhY2tUcmFjZS5jdXJyZW50LAogICAgICAgIHJlYXNvbjogb3BlcmF0aW9uLAogICAgICAgIGZhdGFsOiBpc0ZhdGFsLAogICAgICAgIGluZm9ybWF0aW9uOiBbCiAgICAgICAgICAnT3BlcmF0aW9uOiAkb3BlcmF0aW9uJywKICAgICAgICAgICdTZXZlcml0eTogJHtzZXZlcml0eS5uYW1lfScsCiAgICAgICAgICAuLi5jb250ZXh0LmVudHJpZXMubWFwKChlKSA9PiAnJHtlLmtleX06ICR7ZS52YWx1ZX0nKSwKICAgICAgICBdLAogICAgICApOwogICAgfSBjYXRjaCAoXykge30KICB9CgogIC8vLyDYqtiz2KzZitmEINiu2LfYoyDZgtin2KrZhCDZgdmKINin2YTZhdiy2KfZhdmG2KkKICBGdXR1cmU8dm9pZD4gcmVjb3JkRmF0YWxTeW5jRXJyb3IoewogICAgcmVxdWlyZWQgU3RyaW5nIG9wZXJhdGlvbiwKICAgIHJlcXVpcmVkIGR5bmFtaWMgZXJyb3IsCiAgICBTdGFja1RyYWNlPyBzdGFja1RyYWNlLAogICAgTWFwPFN0cmluZywgZHluYW1pYz4gY29udGV4dCA9IGNvbnN0IHt9LAogIH0pIGFzeW5jIHsKICAgIGF3YWl0IHJlY29yZFN5bmNFcnJvcigKICAgICAgb3BlcmF0aW9uOiBvcGVyYXRpb24sCiAgICAgIGVycm9yOiBlcnJvci50b1N0cmluZygpLAogICAgICBzdGFja1RyYWNlOiBzdGFja1RyYWNlLAogICAgICBzZXZlcml0eTogQ3Jhc2hseXRpY3NTZXZlcml0eS5mYXRhbCwKICAgICAgY29udGV4dDogY29udGV4dCwKICAgICk7CiAgICAvLyDYpdix2LPYp9mEINiq2YbYqNmK2YcgV2hhdHNBcHAg2YHZiNix2Yog2YTZhNij2K7Yt9in2KEg2KfZhNmC2KfYqtmE2KkKICAgIHVuYXdhaXRlZCgKICAgICAgV2hhdHNBcHBOb3RpZmljYXRpb25TZXJ2aWNlLmluc3RhbmNlLm5vdGlmeVN5bmNFcnJvcigKICAgICAgICBvcGVyYXRpb246IG9wZXJhdGlvbiwKICAgICAgICBlcnJvcjogZXJyb3IudG9TdHJpbmcoKS5zdWJzdHJpbmcoCiAgICAgICAgICAwLAogICAgICAgICAgZXJyb3IudG9TdHJpbmcoKS5sZW5ndGggPiAyMDAgPyAyMDAgOiBlcnJvci50b1N0cmluZygpLmxlbmd0aCwKICAgICAgICApLAogICAgICApLAogICAgKTsKICB9CgogIC8vIOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkAogIC8vICDYqtiz2KzZitmEINij2K7Yt9in2KEg2LnYp9mF2KkKICAvLyDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZAKCiAgLy8vINiq2LPYrNmK2YQg2K7Yt9ijINi62YrYsSDZhdiq2YjZgti5CiAgRnV0dXJlPHZvaWQ+IHJlY29yZFVuZXhwZWN0ZWRFcnJvcih7CiAgICByZXF1aXJlZCBkeW5hbWljIGVycm9yLAogICAgU3RhY2tUcmFjZT8gc3RhY2tUcmFjZSwKICAgIFN0cmluZz8gY29udGV4dCwKICB9KSBhc3luYyB7CiAgICBpZiAoIV9pc0VuYWJsZWQgfHwgIV9pc0luaXRpYWxpemVkKSB7CiAgICAgIHJldHVybjsKICAgIH0KCiAgICB0cnkgewogICAgICBhd2FpdCBfY3Jhc2hseXRpY3M/LnJlY29yZEVycm9yKAogICAgICAgIGVycm9yLAogICAgICAgIHN0YWNrVHJhY2UgPz8gU3RhY2tUcmFjZS5jdXJyZW50LAogICAgICAgIHJlYXNvbjogY29udGV4dCA/PyAndW5leHBlY3RlZF9lcnJvcicsCiAgICAgICk7CiAgICB9IGNhdGNoIChfKSB7fQogIH0KCiAgLy8vINiq2LPYrNmK2YQg2LHYs9in2YTYqSDYs9is2YQgKGxvZykKICBGdXR1cmU8dm9pZD4gbG9nKFN0cmluZyBtZXNzYWdlKSBhc3luYyB7CiAgICBpZiAoIV9pc0VuYWJsZWQgfHwgIV9pc0luaXRpYWxpemVkKSB7CiAgICAgIHJldHVybjsKICAgIH0KCiAgICB0cnkgewogICAgICBhd2FpdCBfY3Jhc2hseXRpY3M/LmxvZyhtZXNzYWdlKTsKICAgIH0gY2F0Y2ggKF8pIHt9CiAgfQoKICAvLy8g2KrYs9is2YrZhCDYrti32KMg2YXYudiy2LIg2YXYuSDYs9mK2KfZgiDZg9in2YXZhAogIEZ1dHVyZTx2b2lkPiByZWNvcmRFcnJvcldpdGhDb250ZXh0KHsKICAgIHJlcXVpcmVkIFN0cmluZyB0aXRsZSwKICAgIHJlcXVpcmVkIGR5bmFtaWMgZXJyb3IsCiAgICBTdGFja1RyYWNlPyBzdGFja1RyYWNlLAogICAgYm9vbCBmYXRhbCA9IGZhbHNlLAogICAgTWFwPFN0cmluZywgZHluYW1pYz4/IGN1c3RvbUtleXMsCiAgfSkgYXN5bmMgewogICAgaWYgKCFfaXNFbmFibGVkIHx8ICFfaXNJbml0aWFsaXplZCkgewogICAgICByZXR1cm47CiAgICB9CgogICAgdHJ5IHsKICAgICAgaWYgKGN1c3RvbUtleXMgIT0gbnVsbCkgewogICAgICAgIGZvciAoZmluYWwgZW50cnkgaW4gY3VzdG9tS2V5cy5lbnRyaWVzKSB7CiAgICAgICAgICBhd2FpdCBfY3Jhc2hseXRpY3M/LnNldEN1c3RvbUtleShlbnRyeS5rZXksIGVudHJ5LnZhbHVlLnRvU3RyaW5nKCkpOwogICAgICAgIH0KICAgICAgfQoKICAgICAgYXdhaXQgX2NyYXNobHl0aWNzPy5yZWNvcmRFcnJvcigKICAgICAgICBlcnJvciwKICAgICAgICBzdGFja1RyYWNlID8/IFN0YWNrVHJhY2UuY3VycmVudCwKICAgICAgICByZWFzb246IHRpdGxlLAogICAgICAgIGZhdGFsOiBmYXRhbCwKICAgICAgICBpbmZvcm1hdGlvbjoKICAgICAgICAgICAgY3VzdG9tS2V5cz8uZW50cmllcy5tYXAoKGUpID0+ICcke2Uua2V5fTogJHtlLnZhbHVlfScpLnRvTGlzdCgpID8/CiAgICAgICAgICAgIFtdLAogICAgICApOwogICAgfSBjYXRjaCAoXykge30KICB9CgogIC8vIOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkAogIC8vICDYpdiv2KfYsdipINin2YTZhdiz2KrYrtiv2YUg2YjYp9mE2LPZitin2YIKICAvLyDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZAKCiAgLy8vINiq2LPYrNmK2YQg2YXYudix2YEg2KfZhNmF2LPYqtiu2K/ZhQogIEZ1dHVyZTx2b2lkPiBzZXRVc2VySWRlbnRpZmllcihTdHJpbmcgdXNlcklkKSBhc3luYyB7CiAgICBpZiAoIV9pc0VuYWJsZWQgfHwgIV9pc0luaXRpYWxpemVkKSB7CiAgICAgIHJldHVybjsKICAgIH0KCiAgICB0cnkgewogICAgICBhd2FpdCBfY3Jhc2hseXRpY3M/LnNldFVzZXJJZGVudGlmaWVyKHVzZXJJZCk7CiAgICB9IGNhdGNoIChfKSB7fQogIH0KCiAgLy8vINiq2LnZitmK2YYg2YXZgdiq2KfYrSDZhdiu2LXYtQogIEZ1dHVyZTx2b2lkPiBzZXRDdXN0b21LZXkoU3RyaW5nIGtleSwgZHluYW1pYyB2YWx1ZSkgYXN5bmMgewogICAgaWYgKCFfaXNFbmFibGVkIHx8ICFfaXNJbml0aWFsaXplZCkgewogICAgICByZXR1cm47CiAgICB9CgogICAgdHJ5IHsKICAgICAgYXdhaXQgX2NyYXNobHl0aWNzPy5zZXRDdXN0b21LZXkoa2V5LCB2YWx1ZS50b1N0cmluZygpKTsKICAgIH0gY2F0Y2ggKF8pIHt9CiAgfQoKICAvLy8g2KrYudmK2YrZhiDYp9iz2YUg2KfZhNi02KfYtNipINin2YTYrdin2YTZitipICjZhNmE2KrYqtio2LkpCiAgRnV0dXJlPHZvaWQ+IHNldEN1cnJlbnRTY3JlZW4oU3RyaW5nIHNjcmVlbk5hbWUpIGFzeW5jIHsKICAgIGF3YWl0IGxvZygnU0NSRUVOOiAkc2NyZWVuTmFtZScpOwogIH0KCiAgLy8g4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQCiAgLy8gINil2K/Yp9ix2Kkg2KfZhNiq2YLYp9ix2YrYsQogIC8vIOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkAoKICAvLy8g2KXYrNio2KfYsSDYpdix2LPYp9mEINin2YTYqtmC2KfYsdmK2LEg2KfZhNmF2LnZhNmC2KkKICBGdXR1cmU8dm9pZD4gc2VuZFVuc2VudFJlcG9ydHMoKSBhc3luYyB7CiAgICBpZiAoIV9pc0VuYWJsZWQgfHwgIV9pc0luaXRpYWxpemVkKSB7CiAgICAgIHJldHVybjsKICAgIH0KCiAgICB0cnkgewogICAgICBhd2FpdCBfY3Jhc2hseXRpY3M/LnNlbmRVbnNlbnRSZXBvcnRzKCk7CiAgICB9IGNhdGNoIChfKSB7fQogIH0KCiAgLy8vINin2YTYrdi12YjZhCDYudmE2Ykg2KrYp9ix2YrYriDYp9mE2KPYrti32KfYoQogIExpc3Q8TWFwPFN0cmluZywgZHluYW1pYz4+IGdldEVycm9ySGlzdG9yeSgpID0+CiAgICAgIExpc3QudW5tb2RpZmlhYmxlKF9lcnJvckhpc3RvcnkpOwoKICAvLy8g2YXYs9itINiq2KfYsdmK2K4g2KfZhNij2K7Yt9in2KEKICB2b2lkIGNsZWFyRXJyb3JIaXN0b3J5KCkgewogICAgX2Vycm9ySGlzdG9yeS5jbGVhcigpOwogIH0KCiAgLy8vINi52K/YryDYp9mE2KPYrti32KfYoSDYp9mE2YXYs9is2YTYqQogIGludCBnZXQgZXJyb3JDb3VudCA9PiBfZXJyb3JIaXN0b3J5Lmxlbmd0aDsKCiAgLy8g4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQCiAgLy8gINiv2YjYp9mEINiu2KfYtdipCiAgLy8g4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQCgogIHZvaWQgX3JlY29yZEZsdXR0ZXJFcnJvcihGbHV0dGVyRXJyb3JEZXRhaWxzIGRldGFpbHMpIHsKICAgIGlmICghX2lzRW5hYmxlZCB8fCAhX2lzSW5pdGlhbGl6ZWQpIHsKICAgICAgcmV0dXJuOwogICAgfQoKICAgIHRyeSB7CiAgICAgIF9jcmFzaGx5dGljcz8ucmVjb3JkRmx1dHRlckZhdGFsRXJyb3IoZGV0YWlscyk7CiAgICB9IGNhdGNoIChfKSB7fQogIH0KCiAgdm9pZCBfcmVjb3JkUGxhdGZvcm1FcnJvcihPYmplY3QgZXJyb3IsIFN0YWNrVHJhY2Ugc3RhY2spIHsKICAgIGlmICghX2lzRW5hYmxlZCB8fCAhX2lzSW5pdGlhbGl6ZWQpIHsKICAgICAgcmV0dXJuOwogICAgfQoKICAgIHRyeSB7CiAgICAgIF9jcmFzaGx5dGljcz8ucmVjb3JkRXJyb3IoZXJyb3IsIHN0YWNrLCBmYXRhbDogdHJ1ZSk7CiAgICB9IGNhdGNoIChfKSB7fQogIH0KCiAgdm9pZCBfYWRkVG9IaXN0b3J5KAogICAgU3RyaW5nIGNhdGVnb3J5LAogICAgU3RyaW5nIHNvdXJjZSwKICAgIFN0cmluZyBhY3Rpb24sCiAgICBTdHJpbmcgZXJyb3IsCiAgICBDcmFzaGx5dGljc1NldmVyaXR5IHNldmVyaXR5LAogICkgewogICAgX2Vycm9ySGlzdG9yeS5hZGQoewogICAgICAnY2F0ZWdvcnknOiBjYXRlZ29yeSwKICAgICAgJ3NvdXJjZSc6IHNvdXJjZSwKICAgICAgJ2FjdGlvbic6IGFjdGlvbiwKICAgICAgJ2Vycm9yJzogZXJyb3IsCiAgICAgICdzZXZlcml0eSc6IHNldmVyaXR5Lm5hbWUsCiAgICAgICd0aW1lc3RhbXAnOiBEYXRlVGltZS5ub3coKS50b0lzbzg2MDFTdHJpbmcoKSwKICAgIH0pOwoKICAgIGlmIChfZXJyb3JIaXN0b3J5Lmxlbmd0aCA+IF9tYXhIaXN0b3J5U2l6ZSkgewogICAgICBfZXJyb3JIaXN0b3J5LnJlbW92ZUF0KDApOwogICAgfQogIH0KfQo=
+// lib/services/crashlytics_service.dart
+// خدمة Crashlytics لتتبع الأخطاء والإبلاغ عنها
+// مرتبطة بـ Firebase Crashlytics + DiagnosticsLogger
+
+import 'dart:async';
+import 'dart:developer' as developer;
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter/foundation.dart';
+import 'telegram/whatsapp_notification_service.dart';
+
+/// مستويات الأهمية للأخطاء
+enum CrashlyticsSeverity {
+  fatal, // خطأ قاتل - يوقف المزامنة
+  error, // خطأ خطير - يجب الإصلاح
+  warning, // تحذير - يمكن الاستمرار
+  info, // معلومة - للتتبع فقط
+}
+
+/// خدمة Crashlytics لتتبع أخطاء التطبيق والمزامنة
+///
+/// يستخدم:
+/// - Firebase Crashlytics لإرسال التقارير
+/// - DiagnosticsLogger للتسجيل المحلي
+///
+/// الاستخدام:
+/// ```dart
+/// await CrashlyticsService.instance.initialize();
+///
+/// // تسجيل خطأ في شاشة
+/// await CrashlyticsService.instance.recordScreenError(
+///   screen: 'PaymentsScreen',
+///   action: 'processPayment',
+///   error: e,
+///   stackTrace: stack,
+/// );
+///
+/// // تسجيل خطأ مزامنة
+/// await CrashlyticsService.instance.recordSyncError(
+///   operation: 'push_bookings',
+///   error: e.toString(),
+///   severity: CrashlyticsSeverity.error,
+/// );
+/// ```
+class CrashlyticsService {
+  factory CrashlyticsService() => _instance;
+  CrashlyticsService._internal();
+  static final CrashlyticsService _instance = CrashlyticsService._internal();
+  static CrashlyticsService get instance => _instance;
+
+  FirebaseCrashlytics? _crashlytics;
+  bool _isEnabled = true;
+  bool _isInitialized = false;
+  bool _isFirebaseConnected = false;
+  final List<Map<String, dynamic>> _errorHistory = [];
+  static const int _maxHistorySize = 100;
+
+  /// هل تم التهيئة؟ (دائماً true بعد التهيئة)
+  bool get isInitialized => _isInitialized;
+
+  /// هل Firebase متصل بنجاح؟
+  bool get isFirebaseConnected => _isFirebaseConnected;
+
+  /// تهيئة الخدمة — يجب استدعاؤها في main()
+  /// يعمل دائماً حتى لو فشل Firebase — التسجيل المحلي متاح
+  Future<void> initialize() async {
+    if (_isInitialized) {
+      return;
+    }
+
+    try {
+      _crashlytics = FirebaseCrashlytics.instance;
+
+      // في وضع التطوير: نفعّل Crashlytics أيضاً للاختبار
+      // في وضع الإنتاج: يُفعّل دائماً
+      await _crashlytics!.setCrashlyticsCollectionEnabled(true);
+
+      // إعداد مفاتيح مخصصة عامة
+      await _crashlytics!.setCustomKey('app_name', 'marina_hotel');
+      await _crashlytics!.setCustomKey('app_version', '1.0.0');
+      await _crashlytics!.log('CrashlyticsService initialized');
+
+      _isFirebaseConnected = true;
+      _isInitialized = true;
+
+      developer.log(
+        '✅ CrashlyticsService initialized (${kDebugMode ? 'DEBUG' : 'RELEASE'})',
+        name: 'CrashlyticsService',
+      );
+    } catch (e) {
+      developer.log(
+        '⚠️ Crashlytics Firebase failed — local logging active: $e',
+        name: 'CrashlyticsService',
+      );
+      // حتى لو فشل Firebase، الخدمة تعمل بالتسجيل المحلي
+      _isFirebaseConnected = false;
+      _isInitialized = true;
+    }
+  }
+
+  /// تهيئة معالجات الأخطاء العامة — يُستدعى بعد initialize()
+  ///
+  /// يربط FlutterError.onError و PlatformDispatcher.onError بـ Crashlytics
+  /// مع الحفاظ على DiagnosticsLogger
+  void setupErrorHandlers({
+    required void Function(FlutterErrorDetails) originalFlutterHandler,
+    required void Function(Object error, StackTrace stack)
+    originalPlatformHandler,
+    required void Function(Object error, StackTrace stack) originalZonedHandler,
+  }) {
+    // Flutter errors (تُرسل إلى Crashlytics + الأصلية)
+    FlutterError.onError = (details) {
+      _recordFlutterError(details);
+      originalFlutterHandler(details); // DiagnosticsLogger
+    };
+
+    // Platform errors (Isolate errors)
+    PlatformDispatcher.instance.onError = (error, stack) {
+      _recordPlatformError(error, stack);
+      originalPlatformHandler(error, stack); // DiagnosticsLogger
+      return true;
+    };
+  }
+
+  /// تمكين/تعطيل الخدمة
+  void setEnabled(bool enabled) {
+    _isEnabled = enabled;
+    _crashlytics?.setCrashlyticsCollectionEnabled(enabled);
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  تسجيل أخطاء الشاشات
+  // ═══════════════════════════════════════════════════════════════
+
+  /// تسجيل خطأ في شاشة محددة
+  ///
+  /// يُستخدم داخل try-catch في أي شاشة:
+  /// ```dart
+  /// try {
+  ///   await processPayment();
+  /// } catch (e, stack) {
+  ///   await CrashlyticsService.instance.recordScreenError(
+  ///     screen: 'PaymentsScreen',
+  ///     action: 'processPayment',
+  ///     error: e,
+  ///     stackTrace: stack,
+  ///   );
+  /// }
+  /// ```
+  Future<void> recordScreenError({
+    required String screen,
+    required String action,
+    required dynamic error,
+    StackTrace? stackTrace,
+    CrashlyticsSeverity severity = CrashlyticsSeverity.error,
+    Map<String, dynamic> extra = const {},
+  }) async {
+    if (!_isEnabled || !_isInitialized) {
+      return;
+    }
+
+    final errorStr = error.toString();
+
+    // حفظ في التاريخ المحلي
+    _addToHistory('screen', screen, action, errorStr, severity);
+
+    // تسجيل في developer log
+    developer.log(
+      '💥 [$screen] $action: $errorStr',
+      name: 'Crashlytics',
+      error: error,
+      stackTrace: stackTrace,
+    );
+
+    // إرسال إلى Firebase Crashlytics
+    try {
+      await _crashlytics?.setCustomKey('screen', screen);
+      await _crashlytics?.setCustomKey('action', action);
+      await _crashlytics?.setCustomKey('severity', severity.name);
+
+      for (final entry in extra.entries) {
+        await _crashlytics?.setCustomKey(
+          'screen_${entry.key}',
+          entry.value.toString(),
+        );
+      }
+
+      await _crashlytics?.recordError(
+        error,
+        stackTrace ?? StackTrace.current,
+        reason: '$screen — $action',
+        fatal: severity == CrashlyticsSeverity.fatal,
+        information: [
+          'Screen: $screen',
+          'Action: $action',
+          'Severity: ${severity.name}',
+          ...extra.entries.map((e) => '${e.key}: ${e.value}'),
+        ],
+      );
+    } catch (_) {
+      // لا نوقف التطبيق بسبب فشل Crashlytics
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  تسجيل أخطاء المزامنة
+  // ═══════════════════════════════════════════════════════════════
+
+  /// تسجيل خطأ مزامنة
+  Future<void> recordSyncError({
+    required String operation,
+    required String error,
+    StackTrace? stackTrace,
+    CrashlyticsSeverity severity = CrashlyticsSeverity.error,
+    Map<String, dynamic> context = const {},
+  }) async {
+    if (!_isEnabled || !_isInitialized) {
+      return;
+    }
+
+    _addToHistory('sync', operation, '', error, severity);
+
+    developer.log(
+      '💥 Sync Error [$severity]: $operation - $error',
+      name: 'Crashlytics',
+      error: error,
+      stackTrace: stackTrace,
+    );
+
+    try {
+      await _crashlytics?.setCustomKey('last_sync_operation', operation);
+      await _crashlytics?.setCustomKey(
+        'sync_error_count',
+        _errorHistory.length,
+      );
+
+      for (final entry in context.entries) {
+        await _crashlytics?.setCustomKey(
+          'sync_ctx_${entry.key}',
+          entry.value.toString(),
+        );
+      }
+
+      final isFatal = severity == CrashlyticsSeverity.fatal;
+      await _crashlytics?.recordError(
+        Exception('[$operation] $error'),
+        stackTrace ?? StackTrace.current,
+        reason: operation,
+        fatal: isFatal,
+        information: [
+          'Operation: $operation',
+          'Severity: ${severity.name}',
+          ...context.entries.map((e) => '${e.key}: ${e.value}'),
+        ],
+      );
+    } catch (_) {}
+  }
+
+  /// تسجيل خطأ قاتل في المزامنة
+  Future<void> recordFatalSyncError({
+    required String operation,
+    required dynamic error,
+    StackTrace? stackTrace,
+    Map<String, dynamic> context = const {},
+  }) async {
+    await recordSyncError(
+      operation: operation,
+      error: error.toString(),
+      stackTrace: stackTrace,
+      severity: CrashlyticsSeverity.fatal,
+      context: context,
+    );
+    // إرسال تنبيه WhatsApp فوري للأخطاء القاتلة
+    unawaited(
+      WhatsAppNotificationService.instance.notifySyncError(
+        operation: operation,
+        error: error.toString().substring(
+          0,
+          error.toString().length > 200 ? 200 : error.toString().length,
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  تسجيل أخطاء عامة
+  // ═══════════════════════════════════════════════════════════════
+
+  /// تسجيل خطأ غير متوقع
+  Future<void> recordUnexpectedError({
+    required dynamic error,
+    StackTrace? stackTrace,
+    String? context,
+  }) async {
+    if (!_isEnabled || !_isInitialized) {
+      return;
+    }
+
+    try {
+      await _crashlytics?.recordError(
+        error,
+        stackTrace ?? StackTrace.current,
+        reason: context ?? 'unexpected_error',
+      );
+    } catch (_) {}
+  }
+
+  /// تسجيل رسالة سجل (log)
+  Future<void> log(String message) async {
+    if (!_isEnabled || !_isInitialized) {
+      return;
+    }
+
+    try {
+      await _crashlytics?.log(message);
+    } catch (_) {}
+  }
+
+  /// تسجيل خطأ معزز مع سياق كامل
+  Future<void> recordErrorWithContext({
+    required String title,
+    required dynamic error,
+    StackTrace? stackTrace,
+    bool fatal = false,
+    Map<String, dynamic>? customKeys,
+  }) async {
+    if (!_isEnabled || !_isInitialized) {
+      return;
+    }
+
+    try {
+      if (customKeys != null) {
+        for (final entry in customKeys.entries) {
+          await _crashlytics?.setCustomKey(entry.key, entry.value.toString());
+        }
+      }
+
+      await _crashlytics?.recordError(
+        error,
+        stackTrace ?? StackTrace.current,
+        reason: title,
+        fatal: fatal,
+        information:
+            customKeys?.entries.map((e) => '${e.key}: ${e.value}').toList() ??
+            [],
+      );
+    } catch (_) {}
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  إدارة المستخدم والسياق
+  // ═══════════════════════════════════════════════════════════════
+
+  /// تسجيل معرف المستخدم
+  Future<void> setUserIdentifier(String userId) async {
+    if (!_isEnabled || !_isInitialized) {
+      return;
+    }
+
+    try {
+      await _crashlytics?.setUserIdentifier(userId);
+    } catch (_) {}
+  }
+
+  /// تعيين مفتاح مخصص
+  Future<void> setCustomKey(String key, dynamic value) async {
+    if (!_isEnabled || !_isInitialized) {
+      return;
+    }
+
+    try {
+      await _crashlytics?.setCustomKey(key, value.toString());
+    } catch (_) {}
+  }
+
+  /// تعيين اسم الشاشة الحالية (للتتبع)
+  Future<void> setCurrentScreen(String screenName) async {
+    await log('SCREEN: $screenName');
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  إدارة التقارير
+  // ═══════════════════════════════════════════════════════════════
+
+  /// إجبار إرسال التقارير المعلقة
+  Future<void> sendUnsentReports() async {
+    if (!_isEnabled || !_isInitialized) {
+      return;
+    }
+
+    try {
+      await _crashlytics?.sendUnsentReports();
+    } catch (_) {}
+  }
+
+  /// الحصول على تاريخ الأخطاء
+  List<Map<String, dynamic>> getErrorHistory() =>
+      List.unmodifiable(_errorHistory);
+
+  /// مسح تاريخ الأخطاء
+  void clearErrorHistory() {
+    _errorHistory.clear();
+  }
+
+  /// عدد الأخطاء المسجلة
+  int get errorCount => _errorHistory.length;
+
+  // ═══════════════════════════════════════════════════════════════
+  //  دوال خاصة
+  // ═══════════════════════════════════════════════════════════════
+
+  void _recordFlutterError(FlutterErrorDetails details) {
+    if (!_isEnabled || !_isInitialized) {
+      return;
+    }
+
+    try {
+      _crashlytics?.recordFlutterFatalError(details);
+    } catch (_) {}
+  }
+
+  void _recordPlatformError(Object error, StackTrace stack) {
+    if (!_isEnabled || !_isInitialized) {
+      return;
+    }
+
+    try {
+      _crashlytics?.recordError(error, stack, fatal: true);
+    } catch (_) {}
+  }
+
+  void _addToHistory(
+    String category,
+    String source,
+    String action,
+    String error,
+    CrashlyticsSeverity severity,
+  ) {
+    _errorHistory.add({
+      'category': category,
+      'source': source,
+      'action': action,
+      'error': error,
+      'severity': severity.name,
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+
+    if (_errorHistory.length > _maxHistorySize) {
+      _errorHistory.removeAt(0);
+    }
+  }
+}
