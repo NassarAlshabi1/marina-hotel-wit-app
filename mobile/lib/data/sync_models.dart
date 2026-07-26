@@ -1,1 +1,314 @@
-aW1wb3J0ICdkYXJ0OmNvbnZlcnQnOwppbXBvcnQgJ3BhY2thZ2U6Y3J5cHRvL2NyeXB0by5kYXJ0JzsKCi8vLyDYrdin2YTYqSDYp9mE2YXYstin2YXZhtipINin2YTYrdin2YTZitipINmE2KjYqyDYp9mE2KrYrdiv2YrYq9in2Kog2KXZhNmJINin2YTZiNin2KzZh9ipCmNsYXNzIFN5bmNTdGF0dXMgewogIFN5bmNTdGF0dXMoewogICAgcmVxdWlyZWQgdGhpcy5waGFzZSwKICAgIHJlcXVpcmVkIHRoaXMubWVzc2FnZSwKICAgIHRoaXMucHJvZ3Jlc3MsCiAgICB0aGlzLmVycm9yLAogIH0pOwoKICBmaW5hbCBTeW5jUGhhc2UgcGhhc2U7CiAgZmluYWwgU3RyaW5nIG1lc3NhZ2U7CiAgZmluYWwgZG91YmxlPyBwcm9ncmVzczsKICBmaW5hbCBPYmplY3Q/IGVycm9yOwoKICBTeW5jU3RhdHVzIGNvcHlXaXRoKHsKICAgIFN5bmNQaGFzZT8gcGhhc2UsCiAgICBTdHJpbmc/IG1lc3NhZ2UsCiAgICBkb3VibGU/IHByb2dyZXNzLAogICAgT2JqZWN0PyBlcnJvciwKICB9KSB7CiAgICByZXR1cm4gU3luY1N0YXR1cygKICAgICAgcGhhc2U6IHBoYXNlID8/IHRoaXMucGhhc2UsCiAgICAgIG1lc3NhZ2U6IG1lc3NhZ2UgPz8gdGhpcy5tZXNzYWdlLAogICAgICBwcm9ncmVzczogcHJvZ3Jlc3MgPz8gdGhpcy5wcm9ncmVzcywKICAgICAgZXJyb3I6IGVycm9yLCAvLyBudWxsINmK2YXYs9itINin2YTYrti32KMKICAgICk7CiAgfQp9CgovLy8g2KfZhNmF2LHYp9it2YQg2KfZhNi52KfZhdipINmE2K/ZiNix2Kkg2KfZhNmF2LLYp9mF2YbYqQplbnVtIFN5bmNQaGFzZSB7IGlkbGUsIHByZXBhcmluZywgcHVzaGluZywgcHVsbGluZywgbWVyZ2luZywgY29tcGxldGluZywgZXJyb3IgfQoKLy8vINio2YrYp9mG2KfYqiDYp9mE2KrYudix2YrZgSDYp9mE2YXYsdin2YHZgtipINmE2YTZhdmE2YEg2KfZhNix2KbZitiz2Yog2YHZiiBHb29nbGUgRHJpdmUKY2xhc3MgU3luY01ldGFkYXRhIHsKICBTeW5jTWV0YWRhdGEoewogICAgcmVxdWlyZWQgdGhpcy52ZXJzaW9uLAogICAgcmVxdWlyZWQgdGhpcy5sYXN0VXBkYXRlZEF0LAogICAgcmVxdWlyZWQgdGhpcy5kZXZpY2VQcmlvcml0eSwKICAgIHJlcXVpcmVkIHRoaXMuc25hcHNob3RTaXplLAogICAgcmVxdWlyZWQgdGhpcy5sYXN0U3luY0lkLAogICAgcmVxdWlyZWQgdGhpcy5jaGVja3N1bSwKICAgIHJlcXVpcmVkIHRoaXMubGFzdERldmljZUlkLAogIH0pOwoKICBmYWN0b3J5IFN5bmNNZXRhZGF0YS5mcm9tSnNvbihNYXA8U3RyaW5nLCBkeW5hbWljPiBqc29uKSB7CiAgICByZXR1cm4gU3luY01ldGFkYXRhKAogICAgICB2ZXJzaW9uOiBqc29uWyd2ZXJzaW9uJ10gYXMgaW50PyA/PyAxLAogICAgICBsYXN0VXBkYXRlZEF0OiBqc29uWydsYXN0VXBkYXRlZEF0J10gYXMgU3RyaW5nPyA/PyAnJywKICAgICAgZGV2aWNlUHJpb3JpdHk6IGpzb25bJ2RldmljZVByaW9yaXR5J10gYXMgaW50PyA/PyAwLAogICAgICBzbmFwc2hvdFNpemU6IGpzb25bJ3NuYXBzaG90U2l6ZSddIGFzIGludD8gPz8gMCwKICAgICAgbGFzdFN5bmNJZDoganNvblsnbGFzdFN5bmNJZCddIGFzIFN0cmluZz8gPz8gJycsCiAgICAgIGNoZWNrc3VtOiBqc29uWydjaGVja3N1bSddIGFzIFN0cmluZz8gPz8gJycsCiAgICAgIGxhc3REZXZpY2VJZDoganNvblsnbGFzdERldmljZUlkJ10gYXMgU3RyaW5nPyA/PyAnJywKICAgICk7CiAgfQoKICBmaW5hbCBpbnQgdmVyc2lvbjsKICBmaW5hbCBTdHJpbmcgbGFzdFVwZGF0ZWRBdDsKICBmaW5hbCBpbnQgZGV2aWNlUHJpb3JpdHk7CiAgZmluYWwgaW50IHNuYXBzaG90U2l6ZTsKICBmaW5hbCBTdHJpbmcgbGFzdFN5bmNJZDsKICBmaW5hbCBTdHJpbmcgY2hlY2tzdW07CiAgZmluYWwgU3RyaW5nIGxhc3REZXZpY2VJZDsKCiAgTWFwPFN0cmluZywgZHluYW1pYz4gdG9Kc29uKCkgewogICAgcmV0dXJuIHsKICAgICAgJ3ZlcnNpb24nOiB2ZXJzaW9uLAogICAgICAnbGFzdFVwZGF0ZWRBdCc6IGxhc3RVcGRhdGVkQXQsCiAgICAgICdkZXZpY2VQcmlvcml0eSc6IGRldmljZVByaW9yaXR5LAogICAgICAnc25hcHNob3RTaXplJzogc25hcHNob3RTaXplLAogICAgICAnbGFzdFN5bmNJZCc6IGxhc3RTeW5jSWQsCiAgICAgICdjaGVja3N1bSc6IGNoZWNrc3VtLAogICAgICAnbGFzdERldmljZUlkJzogbGFzdERldmljZUlkLAogICAgfTsKICB9Cn0KCi8vLyDYrdin2YjZitipINin2YTZhNmC2LfYqSDYp9mE2YPYp9mF2YTYqSDZhNis2YXZiti5INin2YTYrNiv2KfZiNmECmNsYXNzIFN5bmNTbmFwc2hvdCB7CiAgU3luY1NuYXBzaG90KHtyZXF1aXJlZCB0aGlzLm1ldGFkYXRhLCByZXF1aXJlZCB0aGlzLnRhYmxlc30pOwoKICBmYWN0b3J5IFN5bmNTbmFwc2hvdC5mcm9tSnNvbihNYXA8U3RyaW5nLCBkeW5hbWljPiBqc29uKSB7CiAgICBmaW5hbCByYXdUYWJsZXMgPSBqc29uWyd0YWJsZXMnXSBhcyBNYXA8U3RyaW5nLCBkeW5hbWljPj8gPz8ge307CiAgICBmaW5hbCBwYXJzZWRUYWJsZXMgPSA8U3RyaW5nLCBMaXN0PE1hcDxTdHJpbmcsIGR5bmFtaWM+Pj57fTsKICAgIGZvciAoZmluYWwgZW50cnkgaW4gcmF3VGFibGVzLmVudHJpZXMpIHsKICAgICAgZmluYWwgbGlzdCA9IChlbnRyeS52YWx1ZSBhcyBMaXN0PGR5bmFtaWM+PyA/PyBbXSkKICAgICAgICAgIC5tYXAoKGl0ZW0pID0+IE1hcDxTdHJpbmcsIGR5bmFtaWM+LmZyb20oaXRlbSBhcyBNYXApKQogICAgICAgICAgLnRvTGlzdCgpOwogICAgICBwYXJzZWRUYWJsZXNbZW50cnkua2V5XSA9IGxpc3Q7CiAgICB9CiAgICBmaW5hbCBtZXRhZGF0YVNvdXJjZSA9IGpzb25bJ21ldGFkYXRhJ107CiAgICBmaW5hbCBtZXRhZGF0YUpzb24gPSBtZXRhZGF0YVNvdXJjZSBpcyBNYXAKICAgICAgICA/IE1hcDxTdHJpbmcsIGR5bmFtaWM+LmZyb20obWV0YWRhdGFTb3VyY2UpCiAgICAgICAgOiA8U3RyaW5nLCBkeW5hbWljPnt9OwogICAgcmV0dXJuIFN5bmNTbmFwc2hvdCgKICAgICAgbWV0YWRhdGE6IFN5bmNNZXRhZGF0YS5mcm9tSnNvbihtZXRhZGF0YUpzb24pLAogICAgICB0YWJsZXM6IHBhcnNlZFRhYmxlcywKICAgICk7CiAgfQoKICBmaW5hbCBTeW5jTWV0YWRhdGEgbWV0YWRhdGE7CiAgZmluYWwgTWFwPFN0cmluZywgTGlzdDxNYXA8U3RyaW5nLCBkeW5hbWljPj4+IHRhYmxlczsKCiAgTWFwPFN0cmluZywgZHluYW1pYz4gdG9Kc29uKCkgewogICAgcmV0dXJuIHsnbWV0YWRhdGEnOiBtZXRhZGF0YS50b0pzb24oKSwgJ3RhYmxlcyc6IHRhYmxlc307CiAgfQp9CgovLy8g2LnZhti12LEg2YXZhiDYt9in2KjZiNixINin2YTYqti62YrZitix2KfYqiDYp9mE2YXYrdmE2YoKY2xhc3MgU3luY1F1ZXVlRW50cnkgewogIFN5bmNRdWV1ZUVudHJ5KHsKICAgIHJlcXVpcmVkIHRoaXMuaWQsCiAgICByZXF1aXJlZCB0aGlzLnV1aWQsCiAgICByZXF1aXJlZCB0aGlzLnRhYmxlTmFtZSwKICAgIHJlcXVpcmVkIHRoaXMub3BlcmF0aW9uLAogICAgcmVxdWlyZWQgdGhpcy5wYXlsb2FkLAogICAgcmVxdWlyZWQgdGhpcy51cGRhdGVkQXQsCiAgICByZXF1aXJlZCB0aGlzLmRldmljZUlkLAogICAgcmVxdWlyZWQgdGhpcy5zdGF0dXMsCiAgfSk7CgogIGZhY3RvcnkgU3luY1F1ZXVlRW50cnkuZnJvbUpzb24oTWFwPFN0cmluZywgZHluYW1pYz4ganNvbikgewogICAgcmV0dXJuIFN5bmNRdWV1ZUVudHJ5KAogICAgICBpZDoganNvblsnaWQnXSBhcyBpbnQ/ID8/IDAsCiAgICAgIHV1aWQ6IGpzb25bJ3V1aWQnXSBhcyBTdHJpbmc/ID8/ICcnLAogICAgICB0YWJsZU5hbWU6IGpzb25bJ3RhYmxlTmFtZSddIGFzIFN0cmluZz8gPz8gJycsCiAgICAgIG9wZXJhdGlvbjoganNvblsnb3BlcmF0aW9uJ10gYXMgU3RyaW5nPyA/PyAndXBkYXRlJywKICAgICAgcGF5bG9hZDogTWFwPFN0cmluZywgZHluYW1pYz4uZnJvbShqc29uWydwYXlsb2FkJ10gYXMgTWFwPyA/PyB7fSksCiAgICAgIHVwZGF0ZWRBdDoganNvblsndXBkYXRlZEF0J10gYXMgU3RyaW5nPyA/PyAnJywKICAgICAgZGV2aWNlSWQ6IGpzb25bJ2RldmljZUlkJ10gYXMgU3RyaW5nPyA/PyAnJywKICAgICAgc3RhdHVzOiBqc29uWydzdGF0dXMnXSBhcyBTdHJpbmc/ID8/ICdwZW5kaW5nJywKICAgICk7CiAgfQoKICBmaW5hbCBpbnQgaWQ7CiAgZmluYWwgU3RyaW5nIHV1aWQ7CiAgZmluYWwgU3RyaW5nIHRhYmxlTmFtZTsKICBmaW5hbCBTdHJpbmcgb3BlcmF0aW9uOwogIGZpbmFsIE1hcDxTdHJpbmcsIGR5bmFtaWM+IHBheWxvYWQ7CiAgZmluYWwgU3RyaW5nIHVwZGF0ZWRBdDsKICBmaW5hbCBTdHJpbmcgZGV2aWNlSWQ7CiAgZmluYWwgU3RyaW5nIHN0YXR1czsKCiAgTWFwPFN0cmluZywgZHluYW1pYz4gdG9Kc29uKCkgewogICAgcmV0dXJuIHsKICAgICAgJ2lkJzogaWQsCiAgICAgICd1dWlkJzogdXVpZCwKICAgICAgJ3RhYmxlTmFtZSc6IHRhYmxlTmFtZSwKICAgICAgJ29wZXJhdGlvbic6IG9wZXJhdGlvbiwKICAgICAgJ3BheWxvYWQnOiBwYXlsb2FkLAogICAgICAndXBkYXRlZEF0JzogdXBkYXRlZEF0LAogICAgICAnZGV2aWNlSWQnOiBkZXZpY2VJZCwKICAgICAgJ3N0YXR1cyc6IHN0YXR1cywKICAgIH07CiAgfQp9CgovLy8g2YbYqtmK2KzYqSDYp9mE2K/ZhdisINiq2K3YqtmI2Yog2LnZhNmJINin2YTZhtiz2K7YqSDYp9mE2YXYrdiv2KvYqSDZiNmC2KfYptmF2Kkg2KfZhNi52YXZhNmK2KfYqiDYp9mE2YXYt9io2YLYqQpjbGFzcyBTeW5jTWVyZ2VSZXN1bHQgewogIFN5bmNNZXJnZVJlc3VsdCh7CiAgICByZXF1aXJlZCB0aGlzLm1lcmdlZFNuYXBzaG90LAogICAgcmVxdWlyZWQgdGhpcy5hcHBsaWVkT3BlcmF0aW9ucywKICAgIHJlcXVpcmVkIHRoaXMuY29uZmxpY3RzLAogIH0pOwoKICBmaW5hbCBTeW5jU25hcHNob3QgbWVyZ2VkU25hcHNob3Q7CiAgZmluYWwgTGlzdDxTeW5jT3BlcmF0aW9uPiBhcHBsaWVkT3BlcmF0aW9uczsKICBmaW5hbCBMaXN0PFN5bmNDb25mbGljdE1vZGVsPiBjb25mbGljdHM7Cn0KCi8vLyDYudmF2YTZitipINiq2YXYqiDYo9ir2YbYp9ihINin2YTYr9mF2KwgKNil2K/Ysdin2Kwv2KrYrdiv2YrYqy/Yrdiw2YEpCmNsYXNzIFN5bmNPcGVyYXRpb24gewogIFN5bmNPcGVyYXRpb24oewogICAgcmVxdWlyZWQgdGhpcy50YWJsZSwKICAgIHJlcXVpcmVkIHRoaXMudXVpZCwKICAgIHJlcXVpcmVkIHRoaXMub3BlcmF0aW9uLAogICAgcmVxdWlyZWQgdGhpcy5wYXlsb2FkLAogICAgcmVxdWlyZWQgdGhpcy50aW1lc3RhbXAsCiAgfSk7CgogIGZpbmFsIFN0cmluZyB0YWJsZTsKICBmaW5hbCBTdHJpbmcgdXVpZDsKICBmaW5hbCBTdHJpbmcgb3BlcmF0aW9uOwogIGZpbmFsIE1hcDxTdHJpbmcsIGR5bmFtaWM+IHBheWxvYWQ7CiAgZmluYWwgU3RyaW5nIHRpbWVzdGFtcDsKfQoKLy8vINiz2KzZhCDYqti22KfYsdioINiq2YUg2KfZg9iq2LTYp9mB2Ycg2KPYq9mG2KfYoSDYp9mE2K/ZhdisCmNsYXNzIFN5bmNDb25mbGljdE1vZGVsIHsKICBTeW5jQ29uZmxpY3RNb2RlbCh7CiAgICByZXF1aXJlZCB0aGlzLnRhYmxlLAogICAgcmVxdWlyZWQgdGhpcy51dWlkLAogICAgcmVxdWlyZWQgdGhpcy5sb2NhbFBheWxvYWQsCiAgICByZXF1aXJlZCB0aGlzLnJlbW90ZVBheWxvYWQsCiAgICByZXF1aXJlZCB0aGlzLnJlc29sdXRpb24sCiAgfSk7CgogIGZpbmFsIFN0cmluZyB0YWJsZTsKICBmaW5hbCBTdHJpbmcgdXVpZDsKICBmaW5hbCBNYXA8U3RyaW5nLCBkeW5hbWljPiBsb2NhbFBheWxvYWQ7CiAgZmluYWwgTWFwPFN0cmluZywgZHluYW1pYz4gcmVtb3RlUGF5bG9hZDsKICBmaW5hbCBTdHJpbmcgcmVzb2x1dGlvbjsKCiAgTWFwPFN0cmluZywgZHluYW1pYz4gdG9Kc29uKCkgewogICAgcmV0dXJuIHsKICAgICAgJ3RhYmxlJzogdGFibGUsCiAgICAgICd1dWlkJzogdXVpZCwKICAgICAgJ2xvY2FsUGF5bG9hZCc6IGxvY2FsUGF5bG9hZCwKICAgICAgJ3JlbW90ZVBheWxvYWQnOiByZW1vdGVQYXlsb2FkLAogICAgICAncmVzb2x1dGlvbic6IHJlc29sdXRpb24sCiAgICB9OwogIH0KfQoKLy8vINij2K/Yp9ipINmF2LPYp9i52K/YqSDZhNit2LPYp9ioINiq2KzYstim2Kkg2KvYp9io2KrYqSDZhNij2YogSlNPTgpjbGFzcyBTeW5jQ2hlY2tzdW0gewogIFN5bmNDaGVja3N1bS5fKCk7CgogIHN0YXRpYyBTdHJpbmcgY29tcHV0ZShNYXA8U3RyaW5nLCBkeW5hbWljPiBkYXRhKSB7CiAgICBmaW5hbCBub3JtYWxpemVkID0gbm9ybWFsaXplKGRhdGEpOwogICAgZmluYWwgYnl0ZXMgPSB1dGY4LmVuY29kZShqc29uRW5jb2RlKG5vcm1hbGl6ZWQpKTsKICAgIGZpbmFsIGRpZ2VzdCA9IHNoYTI1Ni5jb252ZXJ0KGJ5dGVzKTsKICAgIHJldHVybiBkaWdlc3QudG9TdHJpbmcoKTsKICB9CgogIC8vLyDYrdiz2KfYqCBjaGVja3N1bSDZiNi32YjZhCDYp9mE2KjZitin2YbYp9iqINin2YTYrtin2YUg2YHZiiBtZXRob2Qg2YjYp9it2K8KICAvLy8g2YTYqtis2YbYqCDYqtiz2YTYs9mEINin2YTZgCBKU09OINmF2LHYqtmK2YYuCiAgc3RhdGljICh7U3RyaW5nIGNoZWNrc3VtLCBpbnQgcmF3Qnl0ZUxlbmd0aH0pIGNvbXB1dGVXaXRoTGVuZ3RoKAogICAgTWFwPFN0cmluZywgZHluYW1pYz4gZGF0YSwKICApIHsKICAgIGZpbmFsIG5vcm1hbGl6ZWQgPSBub3JtYWxpemUoZGF0YSk7CiAgICBmaW5hbCBub3JtYWxpemVkQnl0ZXMgPSB1dGY4LmVuY29kZShqc29uRW5jb2RlKG5vcm1hbGl6ZWQpKTsKICAgIGZpbmFsIGNoZWNrc3VtID0gc2hhMjU2LmNvbnZlcnQobm9ybWFsaXplZEJ5dGVzKS50b1N0cmluZygpOwogICAgZmluYWwgcmF3Qnl0ZXMgPSB1dGY4LmVuY29kZShqc29uRW5jb2RlKGRhdGEpKTsKICAgIHJldHVybiAoY2hlY2tzdW06IGNoZWNrc3VtLCByYXdCeXRlTGVuZ3RoOiByYXdCeXRlcy5sZW5ndGgpOwogIH0KCiAgLy8vINiq2LfYqNmK2Lkg2KfZhNio2YrYp9mG2KfYqiAo2KrYsdiq2YrYqCDYp9mE2YXZgdin2KrZititINio2LTZg9mEINiq2YPYsdin2LHZiikg2YTYttmF2KfZhiDYqtmG2KfYs9mCINin2YTZgCBjaGVja3N1bS4KICBzdGF0aWMgTWFwPFN0cmluZywgZHluYW1pYz4gbm9ybWFsaXplKE1hcDxTdHJpbmcsIGR5bmFtaWM+IGlucHV0KSB7CiAgICBmaW5hbCBzb3J0ZWRLZXlzID0gaW5wdXQua2V5cy50b0xpc3QoKS4uc29ydCgpOwogICAgZmluYWwgcmVzdWx0ID0gPFN0cmluZywgZHluYW1pYz57fTsKICAgIGZvciAoZmluYWwga2V5IGluIHNvcnRlZEtleXMpIHsKICAgICAgZmluYWwgdmFsdWUgPSBpbnB1dFtrZXldOwogICAgICBpZiAodmFsdWUgaXMgTWFwKSB7CiAgICAgICAgcmVzdWx0W2tleV0gPSBub3JtYWxpemUoTWFwPFN0cmluZywgZHluYW1pYz4uZnJvbSh2YWx1ZSkpOwogICAgICB9IGVsc2UgaWYgKHZhbHVlIGlzIExpc3QpIHsKICAgICAgICByZXN1bHRba2V5XSA9IHZhbHVlLm1hcCgoaXRlbSkgewogICAgICAgICAgaWYgKGl0ZW0gaXMgTWFwKSB7CiAgICAgICAgICAgIHJldHVybiBub3JtYWxpemUoTWFwPFN0cmluZywgZHluYW1pYz4uZnJvbShpdGVtKSk7CiAgICAgICAgICB9CiAgICAgICAgICByZXR1cm4gaXRlbTsKICAgICAgICB9KS50b0xpc3QoKTsKICAgICAgfSBlbHNlIHsKICAgICAgICByZXN1bHRba2V5XSA9IHZhbHVlOwogICAgICB9CiAgICB9CiAgICByZXR1cm4gcmVzdWx0OwogIH0KfQoKLy8vINmG2KrZitis2Kkg2LnZhdmE2YrYqSDYp9mE2YXYstin2YXZhtipINmF2Lkg2KrZgdin2LXZitmEINin2YTZhtis2KfYrSDZiNin2YTZgdi02YQKY2xhc3MgU3luY1Jlc3VsdCB7CiAgU3luY1Jlc3VsdCh7CiAgICByZXF1aXJlZCB0aGlzLnN1Y2Nlc3MsCiAgICB0aGlzLnN5bmNlZENvdW50ID0gMCwKICAgIHRoaXMuZmFpbGVkQ291bnQgPSAwLAogICAgdGhpcy5mYWlsZWRJdGVtcyA9IGNvbnN0IFtdLAogICAgdGhpcy5lcnJvck1lc3NhZ2UsCiAgfSk7CgogIGZpbmFsIGJvb2wgc3VjY2VzczsKICBmaW5hbCBpbnQgc3luY2VkQ291bnQ7CiAgZmluYWwgaW50IGZhaWxlZENvdW50OwogIGZpbmFsIExpc3Q8ZHluYW1pYz4gZmFpbGVkSXRlbXM7CiAgZmluYWwgU3RyaW5nPyBlcnJvck1lc3NhZ2U7CgogIGJvb2wgZ2V0IGhhc1BhcnRpYWxGYWlsdXJlID0+ICFzdWNjZXNzICYmIHN5bmNlZENvdW50ID4gMDsKCiAgTWFwPFN0cmluZywgZHluYW1pYz4gdG9Kc29uKCkgewogICAgcmV0dXJuIHsKICAgICAgJ3N1Y2Nlc3MnOiBzdWNjZXNzLAogICAgICAnc3luY2VkQ291bnQnOiBzeW5jZWRDb3VudCwKICAgICAgJ2ZhaWxlZENvdW50JzogZmFpbGVkQ291bnQsCiAgICAgICdmYWlsZWRJdGVtcyc6IGZhaWxlZEl0ZW1zLAogICAgICAnaGFzUGFydGlhbEZhaWx1cmUnOiBoYXNQYXJ0aWFsRmFpbHVyZSwKICAgICAgJ2Vycm9yTWVzc2FnZSc6IGVycm9yTWVzc2FnZSwKICAgIH07CiAgfQp9CgovLy8g2YbYqtmK2KzYqSDYp9mE2KrYrdmC2YIg2YXZhiDYtdit2KkgTWlycm9yCmNsYXNzIE1pcnJvclZhbGlkYXRpb25SZXN1bHQgewogIE1pcnJvclZhbGlkYXRpb25SZXN1bHQoewogICAgcmVxdWlyZWQgdGhpcy5pc1ZhbGlkLAogICAgcmVxdWlyZWQgdGhpcy5pc3N1ZXMsCiAgICByZXF1aXJlZCB0aGlzLnZhbGlkYXRlZEF0LAogIH0pOwoKICBmaW5hbCBib29sIGlzVmFsaWQ7CiAgZmluYWwgTGlzdDxTdHJpbmc+IGlzc3VlczsKICBmaW5hbCBEYXRlVGltZSB2YWxpZGF0ZWRBdDsKCiAgTWFwPFN0cmluZywgZHluYW1pYz4gdG9Kc29uKCkgewogICAgcmV0dXJuIHsKICAgICAgJ2lzVmFsaWQnOiBpc1ZhbGlkLAogICAgICAnaXNzdWVzQ291bnQnOiBpc3N1ZXMubGVuZ3RoLAogICAgICAnaXNzdWVzJzogaXNzdWVzLAogICAgICAndmFsaWRhdGVkQXQnOiB2YWxpZGF0ZWRBdC50b0lzbzg2MDFTdHJpbmcoKSwKICAgIH07CiAgfQp9Cg==
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
+
+/// حالة المزامنة الحالية لبث التحديثات إلى الواجهة
+class SyncStatus {
+  SyncStatus({
+    required this.phase,
+    required this.message,
+    this.progress,
+    this.error,
+  });
+
+  final SyncPhase phase;
+  final String message;
+  final double? progress;
+  final Object? error;
+
+  SyncStatus copyWith({
+    SyncPhase? phase,
+    String? message,
+    double? progress,
+    Object? error,
+  }) {
+    return SyncStatus(
+      phase: phase ?? this.phase,
+      message: message ?? this.message,
+      progress: progress ?? this.progress,
+      error: error, // null يمسح الخطأ
+    );
+  }
+}
+
+/// المراحل العامة لدورة المزامنة
+enum SyncPhase { idle, preparing, pushing, pulling, merging, completing, error }
+
+/// بيانات التعريف المرافقة للملف الرئيسي في Google Drive
+class SyncMetadata {
+  SyncMetadata({
+    required this.version,
+    required this.lastUpdatedAt,
+    required this.devicePriority,
+    required this.snapshotSize,
+    required this.lastSyncId,
+    required this.checksum,
+    required this.lastDeviceId,
+  });
+
+  factory SyncMetadata.fromJson(Map<String, dynamic> json) {
+    return SyncMetadata(
+      version: json['version'] as int? ?? 1,
+      lastUpdatedAt: json['lastUpdatedAt'] as String? ?? '',
+      devicePriority: json['devicePriority'] as int? ?? 0,
+      snapshotSize: json['snapshotSize'] as int? ?? 0,
+      lastSyncId: json['lastSyncId'] as String? ?? '',
+      checksum: json['checksum'] as String? ?? '',
+      lastDeviceId: json['lastDeviceId'] as String? ?? '',
+    );
+  }
+
+  final int version;
+  final String lastUpdatedAt;
+  final int devicePriority;
+  final int snapshotSize;
+  final String lastSyncId;
+  final String checksum;
+  final String lastDeviceId;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'version': version,
+      'lastUpdatedAt': lastUpdatedAt,
+      'devicePriority': devicePriority,
+      'snapshotSize': snapshotSize,
+      'lastSyncId': lastSyncId,
+      'checksum': checksum,
+      'lastDeviceId': lastDeviceId,
+    };
+  }
+}
+
+/// حاوية اللقطة الكاملة لجميع الجداول
+class SyncSnapshot {
+  SyncSnapshot({required this.metadata, required this.tables});
+
+  factory SyncSnapshot.fromJson(Map<String, dynamic> json) {
+    final rawTables = json['tables'] as Map<String, dynamic>? ?? {};
+    final parsedTables = <String, List<Map<String, dynamic>>>{};
+    for (final entry in rawTables.entries) {
+      final list = (entry.value as List<dynamic>? ?? [])
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
+      parsedTables[entry.key] = list;
+    }
+    final metadataSource = json['metadata'];
+    final metadataJson = metadataSource is Map
+        ? Map<String, dynamic>.from(metadataSource)
+        : <String, dynamic>{};
+    return SyncSnapshot(
+      metadata: SyncMetadata.fromJson(metadataJson),
+      tables: parsedTables,
+    );
+  }
+
+  final SyncMetadata metadata;
+  final Map<String, List<Map<String, dynamic>>> tables;
+
+  Map<String, dynamic> toJson() {
+    return {'metadata': metadata.toJson(), 'tables': tables};
+  }
+}
+
+/// عنصر من طابور التغييرات المحلي
+class SyncQueueEntry {
+  SyncQueueEntry({
+    required this.id,
+    required this.uuid,
+    required this.tableName,
+    required this.operation,
+    required this.payload,
+    required this.updatedAt,
+    required this.deviceId,
+    required this.status,
+  });
+
+  factory SyncQueueEntry.fromJson(Map<String, dynamic> json) {
+    return SyncQueueEntry(
+      id: json['id'] as int? ?? 0,
+      uuid: json['uuid'] as String? ?? '',
+      tableName: json['tableName'] as String? ?? '',
+      operation: json['operation'] as String? ?? 'update',
+      payload: Map<String, dynamic>.from(json['payload'] as Map? ?? {}),
+      updatedAt: json['updatedAt'] as String? ?? '',
+      deviceId: json['deviceId'] as String? ?? '',
+      status: json['status'] as String? ?? 'pending',
+    );
+  }
+
+  final int id;
+  final String uuid;
+  final String tableName;
+  final String operation;
+  final Map<String, dynamic> payload;
+  final String updatedAt;
+  final String deviceId;
+  final String status;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'uuid': uuid,
+      'tableName': tableName,
+      'operation': operation,
+      'payload': payload,
+      'updatedAt': updatedAt,
+      'deviceId': deviceId,
+      'status': status,
+    };
+  }
+}
+
+/// نتيجة الدمج تحتوي على النسخة المحدثة وقائمة العمليات المطبقة
+class SyncMergeResult {
+  SyncMergeResult({
+    required this.mergedSnapshot,
+    required this.appliedOperations,
+    required this.conflicts,
+  });
+
+  final SyncSnapshot mergedSnapshot;
+  final List<SyncOperation> appliedOperations;
+  final List<SyncConflictModel> conflicts;
+}
+
+/// عملية تمت أثناء الدمج (إدراج/تحديث/حذف)
+class SyncOperation {
+  SyncOperation({
+    required this.table,
+    required this.uuid,
+    required this.operation,
+    required this.payload,
+    required this.timestamp,
+  });
+
+  final String table;
+  final String uuid;
+  final String operation;
+  final Map<String, dynamic> payload;
+  final String timestamp;
+}
+
+/// سجل تضارب تم اكتشافه أثناء الدمج
+class SyncConflictModel {
+  SyncConflictModel({
+    required this.table,
+    required this.uuid,
+    required this.localPayload,
+    required this.remotePayload,
+    required this.resolution,
+  });
+
+  final String table;
+  final String uuid;
+  final Map<String, dynamic> localPayload;
+  final Map<String, dynamic> remotePayload;
+  final String resolution;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'table': table,
+      'uuid': uuid,
+      'localPayload': localPayload,
+      'remotePayload': remotePayload,
+      'resolution': resolution,
+    };
+  }
+}
+
+/// أداة مساعدة لحساب تجزئة ثابتة لأي JSON
+class SyncChecksum {
+  SyncChecksum._();
+
+  static String compute(Map<String, dynamic> data) {
+    final normalized = normalize(data);
+    final bytes = utf8.encode(jsonEncode(normalized));
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
+
+  /// حساب checksum وطول البيانات الخام في method واحد
+  /// لتجنب تسلسل الـ JSON مرتين.
+  static ({String checksum, int rawByteLength}) computeWithLength(
+    Map<String, dynamic> data,
+  ) {
+    final normalized = normalize(data);
+    final normalizedBytes = utf8.encode(jsonEncode(normalized));
+    final checksum = sha256.convert(normalizedBytes).toString();
+    final rawBytes = utf8.encode(jsonEncode(data));
+    return (checksum: checksum, rawByteLength: rawBytes.length);
+  }
+
+  /// تطبيع البيانات (ترتيب المفاتيح بشكل تكراري) لضمان تناسق الـ checksum.
+  static Map<String, dynamic> normalize(Map<String, dynamic> input) {
+    final sortedKeys = input.keys.toList()..sort();
+    final result = <String, dynamic>{};
+    for (final key in sortedKeys) {
+      final value = input[key];
+      if (value is Map) {
+        result[key] = normalize(Map<String, dynamic>.from(value));
+      } else if (value is List) {
+        result[key] = value.map((item) {
+          if (item is Map) {
+            return normalize(Map<String, dynamic>.from(item));
+          }
+          return item;
+        }).toList();
+      } else {
+        result[key] = value;
+      }
+    }
+    return result;
+  }
+}
+
+/// نتيجة عملية المزامنة مع تفاصيل النجاح والفشل
+class SyncResult {
+  SyncResult({
+    required this.success,
+    this.syncedCount = 0,
+    this.failedCount = 0,
+    this.failedItems = const [],
+    this.errorMessage,
+  });
+
+  final bool success;
+  final int syncedCount;
+  final int failedCount;
+  final List<dynamic> failedItems;
+  final String? errorMessage;
+
+  bool get hasPartialFailure => !success && syncedCount > 0;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'success': success,
+      'syncedCount': syncedCount,
+      'failedCount': failedCount,
+      'failedItems': failedItems,
+      'hasPartialFailure': hasPartialFailure,
+      'errorMessage': errorMessage,
+    };
+  }
+}
+
+/// نتيجة التحقق من صحة Mirror
+class MirrorValidationResult {
+  MirrorValidationResult({
+    required this.isValid,
+    required this.issues,
+    required this.validatedAt,
+  });
+
+  final bool isValid;
+  final List<String> issues;
+  final DateTime validatedAt;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'isValid': isValid,
+      'issuesCount': issues.length,
+      'issues': issues,
+      'validatedAt': validatedAt.toIso8601String(),
+    };
+  }
+}
