@@ -65,13 +65,20 @@ void main() {
       stopwatch.stop();
 
       final count = await outboxDao.count();
-      debugPrint('✓ Insert 1000 entries (single): ${stopwatch.elapsedMilliseconds}ms');
-      debugPrint('  Rate: ${(1000 / (stopwatch.elapsedMilliseconds + 1) * 1000).toStringAsFixed(0)} entries/sec');
+      debugPrint(
+        '✓ Insert 1000 entries (single): ${stopwatch.elapsedMilliseconds}ms',
+      );
+      debugPrint(
+        '  Rate: ${(1000 / (stopwatch.elapsedMilliseconds + 1) * 1000).toStringAsFixed(0)} entries/sec',
+      );
       debugPrint('  Count: $count');
 
       expect(count, 1000);
-      expect(stopwatch.elapsedMilliseconds, lessThan(5000),
-          reason: '1000 single inserts يجب أن يكون < 5 ثواني');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(5000),
+        reason: '1000 single inserts يجب أن يكون < 5 ثواني',
+      );
     });
 
     test('إضافة 1000 outbox entry (transaction) خلال < 1 ثانية', () async {
@@ -95,13 +102,20 @@ void main() {
       stopwatch.stop();
 
       final count = await outboxDao.count();
-      debugPrint('✓ Insert 1000 entries (transaction): ${stopwatch.elapsedMilliseconds}ms');
-      debugPrint('  Rate: ${(1000 / (stopwatch.elapsedMilliseconds + 1) * 1000).toStringAsFixed(0)} entries/sec');
+      debugPrint(
+        '✓ Insert 1000 entries (transaction): ${stopwatch.elapsedMilliseconds}ms',
+      );
+      debugPrint(
+        '  Rate: ${(1000 / (stopwatch.elapsedMilliseconds + 1) * 1000).toStringAsFixed(0)} entries/sec',
+      );
       debugPrint('  Speedup vs single: ~5x expected');
 
       expect(count, 1000);
-      expect(stopwatch.elapsedMilliseconds, lessThan(1000),
-          reason: '1000 inserts في transaction يجب أن يكون < 1 ثانية');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(1000),
+        reason: '1000 inserts في transaction يجب أن يكون < 1 ثانية',
+      );
     });
   });
 
@@ -128,12 +142,17 @@ void main() {
       final batch = await outboxDao.takeBatch(100);
       stopwatch.stop();
 
-      debugPrint('✓ takeBatch(100) from 1000 entries: ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint(
+        '✓ takeBatch(100) from 1000 entries: ${stopwatch.elapsedMilliseconds}ms',
+      );
       debugPrint('  Batch size: ${batch.length}');
 
       expect(batch.length, 100);
-      expect(stopwatch.elapsedMilliseconds, lessThan(50),
-          reason: 'takeBatch يجب أن يكون < 50ms حتى مع 1000 entries');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(50),
+        reason: 'takeBatch يجب أن يكون < 50ms حتى مع 1000 entries',
+      );
     });
 
     test('takeBatch(500) خلال < 100ms', () async {
@@ -155,12 +174,17 @@ void main() {
       final batch = await outboxDao.takeBatch(500);
       stopwatch.stop();
 
-      debugPrint('✓ takeBatch(500) from 1000 entries: ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint(
+        '✓ takeBatch(500) from 1000 entries: ${stopwatch.elapsedMilliseconds}ms',
+      );
       debugPrint('  Batch size: ${batch.length}');
 
       expect(batch.length, 500);
-      expect(stopwatch.elapsedMilliseconds, lessThan(100),
-          reason: 'takeBatch(500) يجب أن يكون < 100ms');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(100),
+        reason: 'takeBatch(500) يجب أن يكون < 100ms',
+      );
     });
   });
 
@@ -187,12 +211,17 @@ void main() {
       final result = await outboxDao.count();
       stopwatch.stop();
 
-      debugPrint('✓ count() from 1000 entries: ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint(
+        '✓ count() from 1000 entries: ${stopwatch.elapsedMilliseconds}ms',
+      );
       debugPrint('  Count: $result');
 
       expect(result, 1000);
-      expect(stopwatch.elapsedMilliseconds, lessThan(30),
-          reason: 'count() يجب أن يكون < 30ms');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(30),
+        reason: 'count() يجب أن يكون < 30ms',
+      );
     });
 
     test('countPendingPushable() خلال < 30ms', () async {
@@ -215,11 +244,16 @@ void main() {
       final result = await outboxDao.countPendingPushable();
       stopwatch.stop();
 
-      debugPrint('✓ countPendingPushable() from 1000 entries: ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint(
+        '✓ countPendingPushable() from 1000 entries: ${stopwatch.elapsedMilliseconds}ms',
+      );
       debugPrint('  Pending: $result');
 
-      expect(stopwatch.elapsedMilliseconds, lessThan(30),
-          reason: 'countPendingPushable يجب أن يكون < 30ms');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(30),
+        reason: 'countPendingPushable يجب أن يكون < 30ms',
+      );
     });
   });
 
@@ -251,10 +285,15 @@ void main() {
       await outboxDao.markCompleted(ids);
       stopwatch.stop();
 
-      debugPrint('✓ markCompleted(100 entries): ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint(
+        '✓ markCompleted(100 entries): ${stopwatch.elapsedMilliseconds}ms',
+      );
 
-      expect(stopwatch.elapsedMilliseconds, lessThan(100),
-          reason: 'markCompleted لـ 100 entries يجب أن يكون < 100ms');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(100),
+        reason: 'markCompleted لـ 100 entries يجب أن يكون < 100ms',
+      );
     });
   });
 
@@ -286,10 +325,15 @@ void main() {
       await outboxDao.retryFailed();
       stopwatch.stop();
 
-      debugPrint('✓ retryFailed (50 entries): ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint(
+        '✓ retryFailed (50 entries): ${stopwatch.elapsedMilliseconds}ms',
+      );
 
-      expect(stopwatch.elapsedMilliseconds, lessThan(100),
-          reason: 'retryFailed لـ 50 entries يجب أن يكون < 100ms');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(100),
+        reason: 'retryFailed لـ 50 entries يجب أن يكون < 100ms',
+      );
     });
   });
 
@@ -316,11 +360,16 @@ void main() {
       final reclaimed = await outboxDao.reclaimForPush();
       stopwatch.stop();
 
-      debugPrint('✓ reclaimForPush from 1000 entries: ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint(
+        '✓ reclaimForPush from 1000 entries: ${stopwatch.elapsedMilliseconds}ms',
+      );
       debugPrint('  Reclaimed: $reclaimed');
 
-      expect(stopwatch.elapsedMilliseconds, lessThan(200),
-          reason: 'reclaimForPush يجب أن يكون < 200ms');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(200),
+        reason: 'reclaimForPush يجب أن يكون < 200ms',
+      );
     });
   });
 
