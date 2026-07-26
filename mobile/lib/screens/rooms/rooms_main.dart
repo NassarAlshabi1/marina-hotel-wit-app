@@ -1,1 +1,82 @@
-aW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXIvbWF0ZXJpYWwuZGFydCc7CmltcG9ydCAncGFja2FnZTpmbHV0dGVyX3JpdmVycG9kL2ZsdXR0ZXJfcml2ZXJwb2QuZGFydCc7CgppbXBvcnQgJy4uLy4uL2NvbXBvbmVudHMvYXBwX3NjYWZmb2xkLmRhcnQnOwppbXBvcnQgJy4uLy4uL3NlcnZpY2VzL3N5bmNfc2VydmljZS5kYXJ0JzsKaW1wb3J0ICdyb29tc19kYXNoYm9hcmQuZGFydCc7CmltcG9ydCAncm9vbXNfbGlzdC5kYXJ0JzsKCi8vLyDYtNin2LTYqSDYsdim2YrYs9mK2Kkg2YTZhNi62LHZgSDZhdi5INil2YXZg9in2YbZitipINin2YTYqtio2K/ZitmEINio2YrZhiDYp9mE2LnYsdi2INin2YTYqtmC2YTZitiv2Yog2YjYudix2LYg2KfZhNi32YjYp9io2YIKY2xhc3MgUm9vbXNNYWluU2NyZWVuIGV4dGVuZHMgQ29uc3VtZXJTdGF0ZWZ1bFdpZGdldCB7CiAgY29uc3QgUm9vbXNNYWluU2NyZWVuKHtzdXBlci5rZXl9KTsKCiAgQG92ZXJyaWRlCiAgQ29uc3VtZXJTdGF0ZTxSb29tc01haW5TY3JlZW4+IGNyZWF0ZVN0YXRlKCkgPT4gX1Jvb21zTWFpblNjcmVlblN0YXRlKCk7Cn0KCmNsYXNzIF9Sb29tc01haW5TY3JlZW5TdGF0ZSBleHRlbmRzIENvbnN1bWVyU3RhdGU8Um9vbXNNYWluU2NyZWVuPgogICAgd2l0aCBTaW5nbGVUaWNrZXJQcm92aWRlclN0YXRlTWl4aW4gewogIGxhdGUgVGFiQ29udHJvbGxlciBfdGFiQ29udHJvbGxlcjsKCiAgQG92ZXJyaWRlCiAgdm9pZCBpbml0U3RhdGUoKSB7CiAgICBzdXBlci5pbml0U3RhdGUoKTsKICAgIF90YWJDb250cm9sbGVyID0gVGFiQ29udHJvbGxlcihsZW5ndGg6IDIsIHZzeW5jOiB0aGlzKTsKICB9CgogIEBvdmVycmlkZQogIHZvaWQgZGlzcG9zZSgpIHsKICAgIF90YWJDb250cm9sbGVyLmRpc3Bvc2UoKTsKICAgIHN1cGVyLmRpc3Bvc2UoKTsKICB9CgogIEBvdmVycmlkZQogIFdpZGdldCBidWlsZChCdWlsZENvbnRleHQgY29udGV4dCkgewogICAgcmV0dXJuIEFwcFNjYWZmb2xkKAogICAgICB0aXRsZTogJ9il2K/Yp9ix2Kkg2KfZhNi62LHZgScsCiAgICAgIGFjdGlvbnM6IFsKICAgICAgICBJY29uQnV0dG9uKAogICAgICAgICAgb25QcmVzc2VkOiAoKSA9PiByZWYucmVhZChzeW5jU2VydmljZVByb3ZpZGVyKS5ydW5TeW5jKCksCiAgICAgICAgICBpY29uOiBjb25zdCBJY29uKEljb25zLnN5bmMpLAogICAgICAgICAgdG9vbHRpcDogJ9mF2LLYp9mF2YbYqScsCiAgICAgICAgKSwKICAgICAgXSwKICAgICAgYm9keTogQ29sdW1uKAogICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAvLyDYtNix2YrYtyDYp9mE2KrYqNmI2YrYqNin2KoKICAgICAgICAgIENvbnRhaW5lcigKICAgICAgICAgICAgbWFyZ2luOiBjb25zdCBFZGdlSW5zZXRzLnN5bW1ldHJpYyhob3Jpem9udGFsOiAxNiwgdmVydGljYWw6IDgpLAogICAgICAgICAgICBkZWNvcmF0aW9uOiBCb3hEZWNvcmF0aW9uKAogICAgICAgICAgICAgIGNvbG9yOiBUaGVtZS5vZihjb250ZXh0KS5jb2xvclNjaGVtZS5zdXJmYWNlQ29udGFpbmVySGlnaGVzdCwKICAgICAgICAgICAgICBib3JkZXJSYWRpdXM6IEJvcmRlclJhZGl1cy5jaXJjdWxhcigyNSksCiAgICAgICAgICAgICksCiAgICAgICAgICAgIGNoaWxkOiBUYWJCYXIoCiAgICAgICAgICAgICAgY29udHJvbGxlcjogX3RhYkNvbnRyb2xsZXIsCiAgICAgICAgICAgICAgaW5kaWNhdG9yOiBCb3hEZWNvcmF0aW9uKAogICAgICAgICAgICAgICAgYm9yZGVyUmFkaXVzOiBCb3JkZXJSYWRpdXMuY2lyY3VsYXIoMjUpLAogICAgICAgICAgICAgICAgY29sb3I6IFRoZW1lLm9mKGNvbnRleHQpLmNvbG9yU2NoZW1lLnByaW1hcnksCiAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICBpbmRpY2F0b3JTaXplOiBUYWJCYXJJbmRpY2F0b3JTaXplLnRhYiwKICAgICAgICAgICAgICBsYWJlbENvbG9yOiBUaGVtZS5vZihjb250ZXh0KS5jb2xvclNjaGVtZS5vblByaW1hcnksCiAgICAgICAgICAgICAgdW5zZWxlY3RlZExhYmVsQ29sb3I6IFRoZW1lLm9mKAogICAgICAgICAgICAgICAgY29udGV4dCwKICAgICAgICAgICAgICApLmNvbG9yU2NoZW1lLm9uU3VyZmFjZVZhcmlhbnQsCiAgICAgICAgICAgICAgZGl2aWRlckNvbG9yOiBDb2xvcnMudHJhbnNwYXJlbnQsCiAgICAgICAgICAgICAgdGFiczogY29uc3QgWwogICAgICAgICAgICAgICAgVGFiKGljb246IEljb24oSWNvbnMuZ3JpZF92aWV3KSwgdGV4dDogJ9i52LHYtiDYp9mE2LfZiNin2KjZgicpLAogICAgICAgICAgICAgICAgVGFiKGljb246IEljb24oSWNvbnMudmlld19saXN0KSwgdGV4dDogJ9mC2KfYptmF2Kkg2KfZhNi62LHZgScpLAogICAgICAgICAgICAgIF0sCiAgICAgICAgICAgICksCiAgICAgICAgICApLAogICAgICAgICAgLy8g2YXYrdiq2YjZiSDYp9mE2KrYqNmI2YrYqNin2KoKICAgICAgICAgIEV4cGFuZGVkKAogICAgICAgICAgICBjaGlsZDogVGFiQmFyVmlldygKICAgICAgICAgICAgICBjb250cm9sbGVyOiBfdGFiQ29udHJvbGxlciwKICAgICAgICAgICAgICBjaGlsZHJlbjogY29uc3QgW1Jvb21zRGFzaGJvYXJkKCksIFJvb21zTGlzdFNjcmVlbigpXSwKICAgICAgICAgICAgKSwKICAgICAgICAgICksCiAgICAgICAgXSwKICAgICAgKSwKICAgICk7CiAgfQp9Cg==
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../components/app_scaffold.dart';
+import '../../services/sync_service.dart';
+import 'rooms_dashboard.dart';
+import 'rooms_list.dart';
+
+/// شاشة رئيسية للغرف مع إمكانية التبديل بين العرض التقليدي وعرض الطوابق
+class RoomsMainScreen extends ConsumerStatefulWidget {
+  const RoomsMainScreen({super.key});
+
+  @override
+  ConsumerState<RoomsMainScreen> createState() => _RoomsMainScreenState();
+}
+
+class _RoomsMainScreenState extends ConsumerState<RoomsMainScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppScaffold(
+      title: 'إدارة الغرف',
+      actions: [
+        IconButton(
+          onPressed: () => ref.read(syncServiceProvider).runSync(),
+          icon: const Icon(Icons.sync),
+          tooltip: 'مزامنة',
+        ),
+      ],
+      body: Column(
+        children: [
+          // شريط التبويبات
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(25),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              indicator: BoxDecoration(
+                borderRadius: BorderRadius.circular(25),
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              indicatorSize: TabBarIndicatorSize.tab,
+              labelColor: Theme.of(context).colorScheme.onPrimary,
+              unselectedLabelColor: Theme.of(
+                context,
+              ).colorScheme.onSurfaceVariant,
+              dividerColor: Colors.transparent,
+              tabs: const [
+                Tab(icon: Icon(Icons.grid_view), text: 'عرض الطوابق'),
+                Tab(icon: Icon(Icons.view_list), text: 'قائمة الغرف'),
+              ],
+            ),
+          ),
+          // محتوى التبويبات
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: const [RoomsDashboard(), RoomsListScreen()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
