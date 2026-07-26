@@ -1,1 +1,63 @@
-aW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXIvbWF0ZXJpYWwuZGFydCc7CmltcG9ydCAncGFja2FnZTpmbHV0dGVyX3JpdmVycG9kL2ZsdXR0ZXJfcml2ZXJwb2QuZGFydCc7CgppbXBvcnQgJy4uLy4uL3NlcnZpY2VzL3N5bmNfc2VydmljZS5kYXJ0JzsKCmNsYXNzIFN5bmNBY3Rpb25CdXR0b24gZXh0ZW5kcyBDb25zdW1lcldpZGdldCB7CiAgY29uc3QgU3luY0FjdGlvbkJ1dHRvbih7c3VwZXIua2V5fSk7CgogIEBvdmVycmlkZQogIFdpZGdldCBidWlsZChCdWlsZENvbnRleHQgY29udGV4dCwgV2lkZ2V0UmVmIHJlZikgewogICAgZmluYWwgc3RhdHVzQXN5bmMgPSByZWYud2F0Y2goc3luY1N0YXR1c1Byb3ZpZGVyKTsKICAgIGZpbmFsIHN0YXR1cyA9IHN0YXR1c0FzeW5jLmFzRGF0YT8udmFsdWU7CiAgICBmaW5hbCBpc1N5bmNpbmcgPQogICAgICAgIHN0YXR1cyA9PSBTeW5jU3RhdHVzLnB1c2hpbmcgfHwgc3RhdHVzID09IFN5bmNTdGF0dXMucHVsbGluZzsKICAgIGZpbmFsIGhhc0Vycm9yID0gc3RhdHVzID09IFN5bmNTdGF0dXMuZXJyb3I7CgogICAgZmluYWwgdG9vbHRpcCA9IGlzU3luY2luZwogICAgICAgID8gJ9is2KfYsdmKINin2YTZhdiy2KfZhdmG2KkuLi4nCiAgICAgICAgOiBoYXNFcnJvcgogICAgICAgID8gJ9it2K/YqyDYrti32KMg2YHZiiDYotiu2LEg2YXYstin2YXZhtip2Iwg2KfYtti62Lcg2YTYpdi52KfYr9ipINin2YTZhdit2KfZiNmE2KknCiAgICAgICAgOiAn2YXYstin2YXZhtipINmK2K/ZiNmK2KkgKNin2K3YqtmK2KfYt9mK2KkpJzsKCiAgICByZXR1cm4gSWNvbkJ1dHRvbigKICAgICAgb25QcmVzc2VkOiBpc1N5bmNpbmcKICAgICAgICAgID8gbnVsbAogICAgICAgICAgOiAoKSBhc3luYyB7CiAgICAgICAgICAgICAgZmluYWwgbWVzc2VuZ2VyID0gU2NhZmZvbGRNZXNzZW5nZXIub2YoY29udGV4dCk7CiAgICAgICAgICAgICAgdHJ5IHsKICAgICAgICAgICAgICAgIGF3YWl0IHJlZi5yZWFkKHN5bmNTZXJ2aWNlUHJvdmlkZXIpLnJ1blN5bmMoKTsKICAgICAgICAgICAgICAgIG1lc3Nlbmdlci5zaG93U25hY2tCYXIoCiAgICAgICAgICAgICAgICAgIGNvbnN0IFNuYWNrQmFyKAogICAgICAgICAgICAgICAgICAgIGNvbnRlbnQ6IFRleHQoJ9iq2YXYqiDYp9mE2YXYstin2YXZhtipINio2YbYrNin2K0nKSwKICAgICAgICAgICAgICAgICAgICBkdXJhdGlvbjogRHVyYXRpb24oc2Vjb25kczogMiksCiAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICApOwogICAgICAgICAgICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgICAgICAgICAgIG1lc3Nlbmdlci5zaG93U25hY2tCYXIoCiAgICAgICAgICAgICAgICAgIFNuYWNrQmFyKAogICAgICAgICAgICAgICAgICAgIGNvbnRlbnQ6IFRleHQoJ9mB2LTZhCDZgdmKINin2YTZhdiy2KfZhdmG2Kk6ICRlJyksCiAgICAgICAgICAgICAgICAgICAgZHVyYXRpb246IGNvbnN0IER1cmF0aW9uKHNlY29uZHM6IDMpLAogICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgKTsKICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0sCiAgICAgIHRvb2x0aXA6IHRvb2x0aXAsCiAgICAgIGljb246IEFuaW1hdGVkU3dpdGNoZXIoCiAgICAgICAgZHVyYXRpb246IGNvbnN0IER1cmF0aW9uKG1pbGxpc2Vjb25kczogMjAwKSwKICAgICAgICBjaGlsZDogaXNTeW5jaW5nCiAgICAgICAgICAgID8gY29uc3QgU2l6ZWRCb3goCiAgICAgICAgICAgICAgICBrZXk6IFZhbHVlS2V5KCdzeW5jaW5nJyksCiAgICAgICAgICAgICAgICB3aWR0aDogMjAsCiAgICAgICAgICAgICAgICBoZWlnaHQ6IDIwLAogICAgICAgICAgICAgICAgY2hpbGQ6IENpcmN1bGFyUHJvZ3Jlc3NJbmRpY2F0b3Ioc3Ryb2tlV2lkdGg6IDIpLAogICAgICAgICAgICAgICkKICAgICAgICAgICAgOiBJY29uKAogICAgICAgICAgICAgICAgSWNvbnMuc3luYywKICAgICAgICAgICAgICAgIGtleTogVmFsdWVLZXkoaGFzRXJyb3IgPyAnZXJyb3InIDogJ2lkbGUnKSwKICAgICAgICAgICAgICAgIGNvbG9yOiBoYXNFcnJvciA/IENvbG9ycy5yZWRBY2NlbnQgOiBudWxsLAogICAgICAgICAgICAgICksCiAgICAgICksCiAgICApOwogIH0KfQo=
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../services/sync_service.dart';
+
+class SyncActionButton extends ConsumerWidget {
+  const SyncActionButton({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statusAsync = ref.watch(syncStatusProvider);
+    final status = statusAsync.asData?.value;
+    final isSyncing =
+        status == SyncStatus.pushing || status == SyncStatus.pulling;
+    final hasError = status == SyncStatus.error;
+
+    final tooltip = isSyncing
+        ? 'جاري المزامنة...'
+        : hasError
+        ? 'حدث خطأ في آخر مزامنة، اضغط لإعادة المحاولة'
+        : 'مزامنة يدوية (احتياطية)';
+
+    return IconButton(
+      onPressed: isSyncing
+          ? null
+          : () async {
+              final messenger = ScaffoldMessenger.of(context);
+              try {
+                await ref.read(syncServiceProvider).runSync();
+                messenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('تمت المزامنة بنجاح'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              } catch (e) {
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text('فشل في المزامنة: $e'),
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              }
+            },
+      tooltip: tooltip,
+      icon: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: isSyncing
+            ? const SizedBox(
+                key: ValueKey('syncing'),
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(
+                Icons.sync,
+                key: ValueKey(hasError ? 'error' : 'idle'),
+                color: hasError ? Colors.redAccent : null,
+              ),
+      ),
+    );
+  }
+}
