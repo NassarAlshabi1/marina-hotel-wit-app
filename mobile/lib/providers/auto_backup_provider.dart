@@ -1,1 +1,31 @@
-aW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXJfcml2ZXJwb2QvZmx1dHRlcl9yaXZlcnBvZC5kYXJ0JzsKCmltcG9ydCAnLi4vc2VydmljZXMvYXV0b19iYWNrdXBfbWFuYWdlci5kYXJ0JyBzaG93IEF1dG9CYWNrdXBNYW5hZ2VyOwppbXBvcnQgJ2FwcHdyaXRlX3Byb3ZpZGVycy5kYXJ0JzsgLy8gQXBwd3JpdGVTZXJ2aWNlICsgY29ubmVjdGlvblN0YXR1cwppbXBvcnQgJ3JlcG9zaXRvcnlfcHJvdmlkZXJzLmRhcnQnOyAvLyBkYXRhYmFzZVByb3ZpZGVyCgovLy8gUHJvdmlkZXIg2YTZhdiv2YrYsSDYp9mE2YbYs9iuINin2YTYqtmE2YLYp9im2YoKZmluYWwgYXV0b0JhY2t1cE1hbmFnZXJQcm92aWRlciA9IFByb3ZpZGVyPEF1dG9CYWNrdXBNYW5hZ2VyPigocmVmKSB7CiAgcmV0dXJuIEF1dG9CYWNrdXBNYW5hZ2VyLmluc3RhbmNlOwp9KTsKCi8vLyBQcm92aWRlciDZhNit2KfZhNipINin2YTZhtiz2K4g2KfZhNiq2YTZgtin2KbZigpmaW5hbCBhdXRvQmFja3VwU3RhdHVzUHJvdmlkZXIgPQogICAgRnV0dXJlUHJvdmlkZXIuYXV0b0Rpc3Bvc2U8TWFwPFN0cmluZywgZHluYW1pYz4+KChyZWYpIGFzeW5jIHsKICAgICAgZmluYWwgbWFuYWdlciA9IHJlZi53YXRjaChhdXRvQmFja3VwTWFuYWdlclByb3ZpZGVyKTsKICAgICAgcmV0dXJuIG1hbmFnZXIuZ2V0U3RhdHVzKCk7CiAgICB9KTsKCi8vLyBQcm92aWRlciDZhNiq2YfZitim2Kkg2KfZhNmG2LPYriDYp9mE2KrZhNmC2KfYptmKICjZhdi5INiq2YfZitim2KkgRGVsdGFTeW5jINiv2KfYptmF2KfZiykKZmluYWwgYXV0b0JhY2t1cEluaXRQcm92aWRlciA9IEZ1dHVyZVByb3ZpZGVyPHZvaWQ+KChyZWYpIGFzeW5jIHsKICBmaW5hbCBtYW5hZ2VyID0gcmVmLnJlYWQoYXV0b0JhY2t1cE1hbmFnZXJQcm92aWRlcik7CiAgZmluYWwgYmFja3VwU2VydmljZSA9IHJlZi5yZWFkKGdvb2dsZURyaXZlQmFja3VwU2VydmljZVByb3ZpZGVyKTsKICBmaW5hbCBhcHB3cml0ZVNlcnZpY2UgPSByZWYucmVhZChhcHB3cml0ZVNlcnZpY2VQcm92aWRlcik7CiAgZmluYWwgZGF0YWJhc2UgPSByZWYucmVhZChkYXRhYmFzZVByb3ZpZGVyKTsKCiAgYXdhaXQgbWFuYWdlci5pbml0aWFsaXplKAogICAgYmFja3VwU2VydmljZSwKICAgIGFwcHdyaXRlU2VydmljZTogYXBwd3JpdGVTZXJ2aWNlLAogICAgZGF0YWJhc2U6IGRhdGFiYXNlLAogICk7Cn0pOwo=
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../services/auto_backup_manager.dart' show AutoBackupManager;
+import 'appwrite_providers.dart'; // AppwriteService + connectionStatus
+import 'repository_providers.dart'; // databaseProvider
+
+/// Provider لمدير النسخ التلقائي
+final autoBackupManagerProvider = Provider<AutoBackupManager>((ref) {
+  return AutoBackupManager.instance;
+});
+
+/// Provider لحالة النسخ التلقائي
+final autoBackupStatusProvider =
+    FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+      final manager = ref.watch(autoBackupManagerProvider);
+      return manager.getStatus();
+    });
+
+/// Provider لتهيئة النسخ التلقائي (مع تهيئة DeltaSync دائماً)
+final autoBackupInitProvider = FutureProvider<void>((ref) async {
+  final manager = ref.read(autoBackupManagerProvider);
+  final backupService = ref.read(googleDriveBackupServiceProvider);
+  final appwriteService = ref.read(appwriteServiceProvider);
+  final database = ref.read(databaseProvider);
+
+  await manager.initialize(
+    backupService,
+    appwriteService: appwriteService,
+    database: database,
+  );
+});
