@@ -98,14 +98,22 @@ Widget _buildTestWidget({required AppDatabase db, required Widget child}) {
       databaseProvider.overrideWithValue(db),
       simpleNotesUnreadCountProvider.overrideWith((ref) => Stream.value(0)),
       syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.idle)),
-      roomsWithPaymentStatusProvider.overrideWith((ref) => Stream.value(const <RoomWithPaymentStatus>[])),
+      roomsWithPaymentStatusProvider.overrideWith(
+        (ref) => Stream.value(const <RoomWithPaymentStatus>[]),
+      ),
       todayPaymentsProvider.overrideWith((ref) => Stream.value(0.0)),
       todayExpensesProvider.overrideWith((ref) => Stream.value(0.0)),
       roomsListProvider.overrideWith((ref) => Stream.value(const <Room>[])),
-      bookingsListProvider.overrideWith((ref) => Stream.value(const <Booking>[])),
-      employeesListProvider.overrideWith((ref) => Stream.value(const <Employee>[])),
+      bookingsListProvider.overrideWith(
+        (ref) => Stream.value(const <Booking>[]),
+      ),
+      employeesListProvider.overrideWith(
+        (ref) => Stream.value(const <Employee>[]),
+      ),
       debtsListProvider.overrideWith((ref) => Stream.value(const <Debt>[])),
-      expensesListProvider.overrideWith((ref) => Stream.value(const <Expense>[])),
+      expensesListProvider.overrideWith(
+        (ref) => Stream.value(const <Expense>[]),
+      ),
       appVersionProvider.overrideWith((ref) async => '1.0.0+1'),
     ],
     child: MaterialApp(home: child),
@@ -139,7 +147,9 @@ void main() {
       expect(bookings.first.guestName, 'أحمد محمد');
 
       // 2) التحقق من وجود الدفعة
-      final payments = await paymentsDao.watchList(bookingLocalId: bookings.first.id).first;
+      final payments = await paymentsDao
+          .watchList(bookingLocalId: bookings.first.id)
+          .first;
       expect(payments.length, 1);
       expect(payments.first.amount, 150.0);
 
@@ -156,7 +166,10 @@ void main() {
       // 4) تحرير الغرفة
       final room = await roomsDao.getByNumber('101');
       expect(room, isNotNull);
-      await roomsDao.updateById(room!.id, RoomsCompanion(status: const d.Value('شاغرة')));
+      await roomsDao.updateById(
+        room!.id,
+        RoomsCompanion(status: const d.Value('شاغرة')),
+      );
 
       // 5) التحقق النهائي
       final updatedBooking = await bookingsDao.getById(bookings.first.id);
@@ -168,7 +181,11 @@ void main() {
 
       // 6) التحقق من إنشاء outbox entries للـ sync
       final outboxCount = await outboxDao.countPendingPushable();
-      expect(outboxCount, greaterThan(0), reason: 'كل عملية CRUD يجب أن تُنشئ outbox entry');
+      expect(
+        outboxCount,
+        greaterThan(0),
+        reason: 'كل عملية CRUD يجب أن تُنشئ outbox entry',
+      );
     });
   });
 
@@ -198,7 +215,11 @@ void main() {
 
       // 2) التحقق من إنشاء outbox entry
       final pendingCount = await outboxDao.countPendingPushable();
-      expect(pendingCount, greaterThan(0), reason: 'إضافة مصروف يجب أن تُنشئ outbox entry');
+      expect(
+        pendingCount,
+        greaterThan(0),
+        reason: 'إضافة مصروف يجب أن تُنشئ outbox entry',
+      );
 
       // 3) محاكاة push — takeBatch
       final batch = await outboxDao.takeBatch(50);
@@ -211,7 +232,11 @@ void main() {
 
       // 5) التحقق من عدم وجود entries معلّقة
       final remainingPending = await outboxDao.countPendingPushable();
-      expect(remainingPending, 0, reason: 'بعد markCompleted يجب ألا تكون هناك entries معلّقة');
+      expect(
+        remainingPending,
+        0,
+        reason: 'بعد markCompleted يجب ألا تكون هناك entries معلّقة',
+      );
     });
   });
 
@@ -279,7 +304,11 @@ void main() {
         ),
       );
       final afterCreate = await outboxDao.countPendingPushable();
-      expect(afterCreate, greaterThan(initialPending), reason: 'الإنشاء يجب أن يُنشئ outbox entry');
+      expect(
+        afterCreate,
+        greaterThan(initialPending),
+        reason: 'الإنشاء يجب أن يُنشئ outbox entry',
+      );
 
       // 2) تعديل
       await expensesDao.updateById(
@@ -290,19 +319,28 @@ void main() {
         ),
       );
       final afterUpdate = await outboxDao.countPendingPushable();
-      expect(afterUpdate, greaterThan(afterCreate), reason: 'التعديل يجب أن يُنشئ outbox entry');
+      expect(
+        afterUpdate,
+        greaterThan(afterCreate),
+        reason: 'التعديل يجب أن يُنشئ outbox entry',
+      );
 
       // 3) حذف
       await expensesDao.softDelete(expenseId);
       final afterDelete = await outboxDao.countPendingPushable();
-      expect(afterDelete, greaterThan(afterUpdate), reason: 'الحذف يجب أن يُنشئ outbox entry');
+      expect(
+        afterDelete,
+        greaterThan(afterUpdate),
+        reason: 'الحذف يجب أن يُنشئ outbox entry',
+      );
 
       // 4) التحقق من وجود 3 entries على الأقل (create + update + delete)
       final totalCreated = afterDelete - initialPending;
       expect(
         totalCreated,
         greaterThanOrEqualTo(3),
-        reason: 'create + update + delete يجب أن تُنشئ 3 outbox entries على الأقل',
+        reason:
+            'create + update + delete يجب أن تُنشئ 3 outbox entries على الأقل',
       );
     });
   });
