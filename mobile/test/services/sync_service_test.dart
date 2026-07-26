@@ -57,12 +57,18 @@ BookingsCompanion _booking({
     guestPhone: const d.Value(''),
     guestNationality: const d.Value(''),
     checkinDate: _v(checkinDate),
-    checkoutDate: checkoutDate != null ? _v(checkoutDate) : const d.Value.absent(),
+    checkoutDate: checkoutDate != null
+        ? _v(checkoutDate)
+        : const d.Value.absent(),
     status: const d.Value('محجوزة'),
     expectedNights: const d.Value(1),
     calculatedNights: const d.Value(1),
-    serverBookingId: serverBookingId != null ? _v(serverBookingId) : const d.Value.absent(),
-    serverId: serverBookingId != null ? _v(serverBookingId) : const d.Value.absent(),
+    serverBookingId: serverBookingId != null
+        ? _v(serverBookingId)
+        : const d.Value.absent(),
+    serverId: serverBookingId != null
+        ? _v(serverBookingId)
+        : const d.Value.absent(),
     createdAt: _v(_now),
     updatedAt: _v(_now),
     lastModified: _v(lastModified > 0 ? lastModified : _now),
@@ -143,20 +149,30 @@ void main() {
     test('تحديث serverId للغرفة', () async {
       await db.into(db.rooms).insert(_room(number: '101', uuid: 'room-001'));
 
-      await (db.update(db.rooms)..where((t) => t.localUuid.equals('room-001'))).write(
+      await (db.update(
+        db.rooms,
+      )..where((t) => t.localUuid.equals('room-001'))).write(
         RoomsCompanion(serverId: _v(42), lastModified: _v(Time.nowEpoch())),
       );
 
-      final room = await (db.select(db.rooms)..where((t) => t.localUuid.equals('room-001'))).getSingle();
+      final room = await (db.select(
+        db.rooms,
+      )..where((t) => t.localUuid.equals('room-001'))).getSingle();
       expect(room.serverId, 42);
       expect(room.lastModified, greaterThan(0));
     });
 
     test('تحديث serverBookingId و serverId للحجز', () async {
       await db.into(db.rooms).insert(_room(number: '101', uuid: 'rb1'));
-      await db.into(db.bookings).insert(_booking(uuid: 'bkg-001', roomNumber: '101', serverBookingId: 99));
+      await db
+          .into(db.bookings)
+          .insert(
+            _booking(uuid: 'bkg-001', roomNumber: '101', serverBookingId: 99),
+          );
 
-      final booking = await (db.select(db.bookings)..where((t) => t.localUuid.equals('bkg-001'))).getSingle();
+      final booking = await (db.select(
+        db.bookings,
+      )..where((t) => t.localUuid.equals('bkg-001'))).getSingle();
       expect(booking.serverBookingId, 99);
       expect(booking.serverId, 99);
     });
@@ -165,7 +181,17 @@ void main() {
   group('SyncService — محاكاة applyIncoming عبر DAOs', () {
     group('rooms', () {
       test('تحديث غرفة موجودة', () async {
-        await db.into(db.rooms).insert(_room(number: '101', uuid: 'room-101', type: 'single', price: 100, status: 'شاغرة'));
+        await db
+            .into(db.rooms)
+            .insert(
+              _room(
+                number: '101',
+                uuid: 'room-101',
+                type: 'single',
+                price: 100,
+                status: 'شاغرة',
+              ),
+            );
 
         await syncService.roomsDao.updateByNumber(
           '101',
@@ -180,7 +206,9 @@ void main() {
           originIsServer: true,
         );
 
-        final room = await (db.select(db.rooms)..where((t) => t.roomNumber.equals('101'))).getSingle();
+        final room = await (db.select(
+          db.rooms,
+        )..where((t) => t.roomNumber.equals('101'))).getSingle();
         expect(room.type, 'double');
         expect(room.price, 150);
         expect(room.status, 'مشغولة');
@@ -188,20 +216,41 @@ void main() {
       });
 
       test('لا تحديث للغرفة عندما يكون serverTs < lastModified', () async {
-        await db.into(db.rooms).insert(_room(number: '102', uuid: 'room-102', type: 'single', price: 100, status: 'شاغرة', lastModified: 99999));
+        await db
+            .into(db.rooms)
+            .insert(
+              _room(
+                number: '102',
+                uuid: 'room-102',
+                type: 'single',
+                price: 100,
+                status: 'شاغرة',
+                lastModified: 99999,
+              ),
+            );
 
-        final existing = await (db.select(db.rooms)..where((t) => t.roomNumber.equals('102'))).getSingle();
+        final existing = await (db.select(
+          db.rooms,
+        )..where((t) => t.roomNumber.equals('102'))).getSingle();
         expect(existing.lastModified, 99999);
         expect(existing.type, 'single');
       });
 
       test('إدراج غرفة جديدة', () async {
         await syncService.roomsDao.insertOne(
-          _room(number: '201', type: 'double', price: 250, status: 'شاغرة', serverId: 100),
+          _room(
+            number: '201',
+            type: 'double',
+            price: 250,
+            status: 'شاغرة',
+            serverId: 100,
+          ),
           originIsServer: true,
         );
 
-        final room = await (db.select(db.rooms)..where((t) => t.roomNumber.equals('201'))).getSingle();
+        final room = await (db.select(
+          db.rooms,
+        )..where((t) => t.roomNumber.equals('201'))).getSingle();
         expect(room.roomNumber, '201');
         expect(room.serverId, 100);
       });
@@ -211,7 +260,9 @@ void main() {
 
         await syncService.roomsDao.softDelete('301', originIsServer: true);
 
-        final room = await (db.select(db.rooms)..where((t) => t.roomNumber.equals('301'))).getSingle();
+        final room = await (db.select(
+          db.rooms,
+        )..where((t) => t.roomNumber.equals('301'))).getSingle();
         expect(room.deletedAt, isNotNull);
       });
     });
@@ -221,21 +272,39 @@ void main() {
         await db.into(db.rooms).insert(_room(number: '401', uuid: 'r401'));
 
         await syncService.bookingsDao.insertOne(
-          _booking(uuid: 'bkg-401', roomNumber: '401', serverBookingId: 200, guestName: 'ضيف تجربة'),
+          _booking(
+            uuid: 'bkg-401',
+            roomNumber: '401',
+            serverBookingId: 200,
+            guestName: 'ضيف تجربة',
+          ),
           originIsServer: true,
         );
 
-        final booking = await (db.select(db.bookings)..where((t) => t.serverBookingId.equals(200))).getSingle();
+        final booking = await (db.select(
+          db.bookings,
+        )..where((t) => t.serverBookingId.equals(200))).getSingle();
         expect(booking.guestName, 'ضيف تجربة');
         expect(booking.roomNumber, '401');
       });
 
       test('تحديث حجز موجود', () async {
         await db.into(db.rooms).insert(_room(number: '501', uuid: 'r501'));
-        await db.into(db.bookings).insert(_booking(uuid: 'bkg-501', roomNumber: '501', serverBookingId: 300, guestName: 'قديم'));
+        await db
+            .into(db.bookings)
+            .insert(
+              _booking(
+                uuid: 'bkg-501',
+                roomNumber: '501',
+                serverBookingId: 300,
+                guestName: 'قديم',
+              ),
+            );
 
         // استخدام update() المباشر بدلاً من updateById() لأن replace() يتطلب كل الحقول
-        final bid = (await (db.select(db.bookings)..where((t) => t.serverBookingId.equals(300))).getSingle()).id;
+        final bid = (await (db.select(
+          db.bookings,
+        )..where((t) => t.serverBookingId.equals(300))).getSingle()).id;
         await (db.update(db.bookings)..where((t) => t.id.equals(bid))).write(
           BookingsCompanion(
             guestName: const d.Value('جديد'),
@@ -244,7 +313,9 @@ void main() {
           ),
         );
 
-        final booking = await (db.select(db.bookings)..where((t) => t.serverBookingId.equals(300))).getSingle();
+        final booking = await (db.select(
+          db.bookings,
+        )..where((t) => t.serverBookingId.equals(300))).getSingle();
         expect(booking.guestName, 'جديد');
       });
     });
@@ -256,7 +327,9 @@ void main() {
           originIsServer: true,
         );
 
-        final emp = await (db.select(db.employees)..where((t) => t.serverId.equals(500))).getSingle();
+        final emp = await (db.select(
+          db.employees,
+        )..where((t) => t.serverId.equals(500))).getSingle();
         expect(emp.name, 'موظف جديد');
         expect(emp.basicSalary, 5000);
       });
@@ -269,7 +342,9 @@ void main() {
           originIsServer: true,
         );
 
-        final exp = await (db.select(db.expenses)..where((t) => t.serverId.equals(600))).getSingle();
+        final exp = await (db.select(
+          db.expenses,
+        )..where((t) => t.serverId.equals(600))).getSingle();
         expect(exp.expenseType, 'كهرباء');
         expect(exp.amount, 1500);
       });
@@ -278,14 +353,29 @@ void main() {
     group('payments', () {
       test('إدراج دفعة جديدة', () async {
         await db.into(db.rooms).insert(_room(number: '701', uuid: 'r701'));
-        await db.into(db.bookings).insert(_booking(uuid: 'bkg-701', roomNumber: '701', serverBookingId: 700));
+        await db
+            .into(db.bookings)
+            .insert(
+              _booking(
+                uuid: 'bkg-701',
+                roomNumber: '701',
+                serverBookingId: 700,
+              ),
+            );
 
         await syncService.paymentsDao.insertOne(
-          _payment(serverPaymentId: 800, serverBookingId: 700, roomNumber: '701', amount: 500),
+          _payment(
+            serverPaymentId: 800,
+            serverBookingId: 700,
+            roomNumber: '701',
+            amount: 500,
+          ),
           originIsServer: true,
         );
 
-        final payment = await (db.select(db.payments)..where((t) => t.serverPaymentId.equals(800))).getSingle();
+        final payment = await (db.select(
+          db.payments,
+        )..where((t) => t.serverPaymentId.equals(800))).getSingle();
         expect(payment.amount, 500);
         expect(payment.serverBookingId, 700);
       });
@@ -294,27 +384,39 @@ void main() {
 
   group('SyncService — إدارة syncState', () {
     test('يمكن إدراج syncState وقراءته', () async {
-      await db.into(db.syncState).insert(SyncStateCompanion(
-        lastServerTs: d.Value(1000),
-        lastPullTs: d.Value(2000),
-        lastPushTs: d.Value(3000),
-      ));
+      await db
+          .into(db.syncState)
+          .insert(
+            SyncStateCompanion(
+              lastServerTs: d.Value(1000),
+              lastPullTs: d.Value(2000),
+              lastPushTs: d.Value(3000),
+            ),
+          );
 
-      final state = await (db.select(db.syncState)..where((t) => t.id.equals(1))).getSingle();
+      final state = await (db.select(
+        db.syncState,
+      )..where((t) => t.id.equals(1))).getSingle();
       expect(state.lastServerTs, 1000);
       expect(state.lastPullTs, 2000);
       expect(state.lastPushTs, 3000);
     });
 
     test('يمكن تحديث syncState عبر insertOnConflictUpdate', () async {
-      await db.into(db.syncState).insertOnConflictUpdate(SyncStateCompanion(
-        id: const d.Value(1),
-        lastServerTs: d.Value(500),
-        lastPushTs: d.Value(600),
-        isSyncing: const d.Value(0),
-      ));
+      await db
+          .into(db.syncState)
+          .insertOnConflictUpdate(
+            SyncStateCompanion(
+              id: const d.Value(1),
+              lastServerTs: d.Value(500),
+              lastPushTs: d.Value(600),
+              isSyncing: const d.Value(0),
+            ),
+          );
 
-      final state = await (db.select(db.syncState)..where((t) => t.id.equals(1))).getSingle();
+      final state = await (db.select(
+        db.syncState,
+      )..where((t) => t.id.equals(1))).getSingle();
       expect(state.lastServerTs, 500);
       expect(state.lastPushTs, 600);
     });
@@ -324,7 +426,16 @@ void main() {
     test('إنشاء سجل محلي ← إضافة إلى outbox ← ربط serverId', () async {
       final outboxDao = OutboxDao(db);
 
-      await db.into(db.rooms).insert(_room(number: '999', uuid: 'room-outbox-test', type: 'suite', price: 500));
+      await db
+          .into(db.rooms)
+          .insert(
+            _room(
+              number: '999',
+              uuid: 'room-outbox-test',
+              type: 'suite',
+              price: 500,
+            ),
+          );
 
       await outboxDao.merge(
         entity: 'rooms',
@@ -337,27 +448,70 @@ void main() {
 
       expect(await outboxDao.count(), 1);
 
-      await (db.update(db.rooms)..where((t) => t.localUuid.equals('room-outbox-test'))).write(
-        RoomsCompanion(serverId: d.Value(1001), lastModified: d.Value(Time.nowEpoch())),
+      await (db.update(
+        db.rooms,
+      )..where((t) => t.localUuid.equals('room-outbox-test'))).write(
+        RoomsCompanion(
+          serverId: d.Value(1001),
+          lastModified: d.Value(Time.nowEpoch()),
+        ),
       );
 
-      final room = await (db.select(db.rooms)..where((t) => t.localUuid.equals('room-outbox-test'))).getSingle();
+      final room = await (db.select(
+        db.rooms,
+      )..where((t) => t.localUuid.equals('room-outbox-test'))).getSingle();
       expect(room.serverId, 1001);
       expect(room.lastModified, greaterThan(0));
     });
 
     test('سحب غرفتين من السيرفر وإنشاءهما محلياً', () async {
-      await syncService.roomsDao.insertOne(_room(number: 'A1', uuid: 'pull-A1', type: 'single', price: 150, status: 'شاغرة', serverId: 201), originIsServer: true);
-      await syncService.roomsDao.insertOne(_room(number: 'A2', uuid: 'pull-A2', type: 'double', price: 250, status: 'شاغرة', serverId: 202), originIsServer: true);
+      await syncService.roomsDao.insertOne(
+        _room(
+          number: 'A1',
+          uuid: 'pull-A1',
+          type: 'single',
+          price: 150,
+          status: 'شاغرة',
+          serverId: 201,
+        ),
+        originIsServer: true,
+      );
+      await syncService.roomsDao.insertOne(
+        _room(
+          number: 'A2',
+          uuid: 'pull-A2',
+          type: 'double',
+          price: 250,
+          status: 'شاغرة',
+          serverId: 202,
+        ),
+        originIsServer: true,
+      );
 
       final rooms = await (db.select(db.rooms).get());
-      expect(rooms.where((r) => r.serverId == 201 || r.serverId == 202).length, 2);
+      expect(
+        rooms.where((r) => r.serverId == 201 || r.serverId == 202).length,
+        2,
+      );
     });
 
     test('تحديث من السيرفر لا يتجاوز البيانات المحلية الأحدث', () async {
-      await db.into(db.rooms).insert(_room(number: 'B1', uuid: 'room-b1', type: 'single', price: 100, status: 'شاغرة', lastModified: 99999));
+      await db
+          .into(db.rooms)
+          .insert(
+            _room(
+              number: 'B1',
+              uuid: 'room-b1',
+              type: 'single',
+              price: 100,
+              status: 'شاغرة',
+              lastModified: 99999,
+            ),
+          );
 
-      final room = await (db.select(db.rooms)..where((t) => t.roomNumber.equals('B1'))).getSingle();
+      final room = await (db.select(
+        db.rooms,
+      )..where((t) => t.roomNumber.equals('B1'))).getSingle();
       expect(room.price, 100);
       expect(room.lastModified, 99999);
     });
