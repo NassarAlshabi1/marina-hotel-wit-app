@@ -1,1 +1,232 @@
-aW1wb3J0ICdwYWNrYWdlOmFwcHdyaXRlL2FwcHdyaXRlLmRhcnQnOwoKLy8vINio2YbYp9ihINin2LPYqti52YTYp9mF2KfYqiBBcHB3cml0ZSDYqNi02YPZhCDZhdiq2YLYr9mFCi8vLwovLy8g2YrZiNmB2LEg2YjYp9is2YfYqSBGbHVlbnQgQVBJINmE2KjZhtin2KEg2KfYs9iq2LnZhNin2YXYp9iqINmF2LnZgtiv2Kkg2KjYs9mH2YjZhNipCi8vLwovLy8g2YXYq9in2YQ6Ci8vLyBgYGBkYXJ0Ci8vLyBmaW5hbCBxdWVyaWVzID0gQWR2YW5jZWRRdWVyeUJ1aWxkZXIoKQovLy8gICAgIC53aGVyZSgnc3RhdHVzJywgJ9i02KfYutix2KknKQovLy8gICAgIC53aGVyZUJldHdlZW4oJ3ByaWNlJywgMTAwMDAsIDIwMDAwKQovLy8gICAgIC5zZWFyY2goJ3Jvb21fbnVtYmVyJywgJzEwMScpCi8vLyAgICAgLm9yZGVyQnkoJ3ByaWNlJywgZGVzYzogZmFsc2UpCi8vLyAgICAgLmxpbWl0KDI1KQovLy8gICAgIC5vZmZzZXQoMCkKLy8vICAgICAuYnVpbGQoKTsKLy8vIGBgYApjbGFzcyBBZHZhbmNlZFF1ZXJ5QnVpbGRlciB7CiAgZmluYWwgTGlzdDxTdHJpbmc+IF9xdWVyaWVzID0gW107CgogIC8vLyDYpdi22KfZgdipINi02LHYtyDZhdiz2KfZiNin2KkKICAvLy8KICAvLy8gW2F0dHJpYnV0ZV0gLSDYp9iz2YUg2KfZhNit2YLZhAogIC8vLyBbdmFsdWVdIC0g2KfZhNmC2YrZhdipINin2YTZhdi32YTZiNio2KkKICBBZHZhbmNlZFF1ZXJ5QnVpbGRlciB3aGVyZShTdHJpbmcgYXR0cmlidXRlLCBkeW5hbWljIHZhbHVlKSB7CiAgICBfcXVlcmllcy5hZGQoUXVlcnkuZXF1YWwoYXR0cmlidXRlLCB2YWx1ZSkpOwogICAgcmV0dXJuIHRoaXM7CiAgfQoKICAvLy8g2KXYttin2YHYqSDYtNix2Lcg2LnYr9mFINmF2LPYp9mI2KfYqQogIC8vLwogIC8vLyBbYXR0cmlidXRlXSAtINin2LPZhSDYp9mE2K3ZgtmECiAgLy8vIFt2YWx1ZV0gLSDYp9mE2YLZitmF2Kkg2KfZhNmF2LPYqtio2LnYr9ipCiAgQWR2YW5jZWRRdWVyeUJ1aWxkZXIgd2hlcmVOb3QoU3RyaW5nIGF0dHJpYnV0ZSwgZHluYW1pYyB2YWx1ZSkgewogICAgX3F1ZXJpZXMuYWRkKFF1ZXJ5Lm5vdEVxdWFsKGF0dHJpYnV0ZSwgdmFsdWUpKTsKICAgIHJldHVybiB0aGlzOwogIH0KCiAgLy8vINil2LbYp9mB2Kkg2LTYsdi3INij2YPYqNixINmF2YYKICAvLy8KICAvLy8gW2F0dHJpYnV0ZV0gLSDYp9iz2YUg2KfZhNit2YLZhAogIC8vLyBbdmFsdWVdIC0g2KfZhNmC2YrZhdipINin2YTYr9mG2YrYpyAo2LrZitixINi02KfZhdmE2KkpCiAgQWR2YW5jZWRRdWVyeUJ1aWxkZXIgd2hlcmVHcmVhdGVyVGhhbihTdHJpbmcgYXR0cmlidXRlLCBkeW5hbWljIHZhbHVlKSB7CiAgICBfcXVlcmllcy5hZGQoUXVlcnkuZ3JlYXRlclRoYW4oYXR0cmlidXRlLCB2YWx1ZSkpOwogICAgcmV0dXJuIHRoaXM7CiAgfQoKICAvLy8g2KXYttin2YHYqSDYtNix2Lcg2KPZg9io2LEg2YXZhiDYo9mIINmK2LPYp9mI2YoKICAvLy8KICAvLy8gW2F0dHJpYnV0ZV0gLSDYp9iz2YUg2KfZhNit2YLZhAogIC8vLyBbdmFsdWVdIC0g2KfZhNmC2YrZhdipINin2YTYr9mG2YrYpyAo2LTYp9mF2YTYqSkKICBBZHZhbmNlZFF1ZXJ5QnVpbGRlciB3aGVyZUdyZWF0ZXJUaGFuT3JFcXVhbCgKICAgIFN0cmluZyBhdHRyaWJ1dGUsCiAgICBkeW5hbWljIHZhbHVlLAogICkgewogICAgX3F1ZXJpZXMuYWRkKFF1ZXJ5LmdyZWF0ZXJUaGFuRXF1YWwoYXR0cmlidXRlLCB2YWx1ZSkpOwogICAgcmV0dXJuIHRoaXM7CiAgfQoKICAvLy8g2KXYttin2YHYqSDYtNix2Lcg2KPYtdi62LEg2YXZhgogIC8vLwogIC8vLyBbYXR0cmlidXRlXSAtINin2LPZhSDYp9mE2K3ZgtmECiAgLy8vIFt2YWx1ZV0gLSDYp9mE2YLZitmF2Kkg2KfZhNmC2LXZiNmJICjYutmK2LEg2LTYp9mF2YTYqSkKICBBZHZhbmNlZFF1ZXJ5QnVpbGRlciB3aGVyZUxlc3NUaGFuKFN0cmluZyBhdHRyaWJ1dGUsIGR5bmFtaWMgdmFsdWUpIHsKICAgIF9xdWVyaWVzLmFkZChRdWVyeS5sZXNzVGhhbihhdHRyaWJ1dGUsIHZhbHVlKSk7CiAgICByZXR1cm4gdGhpczsKICB9CgogIC8vLyDYpdi22KfZgdipINi02LHYtyDYo9i12LrYsSDZhdmGINij2Ygg2YrYs9in2YjZigogIC8vLwogIC8vLyBbYXR0cmlidXRlXSAtINin2LPZhSDYp9mE2K3ZgtmECiAgLy8vIFt2YWx1ZV0gLSDYp9mE2YLZitmF2Kkg2KfZhNmC2LXZiNmJICjYtNin2YXZhNipKQogIEFkdmFuY2VkUXVlcnlCdWlsZGVyIHdoZXJlTGVzc1RoYW5PckVxdWFsKFN0cmluZyBhdHRyaWJ1dGUsIGR5bmFtaWMgdmFsdWUpIHsKICAgIF9xdWVyaWVzLmFkZChRdWVyeS5sZXNzVGhhbkVxdWFsKGF0dHJpYnV0ZSwgdmFsdWUpKTsKICAgIHJldHVybiB0aGlzOwogIH0KCiAgLy8vINil2LbYp9mB2Kkg2LTYsdi3INio2YrZhiDZgtmK2YXYqtmK2YYKICAvLy8KICAvLy8gW2F0dHJpYnV0ZV0gLSDYp9iz2YUg2KfZhNit2YLZhAogIC8vLyBbbWluXSAtINin2YTZgtmK2YXYqSDYp9mE2K/ZhtmK2KcKICAvLy8gW21heF0gLSDYp9mE2YLZitmF2Kkg2KfZhNmC2LXZiNmJCiAgQWR2YW5jZWRRdWVyeUJ1aWxkZXIgd2hlcmVCZXR3ZWVuKAogICAgU3RyaW5nIGF0dHJpYnV0ZSwKICAgIGR5bmFtaWMgbWluLAogICAgZHluYW1pYyBtYXgsCiAgKSB7CiAgICBfcXVlcmllcy5hZGQoUXVlcnkuZ3JlYXRlclRoYW5FcXVhbChhdHRyaWJ1dGUsIG1pbikpOwogICAgX3F1ZXJpZXMuYWRkKFF1ZXJ5Lmxlc3NUaGFuRXF1YWwoYXR0cmlidXRlLCBtYXgpKTsKICAgIHJldHVybiB0aGlzOwogIH0KCiAgLy8vINil2LbYp9mB2Kkg2LTYsdi3IElOICjYp9mE2YLZitmF2Kkg2YXZiNis2YjYr9ipINmB2Yog2YLYp9im2YXYqSkKICAvLy8KICAvLy8gW2F0dHJpYnV0ZV0gLSDYp9iz2YUg2KfZhNit2YLZhAogIC8vLyBbdmFsdWVzXSAtINmC2KfYptmF2Kkg2KfZhNmC2YrZhSDYp9mE2YXYs9mF2YjYrdipCiAgQWR2YW5jZWRRdWVyeUJ1aWxkZXIgd2hlcmVJbihTdHJpbmcgYXR0cmlidXRlLCBMaXN0PGR5bmFtaWM+IHZhbHVlcykgewogICAgZm9yIChmaW5hbCB2YWx1ZSBpbiB2YWx1ZXMpIHsKICAgICAgX3F1ZXJpZXMuYWRkKFF1ZXJ5LmVxdWFsKGF0dHJpYnV0ZSwgdmFsdWUpKTsKICAgIH0KICAgIHJldHVybiB0aGlzOwogIH0KCiAgLy8vINil2LbYp9mB2Kkg2LTYsdi3INio2K3YqyDZhti12YoKICAvLy8KICAvLy8gW2F0dHJpYnV0ZV0gLSDYp9iz2YUg2KfZhNit2YLZhAogIC8vLyBbc2VhcmNoVGVybV0gLSDYp9mE2YbYtSDYp9mE2YXYsdin2K8g2KfZhNio2K3YqyDYudmG2YcKICBBZHZhbmNlZFF1ZXJ5QnVpbGRlciBzZWFyY2goU3RyaW5nIGF0dHJpYnV0ZSwgU3RyaW5nIHNlYXJjaFRlcm0pIHsKICAgIGlmIChzZWFyY2hUZXJtLmlzTm90RW1wdHkpIHsKICAgICAgX3F1ZXJpZXMuYWRkKFF1ZXJ5LnNlYXJjaChhdHRyaWJ1dGUsIHNlYXJjaFRlcm0pKTsKICAgIH0KICAgIHJldHVybiB0aGlzOwogIH0KCiAgLy8vINil2LbYp9mB2Kkg2LTYsdi3IE5VTEwKICAvLy8KICAvLy8gW2F0dHJpYnV0ZV0gLSDYp9iz2YUg2KfZhNit2YLZhAogIEFkdmFuY2VkUXVlcnlCdWlsZGVyIHdoZXJlTnVsbChTdHJpbmcgYXR0cmlidXRlKSB7CiAgICBfcXVlcmllcy5hZGQoUXVlcnkuaXNOdWxsKGF0dHJpYnV0ZSkpOwogICAgcmV0dXJuIHRoaXM7CiAgfQoKICAvLy8g2KXYttin2YHYqSDYtNix2LcgTk9UIE5VTEwKICAvLy8KICAvLy8gW2F0dHJpYnV0ZV0gLSDYp9iz2YUg2KfZhNit2YLZhAogIEFkdmFuY2VkUXVlcnlCdWlsZGVyIHdoZXJlTm90TnVsbChTdHJpbmcgYXR0cmlidXRlKSB7CiAgICBfcXVlcmllcy5hZGQoUXVlcnkuaXNOb3ROdWxsKGF0dHJpYnV0ZSkpOwogICAgcmV0dXJuIHRoaXM7CiAgfQoKICAvLy8g2KrYsdiq2YrYqCDYp9mE2YbYqtin2KbYrCDYqti12KfYudiv2YrYp9mLCiAgLy8vCiAgLy8vIFthdHRyaWJ1dGVdIC0g2KfYs9mFINin2YTYrdmC2YQg2YTZhNiq2LHYqtmK2KgKICBBZHZhbmNlZFF1ZXJ5QnVpbGRlciBvcmRlckFzYyhTdHJpbmcgYXR0cmlidXRlKSB7CiAgICBfcXVlcmllcy5hZGQoUXVlcnkub3JkZXJBc2MoYXR0cmlidXRlKSk7CiAgICByZXR1cm4gdGhpczsKICB9CgogIC8vLyDYqtix2KrZitioINin2YTZhtiq2KfYptisINiq2YbYp9iy2YTZitin2YsKICAvLy8KICAvLy8gW2F0dHJpYnV0ZV0gLSDYp9iz2YUg2KfZhNit2YLZhCDZhNmE2KrYsdiq2YrYqAogIEFkdmFuY2VkUXVlcnlCdWlsZGVyIG9yZGVyRGVzYyhTdHJpbmcgYXR0cmlidXRlKSB7CiAgICBfcXVlcmllcy5hZGQoUXVlcnkub3JkZXJEZXNjKGF0dHJpYnV0ZSkpOwogICAgcmV0dXJuIHRoaXM7CiAgfQoKICAvLy8g2KrYsdiq2YrYqCDYp9mE2YbYqtin2KbYrCAo2KrYtdin2LnYr9mKINij2Ygg2KrZhtin2LLZhNmKKQogIC8vLwogIC8vLyBbYXR0cmlidXRlXSAtINin2LPZhSDYp9mE2K3ZgtmEINmE2YTYqtix2KrZitioCiAgLy8vIFtkZXNjXSAtINmH2YQg2KfZhNiq2LHYqtmK2Kgg2KrZhtin2LLZhNmK2J8gKNin2YHYqtix2KfYttmKOiBmYWxzZSkKICBBZHZhbmNlZFF1ZXJ5QnVpbGRlciBvcmRlckJ5KFN0cmluZyBhdHRyaWJ1dGUsIHtib29sIGRlc2MgPSBmYWxzZX0pIHsKICAgIGlmIChkZXNjKSB7CiAgICAgIF9xdWVyaWVzLmFkZChRdWVyeS5vcmRlckRlc2MoYXR0cmlidXRlKSk7CiAgICB9IGVsc2UgewogICAgICBfcXVlcmllcy5hZGQoUXVlcnkub3JkZXJBc2MoYXR0cmlidXRlKSk7CiAgICB9CiAgICByZXR1cm4gdGhpczsKICB9CgogIC8vLyDYqtit2K/ZitivINi52K/YryDYp9mE2YbYqtin2KbYrAogIC8vLwogIC8vLyBbdmFsdWVdIC0g2LnYr9ivINin2YTZhtiq2KfYptisINin2YTZhdi32YTZiNio2KkKICBBZHZhbmNlZFF1ZXJ5QnVpbGRlciBsaW1pdChpbnQgdmFsdWUpIHsKICAgIF9xdWVyaWVzLmFkZChRdWVyeS5saW1pdCh2YWx1ZSkpOwogICAgcmV0dXJuIHRoaXM7CiAgfQoKICAvLy8g2KrYrdiv2YrYryDZhtmC2LfYqSDYp9mE2KjYr9in2YrYqSAo2YTZhNmAIFBhZ2luYXRpb24pCiAgLy8vCiAgLy8vIFt2YWx1ZV0gLSDYudiv2K8g2KfZhNi52YbYp9i12LEg2KfZhNmF2KrYrti32KfYqQogIEFkdmFuY2VkUXVlcnlCdWlsZGVyIG9mZnNldChpbnQgdmFsdWUpIHsKICAgIF9xdWVyaWVzLmFkZChRdWVyeS5vZmZzZXQodmFsdWUpKTsKICAgIHJldHVybiB0aGlzOwogIH0KCiAgLy8vINin2K7YqtmK2KfYsSDYrdmC2YjZhCDZhdit2K/Yr9ipINmB2YLYtwogIC8vLwogIC8vLyBbYXR0cmlidXRlc10gLSDZgtin2KbZhdipINij2LPZhdin2KEg2KfZhNit2YLZiNmECiAgQWR2YW5jZWRRdWVyeUJ1aWxkZXIgc2VsZWN0KExpc3Q8U3RyaW5nPiBhdHRyaWJ1dGVzKSB7CiAgICBfcXVlcmllcy5hZGQoUXVlcnkuc2VsZWN0KGF0dHJpYnV0ZXMpKTsKICAgIHJldHVybiB0aGlzOwogIH0KCiAgLy8vINil2LbYp9mB2KkgY3Vyc29yINmE2YTZgCBwYWdpbmF0aW9uICjYqNiv2YrZhCDZhNmAIG9mZnNldCkKICAvLy8KICAvLy8gW2N1cnNvcklkXSAtINmF2LnYsdmBINin2YTYudmG2LXYsSDYp9mE2KPYrtmK2LEg2YXZhiDYp9mE2LXZgdit2Kkg2KfZhNiz2KfYqNmC2KkKICBBZHZhbmNlZFF1ZXJ5QnVpbGRlciBjdXJzb3JBZnRlcihTdHJpbmcgY3Vyc29ySWQpIHsKICAgIF9xdWVyaWVzLmFkZChRdWVyeS5jdXJzb3JBZnRlcihjdXJzb3JJZCkpOwogICAgcmV0dXJuIHRoaXM7CiAgfQoKICAvLy8g2KXYttin2YHYqSBjdXJzb3Ig2YTZhNmAIHBhZ2luYXRpb24g2KfZhNi52YPYs9mKCiAgLy8vCiAgLy8vIFtjdXJzb3JJZF0gLSDZhdi52LHZgSDYp9mE2LnZhti12LEg2KfZhNij2YjZhCDZhdmGINin2YTYtdmB2K3YqSDYp9mE2KrYp9mE2YrYqQogIEFkdmFuY2VkUXVlcnlCdWlsZGVyIGN1cnNvckJlZm9yZShTdHJpbmcgY3Vyc29ySWQpIHsKICAgIF9xdWVyaWVzLmFkZChRdWVyeS5jdXJzb3JCZWZvcmUoY3Vyc29ySWQpKTsKICAgIHJldHVybiB0aGlzOwogIH0KCiAgLy8vINio2YbYp9ihINin2YTYp9iz2KrYudmE2KfZhdin2KoKICAvLy8KICAvLy8g2KXYsdis2KfYuSDZgtin2KbZhdipINin2YTYp9iz2KrYudmE2KfZhdin2Kog2KfZhNis2KfZh9iy2Kkg2YTZhNin2LPYqtiu2K/Yp9mFINmF2LkgQXBwd3JpdGUKICBMaXN0PFN0cmluZz4gYnVpbGQoKSA9PiBMaXN0LnVubW9kaWZpYWJsZShfcXVlcmllcyk7CgogIC8vLyDYp9mE2K3YtdmI2YQg2LnZhNmJINi52K/YryDYp9mE2KfYs9iq2LnZhNin2YXYp9iqCiAgaW50IGdldCBjb3VudCA9PiBfcXVlcmllcy5sZW5ndGg7CgogIC8vLyDZh9mEINmK2YjYrNivINin2LPYqti52YTYp9mF2KfYqtifCiAgYm9vbCBnZXQgaXNFbXB0eSA9PiBfcXVlcmllcy5pc0VtcHR5OwogIGJvb2wgZ2V0IGlzTm90RW1wdHkgPT4gX3F1ZXJpZXMuaXNOb3RFbXB0eTsKCiAgLy8vINmF2LPYrSDYrNmF2YrYuSDYp9mE2KfYs9iq2LnZhNin2YXYp9iqCiAgdm9pZCBjbGVhcigpIHsKICAgIF9xdWVyaWVzLmNsZWFyKCk7CiAgfQoKICAvLy8g2YbYs9iuIEJ1aWxkZXIg2KzYr9mK2K8g2YXYuSDZhtmB2LMg2KfZhNin2LPYqti52YTYp9mF2KfYqgogIEFkdmFuY2VkUXVlcnlCdWlsZGVyIGNsb25lKCkgewogICAgZmluYWwgY2xvbmVkID0gQWR2YW5jZWRRdWVyeUJ1aWxkZXIoKTsKICAgIGNsb25lZC5fcXVlcmllcy5hZGRBbGwoX3F1ZXJpZXMpOwogICAgcmV0dXJuIGNsb25lZDsKICB9CgogIEBvdmVycmlkZQogIFN0cmluZyB0b1N0cmluZygpID0+ICdBZHZhbmNlZFF1ZXJ5QnVpbGRlcigke19xdWVyaWVzLmxlbmd0aH0gcXVlcmllcyknOwp9CgovLy8g2KfZhdiq2K/Yp9ivINmE2YAgUXVlcnkg2YTYs9mH2YjZhNipINin2YTYp9iz2KrYrtiv2KfZhQpleHRlbnNpb24gUXVlcnlIZWxwZXJzIG9uIFF1ZXJ5IHsKICAvLy8g2KjZhtin2KEgcXVlcnkgYnVpbGRlciDYrNiv2YrYrwogIHN0YXRpYyBBZHZhbmNlZFF1ZXJ5QnVpbGRlciBidWlsZGVyKCkgPT4gQWR2YW5jZWRRdWVyeUJ1aWxkZXIoKTsKfQo=
+import 'package:appwrite/appwrite.dart';
+
+/// بناء استعلامات Appwrite بشكل متقدم
+///
+/// يوفر واجهة Fluent API لبناء استعلامات معقدة بسهولة
+///
+/// مثال:
+/// ```dart
+/// final queries = AdvancedQueryBuilder()
+///     .where('status', 'شاغرة')
+///     .whereBetween('price', 10000, 20000)
+///     .search('room_number', '101')
+///     .orderBy('price', desc: false)
+///     .limit(25)
+///     .offset(0)
+///     .build();
+/// ```
+class AdvancedQueryBuilder {
+  final List<String> _queries = [];
+
+  /// إضافة شرط مساواة
+  ///
+  /// [attribute] - اسم الحقل
+  /// [value] - القيمة المطلوبة
+  AdvancedQueryBuilder where(String attribute, dynamic value) {
+    _queries.add(Query.equal(attribute, value));
+    return this;
+  }
+
+  /// إضافة شرط عدم مساواة
+  ///
+  /// [attribute] - اسم الحقل
+  /// [value] - القيمة المستبعدة
+  AdvancedQueryBuilder whereNot(String attribute, dynamic value) {
+    _queries.add(Query.notEqual(attribute, value));
+    return this;
+  }
+
+  /// إضافة شرط أكبر من
+  ///
+  /// [attribute] - اسم الحقل
+  /// [value] - القيمة الدنيا (غير شاملة)
+  AdvancedQueryBuilder whereGreaterThan(String attribute, dynamic value) {
+    _queries.add(Query.greaterThan(attribute, value));
+    return this;
+  }
+
+  /// إضافة شرط أكبر من أو يساوي
+  ///
+  /// [attribute] - اسم الحقل
+  /// [value] - القيمة الدنيا (شاملة)
+  AdvancedQueryBuilder whereGreaterThanOrEqual(
+    String attribute,
+    dynamic value,
+  ) {
+    _queries.add(Query.greaterThanEqual(attribute, value));
+    return this;
+  }
+
+  /// إضافة شرط أصغر من
+  ///
+  /// [attribute] - اسم الحقل
+  /// [value] - القيمة القصوى (غير شاملة)
+  AdvancedQueryBuilder whereLessThan(String attribute, dynamic value) {
+    _queries.add(Query.lessThan(attribute, value));
+    return this;
+  }
+
+  /// إضافة شرط أصغر من أو يساوي
+  ///
+  /// [attribute] - اسم الحقل
+  /// [value] - القيمة القصوى (شاملة)
+  AdvancedQueryBuilder whereLessThanOrEqual(String attribute, dynamic value) {
+    _queries.add(Query.lessThanEqual(attribute, value));
+    return this;
+  }
+
+  /// إضافة شرط بين قيمتين
+  ///
+  /// [attribute] - اسم الحقل
+  /// [min] - القيمة الدنيا
+  /// [max] - القيمة القصوى
+  AdvancedQueryBuilder whereBetween(
+    String attribute,
+    dynamic min,
+    dynamic max,
+  ) {
+    _queries.add(Query.greaterThanEqual(attribute, min));
+    _queries.add(Query.lessThanEqual(attribute, max));
+    return this;
+  }
+
+  /// إضافة شرط IN (القيمة موجودة في قائمة)
+  ///
+  /// [attribute] - اسم الحقل
+  /// [values] - قائمة القيم المسموحة
+  AdvancedQueryBuilder whereIn(String attribute, List<dynamic> values) {
+    for (final value in values) {
+      _queries.add(Query.equal(attribute, value));
+    }
+    return this;
+  }
+
+  /// إضافة شرط بحث نصي
+  ///
+  /// [attribute] - اسم الحقل
+  /// [searchTerm] - النص المراد البحث عنه
+  AdvancedQueryBuilder search(String attribute, String searchTerm) {
+    if (searchTerm.isNotEmpty) {
+      _queries.add(Query.search(attribute, searchTerm));
+    }
+    return this;
+  }
+
+  /// إضافة شرط NULL
+  ///
+  /// [attribute] - اسم الحقل
+  AdvancedQueryBuilder whereNull(String attribute) {
+    _queries.add(Query.isNull(attribute));
+    return this;
+  }
+
+  /// إضافة شرط NOT NULL
+  ///
+  /// [attribute] - اسم الحقل
+  AdvancedQueryBuilder whereNotNull(String attribute) {
+    _queries.add(Query.isNotNull(attribute));
+    return this;
+  }
+
+  /// ترتيب النتائج تصاعدياً
+  ///
+  /// [attribute] - اسم الحقل للترتيب
+  AdvancedQueryBuilder orderAsc(String attribute) {
+    _queries.add(Query.orderAsc(attribute));
+    return this;
+  }
+
+  /// ترتيب النتائج تنازلياً
+  ///
+  /// [attribute] - اسم الحقل للترتيب
+  AdvancedQueryBuilder orderDesc(String attribute) {
+    _queries.add(Query.orderDesc(attribute));
+    return this;
+  }
+
+  /// ترتيب النتائج (تصاعدي أو تنازلي)
+  ///
+  /// [attribute] - اسم الحقل للترتيب
+  /// [desc] - هل الترتيب تنازلي؟ (افتراضي: false)
+  AdvancedQueryBuilder orderBy(String attribute, {bool desc = false}) {
+    if (desc) {
+      _queries.add(Query.orderDesc(attribute));
+    } else {
+      _queries.add(Query.orderAsc(attribute));
+    }
+    return this;
+  }
+
+  /// تحديد عدد النتائج
+  ///
+  /// [value] - عدد النتائج المطلوبة
+  AdvancedQueryBuilder limit(int value) {
+    _queries.add(Query.limit(value));
+    return this;
+  }
+
+  /// تحديد نقطة البداية (للـ Pagination)
+  ///
+  /// [value] - عدد العناصر المتخطاة
+  AdvancedQueryBuilder offset(int value) {
+    _queries.add(Query.offset(value));
+    return this;
+  }
+
+  /// اختيار حقول محددة فقط
+  ///
+  /// [attributes] - قائمة أسماء الحقول
+  AdvancedQueryBuilder select(List<String> attributes) {
+    _queries.add(Query.select(attributes));
+    return this;
+  }
+
+  /// إضافة cursor للـ pagination (بديل لـ offset)
+  ///
+  /// [cursorId] - معرف العنصر الأخير من الصفحة السابقة
+  AdvancedQueryBuilder cursorAfter(String cursorId) {
+    _queries.add(Query.cursorAfter(cursorId));
+    return this;
+  }
+
+  /// إضافة cursor للـ pagination العكسي
+  ///
+  /// [cursorId] - معرف العنصر الأول من الصفحة التالية
+  AdvancedQueryBuilder cursorBefore(String cursorId) {
+    _queries.add(Query.cursorBefore(cursorId));
+    return this;
+  }
+
+  /// بناء الاستعلامات
+  ///
+  /// إرجاع قائمة الاستعلامات الجاهزة للاستخدام مع Appwrite
+  List<String> build() => List.unmodifiable(_queries);
+
+  /// الحصول على عدد الاستعلامات
+  int get count => _queries.length;
+
+  /// هل يوجد استعلامات؟
+  bool get isEmpty => _queries.isEmpty;
+  bool get isNotEmpty => _queries.isNotEmpty;
+
+  /// مسح جميع الاستعلامات
+  void clear() {
+    _queries.clear();
+  }
+
+  /// نسخ Builder جديد مع نفس الاستعلامات
+  AdvancedQueryBuilder clone() {
+    final cloned = AdvancedQueryBuilder();
+    cloned._queries.addAll(_queries);
+    return cloned;
+  }
+
+  @override
+  String toString() => 'AdvancedQueryBuilder(${_queries.length} queries)';
+}
+
+/// امتداد لـ Query لسهولة الاستخدام
+extension QueryHelpers on Query {
+  /// بناء query builder جديد
+  static AdvancedQueryBuilder builder() => AdvancedQueryBuilder();
+}
