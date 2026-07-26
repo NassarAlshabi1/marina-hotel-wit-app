@@ -39,9 +39,15 @@ class SmartGoogleDriveSync {
   static const String _prefsLastDeltaSyncKey = 'smart_gd_last_delta_sync';
 
   // الإعدادات
-  static const Duration _debounceDuration = Duration(seconds: 5); // تجميع التغييرات لمدة 5 ثواني
-  static const Duration _periodicSyncInterval = Duration(minutes: 2); // فحص دوري كل دقيقتين
-  static const Duration _dailyFullBackupInterval = Duration(hours: 24); // نسخة كاملة يومياً
+  static const Duration _debounceDuration = Duration(
+    seconds: 5,
+  ); // تجميع التغييرات لمدة 5 ثواني
+  static const Duration _periodicSyncInterval = Duration(
+    minutes: 2,
+  ); // فحص دوري كل دقيقتين
+  static const Duration _dailyFullBackupInterval = Duration(
+    hours: 24,
+  ); // نسخة كاملة يومياً
 
   void _log(String message) {
     DebugLogs.add('SmartGDSync', message);
@@ -49,7 +55,10 @@ class SmartGoogleDriveSync {
   }
 
   /// تهيئة الخدمة
-  Future<void> initialize({required GoogleDriveBackupService driveService, required AppDatabase database}) async {
+  Future<void> initialize({
+    required GoogleDriveBackupService driveService,
+    required AppDatabase database,
+  }) async {
     _driveService = driveService;
     _deltaSync = GoogleDriveDeltaSync.instance;
     await _deltaSync!.initialize(driveService, database);
@@ -154,14 +163,19 @@ class SmartGoogleDriveSync {
         _pendingChangesCount = 0;
 
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setInt(_prefsLastDeltaSyncKey, DateTime.now().millisecondsSinceEpoch);
+        await prefs.setInt(
+          _prefsLastDeltaSyncKey,
+          DateTime.now().millisecondsSinceEpoch,
+        );
 
         _log('✅ تم رفع التغييرات: ${result.changesCount} تغيير');
 
         // تحديث استهلاك البيانات
         if (result.changesCount > 0) {
           await DataUsageManager.instance.recordDataUsage(
-            (result.changesCount * SyncConstants.estimatedBytesPerDeltaChange) / 1024 / 1024,
+            (result.changesCount * SyncConstants.estimatedBytesPerDeltaChange) /
+                1024 /
+                1024,
           );
         }
 
@@ -205,7 +219,9 @@ class SmartGoogleDriveSync {
 
         if (result.changesCount > 0) {
           await DataUsageManager.instance.recordDataUsage(
-            (result.changesCount * SyncConstants.estimatedBytesPerDeltaChange) / 1024 / 1024,
+            (result.changesCount * SyncConstants.estimatedBytesPerDeltaChange) /
+                1024 /
+                1024,
           );
         }
 
@@ -245,13 +261,22 @@ class SmartGoogleDriveSync {
 
       // إضافة metadata للتمييز
       final metadata = backupData['metadata'];
-      final baseMetadata = metadata is Map ? Map<String, dynamic>.from(metadata) : <String, dynamic>{};
-      backupData['metadata'] = {...baseMetadata, 'backup_type': 'full', 'sync_type': 'scheduled'};
+      final baseMetadata = metadata is Map
+          ? Map<String, dynamic>.from(metadata)
+          : <String, dynamic>{};
+      backupData['metadata'] = {
+        ...baseMetadata,
+        'backup_type': 'full',
+        'sync_type': 'scheduled',
+      };
 
       final fileId = await _driveService!.uploadBackup(backupData);
 
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(_prefsLastFullBackupKey, DateTime.now().millisecondsSinceEpoch);
+      await prefs.setInt(
+        _prefsLastFullBackupKey,
+        DateTime.now().millisecondsSinceEpoch,
+      );
 
       _log('✅ تم إنشاء النسخة الاحتياطية الكاملة: $fileId');
       return true;
@@ -315,7 +340,9 @@ class SmartGoogleDriveSync {
       await createFullBackup();
 
       // جدولة التكرار اليومي
-      _dailyFullBackupTimer = Timer.periodic(_dailyFullBackupInterval, (timer) async {
+      _dailyFullBackupTimer = Timer.periodic(_dailyFullBackupInterval, (
+        timer,
+      ) async {
         await createFullBackup();
       });
     });
