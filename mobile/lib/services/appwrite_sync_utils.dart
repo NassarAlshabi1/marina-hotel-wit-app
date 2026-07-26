@@ -254,6 +254,7 @@ class AppwriteSyncUtils {
       'deviceId',
       'effectiveHotelDay',
       'endHotelDay',
+      'hotelDayKey',
       'idempotencyKey',
       'isActive',
       'lastModified',
@@ -1456,6 +1457,9 @@ class AppwriteSyncUtils {
       'adjustmentMode': 'string',
       'amount': 'double',
       'effectiveHotelDay': 'string',
+      // ✅ إصلاح 2026-07-26: hotelDayKey مطلوب على Appwrite Cloud
+      // محلياً effectiveHotelDay = hotelDayKey (نفس القيمة، اسم مختلف)
+      'hotelDayKey': 'string',
       'endHotelDay': 'string',
       'isActive': 'boolean',
       'reason': 'string',
