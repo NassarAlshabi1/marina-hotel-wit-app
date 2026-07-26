@@ -1,1 +1,273 @@
-aW1wb3J0ICdkYXJ0OmFzeW5jJzsKaW1wb3J0ICdkYXJ0OmNvbGxlY3Rpb24nOwppbXBvcnQgJ3BhY2thZ2U6Zmx1dHRlci9mb3VuZGF0aW9uLmRhcnQnOwppbXBvcnQgJ2FwcHdyaXRlX2NvbmZpZy5kYXJ0JzsKCi8vLyDZhtmF2YjYsNisINi52YbYtdixINin2YTYsNin2YPYsdipINin2YTZhdik2YLYqtipCmNsYXNzIENhY2hlRW50cnk8VD4gewogIENhY2hlRW50cnkoe3JlcXVpcmVkIHRoaXMuZGF0YSwgcmVxdWlyZWQgdGhpcy50aW1lc3RhbXAsIHJlcXVpcmVkIHRoaXMudHRsfSk7CiAgZmluYWwgVCBkYXRhOwogIGZpbmFsIERhdGVUaW1lIHRpbWVzdGFtcDsKICBmaW5hbCBEdXJhdGlvbiB0dGw7CgogIGJvb2wgZ2V0IGlzRXhwaXJlZCA9PiBEYXRlVGltZS5ub3coKS5kaWZmZXJlbmNlKHRpbWVzdGFtcCkgPiB0dGw7CgogIGludCBnZXQgc2l6ZUluQnl0ZXMgewogICAgLy8g2KrZgtiv2YrYsSDYrdis2YUg2KfZhNio2YrYp9mG2KfYqiAo2KrZgtix2YrYqNmKKQogICAgaWYgKGRhdGEgaXMgTGlzdCkgewogICAgICByZXR1cm4gKGRhdGEgYXMgTGlzdCkubGVuZ3RoICogMTAwOyAvLyDYqtmC2K/ZitixIDEwMCDYqNin2YrYqiDZhNmD2YQg2LnZhti12LEKICAgIH0KICAgIHJldHVybiAxMDA7IC8vINin2YHYqtix2KfYttmKCiAgfQp9CgovLy8g2KXYrdi12KfYptmK2KfYqiDYp9mE2LDYp9mD2LHYqSDYp9mE2YXYpNmC2KrYqQpjbGFzcyBDYWNoZVN0YXRpc3RpY3MgewogIENhY2hlU3RhdGlzdGljcyh7CiAgICByZXF1aXJlZCB0aGlzLnRvdGFsRW50cmllcywKICAgIHJlcXVpcmVkIHRoaXMudmFsaWRFbnRyaWVzLAogICAgcmVxdWlyZWQgdGhpcy5leHBpcmVkRW50cmllcywKICAgIHJlcXVpcmVkIHRoaXMudG90YWxTaXplQnl0ZXMsCiAgICByZXF1aXJlZCB0aGlzLm1heFNpemVCeXRlcywKICAgIHJlcXVpcmVkIHRoaXMuaGl0UmF0ZSwKICAgIHJlcXVpcmVkIHRoaXMuaGl0cywKICAgIHJlcXVpcmVkIHRoaXMubWlzc2VzLAogIH0pOwogIGZpbmFsIGludCB0b3RhbEVudHJpZXM7CiAgZmluYWwgaW50IHZhbGlkRW50cmllczsKICBmaW5hbCBpbnQgZXhwaXJlZEVudHJpZXM7CiAgZmluYWwgaW50IHRvdGFsU2l6ZUJ5dGVzOwogIGZpbmFsIGludCBtYXhTaXplQnl0ZXM7CiAgZmluYWwgZG91YmxlIGhpdFJhdGU7CiAgZmluYWwgaW50IGhpdHM7CiAgZmluYWwgaW50IG1pc3NlczsKCiAgZG91YmxlIGdldCB1c2FnZVBlcmNlbnRhZ2UgPT4KICAgICAgbWF4U2l6ZUJ5dGVzID4gMCA/ICh0b3RhbFNpemVCeXRlcyAvIG1heFNpemVCeXRlcykgKiAxMDAgOiAwOwoKICBTdHJpbmcgZ2V0IHRvdGFsU2l6ZU1CID0+ICh0b3RhbFNpemVCeXRlcyAvICgxMDI0ICogMTAyNCkpLnRvU3RyaW5nQXNGaXhlZCgyKTsKICBTdHJpbmcgZ2V0IG1heFNpemVNQiA9PiAobWF4U2l6ZUJ5dGVzIC8gKDEwMjQgKiAxMDI0KSkudG9TdHJpbmdBc0ZpeGVkKDIpOwp9CgovLy8g2YXYr9mK2LEg2KfZhNiw2KfZg9ix2Kkg2KfZhNmF2KTZgtiq2KkKY2xhc3MgQXBwd3JpdGVDYWNoZU1hbmFnZXIgewogIGZhY3RvcnkgQXBwd3JpdGVDYWNoZU1hbmFnZXIoKSA9PiBfaW5zdGFuY2U7CiAgQXBwd3JpdGVDYWNoZU1hbmFnZXIuX2ludGVybmFsKCk7CiAgc3RhdGljIGZpbmFsIEFwcHdyaXRlQ2FjaGVNYW5hZ2VyIF9pbnN0YW5jZSA9CiAgICAgIEFwcHdyaXRlQ2FjaGVNYW5hZ2VyLl9pbnRlcm5hbCgpOwoKICBmaW5hbCBNYXA8U3RyaW5nLCBDYWNoZUVudHJ5PGR5bmFtaWM+PiBfY2FjaGUgPQogICAgICBIYXNoTWFwPFN0cmluZywgQ2FjaGVFbnRyeTxkeW5hbWljPj4oKTsKICBUaW1lcj8gX2NsZWFudXBUaW1lcjsKCiAgaW50IF9oaXRzID0gMDsKICBpbnQgX21pc3NlcyA9IDA7CiAgaW50IF9tYXhTaXplQnl0ZXMgPSBBcHB3cml0ZUNvbmZpZy5tYXhDYWNoZVNpemVNQiAqIDEwMjQgKiAxMDI0OwogIER1cmF0aW9uIF9kZWZhdWx0VFRMID0gQXBwd3JpdGVDb25maWcuY2FjaGVFeHBpcnk7CiAgYm9vbCBfZW5hYmxlZCA9IHRydWU7CgogIC8vLyDYqtmB2LnZitmEL9iq2LnYt9mK2YQg2KfZhNiw2KfZg9ix2Kkg2KfZhNmF2KTZgtiq2KkKICB2b2lkIHNldEVuYWJsZWQoYm9vbCBlbmFibGVkKSB7CiAgICBfZW5hYmxlZCA9IGVuYWJsZWQ7CiAgICBpZiAoIWVuYWJsZWQpIHsKICAgICAgY2xlYXIoKTsKICAgIH0KICB9CgogIC8vLyDYqti52YrZitmGINin2YTYrdivINin2YTYo9mC2LXZiSDZhNmE2K3YrNmFICjYqNin2YTZhdmK2KzYp9io2KfZitiqKQogIHZvaWQgc2V0TWF4U2l6ZU1CKGludCBzaXplTUIpIHsKICAgIF9tYXhTaXplQnl0ZXMgPSBzaXplTUIgKiAxMDI0ICogMTAyNDsKICAgIF9ldmljdElmTmVlZGVkKCk7CiAgfQoKICAvLy8g2KrYudmK2YrZhiDZhdiv2Kkg2KfZhNi12YTYp9it2YrYqSDYp9mE2KfZgdiq2LHYp9i22YrYqQogIHZvaWQgc2V0RGVmYXVsdFRUTChEdXJhdGlvbiB0dGwpIHsKICAgIF9kZWZhdWx0VFRMID0gdHRsOwogIH0KCiAgLy8vINit2YHYuCDYqNmK2KfZhtin2Kog2YHZiiDYp9mE2LDYp9mD2LHYqSDYp9mE2YXYpNmC2KrYqQogIHZvaWQgc2V0PFQ+KFN0cmluZyBrZXksIFQgZGF0YSwge0R1cmF0aW9uPyB0dGx9KSB7CiAgICBpZiAoIV9lbmFibGVkKSB7CiAgICAgIHJldHVybjsKICAgIH0KCiAgICBmaW5hbCBlbnRyeSA9IENhY2hlRW50cnk8VD4oCiAgICAgIGRhdGE6IGRhdGEsCiAgICAgIHRpbWVzdGFtcDogRGF0ZVRpbWUubm93KCksCiAgICAgIHR0bDogdHRsID8/IF9kZWZhdWx0VFRMLAogICAgKTsKCiAgICBfY2FjaGVba2V5XSA9IGVudHJ5OwogICAgX2V2aWN0SWZOZWVkZWQoKTsKICB9CgogIC8vLyDYp9mE2K3YtdmI2YQg2LnZhNmJINio2YrYp9mG2KfYqiDZhdmGINin2YTYsNin2YPYsdipINin2YTZhdik2YLYqtipCiAgVD8gZ2V0PFQ+KFN0cmluZyBrZXkpIHsKICAgIGlmICghX2VuYWJsZWQpIHsKICAgICAgcmV0dXJuIG51bGw7CiAgICB9CgogICAgZmluYWwgZW50cnkgPSBfY2FjaGVba2V5XTsKCiAgICBpZiAoZW50cnkgPT0gbnVsbCkgewogICAgICBfbWlzc2VzKys7CiAgICAgIHJldHVybiBudWxsOwogICAgfQoKICAgIGlmIChlbnRyeS5pc0V4cGlyZWQpIHsKICAgICAgX2NhY2hlLnJlbW92ZShrZXkpOwogICAgICBfbWlzc2VzKys7CiAgICAgIHJldHVybiBudWxsOwogICAgfQoKICAgIF9oaXRzKys7CiAgICByZXR1cm4gZW50cnkuZGF0YSBhcyBUPzsKICB9CgogIC8vLyDYp9mE2KrYrdmC2YIg2YXZhiDZiNis2YjYryDZhdmB2KrYp9itCiAgYm9vbCBoYXMoU3RyaW5nIGtleSkgewogICAgaWYgKCFfZW5hYmxlZCkgewogICAgICByZXR1cm4gZmFsc2U7CiAgICB9CgogICAgZmluYWwgZW50cnkgPSBfY2FjaGVba2V5XTsKICAgIGlmIChlbnRyeSA9PSBudWxsKSB7CiAgICAgIHJldHVybiBmYWxzZTsKICAgIH0KCiAgICBpZiAoZW50cnkuaXNFeHBpcmVkKSB7CiAgICAgIF9jYWNoZS5yZW1vdmUoa2V5KTsKICAgICAgcmV0dXJuIGZhbHNlOwogICAgfQoKICAgIHJldHVybiB0cnVlOwogIH0KCiAgLy8vINit2LDZgSDYudmG2LXYsSDZhdmGINin2YTYsNin2YPYsdipINin2YTZhdik2YLYqtipCiAgdm9pZCByZW1vdmUoU3RyaW5nIGtleSkgewogICAgX2NhY2hlLnJlbW92ZShrZXkpOwogIH0KCiAgLy8vINmF2LPYrSDYrNmF2YrYuSDYp9mE2LnZhtin2LXYsQogIHZvaWQgY2xlYXIoKSB7CiAgICBfY2FjaGUuY2xlYXIoKTsKICAgIF9oaXRzID0gMDsKICAgIF9taXNzZXMgPSAwOwogIH0KCiAgLy8vINmF2LPYrSDYp9mE2LnZhtin2LXYsSDZhdmG2KrZh9mK2Kkg2KfZhNi12YTYp9it2YrYqQogIGludCBjbGVhckV4cGlyZWQoKSB7CiAgICBmaW5hbCBleHBpcmVkS2V5cyA9IDxTdHJpbmc+W107CgogICAgZm9yIChmaW5hbCBlbnRyeSBpbiBfY2FjaGUuZW50cmllcykgewogICAgICBpZiAoZW50cnkudmFsdWUuaXNFeHBpcmVkKSB7CiAgICAgICAgZXhwaXJlZEtleXMuYWRkKGVudHJ5LmtleSk7CiAgICAgIH0KICAgIH0KCiAgICBleHBpcmVkS2V5cy5mb3JFYWNoKF9jYWNoZS5yZW1vdmUpOwoKICAgIHJldHVybiBleHBpcmVkS2V5cy5sZW5ndGg7CiAgfQoKICAvLy8g2YXYs9itINin2YTYudmG2KfYtdixINio2YbYp9ih2Ysg2LnZhNmJINmG2YXYtyAocGF0dGVybikKICBpbnQgY2xlYXJCeVBhdHRlcm4oU3RyaW5nIHBhdHRlcm4pIHsKICAgIGZpbmFsIHJlZ2V4ID0gUmVnRXhwKHBhdHRlcm4pOwogICAgZmluYWwga2V5c1RvUmVtb3ZlID0gX2NhY2hlLmtleXMud2hlcmUocmVnZXguaGFzTWF0Y2gpLnRvTGlzdCgpOwoKICAgIGtleXNUb1JlbW92ZS5mb3JFYWNoKF9jYWNoZS5yZW1vdmUpOwoKICAgIHJldHVybiBrZXlzVG9SZW1vdmUubGVuZ3RoOwogIH0KCiAgLy8vINil2LLYp9mE2Kkg2LnZhtin2LXYsSDYpdiw2Kcg2KrYrNin2YjYstiqINin2YTYrdivINin2YTYo9mC2LXZiQogIHZvaWQgX2V2aWN0SWZOZWVkZWQoKSB7CiAgICB3aGlsZSAoX2dldFRvdGFsU2l6ZSgpID4gX21heFNpemVCeXRlcyAmJiBfY2FjaGUuaXNOb3RFbXB0eSkgewogICAgICAvLyDYpdiy2KfZhNipINij2YLYr9mFINi52YbYtdixCiAgICAgIGZpbmFsIG9sZGVzdEtleSA9IF9jYWNoZS5lbnRyaWVzCiAgICAgICAgICAucmVkdWNlKAogICAgICAgICAgICAoYSwgYikgPT4gYS52YWx1ZS50aW1lc3RhbXAuaXNCZWZvcmUoYi52YWx1ZS50aW1lc3RhbXApID8gYSA6IGIsCiAgICAgICAgICApCiAgICAgICAgICAua2V5OwogICAgICBfY2FjaGUucmVtb3ZlKG9sZGVzdEtleSk7CiAgICB9CiAgfQoKICAvLy8g2KfZhNit2LXZiNmEINi52YTZiSDYp9mE2K3YrNmFINin2YTZg9mE2YoKICBpbnQgX2dldFRvdGFsU2l6ZSgpIHsKICAgIHJldHVybiBfY2FjaGUudmFsdWVzLmZvbGQ8aW50PigwLCAoc3VtLCBlbnRyeSkgPT4gc3VtICsgZW50cnkuc2l6ZUluQnl0ZXMpOwogIH0KCiAgLy8vINio2K/YoSDYp9mE2KrZhti42YrZgSDYp9mE2KrZhNmC2KfYptmKCiAgdm9pZCBzdGFydENsZWFudXAoe0R1cmF0aW9uIGludGVydmFsID0gY29uc3QgRHVyYXRpb24obWludXRlczogMzApfSkgewogICAgX2NsZWFudXBUaW1lcj8uY2FuY2VsKCk7CiAgICBfY2xlYW51cFRpbWVyID0gVGltZXIucGVyaW9kaWMoaW50ZXJ2YWwsICh0aW1lcikgewogICAgICBmaW5hbCByZW1vdmVkID0gY2xlYXJFeHBpcmVkKCk7CiAgICAgIGlmIChyZW1vdmVkID4gMCAmJiBrRGVidWdNb2RlKSB7CiAgICAgICAgZGVidWdQcmludCgn8J+nuSBDYWNoZSBjbGVhbnVwOiByZW1vdmVkICRyZW1vdmVkIGV4cGlyZWQgZW50cmllcycpOwogICAgICB9CiAgICB9KTsKICB9CgogIC8vLyDYpdmK2YLYp9mBINin2YTYqtmG2LjZitmBINin2YTYqtmE2YLYp9im2YoKICB2b2lkIHN0b3BDbGVhbnVwKCkgewogICAgX2NsZWFudXBUaW1lcj8uY2FuY2VsKCk7CiAgICBfY2xlYW51cFRpbWVyID0gbnVsbDsKICB9CgogIC8vLyDYp9mE2K3YtdmI2YQg2LnZhNmJINin2YTYpdit2LXYp9im2YrYp9iqCiAgQ2FjaGVTdGF0aXN0aWNzIGdldFN0YXRpc3RpY3MoKSB7CiAgICBpbnQgdmFsaWRFbnRyaWVzID0gMDsKICAgIGludCBleHBpcmVkRW50cmllcyA9IDA7CgogICAgZm9yIChmaW5hbCBlbnRyeSBpbiBfY2FjaGUudmFsdWVzKSB7CiAgICAgIGlmIChlbnRyeS5pc0V4cGlyZWQpIHsKICAgICAgICBleHBpcmVkRW50cmllcysrOwogICAgICB9IGVsc2UgewogICAgICAgIHZhbGlkRW50cmllcysrOwogICAgICB9CiAgICB9CgogICAgZmluYWwgdG90YWxSZXF1ZXN0cyA9IF9oaXRzICsgX21pc3NlczsKICAgIGZpbmFsIGhpdFJhdGUgPSB0b3RhbFJlcXVlc3RzID4gMCA/IChfaGl0cyAvIHRvdGFsUmVxdWVzdHMpIDogMC4wOwoKICAgIHJldHVybiBDYWNoZVN0YXRpc3RpY3MoCiAgICAgIHRvdGFsRW50cmllczogX2NhY2hlLmxlbmd0aCwKICAgICAgdmFsaWRFbnRyaWVzOiB2YWxpZEVudHJpZXMsCiAgICAgIGV4cGlyZWRFbnRyaWVzOiBleHBpcmVkRW50cmllcywKICAgICAgdG90YWxTaXplQnl0ZXM6IF9nZXRUb3RhbFNpemUoKSwKICAgICAgbWF4U2l6ZUJ5dGVzOiBfbWF4U2l6ZUJ5dGVzLAogICAgICBoaXRSYXRlOiBoaXRSYXRlLAogICAgICBoaXRzOiBfaGl0cywKICAgICAgbWlzc2VzOiBfbWlzc2VzLAogICAgKTsKICB9CgogIC8vLyDYpdi52KfYr9ipINiq2LnZitmK2YYg2KfZhNil2K3Ytdin2KbZitin2KoKICB2b2lkIHJlc2V0U3RhdGlzdGljcygpIHsKICAgIF9oaXRzID0gMDsKICAgIF9taXNzZXMgPSAwOwogIH0KCiAgLy8vINin2YTYqtiu2YTYtSDZhdmGINin2YTZhdmI2KfYsdivCiAgdm9pZCBkaXNwb3NlKCkgewogICAgc3RvcENsZWFudXAoKTsKICAgIGNsZWFyKCk7CiAgfQoKICAvLyDZhdiz2KfYudiv2KfYqiDZhNmF2YHYp9iq2YrYrSDYp9mE2LDYp9mD2LHYqSDYp9mE2YXYpNmC2KrYqQogIHN0YXRpYyBTdHJpbmcgcm9vbXNLZXkoKSA9PiAncm9vbXNfYWxsJzsKICBzdGF0aWMgU3RyaW5nIHJvb21LZXkoU3RyaW5nIGlkKSA9PiAncm9vbV8kaWQnOwogIHN0YXRpYyBTdHJpbmcgYm9va2luZ3NLZXkoKSA9PiAnYm9va2luZ3NfYWxsJzsKICBzdGF0aWMgU3RyaW5nIGJvb2tpbmdLZXkoU3RyaW5nIGlkKSA9PiAnYm9va2luZ18kaWQnOwogIHN0YXRpYyBTdHJpbmcgcGF5bWVudHNLZXkoKSA9PiAncGF5bWVudHNfYWxsJzsKICBzdGF0aWMgU3RyaW5nIHBheW1lbnRLZXkoU3RyaW5nIGlkKSA9PiAncGF5bWVudF8kaWQnOwogIHN0YXRpYyBTdHJpbmcgZXhwZW5zZXNLZXkoKSA9PiAnZXhwZW5zZXNfYWxsJzsKICBzdGF0aWMgU3RyaW5nIGV4cGVuc2VLZXkoU3RyaW5nIGlkKSA9PiAnZXhwZW5zZV8kaWQnOwogIHN0YXRpYyBTdHJpbmcgZW1wbG95ZWVzS2V5KCkgPT4gJ2VtcGxveWVlc19hbGwnOwogIHN0YXRpYyBTdHJpbmcgZW1wbG95ZWVLZXkoU3RyaW5nIGlkKSA9PiAnZW1wbG95ZWVfJGlkJzsKICBzdGF0aWMgU3RyaW5nIGRlYnRzS2V5KCkgPT4gJ2RlYnRzX2FsbCc7CiAgc3RhdGljIFN0cmluZyBkZWJ0S2V5KFN0cmluZyBpZCkgPT4gJ2RlYnRfJGlkJzsKICBzdGF0aWMgU3RyaW5nIGRldmljZXNLZXkoKSA9PiAnZGV2aWNlc19hbGwnOwogIHN0YXRpYyBTdHJpbmcgc3luY0xvZ3NLZXkoKSA9PiAnc3luY19sb2dzX2FsbCc7Cn0K
+import 'dart:async';
+import 'dart:collection';
+import 'package:flutter/foundation.dart';
+import 'appwrite_config.dart';
+
+/// نموذج عنصر الذاكرة المؤقتة
+class CacheEntry<T> {
+  CacheEntry({required this.data, required this.timestamp, required this.ttl});
+  final T data;
+  final DateTime timestamp;
+  final Duration ttl;
+
+  bool get isExpired => DateTime.now().difference(timestamp) > ttl;
+
+  int get sizeInBytes {
+    // تقدير حجم البيانات (تقريبي)
+    if (data is List) {
+      return (data as List).length * 100; // تقدير 100 بايت لكل عنصر
+    }
+    return 100; // افتراضي
+  }
+}
+
+/// إحصائيات الذاكرة المؤقتة
+class CacheStatistics {
+  CacheStatistics({
+    required this.totalEntries,
+    required this.validEntries,
+    required this.expiredEntries,
+    required this.totalSizeBytes,
+    required this.maxSizeBytes,
+    required this.hitRate,
+    required this.hits,
+    required this.misses,
+  });
+  final int totalEntries;
+  final int validEntries;
+  final int expiredEntries;
+  final int totalSizeBytes;
+  final int maxSizeBytes;
+  final double hitRate;
+  final int hits;
+  final int misses;
+
+  double get usagePercentage =>
+      maxSizeBytes > 0 ? (totalSizeBytes / maxSizeBytes) * 100 : 0;
+
+  String get totalSizeMB => (totalSizeBytes / (1024 * 1024)).toStringAsFixed(2);
+  String get maxSizeMB => (maxSizeBytes / (1024 * 1024)).toStringAsFixed(2);
+}
+
+/// مدير الذاكرة المؤقتة
+class AppwriteCacheManager {
+  factory AppwriteCacheManager() => _instance;
+  AppwriteCacheManager._internal();
+  static final AppwriteCacheManager _instance =
+      AppwriteCacheManager._internal();
+
+  final Map<String, CacheEntry<dynamic>> _cache =
+      HashMap<String, CacheEntry<dynamic>>();
+  Timer? _cleanupTimer;
+
+  int _hits = 0;
+  int _misses = 0;
+  int _maxSizeBytes = AppwriteConfig.maxCacheSizeMB * 1024 * 1024;
+  Duration _defaultTTL = AppwriteConfig.cacheExpiry;
+  bool _enabled = true;
+
+  /// تفعيل/تعطيل الذاكرة المؤقتة
+  void setEnabled(bool enabled) {
+    _enabled = enabled;
+    if (!enabled) {
+      clear();
+    }
+  }
+
+  /// تعيين الحد الأقصى للحجم (بالميجابايت)
+  void setMaxSizeMB(int sizeMB) {
+    _maxSizeBytes = sizeMB * 1024 * 1024;
+    _evictIfNeeded();
+  }
+
+  /// تعيين مدة الصلاحية الافتراضية
+  void setDefaultTTL(Duration ttl) {
+    _defaultTTL = ttl;
+  }
+
+  /// حفظ بيانات في الذاكرة المؤقتة
+  void set<T>(String key, T data, {Duration? ttl}) {
+    if (!_enabled) {
+      return;
+    }
+
+    final entry = CacheEntry<T>(
+      data: data,
+      timestamp: DateTime.now(),
+      ttl: ttl ?? _defaultTTL,
+    );
+
+    _cache[key] = entry;
+    _evictIfNeeded();
+  }
+
+  /// الحصول على بيانات من الذاكرة المؤقتة
+  T? get<T>(String key) {
+    if (!_enabled) {
+      return null;
+    }
+
+    final entry = _cache[key];
+
+    if (entry == null) {
+      _misses++;
+      return null;
+    }
+
+    if (entry.isExpired) {
+      _cache.remove(key);
+      _misses++;
+      return null;
+    }
+
+    _hits++;
+    return entry.data as T?;
+  }
+
+  /// التحقق من وجود مفتاح
+  bool has(String key) {
+    if (!_enabled) {
+      return false;
+    }
+
+    final entry = _cache[key];
+    if (entry == null) {
+      return false;
+    }
+
+    if (entry.isExpired) {
+      _cache.remove(key);
+      return false;
+    }
+
+    return true;
+  }
+
+  /// حذف عنصر من الذاكرة المؤقتة
+  void remove(String key) {
+    _cache.remove(key);
+  }
+
+  /// مسح جميع العناصر
+  void clear() {
+    _cache.clear();
+    _hits = 0;
+    _misses = 0;
+  }
+
+  /// مسح العناصر منتهية الصلاحية
+  int clearExpired() {
+    final expiredKeys = <String>[];
+
+    for (final entry in _cache.entries) {
+      if (entry.value.isExpired) {
+        expiredKeys.add(entry.key);
+      }
+    }
+
+    expiredKeys.forEach(_cache.remove);
+
+    return expiredKeys.length;
+  }
+
+  /// مسح العناصر بناءً على نمط (pattern)
+  int clearByPattern(String pattern) {
+    final regex = RegExp(pattern);
+    final keysToRemove = _cache.keys.where(regex.hasMatch).toList();
+
+    keysToRemove.forEach(_cache.remove);
+
+    return keysToRemove.length;
+  }
+
+  /// إزالة عناصر إذا تجاوزت الحد الأقصى
+  void _evictIfNeeded() {
+    while (_getTotalSize() > _maxSizeBytes && _cache.isNotEmpty) {
+      // إزالة أقدم عنصر
+      final oldestKey = _cache.entries
+          .reduce(
+            (a, b) => a.value.timestamp.isBefore(b.value.timestamp) ? a : b,
+          )
+          .key;
+      _cache.remove(oldestKey);
+    }
+  }
+
+  /// الحصول على الحجم الكلي
+  int _getTotalSize() {
+    return _cache.values.fold<int>(0, (sum, entry) => sum + entry.sizeInBytes);
+  }
+
+  /// بدء التنظيف التلقائي
+  void startCleanup({Duration interval = const Duration(minutes: 30)}) {
+    _cleanupTimer?.cancel();
+    _cleanupTimer = Timer.periodic(interval, (timer) {
+      final removed = clearExpired();
+      if (removed > 0 && kDebugMode) {
+        debugPrint('🧹 Cache cleanup: removed $removed expired entries');
+      }
+    });
+  }
+
+  /// إيقاف التنظيف التلقائي
+  void stopCleanup() {
+    _cleanupTimer?.cancel();
+    _cleanupTimer = null;
+  }
+
+  /// الحصول على الإحصائيات
+  CacheStatistics getStatistics() {
+    int validEntries = 0;
+    int expiredEntries = 0;
+
+    for (final entry in _cache.values) {
+      if (entry.isExpired) {
+        expiredEntries++;
+      } else {
+        validEntries++;
+      }
+    }
+
+    final totalRequests = _hits + _misses;
+    final hitRate = totalRequests > 0 ? (_hits / totalRequests) : 0.0;
+
+    return CacheStatistics(
+      totalEntries: _cache.length,
+      validEntries: validEntries,
+      expiredEntries: expiredEntries,
+      totalSizeBytes: _getTotalSize(),
+      maxSizeBytes: _maxSizeBytes,
+      hitRate: hitRate,
+      hits: _hits,
+      misses: _misses,
+    );
+  }
+
+  /// إعادة تعيين الإحصائيات
+  void resetStatistics() {
+    _hits = 0;
+    _misses = 0;
+  }
+
+  /// التخلص من الموارد
+  void dispose() {
+    stopCleanup();
+    clear();
+  }
+
+  // مساعدات لمفاتيح الذاكرة المؤقتة
+  static String roomsKey() => 'rooms_all';
+  static String roomKey(String id) => 'room_$id';
+  static String bookingsKey() => 'bookings_all';
+  static String bookingKey(String id) => 'booking_$id';
+  static String paymentsKey() => 'payments_all';
+  static String paymentKey(String id) => 'payment_$id';
+  static String expensesKey() => 'expenses_all';
+  static String expenseKey(String id) => 'expense_$id';
+  static String employeesKey() => 'employees_all';
+  static String employeeKey(String id) => 'employee_$id';
+  static String debtsKey() => 'debts_all';
+  static String debtKey(String id) => 'debt_$id';
+  static String devicesKey() => 'devices_all';
+  static String syncLogsKey() => 'sync_logs_all';
+}
