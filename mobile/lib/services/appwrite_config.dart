@@ -1,1 +1,160 @@
-aW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXIvZm91bmRhdGlvbi5kYXJ0JzsKCi8vLyDYpdi52K/Yp9iv2KfYqiBBcHB3cml0ZSDYp9mE2YXYsdmD2LLZitipCmNsYXNzIEFwcHdyaXRlQ29uZmlnIHsKICAvLyBBcHB3cml0ZSBFbmRwb2ludAogIC8vINi62YrZkdix2Ycg2LnYqNixIC0tZGFydC1kZWZpbmU9QVBQV1JJVEVfRU5EUE9JTlQ9Li4uINmE2YTZgCBDSSDYo9mIIG1vY2tvb24KICBzdGF0aWMgY29uc3QgU3RyaW5nIGVuZHBvaW50ID0gU3RyaW5nLmZyb21FbnZpcm9ubWVudCgKICAgICdBUFBXUklURV9FTkRQT0lOVCcsCiAgICBkZWZhdWx0VmFsdWU6ICdodHRwczovL2ZyYS5jbG91ZC5hcHB3cml0ZS5pby92MScsCiAgKTsKCiAgLy8gUHJvamVjdCBJRCAtINmF2YYg2YTZiNit2Kkg2KrYrdmD2YUgQXBwd3JpdGUKICAvLyDinIUg2KrZhSDYp9mE2KrYutmK2YrYsSAoMjAyNi0wNy0yMik6INin2YTZhdi02LHZiNi5INin2YTZgtiv2YrZhSAoNmEyYjAxZDApINiq2KzYp9mI2LIg2K3YryBEYXRhYmFzZSBSZWFkcy4KICAvLyDYp9mE2YXYtNix2YjYuSDYp9mE2KzYr9mK2K8gKDZhNDQwOGYzKSDZh9mIINmG2YHYs9mHINin2YTYsNmKINmD2KfZhiBzZWNvbmRhcnkg4oCUINmK2LnZhdmEINio2K/ZiNmGINmF2LTYp9mD2YQuCiAgc3RhdGljIGNvbnN0IFN0cmluZyBwcm9qZWN0SWQgPSAnNmE0NDA4ZjMwMDIxNzg4NWZkN2InOwoKICAvLyBEYXRhYmFzZSBJRCAtINmF2YYg2YTZiNit2Kkg2KrYrdmD2YUgQXBwd3JpdGUKICBzdGF0aWMgY29uc3QgU3RyaW5nIGRhdGFiYXNlSWQgPSAnNmE0NDA5YjUwMDE5ZGQzOWRkZTUnOwoKICAvLyDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZAKICAvLyAgQVBJIEtleSDigJQg2YXZgdiq2KfYrSDYp9mB2KrYsdin2LbZiiDZhdmP2K/ZhdisINmB2Yog2KfZhNiq2LfYqNmK2YIKICAvLyDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZAKICAvLyDZhdmB2KrYp9itIEFQSSDYp9mE2KfZgdiq2LHYp9i22Yog2KfZhNmF2Y/Yr9mF2KwuINmK2Y/ZhdmD2YYg2YTZhNmF2LPYqtiu2K/ZhSDYqti62YrZitix2Ycg2YHZiiDYo9mKINmI2YLYqiDZhdmGCiAgLy8g2LTYp9i02Kkg2KXYudiv2KfYr9in2Kog2KfYqti12KfZhCBBcHB3cml0ZS4g2LnZhtivINin2YTYp9iz2KrYqNiv2KfZhNiMINmK2Y/YrdmB2Lgg2KfZhNmF2YHYqtin2K0g2KfZhNis2K/ZitivINmB2YoKICAvLyBTaGFyZWRQcmVmZXJlbmNlcyDZiNmK2Y/YrdmF2Y7ZkdmEINi52YbYryDYqNiv2KEg2KfZhNiq2LfYqNmK2YIg2KjYr9mE2KfZiyDZhdmGINmH2LDYpyDYp9mE2KfZgdiq2LHYp9i22YouCiAgLy8g2KfYs9iq2K7Yr9mFIEFwcHdyaXRlQ29uZmlnTWFuYWdlci5hcGlLZXkg2YTZhNmI2LXZiNmEINmE2YTZgtmK2YXYqSDYp9mE2YHYudmR2KfZhNipINmI2YLYqiDYp9mE2KrYtNi62YrZhC4KICBzdGF0aWMgY29uc3QgU3RyaW5nIGRlZmF1bHRBcGlLZXkgPQogICAgICAnc3RhbmRhcmRfYzBhYjZhYzI2Mjg3MTVjNzcxNGViMzEyZTIyNzJhNTVhZTQxODA5ZGNjMTU2YzdlNDU1Mzg3NGU0YTZhZDlmM2QzZTkxNjlkOGE2OWI4NGY3ZDc0NmIxMDg5MDUwNDFlNDEyYTY2ZWM2NmQwM2UxMjJjY2IwNTY0ODRjNDNkMmEyN2Y3ODM5MDg4YmY2MDM4NWFiNTgwNjE2MjRiYmNjMWY4MjI3MWMwOWQ2MDg1MzZlNjhkOWNjMGZmMWIwNWI4M2FlNGZlMTRjNGRjNGNlMzg4NDAzMTdlYTU1NTE1NWYxNzMzMTQxNDUwYjMwOTdkZjA5YTJhMWI0YjE1NGE2Yyc7CgogIC8vIOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkAogIC8vICBNZXNzYWdpbmcg4oCUIEFwcHdyaXRlIE1lc3NhZ2luZyBQcm92aWRlciBJRAogIC8vIOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkOKVkAogIC8vINmK2Y/Ys9iq2K7Yr9mFINmB2YogQXBwd3JpdGVNZXNzYWdpbmdTZXJ2aWNlLnJlZ2lzdGVyRGV2aWNlKCkg2YTYqtiz2KzZitmEINin2YTZgCBUYXJnZXQuCiAgLy8g2KfYrdi12YQg2LnZhNmK2Ycg2YXZhjogQXBwd3JpdGUgQ29uc29sZSDihpIgTWVzc2FnaW5nIOKGkiBQcm92aWRlcnMg4oaSIEZDTSDihpIgX2lkCiAgLy8g2KfZhNmC2YrZhSDYp9mE2KfZgdiq2LHYp9i22YrYqSDYp9mE2LTYp9im2LnYqTogJ2ZjbScg2KPZiCDZhdiu2LXZkdi1INmF2KvZhCAnNjcwMmFiY2RlZjEyMzQ1Njc4OTAnCiAgc3RhdGljIGNvbnN0IFN0cmluZyBtZXNzYWdpbmdQcm92aWRlcklkID0gU3RyaW5nLmZyb21FbnZpcm9ubWVudCgKICAgICdBUFBXUklURV9NRVNTQUdJTkdfUFJPVklERVJfSUQnLAogICAgZGVmYXVsdFZhbHVlOiAnZmNtJywKICApOwoKICAvLyBDb2xsZWN0aW9ucyBJRHMKICBzdGF0aWMgY29uc3QgU3RyaW5nIHJvb21zQ29sbGVjdGlvbklkID0gJ3Jvb21zJzsKICBzdGF0aWMgY29uc3QgU3RyaW5nIGJvb2tpbmdzQ29sbGVjdGlvbklkID0gJ2Jvb2tpbmdzJzsKICBzdGF0aWMgY29uc3QgU3RyaW5nIHBheW1lbnRzQ29sbGVjdGlvbklkID0gJ3BheW1lbnRzJzsKICBzdGF0aWMgY29uc3QgU3RyaW5nIGV4cGVuc2VzQ29sbGVjdGlvbklkID0gJ2V4cGVuc2VzJzsKICBzdGF0aWMgY29uc3QgU3RyaW5nIGVtcGxveWVlc0NvbGxlY3Rpb25JZCA9ICdlbXBsb3llZXMnOwogIHN0YXRpYyBjb25zdCBTdHJpbmcgZGVidHNDb2xsZWN0aW9uSWQgPSAnZGVidHMnOwogIHN0YXRpYyBjb25zdCBTdHJpbmcgZGV2aWNlc0NvbGxlY3Rpb25JZCA9ICdkZXZpY2VzJzsKICBzdGF0aWMgY29uc3QgU3RyaW5nIHN5bmNMb2dzQ29sbGVjdGlvbklkID0gJ3N5bmNfbG9ncyc7CgogIC8vINil2LbYp9mB2KfYqiDYp9mE2KzYr9in2YjZhCDYp9mE2YXYqtmI2YHYsdipINmB2YogbG9jYWxfZGIKICBzdGF0aWMgY29uc3QgU3RyaW5nIGJvb2tpbmdOb3Rlc0NvbGxlY3Rpb25JZCA9ICdib29raW5nX25vdGVzJzsKICBzdGF0aWMgY29uc3QgU3RyaW5nIGNhc2hUcmFuc2FjdGlvbnNDb2xsZWN0aW9uSWQgPSAnY2FzaF90cmFuc2FjdGlvbnMnOwogIHN0YXRpYyBjb25zdCBTdHJpbmcgYm9va2luZ05pZ2h0c0NvbGxlY3Rpb25JZCA9ICdib29raW5nX25pZ2h0cyc7CiAgLy8g4p2MIGhvdGVsX2RheV9sZWRnZXIg4oCUINis2K/ZiNmEINmF2K3ZhNmKINmB2YLYt9iMINmE2Kcg2YrYqtmFINmF2LLYp9mF2YbYqtmH2Iwg2LrZitixINmF2YjYrNmI2K8g2LnZhNmJIEFwcHdyaXRlIENsb3VkCiAgLy8g2KrZhSDYpdiy2KfZhNipIGhvdGVsRGF5TGVkZ2VyQ29sbGVjdGlvbklkINmE2KPZhtmHINmE2Kcg2YjYrNmI2K8g2YTZhyDYudmE2Ykg2KfZhNiz2K3Yp9io2KkKICBzdGF0aWMgY29uc3QgU3RyaW5nIHNhbGFyeUN5Y2xlc0NvbGxlY3Rpb25JZCA9ICdzYWxhcnlfY3ljbGVzJzsKICBzdGF0aWMgY29uc3QgU3RyaW5nIHNhbGFyeVBheW1lbnRzQ29sbGVjdGlvbklkID0gJ3NhbGFyeV9wYXltZW50cyc7CiAgc3RhdGljIGNvbnN0IFN0cmluZyBzaGlmdE5vdGVzQ29sbGVjdGlvbklkID0gJ3NoaWZ0X25vdGVzJzsKICBzdGF0aWMgY29uc3QgU3RyaW5nIGJsYWNrbGlzdENvbGxlY3Rpb25JZCA9ICdibGFja2xpc3QnOwoKICAvLyDYrNiv2KfZiNmEINin2YTYqtiv2YLZitmCINin2YTZhdin2YTZiiDZiNin2YTYqti52K/ZitmE2KfYqgogIHN0YXRpYyBjb25zdCBTdHJpbmcgcHJpY2VBZGp1c3RtZW50c0NvbGxlY3Rpb25JZCA9ICdwcmljZV9hZGp1c3RtZW50cyc7CiAgc3RhdGljIGNvbnN0IFN0cmluZyBib29raW5nUHJpY2VBZGp1c3RtZW50c0NvbGxlY3Rpb25JZCA9CiAgICAgICdib29raW5nX3ByaWNlX2FkanVzdG1lbnRzJzsKICBzdGF0aWMgY29uc3QgU3RyaW5nIGF1ZGl0TG9nc0NvbGxlY3Rpb25JZCA9ICdhdWRpdF9sb2dzJzsKICBzdGF0aWMgY29uc3QgU3RyaW5nIHBheW1lbnRWb2lkc0NvbGxlY3Rpb25JZCA9ICdwYXltZW50X3ZvaWRzJzsKCiAgLy8g2KzYr9mI2YQg2YXYudmE2YjZhdin2Kog2KfZhNmG2LLZhNin2KEKICBzdGF0aWMgY29uc3QgU3RyaW5nIGd1ZXN0SW5mb3NDb2xsZWN0aW9uSWQgPSAnZ3Vlc3RfaW5mb3MnOwoKICAvLyDYrNiv2YjZhCDYs9it2YjYqNin2Kog2KfZhNix2YjYp9iq2KgKICBzdGF0aWMgY29uc3QgU3RyaW5nIHNhbGFyeVdpdGhkcmF3YWxzQ29sbGVjdGlvbklkID0gJ3NhbGFyeV93aXRoZHJhd2Fscyc7CgogIC8vINis2K/ZiNmEINil2LnYr9in2K/Yp9iqINin2YTYqti32KjZitmCICjZiNin2KrYs9in2KjYjCDZiNi62YrYsdmH2KcpCiAgc3RhdGljIGNvbnN0IFN0cmluZyBhcHBTZXR0aW5nc0NvbGxlY3Rpb25JZCA9ICdhcHBfc2V0dGluZ3MnOwoKICAvLy8g2K7Ysdin2KbYtyDYo9iz2YXYp9ihINin2YTZg9mK2KfZhtin2Kog2KXZhNmJIGNvbGxlY3Rpb24gSURzLgogIC8vLyDYqtiz2KrYrtiv2YUg2YTYqtit2YjZitmEINin2LPZhSDYp9mE2YPZitin2YYg2YHZiiBvdXRib3ggKNmF2KvZhCAnYm9va2luZ3MnKSDYpdmE2YkgY29sbGVjdGlvbiBJRAogIC8vLyDZgdmKIEFwcHdyaXRlICjZhdir2YQgJ2Jvb2tpbmdzJykuINit2KfZhNmK2KfZiyDYp9mE2KfYs9mFINmI2KfYrdiv2Iwg2YTZg9mGINmH2LDZhyDYp9mE2K7YsdmK2LfYqQogIC8vLyDYqtiz2YXYrSDYqNiq2LrZitmK2LEg2KfZhNij2LPZhdin2KEg2YXYs9iq2YLYqNmE2KfZiyDYr9mI2YYg2KrYudiv2YrZhCDZg9mEINin2YTYp9iz2KrYr9i52KfYodin2KouCiAgc3RhdGljIGNvbnN0IE1hcDxTdHJpbmcsIFN0cmluZz4gX2VudGl0eVRvQ29sbGVjdGlvbiA9IHsKICAgICdyb29tcyc6IHJvb21zQ29sbGVjdGlvbklkLAogICAgJ2Jvb2tpbmdzJzogYm9va2luZ3NDb2xsZWN0aW9uSWQsCiAgICAncGF5bWVudHMnOiBwYXltZW50c0NvbGxlY3Rpb25JZCwKICAgICdleHBlbnNlcyc6IGV4cGVuc2VzQ29sbGVjdGlvbklkLAogICAgJ2VtcGxveWVlcyc6IGVtcGxveWVlc0NvbGxlY3Rpb25JZCwKICAgICdkZWJ0cyc6IGRlYnRzQ29sbGVjdGlvbklkLAogICAgJ2Jvb2tpbmdfbm90ZXMnOiBib29raW5nTm90ZXNDb2xsZWN0aW9uSWQsCiAgICAnc2hpZnRfbm90ZXMnOiBzaGlmdE5vdGVzQ29sbGVjdGlvbklkLAogICAgJ2Nhc2hfdHJhbnNhY3Rpb25zJzogY2FzaFRyYW5zYWN0aW9uc0NvbGxlY3Rpb25JZCwKICAgICdib29raW5nX25pZ2h0cyc6IGJvb2tpbmdOaWdodHNDb2xsZWN0aW9uSWQsCiAgICAnc2FsYXJ5X2N5Y2xlcyc6IHNhbGFyeUN5Y2xlc0NvbGxlY3Rpb25JZCwKICAgICdzYWxhcnlfcGF5bWVudHMnOiBzYWxhcnlQYXltZW50c0NvbGxlY3Rpb25JZCwKICAgICdzYWxhcnlfd2l0aGRyYXdhbHMnOiBzYWxhcnlXaXRoZHJhd2Fsc0NvbGxlY3Rpb25JZCwKICAgICdzYWxhcnlfY2Fycnlfb3Zlcl9sb2dzJzogJ3NhbGFyeV9jYXJyeV9vdmVyX2xvZ3MnLAogICAgJ2JsYWNrbGlzdCc6IGJsYWNrbGlzdENvbGxlY3Rpb25JZCwKICAgICdwcmljZV9hZGp1c3RtZW50cyc6IHByaWNlQWRqdXN0bWVudHNDb2xsZWN0aW9uSWQsCiAgICAnYm9va2luZ19wcmljZV9hZGp1c3RtZW50cyc6IGJvb2tpbmdQcmljZUFkanVzdG1lbnRzQ29sbGVjdGlvbklkLAogICAgJ2F1ZGl0X2xvZ3MnOiBhdWRpdExvZ3NDb2xsZWN0aW9uSWQsCiAgICAncGF5bWVudF92b2lkcyc6IHBheW1lbnRWb2lkc0NvbGxlY3Rpb25JZCwKICAgICdndWVzdF9pbmZvcyc6IGd1ZXN0SW5mb3NDb2xsZWN0aW9uSWQsCiAgICAnYXBwX3NldHRpbmdzJzogYXBwU2V0dGluZ3NDb2xsZWN0aW9uSWQsCiAgfTsKCiAgLy8vINmK2K3ZiNmR2YQg2KfYs9mFINin2YTZg9mK2KfZhiDYpdmE2YkgY29sbGVjdGlvbiBJRCDZgdmKIEFwcHdyaXRlLgogIC8vLyDZitmP2LHYrNi5IG51bGwg2KXYsNinINmE2YUg2YrZg9mGINin2YTZg9mK2KfZhiDZhdi52LHZiNmB2KfZiyAo2YXYq9mEICdob3RlbF9kYXlfbGVkZ2VyJyDYp9mE2YXYrdmE2Yog2YHZgti3KS4KICBzdGF0aWMgU3RyaW5nPyBjb2xsZWN0aW9uSWRGb3IoU3RyaW5nIGVudGl0eSkgewogICAgcmV0dXJuIF9lbnRpdHlUb0NvbGxlY3Rpb25bZW50aXR5XTsKICB9CgogIC8vINil2LnYr9in2K/Yp9iqINin2YTZhdiy2KfZhdmG2KkKICBzdGF0aWMgY29uc3QgRHVyYXRpb24gc3luY0ludGVydmFsID0gRHVyYXRpb24obWludXRlczogMTUpOwogIHN0YXRpYyBjb25zdCBEdXJhdGlvbiBjYWNoZUV4cGlyeSA9IER1cmF0aW9uKGhvdXJzOiA2KTsKICBzdGF0aWMgY29uc3QgaW50IG1heENhY2hlU2l6ZU1CID0gMjA7CiAgc3RhdGljIGNvbnN0IGludCBtYXhSZXRyaWVzID0gMzsKICBzdGF0aWMgY29uc3QgRHVyYXRpb24gaW5pdGlhbFJldHJ5RGVsYXkgPSBEdXJhdGlvbihzZWNvbmRzOiAyKTsKICBzdGF0aWMgY29uc3QgZG91YmxlIHJldHJ5QmFja29mZk11bHRpcGxpZXIgPQogICAgICAyLjA7IC8vIEV4cG9uZW50aWFsIGJhY2tvZmYgbXVsdGlwbGllcgoKICAvLyDYpdi52K/Yp9iv2KfYqiBUaW1lb3V0CiAgc3RhdGljIGNvbnN0IER1cmF0aW9uIGRlZmF1bHRUaW1lb3V0ID0gRHVyYXRpb24oc2Vjb25kczogMzApOwogIHN0YXRpYyBjb25zdCBEdXJhdGlvbiBsb25nVGltZW91dCA9IER1cmF0aW9uKG1pbnV0ZXM6IDIpOyAvLyDZhNmE2LnZhdmE2YrYp9iqINin2YTZg9io2YrYsdipCgogIC8vINil2LnYr9in2K/Yp9iqIFBhZ2luYXRpb24KICBzdGF0aWMgY29uc3QgaW50IGRlZmF1bHRQYWdlU2l6ZSA9IDI1OyAvLyDYudiv2K8g2KfZhNiz2KzZhNin2Kog2YHZiiDZg9mEINi12YHYrdipCiAgc3RhdGljIGNvbnN0IGludCBtYXhQYWdlU2l6ZSA9IDEwMDsgLy8g2KfZhNit2K8g2KfZhNij2YLYtdmJINmE2YTYs9is2YTYp9iqCiAgc3RhdGljIGNvbnN0IGludCBiYXRjaFNpemUgPSA1MDsgLy8g2LnYr9ivINin2YTYs9is2YTYp9iqINmB2Yog2YPZhCDYr9mB2LnYqQoKICAvLy8g2LfYqNin2LnYqSDYp9mE2KXYudiv2KfYr9in2KogKNmE2YTYqti02K7Ziti1KQogIHN0YXRpYyB2b2lkIHByaW50Q29uZmlnKCkgewogICAgaWYgKGtEZWJ1Z01vZGUpIHsKICAgICAgZGVidWdQcmludCgn4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQJyk7CiAgICAgIGRlYnVnUHJpbnQoJ/CflKcgQXBwd3JpdGUgQ29uZmlndXJhdGlvbicpOwogICAgICBkZWJ1Z1ByaW50KCfilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZDilZAnKTsKICAgICAgZGVidWdQcmludCgnRW5kcG9pbnQ6ICRlbmRwb2ludCcpOwogICAgICBkZWJ1Z1ByaW50KCdQcm9qZWN0IElEOiAkcHJvamVjdElkJyk7CiAgICAgIGRlYnVnUHJpbnQoJ0RhdGFiYXNlIElEOiAkZGF0YWJhc2VJZCcpOwogICAgICBkZWJ1Z1ByaW50KCdTeW5jIEludGVydmFsOiAke3N5bmNJbnRlcnZhbC5pbk1pbnV0ZXN9IG1pbnV0ZXMnKTsKICAgICAgZGVidWdQcmludCgnQ2FjaGUgRXhwaXJ5OiAke2NhY2hlRXhwaXJ5LmluSG91cnN9IGhvdXJzJyk7CiAgICAgIGRlYnVnUHJpbnQoJ01heCBDYWNoZSBTaXplOiAkbWF4Q2FjaGVTaXplTUIgTUInKTsKICAgICAgZGVidWdQcmludCgnRGVmYXVsdCBQYWdlIFNpemU6ICRkZWZhdWx0UGFnZVNpemUnKTsKICAgICAgZGVidWdQcmludCgnTWF4IFBhZ2UgU2l6ZTogJG1heFBhZ2VTaXplJyk7CiAgICAgIGRlYnVnUHJpbnQoJ0JhdGNoIFNpemU6ICRiYXRjaFNpemUnKTsKICAgICAgZGVidWdQcmludCgnTWF4IFJldHJpZXM6ICRtYXhSZXRyaWVzJyk7CiAgICAgIGRlYnVnUHJpbnQoJ0RlZmF1bHQgVGltZW91dDogJHtkZWZhdWx0VGltZW91dC5pblNlY29uZHN9cycpOwogICAgICBkZWJ1Z1ByaW50KCdMb25nIFRpbWVvdXQ6ICR7bG9uZ1RpbWVvdXQuaW5TZWNvbmRzfXMnKTsKICAgICAgZGVidWdQcmludCgn4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQ4pWQJyk7CiAgICB9CiAgfQoKICAvLy8g2KfZhNiq2K3ZgtmCINmF2YYg2LXYrdipINin2YTYpdi52K/Yp9iv2KfYqgogIHN0YXRpYyBib29sIHZhbGlkYXRlQ29uZmlnKCkgewogICAgaWYgKHByb2plY3RJZCA9PSAnWU9VUl9QUk9KRUNUX0lEX0hFUkUnKSB7CiAgICAgIGRlYnVnUHJpbnQoJ+KdjCBFcnJvcjogUGxlYXNlIHNldCB5b3VyIEFwcHdyaXRlIFByb2plY3QgSUQnKTsKICAgICAgcmV0dXJuIGZhbHNlOwogICAgfQogICAgcmV0dXJuIHRydWU7CiAgfQp9Cg==
+import 'package:flutter/foundation.dart';
+
+/// إعدادات Appwrite المركزية
+class AppwriteConfig {
+  // Appwrite Endpoint
+  // غيّره عبر --dart-define=APPWRITE_ENDPOINT=... للـ CI أو mockoon
+  static const String endpoint = String.fromEnvironment(
+    'APPWRITE_ENDPOINT',
+    defaultValue: 'https://fra.cloud.appwrite.io/v1',
+  );
+
+  // Project ID - من لوحة تحكم Appwrite
+  // ✅ تم التغيير (2026-07-22): المشروع القديم (6a2b01d0) تجاوز حد Database Reads.
+  // المشروع الجديد (6a4408f3) هو نفسه الذي كان secondary — يعمل بدون مشاكل.
+  static const String projectId = '6a4408f300217885fd7b';
+
+  // Database ID - من لوحة تحكم Appwrite
+  static const String databaseId = '6a4409b50019dd39dde5';
+
+  // ═══════════════════════════════════════════════════════════════
+  //  API Key — مفتاح افتراضي مُدمج في التطبيق
+  // ═══════════════════════════════════════════════════════════════
+  // مفتاح API الافتراضي المُدمج. يُمكن للمستخدم تغييره في أي وقت من
+  // شاشة إعدادات اتصال Appwrite. عند الاستبدال، يُحفظ المفتاح الجديد في
+  // SharedPreferences ويُحمَّل عند بدء التطبيق بدلاً من هذا الافتراضي.
+  // استخدم AppwriteConfigManager.apiKey للوصول للقيمة الفعّالة وقت التشغيل.
+  static const String defaultApiKey =
+      'standard_c0ab6ac2628715c7714eb312e2272a55ae41809dcc156c7e4553874e4a6ad9f3d3e9169d8a69b84f7d746b108905041e412a66ec66d03e122ccb056484c43d2a27f7839088bf60385ab58061624bbcc1f82271c09d608536e68d9cc0ff1b05b83ae4fe14c4dc4ce38840317ea555155f1733141450b3097df09a2a1b4b154a6c';
+
+  // ═══════════════════════════════════════════════════════════════
+  //  Messaging — Appwrite Messaging Provider ID
+  // ═══════════════════════════════════════════════════════════════
+  // يُستخدم في AppwriteMessagingService.registerDevice() لتسجيل الـ Target.
+  // احصل عليه من: Appwrite Console → Messaging → Providers → FCM → _id
+  // القيم الافتراضية الشائعة: 'fcm' أو مخصّص مثل '6702abcdef1234567890'
+  static const String messagingProviderId = String.fromEnvironment(
+    'APPWRITE_MESSAGING_PROVIDER_ID',
+    defaultValue: 'fcm',
+  );
+
+  // Collections IDs
+  static const String roomsCollectionId = 'rooms';
+  static const String bookingsCollectionId = 'bookings';
+  static const String paymentsCollectionId = 'payments';
+  static const String expensesCollectionId = 'expenses';
+  static const String employeesCollectionId = 'employees';
+  static const String debtsCollectionId = 'debts';
+  static const String devicesCollectionId = 'devices';
+  static const String syncLogsCollectionId = 'sync_logs';
+
+  // إضافات الجداول المتوفرة في local_db
+  static const String bookingNotesCollectionId = 'booking_notes';
+  static const String cashTransactionsCollectionId = 'cash_transactions';
+  static const String bookingNightsCollectionId = 'booking_nights';
+  // ❌ hotel_day_ledger — جدول محلي فقط، لا يتم مزامنته، غير موجود على Appwrite Cloud
+  // تم إزالة hotelDayLedgerCollectionId لأنه لا وجود له على السحابة
+  static const String salaryCyclesCollectionId = 'salary_cycles';
+  static const String salaryPaymentsCollectionId = 'salary_payments';
+  static const String shiftNotesCollectionId = 'shift_notes';
+  static const String blacklistCollectionId = 'blacklist';
+
+  // جداول التدقيق المالي والتعديلات
+  static const String priceAdjustmentsCollectionId = 'price_adjustments';
+  static const String bookingPriceAdjustmentsCollectionId =
+      'booking_price_adjustments';
+  static const String auditLogsCollectionId = 'audit_logs';
+  static const String paymentVoidsCollectionId = 'payment_voids';
+
+  // جدول معلومات النزلاء
+  static const String guestInfosCollectionId = 'guest_infos';
+
+  // جدول سحوبات الرواتب
+  static const String salaryWithdrawalsCollectionId = 'salary_withdrawals';
+
+  // جدول إعدادات التطبيق (واتساب، وغيرها)
+  static const String appSettingsCollectionId = 'app_settings';
+
+  /// خرائط أسماء الكيانات إلى collection IDs.
+  /// تستخدم لتحويل اسم الكيان في outbox (مثل 'bookings') إلى collection ID
+  /// في Appwrite (مثل 'bookings'). حالياً الاسم واحد، لكن هذه الخريطة
+  /// تسمح بتغيير الأسماء مستقبلاً دون تعديل كل الاستدعاءات.
+  static const Map<String, String> _entityToCollection = {
+    'rooms': roomsCollectionId,
+    'bookings': bookingsCollectionId,
+    'payments': paymentsCollectionId,
+    'expenses': expensesCollectionId,
+    'employees': employeesCollectionId,
+    'debts': debtsCollectionId,
+    'booking_notes': bookingNotesCollectionId,
+    'shift_notes': shiftNotesCollectionId,
+    'cash_transactions': cashTransactionsCollectionId,
+    'booking_nights': bookingNightsCollectionId,
+    'salary_cycles': salaryCyclesCollectionId,
+    'salary_payments': salaryPaymentsCollectionId,
+    'salary_withdrawals': salaryWithdrawalsCollectionId,
+    'salary_carry_over_logs': 'salary_carry_over_logs',
+    'blacklist': blacklistCollectionId,
+    'price_adjustments': priceAdjustmentsCollectionId,
+    'booking_price_adjustments': bookingPriceAdjustmentsCollectionId,
+    'audit_logs': auditLogsCollectionId,
+    'payment_voids': paymentVoidsCollectionId,
+    'guest_infos': guestInfosCollectionId,
+    'app_settings': appSettingsCollectionId,
+  };
+
+  /// يحوّل اسم الكيان إلى collection ID في Appwrite.
+  /// يُرجع null إذا لم يكن الكيان معروفاً (مثل 'hotel_day_ledger' المحلي فقط).
+  static String? collectionIdFor(String entity) {
+    return _entityToCollection[entity];
+  }
+
+  // إعدادات المزامنة
+  static const Duration syncInterval = Duration(minutes: 15);
+  static const Duration cacheExpiry = Duration(hours: 6);
+  static const int maxCacheSizeMB = 20;
+  static const int maxRetries = 3;
+  static const Duration initialRetryDelay = Duration(seconds: 2);
+  static const double retryBackoffMultiplier =
+      2.0; // Exponential backoff multiplier
+
+  // إعدادات Timeout
+  static const Duration defaultTimeout = Duration(seconds: 30);
+  static const Duration longTimeout = Duration(minutes: 2); // للعمليات الكبيرة
+
+  // إعدادات Pagination
+  static const int defaultPageSize = 25; // عدد السجلات في كل صفحة
+  static const int maxPageSize = 100; // الحد الأقصى للسجلات
+  static const int batchSize = 50; // عدد السجلات في كل دفعة
+
+  /// طباعة الإعدادات (للتشخيص)
+  static void printConfig() {
+    if (kDebugMode) {
+      debugPrint('═══════════════════════════════════════');
+      debugPrint('🔧 Appwrite Configuration');
+      debugPrint('═══════════════════════════════════════');
+      debugPrint('Endpoint: $endpoint');
+      debugPrint('Project ID: $projectId');
+      debugPrint('Database ID: $databaseId');
+      debugPrint('Sync Interval: ${syncInterval.inMinutes} minutes');
+      debugPrint('Cache Expiry: ${cacheExpiry.inHours} hours');
+      debugPrint('Max Cache Size: $maxCacheSizeMB MB');
+      debugPrint('Default Page Size: $defaultPageSize');
+      debugPrint('Max Page Size: $maxPageSize');
+      debugPrint('Batch Size: $batchSize');
+      debugPrint('Max Retries: $maxRetries');
+      debugPrint('Default Timeout: ${defaultTimeout.inSeconds}s');
+      debugPrint('Long Timeout: ${longTimeout.inSeconds}s');
+      debugPrint('═══════════════════════════════════════');
+    }
+  }
+
+  /// التحقق من صحة الإعدادات
+  static bool validateConfig() {
+    if (projectId == 'YOUR_PROJECT_ID_HERE') {
+      debugPrint('❌ Error: Please set your Appwrite Project ID');
+      return false;
+    }
+    return true;
+  }
+}
