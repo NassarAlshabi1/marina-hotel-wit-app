@@ -137,8 +137,9 @@ void main() {
     testWidgets('البناء الأول + pumpAndSettle خلال < 2 ثانية', (tester) async {
       final overrides = <Override>[
         employeesListProvider.overrideWith((ref) => Stream.value([])),
-        customListNamesProvider(kListKeyExpenseType)
-            .overrideWith((ref) async => ['اخرى', 'صيانة', 'رواتب']),
+        customListNamesProvider(
+          kListKeyExpenseType,
+        ).overrideWith((ref) async => ['اخرى', 'صيانة', 'رواتب']),
       ];
 
       final buildStopwatch = Stopwatch()..start();
@@ -162,8 +163,11 @@ void main() {
       debugPrint('  Total: ${buildMs + settleMs}ms');
 
       // الادعاء: البناء + الاستقرار خلال 2 ثانية على CI
-      expect(buildMs + settleMs, lessThan(2000),
-          reason: 'البناء + الاستقرار يجب أن يكون < 2 ثانية');
+      expect(
+        buildMs + settleMs,
+        lessThan(2000),
+        reason: 'البناء + الاستقرار يجب أن يكون < 2 ثانية',
+      );
     });
 
     testWidgets('العرض بدون مصروفات خلال < 1 ثانية', (tester) async {
@@ -173,8 +177,9 @@ void main() {
 
       final overrides = <Override>[
         employeesListProvider.overrideWith((ref) => Stream.value([])),
-        customListNamesProvider(kListKeyExpenseType)
-            .overrideWith((ref) async => ['اخرى']),
+        customListNamesProvider(
+          kListKeyExpenseType,
+        ).overrideWith((ref) async => ['اخرى']),
       ];
 
       final stopwatch = Stopwatch()..start();
@@ -182,8 +187,12 @@ void main() {
         ProviderScope(
           overrides: [
             databaseProvider.overrideWithValue(emptyDb),
-            simpleNotesUnreadCountProvider.overrideWith((ref) => Stream.value(0)),
-            syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.idle)),
+            simpleNotesUnreadCountProvider.overrideWith(
+              (ref) => Stream.value(0),
+            ),
+            syncStatusProvider.overrideWith(
+              (ref) => Stream.value(SyncStatus.idle),
+            ),
             ...overrides,
           ],
           child: const MaterialApp(home: ExpensesListScreen()),
@@ -192,7 +201,9 @@ void main() {
       await tester.pumpAndSettle(const Duration(seconds: 1));
       stopwatch.stop();
 
-      debugPrint('✓ ExpensesListScreen empty state: ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint(
+        '✓ ExpensesListScreen empty state: ${stopwatch.elapsedMilliseconds}ms',
+      );
       expect(stopwatch.elapsedMilliseconds, lessThan(1500));
 
       // التحقق أن نص "لا توجد مصروفات" ظهر
@@ -202,8 +213,9 @@ void main() {
     testWidgets('إعادة البناء بعد pump 10 مرات خلال < 500ms', (tester) async {
       final overrides = <Override>[
         employeesListProvider.overrideWith((ref) => Stream.value([])),
-        customListNamesProvider(kListKeyExpenseType)
-            .overrideWith((ref) async => ['اخرى', 'صيانة']),
+        customListNamesProvider(
+          kListKeyExpenseType,
+        ).overrideWith((ref) async => ['اخرى', 'صيانة']),
       ];
 
       await tester.pumpWidget(
@@ -224,8 +236,11 @@ void main() {
 
       debugPrint('✓ 10 pumps (rebuild) time: ${rebuildMs}ms');
       debugPrint('  Average per pump: ${rebuildMs / 10}ms');
-      expect(rebuildMs, lessThan(500),
-          reason: '10 إعادة بناء يجب أن تكون < 500ms');
+      expect(
+        rebuildMs,
+        lessThan(500),
+        reason: '10 إعادة بناء يجب أن تكون < 500ms',
+      );
     });
   });
 
@@ -239,11 +254,16 @@ void main() {
         ProviderScope(
           overrides: [
             databaseProvider.overrideWithValue(db),
-            simpleNotesUnreadCountProvider.overrideWith((ref) => Stream.value(0)),
-            syncStatusProvider.overrideWith((ref) => Stream.value(SyncStatus.idle)),
+            simpleNotesUnreadCountProvider.overrideWith(
+              (ref) => Stream.value(0),
+            ),
+            syncStatusProvider.overrideWith(
+              (ref) => Stream.value(SyncStatus.idle),
+            ),
           ],
           child: const MaterialApp(
-            home: Scaffold(body: Center(child: Text('اختبار')),
+            home: Scaffold(
+              body: Center(child: Text('اختبار')),
             ),
           ),
         ),
@@ -273,10 +293,15 @@ void main() {
       );
       stopwatch.stop();
 
-      debugPrint('✓ Query ${expenses.length} expenses: ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint(
+        '✓ Query ${expenses.length} expenses: ${stopwatch.elapsedMilliseconds}ms',
+      );
       expect(expenses.length, 50);
-      expect(stopwatch.elapsedMilliseconds, lessThan(50),
-          reason: 'استعلام 50 مصروف يجب أن يكون < 50ms');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(50),
+        reason: 'استعلام 50 مصروف يجب أن يكون < 50ms',
+      );
     });
 
     test('استعلام 20 غرفة من DB حقيقية < 30ms', () async {
@@ -286,10 +311,15 @@ void main() {
       final rooms = await roomsDao.list();
       stopwatch.stop();
 
-      debugPrint('✓ Query ${rooms.length} rooms: ${stopwatch.elapsedMilliseconds}ms');
+      debugPrint(
+        '✓ Query ${rooms.length} rooms: ${stopwatch.elapsedMilliseconds}ms',
+      );
       expect(rooms.length, 20);
-      expect(stopwatch.elapsedMilliseconds, lessThan(30),
-          reason: 'استعلام 20 غرفة يجب أن يكون < 30ms');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(30),
+        reason: 'استعلام 20 غرفة يجب أن يكون < 30ms',
+      );
     });
 
     test('transaction: إدراج 100 مصروف دفعة واحدة < 500ms', () async {
@@ -313,9 +343,14 @@ void main() {
       });
       stopwatch.stop();
 
-      debugPrint('✓ Insert 100 expenses in transaction: ${stopwatch.elapsedMilliseconds}ms');
-      expect(stopwatch.elapsedMilliseconds, lessThan(500),
-          reason: 'إدراج 100 مصروف في transaction يجب أن يكون < 500ms');
+      debugPrint(
+        '✓ Insert 100 expenses in transaction: ${stopwatch.elapsedMilliseconds}ms',
+      );
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(500),
+        reason: 'إدراج 100 مصروف في transaction يجب أن يكون < 500ms',
+      );
     });
   });
 
@@ -323,11 +358,14 @@ void main() {
   //  4. Memory baseline — قبل/بعد بناء شاشة
   // ═══════════════════════════════════════════════════════════════════════════
   group('🧠 Memory Baseline', () {
-    testWidgets('بناء ExpensesListScreen لا يزيد الذاكرة > 50MB', (tester) async {
+    testWidgets('بناء ExpensesListScreen لا يزيد الذاكرة > 50MB', (
+      tester,
+    ) async {
       final overrides = <Override>[
         employeesListProvider.overrideWith((ref) => Stream.value([])),
-        customListNamesProvider(kListKeyExpenseType)
-            .overrideWith((ref) async => ['اخرى', 'صيانة']),
+        customListNamesProvider(
+          kListKeyExpenseType,
+        ).overrideWith((ref) async => ['اخرى', 'صيانة']),
       ];
 
       // ProcessInfo يحسب RSS bytes للعملية
@@ -345,13 +383,20 @@ void main() {
       final afterBytes = ProcessInfo.currentRss;
       final deltaMB = (afterBytes - beforeBytes) / (1024 * 1024);
 
-      debugPrint('✓ Memory before: ${(beforeBytes / 1024 / 1024).toStringAsFixed(1)}MB');
-      debugPrint('✓ Memory after: ${(afterBytes / 1024 / 1024).toStringAsFixed(1)}MB');
+      debugPrint(
+        '✓ Memory before: ${(beforeBytes / 1024 / 1024).toStringAsFixed(1)}MB',
+      );
+      debugPrint(
+        '✓ Memory after: ${(afterBytes / 1024 / 1024).toStringAsFixed(1)}MB',
+      );
       debugPrint('✓ Memory delta: ${deltaMB.toStringAsFixed(1)}MB');
 
       // عتبة 50MB — نمو أكبر يعني leak
-      expect(deltaMB, lessThan(50),
-          reason: 'نمو الذاكرة بعد بناء شاشة يجب أن يكون < 50MB');
+      expect(
+        deltaMB,
+        lessThan(50),
+        reason: 'نمو الذاكرة بعد بناء شاشة يجب أن يكون < 50MB',
+      );
     });
   });
 
