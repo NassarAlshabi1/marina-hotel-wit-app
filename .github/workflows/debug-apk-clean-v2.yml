@@ -4,7 +4,7 @@
 # أو يدوياً عبر workflow_dispatch. لا يحتاج أي secrets أو signing keys.
 #
 # الميزات:
-# - يستخدم Flutter 3.35.7 (نفس إصدار المشروع)
+# - يستخدم Flutter 3.44.4 (نفس إصدار release workflow)
 # - يبني debug APK (لا يحتاج keystore)
 # - يرفع APK كـ artifact قابل للتنزيل من GitHub Actions UI
 # - يشغّل flutter analyze + flutter test كبوابة CI قبل البناء
@@ -59,13 +59,13 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Flutter 3.35.7
-        uses: subosito/flutter-action@v2
+      - name: Set up Flutter 3.44.4
+        uses: subosito/flutter-action@v2.23.0
         with:
-          flutter-version: '3.35.7'
+          flutter-version: '3.44.4'
           channel: stable
           cache: true
-          cache-key: flutter-${{ runner.os }}-3.35.7
+          cache-key: flutter-${{ runner.os }}-3.44.4
 
       - name: Cache pub dependencies
         uses: actions/cache@v4
@@ -146,7 +146,7 @@ jobs:
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
           echo "| Branch | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Flutter | 3.35.7 stable |" >> $GITHUB_STEP_SUMMARY
+          echo "| Flutter | 3.44.4 stable |" >> $GITHUB_STEP_SUMMARY
           echo "| APK Size | ${{ steps.apk.outputs.size }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Run Number | ${{ github.run_number }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
