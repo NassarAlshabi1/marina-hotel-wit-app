@@ -1,1 +1,497 @@
-aW1wb3J0ICdkYXJ0OmFzeW5jJzsKCmltcG9ydCAncGFja2FnZTpkcmlmdC9kcmlmdC5kYXJ0JzsKCmltcG9ydCAnLi4vLi4vdXRpbHMvaWQuZGFydCc7CmltcG9ydCAnLi4vLi4vdXRpbHMvdGltZS5kYXJ0JzsKaW1wb3J0ICcuLi9hZGFwdGVycy9hZGFwdGVyX3JlZ2lzdHJ5LmRhcnQnOwppbXBvcnQgJy4uL2FkYXB0ZXJzL3NvdXJjZS5kYXJ0JzsKaW1wb3J0ICcuLi9hcHB3cml0ZV9zeW5jX21hbmFnZXIuZGFydCc7CmltcG9ydCAnLi4vZmNtX3NlbmRlci5kYXJ0JzsKaW1wb3J0ICcuLi9sb2NhbF9kYi5kYXJ0JzsKaW1wb3J0ICcuLi9zeW5jX2NvcmUvb3B0aW1pc3RpY19sb2NrX2hlbHBlci5kYXJ0JzsKaW1wb3J0ICdvdXRib3hfZGFvLmRhcnQnOwoKcGFydCAnYm9va2luZ3NfZGFvLmcuZGFydCc7CgpARHJpZnRBY2Nlc3Nvcih0YWJsZXM6IFtCb29raW5nc10pCmNsYXNzIEJvb2tpbmdzRGFvIGV4dGVuZHMgRGF0YWJhc2VBY2Nlc3NvcjxBcHBEYXRhYmFzZT4KICAgIHdpdGggXyRCb29raW5nc0Rhb01peGluLCBPcHRpbWlzdGljTG9ja0Rhb01peGluPEJvb2tpbmdzLCBCb29raW5nPiB7CiAgQm9va2luZ3NEYW8oc3VwZXIuZGIsIHRoaXMub3V0Ym94RGFvLCBbQWRhcHRlclJlZ2lzdHJ5PyBhXSkKICAgIDogYWRhcHRlcnMgPSBhID8/IEFkYXB0ZXJSZWdpc3RyeS5pbnN0YW5jZTsKICBmaW5hbCBPdXRib3hEYW8gb3V0Ym94RGFvOwogIGZpbmFsIEFkYXB0ZXJSZWdpc3RyeSBhZGFwdGVyczsKCiAgRnV0dXJlPExpc3Q8Qm9va2luZz4+IGxpc3QoewogICAgU3RyaW5nPyBzZWFyY2gsCiAgICBTdHJpbmc/IHJvb21OdW1iZXIsCiAgICBTdHJpbmc/IHN0YXR1cywKICAgIFN0cmluZz8gZnJvbSwKICAgIFN0cmluZz8gdG8sCiAgICBib29sIGluY2x1ZGVEZWxldGVkID0gZmFsc2UsCiAgICBpbnQ/IGxpbWl0LAogICAgaW50PyBvZmZzZXQsCiAgfSkgYXN5bmMgewogICAgZmluYWwgcSA9IHNlbGVjdChib29raW5ncyk7CiAgICBpZiAoIWluY2x1ZGVEZWxldGVkKSB7CiAgICAgIHEud2hlcmUoKHQpID0+IHQuZGVsZXRlZEF0LmlzTnVsbCgpKTsKICAgIH0KICAgIGlmIChyb29tTnVtYmVyICE9IG51bGwgJiYgcm9vbU51bWJlci5pc05vdEVtcHR5KSB7CiAgICAgIHEud2hlcmUoKHQpID0+IHQucm9vbU51bWJlci5lcXVhbHMocm9vbU51bWJlcikpOwogICAgfQogICAgaWYgKHN0YXR1cyAhPSBudWxsICYmIHN0YXR1cy5pc05vdEVtcHR5KSB7CiAgICAgIHEud2hlcmUoKHQpID0+IHQuc3RhdHVzLmVxdWFscyhzdGF0dXMpKTsKICAgIH0KICAgIGlmIChmcm9tICE9IG51bGwgJiYgdG8gIT0gbnVsbCkgewogICAgICBxLndoZXJlKAogICAgICAgICh0KSA9PgogICAgICAgICAgICB0LmNoZWNraW5EYXRlLmlzQmlnZ2VyT3JFcXVhbFZhbHVlKGZyb20pICYKICAgICAgICAgICAgdC5jaGVja2luRGF0ZS5pc1NtYWxsZXJPckVxdWFsVmFsdWUodG8pLAogICAgICApOwogICAgfQogICAgaWYgKHNlYXJjaCAhPSBudWxsICYmIHNlYXJjaC50cmltKCkuaXNOb3RFbXB0eSkgewogICAgICBmaW5hbCBzID0gJyUke3NlYXJjaC50cmltKCl9JSc7CiAgICAgIHEud2hlcmUoKHQpID0+IHQuZ3Vlc3ROYW1lLmxpa2UocykgfCB0Lmd1ZXN0UGhvbmUubGlrZShzKSk7CiAgICB9CiAgICBxLm9yZGVyQnkoWwogICAgICAodCkgPT4gT3JkZXJpbmdUZXJtKGV4cHJlc3Npb246IHQuY2hlY2tpbkRhdGUsIG1vZGU6IE9yZGVyaW5nTW9kZS5kZXNjKSwKICAgIF0pOwogICAgaWYgKGxpbWl0ICE9IG51bGwpIHsKICAgICAgcS5saW1pdChsaW1pdCwgb2Zmc2V0OiBvZmZzZXQgPz8gMCk7CiAgICB9CiAgICByZXR1cm4gcS5nZXQoKTsKICB9CgogIFN0cmVhbTxMaXN0PEJvb2tpbmc+PiB3YXRjaExpc3QoewogICAgU3RyaW5nPyByb29tTnVtYmVyLAogICAgU3RyaW5nPyBzdGF0dXMsCiAgICBib29sIGluY2x1ZGVEZWxldGVkID0gZmFsc2UsCiAgICBpbnQ/IGxpbWl0LAogICAgaW50IG9mZnNldCA9IDAsCiAgfSkgewogICAgZmluYWwgcSA9IHNlbGVjdChib29raW5ncyk7CiAgICBpZiAoIWluY2x1ZGVEZWxldGVkKSB7CiAgICAgIHEud2hlcmUoKHQpID0+IHQuZGVsZXRlZEF0LmlzTnVsbCgpKTsKICAgIH0KICAgIGlmIChyb29tTnVtYmVyICE9IG51bGwgJiYgcm9vbU51bWJlci5pc05vdEVtcHR5KSB7CiAgICAgIHEud2hlcmUoKHQpID0+IHQucm9vbU51bWJlci5lcXVhbHMocm9vbU51bWJlcikpOwogICAgfQogICAgaWYgKHN0YXR1cyAhPSBudWxsICYmIHN0YXR1cy5pc05vdEVtcHR5KSB7CiAgICAgIHEud2hlcmUoKHQpID0+IHQuc3RhdHVzLmVxdWFscyhzdGF0dXMpKTsKICAgIH0KICAgIHEub3JkZXJCeShbCiAgICAgICh0KSA9PiBPcmRlcmluZ1Rlcm0oZXhwcmVzc2lvbjogdC5jaGVja2luRGF0ZSwgbW9kZTogT3JkZXJpbmdNb2RlLmRlc2MpLAogICAgXSk7CiAgICBpZiAobGltaXQgIT0gbnVsbCkgewogICAgICBxLmxpbWl0KGxpbWl0LCBvZmZzZXQ6IG9mZnNldCk7CiAgICB9CiAgICByZXR1cm4gcS53YXRjaCgpOwogIH0KCiAgRnV0dXJlPEJvb2tpbmc/PiBnZXRCeUlkKGludCBpZCkgPT4KICAgICAgKHNlbGVjdChib29raW5ncykuLndoZXJlKCh0KSA9PiB0LmlkLmVxdWFscyhpZCkpKS5nZXRTaW5nbGVPck51bGwoKTsKICBTdHJlYW08Qm9va2luZz8+IHdhdGNoQnlJZChpbnQgaWQpID0+CiAgICAgIChzZWxlY3QoYm9va2luZ3MpLi53aGVyZSgodCkgPT4gdC5pZC5lcXVhbHMoaWQpKSkud2F0Y2hTaW5nbGVPck51bGwoKTsKCiAgRnV0dXJlPGludD4gaW5zZXJ0T25lKAogICAgQm9va2luZ3NDb21wYW5pb24gZGF0YSwgewogICAgYm9vbCBvcmlnaW5Jc1NlcnZlciA9IGZhbHNlLAogIH0pIGFzeW5jIHsKICAgIGZpbmFsIG5vdyA9IFRpbWUubm93RXBvY2goKTsKICAgIGZpbmFsIHV1ID0gZGF0YS5sb2NhbFV1aWQucHJlc2VudCA/IGRhdGEubG9jYWxVdWlkLnZhbHVlIDogSWRHZW4udXVpZCgpOwogICAgZmluYWwgY29tcCA9IGRhdGEuY29weVdpdGgoCiAgICAgIGxvY2FsVXVpZDogVmFsdWUodXUpLAogICAgICBjcmVhdGVkQXQ6IFZhbHVlKG5vdyksCiAgICAgIHVwZGF0ZWRBdDogVmFsdWUobm93KSwKICAgICAgbGFzdE1vZGlmaWVkOiBWYWx1ZShub3cpLAogICAgICBvcmlnaW46IFZhbHVlKG9yaWdpbklzU2VydmVyID8gJ3NlcnZlcicgOiAnbG9jYWwnKSwKICAgICAgZGV2aWNlSWQ6IG9yaWdpbklzU2VydmVyCiAgICAgICAgICA/IGNvbnN0IFZhbHVlLmFic2VudCgpCiAgICAgICAgICA6IFZhbHVlKEFwcHdyaXRlU3luY01hbmFnZXIuY3VycmVudERldmljZUlkU3RhdGljID8/ICcnKSwKICAgICk7CgogICAgLy8g4pyFINil2LXZhNin2K0gUFIgcmV2aWV3OiDYpdiu2LHYp9isIEZDTSDYrtin2LHYrCB0cmFuc2FjdGlvbiDZhNmF2YbYuSDYpdi02LnYp9ix2KfYqiDZg9in2LDYqNipCiAgICAvLyDYudmG2K8gcm9sbGJhY2vYjCDZiNmE2YXZhti5INil2LfYp9mE2Kkg2YXYr9ipINin2YTZgCB0cmFuc2FjdGlvbi4KICAgIC8vINin2YTZgCB0cmFuc2FjdGlvbiDZitmP2YbZgdmR2LAgaW5zZXJ0ICsgb3V0Ym94INmB2YLYtyAoYXRvbWljKdiMINir2YUg2YbZj9ix2LPZhCBGQ00g2KjYudiv2YfYpy4KICAgIGZpbmFsIGlkID0gYXdhaXQgZGIudHJhbnNhY3Rpb24oKCkgYXN5bmMgewogICAgICBmaW5hbCBpbnNlcnRlZElkID0gYXdhaXQgaW50byhib29raW5ncykuaW5zZXJ0KGNvbXApOwogICAgICBpZiAoIW9yaWdpbklzU2VydmVyKSB7CiAgICAgICAgYXdhaXQgX21lcmdlT3V0Ym94KAogICAgICAgICAgb3A6ICdjcmVhdGUnLAogICAgICAgICAgbG9jYWxVdWlkOiB1dSwKICAgICAgICAgIHNlcnZlcklkOiBjb21wLnNlcnZlcklkLnByZXNlbnQgPyBjb21wLnNlcnZlcklkLnZhbHVlIDogbnVsbCwKICAgICAgICAgIGNsaWVudFRzOiBub3csCiAgICAgICAgKTsKICAgICAgfQogICAgICByZXR1cm4gaW5zZXJ0ZWRJZDsKICAgIH0pOwoKICAgIC8vIOKchSBGQ006INil2LTYudin2LEg2KfZhNij2KzZh9iy2Kkg2KfZhNij2K7YsdmJINio2KXZhti02KfYoSDYrdis2LIg2KzYr9mK2K8gKGZpcmUtYW5kLWZvcmdldCkKICAgIC8vINmK2KrZhSDYqNi52K8g2YbYrNin2K0g2KfZhNmAIHRyYW5zYWN0aW9uIOKAlCDZhNmGINmK2Y/Ysdiz2YQg2KXYtNi52KfYsSDZhNit2KzYsiDZhNmFINmK2Y/YrdmB2LguCiAgICBpZiAoIW9yaWdpbklzU2VydmVyICYmIGNvbXAucm9vbU51bWJlci5wcmVzZW50ICYmIGNvbXAuZ3Vlc3ROYW1lLnByZXNlbnQpIHsKICAgICAgdW5hd2FpdGVkKAogICAgICAgIEZjbVNlbmRlcigpLm5vdGlmeUJvb2tpbmdDcmVhdGVkKAogICAgICAgICAgcm9vbU51bWJlcjogY29tcC5yb29tTnVtYmVyLnZhbHVlLAogICAgICAgICAgZ3Vlc3ROYW1lOiBjb21wLmd1ZXN0TmFtZS52YWx1ZSwKICAgICAgICApLAogICAgICApOwogICAgfQogICAgcmV0dXJuIGlkOwogIH0KCiAgRnV0dXJlPGludD4gdXBkYXRlQnlJZCgKICAgIGludCBpZCwKICAgIEJvb2tpbmdzQ29tcGFuaW9uIGRhdGEsIHsKICAgIGJvb2wgb3JpZ2luSXNTZXJ2ZXIgPSBmYWxzZSwKICB9KSBhc3luYyB7CiAgICByZXR1cm4gZGIudHJhbnNhY3Rpb24oKCkgYXN5bmMgewogICAgICBmaW5hbCBub3cgPSBUaW1lLm5vd0Vwb2NoKCk7CiAgICAgIGZpbmFsIGV4aXN0aW5nID0gYXdhaXQgZ2V0QnlJZChpZCk7CiAgICAgIGlmIChleGlzdGluZyA9PSBudWxsKSB7CiAgICAgICAgcmV0dXJuIDA7CiAgICAgIH0KICAgICAgLy8g4pyFINil2LXZhNin2K06INi52YbYryBvcmlnaW5Jc1NlcnZlcj10cnVl2Iwg2YbYs9iq2K7Yr9mFIGxhc3RNb2RpZmllZCDZhdmGINin2YTYqNmK2KfZhtin2Kog2KfZhNmI2KfYsdiv2KkKICAgICAgLy8g2KjYr9mE2KfZiyDZhdmGINiq2LnZitmK2YYgbm932Iwg2YTZhdmG2Lkg2KXYudin2K/YqSDYsdmB2Lkg2KfZhNio2YrYp9mG2KfYqiDYp9mE2YXYs9it2YjYqNipINmF2YYg2KfZhNiz2YrYsdmB2LEKICAgICAgZmluYWwgZWZmZWN0aXZlTGFzdE1vZGlmaWVkID0gb3JpZ2luSXNTZXJ2ZXIgJiYgZGF0YS5sYXN0TW9kaWZpZWQucHJlc2VudAogICAgICAgICAgPyBkYXRhLmxhc3RNb2RpZmllZAogICAgICAgICAgOiBWYWx1ZShub3cpOwogICAgICBmaW5hbCBjb21wID0gZGF0YS5jb3B5V2l0aCgKICAgICAgICB1cGRhdGVkQXQ6IFZhbHVlKG5vdyksCiAgICAgICAgbGFzdE1vZGlmaWVkOiBlZmZlY3RpdmVMYXN0TW9kaWZpZWQsCiAgICAgICAgdmVyc2lvbjogVmFsdWUoZXhpc3RpbmcudmVyc2lvbiArIDEpLAogICAgICApOwoKICAgICAgLy8g4pyFINil2LXZhNin2K0g2K3YsdisOiDYp9iz2KrYqNiv2KfZhCByZXBsYWNlINio2YAgd3JpdGUg2YTYqtis2YbYqCBJbnZhbGlkRGF0YUV4Y2VwdGlvbi4KICAgICAgLy8KICAgICAgLy8g2KfZhNiz2KjYqCDYp9mE2KzYsNix2YogKNmF2LTYrtmR2LUg2KjYp9mE2K/ZhNmK2YQg2YXZhiBkcmlmdC0yLjMxLjAvbGliLy4uLi91cGRhdGUuZGFydDoxMjQtMTMwKToKICAgICAgLy8gcmVwbGFjZSgpINmK2LPYqtiv2LnZiiB2YWxpZGF0ZUludGVncml0eShlbnRpdHksIGlzSW5zZXJ0aW5nOiB0cnVlKSDigJQg2KPZigogICAgICAvLyDZitmB2K3YtSDYp9mE2LPZhNin2YXYqSDZg9ij2YbZh9inIElOU0VSVCAo2YrYrdiw2YEg2KfZhNi12YEg2YjZiti52YrYryDYpdiv2LHYp9is2YcpLiDZh9iw2Kcg2YrYqti32YTYqCDYo9mGINiq2YPZiNmGCiAgICAgIC8vINmD2YQgcmVxdWlyZWQgY29sdW1ucyDYqNmE2KcgZGVmYXVsdCDYrdin2LbYsdipINmB2YogQ29tcGFuaW9uICjZhdir2YQgbG9jYWxVdWlk2IwKICAgICAgLy8gY3JlYXRlZEF02Iwgcm9vbU51bWJlctiMIGd1ZXN0TmFtZdiMIGd1ZXN0UGhvbmUpLgogICAgICAvLwogICAgICAvLyDZhNmD2YYgQm9va2luZ3NSZXBvc2l0b3J5LnVwZGF0ZSDZiCBzeW5jX3NlcnZpY2UuZGFydCDZitiz2KrYr9i52YrYp9mGIHVwZGF0ZUJ5SWQKICAgICAgLy8g2KjZgCBDb21wYW5pb24g2KzYstim2YogKNmB2YLYtyDYp9mE2K3ZgtmI2YQg2KfZhNiq2Yog2KrYrdiq2KfYrCDYqtit2K/Zitir2KfZiyDZgdi52YTZitin2Ysp2Iwg2YHYqtmD2YjZhgogICAgICAvLyByZXF1aXJlZCBjb2x1bW5zINin2YTZhdiw2YPZiNix2KkgVmFsdWUuYWJzZW50KCkg4oaSIEludmFsaWREYXRhRXhjZXB0aW9uINi52YbYrwogICAgICAvLyBjaGVja291dCDYo9mIINi52YbYryDZhdiy2KfZhdmG2Kkg2K3YrNiyINmF2YjYrNmI2K8g2YXZhiDYp9mE2LPZitix2YHYsS4KICAgICAgLy8KICAgICAgLy8gd3JpdGUoKSDZhdi5IHdoZXJlKGlkLmVxdWFscyhpZCkpINmK2KrYrNin2YfZhCBWYWx1ZS5hYnNlbnQoKSDZiNmK2K3Yr9mR2Ksg2YHZgti3CiAgICAgIC8vINin2YTYrdmC2YjZhCDYp9mE2K3Yp9i22LHYqSDigJQg2YjZh9mIINin2YTYs9mE2YjZgyDYp9mE2YXYt9mE2YjYqCDZhNiq2K3Yr9mK2Ksg2KzYstim2YouINmH2LDYpyDZitiq2YjYp9mB2YIg2YXYuQogICAgICAvLyDYp9mE2KPYs9mE2YjYqCDYp9mE2YXYudiq2YXYryDZgdmKINmD2YQgREFPcyDYp9mE2KPYrtix2YkgKGVtcGxveWVlc9iMIGNhc2hfdHJhbnNhY3Rpb25z2IwKICAgICAgLy8gb3V0Ym942IwgZGVidHMpINmI2YXYuSBzb2Z0RGVsZXRlL3Jlc3RvcmUg2YHZiiDZhtmB2LMgYm9va2luZ3NfZGFvLmRhcnQuCiAgICAgIGZpbmFsIHJvd3MgPSBhd2FpdCAodXBkYXRlKAogICAgICAgIGJvb2tpbmdzLAogICAgICApLi53aGVyZSgodCkgPT4gdC5pZC5lcXVhbHMoaWQpKSkud3JpdGUoY29tcCk7CiAgICAgIGlmIChyb3dzID09IDApIHsKICAgICAgICByZXR1cm4gMDsKICAgICAgfQogICAgICBpZiAoIW9yaWdpbklzU2VydmVyKSB7CiAgICAgICAgYXdhaXQgX21lcmdlT3V0Ym94KAogICAgICAgICAgb3A6ICd1cGRhdGUnLAogICAgICAgICAgbG9jYWxVdWlkOiBleGlzdGluZy5sb2NhbFV1aWQsCiAgICAgICAgICBzZXJ2ZXJJZDogY29tcC5zZXJ2ZXJJZC5wcmVzZW50CiAgICAgICAgICAgICAgPyBjb21wLnNlcnZlcklkLnZhbHVlCiAgICAgICAgICAgICAgOiBleGlzdGluZy5zZXJ2ZXJJZCwKICAgICAgICAgIGNsaWVudFRzOiBub3csCiAgICAgICAgKTsKICAgICAgfQogICAgICByZXR1cm4gMTsKICAgIH0pOwogIH0KCiAgRnV0dXJlPGludD4gc29mdERlbGV0ZShpbnQgaWQsIHtib29sIG9yaWdpbklzU2VydmVyID0gZmFsc2V9KSBhc3luYyB7CiAgICByZXR1cm4gZGIudHJhbnNhY3Rpb24oKCkgYXN5bmMgewogICAgICBmaW5hbCBub3cgPSBUaW1lLm5vd0Vwb2NoKCk7CiAgICAgIGZpbmFsIGV4aXN0aW5nID0gYXdhaXQgZ2V0QnlJZChpZCk7CiAgICAgIGlmIChleGlzdGluZyA9PSBudWxsKSB7CiAgICAgICAgcmV0dXJuIDA7CiAgICAgIH0KICAgICAgYXdhaXQgKHVwZGF0ZShib29raW5ncykuLndoZXJlKCh0KSA9PiB0LmlkLmVxdWFscyhpZCkpKS53cml0ZSgKICAgICAgICBCb29raW5nc0NvbXBhbmlvbigKICAgICAgICAgIGRlbGV0ZWRBdDogVmFsdWUobm93KSwKICAgICAgICAgIHVwZGF0ZWRBdDogVmFsdWUobm93KSwKICAgICAgICAgIGxhc3RNb2RpZmllZDogVmFsdWUobm93KSwKICAgICAgICAgIHZlcnNpb246IFZhbHVlKGV4aXN0aW5nLnZlcnNpb24gKyAxKSwKICAgICAgICApLAogICAgICApOwogICAgICBpZiAoIW9yaWdpbklzU2VydmVyKSB7CiAgICAgICAgYXdhaXQgX21lcmdlT3V0Ym94KAogICAgICAgICAgb3A6ICdkZWxldGUnLAogICAgICAgICAgbG9jYWxVdWlkOiBleGlzdGluZy5sb2NhbFV1aWQsCiAgICAgICAgICBzZXJ2ZXJJZDogZXhpc3Rpbmcuc2VydmVySWQsCiAgICAgICAgICBjbGllbnRUczogbm93LAogICAgICAgICk7CiAgICAgIH0KICAgICAgcmV0dXJuIDE7CiAgICB9KTsKICB9CgogIEZ1dHVyZTxpbnQ+IHJlc3RvcmUoaW50IGlkKSBhc3luYyB7CiAgICByZXR1cm4gZGIudHJhbnNhY3Rpb24oKCkgYXN5bmMgewogICAgICBmaW5hbCBleGlzdGluZyA9IGF3YWl0IGdldEJ5SWQoaWQpOwogICAgICBpZiAoZXhpc3RpbmcgPT0gbnVsbCkgewogICAgICAgIHJldHVybiAwOwogICAgICB9CiAgICAgIGF3YWl0ICh1cGRhdGUoYm9va2luZ3MpLi53aGVyZSgodCkgPT4gdC5pZC5lcXVhbHMoaWQpKSkud3JpdGUoCiAgICAgICAgQm9va2luZ3NDb21wYW5pb24oCiAgICAgICAgICB1cGRhdGVkQXQ6IFZhbHVlKFRpbWUubm93RXBvY2goKSksCiAgICAgICAgICBsYXN0TW9kaWZpZWQ6IFZhbHVlKFRpbWUubm93RXBvY2goKSksCiAgICAgICAgICB2ZXJzaW9uOiBWYWx1ZShleGlzdGluZy52ZXJzaW9uICsgMSksCiAgICAgICAgKSwKICAgICAgKTsKICAgICAgcmV0dXJuIDE7CiAgICB9KTsKICB9CgogIEZ1dHVyZTx2b2lkPiBkZWxldGVQZXJtYW5lbnRseShpbnQgaWQpIGFzeW5jIHsKICAgIGF3YWl0IChkZWxldGUoYm9va2luZ3MpLi53aGVyZSgodCkgPT4gdC5pZC5lcXVhbHMoaWQpKSkuZ28oKTsKICB9CgogIC8vLyDYp9mE2K3YtdmI2YQg2LnZhNmJINit2KzYsiDYrdiz2KggbG9jYWxVdWlkCiAgRnV0dXJlPEJvb2tpbmc/PiBnZXRCeUxvY2FsVXVpZChTdHJpbmcgbG9jYWxVdWlkKSBhc3luYyB7CiAgICByZXR1cm4gKHNlbGVjdChib29raW5ncykKICAgICAgICAgIC4ud2hlcmUoKHQpID0+IHQubG9jYWxVdWlkLmVxdWFscyhsb2NhbFV1aWQpKQogICAgICAgICAgLi5saW1pdCgxKSkKICAgICAgICAuZ2V0U2luZ2xlT3JOdWxsKCk7CiAgfQoKICAvLy8g2KfZhNit2LXZiNmEINi52YTZiSDYrdis2LIg2K3Ys9ioIHNlcnZlckJvb2tpbmdJZAogIEZ1dHVyZTxCb29raW5nPz4gZ2V0QnlTZXJ2ZXJJZChpbnQgc2VydmVySWQpIGFzeW5jIHsKICAgIHJldHVybiAoc2VsZWN0KGJvb2tpbmdzKQogICAgICAgICAgLi53aGVyZSgodCkgPT4gdC5zZXJ2ZXJCb29raW5nSWQuZXF1YWxzKHNlcnZlcklkKSkKICAgICAgICAgIC4ubGltaXQoMSkpCiAgICAgICAgLmdldFNpbmdsZU9yTnVsbCgpOwogIH0KCiAgLy8vINiq2K3Yr9mK2Ksgc2VydmVyQm9va2luZ0lkINmE2K3YrNiyINmF2YjYrNmI2K8KICBGdXR1cmU8aW50PiB1cGRhdGVTZXJ2ZXJCb29raW5nSWQoCiAgICBTdHJpbmcgbG9jYWxVdWlkLAogICAgaW50IHNlcnZlckJvb2tpbmdJZCwKICApIGFzeW5jIHsKICAgIHJldHVybiAodXBkYXRlKAogICAgICBib29raW5ncywKICAgICkuLndoZXJlKCh0KSA9PiB0LmxvY2FsVXVpZC5lcXVhbHMobG9jYWxVdWlkKSkpLndyaXRlKAogICAgICBCb29raW5nc0NvbXBhbmlvbihzZXJ2ZXJCb29raW5nSWQ6IFZhbHVlKHNlcnZlckJvb2tpbmdJZCkpLAogICAgKTsKICB9CgogIC8vLyDYudiv2K8g2KfZhNit2KzZiNiy2KfYqiDYrdiz2Kgg2KfZhNit2KfZhNipCiAgRnV0dXJlPGludD4gY291bnRCeVN0YXR1cygKICAgIFN0cmluZyBzdGF0dXMsIHsKICAgIGJvb2wgaW5jbHVkZURlbGV0ZWQgPSBmYWxzZSwKICB9KSBhc3luYyB7CiAgICBmaW5hbCBxdWVyeSA9IHNlbGVjdE9ubHkoYm9va2luZ3MpCiAgICAgIC4uYWRkQ29sdW1ucyhbYm9va2luZ3MuaWQuY291bnQoKV0pCiAgICAgIC4ud2hlcmUoYm9va2luZ3Muc3RhdHVzLmVxdWFscyhzdGF0dXMpKTsKICAgIGlmICghaW5jbHVkZURlbGV0ZWQpIHsKICAgICAgcXVlcnkud2hlcmUoYm9va2luZ3MuZGVsZXRlZEF0LmlzTnVsbCgpKTsKICAgIH0KICAgIGZpbmFsIHJlc3VsdCA9IGF3YWl0IHF1ZXJ5LmdldFNpbmdsZSgpOwogICAgcmV0dXJuIHJlc3VsdC5yZWFkKGJvb2tpbmdzLmlkLmNvdW50KCkpID8/IDA7CiAgfQoKICAvLy8g2K3YrNmI2LLYp9iqINmG2LTYt9ipINmE2LrYsdmB2Kkg2YXYudmK2YbYqQogIEZ1dHVyZTxMaXN0PEJvb2tpbmc+PiBnZXRBY3RpdmVCb29raW5nc0ZvclJvb20oU3RyaW5nIHJvb21OdW1iZXIpIGFzeW5jIHsKICAgIHJldHVybiAoc2VsZWN0KGJvb2tpbmdzKQogICAgICAgICAgLi53aGVyZSgKICAgICAgICAgICAgKHQpID0+CiAgICAgICAgICAgICAgICB0LnJvb21OdW1iZXIuZXF1YWxzKHJvb21OdW1iZXIpICYKICAgICAgICAgICAgICAgIHQuZGVsZXRlZEF0LmlzTnVsbCgpICYKICAgICAgICAgICAgICAgIHQuc3RhdHVzLmVxdWFscygn2YbYtNi3JyksCiAgICAgICAgICApCiAgICAgICAgICAuLm9yZGVyQnkoWwogICAgICAgICAgICAodCkgPT4gT3JkZXJpbmdUZXJtKAogICAgICAgICAgICAgIGV4cHJlc3Npb246IHQuY2hlY2tpbkRhdGUsCiAgICAgICAgICAgICAgbW9kZTogT3JkZXJpbmdNb2RlLmRlc2MsCiAgICAgICAgICAgICksCiAgICAgICAgICBdKSkKICAgICAgICAuZ2V0KCk7CiAgfQoKICAvLy8g2K3YrNmI2LLYp9iqINmC2KfYr9mF2KkgKGNoZWNraW5EYXRlID49IHRvZGF5KQogIEZ1dHVyZTxMaXN0PEJvb2tpbmc+PiBnZXRVcGNvbWluZ0Jvb2tpbmdzKHtpbnQ/IGxpbWl0fSkgYXN5bmMgewogICAgZmluYWwgdG9kYXkgPSBEYXRlVGltZS5ub3coKS50b0lzbzg2MDFTdHJpbmcoKS5zcGxpdCgnVCcpLmZpcnN0OwogICAgZmluYWwgcXVlcnkgPSBzZWxlY3QoYm9va2luZ3MpCiAgICAgIC4ud2hlcmUoCiAgICAgICAgKHQpID0+CiAgICAgICAgICAgIHQuZGVsZXRlZEF0LmlzTnVsbCgpICYKICAgICAgICAgICAgdC5jaGVja2luRGF0ZS5pc0JpZ2dlck9yRXF1YWxWYWx1ZSh0b2RheSkgJgogICAgICAgICAgICB0LnN0YXR1cy5lcXVhbHMoJ9mG2LTYtycpLAogICAgICApCiAgICAgIC4ub3JkZXJCeShbKHQpID0+IE9yZGVyaW5nVGVybShleHByZXNzaW9uOiB0LmNoZWNraW5EYXRlKV0pOwogICAgaWYgKGxpbWl0ICE9IG51bGwpIHsKICAgICAgcXVlcnkubGltaXQobGltaXQpOwogICAgfQogICAgcmV0dXJuIHF1ZXJ5LmdldCgpOwogIH0KCiAgLy8vINin2YTYqNit2Ksg2LnZhiDYrdis2YjYstin2Kog2K3Ys9ioINmG2LUgKNin2LPZhSDYp9mE2LbZitmB2Iwg2LHZgtmFINin2YTZh9in2KrZgdiMINix2YLZhSDYp9mE2LrYsdmB2KkpCiAgRnV0dXJlPExpc3Q8Qm9va2luZz4+IHNlYXJjaCgKICAgIFN0cmluZyBxdWVyeSwgewogICAgYm9vbCBpbmNsdWRlRGVsZXRlZCA9IGZhbHNlLAogICAgaW50PyBsaW1pdCwKICB9KSBhc3luYyB7CiAgICBmaW5hbCBxID0gc2VsZWN0KGJvb2tpbmdzKTsKICAgIGlmICghaW5jbHVkZURlbGV0ZWQpIHsKICAgICAgcS53aGVyZSgodCkgPT4gdC5kZWxldGVkQXQuaXNOdWxsKCkpOwogICAgfQogICAgaWYgKHF1ZXJ5LnRyaW0oKS5pc05vdEVtcHR5KSB7CiAgICAgIGZpbmFsIHMgPSAnJSR7cXVlcnkudHJpbSgpfSUnOwogICAgICBxLndoZXJlKAogICAgICAgICh0KSA9PgogICAgICAgICAgICB0Lmd1ZXN0TmFtZS5saWtlKHMpIHwgdC5ndWVzdFBob25lLmxpa2UocykgfCB0LnJvb21OdW1iZXIubGlrZShzKSwKICAgICAgKTsKICAgIH0KICAgIHEub3JkZXJCeShbCiAgICAgICh0KSA9PiBPcmRlcmluZ1Rlcm0oZXhwcmVzc2lvbjogdC5jaGVja2luRGF0ZSwgbW9kZTogT3JkZXJpbmdNb2RlLmRlc2MpLAogICAgXSk7CiAgICBpZiAobGltaXQgIT0gbnVsbCkgewogICAgICBxLmxpbWl0KGxpbWl0KTsKICAgIH0KICAgIHJldHVybiBxLmdldCgpOwogIH0KCiAgLy8vINis2YXZiti5INin2YTYrdis2YjYstin2Kog2KfZhNmF2K3YsNmI2YHYqQogIEZ1dHVyZTxMaXN0PEJvb2tpbmc+PiBnZXREZWxldGVkQm9va2luZ3Moe2ludD8gbGltaXR9KSBhc3luYyB7CiAgICBmaW5hbCBxID0gc2VsZWN0KGJvb2tpbmdzKQogICAgICAuLndoZXJlKCh0KSA9PiB0LmRlbGV0ZWRBdC5pc05vdE51bGwoKSkKICAgICAgLi5vcmRlckJ5KFsKICAgICAgICAodCkgPT4gT3JkZXJpbmdUZXJtKGV4cHJlc3Npb246IHQuZGVsZXRlZEF0LCBtb2RlOiBPcmRlcmluZ01vZGUuZGVzYyksCiAgICAgIF0pOwogICAgaWYgKGxpbWl0ICE9IG51bGwpIHsKICAgICAgcS5saW1pdChsaW1pdCk7CiAgICB9CiAgICByZXR1cm4gcS5nZXQoKTsKICB9CgogIC8vLyDYp9mE2K3YtdmI2YQg2LnZhNmJIGJvb2tpbmdXaXRoTmlnaHRzICjZhNmE2YbYs9iuINin2YTYp9it2KrZitin2LfZii/Yp9mE2YXYstin2YXZhtipKQogIEZ1dHVyZTxNYXA8U3RyaW5nLCBkeW5hbWljPj8+IF9wYXlsb2FkRm9yTG9jYWxVdWlkKFN0cmluZyBsb2NhbFV1aWQpIGFzeW5jIHsKICAgIGZpbmFsIHJvdyA9CiAgICAgICAgYXdhaXQgKHNlbGVjdChib29raW5ncykKICAgICAgICAgICAgICAuLndoZXJlKCh0KSA9PiB0LmxvY2FsVXVpZC5lcXVhbHMobG9jYWxVdWlkKSkKICAgICAgICAgICAgICAuLmxpbWl0KDEpKQogICAgICAgICAgICAuZ2V0U2luZ2xlT3JOdWxsKCk7CiAgICBpZiAocm93ID09IG51bGwpIHsKICAgICAgcmV0dXJuIG51bGw7CiAgICB9CiAgICByZXR1cm4gYWRhcHRlcnMuYm9va2luZ3MudG9Kc29uRm9yU291cmNlKHJvdywgc3JjOiBTb3VyY2UuYXBwd3JpdGUpOwogIH0KCiAgRnV0dXJlPHZvaWQ+IF9tZXJnZU91dGJveCh7CiAgICByZXF1aXJlZCBTdHJpbmcgb3AsCiAgICByZXF1aXJlZCBTdHJpbmcgbG9jYWxVdWlkLAogICAgcmVxdWlyZWQgaW50IGNsaWVudFRzLAogICAgaW50PyBzZXJ2ZXJJZCwKICB9KSBhc3luYyB7CiAgICBmaW5hbCBwYXlsb2FkID0gYXdhaXQgX3BheWxvYWRGb3JMb2NhbFV1aWQobG9jYWxVdWlkKTsKICAgIGlmIChwYXlsb2FkID09IG51bGwpIHsKICAgICAgcmV0dXJuOwogICAgfQogICAgYXdhaXQgb3V0Ym94RGFvLm1lcmdlKAogICAgICBlbnRpdHk6ICdib29raW5ncycsCiAgICAgIG9wOiBvcCwKICAgICAgbG9jYWxVdWlkOiBsb2NhbFV1aWQsCiAgICAgIHNlcnZlcklkOiBzZXJ2ZXJJZCwKICAgICAgcGF5bG9hZDogcGF5bG9hZCwKICAgICAgY2xpZW50VHM6IGNsaWVudFRzLAogICAgKTsKICB9CgogIC8vINiv2YjYp9mEINin2YTZhtiz2K4g2KfZhNin2K3YqtmK2KfYt9mKCgogIC8vLyDYqti12K/ZitixINis2YXZiti5INin2YTYrdis2YjYstin2Kog2KXZhNmJIEpTT04KICBGdXR1cmU8TGlzdDxNYXA8U3RyaW5nLCBkeW5hbWljPj4+IGV4cG9ydFRvSnNvbigpIGFzeW5jIHsKICAgIGZpbmFsIGJvb2tpbmdzTGlzdCA9IGF3YWl0IGxpc3QoKTsKICAgIHJldHVybiBib29raW5nc0xpc3QubWFwKChib29raW5nKSA9PiBib29raW5nLnRvSnNvbigpKS50b0xpc3QoKTsKICB9CgogIC8vLyDYp9iz2KrZitix2KfYryDYp9mE2K3YrNmI2LLYp9iqINmF2YYgSlNPTgogIEZ1dHVyZTx2b2lkPiBpbXBvcnRGcm9tSnNvbigKICAgIExpc3Q8TWFwPFN0cmluZywgZHluYW1pYz4+IGRhdGEsIHsKICAgIGJvb2wgY2xlYXJFeGlzdGluZyA9IGZhbHNlLAogIH0pIGFzeW5jIHsKICAgIGF3YWl0IHRyYW5zYWN0aW9uKCgpIGFzeW5jIHsKICAgICAgaWYgKGNsZWFyRXhpc3RpbmcpIHsKICAgICAgICBhd2FpdCBkZWxldGUoYm9va2luZ3MpLmdvKCk7CiAgICAgIH0KCiAgICAgIGZvciAoZmluYWwgYm9va2luZ0pzb24gaW4gZGF0YSkgewogICAgICAgIGZpbmFsIGJvb2tpbmcgPSBCb29raW5nLmZyb21Kc29uKGJvb2tpbmdKc29uKTsKICAgICAgICBhd2FpdCBpbnRvKGJvb2tpbmdzKS5pbnNlcnRPbkNvbmZsaWN0VXBkYXRlKAogICAgICAgICAgQm9va2luZ3NDb21wYW5pb24oCiAgICAgICAgICAgIGlkOiBWYWx1ZShib29raW5nLmlkKSwKICAgICAgICAgICAgc2VydmVyQm9va2luZ0lkOiBWYWx1ZShib29raW5nLnNlcnZlckJvb2tpbmdJZCksCiAgICAgICAgICAgIHJvb21OdW1iZXI6IFZhbHVlKGJvb2tpbmcucm9vbU51bWJlciksCiAgICAgICAgICAgIGd1ZXN0TmFtZTogVmFsdWUoYm9va2luZy5ndWVzdE5hbWUpLAogICAgICAgICAgICBndWVzdFBob25lOiBWYWx1ZShib29raW5nLmd1ZXN0UGhvbmUpLAogICAgICAgICAgICBndWVzdElkVHlwZTogVmFsdWUoYm9va2luZy5ndWVzdElkVHlwZSksCiAgICAgICAgICAgIGd1ZXN0SWROdW1iZXI6IFZhbHVlKGJvb2tpbmcuZ3Vlc3RJZE51bWJlciksCiAgICAgICAgICAgIGd1ZXN0SWRJc3N1ZURhdGU6IFZhbHVlKGJvb2tpbmcuZ3Vlc3RJZElzc3VlRGF0ZSksCiAgICAgICAgICAgIGd1ZXN0SWRJc3N1ZVBsYWNlOiBWYWx1ZShib29raW5nLmd1ZXN0SWRJc3N1ZVBsYWNlKSwKICAgICAgICAgICAgZ3Vlc3ROYXRpb25hbGl0eTogVmFsdWUoYm9va2luZy5ndWVzdE5hdGlvbmFsaXR5KSwKICAgICAgICAgICAgZ3Vlc3RFbWFpbDogVmFsdWUoYm9va2luZy5ndWVzdEVtYWlsKSwKICAgICAgICAgICAgZ3Vlc3RBZGRyZXNzOiBWYWx1ZShib29raW5nLmd1ZXN0QWRkcmVzcyksCiAgICAgICAgICAgIGNoZWNraW5EYXRlOiBWYWx1ZShib29raW5nLmNoZWNraW5EYXRlKSwKICAgICAgICAgICAgY2hlY2tvdXREYXRlOiBWYWx1ZShib29raW5nLmNoZWNrb3V0RGF0ZSksCiAgICAgICAgICAgIGFjdHVhbENoZWNrb3V0OiBWYWx1ZShib29raW5nLmFjdHVhbENoZWNrb3V0KSwKICAgICAgICAgICAgc3RhdHVzOiBWYWx1ZShib29raW5nLnN0YXR1cyksCiAgICAgICAgICAgIG5vdGVzOiBWYWx1ZShib29raW5nLm5vdGVzKSwKICAgICAgICAgICAgZXhwZWN0ZWROaWdodHM6IFZhbHVlKGJvb2tpbmcuZXhwZWN0ZWROaWdodHMpLAogICAgICAgICAgICBjYWxjdWxhdGVkTmlnaHRzOiBWYWx1ZShib29raW5nLmNhbGN1bGF0ZWROaWdodHMpLAogICAgICAgICAgICBsb2NhbFV1aWQ6IFZhbHVlKGJvb2tpbmcubG9jYWxVdWlkKSwKICAgICAgICAgICAgc2VydmVySWQ6IFZhbHVlKGJvb2tpbmcuc2VydmVySWQpLAogICAgICAgICAgICBjcmVhdGVkQXQ6IFZhbHVlKGJvb2tpbmcuY3JlYXRlZEF0KSwKICAgICAgICAgICAgdXBkYXRlZEF0OiBWYWx1ZShib29raW5nLnVwZGF0ZWRBdCksCiAgICAgICAgICAgIGRlbGV0ZWRBdDogVmFsdWUoYm9va2luZy5kZWxldGVkQXQpLAogICAgICAgICAgICBsYXN0TW9kaWZpZWQ6IFZhbHVlKGJvb2tpbmcubGFzdE1vZGlmaWVkKSwKICAgICAgICAgICAgdmVyc2lvbjogVmFsdWUoYm9va2luZy52ZXJzaW9uKSwKICAgICAgICAgICAgb3JpZ2luOiBWYWx1ZShib29raW5nLm9yaWdpbiksCiAgICAgICAgICAgIGRpc2NvdW50OiBWYWx1ZShib29raW5nLmRpc2NvdW50KSwKICAgICAgICAgICAgZGlzY291bnRUeXBlOiBWYWx1ZShib29raW5nLmRpc2NvdW50VHlwZSksCiAgICAgICAgICAgIGRpc2NvdW50U3RhcnREYXRlOiBWYWx1ZShib29raW5nLmRpc2NvdW50U3RhcnREYXRlKSwKICAgICAgICAgICAgdG90YWxOaWdodHNDYWNoZWQ6IFZhbHVlKGJvb2tpbmcudG90YWxOaWdodHNDYWNoZWQpLAogICAgICAgICAgICB0b3RhbER1ZUNhY2hlZDogVmFsdWUoYm9va2luZy50b3RhbER1ZUNhY2hlZCksCiAgICAgICAgICAgIHRvdGFsUGFpZENhY2hlZDogVmFsdWUoYm9va2luZy50b3RhbFBhaWRDYWNoZWQpLAogICAgICAgICAgICByZW1haW5pbmdCYWxhbmNlQ2FjaGVkOiBWYWx1ZShib29raW5nLnJlbWFpbmluZ0JhbGFuY2VDYWNoZWQpLAogICAgICAgICAgICBpc0Z1bGx5UGFpZDogVmFsdWUoYm9va2luZy5pc0Z1bGx5UGFpZCksCiAgICAgICAgICAgIGhvdGVsRGF5Q2hlY2tpbjogVmFsdWUoYm9va2luZy5ob3RlbERheUNoZWNraW4pLAogICAgICAgICAgICBob3RlbERheUNoZWNrb3V0OiBWYWx1ZShib29raW5nLmhvdGVsRGF5Q2hlY2tvdXQpLAogICAgICAgICAgICBzdGF5RHVyYXRpb25Jc286IFZhbHVlKGJvb2tpbmcuc3RheUR1cmF0aW9uSXNvKSwKICAgICAgICAgICAgbGFzdE5pZ2h0RXBvY2g6IFZhbHVlKGJvb2tpbmcubGFzdE5pZ2h0RXBvY2gpLAogICAgICAgICAgICBpc092ZXJkdWU6IFZhbHVlKGJvb2tpbmcuaXNPdmVyZHVlKSwKICAgICAgICAgICAgbmVlZHNDaGVja291dFJldmlldzogVmFsdWUoYm9va2luZy5uZWVkc0NoZWNrb3V0UmV2aWV3KSwKICAgICAgICAgICAgY3JlYXRlZEF0SXNvOiBWYWx1ZShib29raW5nLmNyZWF0ZWRBdElzbyksCiAgICAgICAgICAgIHVwZGF0ZWRBdElzbzogVmFsdWUoYm9va2luZy51cGRhdGVkQXRJc28pLAogICAgICAgICAgICBkZWxldGVkQXRJc286IFZhbHVlKGJvb2tpbmcuZGVsZXRlZEF0SXNvKSwKICAgICAgICAgICAgY3JlYXRlZEF0RXBvY2g6IFZhbHVlKGJvb2tpbmcuY3JlYXRlZEF0RXBvY2gpLAogICAgICAgICAgICBsYXN0TW9kaWZpZWRFcG9jaDogVmFsdWUoYm9va2luZy5sYXN0TW9kaWZpZWRFcG9jaCksCiAgICAgICAgICAgIHZlY3RvckNsb2NrOiBWYWx1ZShib29raW5nLnZlY3RvckNsb2NrKSwKICAgICAgICAgICksCiAgICAgICAgKTsKICAgICAgfQogICAgfSk7CiAgfQoKICAvLy8g2KfZhNit2LXZiNmEINi52YTZiSDYudiv2K8g2KfZhNiz2KzZhNin2KoKICBGdXR1cmU8aW50PiBnZXRSZWNvcmRDb3VudCgpIGFzeW5jIHsKICAgIGZpbmFsIHF1ZXJ5ID0gc2VsZWN0T25seShib29raW5ncykuLmFkZENvbHVtbnMoW2Jvb2tpbmdzLmlkLmNvdW50KCldKTsKICAgIGZpbmFsIHJlc3VsdCA9IGF3YWl0IHF1ZXJ5LmdldFNpbmdsZSgpOwogICAgcmV0dXJuIHJlc3VsdC5yZWFkKGJvb2tpbmdzLmlkLmNvdW50KCkpID8/IDA7CiAgfQoKICAvLy8g2YXYs9itINis2YXZiti5INin2YTYqNmK2KfZhtin2KoKICBGdXR1cmU8dm9pZD4gY2xlYXJBbGxEYXRhKCkgYXN5bmMgewogICAgYXdhaXQgZGVsZXRlKGJvb2tpbmdzKS5nbygpOwogIH0KCiAgQG92ZXJyaWRlCiAgVGFibGVJbmZvPEJvb2tpbmdzLCBCb29raW5nPiBnZXQgb3B0aW1pc3RpY1RhYmxlID0+IGJvb2tpbmdzOwoKICBAb3ZlcnJpZGUKICBTdHJpbmcgZ2V0IG9wdGltaXN0aWNUYWJsZU5hbWUgPT4gJ2Jvb2tpbmdzJzsKCiAgQG92ZXJyaWRlCiAgR2VuZXJhdGVkQ29sdW1uPFN0cmluZz4gZ2V0IG9wdGltaXN0aWNMb2NhbFV1aWQgPT4gYm9va2luZ3MubG9jYWxVdWlkOwoKICBAb3ZlcnJpZGUKICBHZW5lcmF0ZWRDb2x1bW48aW50PiBnZXQgb3B0aW1pc3RpY1ZlcnNpb24gPT4gYm9va2luZ3MudmVyc2lvbjsKfQo=
+import 'dart:async';
+
+import 'package:drift/drift.dart';
+
+import '../../utils/id.dart';
+import '../../utils/time.dart';
+import '../adapters/adapter_registry.dart';
+import '../adapters/source.dart';
+import '../appwrite_sync_manager.dart';
+import '../fcm_sender.dart';
+import '../local_db.dart';
+import '../sync_core/optimistic_lock_helper.dart';
+import 'outbox_dao.dart';
+
+part 'bookings_dao.g.dart';
+
+@DriftAccessor(tables: [Bookings])
+class BookingsDao extends DatabaseAccessor<AppDatabase>
+    with _$BookingsDaoMixin, OptimisticLockDaoMixin<Bookings, Booking> {
+  BookingsDao(super.db, this.outboxDao, [AdapterRegistry? a])
+    : adapters = a ?? AdapterRegistry.instance;
+  final OutboxDao outboxDao;
+  final AdapterRegistry adapters;
+
+  Future<List<Booking>> list({
+    String? search,
+    String? roomNumber,
+    String? status,
+    String? from,
+    String? to,
+    bool includeDeleted = false,
+    int? limit,
+    int? offset,
+  }) async {
+    final q = select(bookings);
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
+    if (roomNumber != null && roomNumber.isNotEmpty) {
+      q.where((t) => t.roomNumber.equals(roomNumber));
+    }
+    if (status != null && status.isNotEmpty) {
+      q.where((t) => t.status.equals(status));
+    }
+    if (from != null && to != null) {
+      q.where(
+        (t) =>
+            t.checkinDate.isBiggerOrEqualValue(from) &
+            t.checkinDate.isSmallerOrEqualValue(to),
+      );
+    }
+    if (search != null && search.trim().isNotEmpty) {
+      final s = '%${search.trim()}%';
+      q.where((t) => t.guestName.like(s) | t.guestPhone.like(s));
+    }
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc),
+    ]);
+    if (limit != null) {
+      q.limit(limit, offset: offset ?? 0);
+    }
+    return q.get();
+  }
+
+  Stream<List<Booking>> watchList({
+    String? roomNumber,
+    String? status,
+    bool includeDeleted = false,
+    int? limit,
+    int offset = 0,
+  }) {
+    final q = select(bookings);
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
+    if (roomNumber != null && roomNumber.isNotEmpty) {
+      q.where((t) => t.roomNumber.equals(roomNumber));
+    }
+    if (status != null && status.isNotEmpty) {
+      q.where((t) => t.status.equals(status));
+    }
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc),
+    ]);
+    if (limit != null) {
+      q.limit(limit, offset: offset);
+    }
+    return q.watch();
+  }
+
+  Future<Booking?> getById(int id) =>
+      (select(bookings)..where((t) => t.id.equals(id))).getSingleOrNull();
+  Stream<Booking?> watchById(int id) =>
+      (select(bookings)..where((t) => t.id.equals(id))).watchSingleOrNull();
+
+  Future<int> insertOne(
+    BookingsCompanion data, {
+    bool originIsServer = false,
+  }) async {
+    final now = Time.nowEpoch();
+    final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
+    final comp = data.copyWith(
+      localUuid: Value(uu),
+      createdAt: Value(now),
+      updatedAt: Value(now),
+      lastModified: Value(now),
+      origin: Value(originIsServer ? 'server' : 'local'),
+      deviceId: originIsServer
+          ? const Value.absent()
+          : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
+    );
+
+    // ✅ إصلاح PR review: إخراج FCM خارج transaction لمنع إشعارات كاذبة
+    // عند rollback، ولمنع إطالة مدة الـ transaction.
+    // الـ transaction يُنفّذ insert + outbox فقط (atomic)، ثم نُرسل FCM بعدها.
+    final id = await db.transaction(() async {
+      final insertedId = await into(bookings).insert(comp);
+      if (!originIsServer) {
+        await _mergeOutbox(
+          op: 'create',
+          localUuid: uu,
+          serverId: comp.serverId.present ? comp.serverId.value : null,
+          clientTs: now,
+        );
+      }
+      return insertedId;
+    });
+
+    // ✅ FCM: إشعار الأجهزة الأخرى بإنشاء حجز جديد (fire-and-forget)
+    // يتم بعد نجاح الـ transaction — لن يُرسل إشعار لحجز لم يُحفظ.
+    if (!originIsServer && comp.roomNumber.present && comp.guestName.present) {
+      unawaited(
+        FcmSender().notifyBookingCreated(
+          roomNumber: comp.roomNumber.value,
+          guestName: comp.guestName.value,
+        ),
+      );
+    }
+    return id;
+  }
+
+  Future<int> updateById(
+    int id,
+    BookingsCompanion data, {
+    bool originIsServer = false,
+  }) async {
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final existing = await getById(id);
+      if (existing == null) {
+        return 0;
+      }
+      // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
+      // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
+      final effectiveLastModified = originIsServer && data.lastModified.present
+          ? data.lastModified
+          : Value(now);
+      final comp = data.copyWith(
+        updatedAt: Value(now),
+        lastModified: effectiveLastModified,
+        version: Value(existing.version + 1),
+      );
+
+      // ✅ إصلاح حرج: استبدال replace بـ write لتجنب InvalidDataException.
+      //
+      // السبب الجذري (مشخّص بالدليل من drift-2.31.0/lib/.../update.dart:124-130):
+      // replace() يستدعي validateIntegrity(entity, isInserting: true) — أي
+      // يفحص السلامة كأنها INSERT (يحذف الصف ويعيد إدراجه). هذا يتطلب أن تكون
+      // كل required columns بلا default حاضرة في Companion (مثل localUuid،
+      // createdAt، roomNumber، guestName، guestPhone).
+      //
+      // لكن BookingsRepository.update و sync_service.dart يستدعيان updateById
+      // بـ Companion جزئي (فقط الحقول التي تحتاج تحديثاً فعلياً)، فتكون
+      // required columns المذكورة Value.absent() → InvalidDataException عند
+      // checkout أو عند مزامنة حجز موجود من السيرفر.
+      //
+      // write() مع where(id.equals(id)) يتجاهل Value.absent() ويحدّث فقط
+      // الحقول الحاضرة — وهو السلوك المطلوب لتحديث جزئي. هذا يتوافق مع
+      // الأسلوب المعتمد في كل DAOs الأخرى (employees، cash_transactions،
+      // outbox، debts) ومع softDelete/restore في نفس bookings_dao.dart.
+      final rows = await (update(
+        bookings,
+      )..where((t) => t.id.equals(id))).write(comp);
+      if (rows == 0) {
+        return 0;
+      }
+      if (!originIsServer) {
+        await _mergeOutbox(
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: comp.serverId.present
+              ? comp.serverId.value
+              : existing.serverId,
+          clientTs: now,
+        );
+      }
+      return 1;
+    });
+  }
+
+  Future<int> softDelete(int id, {bool originIsServer = false}) async {
+    return db.transaction(() async {
+      final now = Time.nowEpoch();
+      final existing = await getById(id);
+      if (existing == null) {
+        return 0;
+      }
+      await (update(bookings)..where((t) => t.id.equals(id))).write(
+        BookingsCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          lastModified: Value(now),
+          version: Value(existing.version + 1),
+        ),
+      );
+      if (!originIsServer) {
+        await _mergeOutbox(
+          op: 'delete',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          clientTs: now,
+        );
+      }
+      return 1;
+    });
+  }
+
+  Future<int> restore(int id) async {
+    return db.transaction(() async {
+      final existing = await getById(id);
+      if (existing == null) {
+        return 0;
+      }
+      await (update(bookings)..where((t) => t.id.equals(id))).write(
+        BookingsCompanion(
+          updatedAt: Value(Time.nowEpoch()),
+          lastModified: Value(Time.nowEpoch()),
+          version: Value(existing.version + 1),
+        ),
+      );
+      return 1;
+    });
+  }
+
+  Future<void> deletePermanently(int id) async {
+    await (delete(bookings)..where((t) => t.id.equals(id))).go();
+  }
+
+  /// الحصول على حجز حسب localUuid
+  Future<Booking?> getByLocalUuid(String localUuid) async {
+    return (select(bookings)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
+  /// الحصول على حجز حسب serverBookingId
+  Future<Booking?> getByServerId(int serverId) async {
+    return (select(bookings)
+          ..where((t) => t.serverBookingId.equals(serverId))
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
+  /// تحديث serverBookingId لحجز موجود
+  Future<int> updateServerBookingId(
+    String localUuid,
+    int serverBookingId,
+  ) async {
+    return (update(
+      bookings,
+    )..where((t) => t.localUuid.equals(localUuid))).write(
+      BookingsCompanion(serverBookingId: Value(serverBookingId)),
+    );
+  }
+
+  /// عدد الحجوزات حسب الحالة
+  Future<int> countByStatus(
+    String status, {
+    bool includeDeleted = false,
+  }) async {
+    final query = selectOnly(bookings)
+      ..addColumns([bookings.id.count()])
+      ..where(bookings.status.equals(status));
+    if (!includeDeleted) {
+      query.where(bookings.deletedAt.isNull());
+    }
+    final result = await query.getSingle();
+    return result.read(bookings.id.count()) ?? 0;
+  }
+
+  /// حجوزات نشطة لغرفة معينة
+  Future<List<Booking>> getActiveBookingsForRoom(String roomNumber) async {
+    return (select(bookings)
+          ..where(
+            (t) =>
+                t.roomNumber.equals(roomNumber) &
+                t.deletedAt.isNull() &
+                t.status.equals('نشط'),
+          )
+          ..orderBy([
+            (t) => OrderingTerm(
+              expression: t.checkinDate,
+              mode: OrderingMode.desc,
+            ),
+          ]))
+        .get();
+  }
+
+  /// حجوزات قادمة (checkinDate >= today)
+  Future<List<Booking>> getUpcomingBookings({int? limit}) async {
+    final today = DateTime.now().toIso8601String().split('T').first;
+    final query = select(bookings)
+      ..where(
+        (t) =>
+            t.deletedAt.isNull() &
+            t.checkinDate.isBiggerOrEqualValue(today) &
+            t.status.equals('نشط'),
+      )
+      ..orderBy([(t) => OrderingTerm(expression: t.checkinDate)]);
+    if (limit != null) {
+      query.limit(limit);
+    }
+    return query.get();
+  }
+
+  /// البحث عن حجوزات حسب نص (اسم الضيف، رقم الهاتف، رقم الغرفة)
+  Future<List<Booking>> search(
+    String query, {
+    bool includeDeleted = false,
+    int? limit,
+  }) async {
+    final q = select(bookings);
+    if (!includeDeleted) {
+      q.where((t) => t.deletedAt.isNull());
+    }
+    if (query.trim().isNotEmpty) {
+      final s = '%${query.trim()}%';
+      q.where(
+        (t) =>
+            t.guestName.like(s) | t.guestPhone.like(s) | t.roomNumber.like(s),
+      );
+    }
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc),
+    ]);
+    if (limit != null) {
+      q.limit(limit);
+    }
+    return q.get();
+  }
+
+  /// جميع الحجوزات المحذوفة
+  Future<List<Booking>> getDeletedBookings({int? limit}) async {
+    final q = select(bookings)
+      ..where((t) => t.deletedAt.isNotNull())
+      ..orderBy([
+        (t) => OrderingTerm(expression: t.deletedAt, mode: OrderingMode.desc),
+      ]);
+    if (limit != null) {
+      q.limit(limit);
+    }
+    return q.get();
+  }
+
+  /// الحصول على bookingWithNights (للنسخ الاحتياطي/المزامنة)
+  Future<Map<String, dynamic>?> _payloadForLocalUuid(String localUuid) async {
+    final row =
+        await (select(bookings)
+              ..where((t) => t.localUuid.equals(localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+    if (row == null) {
+      return null;
+    }
+    return adapters.bookings.toJsonForSource(row, src: Source.appwrite);
+  }
+
+  Future<void> _mergeOutbox({
+    required String op,
+    required String localUuid,
+    required int clientTs,
+    int? serverId,
+  }) async {
+    final payload = await _payloadForLocalUuid(localUuid);
+    if (payload == null) {
+      return;
+    }
+    await outboxDao.merge(
+      entity: 'bookings',
+      op: op,
+      localUuid: localUuid,
+      serverId: serverId,
+      payload: payload,
+      clientTs: clientTs,
+    );
+  }
+
+  // دوال النسخ الاحتياطي
+
+  /// تصدير جميع الحجوزات إلى JSON
+  Future<List<Map<String, dynamic>>> exportToJson() async {
+    final bookingsList = await list();
+    return bookingsList.map((booking) => booking.toJson()).toList();
+  }
+
+  /// استيراد الحجوزات من JSON
+  Future<void> importFromJson(
+    List<Map<String, dynamic>> data, {
+    bool clearExisting = false,
+  }) async {
+    await transaction(() async {
+      if (clearExisting) {
+        await delete(bookings).go();
+      }
+
+      for (final bookingJson in data) {
+        final booking = Booking.fromJson(bookingJson);
+        await into(bookings).insertOnConflictUpdate(
+          BookingsCompanion(
+            id: Value(booking.id),
+            serverBookingId: Value(booking.serverBookingId),
+            roomNumber: Value(booking.roomNumber),
+            guestName: Value(booking.guestName),
+            guestPhone: Value(booking.guestPhone),
+            guestIdType: Value(booking.guestIdType),
+            guestIdNumber: Value(booking.guestIdNumber),
+            guestIdIssueDate: Value(booking.guestIdIssueDate),
+            guestIdIssuePlace: Value(booking.guestIdIssuePlace),
+            guestNationality: Value(booking.guestNationality),
+            guestEmail: Value(booking.guestEmail),
+            guestAddress: Value(booking.guestAddress),
+            checkinDate: Value(booking.checkinDate),
+            checkoutDate: Value(booking.checkoutDate),
+            actualCheckout: Value(booking.actualCheckout),
+            status: Value(booking.status),
+            notes: Value(booking.notes),
+            expectedNights: Value(booking.expectedNights),
+            calculatedNights: Value(booking.calculatedNights),
+            localUuid: Value(booking.localUuid),
+            serverId: Value(booking.serverId),
+            createdAt: Value(booking.createdAt),
+            updatedAt: Value(booking.updatedAt),
+            deletedAt: Value(booking.deletedAt),
+            lastModified: Value(booking.lastModified),
+            version: Value(booking.version),
+            origin: Value(booking.origin),
+            discount: Value(booking.discount),
+            discountType: Value(booking.discountType),
+            discountStartDate: Value(booking.discountStartDate),
+            totalNightsCached: Value(booking.totalNightsCached),
+            totalDueCached: Value(booking.totalDueCached),
+            totalPaidCached: Value(booking.totalPaidCached),
+            remainingBalanceCached: Value(booking.remainingBalanceCached),
+            isFullyPaid: Value(booking.isFullyPaid),
+            hotelDayCheckin: Value(booking.hotelDayCheckin),
+            hotelDayCheckout: Value(booking.hotelDayCheckout),
+            stayDurationIso: Value(booking.stayDurationIso),
+            lastNightEpoch: Value(booking.lastNightEpoch),
+            isOverdue: Value(booking.isOverdue),
+            needsCheckoutReview: Value(booking.needsCheckoutReview),
+            createdAtIso: Value(booking.createdAtIso),
+            updatedAtIso: Value(booking.updatedAtIso),
+            deletedAtIso: Value(booking.deletedAtIso),
+            createdAtEpoch: Value(booking.createdAtEpoch),
+            lastModifiedEpoch: Value(booking.lastModifiedEpoch),
+            vectorClock: Value(booking.vectorClock),
+          ),
+        );
+      }
+    });
+  }
+
+  /// الحصول على عدد السجلات
+  Future<int> getRecordCount() async {
+    final query = selectOnly(bookings)..addColumns([bookings.id.count()]);
+    final result = await query.getSingle();
+    return result.read(bookings.id.count()) ?? 0;
+  }
+
+  /// مسح جميع البيانات
+  Future<void> clearAllData() async {
+    await delete(bookings).go();
+  }
+
+  @override
+  TableInfo<Bookings, Booking> get optimisticTable => bookings;
+
+  @override
+  String get optimisticTableName => 'bookings';
+
+  @override
+  GeneratedColumn<String> get optimisticLocalUuid => bookings.localUuid;
+
+  @override
+  GeneratedColumn<int> get optimisticVersion => bookings.version;
+}
