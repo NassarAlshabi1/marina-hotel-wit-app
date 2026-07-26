@@ -1,1 +1,15 @@
-aW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXIvbWF0ZXJpYWwuZGFydCc7CgpjbGFzcyBQcmltYXJ5QnV0dG9uIGV4dGVuZHMgU3RhdGVsZXNzV2lkZ2V0IHsKICBjb25zdCBQcmltYXJ5QnV0dG9uKHsKICAgIHJlcXVpcmVkIHRoaXMubGFiZWwsCiAgICBzdXBlci5rZXksCiAgICB0aGlzLm9uUHJlc3NlZCwKICB9KTsKICBmaW5hbCBTdHJpbmcgbGFiZWw7CiAgZmluYWwgVm9pZENhbGxiYWNrPyBvblByZXNzZWQ7CiAgQG92ZXJyaWRlCiAgV2lkZ2V0IGJ1aWxkKEJ1aWxkQ29udGV4dCBjb250ZXh0KSB7CiAgICByZXR1cm4gRmlsbGVkQnV0dG9uKG9uUHJlc3NlZDogb25QcmVzc2VkLCBjaGlsZDogVGV4dChsYWJlbCkpOwogIH0KfQo=
+import 'package:flutter/material.dart';
+
+class PrimaryButton extends StatelessWidget {
+  const PrimaryButton({
+    required this.label,
+    super.key,
+    this.onPressed,
+  });
+  final String label;
+  final VoidCallback? onPressed;
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton(onPressed: onPressed, child: Text(label));
+  }
+}
