@@ -1,1 +1,223 @@
-aW1wb3J0ICdwYWNrYWdlOmFwcHdyaXRlL2FwcHdyaXRlLmRhcnQnOwppbXBvcnQgJ3BhY2thZ2U6Zmx1dHRlci9mb3VuZGF0aW9uLmRhcnQnOwoKaW1wb3J0ICcuLi9yZXBvc2l0b3JpZXMvcm9vbV9yZXBvc2l0b3J5LmRhcnQnOwppbXBvcnQgJy4uL3NlcnZpY2VzL2FwcHdyaXRlX2xvZ2dlci5kYXJ0JzsKaW1wb3J0ICcuLi9zZXJ2aWNlcy9hcHB3cml0ZV9yZWFsdGltZV9zZXJ2aWNlLmRhcnQnOwppbXBvcnQgJy4uL3NlcnZpY2VzL2xvY2FsX2RiLmRhcnQnOwppbXBvcnQgJy4uL3V0aWxzL3N0YXR1c191dGlscy5kYXJ0JzsKCi8vLyBQcm92aWRlciDZhNmE2LrYsdmBINmF2Lkg2K/YudmFIFJlYWx0aW1lIFVwZGF0ZXMKLy8vCi8vLyDZitiv2YrYsSDYrdin2YTYqSDYp9mE2LrYsdmBINmI2YrYs9iq2YXYuSDZhNmE2KrYrdiv2YrYq9in2Kog2KfZhNmB2YjYsdmK2Kkg2YXZhiBBcHB3cml0ZQovLy8KLy8vIOKaoO+4jyAqKkRFUFJFQ0FURUQqKiDigJQg2YfYsNinINin2YTZgCBwcm92aWRlciDYutmK2LEg2YXYs9iq2K7Yr9mFINmB2Yog2KPZiiDZhdiz2KfYsSDYpdmG2KrYp9is2YrYjAovLy8g2YjZiti52KrZhdivINi52YTZiSBgQXBwd3JpdGVSZWFsdGltZVNlcnZpY2VgINin2YTZhdmP2YfZhdmE2KkuINin2LPYqtiu2K/ZhSBgcm9vbXNMaXN0UHJvdmlkZXJgCi8vLyAoUml2ZXJwb2QgU3RyZWFtUHJvdmlkZXIpINio2K/ZhNin2Ysg2YXZhtmHINmE2YTYutix2YEg2YXYuSDYp9mE2KrYrdiv2YrYq9in2Kog2KfZhNmB2YjYsdmK2Kkg2LnYqNixCi8vLyBgQXBwd3JpdGVSZWFsdGltZVN5bmNgLgpARGVwcmVjYXRlZCgn2KfYs9iq2K7Yr9mFIHJvb21zTGlzdFByb3ZpZGVyIChSaXZlcnBvZCkg2KjYr9mE2KfZiyDZhdmGINiw2YTZgycpCmNsYXNzIFJlYWxUaW1lUm9vbXNQcm92aWRlciBleHRlbmRzIENoYW5nZU5vdGlmaWVyIHsKICBSZWFsVGltZVJvb21zUHJvdmlkZXIoewogICAgcmVxdWlyZWQgUm9vbVJlcG9zaXRvcnkgcmVwb3NpdG9yeSwKICAgIHJlcXVpcmVkIEFwcHdyaXRlUmVhbHRpbWVTZXJ2aWNlIHJlYWx0aW1lU2VydmljZSwKICB9KSA6IF9yZXBvc2l0b3J5ID0gcmVwb3NpdG9yeSwKICAgICAgIF9yZWFsdGltZVNlcnZpY2UgPSByZWFsdGltZVNlcnZpY2U7CiAgZmluYWwgUm9vbVJlcG9zaXRvcnkgX3JlcG9zaXRvcnk7CiAgLy8gaWdub3JlOiB1bnVzZWRfZmllbGQKICBmaW5hbCBBcHB3cml0ZVJlYWx0aW1lU2VydmljZSBfcmVhbHRpbWVTZXJ2aWNlOwogIGZpbmFsIEFwcHdyaXRlTG9nZ2VyIF9sb2dnZXIgPSBBcHB3cml0ZUxvZ2dlcigpOwoKICBMaXN0PFJvb20+IF9yb29tcyA9IFtdOwogIGJvb2wgX2lzTG9hZGluZyA9IGZhbHNlOwogIGJvb2wgX2lzU3Vic2NyaWJlZCA9IGZhbHNlOwogIFN0cmluZz8gX2Vycm9yOwogIFJlYWx0aW1lU3Vic2NyaXB0aW9uPyBfc3Vic2NyaXB0aW9uOwoKICAvLyBHZXR0ZXJzCiAgTGlzdDxSb29tPiBnZXQgcm9vbXMgPT4gTGlzdC51bm1vZGlmaWFibGUoX3Jvb21zKTsKICBib29sIGdldCBpc0xvYWRpbmcgPT4gX2lzTG9hZGluZzsKICBib29sIGdldCBpc1N1YnNjcmliZWQgPT4gX2lzU3Vic2NyaWJlZDsKICBTdHJpbmc/IGdldCBlcnJvciA9PiBfZXJyb3I7CiAgaW50IGdldCByb29tQ291bnQgPT4gX3Jvb21zLmxlbmd0aDsKCiAgLy8vIOKchSDYp9iz2KrYrtiv2KfZhSBTdGF0dXNVdGlscyDYqNiv2YTYp9mLINmF2YYg2YXYt9in2KjZgtipINin2YTZhti1INin2YTZhdio2KfYtNixCiAgLy8vINmE2LbZhdin2YYg2K/YudmFINis2YXZiti5INmF2KrYutmK2LHYp9iqINin2YTYrdin2YTYqSAo2LTYp9i62LHYqdiMINi02KfYutix2YfYjCDZhdiq2KfYrdip2Iwg2KXZhNiuKQogIExpc3Q8Um9vbT4gZ2V0IGF2YWlsYWJsZVJvb21zID0+CiAgICAgIF9yb29tcy53aGVyZSgocikgPT4gU3RhdHVzVXRpbHMuaXNSb29tQXZhaWxhYmxlKHIuc3RhdHVzKSkudG9MaXN0KCk7CgogIExpc3Q8Um9vbT4gZ2V0IG9jY3VwaWVkUm9vbXMgPT4KICAgICAgX3Jvb21zLndoZXJlKChyKSA9PiBTdGF0dXNVdGlscy5pc1Jvb21PY2N1cGllZChyLnN0YXR1cykpLnRvTGlzdCgpOwoKICAvLy8g2KrYrdmF2YrZhCDYp9mE2LrYsdmBCiAgRnV0dXJlPHZvaWQ+IGxvYWRSb29tcygpIGFzeW5jIHsKICAgIGlmIChfaXNMb2FkaW5nKSB7CiAgICAgIHJldHVybjsKICAgIH0KCiAgICBfc2V0TG9hZGluZyh0cnVlKTsKICAgIF9zZXRFcnJvcihudWxsKTsKCiAgICB0cnkgewogICAgICBfbG9nZ2VyLmluZm8oJ0xvYWRpbmcgcm9vbXMuLi4nLCB0YWc6ICdST09NU19QUk9WSURFUicpOwogICAgICBfcm9vbXMgPSBhd2FpdCBfcmVwb3NpdG9yeS5nZXRBbGwoKTsKICAgICAgX2xvZ2dlci5pbmZvKCdMb2FkZWQgJHtfcm9vbXMubGVuZ3RofSByb29tcycsIHRhZzogJ1JPT01TX1BST1ZJREVSJyk7CiAgICAgIG5vdGlmeUxpc3RlbmVycygpOwogICAgfSBjYXRjaCAoZSkgewogICAgICBfbG9nZ2VyLmVycm9yKCdGYWlsZWQgdG8gbG9hZCByb29tcycsIGVycm9yOiBlLCB0YWc6ICdST09NU19QUk9WSURFUicpOwogICAgICBfc2V0RXJyb3IoZS50b1N0cmluZygpKTsKICAgIH0gZmluYWxseSB7CiAgICAgIF9zZXRMb2FkaW5nKGZhbHNlKTsKICAgIH0KICB9CgogIC8vLyDYp9mE2KfYtNiq2LHYp9mDINmB2Yog2KfZhNiq2K3Yr9mK2KvYp9iqINin2YTZgdmI2LHZitipCiAgRnV0dXJlPHZvaWQ+IHN1YnNjcmliZSgpIGFzeW5jIHsKICAgIGlmIChfaXNTdWJzY3JpYmVkKSB7CiAgICAgIF9sb2dnZXIuZGVidWcoJ0FscmVhZHkgc3Vic2NyaWJlZCB0byByb29tcycsIHRhZzogJ1JPT01TX1BST1ZJREVSJyk7CiAgICAgIHJldHVybjsKICAgIH0KCiAgICB0cnkgewogICAgICBfbG9nZ2VyLmluZm8oJ1N1YnNjcmliaW5nIHRvIHJvb21zIHJlYWx0aW1lLi4uJywgdGFnOiAnUk9PTVNfUFJPVklERVInKTsKCiAgICAgIC8vINiq2K3ZhdmK2YQg2KfZhNio2YrYp9mG2KfYqiDYp9mE2KPZiNmE2YrYqQogICAgICBhd2FpdCBsb2FkUm9vbXMoKTsKCiAgICAgIC8vINin2YTYp9i02KrYsdin2YMg2YHZiiDYp9mE2KrYrdiv2YrYq9in2KoKICAgICAgLy8g2YXZhNin2K3YuNipOiBzdWJzY3JpYmVUb1Jvb21zINi62YrYsSDZhdiq2YjZgdixINit2KfZhNmK2KfZiyDZgdmKIEFwcHdyaXRlUmVhbHRpbWVTZXJ2aWNlCiAgICAgIC8vINmK2YXZg9mGINiq2YHYudmK2YTZhyDZhNin2K3Zgtin2Ysg2LnZhtivINin2YTYrdin2KzYqQogICAgICBfbG9nZ2VyLmRlYnVnKCdSZWFsdGltZSBzdWJzY3JpcHRpb24gZGlzYWJsZWQnLCB0YWc6ICdST09NU19QUk9WSURFUicpOwoKICAgICAgX2lzU3Vic2NyaWJlZCA9IHRydWU7CiAgICAgIG5vdGlmeUxpc3RlbmVycygpOwoKICAgICAgX2xvZ2dlci5pbmZvKCdTdWJzY3JpYmVkIHRvIHJvb21zIHN1Y2Nlc3NmdWxseScsIHRhZzogJ1JPT01TX1BST1ZJREVSJyk7CiAgICB9IGNhdGNoIChlKSB7CiAgICAgIF9sb2dnZXIuZXJyb3IoJ0ZhaWxlZCB0byBzdWJzY3JpYmUnLCBlcnJvcjogZSwgdGFnOiAnUk9PTVNfUFJPVklERVInKTsKICAgICAgX3NldEVycm9yKGUudG9TdHJpbmcoKSk7CiAgICB9CiAgfQoKICAvLy8g2YXYudin2YTYrCDYp9mE2KrYrdiv2YrYq9in2Kog2KfZhNmB2YjYsdmK2KkKICAvLyBpZ25vcmU6IHVudXNlZF9lbGVtZW50CiAgdm9pZCBfaGFuZGxlUmVhbHRpbWVVcGRhdGUoUmVhbHRpbWVNZXNzYWdlIG1lc3NhZ2UpIHsKICAgIF9sb2dnZXIuZGVidWcoJ1JlYWx0aW1lIHVwZGF0ZTogJHttZXNzYWdlLmV2ZW50c30nLCB0YWc6ICdST09NU19QUk9WSURFUicpOwoKICAgIGZpbmFsIGV2ZW50cyA9IG1lc3NhZ2UuZXZlbnRzOwogICAgZmluYWwgcGF5bG9hZCA9IG1lc3NhZ2UucGF5bG9hZDsKCiAgICB0cnkgewogICAgICBpZiAoZXZlbnRzLmFueSgoZSkgPT4gZS5jb250YWlucygnY3JlYXRlJykpKSB7CiAgICAgICAgX2hhbmRsZVJvb21DcmVhdGVkKHBheWxvYWQpOwogICAgICB9IGVsc2UgaWYgKGV2ZW50cy5hbnkoKGUpID0+IGUuY29udGFpbnMoJ3VwZGF0ZScpKSkgewogICAgICAgIF9oYW5kbGVSb29tVXBkYXRlZChwYXlsb2FkKTsKICAgICAgfSBlbHNlIGlmIChldmVudHMuYW55KChlKSA9PiBlLmNvbnRhaW5zKCdkZWxldGUnKSkpIHsKICAgICAgICBfaGFuZGxlUm9vbURlbGV0ZWQocGF5bG9hZCk7CiAgICAgIH0KICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgX2xvZ2dlci5lcnJvcigKICAgICAgICAnRmFpbGVkIHRvIGhhbmRsZSByZWFsdGltZSB1cGRhdGUnLAogICAgICAgIGVycm9yOiBlLAogICAgICAgIHRhZzogJ1JPT01TX1BST1ZJREVSJywKICAgICAgKTsKICAgIH0KICB9CgogIC8vLyDZhdi52KfZhNis2Kkg2KXZhti02KfYoSDYutix2YHYqSDYrNiv2YrYr9ipCiAgdm9pZCBfaGFuZGxlUm9vbUNyZWF0ZWQoTWFwPFN0cmluZywgZHluYW1pYz4gcGF5bG9hZCkgewogICAgLy8g2KXYudin2K/YqSDYqtit2YXZitmEINin2YTYutix2YEg2KjYr9mE2KfZiyDZhdmGIHBhcnNpbmcg2YrYr9mI2YoKICAgIGxvYWRSb29tcygpOwogIH0KCiAgLy8vINmF2LnYp9mE2KzYqSDYqtit2K/ZitirINi62LHZgdipCiAgdm9pZCBfaGFuZGxlUm9vbVVwZGF0ZWQoTWFwPFN0cmluZywgZHluYW1pYz4gcGF5bG9hZCkgewogICAgLy8g2KXYudin2K/YqSDYqtit2YXZitmEINin2YTYutix2YEg2KjYr9mE2KfZiyDZhdmGIHBhcnNpbmcg2YrYr9mI2YoKICAgIGxvYWRSb29tcygpOwogIH0KCiAgLy8vINmF2LnYp9mE2KzYqSDYrdiw2YEg2LrYsdmB2KkKICB2b2lkIF9oYW5kbGVSb29tRGVsZXRlZChNYXA8U3RyaW5nLCBkeW5hbWljPiBwYXlsb2FkKSB7CiAgICBmaW5hbCByb29tSWQgPSBwYXlsb2FkW3InJGlkJ10gYXMgU3RyaW5nPzsKICAgIGlmIChyb29tSWQgIT0gbnVsbCkgewogICAgICBmaW5hbCBpbnRJZCA9IGludC50cnlQYXJzZShyb29tSWQpOwogICAgICBpZiAoaW50SWQgIT0gbnVsbCkgewogICAgICAgIF9yb29tcy5yZW1vdmVXaGVyZSgocikgPT4gci5pZCA9PSBpbnRJZCk7CiAgICAgICAgbm90aWZ5TGlzdGVuZXJzKCk7CiAgICAgICAgX2xvZ2dlci5pbmZvKCdSb29tIGRlbGV0ZWQ6ICRyb29tSWQnLCB0YWc6ICdST09NU19QUk9WSURFUicpOwogICAgICB9CiAgICB9CiAgfQoKICAvLy8g2KXZhNi62KfYoSDYp9mE2KfYtNiq2LHYp9mDCiAgdm9pZCB1bnN1YnNjcmliZSgpIHsKICAgIGlmIChfc3Vic2NyaXB0aW9uICE9IG51bGwpIHsKICAgICAgX3N1YnNjcmlwdGlvbiEuY2xvc2UoKTsKICAgICAgX3N1YnNjcmlwdGlvbiA9IG51bGw7CiAgICAgIF9pc1N1YnNjcmliZWQgPSBmYWxzZTsKICAgICAgbm90aWZ5TGlzdGVuZXJzKCk7CiAgICAgIF9sb2dnZXIuaW5mbygnVW5zdWJzY3JpYmVkIGZyb20gcm9vbXMnLCB0YWc6ICdST09NU19QUk9WSURFUicpOwogICAgfQogIH0KCiAgLy8vINin2YTYqNit2Ksg2YHZiiDYp9mE2LrYsdmBINmF2K3ZhNmK2KfZiwogIExpc3Q8Um9vbT4gc2VhcmNoTG9jYWwoU3RyaW5nIHF1ZXJ5KSB7CiAgICBpZiAocXVlcnkuaXNFbXB0eSkgewogICAgICByZXR1cm4gcm9vbXM7CiAgICB9CgogICAgZmluYWwgbG93ZXJRdWVyeSA9IHF1ZXJ5LnRvTG93ZXJDYXNlKCk7CiAgICByZXR1cm4gX3Jvb21zLndoZXJlKChyb29tKSB7CiAgICAgIHJldHVybiByb29tLnJvb21OdW1iZXIudG9Mb3dlckNhc2UoKS5jb250YWlucyhsb3dlclF1ZXJ5KSB8fAogICAgICAgICAgcm9vbS50eXBlLnRvTG93ZXJDYXNlKCkuY29udGFpbnMobG93ZXJRdWVyeSk7CiAgICB9KS50b0xpc3QoKTsKICB9CgogIC8vLyDYp9mE2K3YtdmI2YQg2LnZhNmJINi62LHZgdipINio2KfZhNmF2LnYsdmBCiAgUm9vbT8gZ2V0Um9vbUJ5SWQoaW50IGlkKSB7CiAgICB0cnkgewogICAgICByZXR1cm4gX3Jvb21zLmZpcnN0V2hlcmUoKHIpID0+IHIuaWQgPT0gaWQpOwogICAgfSBjYXRjaCAoZSkgewogICAgICByZXR1cm4gbnVsbDsKICAgIH0KICB9CgogIC8vLyDYp9mE2K3YtdmI2YQg2LnZhNmJINi62LHZgdipINio2LHZgtmFINin2YTYutix2YHYqQogIFJvb20/IGdldFJvb21CeU51bWJlcihTdHJpbmcgcm9vbU51bWJlcikgewogICAgdHJ5IHsKICAgICAgcmV0dXJuIF9yb29tcy5maXJzdFdoZXJlKChyKSA9PiByLnJvb21OdW1iZXIgPT0gcm9vbU51bWJlcik7CiAgICB9IGNhdGNoIChlKSB7CiAgICAgIHJldHVybiBudWxsOwogICAgfQogIH0KCiAgLy8vINiq2K3Yr9mK2Ksg2LrYsdmB2Kkg2YXYrdmE2YrYp9mLIChPcHRpbWlzdGljIFVwZGF0ZSkKICB2b2lkIHVwZGF0ZVJvb21PcHRpbWlzdGljYWxseShSb29tIHVwZGF0ZWRSb29tKSB7CiAgICBmaW5hbCBpbmRleCA9IF9yb29tcy5pbmRleFdoZXJlKChyKSA9PiByLmlkID09IHVwZGF0ZWRSb29tLmlkKTsKICAgIGlmIChpbmRleCAhPSAtMSkgewogICAgICBfcm9vbXNbaW5kZXhdID0gdXBkYXRlZFJvb207CiAgICAgIG5vdGlmeUxpc3RlbmVycygpOwogICAgfQogIH0KCiAgLy8vINil2LnYp9iv2Kkg2KrYrdmF2YrZhAogIEZ1dHVyZTx2b2lkPiByZWZyZXNoKCkgYXN5bmMgewogICAgYXdhaXQgbG9hZFJvb21zKCk7CiAgfQoKICAvLyBIZWxwZXIgbWV0aG9kcwogIHZvaWQgX3NldExvYWRpbmcoYm9vbCB2YWx1ZSkgewogICAgX2lzTG9hZGluZyA9IHZhbHVlOwogICAgbm90aWZ5TGlzdGVuZXJzKCk7CiAgfQoKICB2b2lkIF9zZXRFcnJvcihTdHJpbmc/IHZhbHVlKSB7CiAgICBfZXJyb3IgPSB2YWx1ZTsKICAgIG5vdGlmeUxpc3RlbmVycygpOwogIH0KCiAgQG92ZXJyaWRlCiAgdm9pZCBkaXNwb3NlKCkgewogICAgdW5zdWJzY3JpYmUoKTsKICAgIHN1cGVyLmRpc3Bvc2UoKTsKICB9Cn0K
+import 'package:appwrite/appwrite.dart';
+import 'package:flutter/foundation.dart';
+
+import '../repositories/room_repository.dart';
+import '../services/appwrite_logger.dart';
+import '../services/appwrite_realtime_service.dart';
+import '../services/local_db.dart';
+import '../utils/status_utils.dart';
+
+/// Provider للغرف مع دعم Realtime Updates
+///
+/// يدير حالة الغرف ويستمع للتحديثات الفورية من Appwrite
+///
+/// ⚠️ **DEPRECATED** — هذا الـ provider غير مستخدم في أي مسار إنتاجي،
+/// ويعتمد على `AppwriteRealtimeService` المُهملة. استخدم `roomsListProvider`
+/// (Riverpod StreamProvider) بدلاً منه للغرف مع التحديثات الفورية عبر
+/// `AppwriteRealtimeSync`.
+@Deprecated('استخدم roomsListProvider (Riverpod) بدلاً من ذلك')
+class RealTimeRoomsProvider extends ChangeNotifier {
+  RealTimeRoomsProvider({
+    required RoomRepository repository,
+    required AppwriteRealtimeService realtimeService,
+  }) : _repository = repository,
+       _realtimeService = realtimeService;
+  final RoomRepository _repository;
+  // ignore: unused_field
+  final AppwriteRealtimeService _realtimeService;
+  final AppwriteLogger _logger = AppwriteLogger();
+
+  List<Room> _rooms = [];
+  bool _isLoading = false;
+  bool _isSubscribed = false;
+  String? _error;
+  RealtimeSubscription? _subscription;
+
+  // Getters
+  List<Room> get rooms => List.unmodifiable(_rooms);
+  bool get isLoading => _isLoading;
+  bool get isSubscribed => _isSubscribed;
+  String? get error => _error;
+  int get roomCount => _rooms.length;
+
+  /// ✅ استخدام StatusUtils بدلاً من مطابقة النص المباشر
+  /// لضمان دعم جميع متغيرات الحالة (شاغرة، شاغره، متاحة، إلخ)
+  List<Room> get availableRooms =>
+      _rooms.where((r) => StatusUtils.isRoomAvailable(r.status)).toList();
+
+  List<Room> get occupiedRooms =>
+      _rooms.where((r) => StatusUtils.isRoomOccupied(r.status)).toList();
+
+  /// تحميل الغرف
+  Future<void> loadRooms() async {
+    if (_isLoading) {
+      return;
+    }
+
+    _setLoading(true);
+    _setError(null);
+
+    try {
+      _logger.info('Loading rooms...', tag: 'ROOMS_PROVIDER');
+      _rooms = await _repository.getAll();
+      _logger.info('Loaded ${_rooms.length} rooms', tag: 'ROOMS_PROVIDER');
+      notifyListeners();
+    } catch (e) {
+      _logger.error('Failed to load rooms', error: e, tag: 'ROOMS_PROVIDER');
+      _setError(e.toString());
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// الاشتراك في التحديثات الفورية
+  Future<void> subscribe() async {
+    if (_isSubscribed) {
+      _logger.debug('Already subscribed to rooms', tag: 'ROOMS_PROVIDER');
+      return;
+    }
+
+    try {
+      _logger.info('Subscribing to rooms realtime...', tag: 'ROOMS_PROVIDER');
+
+      // تحميل البيانات الأولية
+      await loadRooms();
+
+      // الاشتراك في التحديثات
+      // ملاحظة: subscribeToRooms غير متوفر حالياً في AppwriteRealtimeService
+      // يمكن تفعيله لاحقاً عند الحاجة
+      _logger.debug('Realtime subscription disabled', tag: 'ROOMS_PROVIDER');
+
+      _isSubscribed = true;
+      notifyListeners();
+
+      _logger.info('Subscribed to rooms successfully', tag: 'ROOMS_PROVIDER');
+    } catch (e) {
+      _logger.error('Failed to subscribe', error: e, tag: 'ROOMS_PROVIDER');
+      _setError(e.toString());
+    }
+  }
+
+  /// معالج التحديثات الفورية
+  // ignore: unused_element
+  void _handleRealtimeUpdate(RealtimeMessage message) {
+    _logger.debug('Realtime update: ${message.events}', tag: 'ROOMS_PROVIDER');
+
+    final events = message.events;
+    final payload = message.payload;
+
+    try {
+      if (events.any((e) => e.contains('create'))) {
+        _handleRoomCreated(payload);
+      } else if (events.any((e) => e.contains('update'))) {
+        _handleRoomUpdated(payload);
+      } else if (events.any((e) => e.contains('delete'))) {
+        _handleRoomDeleted(payload);
+      }
+    } catch (e) {
+      _logger.error(
+        'Failed to handle realtime update',
+        error: e,
+        tag: 'ROOMS_PROVIDER',
+      );
+    }
+  }
+
+  /// معالجة إنشاء غرفة جديدة
+  void _handleRoomCreated(Map<String, dynamic> payload) {
+    // إعادة تحميل الغرف بدلاً من parsing يدوي
+    loadRooms();
+  }
+
+  /// معالجة تحديث غرفة
+  void _handleRoomUpdated(Map<String, dynamic> payload) {
+    // إعادة تحميل الغرف بدلاً من parsing يدوي
+    loadRooms();
+  }
+
+  /// معالجة حذف غرفة
+  void _handleRoomDeleted(Map<String, dynamic> payload) {
+    final roomId = payload[r'$id'] as String?;
+    if (roomId != null) {
+      final intId = int.tryParse(roomId);
+      if (intId != null) {
+        _rooms.removeWhere((r) => r.id == intId);
+        notifyListeners();
+        _logger.info('Room deleted: $roomId', tag: 'ROOMS_PROVIDER');
+      }
+    }
+  }
+
+  /// إلغاء الاشتراك
+  void unsubscribe() {
+    if (_subscription != null) {
+      _subscription!.close();
+      _subscription = null;
+      _isSubscribed = false;
+      notifyListeners();
+      _logger.info('Unsubscribed from rooms', tag: 'ROOMS_PROVIDER');
+    }
+  }
+
+  /// البحث في الغرف محلياً
+  List<Room> searchLocal(String query) {
+    if (query.isEmpty) {
+      return rooms;
+    }
+
+    final lowerQuery = query.toLowerCase();
+    return _rooms.where((room) {
+      return room.roomNumber.toLowerCase().contains(lowerQuery) ||
+          room.type.toLowerCase().contains(lowerQuery);
+    }).toList();
+  }
+
+  /// الحصول على غرفة بالمعرف
+  Room? getRoomById(int id) {
+    try {
+      return _rooms.firstWhere((r) => r.id == id);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// الحصول على غرفة برقم الغرفة
+  Room? getRoomByNumber(String roomNumber) {
+    try {
+      return _rooms.firstWhere((r) => r.roomNumber == roomNumber);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// تحديث غرفة محلياً (Optimistic Update)
+  void updateRoomOptimistically(Room updatedRoom) {
+    final index = _rooms.indexWhere((r) => r.id == updatedRoom.id);
+    if (index != -1) {
+      _rooms[index] = updatedRoom;
+      notifyListeners();
+    }
+  }
+
+  /// إعادة تحميل
+  Future<void> refresh() async {
+    await loadRooms();
+  }
+
+  // Helper methods
+  void _setLoading(bool value) {
+    _isLoading = value;
+    notifyListeners();
+  }
+
+  void _setError(String? value) {
+    _error = value;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    unsubscribe();
+    super.dispose();
+  }
+}
