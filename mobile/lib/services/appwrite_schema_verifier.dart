@@ -507,6 +507,15 @@ class AppwriteSchemaVerifier {
           'size': 50,
           'required': true,
         },
+        // ✅ إصلاح 2026-07-26: hotelDayKey مطلوب على Appwrite Cloud (created 2026-07-03)
+        // محلياً effectiveHotelDay = hotelDayKey (نفس القيمة، اسم مختلف)
+        // كود المزامنة يرسل القيمة تحت الاسمين للحفاظ على التوافق.
+        {
+          'key': 'hotelDayKey',
+          'type': 'string',
+          'size': 50,
+          'required': true,
+        },
         {'key': 'endHotelDay', 'type': 'string', 'size': 50},
         {'key': 'isActive', 'type': 'boolean', 'default': true},
         {'key': 'reason', 'type': 'string', 'size': 500},
