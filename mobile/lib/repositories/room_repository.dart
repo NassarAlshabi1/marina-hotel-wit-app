@@ -1,1 +1,317 @@
-aW1wb3J0ICdwYWNrYWdlOmFwcHdyaXRlL21vZGVscy5kYXJ0JyBhcyBtb2RlbHM7CgppbXBvcnQgJy4uL3NlcnZpY2VzL2FkdmFuY2VkX3F1ZXJ5X2J1aWxkZXIuZGFydCc7CmltcG9ydCAnLi4vc2VydmljZXMvYXBwd3JpdGVfY29uZmlnLmRhcnQnOwppbXBvcnQgJy4uL3NlcnZpY2VzL2FwcHdyaXRlX2Vycm9yX2hhbmRsZXIuZGFydCc7CmltcG9ydCAnLi4vc2VydmljZXMvYXBwd3JpdGVfc2VydmljZS5kYXJ0JzsKaW1wb3J0ICcuLi9zZXJ2aWNlcy9sb2NhbF9kYi5kYXJ0JzsKCi8vLyBSZXBvc2l0b3J5IFBhdHRlcm4g2YTZhNi62LHZgQovLy8KLy8vINmK2YjZgdixINmI2KfYrNmH2Kkg2YXZiNit2K/YqSDZhNmE2KrYudin2YXZhCDZhdi5INio2YrYp9mG2KfYqiDYp9mE2LrYsdmBCi8vLyDZitiu2YHZiiDYqtmB2KfYtdmK2YQg2KfZhNiq2YbZgdmK2LAgKEFwcHdyaXRlL0xvY2FsIERCKQphYnN0cmFjdCBjbGFzcyBSb29tUmVwb3NpdG9yeSB7CiAgRnV0dXJlPFJvb20/PiBnZXRCeUlkKFN0cmluZyBpZCk7CiAgRnV0dXJlPExpc3Q8Um9vbT4+IGdldEFsbCgpOwogIEZ1dHVyZTxSb29tPiBjcmVhdGUoUm9vbSByb29tKTsKICBGdXR1cmU8Um9vbT4gdXBkYXRlKFN0cmluZyBpZCwgUm9vbSByb29tKTsKICBGdXR1cmU8dm9pZD4gZGVsZXRlKFN0cmluZyBpZCk7CiAgRnV0dXJlPExpc3Q8Um9vbT4+IHNlYXJjaChTdHJpbmcgcXVlcnkpOwogIEZ1dHVyZTxMaXN0PFJvb20+PiBnZXRBdmFpbGFibGUoKTsKICBGdXR1cmU8TGlzdDxSb29tPj4gZ2V0QnlQcmljZVJhbmdlKGRvdWJsZSBtaW4sIGRvdWJsZSBtYXgpOwogIEZ1dHVyZTxMaXN0PFJvb20+PiBnZXRQYWdpbmF0ZWQoe2ludCBsaW1pdCA9IDI1LCBpbnQgb2Zmc2V0ID0gMH0pOwp9CgovLy8g2KrZhtmB2YrYsCBSZXBvc2l0b3J5INio2KfYs9iq2K7Yr9in2YUgQXBwd3JpdGUKY2xhc3MgQXBwd3JpdGVSb29tUmVwb3NpdG9yeSBpbXBsZW1lbnRzIFJvb21SZXBvc2l0b3J5IHsKICBBcHB3cml0ZVJvb21SZXBvc2l0b3J5KHsKICAgIEFwcHdyaXRlU2VydmljZT8gYXBwd3JpdGVTZXJ2aWNlLAogICAgQXBwd3JpdGVFcnJvckhhbmRsZXI/IGVycm9ySGFuZGxlciwKICB9KSA6IF9hcHB3cml0ZVNlcnZpY2UgPSBhcHB3cml0ZVNlcnZpY2UgPz8gQXBwd3JpdGVTZXJ2aWNlKCksCiAgICAgICBfZXJyb3JIYW5kbGVyID0gZXJyb3JIYW5kbGVyID8/IEFwcHdyaXRlRXJyb3JIYW5kbGVyKCk7CiAgZmluYWwgQXBwd3JpdGVTZXJ2aWNlIF9hcHB3cml0ZVNlcnZpY2U7CiAgZmluYWwgQXBwd3JpdGVFcnJvckhhbmRsZXIgX2Vycm9ySGFuZGxlcjsKCiAgU3RyaW5nIGdldCBfY29sbGVjdGlvbklkID0+IEFwcHdyaXRlQ29uZmlnLnJvb21zQ29sbGVjdGlvbklkOwoKICBAb3ZlcnJpZGUKICBGdXR1cmU8Um9vbT8+IGdldEJ5SWQoU3RyaW5nIGlkKSBhc3luYyB7CiAgICB0cnkgewogICAgICBmaW5hbCBkb2MgPSBhd2FpdCBfYXBwd3JpdGVTZXJ2aWNlLmdldERvY3VtZW50KAogICAgICAgIGNvbGxlY3Rpb25JZDogX2NvbGxlY3Rpb25JZCwKICAgICAgICBkb2N1bWVudElkOiBpZCwKICAgICAgKTsKCiAgICAgIHJldHVybiBSb29tQXBwd3JpdGVFeHRlbnNpb24uZnJvbUFwcHdyaXRlRG9jdW1lbnQoZG9jKTsKICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgZmluYWwgZXJyb3IgPSBfZXJyb3JIYW5kbGVyLmhhbmRsZUVycm9yKGUsIGNvbnRleHQ6ICdnZXRCeUlkKCRpZCknKTsKCiAgICAgIC8vINil2LDYpyDZg9in2YYg2KfZhNiu2LfYoyA0MDTYjCDZhtix2KzYuSBudWxsINio2K/ZhNin2Ysg2YXZhiDYsdmF2Yog2K7Yt9ijCiAgICAgIGlmIChlcnJvci5jb2RlID09ICdOT1RfRk9VTkQnKSB7CiAgICAgICAgcmV0dXJuIG51bGw7CiAgICAgIH0KCiAgICAgIHRocm93IEV4Y2VwdGlvbihlcnJvci5tZXNzYWdlKTsKICAgIH0KICB9CgogIEBvdmVycmlkZQogIEZ1dHVyZTxMaXN0PFJvb20+PiBnZXRBbGwoKSBhc3luYyB7CiAgICB0cnkgewogICAgICBmaW5hbCBkb2N1bWVudHMgPSBhd2FpdCBfYXBwd3JpdGVTZXJ2aWNlLmxpc3REb2N1bWVudHMoCiAgICAgICAgY29sbGVjdGlvbklkOiBfY29sbGVjdGlvbklkLAogICAgICApOwoKICAgICAgcmV0dXJuIGRvY3VtZW50cy5tYXAoUm9vbUFwcHdyaXRlRXh0ZW5zaW9uLmZyb21BcHB3cml0ZURvY3VtZW50KS50b0xpc3QoKTsKICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgZmluYWwgZXJyb3IgPSBfZXJyb3JIYW5kbGVyLmhhbmRsZUVycm9yKGUsIGNvbnRleHQ6ICdnZXRBbGwnKTsKICAgICAgdGhyb3cgRXhjZXB0aW9uKGVycm9yLm1lc3NhZ2UpOwogICAgfQogIH0KCiAgQG92ZXJyaWRlCiAgRnV0dXJlPFJvb20+IGNyZWF0ZShSb29tIHJvb20pIGFzeW5jIHsKICAgIHRyeSB7CiAgICAgIGZpbmFsIGRvYyA9IGF3YWl0IF9hcHB3cml0ZVNlcnZpY2UuY3JlYXRlRG9jdW1lbnQoCiAgICAgICAgY29sbGVjdGlvbklkOiBfY29sbGVjdGlvbklkLAogICAgICAgIGRvY3VtZW50SWQ6IHJvb20ubG9jYWxVdWlkLAogICAgICAgIGRhdGE6IHJvb20udG9Kc29uKCksCiAgICAgICk7CgogICAgICByZXR1cm4gUm9vbUFwcHdyaXRlRXh0ZW5zaW9uLmZyb21BcHB3cml0ZURvY3VtZW50KGRvYyk7CiAgICB9IGNhdGNoIChlKSB7CiAgICAgIGZpbmFsIGVycm9yID0gX2Vycm9ySGFuZGxlci5oYW5kbGVFcnJvcihlLCBjb250ZXh0OiAnY3JlYXRlJyk7CiAgICAgIHRocm93IEV4Y2VwdGlvbihlcnJvci5tZXNzYWdlKTsKICAgIH0KICB9CgogIEBvdmVycmlkZQogIEZ1dHVyZTxSb29tPiB1cGRhdGUoU3RyaW5nIGlkLCBSb29tIHJvb20pIGFzeW5jIHsKICAgIHRyeSB7CiAgICAgIGZpbmFsIGRvYyA9IGF3YWl0IF9hcHB3cml0ZVNlcnZpY2UudXBkYXRlRG9jdW1lbnQoCiAgICAgICAgY29sbGVjdGlvbklkOiBfY29sbGVjdGlvbklkLAogICAgICAgIGRvY3VtZW50SWQ6IGlkLAogICAgICAgIGRhdGE6IHJvb20udG9Kc29uKCksCiAgICAgICk7CgogICAgICByZXR1cm4gUm9vbUFwcHdyaXRlRXh0ZW5zaW9uLmZyb21BcHB3cml0ZURvY3VtZW50KGRvYyk7CiAgICB9IGNhdGNoIChlKSB7CiAgICAgIGZpbmFsIGVycm9yID0gX2Vycm9ySGFuZGxlci5oYW5kbGVFcnJvcihlLCBjb250ZXh0OiAndXBkYXRlKCRpZCknKTsKICAgICAgdGhyb3cgRXhjZXB0aW9uKGVycm9yLm1lc3NhZ2UpOwogICAgfQogIH0KCiAgQG92ZXJyaWRlCiAgRnV0dXJlPHZvaWQ+IGRlbGV0ZShTdHJpbmcgaWQpIGFzeW5jIHsKICAgIHRyeSB7CiAgICAgIGF3YWl0IF9hcHB3cml0ZVNlcnZpY2UuZGVsZXRlRG9jdW1lbnQoCiAgICAgICAgY29sbGVjdGlvbklkOiBfY29sbGVjdGlvbklkLAogICAgICAgIGRvY3VtZW50SWQ6IGlkLAogICAgICApOwogICAgfSBjYXRjaCAoZSkgewogICAgICBmaW5hbCBlcnJvciA9IF9lcnJvckhhbmRsZXIuaGFuZGxlRXJyb3IoZSwgY29udGV4dDogJ2RlbGV0ZSgkaWQpJyk7CgogICAgICAvLyDYpdiw2Kcg2YPYp9mGINin2YTYrti32KMgNDA02Iwg2YbYudiq2KjYsdmH2Kcg2YbYrNin2K0KICAgICAgaWYgKGVycm9yLmNvZGUgPT0gJ05PVF9GT1VORCcpIHsKICAgICAgICByZXR1cm47CiAgICAgIH0KCiAgICAgIHRocm93IEV4Y2VwdGlvbihlcnJvci5tZXNzYWdlKTsKICAgIH0KICB9CgogIEBvdmVycmlkZQogIEZ1dHVyZTxMaXN0PFJvb20+PiBzZWFyY2goU3RyaW5nIHF1ZXJ5KSBhc3luYyB7CiAgICB0cnkgewogICAgICBmaW5hbCBxdWVyaWVzID0gQWR2YW5jZWRRdWVyeUJ1aWxkZXIoKQogICAgICAgICAgLnNlYXJjaCgncm9vbV9udW1iZXInLCBxdWVyeSkKICAgICAgICAgIC5vcmRlckFzYygncm9vbV9udW1iZXInKQogICAgICAgICAgLmJ1aWxkKCk7CgogICAgICBmaW5hbCBkb2N1bWVudHMgPSBhd2FpdCBfYXBwd3JpdGVTZXJ2aWNlLmxpc3REb2N1bWVudHMoCiAgICAgICAgY29sbGVjdGlvbklkOiBfY29sbGVjdGlvbklkLAogICAgICAgIHF1ZXJpZXM6IHF1ZXJpZXMsCiAgICAgICk7CgogICAgICByZXR1cm4gZG9jdW1lbnRzLm1hcChSb29tQXBwd3JpdGVFeHRlbnNpb24uZnJvbUFwcHdyaXRlRG9jdW1lbnQpLnRvTGlzdCgpOwogICAgfSBjYXRjaCAoZSkgewogICAgICBmaW5hbCBlcnJvciA9IF9lcnJvckhhbmRsZXIuaGFuZGxlRXJyb3IoZSwgY29udGV4dDogJ3NlYXJjaCgkcXVlcnkpJyk7CiAgICAgIHRocm93IEV4Y2VwdGlvbihlcnJvci5tZXNzYWdlKTsKICAgIH0KICB9CgogIEBvdmVycmlkZQogIEZ1dHVyZTxMaXN0PFJvb20+PiBnZXRBdmFpbGFibGUoKSBhc3luYyB7CiAgICB0cnkgewogICAgICBmaW5hbCBxdWVyaWVzID0gQWR2YW5jZWRRdWVyeUJ1aWxkZXIoKQogICAgICAgICAgLndoZXJlKCdzdGF0dXMnLCAn2LTYp9i62LHYqScpCiAgICAgICAgICAub3JkZXJBc2MoJ3Jvb21fbnVtYmVyJykKICAgICAgICAgIC5idWlsZCgpOwoKICAgICAgZmluYWwgZG9jdW1lbnRzID0gYXdhaXQgX2FwcHdyaXRlU2VydmljZS5saXN0RG9jdW1lbnRzKAogICAgICAgIGNvbGxlY3Rpb25JZDogX2NvbGxlY3Rpb25JZCwKICAgICAgICBxdWVyaWVzOiBxdWVyaWVzLAogICAgICApOwoKICAgICAgcmV0dXJuIGRvY3VtZW50cy5tYXAoUm9vbUFwcHdyaXRlRXh0ZW5zaW9uLmZyb21BcHB3cml0ZURvY3VtZW50KS50b0xpc3QoKTsKICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgZmluYWwgZXJyb3IgPSBfZXJyb3JIYW5kbGVyLmhhbmRsZUVycm9yKGUsIGNvbnRleHQ6ICdnZXRBdmFpbGFibGUnKTsKICAgICAgdGhyb3cgRXhjZXB0aW9uKGVycm9yLm1lc3NhZ2UpOwogICAgfQogIH0KCiAgQG92ZXJyaWRlCiAgRnV0dXJlPExpc3Q8Um9vbT4+IGdldEJ5UHJpY2VSYW5nZShkb3VibGUgbWluLCBkb3VibGUgbWF4KSBhc3luYyB7CiAgICB0cnkgewogICAgICBmaW5hbCBxdWVyaWVzID0gQWR2YW5jZWRRdWVyeUJ1aWxkZXIoKQogICAgICAgICAgLndoZXJlQmV0d2VlbigncHJpY2UnLCBtaW4sIG1heCkKICAgICAgICAgIC5vcmRlckFzYygncHJpY2UnKQogICAgICAgICAgLmJ1aWxkKCk7CgogICAgICBmaW5hbCBkb2N1bWVudHMgPSBhd2FpdCBfYXBwd3JpdGVTZXJ2aWNlLmxpc3REb2N1bWVudHMoCiAgICAgICAgY29sbGVjdGlvbklkOiBfY29sbGVjdGlvbklkLAogICAgICAgIHF1ZXJpZXM6IHF1ZXJpZXMsCiAgICAgICk7CgogICAgICByZXR1cm4gZG9jdW1lbnRzLm1hcChSb29tQXBwd3JpdGVFeHRlbnNpb24uZnJvbUFwcHdyaXRlRG9jdW1lbnQpLnRvTGlzdCgpOwogICAgfSBjYXRjaCAoZSkgewogICAgICBmaW5hbCBlcnJvciA9IF9lcnJvckhhbmRsZXIuaGFuZGxlRXJyb3IoCiAgICAgICAgZSwKICAgICAgICBjb250ZXh0OiAnZ2V0QnlQcmljZVJhbmdlKCRtaW4sICRtYXgpJywKICAgICAgKTsKICAgICAgdGhyb3cgRXhjZXB0aW9uKGVycm9yLm1lc3NhZ2UpOwogICAgfQogIH0KCiAgQG92ZXJyaWRlCiAgRnV0dXJlPExpc3Q8Um9vbT4+IGdldFBhZ2luYXRlZCh7aW50IGxpbWl0ID0gMjUsIGludCBvZmZzZXQgPSAwfSkgYXN5bmMgewogICAgdHJ5IHsKICAgICAgZmluYWwgcXVlcmllcyA9IEFkdmFuY2VkUXVlcnlCdWlsZGVyKCkKICAgICAgICAgIC5saW1pdChsaW1pdCkKICAgICAgICAgIC5vZmZzZXQob2Zmc2V0KQogICAgICAgICAgLm9yZGVyQXNjKCdyb29tX251bWJlcicpCiAgICAgICAgICAuYnVpbGQoKTsKCiAgICAgIGZpbmFsIGRvY3VtZW50cyA9IGF3YWl0IF9hcHB3cml0ZVNlcnZpY2UubGlzdERvY3VtZW50cygKICAgICAgICBjb2xsZWN0aW9uSWQ6IF9jb2xsZWN0aW9uSWQsCiAgICAgICAgcXVlcmllczogcXVlcmllcywKICAgICAgKTsKCiAgICAgIHJldHVybiBkb2N1bWVudHMubWFwKFJvb21BcHB3cml0ZUV4dGVuc2lvbi5mcm9tQXBwd3JpdGVEb2N1bWVudCkudG9MaXN0KCk7CiAgICB9IGNhdGNoIChlKSB7CiAgICAgIGZpbmFsIGVycm9yID0gX2Vycm9ySGFuZGxlci5oYW5kbGVFcnJvcigKICAgICAgICBlLAogICAgICAgIGNvbnRleHQ6ICdnZXRQYWdpbmF0ZWQobGltaXQ6ICRsaW1pdCwgb2Zmc2V0OiAkb2Zmc2V0KScsCiAgICAgICk7CiAgICAgIHRocm93IEV4Y2VwdGlvbihlcnJvci5tZXNzYWdlKTsKICAgIH0KICB9CgogIC8vLyDYp9mE2K3YtdmI2YQg2LnZhNmJINil2K3Ytdin2KbZitin2Kog2KfZhNi62LHZgQogIEZ1dHVyZTxSb29tU3RhdGlzdGljcz4gZ2V0U3RhdGlzdGljcygpIGFzeW5jIHsKICAgIHRyeSB7CiAgICAgIGZpbmFsIGFsbFJvb21zID0gYXdhaXQgZ2V0QWxsKCk7CgogICAgICBmaW5hbCBhdmFpbGFibGUgPSBhbGxSb29tcy53aGVyZSgocikgPT4gci5zdGF0dXMgPT0gJ9i02KfYutix2KknKS5sZW5ndGg7CiAgICAgIGZpbmFsIG9jY3VwaWVkID0gYWxsUm9vbXMud2hlcmUoKHIpID0+IHIuc3RhdHVzID09ICfZhdit2KzZiNiy2KknKS5sZW5ndGg7CgogICAgICBmaW5hbCBwcmljZXMgPSBhbGxSb29tcy5tYXAoKHIpID0+IHIucHJpY2UpLnRvTGlzdCgpOwogICAgICBwcmljZXMuc29ydCgpOwoKICAgICAgcmV0dXJuIFJvb21TdGF0aXN0aWNzKAogICAgICAgIHRvdGFsOiBhbGxSb29tcy5sZW5ndGgsCiAgICAgICAgYXZhaWxhYmxlOiBhdmFpbGFibGUsCiAgICAgICAgb2NjdXBpZWQ6IG9jY3VwaWVkLAogICAgICAgIG1pblByaWNlOiBwcmljZXMuaXNOb3RFbXB0eSA/IHByaWNlcy5maXJzdCA6IDAsCiAgICAgICAgbWF4UHJpY2U6IHByaWNlcy5pc05vdEVtcHR5ID8gcHJpY2VzLmxhc3QgOiAwLAogICAgICAgIGF2Z1ByaWNlOiBwcmljZXMuaXNOb3RFbXB0eQogICAgICAgICAgICA/IHByaWNlcy5yZWR1Y2UoKGEsIGIpID0+IGEgKyBiKSAvIHByaWNlcy5sZW5ndGgKICAgICAgICAgICAgOiAwLAogICAgICApOwogICAgfSBjYXRjaCAoZSkgewogICAgICBmaW5hbCBlcnJvciA9IF9lcnJvckhhbmRsZXIuaGFuZGxlRXJyb3IoZSwgY29udGV4dDogJ2dldFN0YXRpc3RpY3MnKTsKICAgICAgdGhyb3cgRXhjZXB0aW9uKGVycm9yLm1lc3NhZ2UpOwogICAgfQogIH0KfQoKLy8vINil2K3Ytdin2KbZitin2Kog2KfZhNi62LHZgQpjbGFzcyBSb29tU3RhdGlzdGljcyB7CiAgUm9vbVN0YXRpc3RpY3MoewogICAgcmVxdWlyZWQgdGhpcy50b3RhbCwKICAgIHJlcXVpcmVkIHRoaXMuYXZhaWxhYmxlLAogICAgcmVxdWlyZWQgdGhpcy5vY2N1cGllZCwKICAgIHJlcXVpcmVkIHRoaXMubWluUHJpY2UsCiAgICByZXF1aXJlZCB0aGlzLm1heFByaWNlLAogICAgcmVxdWlyZWQgdGhpcy5hdmdQcmljZSwKICB9KTsKICBmaW5hbCBpbnQgdG90YWw7CiAgZmluYWwgaW50IGF2YWlsYWJsZTsKICBmaW5hbCBpbnQgb2NjdXBpZWQ7CiAgZmluYWwgZG91YmxlIG1pblByaWNlOwogIGZpbmFsIGRvdWJsZSBtYXhQcmljZTsKICBmaW5hbCBkb3VibGUgYXZnUHJpY2U7CgogIGRvdWJsZSBnZXQgb2NjdXBhbmN5UmF0ZSA9PiB0b3RhbCA+IDAgPyBvY2N1cGllZCAvIHRvdGFsIDogMC4wOwoKICBAb3ZlcnJpZGUKICBTdHJpbmcgdG9TdHJpbmcoKSA9PgogICAgICAnJycKUm9vbVN0YXRpc3RpY3M6CiAgVG90YWw6ICR0b3RhbAogIEF2YWlsYWJsZTogJGF2YWlsYWJsZQogIE9jY3VwaWVkOiAkb2NjdXBpZWQKICBPY2N1cGFuY3kgUmF0ZTogJHsob2NjdXBhbmN5UmF0ZSAqIDEwMCkudG9TdHJpbmdBc0ZpeGVkKDEpfSUKICBQcmljZSBSYW5nZTogJG1pblByaWNlIC0gJG1heFByaWNlCiAgQXZlcmFnZSBQcmljZTogJHthdmdQcmljZS50b1N0cmluZ0FzRml4ZWQoMil9CicnJzsKfQoKLy8vINin2YXYqtiv2KfYryDZhNmE2YAgUm9vbSBNb2RlbCDZhNiv2LnZhSBBcHB3cml0ZSBEb2N1bWVudApleHRlbnNpb24gUm9vbUFwcHdyaXRlRXh0ZW5zaW9uIG9uIFJvb20gewogIHN0YXRpYyBSb29tIGZyb21BcHB3cml0ZURvY3VtZW50KG1vZGVscy5Eb2N1bWVudCBkb2MpIHsKICAgIGZpbmFsIG5vdyA9IERhdGVUaW1lLm5vdygpLm1pbGxpc2Vjb25kc1NpbmNlRXBvY2g7CiAgICByZXR1cm4gUm9vbSgKICAgICAgaWQ6IGludC50cnlQYXJzZShkb2MuJGlkKSA/PyAwLAogICAgICBsb2NhbFV1aWQ6IGRvYy5kYXRhWydsb2NhbFV1aWQnXSBhcyBTdHJpbmc/ID8/IGRvYy4kaWQsCiAgICAgIHNlcnZlcklkOiBkb2MuZGF0YVsnc2VydmVySWQnXSBhcyBpbnQ/LAogICAgICByb29tTnVtYmVyOiBkb2MuZGF0YVsncm9vbV9udW1iZXInXSBhcyBTdHJpbmcsCiAgICAgIHR5cGU6IGRvYy5kYXRhWyd0eXBlJ10gYXMgU3RyaW5nLAogICAgICBwcmljZTogKGRvYy5kYXRhWydwcmljZSddIGFzIG51bSkudG9Eb3VibGUoKSwKICAgICAgc3RhdHVzOiBkb2MuZGF0YVsnc3RhdHVzJ10gYXMgU3RyaW5nLAogICAgICBpbWFnZVVybDogZG9jLmRhdGFbJ2ltYWdlX3VybCddIGFzIFN0cmluZz8sCiAgICAgIGNsZWFuaW5nU3RhdHVzOiBkb2MuZGF0YVsnY2xlYW5pbmdfc3RhdHVzJ10gYXMgU3RyaW5nPyA/PyAnY2xlYW4nLAogICAgICBsYXN0Q2xlYW5lZEhvdGVsRGF5OiBkb2MuZGF0YVsnbGFzdF9jbGVhbmVkJ10gYXMgU3RyaW5nPywKICAgICAgbGFzdE9jY3VwaWVkSG90ZWxEYXk6IGRvYy5kYXRhWydsYXN0X29jY3VwaWVkJ10gYXMgU3RyaW5nPywKICAgICAgcmVxdWlyZXNNYWludGVuYW5jZTogZG9jLmRhdGFbJ3JlcXVpcmVzX21haW50ZW5hbmNlJ10gYXMgYm9vbD8gPz8gZmFsc2UsCiAgICAgIGNyZWF0ZWRBdDogbm93LAogICAgICB1cGRhdGVkQXQ6IG5vdywKICAgICAgbGFzdE1vZGlmaWVkOiBub3csCiAgICAgIGNyZWF0ZWRBdEVwb2NoOiBub3csCiAgICAgIGxhc3RNb2RpZmllZEVwb2NoOiBub3csCiAgICAgIHZlcnNpb246IDEsCiAgICAgIG9yaWdpbjogJ2Nsb3VkJywKICAgICAgdmVjdG9yQ2xvY2s6ICd7fScsCiAgICAgIGRldmljZUlkOgogICAgICAgICAgZG9jLmRhdGFbJ2RldmljZUlkJ10gYXMgU3RyaW5nPyA/PwogICAgICAgICAgZG9jLmRhdGFbJ2RldmljZV9pZCddIGFzIFN0cmluZz8gPz8KICAgICAgICAgICcnLAogICAgKTsKICB9CgogIE1hcDxTdHJpbmcsIGR5bmFtaWM+IHRvSnNvbigpIHsKICAgIHJldHVybiB7CiAgICAgICdyb29tX251bWJlcic6IHJvb21OdW1iZXIsCiAgICAgICd0eXBlJzogdHlwZSwKICAgICAgJ3ByaWNlJzogcHJpY2UsCiAgICAgICdzdGF0dXMnOiBzdGF0dXMsCiAgICAgIGlmIChpbWFnZVVybCAhPSBudWxsKSAnaW1hZ2VfdXJsJzogaW1hZ2VVcmwsCiAgICAgIGlmIChjbGVhbmluZ1N0YXR1cy5pc05vdEVtcHR5KSAnY2xlYW5pbmdfc3RhdHVzJzogY2xlYW5pbmdTdGF0dXMsCiAgICAgIGlmIChsYXN0Q2xlYW5lZEhvdGVsRGF5ICE9IG51bGwpICdsYXN0X2NsZWFuZWQnOiBsYXN0Q2xlYW5lZEhvdGVsRGF5LAogICAgICBpZiAobGFzdE9jY3VwaWVkSG90ZWxEYXkgIT0gbnVsbCkgJ2xhc3Rfb2NjdXBpZWQnOiBsYXN0T2NjdXBpZWRIb3RlbERheSwKICAgICAgJ3JlcXVpcmVzX21haW50ZW5hbmNlJzogcmVxdWlyZXNNYWludGVuYW5jZSwKICAgICAgJ2xvY2FsVXVpZCc6IGxvY2FsVXVpZCwKICAgICAgaWYgKHNlcnZlcklkICE9IG51bGwpICdzZXJ2ZXJJZCc6IHNlcnZlcklkLAogICAgfTsKICB9Cn0K
+import 'package:appwrite/models.dart' as models;
+
+import '../services/advanced_query_builder.dart';
+import '../services/appwrite_config.dart';
+import '../services/appwrite_error_handler.dart';
+import '../services/appwrite_service.dart';
+import '../services/local_db.dart';
+
+/// Repository Pattern للغرف
+///
+/// يوفر واجهة موحدة للتعامل مع بيانات الغرف
+/// يخفي تفاصيل التنفيذ (Appwrite/Local DB)
+abstract class RoomRepository {
+  Future<Room?> getById(String id);
+  Future<List<Room>> getAll();
+  Future<Room> create(Room room);
+  Future<Room> update(String id, Room room);
+  Future<void> delete(String id);
+  Future<List<Room>> search(String query);
+  Future<List<Room>> getAvailable();
+  Future<List<Room>> getByPriceRange(double min, double max);
+  Future<List<Room>> getPaginated({int limit = 25, int offset = 0});
+}
+
+/// تنفيذ Repository باستخدام Appwrite
+class AppwriteRoomRepository implements RoomRepository {
+  AppwriteRoomRepository({
+    AppwriteService? appwriteService,
+    AppwriteErrorHandler? errorHandler,
+  }) : _appwriteService = appwriteService ?? AppwriteService(),
+       _errorHandler = errorHandler ?? AppwriteErrorHandler();
+  final AppwriteService _appwriteService;
+  final AppwriteErrorHandler _errorHandler;
+
+  String get _collectionId => AppwriteConfig.roomsCollectionId;
+
+  @override
+  Future<Room?> getById(String id) async {
+    try {
+      final doc = await _appwriteService.getDocument(
+        collectionId: _collectionId,
+        documentId: id,
+      );
+
+      return RoomAppwriteExtension.fromAppwriteDocument(doc);
+    } catch (e) {
+      final error = _errorHandler.handleError(e, context: 'getById($id)');
+
+      // إذا كان الخطأ 404، نرجع null بدلاً من رمي خطأ
+      if (error.code == 'NOT_FOUND') {
+        return null;
+      }
+
+      throw Exception(error.message);
+    }
+  }
+
+  @override
+  Future<List<Room>> getAll() async {
+    try {
+      final documents = await _appwriteService.listDocuments(
+        collectionId: _collectionId,
+      );
+
+      return documents.map(RoomAppwriteExtension.fromAppwriteDocument).toList();
+    } catch (e) {
+      final error = _errorHandler.handleError(e, context: 'getAll');
+      throw Exception(error.message);
+    }
+  }
+
+  @override
+  Future<Room> create(Room room) async {
+    try {
+      final doc = await _appwriteService.createDocument(
+        collectionId: _collectionId,
+        documentId: room.localUuid,
+        data: room.toJson(),
+      );
+
+      return RoomAppwriteExtension.fromAppwriteDocument(doc);
+    } catch (e) {
+      final error = _errorHandler.handleError(e, context: 'create');
+      throw Exception(error.message);
+    }
+  }
+
+  @override
+  Future<Room> update(String id, Room room) async {
+    try {
+      final doc = await _appwriteService.updateDocument(
+        collectionId: _collectionId,
+        documentId: id,
+        data: room.toJson(),
+      );
+
+      return RoomAppwriteExtension.fromAppwriteDocument(doc);
+    } catch (e) {
+      final error = _errorHandler.handleError(e, context: 'update($id)');
+      throw Exception(error.message);
+    }
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    try {
+      await _appwriteService.deleteDocument(
+        collectionId: _collectionId,
+        documentId: id,
+      );
+    } catch (e) {
+      final error = _errorHandler.handleError(e, context: 'delete($id)');
+
+      // إذا كان الخطأ 404، نعتبرها نجاح
+      if (error.code == 'NOT_FOUND') {
+        return;
+      }
+
+      throw Exception(error.message);
+    }
+  }
+
+  @override
+  Future<List<Room>> search(String query) async {
+    try {
+      final queries = AdvancedQueryBuilder()
+          .search('room_number', query)
+          .orderAsc('room_number')
+          .build();
+
+      final documents = await _appwriteService.listDocuments(
+        collectionId: _collectionId,
+        queries: queries,
+      );
+
+      return documents.map(RoomAppwriteExtension.fromAppwriteDocument).toList();
+    } catch (e) {
+      final error = _errorHandler.handleError(e, context: 'search($query)');
+      throw Exception(error.message);
+    }
+  }
+
+  @override
+  Future<List<Room>> getAvailable() async {
+    try {
+      final queries = AdvancedQueryBuilder()
+          .where('status', 'شاغرة')
+          .orderAsc('room_number')
+          .build();
+
+      final documents = await _appwriteService.listDocuments(
+        collectionId: _collectionId,
+        queries: queries,
+      );
+
+      return documents.map(RoomAppwriteExtension.fromAppwriteDocument).toList();
+    } catch (e) {
+      final error = _errorHandler.handleError(e, context: 'getAvailable');
+      throw Exception(error.message);
+    }
+  }
+
+  @override
+  Future<List<Room>> getByPriceRange(double min, double max) async {
+    try {
+      final queries = AdvancedQueryBuilder()
+          .whereBetween('price', min, max)
+          .orderAsc('price')
+          .build();
+
+      final documents = await _appwriteService.listDocuments(
+        collectionId: _collectionId,
+        queries: queries,
+      );
+
+      return documents.map(RoomAppwriteExtension.fromAppwriteDocument).toList();
+    } catch (e) {
+      final error = _errorHandler.handleError(
+        e,
+        context: 'getByPriceRange($min, $max)',
+      );
+      throw Exception(error.message);
+    }
+  }
+
+  @override
+  Future<List<Room>> getPaginated({int limit = 25, int offset = 0}) async {
+    try {
+      final queries = AdvancedQueryBuilder()
+          .limit(limit)
+          .offset(offset)
+          .orderAsc('room_number')
+          .build();
+
+      final documents = await _appwriteService.listDocuments(
+        collectionId: _collectionId,
+        queries: queries,
+      );
+
+      return documents.map(RoomAppwriteExtension.fromAppwriteDocument).toList();
+    } catch (e) {
+      final error = _errorHandler.handleError(
+        e,
+        context: 'getPaginated(limit: $limit, offset: $offset)',
+      );
+      throw Exception(error.message);
+    }
+  }
+
+  /// الحصول على إحصائيات الغرف
+  Future<RoomStatistics> getStatistics() async {
+    try {
+      final allRooms = await getAll();
+
+      final available = allRooms.where((r) => r.status == 'شاغرة').length;
+      final occupied = allRooms.where((r) => r.status == 'محجوزة').length;
+
+      final prices = allRooms.map((r) => r.price).toList();
+      prices.sort();
+
+      return RoomStatistics(
+        total: allRooms.length,
+        available: available,
+        occupied: occupied,
+        minPrice: prices.isNotEmpty ? prices.first : 0,
+        maxPrice: prices.isNotEmpty ? prices.last : 0,
+        avgPrice: prices.isNotEmpty
+            ? prices.reduce((a, b) => a + b) / prices.length
+            : 0,
+      );
+    } catch (e) {
+      final error = _errorHandler.handleError(e, context: 'getStatistics');
+      throw Exception(error.message);
+    }
+  }
+}
+
+/// إحصائيات الغرف
+class RoomStatistics {
+  RoomStatistics({
+    required this.total,
+    required this.available,
+    required this.occupied,
+    required this.minPrice,
+    required this.maxPrice,
+    required this.avgPrice,
+  });
+  final int total;
+  final int available;
+  final int occupied;
+  final double minPrice;
+  final double maxPrice;
+  final double avgPrice;
+
+  double get occupancyRate => total > 0 ? occupied / total : 0.0;
+
+  @override
+  String toString() =>
+      '''
+RoomStatistics:
+  Total: $total
+  Available: $available
+  Occupied: $occupied
+  Occupancy Rate: ${(occupancyRate * 100).toStringAsFixed(1)}%
+  Price Range: $minPrice - $maxPrice
+  Average Price: ${avgPrice.toStringAsFixed(2)}
+''';
+}
+
+/// امتداد للـ Room Model لدعم Appwrite Document
+extension RoomAppwriteExtension on Room {
+  static Room fromAppwriteDocument(models.Document doc) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    return Room(
+      id: int.tryParse(doc.$id) ?? 0,
+      localUuid: doc.data['localUuid'] as String? ?? doc.$id,
+      serverId: doc.data['serverId'] as int?,
+      roomNumber: doc.data['room_number'] as String,
+      type: doc.data['type'] as String,
+      price: (doc.data['price'] as num).toDouble(),
+      status: doc.data['status'] as String,
+      imageUrl: doc.data['image_url'] as String?,
+      cleaningStatus: doc.data['cleaning_status'] as String? ?? 'clean',
+      lastCleanedHotelDay: doc.data['last_cleaned'] as String?,
+      lastOccupiedHotelDay: doc.data['last_occupied'] as String?,
+      requiresMaintenance: doc.data['requires_maintenance'] as bool? ?? false,
+      createdAt: now,
+      updatedAt: now,
+      lastModified: now,
+      createdAtEpoch: now,
+      lastModifiedEpoch: now,
+      version: 1,
+      origin: 'cloud',
+      vectorClock: '{}',
+      deviceId:
+          doc.data['deviceId'] as String? ??
+          doc.data['device_id'] as String? ??
+          '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'room_number': roomNumber,
+      'type': type,
+      'price': price,
+      'status': status,
+      if (imageUrl != null) 'image_url': imageUrl,
+      if (cleaningStatus.isNotEmpty) 'cleaning_status': cleaningStatus,
+      if (lastCleanedHotelDay != null) 'last_cleaned': lastCleanedHotelDay,
+      if (lastOccupiedHotelDay != null) 'last_occupied': lastOccupiedHotelDay,
+      'requires_maintenance': requiresMaintenance,
+      'localUuid': localUuid,
+      if (serverId != null) 'serverId': serverId,
+    };
+  }
+}
