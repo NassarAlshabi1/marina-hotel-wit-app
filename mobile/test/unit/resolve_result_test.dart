@@ -54,7 +54,10 @@ void main() {
     });
 
     test('shouldSkip = true مع skipReason يصف السبب', () {
-      const result = ResolveResult(shouldSkip: true, skipReason: 'salary_cycle: لا يمكن العثور على الموظف المرتبط');
+      const result = ResolveResult(
+        shouldSkip: true,
+        skipReason: 'salary_cycle: لا يمكن العثور على الموظف المرتبط',
+      );
       expect(result.shouldSkip, isTrue);
       expect(result.skipReason, contains('لا يمكن العثور'));
     });
@@ -65,7 +68,11 @@ void main() {
   // ═══════════════════════════════════════════════════════════════
   group('ResolveResult — copyWith', () {
     test('copyWith يحتفظ بالقيم الأصلية عند عدم التحديد', () {
-      const original = ResolveResult(bookingLocalId: 5, employeeLocalId: 10, shouldSkip: false);
+      const original = ResolveResult(
+        bookingLocalId: 5,
+        employeeLocalId: 10,
+        shouldSkip: false,
+      );
       final copy = original.copyWith();
       expect(copy.bookingLocalId, 5);
       expect(copy.employeeLocalId, 10);
@@ -73,7 +80,11 @@ void main() {
     });
 
     test('copyWith يستبدل القيم المحددة فقط', () {
-      const original = ResolveResult(bookingLocalId: 5, employeeLocalId: 10, shouldSkip: false);
+      const original = ResolveResult(
+        bookingLocalId: 5,
+        employeeLocalId: 10,
+        shouldSkip: false,
+      );
       final copy = original.copyWith(shouldSkip: true, skipReason: 'orphan');
       expect(copy.bookingLocalId, 5);
       expect(copy.employeeLocalId, 10);
@@ -82,14 +93,20 @@ void main() {
     });
 
     test('copyWith لا يمكنه مسح قيمة إلى null (سلوك ??)', () {
-      const original = ResolveResult(bookingLocalId: 5, skipReason: 'old reason');
+      const original = ResolveResult(
+        bookingLocalId: 5,
+        skipReason: 'old reason',
+      );
       // copyWith يستخدم ?? لذا لا يمكن مسح قيمة إلى null
       final copy = original.copyWith(skipReason: 'new reason');
       expect(copy.skipReason, 'new reason');
     });
 
     test('copyWith يضيف shouldSkip و skipReason للنتيجة الفارغة', () {
-      final copy = ResolveResult.empty.copyWith(shouldSkip: true, skipReason: 'booking not found');
+      final copy = ResolveResult.empty.copyWith(
+        shouldSkip: true,
+        skipReason: 'booking not found',
+      );
       expect(copy.shouldSkip, isTrue);
       expect(copy.skipReason, 'booking not found');
       expect(copy.bookingLocalId, isNull);
