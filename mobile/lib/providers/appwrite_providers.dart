@@ -1,1 +1,181 @@
-aW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXJfcml2ZXJwb2QvZmx1dHRlcl9yaXZlcnBvZC5kYXJ0JzsKCmltcG9ydCAnLi4vc2VydmljZXMvYXBwd3JpdGVfY2FjaGVfbWFuYWdlci5kYXJ0JzsKaW1wb3J0ICcuLi9zZXJ2aWNlcy9hcHB3cml0ZV9lcnJvcl9oYW5kbGVyLmRhcnQnOwppbXBvcnQgJy4uL3NlcnZpY2VzL2FwcHdyaXRlX2xvZ2dlci5kYXJ0JzsKaW1wb3J0ICcuLi9zZXJ2aWNlcy9hcHB3cml0ZV9zZXJ2aWNlLmRhcnQnOwppbXBvcnQgJy4uL3NlcnZpY2VzL2FwcHdyaXRlX3N5bmNfbWFuYWdlci5kYXJ0JzsKaW1wb3J0ICcuLi9zZXJ2aWNlcy9kYW9zL291dGJveF9kYW8uZGFydCc7CmltcG9ydCAnLi4vc2VydmljZXMvcHJvdmlkZXJzLmRhcnQnOwppbXBvcnQgJy4uL3NlcnZpY2VzL3NtYXJ0X3N5bmNfbWFuYWdlci5kYXJ0JzsKaW1wb3J0ICcuLi9zZXJ2aWNlcy91bmlmaWVkX3N5bmNfb3JjaGVzdHJhdG9yLmRhcnQnOwoKLy8gPT09PT09PT09PT09IFNlcnZpY2UgUHJvdmlkZXJzID09PT09PT09PT09PQoKLy8vINmF2LLZiNivINiu2K/ZhdipIEFwcHdyaXRlCmZpbmFsIGFwcHdyaXRlU2VydmljZVByb3ZpZGVyID0gUHJvdmlkZXI8QXBwd3JpdGVTZXJ2aWNlPigocmVmKSB7CiAgcmV0dXJuIEFwcHdyaXRlU2VydmljZSgpOwp9KTsKCi8vLyDZhdiy2YjYryDZhdiv2YrYsSDYp9mE2YXYstin2YXZhtipCmZpbmFsIGFwcHdyaXRlU3luY01hbmFnZXJQcm92aWRlciA9IFByb3ZpZGVyPEFwcHdyaXRlU3luY01hbmFnZXI+KChyZWYpIHsKICAvLyDinIUg2KXYtdmE2KfYrSBHZW1pbmk6INin2LPYqtiu2K/Yp9mFIHJlZi53YXRjaCDYqNiv2YTYp9mLINmF2YYgcmVmLnJlYWQg2K/Yp9iu2YQgcHJvdmlkZXIKICBmaW5hbCBzZXJ2aWNlID0gcmVmLndhdGNoKGFwcHdyaXRlU2VydmljZVByb3ZpZGVyKTsKICBmaW5hbCBkYXRhYmFzZSA9IHJlZi53YXRjaChkYXRhYmFzZVByb3ZpZGVyKTsKICBmaW5hbCBtYW5hZ2VyID0gQXBwd3JpdGVTeW5jTWFuYWdlcigKICAgIGFwcHdyaXRlU2VydmljZTogc2VydmljZSwKICAgIGRhdGFiYXNlOiBkYXRhYmFzZSwKICApOwoKICByZWYub25EaXNwb3NlKG1hbmFnZXIuZGlzcG9zZSk7CgogIHJldHVybiBtYW5hZ2VyOwp9KTsKCmZpbmFsIHVuaWZpZWRTeW5jT3JjaGVzdHJhdG9yUHJvdmlkZXIgPSBQcm92aWRlcjxVbmlmaWVkU3luY09yY2hlc3RyYXRvcj4oKAogIHJlZiwKKSB7CiAgLy8g4pyFINil2LXZhNin2K0gR2VtaW5pOiDYp9iz2KrYrtiv2KfZhSByZWYud2F0Y2gg2KjYr9mE2KfZiyDZhdmGIHJlZi5yZWFkINiv2KfYrtmEIHByb3ZpZGVyCiAgZmluYWwgYXBwd3JpdGVTeW5jID0gcmVmLndhdGNoKGFwcHdyaXRlU3luY01hbmFnZXJQcm92aWRlcik7CiAgZmluYWwgZGIgPSByZWYud2F0Y2goZGF0YWJhc2VQcm92aWRlcik7CiAgZmluYWwgc21hcnQgPSBTbWFydFN5bmNNYW5hZ2VyLmluc3RhbmNlOwogIGZpbmFsIG9yY2ggPSBVbmlmaWVkU3luY09yY2hlc3RyYXRvci5pbnN0YW5jZTsKICBvcmNoLmluaXRpYWxpemUoYXBwd3JpdGU6IGFwcHdyaXRlU3luYywgc21hcnQ6IHNtYXJ0LCBkYXRhYmFzZTogZGIpOwogIHJldHVybiBvcmNoOwp9KTsKCmZpbmFsIHVuaWZpZWRTeW5jU3RhdGVQcm92aWRlciA9IFN0cmVhbVByb3ZpZGVyPFVuaWZpZWRTeW5jU3RhdGU+KChyZWYpIHsKICBmaW5hbCBvcmNoID0gcmVmLndhdGNoKHVuaWZpZWRTeW5jT3JjaGVzdHJhdG9yUHJvdmlkZXIpOwogIHJlZi5vbkRpc3Bvc2Uob3JjaC5kaXNwb3NlKTsKICByZXR1cm4gb3JjaC5zdGF0ZVN0cmVhbTsKfSk7CgovLy8g2YXYstmI2K8g2YXYr9mK2LEg2KfZhNiw2KfZg9ix2Kkg2KfZhNmF2KTZgtiq2KkKZmluYWwgYXBwd3JpdGVDYWNoZU1hbmFnZXJQcm92aWRlciA9IFByb3ZpZGVyPEFwcHdyaXRlQ2FjaGVNYW5hZ2VyPigocmVmKSB7CiAgcmV0dXJuIEFwcHdyaXRlQ2FjaGVNYW5hZ2VyKCk7Cn0pOwoKLy8vINmF2LLZiNivINin2YTZhdiz2KzZhApmaW5hbCBhcHB3cml0ZUxvZ2dlclByb3ZpZGVyID0gUHJvdmlkZXI8QXBwd3JpdGVMb2dnZXI+KChyZWYpIHsKICByZXR1cm4gQXBwd3JpdGVMb2dnZXIoKTsKfSk7CgovLy8g2YXYstmI2K8g2YXYudin2YTYrCDYp9mE2KPYrti32KfYoQpmaW5hbCBhcHB3cml0ZUVycm9ySGFuZGxlclByb3ZpZGVyID0gUHJvdmlkZXI8QXBwd3JpdGVFcnJvckhhbmRsZXI+KChyZWYpIHsKICByZXR1cm4gQXBwd3JpdGVFcnJvckhhbmRsZXIoKTsKfSk7CgovLyA9PT09PT09PT09PT0gU3RhdGUgUHJvdmlkZXJzID09PT09PT09PT09PQoKLy8vINmF2LLZiNivINit2KfZhNipINin2YTYp9iq2LXYp9mECmZpbmFsIGNvbm5lY3Rpb25TdGF0dXNQcm92aWRlciA9CiAgICBTdGF0ZU5vdGlmaWVyUHJvdmlkZXI8Q29ubmVjdGlvblN0YXR1c05vdGlmaWVyLCBDb25uZWN0aW9uU3RhdGU+KChyZWYpIHsKICAgICAgcmV0dXJuIENvbm5lY3Rpb25TdGF0dXNOb3RpZmllcihyZWYpOwogICAgfSk7CgpjbGFzcyBDb25uZWN0aW9uU3RhdGUgewogIENvbm5lY3Rpb25TdGF0ZSh7CiAgICByZXF1aXJlZCB0aGlzLmlzQ29ubmVjdGVkLAogICAgdGhpcy5pc0NoZWNraW5nID0gZmFsc2UsCiAgICB0aGlzLmVycm9yTWVzc2FnZSwKICB9KTsKICBmaW5hbCBib29sIGlzQ29ubmVjdGVkOwogIGZpbmFsIGJvb2wgaXNDaGVja2luZzsKICBmaW5hbCBTdHJpbmc/IGVycm9yTWVzc2FnZTsKCiAgQ29ubmVjdGlvblN0YXRlIGNvcHlXaXRoKHsKICAgIGJvb2w/IGlzQ29ubmVjdGVkLAogICAgYm9vbD8gaXNDaGVja2luZywKICAgIFN0cmluZz8gZXJyb3JNZXNzYWdlLAogIH0pIHsKICAgIHJldHVybiBDb25uZWN0aW9uU3RhdGUoCiAgICAgIGlzQ29ubmVjdGVkOiBpc0Nvbm5lY3RlZCA/PyB0aGlzLmlzQ29ubmVjdGVkLAogICAgICBpc0NoZWNraW5nOiBpc0NoZWNraW5nID8/IHRoaXMuaXNDaGVja2luZywKICAgICAgZXJyb3JNZXNzYWdlOiBlcnJvck1lc3NhZ2UgPz8gdGhpcy5lcnJvck1lc3NhZ2UsCiAgICApOwogIH0KfQoKY2xhc3MgQ29ubmVjdGlvblN0YXR1c05vdGlmaWVyIGV4dGVuZHMgU3RhdGVOb3RpZmllcjxDb25uZWN0aW9uU3RhdGU+IHsKICBDb25uZWN0aW9uU3RhdHVzTm90aWZpZXIodGhpcy5yZWYpCiAgICA6IHN1cGVyKENvbm5lY3Rpb25TdGF0ZShpc0Nvbm5lY3RlZDogZmFsc2UpKTsKICBmaW5hbCBSZWYgcmVmOwoKICBGdXR1cmU8dm9pZD4gY2hlY2tDb25uZWN0aW9uKCkgYXN5bmMgewogICAgc3RhdGUgPSBzdGF0ZS5jb3B5V2l0aChpc0NoZWNraW5nOiB0cnVlKTsKCiAgICB0cnkgewogICAgICBmaW5hbCBzZXJ2aWNlID0gcmVmLnJlYWQoYXBwd3JpdGVTZXJ2aWNlUHJvdmlkZXIpOwogICAgICBhd2FpdCBzZXJ2aWNlLmluaXRpYWxpemUoKTsKICAgICAgZmluYWwgY29ubmVjdGlvblJlc3VsdCA9IGF3YWl0IHNlcnZpY2UudGVzdENvbm5lY3Rpb24oKTsKICAgICAgZmluYWwgaXNDb25uZWN0ZWQgPSBjb25uZWN0aW9uUmVzdWx0WydvdmVyYWxsX3N1Y2Nlc3MnXSA9PSB0cnVlOwogICAgICBmaW5hbCBmYWlsdXJlTWVzc2FnZSA9IGlzQ29ubmVjdGVkCiAgICAgICAgICA/IG51bGwKICAgICAgICAgIDogKGNvbm5lY3Rpb25SZXN1bHRbJ2Vycm9yJ10gYXMgU3RyaW5nPykgPz8gJ9mB2LTZhCDYp9mE2KfYqti12KfZhCDYqNmAIEFwcHdyaXRlJzsKCiAgICAgIHN0YXRlID0gQ29ubmVjdGlvblN0YXRlKAogICAgICAgIGlzQ29ubmVjdGVkOiBpc0Nvbm5lY3RlZCwKICAgICAgICBlcnJvck1lc3NhZ2U6IGZhaWx1cmVNZXNzYWdlLAogICAgICApOwogICAgfSBjYXRjaCAoZSkgewogICAgICBzdGF0ZSA9IENvbm5lY3Rpb25TdGF0ZSgKICAgICAgICBpc0Nvbm5lY3RlZDogZmFsc2UsCiAgICAgICAgZXJyb3JNZXNzYWdlOiAn2K7Yt9ijINmB2Yog2KfZhNin2KrYtdin2YQ6ICRlJywKICAgICAgKTsKICAgIH0KICB9Cn0KCi8vID09PT09PT09PT09PSBEYXRhIFByb3ZpZGVycyA9PT09PT09PT09PT0KCi8vLyDZhdiy2YjYryDYpdit2LXYp9im2YrYp9iqINin2YTZhdiy2KfZhdmG2KkKZmluYWwgc3luY1N0YXRzUHJvdmlkZXIgPSBGdXR1cmVQcm92aWRlci5hdXRvRGlzcG9zZTxNYXA8U3RyaW5nLCBkeW5hbWljPj4oKAogIHJlZiwKKSBhc3luYyB7CiAgLy8g4pyFINil2LXZhNin2K0gR2VtaW5pOiByZWYud2F0Y2gg2KjYr9mE2KfZiyDZhdmGIHJlZi5yZWFkINiv2KfYrtmEIHByb3ZpZGVyCiAgZmluYWwgc3luY01hbmFnZXIgPSByZWYud2F0Y2goYXBwd3JpdGVTeW5jTWFuYWdlclByb3ZpZGVyKTsKICByZXR1cm4gc3luY01hbmFnZXIuZ2V0U3luY1N0YXRpc3RpY3MoKTsKfSk7CgpmaW5hbCBvdXRib3hDb3VudFByb3ZpZGVyID0gU3RyZWFtUHJvdmlkZXIuYXV0b0Rpc3Bvc2U8aW50PigocmVmKSB7CiAgLy8g4pyFINil2LXZhNin2K0gR2VtaW5pOiByZWYud2F0Y2gg2KjYr9mE2KfZiyDZhdmGIHJlZi5yZWFkINiv2KfYrtmEIHByb3ZpZGVyCiAgZmluYWwgZGIgPSByZWYud2F0Y2goZGF0YWJhc2VQcm92aWRlcik7CiAgZmluYWwgZGFvID0gT3V0Ym94RGFvKGRiKTsKICAvLyDinIUg2YHYtdmEINmH2YbYr9iz2Yo6INmG2LHYp9mC2Kgg2YHZgti3INi52YbYp9i12LEgc291cmNlPSdsb2NhbCcgKNiq2LrZitmK2LHYp9iqINmF2K3ZhNmK2KkpCiAgcmV0dXJuIGRhby53YXRjaENvdW50KHNvdXJjZXM6IGNvbnN0IFsnbG9jYWwnXSk7Cn0pOwoKLy8vINmF2LLZiNivINil2K3Ytdin2KbZitin2Kog2KfZhNiw2KfZg9ix2Kkg2KfZhNmF2KTZgtiq2KkKZmluYWwgY2FjaGVTdGF0c1Byb3ZpZGVyID0gUHJvdmlkZXI8Q2FjaGVTdGF0aXN0aWNzPigocmVmKSB7CiAgLy8g4pyFINil2LXZhNin2K0gR2VtaW5pOiByZWYud2F0Y2gg2KjYr9mE2KfZiyDZhdmGIHJlZi5yZWFkINiv2KfYrtmEIHByb3ZpZGVyCiAgZmluYWwgY2FjaGVNYW5hZ2VyID0gcmVmLndhdGNoKGFwcHdyaXRlQ2FjaGVNYW5hZ2VyUHJvdmlkZXIpOwogIHJldHVybiBjYWNoZU1hbmFnZXIuZ2V0U3RhdGlzdGljcygpOwp9KTsKCi8vLyDZhdiy2YjYryDYpdit2LXYp9im2YrYp9iqINin2YTYs9is2YTYp9iqCmZpbmFsIGxvZ1N0YXRzUHJvdmlkZXIgPSBQcm92aWRlcjxNYXA8U3RyaW5nLCBpbnQ+PigocmVmKSB7CiAgLy8g4pyFINil2LXZhNin2K0gR2VtaW5pOiByZWYud2F0Y2gg2KjYr9mE2KfZiyDZhdmGIHJlZi5yZWFkINiv2KfYrtmEIHByb3ZpZGVyCiAgZmluYWwgbG9nZ2VyID0gcmVmLndhdGNoKGFwcHdyaXRlTG9nZ2VyUHJvdmlkZXIpOwogIHJldHVybiBsb2dnZXIuZ2V0U3RhdGlzdGljcygpOwp9KTsKCi8vLyDZhdiy2YjYryDZhdi52YTZiNmF2KfYqiDYp9mE2YXYtNix2YjYuQpmaW5hbCBwcm9qZWN0SW5mb1Byb3ZpZGVyID0gUHJvdmlkZXI8TWFwPFN0cmluZywgU3RyaW5nPj4oKHJlZikgewogIC8vIOKchSDYpdi12YTYp9itIEdlbWluaTogcmVmLndhdGNoINio2K/ZhNin2Ysg2YXZhiByZWYucmVhZCDYr9in2K7ZhCBwcm92aWRlcgogIGZpbmFsIHNlcnZpY2UgPSByZWYud2F0Y2goYXBwd3JpdGVTZXJ2aWNlUHJvdmlkZXIpOwogIHJldHVybiBzZXJ2aWNlLmdldFByb2plY3RJbmZvKCk7Cn0pOwoKLy8vINmF2LLZiNivINmC2KfYptmF2Kkg2KfZhNij2KzZh9iy2Kkg2KfZhNmF2LPYrNmE2KkgKNij2K3Yr9irINis2YfYp9iy2YrZhiDZgdmC2LcpCmZpbmFsIGRldmljZXNMaXN0UHJvdmlkZXIgPSBGdXR1cmVQcm92aWRlci5hdXRvRGlzcG9zZSgocmVmKSBhc3luYyB7CiAgLy8g4pyFINil2LXZhNin2K0gR2VtaW5pOiByZWYud2F0Y2gg2KjYr9mE2KfZiyDZhdmGIHJlZi5yZWFkINiv2KfYrtmEIHByb3ZpZGVyCiAgZmluYWwgc3luY01hbmFnZXIgPSByZWYud2F0Y2goYXBwd3JpdGVTeW5jTWFuYWdlclByb3ZpZGVyKTsKICByZXR1cm4gc3luY01hbmFnZXIuZ2V0UmVnaXN0ZXJlZERldmljZXMoKTsKfSk7CgovLy8g2YXYstmI2K8g2KfZhNiz2KzZhNin2KoKZmluYWwgbG9nc1Byb3ZpZGVyID0gUHJvdmlkZXIoKHJlZikgewogIC8vIOKchSDYpdi12YTYp9itIEdlbWluaTogcmVmLndhdGNoINio2K/ZhNin2Ysg2YXZhiByZWYucmVhZCDYr9in2K7ZhCBwcm92aWRlcgogIGZpbmFsIGxvZ2dlciA9IHJlZi53YXRjaChhcHB3cml0ZUxvZ2dlclByb3ZpZGVyKTsKICByZXR1cm4gbG9nZ2VyLmdldExvZ3MoKTsKfSk7Cg==
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../services/appwrite_cache_manager.dart';
+import '../services/appwrite_error_handler.dart';
+import '../services/appwrite_logger.dart';
+import '../services/appwrite_service.dart';
+import '../services/appwrite_sync_manager.dart';
+import '../services/daos/outbox_dao.dart';
+import '../services/providers.dart';
+import '../services/smart_sync_manager.dart';
+import '../services/unified_sync_orchestrator.dart';
+
+// ============ Service Providers ============
+
+/// مزود خدمة Appwrite
+final appwriteServiceProvider = Provider<AppwriteService>((ref) {
+  return AppwriteService();
+});
+
+/// مزود مدير المزامنة
+final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
+  // ✅ إصلاح Gemini: استخدام ref.watch بدلاً من ref.read داخل provider
+  final service = ref.watch(appwriteServiceProvider);
+  final database = ref.watch(databaseProvider);
+  final manager = AppwriteSyncManager(
+    appwriteService: service,
+    database: database,
+  );
+
+  ref.onDispose(manager.dispose);
+
+  return manager;
+});
+
+final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((
+  ref,
+) {
+  // ✅ إصلاح Gemini: استخدام ref.watch بدلاً من ref.read داخل provider
+  final appwriteSync = ref.watch(appwriteSyncManagerProvider);
+  final db = ref.watch(databaseProvider);
+  final smart = SmartSyncManager.instance;
+  final orch = UnifiedSyncOrchestrator.instance;
+  orch.initialize(appwrite: appwriteSync, smart: smart, database: db);
+  return orch;
+});
+
+final unifiedSyncStateProvider = StreamProvider<UnifiedSyncState>((ref) {
+  final orch = ref.watch(unifiedSyncOrchestratorProvider);
+  ref.onDispose(orch.dispose);
+  return orch.stateStream;
+});
+
+/// مزود مدير الذاكرة المؤقتة
+final appwriteCacheManagerProvider = Provider<AppwriteCacheManager>((ref) {
+  return AppwriteCacheManager();
+});
+
+/// مزود المسجل
+final appwriteLoggerProvider = Provider<AppwriteLogger>((ref) {
+  return AppwriteLogger();
+});
+
+/// مزود معالج الأخطاء
+final appwriteErrorHandlerProvider = Provider<AppwriteErrorHandler>((ref) {
+  return AppwriteErrorHandler();
+});
+
+// ============ State Providers ============
+
+/// مزود حالة الاتصال
+final connectionStatusProvider =
+    StateNotifierProvider<ConnectionStatusNotifier, ConnectionState>((ref) {
+      return ConnectionStatusNotifier(ref);
+    });
+
+class ConnectionState {
+  ConnectionState({
+    required this.isConnected,
+    this.isChecking = false,
+    this.errorMessage,
+  });
+  final bool isConnected;
+  final bool isChecking;
+  final String? errorMessage;
+
+  ConnectionState copyWith({
+    bool? isConnected,
+    bool? isChecking,
+    String? errorMessage,
+  }) {
+    return ConnectionState(
+      isConnected: isConnected ?? this.isConnected,
+      isChecking: isChecking ?? this.isChecking,
+      errorMessage: errorMessage ?? this.errorMessage,
+    );
+  }
+}
+
+class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
+  ConnectionStatusNotifier(this.ref)
+    : super(ConnectionState(isConnected: false));
+  final Ref ref;
+
+  Future<void> checkConnection() async {
+    state = state.copyWith(isChecking: true);
+
+    try {
+      final service = ref.read(appwriteServiceProvider);
+      await service.initialize();
+      final connectionResult = await service.testConnection();
+      final isConnected = connectionResult['overall_success'] == true;
+      final failureMessage = isConnected
+          ? null
+          : (connectionResult['error'] as String?) ?? 'فشل الاتصال بـ Appwrite';
+
+      state = ConnectionState(
+        isConnected: isConnected,
+        errorMessage: failureMessage,
+      );
+    } catch (e) {
+      state = ConnectionState(
+        isConnected: false,
+        errorMessage: 'خطأ في الاتصال: $e',
+      );
+    }
+  }
+}
+
+// ============ Data Providers ============
+
+/// مزود إحصائيات المزامنة
+final syncStatsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((
+  ref,
+) async {
+  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
+  final syncManager = ref.watch(appwriteSyncManagerProvider);
+  return syncManager.getSyncStatistics();
+});
+
+final outboxCountProvider = StreamProvider.autoDispose<int>((ref) {
+  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
+  final db = ref.watch(databaseProvider);
+  final dao = OutboxDao(db);
+  // ✅ فصل هندسي: نراقب فقط عناصر source='local' (تغييرات محلية)
+  return dao.watchCount(sources: const ['local']);
+});
+
+/// مزود إحصائيات الذاكرة المؤقتة
+final cacheStatsProvider = Provider<CacheStatistics>((ref) {
+  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
+  final cacheManager = ref.watch(appwriteCacheManagerProvider);
+  return cacheManager.getStatistics();
+});
+
+/// مزود إحصائيات السجلات
+final logStatsProvider = Provider<Map<String, int>>((ref) {
+  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
+  final logger = ref.watch(appwriteLoggerProvider);
+  return logger.getStatistics();
+});
+
+/// مزود معلومات المشروع
+final projectInfoProvider = Provider<Map<String, String>>((ref) {
+  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
+  final service = ref.watch(appwriteServiceProvider);
+  return service.getProjectInfo();
+});
+
+/// مزود قائمة الأجهزة المسجلة (أحدث جهازين فقط)
+final devicesListProvider = FutureProvider.autoDispose((ref) async {
+  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
+  final syncManager = ref.watch(appwriteSyncManagerProvider);
+  return syncManager.getRegisteredDevices();
+});
+
+/// مزود السجلات
+final logsProvider = Provider((ref) {
+  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
+  final logger = ref.watch(appwriteLoggerProvider);
+  return logger.getLogs();
+});
