@@ -1,1 +1,423 @@
-Ly8gbGliL3NjcmVlbnMvc2V0dGluZ3MvcmVtb3RlX2NvbmZpZ19zZXR0aW5nc19zY3JlZW4uZGFydAovLyDYtNin2LTYqSDYudix2LYg2YjYpdiv2KfYsdipIEZpcmViYXNlIFJlbW90ZSBDb25maWcKCmltcG9ydCAncGFja2FnZTpmbHV0dGVyL21hdGVyaWFsLmRhcnQnOwppbXBvcnQgJ3BhY2thZ2U6Zmx1dHRlcl9yaXZlcnBvZC9mbHV0dGVyX3JpdmVycG9kLmRhcnQnOwppbXBvcnQgJy4uLy4uL2NvbXBvbmVudHMvYXBwX3NjYWZmb2xkLmRhcnQnOwppbXBvcnQgJy4uLy4uL3Byb3ZpZGVycy9yZW1vdGVfY29uZmlnX3Byb3ZpZGVyLmRhcnQnOwoKY2xhc3MgUmVtb3RlQ29uZmlnU2V0dGluZ3NTY3JlZW4gZXh0ZW5kcyBDb25zdW1lclN0YXRlZnVsV2lkZ2V0IHsKICBjb25zdCBSZW1vdGVDb25maWdTZXR0aW5nc1NjcmVlbih7c3VwZXIua2V5fSk7CgogIEBvdmVycmlkZQogIENvbnN1bWVyU3RhdGU8UmVtb3RlQ29uZmlnU2V0dGluZ3NTY3JlZW4+IGNyZWF0ZVN0YXRlKCkgPT4KICAgICAgX1JlbW90ZUNvbmZpZ1NldHRpbmdzU2NyZWVuU3RhdGUoKTsKfQoKY2xhc3MgX1JlbW90ZUNvbmZpZ1NldHRpbmdzU2NyZWVuU3RhdGUKICAgIGV4dGVuZHMgQ29uc3VtZXJTdGF0ZTxSZW1vdGVDb25maWdTZXR0aW5nc1NjcmVlbj4gewogIGJvb2wgX2lzRmV0Y2hpbmcgPSBmYWxzZTsKCiAgRnV0dXJlPHZvaWQ+IF9mb3JjZUZldGNoKCkgYXN5bmMgewogICAgc2V0U3RhdGUoKCkgPT4gX2lzRmV0Y2hpbmcgPSB0cnVlKTsKICAgIGZpbmFsIHN1Y2Nlc3MgPSBhd2FpdCByZWYucmVhZChyZW1vdGVDb25maWdTZXJ2aWNlUHJvdmlkZXIpLmZvcmNlRmV0Y2goKTsKICAgIGlmIChtb3VudGVkKSB7CiAgICAgIHNldFN0YXRlKCgpID0+IF9pc0ZldGNoaW5nID0gZmFsc2UpOwogICAgICBTY2FmZm9sZE1lc3Nlbmdlci5vZihjb250ZXh0KS5zaG93U25hY2tCYXIoCiAgICAgICAgU25hY2tCYXIoCiAgICAgICAgICBjb250ZW50OiBUZXh0KAogICAgICAgICAgICBzdWNjZXNzCiAgICAgICAgICAgICAgICA/ICfYqtmFINiq2K3Yr9mK2Ksg2KfZhNil2LnYr9in2K/Yp9iqINio2YbYrNin2K0nCiAgICAgICAgICAgICAgICA6ICfZgdi02YQg2KfZhNiq2K3Yr9mK2Ksg4oCUINmK2Y/Ys9iq2K7Yr9mFINin2YTYpdi52K/Yp9iv2KfYqiDYp9mE2YXYrdmE2YrYqScsCiAgICAgICAgICApLAogICAgICAgICAgYmFja2dyb3VuZENvbG9yOiBzdWNjZXNzID8gQ29sb3JzLmdyZWVuIDogQ29sb3JzLm9yYW5nZSwKICAgICAgICApLAogICAgICApOwogICAgfQogIH0KCiAgQG92ZXJyaWRlCiAgV2lkZ2V0IGJ1aWxkKEJ1aWxkQ29udGV4dCBjb250ZXh0KSB7CiAgICBmaW5hbCB2YWx1ZXMgPSByZWYud2F0Y2gocmVtb3RlQ29uZmlnVmFsdWVzUHJvdmlkZXIpOwogICAgZmluYWwgZGlhZyA9IHJlZi53YXRjaChyZW1vdGVDb25maWdEaWFnbm9zdGljc1Byb3ZpZGVyKTsKCiAgICByZXR1cm4gQXBwU2NhZmZvbGQoCiAgICAgIHRpdGxlOiAnUmVtb3RlIENvbmZpZycsCiAgICAgIGFjdGlvbnM6IFsKICAgICAgICBJY29uQnV0dG9uKAogICAgICAgICAgb25QcmVzc2VkOiBfaXNGZXRjaGluZyA/IG51bGwgOiBfZm9yY2VGZXRjaCwKICAgICAgICAgIGljb246IF9pc0ZldGNoaW5nCiAgICAgICAgICAgICAgPyBjb25zdCBTaXplZEJveCgKICAgICAgICAgICAgICAgICAgd2lkdGg6IDIwLAogICAgICAgICAgICAgICAgICBoZWlnaHQ6IDIwLAogICAgICAgICAgICAgICAgICBjaGlsZDogQ2lyY3VsYXJQcm9ncmVzc0luZGljYXRvcihzdHJva2VXaWR0aDogMiksCiAgICAgICAgICAgICAgICApCiAgICAgICAgICAgICAgOiBjb25zdCBJY29uKEljb25zLnJlZnJlc2gpLAogICAgICAgICAgdG9vbHRpcDogJ9iq2K3Yr9mK2Ksg2YXZhiDYp9mE2LPZitix2YHYsScsCiAgICAgICAgKSwKICAgICAgXSwKICAgICAgYm9keTogTGlzdFZpZXcoCiAgICAgICAgcGFkZGluZzogY29uc3QgRWRnZUluc2V0cy5hbGwoMTYpLAogICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAvLyDYrdin2YTYqSDYp9mE2KfYqti12KfZhAogICAgICAgICAgX2J1aWxkU3RhdHVzQ2FyZChkaWFnKSwKCiAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDE2KSwKCiAgICAgICAgICAvLyDYp9mE2KXYtNi52KfYsdin2Kog2YjYp9mE2KfYqti12KfZhAogICAgICAgICAgX2J1aWxkU2VjdGlvbigKICAgICAgICAgICAgJ/CflJEg2KfZhNil2LTYudin2LHYp9iqINmI2KfZhNin2KrYtdin2YQnLAogICAgICAgICAgICBJY29ucy5ub3RpZmljYXRpb25zLAogICAgICAgICAgICBDb2xvcnMuYmx1ZSwKICAgICAgICAgICAgWwogICAgICAgICAgICAgIF9idWlsZENvbmZpZ1JvdygKICAgICAgICAgICAgICAgICfYsdmC2YUgV2hhdHNBcHAnLAogICAgICAgICAgICAgICAgdmFsdWVzWyd3aGF0c2FwcF9waG9uZSddPy50b1N0cmluZygpID8/ICctLS0nLAogICAgICAgICAgICAgICAgJ3doYXRzYXBwX3Bob25lJywKICAgICAgICAgICAgICApLAogICAgICAgICAgICAgIF9idWlsZENvbmZpZ1JvdygKICAgICAgICAgICAgICAgICfZhdmB2KrYp9itIEFQSScsCiAgICAgICAgICAgICAgICBfbWFza0tleSh2YWx1ZXNbJ3doYXRzYXBwX2FwaV9rZXknXT8udG9TdHJpbmcoKSA/PyAnLS0tJyksCiAgICAgICAgICAgICAgICAnd2hhdHNhcHBfYXBpX2tleScsCiAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICBfYnVpbGRDb25maWdSb3coCiAgICAgICAgICAgICAgICAnV2hhdHNBcHAg2YXZgdi52ZHZhCcsCiAgICAgICAgICAgICAgICAvLyDinIUg2YHYrdi1INin2YTZhtmI2Lkg2YLYqNmEINin2YTYqtit2YjZitmEIOKAlCDYp9mE2YLZitmF2Kkg2YLYryDYqti12YQg2YPZhti1INmF2YYg2KfZhNmAIHJlbW90ZSBjb25maWcKICAgICAgICAgICAgICAgICh2YWx1ZXNbJ3doYXRzYXBwX2VuYWJsZWQnXSBpcyBib29sKQogICAgICAgICAgICAgICAgICAgID8gdmFsdWVzWyd3aGF0c2FwcF9lbmFibGVkJ10udG9TdHJpbmcoKQogICAgICAgICAgICAgICAgICAgIDogJy0tLScsCiAgICAgICAgICAgICAgICAnd2hhdHNhcHBfZW5hYmxlZCcsCiAgICAgICAgICAgICAgICBpc0Jvb2w6IHRydWUsCiAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICBfYnVpbGRDb25maWdSb3coCiAgICAgICAgICAgICAgICAn2YfYp9iq2YEg2KfZhNmB2YbYr9mCJywKICAgICAgICAgICAgICAgIHZhbHVlc1snaG90ZWxfY29udGFjdF9waG9uZSddPy50b1N0cmluZygpID8/ICctLS0nLAogICAgICAgICAgICAgICAgJ2hvdGVsX2NvbnRhY3RfcGhvbmUnLAogICAgICAgICAgICAgICksCiAgICAgICAgICAgIF0sCiAgICAgICAgICApLAoKICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogMTYpLAoKICAgICAgICAgIC8vINmF2YjYp9i52YrYryDYp9mE2KrZgtin2LHZitixCiAgICAgICAgICBfYnVpbGRTZWN0aW9uKCfij7Ag2YXZiNin2LnZitivINin2YTYqtmC2KfYsdmK2LEnLCBJY29ucy5zY2hlZHVsZSwgQ29sb3JzLm9yYW5nZSwgWwogICAgICAgICAgICBfYnVpbGRDb25maWdSb3coCiAgICAgICAgICAgICAgJ9in2YTZhtiz2K4g2KfZhNin2K3YqtmK2KfYt9mKJywKICAgICAgICAgICAgICB2YWx1ZXNbJ2RhaWx5X2JhY2t1cF90aW1lJ10/LnRvU3RyaW5nKCkgPz8gJy0tLScsCiAgICAgICAgICAgICAgJ2RhaWx5X2JhY2t1cF90aW1lJywKICAgICAgICAgICAgKSwKICAgICAgICAgICAgX2J1aWxkQ29uZmlnUm93KAogICAgICAgICAgICAgICfYqtmC2LHZitixIFdoYXRzQXBwJywKICAgICAgICAgICAgICB2YWx1ZXNbJ3doYXRzYXBwX3JlcG9ydF90aW1lJ10/LnRvU3RyaW5nKCkgPz8gJy0tLScsCiAgICAgICAgICAgICAgJ3doYXRzYXBwX3JlcG9ydF90aW1lJywKICAgICAgICAgICAgKSwKICAgICAgICAgICAgX2J1aWxkQ29uZmlnUm93KAogICAgICAgICAgICAgICfYqtmC2LHZitixIFRlbGVncmFtJywKICAgICAgICAgICAgICB2YWx1ZXNbJ3RlbGVncmFtX3JlcG9ydF90aW1lJ10/LnRvU3RyaW5nKCkgPz8gJy0tLScsCiAgICAgICAgICAgICAgJ3RlbGVncmFtX3JlcG9ydF90aW1lJywKICAgICAgICAgICAgKSwKICAgICAgICAgIF0pLAoKICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogMTYpLAoKICAgICAgICAgIC8vINmC2YjYp9i52K8g2KfZhNit2KzZiNiy2KfYqgogICAgICAgICAgX2J1aWxkU2VjdGlvbign8J+PqCDZgtmI2KfYudivINin2YTYrdis2YjYstin2KonLCBJY29ucy5ob3RlbCwgQ29sb3JzLmdyZWVuLCBbCiAgICAgICAgICAgIF9idWlsZENvbmZpZ1JvdygKICAgICAgICAgICAgICAn2LPYp9i52Kkg2KfZhNiu2LHZiNisJywKICAgICAgICAgICAgICAnJHt2YWx1ZXNbJ2NoZWNrb3V0X2hvdXInXSBhcyBpbnQ/ID8/IDE0fTowMCcsCiAgICAgICAgICAgICAgJ2NoZWNrb3V0X2hvdXInLAogICAgICAgICAgICApLAogICAgICAgICAgICBfYnVpbGRDb25maWdSb3coCiAgICAgICAgICAgICAgJ9it2K8g2KfZhNiv2YrZiNmGINin2YTZhdiq2KPYrtix2KknLAogICAgICAgICAgICAgICcke3ZhbHVlc1snbGF0ZV9wYXltZW50X3RocmVzaG9sZF9kYXlzJ10gYXMgaW50PyA/PyAzMH0g2YrZiNmFJywKICAgICAgICAgICAgICAnbGF0ZV9wYXltZW50X3RocmVzaG9sZF9kYXlzJywKICAgICAgICAgICAgKSwKICAgICAgICAgICAgX2J1aWxkQ29uZmlnUm93KAogICAgICAgICAgICAgICfYr9mB2LnYp9iqINi12K3Zitit2Kkg2YHZgti3JywKICAgICAgICAgICAgICAodmFsdWVzWyd3aG9sZV9udW1iZXJfcGF5bWVudHNfb25seSddIGFzIGJvb2w/KT8udG9TdHJpbmcoKSA/PwogICAgICAgICAgICAgICAgICAnLS0tJywKICAgICAgICAgICAgICAnd2hvbGVfbnVtYmVyX3BheW1lbnRzX29ubHknLAogICAgICAgICAgICAgIGlzQm9vbDogdHJ1ZSwKICAgICAgICAgICAgKSwKICAgICAgICAgIF0pLAoKICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogMTYpLAoKICAgICAgICAgIC8vINin2YTYrdiz2KfYqNin2KoKICAgICAgICAgIF9idWlsZFNlY3Rpb24oJ/CfkrAg2KfZhNit2LPYp9io2KfYqicsIEljb25zLmF0dGFjaF9tb25leSwgQ29sb3JzLnB1cnBsZSwgWwogICAgICAgICAgICBfYnVpbGRDb25maWdSb3coCiAgICAgICAgICAgICAgJ9mG2YjYuSDYp9mE2K7YtdmFINin2YTYp9mB2KrYsdin2LbZiicsCiAgICAgICAgICAgICAgX3RyYW5zbGF0ZURpc2NvdW50VHlwZSgKICAgICAgICAgICAgICAgIHZhbHVlc1snZGVmYXVsdF9kaXNjb3VudF90eXBlJ10/LnRvU3RyaW5nKCkgPz8gJy0tLScsCiAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAnZGVmYXVsdF9kaXNjb3VudF90eXBlJywKICAgICAgICAgICAgKSwKICAgICAgICAgICAgX2J1aWxkQ29uZmlnUm93KAogICAgICAgICAgICAgICfYs9mC2YEg2YXYttin2LnZgSDYp9mE2LPYudixJywKICAgICAgICAgICAgICAvLyDinIUg2YrZgtio2YQgbnVtIChpbnQvZG91YmxlKSDYqNij2YXYp9mGINio2K/ZhCDYp9mE2KrYrdmI2YrZhCDYp9mE2LXYsdmK2K0g2KXZhNmJIGRvdWJsZSDYp9mE2LDZiiDZitix2YXZiiDYp9iz2KrYq9mG2KfYodmLCiAgICAgICAgICAgICAgJyR7KHZhbHVlc1snbWF4X3JhdGVfbXVsdGlwbGllciddIGlzIG51bSkgPyAodmFsdWVzWydtYXhfcmF0ZV9tdWx0aXBsaWVyJ10gYXMgbnVtKS50b1N0cmluZ0FzRml4ZWQoMSkgOiAnMy4wJ314JywKICAgICAgICAgICAgICAnbWF4X3JhdGVfbXVsdGlwbGllcicsCiAgICAgICAgICAgICksCiAgICAgICAgICBdKSwKCiAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDE2KSwKCiAgICAgICAgICAvLyDYp9mE2YbYs9iuINin2YTYp9it2KrZitin2LfZigogICAgICAgICAgX2J1aWxkU2VjdGlvbign8J+SviDYp9mE2YbYs9iuINin2YTYp9it2KrZitin2LfZiicsIEljb25zLmJhY2t1cCwgQ29sb3JzLnRlYWwsIFsKICAgICAgICAgICAgX2J1aWxkQ29uZmlnUm93KAogICAgICAgICAgICAgICfYudiv2K8g2KfZhNmG2LPYriDYp9mE2YLYtdmI2YknLAogICAgICAgICAgICAgICcke3ZhbHVlc1snbWF4X2JhY2t1cF9jb3VudCddIGFzIGludD8gPz8gMTB9JywKICAgICAgICAgICAgICAnbWF4X2JhY2t1cF9jb3VudCcsCiAgICAgICAgICAgICksCiAgICAgICAgICAgIF9idWlsZENvbmZpZ1JvdygKICAgICAgICAgICAgICAn2YHYqtix2Kkg2KfZhNin2K3YqtmB2KfYuCcsCiAgICAgICAgICAgICAgJyR7dmFsdWVzWydiYWNrdXBfcmV0ZW50aW9uX2RheXMnXSBhcyBpbnQ/ID8/IDE0fSDZitmI2YUnLAogICAgICAgICAgICAgICdiYWNrdXBfcmV0ZW50aW9uX2RheXMnLAogICAgICAgICAgICApLAogICAgICAgICAgXSksCgogICAgICAgICAgY29uc3QgU2l6ZWRCb3goaGVpZ2h0OiAxNiksCgogICAgICAgICAgLy8g2KfZhNij2K/Yp9ihINmI2KfZhNil2LnYr9in2K/Yp9iqCiAgICAgICAgICBfYnVpbGRTZWN0aW9uKCfimqEg2KfZhNij2K/Yp9ihINmI2KfZhNil2LnYr9in2K/Yp9iqJywgSWNvbnMuc3BlZWQsIENvbG9ycy5pbmRpZ28sIFsKICAgICAgICAgICAgX2J1aWxkQ29uZmlnUm93KAogICAgICAgICAgICAgICfYt9mI2YQg2KfZhNix2LPYp9mE2KknLAogICAgICAgICAgICAgICcke3ZhbHVlc1snd2hhdHNhcHBfbWVzc2FnZV9tYXhfbGVuZ3RoJ10gYXMgaW50PyA/PyAxMDAwfSDYrdix2YEnLAogICAgICAgICAgICAgICd3aGF0c2FwcF9tZXNzYWdlX21heF9sZW5ndGgnLAogICAgICAgICAgICApLAogICAgICAgICAgICBfYnVpbGRDb25maWdSb3coCiAgICAgICAgICAgICAgJ9mF2YfZhNipIFdoYXRzQXBwIEFQSScsCiAgICAgICAgICAgICAgJyR7dmFsdWVzWyd3aGF0c2FwcF9hcGlfdGltZW91dCddIGFzIGludD8gPz8gMTV9INir2KfZhtmK2KknLAogICAgICAgICAgICAgICd3aGF0c2FwcF9hcGlfdGltZW91dCcsCiAgICAgICAgICAgICksCiAgICAgICAgICAgIF9idWlsZENvbmZpZ1JvdygKICAgICAgICAgICAgICAn2YPZiNivINin2YTYr9mI2YTYqScsCiAgICAgICAgICAgICAgdmFsdWVzWydjb3VudHJ5X2NvZGVfZGVmYXVsdCddPy50b1N0cmluZygpID8/ICctLS0nLAogICAgICAgICAgICAgICdjb3VudHJ5X2NvZGVfZGVmYXVsdCcsCiAgICAgICAgICAgICksCiAgICAgICAgICAgIF9idWlsZENvbmZpZ1JvdygKICAgICAgICAgICAgICAn2YXZh9mE2KkgQVBJINin2YTYudin2YXYqScsCiAgICAgICAgICAgICAgJyR7dmFsdWVzWydhcGlfdGltZW91dF9zZWNvbmRzJ10gYXMgaW50PyA/PyAzMH0g2KvYp9mG2YrYqScsCiAgICAgICAgICAgICAgJ2FwaV90aW1lb3V0X3NlY29uZHMnLAogICAgICAgICAgICApLAogICAgICAgICAgXSksCgogICAgICAgICAgY29uc3QgU2l6ZWRCb3goaGVpZ2h0OiAzMiksCgogICAgICAgICAgLy8g2YXZhNin2K3YuNipCiAgICAgICAgICBDb250YWluZXIoCiAgICAgICAgICAgIHBhZGRpbmc6IGNvbnN0IEVkZ2VJbnNldHMuYWxsKDE2KSwKICAgICAgICAgICAgZGVjb3JhdGlvbjogQm94RGVjb3JhdGlvbigKICAgICAgICAgICAgICBjb2xvcjogQ29sb3JzLmFtYmVyLnNoYWRlNTAsCiAgICAgICAgICAgICAgYm9yZGVyUmFkaXVzOiBCb3JkZXJSYWRpdXMuY2lyY3VsYXIoMTIpLAogICAgICAgICAgICAgIGJvcmRlcjogQm9yZGVyLmFsbChjb2xvcjogQ29sb3JzLmFtYmVyLnNoYWRlMzAwKSwKICAgICAgICAgICAgKSwKICAgICAgICAgICAgY2hpbGQ6IFJvdygKICAgICAgICAgICAgICBjcm9zc0F4aXNBbGlnbm1lbnQ6IENyb3NzQXhpc0FsaWdubWVudC5zdGFydCwKICAgICAgICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgICAgICAgSWNvbigKICAgICAgICAgICAgICAgICAgSWNvbnMuaW5mb19vdXRsaW5lLAogICAgICAgICAgICAgICAgICBjb2xvcjogQ29sb3JzLmFtYmVyLnNoYWRlODAwLAogICAgICAgICAgICAgICAgICBzaXplOiAyMCwKICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveCh3aWR0aDogMTIpLAogICAgICAgICAgICAgICAgRXhwYW5kZWQoCiAgICAgICAgICAgICAgICAgIGNoaWxkOiBUZXh0KAogICAgICAgICAgICAgICAgICAgICfZh9iw2Ycg2KfZhNmC2YrZhSDYqtmP2KrYrdmD2YUg2KjZh9inINmF2YYgRmlyZWJhc2UgQ29uc29sZSDYqNiv2YjZhiDYp9mE2K3Yp9is2Kkg2YTYqtit2K/ZitirINin2YTYqti32KjZitmCLiDYp9i22LrYtyDYstixINin2YTYqtit2K/ZitirINmE2KzZhNioINij2K3Yr9irINin2YTZgtmK2YUuJywKICAgICAgICAgICAgICAgICAgICBzdHlsZTogVGV4dFN0eWxlKAogICAgICAgICAgICAgICAgICAgICAgZm9udFNpemU6IDEyLAogICAgICAgICAgICAgICAgICAgICAgY29sb3I6IENvbG9ycy5hbWJlci5zaGFkZTkwMCwKICAgICAgICAgICAgICAgICAgICAgIGZvbnRXZWlnaHQ6IEZvbnRXZWlnaHQudzUwMCwKICAgICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICBdLAogICAgICAgICAgICApLAogICAgICAgICAgKSwKICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogMzIpLAogICAgICAgIF0sCiAgICAgICksCiAgICApOwogIH0KCiAgV2lkZ2V0IF9idWlsZFN0YXR1c0NhcmQoTWFwPFN0cmluZywgZHluYW1pYz4gZGlhZykgewogICAgZmluYWwgaXNJbml0ID0gZGlhZ1snaXNJbml0aWFsaXplZCddID09IHRydWU7CiAgICBmaW5hbCBpc0ZpcmViYXNlQ29ubmVjdGVkID0gZGlhZ1snaXNGaXJlYmFzZUNvbm5lY3RlZCddID09IHRydWU7CiAgICBmaW5hbCBsYXN0RmV0Y2ggPSBkaWFnWydsYXN0RmV0Y2hUaW1lJ10gYXMgU3RyaW5nPzsKICAgIGZpbmFsIHN0YXR1cyA9IGRpYWdbJ2xhc3RGZXRjaFN0YXR1cyddIGFzIFN0cmluZz87CgogICAgLy8g2KrYrdiv2YrYryDYp9mE2YbYtSDZiNin2YTYo9mK2YLZiNmG2Kkg2YjYp9mE2YTZiNmGINit2LPYqCDYp9mE2K3Yp9mE2KkKICAgIGZpbmFsIFN0cmluZyBzdGF0dXNUZXh0OwogICAgZmluYWwgSWNvbkRhdGEgc3RhdHVzSWNvbjsKICAgIGZpbmFsIENvbG9yIHN0YXR1c0NvbG9yOwoKICAgIGlmICghaXNJbml0KSB7CiAgICAgIHN0YXR1c1RleHQgPSAn2YTZhSDZitiq2YUg2KfZhNiq2YfZitim2KknOwogICAgICBzdGF0dXNJY29uID0gSWNvbnMuY2xvdWRfb2ZmOwogICAgICBzdGF0dXNDb2xvciA9IENvbG9ycy5yZWQ7CiAgICB9IGVsc2UgaWYgKGlzRmlyZWJhc2VDb25uZWN0ZWQpIHsKICAgICAgc3RhdHVzVGV4dCA9ICfZhdiq2LXZhCDYqNmAIEZpcmViYXNlJzsKICAgICAgc3RhdHVzSWNvbiA9IEljb25zLmNsb3VkX2RvbmU7CiAgICAgIHN0YXR1c0NvbG9yID0gQ29sb3JzLmdyZWVuOwogICAgfSBlbHNlIHsKICAgICAgc3RhdHVzVGV4dCA9ICfZiti52YXZhCDYqNin2YTYpdi52K/Yp9iv2KfYqiDYp9mE2YXYrdmE2YrYqSc7CiAgICAgIHN0YXR1c0ljb24gPSBJY29ucy5jbG91ZF9xdWV1ZTsKICAgICAgc3RhdHVzQ29sb3IgPSBDb2xvcnMub3JhbmdlOwogICAgfQoKICAgIHJldHVybiBDYXJkKAogICAgICBlbGV2YXRpb246IDQsCiAgICAgIGNoaWxkOiBQYWRkaW5nKAogICAgICAgIHBhZGRpbmc6IGNvbnN0IEVkZ2VJbnNldHMuYWxsKDE2KSwKICAgICAgICBjaGlsZDogQ29sdW1uKAogICAgICAgICAgY3Jvc3NBeGlzQWxpZ25tZW50OiBDcm9zc0F4aXNBbGlnbm1lbnQuc3RhcnQsCiAgICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgICBSb3coCiAgICAgICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgICAgIEljb24oc3RhdHVzSWNvbiwgY29sb3I6IHN0YXR1c0NvbG9yLCBzaXplOiAyOCksCiAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveCh3aWR0aDogMTIpLAogICAgICAgICAgICAgICAgRXhwYW5kZWQoCiAgICAgICAgICAgICAgICAgIGNoaWxkOiBUZXh0KAogICAgICAgICAgICAgICAgICAgIHN0YXR1c1RleHQsCiAgICAgICAgICAgICAgICAgICAgc3R5bGU6IFRleHRTdHlsZSgKICAgICAgICAgICAgICAgICAgICAgIGZvbnRTaXplOiAxNiwKICAgICAgICAgICAgICAgICAgICAgIGZvbnRXZWlnaHQ6IEZvbnRXZWlnaHQuYm9sZCwKICAgICAgICAgICAgICAgICAgICAgIGNvbG9yOiBzdGF0dXNDb2xvciwKICAgICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICBdLAogICAgICAgICAgICApLAogICAgICAgICAgICBpZiAoIWlzRmlyZWJhc2VDb25uZWN0ZWQgJiYgaXNJbml0KSAuLi5bCiAgICAgICAgICAgICAgY29uc3QgU2l6ZWRCb3goaGVpZ2h0OiA4KSwKICAgICAgICAgICAgICBUZXh0KAogICAgICAgICAgICAgICAgJ9is2YXZiti5INin2YTZgtmK2YUg2KrYudmF2YQg2KjYp9mE2YLZitmFINin2YTYp9mB2KrYsdin2LbZitipINin2YTZhdmP2LnYsdmR2YHYqSDZhdiz2KjZgtin2YsuINin2YTYp9iq2LXYp9mEINio2YAgRmlyZWJhc2Ug2LrZitixINmF2KrZiNmB2LEg2K3Yp9mE2YrYp9mLLicsCiAgICAgICAgICAgICAgICBzdHlsZTogVGV4dFN0eWxlKGZvbnRTaXplOiAxMiwgY29sb3I6IENvbG9ycy5vcmFuZ2Uuc2hhZGU3MDApLAogICAgICAgICAgICAgICksCiAgICAgICAgICAgIF0sCiAgICAgICAgICAgIGlmIChsYXN0RmV0Y2ggIT0gbnVsbCkgLi4uWwogICAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogOCksCiAgICAgICAgICAgICAgVGV4dCgKICAgICAgICAgICAgICAgICfYotiu2LEg2KrYrdiv2YrYqzogJHtfZm9ybWF0VGltZXN0YW1wKGxhc3RGZXRjaCl9JywKICAgICAgICAgICAgICAgIHN0eWxlOiBUZXh0U3R5bGUoZm9udFNpemU6IDEyLCBjb2xvcjogQ29sb3JzLmdyZXkuc2hhZGU2MDApLAogICAgICAgICAgICAgICksCiAgICAgICAgICAgIF0sCiAgICAgICAgICAgIGlmIChzdGF0dXMgIT0gbnVsbCkgLi4uWwogICAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogNCksCiAgICAgICAgICAgICAgVGV4dCgKICAgICAgICAgICAgICAgICfYp9mE2K3Yp9mE2Kk6ICRfdHJhbnNsYXRlU3RhdHVzKHN0YXR1cyknLAogICAgICAgICAgICAgICAgc3R5bGU6IFRleHRTdHlsZShmb250U2l6ZTogMTEsIGNvbG9yOiBDb2xvcnMuZ3JleS5zaGFkZTUwMCksCiAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgXSwKICAgICAgICAgIF0sCiAgICAgICAgKSwKICAgICAgKSwKICAgICk7CiAgfQoKICBXaWRnZXQgX2J1aWxkU2VjdGlvbigKICAgIFN0cmluZyB0aXRsZSwKICAgIEljb25EYXRhIGljb24sCiAgICBDb2xvciBjb2xvciwKICAgIExpc3Q8V2lkZ2V0PiBjaGlsZHJlbiwKICApIHsKICAgIHJldHVybiBDb2x1bW4oCiAgICAgIGNyb3NzQXhpc0FsaWdubWVudDogQ3Jvc3NBeGlzQWxpZ25tZW50LnN0YXJ0LAogICAgICBjaGlsZHJlbjogWwogICAgICAgIFJvdygKICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgIEljb24oaWNvbiwgY29sb3I6IGNvbG9yLCBzaXplOiAyMCksCiAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KHdpZHRoOiA4KSwKICAgICAgICAgICAgVGV4dCgKICAgICAgICAgICAgICB0aXRsZSwKICAgICAgICAgICAgICBzdHlsZTogVGV4dFN0eWxlKAogICAgICAgICAgICAgICAgZm9udFNpemU6IDE1LAogICAgICAgICAgICAgICAgZm9udFdlaWdodDogRm9udFdlaWdodC5ib2xkLAogICAgICAgICAgICAgICAgY29sb3I6IGNvbG9yLAogICAgICAgICAgICAgICksCiAgICAgICAgICAgICksCiAgICAgICAgICBdLAogICAgICAgICksCiAgICAgICAgY29uc3QgU2l6ZWRCb3goaGVpZ2h0OiA4KSwKICAgICAgICBDYXJkKGVsZXZhdGlvbjogMSwgY2hpbGQ6IENvbHVtbihjaGlsZHJlbjogY2hpbGRyZW4pKSwKICAgICAgXSwKICAgICk7CiAgfQoKICBXaWRnZXQgX2J1aWxkQ29uZmlnUm93KAogICAgU3RyaW5nIGxhYmVsLAogICAgU3RyaW5nIHZhbHVlLAogICAgU3RyaW5nIGtleSwgewogICAgYm9vbCBpc0Jvb2wgPSBmYWxzZSwKICB9KSB7CiAgICBmaW5hbCBkaXNwbGF5VmFsdWUgPSBpc0Jvb2wgPyAodmFsdWUgPT0gJ3RydWUnID8gJ9mF2YHYudmR2YQnIDogJ9mF2LnYt9mR2YQnKSA6IHZhbHVlOwogICAgZmluYWwgdmFsdWVDb2xvciA9IGlzQm9vbAogICAgICAgID8gKHZhbHVlID09ICd0cnVlJyA/IENvbG9ycy5ncmVlbiA6IENvbG9ycy5yZWQpCiAgICAgICAgOiBDb2xvcnMuYmxhY2s4NzsKCiAgICByZXR1cm4gUGFkZGluZygKICAgICAgcGFkZGluZzogY29uc3QgRWRnZUluc2V0cy5zeW1tZXRyaWMoaG9yaXpvbnRhbDogMTYsIHZlcnRpY2FsOiAxMCksCiAgICAgIGNoaWxkOiBSb3coCiAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgIEV4cGFuZGVkKAogICAgICAgICAgICBjaGlsZDogVGV4dCgKICAgICAgICAgICAgICBsYWJlbCwKICAgICAgICAgICAgICBzdHlsZTogY29uc3QgVGV4dFN0eWxlKGZvbnRTaXplOiAxMywgZm9udFdlaWdodDogRm9udFdlaWdodC53NTAwKSwKICAgICAgICAgICAgKSwKICAgICAgICAgICksCiAgICAgICAgICBUZXh0KAogICAgICAgICAgICBkaXNwbGF5VmFsdWUsCiAgICAgICAgICAgIHN0eWxlOiBUZXh0U3R5bGUoCiAgICAgICAgICAgICAgZm9udFNpemU6IDEzLAogICAgICAgICAgICAgIGZvbnRXZWlnaHQ6IEZvbnRXZWlnaHQuYm9sZCwKICAgICAgICAgICAgICBjb2xvcjogdmFsdWVDb2xvciwKICAgICAgICAgICAgICBmb250RmFtaWx5OiBpc0Jvb2wgPyBudWxsIDogJ21vbm9zcGFjZScsCiAgICAgICAgICAgICksCiAgICAgICAgICApLAogICAgICAgIF0sCiAgICAgICksCiAgICApOwogIH0KCiAgU3RyaW5nIF9tYXNrS2V5KFN0cmluZyBrZXkpIHsKICAgIGlmIChrZXkubGVuZ3RoIDw9IDQpIHsKICAgICAgcmV0dXJuICcqKioqJzsKICAgIH0KICAgIHJldHVybiAnJHtrZXkuc3Vic3RyaW5nKDAsIDMpfSR7JyonICogKGtleS5sZW5ndGggLSA0KX0ke2tleS5zdWJzdHJpbmcoa2V5Lmxlbmd0aCAtIDEpfSc7CiAgfQoKICBTdHJpbmcgX3RyYW5zbGF0ZURpc2NvdW50VHlwZShTdHJpbmcgdHlwZSkgewogICAgc3dpdGNoICh0eXBlKSB7CiAgICAgIGNhc2UgJ3Blcl9uaWdodCc6CiAgICAgICAgcmV0dXJuICfZhNmD2YQg2YTZitmE2KknOwogICAgICBjYXNlICd0b3RhbCc6CiAgICAgICAgcmV0dXJuICfYpdis2YXYp9mE2YonOwogICAgICBkZWZhdWx0OgogICAgICAgIHJldHVybiB0eXBlOwogICAgfQogIH0KCiAgU3RyaW5nIF90cmFuc2xhdGVTdGF0dXMoU3RyaW5nIHN0YXR1cykgewogICAgc3dpdGNoIChzdGF0dXMpIHsKICAgICAgY2FzZSAndHJ1ZSc6CiAgICAgICAgcmV0dXJuICfYqtmFINin2YTYqtit2K/ZitirINmF2YYg2KfZhNiz2YrYsdmB2LEnOwogICAgICBjYXNlICdmYWxzZSc6CiAgICAgICAgcmV0dXJuICfZhNmFINiq2KrYutmK2LEg2KfZhNmC2YrZhSc7CiAgICAgIGNhc2UgJ2ZldGNoX2ZhaWxlZCc6CiAgICAgICAgcmV0dXJuICfZgdi02YQg2KfZhNis2YTYqCDigJQg2YrZj9iz2KrYrtiv2YUg2KfZhNin2YHYqtix2KfYttmKJzsKICAgICAgY2FzZSAnbG9jYWxfZGVmYXVsdHMnOgogICAgICAgIHJldHVybiAn2YrYudmF2YQg2KjYp9mE2KXYudiv2KfYr9in2Kog2KfZhNmF2K3ZhNmK2KknOwogICAgICBkZWZhdWx0OgogICAgICAgIHJldHVybiBzdGF0dXM7CiAgICB9CiAgfQoKICBTdHJpbmcgX2Zvcm1hdFRpbWVzdGFtcChTdHJpbmcgaXNvKSB7CiAgICB0cnkgewogICAgICBmaW5hbCBkdCA9IERhdGVUaW1lLnBhcnNlKGlzbyk7CiAgICAgIHJldHVybiAnJHtkdC5ob3VyLnRvU3RyaW5nKCkucGFkTGVmdCgyLCAnMCcpfToke2R0Lm1pbnV0ZS50b1N0cmluZygpLnBhZExlZnQoMiwgJzAnKX0g4oCUICR7ZHQuZGF5fS8ke2R0Lm1vbnRofS8ke2R0LnllYXJ9JzsKICAgIH0gY2F0Y2ggKF8pIHsKICAgICAgcmV0dXJuIGlzbzsKICAgIH0KICB9Cn0K
+// lib/screens/settings/remote_config_settings_screen.dart
+// شاشة عرض وإدارة Firebase Remote Config
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../components/app_scaffold.dart';
+import '../../providers/remote_config_provider.dart';
+
+class RemoteConfigSettingsScreen extends ConsumerStatefulWidget {
+  const RemoteConfigSettingsScreen({super.key});
+
+  @override
+  ConsumerState<RemoteConfigSettingsScreen> createState() =>
+      _RemoteConfigSettingsScreenState();
+}
+
+class _RemoteConfigSettingsScreenState
+    extends ConsumerState<RemoteConfigSettingsScreen> {
+  bool _isFetching = false;
+
+  Future<void> _forceFetch() async {
+    setState(() => _isFetching = true);
+    final success = await ref.read(remoteConfigServiceProvider).forceFetch();
+    if (mounted) {
+      setState(() => _isFetching = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? 'تم تحديث الإعدادات بنجاح'
+                : 'فشل التحديث — يُستخدم الإعدادات المحلية',
+          ),
+          backgroundColor: success ? Colors.green : Colors.orange,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final values = ref.watch(remoteConfigValuesProvider);
+    final diag = ref.watch(remoteConfigDiagnosticsProvider);
+
+    return AppScaffold(
+      title: 'Remote Config',
+      actions: [
+        IconButton(
+          onPressed: _isFetching ? null : _forceFetch,
+          icon: _isFetching
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.refresh),
+          tooltip: 'تحديث من السيرفر',
+        ),
+      ],
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // حالة الاتصال
+          _buildStatusCard(diag),
+
+          const SizedBox(height: 16),
+
+          // الإشعارات والاتصال
+          _buildSection(
+            '🔑 الإشعارات والاتصال',
+            Icons.notifications,
+            Colors.blue,
+            [
+              _buildConfigRow(
+                'رقم WhatsApp',
+                values['whatsapp_phone']?.toString() ?? '---',
+                'whatsapp_phone',
+              ),
+              _buildConfigRow(
+                'مفتاح API',
+                _maskKey(values['whatsapp_api_key']?.toString() ?? '---'),
+                'whatsapp_api_key',
+              ),
+              _buildConfigRow(
+                'WhatsApp مفعّل',
+                // ✅ فحص النوع قبل التحويل — القيمة قد تصل كنص من الـ remote config
+                (values['whatsapp_enabled'] is bool)
+                    ? values['whatsapp_enabled'].toString()
+                    : '---',
+                'whatsapp_enabled',
+                isBool: true,
+              ),
+              _buildConfigRow(
+                'هاتف الفندق',
+                values['hotel_contact_phone']?.toString() ?? '---',
+                'hotel_contact_phone',
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // مواعيد التقارير
+          _buildSection('⏰ مواعيد التقارير', Icons.schedule, Colors.orange, [
+            _buildConfigRow(
+              'النسخ الاحتياطي',
+              values['daily_backup_time']?.toString() ?? '---',
+              'daily_backup_time',
+            ),
+            _buildConfigRow(
+              'تقرير WhatsApp',
+              values['whatsapp_report_time']?.toString() ?? '---',
+              'whatsapp_report_time',
+            ),
+            _buildConfigRow(
+              'تقرير Telegram',
+              values['telegram_report_time']?.toString() ?? '---',
+              'telegram_report_time',
+            ),
+          ]),
+
+          const SizedBox(height: 16),
+
+          // قواعد الحجوزات
+          _buildSection('🏨 قواعد الحجوزات', Icons.hotel, Colors.green, [
+            _buildConfigRow(
+              'ساعة الخروج',
+              '${values['checkout_hour'] as int? ?? 14}:00',
+              'checkout_hour',
+            ),
+            _buildConfigRow(
+              'حد الديون المتأخرة',
+              '${values['late_payment_threshold_days'] as int? ?? 30} يوم',
+              'late_payment_threshold_days',
+            ),
+            _buildConfigRow(
+              'دفعات صحيحة فقط',
+              (values['whole_number_payments_only'] as bool?)?.toString() ??
+                  '---',
+              'whole_number_payments_only',
+              isBool: true,
+            ),
+          ]),
+
+          const SizedBox(height: 16),
+
+          // الحسابات
+          _buildSection('💰 الحسابات', Icons.attach_money, Colors.purple, [
+            _buildConfigRow(
+              'نوع الخصم الافتراضي',
+              _translateDiscountType(
+                values['default_discount_type']?.toString() ?? '---',
+              ),
+              'default_discount_type',
+            ),
+            _buildConfigRow(
+              'سقف مضاعف السعر',
+              // ✅ يقبل num (int/double) بأمان بدل التحويل الصريح إلى double الذي يرمي استثناءً
+              '${(values['max_rate_multiplier'] is num) ? (values['max_rate_multiplier'] as num).toStringAsFixed(1) : '3.0'}x',
+              'max_rate_multiplier',
+            ),
+          ]),
+
+          const SizedBox(height: 16),
+
+          // النسخ الاحتياطي
+          _buildSection('💾 النسخ الاحتياطي', Icons.backup, Colors.teal, [
+            _buildConfigRow(
+              'عدد النسخ القصوى',
+              '${values['max_backup_count'] as int? ?? 10}',
+              'max_backup_count',
+            ),
+            _buildConfigRow(
+              'فترة الاحتفاظ',
+              '${values['backup_retention_days'] as int? ?? 14} يوم',
+              'backup_retention_days',
+            ),
+          ]),
+
+          const SizedBox(height: 16),
+
+          // الأداء والإعدادات
+          _buildSection('⚡ الأداء والإعدادات', Icons.speed, Colors.indigo, [
+            _buildConfigRow(
+              'طول الرسالة',
+              '${values['whatsapp_message_max_length'] as int? ?? 1000} حرف',
+              'whatsapp_message_max_length',
+            ),
+            _buildConfigRow(
+              'مهلة WhatsApp API',
+              '${values['whatsapp_api_timeout'] as int? ?? 15} ثانية',
+              'whatsapp_api_timeout',
+            ),
+            _buildConfigRow(
+              'كود الدولة',
+              values['country_code_default']?.toString() ?? '---',
+              'country_code_default',
+            ),
+            _buildConfigRow(
+              'مهلة API العامة',
+              '${values['api_timeout_seconds'] as int? ?? 30} ثانية',
+              'api_timeout_seconds',
+            ),
+          ]),
+
+          const SizedBox(height: 32),
+
+          // ملاحظة
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.amber.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.amber.shade300),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: Colors.amber.shade800,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'هذه القيم تُتحكم بها من Firebase Console بدون الحاجة لتحديث التطبيق. اضغط زر التحديث لجلب أحدث القيم.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.amber.shade900,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusCard(Map<String, dynamic> diag) {
+    final isInit = diag['isInitialized'] == true;
+    final isFirebaseConnected = diag['isFirebaseConnected'] == true;
+    final lastFetch = diag['lastFetchTime'] as String?;
+    final status = diag['lastFetchStatus'] as String?;
+
+    // تحديد النص والأيقونة واللون حسب الحالة
+    final String statusText;
+    final IconData statusIcon;
+    final Color statusColor;
+
+    if (!isInit) {
+      statusText = 'لم يتم التهيئة';
+      statusIcon = Icons.cloud_off;
+      statusColor = Colors.red;
+    } else if (isFirebaseConnected) {
+      statusText = 'متصل بـ Firebase';
+      statusIcon = Icons.cloud_done;
+      statusColor = Colors.green;
+    } else {
+      statusText = 'يعمل بالإعدادات المحلية';
+      statusIcon = Icons.cloud_queue;
+      statusColor = Colors.orange;
+    }
+
+    return Card(
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(statusIcon, color: statusColor, size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    statusText,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: statusColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (!isFirebaseConnected && isInit) ...[
+              const SizedBox(height: 8),
+              Text(
+                'جميع القيم تعمل بالقيم الافتراضية المُعرّفة مسبقاً. الاتصال بـ Firebase غير متوفر حالياً.',
+                style: TextStyle(fontSize: 12, color: Colors.orange.shade700),
+              ),
+            ],
+            if (lastFetch != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'آخر تحديث: ${_formatTimestamp(lastFetch)}',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+            ],
+            if (status != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                'الحالة: $_translateStatus(status)',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSection(
+    String title,
+    IconData icon,
+    Color color,
+    List<Widget> children,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Card(elevation: 1, child: Column(children: children)),
+      ],
+    );
+  }
+
+  Widget _buildConfigRow(
+    String label,
+    String value,
+    String key, {
+    bool isBool = false,
+  }) {
+    final displayValue = isBool ? (value == 'true' ? 'مفعّل' : 'معطّل') : value;
+    final valueColor = isBool
+        ? (value == 'true' ? Colors.green : Colors.red)
+        : Colors.black87;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ),
+          Text(
+            displayValue,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: valueColor,
+              fontFamily: isBool ? null : 'monospace',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _maskKey(String key) {
+    if (key.length <= 4) {
+      return '****';
+    }
+    return '${key.substring(0, 3)}${'*' * (key.length - 4)}${key.substring(key.length - 1)}';
+  }
+
+  String _translateDiscountType(String type) {
+    switch (type) {
+      case 'per_night':
+        return 'لكل ليلة';
+      case 'total':
+        return 'إجمالي';
+      default:
+        return type;
+    }
+  }
+
+  String _translateStatus(String status) {
+    switch (status) {
+      case 'true':
+        return 'تم التحديث من السيرفر';
+      case 'false':
+        return 'لم تتغير القيم';
+      case 'fetch_failed':
+        return 'فشل الجلب — يُستخدم الافتراضي';
+      case 'local_defaults':
+        return 'يعمل بالإعدادات المحلية';
+      default:
+        return status;
+    }
+  }
+
+  String _formatTimestamp(String iso) {
+    try {
+      final dt = DateTime.parse(iso);
+      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} — ${dt.day}/${dt.month}/${dt.year}';
+    } catch (_) {
+      return iso;
+    }
+  }
+}
