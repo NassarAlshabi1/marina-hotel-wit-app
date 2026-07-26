@@ -801,6 +801,8 @@ class PayloadMapper {
       // منفصل — effectiveHotelDay IS the hotel day key (same value, different name).
       // نرسله تحت الاسمين للحفاظ على التوافق مع المخطط المحلي والمطلوب من Appwrite.
       'hotelDayKey': adj.effectiveHotelDay,
+      // ✅ appliedDate: التاريخ الذي طُبِّق فيه التعديل (نفس effectiveHotelDay)
+      'appliedDate': adj.effectiveHotelDay,
       'isActive': adj.isActive,
     };
 
