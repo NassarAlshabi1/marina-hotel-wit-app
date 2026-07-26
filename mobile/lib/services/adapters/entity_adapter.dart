@@ -1,17 +1,1 @@
-import 'package:drift/drift.dart' as d;
-
-import '../local_db.dart';
-import 'resolve_result.dart';
-import 'source.dart';
-
-abstract class EntityAdapter<D extends d.DataClass, C extends d.UpdateCompanion<D>> {
-  String get collectionId;
-  String get drivePath;
-  String get tableName;
-
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src});
-
-  C fromJson(Map<String, dynamic> json, {required Source src, required ResolveResult refs});
-
-  Map<String, dynamic> toJson(D model, {required Source src});
-}
+aW1wb3J0ICdwYWNrYWdlOmRyaWZ0L2RyaWZ0LmRhcnQnIGFzIGQ7CgppbXBvcnQgJy4uL2xvY2FsX2RiLmRhcnQnOwppbXBvcnQgJ3Jlc29sdmVfcmVzdWx0LmRhcnQnOwppbXBvcnQgJ3NvdXJjZS5kYXJ0JzsKCmFic3RyYWN0IGNsYXNzIEVudGl0eUFkYXB0ZXI8CiAgRCBleHRlbmRzIGQuRGF0YUNsYXNzLAogIEMgZXh0ZW5kcyBkLlVwZGF0ZUNvbXBhbmlvbjxEPgo+IHsKICBTdHJpbmcgZ2V0IGNvbGxlY3Rpb25JZDsKICBTdHJpbmcgZ2V0IGRyaXZlUGF0aDsKICBTdHJpbmcgZ2V0IHRhYmxlTmFtZTsKCiAgRnV0dXJlPFJlc29sdmVSZXN1bHQ+IHJlc29sdmVSZWZzKAogICAgQXBwRGF0YWJhc2UgZGIsCiAgICBNYXA8U3RyaW5nLCBkeW5hbWljPiBqc29uLCB7CiAgICByZXF1aXJlZCBTb3VyY2Ugc3JjLAogIH0pOwoKICBDIGZyb21Kc29uKAogICAgTWFwPFN0cmluZywgZHluYW1pYz4ganNvbiwgewogICAgcmVxdWlyZWQgU291cmNlIHNyYywKICAgIHJlcXVpcmVkIFJlc29sdmVSZXN1bHQgcmVmcywKICB9KTsKCiAgTWFwPFN0cmluZywgZHluYW1pYz4gdG9Kc29uKEQgbW9kZWwsIHtyZXF1aXJlZCBTb3VyY2Ugc3JjfSk7Cn0K
