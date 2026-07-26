@@ -45,7 +45,8 @@ class TelegramNotificationService {
   TelegramNotificationService._();
   static TelegramNotificationService? _instance;
   // ignore: prefer_constructors_over_static_methods
-  static TelegramNotificationService get instance => _instance ??= TelegramNotificationService._();
+  static TelegramNotificationService get instance =>
+      _instance ??= TelegramNotificationService._();
 
   final TelegramApiClient _api = TelegramApiClient.instance;
 
@@ -100,7 +101,9 @@ class TelegramNotificationService {
       }
 
       if (event.amount != null && event.amount! > 0) {
-        buffer.writeln('💵 المبلغ: <b>\$${event.amount!.toStringAsFixed(2)}</b>');
+        buffer.writeln(
+          '💵 المبلغ: <b>\$${event.amount!.toStringAsFixed(2)}</b>',
+        );
       }
 
       if (event.details != null && event.details!.isNotEmpty) {
@@ -118,10 +121,14 @@ class TelegramNotificationService {
       buffer.writeln();
       buffer.writeln('<i>Marina Hotel App 🏨</i>');
 
-      final success = await _api.sendToDefaultChat(text: buffer.toString().trimRight());
+      final success = await _api.sendToDefaultChat(
+        text: buffer.toString().trimRight(),
+      );
 
       if (success) {
-        debugPrint('✅ Telegram: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}');
+        debugPrint(
+          '✅ Telegram: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}',
+        );
       }
 
       return success;
@@ -256,7 +263,11 @@ class TelegramNotificationService {
   }
 
   /// إشعار طلب صيانة
-  Future<bool> notifyMaintenance({required String roomNumber, required String description, String? reportedBy}) {
+  Future<bool> notifyMaintenance({
+    required String roomNumber,
+    required String description,
+    String? reportedBy,
+  }) {
     return sendEventNotification(
       TelegramEvent(
         type: TelegramEventType.maintenance,
@@ -269,7 +280,11 @@ class TelegramNotificationService {
   }
 
   /// إشعار إلغاء حجز
-  Future<bool> notifyCancellation({required String roomNumber, required String guestName, String? reason}) {
+  Future<bool> notifyCancellation({
+    required String roomNumber,
+    required String guestName,
+    String? reason,
+  }) {
     return sendEventNotification(
       TelegramEvent(
         type: TelegramEventType.cancellation,
@@ -310,7 +325,11 @@ class TelegramNotificationService {
   }
 
   /// إشعار مصروف جديد
-  Future<bool> notifyNewExpense({required String category, required double amount, String? description}) {
+  Future<bool> notifyNewExpense({
+    required String category,
+    required double amount,
+    String? description,
+  }) {
     final details = StringBuffer();
     details.writeln('📂 التصنيف: $category');
     if (description != null && description.isNotEmpty) {
@@ -338,7 +357,9 @@ class TelegramNotificationService {
   }) async {
     try {
       if (!await TelegramConfig.isConfigured()) {
-        debugPrint('⚠️ Telegram: لا يمكن إرسال تنبيه المزامنة - البوت غير مضبوط');
+        debugPrint(
+          '⚠️ Telegram: لا يمكن إرسال تنبيه المزامنة - البوت غير مضبوط',
+        );
         return false;
       }
 
@@ -358,7 +379,9 @@ class TelegramNotificationService {
       buffer.writeln();
       buffer.writeln('<i>Marina Hotel App — Crashlytics Alert</i>');
 
-      final success = await _api.sendToDefaultChat(text: buffer.toString().trimRight());
+      final success = await _api.sendToDefaultChat(
+        text: buffer.toString().trimRight(),
+      );
 
       if (success) {
         debugPrint('✅ Telegram: تم إرسال تنبيه خطأ مزامنة — $operation');
