@@ -1,1 +1,408 @@
-aW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXIvbWF0ZXJpYWwuZGFydCc7CmltcG9ydCAncGFja2FnZTpmbHV0dGVyX3JpdmVycG9kL2ZsdXR0ZXJfcml2ZXJwb2QuZGFydCc7CgppbXBvcnQgJy4uLy4uLy4uL2NvbXBvbmVudHMvYXBwX3NjYWZmb2xkLmRhcnQnOwppbXBvcnQgJy4uLy4uLy4uL2NvcmUvY29yZS5kYXJ0JzsKCi8vLyBVbmlmaWVkIFN5bmMgU2V0dGluZ3MgU2NyZWVuCi8vLwovLy8g2LTYp9i02Kkg2YXZiNit2K/YqSDZhNis2YXZiti5INil2LnYr9in2K/Yp9iqINin2YTZhdiy2KfZhdmG2KkKLy8vINiq2KzZhdi5INin2YTYpdi52K/Yp9iv2KfYqiDYp9mE2YXYqNi52KvYsdipINmB2Yo6Ci8vLyAtIHNtYXJ0X3N5bmNfc2V0dGluZ3Nfc2NyZWVuLmRhcnQKLy8vIC0gYXBwd3JpdGVfc2V0dGluZ3Nfc2NyZWVuLmRhcnQgKNis2LLYoSDYp9mE2YXYstin2YXZhtipKQovLy8gLSBkYXRhX3Byb3RlY3Rpb25fc2NyZWVuLmRhcnQgKNis2LLYoSDYp9mE2YXYstin2YXZhtipKQovLy8gLSBzeW5jX3BlcmZvcm1hbmNlX3NldHRpbmdzX3NjcmVlbi5kYXJ0CmNsYXNzIFVuaWZpZWRTeW5jU2V0dGluZ3NTY3JlZW4gZXh0ZW5kcyBDb25zdW1lclN0YXRlZnVsV2lkZ2V0IHsKICBjb25zdCBVbmlmaWVkU3luY1NldHRpbmdzU2NyZWVuKHtzdXBlci5rZXl9KTsKCiAgQG92ZXJyaWRlCiAgQ29uc3VtZXJTdGF0ZTxVbmlmaWVkU3luY1NldHRpbmdzU2NyZWVuPiBjcmVhdGVTdGF0ZSgpID0+CiAgICAgIF9VbmlmaWVkU3luY1NldHRpbmdzU2NyZWVuU3RhdGUoKTsKfQoKY2xhc3MgX1VuaWZpZWRTeW5jU2V0dGluZ3NTY3JlZW5TdGF0ZQogICAgZXh0ZW5kcyBDb25zdW1lclN0YXRlPFVuaWZpZWRTeW5jU2V0dGluZ3NTY3JlZW4+IHsKICBAb3ZlcnJpZGUKICBXaWRnZXQgYnVpbGQoQnVpbGRDb250ZXh0IGNvbnRleHQpIHsKICAgIHJldHVybiBBcHBTY2FmZm9sZCgKICAgICAgdGl0bGU6ICfYpdi52K/Yp9iv2KfYqiDYp9mE2YXYstin2YXZhtipJywKICAgICAgYm9keTogTGlzdFZpZXcoCiAgICAgICAgcGFkZGluZzogY29uc3QgRWRnZUluc2V0cy5hbGwoVUlDb25zdGFudHMuc3BhY2luZ01EKSwKICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgLy8g2YbYuNix2Kkg2LnYp9mF2KkKICAgICAgICAgIF9idWlsZE92ZXJ2aWV3U2VjdGlvbigpLAoKICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogVUlDb25zdGFudHMuc3BhY2luZ0xHKSwKCiAgICAgICAgICAvLyDYp9mE2KXYudiv2KfYr9in2Kog2KfZhNi52KfZhdipCiAgICAgICAgICBfYnVpbGRHZW5lcmFsU2V0dGluZ3NTZWN0aW9uKCksCgogICAgICAgICAgY29uc3QgU2l6ZWRCb3goaGVpZ2h0OiBVSUNvbnN0YW50cy5zcGFjaW5nTEcpLAoKICAgICAgICAgIC8vINil2LnYr9in2K/Yp9iqINin2YTYo9iv2KfYoQogICAgICAgICAgX2J1aWxkUGVyZm9ybWFuY2VTZWN0aW9uKCksCgogICAgICAgICAgY29uc3QgU2l6ZWRCb3goaGVpZ2h0OiBVSUNvbnN0YW50cy5zcGFjaW5nTEcpLAoKICAgICAgICAgIC8vINin2YTZhdiy2KfZhdmG2Kkg2KfZhNiw2YPZitipCiAgICAgICAgICBfYnVpbGRTbWFydFN5bmNTZWN0aW9uKCksCgogICAgICAgICAgY29uc3QgU2l6ZWRCb3goaGVpZ2h0OiBVSUNvbnN0YW50cy5zcGFjaW5nTEcpLAoKICAgICAgICAgIC8vIEFwcHdyaXRlIFN5bmMKICAgICAgICAgIF9idWlsZEFwcHdyaXRlU3luY1NlY3Rpb24oKSwKCiAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IFVJQ29uc3RhbnRzLnNwYWNpbmdMRyksCgogICAgICAgICAgLy8g2KXYudiv2KfYr9in2Kog2YXYqtmC2K/ZhdipCiAgICAgICAgICBfYnVpbGRBZHZhbmNlZFNlY3Rpb24oKSwKICAgICAgICBdLAogICAgICApLAogICAgKTsKICB9CgogIFdpZGdldCBfYnVpbGRPdmVydmlld1NlY3Rpb24oKSB7CiAgICByZXR1cm4gQ2FyZCgKICAgICAgZWxldmF0aW9uOiAyLAogICAgICBzaGFwZTogUm91bmRlZFJlY3RhbmdsZUJvcmRlcigKICAgICAgICBib3JkZXJSYWRpdXM6IEJvcmRlclJhZGl1cy5jaXJjdWxhcihVSUNvbnN0YW50cy5yYWRpdXNMRyksCiAgICAgICksCiAgICAgIGNoaWxkOiBQYWRkaW5nKAogICAgICAgIHBhZGRpbmc6IGNvbnN0IEVkZ2VJbnNldHMuYWxsKFVJQ29uc3RhbnRzLnNwYWNpbmdNRCksCiAgICAgICAgY2hpbGQ6IENvbHVtbigKICAgICAgICAgIGNyb3NzQXhpc0FsaWdubWVudDogQ3Jvc3NBeGlzQWxpZ25tZW50LnN0YXJ0LAogICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgY29uc3QgUm93KAogICAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgICBJY29uKAogICAgICAgICAgICAgICAgICBJY29ucy5pbmZvX291dGxpbmUsCiAgICAgICAgICAgICAgICAgIGNvbG9yOiBVSUNvbnN0YW50cy5zeW5jQ29sb3IsCiAgICAgICAgICAgICAgICAgIHNpemU6IFVJQ29uc3RhbnRzLmljb25TaXplTUQsCiAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgU2l6ZWRCb3god2lkdGg6IFVJQ29uc3RhbnRzLnNwYWNpbmdTTSksCiAgICAgICAgICAgICAgICBUZXh0KAogICAgICAgICAgICAgICAgICAn2K3Yp9mE2Kkg2KfZhNmF2LLYp9mF2YbYqScsCiAgICAgICAgICAgICAgICAgIHN0eWxlOiBUZXh0U3R5bGUoZm9udFNpemU6IDE4LCBmb250V2VpZ2h0OiBGb250V2VpZ2h0LmJvbGQpLAogICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICBdLAogICAgICAgICAgICApLAogICAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IFVJQ29uc3RhbnRzLnNwYWNpbmdNRCksCiAgICAgICAgICAgIEluZm9Sb3coCiAgICAgICAgICAgICAgbGFiZWw6ICfYotiu2LEg2YXYstin2YXZhtipJywKICAgICAgICAgICAgICB2YWx1ZTogRGF0ZVRpbWVGb3JtYXR0ZXIuZ2V0UmVsYXRpdmVUaW1lKCcyMDI0LTAxLTI5VDE4OjAwOjAwJyksCiAgICAgICAgICAgICAgaWNvbjogSWNvbnMuc2NoZWR1bGUsCiAgICAgICAgICAgICksCiAgICAgICAgICAgIGNvbnN0IEluZm9Sb3coCiAgICAgICAgICAgICAgbGFiZWw6ICfYrdin2YTYqSDYp9mE2KfYqti12KfZhCcsCiAgICAgICAgICAgICAgdmFsdWU6ICfZhdiq2LXZhCcsCiAgICAgICAgICAgICAgaWNvbjogSWNvbnMud2lmaSwKICAgICAgICAgICAgICBpY29uQ29sb3I6IENvbG9ycy5ncmVlbiwKICAgICAgICAgICAgKSwKICAgICAgICAgICAgY29uc3QgSW5mb1JvdygKICAgICAgICAgICAgICBsYWJlbDogJ9i52YbYp9i12LEg2YXYudmE2YLYqScsCiAgICAgICAgICAgICAgdmFsdWU6ICcwJywKICAgICAgICAgICAgICBpY29uOiBJY29ucy5wZW5kaW5nLAogICAgICAgICAgICAgIGljb25Db2xvcjogQ29sb3JzLm9yYW5nZSwKICAgICAgICAgICAgKSwKICAgICAgICAgIF0sCiAgICAgICAgKSwKICAgICAgKSwKICAgICk7CiAgfQoKICBXaWRnZXQgX2J1aWxkR2VuZXJhbFNldHRpbmdzU2VjdGlvbigpIHsKICAgIHJldHVybiBDYXJkKAogICAgICBlbGV2YXRpb246IDIsCiAgICAgIHNoYXBlOiBSb3VuZGVkUmVjdGFuZ2xlQm9yZGVyKAogICAgICAgIGJvcmRlclJhZGl1czogQm9yZGVyUmFkaXVzLmNpcmN1bGFyKFVJQ29uc3RhbnRzLnJhZGl1c0xHKSwKICAgICAgKSwKICAgICAgY2hpbGQ6IENvbHVtbigKICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgU3dpdGNoTGlzdFRpbGUoCiAgICAgICAgICAgIHRpdGxlOiBjb25zdCBUZXh0KCfYqtmB2LnZitmEINin2YTZhdiy2KfZhdmG2Kkg2KfZhNiq2YTZgtin2KbZitipJyksCiAgICAgICAgICAgIHN1YnRpdGxlOiBjb25zdCBUZXh0KCfZhdiy2KfZhdmG2Kkg2KfZhNio2YrYp9mG2KfYqiDYqtmE2YLYp9im2YrYp9mLINi52YbYryDYp9mE2KrYutmK2YrYsScpLAogICAgICAgICAgICB2YWx1ZTogdHJ1ZSwKICAgICAgICAgICAgb25DaGFuZ2VkOiAodmFsdWUpIHt9LAogICAgICAgICAgICBzZWNvbmRhcnk6IGNvbnN0IEljb24oSWNvbnMuc3luYyksCiAgICAgICAgICApLAogICAgICAgICAgY29uc3QgRGl2aWRlcihoZWlnaHQ6IDEpLAogICAgICAgICAgU3dpdGNoTGlzdFRpbGUoCiAgICAgICAgICAgIHRpdGxlOiBjb25zdCBUZXh0KCfYp9mE2YXYstin2YXZhtipINi52YbYryDYqNiv2KEg2KfZhNiq2LTYutmK2YQnKSwKICAgICAgICAgICAgc3VidGl0bGU6IGNvbnN0IFRleHQoJ9mF2LLYp9mF2YbYqSDYp9mE2KjZitin2YbYp9iqINi52YbYryDZgdiq2K0g2KfZhNiq2LfYqNmK2YInKSwKICAgICAgICAgICAgdmFsdWU6IHRydWUsCiAgICAgICAgICAgIG9uQ2hhbmdlZDogKHZhbHVlKSB7fSwKICAgICAgICAgICAgc2Vjb25kYXJ5OiBjb25zdCBJY29uKEljb25zLnBvd2VyX3NldHRpbmdzX25ldyksCiAgICAgICAgICApLAogICAgICAgICAgY29uc3QgRGl2aWRlcihoZWlnaHQ6IDEpLAogICAgICAgICAgTGlzdFRpbGUoCiAgICAgICAgICAgIHRpdGxlOiBjb25zdCBUZXh0KCfZgdiq2LHYqSDYp9mE2YXYstin2YXZhtipJyksCiAgICAgICAgICAgIHN1YnRpdGxlOiBjb25zdCBUZXh0KCcxNSDYr9mC2YrZgtipJyksCiAgICAgICAgICAgIGxlYWRpbmc6IGNvbnN0IEljb24oSWNvbnMudGltZXIpLAogICAgICAgICAgICB0cmFpbGluZzogY29uc3QgSWNvbihJY29ucy5hcnJvd19mb3J3YXJkX2lvcywgc2l6ZTogMTYpLAogICAgICAgICAgICBvblRhcDogX3Nob3dTeW5jSW50ZXJ2YWxEaWFsb2csCiAgICAgICAgICApLAogICAgICAgIF0sCiAgICAgICksCiAgICApOwogIH0KCiAgV2lkZ2V0IF9idWlsZFBlcmZvcm1hbmNlU2VjdGlvbigpIHsKICAgIHJldHVybiBDYXJkKAogICAgICBlbGV2YXRpb246IDIsCiAgICAgIHNoYXBlOiBSb3VuZGVkUmVjdGFuZ2xlQm9yZGVyKAogICAgICAgIGJvcmRlclJhZGl1czogQm9yZGVyUmFkaXVzLmNpcmN1bGFyKFVJQ29uc3RhbnRzLnJhZGl1c0xHKSwKICAgICAgKSwKICAgICAgY2hpbGQ6IENvbHVtbigKICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgY29uc3QgUGFkZGluZygKICAgICAgICAgICAgcGFkZGluZzogRWRnZUluc2V0cy5hbGwoVUlDb25zdGFudHMuc3BhY2luZ01EKSwKICAgICAgICAgICAgY2hpbGQ6IFJvdygKICAgICAgICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgICAgICAgSWNvbigKICAgICAgICAgICAgICAgICAgSWNvbnMuc3BlZWQsCiAgICAgICAgICAgICAgICAgIGNvbG9yOiBVSUNvbnN0YW50cy5zeW5jQ29sb3IsCiAgICAgICAgICAgICAgICAgIHNpemU6IFVJQ29uc3RhbnRzLmljb25TaXplTUQsCiAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgU2l6ZWRCb3god2lkdGg6IFVJQ29uc3RhbnRzLnNwYWNpbmdTTSksCiAgICAgICAgICAgICAgICBUZXh0KAogICAgICAgICAgICAgICAgICAn2KfZhNij2K/Yp9ihINmI2KfZhNio2LfYp9ix2YrYqScsCiAgICAgICAgICAgICAgICAgIHN0eWxlOiBUZXh0U3R5bGUoZm9udFNpemU6IDE4LCBmb250V2VpZ2h0OiBGb250V2VpZ2h0LmJvbGQpLAogICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICBdLAogICAgICAgICAgICApLAogICAgICAgICAgKSwKICAgICAgICAgIGNvbnN0IERpdmlkZXIoaGVpZ2h0OiAxKSwKICAgICAgICAgIFN3aXRjaExpc3RUaWxlKAogICAgICAgICAgICB0aXRsZTogY29uc3QgVGV4dCgn2KrYrdiz2YrZhiDYp9mE2KjYt9in2LHZitipJyksCiAgICAgICAgICAgIHN1YnRpdGxlOiBjb25zdCBUZXh0KCfYqtmC2YTZitmEINin2LPYqtmH2YTYp9mDINin2YTYqNi32KfYsdmK2Kkg2KPYq9mG2KfYoSDYp9mE2YXYstin2YXZhtipJyksCiAgICAgICAgICAgIHZhbHVlOiB0cnVlLAogICAgICAgICAgICBvbkNoYW5nZWQ6ICh2YWx1ZSkge30sCiAgICAgICAgICAgIHNlY29uZGFyeTogY29uc3QgSWNvbihJY29ucy5iYXR0ZXJ5X3NhdmVyKSwKICAgICAgICAgICksCiAgICAgICAgICBjb25zdCBEaXZpZGVyKGhlaWdodDogMSksCiAgICAgICAgICBTd2l0Y2hMaXN0VGlsZSgKICAgICAgICAgICAgdGl0bGU6IGNvbnN0IFRleHQoJ1dpRmkg2YHZgti3JyksCiAgICAgICAgICAgIHN1YnRpdGxlOiBjb25zdCBUZXh0KCfZhdiy2KfZhdmG2Kkg2LnZhtivINin2YTYp9iq2LXYp9mEINio2YAgV2lGaSDZgdmC2LcnKSwKICAgICAgICAgICAgdmFsdWU6IGZhbHNlLAogICAgICAgICAgICBvbkNoYW5nZWQ6ICh2YWx1ZSkge30sCiAgICAgICAgICAgIHNlY29uZGFyeTogY29uc3QgSWNvbihJY29ucy53aWZpKSwKICAgICAgICAgICksCiAgICAgICAgICBjb25zdCBEaXZpZGVyKGhlaWdodDogMSksCiAgICAgICAgICBMaXN0VGlsZSgKICAgICAgICAgICAgdGl0bGU6IGNvbnN0IFRleHQoJ9in2YTYrdivINin2YTZitmI2YXZiiDZhNmE2KjZitin2YbYp9iqJyksCiAgICAgICAgICAgIHN1YnRpdGxlOiBjb25zdCBUZXh0KCc1MCDZhdmK2KzYp9io2KfZitiqJyksCiAgICAgICAgICAgIGxlYWRpbmc6IGNvbnN0IEljb24oSWNvbnMuZGF0YV91c2FnZSksCiAgICAgICAgICAgIHRyYWlsaW5nOiBjb25zdCBJY29uKEljb25zLmFycm93X2ZvcndhcmRfaW9zLCBzaXplOiAxNiksCiAgICAgICAgICAgIG9uVGFwOiAoKSB7fSwKICAgICAgICAgICksCiAgICAgICAgXSwKICAgICAgKSwKICAgICk7CiAgfQoKICBXaWRnZXQgX2J1aWxkU21hcnRTeW5jU2VjdGlvbigpIHsKICAgIHJldHVybiBDYXJkKAogICAgICBlbGV2YXRpb246IDIsCiAgICAgIHNoYXBlOiBSb3VuZGVkUmVjdGFuZ2xlQm9yZGVyKAogICAgICAgIGJvcmRlclJhZGl1czogQm9yZGVyUmFkaXVzLmNpcmN1bGFyKFVJQ29uc3RhbnRzLnJhZGl1c0xHKSwKICAgICAgKSwKICAgICAgY2hpbGQ6IENvbHVtbigKICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgY29uc3QgUGFkZGluZygKICAgICAgICAgICAgcGFkZGluZzogRWRnZUluc2V0cy5hbGwoVUlDb25zdGFudHMuc3BhY2luZ01EKSwKICAgICAgICAgICAgY2hpbGQ6IFJvdygKICAgICAgICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgICAgICAgSWNvbigKICAgICAgICAgICAgICAgICAgSWNvbnMucHN5Y2hvbG9neSwKICAgICAgICAgICAgICAgICAgY29sb3I6IENvbG9ycy5wdXJwbGUsCiAgICAgICAgICAgICAgICAgIHNpemU6IFVJQ29uc3RhbnRzLmljb25TaXplTUQsCiAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgU2l6ZWRCb3god2lkdGg6IFVJQ29uc3RhbnRzLnNwYWNpbmdTTSksCiAgICAgICAgICAgICAgICBUZXh0KAogICAgICAgICAgICAgICAgICAn2KfZhNmF2LLYp9mF2YbYqSDYp9mE2LDZg9mK2KknLAogICAgICAgICAgICAgICAgICBzdHlsZTogVGV4dFN0eWxlKGZvbnRTaXplOiAxOCwgZm9udFdlaWdodDogRm9udFdlaWdodC5ib2xkKSwKICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgXSwKICAgICAgICAgICAgKSwKICAgICAgICAgICksCiAgICAgICAgICBjb25zdCBEaXZpZGVyKGhlaWdodDogMSksCiAgICAgICAgICBTd2l0Y2hMaXN0VGlsZSgKICAgICAgICAgICAgdGl0bGU6IGNvbnN0IFRleHQoJ9iq2YHYudmK2YQg2KfZhNmF2LLYp9mF2YbYqSDYp9mE2LDZg9mK2KknKSwKICAgICAgICAgICAgc3VidGl0bGU6IGNvbnN0IFRleHQoJ9mF2LLYp9mF2YbYqSDYqtmD2YrZgdmK2Kkg2K3Ys9ioINin2YTYp9iz2KrYrtiv2KfZhSDZiNin2YTYuNix2YjZgScpLAogICAgICAgICAgICB2YWx1ZTogdHJ1ZSwKICAgICAgICAgICAgb25DaGFuZ2VkOiAodmFsdWUpIHt9LAogICAgICAgICAgICBzZWNvbmRhcnk6IGNvbnN0IEljb24oSWNvbnMuc21hcnRfdG95KSwKICAgICAgICAgICksCiAgICAgICAgICBjb25zdCBEaXZpZGVyKGhlaWdodDogMSksCiAgICAgICAgICBMaXN0VGlsZSgKICAgICAgICAgICAgdGl0bGU6IGNvbnN0IFRleHQoJ9it2YQg2KfZhNiq2LnYp9ix2LbYp9iqJyksCiAgICAgICAgICAgIHN1YnRpdGxlOiBjb25zdCBUZXh0KCfYp9mE2KPYrdiv2Ksg2YrZgdmI2LInKSwKICAgICAgICAgICAgbGVhZGluZzogY29uc3QgSWNvbihJY29ucy5tZXJnZSksCiAgICAgICAgICAgIHRyYWlsaW5nOiBjb25zdCBJY29uKEljb25zLmFycm93X2ZvcndhcmRfaW9zLCBzaXplOiAxNiksCiAgICAgICAgICAgIG9uVGFwOiAoKSB7fSwKICAgICAgICAgICksCiAgICAgICAgICBjb25zdCBEaXZpZGVyKGhlaWdodDogMSksCiAgICAgICAgICBMaXN0VGlsZSgKICAgICAgICAgICAgdGl0bGU6IGNvbnN0IFRleHQoJ9ij2YjZhNmI2YrYqSDYp9mE2KzZh9in2LInKSwKICAgICAgICAgICAgc3VidGl0bGU6IGNvbnN0IFRleHQoJ9i52KfYr9mK2KknKSwKICAgICAgICAgICAgbGVhZGluZzogY29uc3QgSWNvbihJY29ucy5kZXZpY2VfaHViKSwKICAgICAgICAgICAgdHJhaWxpbmc6IGNvbnN0IEljb24oSWNvbnMuYXJyb3dfZm9yd2FyZF9pb3MsIHNpemU6IDE2KSwKICAgICAgICAgICAgb25UYXA6ICgpIHt9LAogICAgICAgICAgKSwKICAgICAgICBdLAogICAgICApLAogICAgKTsKICB9CgogIFdpZGdldCBfYnVpbGRBcHB3cml0ZVN5bmNTZWN0aW9uKCkgewogICAgcmV0dXJuIENhcmQoCiAgICAgIGVsZXZhdGlvbjogMiwKICAgICAgc2hhcGU6IFJvdW5kZWRSZWN0YW5nbGVCb3JkZXIoCiAgICAgICAgYm9yZGVyUmFkaXVzOiBCb3JkZXJSYWRpdXMuY2lyY3VsYXIoVUlDb25zdGFudHMucmFkaXVzTEcpLAogICAgICApLAogICAgICBjaGlsZDogQ29sdW1uKAogICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICBjb25zdCBQYWRkaW5nKAogICAgICAgICAgICBwYWRkaW5nOiBFZGdlSW5zZXRzLmFsbChVSUNvbnN0YW50cy5zcGFjaW5nTUQpLAogICAgICAgICAgICBjaGlsZDogUm93KAogICAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgICBJY29uKAogICAgICAgICAgICAgICAgICBJY29ucy5jbG91ZF9zeW5jLAogICAgICAgICAgICAgICAgICBjb2xvcjogQ29sb3JzLmJsdWUsCiAgICAgICAgICAgICAgICAgIHNpemU6IFVJQ29uc3RhbnRzLmljb25TaXplTUQsCiAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgU2l6ZWRCb3god2lkdGg6IFVJQ29uc3RhbnRzLnNwYWNpbmdTTSksCiAgICAgICAgICAgICAgICBUZXh0KAogICAgICAgICAgICAgICAgICAnQXBwd3JpdGUgU3luYycsCiAgICAgICAgICAgICAgICAgIHN0eWxlOiBUZXh0U3R5bGUoZm9udFNpemU6IDE4LCBmb250V2VpZ2h0OiBGb250V2VpZ2h0LmJvbGQpLAogICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICBdLAogICAgICAgICAgICApLAogICAgICAgICAgKSwKICAgICAgICAgIGNvbnN0IERpdmlkZXIoaGVpZ2h0OiAxKSwKICAgICAgICAgIFN3aXRjaExpc3RUaWxlKAogICAgICAgICAgICB0aXRsZTogY29uc3QgVGV4dCgn2KrZgdi52YrZhCDZhdiy2KfZhdmG2KkgQXBwd3JpdGUnKSwKICAgICAgICAgICAgc3VidGl0bGU6IGNvbnN0IFRleHQoJ9mF2LLYp9mF2YbYqSDYp9mE2KjZitin2YbYp9iqINmF2Lkg2LPYrdin2KjYqSBBcHB3cml0ZScpLAogICAgICAgICAgICB2YWx1ZTogdHJ1ZSwKICAgICAgICAgICAgb25DaGFuZ2VkOiAodmFsdWUpIHt9LAogICAgICAgICAgICBzZWNvbmRhcnk6IGNvbnN0IEljb24oSWNvbnMuY2xvdWQpLAogICAgICAgICAgKSwKICAgICAgICAgIGNvbnN0IERpdmlkZXIoaGVpZ2h0OiAxKSwKICAgICAgICAgIFN3aXRjaExpc3RUaWxlKAogICAgICAgICAgICB0aXRsZTogY29uc3QgVGV4dCgn2KfZhNmF2LLYp9mF2YbYqSDYp9mE2YHZiNix2YrYqScpLAogICAgICAgICAgICBzdWJ0aXRsZTogY29uc3QgVGV4dCgn2YXYstin2YXZhtipINmB2YjYsdmK2Kkg2LnZhtivINit2K/ZiNirINiq2LrZitmK2LHYp9iqJyksCiAgICAgICAgICAgIHZhbHVlOiB0cnVlLAogICAgICAgICAgICBvbkNoYW5nZWQ6ICh2YWx1ZSkge30sCiAgICAgICAgICAgIHNlY29uZGFyeTogY29uc3QgSWNvbihJY29ucy5mbGFzaF9vbiksCiAgICAgICAgICApLAogICAgICAgICAgY29uc3QgRGl2aWRlcihoZWlnaHQ6IDEpLAogICAgICAgICAgTGlzdFRpbGUoCiAgICAgICAgICAgIHRpdGxlOiBjb25zdCBUZXh0KCfYrNiv2KfZiNmEINin2YTZhdiy2KfZhdmG2KknKSwKICAgICAgICAgICAgc3VidGl0bGU6IGNvbnN0IFRleHQoJ9in2K7YqtixINin2YTYrNiv2KfZiNmEINmE2YTZhdiy2KfZhdmG2KknKSwKICAgICAgICAgICAgbGVhZGluZzogY29uc3QgSWNvbihJY29ucy50YWJsZV9jaGFydCksCiAgICAgICAgICAgIHRyYWlsaW5nOiBjb25zdCBJY29uKEljb25zLmFycm93X2ZvcndhcmRfaW9zLCBzaXplOiAxNiksCiAgICAgICAgICAgIG9uVGFwOiAoKSB7fSwKICAgICAgICAgICksCiAgICAgICAgXSwKICAgICAgKSwKICAgICk7CiAgfQoKICBXaWRnZXQgX2J1aWxkQWR2YW5jZWRTZWN0aW9uKCkgewogICAgcmV0dXJuIENhcmQoCiAgICAgIGVsZXZhdGlvbjogMiwKICAgICAgc2hhcGU6IFJvdW5kZWRSZWN0YW5nbGVCb3JkZXIoCiAgICAgICAgYm9yZGVyUmFkaXVzOiBCb3JkZXJSYWRpdXMuY2lyY3VsYXIoVUlDb25zdGFudHMucmFkaXVzTEcpLAogICAgICApLAogICAgICBjaGlsZDogQ29sdW1uKAogICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICBQYWRkaW5nKAogICAgICAgICAgICBwYWRkaW5nOiBjb25zdCBFZGdlSW5zZXRzLmFsbChVSUNvbnN0YW50cy5zcGFjaW5nTUQpLAogICAgICAgICAgICBjaGlsZDogUm93KAogICAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgICBJY29uKAogICAgICAgICAgICAgICAgICBJY29ucy5zZXR0aW5nc19zdWdnZXN0LAogICAgICAgICAgICAgICAgICBjb2xvcjogQ29sb3JzLmdyZXkuc2hhZGU3MDAsCiAgICAgICAgICAgICAgICAgIHNpemU6IFVJQ29uc3RhbnRzLmljb25TaXplTUQsCiAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgY29uc3QgU2l6ZWRCb3god2lkdGg6IFVJQ29uc3RhbnRzLnNwYWNpbmdTTSksCiAgICAgICAgICAgICAgICBjb25zdCBUZXh0KAogICAgICAgICAgICAgICAgICAn2KXYudiv2KfYr9in2Kog2YXYqtmC2K/ZhdipJywKICAgICAgICAgICAgICAgICAgc3R5bGU6IFRleHRTdHlsZShmb250U2l6ZTogMTgsIGZvbnRXZWlnaHQ6IEZvbnRXZWlnaHQuYm9sZCksCiAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgIF0sCiAgICAgICAgICAgICksCiAgICAgICAgICApLAogICAgICAgICAgY29uc3QgRGl2aWRlcihoZWlnaHQ6IDEpLAogICAgICAgICAgTGlzdFRpbGUoCiAgICAgICAgICAgIHRpdGxlOiBjb25zdCBUZXh0KCfZhdiz2K0g2LDYp9mD2LHYqSDYp9mE2KrYrtiy2YrZhiDYp9mE2YXYpNmC2KonKSwKICAgICAgICAgICAgc3VidGl0bGU6IGNvbnN0IFRleHQoJ9it2LDZgSDYp9mE2KjZitin2YbYp9iqINin2YTZhdiu2LLZhtipINmF2KTZgtiq2KfZiycpLAogICAgICAgICAgICBsZWFkaW5nOiBjb25zdCBJY29uKEljb25zLmNsZWFuaW5nX3NlcnZpY2VzKSwKICAgICAgICAgICAgdHJhaWxpbmc6IGNvbnN0IEljb24oSWNvbnMuYXJyb3dfZm9yd2FyZF9pb3MsIHNpemU6IDE2KSwKICAgICAgICAgICAgb25UYXA6ICgpIHt9LAogICAgICAgICAgKSwKICAgICAgICAgIGNvbnN0IERpdmlkZXIoaGVpZ2h0OiAxKSwKICAgICAgICAgIExpc3RUaWxlKAogICAgICAgICAgICB0aXRsZTogY29uc3QgVGV4dCgn2KXYudin2K/YqSDYqti52YrZitmGINin2YTZhdiy2KfZhdmG2KknKSwKICAgICAgICAgICAgc3VidGl0bGU6IGNvbnN0IFRleHQoJ9il2LnYp9iv2Kkg2KrZh9mK2KbYqSDZhti42KfZhSDYp9mE2YXYstin2YXZhtipJyksCiAgICAgICAgICAgIGxlYWRpbmc6IGNvbnN0IEljb24oSWNvbnMucmVzdG9yZSwgY29sb3I6IENvbG9ycy5vcmFuZ2UpLAogICAgICAgICAgICB0cmFpbGluZzogY29uc3QgSWNvbihJY29ucy5hcnJvd19mb3J3YXJkX2lvcywgc2l6ZTogMTYpLAogICAgICAgICAgICBvblRhcDogKCkge30sCiAgICAgICAgICApLAogICAgICAgICAgY29uc3QgRGl2aWRlcihoZWlnaHQ6IDEpLAogICAgICAgICAgTGlzdFRpbGUoCiAgICAgICAgICAgIHRpdGxlOiBjb25zdCBUZXh0KCfYudix2LYg2KfZhNiz2KzZhNin2KonKSwKICAgICAgICAgICAgc3VidGl0bGU6IGNvbnN0IFRleHQoJ9iz2KzZhNin2Kog2KfZhNmF2LLYp9mF2YbYqSDZiNin2YTYo9iu2LfYp9ihJyksCiAgICAgICAgICAgIGxlYWRpbmc6IGNvbnN0IEljb24oSWNvbnMuZGVzY3JpcHRpb24pLAogICAgICAgICAgICB0cmFpbGluZzogY29uc3QgSWNvbihJY29ucy5hcnJvd19mb3J3YXJkX2lvcywgc2l6ZTogMTYpLAogICAgICAgICAgICBvblRhcDogKCkge30sCiAgICAgICAgICApLAogICAgICAgIF0sCiAgICAgICksCiAgICApOwogIH0KCiAgdm9pZCBfc2hvd1N5bmNJbnRlcnZhbERpYWxvZygpIHsKICAgIHNob3dEaWFsb2c8dm9pZD4oCiAgICAgIGNvbnRleHQ6IGNvbnRleHQsCiAgICAgIGJ1aWxkZXI6IChjb250ZXh0KSA9PiBBbGVydERpYWxvZygKICAgICAgICB0aXRsZTogY29uc3QgVGV4dCgn2YHYqtix2Kkg2KfZhNmF2LLYp9mF2YbYqScpLAogICAgICAgIGNvbnRlbnQ6IENvbHVtbigKICAgICAgICAgIG1haW5BeGlzU2l6ZTogTWFpbkF4aXNTaXplLm1pbiwKICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgIExpc3RUaWxlKAogICAgICAgICAgICAgIHRpdGxlOiBjb25zdCBUZXh0KCc1INiv2YLYp9im2YInKSwKICAgICAgICAgICAgICAvLyBpZ25vcmU6IGRlcHJlY2F0ZWRfbWVtYmVyX3VzZQogICAgICAgICAgICAgIGxlYWRpbmc6IFJhZGlvKHZhbHVlOiA1LCBncm91cFZhbHVlOiAxNSwgb25DaGFuZ2VkOiAodikge30pLAogICAgICAgICAgICAgIG9uVGFwOiAoKSA9PiBOYXZpZ2F0b3IucG9wKGNvbnRleHQpLAogICAgICAgICAgICApLAogICAgICAgICAgICBMaXN0VGlsZSgKICAgICAgICAgICAgICB0aXRsZTogY29uc3QgVGV4dCgnMTUg2K/ZgtmK2YLYqScpLAogICAgICAgICAgICAgIC8vIGlnbm9yZTogZGVwcmVjYXRlZF9tZW1iZXJfdXNlCiAgICAgICAgICAgICAgbGVhZGluZzogUmFkaW8odmFsdWU6IDE1LCBncm91cFZhbHVlOiAxNSwgb25DaGFuZ2VkOiAodikge30pLAogICAgICAgICAgICAgIG9uVGFwOiAoKSA9PiBOYXZpZ2F0b3IucG9wKGNvbnRleHQpLAogICAgICAgICAgICApLAogICAgICAgICAgICBMaXN0VGlsZSgKICAgICAgICAgICAgICB0aXRsZTogY29uc3QgVGV4dCgnMzAg2K/ZgtmK2YLYqScpLAogICAgICAgICAgICAgIC8vIGlnbm9yZTogZGVwcmVjYXRlZF9tZW1iZXJfdXNlCiAgICAgICAgICAgICAgbGVhZGluZzogUmFkaW8odmFsdWU6IDMwLCBncm91cFZhbHVlOiAxNSwgb25DaGFuZ2VkOiAodikge30pLAogICAgICAgICAgICAgIG9uVGFwOiAoKSA9PiBOYXZpZ2F0b3IucG9wKGNvbnRleHQpLAogICAgICAgICAgICApLAogICAgICAgICAgICBMaXN0VGlsZSgKICAgICAgICAgICAgICB0aXRsZTogY29uc3QgVGV4dCgn2LPYp9i52Kkg2YjYp9it2K/YqScpLAogICAgICAgICAgICAgIC8vIGlnbm9yZTogZGVwcmVjYXRlZF9tZW1iZXJfdXNlCiAgICAgICAgICAgICAgbGVhZGluZzogUmFkaW8odmFsdWU6IDYwLCBncm91cFZhbHVlOiAxNSwgb25DaGFuZ2VkOiAodikge30pLAogICAgICAgICAgICAgIG9uVGFwOiAoKSA9PiBOYXZpZ2F0b3IucG9wKGNvbnRleHQpLAogICAgICAgICAgICApLAogICAgICAgICAgXSwKICAgICAgICApLAogICAgICAgIGFjdGlvbnM6IFsKICAgICAgICAgIFRleHRCdXR0b24oCiAgICAgICAgICAgIG9uUHJlc3NlZDogKCkgPT4gTmF2aWdhdG9yLnBvcChjb250ZXh0KSwKICAgICAgICAgICAgY2hpbGQ6IGNvbnN0IFRleHQoJ9il2YTYutin2KEnKSwKICAgICAgICAgICksCiAgICAgICAgXSwKICAgICAgKSwKICAgICk7CiAgfQp9Cg==
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../components/app_scaffold.dart';
+import '../../../core/core.dart';
+
+/// Unified Sync Settings Screen
+///
+/// شاشة موحدة لجميع إعدادات المزامنة
+/// تجمع الإعدادات المبعثرة في:
+/// - smart_sync_settings_screen.dart
+/// - appwrite_settings_screen.dart (جزء المزامنة)
+/// - data_protection_screen.dart (جزء المزامنة)
+/// - sync_performance_settings_screen.dart
+class UnifiedSyncSettingsScreen extends ConsumerStatefulWidget {
+  const UnifiedSyncSettingsScreen({super.key});
+
+  @override
+  ConsumerState<UnifiedSyncSettingsScreen> createState() =>
+      _UnifiedSyncSettingsScreenState();
+}
+
+class _UnifiedSyncSettingsScreenState
+    extends ConsumerState<UnifiedSyncSettingsScreen> {
+  @override
+  Widget build(BuildContext context) {
+    return AppScaffold(
+      title: 'إعدادات المزامنة',
+      body: ListView(
+        padding: const EdgeInsets.all(UIConstants.spacingMD),
+        children: [
+          // نظرة عامة
+          _buildOverviewSection(),
+
+          const SizedBox(height: UIConstants.spacingLG),
+
+          // الإعدادات العامة
+          _buildGeneralSettingsSection(),
+
+          const SizedBox(height: UIConstants.spacingLG),
+
+          // إعدادات الأداء
+          _buildPerformanceSection(),
+
+          const SizedBox(height: UIConstants.spacingLG),
+
+          // المزامنة الذكية
+          _buildSmartSyncSection(),
+
+          const SizedBox(height: UIConstants.spacingLG),
+
+          // Appwrite Sync
+          _buildAppwriteSyncSection(),
+
+          const SizedBox(height: UIConstants.spacingLG),
+
+          // إعدادات متقدمة
+          _buildAdvancedSection(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverviewSection() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(UIConstants.spacingMD),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: UIConstants.syncColor,
+                  size: UIConstants.iconSizeMD,
+                ),
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
+                  'حالة المزامنة',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: UIConstants.spacingMD),
+            InfoRow(
+              label: 'آخر مزامنة',
+              value: DateTimeFormatter.getRelativeTime('2024-01-29T18:00:00'),
+              icon: Icons.schedule,
+            ),
+            const InfoRow(
+              label: 'حالة الاتصال',
+              value: 'متصل',
+              icon: Icons.wifi,
+              iconColor: Colors.green,
+            ),
+            const InfoRow(
+              label: 'عناصر معلقة',
+              value: '0',
+              icon: Icons.pending,
+              iconColor: Colors.orange,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGeneralSettingsSection() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
+      child: Column(
+        children: [
+          SwitchListTile(
+            title: const Text('تفعيل المزامنة التلقائية'),
+            subtitle: const Text('مزامنة البيانات تلقائياً عند التغيير'),
+            value: true,
+            onChanged: (value) {},
+            secondary: const Icon(Icons.sync),
+          ),
+          const Divider(height: 1),
+          SwitchListTile(
+            title: const Text('المزامنة عند بدء التشغيل'),
+            subtitle: const Text('مزامنة البيانات عند فتح التطبيق'),
+            value: true,
+            onChanged: (value) {},
+            secondary: const Icon(Icons.power_settings_new),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            title: const Text('فترة المزامنة'),
+            subtitle: const Text('15 دقيقة'),
+            leading: const Icon(Icons.timer),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: _showSyncIntervalDialog,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPerformanceSection() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
+      child: Column(
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(UIConstants.spacingMD),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.speed,
+                  color: UIConstants.syncColor,
+                  size: UIConstants.iconSizeMD,
+                ),
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
+                  'الأداء والبطارية',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          SwitchListTile(
+            title: const Text('تحسين البطارية'),
+            subtitle: const Text('تقليل استهلاك البطارية أثناء المزامنة'),
+            value: true,
+            onChanged: (value) {},
+            secondary: const Icon(Icons.battery_saver),
+          ),
+          const Divider(height: 1),
+          SwitchListTile(
+            title: const Text('WiFi فقط'),
+            subtitle: const Text('مزامنة عند الاتصال بـ WiFi فقط'),
+            value: false,
+            onChanged: (value) {},
+            secondary: const Icon(Icons.wifi),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            title: const Text('الحد اليومي للبيانات'),
+            subtitle: const Text('50 ميجابايت'),
+            leading: const Icon(Icons.data_usage),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () {},
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSmartSyncSection() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
+      child: Column(
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(UIConstants.spacingMD),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.psychology,
+                  color: Colors.purple,
+                  size: UIConstants.iconSizeMD,
+                ),
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
+                  'المزامنة الذكية',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          SwitchListTile(
+            title: const Text('تفعيل المزامنة الذكية'),
+            subtitle: const Text('مزامنة تكيفية حسب الاستخدام والظروف'),
+            value: true,
+            onChanged: (value) {},
+            secondary: const Icon(Icons.smart_toy),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            title: const Text('حل التعارضات'),
+            subtitle: const Text('الأحدث يفوز'),
+            leading: const Icon(Icons.merge),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () {},
+          ),
+          const Divider(height: 1),
+          ListTile(
+            title: const Text('أولوية الجهاز'),
+            subtitle: const Text('عادية'),
+            leading: const Icon(Icons.device_hub),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () {},
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppwriteSyncSection() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
+      child: Column(
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(UIConstants.spacingMD),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.cloud_sync,
+                  color: Colors.blue,
+                  size: UIConstants.iconSizeMD,
+                ),
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
+                  'Appwrite Sync',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          SwitchListTile(
+            title: const Text('تفعيل مزامنة Appwrite'),
+            subtitle: const Text('مزامنة البيانات مع سحابة Appwrite'),
+            value: true,
+            onChanged: (value) {},
+            secondary: const Icon(Icons.cloud),
+          ),
+          const Divider(height: 1),
+          SwitchListTile(
+            title: const Text('المزامنة الفورية'),
+            subtitle: const Text('مزامنة فورية عند حدوث تغييرات'),
+            value: true,
+            onChanged: (value) {},
+            secondary: const Icon(Icons.flash_on),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            title: const Text('جداول المزامنة'),
+            subtitle: const Text('اختر الجداول للمزامنة'),
+            leading: const Icon(Icons.table_chart),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () {},
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAdvancedSection() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(UIConstants.spacingMD),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.settings_suggest,
+                  color: Colors.grey.shade700,
+                  size: UIConstants.iconSizeMD,
+                ),
+                const SizedBox(width: UIConstants.spacingSM),
+                const Text(
+                  'إعدادات متقدمة',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            title: const Text('مسح ذاكرة التخزين المؤقت'),
+            subtitle: const Text('حذف البيانات المخزنة مؤقتاً'),
+            leading: const Icon(Icons.cleaning_services),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () {},
+          ),
+          const Divider(height: 1),
+          ListTile(
+            title: const Text('إعادة تعيين المزامنة'),
+            subtitle: const Text('إعادة تهيئة نظام المزامنة'),
+            leading: const Icon(Icons.restore, color: Colors.orange),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () {},
+          ),
+          const Divider(height: 1),
+          ListTile(
+            title: const Text('عرض السجلات'),
+            subtitle: const Text('سجلات المزامنة والأخطاء'),
+            leading: const Icon(Icons.description),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: () {},
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSyncIntervalDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('فترة المزامنة'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('5 دقائق'),
+              // ignore: deprecated_member_use
+              leading: Radio(value: 5, groupValue: 15, onChanged: (v) {}),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              title: const Text('15 دقيقة'),
+              // ignore: deprecated_member_use
+              leading: Radio(value: 15, groupValue: 15, onChanged: (v) {}),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              title: const Text('30 دقيقة'),
+              // ignore: deprecated_member_use
+              leading: Radio(value: 30, groupValue: 15, onChanged: (v) {}),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              title: const Text('ساعة واحدة'),
+              // ignore: deprecated_member_use
+              leading: Radio(value: 60, groupValue: 15, onChanged: (v) {}),
+              onTap: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+        ],
+      ),
+    );
+  }
+}
