@@ -11,7 +11,11 @@ class FakeAuthNotifier extends AuthNotifier {
   @override
   Future<void> restoreSession() async {}
   @override
-  Future<void> login(String username, String password, {bool rememberMe = false}) async {}
+  Future<void> login(
+    String username,
+    String password, {
+    bool rememberMe = false,
+  }) async {}
   @override
   Future<void> logout() async {}
 }
@@ -31,13 +35,20 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          authProvider.overrideWith((ref) => FakeAuthNotifier(AuthState(isAuthenticated: true, currentUser: user))),
+          authProvider.overrideWith(
+            (ref) => FakeAuthNotifier(
+              AuthState(isAuthenticated: true, currentUser: user),
+            ),
+          ),
         ],
         child: const Directionality(
           textDirection: TextDirection.rtl,
           child: MaterialApp(
             home: Scaffold(
-              body: AdminSidebar(currentRoute: '/dashboard', onRouteSelected: _noop),
+              body: AdminSidebar(
+                currentRoute: '/dashboard',
+                onRouteSelected: _noop,
+              ),
             ),
           ),
         ),
