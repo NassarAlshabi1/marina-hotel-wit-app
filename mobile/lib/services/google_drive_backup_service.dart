@@ -34,7 +34,13 @@ import 'sqlite_backup_restore.dart';
 enum BackupFormat { json, sqlite }
 
 class DriveBackupFile {
-  DriveBackupFile({required this.fileId, required this.fileName, required this.createdTime, this.size, this.metadata});
+  DriveBackupFile({
+    required this.fileId,
+    required this.fileName,
+    required this.createdTime,
+    this.size,
+    this.metadata,
+  });
 
   factory DriveBackupFile.fromDriveFile(drive.File file) {
     return DriveBackupFile(
@@ -51,7 +57,8 @@ class DriveBackupFile {
   final int? size;
   final Map<String, dynamic>? metadata;
 
-  Map<String, String> get appProperties => metadata?.map((k, v) => MapEntry(k, v.toString())) ?? {};
+  Map<String, String> get appProperties =>
+      metadata?.map((k, v) => MapEntry(k, v.toString())) ?? {};
 
   /// تحديد صيغة النسخة من اسم الملف أو metadata
   BackupFormat get format {
@@ -86,7 +93,10 @@ class BackupMetadata {
     final rawFormat = json['format'] as String?;
     // Handle 'db' format as sqlite
     final formatName = rawFormat == 'db' ? 'sqlite' : rawFormat;
-    final format = BackupFormat.values.firstWhere((value) => value.name == formatName, orElse: () => BackupFormat.json);
+    final format = BackupFormat.values.firstWhere(
+      (value) => value.name == formatName,
+      orElse: () => BackupFormat.json,
+    );
     return BackupMetadata(
       appVersion: (json['app_version'] as String?) ?? '',
       databaseVersion: (json['database_version'] as num?)?.toInt() ?? 1,
@@ -170,7 +180,8 @@ class GoogleDriveBackupService {
   static const String _prefsAutoBackupTimeKey = 'auto_backup_time';
 
   /// كائن GoogleSignIn الموحّد — يُشاركه جميع الخدمات
-  final GoogleDriveSignInManager _signInManager = GoogleDriveSignInManager.instance;
+  final GoogleDriveSignInManager _signInManager =
+      GoogleDriveSignInManager.instance;
   drive.DriveApi? _driveApi;
   // ✅ مولد أرقام عشوائية لـ jitter في backoff
   final math.Random _random = math.Random();
@@ -200,7 +211,10 @@ class GoogleDriveBackupService {
   ///    أخطاء المحاولة الثانية تُفقد صامتة)
   /// 2. إضافة backoff لـ 429 (rate limit) و 503 (server error)
   /// 3. إضافة 403 (forbidden) لمحاولة تحديث الاعتماديات
-  Future<T> _runWithAuth<T>(Future<T> Function() action, {int maxAttempts = 3}) async {
+  Future<T> _runWithAuth<T>(
+    Future<T> Function() action, {
+    int maxAttempts = 3,
+  }) async {
     await _ensureDriveClient();
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
@@ -265,7 +279,8 @@ class GoogleDriveBackupService {
   Future<GoogleSignInAccount?> attemptSilentSignIn() async {
     try {
       _log('🔄 محاولة استعادة جلسة Google Drive...');
-      final GoogleSignInAccount? account = await _signInManager.signInSilently();
+      final GoogleSignInAccount? account = await _signInManager
+          .signInSilently();
 
       if (account != null) {
         _log('🔑 الحصول على رؤوس المصادقة...');
@@ -335,7 +350,8 @@ class GoogleDriveBackupService {
       }
 
       try {
-        const query = "name='$_backupFolderName' and mimeType='application/vnd.google-apps.folder' and trashed=false";
+        const query =
+            "name='$_backupFolderName' and mimeType='application/vnd.google-apps.folder' and trashed=false";
         final searchResult = await _driveApi!.files.list(q: query);
 
         if (searchResult.files != null && searchResult.files!.isNotEmpty) {
@@ -366,27 +382,48 @@ class GoogleDriveBackupService {
       // تحميل البيانات على دفعات لتجنب استهلاك الذاكرة في قواعد البيانات الكبيرة
       final roomsData = await _loadTableBatched<dynamic>(db.rooms);
       final bookingsData = await _loadTableBatched<dynamic>(db.bookings);
-      final bookingNotesData = await _loadTableBatched<dynamic>(db.bookingNotes);
-      final bookingNightsData = await _loadTableBatched<dynamic>(db.bookingNights);
+      final bookingNotesData = await _loadTableBatched<dynamic>(
+        db.bookingNotes,
+      );
+      final bookingNightsData = await _loadTableBatched<dynamic>(
+        db.bookingNights,
+      );
       final ledgerData = await _loadTableBatched<dynamic>(db.hotelDayLedger);
       final shiftNotesData = await _loadTableBatched<dynamic>(db.shiftNotes);
       final employeesData = await _loadTableBatched<dynamic>(db.employees);
       final expensesData = await _loadTableBatched<dynamic>(db.expenses);
-      final cashTransactionsData = await _loadTableBatched<dynamic>(db.cashTransactions);
+      final cashTransactionsData = await _loadTableBatched<dynamic>(
+        db.cashTransactions,
+      );
       final paymentsData = await _loadTableBatched<dynamic>(db.payments);
       final debtsData = await _loadTableBatched<dynamic>(db.debts);
-      final salaryCyclesData = await _loadTableBatched<dynamic>(db.salaryCycles);
-      final salaryPaymentsData = await _loadTableBatched<dynamic>(db.salaryPayments);
-      final priceAdjustmentsData = await _loadTableBatched<dynamic>(db.priceAdjustments);
-      final bookingPriceAdjData = await _loadTableBatched<dynamic>(db.bookingPriceAdjustments);
+      final salaryCyclesData = await _loadTableBatched<dynamic>(
+        db.salaryCycles,
+      );
+      final salaryPaymentsData = await _loadTableBatched<dynamic>(
+        db.salaryPayments,
+      );
+      final priceAdjustmentsData = await _loadTableBatched<dynamic>(
+        db.priceAdjustments,
+      );
+      final bookingPriceAdjData = await _loadTableBatched<dynamic>(
+        db.bookingPriceAdjustments,
+      );
       final auditLogsData = await _loadTableBatched<dynamic>(db.auditLogs);
-      final paymentVoidsData = await _loadTableBatched<dynamic>(db.paymentVoids);
+      final paymentVoidsData = await _loadTableBatched<dynamic>(
+        db.paymentVoids,
+      );
       final guestInfosData = await _loadTableBatched<dynamic>(db.guestInfos);
-      final salaryWithdrawalsData = await _loadTableBatched<dynamic>(db.salaryWithdrawals);
-      final salaryCarryOverLogsData = await _loadTableBatched<dynamic>(db.salaryCarryOverLogs);
+      final salaryWithdrawalsData = await _loadTableBatched<dynamic>(
+        db.salaryWithdrawals,
+      );
+      final salaryCarryOverLogsData = await _loadTableBatched<dynamic>(
+        db.salaryCarryOverLogs,
+      );
 
       // استخراج عناصر القائمة السوداء بشكل منفصل (createdBy = 'blacklist')
-      final blacklistQuery = db.select(db.shiftNotes)..where((t) => t.createdBy.equals('blacklist'));
+      final blacklistQuery = db.select(db.shiftNotes)
+        ..where((t) => t.createdBy.equals('blacklist'));
       final blacklistData = await blacklistQuery.get();
 
       final tableData = BackupTableData(
@@ -425,7 +462,13 @@ class GoogleDriveBackupService {
       // إعدادات الواتساب من SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       final whatsappSettings = <String, dynamic>{};
-      const waKeys = ['wa_api_type', 'wa_api_base_url', 'wa_api_instance_id', 'wa_api_token', 'wa_custom_url_template'];
+      const waKeys = [
+        'wa_api_type',
+        'wa_api_base_url',
+        'wa_api_instance_id',
+        'wa_api_token',
+        'wa_custom_url_template',
+      ];
       for (final key in waKeys) {
         final value = prefs.getString(key);
         if (value != null && value.isNotEmpty) {
@@ -480,14 +523,24 @@ class GoogleDriveBackupService {
         );
 
         // 2. إثراء بـ UUID للكيانات المرجعية (FK resolution at restore time)
-        _enrichBackupWithFKUuidsInIsolate(data, employeesData, salaryCyclesData);
+        _enrichBackupWithFKUuidsInIsolate(
+          data,
+          employeesData,
+          salaryCyclesData,
+        );
 
         // 3. حساب SHA-256 hash (باستثناء حقل data_hash نفسه)
-        final metadataForHash = Map<String, dynamic>.from(data['metadata'] as Map)..remove('data_hash');
-        final dataForHash = <String, dynamic>{...data, 'metadata': metadataForHash};
+        final metadataForHash = Map<String, dynamic>.from(
+          data['metadata'] as Map,
+        )..remove('data_hash');
+        final dataForHash = <String, dynamic>{
+          ...data,
+          'metadata': metadataForHash,
+        };
         final jsonBytes = utf8.encode(jsonEncode(dataForHash));
         final digest = sha256.convert(jsonBytes);
-        (data['metadata'] as Map<String, dynamic>)['data_hash'] = digest.toString();
+        (data['metadata'] as Map<String, dynamic>)['data_hash'] = digest
+            .toString();
 
         return data;
       });
@@ -511,7 +564,10 @@ class GoogleDriveBackupService {
   ///
   /// يقرأ السجلات بكميات [batchSize] بدلاً من تحميلها كلها مرة واحدة.
   /// يستخدم طريقة عامة للتعامل مع جميع جداول Drift.
-  Future<List<T>> _loadTableBatched<T>(dynamic table, {int batchSize = 500}) async {
+  Future<List<T>> _loadTableBatched<T>(
+    dynamic table, {
+    int batchSize = 500,
+  }) async {
     final db = DatabaseManager.instance;
     final allData = <T>[];
     int offset = 0;
@@ -584,7 +640,10 @@ class GoogleDriveBackupService {
     return storedHash == computedHash;
   }
 
-  Future<String> uploadBackup(Map<String, dynamic> backupData, {bool isSync = false}) async {
+  Future<String> uploadBackup(
+    Map<String, dynamic> backupData, {
+    bool isSync = false,
+  }) async {
     String? partialFileId;
 
     return _runWithAuth<String>(() async {
@@ -604,7 +663,9 @@ class GoogleDriveBackupService {
 
         // تحديد البادئة والنوع حسب نوع النسخة
         final rawMetadata = backupData['metadata'];
-        final metadata = rawMetadata is Map ? Map<String, dynamic>.from(rawMetadata) : <String, dynamic>{};
+        final metadata = rawMetadata is Map
+            ? Map<String, dynamic>.from(rawMetadata)
+            : <String, dynamic>{};
         final backupType = metadata['backup_type'] as String?;
         final syncType = metadata['sync_type'] as String?;
 
@@ -630,7 +691,10 @@ class GoogleDriveBackupService {
           ..parents = [folderId]
           ..appProperties = _buildAppProperties(metadata, timestamp);
 
-        final media = drive.Media(Stream.value(compressedBytes), compressedBytes.length);
+        final media = drive.Media(
+          Stream.value(compressedBytes),
+          compressedBytes.length,
+        );
 
         final compressionRatio = compressedBytes.length / jsonSize;
         _log(
@@ -640,17 +704,25 @@ class GoogleDriveBackupService {
           '${(compressionRatio * 100).toStringAsFixed(1)}%)',
         );
 
-        final uploadedFile = await _driveApi!.files.create(driveFile, uploadMedia: media);
+        final uploadedFile = await _driveApi!.files.create(
+          driveFile,
+          uploadMedia: media,
+        );
 
         partialFileId = uploadedFile.id;
 
         // التحقق من اكتمال الرفع
-        final verifyResult = await _verifyUploadedBackup(uploadedFile.id!, compressedBytes.length);
+        final verifyResult = await _verifyUploadedBackup(
+          uploadedFile.id!,
+          compressedBytes.length,
+        );
         if (!(verifyResult['is_complete'] as bool? ?? false)) {
           _log('⚠️ النسخة غير مكتملة: ${verifyResult['message']}');
           // حذف النسخة الناقصة
           await deleteBackupFile(uploadedFile.id!);
-          throw Exception('فشل في رفع النسخة بشكل كامل: ${verifyResult['message']}');
+          throw Exception(
+            'فشل في رفع النسخة بشكل كامل: ${verifyResult['message']}',
+          );
         }
 
         final prefs = await SharedPreferences.getInstance();
@@ -681,7 +753,11 @@ class GoogleDriveBackupService {
     });
   }
 
-  Future<String> uploadBackupWithName(String fileName, List<int> bytes, {Map<String, String>? appProperties}) async {
+  Future<String> uploadBackupWithName(
+    String fileName,
+    List<int> bytes, {
+    Map<String, String>? appProperties,
+  }) async {
     return _runWithAuth<String>(() async {
       final folderId = await getOrCreateBackupFolder();
       final driveFile = drive.File()
@@ -689,8 +765,13 @@ class GoogleDriveBackupService {
         ..parents = [folderId]
         ..appProperties = appProperties ?? {};
       final media = drive.Media(Stream.value(bytes), bytes.length);
-      _log('📤 رفع ملف مزامنة: $fileName (${(bytes.length / 1024).toStringAsFixed(2)} KB)');
-      final uploadedFile = await _driveApi!.files.create(driveFile, uploadMedia: media);
+      _log(
+        '📤 رفع ملف مزامنة: $fileName (${(bytes.length / 1024).toStringAsFixed(2)} KB)',
+      );
+      final uploadedFile = await _driveApi!.files.create(
+        driveFile,
+        uploadMedia: media,
+      );
       _log('✅ تم رفع الملف: ${uploadedFile.id}');
       final uploadedId = uploadedFile.id;
       if (uploadedId == null) {
@@ -703,9 +784,17 @@ class GoogleDriveBackupService {
   Future<void> deleteBackup(String fileId) => deleteBackupFile(fileId);
 
   /// التحقق من اكتمال النسخة المرفوعة
-  Future<Map<String, dynamic>> _verifyUploadedBackup(String fileId, int expectedSize) async {
+  Future<Map<String, dynamic>> _verifyUploadedBackup(
+    String fileId,
+    int expectedSize,
+  ) async {
     try {
-      final file = await _driveApi!.files.get(fileId, $fields: 'id,name,size,appProperties') as drive.File;
+      final file =
+          await _driveApi!.files.get(
+                fileId,
+                $fields: 'id,name,size,appProperties',
+              )
+              as drive.File;
 
       final actualSize = file.size != null ? int.tryParse(file.size!) ?? 0 : 0;
 
@@ -716,7 +805,8 @@ class GoogleDriveBackupService {
       if (sizeDifference > maxAllowedDifference) {
         return {
           'is_complete': false,
-          'message': 'حجم الملف غير متطابق (متوقع: $expectedSize، فعلي: $actualSize)',
+          'message':
+              'حجم الملف غير متطابق (متوقع: $expectedSize، فعلي: $actualSize)',
           'actual_size': actualSize,
           'expected_size': expectedSize,
         };
@@ -727,14 +817,24 @@ class GoogleDriveBackupService {
         return {'is_complete': false, 'message': 'البيانات الوصفية مفقودة'};
       }
 
-      return {'is_complete': true, 'message': 'النسخة مكتملة', 'actual_size': actualSize};
+      return {
+        'is_complete': true,
+        'message': 'النسخة مكتملة',
+        'actual_size': actualSize,
+      };
     } catch (e) {
       return {'is_complete': false, 'message': 'فشل التحقق: $e'};
     }
   }
 
-  Map<String, String> _buildAppProperties(Map<String, dynamic> metadata, DateTime timestamp) {
-    final props = <String, String>{'app_name': 'MarinaHotel', 'backup_timestamp': timestamp.toIso8601String()};
+  Map<String, String> _buildAppProperties(
+    Map<String, dynamic> metadata,
+    DateTime timestamp,
+  ) {
+    final props = <String, String>{
+      'app_name': 'MarinaHotel',
+      'backup_timestamp': timestamp.toIso8601String(),
+    };
 
     void addIfPresent(String key, dynamic value) {
       if (value == null) {
@@ -775,7 +875,8 @@ class GoogleDriveBackupService {
           orderBy: 'createdTime desc',
           spaces: 'drive',
           pageToken: pageToken,
-          $fields: 'nextPageToken,files(id,name,createdTime,size,appProperties)',
+          $fields:
+              'nextPageToken,files(id,name,createdTime,size,appProperties)',
         );
         if (response.files != null) {
           allFiles.addAll(response.files!);
@@ -800,14 +901,21 @@ class GoogleDriveBackupService {
 
   Future<Map<String, dynamic>> downloadBackup(String fileId) async {
     return _runWithAuth<Map<String, dynamic>>(() async {
-      final media = await _driveApi!.files.get(fileId, downloadOptions: drive.DownloadOptions.fullMedia) as drive.Media;
+      final media =
+          await _driveApi!.files.get(
+                fileId,
+                downloadOptions: drive.DownloadOptions.fullMedia,
+              )
+              as drive.Media;
 
       final List<int> dataStore = [];
       await media.stream.forEach(dataStore.addAll);
 
       // محاولة فك ضغط gzip — مع دعم التوافق مع النسخ القديمة غير المضغوطة
       List<int> decodedBytes;
-      if (dataStore.length >= 2 && dataStore[0] == 0x1f && dataStore[1] == 0x8b) {
+      if (dataStore.length >= 2 &&
+          dataStore[0] == 0x1f &&
+          dataStore[1] == 0x8b) {
         // magic bytes gzip → ملف مضغوط
         decodedBytes = gzip.decode(dataStore);
         _log(
@@ -834,7 +942,10 @@ class GoogleDriveBackupService {
         final folderId = await getOrCreateBackupFolder();
 
         // إنشاء نسخة SQLite
-        final dbPath = p.join(await sqflite.getDatabasesPath(), SqliteBackupRestore.kDefaultDbFileName);
+        final dbPath = p.join(
+          await sqflite.getDatabasesPath(),
+          SqliteBackupRestore.kDefaultDbFileName,
+        );
 
         final dbFile = File(dbPath);
         if (!dbFile.existsSync()) {
@@ -855,7 +966,10 @@ class GoogleDriveBackupService {
         // LocalBackupService.createLocalBackup(sqlite) ينفّذ checkpoint بالفعل،
         // لكن uploadDbBackup كان يفتقد هذه الخطوة الحرجة.
         try {
-          final checkpointDb = await sqflite.openDatabase(dbPath, singleInstance: false);
+          final checkpointDb = await sqflite.openDatabase(
+            dbPath,
+            singleInstance: false,
+          );
           try {
             await checkpointDb.execute('PRAGMA wal_checkpoint(TRUNCATE)');
             _log('✅ WAL checkpoint (TRUNCATE) قبل رفع نسخة .db');
@@ -895,13 +1009,21 @@ class GoogleDriveBackupService {
           '📤 رفع نسخة .db: $fileName (${(bytes.length / 1024 / 1024).toStringAsFixed(2)} MB, hash=${fileHash.substring(0, 8)}...)',
         );
 
-        final uploadedFile = await _driveApi!.files.create(driveFile, uploadMedia: media);
+        final uploadedFile = await _driveApi!.files.create(
+          driveFile,
+          uploadMedia: media,
+        );
 
         // ✅ التحقق من اكتمال الرفع (مثل JSON backups)
-        final verifyResult = await _verifyUploadedBackup(uploadedFile.id!, bytes.length);
+        final verifyResult = await _verifyUploadedBackup(
+          uploadedFile.id!,
+          bytes.length,
+        );
         if (!(verifyResult['is_complete'] as bool? ?? false)) {
           await deleteBackupFile(uploadedFile.id!);
-          throw Exception('فشل في رفع نسخة .db بشكل كامل: ${verifyResult['message']}');
+          throw Exception(
+            'فشل في رفع نسخة .db بشكل كامل: ${verifyResult['message']}',
+          );
         }
 
         _log('✅ تم رفع نسخة .db: ${uploadedFile.id}');
@@ -919,14 +1041,25 @@ class GoogleDriveBackupService {
       try {
         // ✅ إصلاح (2026-06-28): جلب appProperties للتحقق من الـ checksum
         // قبل تنزيل المحتوى الكامل (تحسين الأداء + كشف التلف مبكراً)
-        final metaResult = await _driveApi!.files.get(fileId, $fields: 'id,name,size,appProperties') as drive.File;
+        final metaResult =
+            await _driveApi!.files.get(
+                  fileId,
+                  $fields: 'id,name,size,appProperties',
+                )
+                as drive.File;
         final appProps = metaResult.appProperties ?? <String, String?>{};
         final expectedHash = appProps['data_hash'];
         final expectedSizeStr = appProps['file_size'];
-        final expectedSize = expectedSizeStr != null ? int.tryParse(expectedSizeStr) : null;
+        final expectedSize = expectedSizeStr != null
+            ? int.tryParse(expectedSizeStr)
+            : null;
 
         final media =
-            await _driveApi!.files.get(fileId, downloadOptions: drive.DownloadOptions.fullMedia) as drive.Media;
+            await _driveApi!.files.get(
+                  fileId,
+                  downloadOptions: drive.DownloadOptions.fullMedia,
+                )
+                as drive.Media;
 
         // إنشاء مجلد مؤقت
         final tempDir = await getTemporaryDirectory();
@@ -938,7 +1071,9 @@ class GoogleDriveBackupService {
         await media.stream.forEach(dataStore.addAll);
         await tempFile.writeAsBytes(dataStore);
 
-        _log('📥 تنزيل نسخة .db: ${(dataStore.length / 1024 / 1024).toStringAsFixed(2)} MB');
+        _log(
+          '📥 تنزيل نسخة .db: ${(dataStore.length / 1024 / 1024).toStringAsFixed(2)} MB',
+        );
 
         // ✅ التحقق من الحجم
         if (expectedSize != null && dataStore.length != expectedSize) {
@@ -954,7 +1089,10 @@ class GoogleDriveBackupService {
           final actualHash = sha256.convert(dataStore).toString();
           if (actualHash != expectedHash) {
             await tempFile.delete();
-            _logger.error('❌ فشل التحقق من تجزئة نسخة .db: متوقع=$expectedHash، فعلي=$actualHash', tag: 'RESTORE');
+            _logger.error(
+              '❌ فشل التحقق من تجزئة نسخة .db: متوقع=$expectedHash، فعلي=$actualHash',
+              tag: 'RESTORE',
+            );
             throw Exception(
               'النسخة الاحتياطية .db تالفة: تجزئة البيانات غير مطابقة. '
               'لا يمكن الاستعادة من ملف تالف.',
@@ -962,7 +1100,10 @@ class GoogleDriveBackupService {
           }
           _logger.info('✅ تم التحقق من سلامة نسخة .db', tag: 'RESTORE');
         } else {
-          _logger.warning('⚠️ نسخة .db قديمة بدون data_hash — التحقق من السلامة متخطّى', tag: 'RESTORE');
+          _logger.warning(
+            '⚠️ نسخة .db قديمة بدون data_hash — التحقق من السلامة متخطّى',
+            tag: 'RESTORE',
+          );
         }
 
         // استعادة قاعدة البيانات
@@ -996,7 +1137,8 @@ class GoogleDriveBackupService {
           orderBy: 'createdTime desc',
           pageSize: 100,
           pageToken: pageToken,
-          $fields: 'nextPageToken,files(id,name,createdTime,size,appProperties)',
+          $fields:
+              'nextPageToken,files(id,name,createdTime,size,appProperties)',
         );
         if (result.files != null) {
           allFiles.addAll(result.files!);
@@ -1004,7 +1146,10 @@ class GoogleDriveBackupService {
         pageToken = result.nextPageToken;
       } while (pageToken != null);
 
-      return allFiles.where((f) => f.id != null && f.name != null).map(DriveBackupFile.fromDriveFile).toList();
+      return allFiles
+          .where((f) => f.id != null && f.name != null)
+          .map(DriveBackupFile.fromDriveFile)
+          .toList();
     });
   }
 
@@ -1014,7 +1159,9 @@ class GoogleDriveBackupService {
   }) async {
     if (!DatabaseManager.isRestoring) {
       // Self-guard to avoid accidental destructive calls while keeping safety
-      return DatabaseManager.runWithRestoreGuard(() => _restoreFromBackupInternal(backupData, onProgress: onProgress));
+      return DatabaseManager.runWithRestoreGuard(
+        () => _restoreFromBackupInternal(backupData, onProgress: onProgress),
+      );
     }
     return _restoreFromBackupInternal(backupData, onProgress: onProgress);
   }
@@ -1029,7 +1176,10 @@ class GoogleDriveBackupService {
 
       if (!backupData.containsKey('metadata')) {
         _log('⚠️ النسخة الاحتياطية لا تحتوي على بيانات وصفية، سيتم تجاوزها');
-        _logger.warning('Skipping restore: backup missing metadata', tag: 'RESTORE');
+        _logger.warning(
+          'Skipping restore: backup missing metadata',
+          tag: 'RESTORE',
+        );
         return;
       }
 
@@ -1038,7 +1188,10 @@ class GoogleDriveBackupService {
       // من SHA-256 hash قبل أي عملية تدميرية (حذف الجداول).
       // نسخ قديمة بدون data_hash تُتجاوز التحقق (ترجع true).
       if (!verifyBackupChecksum(backupData)) {
-        _logger.error('❌ فشل التحقق من سلامة النسخة الاحتياطية — البيانات تالفة', tag: 'RESTORE');
+        _logger.error(
+          '❌ فشل التحقق من سلامة النسخة الاحتياطية — البيانات تالفة',
+          tag: 'RESTORE',
+        );
         throw Exception(
           'النسخة الاحتياطية تالفة: تجزئة البيانات غير مطابقة. '
           'قد يكون الملف تعرّض للفساد أثناء النقل أو التخزين.',
@@ -1049,17 +1202,24 @@ class GoogleDriveBackupService {
       final metadataJson = backupData['metadata'];
       if (metadataJson is! Map) {
         _log('⚠️ صيغة بيانات النسخة الاحتياطية غير صالحة، سيتم تجاوزها');
-        _logger.warning('Skipping restore: invalid metadata format', tag: 'RESTORE');
+        _logger.warning(
+          'Skipping restore: invalid metadata format',
+          tag: 'RESTORE',
+        );
         return;
       }
-      final metadata = BackupMetadata.fromJson(Map<String, dynamic>.from(metadataJson));
+      final metadata = BackupMetadata.fromJson(
+        Map<String, dynamic>.from(metadataJson),
+      );
       _logger.info(
         'بدء استعادة نسخة بتاريخ ${metadata.backupTimestamp.toIso8601String()} تحتوي ${metadata.totalRecords} سجل',
         tag: 'RESTORE',
       );
 
       if (metadata.databaseVersion > DatabaseManager.instance.schemaVersion) {
-        throw Exception('إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي');
+        throw Exception(
+          'إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي',
+        );
       }
 
       _log('🔄 بدء استعادة البيانات...');
@@ -1081,7 +1241,9 @@ class GoogleDriveBackupService {
           // Level 2 – أبناء مباشرة تشير للآباء الرئيسية
           await db.delete(db.payments).go();
           await db.delete(db.debts).go();
-          await db.delete(db.salaryPayments).go(); // FK → employees, salaryCycles
+          await db
+              .delete(db.salaryPayments)
+              .go(); // FK → employees, salaryCycles
           await db.delete(db.salaryWithdrawals).go(); // FK → employees
           await db.delete(db.salaryCarryOverLogs).go(); // FK → employees
           await db.delete(db.expenses).go();
@@ -1109,7 +1271,10 @@ class GoogleDriveBackupService {
           if (backupData.containsKey('rooms')) {
             final roomsData = backupData['rooms'] as List<dynamic>;
             for (final roomJson in roomsData) {
-              await adapterRegistry.rooms.upsertFromJson(Map<String, dynamic>.from(roomJson as Map), src: Source.drive);
+              await adapterRegistry.rooms.upsertFromJson(
+                Map<String, dynamic>.from(roomJson as Map),
+                src: Source.drive,
+              );
             }
           }
 
@@ -1179,7 +1344,10 @@ class GoogleDriveBackupService {
             final ledgerList = backupData['hotel_day_ledger'] as List<dynamic>;
             for (final ledgerJson in ledgerList) {
               final map = Map<String, dynamic>.from(ledgerJson as Map);
-              final data = HotelDayLedgerEntry.fromJson(map, serializer: lenientValueSerializer);
+              final data = HotelDayLedgerEntry.fromJson(
+                map,
+                serializer: lenientValueSerializer,
+              );
               await db.into(db.hotelDayLedger).insertOnConflictUpdate(data);
             }
           }
@@ -1188,7 +1356,10 @@ class GoogleDriveBackupService {
             final shiftsData = backupData['shift_notes'] as List<dynamic>;
             for (final shiftJson in shiftsData) {
               final map = Map<String, dynamic>.from(shiftJson as Map);
-              final data = ShiftNote.fromJson(map, serializer: lenientValueSerializer);
+              final data = ShiftNote.fromJson(
+                map,
+                serializer: lenientValueSerializer,
+              );
               await db.into(db.shiftNotes).insertOnConflictUpdate(data);
             }
           }
@@ -1217,10 +1388,14 @@ class GoogleDriveBackupService {
           }
 
           if (backupData.containsKey('cash_transactions')) {
-            final transactionsData = backupData['cash_transactions'] as List<dynamic>;
+            final transactionsData =
+                backupData['cash_transactions'] as List<dynamic>;
             for (final transactionJson in transactionsData) {
               final map = Map<String, dynamic>.from(transactionJson as Map);
-              final data = CashTransaction.fromJson(map, serializer: lenientValueSerializer);
+              final data = CashTransaction.fromJson(
+                map,
+                serializer: lenientValueSerializer,
+              );
               await db.into(db.cashTransactions).insertOnConflictUpdate(data);
             }
           }
@@ -1267,17 +1442,26 @@ class GoogleDriveBackupService {
             final runsList = backupData['auto_fix_runs'] as List<dynamic>;
             for (final runJson in runsList) {
               final map = Map<String, dynamic>.from(runJson as Map);
-              final data = AutoFixRun.fromJson(map, serializer: lenientValueSerializer);
+              final data = AutoFixRun.fromJson(
+                map,
+                serializer: lenientValueSerializer,
+              );
               await db.into(db.autoFixRuns).insertOnConflictUpdate(data);
             }
           }
 
           if (backupData.containsKey('integrity_violations')) {
-            final violationsList = backupData['integrity_violations'] as List<dynamic>;
+            final violationsList =
+                backupData['integrity_violations'] as List<dynamic>;
             for (final violationJson in violationsList) {
               final map = Map<String, dynamic>.from(violationJson as Map);
-              final data = IntegrityViolation.fromJson(map, serializer: lenientValueSerializer);
-              await db.into(db.integrityViolations).insertOnConflictUpdate(data);
+              final data = IntegrityViolation.fromJson(
+                map,
+                serializer: lenientValueSerializer,
+              );
+              await db
+                  .into(db.integrityViolations)
+                  .insertOnConflictUpdate(data);
             }
           }
 
@@ -1285,7 +1469,10 @@ class GoogleDriveBackupService {
             final sessionsList = backupData['app_sessions'] as List<dynamic>;
             for (final sessionJson in sessionsList) {
               final map = Map<String, dynamic>.from(sessionJson as Map);
-              final data = AppSession.fromJson(map, serializer: lenientValueSerializer);
+              final data = AppSession.fromJson(
+                map,
+                serializer: lenientValueSerializer,
+              );
               await db.into(db.appSessions).insertOnConflictUpdate(data);
             }
           }
@@ -1311,18 +1498,23 @@ class GoogleDriveBackupService {
                 );
               } on InvalidDataException catch (e) {
                 skippedPayments++;
-                _log('⚠️ تم تخطي دفعة راتب بسبب بيانات غير صالحة (FK مفقود): $e');
+                _log(
+                  '⚠️ تم تخطي دفعة راتب بسبب بيانات غير صالحة (FK مفقود): $e',
+                );
               } catch (e) {
                 _log('⚠️ فشل استعادة دفعة راتب: $e');
               }
             }
             if (skippedPayments > 0) {
-              _log('⚠️ تم تخطي $skippedPayments دفعة راتب بسبب مراجع FK مفقودة');
+              _log(
+                '⚠️ تم تخطي $skippedPayments دفعة راتب بسبب مراجع FK مفقودة',
+              );
             }
           }
 
           if (backupData.containsKey('salary_withdrawals')) {
-            final withdrawalsList = backupData['salary_withdrawals'] as List<dynamic>;
+            final withdrawalsList =
+                backupData['salary_withdrawals'] as List<dynamic>;
             int skippedWithdrawals = 0;
             for (final wJson in withdrawalsList) {
               try {
@@ -1332,18 +1524,23 @@ class GoogleDriveBackupService {
                 );
               } on InvalidDataException catch (e) {
                 skippedWithdrawals++;
-                _log('⚠️ تم تخطي سحب راتب بسبب بيانات غير صالحة (FK مفقود): $e');
+                _log(
+                  '⚠️ تم تخطي سحب راتب بسبب بيانات غير صالحة (FK مفقود): $e',
+                );
               } catch (e) {
                 _log('⚠️ فشل استعادة سحب راتب: $e');
               }
             }
             if (skippedWithdrawals > 0) {
-              _log('⚠️ تم تخطي $skippedWithdrawals سحب راتب بسبب مراجع FK مفقودة');
+              _log(
+                '⚠️ تم تخطي $skippedWithdrawals سحب راتب بسبب مراجع FK مفقودة',
+              );
             }
           }
 
           if (backupData.containsKey('salary_carry_over_logs')) {
-            final carryOverList = backupData['salary_carry_over_logs'] as List<dynamic>;
+            final carryOverList =
+                backupData['salary_carry_over_logs'] as List<dynamic>;
             for (final cJson in carryOverList) {
               try {
                 await adapterRegistry.salaryCarryOverLogs.upsertFromJson(
@@ -1367,7 +1564,8 @@ class GoogleDriveBackupService {
           }
 
           if (backupData.containsKey('booking_price_adjustments')) {
-            final bpaList = backupData['booking_price_adjustments'] as List<dynamic>;
+            final bpaList =
+                backupData['booking_price_adjustments'] as List<dynamic>;
             for (final bpaJson in bpaList) {
               await adapterRegistry.bookingPriceAdjustments.upsertFromJson(
                 Map<String, dynamic>.from(bpaJson as Map),
@@ -1409,7 +1607,9 @@ class GoogleDriveBackupService {
           // استعادة إعدادات الواتساب → SharedPreferences
           if (backupData.containsKey('whatsapp_settings')) {
             final restorePrefs = await SharedPreferences.getInstance();
-            final waSettings = Map<String, dynamic>.from(backupData['whatsapp_settings'] as Map);
+            final waSettings = Map<String, dynamic>.from(
+              backupData['whatsapp_settings'] as Map,
+            );
             if (waSettings.isNotEmpty) {
               for (final entry in waSettings.entries) {
                 final value = entry.value?.toString() ?? '';
@@ -1425,7 +1625,10 @@ class GoogleDriveBackupService {
             final restoreList = backupData['restore_fix_log'] as List<dynamic>;
             for (final logJson in restoreList) {
               final map = Map<String, dynamic>.from(logJson as Map);
-              final data = RestoreFixLogData.fromJson(map, serializer: lenientValueSerializer);
+              final data = RestoreFixLogData.fromJson(
+                map,
+                serializer: lenientValueSerializer,
+              );
               await db.into(db.restoreFixLog).insertOnConflictUpdate(data);
             }
           }
@@ -1434,18 +1637,25 @@ class GoogleDriveBackupService {
             final queueList = backupData['sync_queue'] as List<dynamic>;
             for (final rowJson in queueList) {
               final map = Map<String, dynamic>.from(rowJson as Map);
-              final data = SyncQueueData.fromJson(map, serializer: lenientValueSerializer);
+              final data = SyncQueueData.fromJson(
+                map,
+                serializer: lenientValueSerializer,
+              );
               await db.into(db.syncQueue).insertOnConflictUpdate(data);
             }
           }
 
-          if (backupData.containsKey('sync_logs') || backupData.containsKey('sync_log')) {
+          if (backupData.containsKey('sync_logs') ||
+              backupData.containsKey('sync_log')) {
             final logList = backupData.containsKey('sync_logs')
                 ? backupData['sync_logs'] as List<dynamic>
                 : backupData['sync_log'] as List<dynamic>;
             for (final logJson in logList) {
               final map = Map<String, dynamic>.from(logJson as Map);
-              final data = SyncLogData.fromJson(map, serializer: lenientValueSerializer);
+              final data = SyncLogData.fromJson(
+                map,
+                serializer: lenientValueSerializer,
+              );
               await db.into(db.syncLog).insertOnConflictUpdate(data);
             }
           }
@@ -1454,7 +1664,10 @@ class GoogleDriveBackupService {
             final conflictsList = backupData['sync_conflicts'] as List<dynamic>;
             for (final conflictJson in conflictsList) {
               final map = Map<String, dynamic>.from(conflictJson as Map);
-              final data = SyncConflictRow.fromJson(map, serializer: lenientValueSerializer);
+              final data = SyncConflictRow.fromJson(
+                map,
+                serializer: lenientValueSerializer,
+              );
               await db.into(db.syncConflicts).insertOnConflictUpdate(data);
             }
           }
@@ -1506,16 +1719,23 @@ class GoogleDriveBackupService {
 
               // إعادة جدولة المهام إذا تغيرت الإعدادات
               if (settingsChanged) {
-                _log('🔄 إعادة جدولة مهام النسخ الاحتياطي وفق الإعدادات الجديدة...');
+                _log(
+                  '🔄 إعادة جدولة مهام النسخ الاحتياطي وفق الإعدادات الجديدة...',
+                );
 
                 final timeStr = prefs.getString('auto_backup_time') ?? '21:00';
                 final parts = timeStr.split(':');
-                final parsedHour = parts.isNotEmpty ? int.tryParse(parts[0]) : null;
-                final parsedMinute = parts.length > 1 ? int.tryParse(parts[1]) : null;
+                final parsedHour = parts.isNotEmpty
+                    ? int.tryParse(parts[0])
+                    : null;
+                final parsedMinute = parts.length > 1
+                    ? int.tryParse(parts[1])
+                    : null;
 
                 final hour = (parsedHour ?? 21).clamp(0, 23);
                 final minute = (parsedMinute ?? 0).clamp(0, 59);
-                final scheduledEnabled = prefs.getBool('scheduled_backup_enabled') ?? true;
+                final scheduledEnabled =
+                    prefs.getBool('scheduled_backup_enabled') ?? true;
 
                 if (scheduledEnabled) {
                   await AlarmBackup.rescheduleDaily(hour, minute);
@@ -1532,7 +1752,9 @@ class GoogleDriveBackupService {
 
           _log('✅ تم استعادة ${metadata.totalRecords} سجل بنجاح');
           final fixService = RestoreFixService(db);
-          await fixService.runAutoFixAfterRestore(backupTimestamp: metadata.backupTimestamp);
+          await fixService.runAutoFixAfterRestore(
+            backupTimestamp: metadata.backupTimestamp,
+          );
 
           // ✅ إصلاح حرج (2026-06-28): إعادة ربط المدفوعات والديون بالحجوزات
           // بعد استعادة نسخة من جهاز آخر، bookingLocalId (auto-increment) يختلف.
@@ -1547,9 +1769,13 @@ class GoogleDriveBackupService {
 
         // التحقق من سلامة Foreign Keys بعد الاستعادة
         try {
-          final violations = await db.customSelect('PRAGMA foreign_key_check').get();
+          final violations = await db
+              .customSelect('PRAGMA foreign_key_check')
+              .get();
           if (violations.isNotEmpty) {
-            _log('⚠️ تحذير: تم العثور على ${violations.length} انتهاك FK بعد الاستعادة');
+            _log(
+              '⚠️ تحذير: تم العثور على ${violations.length} انتهاك FK بعد الاستعادة',
+            );
             for (final v in violations) {
               _log('  ↳ FK violation: $v');
             }
@@ -1576,9 +1802,14 @@ class GoogleDriveBackupService {
           await appwriteService.initialize();
 
           if (appwriteService.isInitialized) {
-            final syncManager = AppwriteSyncManager(appwriteService: appwriteService, database: db);
+            final syncManager = AppwriteSyncManager(
+              appwriteService: appwriteService,
+              database: db,
+            );
 
-            final stats = await syncManager.pushAllLocalDataToAppwrite(skipDeleted: true);
+            final stats = await syncManager.pushAllLocalDataToAppwrite(
+              skipDeleted: true,
+            );
 
             final totalSynced = stats.entries
                 .where((e) => e.key != 'errors' && e.value > 0)
@@ -1593,17 +1824,26 @@ class GoogleDriveBackupService {
             if (stats['errors']! > 0) {
               _log('⚠️ ${stats['errors']} خطأ أثناء المزامنة');
             }
-            _logger.info('تمت مزامنة البيانات مع Appwrite: $totalSynced سجل (${stats['errors']} خطأ)', tag: 'RESTORE');
+            _logger.info(
+              'تمت مزامنة البيانات مع Appwrite: $totalSynced سجل (${stats['errors']} خطأ)',
+              tag: 'RESTORE',
+            );
           } else {
             _log('⚠️ Appwrite غير متاح، تم تخطي المزامنة');
-            _logger.warning('تم تخطي مزامنة Appwrite (غير متصل)', tag: 'RESTORE');
+            _logger.warning(
+              'تم تخطي مزامنة Appwrite (غير متصل)',
+              tag: 'RESTORE',
+            );
           }
         } else {
           _log('ℹ️ مزامنة Appwrite معطلة');
         }
       } catch (e, st) {
         _log('⚠️ خطأ في مزامنة Appwrite: $e');
-        _logger.warning('فشلت مزامنة Appwrite بعد الاستعادة: $e', tag: 'RESTORE');
+        _logger.warning(
+          'فشلت مزامنة Appwrite بعد الاستعادة: $e',
+          tag: 'RESTORE',
+        );
         debugPrint('Stack trace: $st');
       }
     } catch (e) {
@@ -1640,7 +1880,13 @@ class GoogleDriveBackupService {
 
     final now = DateTime.now();
     final timeParts = timeString.split(':');
-    final targetTime = DateTime(now.year, now.month, now.day, int.parse(timeParts[0]), int.parse(timeParts[1]));
+    final targetTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      int.parse(timeParts[0]),
+      int.parse(timeParts[1]),
+    );
 
     if (targetTime.isBefore(now)) {
       initialDelay = targetTime.add(frequencyDuration).difference(now);
@@ -1658,7 +1904,10 @@ class GoogleDriveBackupService {
         AutoBackupTask.taskName,
         frequency: frequencyDuration,
         initialDelay: initialDelay,
-        constraints: Constraints(networkType: NetworkType.connected, requiresBatteryNotLow: true),
+        constraints: Constraints(
+          networkType: NetworkType.connected,
+          requiresBatteryNotLow: true,
+        ),
         existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
         inputData: const <String, dynamic>{},
       );
@@ -1778,10 +2027,16 @@ class GoogleDriveBackupService {
   /// [dryRun] - إذا true، لا يتم الحذف فعلياً (للمعاينة فقط)
   ///
   /// Returns: عدد النسخ التي تم حذفها
-  Future<int> cleanupOldBackups({int maxBackupsToKeep = 10, int maxAgeInDays = 30, bool dryRun = false}) async {
+  Future<int> cleanupOldBackups({
+    int maxBackupsToKeep = 10,
+    int maxAgeInDays = 30,
+    bool dryRun = false,
+  }) async {
     try {
       _log('🧹 بدء تنظيف النسخ القديمة...');
-      _log('📊 الإعدادات: maxBackups=$maxBackupsToKeep, maxAge=$maxAgeInDays أيام, dryRun=$dryRun');
+      _log(
+        '📊 الإعدادات: maxBackups=$maxBackupsToKeep, maxAge=$maxAgeInDays أيام, dryRun=$dryRun',
+      );
 
       // الحصول على جميع النسخ الاحتياطية
       final backups = await listBackups();
@@ -1824,7 +2079,9 @@ class GoogleDriveBackupService {
       _log('📋 سيتم حذف ${backupsToDelete.length} نسخة احتياطية:');
       for (final backup in backupsToDelete) {
         final age = now.difference(backup.createdTime).inDays;
-        final sizeKB = backup.size != null ? (backup.size! / 1024).toStringAsFixed(2) : 'غير معروف';
+        final sizeKB = backup.size != null
+            ? (backup.size! / 1024).toStringAsFixed(2)
+            : 'غير معروف';
         _log('  - ${backup.fileName} (عمر: $age يوم، حجم: $sizeKB KB)');
       }
 
@@ -2018,17 +2275,22 @@ class GoogleDriveBackupService {
 
       for (final p in payments) {
         // إذا bookingLocalId уже مضبوط بشكل صحيح، تخطّي
-        if (p.bookingLocalId != null && bookingByUuid.containsValue(p.bookingLocalId)) {
+        if (p.bookingLocalId != null &&
+            bookingByUuid.containsValue(p.bookingLocalId)) {
           continue;
         }
 
         // ابحث عن الحجز بـ UUID
         final uuid = p.bookingUuidCache;
-        if (uuid != null && uuid.isNotEmpty && bookingByUuid.containsKey(uuid)) {
+        if (uuid != null &&
+            uuid.isNotEmpty &&
+            bookingByUuid.containsKey(uuid)) {
           final correctBookingId = bookingByUuid[uuid]!;
           await (db.update(
             db.payments,
-          )..where((t) => t.id.equals(p.id))).write(PaymentsCompanion(bookingLocalId: Value(correctBookingId)));
+          )..where((t) => t.id.equals(p.id))).write(
+            PaymentsCompanion(bookingLocalId: Value(correctBookingId)),
+          );
           relinked++;
         }
       }
@@ -2054,7 +2316,8 @@ class GoogleDriveBackupService {
       int relinked = 0;
 
       for (final d in debts) {
-        if (d.bookingLocalId != null && bookingByUuid.containsValue(d.bookingLocalId)) {
+        if (d.bookingLocalId != null &&
+            bookingByUuid.containsValue(d.bookingLocalId)) {
           continue;
         }
 
@@ -2062,12 +2325,18 @@ class GoogleDriveBackupService {
         // كحل أخير: نبحث عن حجز بنفس اسم النزيل وتاريخ الدخول
         if (d.guestName.isNotEmpty && d.checkinDate.isNotEmpty) {
           final matchingBooking = bookings
-              .where((b) => b.guestName == d.guestName && b.checkinDate == d.checkinDate)
+              .where(
+                (b) =>
+                    b.guestName == d.guestName &&
+                    b.checkinDate == d.checkinDate,
+              )
               .firstOrNull;
           if (matchingBooking != null) {
             await (db.update(
               db.debts,
-            )..where((t) => t.id.equals(d.id))).write(DebtsCompanion(bookingLocalId: Value(matchingBooking.id)));
+            )..where((t) => t.id.equals(d.id))).write(
+              DebtsCompanion(bookingLocalId: Value(matchingBooking.id)),
+            );
             relinked++;
           }
         }
