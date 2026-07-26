@@ -1,1 +1,196 @@
-aW1wb3J0ICdkYXJ0OmFzeW5jJzsKCmltcG9ydCAncGFja2FnZTpjb25uZWN0aXZpdHlfcGx1cy9jb25uZWN0aXZpdHlfcGx1cy5kYXJ0JzsKaW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXIvZm91bmRhdGlvbi5kYXJ0JzsKCmltcG9ydCAnYXBwd3JpdGVfbG9nZ2VyLmRhcnQnOwppbXBvcnQgJ2FwcHdyaXRlX3NlcnZpY2UuZGFydCc7CgovLy8g2K3Yp9mE2Kkg2KfZhNin2KrYtdin2YQKZW51bSBDb25uZWN0aW9uU3RhdHVzIHsgb25saW5lLCBvZmZsaW5lLCBjaGVja2luZywgdW5rbm93biB9CgovLy8g2YXYr9mK2LEg2K3Yp9mE2Kkg2KfZhNin2KrYtdin2YQg2YXYuSBBcHB3cml0ZQovLy8KLy8vINmK2KrYqtio2Lkg2K3Yp9mE2Kkg2KfZhNin2KrYtdin2YQg2KjYp9mE2KXZhtiq2LHZhtiqINmIIEFwcHdyaXRlIFNlcnZlcgovLy8g2YjZitmI2YHYsSBzdHJlYW0g2YTZhNin2LPYqtmF2KfYuSDZhNmE2KrYutmK2YrYsdin2KoKY2xhc3MgQ29ubmVjdGlvblN0YXRlTWFuYWdlciBleHRlbmRzIENoYW5nZU5vdGlmaWVyIHsKICBmYWN0b3J5IENvbm5lY3Rpb25TdGF0ZU1hbmFnZXIoKSA9PiBfaW5zdGFuY2U7CiAgQ29ubmVjdGlvblN0YXRlTWFuYWdlci5faW50ZXJuYWwoKTsKICBzdGF0aWMgZmluYWwgQ29ubmVjdGlvblN0YXRlTWFuYWdlciBfaW5zdGFuY2UgPQogICAgICBDb25uZWN0aW9uU3RhdGVNYW5hZ2VyLl9pbnRlcm5hbCgpOwoKICBmaW5hbCBfbG9nZ2VyID0gQXBwd3JpdGVMb2dnZXIoKTsKICBmaW5hbCBfY29ubmVjdGl2aXR5ID0gQ29ubmVjdGl2aXR5KCk7CgogIENvbm5lY3Rpb25TdGF0dXMgX3N0YXR1cyA9IENvbm5lY3Rpb25TdGF0dXMudW5rbm93bjsKICBEYXRlVGltZT8gX2xhc3RDaGVja1RpbWU7CiAgU3RyZWFtU3Vic2NyaXB0aW9uPExpc3Q8Q29ubmVjdGl2aXR5UmVzdWx0Pj4/IF9jb25uZWN0aXZpdHlTdWJzY3JpcHRpb247CiAgVGltZXI/IF9wZXJpb2RpY0NoZWNrVGltZXI7CgogIC8vIFN0cmVhbSBjb250cm9sbGVyINmE2YTYqNirCiAgZmluYWwgX3N0YXR1c0NvbnRyb2xsZXIgPSBTdHJlYW1Db250cm9sbGVyPENvbm5lY3Rpb25TdGF0dXM+LmJyb2FkY2FzdCgpOwoKICAvLy8g2KfZhNit2KfZhNipINin2YTYrdin2YTZitipINmE2YTYp9iq2LXYp9mECiAgQ29ubmVjdGlvblN0YXR1cyBnZXQgc3RhdHVzID0+IF9zdGF0dXM7CgogIC8vLyDZh9mEINin2YTYrNmH2KfYsiDZhdiq2LXZhNifCiAgYm9vbCBnZXQgaXNPbmxpbmUgPT4gX3N0YXR1cyA9PSBDb25uZWN0aW9uU3RhdHVzLm9ubGluZTsKCiAgLy8vINmH2YQg2KfZhNis2YfYp9iyINi62YrYsSDZhdiq2LXZhNifCiAgYm9vbCBnZXQgaXNPZmZsaW5lID0+IF9zdGF0dXMgPT0gQ29ubmVjdGlvblN0YXR1cy5vZmZsaW5lOwoKICAvLy8g2YfZhCDZitiq2YUg2YHYrdi1INin2YTYp9iq2LXYp9mE2J8KICBib29sIGdldCBpc0NoZWNraW5nID0+IF9zdGF0dXMgPT0gQ29ubmVjdGlvblN0YXR1cy5jaGVja2luZzsKCiAgLy8vINii2K7YsSDZiNmC2Kog2KrZhSDZgdmK2Ycg2KfZhNmB2K3YtQogIERhdGVUaW1lPyBnZXQgbGFzdENoZWNrVGltZSA9PiBfbGFzdENoZWNrVGltZTsKCiAgLy8vIFN0cmVhbSDZhNit2KfZhNipINin2YTYp9iq2LXYp9mECiAgU3RyZWFtPENvbm5lY3Rpb25TdGF0dXM+IGdldCBzdGF0dXNTdHJlYW0gPT4gX3N0YXR1c0NvbnRyb2xsZXIuc3RyZWFtOwoKICAvLy8g2KrZh9mK2KbYqSDYp9mE2YXYr9mK2LEKICBGdXR1cmU8dm9pZD4gaW5pdCgpIGFzeW5jIHsKICAgIGlmIChfY29ubmVjdGl2aXR5U3Vic2NyaXB0aW9uICE9IG51bGwpIHsKICAgICAgX2xvZ2dlci5kZWJ1ZygKICAgICAgICAnQ29ubmVjdGlvblN0YXRlTWFuYWdlciBhbHJlYWR5IGluaXRpYWxpemVkJywKICAgICAgICB0YWc6ICdDT05ORUNUSU9OJywKICAgICAgKTsKICAgICAgcmV0dXJuOwogICAgfQoKICAgIF9sb2dnZXIuaW5mbygnSW5pdGlhbGl6aW5nIENvbm5lY3Rpb25TdGF0ZU1hbmFnZXInLCB0YWc6ICdDT05ORUNUSU9OJyk7CgogICAgLy8g2KfZhNin2LPYqtmF2KfYuSDZhNiq2LrZitmK2LHYp9iqINin2YTYtNio2YPYqQogICAgX2Nvbm5lY3Rpdml0eVN1YnNjcmlwdGlvbiA9IF9jb25uZWN0aXZpdHkub25Db25uZWN0aXZpdHlDaGFuZ2VkLmxpc3RlbigKICAgICAgX29uQ29ubmVjdGl2aXR5Q2hhbmdlZCwKICAgICAgb25FcnJvcjogKE9iamVjdCBlcnJvcikgewogICAgICAgIF9sb2dnZXIuZXJyb3IoCiAgICAgICAgICAnQ29ubmVjdGl2aXR5IHN0cmVhbSBlcnJvcicsCiAgICAgICAgICBlcnJvcjogZXJyb3IsCiAgICAgICAgICB0YWc6ICdDT05ORUNUSU9OJywKICAgICAgICApOwogICAgICB9LAogICAgKTsKCiAgICAvLyDZgdit2LUg2K/ZiNix2Yog2YPZhCAzMCDYq9in2YbZitipCiAgICBfcGVyaW9kaWNDaGVja1RpbWVyID0gVGltZXIucGVyaW9kaWMoCiAgICAgIGNvbnN0IER1cmF0aW9uKHNlY29uZHM6IDMwKSwKICAgICAgKF8pID0+IGNoZWNrQ29ubmVjdGlvbigpLAogICAgKTsKCiAgICAvLyDZgdit2LUg2KPZiNmE2YoKICAgIGF3YWl0IGNoZWNrQ29ubmVjdGlvbigpOwogIH0KCiAgLy8vINmF2LnYp9mE2Kwg2KrYutmK2YrYsdin2Kog2KfZhNin2KrYtdin2YQKICB2b2lkIF9vbkNvbm5lY3Rpdml0eUNoYW5nZWQoTGlzdDxDb25uZWN0aXZpdHlSZXN1bHQ+IHJlc3VsdHMpIHsKICAgIF9sb2dnZXIuZGVidWcoJ0Nvbm5lY3Rpdml0eSBjaGFuZ2VkOiAkcmVzdWx0cycsIHRhZzogJ0NPTk5FQ1RJT04nKTsKCiAgICAvLyDYpdiw2Kcg2YTYpyDZitmI2KzYryDYp9iq2LXYp9mEINi52YTZiSDYp9mE2KXYt9mE2KfZggogICAgaWYgKHJlc3VsdHMuaXNFbXB0eSB8fCByZXN1bHRzLmV2ZXJ5KChyKSA9PiByID09IENvbm5lY3Rpdml0eVJlc3VsdC5ub25lKSkgewogICAgICBfdXBkYXRlU3RhdHVzKENvbm5lY3Rpb25TdGF0dXMub2ZmbGluZSk7CiAgICAgIHJldHVybjsKICAgIH0KCiAgICAvLyDZitmI2KzYryDYp9iq2LXYp9mEIC0g2YHYrdi1IEFwcHdyaXRlCiAgICBjaGVja0Nvbm5lY3Rpb24oKTsKICB9CgogIC8vLyDZgdit2LUg2K3Yp9mE2Kkg2KfZhNin2KrYtdin2YQKICBGdXR1cmU8dm9pZD4gY2hlY2tDb25uZWN0aW9uKCkgYXN5bmMgewogICAgaWYgKF9zdGF0dXMgPT0gQ29ubmVjdGlvblN0YXR1cy5jaGVja2luZykgewogICAgICBfbG9nZ2VyLmRlYnVnKCdDb25uZWN0aW9uIGNoZWNrIGFscmVhZHkgaW4gcHJvZ3Jlc3MnLCB0YWc6ICdDT05ORUNUSU9OJyk7CiAgICAgIHJldHVybjsKICAgIH0KCiAgICBfdXBkYXRlU3RhdHVzKENvbm5lY3Rpb25TdGF0dXMuY2hlY2tpbmcpOwoKICAgIHRyeSB7CiAgICAgIC8vINmF2K3Yp9mI2YTYqSDYt9mE2Kgg2KjYs9mK2Lcg2YTZhNiq2K3ZgtmCINmF2YYgQXBwd3JpdGUKICAgICAgZmluYWwgYXBwd3JpdGVTZXJ2aWNlID0gQXBwd3JpdGVTZXJ2aWNlKCk7CiAgICAgIGF3YWl0IGFwcHdyaXRlU2VydmljZS5xdWlja0Nvbm5lY3Rpb25UZXN0KCk7CgogICAgICBfdXBkYXRlU3RhdHVzKENvbm5lY3Rpb25TdGF0dXMub25saW5lKTsKICAgICAgX2xhc3RDaGVja1RpbWUgPSBEYXRlVGltZS5ub3coKTsKICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgX2xvZ2dlci53YXJuaW5nKCdDb25uZWN0aW9uIGNoZWNrIGZhaWxlZCcsIGVycm9yOiBlLCB0YWc6ICdDT05ORUNUSU9OJyk7CiAgICAgIF91cGRhdGVTdGF0dXMoQ29ubmVjdGlvblN0YXR1cy5vZmZsaW5lKTsKICAgICAgX2xhc3RDaGVja1RpbWUgPSBEYXRlVGltZS5ub3coKTsKICAgIH0KICB9CgogIC8vLyDYqtit2K/ZitirINit2KfZhNipINin2YTYp9iq2LXYp9mECiAgdm9pZCBfdXBkYXRlU3RhdHVzKENvbm5lY3Rpb25TdGF0dXMgbmV3U3RhdHVzKSB7CiAgICBpZiAoX3N0YXR1cyAhPSBuZXdTdGF0dXMpIHsKICAgICAgZmluYWwgb2xkU3RhdHVzID0gX3N0YXR1czsKICAgICAgX3N0YXR1cyA9IG5ld1N0YXR1czsKCiAgICAgIF9sb2dnZXIuaW5mbygKICAgICAgICAnQ29ubmVjdGlvbiBzdGF0dXMgY2hhbmdlZDogJG9sZFN0YXR1cyAtPiAkbmV3U3RhdHVzJywKICAgICAgICB0YWc6ICdDT05ORUNUSU9OJywKICAgICAgKTsKCiAgICAgIC8vINil2LTYudin2LEg2KfZhNmF2LPYqtmF2LnZitmGCiAgICAgIG5vdGlmeUxpc3RlbmVycygpOwogICAgICBfc3RhdHVzQ29udHJvbGxlci5hZGQobmV3U3RhdHVzKTsKICAgIH0KICB9CgogIC8vLyDZgdix2LYg2KrYrdiv2YrYqyDYp9mE2K3Yp9mE2KkgKNmE2YTYp9iz2KrYrtiv2KfZhSDYp9mE2K/Yp9iu2YTZiikKICB2b2lkIGZvcmNlU3RhdHVzKENvbm5lY3Rpb25TdGF0dXMgc3RhdHVzKSB7CiAgICBfdXBkYXRlU3RhdHVzKHN0YXR1cyk7CiAgfQoKICAvLy8g2KfZhNit2LXZiNmEINi52YTZiSDYsdiz2KfZhNipINit2KfZhNipINmF2YbYp9iz2KjYqSDZhNmE2LnYsdi2CiAgU3RyaW5nIGdldFN0YXR1c01lc3NhZ2UoKSB7CiAgICBzd2l0Y2ggKF9zdGF0dXMpIHsKICAgICAgY2FzZSBDb25uZWN0aW9uU3RhdHVzLm9ubGluZToKICAgICAgICByZXR1cm4gJ9mF2KrYtdmEJzsKICAgICAgY2FzZSBDb25uZWN0aW9uU3RhdHVzLm9mZmxpbmU6CiAgICAgICAgcmV0dXJuICfYutmK2LEg2YXYqti12YQnOwogICAgICBjYXNlIENvbm5lY3Rpb25TdGF0dXMuY2hlY2tpbmc6CiAgICAgICAgcmV0dXJuICfYrNin2LHZiiDYp9mE2YHYrdi1Li4uJzsKICAgICAgY2FzZSBDb25uZWN0aW9uU3RhdHVzLnVua25vd246CiAgICAgICAgcmV0dXJuICfYutmK2LEg2YXYudix2YjZgSc7CiAgICB9CiAgfQoKICAvLy8g2KfZhNit2LXZiNmEINi52YTZiSDYo9mK2YLZiNmG2Kkg2K3Yp9mE2Kkg2YXZhtin2LPYqNipCiAgU3RyaW5nIGdldFN0YXR1c0ljb24oKSB7CiAgICBzd2l0Y2ggKF9zdGF0dXMpIHsKICAgICAgY2FzZSBDb25uZWN0aW9uU3RhdHVzLm9ubGluZToKICAgICAgICByZXR1cm4gJ+Kckyc7CiAgICAgIGNhc2UgQ29ubmVjdGlvblN0YXR1cy5vZmZsaW5lOgogICAgICAgIHJldHVybiAn4pyXJzsKICAgICAgY2FzZSBDb25uZWN0aW9uU3RhdHVzLmNoZWNraW5nOgogICAgICAgIHJldHVybiAn4p+zJzsKICAgICAgY2FzZSBDb25uZWN0aW9uU3RhdHVzLnVua25vd246CiAgICAgICAgcmV0dXJuICc/JzsKICAgIH0KICB9CgogIC8vLyDYpdit2LXYp9im2YrYp9iqINin2YTYp9iq2LXYp9mECiAgTWFwPFN0cmluZywgZHluYW1pYz4gZ2V0U3RhdGlzdGljcygpIHsKICAgIHJldHVybiB7CiAgICAgICdjdXJyZW50X3N0YXR1cyc6IF9zdGF0dXMudG9TdHJpbmcoKSwKICAgICAgJ2lzX29ubGluZSc6IGlzT25saW5lLAogICAgICAnbGFzdF9jaGVjayc6IF9sYXN0Q2hlY2tUaW1lPy50b0lzbzg2MDFTdHJpbmcoKSwKICAgIH07CiAgfQoKICAvLy8g2KXYudin2K/YqSDYqti52YrZitmGINin2YTZhdiv2YrYsQogIHZvaWQgcmVzZXQoKSB7CiAgICBfc3RhdHVzID0gQ29ubmVjdGlvblN0YXR1cy51bmtub3duOwogICAgX2xhc3RDaGVja1RpbWUgPSBudWxsOwogICAgbm90aWZ5TGlzdGVuZXJzKCk7CiAgfQoKICBAb3ZlcnJpZGUKICB2b2lkIGRpc3Bvc2UoKSB7CiAgICBfbG9nZ2VyLmluZm8oJ0Rpc3Bvc2luZyBDb25uZWN0aW9uU3RhdGVNYW5hZ2VyJywgdGFnOiAnQ09OTkVDVElPTicpOwogICAgX2Nvbm5lY3Rpdml0eVN1YnNjcmlwdGlvbj8uY2FuY2VsKCk7CiAgICBfcGVyaW9kaWNDaGVja1RpbWVyPy5jYW5jZWwoKTsKICAgIF9zdGF0dXNDb250cm9sbGVyLmNsb3NlKCk7CiAgICBzdXBlci5kaXNwb3NlKCk7CiAgfQp9Cg==
+import 'dart:async';
+
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart';
+
+import 'appwrite_logger.dart';
+import 'appwrite_service.dart';
+
+/// حالة الاتصال
+enum ConnectionStatus { online, offline, checking, unknown }
+
+/// مدير حالة الاتصال مع Appwrite
+///
+/// يتتبع حالة الاتصال بالإنترنت و Appwrite Server
+/// ويوفر stream للاستماع للتغييرات
+class ConnectionStateManager extends ChangeNotifier {
+  factory ConnectionStateManager() => _instance;
+  ConnectionStateManager._internal();
+  static final ConnectionStateManager _instance =
+      ConnectionStateManager._internal();
+
+  final _logger = AppwriteLogger();
+  final _connectivity = Connectivity();
+
+  ConnectionStatus _status = ConnectionStatus.unknown;
+  DateTime? _lastCheckTime;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  Timer? _periodicCheckTimer;
+
+  // Stream controller للبث
+  final _statusController = StreamController<ConnectionStatus>.broadcast();
+
+  /// الحالة الحالية للاتصال
+  ConnectionStatus get status => _status;
+
+  /// هل الجهاز متصل؟
+  bool get isOnline => _status == ConnectionStatus.online;
+
+  /// هل الجهاز غير متصل؟
+  bool get isOffline => _status == ConnectionStatus.offline;
+
+  /// هل يتم فحص الاتصال؟
+  bool get isChecking => _status == ConnectionStatus.checking;
+
+  /// آخر وقت تم فيه الفحص
+  DateTime? get lastCheckTime => _lastCheckTime;
+
+  /// Stream لحالة الاتصال
+  Stream<ConnectionStatus> get statusStream => _statusController.stream;
+
+  /// تهيئة المدير
+  Future<void> init() async {
+    if (_connectivitySubscription != null) {
+      _logger.debug(
+        'ConnectionStateManager already initialized',
+        tag: 'CONNECTION',
+      );
+      return;
+    }
+
+    _logger.info('Initializing ConnectionStateManager', tag: 'CONNECTION');
+
+    // الاستماع لتغييرات الشبكة
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
+      _onConnectivityChanged,
+      onError: (Object error) {
+        _logger.error(
+          'Connectivity stream error',
+          error: error,
+          tag: 'CONNECTION',
+        );
+      },
+    );
+
+    // فحص دوري كل 30 ثانية
+    _periodicCheckTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => checkConnection(),
+    );
+
+    // فحص أولي
+    await checkConnection();
+  }
+
+  /// معالج تغييرات الاتصال
+  void _onConnectivityChanged(List<ConnectivityResult> results) {
+    _logger.debug('Connectivity changed: $results', tag: 'CONNECTION');
+
+    // إذا لا يوجد اتصال على الإطلاق
+    if (results.isEmpty || results.every((r) => r == ConnectivityResult.none)) {
+      _updateStatus(ConnectionStatus.offline);
+      return;
+    }
+
+    // يوجد اتصال - فحص Appwrite
+    checkConnection();
+  }
+
+  /// فحص حالة الاتصال
+  Future<void> checkConnection() async {
+    if (_status == ConnectionStatus.checking) {
+      _logger.debug('Connection check already in progress', tag: 'CONNECTION');
+      return;
+    }
+
+    _updateStatus(ConnectionStatus.checking);
+
+    try {
+      // محاولة طلب بسيط للتحقق من Appwrite
+      final appwriteService = AppwriteService();
+      await appwriteService.quickConnectionTest();
+
+      _updateStatus(ConnectionStatus.online);
+      _lastCheckTime = DateTime.now();
+    } catch (e) {
+      _logger.warning('Connection check failed', error: e, tag: 'CONNECTION');
+      _updateStatus(ConnectionStatus.offline);
+      _lastCheckTime = DateTime.now();
+    }
+  }
+
+  /// تحديث حالة الاتصال
+  void _updateStatus(ConnectionStatus newStatus) {
+    if (_status != newStatus) {
+      final oldStatus = _status;
+      _status = newStatus;
+
+      _logger.info(
+        'Connection status changed: $oldStatus -> $newStatus',
+        tag: 'CONNECTION',
+      );
+
+      // إشعار المستمعين
+      notifyListeners();
+      _statusController.add(newStatus);
+    }
+  }
+
+  /// فرض تحديث الحالة (للاستخدام الداخلي)
+  void forceStatus(ConnectionStatus status) {
+    _updateStatus(status);
+  }
+
+  /// الحصول على رسالة حالة مناسبة للعرض
+  String getStatusMessage() {
+    switch (_status) {
+      case ConnectionStatus.online:
+        return 'متصل';
+      case ConnectionStatus.offline:
+        return 'غير متصل';
+      case ConnectionStatus.checking:
+        return 'جاري الفحص...';
+      case ConnectionStatus.unknown:
+        return 'غير معروف';
+    }
+  }
+
+  /// الحصول على أيقونة حالة مناسبة
+  String getStatusIcon() {
+    switch (_status) {
+      case ConnectionStatus.online:
+        return '✓';
+      case ConnectionStatus.offline:
+        return '✗';
+      case ConnectionStatus.checking:
+        return '⟳';
+      case ConnectionStatus.unknown:
+        return '?';
+    }
+  }
+
+  /// إحصائيات الاتصال
+  Map<String, dynamic> getStatistics() {
+    return {
+      'current_status': _status.toString(),
+      'is_online': isOnline,
+      'last_check': _lastCheckTime?.toIso8601String(),
+    };
+  }
+
+  /// إعادة تعيين المدير
+  void reset() {
+    _status = ConnectionStatus.unknown;
+    _lastCheckTime = null;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _logger.info('Disposing ConnectionStateManager', tag: 'CONNECTION');
+    _connectivitySubscription?.cancel();
+    _periodicCheckTimer?.cancel();
+    _statusController.close();
+    super.dispose();
+  }
+}
