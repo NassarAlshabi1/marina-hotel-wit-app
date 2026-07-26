@@ -1,1 +1,608 @@
-aW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXIvbWF0ZXJpYWwuZGFydCc7CmltcG9ydCAncGFja2FnZTpmbHV0dGVyX3JpdmVycG9kL2ZsdXR0ZXJfcml2ZXJwb2QuZGFydCc7CmltcG9ydCAnLi4vLi4vLi4vLi4vY29yZS9jb3JlLmRhcnQnOwppbXBvcnQgJy4uLy4uLy4uLy4uL3Byb3ZpZGVycy9iYWNrdXBfcHJvdmlkZXIuZGFydCc7CmltcG9ydCAnLi4vLi4vLi4vLi4vc2VydmljZXMvbG9jYWxfYmFja3VwX3NlcnZpY2UuZGFydCc7CgovLy8gTG9jYWwgQmFja3VwcyBUYWIgLSDYpdiv2KfYsdipINin2YTZhtiz2K4g2KfZhNmF2K3ZhNmK2KkKLy8vCi8vLyDZhdix2KjZiNi3INio2KfZhNmD2KfZhdmEINmF2LkgQmFja3VwU3RhdHVzTm90aWZpZXIg2YggTG9jYWxCYWNrdXBTZXJ2aWNlCmNsYXNzIExvY2FsQmFja3Vwc1RhYiBleHRlbmRzIENvbnN1bWVyU3RhdGVmdWxXaWRnZXQgewogIGNvbnN0IExvY2FsQmFja3Vwc1RhYih7c3VwZXIua2V5fSk7CgogIEBvdmVycmlkZQogIENvbnN1bWVyU3RhdGU8TG9jYWxCYWNrdXBzVGFiPiBjcmVhdGVTdGF0ZSgpID0+IF9Mb2NhbEJhY2t1cHNUYWJTdGF0ZSgpOwp9CgpjbGFzcyBfTG9jYWxCYWNrdXBzVGFiU3RhdGUgZXh0ZW5kcyBDb25zdW1lclN0YXRlPExvY2FsQmFja3Vwc1RhYj4gewogIEBvdmVycmlkZQogIHZvaWQgaW5pdFN0YXRlKCkgewogICAgc3VwZXIuaW5pdFN0YXRlKCk7CiAgICAvLyDYp9mE2KrYrdmC2YIg2YXZhiDYp9mE2KPYsNmI2YbYp9iqINi52YbYryDZgdiq2K0g2KfZhNiq2KjZiNmK2KgKICAgIEZ1dHVyZS5taWNyb3Rhc2soKCkgewogICAgICBmaW5hbCBub3RpZmllciA9IHJlZi5yZWFkKGJhY2t1cFN0YXR1c1Byb3ZpZGVyLm5vdGlmaWVyKTsKICAgICAgbm90aWZpZXIuY2hlY2tTdG9yYWdlUGVybWlzc2lvbnMoKTsKICAgIH0pOwogIH0KCiAgQG92ZXJyaWRlCiAgV2lkZ2V0IGJ1aWxkKEJ1aWxkQ29udGV4dCBjb250ZXh0KSB7CiAgICBmaW5hbCBiYWNrdXBTdGF0ZSA9IHJlZi53YXRjaChiYWNrdXBTdGF0dXNQcm92aWRlcik7CiAgICBmaW5hbCBmb2xkZXJJbmZvID0gYmFja3VwU3RhdGUuYmFja3VwRm9sZGVySW5mbzsKICAgIGZpbmFsIGxvY2FsQmFja3VwcyA9IGJhY2t1cFN0YXRlLmxvY2FsQmFja3VwczsKCiAgICByZXR1cm4gU3RhY2soCiAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgTGlzdFZpZXcoCiAgICAgICAgICBwYWRkaW5nOiBjb25zdCBFZGdlSW5zZXRzLmFsbChVSUNvbnN0YW50cy5zcGFjaW5nTUQpLAogICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgLy8g2YXYudmE2YjZhdin2Kog2KfZhNiq2K7YstmK2YYKICAgICAgICAgICAgX2J1aWxkU3RvcmFnZUluZm9DYXJkKGZvbGRlckluZm8sIGJhY2t1cFN0YXRlKSwKCiAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogVUlDb25zdGFudHMuc3BhY2luZ0xHKSwKCiAgICAgICAgICAgIC8vINij2LLYsdin2LEg2KfZhNil2KzYsdin2KHYp9iqINin2YTYs9ix2YrYudipCiAgICAgICAgICAgIF9idWlsZFF1aWNrQWN0aW9uc1JvdyhiYWNrdXBTdGF0ZSksCgogICAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IFVJQ29uc3RhbnRzLnNwYWNpbmdMRyksCgogICAgICAgICAgICAvLyDYotiu2LEg2YbYs9iu2Kkg2YXYrdmE2YrYqQogICAgICAgICAgICBpZiAoYmFja3VwU3RhdGUubGFzdExvY2FsQmFja3VwVGltZSAhPSBudWxsKQogICAgICAgICAgICAgIF9idWlsZExhc3RCYWNrdXBDYXJkKGJhY2t1cFN0YXRlLmxhc3RMb2NhbEJhY2t1cFRpbWUhKSwKCiAgICAgICAgICAgIGlmIChiYWNrdXBTdGF0ZS5sYXN0TG9jYWxCYWNrdXBUaW1lICE9IG51bGwpCiAgICAgICAgICAgICAgY29uc3QgU2l6ZWRCb3goaGVpZ2h0OiBVSUNvbnN0YW50cy5zcGFjaW5nTEcpLAoKICAgICAgICAgICAgLy8g2YLYp9im2YXYqSDYp9mE2YbYs9iuINin2YTZhdit2YTZitipCiAgICAgICAgICAgIFNlY3Rpb25IZWFkZXIoCiAgICAgICAgICAgICAgdGl0bGU6ICfYp9mE2YbYs9iuINin2YTZhdit2YTZitipICgke2xvY2FsQmFja3Vwcy5sZW5ndGh9KScsCiAgICAgICAgICAgICAgaWNvbjogSWNvbnMucGhvbmVfYW5kcm9pZCwKICAgICAgICAgICAgICBhY3Rpb246IEljb25CdXR0b24oCiAgICAgICAgICAgICAgICBpY29uOiBjb25zdCBJY29uKEljb25zLnJlZnJlc2gpLAogICAgICAgICAgICAgICAgb25QcmVzc2VkOiBiYWNrdXBTdGF0ZS5pc1dvcmtpbmcgPyBudWxsIDogX3JlZnJlc2hMb2NhbEJhY2t1cHMsCiAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgKSwKCiAgICAgICAgICAgIGlmIChsb2NhbEJhY2t1cHMuaXNFbXB0eSkKICAgICAgICAgICAgICBfYnVpbGRFbXB0eVN0YXRlKCkKICAgICAgICAgICAgZWxzZQogICAgICAgICAgICAgIC4uLmxvY2FsQmFja3Vwcy5tYXAoCiAgICAgICAgICAgICAgICAoYmFja3VwKSA9PiBfYnVpbGRCYWNrdXBJdGVtKGJhY2t1cCwgYmFja3VwU3RhdGUpLAogICAgICAgICAgICAgICksCgogICAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDgwKSwKICAgICAgICAgIF0sCiAgICAgICAgKSwKCiAgICAgICAgLy8g2LTYsdmK2Lcg2KfZhNiq2YLYr9mFCiAgICAgICAgaWYgKGJhY2t1cFN0YXRlLmlzV29ya2luZyAmJiBiYWNrdXBTdGF0ZS5wcm9ncmVzcyAhPSBudWxsKQogICAgICAgICAgX2J1aWxkUHJvZ3Jlc3NPdmVybGF5KGJhY2t1cFN0YXRlKSwKICAgICAgXSwKICAgICk7CiAgfQoKICBXaWRnZXQgX2J1aWxkU3RvcmFnZUluZm9DYXJkKAogICAgTWFwPFN0cmluZywgZHluYW1pYz4/IGZvbGRlckluZm8sCiAgICBCYWNrdXBTdGF0ZSBiYWNrdXBTdGF0ZSwKICApIHsKICAgIGZpbmFsIHBhdGggPSBmb2xkZXJJbmZvP1sncGF0aCddIGFzIFN0cmluZz8gPz8gJ9is2KfYsdmKINin2YTYqtit2YXZitmELi4uJzsKICAgIGZpbmFsIHRvdGFsU2l6ZU1iID0gZm9sZGVySW5mbz9bJ3RvdGFsX3NpemVfbWInXSBhcyBTdHJpbmc/ID8/ICcwJzsKICAgIGZpbmFsIGNvdW50ID0gZm9sZGVySW5mbz9bJ2JhY2t1cHNfY291bnQnXSBhcyBpbnQ/ID8/IDA7CgogICAgcmV0dXJuIENhcmQoCiAgICAgIGVsZXZhdGlvbjogMiwKICAgICAgc2hhcGU6IFJvdW5kZWRSZWN0YW5nbGVCb3JkZXIoCiAgICAgICAgYm9yZGVyUmFkaXVzOiBCb3JkZXJSYWRpdXMuY2lyY3VsYXIoVUlDb25zdGFudHMucmFkaXVzTEcpLAogICAgICApLAogICAgICBjaGlsZDogUGFkZGluZygKICAgICAgICBwYWRkaW5nOiBjb25zdCBFZGdlSW5zZXRzLmFsbChVSUNvbnN0YW50cy5zcGFjaW5nTUQpLAogICAgICAgIGNoaWxkOiBDb2x1bW4oCiAgICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgICBSb3coCiAgICAgICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgICAgIEljb24oCiAgICAgICAgICAgICAgICAgIEljb25zLnNkX3N0b3JhZ2UsCiAgICAgICAgICAgICAgICAgIGNvbG9yOiBiYWNrdXBTdGF0ZS5oYXNTdG9yYWdlUGVybWlzc2lvbgogICAgICAgICAgICAgICAgICAgICAgPyBDb2xvcnMuZ3JlZW4KICAgICAgICAgICAgICAgICAgICAgIDogQ29sb3JzLnJlZCwKICAgICAgICAgICAgICAgICAgc2l6ZTogVUlDb25zdGFudHMuaWNvblNpemVNRCwKICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveCh3aWR0aDogVUlDb25zdGFudHMuc3BhY2luZ1NNKSwKICAgICAgICAgICAgICAgIGNvbnN0IFRleHQoCiAgICAgICAgICAgICAgICAgICfYqtiu2LLZitmGINin2YTYrNmH2KfYsicsCiAgICAgICAgICAgICAgICAgIHN0eWxlOiBUZXh0U3R5bGUoZm9udFNpemU6IDE4LCBmb250V2VpZ2h0OiBGb250V2VpZ2h0LmJvbGQpLAogICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgIGNvbnN0IFNwYWNlcigpLAogICAgICAgICAgICAgICAgaWYgKCFiYWNrdXBTdGF0ZS5oYXNTdG9yYWdlUGVybWlzc2lvbikKICAgICAgICAgICAgICAgICAgVGV4dEJ1dHRvbi5pY29uKAogICAgICAgICAgICAgICAgICAgIG9uUHJlc3NlZDogKCkgPT4gcmVmCiAgICAgICAgICAgICAgICAgICAgICAgIC5yZWFkKGJhY2t1cFN0YXR1c1Byb3ZpZGVyLm5vdGlmaWVyKQogICAgICAgICAgICAgICAgICAgICAgICAuY2hlY2tTdG9yYWdlUGVybWlzc2lvbnMoKSwKICAgICAgICAgICAgICAgICAgICBpY29uOiBjb25zdCBJY29uKEljb25zLmxvY2tfb3Blbiwgc2l6ZTogMTYpLAogICAgICAgICAgICAgICAgICAgIGxhYmVsOiBjb25zdCBUZXh0KCfZhdmG2K0g2KfZhNij2LDZiNmG2KfYqicpLAogICAgICAgICAgICAgICAgICAgIHN0eWxlOiBUZXh0QnV0dG9uLnN0eWxlRnJvbShmb3JlZ3JvdW5kQ29sb3I6IENvbG9ycy5yZWQpLAogICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgIF0sCiAgICAgICAgICAgICksCiAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogVUlDb25zdGFudHMuc3BhY2luZ01EKSwKICAgICAgICAgICAgSW5mb1JvdygKICAgICAgICAgICAgICBsYWJlbDogJ9in2YTZhdiz2KfYsScsCiAgICAgICAgICAgICAgdmFsdWU6IHBhdGgsCiAgICAgICAgICAgICAgaWNvbjogSWNvbnMuZm9sZGVyLAogICAgICAgICAgICAgIGlzRXhwYW5kYWJsZTogdHJ1ZSwKICAgICAgICAgICAgKSwKICAgICAgICAgICAgSW5mb1JvdygKICAgICAgICAgICAgICBsYWJlbDogJ9i52K/YryDYp9mE2YbYs9iuJywKICAgICAgICAgICAgICB2YWx1ZTogJyRjb3VudCDZhtiz2K7YqScsCiAgICAgICAgICAgICAgaWNvbjogSWNvbnMubGF5ZXJzLAogICAgICAgICAgICApLAogICAgICAgICAgICBJbmZvUm93KAogICAgICAgICAgICAgIGxhYmVsOiAn2KfZhNmF2LPYp9it2Kkg2KfZhNmF2LPYqtiu2K/ZhdipJywKICAgICAgICAgICAgICB2YWx1ZTogJyR0b3RhbFNpemVNYiDZhdmK2KzYp9io2KfZitiqJywKICAgICAgICAgICAgICBpY29uOiBJY29ucy5kYXRhX3VzYWdlLAogICAgICAgICAgICApLAogICAgICAgICAgXSwKICAgICAgICApLAogICAgICApLAogICAgKTsKICB9CgogIFdpZGdldCBfYnVpbGRRdWlja0FjdGlvbnNSb3coQmFja3VwU3RhdGUgYmFja3VwU3RhdGUpIHsKICAgIHJldHVybiBSb3coCiAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgRXhwYW5kZWQoCiAgICAgICAgICBjaGlsZDogRWxldmF0ZWRCdXR0b24uaWNvbigKICAgICAgICAgICAgb25QcmVzc2VkOiBiYWNrdXBTdGF0ZS5pc1dvcmtpbmcgPyBudWxsIDogX2NyZWF0ZUxvY2FsQmFja3VwLAogICAgICAgICAgICBpY29uOiBiYWNrdXBTdGF0ZS5pc1dvcmtpbmcKICAgICAgICAgICAgICAgID8gY29uc3QgU2l6ZWRCb3goCiAgICAgICAgICAgICAgICAgICAgd2lkdGg6IDE2LAogICAgICAgICAgICAgICAgICAgIGhlaWdodDogMTYsCiAgICAgICAgICAgICAgICAgICAgY2hpbGQ6IENpcmN1bGFyUHJvZ3Jlc3NJbmRpY2F0b3IoCiAgICAgICAgICAgICAgICAgICAgICBzdHJva2VXaWR0aDogMiwKICAgICAgICAgICAgICAgICAgICAgIGNvbG9yOiBDb2xvcnMud2hpdGUsCiAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgKQogICAgICAgICAgICAgICAgOiBjb25zdCBJY29uKEljb25zLmJhY2t1cCksCiAgICAgICAgICAgIGxhYmVsOiBjb25zdCBUZXh0KCfZhtiz2K4g2KfZhNii2YYnKSwKICAgICAgICAgICAgc3R5bGU6IEVsZXZhdGVkQnV0dG9uLnN0eWxlRnJvbSgKICAgICAgICAgICAgICBiYWNrZ3JvdW5kQ29sb3I6IFVJQ29uc3RhbnRzLmJhY2t1cENvbG9yLAogICAgICAgICAgICAgIGZvcmVncm91bmRDb2xvcjogQ29sb3JzLndoaXRlLAogICAgICAgICAgICAgIHBhZGRpbmc6IGNvbnN0IEVkZ2VJbnNldHMuYWxsKFVJQ29uc3RhbnRzLnNwYWNpbmdNRCksCiAgICAgICAgICAgICksCiAgICAgICAgICApLAogICAgICAgICksCiAgICAgICAgY29uc3QgU2l6ZWRCb3god2lkdGg6IFVJQ29uc3RhbnRzLnNwYWNpbmdNRCksCiAgICAgICAgRXhwYW5kZWQoCiAgICAgICAgICBjaGlsZDogT3V0bGluZWRCdXR0b24uaWNvbigKICAgICAgICAgICAgb25QcmVzc2VkOiBiYWNrdXBTdGF0ZS5pc1dvcmtpbmcgPyBudWxsIDogX2ltcG9ydEJhY2t1cCwKICAgICAgICAgICAgaWNvbjogY29uc3QgSWNvbihJY29ucy5maWxlX2Rvd25sb2FkKSwKICAgICAgICAgICAgbGFiZWw6IGNvbnN0IFRleHQoJ9in2LPYqtmK2LHYp9ivINmG2LPYrtipJyksCiAgICAgICAgICAgIHN0eWxlOiBPdXRsaW5lZEJ1dHRvbi5zdHlsZUZyb20oCiAgICAgICAgICAgICAgcGFkZGluZzogY29uc3QgRWRnZUluc2V0cy5hbGwoVUlDb25zdGFudHMuc3BhY2luZ01EKSwKICAgICAgICAgICAgKSwKICAgICAgICAgICksCiAgICAgICAgKSwKICAgICAgXSwKICAgICk7CiAgfQoKICBXaWRnZXQgX2J1aWxkTGFzdEJhY2t1cENhcmQoRGF0ZVRpbWUgbGFzdEJhY2t1cFRpbWUpIHsKICAgIGZpbmFsIG5vdyA9IERhdGVUaW1lLm5vdygpOwogICAgZmluYWwgZGlmZiA9IG5vdy5kaWZmZXJlbmNlKGxhc3RCYWNrdXBUaW1lKTsKICAgIFN0cmluZyByZWxhdGl2ZVRpbWU7CiAgICBpZiAoZGlmZi5pbk1pbnV0ZXMgPCAxKSB7CiAgICAgIHJlbGF0aXZlVGltZSA9ICfYp9mE2KLZhic7CiAgICB9IGVsc2UgaWYgKGRpZmYuaW5NaW51dGVzIDwgNjApIHsKICAgICAgcmVsYXRpdmVUaW1lID0gJ9mF2YbYsCAke2RpZmYuaW5NaW51dGVzfSDYr9mC2YrZgtipJzsKICAgIH0gZWxzZSBpZiAoZGlmZi5pbkhvdXJzIDwgMjQpIHsKICAgICAgcmVsYXRpdmVUaW1lID0gJ9mF2YbYsCAke2RpZmYuaW5Ib3Vyc30g2LPYp9i52KknOwogICAgfSBlbHNlIHsKICAgICAgcmVsYXRpdmVUaW1lID0gJ9mF2YbYsCAke2RpZmYuaW5EYXlzfSDZitmI2YUnOwogICAgfQoKICAgIHJldHVybiBDYXJkKAogICAgICBlbGV2YXRpb246IDEsCiAgICAgIHNoYXBlOiBSb3VuZGVkUmVjdGFuZ2xlQm9yZGVyKAogICAgICAgIGJvcmRlclJhZGl1czogQm9yZGVyUmFkaXVzLmNpcmN1bGFyKFVJQ29uc3RhbnRzLnJhZGl1c0xHKSwKICAgICAgKSwKICAgICAgY2hpbGQ6IFBhZGRpbmcoCiAgICAgICAgcGFkZGluZzogY29uc3QgRWRnZUluc2V0cy5hbGwoVUlDb25zdGFudHMuc3BhY2luZ01EKSwKICAgICAgICBjaGlsZDogUm93KAogICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgSWNvbigKICAgICAgICAgICAgICBJY29ucy5oaXN0b3J5LAogICAgICAgICAgICAgIGNvbG9yOiBDb2xvcnMuYmx1ZS5zaGFkZTQwMCwKICAgICAgICAgICAgICBzaXplOiBVSUNvbnN0YW50cy5pY29uU2l6ZU1ELAogICAgICAgICAgICApLAogICAgICAgICAgICBjb25zdCBTaXplZEJveCh3aWR0aDogVUlDb25zdGFudHMuc3BhY2luZ1NNKSwKICAgICAgICAgICAgQ29sdW1uKAogICAgICAgICAgICAgIGNyb3NzQXhpc0FsaWdubWVudDogQ3Jvc3NBeGlzQWxpZ25tZW50LnN0YXJ0LAogICAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgICBjb25zdCBUZXh0KAogICAgICAgICAgICAgICAgICAn2KLYrtixINmG2LPYrtipINmF2K3ZhNmK2KknLAogICAgICAgICAgICAgICAgICBzdHlsZTogVGV4dFN0eWxlKGZvbnRXZWlnaHQ6IEZvbnRXZWlnaHQuYm9sZCwgZm9udFNpemU6IDE0KSwKICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDIpLAogICAgICAgICAgICAgICAgVGV4dCgKICAgICAgICAgICAgICAgICAgJyRyZWxhdGl2ZVRpbWUgLSAke0RhdGVUaW1lRm9ybWF0dGVyLmZvcm1hdERhdGVUaW1lKGxhc3RCYWNrdXBUaW1lLnRvSXNvODYwMVN0cmluZygpKX0nLAogICAgICAgICAgICAgICAgICBzdHlsZTogVGV4dFN0eWxlKGZvbnRTaXplOiAxMiwgY29sb3I6IENvbG9ycy5ncmV5LnNoYWRlNjAwKSwKICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgXSwKICAgICAgICAgICAgKSwKICAgICAgICAgIF0sCiAgICAgICAgKSwKICAgICAgKSwKICAgICk7CiAgfQoKICBXaWRnZXQgX2J1aWxkRW1wdHlTdGF0ZSgpIHsKICAgIHJldHVybiBDYXJkKAogICAgICBlbGV2YXRpb246IDIsCiAgICAgIHNoYXBlOiBSb3VuZGVkUmVjdGFuZ2xlQm9yZGVyKAogICAgICAgIGJvcmRlclJhZGl1czogQm9yZGVyUmFkaXVzLmNpcmN1bGFyKFVJQ29uc3RhbnRzLnJhZGl1c0xHKSwKICAgICAgKSwKICAgICAgY2hpbGQ6IFBhZGRpbmcoCiAgICAgICAgcGFkZGluZzogY29uc3QgRWRnZUluc2V0cy5hbGwoMzIpLAogICAgICAgIGNoaWxkOiBDb2x1bW4oCiAgICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgICBJY29uKEljb25zLmJhY2t1cF9vdXRsaW5lZCwgc2l6ZTogNDgsIGNvbG9yOiBDb2xvcnMuZ3JleS5zaGFkZTQwMCksCiAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogVUlDb25zdGFudHMuc3BhY2luZ01EKSwKICAgICAgICAgICAgVGV4dCgKICAgICAgICAgICAgICAn2YTYpyDYqtmI2KzYryDZhtiz2K4g2KfYrdiq2YrYp9i32YrYqSDZhdit2YTZitipJywKICAgICAgICAgICAgICBzdHlsZTogVGV4dFN0eWxlKAogICAgICAgICAgICAgICAgZm9udFNpemU6IDE2LAogICAgICAgICAgICAgICAgZm9udFdlaWdodDogRm9udFdlaWdodC5ib2xkLAogICAgICAgICAgICAgICAgY29sb3I6IENvbG9ycy5ncmV5LnNoYWRlNzAwLAogICAgICAgICAgICAgICksCiAgICAgICAgICAgICksCiAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogVUlDb25zdGFudHMuc3BhY2luZ1NNKSwKICAgICAgICAgICAgVGV4dCgKICAgICAgICAgICAgICAn2KfYtti62LcgItmG2LPYriDYp9mE2KLZhiIg2YTYpdmG2LTYp9ihINij2YjZhCDZhtiz2K7YqSDYp9it2KrZitin2LfZitipJywKICAgICAgICAgICAgICBzdHlsZTogVGV4dFN0eWxlKGZvbnRTaXplOiAxMywgY29sb3I6IENvbG9ycy5ncmV5LnNoYWRlNTAwKSwKICAgICAgICAgICAgICB0ZXh0QWxpZ246IFRleHRBbGlnbi5jZW50ZXIsCiAgICAgICAgICAgICksCiAgICAgICAgICBdLAogICAgICAgICksCiAgICAgICksCiAgICApOwogIH0KCiAgV2lkZ2V0IF9idWlsZEJhY2t1cEl0ZW0oTG9jYWxCYWNrdXBGaWxlIGJhY2t1cCwgQmFja3VwU3RhdGUgYmFja3VwU3RhdGUpIHsKICAgIGZpbmFsIG1ldGFkYXRhID0gYmFja3VwLm1ldGFkYXRhOwogICAgZmluYWwgZm9ybWF0TGFiZWwgPSBiYWNrdXAuZm9ybWF0ID09IEJhY2t1cEZvcm1hdC5zcWxpdGUKICAgICAgICA/ICdTUUxpdGUnCiAgICAgICAgOiAnSlNPTic7CgogICAgcmV0dXJuIENhcmQoCiAgICAgIG1hcmdpbjogY29uc3QgRWRnZUluc2V0cy5vbmx5KGJvdHRvbTogVUlDb25zdGFudHMuc3BhY2luZ1NNKSwKICAgICAgY2hpbGQ6IExpc3RUaWxlKAogICAgICAgIGxlYWRpbmc6IENvbnRhaW5lcigKICAgICAgICAgIHBhZGRpbmc6IGNvbnN0IEVkZ2VJbnNldHMuYWxsKFVJQ29uc3RhbnRzLnNwYWNpbmdTTSksCiAgICAgICAgICBkZWNvcmF0aW9uOiBCb3hEZWNvcmF0aW9uKAogICAgICAgICAgICBjb2xvcjogQ29sb3JzLmdyZWVuLndpdGhWYWx1ZXMoYWxwaGE6IDAuMSksCiAgICAgICAgICAgIGJvcmRlclJhZGl1czogQm9yZGVyUmFkaXVzLmNpcmN1bGFyKFVJQ29uc3RhbnRzLnJhZGl1c01EKSwKICAgICAgICAgICksCiAgICAgICAgICBjaGlsZDogY29uc3QgSWNvbihJY29ucy5maWxlX3ByZXNlbnQsIGNvbG9yOiBDb2xvcnMuZ3JlZW4pLAogICAgICAgICksCiAgICAgICAgdGl0bGU6IFJvdygKICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgIEV4cGFuZGVkKAogICAgICAgICAgICAgIGNoaWxkOiBUZXh0KAogICAgICAgICAgICAgICAgbWV0YWRhdGE/LmRldmljZUluZm8gPz8gJ9mG2LPYrtipINmF2K3ZhNmK2KknLAogICAgICAgICAgICAgICAgc3R5bGU6IGNvbnN0IFRleHRTdHlsZShmb250V2VpZ2h0OiBGb250V2VpZ2h0Lnc2MDApLAogICAgICAgICAgICAgICAgb3ZlcmZsb3c6IFRleHRPdmVyZmxvdy5lbGxpcHNpcywKICAgICAgICAgICAgICApLAogICAgICAgICAgICApLAogICAgICAgICAgICBDb250YWluZXIoCiAgICAgICAgICAgICAgcGFkZGluZzogY29uc3QgRWRnZUluc2V0cy5zeW1tZXRyaWMoaG9yaXpvbnRhbDogNiwgdmVydGljYWw6IDIpLAogICAgICAgICAgICAgIGRlY29yYXRpb246IEJveERlY29yYXRpb24oCiAgICAgICAgICAgICAgICBjb2xvcjogQ29sb3JzLmJsdWUud2l0aFZhbHVlcyhhbHBoYTogMC4xKSwKICAgICAgICAgICAgICAgIGJvcmRlclJhZGl1czogQm9yZGVyUmFkaXVzLmNpcmN1bGFyKDQpLAogICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgY2hpbGQ6IFRleHQoCiAgICAgICAgICAgICAgICBmb3JtYXRMYWJlbCwKICAgICAgICAgICAgICAgIHN0eWxlOiBUZXh0U3R5bGUoCiAgICAgICAgICAgICAgICAgIGZvbnRTaXplOiAxMCwKICAgICAgICAgICAgICAgICAgY29sb3I6IENvbG9ycy5ibHVlLnNoYWRlNzAwLAogICAgICAgICAgICAgICAgICBmb250V2VpZ2h0OiBGb250V2VpZ2h0LmJvbGQsCiAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICksCiAgICAgICAgICAgICksCiAgICAgICAgICBdLAogICAgICAgICksCiAgICAgICAgc3VidGl0bGU6IENvbHVtbigKICAgICAgICAgIGNyb3NzQXhpc0FsaWdubWVudDogQ3Jvc3NBeGlzQWxpZ25tZW50LnN0YXJ0LAogICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgY29uc3QgU2l6ZWRCb3goaGVpZ2h0OiA0KSwKICAgICAgICAgICAgVGV4dCgKICAgICAgICAgICAgICBEYXRlVGltZUZvcm1hdHRlci5mb3JtYXREYXRlVGltZSgKICAgICAgICAgICAgICAgIGJhY2t1cC5jcmVhdGVkVGltZS50b0lzbzg2MDFTdHJpbmcoKSwKICAgICAgICAgICAgICApLAogICAgICAgICAgICAgIHN0eWxlOiBjb25zdCBUZXh0U3R5bGUoZm9udFNpemU6IDEyKSwKICAgICAgICAgICAgKSwKICAgICAgICAgICAgUm93KAogICAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgICBUZXh0KAogICAgICAgICAgICAgICAgICBGaWxlU2l6ZUZvcm1hdHRlci5mb3JtYXRCeXRlcyhiYWNrdXAuc2l6ZUJ5dGVzKSwKICAgICAgICAgICAgICAgICAgc3R5bGU6IGNvbnN0IFRleHRTdHlsZShmb250U2l6ZTogMTEpLAogICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgIGlmIChtZXRhZGF0YSAhPSBudWxsKSAuLi5bCiAgICAgICAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KHdpZHRoOiA4KSwKICAgICAgICAgICAgICAgICAgVGV4dCgKICAgICAgICAgICAgICAgICAgICAnJHttZXRhZGF0YS50b3RhbFJlY29yZHN9INiz2KzZhCcsCiAgICAgICAgICAgICAgICAgICAgc3R5bGU6IGNvbnN0IFRleHRTdHlsZShmb250U2l6ZTogMTEpLAogICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveCh3aWR0aDogOCksCiAgICAgICAgICAgICAgICAgIFRleHQoCiAgICAgICAgICAgICAgICAgICAgJ3Yke21ldGFkYXRhLmRhdGFiYXNlVmVyc2lvbn0nLAogICAgICAgICAgICAgICAgICAgIHN0eWxlOiBUZXh0U3R5bGUoZm9udFNpemU6IDExLCBjb2xvcjogQ29sb3JzLmdyZXkuc2hhZGU1MDApLAogICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgXSwKICAgICAgICAgICAgICBdLAogICAgICAgICAgICApLAogICAgICAgICAgXSwKICAgICAgICApLAogICAgICAgIHRyYWlsaW5nOiBQb3B1cE1lbnVCdXR0b248U3RyaW5nPigKICAgICAgICAgIGl0ZW1CdWlsZGVyOiAoY29udGV4dCkgPT4gWwogICAgICAgICAgICBjb25zdCBQb3B1cE1lbnVJdGVtKAogICAgICAgICAgICAgIHZhbHVlOiAncmVzdG9yZScsCiAgICAgICAgICAgICAgY2hpbGQ6IFJvdygKICAgICAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgICAgIEljb24oSWNvbnMucmVzdG9yZSwgc2l6ZTogMjApLAogICAgICAgICAgICAgICAgICBTaXplZEJveCh3aWR0aDogOCksCiAgICAgICAgICAgICAgICAgIFRleHQoJ9in2LPYqti52KfYr9ipJyksCiAgICAgICAgICAgICAgICBdLAogICAgICAgICAgICAgICksCiAgICAgICAgICAgICksCiAgICAgICAgICAgIGNvbnN0IFBvcHVwTWVudUl0ZW0oCiAgICAgICAgICAgICAgdmFsdWU6ICdzaGFyZScsCiAgICAgICAgICAgICAgY2hpbGQ6IFJvdygKICAgICAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgICAgIEljb24oSWNvbnMuc2hhcmUsIHNpemU6IDIwKSwKICAgICAgICAgICAgICAgICAgU2l6ZWRCb3god2lkdGg6IDgpLAogICAgICAgICAgICAgICAgICBUZXh0KCfZhdi02KfYsdmD2KknKSwKICAgICAgICAgICAgICAgIF0sCiAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgKSwKICAgICAgICAgICAgY29uc3QgUG9wdXBNZW51SXRlbSgKICAgICAgICAgICAgICB2YWx1ZTogJ2RlbGV0ZScsCiAgICAgICAgICAgICAgY2hpbGQ6IFJvdygKICAgICAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgICAgIEljb24oSWNvbnMuZGVsZXRlLCBzaXplOiAyMCwgY29sb3I6IENvbG9ycy5yZWQpLAogICAgICAgICAgICAgICAgICBTaXplZEJveCh3aWR0aDogOCksCiAgICAgICAgICAgICAgICAgIFRleHQoJ9it2LDZgScsIHN0eWxlOiBUZXh0U3R5bGUoY29sb3I6IENvbG9ycy5yZWQpKSwKICAgICAgICAgICAgICAgIF0sCiAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgKSwKICAgICAgICAgIF0sCiAgICAgICAgICBvblNlbGVjdGVkOiAodmFsdWUpID0+IF9oYW5kbGVCYWNrdXBBY3Rpb24odmFsdWUsIGJhY2t1cCksCiAgICAgICAgKSwKICAgICAgKSwKICAgICk7CiAgfQoKICBXaWRnZXQgX2J1aWxkUHJvZ3Jlc3NPdmVybGF5KEJhY2t1cFN0YXRlIGJhY2t1cFN0YXRlKSB7CiAgICByZXR1cm4gUG9zaXRpb25lZCgKICAgICAgbGVmdDogMCwKICAgICAgcmlnaHQ6IDAsCiAgICAgIGJvdHRvbTogMCwKICAgICAgY2hpbGQ6IENvbnRhaW5lcigKICAgICAgICBwYWRkaW5nOiBjb25zdCBFZGdlSW5zZXRzLmFsbCgxNiksCiAgICAgICAgZGVjb3JhdGlvbjogQm94RGVjb3JhdGlvbigKICAgICAgICAgIGNvbG9yOiBDb2xvcnMud2hpdGUsCiAgICAgICAgICBib3hTaGFkb3c6IFsKICAgICAgICAgICAgQm94U2hhZG93KAogICAgICAgICAgICAgIGNvbG9yOiBDb2xvcnMuYmxhY2sud2l0aFZhbHVlcyhhbHBoYTogMC4xKSwKICAgICAgICAgICAgICBibHVyUmFkaXVzOiA0LAogICAgICAgICAgICAgIG9mZnNldDogY29uc3QgT2Zmc2V0KDAsIC0yKSwKICAgICAgICAgICAgKSwKICAgICAgICAgIF0sCiAgICAgICAgKSwKICAgICAgICBjaGlsZDogQ29sdW1uKAogICAgICAgICAgbWFpbkF4aXNTaXplOiBNYWluQXhpc1NpemUubWluLAogICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgUm93KAogICAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveCgKICAgICAgICAgICAgICAgICAgd2lkdGg6IDIwLAogICAgICAgICAgICAgICAgICBoZWlnaHQ6IDIwLAogICAgICAgICAgICAgICAgICBjaGlsZDogQ2lyY3VsYXJQcm9ncmVzc0luZGljYXRvcihzdHJva2VXaWR0aDogMiksCiAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgY29uc3QgU2l6ZWRCb3god2lkdGg6IDEyKSwKICAgICAgICAgICAgICAgIEV4cGFuZGVkKAogICAgICAgICAgICAgICAgICBjaGlsZDogVGV4dCgKICAgICAgICAgICAgICAgICAgICBiYWNrdXBTdGF0ZS5tZXNzYWdlID8/ICfYrNin2LHZiiDYp9mE2YXYudin2YTYrNipLi4uJywKICAgICAgICAgICAgICAgICAgICBzdHlsZTogY29uc3QgVGV4dFN0eWxlKGZvbnRTaXplOiAxMyksCiAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgIF0sCiAgICAgICAgICAgICksCiAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogOCksCiAgICAgICAgICAgIExpbmVhclByb2dyZXNzSW5kaWNhdG9yKAogICAgICAgICAgICAgIHZhbHVlOiBiYWNrdXBTdGF0ZS5wcm9ncmVzcywKICAgICAgICAgICAgICBiYWNrZ3JvdW5kQ29sb3I6IENvbG9ycy5ncmV5LnNoYWRlMjAwLAogICAgICAgICAgICAgIGNvbG9yOiBVSUNvbnN0YW50cy5iYWNrdXBDb2xvciwKICAgICAgICAgICAgKSwKICAgICAgICAgIF0sCiAgICAgICAgKSwKICAgICAgKSwKICAgICk7CiAgfQoKICAvLyDilIDilIDilIAg2KfZhNij2YHYudin2YQg4pSA4pSA4pSACgogIEZ1dHVyZTx2b2lkPiBfY3JlYXRlTG9jYWxCYWNrdXAoKSBhc3luYyB7CiAgICBhd2FpdCByZWYucmVhZChiYWNrdXBTdGF0dXNQcm92aWRlci5ub3RpZmllcikuY3JlYXRlTG9jYWxCYWNrdXAoKTsKICAgIGlmIChtb3VudGVkKSB7CiAgICAgIGZpbmFsIHN0YXRlID0gcmVmLnJlYWQoYmFja3VwU3RhdHVzUHJvdmlkZXIpOwogICAgICBpZiAoc3RhdGUuc3RhdHVzID09IEJhY2t1cFN0YXR1cy5zdWNjZXNzKSB7CiAgICAgICAgU2NhZmZvbGRNZXNzZW5nZXIub2YoCiAgICAgICAgICBjb250ZXh0LAogICAgICAgICkuc2hvd1NuYWNrQmFyKAogICAgICAgICAgU25hY2tCYXIoCiAgICAgICAgICAgIGNvbnRlbnQ6IFRleHQoc3RhdGUubWVzc2FnZSA/PyAn2KrZhSDYpdmG2LTYp9ihINin2YTZhtiz2K7YqScpLAogICAgICAgICAgICBiYWNrZ3JvdW5kQ29sb3I6IENvbG9ycy5ncmVlbiwKICAgICAgICAgICksCiAgICAgICAgKTsKICAgICAgfSBlbHNlIGlmIChzdGF0ZS5zdGF0dXMgPT0gQmFja3VwU3RhdHVzLmVycm9yKSB7CiAgICAgICAgU2NhZmZvbGRNZXNzZW5nZXIub2YoCiAgICAgICAgICBjb250ZXh0LAogICAgICAgICkuc2hvd1NuYWNrQmFyKAogICAgICAgICAgU25hY2tCYXIoCiAgICAgICAgICAgIGNvbnRlbnQ6IFRleHQoc3RhdGUubWVzc2FnZSA/PyAn2K3Yr9irINiu2LfYoycpLAogICAgICAgICAgICBiYWNrZ3JvdW5kQ29sb3I6IENvbG9ycy5yZWQsCiAgICAgICAgICApLAogICAgICAgICk7CiAgICAgIH0KICAgIH0KICB9CgogIEZ1dHVyZTx2b2lkPiBfaW1wb3J0QmFja3VwKCkgYXN5bmMgewogICAgYXdhaXQgcmVmLnJlYWQoYmFja3VwU3RhdHVzUHJvdmlkZXIubm90aWZpZXIpLmltcG9ydEJhY2t1cEZyb21GaWxlKCk7CiAgICBpZiAobW91bnRlZCkgewogICAgICBmaW5hbCBzdGF0ZSA9IHJlZi5yZWFkKGJhY2t1cFN0YXR1c1Byb3ZpZGVyKTsKICAgICAgaWYgKHN0YXRlLnN0YXR1cyA9PSBCYWNrdXBTdGF0dXMuc3VjY2VzcykgewogICAgICAgIFNjYWZmb2xkTWVzc2VuZ2VyLm9mKAogICAgICAgICAgY29udGV4dCwKICAgICAgICApLnNob3dTbmFja0JhcigKICAgICAgICAgIFNuYWNrQmFyKAogICAgICAgICAgICBjb250ZW50OiBUZXh0KHN0YXRlLm1lc3NhZ2UgPz8gJ9iq2YUg2KfZhNin2LPYqtmK2LHYp9ivJyksCiAgICAgICAgICAgIGJhY2tncm91bmRDb2xvcjogQ29sb3JzLmdyZWVuLAogICAgICAgICAgKSwKICAgICAgICApOwogICAgICB9IGVsc2UgaWYgKHN0YXRlLnN0YXR1cyA9PSBCYWNrdXBTdGF0dXMuZXJyb3IpIHsKICAgICAgICBTY2FmZm9sZE1lc3Nlbmdlci5vZigKICAgICAgICAgIGNvbnRleHQsCiAgICAgICAgKS5zaG93U25hY2tCYXIoCiAgICAgICAgICBTbmFja0JhcigKICAgICAgICAgICAgY29udGVudDogVGV4dChzdGF0ZS5tZXNzYWdlID8/ICfYrdiv2Ksg2K7Yt9ijJyksCiAgICAgICAgICAgIGJhY2tncm91bmRDb2xvcjogQ29sb3JzLnJlZCwKICAgICAgICAgICksCiAgICAgICAgKTsKICAgICAgfQogICAgfQogIH0KCiAgRnV0dXJlPHZvaWQ+IF9oYW5kbGVCYWNrdXBBY3Rpb24oCiAgICBTdHJpbmcgYWN0aW9uLAogICAgTG9jYWxCYWNrdXBGaWxlIGJhY2t1cCwKICApIGFzeW5jIHsKICAgIHN3aXRjaCAoYWN0aW9uKSB7CiAgICAgIGNhc2UgJ3Jlc3RvcmUnOgogICAgICAgIF9jb25maXJtUmVzdG9yZShiYWNrdXApOwogICAgICBjYXNlICdzaGFyZSc6CiAgICAgICAgYXdhaXQgcmVmCiAgICAgICAgICAgIC5yZWFkKGJhY2t1cFN0YXR1c1Byb3ZpZGVyLm5vdGlmaWVyKQogICAgICAgICAgICAuc2hhcmVMb2NhbEJhY2t1cChiYWNrdXAuZmlsZVBhdGgpOwogICAgICBjYXNlICdkZWxldGUnOgogICAgICAgIF9jb25maXJtRGVsZXRlKGJhY2t1cCk7CiAgICB9CiAgfQoKICB2b2lkIF9jb25maXJtUmVzdG9yZShMb2NhbEJhY2t1cEZpbGUgYmFja3VwKSB7CiAgICBzaG93RGlhbG9nPHZvaWQ+KAogICAgICBjb250ZXh0OiBjb250ZXh0LAogICAgICBidWlsZGVyOiAoY29udGV4dCkgPT4gQWxlcnREaWFsb2coCiAgICAgICAgdGl0bGU6IGNvbnN0IFRleHQoJ9iq2KPZg9mK2K8g2KfZhNin2LPYqti52KfYr9ipJyksCiAgICAgICAgY29udGVudDogVGV4dCgKICAgICAgICAgICfYs9mK2KrZhSDYp9iz2KrYqNiv2KfZhCDYrNmF2YrYuSDYp9mE2KjZitin2YbYp9iqINin2YTYrdin2YTZitipINio2KjZitin2YbYp9iqINin2YTZhtiz2K7YqSDYp9mE2KfYrdiq2YrYp9i32YrYqS5cblxuJwogICAgICAgICAgJ9in2YTZhdmE2YE6ICR7YmFja3VwLmZpbGVOYW1lfVxuJwogICAgICAgICAgJ9in2YTYqtin2LHZitiuOiAke0RhdGVUaW1lRm9ybWF0dGVyLmZvcm1hdERhdGVUaW1lKGJhY2t1cC5jcmVhdGVkVGltZS50b0lzbzg2MDFTdHJpbmcoKSl9XG4nCiAgICAgICAgICAn2KfZhNit2KzZhTogJHtGaWxlU2l6ZUZvcm1hdHRlci5mb3JtYXRCeXRlcyhiYWNrdXAuc2l6ZUJ5dGVzKX0nLAogICAgICAgICksCiAgICAgICAgYWN0aW9uczogWwogICAgICAgICAgVGV4dEJ1dHRvbigKICAgICAgICAgICAgb25QcmVzc2VkOiAoKSA9PiBOYXZpZ2F0b3IucG9wKGNvbnRleHQpLAogICAgICAgICAgICBjaGlsZDogY29uc3QgVGV4dCgn2KXZhNi62KfYoScpLAogICAgICAgICAgKSwKICAgICAgICAgIEVsZXZhdGVkQnV0dG9uKAogICAgICAgICAgICBvblByZXNzZWQ6ICgpIHsKICAgICAgICAgICAgICBOYXZpZ2F0b3IucG9wKGNvbnRleHQpOwogICAgICAgICAgICAgIF9yZXN0b3JlQmFja3VwKGJhY2t1cCk7CiAgICAgICAgICAgIH0sCiAgICAgICAgICAgIHN0eWxlOiBFbGV2YXRlZEJ1dHRvbi5zdHlsZUZyb20oCiAgICAgICAgICAgICAgYmFja2dyb3VuZENvbG9yOiBDb2xvcnMub3JhbmdlLAogICAgICAgICAgICAgIGZvcmVncm91bmRDb2xvcjogQ29sb3JzLndoaXRlLAogICAgICAgICAgICApLAogICAgICAgICAgICBjaGlsZDogY29uc3QgVGV4dCgn2KfYs9iq2LnYp9iv2KknKSwKICAgICAgICAgICksCiAgICAgICAgXSwKICAgICAgKSwKICAgICk7CiAgfQoKICBGdXR1cmU8dm9pZD4gX3Jlc3RvcmVCYWNrdXAoTG9jYWxCYWNrdXBGaWxlIGJhY2t1cCkgYXN5bmMgewogICAgYXdhaXQgcmVmCiAgICAgICAgLnJlYWQoYmFja3VwU3RhdHVzUHJvdmlkZXIubm90aWZpZXIpCiAgICAgICAgLnJlc3RvcmVGcm9tTG9jYWxCYWNrdXAoYmFja3VwLmZpbGVQYXRoKTsKCiAgICBpZiAobW91bnRlZCkgewogICAgICBmaW5hbCBzdGF0ZSA9IHJlZi5yZWFkKGJhY2t1cFN0YXR1c1Byb3ZpZGVyKTsKICAgICAgaWYgKHN0YXRlLnN0YXR1cyA9PSBCYWNrdXBTdGF0dXMuc3VjY2VzcykgewogICAgICAgIFNjYWZmb2xkTWVzc2VuZ2VyLm9mKGNvbnRleHQpLnNob3dTbmFja0JhcigKICAgICAgICAgIGNvbnN0IFNuYWNrQmFyKAogICAgICAgICAgICBjb250ZW50OiBUZXh0KCfYqtmF2Kog2KfZhNin2LPYqti52KfYr9ipINio2YbYrNin2K0gLSDYs9mK2KrZhSDYqtit2K/ZitirINin2YTYqNmK2KfZhtin2KonKSwKICAgICAgICAgICAgYmFja2dyb3VuZENvbG9yOiBDb2xvcnMuZ3JlZW4sCiAgICAgICAgICApLAogICAgICAgICk7CiAgICAgIH0gZWxzZSBpZiAoc3RhdGUuc3RhdHVzID09IEJhY2t1cFN0YXR1cy5lcnJvcikgewogICAgICAgIFNjYWZmb2xkTWVzc2VuZ2VyLm9mKAogICAgICAgICAgY29udGV4dCwKICAgICAgICApLnNob3dTbmFja0JhcigKICAgICAgICAgIFNuYWNrQmFyKAogICAgICAgICAgICBjb250ZW50OiBUZXh0KHN0YXRlLm1lc3NhZ2UgPz8gJ9mB2LTZhNiqINin2YTYp9iz2KrYudin2K/YqScpLAogICAgICAgICAgICBiYWNrZ3JvdW5kQ29sb3I6IENvbG9ycy5yZWQsCiAgICAgICAgICApLAogICAgICAgICk7CiAgICAgIH0KICAgIH0KICB9CgogIHZvaWQgX2NvbmZpcm1EZWxldGUoTG9jYWxCYWNrdXBGaWxlIGJhY2t1cCkgewogICAgc2hvd0RpYWxvZzx2b2lkPigKICAgICAgY29udGV4dDogY29udGV4dCwKICAgICAgYnVpbGRlcjogKGNvbnRleHQpID0+IEFsZXJ0RGlhbG9nKAogICAgICAgIHRpdGxlOiBjb25zdCBUZXh0KCfYrdiw2YEg2YbYs9iu2Kkg2KfYrdiq2YrYp9i32YrYqScpLAogICAgICAgIGNvbnRlbnQ6IFRleHQoCiAgICAgICAgICAn2YfZhCDYo9mG2Kog2YXYqtij2YPYryDZhdmGINit2LDZgTpcbiR7YmFja3VwLmZpbGVOYW1lfdifXG5cbicKICAgICAgICAgICfZhNinINmK2YXZg9mGINin2YTYqtix2KfYrNi5INi52YYg2YfYsNinINin2YTYpdis2LHYp9ihLicsCiAgICAgICAgKSwKICAgICAgICBhY3Rpb25zOiBbCiAgICAgICAgICBUZXh0QnV0dG9uKAogICAgICAgICAgICBvblByZXNzZWQ6ICgpID0+IE5hdmlnYXRvci5wb3AoY29udGV4dCksCiAgICAgICAgICAgIGNoaWxkOiBjb25zdCBUZXh0KCfYpdmE2LrYp9ihJyksCiAgICAgICAgICApLAogICAgICAgICAgRWxldmF0ZWRCdXR0b24oCiAgICAgICAgICAgIG9uUHJlc3NlZDogKCkgewogICAgICAgICAgICAgIE5hdmlnYXRvci5wb3AoY29udGV4dCk7CiAgICAgICAgICAgICAgX2RlbGV0ZUJhY2t1cChiYWNrdXApOwogICAgICAgICAgICB9LAogICAgICAgICAgICBzdHlsZTogRWxldmF0ZWRCdXR0b24uc3R5bGVGcm9tKGJhY2tncm91bmRDb2xvcjogQ29sb3JzLnJlZCksCiAgICAgICAgICAgIGNoaWxkOiBjb25zdCBUZXh0KCfYrdiw2YEnLCBzdHlsZTogVGV4dFN0eWxlKGNvbG9yOiBDb2xvcnMud2hpdGUpKSwKICAgICAgICAgICksCiAgICAgICAgXSwKICAgICAgKSwKICAgICk7CiAgfQoKICBGdXR1cmU8dm9pZD4gX2RlbGV0ZUJhY2t1cChMb2NhbEJhY2t1cEZpbGUgYmFja3VwKSBhc3luYyB7CiAgICBhd2FpdCByZWYKICAgICAgICAucmVhZChiYWNrdXBTdGF0dXNQcm92aWRlci5ub3RpZmllcikKICAgICAgICAuZGVsZXRlTG9jYWxCYWNrdXAoYmFja3VwLmZpbGVQYXRoKTsKCiAgICBpZiAobW91bnRlZCkgewogICAgICBTY2FmZm9sZE1lc3Nlbmdlci5vZigKICAgICAgICBjb250ZXh0LAogICAgICApLnNob3dTbmFja0JhcigKICAgICAgICBjb25zdCBTbmFja0JhcigKICAgICAgICAgIGNvbnRlbnQ6IFRleHQoJ9iq2YUg2K3YsNmBINin2YTZhtiz2K7YqSDYp9mE2KfYrdiq2YrYp9i32YrYqScpLAogICAgICAgICAgYmFja2dyb3VuZENvbG9yOiBDb2xvcnMub3JhbmdlLAogICAgICAgICksCiAgICAgICk7CiAgICB9CiAgfQoKICB2b2lkIF9yZWZyZXNoTG9jYWxCYWNrdXBzKCkgewogICAgcmVmLnJlYWQoYmFja3VwU3RhdHVzUHJvdmlkZXIubm90aWZpZXIpLmNoZWNrU3RvcmFnZVBlcm1pc3Npb25zKCk7CiAgfQp9Cg==
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/core.dart';
+import '../../../../providers/backup_provider.dart';
+import '../../../../services/local_backup_service.dart';
+
+/// Local Backups Tab - إدارة النسخ المحلية
+///
+/// مربوط بالكامل مع BackupStatusNotifier و LocalBackupService
+class LocalBackupsTab extends ConsumerStatefulWidget {
+  const LocalBackupsTab({super.key});
+
+  @override
+  ConsumerState<LocalBackupsTab> createState() => _LocalBackupsTabState();
+}
+
+class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
+  @override
+  void initState() {
+    super.initState();
+    // التحقق من الأذونات عند فتح التبويب
+    Future.microtask(() {
+      final notifier = ref.read(backupStatusProvider.notifier);
+      notifier.checkStoragePermissions();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final backupState = ref.watch(backupStatusProvider);
+    final folderInfo = backupState.backupFolderInfo;
+    final localBackups = backupState.localBackups;
+
+    return Stack(
+      children: [
+        ListView(
+          padding: const EdgeInsets.all(UIConstants.spacingMD),
+          children: [
+            // معلومات التخزين
+            _buildStorageInfoCard(folderInfo, backupState),
+
+            const SizedBox(height: UIConstants.spacingLG),
+
+            // أزرار الإجراءات السريعة
+            _buildQuickActionsRow(backupState),
+
+            const SizedBox(height: UIConstants.spacingLG),
+
+            // آخر نسخة محلية
+            if (backupState.lastLocalBackupTime != null)
+              _buildLastBackupCard(backupState.lastLocalBackupTime!),
+
+            if (backupState.lastLocalBackupTime != null)
+              const SizedBox(height: UIConstants.spacingLG),
+
+            // قائمة النسخ المحلية
+            SectionHeader(
+              title: 'النسخ المحلية (${localBackups.length})',
+              icon: Icons.phone_android,
+              action: IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: backupState.isWorking ? null : _refreshLocalBackups,
+              ),
+            ),
+
+            if (localBackups.isEmpty)
+              _buildEmptyState()
+            else
+              ...localBackups.map(
+                (backup) => _buildBackupItem(backup, backupState),
+              ),
+
+            const SizedBox(height: 80),
+          ],
+        ),
+
+        // شريط التقدم
+        if (backupState.isWorking && backupState.progress != null)
+          _buildProgressOverlay(backupState),
+      ],
+    );
+  }
+
+  Widget _buildStorageInfoCard(
+    Map<String, dynamic>? folderInfo,
+    BackupState backupState,
+  ) {
+    final path = folderInfo?['path'] as String? ?? 'جاري التحميل...';
+    final totalSizeMb = folderInfo?['total_size_mb'] as String? ?? '0';
+    final count = folderInfo?['backups_count'] as int? ?? 0;
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(UIConstants.spacingMD),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.sd_storage,
+                  color: backupState.hasStoragePermission
+                      ? Colors.green
+                      : Colors.red,
+                  size: UIConstants.iconSizeMD,
+                ),
+                const SizedBox(width: UIConstants.spacingSM),
+                const Text(
+                  'تخزين الجهاز',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const Spacer(),
+                if (!backupState.hasStoragePermission)
+                  TextButton.icon(
+                    onPressed: () => ref
+                        .read(backupStatusProvider.notifier)
+                        .checkStoragePermissions(),
+                    icon: const Icon(Icons.lock_open, size: 16),
+                    label: const Text('منح الأذونات'),
+                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  ),
+              ],
+            ),
+            const SizedBox(height: UIConstants.spacingMD),
+            InfoRow(
+              label: 'المسار',
+              value: path,
+              icon: Icons.folder,
+              isExpandable: true,
+            ),
+            InfoRow(
+              label: 'عدد النسخ',
+              value: '$count نسخة',
+              icon: Icons.layers,
+            ),
+            InfoRow(
+              label: 'المساحة المستخدمة',
+              value: '$totalSizeMb ميجابايت',
+              icon: Icons.data_usage,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionsRow(BackupState backupState) {
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: backupState.isWorking ? null : _createLocalBackup,
+            icon: backupState.isWorking
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.backup),
+            label: const Text('نسخ الآن'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: UIConstants.backupColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.all(UIConstants.spacingMD),
+            ),
+          ),
+        ),
+        const SizedBox(width: UIConstants.spacingMD),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: backupState.isWorking ? null : _importBackup,
+            icon: const Icon(Icons.file_download),
+            label: const Text('استيراد نسخة'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.all(UIConstants.spacingMD),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLastBackupCard(DateTime lastBackupTime) {
+    final now = DateTime.now();
+    final diff = now.difference(lastBackupTime);
+    String relativeTime;
+    if (diff.inMinutes < 1) {
+      relativeTime = 'الآن';
+    } else if (diff.inMinutes < 60) {
+      relativeTime = 'منذ ${diff.inMinutes} دقيقة';
+    } else if (diff.inHours < 24) {
+      relativeTime = 'منذ ${diff.inHours} ساعة';
+    } else {
+      relativeTime = 'منذ ${diff.inDays} يوم';
+    }
+
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(UIConstants.spacingMD),
+        child: Row(
+          children: [
+            Icon(
+              Icons.history,
+              color: Colors.blue.shade400,
+              size: UIConstants.iconSizeMD,
+            ),
+            const SizedBox(width: UIConstants.spacingSM),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'آخر نسخة محلية',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$relativeTime - ${DateTimeFormatter.formatDateTime(lastBackupTime.toIso8601String())}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          children: [
+            Icon(Icons.backup_outlined, size: 48, color: Colors.grey.shade400),
+            const SizedBox(height: UIConstants.spacingMD),
+            Text(
+              'لا توجد نسخ احتياطية محلية',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade700,
+              ),
+            ),
+            const SizedBox(height: UIConstants.spacingSM),
+            Text(
+              'اضغط "نسخ الآن" لإنشاء أول نسخة احتياطية',
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBackupItem(LocalBackupFile backup, BackupState backupState) {
+    final metadata = backup.metadata;
+    final formatLabel = backup.format == BackupFormat.sqlite
+        ? 'SQLite'
+        : 'JSON';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: UIConstants.spacingSM),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(UIConstants.spacingSM),
+          decoration: BoxDecoration(
+            color: Colors.green.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(UIConstants.radiusMD),
+          ),
+          child: const Icon(Icons.file_present, color: Colors.green),
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                metadata?.deviceInfo ?? 'نسخة محلية',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.blue.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                formatLabel,
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.blue.shade700,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Text(
+              DateTimeFormatter.formatDateTime(
+                backup.createdTime.toIso8601String(),
+              ),
+              style: const TextStyle(fontSize: 12),
+            ),
+            Row(
+              children: [
+                Text(
+                  FileSizeFormatter.formatBytes(backup.sizeBytes),
+                  style: const TextStyle(fontSize: 11),
+                ),
+                if (metadata != null) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    '${metadata.totalRecords} سجل',
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'v${metadata.databaseVersion}',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+        trailing: PopupMenuButton<String>(
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'restore',
+              child: Row(
+                children: [
+                  Icon(Icons.restore, size: 20),
+                  SizedBox(width: 8),
+                  Text('استعادة'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'share',
+              child: Row(
+                children: [
+                  Icon(Icons.share, size: 20),
+                  SizedBox(width: 8),
+                  Text('مشاركة'),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'delete',
+              child: Row(
+                children: [
+                  Icon(Icons.delete, size: 20, color: Colors.red),
+                  SizedBox(width: 8),
+                  Text('حذف', style: TextStyle(color: Colors.red)),
+                ],
+              ),
+            ),
+          ],
+          onSelected: (value) => _handleBackupAction(value, backup),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressOverlay(BackupState backupState) {
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 4,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    backupState.message ?? 'جاري المعالجة...',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: backupState.progress,
+              backgroundColor: Colors.grey.shade200,
+              color: UIConstants.backupColor,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── الأفعال ───
+
+  Future<void> _createLocalBackup() async {
+    await ref.read(backupStatusProvider.notifier).createLocalBackup();
+    if (mounted) {
+      final state = ref.read(backupStatusProvider);
+      if (state.status == BackupStatus.success) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(state.message ?? 'تم إنشاء النسخة'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (state.status == BackupStatus.error) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(state.message ?? 'حدث خطأ'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _importBackup() async {
+    await ref.read(backupStatusProvider.notifier).importBackupFromFile();
+    if (mounted) {
+      final state = ref.read(backupStatusProvider);
+      if (state.status == BackupStatus.success) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(state.message ?? 'تم الاستيراد'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (state.status == BackupStatus.error) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(state.message ?? 'حدث خطأ'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleBackupAction(
+    String action,
+    LocalBackupFile backup,
+  ) async {
+    switch (action) {
+      case 'restore':
+        _confirmRestore(backup);
+      case 'share':
+        await ref
+            .read(backupStatusProvider.notifier)
+            .shareLocalBackup(backup.filePath);
+      case 'delete':
+        _confirmDelete(backup);
+    }
+  }
+
+  void _confirmRestore(LocalBackupFile backup) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('تأكيد الاستعادة'),
+        content: Text(
+          'سيتم استبدال جميع البيانات الحالية ببيانات النسخة الاحتياطية.\n\n'
+          'الملف: ${backup.fileName}\n'
+          'التاريخ: ${DateTimeFormatter.formatDateTime(backup.createdTime.toIso8601String())}\n'
+          'الحجم: ${FileSizeFormatter.formatBytes(backup.sizeBytes)}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _restoreBackup(backup);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('استعادة'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _restoreBackup(LocalBackupFile backup) async {
+    await ref
+        .read(backupStatusProvider.notifier)
+        .restoreFromLocalBackup(backup.filePath);
+
+    if (mounted) {
+      final state = ref.read(backupStatusProvider);
+      if (state.status == BackupStatus.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تمت الاستعادة بنجاح - سيتم تحديث البيانات'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (state.status == BackupStatus.error) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text(state.message ?? 'فشلت الاستعادة'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _confirmDelete(LocalBackupFile backup) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('حذف نسخة احتياطية'),
+        content: Text(
+          'هل أنت متأكد من حذف:\n${backup.fileName}؟\n\n'
+          'لا يمكن التراجع عن هذا الإجراء.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteBackup(backup);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('حذف', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteBackup(LocalBackupFile backup) async {
+    await ref
+        .read(backupStatusProvider.notifier)
+        .deleteLocalBackup(backup.filePath);
+
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
+        const SnackBar(
+          content: Text('تم حذف النسخة الاحتياطية'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+
+  void _refreshLocalBackups() {
+    ref.read(backupStatusProvider.notifier).checkStoragePermissions();
+  }
+}
