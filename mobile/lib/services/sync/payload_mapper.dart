@@ -796,6 +796,11 @@ class PayloadMapper {
       'adjustmentMode': adj.adjustmentMode,
       'amount': adj.amount.round(),
       'effectiveHotelDay': adj.effectiveHotelDay,
+      // ✅ إصلاح 2026-07-26: hotelDayKey مطلوب على Appwrite Cloud (required attribute,
+      // created 2026-07-03). محلياً BookingPriceAdjustments لا يملك عمود hotelDayKey
+      // منفصل — effectiveHotelDay IS the hotel day key (same value, different name).
+      // نرسله تحت الاسمين للحفاظ على التوافق مع المخطط المحلي والمطلوب من Appwrite.
+      'hotelDayKey': adj.effectiveHotelDay,
       'isActive': adj.isActive,
     };
 
