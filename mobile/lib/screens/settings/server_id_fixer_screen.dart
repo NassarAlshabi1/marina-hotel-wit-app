@@ -1,1 +1,320 @@
-aW1wb3J0ICdwYWNrYWdlOmZsdXR0ZXIvbWF0ZXJpYWwuZGFydCc7CmltcG9ydCAncGFja2FnZTpmbHV0dGVyX3JpdmVycG9kL2ZsdXR0ZXJfcml2ZXJwb2QuZGFydCc7CmltcG9ydCAnLi4vLi4vcHJvdmlkZXJzL3JlcG9zaXRvcnlfcHJvdmlkZXJzLmRhcnQnOwppbXBvcnQgJy4uLy4uL3V0aWxzL3BlcmZvcm1hbmNlX21vbml0b3IuZGFydCc7CgpjbGFzcyBTZXJ2ZXJJZEZpeGVyU2NyZWVuIGV4dGVuZHMgQ29uc3VtZXJTdGF0ZWZ1bFdpZGdldCB7CiAgY29uc3QgU2VydmVySWRGaXhlclNjcmVlbih7c3VwZXIua2V5fSk7CgogIEBvdmVycmlkZQogIENvbnN1bWVyU3RhdGU8U2VydmVySWRGaXhlclNjcmVlbj4gY3JlYXRlU3RhdGUoKSA9PgogICAgICBfU2VydmVySWRGaXhlclNjcmVlblN0YXRlKCk7Cn0KCmNsYXNzIF9TZXJ2ZXJJZEZpeGVyU2NyZWVuU3RhdGUgZXh0ZW5kcyBDb25zdW1lclN0YXRlPFNlcnZlcklkRml4ZXJTY3JlZW4+IHsKICBib29sIF9pc1Byb2Nlc3NpbmcgPSBmYWxzZTsKICBTdHJpbmcgX3N0YXR1cyA9ICcnOwogIGludCBfdXBkYXRlZENvdW50ID0gMDsKICBmaW5hbCBMaXN0PFN0cmluZz4gX2xvZ3MgPSBbXTsKCiAgZmluYWwgTWFwPFN0cmluZywgU3RyaW5nPiBfcm9vbXNNYXBwaW5nID0gewogICAgJzgyZjczZWQ5LTdjNTEtNDY5Ni05M2E4LWMzZmE3NTM3MjVmNyc6CiAgICAgICAgJzgyZjczZWQ5LTdjNTEtNDY5Ni05M2E4LWMzZmE3NTM3MjVmNycsCiAgICAnNmYxMGVlZjUtZjgzNC00NDE1LTlkYjMtMmQ5ZDY3OTFjZTE0JzoKICAgICAgICAnNmYxMGVlZjUtZjgzNC00NDE1LTlkYjMtMmQ5ZDY3OTFjZTE0JywKICAgICdmZWRjMGJjZS00YjRmLTQ4YjItODdkMi1lNWE5YTNhMTIxNjgnOgogICAgICAgICdmZWRjMGJjZS00YjRmLTQ4YjItODdkMi1lNWE5YTNhMTIxNjgnLAogICAgJzIzMjk0Y2I4LWYzMTctNDJjNS1hYjgwLWIzYWRjNGM4OWIyNSc6CiAgICAgICAgJzIzMjk0Y2I4LWYzMTctNDJjNS1hYjgwLWIzYWRjNGM4OWIyNScsCiAgICAnZTRkMDFkYjQtYjZmZC00ZTZkLWJjZGMtODBiNTM3N2E0YTliJzoKICAgICAgICAnZTRkMDFkYjQtYjZmZC00ZTZkLWJjZGMtODBiNTM3N2E0YTliJywKICAgICcxYmI4ZjNkZS1hM2U3LTRiMmItYmFhMy1lYmVhMjg5ZGRhOGYnOgogICAgICAgICcxYmI4ZjNkZS1hM2U3LTRiMmItYmFhMy1lYmVhMjg5ZGRhOGYnLAogICAgJ2NjOTVhYWRhLWJkOWYtNGRjOC1hM2VkLWE2M2I2NmMwNmQ5Nic6CiAgICAgICAgJ2NjOTVhYWRhLWJkOWYtNGRjOC1hM2VkLWE2M2I2NmMwNmQ5NicsCiAgICAnYWQ0ODU0MTEtOWEyZS00YWEwLWI1NzEtYTI0NWU5OTMyZWYzJzoKICAgICAgICAnYWQ0ODU0MTEtOWEyZS00YWEwLWI1NzEtYTI0NWU5OTMyZWYzJywKICAgICc2ZTcyM2I0NC03OWQ5LTRiZmYtYjljNC1lNGE3Mjk5NmE5YzYnOgogICAgICAgICc2ZTcyM2I0NC03OWQ5LTRiZmYtYjljNC1lNGE3Mjk5NmE5YzYnLAogICAgJzU5OGZiYzNmLTRjYTQtNDgxOC05YzBmLTMwM2MwMGM4Mzc1MCc6CiAgICAgICAgJzU5OGZiYzNmLTRjYTQtNDgxOC05YzBmLTMwM2MwMGM4Mzc1MCcsCiAgICAnY2Y0NzIwOWItNzIyMC00OWYwLWI4YTMtYjE1OWUyNWRiODg3JzoKICAgICAgICAnY2Y0NzIwOWItNzIyMC00OWYwLWI4YTMtYjE1OWUyNWRiODg3JywKICAgICc1ZDJiZWIwNy01MjUzLTQ2YjMtYTQwNy1lNzRkYzBlZWM4ODAnOgogICAgICAgICc1ZDJiZWIwNy01MjUzLTQ2YjMtYTQwNy1lNzRkYzBlZWM4ODAnLAogICAgJzdlYmU2ZGQ3LTA2NDQtNGUzYS1iYzc5LWNkMDgxZjE3NTdhNic6CiAgICAgICAgJzdlYmU2ZGQ3LTA2NDQtNGUzYS1iYzc5LWNkMDgxZjE3NTdhNicsCiAgICAnY2U2ODZhOGUtN2U5Yi00NTJhLTk5MDgtN2RiYzgyMzViNzQ4JzoKICAgICAgICAnY2U2ODZhOGUtN2U5Yi00NTJhLTk5MDgtN2RiYzgyMzViNzQ4JywKICAgICdjNDZkZWZhYi1hNTNkLTQzNjYtODMyZC1kODVjZWQxZjIyZmInOgogICAgICAgICdjNDZkZWZhYi1hNTNkLTQzNjYtODMyZC1kODVjZWQxZjIyZmInLAogICAgJzliN2Y2YWJiLWFmMGMtNGE5Mi1hN2YxLTlkOGViYWRmYzk1Nic6CiAgICAgICAgJzliN2Y2YWJiLWFmMGMtNGE5Mi1hN2YxLTlkOGViYWRmYzk1NicsCiAgICAnN2E4MmI1NmEtNTdhNy00MDMyLThmOGItODdhNjdmOGYyMTg2JzoKICAgICAgICAnN2E4MmI1NmEtNTdhNy00MDMyLThmOGItODdhNjdmOGYyMTg2JywKICAgICcyMGFjYzYwYy00ZDBiLTQ3MjgtYjAxMC05ZTgzMjhjMzk1ODcnOgogICAgICAgICcyMGFjYzYwYy00ZDBiLTQ3MjgtYjAxMC05ZTgzMjhjMzk1ODcnLAogICAgJ2E2OGZmYzJhLWM5ZDgtNGVjZC04N2VjLTY1ZGRjOGFjZDhmMSc6CiAgICAgICAgJ2E2OGZmYzJhLWM5ZDgtNGVjZC04N2VjLTY1ZGRjOGFjZDhmMScsCiAgfTsKCiAgRnV0dXJlPHZvaWQ+IF9maXhTZXJ2ZXJJZHMoKSBhc3luYyB7CiAgICBzZXRTdGF0ZSgoKSB7CiAgICAgIF9pc1Byb2Nlc3NpbmcgPSB0cnVlOwogICAgICBfc3RhdHVzID0gJ9io2K/YoSDYp9mE2KrYrdiv2YrYqy4uLic7CiAgICAgIF91cGRhdGVkQ291bnQgPSAwOwogICAgICBfbG9ncy5jbGVhcigpOwogICAgfSk7CgogICAgdHJ5IHsKICAgICAgZmluYWwgZGIgPSByZWYucmVhZChkYXRhYmFzZVByb3ZpZGVyKTsKCiAgICAgIF9hZGRMb2coJ/Cfk4og2KjYr9ihINiq2K3Yr9mK2KsgJHtfcm9vbXNNYXBwaW5nLmxlbmd0aH0g2LrYsdmB2KkuLi4nKTsKICAgICAgX2FkZExvZygn8J+UjSDYp9mE2KrYrdmC2YIg2YXZhiDYqNmG2YrYqSDZgtin2LnYr9ipINin2YTYqNmK2KfZhtin2KouLi4nKTsKCiAgICAgIC8vINin2YTYqtit2YLZgiDZhdmGINmI2KzZiNivINi52YXZiNivIHNlcnZlcklkCiAgICAgIHRyeSB7CiAgICAgICAgYXdhaXQgZGIuY3VzdG9tU3RhdGVtZW50KCdTRUxFQ1Qgc2VydmVyX2lkIEZST00gcm9vbXMgTElNSVQgMScpOwogICAgICAgIF9hZGRMb2coJ+KchSDYudmF2YjYryBzZXJ2ZXJJZCDZhdmI2KzZiNivINmB2Yog2KfZhNis2K/ZiNmEJyk7CiAgICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgICBfYWRkTG9nKCfinYwg2LnZhdmI2K8gc2VydmVySWQg2LrZitixINmF2YjYrNmI2K8hJyk7CiAgICAgICAgX2FkZExvZygn8J+SoSDZitix2KzZiSDYpdi52KfYr9ipINiq2KvYqNmK2Kog2KfZhNiq2LfYqNmK2YIg2KPZiCDYp9mE2KfZhtiq2LjYp9ixINmE2YTYqtit2K/ZitirINin2YTYqtmE2YLYp9im2YonKTsKCiAgICAgICAgc2V0U3RhdGUoKCkgewogICAgICAgICAgX3N0YXR1cyA9ICfZgdi02YQnOwogICAgICAgIH0pOwoKICAgICAgICBpZiAobW91bnRlZCkgewogICAgICAgICAgU2NhZmZvbGRNZXNzZW5nZXIub2YoY29udGV4dCkuc2hvd1NuYWNrQmFyKAogICAgICAgICAgICBjb25zdCBTbmFja0JhcigKICAgICAgICAgICAgICBjb250ZW50OiBUZXh0KCfinYwg2K7Yt9ijOiDYudmF2YjYryBzZXJ2ZXJJZCDYutmK2LEg2YXZiNis2YjYryDZgdmKINmC2KfYudiv2Kkg2KfZhNio2YrYp9mG2KfYqicpLAogICAgICAgICAgICAgIGJhY2tncm91bmRDb2xvcjogQ29sb3JzLnJlZCwKICAgICAgICAgICAgICBkdXJhdGlvbjogRHVyYXRpb24oc2Vjb25kczogMyksCiAgICAgICAgICAgICksCiAgICAgICAgICApOwogICAgICAgIH0KICAgICAgICByZXR1cm47CiAgICAgIH0KCiAgICAgIGZvciAoZmluYWwgZW50cnkgaW4gX3Jvb21zTWFwcGluZy5lbnRyaWVzKSB7CiAgICAgICAgZmluYWwgbG9jYWxVdWlkID0gZW50cnkua2V5OwogICAgICAgIGZpbmFsIHNlcnZlcklkID0gZW50cnkudmFsdWU7CgogICAgICAgIHRyeSB7CiAgICAgICAgICBhd2FpdCBkYi5jdXN0b21TdGF0ZW1lbnQoCiAgICAgICAgICAgICdVUERBVEUgcm9vbXMgU0VUIHNlcnZlcl9pZCA9ID8gV0hFUkUgbG9jYWxfdXVpZCA9ID8nLAogICAgICAgICAgICBbc2VydmVySWQsIGxvY2FsVXVpZF0sCiAgICAgICAgICApOwoKICAgICAgICAgIF91cGRhdGVkQ291bnQrKzsKICAgICAgICAgIF9hZGRMb2coJ+KchSDYqtmFINiq2K3Yr9mK2Ks6ICRsb2NhbFV1aWQnKTsKICAgICAgICB9IGNhdGNoIChlKSB7CiAgICAgICAgICBfYWRkTG9nKCfinYwg2K7Yt9ijINmB2YogJGxvY2FsVXVpZDogJGUnKTsKICAgICAgICB9CiAgICAgIH0KCiAgICAgIF9hZGRMb2coJ1xu4pyFINin2YPYqtmF2YQg2KfZhNiq2K3Yr9mK2KshJyk7CiAgICAgIF9hZGRMb2coJ/Cfk4og2KrZhSDYqtit2K/ZitirICRfdXBkYXRlZENvdW50INmF2YYgJHtfcm9vbXNNYXBwaW5nLmxlbmd0aH0g2LrYsdmB2KknKTsKCiAgICAgIHNldFN0YXRlKCgpIHsKICAgICAgICBfc3RhdHVzID0gJ9in2YPYqtmF2YQg2KjZhtis2KfYrSc7CiAgICAgIH0pOwoKICAgICAgcmVmLmludmFsaWRhdGUocm9vbXNMaXN0UHJvdmlkZXIpOwoKICAgICAgaWYgKG1vdW50ZWQpIHsKICAgICAgICBTY2FmZm9sZE1lc3Nlbmdlci5vZigKICAgICAgICAgIGNvbnRleHQsCiAgICAgICAgKS5zaG93U25hY2tCYXIoCiAgICAgICAgICBTbmFja0JhcigKICAgICAgICAgICAgY29udGVudDogVGV4dCgn4pyFINiq2YUg2KrYrdiv2YrYqyAkX3VwZGF0ZWRDb3VudCDYutix2YHYqSDYqNmG2KzYp9itJyksCiAgICAgICAgICAgIGJhY2tncm91bmRDb2xvcjogQ29sb3JzLmdyZWVuLAogICAgICAgICAgKSwKICAgICAgICApOwogICAgICB9CiAgICB9IGNhdGNoIChlKSB7CiAgICAgIF9hZGRMb2coJ+KdjCDYrti32KMg2LnYp9mFOiAkZScpOwogICAgICBzZXRTdGF0ZSgoKSB7CiAgICAgICAgX3N0YXR1cyA9ICfZgdi02YQnOwogICAgICB9KTsKCiAgICAgIGlmIChtb3VudGVkKSB7CiAgICAgICAgU2NhZmZvbGRNZXNzZW5nZXIub2YoY29udGV4dCkuc2hvd1NuYWNrQmFyKAogICAgICAgICAgU25hY2tCYXIoY29udGVudDogVGV4dCgn4p2MINiu2LfYozogJGUnKSwgYmFja2dyb3VuZENvbG9yOiBDb2xvcnMucmVkKSwKICAgICAgICApOwogICAgICB9CiAgICB9IGZpbmFsbHkgewogICAgICBpZiAobW91bnRlZCkgewogICAgICAgIHNldFN0YXRlKCgpIHsKICAgICAgICAgIF9pc1Byb2Nlc3NpbmcgPSBmYWxzZTsKICAgICAgICB9KTsKICAgICAgfQogICAgfQogIH0KCiAgdm9pZCBfYWRkTG9nKFN0cmluZyBtZXNzYWdlKSB7CiAgICBpZiAobW91bnRlZCkgewogICAgICBzZXRTdGF0ZSgoKSB7CiAgICAgICAgX2xvZ3MuYWRkKG1lc3NhZ2UpOwogICAgICB9KTsKICAgIH0KICAgIGRlYnVnUHJpbnQobWVzc2FnZSk7CiAgfQoKICBAb3ZlcnJpZGUKICBXaWRnZXQgYnVpbGQoQnVpbGRDb250ZXh0IGNvbnRleHQpIHsKICAgIHJldHVybiBQZXJmb3JtYW5jZUluc3BlY3RvcigKICAgICAgbmFtZTogJ1NlcnZlcklkRml4ZXJTY3JlZW4nLAogICAgICBjaGlsZDogU2NhZmZvbGQoCiAgICAgICAgYXBwQmFyOiBBcHBCYXIoCiAgICAgICAgICB0aXRsZTogY29uc3QgVGV4dCgn2KXYtdmE2KfYrSBTZXJ2ZXIgSURzINmE2YTYutix2YEnKSwKICAgICAgICAgIGJhY2tncm91bmRDb2xvcjogQ29sb3JzLmJsdWUsCiAgICAgICAgKSwKICAgICAgICBib2R5OiBQYWRkaW5nKAogICAgICAgICAgcGFkZGluZzogY29uc3QgRWRnZUluc2V0cy5hbGwoMTYpLAogICAgICAgICAgY2hpbGQ6IENvbHVtbigKICAgICAgICAgICAgY3Jvc3NBeGlzQWxpZ25tZW50OiBDcm9zc0F4aXNBbGlnbm1lbnQuc3RyZXRjaCwKICAgICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgICBDYXJkKAogICAgICAgICAgICAgICAgY29sb3I6IENvbG9ycy5ibHVlLnNoYWRlNTAsCiAgICAgICAgICAgICAgICBjaGlsZDogUGFkZGluZygKICAgICAgICAgICAgICAgICAgcGFkZGluZzogY29uc3QgRWRnZUluc2V0cy5hbGwoMTYpLAogICAgICAgICAgICAgICAgICBjaGlsZDogQ29sdW1uKAogICAgICAgICAgICAgICAgICAgIGNyb3NzQXhpc0FsaWdubWVudDogQ3Jvc3NBeGlzQWxpZ25tZW50LnN0YXJ0LAogICAgICAgICAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgICAgICAgICBjb25zdCBSb3coCiAgICAgICAgICAgICAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgICAgICAgICAgICAgSWNvbihJY29ucy5pbmZvX291dGxpbmUsIGNvbG9yOiBDb2xvcnMuYmx1ZSksCiAgICAgICAgICAgICAgICAgICAgICAgICAgU2l6ZWRCb3god2lkdGg6IDgpLAogICAgICAgICAgICAgICAgICAgICAgICAgIFRleHQoCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAn2K3ZiNmEINmH2LDZhyDYp9mE2KPYr9in2KknLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgc3R5bGU6IFRleHRTdHlsZSgKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgZm9udFdlaWdodDogRm9udFdlaWdodC5ib2xkLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICBmb250U2l6ZTogMTYsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgICAgIF0sCiAgICAgICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICAgICAgY29uc3QgU2l6ZWRCb3goaGVpZ2h0OiA4KSwKICAgICAgICAgICAgICAgICAgICAgIGNvbnN0IFRleHQoCiAgICAgICAgICAgICAgICAgICAgICAgICfZh9iw2Ycg2KfZhNij2K/Yp9ipINiq2YLZiNmFINio2KrYrdiv2YrYqyBzZXJ2ZXJJZCDZhNis2YXZiti5INin2YTYutix2YEg2YHZiiDZgtin2LnYr9ipINin2YTYqNmK2KfZhtin2Kog2KfZhNmF2K3ZhNmK2Kkg2YTYsdio2LfZh9inINmF2LkgQXBwd3JpdGUuJywKICAgICAgICAgICAgICAgICAgICAgICAgc3R5bGU6IFRleHRTdHlsZShmb250U2l6ZTogMTQpLAogICAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogOCksCiAgICAgICAgICAgICAgICAgICAgICBUZXh0KAogICAgICAgICAgICAgICAgICAgICAgICAn2LnYr9ivINin2YTYutix2YEg2KfZhNmF2LfZhNmI2Kgg2KrYrdiv2YrYq9mH2Kc6ICR7X3Jvb21zTWFwcGluZy5sZW5ndGh9JywKICAgICAgICAgICAgICAgICAgICAgICAgc3R5bGU6IGNvbnN0IFRleHRTdHlsZSgKICAgICAgICAgICAgICAgICAgICAgICAgICBmb250V2VpZ2h0OiBGb250V2VpZ2h0LmJvbGQsCiAgICAgICAgICAgICAgICAgICAgICAgICAgY29sb3I6IENvbG9ycy5ibHVlLAogICAgICAgICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgICBdLAogICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICApLAogICAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogMTYpLAogICAgICAgICAgICAgIEVsZXZhdGVkQnV0dG9uLmljb24oCiAgICAgICAgICAgICAgICBvblByZXNzZWQ6IF9pc1Byb2Nlc3NpbmcgPyBudWxsIDogX2ZpeFNlcnZlcklkcywKICAgICAgICAgICAgICAgIGljb246IF9pc1Byb2Nlc3NpbmcKICAgICAgICAgICAgICAgICAgICA/IGNvbnN0IFNpemVkQm94KAogICAgICAgICAgICAgICAgICAgICAgICB3aWR0aDogMTYsCiAgICAgICAgICAgICAgICAgICAgICAgIGhlaWdodDogMTYsCiAgICAgICAgICAgICAgICAgICAgICAgIGNoaWxkOiBDaXJjdWxhclByb2dyZXNzSW5kaWNhdG9yKAogICAgICAgICAgICAgICAgICAgICAgICAgIHN0cm9rZVdpZHRoOiAyLAogICAgICAgICAgICAgICAgICAgICAgICAgIHZhbHVlQ29sb3I6IEFsd2F5c1N0b3BwZWRBbmltYXRpb248Q29sb3I+KAogICAgICAgICAgICAgICAgICAgICAgICAgICAgQ29sb3JzLndoaXRlLAogICAgICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgICApCiAgICAgICAgICAgICAgICAgICAgOiBjb25zdCBJY29uKEljb25zLmJ1aWxkKSwKICAgICAgICAgICAgICAgIGxhYmVsOiBUZXh0KF9pc1Byb2Nlc3NpbmcgPyAn2KzYp9ix2Yog2KfZhNiq2K3Yr9mK2KsuLi4nIDogJ9io2K/YoSDYp9mE2KXYtdmE2KfYrScpLAogICAgICAgICAgICAgICAgc3R5bGU6IEVsZXZhdGVkQnV0dG9uLnN0eWxlRnJvbSgKICAgICAgICAgICAgICAgICAgcGFkZGluZzogY29uc3QgRWRnZUluc2V0cy5hbGwoMTYpLAogICAgICAgICAgICAgICAgICBiYWNrZ3JvdW5kQ29sb3I6IENvbG9ycy5ibHVlLAogICAgICAgICAgICAgICAgICBmb3JlZ3JvdW5kQ29sb3I6IENvbG9ycy53aGl0ZSwKICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICBpZiAoX3N0YXR1cy5pc05vdEVtcHR5KSAuLi5bCiAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDE2KSwKICAgICAgICAgICAgICAgIENhcmQoCiAgICAgICAgICAgICAgICAgIGNvbG9yOiBfc3RhdHVzID09ICfYp9mD2KrZhdmEINio2YbYrNin2K0nCiAgICAgICAgICAgICAgICAgICAgICA/IENvbG9ycy5ncmVlbi5zaGFkZTUwCiAgICAgICAgICAgICAgICAgICAgICA6IF9zdGF0dXMgPT0gJ9mB2LTZhCcKICAgICAgICAgICAgICAgICAgICAgID8gQ29sb3JzLnJlZC5zaGFkZTUwCiAgICAgICAgICAgICAgICAgICAgICA6IENvbG9ycy5vcmFuZ2Uuc2hhZGU1MCwKICAgICAgICAgICAgICAgICAgY2hpbGQ6IFBhZGRpbmcoCiAgICAgICAgICAgICAgICAgICAgcGFkZGluZzogY29uc3QgRWRnZUluc2V0cy5hbGwoMTIpLAogICAgICAgICAgICAgICAgICAgIGNoaWxkOiBSb3coCiAgICAgICAgICAgICAgICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgICAgICAgICAgICAgICBJY29uKAogICAgICAgICAgICAgICAgICAgICAgICAgIF9zdGF0dXMgPT0gJ9in2YPYqtmF2YQg2KjZhtis2KfYrScKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgPyBJY29ucy5jaGVja19jaXJjbGUKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgOiBfc3RhdHVzID09ICfZgdi02YQnCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgID8gSWNvbnMuZXJyb3IKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgOiBJY29ucy5wZW5kaW5nLAogICAgICAgICAgICAgICAgICAgICAgICAgIGNvbG9yOiBfc3RhdHVzID09ICfYp9mD2KrZhdmEINio2YbYrNin2K0nCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgID8gQ29sb3JzLmdyZWVuCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIDogX3N0YXR1cyA9PSAn2YHYtNmEJwogICAgICAgICAgICAgICAgICAgICAgICAgICAgICA/IENvbG9ycy5yZWQKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgOiBDb2xvcnMub3JhbmdlLAogICAgICAgICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveCh3aWR0aDogOCksCiAgICAgICAgICAgICAgICAgICAgICAgIFRleHQoCiAgICAgICAgICAgICAgICAgICAgICAgICAgJ9in2YTYrdin2YTYqTogJF9zdGF0dXMnLAogICAgICAgICAgICAgICAgICAgICAgICAgIHN0eWxlOiBjb25zdCBUZXh0U3R5bGUoZm9udFdlaWdodDogRm9udFdlaWdodC5ib2xkKSwKICAgICAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgICAgICAgaWYgKF91cGRhdGVkQ291bnQgPiAwKSAuLi5bCiAgICAgICAgICAgICAgICAgICAgICAgICAgY29uc3QgU3BhY2VyKCksCiAgICAgICAgICAgICAgICAgICAgICAgICAgVGV4dCgnJF91cGRhdGVkQ291bnQvJHtfcm9vbXNNYXBwaW5nLmxlbmd0aH0nKSwKICAgICAgICAgICAgICAgICAgICAgICAgXSwKICAgICAgICAgICAgICAgICAgICAgIF0sCiAgICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgXSwKICAgICAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDE2KSwKICAgICAgICAgICAgICBjb25zdCBUZXh0KAogICAgICAgICAgICAgICAgJ9iz2KzZhCDYp9mE2KrZhtmB2YrYsDonLAogICAgICAgICAgICAgICAgc3R5bGU6IFRleHRTdHlsZShmb250V2VpZ2h0OiBGb250V2VpZ2h0LmJvbGQpLAogICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgY29uc3QgU2l6ZWRCb3goaGVpZ2h0OiA4KSwKICAgICAgICAgICAgICBFeHBhbmRlZCgKICAgICAgICAgICAgICAgIGNoaWxkOiBEZWNvcmF0ZWRCb3goCiAgICAgICAgICAgICAgICAgIGRlY29yYXRpb246IEJveERlY29yYXRpb24oCiAgICAgICAgICAgICAgICAgICAgY29sb3I6IENvbG9ycy5ncmV5LnNoYWRlMTAwLAogICAgICAgICAgICAgICAgICAgIGJvcmRlclJhZGl1czogQm9yZGVyUmFkaXVzLmNpcmN1bGFyKDgpLAogICAgICAgICAgICAgICAgICAgIGJvcmRlcjogQm9yZGVyLmFsbChjb2xvcjogQ29sb3JzLmdyZXkuc2hhZGUzMDApLAogICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgICBjaGlsZDogX2xvZ3MuaXNFbXB0eQogICAgICAgICAgICAgICAgICAgICAgPyBjb25zdCBDZW50ZXIoCiAgICAgICAgICAgICAgICAgICAgICAgICAgY2hpbGQ6IFRleHQoCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAn2YTZhSDZitiq2YUg2KfZhNio2K/YoSDYqNi52K8nLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgc3R5bGU6IFRleHRTdHlsZShjb2xvcjogQ29sb3JzLmdyZXkpLAogICAgICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgICAgICkKICAgICAgICAgICAgICAgICAgICAgIDogTGlzdFZpZXcuYnVpbGRlcigKICAgICAgICAgICAgICAgICAgICAgICAgICBwYWRkaW5nOiBjb25zdCBFZGdlSW5zZXRzLmFsbCg4KSwKICAgICAgICAgICAgICAgICAgICAgICAgICBpdGVtQ291bnQ6IF9sb2dzLmxlbmd0aCwKICAgICAgICAgICAgICAgICAgICAgICAgICBpdGVtQnVpbGRlcjogKGNvbnRleHQsIGluZGV4KSB7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICBmaW5hbCBsb2cgPSBfbG9nc1tpbmRleF07CiAgICAgICAgICAgICAgICAgICAgICAgICAgICByZXR1cm4gUGFkZGluZygKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgcGFkZGluZzogY29uc3QgRWRnZUluc2V0cy5zeW1tZXRyaWModmVydGljYWw6IDIpLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICBjaGlsZDogVGV4dCgKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBsb2csCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgc3R5bGU6IGNvbnN0IFRleHRTdHlsZSgKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGZvbnRTaXplOiAxMiwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGZvbnRGYW1pbHk6ICdtb25vc3BhY2UnLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICAgICAgICAgICAgICApOwogICAgICAgICAgICAgICAgICAgICAgICAgIH0sCiAgICAgICAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICksCiAgICAgICAgICAgIF0sCiAgICAgICAgICApLAogICAgICAgICksCiAgICAgICksCiAgICApOwogIH0KfQo=
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/repository_providers.dart';
+import '../../utils/performance_monitor.dart';
+
+class ServerIdFixerScreen extends ConsumerStatefulWidget {
+  const ServerIdFixerScreen({super.key});
+
+  @override
+  ConsumerState<ServerIdFixerScreen> createState() =>
+      _ServerIdFixerScreenState();
+}
+
+class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
+  bool _isProcessing = false;
+  String _status = '';
+  int _updatedCount = 0;
+  final List<String> _logs = [];
+
+  final Map<String, String> _roomsMapping = {
+    '82f73ed9-7c51-4696-93a8-c3fa753725f7':
+        '82f73ed9-7c51-4696-93a8-c3fa753725f7',
+    '6f10eef5-f834-4415-9db3-2d9d6791ce14':
+        '6f10eef5-f834-4415-9db3-2d9d6791ce14',
+    'fedc0bce-4b4f-48b2-87d2-e5a9a3a12168':
+        'fedc0bce-4b4f-48b2-87d2-e5a9a3a12168',
+    '23294cb8-f317-42c5-ab80-b3adc4c89b25':
+        '23294cb8-f317-42c5-ab80-b3adc4c89b25',
+    'e4d01db4-b6fd-4e6d-bcdc-80b5377a4a9b':
+        'e4d01db4-b6fd-4e6d-bcdc-80b5377a4a9b',
+    '1bb8f3de-a3e7-4b2b-baa3-ebea289dda8f':
+        '1bb8f3de-a3e7-4b2b-baa3-ebea289dda8f',
+    'cc95aada-bd9f-4dc8-a3ed-a63b66c06d96':
+        'cc95aada-bd9f-4dc8-a3ed-a63b66c06d96',
+    'ad485411-9a2e-4aa0-b571-a245e9932ef3':
+        'ad485411-9a2e-4aa0-b571-a245e9932ef3',
+    '6e723b44-79d9-4bff-b9c4-e4a72996a9c6':
+        '6e723b44-79d9-4bff-b9c4-e4a72996a9c6',
+    '598fbc3f-4ca4-4818-9c0f-303c00c83750':
+        '598fbc3f-4ca4-4818-9c0f-303c00c83750',
+    'cf47209b-7220-49f0-b8a3-b159e25db887':
+        'cf47209b-7220-49f0-b8a3-b159e25db887',
+    '5d2beb07-5253-46b3-a407-e74dc0eec880':
+        '5d2beb07-5253-46b3-a407-e74dc0eec880',
+    '7ebe6dd7-0644-4e3a-bc79-cd081f1757a6':
+        '7ebe6dd7-0644-4e3a-bc79-cd081f1757a6',
+    'ce686a8e-7e9b-452a-9908-7dbc8235b748':
+        'ce686a8e-7e9b-452a-9908-7dbc8235b748',
+    'c46defab-a53d-4366-832d-d85ced1f22fb':
+        'c46defab-a53d-4366-832d-d85ced1f22fb',
+    '9b7f6abb-af0c-4a92-a7f1-9d8ebadfc956':
+        '9b7f6abb-af0c-4a92-a7f1-9d8ebadfc956',
+    '7a82b56a-57a7-4032-8f8b-87a67f8f2186':
+        '7a82b56a-57a7-4032-8f8b-87a67f8f2186',
+    '20acc60c-4d0b-4728-b010-9e8328c39587':
+        '20acc60c-4d0b-4728-b010-9e8328c39587',
+    'a68ffc2a-c9d8-4ecd-87ec-65ddc8acd8f1':
+        'a68ffc2a-c9d8-4ecd-87ec-65ddc8acd8f1',
+  };
+
+  Future<void> _fixServerIds() async {
+    setState(() {
+      _isProcessing = true;
+      _status = 'بدء التحديث...';
+      _updatedCount = 0;
+      _logs.clear();
+    });
+
+    try {
+      final db = ref.read(databaseProvider);
+
+      _addLog('📊 بدء تحديث ${_roomsMapping.length} غرفة...');
+      _addLog('🔍 التحقق من بنية قاعدة البيانات...');
+
+      // التحقق من وجود عمود serverId
+      try {
+        await db.customStatement('SELECT server_id FROM rooms LIMIT 1');
+        _addLog('✅ عمود serverId موجود في الجدول');
+      } catch (e) {
+        _addLog('❌ عمود serverId غير موجود!');
+        _addLog('💡 يرجى إعادة تثبيت التطبيق أو الانتظار للتحديث التلقائي');
+
+        setState(() {
+          _status = 'فشل';
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('❌ خطأ: عمود serverId غير موجود في قاعدة البيانات'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
+      for (final entry in _roomsMapping.entries) {
+        final localUuid = entry.key;
+        final serverId = entry.value;
+
+        try {
+          await db.customStatement(
+            'UPDATE rooms SET server_id = ? WHERE local_uuid = ?',
+            [serverId, localUuid],
+          );
+
+          _updatedCount++;
+          _addLog('✅ تم تحديث: $localUuid');
+        } catch (e) {
+          _addLog('❌ خطأ في $localUuid: $e');
+        }
+      }
+
+      _addLog('\n✅ اكتمل التحديث!');
+      _addLog('📊 تم تحديث $_updatedCount من ${_roomsMapping.length} غرفة');
+
+      setState(() {
+        _status = 'اكتمل بنجاح';
+      });
+
+      ref.invalidate(roomsListProvider);
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(
+          SnackBar(
+            content: Text('✅ تم تحديث $_updatedCount غرفة بنجاح'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      _addLog('❌ خطأ عام: $e');
+      setState(() {
+        _status = 'فشل';
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('❌ خطأ: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
+    }
+  }
+
+  void _addLog(String message) {
+    if (mounted) {
+      setState(() {
+        _logs.add(message);
+      });
+    }
+    debugPrint(message);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PerformanceInspector(
+      name: 'ServerIdFixerScreen',
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('إصلاح Server IDs للغرف'),
+          backgroundColor: Colors.blue,
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Card(
+                color: Colors.blue.shade50,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.blue),
+                          SizedBox(width: 8),
+                          Text(
+                            'حول هذه الأداة',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'هذه الأداة تقوم بتحديث serverId لجميع الغرف في قاعدة البيانات المحلية لربطها مع Appwrite.',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'عدد الغرف المطلوب تحديثها: ${_roomsMapping.length}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _isProcessing ? null : _fixServerIds,
+                icon: _isProcessing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                      )
+                    : const Icon(Icons.build),
+                label: Text(_isProcessing ? 'جاري التحديث...' : 'بدء الإصلاح'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.all(16),
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+              if (_status.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Card(
+                  color: _status == 'اكتمل بنجاح'
+                      ? Colors.green.shade50
+                      : _status == 'فشل'
+                      ? Colors.red.shade50
+                      : Colors.orange.shade50,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _status == 'اكتمل بنجاح'
+                              ? Icons.check_circle
+                              : _status == 'فشل'
+                              ? Icons.error
+                              : Icons.pending,
+                          color: _status == 'اكتمل بنجاح'
+                              ? Colors.green
+                              : _status == 'فشل'
+                              ? Colors.red
+                              : Colors.orange,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'الحالة: $_status',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        if (_updatedCount > 0) ...[
+                          const Spacer(),
+                          Text('$_updatedCount/${_roomsMapping.length}'),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              const Text(
+                'سجل التنفيذ:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: _logs.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'لم يتم البدء بعد',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(8),
+                          itemCount: _logs.length,
+                          itemBuilder: (context, index) {
+                            final log = _logs[index];
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2),
+                              child: Text(
+                                log,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontFamily: 'monospace',
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
