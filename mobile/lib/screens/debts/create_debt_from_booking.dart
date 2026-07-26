@@ -1,1 +1,563 @@
-aW1wb3J0ICdkYXJ0OmFzeW5jJzsKaW1wb3J0ICdkYXJ0OnVpJyBhcyB1aTsKCmltcG9ydCAncGFja2FnZTpmbHV0dGVyL21hdGVyaWFsLmRhcnQnOwppbXBvcnQgJ3BhY2thZ2U6Zmx1dHRlcl9yaXZlcnBvZC9mbHV0dGVyX3JpdmVycG9kLmRhcnQnOwppbXBvcnQgJ3BhY2thZ2U6aW50bC9pbnRsLmRhcnQnOwoKaW1wb3J0ICcuLi8uLi9wcm92aWRlcnMvYXBwd3JpdGVfcHJvdmlkZXJzLmRhcnQnOwppbXBvcnQgJy4uLy4uL3Byb3ZpZGVycy9yZXBvc2l0b3J5X3Byb3ZpZGVycy5kYXJ0JzsKaW1wb3J0ICcuLi8uLi9zZXJ2aWNlcy9sb2NhbF9kYi5kYXJ0JzsKaW1wb3J0ICcuLi8uLi91dGlscy9jdXJyZW5jeV9mb3JtYXR0ZXIuZGFydCc7CgpjbGFzcyBDcmVhdGVEZWJ0RnJvbUJvb2tpbmdTY3JlZW4gZXh0ZW5kcyBDb25zdW1lclN0YXRlZnVsV2lkZ2V0IHsKICBjb25zdCBDcmVhdGVEZWJ0RnJvbUJvb2tpbmdTY3JlZW4oe3N1cGVyLmtleX0pOwoKICBAb3ZlcnJpZGUKICBDb25zdW1lclN0YXRlPENyZWF0ZURlYnRGcm9tQm9va2luZ1NjcmVlbj4gY3JlYXRlU3RhdGUoKSA9PgogICAgICBfQ3JlYXRlRGVidEZyb21Cb29raW5nU2NyZWVuU3RhdGUoKTsKfQoKY2xhc3MgX0NyZWF0ZURlYnRGcm9tQm9va2luZ1NjcmVlblN0YXRlCiAgICBleHRlbmRzIENvbnN1bWVyU3RhdGU8Q3JlYXRlRGVidEZyb21Cb29raW5nU2NyZWVuPiB7CiAgQm9va2luZz8gX3NlbGVjdGVkQm9va2luZzsKICBmaW5hbCBWYWx1ZU5vdGlmaWVyPGJvb2w+IF9pc0NvbXB1dGluZyA9IFZhbHVlTm90aWZpZXI8Ym9vbD4oZmFsc2UpOwogIGZpbmFsIFZhbHVlTm90aWZpZXI8Ym9vbD4gX2lzUHJvY2Vzc2luZyA9IFZhbHVlTm90aWZpZXI8Ym9vbD4oZmFsc2UpOwogIF9EZWJ0RGF0YT8gX2RlYnREYXRhOwoKICBEYXRlVGltZSBfZnJvbURhdGUgPSBEYXRlVGltZS5ub3coKTsKICBEYXRlVGltZSBfdG9EYXRlID0gRGF0ZVRpbWUubm93KCk7CiAgZmluYWwgX2Ftb3VudENvbnRyb2xsZXIgPSBUZXh0RWRpdGluZ0NvbnRyb2xsZXIoKTsKICBmaW5hbCBfbm90ZXNDb250cm9sbGVyID0gVGV4dEVkaXRpbmdDb250cm9sbGVyKCk7CiAgZmluYWwgX2RhdGVGb3JtYXQgPSBEYXRlRm9ybWF0KCd5eXl5LU1NLWRkJyk7CiAgc3RhdGljIGNvbnN0IF90aXRsZVN0eWxlID0gVGV4dFN0eWxlKAogICAgZm9udFNpemU6IDE0LAogICAgZm9udFdlaWdodDogRm9udFdlaWdodC5ib2xkLAogICk7CiAgc3RhdGljIGNvbnN0IF9sYWJlbFN0eWxlID0gVGV4dFN0eWxlKAogICAgZm9udFNpemU6IDEzLAogICAgZm9udFdlaWdodDogRm9udFdlaWdodC5ib2xkLAogICk7CiAgc3RhdGljIGNvbnN0IF9maWVsZFN0eWxlID0gVGV4dFN0eWxlKAogICAgZm9udFNpemU6IDEyLAogICAgZm9udFdlaWdodDogRm9udFdlaWdodC5ib2xkLAogICk7CgogIEBvdmVycmlkZQogIHZvaWQgZGlzcG9zZSgpIHsKICAgIF9hbW91bnRDb250cm9sbGVyLmRpc3Bvc2UoKTsKICAgIF9ub3Rlc0NvbnRyb2xsZXIuZGlzcG9zZSgpOwogICAgX2lzQ29tcHV0aW5nLmRpc3Bvc2UoKTsKICAgIF9pc1Byb2Nlc3NpbmcuZGlzcG9zZSgpOwogICAgc3VwZXIuZGlzcG9zZSgpOwogIH0KCiAgU3RyaW5nIF9mb3JtYXREYXRlKERhdGVUaW1lIGRhdGUpID0+IF9kYXRlRm9ybWF0LmZvcm1hdChkYXRlKTsKCiAgQG92ZXJyaWRlCiAgV2lkZ2V0IGJ1aWxkKEJ1aWxkQ29udGV4dCBjb250ZXh0KSB7CiAgICByZXR1cm4gUG9wU2NvcGUoCiAgICAgIGNhblBvcDogIV9oYXNVbnNhdmVkQ2hhbmdlcywKICAgICAgb25Qb3BJbnZva2VkV2l0aFJlc3VsdDogKGRpZFBvcCwgcmVzdWx0KSB7CiAgICAgICAgaWYgKGRpZFBvcCkgewogICAgICAgICAgcmV0dXJuOwogICAgICAgIH0KICAgICAgICBfc2hvd0Rpc2NhcmREaWFsb2coY29udGV4dCk7CiAgICAgIH0sCiAgICAgIGNoaWxkOiBTY2FmZm9sZCgKICAgICAgICBhcHBCYXI6IEFwcEJhcih0aXRsZTogY29uc3QgVGV4dCgn2KXZhti02KfYoSDYr9mK2YYg2YXZhiDYrdis2LInKSksCiAgICAgICAgYm9keTogU2luZ2xlQ2hpbGRTY3JvbGxWaWV3KAogICAgICAgICAgcGFkZGluZzogY29uc3QgRWRnZUluc2V0cy5hbGwoMTYpLAogICAgICAgICAgY2hpbGQ6IENvbHVtbigKICAgICAgICAgICAgY3Jvc3NBeGlzQWxpZ25tZW50OiBDcm9zc0F4aXNBbGlnbm1lbnQuc3RyZXRjaCwKICAgICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgICBfYnVpbGRCb29raW5nU2VsZWN0b3IoKSwKICAgICAgICAgICAgICBpZiAoX3NlbGVjdGVkQm9va2luZyAhPSBudWxsKSAuLi5bCiAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDE2KSwKICAgICAgICAgICAgICAgIF9idWlsZEJvb2tpbmdJbmZvKCksCiAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDE2KSwKICAgICAgICAgICAgICAgIF9idWlsZERhdGVSYW5nZVNlbGVjdG9yKCksCiAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDE2KSwKICAgICAgICAgICAgICAgIF9idWlsZENvbXB1dGVCdXR0b24oKSwKICAgICAgICAgICAgICAgIGlmIChfZGVidERhdGEgIT0gbnVsbCkgLi4uWwogICAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveChoZWlnaHQ6IDE2KSwKICAgICAgICAgICAgICAgICAgX2J1aWxkRGVidFN1bW1hcnkoKSwKICAgICAgICAgICAgICAgICAgY29uc3QgU2l6ZWRCb3goaGVpZ2h0OiAxNiksCiAgICAgICAgICAgICAgICAgIF9idWlsZEFtb3VudEZpZWxkKCksCiAgICAgICAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogMTYpLAogICAgICAgICAgICAgICAgICBfYnVpbGROb3Rlc0ZpZWxkKCksCiAgICAgICAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogMjQpLAogICAgICAgICAgICAgICAgICBfYnVpbGRDcmVhdGVCdXR0b24oKSwKICAgICAgICAgICAgICAgIF0sCiAgICAgICAgICAgICAgXSwKICAgICAgICAgICAgXSwKICAgICAgICAgICksCiAgICAgICAgKSwKICAgICAgKSwKICAgICk7CiAgfQoKICBXaWRnZXQgX2J1aWxkQm9va2luZ1NlbGVjdG9yKCkgewogICAgLy8g4pyFINin2LPYqtio2K/Yp9mEIFN0cmVhbUJ1aWxkZXIg2KjZgCBSaXZlcnBvZCBwcm92aWRlcgogICAgZmluYWwgYm9va2luZ3NBc3luYyA9IHJlZi53YXRjaChib29raW5nc0xpc3RQcm92aWRlcik7CiAgICBmaW5hbCBib29raW5ncyA9IChib29raW5nc0FzeW5jLnZhbHVlT3JOdWxsID8/IFtdKQogICAgICAgIC53aGVyZSgoYikgPT4gYi5zdGF0dXMgIT0gJ2NoZWNrZWRfb3V0JyAmJiBiLnN0YXR1cyAhPSAnY2FuY2VsbGVkJykKICAgICAgICAudG9MaXN0KCk7CgogICAgaWYgKGJvb2tpbmdzQXN5bmMuaXNMb2FkaW5nKSB7CiAgICAgIHJldHVybiBjb25zdCBDZW50ZXIoY2hpbGQ6IENpcmN1bGFyUHJvZ3Jlc3NJbmRpY2F0b3IoKSk7CiAgICB9CiAgICBpZiAoYm9va2luZ3MuaXNFbXB0eSkgewogICAgICByZXR1cm4gY29uc3QgQ2FyZCgKICAgICAgICBjaGlsZDogUGFkZGluZygKICAgICAgICAgIHBhZGRpbmc6IEVkZ2VJbnNldHMuYWxsKDE2KSwKICAgICAgICAgIGNoaWxkOiBUZXh0KCfZhNinINiq2YjYrNivINit2KzZiNiy2KfYqiDZhti02LfYqScpLAogICAgICAgICksCiAgICAgICk7CiAgICB9CiAgICBmaW5hbCBkcm9wZG93bkNvbG9yID0gVGhlbWUub2YoY29udGV4dCkudGV4dFRoZW1lLmJvZHlNZWRpdW0/LmNvbG9yOwogICAgcmV0dXJuIENhcmQoCiAgICAgIGNoaWxkOiBQYWRkaW5nKAogICAgICAgIHBhZGRpbmc6IGNvbnN0IEVkZ2VJbnNldHMuYWxsKDE2KSwKICAgICAgICBjaGlsZDogQ29sdW1uKAogICAgICAgICAgY3Jvc3NBeGlzQWxpZ25tZW50OiBDcm9zc0F4aXNBbGlnbm1lbnQuc3RhcnQsCiAgICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgICBjb25zdCBUZXh0KCfYp9iu2KrYsSDYp9mE2K3YrNiyJywgc3R5bGU6IF90aXRsZVN0eWxlKSwKICAgICAgICAgICAgY29uc3QgU2l6ZWRCb3goaGVpZ2h0OiA4KSwKICAgICAgICAgICAgRHJvcGRvd25CdXR0b25Gb3JtRmllbGQ8Qm9va2luZz4oCiAgICAgICAgICAgICAgaW5pdGlhbFZhbHVlOiBib29raW5ncy5jb250YWlucyhfc2VsZWN0ZWRCb29raW5nKQogICAgICAgICAgICAgICAgICA/IF9zZWxlY3RlZEJvb2tpbmcKICAgICAgICAgICAgICAgICAgOiBudWxsLAogICAgICAgICAgICAgIGlzRXhwYW5kZWQ6IHRydWUsCiAgICAgICAgICAgICAgc3R5bGU6IF9maWVsZFN0eWxlLmNvcHlXaXRoKGNvbG9yOiBkcm9wZG93bkNvbG9yKSwKICAgICAgICAgICAgICBkZWNvcmF0aW9uOiBjb25zdCBJbnB1dERlY29yYXRpb24oCiAgICAgICAgICAgICAgICBib3JkZXI6IE91dGxpbmVJbnB1dEJvcmRlcigpLAogICAgICAgICAgICAgICAgY29udGVudFBhZGRpbmc6IEVkZ2VJbnNldHMuc3ltbWV0cmljKAogICAgICAgICAgICAgICAgICBob3Jpem9udGFsOiAxMiwKICAgICAgICAgICAgICAgICAgdmVydGljYWw6IDgsCiAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgaXRlbXM6IGJvb2tpbmdzLm1hcCgoYm9va2luZykgewogICAgICAgICAgICAgICAgcmV0dXJuIERyb3Bkb3duTWVudUl0ZW0oCiAgICAgICAgICAgICAgICAgIHZhbHVlOiBib29raW5nLAogICAgICAgICAgICAgICAgICBjaGlsZDogVGV4dCgKICAgICAgICAgICAgICAgICAgICAnJHtib29raW5nLnJvb21OdW1iZXJ9IC0gJHtib29raW5nLmd1ZXN0TmFtZX0nLAogICAgICAgICAgICAgICAgICAgIG92ZXJmbG93OiBUZXh0T3ZlcmZsb3cuZWxsaXBzaXMsCiAgICAgICAgICAgICAgICAgICAgc3R5bGU6IF9maWVsZFN0eWxlLmNvcHlXaXRoKGNvbG9yOiBkcm9wZG93bkNvbG9yKSwKICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICk7CiAgICAgICAgICAgICAgfSkudG9MaXN0KCksCiAgICAgICAgICAgICAgb25DaGFuZ2VkOiAoYm9va2luZykgewogICAgICAgICAgICAgICAgc2V0U3RhdGUoKCkgewogICAgICAgICAgICAgICAgICBfc2VsZWN0ZWRCb29raW5nID0gYm9va2luZzsKICAgICAgICAgICAgICAgICAgX2RlYnREYXRhID0gbnVsbDsKICAgICAgICAgICAgICAgICAgaWYgKGJvb2tpbmcgIT0gbnVsbCkgewogICAgICAgICAgICAgICAgICAgIGZpbmFsIGNoZWNraW4gPSBEYXRlVGltZS50cnlQYXJzZShib29raW5nLmNoZWNraW5EYXRlKTsKICAgICAgICAgICAgICAgICAgICBpZiAoY2hlY2tpbiAhPSBudWxsKSB7CiAgICAgICAgICAgICAgICAgICAgICBfZnJvbURhdGUgPSBjaGVja2luOwogICAgICAgICAgICAgICAgICAgICAgX3RvRGF0ZSA9IF9yZXNvbHZlQ2hlY2tvdXQoYm9va2luZyk7CiAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICB9KTsKICAgICAgICAgICAgICB9LAogICAgICAgICAgICApLAogICAgICAgICAgXSwKICAgICAgICApLAogICAgICApLAogICAgKTsKICB9CgogIFdpZGdldCBfYnVpbGRCb29raW5nSW5mbygpIHsKICAgIGZpbmFsIGJvb2tpbmcgPSBfc2VsZWN0ZWRCb29raW5nITsKICAgIHJldHVybiBDYXJkKAogICAgICBjaGlsZDogUGFkZGluZygKICAgICAgICBwYWRkaW5nOiBjb25zdCBFZGdlSW5zZXRzLmFsbCgxMiksCiAgICAgICAgY2hpbGQ6IENvbHVtbigKICAgICAgICAgIGNyb3NzQXhpc0FsaWdubWVudDogQ3Jvc3NBeGlzQWxpZ25tZW50LnN0YXJ0LAogICAgICAgICAgY2hpbGRyZW46IFsKICAgICAgICAgICAgY29uc3QgVGV4dCgn2YXYudmE2YjZhdin2Kog2KfZhNit2KzYsicsIHN0eWxlOiBfdGl0bGVTdHlsZSksCiAgICAgICAgICAgIGNvbnN0IFNpemVkQm94KGhlaWdodDogOCksCiAgICAgICAgICAgIF9idWlsZEluZm9Sb3coJ9in2YTYutix2YHYqScsIGJvb2tpbmcucm9vbU51bWJlciksCiAgICAgICAgICAgIF9idWlsZEluZm9Sb3coJ9in2YTYttmK2YEnLCBib29raW5nLmd1ZXN0TmFtZSksCiAgICAgICAgICAgIF9idWlsZEluZm9Sb3coJ9in2YTZh9mI2YrYqScsIGJvb2tpbmcuZ3Vlc3RJZE51bWJlciksCiAgICAgICAgICAgIF9idWlsZEluZm9Sb3coJ9iq2KfYsdmK2K4g2KfZhNiv2K7ZiNmEJywgYm9va2luZy5jaGVja2luRGF0ZS5zcGxpdCgnICcpWzBdKSwKICAgICAgICAgICAgaWYgKGJvb2tpbmcuY2hlY2tvdXREYXRlICE9IG51bGwpCiAgICAgICAgICAgICAgX2J1aWxkSW5mb1JvdygKICAgICAgICAgICAgICAgICfYqtin2LHZitiuINin2YTYrtix2YjYrCcsCiAgICAgICAgICAgICAgICBib29raW5nLmNoZWNrb3V0RGF0ZSEuc3BsaXQoJyAnKVswXSwKICAgICAgICAgICAgICApLAogICAgICAgICAgICBfYnVpbGRJbmZvUm93KCfYp9mE2K3Yp9mE2KknLCBib29raW5nLnN0YXR1cyksCiAgICAgICAgICAgIF9idWlsZEluZm9Sb3coCiAgICAgICAgICAgICAgJ9in2YTYpdis2YXYp9mE2Yog2KfZhNmF2LPYqtit2YInLAogICAgICAgICAgICAgIEN1cnJlbmN5Rm9ybWF0dGVyLmZvcm1hdEFtb3VudChib29raW5nLnRvdGFsRHVlQ2FjaGVkKSwKICAgICAgICAgICAgKSwKICAgICAgICAgICAgX2J1aWxkSW5mb1JvdygKICAgICAgICAgICAgICAn2KfZhNmF2K/ZgdmI2LknLAogICAgICAgICAgICAgIEN1cnJlbmN5Rm9ybWF0dGVyLmZvcm1hdEFtb3VudChib29raW5nLnRvdGFsUGFpZENhY2hlZCksCiAgICAgICAgICAgICksCiAgICAgICAgICAgIF9idWlsZEluZm9Sb3coCiAgICAgICAgICAgICAgJ9in2YTZhdiq2KjZgtmKJywKICAgICAgICAgICAgICBDdXJyZW5jeUZvcm1hdHRlci5mb3JtYXRBbW91bnQoYm9va2luZy5yZW1haW5pbmdCYWxhbmNlQ2FjaGVkKSwKICAgICAgICAgICAgKSwKICAgICAgICAgIF0sCiAgICAgICAgKSwKICAgICAgKSwKICAgICk7CiAgfQoKICBXaWRnZXQgX2J1aWxkSW5mb1JvdyhTdHJpbmcgbGFiZWwsIFN0cmluZyB2YWx1ZSkgewogICAgcmV0dXJuIFBhZGRpbmcoCiAgICAgIHBhZGRpbmc6IGNvbnN0IEVkZ2VJbnNldHMuc3ltbWV0cmljKHZlcnRpY2FsOiAzKSwKICAgICAgY2hpbGQ6IFJvdygKICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgU2l6ZWRCb3goCiAgICAgICAgICAgIHdpZHRoOiAxMTAsCiAgICAgICAgICAgIGNoaWxkOiBUZXh0KAogICAgICAgICAgICAgICckbGFiZWw6JywKICAgICAgICAgICAgICBzdHlsZTogY29uc3QgVGV4dFN0eWxlKAogICAgICAgICAgICAgICAgY29sb3I6IENvbG9ycy5ncmV5LAogICAgICAgICAgICAgICAgZm9udFNpemU6IDEzLAogICAgICAgICAgICAgICAgZm9udFdlaWdodDogRm9udFdlaWdodC5ib2xkLAogICAgICAgICAgICAgICksCiAgICAgICAgICAgICksCiAgICAgICAgICApLAogICAgICAgICAgRXhwYW5kZWQoY2hpbGQ6IFRleHQodmFsdWUsIHN0eWxlOiBfZmllbGRTdHlsZSkpLAogICAgICAgIF0sCiAgICAgICksCiAgICApOwogIH0KCiAgV2lkZ2V0IF9idWlsZERhdGVSYW5nZVNlbGVjdG9yKCkgewogICAgcmV0dXJuIENhcmQoCiAgICAgIGNoaWxkOiBQYWRkaW5nKAogICAgICAgIHBhZGRpbmc6IGNvbnN0IEVkZ2VJbnNldHMuYWxsKDEyKSwKICAgICAgICBjaGlsZDogQ29sdW1uKAogICAgICAgICAgY3Jvc3NBeGlzQWxpZ25tZW50OiBDcm9zc0F4aXNBbGlnbm1lbnQuc3RhcnQsCiAgICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgICBjb25zdCBUZXh0KCfZgdiq2LHYqSDYp9mE2K/ZitmGJywgc3R5bGU6IF90aXRsZVN0eWxlKSwKICAgICAgICAgICAgY29uc3QgU2l6ZWRCb3goaGVpZ2h0OiA4KSwKICAgICAgICAgICAgUm93KAogICAgICAgICAgICAgIGNoaWxkcmVuOiBbCiAgICAgICAgICAgICAgICBFeHBhbmRlZCgKICAgICAgICAgICAgICAgICAgY2hpbGQ6IF9idWlsZERhdGVGaWVsZCgKICAgICAgICAgICAgICAgICAgICAn2YXZhicsCiAgICAgICAgICAgICAgICAgICAgX2Zyb21EYXRlLAogICAgICAgICAgICAgICAgICAgIChkYXRlKSA9PiBzZXRTdGF0ZSgoKSA9PiBfZnJvbURhdGUgPSBkYXRlKSwKICAgICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICBjb25zdCBTaXplZEJveCh3aWR0aDogMTYpLAogICAgICAgICAgICAgICAgRXhwYW5kZWQoCiAgICAgICAgICAgICAgICAgIGNoaWxkOiBfYnVpbGREYXRlRmllbGQoCiAgICAgICAgICAgICAgICAgICAgJ9il2YTZiScsCiAgICAgICAgICAgICAgICAgICAgX3RvRGF0ZSwKICAgICAgICAgICAgICAgICAgICAoZGF0ZSkgPT4gc2V0U3RhdGUoKCkgPT4gX3RvRGF0ZSA9IGRhdGUpLAogICAgICAgICAgICAgICAgICApLAogICAgICAgICAgICAgICAgKSwKICAgICAgICAgICAgICBdLAogICAgICAgICAgICApLAogICAgICAgICAgXSwKICAgICAgICApLAogICAgICApLAogICAgKTsKICB9CgogIFdpZGdldCBfYnVpbGREYXRlRmllbGQoCiAgICBTdHJpbmcgbGFiZWwsCiAgICBEYXRlVGltZSBkYXRlLAogICAgVmFsdWVDaGFuZ2VkPERhdGVUaW1lPiBvbkNoYW5nZWQsCiAgKSB7CiAgICByZXR1cm4gSW5rV2VsbCgKICAgICAgb25UYXA6ICgpIGFzeW5jIHsKICAgICAgICBmaW5hbCBwaWNrZWQgPSBhd2FpdCBzaG93RGF0ZVBpY2tlcigKICAgICAgICAgIGNvbnRleHQ6IGNvbnRleHQsCiAgICAgICAgICBpbml0aWFsRGF0ZTogZGF0ZSwKICAgICAgICAgIGZpcnN0RGF0ZTogRGF0ZVRpbWUoMjAyMCksCiAgICAgICAgICBsYXN0RGF0ZTogRGF0ZVRpbWUubm93KCkuYWRkKGNvbnN0IER1cmF0aW9uKGRheXM6IDM2NSkpLAogICAgICAgICk7CiAgICAgICAgaWYgKHBpY2tlZCAhPSBudWxsKSB7CiAgICAgICAgICBvbkNoYW5nZWQocGlja2VkKTsKICAgICAgICB9CiAgICAgIH0sCiAgICAgIGNoaWxkOiBJbnB1dERlY29yYXRvcigKICAgICAgICBkZWNvcmF0aW9uOiBJbnB1dERlY29yYXRpb24oCiAgICAgICAgICBsYWJlbFRleHQ6IGxhYmVsLAogICAgICAgICAgbGFiZWxTdHlsZTogX2xhYmVsU3R5bGUsCiAgICAgICAgICBmbG9hdGluZ0xhYmVsU3R5bGU6IF9sYWJlbFN0eWxlLAogICAgICAgICAgYm9yZGVyOiBjb25zdCBPdXRsaW5lSW5wdXRCb3JkZXIoKSwKICAgICAgICAgIHN1ZmZpeEljb246IGNvbnN0IEljb24oSWNvbnMuY2FsZW5kYXJfdG9kYXksIHNpemU6IDE4KSwKICAgICAgICApLAogICAgICAgIGNoaWxkOiBUZXh0KF9mb3JtYXREYXRlKGRhdGUpLCBzdHlsZTogX2ZpZWxkU3R5bGUpLAogICAgICApLAogICAgKTsKICB9CgogIFdpZGdldCBfYnVpbGRDb21wdXRlQnV0dG9uKCkgewogICAgcmV0dXJuIFZhbHVlTGlzdGVuYWJsZUJ1aWxkZXI8Ym9vbD4oCiAgICAgIHZhbHVlTGlzdGVuYWJsZTogX2lzQ29tcHV0aW5nLAogICAgICBidWlsZGVyOiAoY29udGV4dCwgaXNDb21wdXRpbmcsIF8pIHsKICAgICAgICByZXR1cm4gRWxldmF0ZWRCdXR0b24uaWNvbigKICAgICAgICAgIG9uUHJlc3NlZDogaXNDb21wdXRpbmcgPyBudWxsIDogX2NvbXB1dGVEZWJ0LAogICAgICAgICAgaWNvbjogaXNDb21wdXRpbmcKICAgICAgICAgICAgICA/IGNvbnN0IFNpemVkQm94KAogICAgICAgICAgICAgICAgICB3aWR0aDogMjAsCiAgICAgICAgICAgICAgICAgIGhlaWdodDogMjAsCiAgICAgICAgICAgICAgICAgIGNoaWxkOiBDaXJjdWxhclByb2dyZXNzSW5kaWNhdG9yKHN0cm9rZVdpZHRoOiAyKSwKICAgICAgICAgICAgICAgICkKICAgICAgICAgICAgICA6IGNvbnN0IEljb24oSWNvbnMuY2FsY3VsYXRlKSwKICAgICAgICAgIGxhYmVsOiBUZXh0KGlzQ29tcHV0aW5nID8gJ9is2KfYsdmKINin2YTYrdiz2KfYqC4uLicgOiAn2KfYrdiz2Kgg2KfZhNiv2YrZhicpLAogICAgICAgICk7CiAgICAgIH0sCiAgICApOwogIH0KCiAgRnV0dXJlPHZvaWQ+IF9jb21wdXRlRGVidCgpIGFzeW5jIHsKICAgIGlmIChfc2VsZWN0ZWRCb29raW5nID09IG51bGwpIHsKICAgICAgcmV0dXJuOwogICAgfQoKICAgIF9pc0NvbXB1dGluZy52YWx1ZSA9IHRydWU7CgogICAgdHJ5IHsKICAgICAgZmluYWwgYm9va2luZyA9IF9zZWxlY3RlZEJvb2tpbmchOwogICAgICBmaW5hbCBuaWdodHMgPSBfdG9EYXRlLmRpZmZlcmVuY2UoX2Zyb21EYXRlKS5pbkRheXM7CiAgICAgIGlmIChuaWdodHMgPD0gMCkgewogICAgICAgIF9zaG93RXJyb3IoJ9mB2KrYsdipINi62YrYsSDYtdin2YTYrdipJyk7CiAgICAgICAgcmV0dXJuOwogICAgICB9CgogICAgICBmaW5hbCBuaWdodGx5UmF0ZSA9IGJvb2tpbmcudG90YWxOaWdodHNDYWNoZWQgPiAwCiAgICAgICAgICA/IGJvb2tpbmcudG90YWxEdWVDYWNoZWQgLyBib29raW5nLnRvdGFsTmlnaHRzQ2FjaGVkCiAgICAgICAgICA6IDAuMDsKCiAgICAgIGZpbmFsIHRvdGFsID0gbmlnaHRseVJhdGUgKiBuaWdodHM7CiAgICAgIGZpbmFsIHBhaWQgPSBib29raW5nLnRvdGFsUGFpZENhY2hlZDsKCiAgICAgIHNldFN0YXRlKCgpIHsKICAgICAgICBfZGVidERhdGEgPSBfRGVidERhdGEoCiAgICAgICAgICBuaWdodHM6IG5pZ2h0cywKICAgICAgICAgIHJvb21SYXRlOiBuaWdodGx5UmF0ZSwKICAgICAgICAgIHRvdGFsOiB0b3RhbCwKICAgICAgICAgIHBhaWQ6IHBhaWQsCiAgICAgICAgKTsKICAgICAgICBfYW1vdW50Q29udHJvbGxlci50ZXh0ID0gQ3VycmVuY3lGb3JtYXR0ZXIuZm9ybWF0QW1vdW50KAogICAgICAgICAgX2RlYnREYXRhIS5yZW1haW5pbmcsCiAgICAgICAgKTsKICAgICAgfSk7CiAgICB9IGZpbmFsbHkgewogICAgICBfaXNDb21wdXRpbmcudmFsdWUgPSBmYWxzZTsKICAgIH0KICB9CgogIFdpZGdldCBfYnVpbGREZWJ0U3VtbWFyeSgpIHsKICAgIGZpbmFsIGRhdGEgPSBfZGVidERhdGEhOwogICAgcmV0dXJuIENhcmQoCiAgICAgIGNvbG9yOiBDb2xvcnMub3JhbmdlLnNoYWRlNTAsCiAgICAgIGNoaWxkOiBQYWRkaW5nKAogICAgICAgIHBhZGRpbmc6IGNvbnN0IEVkZ2VJbnNldHMuYWxsKDEyKSwKICAgICAgICBjaGlsZDogQ29sdW1uKAogICAgICAgICAgY3Jvc3NBeGlzQWxpZ25tZW50OiBDcm9zc0F4aXNBbGlnbm1lbnQuc3RhcnQsCiAgICAgICAgICBjaGlsZHJlbjogWwogICAgICAgICAgICBjb25zdCBUZXh0KCfZhdmE2K7YtSDYp9mE2K/ZitmGJywgc3R5bGU6IF90aXRsZVN0eWxlKSwKICAgICAgICAgICAgY29uc3QgU2l6ZWRCb3goaGVpZ2h0OiA4KSwKICAgICAgICAgICAgX2J1aWxkSW5mb1Jvdygn2LnYr9ivINin2YTZhNmK2KfZhNmKJywgJyR7ZGF0YS5uaWdodHN9JyksCiAgICAgICAgICAgIF9idWlsZEluZm9Sb3coCiAgICAgICAgICAgICAgJ9iz2LnYsSDYp9mE2YTZitmE2KknLAogICAgICAgICAgICAgIEN1cnJlbmN5Rm9ybWF0dGVyLmZvcm1hdEFtb3VudChkYXRhLnJvb21SYXRlKSwKICAgICAgICAgICAgKSwKICAgICAgICAgICAgX2J1aWxkSW5mb1JvdygKICAgICAgICAgICAgICAn2KfZhNil2KzZhdin2YTZiicsCiAgICAgICAgICAgICAgQ3VycmVuY3lGb3JtYXR0ZXIuZm9ybWF0QW1vdW50KGRhdGEudG90YWwpLAogICAgICAgICAgICApLAogICAgICAgICAgICBfYnVpbGRJbmZvUm93KCfYp9mE2YXYr9mB2YjYuScsIEN1cnJlbmN5Rm9ybWF0dGVyLmZvcm1hdEFtb3VudChkYXRhLnBhaWQpKSwKICAgICAgICAgICAgY29uc3QgRGl2aWRlcigpLAogICAgICAgICAgICBfYnVpbGRJbmZvUm93KAogICAgICAgICAgICAgICfYp9mE2YXYqtio2YLZiiAo2KfZhNiv2YrZhiknLAogICAgICAgICAgICAgIEN1cnJlbmN5Rm9ybWF0dGVyLmZvcm1hdEFtb3VudChkYXRhLnJlbWFpbmluZyksCiAgICAgICAgICAgICksCiAgICAgICAgICBdLAogICAgICAgICksCiAgICAgICksCiAgICApOwogIH0KCiAgV2lkZ2V0IF9idWlsZEFtb3VudEZpZWxkKCkgewogICAgcmV0dXJuIFRleHRGb3JtRmllbGQoCiAgICAgIGNvbnRyb2xsZXI6IF9hbW91bnRDb250cm9sbGVyLAogICAgICBrZXlib2FyZFR5cGU6IFRleHRJbnB1dFR5cGUubnVtYmVyLAogICAgICBzdHlsZTogX2ZpZWxkU3R5bGUsCiAgICAgIGRlY29yYXRpb246IGNvbnN0IElucHV0RGVjb3JhdGlvbigKICAgICAgICBsYWJlbFRleHQ6ICfZhdio2YTYuiDYp9mE2K/ZitmGJywKICAgICAgICBsYWJlbFN0eWxlOiBfbGFiZWxTdHlsZSwKICAgICAgICBmbG9hdGluZ0xhYmVsU3R5bGU6IF9sYWJlbFN0eWxlLAogICAgICAgIGJvcmRlcjogT3V0bGluZUlucHV0Qm9yZGVyKCksCiAgICAgICAgcHJlZml4SWNvbjogSWNvbihJY29ucy5hdHRhY2hfbW9uZXkpLAogICAgICApLAogICAgKTsKICB9CgogIFdpZGdldCBfYnVpbGROb3Rlc0ZpZWxkKCkgewogICAgcmV0dXJuIFRleHRGb3JtRmllbGQoCiAgICAgIGNvbnRyb2xsZXI6IF9ub3Rlc0NvbnRyb2xsZXIsCiAgICAgIG1heExpbmVzOiAzLAogICAgICBzdHlsZTogX2ZpZWxkU3R5bGUsCiAgICAgIGRlY29yYXRpb246IGNvbnN0IElucHV0RGVjb3JhdGlvbigKICAgICAgICBsYWJlbFRleHQ6ICfZhdmE2KfYrdi42KfYqicsCiAgICAgICAgbGFiZWxTdHlsZTogX2xhYmVsU3R5bGUsCiAgICAgICAgZmxvYXRpbmdMYWJlbFN0eWxlOiBfbGFiZWxTdHlsZSwKICAgICAgICBib3JkZXI6IE91dGxpbmVJbnB1dEJvcmRlcigpLAogICAgICAgIHByZWZpeEljb246IEljb24oSWNvbnMubm90ZSksCiAgICAgICksCiAgICApOwogIH0KCiAgV2lkZ2V0IF9idWlsZENyZWF0ZUJ1dHRvbigpIHsKICAgIHJldHVybiBWYWx1ZUxpc3RlbmFibGVCdWlsZGVyPGJvb2w+KAogICAgICB2YWx1ZUxpc3RlbmFibGU6IF9pc1Byb2Nlc3NpbmcsCiAgICAgIGJ1aWxkZXI6IChjb250ZXh0LCBpc1Byb2Nlc3NpbmcsIF8pIHsKICAgICAgICByZXR1cm4gRWxldmF0ZWRCdXR0b24uaWNvbigKICAgICAgICAgIG9uUHJlc3NlZDogaXNQcm9jZXNzaW5nID8gbnVsbCA6IF9jcmVhdGVEZWJ0LAogICAgICAgICAgc3R5bGU6IEVsZXZhdGVkQnV0dG9uLnN0eWxlRnJvbSgKICAgICAgICAgICAgYmFja2dyb3VuZENvbG9yOiBDb2xvcnMub3JhbmdlLAogICAgICAgICAgICBmb3JlZ3JvdW5kQ29sb3I6IENvbG9ycy53aGl0ZSwKICAgICAgICAgICAgcGFkZGluZzogY29uc3QgRWRnZUluc2V0cy5zeW1tZXRyaWModmVydGljYWw6IDE2KSwKICAgICAgICAgICksCiAgICAgICAgICBpY29uOiBpc1Byb2Nlc3NpbmcKICAgICAgICAgICAgICA/IGNvbnN0IFNpemVkQm94KAogICAgICAgICAgICAgICAgICB3aWR0aDogMjAsCiAgICAgICAgICAgICAgICAgIGhlaWdodDogMjAsCiAgICAgICAgICAgICAgICAgIGNoaWxkOiBDaXJjdWxhclByb2dyZXNzSW5kaWNhdG9yKAogICAgICAgICAgICAgICAgICAgIHN0cm9rZVdpZHRoOiAyLAogICAgICAgICAgICAgICAgICAgIGNvbG9yOiBDb2xvcnMud2hpdGUsCiAgICAgICAgICAgICAgICAgICksCiAgICAgICAgICAgICAgICApCiAgICAgICAgICAgICAgOiBjb25zdCBJY29uKEljb25zLmFkZCksCiAgICAgICAgICBsYWJlbDogVGV4dChpc1Byb2Nlc3NpbmcgPyAn2KzYp9ix2Yog2KfZhNil2YbYtNin2KEuLi4nIDogJ9il2YbYtNin2KEg2KfZhNiv2YrZhicpLAogICAgICAgICk7CiAgICAgIH0sCiAgICApOwogIH0KCiAgRnV0dXJlPHZvaWQ+IF9jcmVhdGVEZWJ0KCkgYXN5bmMgewogICAgaWYgKF9zZWxlY3RlZEJvb2tpbmcgPT0gbnVsbCB8fCBfZGVidERhdGEgPT0gbnVsbCkgewogICAgICByZXR1cm47CiAgICB9CgogICAgZmluYWwgYW1vdW50ID0gQ3VycmVuY3lGb3JtYXR0ZXIucGFyc2VBbW91bnQoX2Ftb3VudENvbnRyb2xsZXIudGV4dCk7CiAgICBpZiAoYW1vdW50ID09IG51bGwgfHwgYW1vdW50IDw9IDApIHsKICAgICAgX3Nob3dFcnJvcign2YrYsdis2Ykg2KXYr9iu2KfZhCDZhdio2YTYuiDYtdit2YrYrScpOwogICAgICByZXR1cm47CiAgICB9CgogICAgX2lzUHJvY2Vzc2luZy52YWx1ZSA9IHRydWU7CgogICAgdHJ5IHsKICAgICAgZmluYWwgYm9va2luZyA9IF9zZWxlY3RlZEJvb2tpbmchOwogICAgICBmaW5hbCBkZWJ0c1JlcG8gPSByZWYucmVhZChkZWJ0c1JlcG9Qcm92aWRlcik7CiAgICAgIGZpbmFsIG5vdyA9IERhdGVUaW1lLm5vdygpOwoKICAgICAgYXdhaXQgZGVidHNSZXBvLmNyZWF0ZSgKICAgICAgICBib29raW5nTG9jYWxJZDogYm9va2luZy5pZCwKICAgICAgICBndWVzdE5hbWU6IGJvb2tpbmcuZ3Vlc3ROYW1lLAogICAgICAgIGNoZWNraW5EYXRlOiBfZm9ybWF0RGF0ZShfZnJvbURhdGUpLAogICAgICAgIGNoZWNrb3V0RGF0ZTogX2Zvcm1hdERhdGUoX3RvRGF0ZSksCiAgICAgICAgZGF0ZVJlY29yZGVkOiBfZm9ybWF0RGF0ZShub3cpLAogICAgICAgIGRlYnRSZWFzb246CiAgICAgICAgICAgICfYr9mK2YYg2YXZhiDYrdis2LIg2KfZhNi62LHZgdipICR7Ym9va2luZy5yb29tTnVtYmVyfSDZhNmE2YHYqtix2KkgJHtfZm9ybWF0RGF0ZShfZnJvbURhdGUpfSAtICR7X2Zvcm1hdERhdGUoX3RvRGF0ZSl9JywKICAgICAgICB0b3RhbEFtb3VudDogYW1vdW50LAogICAgICAgIHBhaWRBbW91bnQ6IDAsCiAgICAgICAgcGF5bWVudERhdGU6IF9mb3JtYXREYXRlKG5vdyksCiAgICAgICAgbm90ZTogX25vdGVzQ29udHJvbGxlci50ZXh0LmlzTm90RW1wdHkgPyBfbm90ZXNDb250cm9sbGVyLnRleHQgOiBudWxsLAogICAgICApOwoKICAgICAgLy8g4pyFINix2YHYuSDZgdmI2LHZiiDZhNiv2YrZhiDYrNiv2YrYryDZhdmG2LTYoyDZhdmGINit2KzYsiDYpdmE2YkgQXBwd3JpdGUgQ2xvdWQuCiAgICAgIHVuYXdhaXRlZChyZWYucmVhZChhcHB3cml0ZVN5bmNNYW5hZ2VyUHJvdmlkZXIpLnB1c2hMb2NhbENoYW5nZXMoKSk7CgogICAgICBpZiAobW91bnRlZCkgewogICAgICAgIFNjYWZmb2xkTWVzc2VuZ2VyLm9mKGNvbnRleHQpLnNob3dTbmFja0JhcigKICAgICAgICAgIFNuYWNrQmFyKAogICAgICAgICAgICBjb250ZW50OiBUZXh0KAogICAgICAgICAgICAgICfYqtmFINil2YbYtNin2KEg2KfZhNiv2YrZhiDYqNmF2KjZhNi6ICR7Q3VycmVuY3lGb3JtYXR0ZXIuZm9ybWF0QW1vdW50KGFtb3VudCl9JywKICAgICAgICAgICAgKSwKICAgICAgICAgICAgYmFja2dyb3VuZENvbG9yOiBDb2xvcnMuZ3JlZW4sCiAgICAgICAgICApLAogICAgICAgICk7CiAgICAgICAgTmF2aWdhdG9yLm9mKGNvbnRleHQpLnBvcCgpOwogICAgICB9CiAgICB9IGNhdGNoIChlKSB7CiAgICAgIF9zaG93RXJyb3IoJ9it2K/YqyDYrti32KM6ICRlJyk7CiAgICB9IGZpbmFsbHkgewogICAgICBpZiAobW91bnRlZCkgewogICAgICAgIF9pc1Byb2Nlc3NpbmcudmFsdWUgPSBmYWxzZTsKICAgICAgfQogICAgfQogIH0KCiAgdm9pZCBfc2hvd0Vycm9yKFN0cmluZyBtZXNzYWdlKSB7CiAgICBTY2FmZm9sZE1lc3Nlbmdlci5vZihjb250ZXh0KS5zaG93U25hY2tCYXIoCiAgICAgIFNuYWNrQmFyKGNvbnRlbnQ6IFRleHQobWVzc2FnZSksIGJhY2tncm91bmRDb2xvcjogQ29sb3JzLnJlZCksCiAgICApOwogIH0KCiAgRGF0ZVRpbWUgX3Jlc29sdmVDaGVja291dChCb29raW5nIGJvb2tpbmcpIHsKICAgIGlmIChib29raW5nLmFjdHVhbENoZWNrb3V0ICE9IG51bGwgJiYgYm9va2luZy5hY3R1YWxDaGVja291dCEuaXNOb3RFbXB0eSkgewogICAgICBmaW5hbCBhY3R1YWwgPSBEYXRlVGltZS50cnlQYXJzZShib29raW5nLmFjdHVhbENoZWNrb3V0ISk7CiAgICAgIGlmIChhY3R1YWwgIT0gbnVsbCkgewogICAgICAgIHJldHVybiBhY3R1YWw7CiAgICAgIH0KICAgIH0KICAgIGlmIChib29raW5nLmNoZWNrb3V0RGF0ZSAhPSBudWxsICYmIGJvb2tpbmcuY2hlY2tvdXREYXRlIS5pc05vdEVtcHR5KSB7CiAgICAgIGZpbmFsIGNoZWNrb3V0ID0gRGF0ZVRpbWUudHJ5UGFyc2UoYm9va2luZy5jaGVja291dERhdGUhKTsKICAgICAgaWYgKGNoZWNrb3V0ICE9IG51bGwpIHsKICAgICAgICByZXR1cm4gY2hlY2tvdXQ7CiAgICAgIH0KICAgIH0KICAgIHJldHVybiBEYXRlVGltZS5ub3coKTsKICB9CgogIGJvb2wgZ2V0IF9oYXNVbnNhdmVkQ2hhbmdlcyA9PgogICAgICBfc2VsZWN0ZWRCb29raW5nICE9IG51bGwgfHwKICAgICAgX2RlYnREYXRhICE9IG51bGwgfHwKICAgICAgX2Ftb3VudENvbnRyb2xsZXIudGV4dC5pc05vdEVtcHR5IHx8CiAgICAgIF9ub3Rlc0NvbnRyb2xsZXIudGV4dC5pc05vdEVtcHR5OwoKICB2b2lkIF9zaG93RGlzY2FyZERpYWxvZyhCdWlsZENvbnRleHQgY29udGV4dCkgewogICAgc2hvd0RpYWxvZzx2b2lkPigKICAgICAgY29udGV4dDogY29udGV4dCwKICAgICAgYnVpbGRlcjogKGN0eCkgPT4gRGlyZWN0aW9uYWxpdHkoCiAgICAgICAgdGV4dERpcmVjdGlvbjogdWkuVGV4dERpcmVjdGlvbi5ydGwsCiAgICAgICAgY2hpbGQ6IEFsZXJ0RGlhbG9nKAogICAgICAgICAgdGl0bGU6IGNvbnN0IFRleHQoJ9iq2KPZg9mK2K8nKSwKICAgICAgICAgIGNvbnRlbnQ6IGNvbnN0IFRleHQoJ9mH2YQg2KrYsdmK2K8g2KfZhNmF2LrYp9iv2LHYqSDYqNiv2YjZhiDYrdmB2Lgg2KfZhNiq2LrZitmK2LHYp9iq2J8nKSwKICAgICAgICAgIGFjdGlvbnM6IFsKICAgICAgICAgICAgVGV4dEJ1dHRvbigKICAgICAgICAgICAgICBvblByZXNzZWQ6ICgpID0+IE5hdmlnYXRvci5wb3AoY3R4KSwKICAgICAgICAgICAgICBjaGlsZDogY29uc3QgVGV4dCgn2YTYpycpLAogICAgICAgICAgICApLAogICAgICAgICAgICBUZXh0QnV0dG9uKAogICAgICAgICAgICAgIG9uUHJlc3NlZDogKCkgewogICAgICAgICAgICAgICAgTmF2aWdhdG9yLnBvcChjdHgpOwogICAgICAgICAgICAgICAgTmF2aWdhdG9yLm9mKGNvbnRleHQpLnBvcCgpOwogICAgICAgICAgICAgIH0sCiAgICAgICAgICAgICAgY2hpbGQ6IGNvbnN0IFRleHQoJ9mG2LnZhScpLAogICAgICAgICAgICApLAogICAgICAgICAgXSwKICAgICAgICApLAogICAgICApLAogICAgKTsKICB9Cn0KCmNsYXNzIF9EZWJ0RGF0YSB7CiAgY29uc3QgX0RlYnREYXRhKHsKICAgIHJlcXVpcmVkIHRoaXMubmlnaHRzLAogICAgcmVxdWlyZWQgdGhpcy5yb29tUmF0ZSwKICAgIHJlcXVpcmVkIHRoaXMudG90YWwsCiAgICByZXF1aXJlZCB0aGlzLnBhaWQsCiAgfSk7CiAgZmluYWwgaW50IG5pZ2h0czsKICBmaW5hbCBkb3VibGUgcm9vbVJhdGU7CiAgZmluYWwgZG91YmxlIHRvdGFsOwogIGZpbmFsIGRvdWJsZSBwYWlkOwoKICBkb3VibGUgZ2V0IHJlbWFpbmluZyA9PiAodG90YWwgLSBwYWlkKS5jbGFtcCgwLCB0b3RhbCkudG9Eb3VibGUoKTsKfQo=
+import 'dart:async';
+import 'dart:ui' as ui;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+
+import '../../providers/appwrite_providers.dart';
+import '../../providers/repository_providers.dart';
+import '../../services/local_db.dart';
+import '../../utils/currency_formatter.dart';
+
+class CreateDebtFromBookingScreen extends ConsumerStatefulWidget {
+  const CreateDebtFromBookingScreen({super.key});
+
+  @override
+  ConsumerState<CreateDebtFromBookingScreen> createState() =>
+      _CreateDebtFromBookingScreenState();
+}
+
+class _CreateDebtFromBookingScreenState
+    extends ConsumerState<CreateDebtFromBookingScreen> {
+  Booking? _selectedBooking;
+  final ValueNotifier<bool> _isComputing = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> _isProcessing = ValueNotifier<bool>(false);
+  _DebtData? _debtData;
+
+  DateTime _fromDate = DateTime.now();
+  DateTime _toDate = DateTime.now();
+  final _amountController = TextEditingController();
+  final _notesController = TextEditingController();
+  final _dateFormat = DateFormat('yyyy-MM-dd');
+  static const _titleStyle = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.bold,
+  );
+  static const _labelStyle = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.bold,
+  );
+  static const _fieldStyle = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.bold,
+  );
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _notesController.dispose();
+    _isComputing.dispose();
+    _isProcessing.dispose();
+    super.dispose();
+  }
+
+  String _formatDate(DateTime date) => _dateFormat.format(date);
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: !_hasUnsavedChanges,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          return;
+        }
+        _showDiscardDialog(context);
+      },
+      child: Scaffold(
+        appBar: AppBar(title: const Text('إنشاء دين من حجز')),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildBookingSelector(),
+              if (_selectedBooking != null) ...[
+                const SizedBox(height: 16),
+                _buildBookingInfo(),
+                const SizedBox(height: 16),
+                _buildDateRangeSelector(),
+                const SizedBox(height: 16),
+                _buildComputeButton(),
+                if (_debtData != null) ...[
+                  const SizedBox(height: 16),
+                  _buildDebtSummary(),
+                  const SizedBox(height: 16),
+                  _buildAmountField(),
+                  const SizedBox(height: 16),
+                  _buildNotesField(),
+                  const SizedBox(height: 24),
+                  _buildCreateButton(),
+                ],
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBookingSelector() {
+    // ✅ استبدال StreamBuilder بـ Riverpod provider
+    final bookingsAsync = ref.watch(bookingsListProvider);
+    final bookings = (bookingsAsync.valueOrNull ?? [])
+        .where((b) => b.status != 'checked_out' && b.status != 'cancelled')
+        .toList();
+
+    if (bookingsAsync.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (bookings.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Text('لا توجد حجوزات نشطة'),
+        ),
+      );
+    }
+    final dropdownColor = Theme.of(context).textTheme.bodyMedium?.color;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('اختر الحجز', style: _titleStyle),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<Booking>(
+              initialValue: bookings.contains(_selectedBooking)
+                  ? _selectedBooking
+                  : null,
+              isExpanded: true,
+              style: _fieldStyle.copyWith(color: dropdownColor),
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+              ),
+              items: bookings.map((booking) {
+                return DropdownMenuItem(
+                  value: booking,
+                  child: Text(
+                    '${booking.roomNumber} - ${booking.guestName}',
+                    overflow: TextOverflow.ellipsis,
+                    style: _fieldStyle.copyWith(color: dropdownColor),
+                  ),
+                );
+              }).toList(),
+              onChanged: (booking) {
+                setState(() {
+                  _selectedBooking = booking;
+                  _debtData = null;
+                  if (booking != null) {
+                    final checkin = DateTime.tryParse(booking.checkinDate);
+                    if (checkin != null) {
+                      _fromDate = checkin;
+                      _toDate = _resolveCheckout(booking);
+                    }
+                  }
+                });
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBookingInfo() {
+    final booking = _selectedBooking!;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('معلومات الحجز', style: _titleStyle),
+            const SizedBox(height: 8),
+            _buildInfoRow('الغرفة', booking.roomNumber),
+            _buildInfoRow('الضيف', booking.guestName),
+            _buildInfoRow('الهوية', booking.guestIdNumber),
+            _buildInfoRow('تاريخ الدخول', booking.checkinDate.split(' ')[0]),
+            if (booking.checkoutDate != null)
+              _buildInfoRow(
+                'تاريخ الخروج',
+                booking.checkoutDate!.split(' ')[0],
+              ),
+            _buildInfoRow('الحالة', booking.status),
+            _buildInfoRow(
+              'الإجمالي المستحق',
+              CurrencyFormatter.formatAmount(booking.totalDueCached),
+            ),
+            _buildInfoRow(
+              'المدفوع',
+              CurrencyFormatter.formatAmount(booking.totalPaidCached),
+            ),
+            _buildInfoRow(
+              'المتبقي',
+              CurrencyFormatter.formatAmount(booking.remainingBalanceCached),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 110,
+            child: Text(
+              '$label:',
+              style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Expanded(child: Text(value, style: _fieldStyle)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDateRangeSelector() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('فترة الدين', style: _titleStyle),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildDateField(
+                    'من',
+                    _fromDate,
+                    (date) => setState(() => _fromDate = date),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildDateField(
+                    'إلى',
+                    _toDate,
+                    (date) => setState(() => _toDate = date),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateField(
+    String label,
+    DateTime date,
+    ValueChanged<DateTime> onChanged,
+  ) {
+    return InkWell(
+      onTap: () async {
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: date,
+          firstDate: DateTime(2020),
+          lastDate: DateTime.now().add(const Duration(days: 365)),
+        );
+        if (picked != null) {
+          onChanged(picked);
+        }
+      },
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: _labelStyle,
+          floatingLabelStyle: _labelStyle,
+          border: const OutlineInputBorder(),
+          suffixIcon: const Icon(Icons.calendar_today, size: 18),
+        ),
+        child: Text(_formatDate(date), style: _fieldStyle),
+      ),
+    );
+  }
+
+  Widget _buildComputeButton() {
+    return ValueListenableBuilder<bool>(
+      valueListenable: _isComputing,
+      builder: (context, isComputing, _) {
+        return ElevatedButton.icon(
+          onPressed: isComputing ? null : _computeDebt,
+          icon: isComputing
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.calculate),
+          label: Text(isComputing ? 'جاري الحساب...' : 'احسب الدين'),
+        );
+      },
+    );
+  }
+
+  Future<void> _computeDebt() async {
+    if (_selectedBooking == null) {
+      return;
+    }
+
+    _isComputing.value = true;
+
+    try {
+      final booking = _selectedBooking!;
+      final nights = _toDate.difference(_fromDate).inDays;
+      if (nights <= 0) {
+        _showError('فترة غير صالحة');
+        return;
+      }
+
+      final nightlyRate = booking.totalNightsCached > 0
+          ? booking.totalDueCached / booking.totalNightsCached
+          : 0.0;
+
+      final total = nightlyRate * nights;
+      final paid = booking.totalPaidCached;
+
+      setState(() {
+        _debtData = _DebtData(
+          nights: nights,
+          roomRate: nightlyRate,
+          total: total,
+          paid: paid,
+        );
+        _amountController.text = CurrencyFormatter.formatAmount(
+          _debtData!.remaining,
+        );
+      });
+    } finally {
+      _isComputing.value = false;
+    }
+  }
+
+  Widget _buildDebtSummary() {
+    final data = _debtData!;
+    return Card(
+      color: Colors.orange.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('ملخص الدين', style: _titleStyle),
+            const SizedBox(height: 8),
+            _buildInfoRow('عدد الليالي', '${data.nights}'),
+            _buildInfoRow(
+              'سعر الليلة',
+              CurrencyFormatter.formatAmount(data.roomRate),
+            ),
+            _buildInfoRow(
+              'الإجمالي',
+              CurrencyFormatter.formatAmount(data.total),
+            ),
+            _buildInfoRow('المدفوع', CurrencyFormatter.formatAmount(data.paid)),
+            const Divider(),
+            _buildInfoRow(
+              'المتبقي (الدين)',
+              CurrencyFormatter.formatAmount(data.remaining),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAmountField() {
+    return TextFormField(
+      controller: _amountController,
+      keyboardType: TextInputType.number,
+      style: _fieldStyle,
+      decoration: const InputDecoration(
+        labelText: 'مبلغ الدين',
+        labelStyle: _labelStyle,
+        floatingLabelStyle: _labelStyle,
+        border: OutlineInputBorder(),
+        prefixIcon: Icon(Icons.attach_money),
+      ),
+    );
+  }
+
+  Widget _buildNotesField() {
+    return TextFormField(
+      controller: _notesController,
+      maxLines: 3,
+      style: _fieldStyle,
+      decoration: const InputDecoration(
+        labelText: 'ملاحظات',
+        labelStyle: _labelStyle,
+        floatingLabelStyle: _labelStyle,
+        border: OutlineInputBorder(),
+        prefixIcon: Icon(Icons.note),
+      ),
+    );
+  }
+
+  Widget _buildCreateButton() {
+    return ValueListenableBuilder<bool>(
+      valueListenable: _isProcessing,
+      builder: (context, isProcessing, _) {
+        return ElevatedButton.icon(
+          onPressed: isProcessing ? null : _createDebt,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.orange,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+          ),
+          icon: isProcessing
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.add),
+          label: Text(isProcessing ? 'جاري الإنشاء...' : 'إنشاء الدين'),
+        );
+      },
+    );
+  }
+
+  Future<void> _createDebt() async {
+    if (_selectedBooking == null || _debtData == null) {
+      return;
+    }
+
+    final amount = CurrencyFormatter.parseAmount(_amountController.text);
+    if (amount == null || amount <= 0) {
+      _showError('يرجى إدخال مبلغ صحيح');
+      return;
+    }
+
+    _isProcessing.value = true;
+
+    try {
+      final booking = _selectedBooking!;
+      final debtsRepo = ref.read(debtsRepoProvider);
+      final now = DateTime.now();
+
+      await debtsRepo.create(
+        bookingLocalId: booking.id,
+        guestName: booking.guestName,
+        checkinDate: _formatDate(_fromDate),
+        checkoutDate: _formatDate(_toDate),
+        dateRecorded: _formatDate(now),
+        debtReason:
+            'دين من حجز الغرفة ${booking.roomNumber} للفترة ${_formatDate(_fromDate)} - ${_formatDate(_toDate)}',
+        totalAmount: amount,
+        paidAmount: 0,
+        paymentDate: _formatDate(now),
+        note: _notesController.text.isNotEmpty ? _notesController.text : null,
+      );
+
+      // ✅ رفع فوري لدين جديد منشأ من حجز إلى Appwrite Cloud.
+      unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'تم إنشاء الدين بمبلغ ${CurrencyFormatter.formatAmount(amount)}',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      _showError('حدث خطأ: $e');
+    } finally {
+      if (mounted) {
+        _isProcessing.value = false;
+      }
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  DateTime _resolveCheckout(Booking booking) {
+    if (booking.actualCheckout != null && booking.actualCheckout!.isNotEmpty) {
+      final actual = DateTime.tryParse(booking.actualCheckout!);
+      if (actual != null) {
+        return actual;
+      }
+    }
+    if (booking.checkoutDate != null && booking.checkoutDate!.isNotEmpty) {
+      final checkout = DateTime.tryParse(booking.checkoutDate!);
+      if (checkout != null) {
+        return checkout;
+      }
+    }
+    return DateTime.now();
+  }
+
+  bool get _hasUnsavedChanges =>
+      _selectedBooking != null ||
+      _debtData != null ||
+      _amountController.text.isNotEmpty ||
+      _notesController.text.isNotEmpty;
+
+  void _showDiscardDialog(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Directionality(
+        textDirection: ui.TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('تأكيد'),
+          content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('لا'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).pop();
+              },
+              child: const Text('نعم'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DebtData {
+  const _DebtData({
+    required this.nights,
+    required this.roomRate,
+    required this.total,
+    required this.paid,
+  });
+  final int nights;
+  final double roomRate;
+  final double total;
+  final double paid;
+
+  double get remaining => (total - paid).clamp(0, total).toDouble();
+}
