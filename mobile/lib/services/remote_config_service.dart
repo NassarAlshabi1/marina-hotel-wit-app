@@ -76,12 +76,18 @@ class RemoteConfigService {
         _lastFetchTime = DateTime.now();
         developer.log('Remote Config activated: $status', name: 'RemoteConfig');
       } catch (e) {
-        developer.log('Remote Config fetch failed (using defaults): $e', name: 'RemoteConfig');
+        developer.log(
+          'Remote Config fetch failed (using defaults): $e',
+          name: 'RemoteConfig',
+        );
         _lastFetchStatus = 'fetch_failed';
       }
 
       _isInitialized = true;
-      developer.log('Remote Config initialized (${kDebugMode ? 'DEBUG' : 'RELEASE'})', name: 'RemoteConfig');
+      developer.log(
+        'Remote Config initialized (${kDebugMode ? 'DEBUG' : 'RELEASE'})',
+        name: 'RemoteConfig',
+      );
     } catch (e, stackTrace) {
       developer.log(
         'Remote Config Firebase failed — using local defaults: $e',
@@ -98,7 +104,10 @@ class RemoteConfigService {
       if (!_isInitialized) {
         _isInitialized = true;
         _lastFetchStatus ??= 'local_defaults';
-        developer.log('Remote Config force-initialized with defaults', name: 'RemoteConfig');
+        developer.log(
+          'Remote Config force-initialized with defaults',
+          name: 'RemoteConfig',
+        );
       }
     }
   }
@@ -117,7 +126,11 @@ class RemoteConfigService {
       return status;
     } catch (e) {
       _lastFetchStatus = 'error: $e';
-      developer.log('Remote Config force fetch error: $e', name: 'RemoteConfig', error: e);
+      developer.log(
+        'Remote Config force fetch error: $e',
+        name: 'RemoteConfig',
+        error: e,
+      );
       return false;
     }
   }
@@ -129,22 +142,26 @@ class RemoteConfigService {
   /// رقم هاتف WhatsApp المستقبل (CallMeBot)
   /// الافتراضي: '967773749389'
   /// الملف المرتبط: whatsapp_notification_service.dart:56
-  String get whatsappPhone => _remoteConfig?.getString('whatsapp_phone') ?? Env.whatsappPhoneNumber;
+  String get whatsappPhone =>
+      _remoteConfig?.getString('whatsapp_phone') ?? Env.whatsappPhoneNumber;
 
   /// مفتاح API CallMeBot
   /// الافتراضي: '7379268'
   /// الملف المرتبط: whatsapp_notification_service.dart:57
-  String get whatsappApiKey => _remoteConfig?.getString('whatsapp_api_key') ?? Env.whatsappApiKey;
+  String get whatsappApiKey =>
+      _remoteConfig?.getString('whatsapp_api_key') ?? Env.whatsappApiKey;
 
   /// تفعيل/تعطيل إشعارات WhatsApp
   /// الافتراضي: true
   /// الملف المرتبط: whatsapp_notification_service.dart (فحص أولي)
-  bool get whatsappEnabled => _remoteConfig?.getBool('whatsapp_enabled') ?? true;
+  bool get whatsappEnabled =>
+      _remoteConfig?.getBool('whatsapp_enabled') ?? true;
 
   /// رقم هاتف الفندق (يظهر في رسائل الديون)
   /// الافتراضي: '9677734587456'
   /// الملف المرتبط: late_payment_whatsapp_screen.dart:92
-  String get hotelContactPhone => _remoteConfig?.getString('hotel_contact_phone') ?? Env.hotelContactPhone;
+  String get hotelContactPhone =>
+      _remoteConfig?.getString('hotel_contact_phone') ?? Env.hotelContactPhone;
 
   // ═══════════════════════════════════════════════════════════════
   //  ⏰ مواعيد التقارير (4 مفاتيح)
@@ -153,16 +170,19 @@ class RemoteConfigService {
   /// وقت النسخ الاحتياطي اليومي
   /// الافتراضي: '21:00'
   /// الملف المرتبط: alarm_backup.dart:36
-  String get dailyBackupTime => _remoteConfig?.getString('daily_backup_time') ?? '21:00';
+  String get dailyBackupTime =>
+      _remoteConfig?.getString('daily_backup_time') ?? '21:00';
 
   /// وقت تقرير WhatsApp اليومي
   /// الافتراضي: '21:00'
   /// الملف المرتبط: alarm_backup.dart (مستقبلاً)
-  String get whatsappReportTime => _remoteConfig?.getString('whatsapp_report_time') ?? '21:00';
+  String get whatsappReportTime =>
+      _remoteConfig?.getString('whatsapp_report_time') ?? '21:00';
 
   /// وقت تقرير Telegram اليومي
   /// الافتراضي: '02:00'
-  String get telegramReportTime => _remoteConfig?.getString('telegram_report_time') ?? '02:00';
+  String get telegramReportTime =>
+      _remoteConfig?.getString('telegram_report_time') ?? '02:00';
 
   // ═══════════════════════════════════════════════════════════════
   //  🏨 قواعد الحجوزات (3 مفاتيح)
@@ -176,17 +196,20 @@ class RemoteConfigService {
   /// حد أيام الديون المتأخرة (أيام)
   /// الافتراضي: 30
   /// الملف المرتبط: late_payment_whatsapp_screen.dart:106
-  int get latePaymentThresholdDays => _remoteConfig?.getInt('late_payment_threshold_days') ?? 30;
+  int get latePaymentThresholdDays =>
+      _remoteConfig?.getInt('late_payment_threshold_days') ?? 30;
 
   /// لون الغرفة المتأخرة عن السداد (كود Hex بدون 0xFF)
   /// الافتراضي: '795548' (بني)
   /// الملف المرتبط: room_payment_status_provider.dart:29
-  String get overdueRoomColor => _remoteConfig?.getString('overdue_room_color') ?? '795548';
+  String get overdueRoomColor =>
+      _remoteConfig?.getString('overdue_room_color') ?? '795548';
 
   /// هل الدفعات يجب أن تكون أعداداً صحيحة فقط؟ (بدون كسور)
   /// الافتراضي: true
   /// الملف المرتبط: booking_checkout_screen.dart:588
-  bool get wholeNumberPaymentsOnly => _remoteConfig?.getBool('whole_number_payments_only') ?? true;
+  bool get wholeNumberPaymentsOnly =>
+      _remoteConfig?.getBool('whole_number_payments_only') ?? true;
 
   // ═══════════════════════════════════════════════════════════════
   //  💰 الحسابات (2 مفتاح)
@@ -195,12 +218,14 @@ class RemoteConfigService {
   /// نوع الخصم الافتراضي: 'per_night' أو 'total'
   /// الافتراضي: 'per_night'
   /// الملف المرتبط: bookings_repository.dart:48
-  String get defaultDiscountType => _remoteConfig?.getString('default_discount_type') ?? 'per_night';
+  String get defaultDiscountType =>
+      _remoteConfig?.getString('default_discount_type') ?? 'per_night';
 
   /// سقف مضاعف السعر (لحماية من أسعار خاطئة)
   /// الافتراضي: 3.0
   /// الملف المرتبط: stay_balance_calculator.dart:234
-  double get maxRateMultiplier => _remoteConfig?.getDouble('max_rate_multiplier') ?? 3.0;
+  double get maxRateMultiplier =>
+      _remoteConfig?.getDouble('max_rate_multiplier') ?? 3.0;
 
   // ═══════════════════════════════════════════════════════════════
   //  💾 النسخ الاحتياطي (2 مفتاح)
@@ -214,7 +239,8 @@ class RemoteConfigService {
   /// فترة الاحتفاظ بالنسخ (أيام)
   /// الافتراضي: 14
   /// الملف المرتبط: auto_backup_manager.dart:67
-  int get backupRetentionDays => _remoteConfig?.getInt('backup_retention_days') ?? 14;
+  int get backupRetentionDays =>
+      _remoteConfig?.getInt('backup_retention_days') ?? 14;
 
   // ═══════════════════════════════════════════════════════════════
   //  📱 الإشعارات والرسائل (2 مفتاح)
@@ -223,12 +249,14 @@ class RemoteConfigService {
   /// الحد الأقصى لطول رسالة WhatsApp (حرف)
   /// الافتراضي: 1000
   /// الملف المرتبط: whatsapp_service.dart:34
-  int get whatsappMessageMaxLength => _remoteConfig?.getInt('whatsapp_message_max_length') ?? 1000;
+  int get whatsappMessageMaxLength =>
+      _remoteConfig?.getInt('whatsapp_message_max_length') ?? 1000;
 
   /// مهلة API CallMeBot (ثانية)
   /// الافتراضي: 15
   /// الملف المرتبط: whatsapp_service.dart:126
-  int get whatsappApiTimeout => _remoteConfig?.getInt('whatsapp_api_timeout') ?? 15;
+  int get whatsappApiTimeout =>
+      _remoteConfig?.getInt('whatsapp_api_timeout') ?? 15;
 
   // ═══════════════════════════════════════════════════════════════
   //  🔧 إعدادات عامة (2 مفتاح)
@@ -237,12 +265,14 @@ class RemoteConfigService {
   /// كود الدولة الافتراضي (لتنسيق أرقام الهواتف)
   /// الافتراضي: '967' (اليمن)
   /// الملف المرتبط: late_payment_whatsapp_screen.dart:34,50
-  String get countryCodeDefault => _remoteConfig?.getString('country_code_default') ?? '967';
+  String get countryCodeDefault =>
+      _remoteConfig?.getString('country_code_default') ?? '967';
 
   /// مهلة API العامة (ثانية)
   /// الافتراضي: 30
   /// الملف المرتبط: constants.dart:12
-  int get apiTimeoutSeconds => _remoteConfig?.getInt('api_timeout_seconds') ?? 30;
+  int get apiTimeoutSeconds =>
+      _remoteConfig?.getInt('api_timeout_seconds') ?? 30;
 
   // ═══════════════════════════════════════════════════════════════
   //  القيم الافتراضية
@@ -339,7 +369,12 @@ class RemoteConfigService {
     if (_isFirebaseConnected)
       'valueSource': _defaults.keys
           .map((key) {
-            final source = _remoteConfig?.getValue(key).source.toString().split('.').last;
+            final source = _remoteConfig
+                ?.getValue(key)
+                .source
+                .toString()
+                .split('.')
+                .last;
             return '$key=$source';
           })
           .join(', '),
