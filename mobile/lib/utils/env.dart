@@ -102,6 +102,27 @@ class Env {
   static const String fcmServerKey = String.fromEnvironment('FCM_SERVER_KEY');
 
   // ═══════════════════════════════════════════════════════════════
+  //  PostHog Analytics (Session Replay + Feature Flags + Product Analytics)
+  // ═══════════════════════════════════════════════════════════════
+  // PostHog Cloud — مجاني حتى 1M حدث/شهر + 5K session replay/شهر
+  // احصل على المفتاح من: https://app.posthog.com/project/settings
+  // مرّره عبر:
+  //   --dart-define=POSTHOG_API_KEY=phc_xxxxx
+  //   --dart-define=POSTHOG_HOST=https://app.posthog.com  (اختياري، افتراضي Cloud)
+
+  /// PostHog API Key — يجب تمريره عبر --dart-define
+  static const String posthogApiKey = String.fromEnvironment(
+    'POSTHOG_API_KEY',
+  );
+
+  /// PostHog Host — افتراضي: Cloud (https://app.posthog.com)
+  /// للـ self-hosted: مرّر عنوان خادمك (مثل: https://posthog.yourdomain.com)
+  static const String posthogHost = String.fromEnvironment(
+    'POSTHOG_HOST',
+    defaultValue: 'https://app.posthog.com',
+  );
+
+  // ═══════════════════════════════════════════════════════════════
   //  Convenience checks
   // ═══════════════════════════════════════════════════════════════
 
@@ -125,4 +146,7 @@ class Env {
 
   /// هل تم تكوين FCM للإرسال المباشر؟
   static bool get isFcmSendConfigured => fcmServerKey.isNotEmpty;
+
+  /// هل تم تكوين PostHog؟
+  static bool get isPosthogConfigured => posthogApiKey.isNotEmpty;
 }
