@@ -1,1 +1,367 @@
-aW1wb3J0ICdkYXJ0OmlvJzsKCmltcG9ydCAncGFja2FnZTpmbHV0dGVyL2ZvdW5kYXRpb24uZGFydCc7CmltcG9ydCAncGFja2FnZTppbnRsL2ludGwuZGFydCc7CmltcG9ydCAncGFja2FnZTpwYXRoX3Byb3ZpZGVyL3BhdGhfcHJvdmlkZXIuZGFydCc7CgppbXBvcnQgJ2xvZ2dpbmcvbG9nX21vZGVscy5kYXJ0JzsKCmV4cG9ydCAnbG9nZ2luZy9sb2dfbW9kZWxzLmRhcnQnOwoKLy8vINmG2LjYp9mFINin2YTYqtiz2KzZitmEINin2YTZhdiq2YLYr9mFCmNsYXNzIEFwcHdyaXRlTG9nZ2VyIHsKICBmYWN0b3J5IEFwcHdyaXRlTG9nZ2VyKCkgPT4gX2luc3RhbmNlOwogIEFwcHdyaXRlTG9nZ2VyLl9pbnRlcm5hbCgpOwogIHN0YXRpYyBmaW5hbCBBcHB3cml0ZUxvZ2dlciBfaW5zdGFuY2UgPSBBcHB3cml0ZUxvZ2dlci5faW50ZXJuYWwoKTsKCiAgZmluYWwgTGlzdDxMb2dFbnRyeT4gX2xvZ3MgPSBbXTsKICBzdGF0aWMgY29uc3QgaW50IF9tYXhMb2dFbnRyaWVzID0gMTAwOwogIExvZ0xldmVsIF9taW5MZXZlbCA9IExvZ0xldmVsLmluZm87CiAgYm9vbCBfZW5hYmxlQ29uc29sZSA9IHRydWU7CiAgYm9vbCBfZW5hYmxlRmlsZSA9IGZhbHNlOwogIEZpbGU/IF9sb2dGaWxlOwoKICAvLy8g2KrZh9mK2KbYqSDYp9mE2YXYs9is2YQKICBGdXR1cmU8dm9pZD4gaW5pdGlhbGl6ZSh7CiAgICBMb2dMZXZlbCBtaW5MZXZlbCA9IExvZ0xldmVsLmluZm8sCiAgICBib29sIGVuYWJsZUNvbnNvbGUgPSB0cnVlLAogICAgYm9vbCBlbmFibGVGaWxlID0gZmFsc2UsCiAgfSkgYXN5bmMgewogICAgX21pbkxldmVsID0gbWluTGV2ZWw7CiAgICBfZW5hYmxlQ29uc29sZSA9IGVuYWJsZUNvbnNvbGU7CiAgICBfZW5hYmxlRmlsZSA9IGVuYWJsZUZpbGU7CgogICAgaWYgKF9lbmFibGVGaWxlKSB7CiAgICAgIGF3YWl0IF9pbml0aWFsaXplTG9nRmlsZSgpOwogICAgfQogIH0KCiAgLy8vINiq2YfZitim2Kkg2YXZhNmBINin2YTYs9is2YQKICBGdXR1cmU8dm9pZD4gX2luaXRpYWxpemVMb2dGaWxlKCkgYXN5bmMgewogICAgdHJ5IHsKICAgICAgZmluYWwgZGlyZWN0b3J5ID0gYXdhaXQgZ2V0QXBwbGljYXRpb25Eb2N1bWVudHNEaXJlY3RvcnkoKTsKICAgICAgZmluYWwgbG9nc0RpciA9IERpcmVjdG9yeSgnJHtkaXJlY3RvcnkucGF0aH0vYXBwd3JpdGVfbG9ncycpOwoKICAgICAgaWYgKCFsb2dzRGlyLmV4aXN0c1N5bmMoKSkgewogICAgICAgIGF3YWl0IGxvZ3NEaXIuY3JlYXRlKHJlY3Vyc2l2ZTogdHJ1ZSk7CiAgICAgIH0KCiAgICAgIGZpbmFsIGZpbGVOYW1lID0KICAgICAgICAgICdhcHB3cml0ZV8ke0RhdGVGb3JtYXQoJ3l5eXktTU0tZGQnKS5mb3JtYXQoRGF0ZVRpbWUubm93KCkpfS5sb2cnOwogICAgICBfbG9nRmlsZSA9IEZpbGUoJyR7bG9nc0Rpci5wYXRofS8kZmlsZU5hbWUnKTsKICAgIH0gY2F0Y2ggKGUpIHsKICAgICAgZGVidWdQcmludCgnRXJyb3IgaW5pdGlhbGl6aW5nIGxvZyBmaWxlOiAkZScpOwogICAgfQogIH0KCiAgLy8vINiq2LPYrNmK2YQg2LHYs9in2YTYqQogIHZvaWQgbG9nKAogICAgU3RyaW5nIG1lc3NhZ2UsIHsKICAgIExvZ0xldmVsIGxldmVsID0gTG9nTGV2ZWwuaW5mbywKICAgIFN0cmluZyB0YWcgPSAnQVBQV1JJVEUnLAogICAgZHluYW1pYyBlcnJvciwKICAgIFN0YWNrVHJhY2U/IHN0YWNrVHJhY2UsCiAgfSkgewogICAgaWYgKGxldmVsLnZhbHVlIDwgX21pbkxldmVsLnZhbHVlKSB7CiAgICAgIHJldHVybjsKICAgIH0KCiAgICBmaW5hbCBlbnRyeSA9IExvZ0VudHJ5KAogICAgICB0aW1lc3RhbXA6IERhdGVUaW1lLm5vdygpLAogICAgICBsZXZlbDogbGV2ZWwsCiAgICAgIG1lc3NhZ2U6IG1lc3NhZ2UsCiAgICAgIHRhZzogdGFnLAogICAgICBlcnJvcjogZXJyb3IsCiAgICAgIHN0YWNrVHJhY2U6IHN0YWNrVHJhY2UsCiAgICApOwoKICAgIF9sb2dzLmFkZChlbnRyeSk7CiAgICBpZiAoX2xvZ3MubGVuZ3RoID4gX21heExvZ0VudHJpZXMpIHsKICAgICAgX2xvZ3MucmVtb3ZlUmFuZ2UoMCwgX2xvZ3MubGVuZ3RoIC0gX21heExvZ0VudHJpZXMpOwogICAgfQoKICAgIGlmIChfZW5hYmxlQ29uc29sZSkgewogICAgICBfcHJpbnRUb0NvbnNvbGUoZW50cnkpOwogICAgfQoKICAgIGlmIChfZW5hYmxlRmlsZSAmJiBfbG9nRmlsZSAhPSBudWxsKSB7CiAgICAgIF93cml0ZVRvRmlsZShlbnRyeSk7CiAgICB9CiAgfQoKICAvLy8g2KrYs9is2YrZhCDYrti32KMg2YHZiiDYp9mE2KzYr9mI2YQKICB2b2lkIGxvZ1RhYmxlRXJyb3IoewogICAgcmVxdWlyZWQgU3RyaW5nIHRhYmxlTmFtZSwKICAgIHJlcXVpcmVkIFN0cmluZyBvcGVyYXRpb24sCiAgICByZXF1aXJlZCBTdHJpbmcgZXJyb3JNZXNzYWdlLAogICAgU3RyaW5nPyByZWNvcmRJZCwKICAgIE1hcDxTdHJpbmcsIGR5bmFtaWM+PyByZWNvcmREYXRhLAogICAgU3RhY2tUcmFjZT8gc3RhY2tUcmFjZSwKICB9KSB7CiAgICBmaW5hbCBtZXNzYWdlID0gU3RyaW5nQnVmZmVyKCk7CiAgICBtZXNzYWdlLndyaXRlbG4oJ+KdjCDYrti32KMg2YHZiiDYp9mE2KzYr9mI2YQ6ICR0YWJsZU5hbWUnKTsKICAgIG1lc3NhZ2Uud3JpdGVsbignICAg2KfZhNi52YXZhNmK2Kk6ICRvcGVyYXRpb24nKTsKICAgIGlmIChyZWNvcmRJZCAhPSBudWxsKSB7CiAgICAgIG1lc3NhZ2Uud3JpdGVsbignICAg2YXYudix2YEg2KfZhNiz2KzZhDogJHJlY29yZElkJyk7CiAgICB9CiAgICBpZiAocmVjb3JkRGF0YSAhPSBudWxsKSB7CiAgICAgIG1lc3NhZ2Uud3JpdGVsbignICAg2KfZhNio2YrYp9mG2KfYqjogJHJlY29yZERhdGEnKTsKICAgIH0KICAgIG1lc3NhZ2Uud3JpdGUoJyAgINin2YTYrti32KM6ICRlcnJvck1lc3NhZ2UnKTsKCiAgICBsb2coCiAgICAgIG1lc3NhZ2UudG9TdHJpbmcoKSwKICAgICAgbGV2ZWw6IExvZ0xldmVsLmVycm9yLAogICAgICB0YWc6ICdUQUJMRV9FUlJPUicsCiAgICAgIGVycm9yOiBlcnJvck1lc3NhZ2UsCiAgICAgIHN0YWNrVHJhY2U6IHN0YWNrVHJhY2UsCiAgICApOwogIH0KCiAgLy8vINiq2LPYrNmK2YQg2K7Yt9ijINmB2Yog2KfZhNit2YLZhAogIHZvaWQgbG9nRmllbGRFcnJvcih7CiAgICByZXF1aXJlZCBTdHJpbmcgdGFibGVOYW1lLAogICAgcmVxdWlyZWQgU3RyaW5nIGZpZWxkTmFtZSwKICAgIHJlcXVpcmVkIFN0cmluZyBlcnJvck1lc3NhZ2UsCiAgICBTdHJpbmc/IHJlY29yZElkLAogICAgZHluYW1pYyBmaWVsZFZhbHVlLAogICAgU3RhY2tUcmFjZT8gc3RhY2tUcmFjZSwKICB9KSB7CiAgICBmaW5hbCBtZXNzYWdlID0gU3RyaW5nQnVmZmVyKCk7CiAgICBtZXNzYWdlLndyaXRlbG4oJ+KdjCDYrti32KMg2YHZiiDYp9mE2K3ZgtmEOiAkdGFibGVOYW1lLiRmaWVsZE5hbWUnKTsKICAgIG1lc3NhZ2Uud3JpdGVsbignICAg2YbZiNi5INin2YTYrti32KM6ICRlcnJvck1lc3NhZ2UnKTsKICAgIGlmIChyZWNvcmRJZCAhPSBudWxsKSB7CiAgICAgIG1lc3NhZ2Uud3JpdGVsbignICAg2YXYudix2YEg2KfZhNiz2KzZhDogJHJlY29yZElkJyk7CiAgICB9CiAgICBpZiAoZmllbGRWYWx1ZSAhPSBudWxsKSB7CiAgICAgIG1lc3NhZ2Uud3JpdGVsbignICAg2YLZitmF2Kkg2KfZhNit2YLZhDogJGZpZWxkVmFsdWUnKTsKICAgIH0KCiAgICBsb2coCiAgICAgIG1lc3NhZ2UudG9TdHJpbmcoKSwKICAgICAgbGV2ZWw6IExvZ0xldmVsLmVycm9yLAogICAgICB0YWc6ICdGSUVMRF9FUlJPUicsCiAgICAgIGVycm9yOiBlcnJvck1lc3NhZ2UsCiAgICAgIHN0YWNrVHJhY2U6IHN0YWNrVHJhY2UsCiAgICApOwogIH0KCiAgLy8vINiq2LPYrNmK2YQg2K7Yt9ijINmB2Yog2KfZhNmF2K7Yt9i3IChTY2hlbWEpCiAgdm9pZCBsb2dTY2hlbWFFcnJvcih7CiAgICByZXF1aXJlZCBTdHJpbmcgY29sbGVjdGlvbk5hbWUsCiAgICByZXF1aXJlZCBTdHJpbmcgZXJyb3JNZXNzYWdlLAogICAgU3RyaW5nPyBleHBlY3RlZEZpZWxkLAogICAgU3RyaW5nPyBhY3R1YWxGaWVsZCwKICAgIFN0YWNrVHJhY2U/IHN0YWNrVHJhY2UsCiAgfSkgewogICAgZmluYWwgbWVzc2FnZSA9IFN0cmluZ0J1ZmZlcigpOwogICAgbWVzc2FnZS53cml0ZWxuKCfimqDvuI8g2K7Yt9ijINmB2Yog2YXYrti32LcgQXBwd3JpdGU6ICRjb2xsZWN0aW9uTmFtZScpOwogICAgbWVzc2FnZS53cml0ZWxuKCcgICDYp9mE2LHYs9in2YTYqTogJGVycm9yTWVzc2FnZScpOwogICAgaWYgKGV4cGVjdGVkRmllbGQgIT0gbnVsbCkgewogICAgICBtZXNzYWdlLndyaXRlbG4oJyAgINin2YTYrdmC2YQg2KfZhNmF2KrZiNmC2Lk6ICRleHBlY3RlZEZpZWxkJyk7CiAgICB9CiAgICBpZiAoYWN0dWFsRmllbGQgIT0gbnVsbCkgewogICAgICBtZXNzYWdlLndyaXRlbG4oJyAgINin2YTYrdmC2YQg2KfZhNmB2LnZhNmKOiAkYWN0dWFsRmllbGQnKTsKICAgIH0KCiAgICBsb2coCiAgICAgIG1lc3NhZ2UudG9TdHJpbmcoKSwKICAgICAgbGV2ZWw6IExvZ0xldmVsLndhcm5pbmcsCiAgICAgIHRhZzogJ1NDSEVNQV9FUlJPUicsCiAgICAgIGVycm9yOiBlcnJvck1lc3NhZ2UsCiAgICAgIHN0YWNrVHJhY2U6IHN0YWNrVHJhY2UsCiAgICApOwogIH0KCiAgLy8vINiq2LPYrNmK2YQg2LnYr9mFINiq2LfYp9io2YIg2KfZhNit2YLZiNmECiAgdm9pZCBsb2dGaWVsZE1pc21hdGNoKHsKICAgIHJlcXVpcmVkIFN0cmluZyB0YWJsZU5hbWUsCiAgICByZXF1aXJlZCBMaXN0PFN0cmluZz4gbWlzc2luZ0ZpZWxkcywKICAgIHJlcXVpcmVkIExpc3Q8U3RyaW5nPiBleHRyYUZpZWxkcywKICAgIFN0YWNrVHJhY2U/IHN0YWNrVHJhY2UsCiAgfSkgewogICAgZmluYWwgbWVzc2FnZSA9IFN0cmluZ0J1ZmZlcigpOwogICAgbWVzc2FnZS53cml0ZWxuKCfwn5SNINi52K/ZhSDYqti32KfYqNmCINin2YTYrdmC2YjZhDogJHRhYmxlTmFtZScpOwogICAgaWYgKG1pc3NpbmdGaWVsZHMuaXNOb3RFbXB0eSkgewogICAgICBtZXNzYWdlLndyaXRlbG4oJyAgINit2YLZiNmEINmF2YHZgtmI2K/YqTogJHttaXNzaW5nRmllbGRzLmpvaW4oJywgJyl9Jyk7CiAgICB9CiAgICBpZiAoZXh0cmFGaWVsZHMuaXNOb3RFbXB0eSkgewogICAgICBtZXNzYWdlLndyaXRlbG4oJyAgINit2YLZiNmEINil2LbYp9mB2YrYqTogJHtleHRyYUZpZWxkcy5qb2luKCcsICcpfScpOwogICAgfQoKICAgIGxvZygKICAgICAgbWVzc2FnZS50b1N0cmluZygpLAogICAgICBsZXZlbDogTG9nTGV2ZWwud2FybmluZywKICAgICAgdGFnOiAnRklFTERfTUlTTUFUQ0gnLAogICAgICBlcnJvcjogJ01pc3Npbmc6ICR7bWlzc2luZ0ZpZWxkcy5sZW5ndGh9LCBFeHRyYTogJHtleHRyYUZpZWxkcy5sZW5ndGh9JywKICAgICAgc3RhY2tUcmFjZTogc3RhY2tUcmFjZSwKICAgICk7CiAgfQoKICAvLy8g2KrYs9is2YrZhCDZgdi02YQg2KfZhNmF2LLYp9mF2YbYqQogIHZvaWQgbG9nU3luY0Vycm9yKHsKICAgIHJlcXVpcmVkIFN0cmluZyB0YWJsZU5hbWUsCiAgICByZXF1aXJlZCBTdHJpbmcgb3BlcmF0aW9uLAogICAgcmVxdWlyZWQgU3RyaW5nIGVycm9yTWVzc2FnZSwKICAgIFN0cmluZz8gbG9jYWxJZCwKICAgIFN0cmluZz8gc2VydmVySWQsCiAgICBTdGFja1RyYWNlPyBzdGFja1RyYWNlLAogIH0pIHsKICAgIGZpbmFsIG1lc3NhZ2UgPSBTdHJpbmdCdWZmZXIoKTsKICAgIG1lc3NhZ2Uud3JpdGVsbign8J+UhCDZgdi02YQg2KfZhNmF2LLYp9mF2YbYqTogJHRhYmxlTmFtZScpOwogICAgbWVzc2FnZS53cml0ZWxuKCcgICDYp9mE2LnZhdmE2YrYqTogJG9wZXJhdGlvbicpOwogICAgaWYgKGxvY2FsSWQgIT0gbnVsbCkgewogICAgICBtZXNzYWdlLndyaXRlbG4oJyAgINin2YTZhdit2YTZiiBJRDogJGxvY2FsSWQnKTsKICAgIH0KICAgIGlmIChzZXJ2ZXJJZCAhPSBudWxsKSB7CiAgICAgIG1lc3NhZ2Uud3JpdGVsbignICAg2KfZhNiz2YrYsdmB2LEgSUQ6ICRzZXJ2ZXJJZCcpOwogICAgfQogICAgbWVzc2FnZS53cml0ZSgnICAg2KfZhNiu2LfYozogJGVycm9yTWVzc2FnZScpOwoKICAgIGxvZygKICAgICAgbWVzc2FnZS50b1N0cmluZygpLAogICAgICBsZXZlbDogTG9nTGV2ZWwuZXJyb3IsCiAgICAgIHRhZzogJ1NZTkNfRVJST1InLAogICAgICBlcnJvcjogZXJyb3JNZXNzYWdlLAogICAgICBzdGFja1RyYWNlOiBzdGFja1RyYWNlLAogICAgKTsKICB9CgogIC8vLyDYt9io2KfYudipINil2YTZiSBDb25zb2xlCiAgdm9pZCBfcHJpbnRUb0NvbnNvbGUoTG9nRW50cnkgZW50cnkpIHsKICAgIGZpbmFsIGVtb2ppID0gX2dldEVtb2ppRm9yTGV2ZWwoZW50cnkubGV2ZWwpOwogICAgZGVidWdQcmludCgnJGVtb2ppICR7ZW50cnkudG9Gb3JtYXR0ZWRTdHJpbmcoKX0nKTsKICB9CgogIC8vLyDZg9iq2KfYqNipINil2YTZiSDYp9mE2YXZhNmBCiAgRnV0dXJlPHZvaWQ+IF93cml0ZVRvRmlsZShMb2dFbnRyeSBlbnRyeSkgYXN5bmMgewogICAgdHJ5IHsKICAgICAgYXdhaXQgX2xvZ0ZpbGU/LndyaXRlQXNTdHJpbmcoCiAgICAgICAgJyR7ZW50cnkudG9Gb3JtYXR0ZWRTdHJpbmcoKX1cbicsCiAgICAgICAgbW9kZTogRmlsZU1vZGUuYXBwZW5kLAogICAgICApOwogICAgfSBjYXRjaCAoZSkgewogICAgICBkZWJ1Z1ByaW50KCdFcnJvciB3cml0aW5nIHRvIGxvZyBmaWxlOiAkZScpOwogICAgfQogIH0KCiAgLy8vINin2YTYrdi12YjZhCDYudmE2YkgRW1vamkg2K3Ys9ioINin2YTZhdiz2KrZiNmJCiAgU3RyaW5nIF9nZXRFbW9qaUZvckxldmVsKExvZ0xldmVsIGxldmVsKSB7CiAgICBzd2l0Y2ggKGxldmVsKSB7CiAgICAgIGNhc2UgTG9nTGV2ZWwuZGVidWc6CiAgICAgICAgcmV0dXJuICfwn5CbJzsKICAgICAgY2FzZSBMb2dMZXZlbC5pbmZvOgogICAgICAgIHJldHVybiAn4oS577iPJzsKICAgICAgY2FzZSBMb2dMZXZlbC53YXJuaW5nOgogICAgICAgIHJldHVybiAn4pqg77iPJzsKICAgICAgY2FzZSBMb2dMZXZlbC5lcnJvcjoKICAgICAgICByZXR1cm4gJ+KdjCc7CiAgICAgIGNhc2UgTG9nTGV2ZWwuY3JpdGljYWw6CiAgICAgICAgcmV0dXJuICfwn5SlJzsKICAgIH0KICB9CgogIC8vIENvbnZlbmllbmNlIG1ldGhvZHMKICB2b2lkIGRlYnVnKFN0cmluZyBtZXNzYWdlLCB7U3RyaW5nIHRhZyA9ICdBUFBXUklURSd9KSB7CiAgICBsb2cobWVzc2FnZSwgbGV2ZWw6IExvZ0xldmVsLmRlYnVnLCB0YWc6IHRhZyk7CiAgfQoKICB2b2lkIGluZm8oU3RyaW5nIG1lc3NhZ2UsIHtTdHJpbmcgdGFnID0gJ0FQUFdSSVRFJ30pIHsKICAgIGxvZyhtZXNzYWdlLCB0YWc6IHRhZyk7CiAgfQoKICB2b2lkIHdhcm5pbmcoCiAgICBTdHJpbmcgbWVzc2FnZSwgewogICAgU3RyaW5nIHRhZyA9ICdBUFBXUklURScsCiAgICBkeW5hbWljIGVycm9yLAogICAgU3RhY2tUcmFjZT8gc3RhY2tUcmFjZSwKICB9KSB7CiAgICBsb2coCiAgICAgIG1lc3NhZ2UsCiAgICAgIGxldmVsOiBMb2dMZXZlbC53YXJuaW5nLAogICAgICB0YWc6IHRhZywKICAgICAgZXJyb3I6IGVycm9yLAogICAgICBzdGFja1RyYWNlOiBzdGFja1RyYWNlLAogICAgKTsKICB9CgogIHZvaWQgZXJyb3IoCiAgICBTdHJpbmcgbWVzc2FnZSwgewogICAgU3RyaW5nIHRhZyA9ICdBUFBXUklURScsCiAgICBkeW5hbWljIGVycm9yLAogICAgU3RhY2tUcmFjZT8gc3RhY2tUcmFjZSwKICB9KSB7CiAgICBsb2coCiAgICAgIG1lc3NhZ2UsCiAgICAgIGxldmVsOiBMb2dMZXZlbC5lcnJvciwKICAgICAgdGFnOiB0YWcsCiAgICAgIGVycm9yOiBlcnJvciwKICAgICAgc3RhY2tUcmFjZTogc3RhY2tUcmFjZSwKICAgICk7CiAgfQoKICB2b2lkIGNyaXRpY2FsKAogICAgU3RyaW5nIG1lc3NhZ2UsIHsKICAgIFN0cmluZyB0YWcgPSAnQVBQV1JJVEUnLAogICAgZHluYW1pYyBlcnJvciwKICAgIFN0YWNrVHJhY2U/IHN0YWNrVHJhY2UsCiAgfSkgewogICAgbG9nKAogICAgICBtZXNzYWdlLAogICAgICBsZXZlbDogTG9nTGV2ZWwuY3JpdGljYWwsCiAgICAgIHRhZzogdGFnLAogICAgICBlcnJvcjogZXJyb3IsCiAgICAgIHN0YWNrVHJhY2U6IHN0YWNrVHJhY2UsCiAgICApOwogIH0KCiAgLy8vINin2YTYrdi12YjZhCDYudmE2Ykg2KzZhdmK2Lkg2KfZhNiz2KzZhNin2KoKICBMaXN0PExvZ0VudHJ5PiBnZXRMb2dzKHtMb2dMZXZlbD8gZmlsdGVyTGV2ZWx9KSB7CiAgICBpZiAoZmlsdGVyTGV2ZWwgPT0gbnVsbCkgewogICAgICByZXR1cm4gTGlzdC51bm1vZGlmaWFibGUoX2xvZ3MpOwogICAgfQogICAgcmV0dXJuIF9sb2dzLndoZXJlKChsb2cpID0+IGxvZy5sZXZlbCA9PSBmaWx0ZXJMZXZlbCkudG9MaXN0KCk7CiAgfQoKICAvLy8g2KfZhNit2LXZiNmEINi52YTZiSDYpdit2LXYp9im2YrYp9iqINin2YTYs9is2YTYp9iqCiAgTWFwPFN0cmluZywgaW50PiBnZXRTdGF0aXN0aWNzKCkgewogICAgcmV0dXJuIHsKICAgICAgJ3RvdGFsJzogX2xvZ3MubGVuZ3RoLAogICAgICAnZGVidWcnOiBfbG9ncy53aGVyZSgobCkgPT4gbC5sZXZlbCA9PSBMb2dMZXZlbC5kZWJ1ZykubGVuZ3RoLAogICAgICAnaW5mbyc6IF9sb2dzLndoZXJlKChsKSA9PiBsLmxldmVsID09IExvZ0xldmVsLmluZm8pLmxlbmd0aCwKICAgICAgJ3dhcm5pbmcnOiBfbG9ncy53aGVyZSgobCkgPT4gbC5sZXZlbCA9PSBMb2dMZXZlbC53YXJuaW5nKS5sZW5ndGgsCiAgICAgICdlcnJvcic6IF9sb2dzLndoZXJlKChsKSA9PiBsLmxldmVsID09IExvZ0xldmVsLmVycm9yKS5sZW5ndGgsCiAgICAgICdjcml0aWNhbCc6IF9sb2dzLndoZXJlKChsKSA9PiBsLmxldmVsID09IExvZ0xldmVsLmNyaXRpY2FsKS5sZW5ndGgsCiAgICB9OwogIH0KCiAgLy8vINmF2LPYrSDYp9mE2LPYrNmE2KfYqgogIHZvaWQgY2xlYXJMb2dzKCkgewogICAgX2xvZ3MuY2xlYXIoKTsKICB9CgogIC8vLyDYqti12K/ZitixINin2YTYs9is2YTYp9iqCiAgRnV0dXJlPEZpbGU/PiBleHBvcnRMb2dzKCkgYXN5bmMgewogICAgdHJ5IHsKICAgICAgZmluYWwgZGlyZWN0b3J5ID0gYXdhaXQgZ2V0QXBwbGljYXRpb25Eb2N1bWVudHNEaXJlY3RvcnkoKTsKICAgICAgZmluYWwgZmlsZU5hbWUgPQogICAgICAgICAgJ2FwcHdyaXRlX2xvZ3NfZXhwb3J0XyR7RGF0ZUZvcm1hdCgneXl5eS1NTS1kZF9ISG1tc3MnKS5mb3JtYXQoRGF0ZVRpbWUubm93KCkpfS50eHQnOwogICAgICBmaW5hbCBmaWxlID0gRmlsZSgnJHtkaXJlY3RvcnkucGF0aH0vJGZpbGVOYW1lJyk7CgogICAgICBmaW5hbCBidWZmZXIgPSBTdHJpbmdCdWZmZXIoKTsKICAgICAgZm9yIChmaW5hbCBsb2cgaW4gX2xvZ3MpIHsKICAgICAgICBidWZmZXIud3JpdGVsbihsb2cudG9Gb3JtYXR0ZWRTdHJpbmcoKSk7CiAgICAgICAgYnVmZmVyLndyaXRlbG4oJ+KUgCcgKiA4MCk7CiAgICAgIH0KCiAgICAgIGF3YWl0IGZpbGUud3JpdGVBc1N0cmluZyhidWZmZXIudG9TdHJpbmcoKSk7CiAgICAgIHJldHVybiBmaWxlOwogICAgfSBjYXRjaCAoZSkgewogICAgICBlcnJvcignRmFpbGVkIHRvIGV4cG9ydCBsb2dzJywgZXJyb3I6IGUpOwogICAgICByZXR1cm4gbnVsbDsKICAgIH0KICB9CgogIC8vLyDYp9mE2K3YtdmI2YQg2LnZhNmJINmF2LPYp9ixINmF2YTZgSDYp9mE2LPYrNmEINin2YTYrdin2YTZigogIFN0cmluZz8gZ2V0IGN1cnJlbnRMb2dGaWxlUGF0aCA9PiBfbG9nRmlsZT8ucGF0aDsKfQo=
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+
+import 'logging/log_models.dart';
+
+export 'logging/log_models.dart';
+
+/// نظام التسجيل المتقدم
+class AppwriteLogger {
+  factory AppwriteLogger() => _instance;
+  AppwriteLogger._internal();
+  static final AppwriteLogger _instance = AppwriteLogger._internal();
+
+  final List<LogEntry> _logs = [];
+  static const int _maxLogEntries = 100;
+  LogLevel _minLevel = LogLevel.info;
+  bool _enableConsole = true;
+  bool _enableFile = false;
+  File? _logFile;
+
+  /// تهيئة المسجل
+  Future<void> initialize({
+    LogLevel minLevel = LogLevel.info,
+    bool enableConsole = true,
+    bool enableFile = false,
+  }) async {
+    _minLevel = minLevel;
+    _enableConsole = enableConsole;
+    _enableFile = enableFile;
+
+    if (_enableFile) {
+      await _initializeLogFile();
+    }
+  }
+
+  /// تهيئة ملف السجل
+  Future<void> _initializeLogFile() async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final logsDir = Directory('${directory.path}/appwrite_logs');
+
+      if (!logsDir.existsSync()) {
+        await logsDir.create(recursive: true);
+      }
+
+      final fileName =
+          'appwrite_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.log';
+      _logFile = File('${logsDir.path}/$fileName');
+    } catch (e) {
+      debugPrint('Error initializing log file: $e');
+    }
+  }
+
+  /// تسجيل رسالة
+  void log(
+    String message, {
+    LogLevel level = LogLevel.info,
+    String tag = 'APPWRITE',
+    dynamic error,
+    StackTrace? stackTrace,
+  }) {
+    if (level.value < _minLevel.value) {
+      return;
+    }
+
+    final entry = LogEntry(
+      timestamp: DateTime.now(),
+      level: level,
+      message: message,
+      tag: tag,
+      error: error,
+      stackTrace: stackTrace,
+    );
+
+    _logs.add(entry);
+    if (_logs.length > _maxLogEntries) {
+      _logs.removeRange(0, _logs.length - _maxLogEntries);
+    }
+
+    if (_enableConsole) {
+      _printToConsole(entry);
+    }
+
+    if (_enableFile && _logFile != null) {
+      _writeToFile(entry);
+    }
+  }
+
+  /// تسجيل خطأ في الجدول
+  void logTableError({
+    required String tableName,
+    required String operation,
+    required String errorMessage,
+    String? recordId,
+    Map<String, dynamic>? recordData,
+    StackTrace? stackTrace,
+  }) {
+    final message = StringBuffer();
+    message.writeln('❌ خطأ في الجدول: $tableName');
+    message.writeln('   العملية: $operation');
+    if (recordId != null) {
+      message.writeln('   معرف السجل: $recordId');
+    }
+    if (recordData != null) {
+      message.writeln('   البيانات: $recordData');
+    }
+    message.write('   الخطأ: $errorMessage');
+
+    log(
+      message.toString(),
+      level: LogLevel.error,
+      tag: 'TABLE_ERROR',
+      error: errorMessage,
+      stackTrace: stackTrace,
+    );
+  }
+
+  /// تسجيل خطأ في الحقل
+  void logFieldError({
+    required String tableName,
+    required String fieldName,
+    required String errorMessage,
+    String? recordId,
+    dynamic fieldValue,
+    StackTrace? stackTrace,
+  }) {
+    final message = StringBuffer();
+    message.writeln('❌ خطأ في الحقل: $tableName.$fieldName');
+    message.writeln('   نوع الخطأ: $errorMessage');
+    if (recordId != null) {
+      message.writeln('   معرف السجل: $recordId');
+    }
+    if (fieldValue != null) {
+      message.writeln('   قيمة الحقل: $fieldValue');
+    }
+
+    log(
+      message.toString(),
+      level: LogLevel.error,
+      tag: 'FIELD_ERROR',
+      error: errorMessage,
+      stackTrace: stackTrace,
+    );
+  }
+
+  /// تسجيل خطأ في المخطط (Schema)
+  void logSchemaError({
+    required String collectionName,
+    required String errorMessage,
+    String? expectedField,
+    String? actualField,
+    StackTrace? stackTrace,
+  }) {
+    final message = StringBuffer();
+    message.writeln('⚠️ خطأ في مخطط Appwrite: $collectionName');
+    message.writeln('   الرسالة: $errorMessage');
+    if (expectedField != null) {
+      message.writeln('   الحقل المتوقع: $expectedField');
+    }
+    if (actualField != null) {
+      message.writeln('   الحقل الفعلي: $actualField');
+    }
+
+    log(
+      message.toString(),
+      level: LogLevel.warning,
+      tag: 'SCHEMA_ERROR',
+      error: errorMessage,
+      stackTrace: stackTrace,
+    );
+  }
+
+  /// تسجيل عدم تطابق الحقول
+  void logFieldMismatch({
+    required String tableName,
+    required List<String> missingFields,
+    required List<String> extraFields,
+    StackTrace? stackTrace,
+  }) {
+    final message = StringBuffer();
+    message.writeln('🔍 عدم تطابق الحقول: $tableName');
+    if (missingFields.isNotEmpty) {
+      message.writeln('   حقول مفقودة: ${missingFields.join(', ')}');
+    }
+    if (extraFields.isNotEmpty) {
+      message.writeln('   حقول إضافية: ${extraFields.join(', ')}');
+    }
+
+    log(
+      message.toString(),
+      level: LogLevel.warning,
+      tag: 'FIELD_MISMATCH',
+      error: 'Missing: ${missingFields.length}, Extra: ${extraFields.length}',
+      stackTrace: stackTrace,
+    );
+  }
+
+  /// تسجيل فشل المزامنة
+  void logSyncError({
+    required String tableName,
+    required String operation,
+    required String errorMessage,
+    String? localId,
+    String? serverId,
+    StackTrace? stackTrace,
+  }) {
+    final message = StringBuffer();
+    message.writeln('🔄 فشل المزامنة: $tableName');
+    message.writeln('   العملية: $operation');
+    if (localId != null) {
+      message.writeln('   المحلي ID: $localId');
+    }
+    if (serverId != null) {
+      message.writeln('   السيرفر ID: $serverId');
+    }
+    message.write('   الخطأ: $errorMessage');
+
+    log(
+      message.toString(),
+      level: LogLevel.error,
+      tag: 'SYNC_ERROR',
+      error: errorMessage,
+      stackTrace: stackTrace,
+    );
+  }
+
+  /// طباعة إلى Console
+  void _printToConsole(LogEntry entry) {
+    final emoji = _getEmojiForLevel(entry.level);
+    debugPrint('$emoji ${entry.toFormattedString()}');
+  }
+
+  /// كتابة إلى الملف
+  Future<void> _writeToFile(LogEntry entry) async {
+    try {
+      await _logFile?.writeAsString(
+        '${entry.toFormattedString()}\n',
+        mode: FileMode.append,
+      );
+    } catch (e) {
+      debugPrint('Error writing to log file: $e');
+    }
+  }
+
+  /// الحصول على Emoji حسب المستوى
+  String _getEmojiForLevel(LogLevel level) {
+    switch (level) {
+      case LogLevel.debug:
+        return '🐛';
+      case LogLevel.info:
+        return 'ℹ️';
+      case LogLevel.warning:
+        return '⚠️';
+      case LogLevel.error:
+        return '❌';
+      case LogLevel.critical:
+        return '🔥';
+    }
+  }
+
+  // Convenience methods
+  void debug(String message, {String tag = 'APPWRITE'}) {
+    log(message, level: LogLevel.debug, tag: tag);
+  }
+
+  void info(String message, {String tag = 'APPWRITE'}) {
+    log(message, tag: tag);
+  }
+
+  void warning(
+    String message, {
+    String tag = 'APPWRITE',
+    dynamic error,
+    StackTrace? stackTrace,
+  }) {
+    log(
+      message,
+      level: LogLevel.warning,
+      tag: tag,
+      error: error,
+      stackTrace: stackTrace,
+    );
+  }
+
+  void error(
+    String message, {
+    String tag = 'APPWRITE',
+    dynamic error,
+    StackTrace? stackTrace,
+  }) {
+    log(
+      message,
+      level: LogLevel.error,
+      tag: tag,
+      error: error,
+      stackTrace: stackTrace,
+    );
+  }
+
+  void critical(
+    String message, {
+    String tag = 'APPWRITE',
+    dynamic error,
+    StackTrace? stackTrace,
+  }) {
+    log(
+      message,
+      level: LogLevel.critical,
+      tag: tag,
+      error: error,
+      stackTrace: stackTrace,
+    );
+  }
+
+  /// الحصول على جميع السجلات
+  List<LogEntry> getLogs({LogLevel? filterLevel}) {
+    if (filterLevel == null) {
+      return List.unmodifiable(_logs);
+    }
+    return _logs.where((log) => log.level == filterLevel).toList();
+  }
+
+  /// الحصول على إحصائيات السجلات
+  Map<String, int> getStatistics() {
+    return {
+      'total': _logs.length,
+      'debug': _logs.where((l) => l.level == LogLevel.debug).length,
+      'info': _logs.where((l) => l.level == LogLevel.info).length,
+      'warning': _logs.where((l) => l.level == LogLevel.warning).length,
+      'error': _logs.where((l) => l.level == LogLevel.error).length,
+      'critical': _logs.where((l) => l.level == LogLevel.critical).length,
+    };
+  }
+
+  /// مسح السجلات
+  void clearLogs() {
+    _logs.clear();
+  }
+
+  /// تصدير السجلات
+  Future<File?> exportLogs() async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final fileName =
+          'appwrite_logs_export_${DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now())}.txt';
+      final file = File('${directory.path}/$fileName');
+
+      final buffer = StringBuffer();
+      for (final log in _logs) {
+        buffer.writeln(log.toFormattedString());
+        buffer.writeln('─' * 80);
+      }
+
+      await file.writeAsString(buffer.toString());
+      return file;
+    } catch (e) {
+      error('Failed to export logs', error: e);
+      return null;
+    }
+  }
+
+  /// الحصول على مسار ملف السجل الحالي
+  String? get currentLogFilePath => _logFile?.path;
+}
