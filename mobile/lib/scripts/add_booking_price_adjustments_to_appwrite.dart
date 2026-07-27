@@ -30,6 +30,14 @@ final List<Map<String, dynamic>> attributes = [
   {'key': 'adjustmentMode', 'type': 'string', 'size': 20, 'required': false, 'default': 'per_night'},
   {'key': 'amount', 'type': 'double', 'required': true},
   {'key': 'effectiveHotelDay', 'type': 'string', 'size': 10, 'required': true},
+<<<<<<< Updated upstream
+=======
+  // ✅ إصلاح 2026-07-26: hotelDayKey مطلوب على Appwrite Cloud
+  // محلياً effectiveHotelDay = hotelDayKey (نفس القيمة، اسم مختلف)
+  {'key': 'hotelDayKey', 'type': 'string', 'size': 50, 'required': true},
+  // ✅ appliedDate: التاريخ الذي طُبِّق فيه التعديل
+  {'key': 'appliedDate', 'type': 'string', 'size': 50, 'required': true},
+>>>>>>> Stashed changes
   {'key': 'endHotelDay', 'type': 'string', 'size': 10, 'required': false},
   {'key': 'isActive', 'type': 'boolean', 'required': false, 'default': true},
   {'key': 'reason', 'type': 'string', 'size': 500, 'required': false},
