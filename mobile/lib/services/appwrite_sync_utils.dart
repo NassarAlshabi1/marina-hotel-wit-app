@@ -125,6 +125,7 @@ class AppwriteSyncUtils {
       'entityType',
       'entityUuid',
       'hotelDayKey',
+      'appliedDate',
       'idempotencyKey',
       'ipAddress',
       'isFinancial',
@@ -189,6 +190,7 @@ class AppwriteSyncUtils {
       'deviceId',
       'finalRate',
       'hotelDayKey',
+      'appliedDate',
       'idempotencyKey',
       'isProcessedByAutoFix',
       'lastModified',
@@ -254,6 +256,11 @@ class AppwriteSyncUtils {
       'deviceId',
       'effectiveHotelDay',
       'endHotelDay',
+<<<<<<< Updated upstream
+=======
+      'hotelDayKey',
+      'appliedDate',
+>>>>>>> Stashed changes
       'idempotencyKey',
       'isActive',
       'lastModified',
@@ -538,6 +545,7 @@ class AppwriteSyncUtils {
       'deletedAtIso',
       'deviceId',
       'hotelDayKey',
+      'appliedDate',
       'idempotencyKey',
       'lastModified',
       'lastModifiedEpoch',
@@ -620,6 +628,7 @@ class AppwriteSyncUtils {
       'deviceId',
       'effectiveDate',
       'hotelDayKey',
+      'appliedDate',
       'idempotencyKey',
       'isReversed',
       'lastModified',
@@ -775,6 +784,7 @@ class AppwriteSyncUtils {
       'employeeUuid',
       'expenseId',
       'hotelDayKey',
+      'appliedDate',
       'idempotencyKey',
       'lastModified',
       'lastModifiedEpoch',
@@ -1456,6 +1466,13 @@ class AppwriteSyncUtils {
       'adjustmentMode': 'string',
       'amount': 'double',
       'effectiveHotelDay': 'string',
+<<<<<<< Updated upstream
+=======
+      // ✅ إصلاح 2026-07-26: hotelDayKey مطلوب على Appwrite Cloud
+      // محلياً effectiveHotelDay = hotelDayKey (نفس القيمة، اسم مختلف)
+      'hotelDayKey': 'string',
+      'appliedDate': 'string',
+>>>>>>> Stashed changes
       'endHotelDay': 'string',
       'isActive': 'boolean',
       'reason': 'string',
