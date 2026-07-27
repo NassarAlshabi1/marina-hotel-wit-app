@@ -13,7 +13,8 @@
 // - Error tracking (تتبع الأخطاء)
 //
 // التكلفة: مجاني حتى 1M حدث/شهر + 5K session replay/شهر
-// PostHog Cloud (US): https://us.posthog.com
+// PostHog Cloud (US): https://us.posthog.com (project 529460)
+// Ingestion endpoint: https://us.i.posthog.com
 
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
@@ -64,11 +65,27 @@ class PostHogService {
   ///
   /// يجب استدعاؤها مرة واحدة في بداية التطبيق (main.dart).
   /// إذا لم يكن POSTHOG_API_KEY مُهيأ، تتجاهل الخدمة بصمت.
+  /// PostHog API Key — مُدمج من AndroidManifest meta-data
+  /// (يمكن تجاوزه عبر --dart-define=POSTHOG_API_KEY)
+  static const String _defaultApiKey = String.fromEnvironment(
+    'POSTHOG_API_KEY',
+    defaultValue: 'phc_AunnUfNB2zemediAycLLbFYEgqdtL9k7ej8PhYHwFL6q',
+  );
+
+  /// PostHog Host — ingestion endpoint للـ US Cloud
+  static const String _defaultHost = String.fromEnvironment(
+    'POSTHOG_HOST',
+    defaultValue: 'https://us.i.posthog.com',
+  );
+
   Future<void> initialize() async {
     if (_isInitialized) return;
 
-    // إذا لم يكن المفتاح مُهيأ، نتجاهل بصمت (التطبيق يعمل بدون PostHog)
-    if (!Env.isPosthogConfigured) {
+    // استخدام المفتاح من --dart-define أو القيمة الافتراضية (المُدمجة من AndroidManifest)
+    final apiKey = Env.posthogApiKey.isNotEmpty ? Env.posthogApiKey : _defaultApiKey;
+    final host = Env.posthogHost.isNotEmpty ? Env.posthogHost : _defaultHost;
+
+    if (apiKey.isEmpty) {
       developer.log(
         'ℹ️ PostHog not configured — skipping initialization',
         name: 'PostHogService',
@@ -77,8 +94,8 @@ class PostHogService {
     }
 
     try {
-      final config = PostHogConfig(Env.posthogApiKey)
-        ..host = Env.posthogHost
+      final config = PostHogConfig(apiKey)
+        ..host = host
         // تفعيل تتبع دورة حياة التطبيق (foreground/background)
         ..captureApplicationLifecycleEvents = true
         // تفعيل Session Replay (5K تسجيل/شهر مجاناً)
@@ -92,7 +109,7 @@ class PostHogService {
       _isInitialized = true;
 
       developer.log(
-        '✅ PostHog initialized (host=${Env.posthogHost})',
+        '✅ PostHog initialized (host=$host, key=${apiKey.substring(0, 12)}...)',
         name: 'PostHogService',
       );
     } catch (e) {
