@@ -18,6 +18,7 @@ dependencies:
   dio: ^5.7.0
   drift: ^2.31.0
   encrypt: ^5.0.3
+  excel: ^4.0.6
   file_picker: ^8.1.2
   firebase_ai: ^3.6.0
   firebase_analytics: ^12.3.0
@@ -48,6 +49,7 @@ dependencies:
   pdf: ^3.11.1
   permission_handler: ^11.3.1
   pointycastle: ^3.9.1
+  posthog_flutter: ^4.0.0
   printing: ^5.13.2
   share_plus: ^10.1.1
   shared_preferences: ^2.3.2

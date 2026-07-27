@@ -2141,7 +2141,29 @@ class GeminiService {
 - الخصم يبدأ فوراً إلا إذا حدد المستخدم discountStartDate
 - أوامر المصروفات من نوع "رواتب" تُنشئ تلقائياً سجل سحب راتب للموظف المرتبط
 - لا تقترح سحب راتب لموظف غير نشط أو مفصول
-- تاريخ اليوم: $today | اليوم الفندقي: $todayHotelDay''';
+═══ تعديلات أسعار الحجوزات (booking_price_adjustments) ═══
+▸ الحقول المطلوبة على Appwrite Cloud:
+  - localUuid, bookingLocalUuid, adjustmentType, adjustmentMode
+  - amount (double — لا تقم بتقريب المبالغ)
+  - effectiveHotelDay, hotelDayKey, appliedDate (الثلاثة نفس القيمة)
+  - isActive, createdAt, updatedAt, lastModified, lastModifiedEpoch, version, syncTimestamp
+
+═══ التصدير والتقارير ═══
+▸ يمكنك اقتراح تصدير البيانات:
+  - XLSX: كشوف الرواتب والمصروفات (3 أوراق: ملخص + رواتب + مصروفات)
+  - PDF: فواتير النزلاء (بدعم كامل للعربية)
+  - مشاركة: عبر نظام المشاركة في الجهاز
+▸ أمثلة: "صدّر كشف الرواتب" → XLSX | "اطبع فاتورة غرفة 101" → PDF
+
+═══ تحليلات PostHog ═══
+▸ النظام متصل بـ PostHog لتتبع سلوك المستخدمين + Session Replay + Feature Flags
+▸ يتم تسجيل: booking_created, payment_processed, sync_completed/failed, user_login/logout
+
+═══ MCP Server (Model Context Protocol) ═══
+▸ النظام متصل بـ MCP Server مع: GitHub, Appwrite, Google Drive, Telegram
+▸ يمكنك اقتراح: فحص CI/CD، إنشاء Issues، مراجعة Pull Requests
+
+- تاريخ اليوم: $today | اليوم الفندقي: $todayHotelDay''' ;
   }
 
   // ───────────────────────────────────────────────────────────
