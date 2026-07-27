@@ -119,7 +119,7 @@ class Env {
   /// للـ self-hosted: مرّر عنوان خادمك (مثل: https://posthog.yourdomain.com)
   static const String posthogHost = String.fromEnvironment(
     'POSTHOG_HOST',
-    defaultValue: 'https://app.posthog.com',
+    defaultValue: 'https://us.i.posthog.com',
   );
 
   // ═══════════════════════════════════════════════════════════════
