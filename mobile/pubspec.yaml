@@ -4,8 +4,8 @@ description: Marina Hotel - Complete Hotel Management System (RTL, Offline-First
 publish_to: none
 version: 1.2.0+3
 environment:
-  sdk: '>=3.8.0 <4.0.0'
-  flutter: '>=3.35.7'
+  sdk: '>=3.9.0 <4.0.0'
+  flutter: '>=3.44.0'
 dependencies:
   android_alarm_manager_plus: ^4.0.5
   appwrite: ^21.0.0
