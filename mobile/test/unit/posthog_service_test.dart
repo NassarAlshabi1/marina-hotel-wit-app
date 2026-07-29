@@ -33,7 +33,9 @@ void main() {
     });
 
     test('isFeatureEnabled should return false when not initialized', () async {
-      final result = await PostHogService.instance.isFeatureEnabled('test_flag');
+      final result = await PostHogService.instance.isFeatureEnabled(
+        'test_flag',
+      );
       expect(result, isFalse);
     });
 
