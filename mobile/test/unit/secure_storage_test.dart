@@ -3,7 +3,7 @@ import 'package:marina_hotel_mobile/utils/secure_storage.dart';
 
 void main() {
   const testKey = 'VQngYXPLjdebdGvs+QMdXsiDKySEJBhlks5zDTUxTLk=';
-  
+
   group('SecureStorage', () {
     group('getEncryptionKey', () {
       test('should return a non-empty base64 key', () {
@@ -42,12 +42,15 @@ void main() {
         expect(decrypted, equals(plain));
       });
 
-      test('should produce different ciphertexts for same plaintext (random IV)', () {
-        const plain = 'same text';
-        final enc1 = SecureStorage.encryptValue(plain, testKey);
-        final enc2 = SecureStorage.encryptValue(plain, testKey);
-        expect(enc1, isNot(equals(enc2)));
-      });
+      test(
+        'should produce different ciphertexts for same plaintext (random IV)',
+        () {
+          const plain = 'same text';
+          final enc1 = SecureStorage.encryptValue(plain, testKey);
+          final enc2 = SecureStorage.encryptValue(plain, testKey);
+          expect(enc1, isNot(equals(enc2)));
+        },
+      );
 
       test('encrypted value should start with ENC:AES: prefix', () {
         final encrypted = SecureStorage.encryptValue('test', testKey);
