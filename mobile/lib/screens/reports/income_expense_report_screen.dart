@@ -2538,6 +2538,7 @@ class _IncomeExpenseReportScreenState
     }
 
     return ListView.builder(
+      // ignore: deprecated_member_use
       cacheExtent: 500,
       itemCount: combined.length,
       itemBuilder: (context, index) {
