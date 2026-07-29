@@ -68,7 +68,7 @@ jobs:
           --dart-define=AGENT_ROUTER_BASE_URL=https://openrouter.ai/api/v1
 
       - name: Upload staging artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: 'marina-hotel-staging-${{ github.run_number }}'
           path: mobile/build/app/outputs/flutter-apk/app-release.apk
