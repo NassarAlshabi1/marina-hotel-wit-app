@@ -12,7 +12,13 @@ permissions:
 # ═══════════════════════════════════════════════════════════════
 on:
   push:
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/ci.yml'
   pull_request:
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/ci.yml'
   workflow_dispatch:
 
 jobs:
