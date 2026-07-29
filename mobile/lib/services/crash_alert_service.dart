@@ -6,10 +6,8 @@
 
 import 'dart:async';
 import 'dart:developer' as developer;
-import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../utils/env.dart';
-import 'crashlytics_service.dart';
 
 /// خدمة تنبيهات الأعطال عبر Telegram
 class CrashAlertService {
@@ -38,8 +36,10 @@ class CrashAlertService {
     if (_isMonitoring) return;
     _isMonitoring = true;
     _monitorTimer = Timer.periodic(interval, (_) => _checkCrashRate());
-    developer.log('✅ CrashAlertService monitoring started (interval=${interval.inMinutes}min)',
-        name: 'CrashAlertService');
+    developer.log(
+      '✅ CrashAlertService monitoring started (interval=${interval.inMinutes}min)',
+      name: 'CrashAlertService',
+    );
   }
 
   /// إيقاف المراقبة
@@ -102,17 +102,26 @@ class CrashAlertService {
         'https://api.telegram.org/bot${Env.telegramBotToken}/sendMessage',
       );
 
-      await http.post(url, body: {
-        'chat_id': Env.telegramChatId,
-        'text': message,
-        'parse_mode': 'HTML',
-      }).timeout(const Duration(seconds: 10));
+      await http
+          .post(
+            url,
+            body: {
+              'chat_id': Env.telegramChatId,
+              'text': message,
+              'parse_mode': 'HTML',
+            },
+          )
+          .timeout(const Duration(seconds: 10));
 
-      developer.log('🚨 Crash alert sent to Telegram (rate=${(crashRate * 100).toStringAsFixed(1)}%)',
-          name: 'CrashAlertService');
+      developer.log(
+        '🚨 Crash alert sent to Telegram (rate=${(crashRate * 100).toStringAsFixed(1)}%)',
+        name: 'CrashAlertService',
+      );
     } catch (e) {
-      developer.log('⚠️ Failed to send crash alert: $e',
-          name: 'CrashAlertService');
+      developer.log(
+        '⚠️ Failed to send crash alert: $e',
+        name: 'CrashAlertService',
+      );
     }
   }
 
