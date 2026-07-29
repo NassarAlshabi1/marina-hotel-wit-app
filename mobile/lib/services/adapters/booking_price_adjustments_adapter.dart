@@ -203,7 +203,8 @@ class BookingPriceAdjustmentsAdapter
       _k(src, 'adjustmentMode', 'adjustment_mode'): model.adjustmentMode,
       // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15)
       // على Cloud هو double — نرسل كما هو بدون rounding
-      _k(src, 'amount', 'amount'): model.amount, // ✅ Appwrite: double (fixed 2026-07-26)
+      _k(src, 'amount', 'amount'):
+          model.amount, // ✅ Appwrite: double (fixed 2026-07-26)
       _k(src, 'effectiveHotelDay', 'effective_hotel_day'):
           model.effectiveHotelDay,
       // ✅ إصلاح 2026-07-26: hotelDayKey مطلوب على Appwrite Cloud
