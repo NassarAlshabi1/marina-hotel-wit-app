@@ -48,7 +48,7 @@ jobs:
           BASE_API_URL: http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1
 
       - name: Upload PWA artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: marina-hotel-pwa-${{ github.run_number }}
           path: mobile/build/web
