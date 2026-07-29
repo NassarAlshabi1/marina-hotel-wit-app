@@ -38,7 +38,11 @@ void main() {
       );
 
       // التحقق من ظهور شاشة تسجيل الدخول
-      expect($(LoginScreen), findsOneWidget, reason: 'يجب أن تظهر شاشة تسجيل الدخول');
+      expect(
+        $(LoginScreen),
+        findsOneWidget,
+        reason: 'يجب أن تظهر شاشة تسجيل الدخول',
+      );
 
       // التحقق من وجود عنوان "تسجيل الدخول"
       expect($('تسجيل الدخول'), findsOneWidget);
@@ -76,12 +80,18 @@ void main() {
       await $('دخول').tap();
 
       // يجب أن تظهر رسالة خطأ تطلب إدخال اسم المستخدم
-      expect($('يرجى إدخال اسم المستخدم'), findsOneWidget,
-          reason: 'يجب أن تظهر رسالة تحقق عند ترك الحقل فارغاً');
+      expect(
+        $('يرجى إدخال اسم المستخدم'),
+        findsOneWidget,
+        reason: 'يجب أن تظهر رسالة تحقق عند ترك الحقل فارغاً',
+      );
 
       // يجب أن تظهر رسالة خطأ تطلب إدخال كلمة المرور
-      expect($('يرجى إدخال كلمة المرور'), findsOneWidget,
-          reason: 'يجب أن تظهر رسالة تحقق عند ترك كلمة المرور فارغة');
+      expect(
+        $('يرجى إدخال كلمة المرور'),
+        findsOneWidget,
+        reason: 'يجب أن تظهر رسالة تحقق عند ترك كلمة المرور فارغة',
+      );
     },
   );
 
@@ -135,14 +145,21 @@ void main() {
       await $(TextFormField).at(1).enterText('secret123');
 
       // افتراضياً كلمة المرور مخفية (obscured)
-      expect($('secret123'), findsNothing, reason: 'كلمة المرور يجب أن تكون مخفية افتراضياً');
+      expect(
+        $('secret123'),
+        findsNothing,
+        reason: 'كلمة المرور يجب أن تكون مخفية افتراضياً',
+      );
 
       // الضغط على أيقونة إظهار كلمة المرور
       await $(Icons.visibility).tap();
 
       // الآن كلمة المرور ظاهرة
-      expect($('secret123'), findsOneWidget,
-          reason: 'كلمة المرور يجب أن تكون ظاهرة بعد الضغط على أيقونة العين');
+      expect(
+        $('secret123'),
+        findsOneWidget,
+        reason: 'كلمة المرور يجب أن تكون ظاهرة بعد الضغط على أيقونة العين',
+      );
 
       // الأيقونة تغيَّرت إلى visibility_off
       expect($(Icons.visibility_off), findsOneWidget);
@@ -180,7 +197,11 @@ void main() {
 
       // القيمة انقلبت
       checkbox = $.tester.widget<Checkbox>($(Checkbox));
-      expect(checkbox.value, !initialValue, reason: 'الضغط على Checkbox يجب أن يقلب قيمته');
+      expect(
+        checkbox.value,
+        !initialValue,
+        reason: 'الضغط على Checkbox يجب أن يقلب قيمته',
+      );
 
       // الضغط مرة أخرى لإعادتها
       await $(Checkbox).tap();
@@ -206,13 +227,18 @@ void main() {
       // التحقق من أن شاشة تسجيل الدخول في وضع RTL
       // (LoginScreen نفسها تستخدم Directionality(textDirection: TextDirection.rtl))
       final directionWidget = $.tester.widget<Directionality>(
-        find.ancestor(
-          of: $('تسجيل الدخول'),
-          matching: find.byType(Directionality),
-        ).first,
+        find
+            .ancestor(
+              of: $('تسجيل الدخول'),
+              matching: find.byType(Directionality),
+            )
+            .first,
       );
-      expect(directionWidget.textDirection, TextDirection.rtl,
-          reason: 'التطبيق يجب أن يكون في وضع RTL للعربية');
+      expect(
+        directionWidget.textDirection,
+        TextDirection.rtl,
+        reason: 'التطبيق يجب أن يكون في وضع RTL للعربية',
+      );
     },
   );
 
