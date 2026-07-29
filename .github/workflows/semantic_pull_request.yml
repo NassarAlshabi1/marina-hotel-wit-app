@@ -32,6 +32,10 @@ permissions:
   pull-requests: write
   contents: read
 
+concurrency:
+  group: semantic-pr-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   semantic:
     name: Validate PR Title
