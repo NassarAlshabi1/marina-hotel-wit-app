@@ -17,10 +17,12 @@
 // الأمان:
 //   - private_key يبقى في الذاكرة فقط — لا يُكتب على القرص
 //   - access_token يُخزّن في الذاكرة فقط (لا SharedPreferences)
-//   - في حال فشل التجديد، يُعاد المحاولة مرة واحدة قبل الإبلاغ بالخطأ
 //
-// البديل الإنتاجي الحقيقي: Appwrite Function + Firebase Admin SDK على الخادم.
-// هذا الحل مناسب لـ small-business hotel app بعدد محدود من الأجهزة.
+// التنفيذ:
+//   - يستخدم pointycastle لـ RS256 signing فقط (PKCS1Encoding + RSASigner).
+//   - يستخدم parser DER يدوي بسيط لاستخراج (modulus, privateExponent, prime1,
+//     prime2) من مفتاح RSA بصيغة PKCS#8 أو PKCS#1. هذا أكثر موثوقية من
+//     الاعتماد على ASN1 classes التي قد تتغير أسماؤها بين إصدارات pointycastle.
 
 import 'dart:convert';
 import 'dart:typed_data';
@@ -230,24 +232,31 @@ class FcmJwtHelper {
   ///
   /// الخطوات:
   ///   1. تنظيف PEM من headers و newlines الزائدة
-  ///   2. فك base64 → DER bytes (PKCS#8 format)
-  ///   3. تحويل DER → RSAPrivateKey عبر ASN.1 parsing يدوي
-  ///   4. توقيع SHA-256 مع PKCS1 v1.5 padding
+  ///   2. فك base64 → DER bytes
+  ///   3. استخراج (modulus, d, p, q) من DER عبر parser يدوي بسيط
+  ///   4. توقيع SHA-256 مع PKCS1 v1.5 padding عبر pointycastle
   String _signRs256(String data, String privateKeyPem) {
     // 1. تنظيف PEM من headers و newlines الزائدة
     final keyLines = privateKeyPem
         .split('\n')
         .where(
-          (l) =>
-              !l.startsWith('-----') && l.trim().isNotEmpty,
+          (l) => !l.startsWith('-----') && l.trim().isNotEmpty,
         )
         .join('');
     final keyBytes = base64.decode(keyLines);
 
-    // 2. تحميل المفتاح — يدعم PKCS#8 و PKCS#1 (للتوافق مع مختلف إصدارات fcm-key.json)
-    final rsaKey = _parseRsaPrivateKey(keyBytes);
+    // 2. استخراج مكونات RSA من DER
+    final rsaComponents = _extractRsaComponents(keyBytes);
 
-    // 3. حساب SHA-256 للبيانات (EMSA-PKCS1-v1_5 padding مع SHA-256)
+    // 3. بناء RSAPrivateKey + توقيع
+    final rsaKey = pc.RSAPrivateKey(
+      rsaComponents.modulus,
+      rsaComponents.privateExponent,
+      rsaComponents.primeP,
+      rsaComponents.primeQ,
+    );
+
+    // 4. حساب SHA-256 للبيانات (EMSA-PKCS1-v1_5 padding مع SHA-256)
     final dataBytes = utf8.encode(data);
     final digest = sha256.convert(dataBytes).bytes;
     final signer = pc.PKCS1Encoding(pc.RSASigner(pc.SHA256Digest()))
@@ -259,60 +268,6 @@ class FcmJwtHelper {
     return _base64UrlBytes(signature.bytes);
   }
 
-  /// تحميل RSA private key من DER bytes.
-  ///
-  /// يدعم صيغتين:
-  ///   - PKCS#8 (الافتراضي من Firebase console — يبدأ بـ 0x30 0x82 ... 0x02 0x01 0x00)
-  ///   - PKCS#1 (الصيغة القديمة — يبدأ بـ 0x30 0x82 ... 0x02 ... مباشرة)
-  ///
-  /// يعتمد على pointycastle Asn1Parser لفك الترميز.
-  pc.RSAPrivateKey _parseRsaPrivateKey(List<int> derBytes) {
-    final parser = pc.Asn1Parser(Uint8List.fromList(derBytes));
-    final topSeq = parser.nextObject() as pc.Asn1Sequence;
-
-    // اكتشاف الصيغة: PKCS#8 يحوي algorithm identifier كعنصر ثاني
-    // (SEQUENCE { OID, NULL }). PKCS#1 يبدأ مباشرة بـ version (INTEGER 0).
-    //
-    // نتحقق: إذا كان العنصر الأول INTEGER 0 والعنصر الثاني SEQUENCE يحوي OID،
-    // فهو PKCS#8. وإلا فهو PKCS#1.
-    final firstElement = topSeq.elements![0];
-    final isPkcs8 = firstElement is pc.Asn1Integer &&
-        (firstElement.value!.length == 1 && firstElement.value![0] == 0) &&
-        topSeq.elements!.length > 2 &&
-        topSeq.elements![1] is pc.Asn1Sequence;
-
-    late final pc.Asn1Sequence rsaKeySeq;
-    if (isPkcs8) {
-      // PKCS#8: العنصر الثالث هو OCTET STRING يحوي RSAPrivateKey DER-encoded
-      final octetString = topSeq.elements![2] as pc.Asn1OctetString;
-      final innerParser = pc.Asn1Parser(octetString.valueBytes);
-      rsaKeySeq = innerParser.nextObject() as pc.Asn1Sequence;
-    } else {
-      // PKCS#1: الـ sequence نفسها هي RSAPrivateKey
-      rsaKeySeq = topSeq;
-    }
-
-    // RSAPrivateKey ::= SEQUENCE {
-    //   version           INTEGER (0),
-    //   modulus           INTEGER,  -- n
-    //   publicExponent    INTEGER,  -- e
-    //   privateExponent   INTEGER,  -- d
-    //   prime1            INTEGER,  -- p
-    //   prime2            INTEGER,  -- q
-    //   exponent1         INTEGER,  -- d mod (p-1)
-    //   exponent2         INTEGER,  -- d mod (q-1)
-    //   coefficient       INTEGER,  -- (inverse of q) mod p
-    //   otherPrimeInfos   OtherPrimeInfos OPTIONAL
-    // }
-    final elements = rsaKeySeq.elements!;
-    final modulus = (elements[1] as pc.Asn1Integer).integer!;
-    final privateExponent = (elements[3] as pc.Asn1Integer).integer!;
-    final prime1 = (elements[4] as pc.Asn1Integer).integer!;
-    final prime2 = (elements[5] as pc.Asn1Integer).integer!;
-
-    return pc.RSAPrivateKey(modulus, privateExponent, prime1, prime2);
-  }
-
   /// base64Url-encode بدون padding (لمتوافقية JWT).
   String _base64Url(String input) {
     return _base64UrlBytes(utf8.encode(input));
@@ -321,4 +276,199 @@ class FcmJwtHelper {
   String _base64UrlBytes(List<int> bytes) {
     return base64Url.encode(bytes).replaceAll('=', '');
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Manual DER parser for RSA private keys
+// ═══════════════════════════════════════════════════════════════
+
+/// مكونات RSA private key المستخرجة من DER.
+class _RsaComponents {
+  const _RsaComponents({
+    required this.modulus,
+    required this.privateExponent,
+    required this.primeP,
+    required this.primeQ,
+  });
+  final BigInt modulus; // n
+  final BigInt privateExponent; // d
+  final BigInt primeP; // p
+  final BigInt primeQ; // q
+}
+
+/// Parser DER بسيط لقراءة RSA private keys.
+///
+/// DER (Distinguished Encoding Rules) هو تنسيق ثنائي لـ ASN.1.
+/// RSA private key له بنية:
+///
+///   RSAPrivateKey ::= SEQUENCE {
+///     version           INTEGER,
+///     modulus           INTEGER,  -- n
+///     publicExponent    INTEGER,  -- e
+///     privateExponent   INTEGER,  -- d
+///     prime1            INTEGER,  -- p
+///     prime2            INTEGER,  -- q
+///     exponent1         INTEGER,  -- d mod (p-1)
+///     exponent2         INTEGER,  -- d mod (q-1)
+///     coefficient       INTEGER,  -- (inverse of q) mod p
+///   }
+///
+/// في PKCS#8، يُغلّف هذا الـ SEQUENCE داخل:
+///
+///   PrivateKeyInfo ::= SEQUENCE {
+///     version         INTEGER (0),
+///     algorithm       AlgorithmIdentifier,  -- SEQUENCE { OID, NULL }
+///     privateKey      OCTET STRING           -- يحوي RSAPrivateKey DER-encoded
+///   }
+class _DerReader {
+  _DerReader(this.bytes);
+  final List<int> bytes;
+  int offset = 0;
+
+  bool get hasMore => offset < bytes.length;
+
+  /// قراءة byte واحد وتحريك المؤشر.
+  int readByte() {
+    if (offset >= bytes.length) {
+      throw FormatException('Unexpected end of DER at offset $offset');
+    }
+    return bytes[offset++];
+  }
+
+  /// قراءة طول حقل DER (قد يكون 1-byte short form أو multi-byte long form).
+  int readLength() {
+    final first = readByte();
+    if (first < 0x80) {
+      // Short form: length is the byte itself (0-127)
+      return first;
+    }
+    // Long form: first byte's lower 7 bits = number of length bytes
+    final numBytes = first & 0x7F;
+    if (numBytes == 0 || numBytes > 4) {
+      throw FormatException('Invalid DER length encoding: $first');
+    }
+    var length = 0;
+    for (var i = 0; i < numBytes; i++) {
+      length = (length << 8) | readByte();
+    }
+    return length;
+  }
+
+  /// قراءة tag + length + value. يُرجع الـ value bytes.
+  ///
+  /// [expectedTag] إن لم يكن null، يتحقق أن الـ tag المطابق متطابق.
+  List<int> readTaggedValue({int? expectedTag}) {
+    final tag = readByte();
+    if (expectedTag != null && tag != expectedTag) {
+      throw FormatException(
+        'Expected DER tag 0x${expectedTag.toRadixString(16)}, got 0x${tag.toRadixString(16)} at offset ${offset - 1}',
+      );
+    }
+    final length = readLength();
+    final value = bytes.sublist(offset, offset + length);
+    offset += length;
+    return value;
+  }
+
+  /// قراءة SEQUENCE (tag 0x30) — يُرجع reader جديد للمحتوى.
+  _DerReader readSequence() {
+    final value = readTaggedValue(expectedTag: 0x30);
+    return _DerReader(value);
+  }
+
+  /// قراءة INTEGER (tag 0x02) — يُرجع BigInt.
+  BigInt readInteger() {
+    final value = readTaggedValue(expectedTag: 0x02);
+    // DER INTEGER قد يبدأ بـ 0x00 padding byte لضمان أن القيمة موجبة
+    return _decodeBigInt(value);
+  }
+
+  /// قراءة OCTET STRING (tag 0x04) — يُرجع bytes.
+  List<int> readOctetString() {
+    return readTaggedValue(expectedTag: 0x04);
+  }
+
+  /// فك ترميز BigInt من bytes (big-endian, signed).
+  static BigInt _decodeBigInt(List<int> bytes) {
+    if (bytes.isEmpty) return BigInt.zero;
+    // تجاهل الـ 0x00 padding الأولي إن وُجد (يُستخدم لضمان الإشارة الموجبة)
+    var start = 0;
+    while (start < bytes.length - 1 && bytes[start] == 0) {
+      start++;
+    }
+    var result = BigInt.zero;
+    for (var i = start; i < bytes.length; i++) {
+      result = (result << 8) | BigInt.from(bytes[i]);
+    }
+    return result;
+  }
+}
+
+/// استخراج (modulus, d, p, q) من RSA private key بصيغة DER.
+///
+/// يدعم PKCS#8 (يبدأ بـ SEQUENCE { INTEGER(0), SEQUENCE, OCTET STRING })
+/// و PKCS#1 (يبدأ مباشرة بـ RSAPrivateKey SEQUENCE).
+_RsaComponents _extractRsaComponents(List<int> derBytes) {
+  final reader = _DerReader(derBytes);
+  final topSeq = reader.readSequence();
+
+  // اكتشاف الصيغة: العنصر الأول في PKCS#8 هو INTEGER(0).
+  // في PKCS#1، العنصر الأول هو أيضاً version INTEGER(0)، لكن العنصر الثاني
+  // هو modulus (INTEGER كبير) وليس SEQUENCE (algorithm identifier).
+  //
+  // لذلك نتحقق: إذا كان هناك ≥ 3 عناصر والعنصر الثاني SEQUENCE → PKCS#8.
+  // وإلا → PKCS#1 (نقرأ version + modulus + e + d + p + q من نفس الـ sequence).
+  //
+  // لكن لا يمكننا "إلغاء" قراءة عنصر من reader. لذلك نأخذ نهجاً مختلفاً:
+  // نحفظ العنصر الأول (version أو INTEGER كبير)، ثم نتحقق من نوع العنصر التالي.
+  //
+  // أبسط نهج: نحاول PKCS#8 أولاً. إذا فشل (type mismatch)، نُعيد المحاولة
+  // بـ PKCS#1.
+
+  // محاولة 1: PKCS#8
+  try {
+    final pkcs8Reader = _DerReader(derBytes);
+    final topSeq2 = pkcs8Reader.readSequence();
+    // version (INTEGER 0)
+    topSeq2.readInteger();
+    // algorithm (SEQUENCE) — نتخطاه
+    topSeq2.readSequence();
+    // privateKey (OCTET STRING) — يحوي RSAPrivateKey DER-encoded
+    final rsaKeyDer = topSeq2.readOctetString();
+    // الآن نحلل RSAPrivateKey من الداخل
+    final innerReader = _DerReader(rsaKeyDer);
+    final rsaSeq = innerReader.readSequence();
+    rsaSeq.readInteger(); // version
+    final modulus = rsaSeq.readInteger(); // n
+    rsaSeq.readInteger(); // e
+    final d = rsaSeq.readInteger(); // d
+    final p = rsaSeq.readInteger(); // p
+    final q = rsaSeq.readInteger(); // q
+    return _RsaComponents(
+      modulus: modulus,
+      privateExponent: d,
+      primeP: p,
+      primeQ: q,
+    );
+  } catch (_) {
+    // ليست PKCS#8 — جرب PKCS#1
+  }
+
+  // محاولة 2: PKCS#1
+  final rsaSeq = topSeq; // أعد استخدام reader من المحاولة الأولى
+  // لكن reader قد يكون في حالة غير متوقعة — نعيد القراءة من البداية
+  final pkcs1Reader = _DerReader(derBytes);
+  final rsaSeq2 = pkcs1Reader.readSequence();
+  rsaSeq2.readInteger(); // version
+  final modulus = rsaSeq2.readInteger(); // n
+  rsaSeq2.readInteger(); // e
+  final d = rsaSeq2.readInteger(); // d
+  final p = rsaSeq2.readInteger(); // p
+  final q = rsaSeq2.readInteger(); // q
+  return _RsaComponents(
+    modulus: modulus,
+    privateExponent: d,
+    primeP: p,
+    primeQ: q,
+  );
 }
