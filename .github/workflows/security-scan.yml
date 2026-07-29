@@ -147,7 +147,7 @@ jobs:
 
       - name: Upload Semgrep JSON report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: semgrep-report
           path: semgrep-report.json
@@ -222,7 +222,7 @@ jobs:
 
       - name: Upload Trivy license report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: trivy-licenses
           path: trivy-licenses.txt
@@ -321,7 +321,7 @@ jobs:
 
       - name: Upload npm audit reports
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: npm-audit-reports
           path: |
@@ -492,7 +492,7 @@ jobs:
 
       - name: Upload pub security reports
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: pub-security-report
           path: |
@@ -559,7 +559,7 @@ jobs:
 
       - name: Upload PHP security report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: php-security-report
           path: |
@@ -670,7 +670,7 @@ jobs:
 
       - name: Upload malware heuristic report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: malware-heuristics
           path: malware-heuristics/
@@ -678,7 +678,7 @@ jobs:
 
       - name: Upload socket security reports
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: socket-security-reports
           path: socket-*.json
