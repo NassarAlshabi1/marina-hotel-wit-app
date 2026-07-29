@@ -660,6 +660,111 @@ class GeminiService {
             );
           }
         }
+
+        // ═══════════════════════════════════════════════════════
+        //  ✅ تفصيل المدفوعات لكل حجز نشط (للإجابة على أسئلة مثل:
+        //     "آخر مدفوعات غرفة 101" أو "لماذا عليه متبقي" أو
+        //     "ما الأيام التي لم يتم الدفع عنها")
+        // ═══════════════════════════════════════════════════════
+        final unpaidBookings = activeBookings
+            .where((b) => b.remainingBalanceCached > 0.5)
+            .take(30);
+
+        if (unpaidBookings.isNotEmpty) {
+          s.writeln();
+          s.writeln('═══ تفصيل المدفوعات للحجوزات غير المكتملة ═══');
+
+          for (final b in unpaidBookings) {
+            final roomNo = b.roomNumber;
+            final guestName = b.guestName;
+            final totalDue = b.totalDueCached;
+            final totalPaid = b.totalPaidCached;
+            final remaining = b.remainingBalanceCached;
+            final nights = b.calculatedNights;
+            final roomPrice = roomMap[b.roomNumber]?.price ?? 0;
+            final checkin = b.checkinDate.split('T').first;
+
+            s.writeln('  [$roomNo] $guestName:');
+            s.writeln(
+              '    ملخص: $nights ليلة × ${roomPrice.toStringAsFixed(0)} = ${totalDue.toStringAsFixed(0)} ريال',
+            );
+            s.writeln(
+              '    مدفوع: ${totalPaid.toStringAsFixed(0)} | متبقي: ${remaining.toStringAsFixed(0)} | نسبة الدفع: ${totalDue > 0 ? ((totalPaid / totalDue) * 100).toStringAsFixed(0) : 0}%',
+            );
+
+            // جلب سجل المدفوعات الفعلي لهذا الحجز
+            final payments =
+                await (db.select(db.payments)
+                      ..where((p) => p.bookingLocalId.equals(b.id))
+                      ..where((p) => p.deletedAt.isNull())
+                      ..where((p) => p.isVoided.equals(false))
+                      ..orderBy([
+                        (p) => OrderingTerm.desc(p.paymentDate),
+                      ]))
+                    .get();
+
+            if (payments.isNotEmpty) {
+              s.writeln('    سجل المدفوعات (${payments.length} دفعة):');
+              for (final p in payments.take(10)) {
+                final pDate = p.paymentDate.split('T').first;
+                final pMethod = p.paymentMethod;
+                final pAmount = p.amount;
+                final pNotes = (p.notes?.isNotEmpty ?? false)
+                    ? ' | ملاحظات: ${p.notes}'
+                    : '';
+                s.writeln(
+                  '      $pDate: ${pAmount.toStringAsFixed(0)} ريال | $pMethod$pNotes',
+                );
+              }
+              if (payments.length > 10) {
+                s.writeln('      ... (+${payments.length - 10} دفعات أخرى)');
+              }
+            } else {
+              s.writeln('    سجل المدفوعات: لا توجد دفعات مسجلة');
+            }
+
+            // حساب الأيام المدفوعة وغير المدفوعة
+            final paidNights = roomPrice > 0
+                ? (totalPaid / roomPrice).floor()
+                : nights;
+            final unpaidNights = nights - paidNights;
+            s.writeln(
+              '    تحليل الأيام: $nights إجمالي | $paidNights مدفوعة | $unpaidNights غير مدفوعة',
+            );
+            if (unpaidNights > 0) {
+              // حساب تواريخ الأيام غير المدفوعة
+              try {
+                final checkinDate = DateTime.parse(checkin);
+                s.writeln('    الأيام غير المدفوعة:');
+                for (
+                  var i = paidNights;
+                  i < nights && i < paidNights + 10;
+                  i++
+                ) {
+                  final nightDate = checkinDate.add(Duration(days: i));
+                  final nightKey =
+                      '${nightDate.year}-${nightDate.month.toString().padLeft(2, '0')}-${nightDate.day.toString().padLeft(2, '0')}';
+                  s.writeln(
+                    '      $nightKey (ليلة ${i + 1}): ${roomPrice.toStringAsFixed(0)} ريال',
+                  );
+                }
+                if (unpaidNights > 10) {
+                  s.writeln('      ... (+${unpaidNights - 10} ليالٍ أخرى)');
+                }
+              } catch (_) {
+                // تجاهل أخطاء التحليل
+              }
+            }
+
+            // سبب المتبقي
+            if (remaining > 0.5) {
+              final reason = unpaidNights > 0
+                  ? 'لم يتم دفع $unpaidNights ليلة من أصل $nights'
+                  : 'المبلغ المدفوع أقل من الإجمالي المستحق';
+              s.writeln('    سبب المتبقي: $reason');
+            }
+          }
+        }
       }
 
       // ═══════════════════════════════════════════════════════════
@@ -2419,6 +2524,29 @@ class GeminiService {
 
 ▸ الرصيد المتبقي = الإجمالي المستحق - إجمالي المدفوعات
 ▸ الحجز مسدد بالكامل إذا remainingBalance ≤ 0
+
+▸ ✅ الأسئلة المالية المعقدة (يمكنك الإجابة عليها بالبيانات المتوفرة):
+  عند سؤال المستخدم "آخر مدفوعات غرفة 101" أو "لماذا عليه متبقي" أو
+  "ما الأيام التي لم يتم الدفع عنها" — استخدم قسم "تفصيل المدفوعات"
+  في السياق والذي يحتوي على:
+  - سجل كل دفعة (التاريخ، المبلغ، طريقة الدفع، الملاحظات)
+  - عدد الليالي المدفوعة وغير المدفوعة
+  - تواريخ الأيام غير المدفوعة
+  - سبب المتبقي وتحليله
+
+  أمثلة على الإجابات المتوقعة:
+  سؤال: "آخر مدفوعات غرفة 101"
+  → اعرض آخر دفعة من سجل المدفوعات: التاريخ، المبلغ، طريقة الدفع
+
+  سؤال: "لماذا عليه متبقي 15000؟"
+  → اشرح: إجمالي الليالي 5 × 15000 = 75000، مدفوع 60000، متبقي 15000
+    = ليلة واحدة غير مدفوعة (التاريخ: 2026-07-28)
+
+  سؤال: "ما الأيام التي لم يتم الدفع عنها؟"
+  → اعرض قائمة الأيام غير المدفوعة مع تواريخها ومبلغ كل ليلة
+
+  سؤال: "هل غرفة 101 مسددة بالكامل؟"
+  → تحقق من remainingBalance: إذا ≤ 0 → نعم مسددة، إذا > 0 → لا، متبقي X ريال
 
 ▸ تعديلات الأسعار (booking_price_adjustments):
   - تخفيض/زيادة لكل ليلة (per_night) أو إجمالي يُوزع بالتساوي (total)
