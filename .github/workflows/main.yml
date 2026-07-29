@@ -114,6 +114,8 @@ jobs:
           --dart-define=BASE_API_URL=http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1
           --dart-define=AGENT_ROUTER_API_KEY=${{ secrets.AGENTROUTER_API_KEY }}
           --dart-define=AGENT_ROUTER_BASE_URL=https://openrouter.ai/api/v1
+          --dart-define=FCM_PROJECT_ID=aden-flutter
+          --dart-define=FCM_SERVICE_ACCOUNT_JSON=${{ secrets.FCM_SERVICE_ACCOUNT_JSON }}
         env:
           GRADLE_OPTS: "-Xmx6g -XX:MaxMetaspaceSize=1g -Dorg.gradle.daemon=false"
           JAVA_TOOL_OPTIONS: "-Xmx6g -XX:MaxMetaspaceSize=1g"

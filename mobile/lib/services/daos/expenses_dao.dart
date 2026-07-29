@@ -10,6 +10,7 @@ import '../adapters/source.dart';
 import '../appwrite_sync_manager.dart';
 import '../fcm_sender.dart';
 import '../local_db.dart';
+import '../local_notification_service.dart';
 import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
 
@@ -286,12 +287,22 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     // ✅ FCM: إشعار الأجهزة الأخرى بمصروف جديد (fire-and-forget)
     // بعد نجاح الـ transaction.
     if (!originIsServer && comp.amount.present) {
+      final expenseTypeStr = comp.expenseType.present
+          ? comp.expenseType.value
+          : 'مصروف';
       unawaited(
         FcmSender().notifyExpenseAdded(
           amount: comp.amount.value,
-          expenseType: comp.expenseType.present
-              ? comp.expenseType.value
-              : 'مصروف',
+          expenseType: expenseTypeStr,
+        ),
+      );
+      // ✅ إشعار محلي على نفس الجهاز
+      unawaited(
+        LocalNotificationService.instance.notifyExpenseAdded(
+          category: expenseTypeStr,
+          amount: comp.amount.value,
+          description:
+              comp.description.present ? comp.description.value : null,
         ),
       );
     }

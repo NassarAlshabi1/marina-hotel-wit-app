@@ -91,15 +91,42 @@ class Env {
   );
 
   // ═══════════════════════════════════════════════════════════════
-  //  FCM Server Key (للإرسال المباشر من التطبيق)
+  //  FCM Legacy Server Key (للإرسال المباشر من التطبيق — مهمل لكنه يعمل)
   // ═══════════════════════════════════════════════════════════════
   // ⚠️ أمني: هذا المفتاح حساس! احصل عليه من:
   // Firebase Console → Project Settings → Cloud Messaging → Server Key
   // مرّره عبر --dart-define=FCM_SERVER_KEY=your_key
   //
   // ملاحظة: Legacy Server Key مُهمَل من Google لكنه يعمل للإرسال المباشر.
-  // للإنتاج، استبدل هذا بـ Appwrite Function + Firebase Admin SDK.
+  // يُفضّل استخدام FCM HTTP v1 عبر [fcmServiceAccountJson] أدناه.
   static const String fcmServerKey = String.fromEnvironment('FCM_SERVER_KEY');
+
+  // ═══════════════════════════════════════════════════════════════
+  //  FCM HTTP v1 (الطريقة الموصى بها — عبر حساب خدمة Firebase)
+  // ═══════════════════════════════════════════════════════════════
+  // مرّر JSON حساب الخدمة (base64-encoded بدون newlines) عبر:
+  //   --dart-define=FCM_SERVICE_ACCOUNT_JSON=$(base64 -w0 fcm-key.json)
+  //
+  // مرّر project_id من حساب الخدمة عبر:
+  //   --dart-define=FCM_PROJECT_ID=aden-flutter
+  //
+  // آلية العمل:
+  //   1. التطبيق يفك base64 → JSON → private_key + client_email
+  //   2. يبني JWT موقّع بـ RS256 (pointycastle)
+  //   3. يطلب access_token من https://oauth2.googleapis.com/token
+  //   4. يستخدم الـ token للإرسال عبر
+  //      https://fcm.googleapis.com/v1/projects/{project_id}/messages:send
+  //
+  // ⚠️ أمني: مفتاح حساب الخدمة حساس جداً! أي شخص يملكه يستطيع إرسال إشعارات
+  //    لكل مستخدمي Firebase project. ضعه في GitHub Secret (وليس في الكود).
+  //    البديل الأكثر أماناً: Appwrite Function + Firebase Admin SDK على الخادم.
+  static const String fcmServiceAccountJson = String.fromEnvironment(
+    'FCM_SERVICE_ACCOUNT_JSON',
+  );
+
+  static const String fcmProjectId = String.fromEnvironment(
+    'FCM_PROJECT_ID',
+  );
 
   // ═══════════════════════════════════════════════════════════════
   //  PostHog Analytics (Session Replay + Feature Flags + Product Analytics)
@@ -144,8 +171,17 @@ class Env {
   /// هل تم تكوين AgentRouter AI؟
   static bool get isAgentRouterConfigured => agentRouterApiKey.isNotEmpty;
 
-  /// هل تم تكوين FCM للإرسال المباشر؟
-  static bool get isFcmSendConfigured => fcmServerKey.isNotEmpty;
+  /// هل تم تكوين FCM v1 (HTTP v1 + service account)؟
+  /// الطريقة الموصى بها — تتفوق على Legacy Server Key.
+  static bool get isFcmV1Configured =>
+      fcmServiceAccountJson.isNotEmpty && fcmProjectId.isNotEmpty;
+
+  /// هل تم تكوين FCM Legacy (Server Key)؟ — مهمل لكنه يعمل.
+  static bool get isFcmLegacyConfigured => fcmServerKey.isNotEmpty;
+
+  /// هل تم تكوين FCM للإرسال المباشر (أي طريقة)؟
+  static bool get isFcmSendConfigured =>
+      isFcmV1Configured || isFcmLegacyConfigured;
 
   /// هل تم تكوين PostHog؟
   static bool get isPosthogConfigured => posthogApiKey.isNotEmpty;

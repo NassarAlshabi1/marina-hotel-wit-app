@@ -58,6 +58,7 @@ import 'services/google_drive_logger.dart';
 import 'services/google_drive_unified_sync_coordinator.dart';
 import 'services/hotel_day_key_fix_service.dart';
 import 'services/local_db.dart';
+import 'services/local_notification_service.dart';
 import 'services/logging/log_models.dart';
 import 'services/posthog_service.dart';
 import 'services/remote_config_service.dart';
@@ -581,6 +582,15 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           await syncManager.registerDevice();
         } catch (e) {
           dwarn(() => 'Device registration error: $e');
+        }
+
+        // ✅ تهيئة الإشعارات المحلية (للأحداث على نفس الجهاز)
+        // تُظهر notifications عند إنشاء حجز/دفعة/مصروف على نفس الجهاز
+        // (مكمّلة لـ FCM الذي يُرسل للأجهزة الأخرى).
+        try {
+          await LocalNotificationService.instance.initialize();
+        } catch (e) {
+          dwarn(() => 'Local notifications init error: $e');
         }
 
         // تهيئة FCM للإشعارات بين الأجهزة

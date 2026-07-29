@@ -9,6 +9,7 @@ import '../adapters/source.dart';
 import '../appwrite_sync_manager.dart';
 import '../fcm_sender.dart';
 import '../local_db.dart';
+import '../local_notification_service.dart';
 import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
 
@@ -133,6 +134,14 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
         FcmSender().notifyBookingCreated(
           roomNumber: comp.roomNumber.value,
           guestName: comp.guestName.value,
+        ),
+      );
+      // ✅ إشعار محلي على نفس الجهاز (إضافة لـ FCM الذي يُرسل للأجهزة الأخرى)
+      unawaited(
+        LocalNotificationService.instance.notifyBookingCreated(
+          roomNumber: comp.roomNumber.value,
+          guestName: comp.guestName.value,
+          guestPhone: comp.guestPhone.present ? comp.guestPhone.value : null,
         ),
       );
     }

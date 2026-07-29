@@ -10,6 +10,7 @@ import '../adapters/source.dart';
 import '../appwrite_sync_manager.dart';
 import '../fcm_sender.dart';
 import '../local_db.dart';
+import '../local_notification_service.dart';
 import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
 
@@ -320,6 +321,15 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
         FcmSender().notifyPaymentAdded(
           amount: comp.amount.value,
           roomNumber: roomNumber ?? 'غير محدد',
+        ),
+      );
+      // ✅ إشعار محلي على نفس الجهاز
+      unawaited(
+        LocalNotificationService.instance.notifyPaymentAdded(
+          amount: comp.amount.value,
+          roomNumber: roomNumber ?? 'غير محدد',
+          method: comp.paymentMethod.present ? comp.paymentMethod.value : null,
+          guestName: booking?.guestName,
         ),
       );
     }
