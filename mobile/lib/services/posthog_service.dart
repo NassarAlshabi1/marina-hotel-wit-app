@@ -82,7 +82,9 @@ class PostHogService {
     if (_isInitialized) return;
 
     // استخدام المفتاح من --dart-define أو القيمة الافتراضية (المُدمجة من AndroidManifest)
-    final apiKey = Env.posthogApiKey.isNotEmpty ? Env.posthogApiKey : _defaultApiKey;
+    final apiKey = Env.posthogApiKey.isNotEmpty
+        ? Env.posthogApiKey
+        : _defaultApiKey;
     final host = Env.posthogHost.isNotEmpty ? Env.posthogHost : _defaultHost;
 
     if (apiKey.isEmpty) {
