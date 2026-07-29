@@ -27,28 +27,35 @@ void main() {
         expect(bpaSchema!['amount'], 'double');
       });
 
-      test('booking_price_adjustments should have all required sync fields', () {
-        final schema = AppwriteSyncUtils.collectionSchema;
-        final bpaSchema = schema['booking_price_adjustments']!;
-        
-        final requiredFields = [
-          'localUuid',
-          'adjustmentType',
-          'createdAt',
-          'updatedAt',
-          'lastModified',
-          'lastModifiedEpoch',
-          'version',
-          'syncTimestamp',
-          'hotelDayKey',
-          'effectiveHotelDay',
-          'bookingLocalUuid',
-        ];
-        
-        for (final field in requiredFields) {
-          expect(bpaSchema.containsKey(field), isTrue, reason: '$field should be in schema');
-        }
-      });
+      test(
+        'booking_price_adjustments should have all required sync fields',
+        () {
+          final schema = AppwriteSyncUtils.collectionSchema;
+          final bpaSchema = schema['booking_price_adjustments']!;
+
+          final requiredFields = [
+            'localUuid',
+            'adjustmentType',
+            'createdAt',
+            'updatedAt',
+            'lastModified',
+            'lastModifiedEpoch',
+            'version',
+            'syncTimestamp',
+            'hotelDayKey',
+            'effectiveHotelDay',
+            'bookingLocalUuid',
+          ];
+
+          for (final field in requiredFields) {
+            expect(
+              bpaSchema.containsKey(field),
+              isTrue,
+              reason: '$field should be in schema',
+            );
+          }
+        },
+      );
     });
 
     group('validFieldsPerCollection', () {
@@ -84,12 +91,12 @@ void main() {
           'adjustmentType': 0,
           'unknownField': 'should be filtered',
         };
-        
+
         final filtered = AppwriteSyncUtils.filterPayloadForCollection(
           'booking_price_adjustments',
           payload,
         );
-        
+
         expect(filtered.containsKey('hotelDayKey'), isTrue);
         expect(filtered['hotelDayKey'], '2026-07-26');
         expect(filtered.containsKey('unknownField'), isFalse);
@@ -100,12 +107,12 @@ void main() {
           'appliedDate': '2026-07-26',
           'hotelDayKey': '2026-07-26',
         };
-        
+
         final filtered = AppwriteSyncUtils.filterPayloadForCollection(
           'booking_price_adjustments',
           payload,
         );
-        
+
         expect(filtered.containsKey('appliedDate'), isTrue);
         expect(filtered['appliedDate'], '2026-07-26');
       });
@@ -114,12 +121,12 @@ void main() {
         final payload = <String, dynamic>{
           'amount': 150, // int
         };
-        
+
         final filtered = AppwriteSyncUtils.filterPayloadForCollection(
           'booking_price_adjustments',
           payload,
         );
-        
+
         expect(filtered['amount'], isA<double>());
       });
     });
