@@ -60,6 +60,81 @@ class CrashlyticsService {
   /// هل Firebase متصل بنجاح؟
   bool get isFirebaseConnected => _isFirebaseConnected;
 
+  // ═══════════════════════════════════════════════════════════════
+  //  ✅ Context Update Methods — تُحدّث مفاتيح Crashlytics ديناميكياً
+  //  تستدعى من أي مكان في التطبيق لإضافة سياق للـ crash reports
+  // ═══════════════════════════════════════════════════════════════
+
+  /// تحديث رقم الغرفة الحالية (يظهر في crash reports)
+  Future<void> setRoomNumber(String roomNumber) async {
+    try {
+      await _crashlytics?.setCustomKey('room_number', roomNumber);
+    } catch (_) {}
+  }
+
+  /// تحديث حالة المزامنة (idle, pushing, pulling, conflicting, error)
+  Future<void> setSyncStatus(String status) async {
+    try {
+      await _crashlytics?.setCustomKey('sync_status', status);
+    } catch (_) {}
+  }
+
+  /// تحديث دور المستخدم (admin, receptionist, manager)
+  Future<void> setUserRole(String role) async {
+    try {
+      await _crashlytics?.setCustomKey('user_role', role);
+    } catch (_) {}
+  }
+
+  /// تحديث اليوم الفندقي الحالي
+  Future<void> setHotelDayKey(String hotelDayKey) async {
+    try {
+      await _crashlytics?.setCustomKey('hotel_day_key', hotelDayKey);
+    } catch (_) {}
+  }
+
+  /// تحديد محرك المزامنة النشط (appwrite, google_drive, secondary)
+  Future<void> setSyncEngine(String engine) async {
+    try {
+      await _crashlytics?.setCustomKey('sync_engine', engine);
+    } catch (_) {}
+  }
+
+  /// تحديث نوع الشبكة (wifi, mobile, none)
+  Future<void> setNetworkType(String networkType) async {
+    try {
+      await _crashlytics?.setCustomKey('network_type', networkType);
+    } catch (_) {}
+  }
+
+  /// تحديث معرف الجهاز
+  Future<void> setDeviceId(String deviceId) async {
+    try {
+      await _crashlytics?.setCustomKey('device_id', deviceId);
+    } catch (_) {}
+  }
+
+  /// تحديث كل السياق دفعة واحدة (مُسهّل للـ main.dart)
+  Future<void> setContext({
+    String? roomNumber,
+    String? syncStatus,
+    String? userRole,
+    String? hotelDayKey,
+    String? syncEngine,
+    String? networkType,
+    String? deviceId,
+  }) async {
+    final futures = <Future<void>>[];
+    if (roomNumber != null) futures.add(setRoomNumber(roomNumber));
+    if (syncStatus != null) futures.add(setSyncStatus(syncStatus));
+    if (userRole != null) futures.add(setUserRole(userRole));
+    if (hotelDayKey != null) futures.add(setHotelDayKey(hotelDayKey));
+    if (syncEngine != null) futures.add(setSyncEngine(syncEngine));
+    if (networkType != null) futures.add(setNetworkType(networkType));
+    if (deviceId != null) futures.add(setDeviceId(deviceId));
+    await Future.wait(futures);
+  }
+
   /// تهيئة الخدمة — يجب استدعاؤها في main()
   /// يعمل دائماً حتى لو فشل Firebase — التسجيل المحلي متاح
   Future<void> initialize() async {
@@ -77,6 +152,16 @@ class CrashlyticsService {
       // إعداد مفاتيح مخصصة عامة
       await _crashlytics!.setCustomKey('app_name', 'marina_hotel');
       await _crashlytics!.setCustomKey('app_version', '1.0.0');
+
+      // ✅ مفاتيح مخصصة للسياق (تظهر في كل crash report)
+      await _crashlytics!.setCustomKey('room_number', '');
+      await _crashlytics!.setCustomKey('sync_status', 'idle');
+      await _crashlytics!.setCustomKey('user_role', '');
+      await _crashlytics!.setCustomKey('hotel_day_key', '');
+      await _crashlytics!.setCustomKey('sync_engine', '');
+      await _crashlytics!.setCustomKey('network_type', '');
+      await _crashlytics!.setCustomKey('device_id', '');
+
       await _crashlytics!.log('CrashlyticsService initialized');
 
       _isFirebaseConnected = true;
