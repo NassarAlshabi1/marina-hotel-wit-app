@@ -2,7 +2,6 @@
 // شاشة المحادثة مع المساعد الذكي "ماريانا"
 // ✅ تصميم محسّن + نسخ المخرجات + تنسيق احترافي للأوامر
 
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +10,7 @@ import '../../services/gemini_service.dart';
 import '../../services/ai_settings_service.dart';
 import '../../services/crashlytics_service.dart';
 import '../../utils/hotel_time_engine.dart';
+import '../settings/ai_settings_screen.dart';
 
 // ═══ نموذج رسالة المحادثة ═══
 class ChatMessage {
@@ -161,7 +161,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
         confirmed: command is! AiQueryCommand,
       );
 
-      if (mounted && result != null) {
+      if (mounted) {
         setState(() {
           _messages.add(
             ChatMessage(

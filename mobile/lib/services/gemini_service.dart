@@ -1835,9 +1835,21 @@ class GeminiService {
   //  تنفيذ الأمر على قاعدة البيانات + سجل التدقيق
   // ───────────────────────────────────────────────────────────
 
-  Future<String> executeCommand(AiCommand command) async {
+  Future<String> executeCommand(
+    AiCommand command, {
+    bool confirmed = true,
+  }) async {
     final db = DatabaseManager.instance;
     final now = DateTime.now();
+
+    // أمر الاستعلام لا يحتاج تأكيد — ينفذ مباشرة.
+    // أوامر التعديل (تغيير السعر / الخصم الجماعي) يجب تأكيدها صراحة من المستخدم
+    // عبر [confirmed = true]؛ وإلا نرفض التنفيذ ونرفع خطأ واضح.
+    if (!confirmed && command is! AiQueryCommand) {
+      throw StateError(
+        'لا يمكن تنفيذ أمر التعديل بدون تأكيد المستخدم — مرر confirmed: true',
+      );
+    }
 
     try {
       String result;
@@ -3637,6 +3649,11 @@ class GeminiResponse {
   final String text;
   final AiCommand? command;
   final bool requiresConfirmation;
+
+  /// True when the model returned a structured command alongside the text.
+  /// Convenience used by the chat UI to decide whether to invoke the
+  /// executor without having to repeat `command != null` checks.
+  bool get hasCommand => command != null;
 }
 
 class ChatMessage {
