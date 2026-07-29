@@ -32,6 +32,20 @@ class SalaryWithdrawalsRepository {
     }
   }
 
+  /// جلب اسم الموظف من قاعدة البيانات لاستخدامه في إشعارات Telegram/WhatsApp.
+  /// يُرجع null إذا لم يُعثر على الموظف (مثلاً تم حذفه).
+  Future<String?> _lookupEmployeeName(int employeeId) async {
+    try {
+      final emp = await (_db.select(_db.employees)
+            ..where((e) => e.id.equals(employeeId))
+            ..limit(1))
+          .getSingleOrNull();
+      return emp?.name;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// إنشاء سجل سحب راتب مرتبط بمصروف
   Future<int> createFromExpense({
     required int expenseId,
@@ -73,20 +87,28 @@ class SalaryWithdrawalsRepository {
       await _setExpenseIdRaw(id, expenseId);
     }
 
-    // إشعارات فورية (fire-and-forget)
+    // إشعارات فورية (fire-and-forget) — مع اسم الموظف
     unawaited(
-      WhatsAppNotificationService.instance.notifyNewExpense(
-        category: 'سحب راتب',
-        amount: amount,
-        description: reason,
-      ),
+      () async {
+        final empName = await _lookupEmployeeName(employeeId);
+        await WhatsAppNotificationService.instance.notifyNewExpense(
+          category: 'سحب راتب',
+          amount: amount,
+          description: reason,
+          employeeName: empName,
+        );
+      }(),
     );
     unawaited(
-      TelegramNotificationService.instance.notifyNewExpense(
-        category: 'سحب راتب',
-        amount: amount,
-        description: reason,
-      ),
+      () async {
+        final empName = await _lookupEmployeeName(employeeId);
+        await TelegramNotificationService.instance.notifyNewExpense(
+          category: 'سحب راتب',
+          amount: amount,
+          description: reason,
+          employeeName: empName,
+        );
+      }(),
     );
 
     if (!originIsServer) {
@@ -272,20 +294,28 @@ class SalaryWithdrawalsRepository {
             clientTs: now,
           );
         }
-        // إشعارات فورية (fire-and-forget) عند التحديث
+        // إشعارات فورية (fire-and-forget) عند التحديث — مع اسم الموظف
         unawaited(
-          WhatsAppNotificationService.instance.notifyNewExpense(
-            category: 'سحب راتب',
-            amount: amount,
-            description: note ?? reasonText,
-          ),
+          () async {
+            final empName = await _lookupEmployeeName(employeeId);
+            await WhatsAppNotificationService.instance.notifyNewExpense(
+              category: 'سحب راتب',
+              amount: amount,
+              description: note ?? reasonText,
+              employeeName: empName,
+            );
+          }(),
         );
         unawaited(
-          TelegramNotificationService.instance.notifyNewExpense(
-            category: 'سحب راتب',
-            amount: amount,
-            description: note ?? reasonText,
-          ),
+          () async {
+            final empName = await _lookupEmployeeName(employeeId);
+            await TelegramNotificationService.instance.notifyNewExpense(
+              category: 'سحب راتب',
+              amount: amount,
+              description: note ?? reasonText,
+              employeeName: empName,
+            );
+          }(),
         );
       } else {
         // إنشاء سجل جديد
@@ -317,19 +347,28 @@ class SalaryWithdrawalsRepository {
 
         // ✅ كتابة expense_id في العمود الخام
         await _setExpenseIdRaw(newId, expenseId);
+        // إشعارات فورية — مع اسم الموظف
         unawaited(
-          WhatsAppNotificationService.instance.notifyNewExpense(
-            category: 'سحب راتب',
-            amount: amount,
-            description: note,
-          ),
+          () async {
+            final empName = await _lookupEmployeeName(employeeId);
+            await WhatsAppNotificationService.instance.notifyNewExpense(
+              category: 'سحب راتب',
+              amount: amount,
+              description: note,
+              employeeName: empName,
+            );
+          }(),
         );
         unawaited(
-          TelegramNotificationService.instance.notifyNewExpense(
-            category: 'سحب راتب',
-            amount: amount,
-            description: note,
-          ),
+          () async {
+            final empName = await _lookupEmployeeName(employeeId);
+            await TelegramNotificationService.instance.notifyNewExpense(
+              category: 'سحب راتب',
+              amount: amount,
+              description: note,
+              employeeName: empName,
+            );
+          }(),
         );
 
         if (!originIsServer) {

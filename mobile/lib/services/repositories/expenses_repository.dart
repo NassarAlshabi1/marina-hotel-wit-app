@@ -93,19 +93,50 @@ class ExpensesRepository {
           recordData: {'amount': amount},
         ),
       );
+      // إشعارات فورية — مع اسم الموظف إذا كان المصروف راتباً (له employeeUuid)
       unawaited(
-        WhatsAppNotificationService.instance.notifyNewExpense(
-          category: expenseType,
-          amount: amount,
-          description: description,
-        ),
+        () async {
+          String? empName;
+          if (employeeUuid != null && employeeUuid.isNotEmpty) {
+            try {
+              final emp = await (db.select(db.employees)
+                    ..where((e) => e.localUuid.equals(employeeUuid))
+                    ..limit(1))
+                  .getSingleOrNull();
+              empName = emp?.name;
+            } catch (_) {
+              // الموظف قد لا يكون متزامناً بعد — نتخطى بصمت
+            }
+          }
+          await WhatsAppNotificationService.instance.notifyNewExpense(
+            category: expenseType,
+            amount: amount,
+            description: description,
+            employeeName: empName,
+          );
+        }(),
       );
       unawaited(
-        TelegramNotificationService.instance.notifyNewExpense(
-          category: expenseType,
-          amount: amount,
-          description: description,
-        ),
+        () async {
+          String? empName;
+          if (employeeUuid != null && employeeUuid.isNotEmpty) {
+            try {
+              final emp = await (db.select(db.employees)
+                    ..where((e) => e.localUuid.equals(employeeUuid))
+                    ..limit(1))
+                  .getSingleOrNull();
+              empName = emp?.name;
+            } catch (_) {
+              // الموظف قد لا يكون متزامناً بعد — نتخطى بصمت
+            }
+          }
+          await TelegramNotificationService.instance.notifyNewExpense(
+            category: expenseType,
+            amount: amount,
+            description: description,
+            employeeName: empName,
+          );
+        }(),
       );
       return result;
     } catch (e, stack) {

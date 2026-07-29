@@ -413,13 +413,20 @@ class WhatsAppNotificationService {
   }
 
   /// إشعار مصروف جديد
+  ///
+  /// [employeeName] — اسم الموظف المرتبط بالمصروف (إذا كان راتب/سحب/خصم/سلفة).
+  /// عند وجوده يُضاف بوضوح في الرسالة حتى يعرف المستلم لمن ينطبق المصروف.
   Future<bool> notifyNewExpense({
     required String category,
     required double amount,
     String? description,
+    String? employeeName,
   }) {
     final details = StringBuffer();
     details.writeln('📂 التصنيف: $category');
+    if (employeeName != null && employeeName.trim().isNotEmpty) {
+      details.writeln('👤 الموظف: ${employeeName.trim()}');
+    }
     if (description != null && description.isNotEmpty) {
       details.writeln(description);
     }
