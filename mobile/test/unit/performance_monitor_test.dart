@@ -21,13 +21,16 @@ void main() {
       expect(true, isTrue);
     });
 
-    test('traceOperation should execute operation even when not initialized', () async {
-      final result = await PerformanceMonitor.instance.traceOperation(
-        'test_operation',
-        operation: () async => 42,
-      );
-      expect(result, 42);
-    });
+    test(
+      'traceOperation should execute operation even when not initialized',
+      () async {
+        final result = await PerformanceMonitor.instance.traceOperation(
+          'test_operation',
+          operation: () async => 42,
+        );
+        expect(result, 42);
+      },
+    );
 
     test('traceOperation should rethrow errors', () async {
       expect(
