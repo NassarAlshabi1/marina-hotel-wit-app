@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:math';
+
 import 'package:drift/drift.dart' hide Column;
 import 'package:firebase_ai/firebase_ai.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
-import '../utils/env.dart';
+
 import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
 import 'booking_derived_fields_service.dart';
@@ -1623,66 +1623,13 @@ class GeminiService {
     } catch (e) {
       debugPrint('❌ خطأ في Gemini: $e');
       _lastError = e.toString();
-      final msg = e.toString();
-      
-      // ✅ Fallback: محاولة OpenRouter عند خطأ 401/API_KEY
-      if (msg.contains('401') || msg.contains('API_KEY') || msg.contains('api key') || msg.contains('UNAUTHENTICATED')) {
-        debugPrint('🔄 خطأ مصادقة — محاولة OpenRouter fallback...');
-        final fallback = await _tryOpenRouterFallback(userMessage);
-        if (fallback != null) {
-          return GeminiResponse(text: fallback);
-        }
-      }
-      
       // إعادة تعيين الجلسة عند خطأ في الأدوار
+      final msg = e.toString();
       if (msg.contains('role') || msg.contains('alternat')) {
         debugPrint('⚠️ إعادة تعيين الجلسة بسبب خطأ في الأدوار');
         _chat = _model!.startChat();
       }
       return GeminiResponse(text: _friendlyErrorMessage(e));
-    }
-  }
-
-
-  /// ✅ Fallback: استخدام OpenRouter (AgentRouter) عند فشل Gemini
-  /// يُستدعى تلقائياً عند خطأ 401 أو API_KEY invalid
-  Future<String?> _tryOpenRouterFallback(String userMessage) async {
-    if (!Env.isAgentRouterConfigured) {
-      return null; // OpenRouter غير مُهيأ
-    }
-
-    try {
-      debugPrint('🔄 محاولة OpenRouter fallback...');
-      final response = await http.post(
-        Uri.parse(r'${Env.agentRouterBaseUrl}/chat/completions'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${Env.agentRouterApiKey}',
-        },
-        body: jsonEncode({
-          'model': 'google/gemini-2.5-flash-preview',
-          'messages': [
-            {'role': 'system', 'content': _buildSystemPrompt()},
-            {'role': 'user', 'content': userMessage},
-          ],
-          'temperature': 0.2,
-          'max_tokens': 4096,
-        }),
-      ).timeout(const Duration(seconds: 30));
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final text = data['choices']?[0]?['message']?['content'] as String?;
-        if (text != null && text.isNotEmpty) {
-          debugPrint('✅ OpenRouter fallback نجح');
-          return text;
-        }
-      }
-      debugPrint('⚠️ OpenRouter fallback فشل: ${response.statusCode}');
-      return null;
-    } catch (e) {
-      debugPrint('⚠️ OpenRouter fallback خطأ: $e');
-      return null;
     }
   }
 
