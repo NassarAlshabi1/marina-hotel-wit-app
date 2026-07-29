@@ -116,8 +116,11 @@ void main() {
       await $('إرسال كشف حساب').scrollTo();
 
       // التحقق من وجود الزر
-      expect($('إرسال كشف حساب'), findsOneWidget,
-          reason: 'زر إرسال كشف حساب يجب أن يكون ظاهراً');
+      expect(
+        $('إرسال كشف حساب'),
+        findsOneWidget,
+        reason: 'زر إرسال كشف حساب يجب أن يكون ظاهراً',
+      );
     },
   );
 
@@ -139,8 +142,11 @@ void main() {
       await $('إرسال كشف حساب').tap();
 
       // ✅ التحقق من ظهور نافذة الحوار
-      expect($(AlertDialog), findsOneWidget,
-          reason: 'نافذة الحوار يجب أن تظهر عند الضغط على زر إرسال كشف حساب');
+      expect(
+        $(AlertDialog),
+        findsOneWidget,
+        reason: 'نافذة الحوار يجب أن تظهر عند الضغط على زر إرسال كشف حساب',
+      );
 
       // ✅ التحقق من وجود بيانات العميل في النافذة
       expect($('العميل'), findsOneWidget);
@@ -209,12 +215,18 @@ void main() {
       await $('معاينة رسالة WhatsApp').tap();
 
       // ✅ التحقق من ظهور معاينة الرسالة
-      expect($('إخفاء المعاينة'), findsOneWidget,
-          reason: 'زر المعاينة يجب أن يتحول إلى "إخفاء المعاينة"');
+      expect(
+        $('إخفاء المعاينة'),
+        findsOneWidget,
+        reason: 'زر المعاينة يجب أن يتحول إلى "إخفاء المعاينة"',
+      );
 
       // ✅ التحقق من ظهور عدّاد الأحرف
-      expect(find.textContaining('1000 حرف'), findsOneWidget,
-          reason: 'عدّاد الأحرف يجب أن يظهر في معاينة WhatsApp');
+      expect(
+        find.textContaining('1000 حرف'),
+        findsOneWidget,
+        reason: 'عدّاد الأحرف يجب أن يظهر في معاينة WhatsApp',
+      );
 
       // ✅ التحقق من ظهور رأس رسالة كشف الحساب في المعاينة
       expect(find.textContaining('كشف حساب'), findsWidgets);
@@ -245,8 +257,11 @@ void main() {
       await $('إلغاء').tap();
 
       // ✅ النافذة أُغلقت
-      expect($(AlertDialog), findsNothing,
-          reason: 'نافذة الحوار يجب أن تُغلق عند الضغط على إلغاء');
+      expect(
+        $(AlertDialog),
+        findsNothing,
+        reason: 'نافذة الحوار يجب أن تُغلق عند الضغط على إلغاء',
+      );
     },
   );
 }
