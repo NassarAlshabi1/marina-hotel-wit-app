@@ -1,0 +1,95 @@
+# ═══════════════════════════════════════════════════════════════
+#  Dart Code Linter (DCL) — Configuration
+#  Marina Hotel — Professional Code Quality Gate
+# ═══════════════════════════════════════════════════════════════
+#  المرجع: https://dcl.apps.bancolombia.com/docs/configuration/
+#
+#  DCL يُضيف على flutter analyze:
+#  - قواعد إضافية (rules) غير موجودة في very_good_analysis
+#  - مقاييس كود (metrics) مع عتبات قابلة للتخصيص
+#  - كشف anti-patterns
+#  - check-unused-code و check-unused-files
+# ═══════════════════════════════════════════════════════════════
+
+# ─── Rules ─────────────────────────────────────────────────────
+rules:
+  # قواعد جودة الكود
+  - avoid-dynamic: true                    # تجنب dynamic — استخدم أنواع محددة
+  - avoid-collection-mutators: false       # مسموح — نستخدم List.add() بكثرة
+  - avoid-late-keyword: false              # مسموح — نستخدم late للـ singletons
+  - avoid-ignoring-return-values: true     # لا تتجاهل قيم الإرجاع
+  - avoid-non-null-assertion: true         # تجنب ! (استخدم ?? أو if-null)
+  - avoid-unsafe-collection-operations: true # تجنب العمليات غير الآمنة على المجموعات
+  
+  # قواعد Flutter
+  - prefer-const-border-radius: true       # استخدم BorderRadius.circular كـ const
+  - prefer-const-border-width: true        # استخدم BorderSide كـ const
+  - prefer-const-edge-insets: true         # استخدم EdgeInsets كـ const
+  - prefer-const-margin: true              # استخدم EdgeInsets كـ const
+  - prefer-const-padding: true             # استخدم EdgeInsets كـ const
+  - prefer-match-file-name: true           # اسم الملف يطابق اسم الكلاس
+  - prefer-single-widget-per-file: false   # مسموح — لدينا ملفات متعددة widgets
+  
+  # قواعد الأداء
+  - avoid-returning-widgets: true          # لا تُرجع Widget مباشرة — استخدم دالة بنائية
+  - avoid-shrink-wrap-in-lists: true        # تجنب shrinkWrap:true في ListView
+  - prefer-iterable-where-type: true       # استخدم whereType<T>() بدلاً من where().cast<T>()
+  
+  # قواعد الاستدامة
+  - prefer-abstract-final-class: false     # مسموح — لدينا classes عادية
+  - prefer-moving-to-variable: true        # انقل التعبيرات المتكررة إلى متغيرات
+  - prefer-providing-default-value: true   # وفر قيمة افتراضية للمعاملات الاختيارية
+  
+  # قواعد التوثيق
+  - provide-docs: false                    # غير مُفعّل — مرحلي
+  - prefer-correct-doc-comments: true      # استخدم /// بدلاً من /** */
+  
+  # قواعد إضافية
+  - avoid-declaring-async-in-void: true    # تجنب async في الدوال void
+  - avoid-explicit-type-parameters: false  # مسموح — أحياناً نحتاج type parameters صريحة
+  - avoid-nested-conditional-expressions: true # تجنب التعبيرات الشرطية المتداخلة
+  - avoid-passing-default-values: true     # لا تمرر قيم افتراضية صريحة
+  - prefer-conditional-expression: true    # استخدم ?: بدلاً من if-else للقيم
+  - prefer-first: true                     # استخدم .first بدلاً من [0]
+  - prefer-last: true                      # استخدم .last بدلاً من [-1]
+
+# ─── Metrics ───────────────────────────────────────────────────
+metrics:
+  # مقاييس الكود المعقدة
+  metrics-exclude:
+    - test/**
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "**/generated_plugin_registrant.dart"
+    - integration_test/**
+  
+  # العتبات (thresholds) — تُسبب فشل CI عند تجاوزها
+  thresholds:
+    # تعقيد McCabe (عدد المسارات المستقلة في الدالة)
+    cyclomatic-complexity: 20
+    
+    # عدد الحقول في الكلاس
+    number-of-fields: 20
+    
+    # عدد المعاملات في الدالة
+    number-of-parameters: 7
+    
+    # حجم الملف بالأسطر
+    source-lines-of-code: 500
+    
+    # مؤشر صيانة الكود (0-100، الأعلى أفضل)
+    maintainability-index: 50
+    
+    # عمق التداخل (nesting)
+    maximum-nesting-level: 5
+
+# ─── Anti-Patterns ─────────────────────────────────────────────
+anti-patterns:
+  # كشف الأنماط السيئة في الكود
+  - no-boolean-as-argument: true           # تجنب تمرير bool كمعامل — استخدم enum أو named parameter
+  - no-empty-block: true                   # لا تترك كتل فارغة {}
+  - no-equals-arguments: true              # تجنب a == a (مقارنة نفس المتغير)
+  - no-magic-numbers: false                # مسموح — لدينا أرقام سحرية كثيرة في الكود
+  - no-object-as-argument: false           # مسموح — نمرر objects بكثرة
+  - no-state-in-static: true               # لا تستخدم state في static methods
+  - no-throw-in-init-state: true           # لا ترمي استثناءات في initState
