@@ -32,9 +32,15 @@ class PerformanceMonitor {
       _performance = FirebasePerformance.instance;
       await _performance!.setPerformanceCollectionEnabled(!kDebugMode);
       _isInitialized = true;
-      developer.log('✅ PerformanceMonitor initialized', name: 'PerformanceMonitor');
+      developer.log(
+        '✅ PerformanceMonitor initialized',
+        name: 'PerformanceMonitor',
+      );
     } catch (e) {
-      developer.log('⚠️ PerformanceMonitor init failed: $e', name: 'PerformanceMonitor');
+      developer.log(
+        '⚠️ PerformanceMonitor init failed: $e',
+        name: 'PerformanceMonitor',
+      );
       // لا نوقف التطبيق
       _isInitialized = false;
     }
