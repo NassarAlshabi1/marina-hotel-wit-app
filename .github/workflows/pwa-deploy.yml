@@ -12,6 +12,10 @@ on:
       - '.github/workflows/pwa-deploy.yml'
   workflow_dispatch:
 
+concurrency:
+  group: pwa-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
