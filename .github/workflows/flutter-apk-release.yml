@@ -25,6 +25,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
+permissions:
+  contents: write
+  actions: read
+
 jobs:
   build-release-apk:
     # Runs the job on the latest Ubuntu runner
