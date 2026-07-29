@@ -1,13 +1,12 @@
 import 'dart:convert';
 import 'dart:math';
-
 import 'package:drift/drift.dart' hide Column;
 import 'package:firebase_ai/firebase_ai.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
-
 import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
+import 'ai_settings_service.dart';
 import 'booking_derived_fields_service.dart';
 import 'local_db.dart';
 import 'price_adjustment_service.dart';
@@ -283,16 +282,19 @@ class GeminiService {
 
     try {
       _initError = null;
+      // ✅ استخدام إعدادات AiSettingsService القابلة للتخصيص
+      await AiSettingsService.instance.initialize();
+      final settings = AiSettingsService.instance;
+
       // FirebaseAI.googleAI() يستخدم مفتاح API المُدار من Firebase Console
-      // لا حاجة لتخزين مفتاح API في الكود أو Remote Config
       final ai = FirebaseAI.googleAI();
       _model = ai.generativeModel(
-        model: 'gemini-2.5-flash', // تم التحديث إلى Gemini 2.5 Flash
+        model: settings.model, // الموديل القابل للتخصيص
         systemInstruction: Content.system(_buildSystemPrompt()),
         generationConfig: GenerationConfig(
-          temperature: 0.2, // تقليل الـ temperature لزيادة الدقة في الأوامر
+          temperature: settings.temperature,
           topP: 0.9,
-          maxOutputTokens: 4096, // زيادة الحد الأقصى للتوكنز للتقارير الطويلة
+          maxOutputTokens: settings.maxTokens,
         ),
       );
       // إنشاء جلسة محادثة — startChat يدير سجل المحادثة تلقائياً
@@ -2711,7 +2713,19 @@ class GeminiService {
 ▸ النظام متصل بـ MCP Server مع: GitHub, Appwrite, Google Drive, Telegram
 ▸ يمكنك اقتراح: فحص CI/CD، إنشاء Issues، مراجعة Pull Requests
 
-- تاريخ اليوم: $today | اليوم الفندقي: $todayHotelDay''';
+- تاريخ اليوم: $today | اليوم الفندقي: $todayHotelDay
+
+═══ الاستعلام عن أي تاريخ ═══
+▸ يمكنك الإجابة عن أسئلة حول أي تاريخ (ماضٍ أو مستقبل)، ليس فقط اليوم
+▸ أمثلة:
+  - "ماذا حدث في 15 يوليو؟" → اعرض المدفوعات والمصروفات والحجوزات في ذلك اليوم
+  - "كم كان الإيراد في 1 يوليو؟" → ابحث في السياق عن ذلك التاريخ
+  - "من كان نزيلاً في غرفة 101 يوم 10 يوليو؟" → ابحث في الحجوزات
+▸ البيانات المتوفرة تشمل تواريخ محددة لكل دفعة ومصروف وحجز
+▸ إذا لم تجد بيانات للتاريخ المطلوب، قل "لا توجد بيانات مسجلة"
+
+═══ تعليمات إضافية من المستخدم ═══
+${AiSettingsService.instance.systemPromptExtra}''';
   }
 
   // ───────────────────────────────────────────────────────────
