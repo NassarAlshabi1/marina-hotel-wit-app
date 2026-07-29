@@ -37,7 +37,7 @@ class SecureStorage {
       final keyBytes = Key.fromBase64(key);
       final iv = IV.fromSecureRandom(16);
 
-      final encrypter = Encrypter(AES(keyBytes, mode: AESMode.gcm));
+      final encrypter = Encrypter(AES(keyBytes, mode: AESMode.cbc));
       final encrypted = encrypter.encrypt(plain, iv: iv);
 
       // دمج IV + ciphertext + authTag في bytes واحدة
@@ -68,7 +68,7 @@ class SecureStorage {
         final ciphertext = Uint8List.fromList(combined.sublist(16));
 
         final keyBytes = Key.fromBase64(key);
-        final encrypter = Encrypter(AES(keyBytes, mode: AESMode.gcm));
+        final encrypter = Encrypter(AES(keyBytes, mode: AESMode.cbc));
 
         return encrypter.decrypt(Encrypted(ciphertext), iv: iv);
       } catch (e) {
