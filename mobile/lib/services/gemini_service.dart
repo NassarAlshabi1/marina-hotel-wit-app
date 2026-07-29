@@ -2583,7 +2583,7 @@ class GeminiService {
 ▸ النظام متصل بـ MCP Server مع: GitHub, Appwrite, Google Drive, Telegram
 ▸ يمكنك اقتراح: فحص CI/CD، إنشاء Issues، مراجعة Pull Requests
 
-- تاريخ اليوم: $today | اليوم الفندقي: $todayHotelDay''' ;
+- تاريخ اليوم: $today | اليوم الفندقي: $todayHotelDay''';
   }
 
   // ───────────────────────────────────────────────────────────
