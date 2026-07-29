@@ -154,7 +154,7 @@ jobs:
         run: flutter analyze ${{ inputs.analyze_directories }}
 
       - name: 📊 Dart Code Linter (DCL)
-        run: dart run dart_code_linter:metrics analyze lib --config=dcl.yaml --reporter=console
+        run: dart run dart_code_linter:metrics analyze lib --reporter=console
         continue-on-error: true
         # ✅ DCL non-blocking في البداية — سيصبح blocking بعد إصلاح المخالفات
 
