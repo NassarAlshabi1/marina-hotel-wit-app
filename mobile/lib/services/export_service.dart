@@ -90,8 +90,7 @@ class InvoiceExportData {
   final String paymentMethod;
   final String receivedBy;
 
-  double get total =>
-      items.fold(0.0, (sum, item) => sum + item.total);
+  double get total => items.fold(0.0, (sum, item) => sum + item.total);
 }
 
 class InvoiceItem {
