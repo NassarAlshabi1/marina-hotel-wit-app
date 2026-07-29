@@ -677,6 +677,11 @@ class SalaryWithdrawals extends Table with SyncFields {
       'idx_salary_withdrawals_expense',
       'CREATE INDEX idx_salary_withdrawals_expense ON salary_withdrawals (expense_id)',
     ),
+    // ✅ index على hotelDayKey لتسريع فلترة التقارير باليوم الفندقي
+    Index(
+      'idx_salary_withdrawals_hotel_day',
+      'CREATE INDEX idx_salary_withdrawals_hotel_day ON salary_withdrawals (hotel_day_key)',
+    ),
   ];
 }
 
