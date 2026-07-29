@@ -352,7 +352,7 @@ jobs:
 
       - name: 💾 Save baseline for future comparisons
         if: github.ref == 'refs/heads/main'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: current-perf
           key: perf-baseline-${{ github.sha }}
