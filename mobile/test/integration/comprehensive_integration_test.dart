@@ -61,32 +61,35 @@ void main() {
       test('encrypt → decrypt should return original value', () {
         const key = 'VQngYXPLjdebdGvs+QMdXsiDKySEJBhlks5zDTUxTLk=';
         const plain = '{"setting":"hotel_name","value":"Marina Hotel"}';
-        
+
         final encrypted = SecureStorage.encryptValue(plain, key);
         final decrypted = SecureStorage.decryptValue(encrypted, key);
-        
+
         expect(decrypted, equals(plain));
       });
 
       test('encrypted value should be different from plain', () {
         const key = 'VQngYXPLjdebdGvs+QMdXsiDKySEJBhlks5zDTUxTLk=';
         const plain = 'sensitive_data';
-        
+
         final encrypted = SecureStorage.encryptValue(plain, key);
-        
+
         expect(encrypted, isNot(equals(plain)));
         expect(encrypted.startsWith('ENC:AES:'), isTrue);
       });
 
-      test('encryption should produce different output each time (random IV)', () {
-        const key = 'VQngYXPLjdebdGvs+QMdXsiDKySEJBhlks5zDTUxTLk=';
-        const plain = 'same input';
-        
-        final enc1 = SecureStorage.encryptValue(plain, key);
-        final enc2 = SecureStorage.encryptValue(plain, key);
-        
-        expect(enc1, isNot(equals(enc2)));
-      });
+      test(
+        'encryption should produce different output each time (random IV)',
+        () {
+          const key = 'VQngYXPLjdebdGvs+QMdXsiDKySEJBhlks5zDTUxTLk=';
+          const plain = 'same input';
+
+          final enc1 = SecureStorage.encryptValue(plain, key);
+          final enc2 = SecureStorage.encryptValue(plain, key);
+
+          expect(enc1, isNot(equals(enc2)));
+        },
+      );
     });
 
     group('4. Export Service Flow', () {
@@ -103,9 +106,24 @@ void main() {
           nights: 3,
           roomRate: 15000,
           items: const [
-            InvoiceItem(description: 'Room 3 nights', qty: 3, unitPrice: 15000, total: 45000),
-            InvoiceItem(description: 'Discount', qty: 1, unitPrice: -5000, total: -5000),
-            InvoiceItem(description: 'Laundry', qty: 2, unitPrice: 2000, total: 4000),
+            InvoiceItem(
+              description: 'Room 3 nights',
+              qty: 3,
+              unitPrice: 15000,
+              total: 45000,
+            ),
+            InvoiceItem(
+              description: 'Discount',
+              qty: 1,
+              unitPrice: -5000,
+              total: -5000,
+            ),
+            InvoiceItem(
+              description: 'Laundry',
+              qty: 2,
+              unitPrice: 2000,
+              total: 4000,
+            ),
           ],
           paymentMethod: 'cash',
           receivedBy: 'Test',
@@ -126,22 +144,25 @@ void main() {
     });
 
     group('5. Sync Utils Flow', () {
-      test('booking_price_adjustments schema should have all required fields', () {
-        final schema = AppwriteSyncUtils.collectionSchema;
-        final bpa = schema['booking_price_adjustments']!;
-        
-        // Required fields for Appwrite Cloud
-        expect(bpa.containsKey('localUuid'), isTrue);
-        expect(bpa.containsKey('hotelDayKey'), isTrue);
-        expect(bpa.containsKey('appliedDate'), isTrue);
-        expect(bpa.containsKey('adjustmentType'), isTrue);
-        expect(bpa.containsKey('createdAt'), isTrue);
-        expect(bpa.containsKey('updatedAt'), isTrue);
-        expect(bpa.containsKey('lastModified'), isTrue);
-        expect(bpa.containsKey('lastModifiedEpoch'), isTrue);
-        expect(bpa.containsKey('version'), isTrue);
-        expect(bpa.containsKey('syncTimestamp'), isTrue);
-      });
+      test(
+        'booking_price_adjustments schema should have all required fields',
+        () {
+          final schema = AppwriteSyncUtils.collectionSchema;
+          final bpa = schema['booking_price_adjustments']!;
+
+          // Required fields for Appwrite Cloud
+          expect(bpa.containsKey('localUuid'), isTrue);
+          expect(bpa.containsKey('hotelDayKey'), isTrue);
+          expect(bpa.containsKey('appliedDate'), isTrue);
+          expect(bpa.containsKey('adjustmentType'), isTrue);
+          expect(bpa.containsKey('createdAt'), isTrue);
+          expect(bpa.containsKey('updatedAt'), isTrue);
+          expect(bpa.containsKey('lastModified'), isTrue);
+          expect(bpa.containsKey('lastModifiedEpoch'), isTrue);
+          expect(bpa.containsKey('version'), isTrue);
+          expect(bpa.containsKey('syncTimestamp'), isTrue);
+        },
+      );
 
       test('filterPayloadForCollection should filter unknown fields', () {
         final payload = <String, dynamic>{
@@ -149,12 +170,12 @@ void main() {
           'hotelDayKey': '2026-07-27',
           'unknownField': 'should be removed',
         };
-        
+
         final filtered = AppwriteSyncUtils.filterPayloadForCollection(
           'booking_price_adjustments',
           payload,
         );
-        
+
         expect(filtered.containsKey('unknownField'), isFalse);
         expect(filtered.containsKey('hotelDayKey'), isTrue);
       });
