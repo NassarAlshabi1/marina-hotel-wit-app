@@ -182,11 +182,14 @@ class AiReportCommand extends AiCommand {
     required super.description,
     this.dateFrom,
     this.dateTo,
+    this.roomNumber,
   });
   final String
-  reportType; // daily, revenue, occupancy, debts, expenses, room_prices
+  reportType; // daily, revenue, occupancy, debts, expenses, room_prices,
+  // room_payments (per-room payment history — requires [roomNumber])
   final String? dateFrom;
   final String? dateTo;
+  final String? roomNumber;
 }
 
 /// لا يوجد إجراء مطلوب
@@ -2416,6 +2419,7 @@ class GeminiService {
             reportType,
             command.dateFrom,
             command.dateTo,
+            roomNumber: command.roomNumber,
           );
 
         case AiNoActionCommand():
@@ -2718,15 +2722,24 @@ class GeminiService {
 
 12. طلب تقرير (يُنفذ فوراً بدون تأكيد):
 {"action": "report", "report_type": "daily"}
-- report_type: daily, revenue, expenses, payroll, finance, occupancy, debts, room_prices
+- report_type: daily, revenue, expenses, payroll, finance, occupancy, debts, room_prices, room_payments
 - date_from/date_to اختياريان بصيغة YYYY-MM-DD
 - إذا أُرسل date_from فقط يتم اعتباره نفس date_to
-- يمكن استخدام date_from بقيم: today, day, this_week, last_week, this_month, last_month, week, month
+- يمكن استخدام date_from بقيم: today, day, this_week, last_week, this_month, last_month, week, month, last_N_days (مثال: last_10_days لآخر 10 أيام تشمل اليوم)
+
+▸ تقرير مدفوعات غرفة محددة (room_payments):
+  - **مطلوب دائماً** عند سؤال المستخدم عن مدفوعات/دفعات غرفة معينة (مثل: "مدفوعات الغرفة 401"، "آخر دفعات غرفة 101"، "ماذا دفع ضيف 205")
+  - يتطلب room_number إلزامياً
+  - يُرجع بيانات الغرفة + الحجز النشط + قائمة المدفوعات الكاملة في الفترة (مستعلم من قاعدة البيانات مباشرة)
+  - لا تعتمد على السياق العام للرد على هذه الأسئلة — السياق قد لا يحتوي على السجل الكامل للغرف المسددة بالكامل
 
 أمثلة:
 {"action": "report", "report_type": "finance", "date_from": "2026-05-01", "date_to": "2026-05-31"}
 {"action": "report", "report_type": "expenses", "date_from": "2026-05-10", "date_to": "2026-05-10"}
 {"action": "report", "report_type": "payroll", "date_from": "today"}
+{"action": "report", "report_type": "room_payments", "room_number": "401", "date_from": "last_10_days"}
+{"action": "report", "report_type": "room_payments", "room_number": "101", "date_from": "2026-07-01", "date_to": "2026-07-29"}
+{"action": "report", "report_type": "room_payments", "room_number": "205"}  // آخر 30 يوم افتراضياً
 
 ═══ تحذيرات مهمة ═══
 - عند اقتراح إضافة حجز، تأكد أن الغرفة شاغرة فعلاً — الغرفة المحجوزة لا تقبل حجزين نشطين
@@ -2896,6 +2909,7 @@ ${AiSettingsService.instance.systemPromptExtra}''';
             reportType: json['report_type'] as String? ?? 'daily',
             dateFrom: json['date_from'] as String?,
             dateTo: json['date_to'] as String?,
+            roomNumber: json['room_number'] as String?,
             description: 'تقرير ${json['report_type']}',
           );
 
@@ -2923,8 +2937,9 @@ ${AiSettingsService.instance.systemPromptExtra}''';
     AppDatabase db,
     String reportType,
     String? dateFrom,
-    String? dateTo,
-  ) async {
+    String? dateTo, {
+    String? roomNumber,
+  }) async {
     try {
       final today = DateTime.now().toIso8601String().split('T')[0];
 
@@ -2976,6 +2991,22 @@ ${AiSettingsService.instance.systemPromptExtra}''';
             '${lastMonthEnd.year}-${lastMonthEnd.month.toString().padLeft(2, '0')}-${lastMonthEnd.day.toString().padLeft(2, '0')}';
       }
 
+      // "last_N_days" → آخر N أيام تشمل اليوم (مثال: last_10_days)
+      if (resolvedFrom != null &&
+          resolvedFrom.startsWith('last_') &&
+          resolvedFrom.endsWith('_days')) {
+        final nStr = resolvedFrom.substring(
+          5,
+          resolvedFrom.length - 5,
+        );
+        final n = int.tryParse(nStr) ?? 10;
+        final now = DateTime.now();
+        final start = now.subtract(Duration(days: n - 1));
+        resolvedFrom =
+            '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')}';
+        resolvedTo = today;
+      }
+
       if (resolvedFrom == null && resolvedTo == null) {
         final now = DateTime.now();
         resolvedFrom = '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
@@ -2999,12 +3030,212 @@ ${AiSettingsService.instance.systemPromptExtra}''';
           return await _generateFinanceReport(db, resolvedFrom, resolvedTo);
         case 'payroll':
           return await _generatePayrollReport(db, resolvedFrom, resolvedTo);
+        case 'room_payments':
+          // تقرير مدفوعات غرفة محددة — يتطلب room_number
+          // يُستخدم عندما يسأل المستخدم: "مدفوعات الغرفة 401 لآخر 10 أيام"
+          if (roomNumber == null || roomNumber.isEmpty) {
+            return '❌ تقرير مدفوعات الغرفة يتطلب رقم الغرفة. مثال:\n'
+                '{action: "report", report_type: "room_payments", room_number: "401", date_from: "last_10_days"}';
+          }
+          return await _generateRoomPaymentsReport(
+            db,
+            roomNumber,
+            resolvedFrom,
+            resolvedTo,
+          );
         default:
           return 'نوع التقرير غير معروف: $reportType';
       }
     } catch (e) {
       debugPrint('خطأ في توليد التقرير: $e');
       return 'فشل توليد التقرير: $e';
+    }
+  }
+
+  /// تقرير مدفوعات غرفة محددة ضمن فترة زمنية.
+  ///
+  /// يحل مشكلة: "ردّ المساعد الذكي بـ 'لا توجد بيانات' رغم أن الغرفة محجوزة".
+  /// السبب الجذري: السياق العام يعرض سجل المدفوعات الكامل فقط للحجوزات
+  /// *غير المكتملة الدفع* (لأول 30 منها). فإذا كانت الغرفة مسددة بالكامل،
+  /// يختفي سجل مدفوعاتها من السياق ولا يرى المساعد شيئاً.
+  ///
+  /// هذا التقرير يستعلم مباشرة من جدول المدفوعات ويشمل:
+  /// - بيانات الغرفة (النوع، السعر، الحالة)
+  /// - الحجز النشط الحالي (إن وجد) مع ملخص مالي
+  /// - جميع المدفوعات في الفترة المطلوبة (بشكل صريح وليس من السياق)
+  /// - يتعامل مع المدفوعات المرتبطة بالغرفة مباشرةً أو عبر bookingLocalId
+  Future<String> _generateRoomPaymentsReport(
+    AppDatabase db,
+    String roomNumber,
+    String? dateFrom,
+    String? dateTo,
+  ) async {
+    final today = DateTime.now().toIso8601String().split('T')[0];
+
+    // افتراضي: آخر 30 يوماً إذا لم تُحدّد الفترة
+    final String toDate =
+        (dateTo ?? '').isNotEmpty ? dateTo!.split('T').first : today;
+    final String fromDate = (dateFrom ?? '').isNotEmpty
+        ? dateFrom!.split('T').first
+        : () {
+            final start = DateTime.now().subtract(const Duration(days: 29));
+            return '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')}';
+          }();
+
+    final lines = <String>[];
+    lines.add('📊 مدفوعات الغرفة $roomNumber');
+    lines.add('الفترة: $fromDate ← $toDate');
+    lines.add('');
+
+    // ── بيانات الغرفة ──
+    final room =
+        await (db.select(db.rooms)
+              ..where((r) => r.roomNumber.equals(roomNumber))
+              ..where((r) => r.deletedAt.isNull()))
+            .getSingleOrNull();
+    if (room == null) {
+      lines.add('❌ الغرفة $roomNumber غير موجودة في قاعدة البيانات.');
+      lines.add('');
+      lines.add('تأكد من رقم الغرفة. الغرف المتوفرة يمكن مشاهدتها من شاشة "الغرف".');
+      return lines.join('\n');
+    }
+
+    lines.add('معلومات الغرفة:');
+    lines.add('  • النوع: ${room.type}');
+    lines.add('  • السعر الحالي: ${room.price.toStringAsFixed(0)} ريال/ليلة');
+    lines.add('  • الحالة: ${_roomStatusArabic(room.status)}');
+
+    // ── الحجز النشط ──
+    final activeBookings =
+        await (db.select(db.bookings)
+              ..where((b) => b.roomNumber.equals(roomNumber))
+              ..where((b) => b.status.equals('checked_in'))
+              ..where((b) => b.deletedAt.isNull()))
+            .get();
+
+    lines.add('');
+    if (activeBookings.isNotEmpty) {
+      final b = activeBookings.first;
+      final checkin = b.checkinDate.split('T').first;
+      final checkout = b.checkoutDate?.split('T').first ?? 'غير محدد';
+      final paidPct = b.totalDueCached > 0
+          ? ((b.totalPaidCached / b.totalDueCached) * 100).toStringAsFixed(0)
+          : '0';
+      lines.add('الحجز النشط:');
+      lines.add('  • الضيف: ${b.guestName} | ${b.guestNationality} | ${b.guestPhone}');
+      lines.add('  • دخول: $checkin | مغادرة: $checkout | ${b.calculatedNights} ليلة');
+      lines.add(
+        '  • مستحق: ${b.totalDueCached.toStringAsFixed(0)} | مدفوع: ${b.totalPaidCached.toStringAsFixed(0)} ($paidPct%) | متبقي: ${b.remainingBalanceCached.toStringAsFixed(0)} ريال',
+      );
+    } else {
+      lines.add('⚠️ لا يوجد حجز نشط حالياً للغرفة $roomNumber.');
+      lines.add('  (الغرفة قد تكون شاغرة/تنظيف/صيانة، أو الحجز مكتمل ومغلق.)');
+    }
+
+    // ── المدفوعات في الفترة ──
+    // نجمع المدفوعات بطريقتين:
+    //   (أ) مباشرةً برقم الغرفة: payments.room_number = roomNumber
+    //   (ب) عبر الحجز النشط: payments.booking_local_id IN (active bookings)
+    //       (بعض المدفوعات القديمة قد لا تملك roomNumber مُعبّأً)
+    final activeBookingIds = activeBookings.map((b) => b.id).toList();
+
+    // أبسط حل: جلب كل المدفوعات للغرفة/الحجز ثم فلترة التاريخ في Dart
+    // (تجنباً لتعقيدات isBetweenValues على النصوص في Drift)
+    final allRoomPayments =
+        await (db.select(db.payments)
+              ..where((p) => p.roomNumber.equals(roomNumber))
+              ..where((p) => p.deletedAt.isNull())
+              ..where((p) => p.isVoided.equals(false))
+              ..orderBy([(p) => OrderingTerm.desc(p.paymentDate)]))
+            .get();
+
+    final allBookingPayments = activeBookingIds.isEmpty
+        ? <Payment>[]
+        : await (db.select(db.payments)
+              ..where((p) => p.bookingLocalId.isIn(activeBookingIds))
+              ..where((p) => p.deletedAt.isNull())
+              ..where((p) => p.isVoided.equals(false))
+              ..orderBy([(p) => OrderingTerm.desc(p.paymentDate)]))
+            .get();
+
+    // دمج + إزالة التكرار + فلترة التاريخ
+    final seenIds = <int>{};
+    final payments = <Payment>[];
+    bool inRange(String paymentDate) {
+      final d = paymentDate.split('T').first;
+      return d.compareTo(fromDate) >= 0 && d.compareTo(toDate) <= 0;
+    }
+
+    for (final p in [...allRoomPayments, ...allBookingPayments]) {
+      if (seenIds.contains(p.id)) continue;
+      seenIds.add(p.id);
+      if (!inRange(p.paymentDate)) continue;
+      payments.add(p);
+    }
+    payments.sort((a, b) => b.paymentDate.compareTo(a.paymentDate));
+
+    lines.add('');
+    lines.add('المدفوعات في الفترة $fromDate ← $toDate:');
+    if (payments.isEmpty) {
+      lines.add('  ❌ لا توجد مدفوعات مسجلة للغرفة $roomNumber في هذه الفترة.');
+      lines.add('');
+      if (activeBookings.isNotEmpty) {
+        final b = activeBookings.first;
+        lines.add('ملاحظات مهمة:');
+        lines.add(
+          '  • الغرفة محجوزة فعلاً (الضيف: ${b.guestName}) — المدفوع الإجمالي على الحجز: ${b.totalPaidCached.toStringAsFixed(0)} ريال.',
+        );
+        lines.add('  • الأسباب المحتملة لعدم ظهور المدفوعات هنا:');
+        lines.add('    - جميع المدفوعات تمت قبل $fromDate (خارج الفترة المطلوبة).');
+        lines.add('    - المدفوعات مسجلة بدون رقم غرفة (يتم ربطها عبر الحجز فقط).');
+        lines.add('    - الدفعة سُجّلت على حجز آخر مغلق لنفس الغرفة.');
+        lines.add('');
+        lines.add('💡 جرّب توسيع النطاق الزمني:');
+        lines.add(
+          '  مثال: "مدفوعات الغرفة $roomNumber لآخر 30 يوم" أو "من بداية الحجز".',
+        );
+      }
+    } else {
+      final total = payments.fold<double>(0, (s, p) => s + p.amount);
+      final countByMethod = <String, int>{};
+      for (final p in payments) {
+        countByMethod[p.paymentMethod] =
+            (countByMethod[p.paymentMethod] ?? 0) + 1;
+      }
+      lines.add(
+        '  عدد العمليات: ${payments.length} | الإجمالي: ${total.toStringAsFixed(0)} ريال',
+      );
+      lines.add(
+        '  طرق الدفع: ${countByMethod.entries.map((e) => "${e.key} (${e.value})").join(" | ")}',
+      );
+      lines.add('');
+      lines.add('التفاصيل (الأحدث أولاً):');
+      for (final p in payments) {
+        final pDate = p.paymentDate.split('T').first;
+        final note = (p.notes?.trim().isNotEmpty ?? false) ? ' | ${p.notes}' : '';
+        lines.add(
+          '  • $pDate | ${p.amount.toStringAsFixed(0)} ريال | ${p.paymentMethod} | ${p.revenueType}$note',
+        );
+      }
+    }
+
+    return lines.join('\n');
+  }
+
+  /// ترجمة حالة الغرفة إلى العربية للعرض في التقارير
+  String _roomStatusArabic(String status) {
+    switch (status) {
+      case 'available':
+        return 'شاغرة';
+      case 'occupied':
+      case 'checked_in':
+        return 'محجوزة';
+      case 'cleaning':
+        return 'تنظيف';
+      case 'maintenance':
+        return 'صيانة';
+      default:
+        return status;
     }
   }
 
