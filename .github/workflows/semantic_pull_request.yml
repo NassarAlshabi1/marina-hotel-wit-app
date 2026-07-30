@@ -21,7 +21,7 @@
 name: Semantic PR
 
 on:
-  pull_request_target:
+  pull_request:
     types:
       - opened
       - edited
@@ -29,7 +29,7 @@ on:
       - reopened
 
 permissions:
-  pull-requests: write
+  pull-requests: read
   contents: read
 
 concurrency:
@@ -41,9 +41,6 @@ jobs:
     name: Validate PR Title
     runs-on: ubuntu-latest
     timeout-minutes: 3
-    permissions:
-      pull-requests: read
-      contents: read
 
     steps:
       - name: 🔍 Validate PR title follows Conventional Commits
