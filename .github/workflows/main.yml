@@ -114,6 +114,11 @@ jobs:
           GRADLE_OPTS: "-Xmx6g -XX:MaxMetaspaceSize=1g -Dorg.gradle.daemon=false"
           JAVA_TOOL_OPTIONS: "-Xmx6g -XX:MaxMetaspaceSize=1g"
         run: |
+          # Encode FCM JSON to base64 (single line) to avoid shell/Flutter
+          # parsing issues with multi-line secret values. The Dart code
+          # (FcmServiceAccountCredentials.fromBase64) decodes it back.
+          FCM_B64=$(printf '%s' "$FCM_SERVICE_ACCOUNT_JSON" | base64 -w 0)
+
           flutter build apk --release \
             --target-platform android-arm64,android-arm \
             --build-name "$BUILD_NAME" \
@@ -122,7 +127,7 @@ jobs:
             --dart-define=AGENT_ROUTER_API_KEY="$AGENT_ROUTER_API_KEY" \
             --dart-define=AGENT_ROUTER_BASE_URL=https://openrouter.ai/api/v1 \
             --dart-define=FCM_PROJECT_ID=aden-flutter \
-            --dart-define=FCM_SERVICE_ACCOUNT_JSON="$FCM_SERVICE_ACCOUNT_JSON"
+            --dart-define=FCM_SERVICE_ACCOUNT_JSON="$FCM_B64"
 
       # ─── عرض معلومات الـ APK المبني ─────────────────────
       - name: Inspect APK info
