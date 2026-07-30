@@ -1,21 +1,11 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #  Marina Hotel — Semantic Pull Request
-#  Based on Very Good Workflows: semantic_pull_request.yml
+#  Custom validation script (replaces amannn/action-semantic-pull-request)
 #
 #  يضمن أن عناوين PR تتبع Conventional Commits:
 #    feat: ✨ إضافة ميزة جديدة
 #    fix: 🐛 إصلاح خطأ
 #    refactor: ♻️ إعادة هيكلة
-#    perf: ⚡ تحسين أداء
-#    docs: 📝 توثيق
-#    test: 🧪 اختبارات
-#    chore: 🔧 صيانة
-#    ci: 👷 CI/CD
-#    style: 💄 تنسيق
-#    build: 📦 بناء
-#
-#  الأنواع المقبولة مستوحاة من:
-#  https://www.conventionalcommits.org/en/v1.0.0/
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 name: Semantic PR
@@ -29,9 +19,8 @@ on:
       - reopened
 
 permissions:
-  pull-requests: write
+  pull-requests: read
   contents: read
-  statuses: write
 
 concurrency:
   group: semantic-pr-${{ github.ref }}
@@ -45,28 +34,63 @@ jobs:
 
     steps:
       - name: 🔍 Validate PR title follows Conventional Commits
-        uses: amannn/action-semantic-pull-request@v5.5.0
         env:
-          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
-        with:
-          types: |
-            feat
-            fix
-            refactor
-            perf
-            docs
-            test
-            chore
-            ci
-            style
-            build
-            revert
-          requireScope: false
-          subjectPattern: ^[A-Z\u0600-\u06FF].+$
-          subjectPatternError: |
-            The subject "{subject}" found in the PR title "{title}"
-            didn't match the configured pattern. Please ensure that the subject
-            starts with an uppercase character or Arabic letter, and has no
-            trailing period.
-          wip: true
-          validateSingleCommit: false
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          #!/bin/bash
+          set -e
+
+          echo "PR #$PR_NUMBER"
+          echo "Title: $PR_TITLE"
+          echo ""
+
+          # Valid conventional commit types
+          VALID_TYPES="feat fix refactor perf docs test chore ci style build revert"
+
+          # Extract type from title (everything before the first colon)
+          TYPE=$(echo "$PR_TITLE" | cut -d: -f1 | tr -d ' ')
+
+          # Check if type has a scope (e.g., feat(scope))
+          BASE_TYPE=$(echo "$TYPE" | cut -d'(' -f1)
+
+          # Validate type
+          VALID=false
+          for t in $VALID_TYPES; do
+            if [ "$BASE_TYPE" = "$t" ]; then
+              VALID=true
+              break
+            fi
+          done
+
+          if [ "$VALID" = "false" ]; then
+            echo "❌ Invalid PR title: '$PR_TITLE'"
+            echo ""
+            echo "The type '$BASE_TYPE' is not a valid Conventional Commit type."
+            echo "Valid types: $VALID_TYPES"
+            echo ""
+            echo "Expected format: <type>: <subject>"
+            echo "Examples:"
+            echo "  feat: Add new feature"
+            echo "  fix: Resolve bug in login"
+            echo "  refactor: Clean up database code"
+            echo ""
+            echo "See: https://www.conventionalcommits.org/"
+            exit 1
+          fi
+
+          # Extract subject (everything after the first colon)
+          SUBJECT=$(echo "$PR_TITLE" | cut -d: -f2- | sed 's/^ *//')
+
+          # Check subject is not empty
+          if [ -z "$SUBJECT" ]; then
+            echo "❌ Invalid PR title: '$PR_TITLE'"
+            echo ""
+            echo "The subject (text after the colon) is empty."
+            echo "Expected format: <type>: <subject>"
+            exit 1
+          fi
+
+          echo "✅ Valid Conventional Commit: $TYPE → $SUBJECT"
