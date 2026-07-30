@@ -80,12 +80,18 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
   }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
+      final nowIso = DateTime.now().toIso8601String();
       final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
       final comp = data.copyWith(
         localUuid: Value(uu),
         createdAt: Value(now),
+        createdAtIso: Value(nowIso),
+        createdAtEpoch: Value(now),
         updatedAt: Value(now),
+        updatedAtIso: Value(nowIso),
         lastModified: Value(now),
+        lastModifiedEpoch: Value(now),
+        version: const Value(1),
         origin: Value(originIsServer ? 'server' : 'local'),
         deviceId: originIsServer
             ? const Value.absent()
@@ -120,9 +126,15 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
       final effectiveLastModified = originIsServer && data.lastModified.present
           ? data.lastModified
           : Value(now);
+      final effectiveLastModifiedEpoch =
+          originIsServer && data.lastModifiedEpoch.present
+          ? data.lastModifiedEpoch
+          : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
+        updatedAtIso: Value(DateTime.now().toIso8601String()),
         lastModified: effectiveLastModified,
+        lastModifiedEpoch: effectiveLastModifiedEpoch,
         version: Value(existing.version + 1),
       );
       final rows = await (update(
@@ -179,6 +191,7 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
   Future<int> softDelete(int id, {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
+      final nowIso = DateTime.now().toIso8601String();
       final existing = await getById(id);
       if (existing == null) {
         return 0;
@@ -187,8 +200,12 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
           .write(
             EmployeesCompanion(
               deletedAt: Value(now),
+              deletedAtIso: Value(nowIso),
               updatedAt: Value(now),
+              updatedAtIso: Value(nowIso),
               lastModified: Value(now),
+              lastModifiedEpoch: Value(now),
+              version: Value(existing.version + 1),
             ),
           );
       if (rows > 0 && !originIsServer) {

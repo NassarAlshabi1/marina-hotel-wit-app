@@ -52,6 +52,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
   }) async {
     return transaction(() async {
       final now = Time.nowEpoch();
+      final nowIso = DateTime.now().toIso8601String();
       final uuid = IdGen.uuid();
       final companion = ShiftNotesCompanion(
         title: Value(title),
@@ -59,9 +60,14 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
         priority: Value(priority),
         shiftType: Value(shiftType),
         createdAt: Value(now), // Using epoch int as per SyncFields
-        createdAtIso: Value(DateTime.now().toIso8601String()),
+        createdAtIso: Value(nowIso),
+        createdAtEpoch: Value(now),
         updatedAt: Value(now),
+        updatedAtIso: Value(nowIso),
         lastModified: Value(now),
+        lastModifiedEpoch: Value(now),
+        version: const Value(1),
+        origin: Value(originIsServer ? 'server' : 'local'),
         expiresAt: expiresAt != null ? Value(expiresAt) : const Value.absent(),
         isRead: const Value(0),
         createdBy: const Value('user'),
@@ -126,7 +132,9 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
         shiftType: shiftType != null ? Value(shiftType) : const Value.absent(),
         expiresAt: expiresAt != null ? Value(expiresAt) : const Value.absent(),
         updatedAt: Value(now),
+        updatedAtIso: Value(DateTime.now().toIso8601String()),
         lastModified: effectiveLastModified,
+        lastModifiedEpoch: effectiveLastModified,
         version: Value(existing.version + 1),
       );
 
@@ -201,7 +209,9 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
                 ShiftNotesCompanion(
                   isRead: const Value(1),
                   updatedAt: Value(now),
+                  updatedAtIso: Value(DateTime.now().toIso8601String()),
                   lastModified: effectiveLastModified,
+                  lastModifiedEpoch: effectiveLastModified,
                   version: Value(existing.version + 1),
                 ),
               );
@@ -249,7 +259,9 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
                 ShiftNotesCompanion(
                   isRead: const Value(0),
                   updatedAt: Value(now),
+                  updatedAtIso: Value(DateTime.now().toIso8601String()),
                   lastModified: effectiveLastModified,
+                  lastModifiedEpoch: effectiveLastModified,
                   version: Value(existing.version + 1),
                 ),
               );
@@ -286,6 +298,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
       // SyncFields adds `deletedAt`. We should use Soft Delete.
 
       final now = Time.nowEpoch();
+      final nowIso = DateTime.now().toIso8601String();
       // ✅ OCC: فحص version في WHERE لمنع lost update
       final rows =
           await (update(shiftNotes)..where(
@@ -294,8 +307,11 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
               .write(
                 ShiftNotesCompanion(
                   deletedAt: Value(now),
+                  deletedAtIso: Value(nowIso),
                   updatedAt: Value(now),
+                  updatedAtIso: Value(nowIso),
                   lastModified: Value(now),
+                  lastModifiedEpoch: Value(now),
                   version: Value(existing.version + 1),
                 ),
               );
