@@ -41,17 +41,17 @@ class PriceAdjustmentService {
     }
 
     final adjustmentUuid = _uuid.v4();
-    final now = Time.nowEpoch();
-    final nowIso = DateTime.now().toIso8601String();
+    final nowEpoch = now.millisecondsSinceEpoch ~/ 1000;
+    final nowIso = now.toIso8601String();
     final adjustmentRecord = PriceAdjustmentsCompanion(
       localUuid: Value(adjustmentUuid),
-      createdAt: Value(now),
+      createdAt: Value(nowEpoch),
       createdAtIso: Value(nowIso),
-      createdAtEpoch: Value(now),
-      updatedAt: Value(now),
+      createdAtEpoch: Value(nowEpoch),
+      updatedAt: Value(nowEpoch),
       updatedAtIso: Value(nowIso),
-      lastModified: Value(now),
-      lastModifiedEpoch: Value(now),
+      lastModified: Value(nowEpoch),
+      lastModifiedEpoch: Value(nowEpoch),
       version: const Value(1),
       origin: const Value('local'),
       deviceId: Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
