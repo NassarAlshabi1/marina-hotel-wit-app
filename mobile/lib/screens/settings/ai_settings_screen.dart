@@ -234,11 +234,12 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
           const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
               await _settings.resetToDefaults();
               await _loadSettings();
               GeminiService.instance.reset();
               if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
+              messenger.showSnackBar(
                 const SnackBar(
                   content: Text('تم استعادة الإعدادات الافتراضية'),
                 ),
