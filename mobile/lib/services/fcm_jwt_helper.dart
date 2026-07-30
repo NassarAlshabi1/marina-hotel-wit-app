@@ -256,16 +256,56 @@ class FcmJwtHelper {
       rsaComponents.primeQ,
     );
 
-    // 4. حساب SHA-256 للبيانات (EMSA-PKCS1-v1_5 padding مع SHA-256)
+    // 4. RSA signing with PKCS#1 v1.5 padding + SHA-256
+    //
+    // pointycastle approach: use PKCS1Encoding as an AsymmetricBlockCipher.
+    // We "encrypt" the SHA-256 digest of the data with the private key —
+    // the result IS the signature (RSA signing = encryption with private key).
+    //
+    // Note: For RSA signing, init(forEncryption: true) with a private key
+    // produces a signature. init(false) would verify with a public key.
     final dataBytes = utf8.encode(data);
     final digest = sha256.convert(dataBytes).bytes;
-    final signer = pc.PKCS1Encoding(pc.RSASigner(pc.SHA256Digest()))
-      ..init(true, pc.PrivateKeyParameter<pc.RSAPrivateKey>(rsaKey));
-    final signature = signer.generateSignature(
-      Uint8List.fromList(digest),
-    );
 
-    return _base64UrlBytes(signature.bytes);
+    // Build the DigestInfo manually (DER-encoded SHA-256 OID + digest).
+    // This is required because PKCS1Encoding.process() expects the FULL
+    // DigestInfo, not just the raw hash.
+    final digestInfo = _buildSha256DigestInfo(digest);
+
+    final cipher = pc.PKCS1Encoding(pc.RSAEngine())
+      ..init(true, pc.PrivateKeyParameter<pc.RSAPrivateKey>(rsaKey));
+    final signature = cipher.process(digestInfo);
+
+    return _base64UrlBytes(signature);
+  }
+
+  /// Build the DER-encoded DigestInfo for SHA-256.
+  ///
+  /// PKCS#1 v1.5 signing requires the input to be a DER-encoded structure:
+  ///
+  ///   DigestInfo ::= SEQUENCE {
+  ///     digestAlgorithm  AlgorithmIdentifier,  -- SHA-256 OID
+  ///     digest           OCTET STRING          -- the actual hash
+  ///   }
+  ///
+  /// The SHA-256 OID is 2.16.840.1.101.3.4.2.1, DER-encoded as:
+  ///   30 31 30 0d 06 09 60 86 48 01 65 03 04 02 01 05 00 04 20 <32-byte hash>
+  ///
+  /// Total prefix: 19 bytes, then the 32-byte SHA-256 digest = 51 bytes total.
+  static Uint8List _buildSha256DigestInfo(List<int> digest) {
+    // Pre-computed DER prefix for SHA-256 DigestInfo (RFC 3447 section 9.2)
+    const prefix = [
+      0x30, 0x31, // SEQUENCE, length 49
+      0x30, 0x0d, // SEQUENCE (AlgorithmIdentifier), length 13
+      0x06, 0x09, // OID, length 9
+      0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, // SHA-256 OID
+      0x05, 0x00, // NULL (parameters)
+      0x04, 0x20, // OCTET STRING, length 32
+    ];
+    final result = Uint8List(prefix.length + digest.length);
+    result.setRange(0, prefix.length, prefix);
+    result.setRange(prefix.length, prefix.length + digest.length, digest);
+    return result;
   }
 
   /// base64Url-encode بدون padding (لمتوافقية JWT).

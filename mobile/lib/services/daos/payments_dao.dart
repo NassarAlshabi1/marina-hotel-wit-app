@@ -303,8 +303,9 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     // ✅ FCM: إشعار الأجهزة الأخرى بدفعة جديدة (fire-and-forget)
     // بعد نجاح الـ transaction — لن يُرسل لدفعة لم تُحفظ.
     if (!originIsServer && comp.amount.present) {
-      // قراءة roomNumber من booking المرتبط (اختياري، best-effort)
+      // قراءة roomNumber + guestName من booking المرتبط (اختياري، best-effort)
       String? roomNumber;
+      String? guestName;
       if (comp.bookingLocalId.present && comp.bookingLocalId.value != null) {
         try {
           final booking =
@@ -313,8 +314,9 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
                   )..where((b) => b.id.equals(comp.bookingLocalId.value!)))
                   .getSingleOrNull();
           roomNumber = booking?.roomNumber;
+          guestName = booking?.guestName;
         } catch (_) {
-          // تجاهل — roomNumber اختياري في الإشعار
+          // تجاهل — roomNumber/guestName اختياريان في الإشعار
         }
       }
       unawaited(
@@ -329,7 +331,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
           amount: comp.amount.value,
           roomNumber: roomNumber ?? 'غير محدد',
           method: comp.paymentMethod.present ? comp.paymentMethod.value : null,
-          guestName: booking?.guestName,
+          guestName: guestName,
         ),
       );
     }
