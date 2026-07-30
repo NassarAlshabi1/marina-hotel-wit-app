@@ -29,8 +29,9 @@ on:
       - reopened
 
 permissions:
-  pull-requests: read
+  pull-requests: write
   contents: read
+  statuses: write
 
 concurrency:
   group: semantic-pr-${{ github.ref }}
