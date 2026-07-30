@@ -25,7 +25,6 @@
 //     الاعتماد على ASN1 classes التي قد تتغير أسماؤها بين إصدارات pointycastle.
 
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
@@ -495,8 +494,7 @@ _RsaComponents _extractRsaComponents(List<int> derBytes) {
   }
 
   // محاولة 2: PKCS#1
-  final rsaSeq = topSeq; // أعد استخدام reader من المحاولة الأولى
-  // لكن reader قد يكون في حالة غير متوقعة — نعيد القراءة من البداية
+  // نعيد القراءة من البداية باستخدام reader جديد
   final pkcs1Reader = _DerReader(derBytes);
   final rsaSeq2 = pkcs1Reader.readSequence();
   rsaSeq2.readInteger(); // version

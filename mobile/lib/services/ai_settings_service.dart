@@ -21,17 +21,17 @@ enum AiProviderType {
 
 /// الموديلات المتاحة لكل مزود
 class AiModelOption {
-  final String id;
-  final String displayName;
-  final String provider;
-  final String description;
-
   const AiModelOption({
     required this.id,
     required this.displayName,
     required this.provider,
     required this.description,
   });
+
+  final String id;
+  final String displayName;
+  final String provider;
+  final String description;
 
   static const geminiModels = [
     AiModelOption(

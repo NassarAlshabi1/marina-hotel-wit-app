@@ -30,8 +30,6 @@
 //   - قنوات منفصلة لكل نوع (Android 8+) ليتمكن المستخدم من تخصيصها من إعدادات النظام.
 //   - تهيئة idempotent — يمكن استدعاؤها عدة مرات بأمان.
 
-import 'dart:math';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -58,7 +56,6 @@ class _Channels {
     'marina_expenses_channel',
     'المصروفات',
     description: 'إشعارات إضافة المصروفات',
-    importance: Importance.defaultImportance,
   );
 
   static const backup = AndroidNotificationChannel(
@@ -72,7 +69,6 @@ class _Channels {
     'marina_generic_channel',
     'إشعارات عامة',
     description: 'إشعارات عامة من التطبيق',
-    importance: Importance.defaultImportance,
   );
 
   static const List<AndroidNotificationChannel> all = [
@@ -100,7 +96,6 @@ class LocalNotificationService {
       FlutterLocalNotificationsPlugin();
 
   bool _isInitialized = false;
-  final Random _random = Random();
 
   // معرّفات فريدة لكل إشعار ضمن نطاق نوع الحدث
   int _nextBookingId = 1000;
@@ -120,12 +115,7 @@ class LocalNotificationService {
       const androidSettings = AndroidInitializationSettings(
         '@mipmap/ic_launcher',
       );
-      const iosSettings = DarwinInitializationSettings(
-        // طلب إذن الإشعارات على iOS عند التهيئة
-        requestAlertPermission: true,
-        requestBadgePermission: true,
-        requestSoundPermission: true,
-      );
+      const iosSettings = DarwinInitializationSettings();
       const settings = InitializationSettings(
         android: androidSettings,
         iOS: iosSettings,

@@ -128,7 +128,9 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
               title: Text(m.displayName),
               subtitle: Text(m.description),
               value: m.id,
+              // ignore: deprecated_member_use
               groupValue: _selectedModel,
+              // ignore: deprecated_member_use
               onChanged: (value) {
                 setState(() => _selectedModel = value!);
               },
@@ -192,8 +194,6 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
           ),
           Slider(
             value: _temperature,
-            min: 0.0,
-            max: 1.0,
             divisions: 10,
             label: _temperature.toStringAsFixed(1),
             onChanged: (v) => setState(() => _temperature = v),
@@ -238,13 +238,12 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
               await _settings.resetToDefaults();
               await _loadSettings();
               GeminiService.instance.reset();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('تم استعادة الإعدادات الافتراضية'),
-                  ),
-                );
-              }
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('تم استعادة الإعدادات الافتراضية'),
+                ),
+              );
             },
             icon: const Icon(Icons.restore),
             label: const Text('استعادة الافتراضي'),

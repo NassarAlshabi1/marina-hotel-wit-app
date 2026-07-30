@@ -173,7 +173,7 @@ class FcmSender {
       //    نحاول base64 أولاً (الشكل الموصى به عبر encode_fcm_key.py).
       //    إذا فشل، نحاول JSON الخام (يتحمل المستخدم الذي لصق fcm-key.json مباشرة).
       if (!FcmJwtHelper.instance.isConfigured) {
-        final raw = Env.fcmServiceAccountJson;
+        const raw = Env.fcmServiceAccountJson;
         FcmServiceAccountCredentials creds;
         try {
           creds = FcmServiceAccountCredentials.fromBase64(raw);
@@ -208,7 +208,7 @@ class FcmSender {
       final eventTypeString = _eventTypeToString(type);
 
       // 5. الإرسال لكل توكن على حدة (v1 API لا يدعم multicast مباشرة)
-      final endpoint =
+      const endpoint =
           'https://fcm.googleapis.com/v1/projects/${Env.fcmProjectId}/messages:send';
       final headers = {
         'Content-Type': 'application/json',

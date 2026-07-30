@@ -2,13 +2,15 @@
 // شاشة المحادثة مع المساعد الذكي "ماريانا"
 // ✅ تصميم محسّن + نسخ المخرجات + تنسيق احترافي للأوامر
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import '../../services/gemini_service.dart';
 import '../../services/ai_settings_service.dart';
 import '../../services/crashlytics_service.dart';
+import '../../services/gemini_service.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../settings/ai_settings_screen.dart';
 
@@ -130,7 +132,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
 
       // تنفيذ الأمر إذا كان موجوداً
       if (response.hasCommand && response.command != null) {
-        _executeCommand(response.command!, text);
+        unawaited(_executeCommand(response.command!, text));
       }
 
       // تتبع في Crashlytics
@@ -263,7 +265,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const AiSettingsScreen()),
+                MaterialPageRoute<void>(builder: (_) => const AiSettingsScreen()),
               ).then((_) {
                 // إعادة التهيئة بعد تغيير الإعدادات
                 GeminiService.instance.reset();
@@ -424,8 +426,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
                 colors: [Color(0xFFB46B00), Color(0xFFD9A621)],
               ),
               shape: BoxShape.circle,
@@ -663,7 +665,6 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(18),
             topRight: Radius.circular(18),
-            bottomLeft: Radius.zero,
             bottomRight: Radius.circular(4),
           ),
           boxShadow: [
@@ -783,8 +784,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
             ),
             const SizedBox(width: 8),
             Container(
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
                   colors: [Color(0xFFB46B00), Color(0xFFD9A621)],
                 ),
                 shape: BoxShape.circle,
@@ -802,7 +803,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
                     : const Icon(Icons.send, color: Colors.white, size: 20),
                 onPressed: _isLoading || !_isGeminiAvailable
                     ? null
-                    : () => _sendMessage(),
+                    : _sendMessage,
                 tooltip: 'إرسال',
               ),
             ),
