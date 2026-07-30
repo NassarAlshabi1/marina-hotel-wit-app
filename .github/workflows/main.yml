@@ -106,19 +106,23 @@ jobs:
       # targetSdk = 36 (Android 16)
       # المعماريات: arm64-v8a, armeabi-v7a
       - name: Build universal release APK
+        env:
+          FCM_SERVICE_ACCOUNT_JSON: ${{ secrets.FCM_SERVICE_ACCOUNT_JSON }}
+          AGENT_ROUTER_API_KEY: ${{ secrets.AGENTROUTER_API_KEY }}
+          BUILD_NAME: ${{ steps.version.outputs.build_name }}
+          BUILD_NUMBER: ${{ steps.version.outputs.build_number }}
+          GRADLE_OPTS: "-Xmx6g -XX:MaxMetaspaceSize=1g -Dorg.gradle.daemon=false"
+          JAVA_TOOL_OPTIONS: "-Xmx6g -XX:MaxMetaspaceSize=1g"
         run: |
           flutter build apk --release \
             --target-platform android-arm64,android-arm \
-            --build-name "${{ steps.version.outputs.build_name }}" \
-            --build-number "${{ steps.version.outputs.build_number }}" \
+            --build-name "$BUILD_NAME" \
+            --build-number "$BUILD_NUMBER" \
             --dart-define=BASE_API_URL=http://hotelmarina.com/MARINA_HOTEL_PORTABLE/api/v1 \
-            --dart-define=AGENT_ROUTER_API_KEY="${{ secrets.AGENTROUTER_API_KEY }}" \
+            --dart-define=AGENT_ROUTER_API_KEY="$AGENT_ROUTER_API_KEY" \
             --dart-define=AGENT_ROUTER_BASE_URL=https://openrouter.ai/api/v1 \
             --dart-define=FCM_PROJECT_ID=aden-flutter \
-            --dart-define=FCM_SERVICE_ACCOUNT_JSON="${{ secrets.FCM_SERVICE_ACCOUNT_JSON }}"
-        env:
-          GRADLE_OPTS: "-Xmx6g -XX:MaxMetaspaceSize=1g -Dorg.gradle.daemon=false"
-          JAVA_TOOL_OPTIONS: "-Xmx6g -XX:MaxMetaspaceSize=1g"
+            --dart-define=FCM_SERVICE_ACCOUNT_JSON="$FCM_SERVICE_ACCOUNT_JSON"
 
       # ─── عرض معلومات الـ APK المبني ─────────────────────
       - name: Inspect APK info

@@ -170,10 +170,18 @@ class FcmSender {
   }) async {
     try {
       // 1. تهيئة FcmJwtHelper (مرة واحدة)
+      //    نحاول base64 أولاً (الشكل الموصى به عبر encode_fcm_key.py).
+      //    إذا فشل، نحاول JSON الخام (يتحمل المستخدم الذي لصق fcm-key.json مباشرة).
       if (!FcmJwtHelper.instance.isConfigured) {
-        FcmJwtHelper.instance.configure(
-          FcmServiceAccountCredentials.fromBase64(Env.fcmServiceAccountJson),
-        );
+        final raw = Env.fcmServiceAccountJson;
+        FcmServiceAccountCredentials creds;
+        try {
+          creds = FcmServiceAccountCredentials.fromBase64(raw);
+        } catch (_) {
+          // ربما JSON خام — جرّب مباشرة
+          creds = FcmServiceAccountCredentials.fromJsonString(raw);
+        }
+        FcmJwtHelper.instance.configure(creds);
       }
 
       // 2. الحصول على access token
