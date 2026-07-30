@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
+import 'appwrite_sync_manager.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 
@@ -361,6 +362,7 @@ class SalaryEntitlementService {
         'في دورة ${_formatDate(previousCycleStart)} إلى ${_formatDate(previousCycleEnd)}.';
 
     final nowEpoch = Time.nowEpoch();
+    final nowIso = DateTime.now().toIso8601String();
     final carryLogUuid = IdGen.uuid();
     await _db
         .into(_db.salaryCarryOverLogs)
@@ -376,8 +378,15 @@ class SalaryEntitlementService {
             carriedAt: nowEpoch,
             localUuid: carryLogUuid,
             createdAt: nowEpoch,
+            createdAtIso: d.Value(nowIso),
+            createdAtEpoch: d.Value(nowEpoch),
             updatedAt: nowEpoch,
+            updatedAtIso: d.Value(nowIso),
             lastModified: nowEpoch,
+            lastModifiedEpoch: d.Value(nowEpoch),
+            version: const d.Value(1),
+            origin: const d.Value('local'),
+            deviceId: d.Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
           ),
         );
 

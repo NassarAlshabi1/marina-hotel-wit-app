@@ -127,6 +127,8 @@ class HotelDayKeyFixService {
       }
       if (toFix.isEmpty) return 0;
 
+      final now = Time.nowEpoch();
+      final nowIso = DateTime.now().toIso8601String();
       await db.transaction(() async {
         for (final item in toFix) {
           await (db.update(
@@ -134,6 +136,10 @@ class HotelDayKeyFixService {
           )..where((t) => t.id.equals(item.id))).write(
             ExpensesCompanion(
               hotelDayKey: d.Value(item.correctKey),
+              updatedAt: d.Value(now),
+              updatedAtIso: d.Value(nowIso),
+              lastModified: d.Value(now),
+              lastModifiedEpoch: d.Value(now),
               version: d.Value(item.version + 1),
             ),
           );
@@ -141,7 +147,6 @@ class HotelDayKeyFixService {
       });
 
       final outboxDao = OutboxDao(db);
-      final now = Time.nowEpoch();
       await outboxDao.mergeBatch(
         toFix
             .map(
@@ -186,6 +191,8 @@ class HotelDayKeyFixService {
       }
       if (toFix.isEmpty) return 0;
 
+      final now = Time.nowEpoch();
+      final nowIso = DateTime.now().toIso8601String();
       await db.transaction(() async {
         for (final item in toFix) {
           await (db.update(
@@ -193,6 +200,10 @@ class HotelDayKeyFixService {
           )..where((t) => t.id.equals(item.id))).write(
             SalaryWithdrawalsCompanion(
               hotelDayKey: d.Value(item.correctKey),
+              updatedAt: d.Value(now),
+              updatedAtIso: d.Value(nowIso),
+              lastModified: d.Value(now),
+              lastModifiedEpoch: d.Value(now),
               version: d.Value(item.version + 1),
             ),
           );
@@ -200,7 +211,6 @@ class HotelDayKeyFixService {
       });
 
       final outboxDao = OutboxDao(db);
-      final now = Time.nowEpoch();
       await outboxDao.mergeBatch(
         toFix
             .map(
@@ -378,6 +388,7 @@ class HotelDayKeyFixService {
         // ✅ تنفيذ التحديثات دفعة واحدة في معاملة واحدة
         if (dbUpdates.isNotEmpty) {
           final now = Time.nowEpoch();
+          final nowIso = DateTime.now().toIso8601String();
           await db.transaction(() async {
             for (final item in dbUpdates) {
               await (db.update(
@@ -386,7 +397,9 @@ class HotelDayKeyFixService {
                 SalaryWithdrawalsCompanion(
                   reason: d.Value(item.newReason),
                   updatedAt: d.Value(now),
+                  updatedAtIso: d.Value(nowIso),
                   lastModified: d.Value(now),
+                  lastModifiedEpoch: d.Value(now),
                   version: d.Value(item.version + 1),
                 ),
               );
@@ -517,6 +530,8 @@ class HotelDayKeyFixService {
       }
       if (toFix.isEmpty) return 0;
 
+      final now = Time.nowEpoch();
+      final nowIso = DateTime.now().toIso8601String();
       await db.transaction(() async {
         for (final item in toFix) {
           await (db.update(
@@ -524,6 +539,10 @@ class HotelDayKeyFixService {
           )..where((t) => t.id.equals(item.id))).write(
             PaymentsCompanion(
               hotelDayKey: d.Value(item.correctKey),
+              updatedAt: d.Value(now),
+              updatedAtIso: d.Value(nowIso),
+              lastModified: d.Value(now),
+              lastModifiedEpoch: d.Value(now),
               version: d.Value(item.version + 1),
             ),
           );
@@ -531,7 +550,6 @@ class HotelDayKeyFixService {
       });
 
       final outboxDao = OutboxDao(db);
-      final now = Time.nowEpoch();
       await outboxDao.mergeBatch(
         toFix
             .map(
@@ -575,6 +593,8 @@ class HotelDayKeyFixService {
       }
       if (toFix.isEmpty) return 0;
 
+      final now = Time.nowEpoch();
+      final nowIso = DateTime.now().toIso8601String();
       await db.transaction(() async {
         for (final item in toFix) {
           await (db.update(
@@ -582,6 +602,10 @@ class HotelDayKeyFixService {
           )..where((t) => t.id.equals(item.id))).write(
             BookingNightsCompanion(
               hotelDayKey: d.Value(item.correctKey),
+              updatedAt: d.Value(now),
+              updatedAtIso: d.Value(nowIso),
+              lastModified: d.Value(now),
+              lastModifiedEpoch: d.Value(now),
               version: d.Value(item.version + 1),
             ),
           );
@@ -589,7 +613,6 @@ class HotelDayKeyFixService {
       });
 
       final outboxDao = OutboxDao(db);
-      final now = Time.nowEpoch();
       await outboxDao.mergeBatch(
         toFix
             .map(
@@ -633,6 +656,8 @@ class HotelDayKeyFixService {
       }
       if (toFix.isEmpty) return 0;
 
+      final now = Time.nowEpoch();
+      final nowIso = DateTime.now().toIso8601String();
       await db.transaction(() async {
         for (final item in toFix) {
           await (db.update(
@@ -640,6 +665,10 @@ class HotelDayKeyFixService {
           )..where((t) => t.id.equals(item.id))).write(
             SalaryPaymentsCompanion(
               hotelDayKey: d.Value(item.correctKey),
+              updatedAt: d.Value(now),
+              updatedAtIso: d.Value(nowIso),
+              lastModified: d.Value(now),
+              lastModifiedEpoch: d.Value(now),
               version: d.Value(item.version + 1),
             ),
           );
@@ -647,7 +676,6 @@ class HotelDayKeyFixService {
       });
 
       final outboxDao = OutboxDao(db);
-      final now = Time.nowEpoch();
       await outboxDao.mergeBatch(
         toFix
             .map(
@@ -691,6 +719,8 @@ class HotelDayKeyFixService {
       }
       if (toFix.isEmpty) return 0;
 
+      final now = Time.nowEpoch();
+      final nowIso = DateTime.now().toIso8601String();
       await db.transaction(() async {
         for (final item in toFix) {
           await (db.update(
@@ -698,6 +728,10 @@ class HotelDayKeyFixService {
           )..where((t) => t.id.equals(item.id))).write(
             PaymentVoidsCompanion(
               hotelDayKey: d.Value(item.correctKey),
+              updatedAt: d.Value(now),
+              updatedAtIso: d.Value(nowIso),
+              lastModified: d.Value(now),
+              lastModifiedEpoch: d.Value(now),
               version: d.Value(item.version + 1),
             ),
           );
@@ -705,7 +739,6 @@ class HotelDayKeyFixService {
       });
 
       final outboxDao = OutboxDao(db);
-      final now = Time.nowEpoch();
       await outboxDao.mergeBatch(
         toFix
             .map(
@@ -749,6 +782,8 @@ class HotelDayKeyFixService {
       }
       if (toFix.isEmpty) return 0;
 
+      final now = Time.nowEpoch();
+      final nowIso = DateTime.now().toIso8601String();
       await db.transaction(() async {
         for (final item in toFix) {
           await (db.update(
@@ -756,6 +791,10 @@ class HotelDayKeyFixService {
           )..where((t) => t.id.equals(item.id))).write(
             AuditLogsCompanion(
               hotelDayKey: d.Value(item.correctKey),
+              updatedAt: d.Value(now),
+              updatedAtIso: d.Value(nowIso),
+              lastModified: d.Value(now),
+              lastModifiedEpoch: d.Value(now),
               version: d.Value(item.version + 1),
             ),
           );
@@ -763,7 +802,6 @@ class HotelDayKeyFixService {
       });
 
       final outboxDao = OutboxDao(db);
-      final now = Time.nowEpoch();
       await outboxDao.mergeBatch(
         toFix
             .map(

@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../utils/hotel_time_engine.dart';
 import '../utils/time.dart';
+import 'appwrite_sync_manager.dart';
 import 'auto_backup_manager.dart';
 import 'booking_derived_fields_service.dart';
 import 'daos/outbox_dao.dart';
@@ -40,11 +41,20 @@ class PriceAdjustmentService {
     }
 
     final adjustmentUuid = _uuid.v4();
+    final now = Time.nowEpoch();
+    final nowIso = DateTime.now().toIso8601String();
     final adjustmentRecord = PriceAdjustmentsCompanion(
       localUuid: Value(adjustmentUuid),
-      createdAt: Value(Time.nowEpoch()),
-      updatedAt: Value(Time.nowEpoch()),
-      lastModified: Value(Time.nowEpoch()),
+      createdAt: Value(now),
+      createdAtIso: Value(nowIso),
+      createdAtEpoch: Value(now),
+      updatedAt: Value(now),
+      updatedAtIso: Value(nowIso),
+      lastModified: Value(now),
+      lastModifiedEpoch: Value(now),
+      version: const Value(1),
+      origin: const Value('local'),
+      deviceId: Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
       targetType: const Value('room'),
       targetUuid: Value(room.localUuid),
       adjustmentType: const Value('price_change'),

@@ -7,6 +7,7 @@ import '../utils/debug_log.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/id.dart';
 import '../utils/time.dart';
+import 'appwrite_sync_manager.dart';
 import 'auto_backup_manager.dart';
 import 'booking_derived_fields_service.dart';
 import 'daos/outbox_dao.dart';
@@ -257,6 +258,7 @@ class BookingPriceAdjustmentService {
     }
 
     final now = Time.nowEpoch();
+    final nowIso = DateTime.now().toIso8601String();
     final uuid = IdGen.uuid();
 
     final adjustment = BookingPriceAdjustmentsCompanion(
@@ -273,8 +275,15 @@ class BookingPriceAdjustmentService {
       reason: Value(reason),
       appliedBy: Value(appliedBy),
       createdAt: Value(now),
+      createdAtIso: Value(nowIso),
+      createdAtEpoch: Value(now),
       updatedAt: Value(now),
+      updatedAtIso: Value(nowIso),
       lastModified: Value(now),
+      lastModifiedEpoch: Value(now),
+      version: const Value(1),
+      origin: const Value('local'),
+      deviceId: Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
     );
 
     await db.into(db.bookingPriceAdjustments).insert(adjustment);
