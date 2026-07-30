@@ -57,15 +57,14 @@ class _AiSettingsScreenState extends ConsumerState<AiSettingsScreen> {
     // إعادة تهيئة GeminiService بالإعدادات الجديدة
     GeminiService.instance.reset();
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ تم حفظ إعدادات AI'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      Navigator.pop(context);
-    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('✅ تم حفظ إعدادات AI'),
+        backgroundColor: Colors.green,
+      ),
+    );
+    Navigator.pop(context);
   }
 
   @override

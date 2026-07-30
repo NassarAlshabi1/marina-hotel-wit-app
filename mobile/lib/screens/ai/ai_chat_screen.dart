@@ -43,6 +43,7 @@ class ChatMessage {
       text: text ?? this.text,
       isUser: isUser ?? this.isUser,
       isError: isError ?? this.isError,
+      // ignore: unnecessary_this
       timestamp: timestamp ?? this.timestamp,
       isCommandResult: isCommandResult ?? this.isCommandResult,
     );

@@ -448,22 +448,6 @@ class _DerReader {
 /// يدعم PKCS#8 (يبدأ بـ SEQUENCE { INTEGER(0), SEQUENCE, OCTET STRING })
 /// و PKCS#1 (يبدأ مباشرة بـ RSAPrivateKey SEQUENCE).
 _RsaComponents _extractRsaComponents(List<int> derBytes) {
-  final reader = _DerReader(derBytes);
-  final topSeq = reader.readSequence();
-
-  // اكتشاف الصيغة: العنصر الأول في PKCS#8 هو INTEGER(0).
-  // في PKCS#1، العنصر الأول هو أيضاً version INTEGER(0)، لكن العنصر الثاني
-  // هو modulus (INTEGER كبير) وليس SEQUENCE (algorithm identifier).
-  //
-  // لذلك نتحقق: إذا كان هناك ≥ 3 عناصر والعنصر الثاني SEQUENCE → PKCS#8.
-  // وإلا → PKCS#1 (نقرأ version + modulus + e + d + p + q من نفس الـ sequence).
-  //
-  // لكن لا يمكننا "إلغاء" قراءة عنصر من reader. لذلك نأخذ نهجاً مختلفاً:
-  // نحفظ العنصر الأول (version أو INTEGER كبير)، ثم نتحقق من نوع العنصر التالي.
-  //
-  // أبسط نهج: نحاول PKCS#8 أولاً. إذا فشل (type mismatch)، نُعيد المحاولة
-  // بـ PKCS#1.
-
   // محاولة 1: PKCS#8
   try {
     final pkcs8Reader = _DerReader(derBytes);
