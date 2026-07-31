@@ -33,27 +33,35 @@ final connectionStatusProvider =
 class ConnectionState {
   const ConnectionState({
     this.isConnected = false,
+    this.isChecking = false,
     this.status = 'unknown',
     this.latencyMs,
     this.lastChecked,
+    this.errorMessage,
   });
 
   final bool isConnected;
+  final bool isChecking;
   final String status;
   final int? latencyMs;
   final DateTime? lastChecked;
+  final String? errorMessage;
 
   ConnectionState copyWith({
     bool? isConnected,
+    bool? isChecking,
     String? status,
     int? latencyMs,
     DateTime? lastChecked,
+    String? errorMessage,
   }) {
     return ConnectionState(
       isConnected: isConnected ?? this.isConnected,
+      isChecking: isChecking ?? this.isChecking,
       status: status ?? this.status,
       latencyMs: latencyMs ?? this.latencyMs,
       lastChecked: lastChecked ?? this.lastChecked,
+      errorMessage: errorMessage ?? this.errorMessage,
     );
   }
 }
@@ -67,16 +75,25 @@ class ConnectionStatusNotifier extends Notifier<ConnectionState> {
   }
 
   Future<void> checkConnection() async {
+    state = state.copyWith(isChecking: true);
     try {
       final manager = ref.read(appwriteSyncManagerProvider);
       await manager.initialize();
       state = ConnectionState(
         isConnected: manager.isAvailable,
+        isChecking: false,
         status: manager.isAvailable ? 'connected' : 'disconnected',
         lastChecked: DateTime.now(),
+        errorMessage: manager.initError,
       );
-    } catch (_) {
-      state = const ConnectionState(isConnected: false, status: 'error');
+    } catch (e) {
+      state = ConnectionState(
+        isConnected: false,
+        isChecking: false,
+        status: 'error',
+        errorMessage: e.toString(),
+        lastChecked: DateTime.now(),
+      );
     }
   }
 }

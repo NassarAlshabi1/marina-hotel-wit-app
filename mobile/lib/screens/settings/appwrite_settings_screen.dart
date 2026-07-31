@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart' as ap;
+import '../../providers/appwrite_providers.dart' show connectionStatusProvider;
 import '../../services/appwrite_backup_service.dart';
 import '../../services/appwrite_cache_manager.dart';
 import '../../services/appwrite_models.dart';

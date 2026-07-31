@@ -338,7 +338,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
     setState(() => _isSyncing = true);
     try {
       final appwrite = ref.read(appwriteServiceProvider);
-      final sync = WhatsAppSettingsSync(appwrite);
+      final sync = WhatsAppSettingsSync(appwrite!);
       final result = await sync.uploadToCloud();
       if (!mounted) {
         return;
@@ -416,7 +416,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
     setState(() => _isSyncing = true);
     try {
       final appwrite = ref.read(appwriteServiceProvider);
-      final sync = WhatsAppSettingsSync(appwrite);
+      final sync = WhatsAppSettingsSync(appwrite!);
       final result = await sync.downloadFromCloud();
       if (!mounted) {
         return;
