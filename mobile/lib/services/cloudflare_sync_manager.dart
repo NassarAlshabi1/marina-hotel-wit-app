@@ -90,40 +90,83 @@ class CloudflareSyncManager {
   Future<void> initialize({AppDatabase? database, bool forceRetry = false}) async {
     if (_token != null && !forceRetry) return;
 
-    try {
-      _db = database ?? DatabaseManager.instance;
+    _db = database ?? DatabaseManager.instance;
 
-      final prefs = await SharedPreferences.getInstance();
-      _deviceId = prefs.getString('cf_device_id');
-      if (_deviceId == null || _deviceId!.isEmpty) {
-        _deviceId = _generateDeviceId();
-        await prefs.setString('cf_device_id', _deviceId!);
+    final prefs = await SharedPreferences.getInstance();
+    _deviceId = prefs.getString('cf_device_id');
+    if (_deviceId == null || _deviceId!.isEmpty) {
+      _deviceId = _generateDeviceId();
+      await prefs.setString('cf_device_id', _deviceId!);
+    }
+    setStaticDeviceId(_deviceId!);
+
+    // Retry login up to 3 times for transient network failures (DNS, socket).
+    const maxAttempts = 3;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        final response = await http.post(
+          Uri.parse('${CloudflareConfig.workerUrl}/api/auth/login'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'username': CloudflareConfig.username,
+            'password': CloudflareConfig.password,
+            'device_id': _deviceId,
+          }),
+        ).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body) as Map<String, dynamic>;
+          _token = data['token'] as String?;
+          Env.cloudflareAuthToken = _token;
+          _initError = null;
+          debugPrint(
+            '✅ CloudflareSyncManager initialized — device: $_deviceId '
+            '(attempt $attempt/$maxAttempts)',
+          );
+          return;
+        } else {
+          _initError = 'Login failed: ${response.statusCode}';
+          debugPrint('⚠️ Cloudflare login failed: ${response.body}');
+          return;
+        }
+      } catch (e) {
+        final errStr = e.toString();
+        final isTransient = errStr.contains('Failed host lookup') ||
+            errStr.contains('No address associated with hostname') ||
+            errStr.contains('SocketException') ||
+            errStr.contains('HandshakeException') ||
+            errStr.contains('TimeoutException');
+
+        if (isTransient && attempt < maxAttempts) {
+          debugPrint(
+            '⚠️ Cloudflare init attempt $attempt failed (transient), retrying in 2s: $e',
+          );
+          await Future.delayed(const Duration(seconds: 2));
+          continue;
+        }
+
+        // Final attempt failed — set actionable error message
+        if (errStr.contains('Failed host lookup') ||
+            errStr.contains('No address associated with hostname')) {
+          _initError =
+              'لا يمكن الوصول إلى خادم Cloudflare (${CloudflareConfig.workerUrl}). '
+              'تأكد من اتصالك بالإنترنت وأن الشبكة لا تحظر الدومين workers.dev. '
+              'الخطأ الأصلي: $e';
+        } else if (errStr.contains('SocketException') ||
+            errStr.contains('HandshakeException')) {
+          _initError =
+              'فشل الاتصال بخادم Cloudflare. تحقق من الشبكة وأعد المحاولة. '
+              'الخطأ الأصلي: $e';
+        } else if (errStr.contains('TimeoutException')) {
+          _initError =
+              'انتهت مهلة الاتصال بخادم Cloudflare (15 ثانية). '
+              'تحقق من سرعة الإنترنت وأعد المحاولة. الخطأ الأصلي: $e';
+        } else {
+          _initError = 'Init error: $e';
+        }
+        debugPrint('⚠️ CloudflareSyncManager init error: $e');
+        return;
       }
-      setStaticDeviceId(_deviceId!);
-
-      final response = await http.post(
-        Uri.parse('${CloudflareConfig.workerUrl}/api/auth/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'username': CloudflareConfig.username,
-          'password': CloudflareConfig.password,
-          'device_id': _deviceId,
-        }),
-      ).timeout(const Duration(seconds: 15));
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        _token = data['token'] as String?;
-        Env.cloudflareAuthToken = _token;
-        _initError = null;
-        debugPrint('✅ CloudflareSyncManager initialized — device: $_deviceId');
-      } else {
-        _initError = 'Login failed: ${response.statusCode}';
-        debugPrint('⚠️ Cloudflare login failed: ${response.body}');
-      }
-    } catch (e) {
-      _initError = 'Init error: $e';
-      debugPrint('⚠️ CloudflareSyncManager init error: $e');
     }
   }
 
