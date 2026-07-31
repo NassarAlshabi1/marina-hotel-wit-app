@@ -117,7 +117,8 @@ export class Database {
     const now = Math.floor(Date.now() / 1000);
 
     const record: SyncRecord = {
-      id: (data.id as string) || crypto.randomUUID(),
+      ...data,
+      id: ((data.id as string) || crypto.randomUUID()) as string,
       server_id: null,
       created_at: now,
       updated_at: now,
@@ -126,8 +127,6 @@ export class Database {
       device_id: deviceId,
       vector_clock: JSON.stringify({ [deviceId]: 1 }),
       origin: 'cloud',
-      ...data,
-      id,
     };
 
     const columns = Object.keys(record);
