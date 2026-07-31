@@ -19,7 +19,7 @@ class MaintenanceService {
     Future<void> Function()? resetOutboxErrors,
   }) async {
     try {
-      final appwriteManager = CloudflareSyncManager.instance;
+      final appwriteManager = CloudflareSyncManager();
       if (appwriteManager == null) {
         debugPrint(
           '⚠️ MaintenanceService: CloudflareSyncManager not initialized',

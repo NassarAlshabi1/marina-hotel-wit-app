@@ -14,10 +14,11 @@ import 'package:flutter/foundation.dart' show ValueNotifier;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../utils/app_logger.dart';
+import '../utils/app_logger.dart' show dlog, dwarn, derr;
 import 'cloudflare_config.dart';
 import '../utils/env.dart';
 import 'local_db.dart';
+import 'daos/outbox_dao.dart';
 import 'sync_enums.dart';
 
 // ─── Re-export SyncResult (same interface as CloudflareSyncManager) ─
@@ -50,6 +51,10 @@ class SyncResult {
 class CloudflareRealtimeSync {
   final pendingRemoteChangesCount = ValueNotifier<int>(0);
   final hasRemoteChanges = ValueNotifier<bool>(false);
+
+  Future<void> initialize({String? deviceId}) async {}
+  Future<void> start() async {}
+  void stop() {}
 }
 
 // ─── CloudflareSyncManager ─────────────────────────────────────
@@ -220,7 +225,7 @@ class CloudflareSyncManager {
   Future<int> _pushOutbox() async {
     if (_db == null) return 0;
 
-    final outboxDao = _db!.outboxDao;
+    final outboxDao = OutboxDao(_db!);
     final pending = await (outboxDao.select(outboxDao.outbox)
           ..where((t) => t.processingStatus.isIn(['pending', 'failed']))
           ..orderBy([(t) => OrderingTerm.asc(t.clientTs)])

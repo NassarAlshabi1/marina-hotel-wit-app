@@ -22,10 +22,7 @@ final appwriteSyncManagerProvider = Provider<CloudflareSyncManager>((ref) {
   // ✅ إصلاح Gemini: استخدام ref.watch بدلاً من ref.read داخل provider
   final service = ref.watch(appwriteServiceProvider);
   final database = ref.watch(databaseProvider);
-  final manager = CloudflareSyncManager(
-    appwriteService: service,
-    database: database,
-  );
+  final manager = CloudflareSyncManager();
 
   ref.onDispose(manager.dispose);
 

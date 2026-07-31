@@ -509,7 +509,7 @@ class UnifiedSyncOrchestrator {
     final db = _database ?? DatabaseManager.instance;
     _database ??= db;
     final service = AppwriteService();
-    final manager = CloudflareSyncManager(appwriteService: service, database: db);
+    final manager = CloudflareSyncManager();
     await manager.initialize();
     _appwrite = manager;
     return manager;

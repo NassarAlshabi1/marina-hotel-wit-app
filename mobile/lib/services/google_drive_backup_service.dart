@@ -1802,10 +1802,7 @@ class GoogleDriveBackupService {
           await appwriteService.initialize();
 
           if (appwriteService.isInitialized) {
-            final syncManager = CloudflareSyncManager(
-              appwriteService: appwriteService,
-              database: db,
-            );
+            final syncManager = CloudflareSyncManager();
 
             final stats = await syncManager.pushAllLocalDataToAppwrite(
               skipDeleted: true,

@@ -11,7 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../utils/app_logger.dart';
+import '../utils/app_logger.dart' show dlog, dwarn, derr;
 import 'cloudflare_config.dart';
 import 'cloudflare_sync_manager.dart';
 import 'local_db.dart';
