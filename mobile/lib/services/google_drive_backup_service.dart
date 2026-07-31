@@ -22,7 +22,7 @@ import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
 import 'alarm_backup.dart'; // Added for rescheduling upon setting sync
 import 'appwrite_service.dart';
-import 'appwrite_sync_manager.dart';
+import 'cloudflare_sync_manager.dart';
 import 'auto_backup_task.dart';
 import 'backup_serializers.dart';
 import 'google_drive_logger.dart';
@@ -1802,7 +1802,7 @@ class GoogleDriveBackupService {
           await appwriteService.initialize();
 
           if (appwriteService.isInitialized) {
-            final syncManager = AppwriteSyncManager(
+            final syncManager = CloudflareSyncManager(
               appwriteService: appwriteService,
               database: db,
             );

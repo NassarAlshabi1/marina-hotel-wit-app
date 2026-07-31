@@ -381,7 +381,7 @@ class AppwriteMessagingService {
     debugPrint('🔄 Messaging: triggering sync...');
     try {
       // إشعار Realtime بانتظار تغييرات
-      // نعتمد على FcmService._triggerPull() أو AppwriteSyncManager.sync()
+      // نعتمد على FcmService._triggerPull() أو CloudflareSyncManager.sync()
       // يتم حقنها من main.dart عبر injectDependencies()
       final syncManager = _syncManagerInstance;
       if (syncManager != null) {

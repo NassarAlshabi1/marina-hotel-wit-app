@@ -54,7 +54,7 @@ class AppwriteService {
   final _networkHelper = AppwriteNetworkHelper();
 
   /// ✅ جديد: getter لكشف حالة الـ circuit breaker من خارج الخدمة.
-  /// يُستخدم من AppwriteSyncManager لإيقاف push phase فوراً عند تفعّل
+  /// يُستخدم من CloudflareSyncManager لإيقاف push phase فوراً عند تفعّل
   /// الـ circuit breaker بسبب تكرار أخطاء 429 (rate limit).
   AppwriteNetworkHelper get networkHelper => _networkHelper;
 

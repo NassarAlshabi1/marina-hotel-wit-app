@@ -103,19 +103,19 @@ class _RemoteNewerResult {
 }
 
 /// مدير المزامنة الثنائية
-class AppwriteSyncManager {
-  factory AppwriteSyncManager({
+class CloudflareSyncManager {
+  factory CloudflareSyncManager({
     required AppwriteService appwriteService,
     required AppDatabase database,
   }) {
-    _instance ??= AppwriteSyncManager._internal(
+    _instance ??= CloudflareSyncManager._internal(
       appwriteService: appwriteService,
       database: database,
     );
     return _instance!;
   }
 
-  AppwriteSyncManager._internal({
+  CloudflareSyncManager._internal({
     required this.appwriteService,
     required this.database,
   }) : outboxDao = OutboxDao(database) {
@@ -129,10 +129,10 @@ class AppwriteSyncManager {
       outboxDao: outboxDao,
     );
   }
-  static AppwriteSyncManager? _instance;
+  static CloudflareSyncManager? _instance;
 
   /// الوصول المباشر للـ instance (يُستخدم من شاشات الإعدادات)
-  static AppwriteSyncManager? get instance => _instance;
+  static CloudflareSyncManager? get instance => _instance;
 
   /// إعادة تهيئة المزامنة بعد تغيير إعدادات Secondary
   Future<void> reinitializeAfterConfigChange() async {
@@ -299,7 +299,7 @@ class AppwriteSyncManager {
     final prefs = await SharedPreferences.getInstance();
     // قراءة الإعدادات المحفوظة (بدون تغييرها)
     _currentDeviceId = prefs.getString('appwrite_device_id');
-    AppwriteSyncManager.updateStaticDeviceId(_currentDeviceId);
+    CloudflareSyncManager.updateStaticDeviceId(_currentDeviceId);
 
     final lastSyncEpoch = prefs.getInt('appwrite_last_sync_time');
     _lastSyncTime = lastSyncEpoch != null
@@ -471,7 +471,7 @@ class AppwriteSyncManager {
         });
 
         _currentDeviceId = device.$id;
-        AppwriteSyncManager.updateStaticDeviceId(_currentDeviceId);
+        CloudflareSyncManager.updateStaticDeviceId(_currentDeviceId);
         await _saveSettings();
 
         _logger.info('Device registered: $_currentDeviceId', tag: 'SYNC');

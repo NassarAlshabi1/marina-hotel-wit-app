@@ -7,7 +7,7 @@ import '../data/sync_models.dart' as models;
 import '../utils/debug_log.dart';
 import 'analytics_service.dart';
 import 'appwrite_service.dart';
-import 'appwrite_sync_manager.dart' show AppwriteSyncManager, SyncStatus;
+import 'appwrite_sync_manager.dart' show CloudflareSyncManager, SyncStatus;
 import 'google_drive_backup_service.dart';
 import 'google_drive_logger.dart';
 import 'google_drive_unified_sync_coordinator.dart';
@@ -67,7 +67,7 @@ class UnifiedSyncOrchestrator {
 
   static final UnifiedSyncOrchestrator instance = UnifiedSyncOrchestrator._();
 
-  AppwriteSyncManager? _appwrite;
+  CloudflareSyncManager? _appwrite;
   GoogleDriveUnifiedSyncCoordinator? _driveCoordinator;
   SmartSyncManager? _smart;
   AppDatabase? _database;
@@ -89,7 +89,7 @@ class UnifiedSyncOrchestrator {
   );
 
   Future<void> initialize({
-    AppwriteSyncManager? appwrite,
+    CloudflareSyncManager? appwrite,
     GoogleDriveUnifiedSyncCoordinator? driveCoordinator,
     SmartSyncManager? smart,
     AppDatabase? database,
@@ -502,14 +502,14 @@ class UnifiedSyncOrchestrator {
     return success;
   }
 
-  Future<AppwriteSyncManager?> _ensureAppwriteManager() async {
+  Future<CloudflareSyncManager?> _ensureAppwriteManager() async {
     if (_appwrite != null) {
       return _appwrite;
     }
     final db = _database ?? DatabaseManager.instance;
     _database ??= db;
     final service = AppwriteService();
-    final manager = AppwriteSyncManager(appwriteService: service, database: db);
+    final manager = CloudflareSyncManager(appwriteService: service, database: db);
     await manager.initialize();
     _appwrite = manager;
     return manager;

@@ -131,7 +131,7 @@ export async function handlePush(
           case 'update':
             record = await db.updateRecord(
               op.entity,
-              op.data.id as string,
+              (op.data.local_uuid as string) || (op.data.id as string),
               op.data,
               op.vectorClock,
               ctx.deviceId
@@ -140,7 +140,7 @@ export async function handlePush(
           case 'delete':
             record = await db.deleteRecord(
               op.entity,
-              op.data.id as string,
+              (op.data.local_uuid as string) || (op.data.id as string),
               ctx.deviceId
             );
             break;
@@ -149,7 +149,7 @@ export async function handlePush(
         }
 
         // ─── Save idempotency ──────────────────────────────────
-        const entityId = 'id' in record ? (record as SyncRecord).id : op.data.id as string;
+        const entityId = (record as SyncRecord).local_uuid || (op.data.local_uuid as string) || (op.data.id as string) || 'unknown';
         const responsePayload = { entity: op.entity, entityId, operation: op.operation };
         await db.saveIdempotency(op.idempotencyKey, op.entity, op.operation, entityId, responsePayload);
 

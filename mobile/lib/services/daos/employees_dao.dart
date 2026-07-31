@@ -4,7 +4,7 @@ import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
-import '../appwrite_sync_manager.dart';
+import '../cloudflare_sync_manager.dart';
 import '../local_db.dart';
 import 'outbox_dao.dart';
 
@@ -95,7 +95,7 @@ class EmployeesDao extends DatabaseAccessor<AppDatabase>
         origin: Value(originIsServer ? 'server' : 'local'),
         deviceId: originIsServer
             ? const Value.absent()
-            : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
+            : Value(CloudflareSyncManager.currentDeviceIdStatic ?? ''),
       );
       final id = await into(employees).insert(comp);
       if (!originIsServer) {

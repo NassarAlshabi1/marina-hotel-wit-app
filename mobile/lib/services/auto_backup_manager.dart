@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/debug_log.dart';
 import '../utils/hotel_time_engine.dart';
 import 'appwrite_service.dart';
-import 'appwrite_sync_manager.dart';
+import 'cloudflare_sync_manager.dart';
 import 'booking_derived_fields_service.dart';
 import 'google_drive_backup_service.dart';
 import 'google_drive_delta_sync.dart';
@@ -590,16 +590,16 @@ class AutoBackupManager {
         }
       }
 
-      // ✅ تم ترحيل المزامنة إلى AppwriteSyncManager (الطريقة الجديدة)
-      // AppwriteDeltaSync محذوف — كل المزامنة عبر AppwriteSyncManager.sync()
+      // ✅ تم ترحيل المزامنة إلى CloudflareSyncManager (الطريقة الجديدة)
+      // AppwriteDeltaSync محذوف — كل المزامنة عبر CloudflareSyncManager.sync()
       // ✅ Batch 3: استخدام singleton بدل إنشاء instance جديد عبر المصنع
       if (_appwriteService != null &&
           _appwriteService!.isInitialized &&
           _database != null) {
         try {
           final syncManager =
-              AppwriteSyncManager.instance ??
-              AppwriteSyncManager(
+              CloudflareSyncManager.instance ??
+              CloudflareSyncManager(
                 appwriteService: _appwriteService!,
                 database: _database!,
               );
@@ -711,7 +711,7 @@ class AutoBackupManager {
     return {
       'delta_sync_enabled': await isDeltaSyncEnabled(),
       'google_drive_enabled': await isGoogleDriveDeltaSyncEnabled(),
-      'appwrite_enabled': true, // ✅ مفعّل دائماً عبر AppwriteSyncManager
+      'appwrite_enabled': true, // ✅ مفعّل دائماً عبر CloudflareSyncManager
       'is_syncing': _isDeltaSyncing,
       'backup_mode': _currentMode.name,
       'google_drive_status': _googleDriveDeltaSync != null

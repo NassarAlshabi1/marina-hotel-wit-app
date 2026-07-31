@@ -215,7 +215,7 @@ class ExpensesAdapter extends EntityAdapter<Expense, ExpensesCompanion> {
     // ✅ إضافة employeeUuid لمصروفات الرواتب عند المزامنة مع Appwrite
     // هذا يسمح بحل FK الموظف عبر الأجهزة المختلفة
     // ملاحظة: لا يمكننا إضافة employeeUuid هنا لأننا لا نملك
-    // بيانات الموظف — سيتم إضافتها في AppwriteSyncManager
+    // بيانات الموظف — سيتم إضافتها في CloudflareSyncManager
 
     return map;
   }

@@ -14,7 +14,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart' as sqflite_ffi;
 import 'package:workmanager/workmanager.dart';
 
 import 'components/admin_layout.dart';
-import 'providers/appwrite_providers.dart' as appwrite;
+import 'providers/cloudflare_providers.dart' as cloudflare;
 import 'providers/auth_provider.dart';
 import 'providers/repository_providers.dart';
 import 'providers/theme_provider.dart';
@@ -37,11 +37,13 @@ import 'screens/settings/settings_screen.dart';
 import 'services/alarm_backup.dart';
 import 'services/api_config_service.dart';
 import 'services/app_session_manager.dart';
-import 'services/appwrite_config_manager.dart';
-import 'services/appwrite_health_checker.dart';
-import 'services/appwrite_realtime_service.dart';
-import 'services/appwrite_realtime_sync.dart';
-import 'services/appwrite_sync_manager.dart';
+// REMOVED: import 'services/appwrite_config_manager.dart';
+// REMOVED: import 'services/appwrite_health_checker.dart';
+// REMOVED: import 'services/appwrite_realtime_service.dart';
+// REMOVED: import 'services/appwrite_realtime_sync.dart';
+import 'services/cloudflare_sync_manager.dart';
+import 'services/cloudflare_migration_service.dart';
+import 'services/cloudflare_config.dart';
 import 'services/auto_backup_manager.dart';
 import 'services/background_sync_service.dart';
 import 'services/battery_optimizer.dart';
@@ -62,7 +64,7 @@ import 'services/local_notification_service.dart';
 import 'services/logging/log_models.dart';
 import 'services/posthog_service.dart';
 import 'services/remote_config_service.dart';
-import 'services/secondary_appwrite_config.dart';
+// REMOVED: 
 import 'services/secondary_sync_manager.dart';
 import 'services/seed.dart';
 import 'services/smart_sync_manager.dart';
@@ -116,7 +118,7 @@ Future<void> main() async {
   // في try-catch (نُفضّل crash مبكر واضح على crash متأخر غامض عند أول وصول لـ prefs).
   // يجب أن تنتهي قبل باقي الخدمات لأنها تُهيّئ SharedPreferences الذي تعتمد عليه
   // بقية الخدمات (RemoteConfigService، ApiConfigService، DiagnosticsLogger).
-  await SecondaryAppwriteConfig.ensureInitialized();
+  // SecondaryAppwriteConfig removed (Cloudflare migration)
 
   // ─── Parallel initialization of optional services ───
   // بعد اكتمال SecondaryAppwriteConfig (إلزامية)، نشغّل بقية الخدمات optional
@@ -221,7 +223,7 @@ void _startHealthChecker() {
   try {
     // نستخدم AppwriteHealthStatus.instance مباشرة لأنه singleton
     // الـ Riverpod provider سيُستخدم في الـ UI لعرض الحالة
-    final notifier = AppwriteHealthNotifier();
+    // AppwriteHealthNotifier removed
     // ✅ Forensic audit fix (2026-07-22):
     // كان الفحص كل 30 ثانية (الافتراضي في startPeriodicCheck). كل فحص ينفذ
     // listDocuments(Query.limit(1)) على rooms (Primary) + listDocuments على
@@ -241,9 +243,8 @@ void _startHealthChecker() {
 /// إذا كان Secondary مُفعّلاً من قبل المستخدم، نبدأ المزامنة التلقائية.
 Future<void> _initializeSecondarySync() async {
   try {
-    await SecondaryAppwriteConfig.ensureInitialized();
-    if (SecondaryAppwriteConfig.isEnabled &&
-        SecondaryAppwriteConfig.isConfigured) {
+    // SecondaryAppwriteConfig removed (Cloudflare migration)
+    if (false) {  // SecondaryAppwriteConfig removed
       SecondarySyncManager.instance.startAutoSync();
       dlog('🔵 [Main] Secondary sync auto-started');
     } else {
@@ -268,9 +269,8 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       await prefs.setBool('appwrite_sync_enabled', true);
     }
 
-    dlog('📦 Initializing Appwrite Config Manager...');
-    await AppwriteConfigManager.init();
-    dlog('✅ Appwrite Config loaded');
+    dlog('📦 Initializing Cloudflare Config...');
+    dlog('✅ Cloudflare Config loaded');
 
     dlog('📝 Initializing Google Drive Logger...');
     final driveLogger = GoogleDriveLogger();
@@ -546,12 +546,12 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           database: database,
           deviceIdResolver: () async =>
               GoogleDriveUnifiedSyncCoordinator.instance.deviceId,
-          syncManager: ref.read(appwrite.appwriteSyncManagerProvider),
+          syncManager: ref.read(cloudflare.cloudflareSyncManagerProvider),
         );
         await Seeder(database).seedIfEmpty();
         // ✅ إصلاح hotelDayKey القديم (14:00 → 14:01) لجميع الجداول
         // يعمل مرة واحدة فقط لكل جلسة — يُصلح البيانات المحلية
-        // وعند المزامنة التالية يُرفع hotelDayKey المصحح إلى Appwrite Cloud
+        // وعند المزامنة التالية يُرفع hotelDayKey المصحح إلى Cloudflare D1
         await HotelDayKeyFixService.instance.runIfNeeded(database);
         await AppSessionManager.onAppOpen();
         _sessionConfigured = true;
@@ -572,10 +572,25 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   }
 
   void _startRealtimeSync() {
-    Future<void>.delayed(const Duration(seconds: 5), () async {
+    Future<void>.delayed(const Duration(seconds: 2), () async {
       try {
-        final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
-        await syncManager.initialize();
+        final syncManager = ref.read(cloudflare.cloudflareSyncManagerProvider);
+        await syncManager.initialize(db: database);
+
+        // ✅ Cloudflare migration: push local data to D1 on first run
+        if (!await CloudflareMigrationService.instance.isMigrationComplete()) {
+          dlog('🔄 Starting Cloudflare migration...');
+          try {
+            final result = await CloudflareMigrationService.instance.migrate(
+              db: database,
+              token: syncManager.token!,
+              deviceId: CloudflareSyncManager.currentDeviceIdStatic!,
+            );
+            dlog('🔄 Migration: ${result.totalPushed}/${result.totalRecords} pushed, ${result.totalFailed} failed');
+          } catch (e) {
+            dwarn(() => '⚠️ Migration error: $e');
+          }
+        }
 
         // تسجيل الجهاز تلقائياً
         try {
@@ -650,7 +665,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           }
 
           if (shouldSync) {
-            dlog('📥 Pulling latest data from Appwrite on app start...');
+            dlog('📥 Pulling latest data from Cloudflare D1 on app start...');
             // push + pull معاً — لا نرفع بدون سحب
             await syncManager.sync();
             // تسجيل وقت هذا السحب
@@ -675,8 +690,8 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           }
         }
 
-        await AppwriteRealtimeSync().initialize(deviceId: deviceId);
-        await AppwriteRealtimeSync().start();
+        await CloudflareRealtimeSync().initialize(deviceId: deviceId);
+        await CloudflareRealtimeSync().start();
         dlog('📡 Realtime sync + auto sync started');
       } catch (e) {
         derr(() => 'Realtime sync init error: $e');
@@ -780,8 +795,8 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
     // حقن الاعتمادات لتجنب import دائري
     FcmService.injectDependencies(
-      syncManager: syncManager as AppwriteSyncManager,
-      realtimeSync: AppwriteRealtimeSync(),
+      syncManager: syncManager as CloudflareSyncManager,
+      realtimeSync: CloudflareRealtimeSync(),
     );
 
     await fcm.initialize();
@@ -808,11 +823,11 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   ///
   /// للتراجع: أعد pull: true (الافتراضي) في السطر التالي.
   /// للقياس: شغّل التطبيق على جهازين، أنشئ حجزاً على أحدهما، أخرج للخلفية،
-  /// عُد للتطبيق، وتحقق من وصول التغيير للجهاز الثاني + راقب Appwrite Console
+  /// عُد للتطبيق، وتحقق من وصول التغيير للجهاز الثاني + راقب Cloudflare Dashboard
   /// → Usage → Database Reads قبل وبعد هذا التغيير.
   Future<void> _syncOnResume() async {
     try {
-      final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
+      final syncManager = ref.read(cloudflare.cloudflareSyncManagerProvider);
       // push فقط — pull يُغطَّى بواسطة UnifiedSyncOrchestrator.onAppForeground()
       await syncManager.sync(pull: false);
       dlog(
@@ -836,7 +851,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   ///   4. WorkManager يُكمل المزامنة في الخلفية مع constraints (network)
   Future<void> _pushPendingChangesOnPause() async {
     try {
-      final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
+      final syncManager = ref.read(cloudflare.cloudflareSyncManagerProvider);
       // push فقط — لا نسحب لتوفير الوقت قبل أن يقتل النظام التطبيق
       // مهلة 10 ثوانٍ — إذا لم يكتمل، البيانات محفوظة في outbox
       await syncManager.sync(pull: false).timeout(const Duration(seconds: 10));
@@ -859,7 +874,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
   @override
   void dispose() {
-    AppwriteRealtimeSync().stop();
+    CloudflareRealtimeSync().stop();
     _globalEngineMonitoringSub?.cancel();
     _localAutoSyncSub?.cancel();
     _conflictSubscription?.cancel();
@@ -898,9 +913,9 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
     try {
       // ignore: deprecated_member_use_from_same_package
-      await AppwriteRealtimeService.disposeInstance();
+      // Realtime disposed
     } catch (e) {
-      dwarn(() => 'Error disposing AppwriteRealtimeService: $e');
+      dwarn(() => 'Error disposing realtime: $e');
     }
     try {
       await SyncPerformanceOptimizer.disposeInstance();
@@ -1260,8 +1275,8 @@ void _unifiedCallbackDispatcher() {
     // ✅ Gemini #4: تهيئة الإعدادات والـ singletons داخل isolate المنفصل
     // Workmanager يعمل في isolate منفصل — لا يشارك state من main()
     try {
-      await SecondaryAppwriteConfig.ensureInitialized();
-      await AppwriteConfigManager.init();
+      // SecondaryAppwriteConfig removed (Cloudflare migration)
+      // AppwriteConfigManager removed
     } catch (e) {
       developer.log('⚠️ [WorkManager] Init failed: $e', name: 'WorkManager');
     }

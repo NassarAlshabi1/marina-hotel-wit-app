@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
-import 'appwrite_sync_manager.dart';
+import 'cloudflare_sync_manager.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 
@@ -386,7 +386,7 @@ class SalaryEntitlementService {
             lastModifiedEpoch: d.Value(nowEpoch),
             version: const d.Value(1),
             origin: const d.Value('local'),
-            deviceId: d.Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
+            deviceId: d.Value(CloudflareSyncManager.currentDeviceIdStatic ?? ''),
           ),
         );
 

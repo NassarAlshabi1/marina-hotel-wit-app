@@ -185,4 +185,28 @@ class Env {
 
   /// هل تم تكوين PostHog؟
   static bool get isPosthogConfigured => posthogApiKey.isNotEmpty;
+
+  // ═══════════════════════════════════════════════════════════════
+  //  Cloudflare Worker API
+  // ═══════════════════════════════════════════════════════════════
+  static const String cloudflareWorkerUrl = String.fromEnvironment(
+    'CLOUDFLARE_WORKER_URL',
+    defaultValue: 'https://marina-hotel-api.adenmarina2.workers.dev',
+  );
+
+  static const String cloudflareUsername = String.fromEnvironment(
+    'CLOUDFLARE_USERNAME',
+    defaultValue: 'admin',
+  );
+
+  static const String cloudflarePassword = String.fromEnvironment(
+    'CLOUDFLARE_PASSWORD',
+    defaultValue: 'admin123',
+  );
+
+  /// Auth token (set at runtime after login)
+  static String? cloudflareAuthToken;
+
+  /// هل تم تكوين Cloudflare؟
+  static bool get isCloudflareConfigured => cloudflareWorkerUrl.isNotEmpty;
 }

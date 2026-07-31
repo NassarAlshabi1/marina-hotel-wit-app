@@ -905,7 +905,7 @@ class _SecondaryAppwriteSettingsScreenState
     try {
       await SecondaryAppwriteConfig.setFailoverActive(active);
       try {
-        await AppwriteSyncManager.instance?.reinitializeAfterConfigChange();
+        await CloudflareSyncManager.instance?.reinitializeAfterConfigChange();
       } catch (_) {}
 
       if (mounted) {

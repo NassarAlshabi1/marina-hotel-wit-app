@@ -7,7 +7,7 @@ import '../utils/debug_log.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/id.dart';
 import '../utils/time.dart';
-import 'appwrite_sync_manager.dart';
+import 'cloudflare_sync_manager.dart';
 import 'auto_backup_manager.dart';
 import 'booking_derived_fields_service.dart';
 import 'daos/outbox_dao.dart';
@@ -283,7 +283,7 @@ class BookingPriceAdjustmentService {
       lastModifiedEpoch: Value(now),
       version: const Value(1),
       origin: const Value('local'),
-      deviceId: Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
+      deviceId: Value(CloudflareSyncManager.currentDeviceIdStatic ?? ''),
     );
 
     await db.into(db.bookingPriceAdjustments).insert(adjustment);

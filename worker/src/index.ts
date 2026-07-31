@@ -205,6 +205,30 @@ export default {
         return response;
       }
 
+      // ─── Device Management (for FCM) ──────────────────────
+      // POST /api/devices/register — register/update device + FCM token
+      if (path === '/api/devices/register' && method === 'POST') {
+        const db = new Database(env.DB);
+        try {
+          const body = await request.json() as { deviceId: string; fcmToken?: string; deviceName?: string; platform?: string };
+          await db.registerDevice(body.deviceId, body.fcmToken || null, body.deviceName, body.platform);
+          logRequest(method, path, 200, Date.now() - startTime, clientIp);
+          return json({ registered: true, deviceId: body.deviceId }, 200, env);
+        } catch (err) {
+          logRequest(method, path, 500, Date.now() - startTime, clientIp);
+          return json({ error: 'Device registration failed', detail: String(err) }, 500, env);
+        }
+      }
+
+      // GET /api/devices/tokens — list all FCM tokens (excludes current device)
+      if (path === '/api/devices/tokens' && method === 'GET') {
+        const db = new Database(env.DB);
+        const excludeDeviceId = url.searchParams.get('exclude') || undefined;
+        const tokens = await db.getDeviceTokens(excludeDeviceId);
+        logRequest(method, path, 200, Date.now() - startTime, clientIp);
+        return json({ tokens, count: tokens.length }, 200, env);
+      }
+
       // ─── Durable Object: Sync Lock ────────────────────────
       // POST /api/sync/lock — acquire a lock on an entity
       if (path === '/api/sync/lock' && method === 'POST') {

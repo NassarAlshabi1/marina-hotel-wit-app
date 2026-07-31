@@ -163,7 +163,7 @@ class SmartSyncManager {
     final dataManager = DataUsageManager.instance;
 
     // ✅ إصلاح P2-10 + PR review: حارس مشترك لمنع تداخل المزامنة مع خدمات أخرى
-    // (GoogleDriveUnifiedSyncCoordinator, AppwriteSyncManager) التي تعمل
+    // (GoogleDriveUnifiedSyncCoordinator, CloudflareSyncManager) التي تعمل
     // على Timer.periodic منفصلة. إذا كانت مزامنة أخرى نشطة، نتخطى هذه الدورة.
     //
     // ⚠️ إصلاح race condition (TOCTOU): canStart + markStarted يجب أن تكونا

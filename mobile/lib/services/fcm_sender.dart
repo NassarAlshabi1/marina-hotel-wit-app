@@ -30,14 +30,13 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:appwrite/appwrite.dart' show Query;
+
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/env.dart';
-import 'appwrite_config.dart';
-import 'appwrite_service.dart';
+import '../utils/env.dart';
 import 'crashlytics_service.dart';
 import 'fcm_jwt_helper.dart';
 
@@ -385,28 +384,24 @@ class FcmSender {
     try {
       final myDeviceId = await _getMyDeviceId();
 
-      final documents = await AppwriteService().listAllDocuments(
-        collectionId: AppwriteConfig.devicesCollectionId,
-        queries: [
-          // فقط الأجهزة النشطة
-          Query.equal('status', 'active'),
-        ],
-      );
+      // Use Cloudflare Worker API to get device tokens
+      final response = await http.get(
+        Uri.parse('${Env.cloudflareWorkerUrl}/api/devices/tokens?exclude=$myDeviceId'),
+        headers: {
+          'Authorization': 'Bearer ${Env.cloudflareAuthToken}',
+        },
+      ).timeout(const Duration(seconds: 10));
 
-      final tokens = <String>[];
-      for (final doc in documents) {
-        final token = doc.data['fcmToken'] as String?;
-        final deviceId = doc.data['localUuid'] as String? ?? doc.$id;
-
-        // استثني جهاز المُرسِل
-        if (myDeviceId != null && deviceId == myDeviceId) continue;
-
-        if (token != null && token.isNotEmpty) {
-          tokens.add(token);
-        }
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final tokens = (data['tokens'] as List? ?? [])
+            .map((t) => t as String)
+            .toList();
+        return tokens;
       }
 
-      return tokens;
+      debugPrint('⚠️ FCM sender: devices/tokens returned ${response.statusCode}');
+      return [];
     } catch (e) {
       debugPrint('⚠️ FCM sender: failed to fetch device tokens: $e');
       return [];
@@ -416,7 +411,7 @@ class FcmSender {
   /// الحصول على معرّف الجهاز الحالي (للاستبعاد من الإرسال)
   Future<String?> _getMyDeviceId() async {
     try {
-      // استخدام SharedPreferences عبر AppwriteSyncManager
+      // استخدام SharedPreferences عبر CloudflareSyncManager
       // تجنّباً لـ import cycle
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString('appwrite_device_id') ??

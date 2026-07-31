@@ -4,7 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../utils/hotel_time_engine.dart';
 import '../utils/time.dart';
-import 'appwrite_sync_manager.dart';
+import 'cloudflare_sync_manager.dart';
 import 'auto_backup_manager.dart';
 import 'booking_derived_fields_service.dart';
 import 'daos/outbox_dao.dart';
@@ -54,7 +54,7 @@ class PriceAdjustmentService {
       lastModifiedEpoch: Value(nowEpoch),
       version: const Value(1),
       origin: const Value('local'),
-      deviceId: Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
+      deviceId: Value(CloudflareSyncManager.currentDeviceIdStatic ?? ''),
       targetType: const Value('room'),
       targetUuid: Value(room.localUuid),
       adjustmentType: const Value('price_change'),

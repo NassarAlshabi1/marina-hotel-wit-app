@@ -116,11 +116,14 @@ export class Database {
     const table = getTableName(entity);
     const now = Math.floor(Date.now() / 1000);
 
+    // Use local_uuid as the primary identifier — D1 tables use INTEGER autoIncrement for id
+    const localUuid = (data.local_uuid as string) || crypto.randomUUID();
+
     const record: SyncRecord = {
       ...data,
-      id: ((data.id as string) || crypto.randomUUID()) as string,
+      local_uuid: localUuid,
       server_id: null,
-      created_at: now,
+      created_at: (data.created_at as number) || now,
       updated_at: now,
       deleted_at: null,
       version: 1,
@@ -129,17 +132,33 @@ export class Database {
       origin: 'cloud',
     };
 
-    const columns = Object.keys(record);
+    // Remove 'id' — D1 INTEGER autoIncrement will generate it
+    delete (record as Record<string, unknown>).id;
+
+    // Fill NOT NULL fields with defaults if not provided
+    if (!record.last_modified) (record as Record<string, unknown>).last_modified = now;
+    if (!record.created_at_epoch) (record as Record<string, unknown>).created_at_epoch = 0;
+    if (!record.last_modified_epoch) (record as Record<string, unknown>).last_modified_epoch = 0;
+
+    // Filter out undefined values (D1 doesn't accept them)
+    const cleanRecord: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(record)) {
+      if (value !== undefined) {
+        cleanRecord[key] = value;
+      }
+    }
+
+    const columns = Object.keys(cleanRecord);
     const placeholders = columns.map(() => '?').join(', ');
-    const values = columns.map((col) => record[col]);
+    const values = columns.map((col) => cleanRecord[col]);
 
     await this.db
-      .prepare(`INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`)
+      .prepare(`INSERT OR IGNORE INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`)
       .bind(...values)
       .run();
 
-    // Log to sync_log
-    await this.logSync(entity, record.id, 'create', 1, deviceId, record);
+    // Log to sync_log — use local_uuid as entity_id
+    await this.logSync(entity, localUuid, 'create', 1, deviceId, record);
 
     return record;
   }
@@ -155,15 +174,15 @@ export class Database {
   ): Promise<SyncRecord> {
     const table = getTableName(entity);
 
-    // Fetch existing record
+    // Fetch existing record by local_uuid (not id — id is autoIncrement)
     const existing = await this.db
-      .prepare(`SELECT * FROM ${table} WHERE id = ?`)
+      .prepare(`SELECT * FROM ${table} WHERE local_uuid = ?`)
       .bind(recordId)
       .first<SyncRecord>();
 
     if (!existing) {
       // Record doesn't exist — create it instead
-      return this.createRecord(entity, { ...data, id: recordId }, deviceId);
+      return this.createRecord(entity, { ...data, local_uuid: recordId }, deviceId);
     }
 
     // ─── Conflict Detection: Vector Clock ───────────────────
@@ -196,16 +215,25 @@ export class Database {
 
     // Remove fields that shouldn't be updated
     delete updateFields.id;
+    delete updateFields.local_uuid;
     delete updateFields.created_at;
     delete updateFields.server_id;
 
-    const setClauses = Object.keys(updateFields)
+    // Filter out undefined values
+    const cleanUpdate: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(updateFields)) {
+      if (value !== undefined) {
+        cleanUpdate[key] = value;
+      }
+    }
+
+    const setClauses = Object.keys(cleanUpdate)
       .map((col) => `${col} = ?`)
       .join(', ');
-    const values = Object.keys(updateFields).map((col) => updateFields[col]);
+    const values = Object.keys(cleanUpdate).map((col) => cleanUpdate[col]);
 
     await this.db
-      .prepare(`UPDATE ${table} SET ${setClauses} WHERE id = ?`)
+      .prepare(`UPDATE ${table} SET ${setClauses} WHERE local_uuid = ?`)
       .bind(...values, recordId)
       .run();
 
@@ -227,7 +255,7 @@ export class Database {
     const now = Math.floor(Date.now() / 1000);
 
     const existing = await this.db
-      .prepare(`SELECT version FROM ${table} WHERE id = ?`)
+      .prepare(`SELECT version FROM ${table} WHERE local_uuid = ?`)
       .bind(recordId)
       .first<{ version: number }>();
 
@@ -239,7 +267,7 @@ export class Database {
 
     await this.db
       .prepare(
-        `UPDATE ${table} SET deleted_at = ?, updated_at = ?, version = ? WHERE id = ?`
+        `UPDATE ${table} SET deleted_at = ?, updated_at = ?, version = ? WHERE local_uuid = ?`
       )
       .bind(now, now, newVersion, recordId)
       .run();
@@ -379,5 +407,70 @@ export class Database {
       .bind(id, username, passwordHash, role, now, now)
       .run();
     return id;
+  }
+
+  // ─── Device Management (for FCM) ────────────────────────────
+
+  async registerDevice(
+    deviceId: string,
+    fcmToken: string | null,
+    deviceName?: string,
+    platform?: string
+  ): Promise<void> {
+    const now = Math.floor(Date.now() / 1000);
+    // Ensure devices table exists
+    await this.db.prepare(
+      `CREATE TABLE IF NOT EXISTS devices (
+        id TEXT PRIMARY KEY,
+        device_id TEXT NOT NULL UNIQUE,
+        fcm_token TEXT,
+        status TEXT DEFAULT 'active',
+        device_name TEXT,
+        platform TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )`
+    ).run();
+
+    // Upsert device
+    await this.db.prepare(
+      `INSERT INTO devices (id, device_id, fcm_token, status, device_name, platform, created_at, updated_at)
+       VALUES (?, ?, ?, 'active', ?, ?, ?, ?)
+       ON CONFLICT(device_id) DO UPDATE SET
+         fcm_token = excluded.fcm_token,
+         status = 'active',
+         device_name = excluded.device_name,
+         platform = excluded.platform,
+         updated_at = excluded.updated_at`
+    ).bind(
+      crypto.randomUUID(),
+      deviceId,
+      fcmToken,
+      deviceName || null,
+      platform || null,
+      now,
+      now
+    ).run();
+  }
+
+  async getDeviceTokens(excludeDeviceId?: string): Promise<string[]> {
+    const stmt = excludeDeviceId
+      ? this.db.prepare('SELECT fcm_token FROM devices WHERE status = ? AND fcm_token IS NOT NULL AND fcm_token != ? AND device_id != ?')
+      : this.db.prepare('SELECT fcm_token FROM devices WHERE status = ? AND fcm_token IS NOT NULL');
+
+    const result = excludeDeviceId
+      ? await stmt.bind('active', '', excludeDeviceId).all()
+      : await stmt.bind('active').all();
+
+    return result.results
+      .map((r) => (r as { fcm_token?: string }).fcm_token)
+      .filter((t): t is string => !!t && t.length > 0);
+  }
+
+  async setDeviceFcmToken(deviceId: string, fcmToken: string): Promise<void> {
+    const now = Math.floor(Date.now() / 1000);
+    await this.db.prepare(
+      `UPDATE devices SET fcm_token = ?, updated_at = ? WHERE device_id = ?`
+    ).bind(fcmToken, now, deviceId).run();
   }
 }

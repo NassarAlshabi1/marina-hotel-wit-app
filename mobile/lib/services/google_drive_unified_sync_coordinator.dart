@@ -453,7 +453,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     if (!_isSyncing && (_backupService?.isSignedIn ?? false)) {
       if (_pullEnabled) {
         // ✅ إصلاح P2-10: حارس مشترك لمنع تداخل المزامنة مع SmartSyncManager
-        // أو AppwriteSyncManager. إذا كانت مزامنة أخرى نشطة، نتخطى هذه الدورة.
+        // أو CloudflareSyncManager. إذا كانت مزامنة أخرى نشطة، نتخطى هذه الدورة.
         if (!SyncGuard.canStart(label: 'gd_unified_pull')) {
           _log(
             '⏸️ Periodic pull skipped — another sync active (${SyncGuard.activeLabel})',

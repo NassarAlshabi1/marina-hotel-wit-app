@@ -18,11 +18,11 @@ final appwriteServiceProvider = Provider<AppwriteService>((ref) {
 });
 
 /// مزود مدير المزامنة
-final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
+final appwriteSyncManagerProvider = Provider<CloudflareSyncManager>((ref) {
   // ✅ إصلاح Gemini: استخدام ref.watch بدلاً من ref.read داخل provider
   final service = ref.watch(appwriteServiceProvider);
   final database = ref.watch(databaseProvider);
-  final manager = AppwriteSyncManager(
+  final manager = CloudflareSyncManager(
     appwriteService: service,
     database: database,
   );

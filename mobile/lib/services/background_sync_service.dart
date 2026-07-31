@@ -39,7 +39,7 @@ class BackgroundSyncService {
   ///
   /// ⚠️ **DEPRECATED** — تحليل P2-10 أظهر أن هذه الطريقة لا تُستدعى من أي
   /// مسار إنتاجي. المزامنة الدورية تتم عبر `SmartSyncManager` و
-  /// `GoogleDriveUnifiedSyncCoordinator` و `AppwriteSyncManager` التي تستخدم
+  /// `GoogleDriveUnifiedSyncCoordinator` و `CloudflareSyncManager` التي تستخدم
   /// `SyncGuard` كحارس مشترك. `Workmanager` لا يُستخدم للتسجيل الدوري.
   /// يُترك مؤقتاً للتوافق مع أي استدعاءات مخفية.
   @Deprecated('لم يعد يُستدعى من الإنتاج — راجع SyncGuard للبنية الحالية')
