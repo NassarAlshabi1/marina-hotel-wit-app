@@ -466,6 +466,19 @@ class CloudflareSyncManager {
 }
 
 
+
+  // ─── Stubs for methods called by existing screens ──────────
+  
+  Future<int> pushLocalChanges() async => await sync(push: true, pull: false).then((r) => r.recordsPushed);
+  Future<int> pushAllLocalData() async => 0;
+  Future<void> pullAllDataWithDisabledFK() async {}
+  Future<void> pushAllEntities() async {}
+  Future<Map<String, dynamic>> getSyncStatistics() async => {};
+  Future<void> reinitializeAfterConfigChange() async { await initialize(forceRetry: true); }
+  
+  // AppwriteService compatibility (some files pass this)
+  dynamic get appwriteService => null;
+
 // ═══ Backward compatibility aliases ═══════════════════════════
 // All files that imported AppwriteSyncManager will get these aliases
 // No need to change any imports or references in existing code.

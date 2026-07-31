@@ -982,7 +982,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
               progress: 0.8,
             );
             try {
-              await _appwriteSyncManager.pushAllLocalData();
+              await _appwriteSyncManager.pushAllLocalDataToAppwrite();
               debugPrint('✅ تم رفع البيانات إلى Appwrite');
             } catch (e) {
               debugPrint('⚠️ فشل رفع البيانات إلى Appwrite: $e');
