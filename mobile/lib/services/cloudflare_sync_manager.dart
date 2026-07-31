@@ -15,6 +15,7 @@ import 'cloudflare_config.dart';
 import '../utils/env.dart';
 import 'local_db.dart';
 import 'daos/outbox_dao.dart';
+import 'resilient_http_client.dart';
 import 'sync_enums.dart';
 
 // ─── SyncResult (same interface as AppwriteSyncManager) ────────
@@ -86,6 +87,12 @@ class CloudflareSyncManager {
   final _statusController = StreamController<SyncStatus>.broadcast();
   Stream<SyncStatus> get syncStatusStream => _statusController.stream;
 
+  // ─── HTTP client with DoH fallback (bypasses broken ISP DNS) ──
+  // Solves DNS_PROBE_FINISHED_NXDOMAIN on Yemeni networks where ISP DNS
+  // resolvers fail to resolve *.workers.dev. Falls back to Cloudflare DoH
+  // (https://cloudflare-dns.com/dns-query) then Google DoH.
+  final http.Client _httpClient = createResilientHttpClient();
+
   // ─── Initialize ─────────────────────────────────────────────
   Future<void> initialize({AppDatabase? database, bool forceRetry = false}) async {
     if (_token != null && !forceRetry) return;
@@ -104,7 +111,7 @@ class CloudflareSyncManager {
     const maxAttempts = 3;
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        final response = await http.post(
+        final response = await _httpClient.post(
           Uri.parse('${CloudflareConfig.workerUrl}/api/auth/login'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
@@ -176,7 +183,7 @@ class CloudflareSyncManager {
       throw StateError('Not initialized');
     }
 
-    final response = await http.post(
+    final response = await _httpClient.post(
       Uri.parse('${CloudflareConfig.workerUrl}/api/devices/register'),
       headers: {
         'Authorization': 'Bearer $_token',
@@ -200,7 +207,7 @@ class CloudflareSyncManager {
     if (_token == null || _deviceId == null) return;
 
     try {
-      await http.post(
+      await _httpClient.post(
         Uri.parse('${CloudflareConfig.workerUrl}/api/devices/register'),
         headers: {
           'Authorization': 'Bearer $_token',
@@ -290,7 +297,7 @@ class CloudflareSyncManager {
       };
     }).toList();
 
-    final response = await http.post(
+    final response = await _httpClient.post(
       Uri.parse('${CloudflareConfig.workerUrl}/api/sync/push'),
       headers: {
         'Authorization': 'Bearer $_token',
@@ -347,7 +354,7 @@ class CloudflareSyncManager {
     bool hasMore = true;
 
     while (hasMore) {
-      final response = await http.get(
+      final response = await _httpClient.get(
         Uri.parse('${CloudflareConfig.workerUrl}/api/sync/pull')
             .replace(queryParameters: {
           'cursor': _lastPullCursor.toString(),
