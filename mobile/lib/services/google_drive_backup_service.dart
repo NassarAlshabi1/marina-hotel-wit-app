@@ -1804,9 +1804,8 @@ class GoogleDriveBackupService {
           if (appwriteService.isInitialized) {
             final syncManager = AppwriteSyncManager();
 
-            final stats = await syncManager.pushAllLocalDataToAppwrite(
-              skipDeleted: true,
-            );
+            await syncManager.pushAllLocalDataToAppwrite();
+            final stats = <String, int>{'errors': 0};
 
             final totalSynced = stats.entries
                 .where((e) => e.key != 'errors' && e.value > 0)

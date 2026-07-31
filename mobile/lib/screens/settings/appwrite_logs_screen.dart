@@ -62,8 +62,8 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
   /// الحصول على السجلات الحالية من Logger
   List<LogEntry> _getCurrentLogs() {
     try {
-      final logger = [];
-      return logger;
+      // TODO: integrate with CloudflareSyncManager audit log
+      return <LogEntry>[];
     } catch (e) {
       return [];
     }
@@ -600,13 +600,11 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
   }
 
   Future<void> _exportLogs() async {
-    final logger = [];
-    final file = await logger;
-
-    if (file != null && mounted) {
+    // TODO: integrate with CloudflareSyncManager audit log export
+    if (mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('تم التصدير إلى: ${file.path}')));
+      ).showSnackBar(const SnackBar(content: Text('لا توجد سجلات للتصدير')));
     }
   }
 

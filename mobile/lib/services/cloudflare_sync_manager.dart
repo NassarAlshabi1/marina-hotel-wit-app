@@ -6,6 +6,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -80,6 +81,10 @@ class CloudflareSyncManager {
   String? get lastError => _lastError;
   SyncStatus get currentStatus => _currentStatus;
   String? get currentDeviceId => _deviceId;
+
+  // ─── Realtime status stream (used by UnifiedSyncOrchestrator) ──
+  final _statusController = StreamController<SyncStatus>.broadcast();
+  Stream<SyncStatus> get syncStatusStream => _statusController.stream;
 
   // ─── Initialize ─────────────────────────────────────────────
   Future<void> initialize({AppDatabase? database, bool forceRetry = false}) async {
@@ -183,6 +188,7 @@ class CloudflareSyncManager {
 
     final startTime = DateTime.now();
     _currentStatus = SyncStatus.syncing;
+    _statusController.add(SyncStatus.syncing);
     int recordsPushed = 0;
     int recordsPulled = 0;
     String? errorMessage;
@@ -196,9 +202,11 @@ class CloudflareSyncManager {
       }
 
       _currentStatus = SyncStatus.success;
+      _statusController.add(SyncStatus.success);
       _lastError = null;
     } catch (e) {
       _currentStatus = SyncStatus.failed;
+      _statusController.add(SyncStatus.failed);
       errorMessage = e.toString();
       _lastError = errorMessage;
     }
@@ -417,9 +425,10 @@ class CloudflareSyncManager {
     _currentStatus = SyncStatus.idle;
   }
 
-  void resetSyncState() {
+  Future<void> resetSyncState() async {
     _currentStatus = SyncStatus.idle;
     _lastError = null;
+    _statusController.add(SyncStatus.idle);
   }
 
   void clearHistory() {
@@ -465,14 +474,25 @@ class CloudflareSyncManager {
   void clearAuditLog() => _auditLog.clear();
 
 // ─── Stubs for methods called by existing screens ──────────
-  
+
   Future<int> pushLocalChanges() async => await sync(push: true, pull: false).then((r) => r.recordsPushed);
   Future<int> pushAllLocalData() async => 0;
   Future<void> pullAllDataWithDisabledFK() async {}
   Future<void> pushAllEntities() async {}
   Future<Map<String, dynamic>> getSyncStatistics() async => {};
   Future<void> reinitializeAfterConfigChange() async { await initialize(forceRetry: true); }
-  
+
+  // ─── Pull remote changes (delta) — used by UnifiedSyncOrchestrator ──
+  Future<bool> pullRemoteChanges() async {
+    final result = await sync(push: false, pull: true);
+    return result.isSuccess;
+  }
+
+  // ─── Pull ALL remote data — used by appwrite_settings_screen ──
+  Future<void> pullAllRemoteData() async {
+    await sync(push: false, pull: true);
+  }
+
   // AppwriteService compatibility (some files pass this)
   dynamic get appwriteService => null;
 }

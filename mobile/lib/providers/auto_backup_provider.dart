@@ -20,7 +20,7 @@ final autoBackupStatusProvider =
 final autoBackupInitProvider = FutureProvider<void>((ref) async {
   final manager = ref.read(autoBackupManagerProvider);
   final backupService = ref.read(googleDriveBackupServiceProvider);
-  final appwriteService = ref.read(appwriteSyncManagerProvider);
+  final appwriteService = ref.read(appwriteServiceProvider);
   final database = ref.read(databaseProvider);
 
   await manager.initialize(

@@ -483,11 +483,10 @@ void _startEngineMonitoring(AutoSyncEngine engine) {
   _globalEngineMonitoringSub?.cancel();
   _globalEngineMonitoringSub = engine.stateStream.listen((state) {
     debugPrint(
-      () =>
-          '📊 ENGINE ${state.isRunning ? '🟢' : '🔴'} | '
-          'Net: ${state.hasNetworkConnection ? '🌐' : '📴'} | '
-          'Auth: ${state.isSignedIn ? '🔐' : '🔓'} | '
-          'Pending: ${state.pendingChangesCount}',
+      '📊 ENGINE ${state.isRunning ? '🟢' : '🔴'} | '
+      'Net: ${state.hasNetworkConnection ? '🌐' : '📴'} | '
+      'Auth: ${state.isSignedIn ? '🔐' : '🔓'} | '
+      'Pending: ${state.pendingChangesCount}',
     );
   });
 }
@@ -582,7 +581,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           debugPrint('🔄 Starting Cloudflare migration...');
           try {
             final result = await CloudflareMigrationService.instance.migrate(
-              database: DatabaseManager.instance,
+              db: DatabaseManager.instance,
               token: syncManager.token!,
               deviceId: AppwriteSyncManager.currentDeviceIdStatic!,
             );
@@ -656,9 +655,8 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
             if (elapsed < SyncConstants.appOpenSyncInterval) {
               final remaining = SyncConstants.appOpenSyncInterval - elapsed;
               debugPrint(
-                () =>
-                    '⏭️ تخطي المزامنة عند بدء التطبيق — مرت ${elapsed.inMinutes} دقيقة فقط '
-                    '(متبقي ${remaining.inMinutes} دقيقة)',
+                '⏭️ تخطي المزامنة عند بدء التطبيق — مرت ${elapsed.inMinutes} دقيقة فقط '
+                '(متبقي ${remaining.inMinutes} دقيقة)',
               );
               shouldSync = false;
             }
