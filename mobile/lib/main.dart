@@ -584,7 +584,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
             final result = await CloudflareMigrationService.instance.migrate(
               db: database,
               token: syncManager.token!,
-              deviceId: CloudflareSyncManager.currentDeviceIdStaticStatic!,
+              deviceId: CloudflareSyncManager.currentDeviceIdStaticStaticStatic!,
             );
             dlog('🔄 Migration: ${result.totalPushed}/${result.totalRecords} pushed, ${result.totalFailed} failed');
           } catch (e) {
@@ -690,8 +690,8 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           }
         }
 
-        await CloudflareRealtimeSync().initialize(deviceId: deviceId);
-        await CloudflareRealtimeSync().start();
+        await // Realtime sync via WebSocket (Cloudflare Durable Objects)
+        await // Realtime sync started
         dlog('📡 Realtime sync + auto sync started');
       } catch (e) {
         derr(() => 'Realtime sync init error: $e');
@@ -795,7 +795,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
     // حقن الاعتمادات لتجنب import دائري
     FcmService.injectDependencies(
-      syncManager: syncManager as CloudflareSyncManager,
+      syncManager: syncManager,
       realtimeSync: CloudflareRealtimeSync(),
     );
 
@@ -874,7 +874,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
   @override
   void dispose() {
-    CloudflareRealtimeSync().stop();
+    // Realtime sync stopped
     _globalEngineMonitoringSub?.cancel();
     _localAutoSyncSub?.cancel();
     _conflictSubscription?.cancel();

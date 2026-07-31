@@ -98,12 +98,12 @@ class _AppwriteSettingsScreenState
   }
 
   Future<void> _checkConnection() async {
-    await ref.read(ap.connectionStatusProvider.notifier).checkConnection();
+    await ref.read(connectionStatusProvider.notifier).checkConnection();
   }
 
   @override
   Widget build(BuildContext context) {
-    final connectionState = ref.watch(ap.connectionStatusProvider);
+    final connectionState = ref.watch(connectionStatusProvider);
     final syncStatsAsync = ref.watch(ap.syncStatsProvider);
     final cacheStats = ref.watch(ap.cacheStatsProvider);
     final logStats = ref.watch(ap.logStatsProvider);

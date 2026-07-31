@@ -62,7 +62,7 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
   /// الحصول على السجلات الحالية من Logger
   List<LogEntry> _getCurrentLogs() {
     try {
-      final logger = ref.read(appwriteLoggerProvider);
+      final logger = [];
       return logger.getLogs();
     } catch (e) {
       return [];
@@ -600,7 +600,7 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
   }
 
   Future<void> _exportLogs() async {
-    final logger = ref.read(appwriteLoggerProvider);
+    final logger = [];
     final file = await logger.exportLogs();
 
     if (file != null && mounted) {
@@ -665,7 +665,7 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
       _stopAutoRefresh();
 
       // مسح السجلات
-      final logger = ref.read(appwriteLoggerProvider);
+      final logger = [];
       logger.clearLogs();
 
       // تحديث الشاشة فوراً

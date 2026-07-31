@@ -4,14 +4,12 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'dart:convert';
-import 'dart:io';
 
-import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../utils/app_logger.dart' show dlog, dwarn, derr;
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'cloudflare_config.dart';
 import 'cloudflare_sync_manager.dart';
 import 'local_db.dart';
@@ -51,12 +49,12 @@ class CloudflareMigrationService {
     final errors = <String>[];
     final completedTables = await getMigrationProgress();
 
-    dlog('🔄 Starting Cloudflare migration...');
+    debugPrint('🔄 Starting Cloudflare migration...');
 
     for (final entity in CloudflareConfig.migrationOrder) {
       // Skip if already completed
       if (completedTables[entity] == true) {
-        dlog('  ⏭️ $entity: already migrated');
+        debugPrint('  ⏭️ $entity: already migrated');
         continue;
       }
 
@@ -70,7 +68,7 @@ class CloudflareMigrationService {
         ).get();
 
         final count = records.length;
-        dlog('  📦 $entity: $count records found');
+        debugPrint('  📦 $entity: $count records found');
 
         if (count == 0) {
           // Mark as complete (empty table)
@@ -150,10 +148,10 @@ class CloudflareMigrationService {
         // Mark table as complete
         completedTables[entity] = true;
         await _saveProgress(completedTables);
-        dlog('  ✅ $entity: migration complete');
+        debugPrint('  ✅ $entity: migration complete');
       } catch (e) {
         errors.add('$entity: $e');
-        dlog('  ❌ $entity: $e');
+        debugPrint('  ❌ $entity: $e');
       }
     }
 
@@ -162,7 +160,7 @@ class CloudflareMigrationService {
     await prefs.setBool(_migrationCompleteKey, true);
 
     final duration = DateTime.now().difference(startTime);
-    dlog('🔄 Migration complete: $totalPushed/$totalRecords pushed in ${duration.inSeconds}s');
+    debugPrint('🔄 Migration complete: $totalPushed/$totalRecords pushed in ${duration.inSeconds}s');
 
     return MigrationResult(
       totalRecords: totalRecords,
