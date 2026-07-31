@@ -82,11 +82,11 @@ class CloudflareSyncManager {
   String? get currentDeviceId => _deviceId;
 
   // ─── Initialize ─────────────────────────────────────────────
-  Future<void> initialize({AppDatabase? db, bool forceRetry = false}) async {
+  Future<void> initialize({AppDatabase? database, bool forceRetry = false}) async {
     if (_token != null && !forceRetry) return;
 
     try {
-      _db = db ?? DatabaseManager.instance;
+      _db = database ?? DatabaseManager.instance;
 
       final prefs = await SharedPreferences.getInstance();
       _deviceId = prefs.getString('cf_device_id');

@@ -172,7 +172,7 @@ Future<void> main() async {
     ]),
   );
 
-  debugPrint(() => 'BASE_API_URL=${Env.baseApiUrl}');
+  debugPrint('BASE_API_URL=${Env.baseApiUrl}');
   runZonedGuarded(() => runApp(const ProviderScope(child: App())), (
     error,
     stack,
@@ -284,7 +284,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       // محاولة استعادة الجلسة بشكل صامت
       final account = await backupService.attemptSilentSignIn();
       if (account != null) {
-        debugPrint(() => '✅ تم استعادة جلسة Google Drive: ${account.email}');
+        debugPrint('✅ تم استعادة جلسة Google Drive: ${account.email}');
       } else {
         debugPrint('ℹ️ لا توجد جلسة محفوظة - المستخدم يحتاج لتسجيل دخول يدوي');
       }
@@ -305,7 +305,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     final coordinator = GoogleDriveUnifiedSyncCoordinator.instance;
     await coordinator.initialize(
       backupService: backupService,
-      db: DatabaseManager.instance,
+      database: DatabaseManager.instance,
       logger: driveLogger,
     );
     debugPrint('✅ Coordinator initialized');
@@ -324,7 +324,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     await unifiedOrchestrator.initialize(
       smart: smartSync,
       driveCoordinator: coordinator,
-      db: DatabaseManager.instance,
+      database: DatabaseManager.instance,
     );
     debugPrint('✅ SmartSyncManager initialized');
 
@@ -359,7 +359,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 
     await autoSyncEngine.initialize(
       backupService: backupService,
-      db: DatabaseManager.instance,
+      database: DatabaseManager.instance,
       logger: driveLogger,
     );
 
@@ -445,7 +445,7 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
     defaultValue: 5,
     apply: (value) => engine.setDebounceSeconds(value),
   );
-  debugPrint(() => '   ⏱️ Debounce: ${debounceSeconds}s');
+  debugPrint('   ⏱️ Debounce: ${debounceSeconds}s');
 
   final pullInterval = await migrateAutoSyncPreference<int>(
     prefs: prefs,
@@ -454,7 +454,7 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
     defaultValue: 2,
     apply: (value) => engine.setPullInterval(value),
   );
-  debugPrint(() => '   ⏰ Pull interval: ${pullInterval}min');
+  debugPrint('   ⏰ Pull interval: ${pullInterval}min');
 
   final retryEnabled = await migrateAutoSyncPreference<bool>(
     prefs: prefs,
@@ -463,7 +463,7 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
     defaultValue: true,
     apply: (value) => engine.setRetryEnabled(value),
   );
-  debugPrint(() => '   🔁 Auto-retry: $retryEnabled');
+  debugPrint('   🔁 Auto-retry: $retryEnabled');
 
   final conflictStrategy = prefs.getString('conflict_strategy') ?? 'newerWins';
   final strategy = ConflictResolutionStrategy.values.firstWhere(
@@ -471,7 +471,7 @@ Future<void> _configureAutoSyncEngine(AutoSyncEngine engine) async {
     orElse: () => ConflictResolutionStrategy.newerWins,
   );
   await engine.setConflictStrategy(strategy);
-  debugPrint(() => '   🤝 Conflict strategy: ${strategy.name}');
+  debugPrint('   🤝 Conflict strategy: ${strategy.name}');
 
   debugPrint('✅ Configuration complete');
 }
@@ -543,7 +543,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           await AppSessionManager.onAppCloseOrBackground();
         }
         AppSessionManager.configure(
-          db: DatabaseManager.instance,
+          database: DatabaseManager.instance,
           deviceIdResolver: () async =>
               GoogleDriveUnifiedSyncCoordinator.instance.deviceId,
           syncManager: ref.read(cloudflare.cloudflareSyncManagerProvider),
@@ -582,7 +582,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           debugPrint('🔄 Starting Cloudflare migration...');
           try {
             final result = await CloudflareMigrationService.instance.migrate(
-              db: DatabaseManager.instance,
+              database: DatabaseManager.instance,
               token: syncManager.token!,
               deviceId: CloudflareSyncManager.currentDeviceIdStatic!,
             );
