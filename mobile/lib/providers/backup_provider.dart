@@ -193,7 +193,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   final GoogleDriveBackupService _backupService;
   final LocalBackupService _localBackupService;
   final FileManagementService _fileService;
-  final CloudflareSyncManager _appwriteSyncManager;
+  final AppwriteSyncManager _appwriteSyncManager;
   final SmartSyncManager _smartSyncManager;
   bool _mounted = true;
 

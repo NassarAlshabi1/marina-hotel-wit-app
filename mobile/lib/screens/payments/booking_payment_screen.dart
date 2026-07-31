@@ -2214,7 +2214,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
       // ✅ رفع التغييرات إلى Appwrite Cloud فوراً (push-only بدون pull)
       // يضمن عدم حدوث سحب تلقائي بعد الرفع، وبالتالي تجنّب تعارض البيانات
-      // عند المغادرة المبكرة. الـ outbox subscription في CloudflareSyncManager
+      // عند المغادرة المبكرة. الـ outbox subscription في AppwriteSyncManager
       // يستخدم sync(pull: false) تلقائياً، لكن هذا الاستدعاء الصريح يضمن
       // الرفع الفوري بدون انتظار debounce الافتراضي.
       unawaited(
@@ -2657,7 +2657,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       // ✅ رفع التغييرات إلى Appwrite Cloud فوراً (push-only بدون pull)
       // هذا يضمن عدم حدوث سحب تلقائي بعد الرفع، وبالتالي تجنّب تعارض
       // البيانات عند تسجيل المغادرة. الـ outbox subscription في
-      // CloudflareSyncManager يستخدم sync(pull: false) تلقائياً، لكن هذا
+      // AppwriteSyncManager يستخدم sync(pull: false) تلقائياً، لكن هذا
       // الاستدعاء الصريح يضمن الرفع الفوري بدون انتظار debounce الافتراضي.
       unawaited(
         ref

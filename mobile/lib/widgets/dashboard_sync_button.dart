@@ -787,7 +787,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   ///
   /// قبل الإصلاح: كانت هذه الدالة تولّد `device_<timestamp>` وتخزّنه تحت
   /// مفتاح `device_id` — وهو مفتاح مختلف عن `appwrite_device_id` الذي
-  /// يستخدمه `CloudflareSyncManager`. النتيجة: سجلات sync_log تحمل deviceId
+  /// يستخدمه `AppwriteSyncManager`. النتيجة: سجلات sync_log تحمل deviceId
   /// مختلف عن deviceId الفعلي المستخدم في vector clocks و payload الرفع.
   ///
   /// بعد الإصلاح: نقرأ من المصدر الموثوق `appwriteSyncManager.currentDeviceId`
@@ -796,7 +796,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
   /// ثم 'unknown_device' كحل أخير.
   Future<String> _getDeviceId() async {
     try {
-      // 1) المصدر الموثوق: CloudflareSyncManager (يُحدَّث عند registerDevice)
+      // 1) المصدر الموثوق: AppwriteSyncManager (يُحدَّث عند registerDevice)
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
       final canonical = appwriteSyncManager.currentDeviceId;
       if (canonical != null && canonical.isNotEmpty) {

@@ -464,3 +464,11 @@ class CloudflareSyncManager {
 
   void clearAuditLog() => _auditLog.clear();
 }
+
+
+// ═══ Backward compatibility aliases ═══════════════════════════
+// All files that imported AppwriteSyncManager will get these aliases
+// No need to change any imports or references in existing code.
+
+typedef AppwriteSyncManager = CloudflareSyncManager;
+typedef AppwriteRealtimeSync = CloudflareRealtimeSync;

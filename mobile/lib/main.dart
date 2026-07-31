@@ -584,7 +584,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
             final result = await CloudflareMigrationService.instance.migrate(
               database: DatabaseManager.instance,
               token: syncManager.token!,
-              deviceId: CloudflareSyncManager.currentDeviceIdStatic!,
+              deviceId: AppwriteSyncManager.currentDeviceIdStatic!,
             );
             debugPrint('🔄 Migration: ${result.totalPushed}/${result.totalRecords} pushed, ${result.totalFailed} failed');
           } catch (e) {
@@ -796,7 +796,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     // حقن الاعتمادات لتجنب import دائري
     FcmService.injectDependencies(
       syncManager: syncManager,
-      realtimeSync: CloudflareRealtimeSync(),
+      realtimeSync: AppwriteRealtimeSync(),
     );
 
     await fcm.initialize();

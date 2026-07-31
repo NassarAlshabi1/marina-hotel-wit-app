@@ -8,7 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../adapters/adapter_registry.dart';
 import '../appwrite_logger.dart';
-import '../cloudflare_sync_manager.dart';
+import '../appwrite_sync_manager.dart';
 import '../crashlytics_service.dart';
 import '../local_db.dart';
 import '../secondary_appwrite_config.dart';
@@ -1087,7 +1087,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final tableName = _entityTableMap[entity];
     if (tableName == null) return;
 
-    final deviceId = CloudflareSyncManager.currentDeviceIdStatic;
+    final deviceId = AppwriteSyncManager.currentDeviceIdStatic;
     if (deviceId == null || deviceId.isEmpty) return;
 
     try {

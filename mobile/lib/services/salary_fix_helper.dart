@@ -75,7 +75,7 @@ class SalaryFixHelper {
           tag: 'SALARY_FIX',
         );
         // ملاحظة: لا نستدعي sync() هنا لأن الاستدعاء يأتي من داخل
-        // CloudflareSyncManager.pull() — ستُرفع التغييرات في الـ sync التالي
+        // AppwriteSyncManager.pull() — ستُرفع التغييرات في الـ sync التالي
         // تلقائياً عبر outbox. استدعاء sync() هنا قد يسبب recursive lock.
       } else {
         AppLogger.info(

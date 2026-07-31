@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/cloudflare_sync_manager.dart';
+import '../services/appwrite_sync_manager.dart';
 import '../services/sync_enums.dart';
 
-final cloudflareSyncManagerProvider = Provider<CloudflareSyncManager>((ref) {
-  return CloudflareSyncManager();
+final cloudflareSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
+  return AppwriteSyncManager();
 });

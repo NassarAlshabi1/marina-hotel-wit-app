@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
-import '../cloudflare_sync_manager.dart';
+import '../appwrite_sync_manager.dart';
 import '../local_db.dart';
 import 'outbox_dao.dart';
 
@@ -107,7 +107,7 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
         origin: Value(originIsServer ? 'server' : 'local'),
         deviceId: originIsServer
             ? const Value.absent()
-            : Value(CloudflareSyncManager.currentDeviceIdStatic ?? ''),
+            : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
       );
       final id = await into(bookingNotes).insert(comp);
       if (!originIsServer) {

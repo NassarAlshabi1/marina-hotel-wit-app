@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/cloudflare_sync_manager.dart';
+import '../services/appwrite_sync_manager.dart';
 
 // Backward-compatible provider name (replaces appwriteSyncManagerProvider)
-final appwriteSyncManagerProvider = Provider<CloudflareSyncManager>((ref) {
-  return CloudflareSyncManager();
+final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
+  return AppwriteSyncManager();
 });
 
 // Stub providers for backward compat with screens that still reference them

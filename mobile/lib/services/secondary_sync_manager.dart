@@ -21,7 +21,7 @@ import 'sync/payload_mapper.dart';
 /// عندما يحدث تغيير محلي (إنشاء/تعديل/حذف)، يُضاف إلى outbox مرة واحدة.
 /// ثم يعمل **مزامنان متوازيان** على نفس الـ outbox:
 ///
-///   1. CloudflareSyncManager (Primary) — يرفع للوجهة الرئيسية
+///   1. AppwriteSyncManager (Primary) — يرفع للوجهة الرئيسية
 ///   2. SecondarySyncManager (Secondary) — يرفع للوجهة الثانوية
 ///
 /// لمنع سباق البيانات (race condition) بين المزامنتين، نستخدم:

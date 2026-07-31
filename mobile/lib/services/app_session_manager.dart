@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../utils/id.dart';
-import 'cloudflare_sync_manager.dart';
+import 'appwrite_sync_manager.dart';
 import 'local_db.dart';
 
 /// يتتبع جلسات التطبيق ويسجّلها في قاعدة البيانات،
@@ -22,13 +22,13 @@ class AppSessionManager {
   static Future<String?> Function()? _deviceIdResolver;
 
   /// مرجع مشترك لمدير المزامنة — يُعيَّن عبر configure()
-  static CloudflareSyncManager? _sharedSyncManager;
+  static AppwriteSyncManager? _sharedSyncManager;
 
   /// تهيئة المدير بقاعدة البيانات والدوال المساعدة (مثل الحصول على معرف الجهاز).
   static void configure({
     required AppDatabase database,
     Future<String?> Function()? deviceIdResolver,
-    CloudflareSyncManager? syncManager,
+    AppwriteSyncManager? syncManager,
   }) {
     _database = database;
     _deviceIdResolver = deviceIdResolver;

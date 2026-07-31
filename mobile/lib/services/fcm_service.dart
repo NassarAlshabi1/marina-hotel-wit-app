@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/app_logger.dart';
 import 'appwrite_messaging_service.dart';
-import 'cloudflare_sync_manager.dart';
+import 'appwrite_sync_manager.dart';
 
 /// خدمة Firebase Cloud Messaging
 /// تُستخدم لإرسال إشعارات push بين الأجهزة عند حدوث تغييرات في Appwrite
@@ -90,7 +90,7 @@ class FcmService {
       _setupMessageHandlers();
 
       // 7. ملاحظة: تحديث التوكن على السيرفر يتم عبر
-      //    CloudflareSyncManager.setFcmToken() في _initializeFcm() في main.dart
+      //    AppwriteSyncManager.setFcmToken() في _initializeFcm() في main.dart
       //    لتجنب تكرار الطلب
 
       _isInitialized = true;
@@ -289,7 +289,7 @@ class FcmService {
   }
 
   /// الحصول على SyncManager (import دائري لذلك نستخدم getter خارجي)
-  CloudflareSyncManager? _getSyncManager() {
+  AppwriteSyncManager? _getSyncManager() {
     try {
       // يتم حقن الـ provider من main.dart عبر setInstance
       return _syncManagerInstance;
@@ -308,12 +308,12 @@ class FcmService {
   }
 
   // --- حقن متأخر لتجنب import دائري ---
-  static CloudflareSyncManager? _syncManagerInstance;
+  static AppwriteSyncManager? _syncManagerInstance;
   static dynamic _realtimeInstance;
 
   /// حقن SyncManager (يُستدعى من main.dart بعد الإنشاء)
   static void injectDependencies({
-    required CloudflareSyncManager syncManager,
+    required AppwriteSyncManager syncManager,
     required dynamic realtimeSync,
   }) {
     _syncManagerInstance = syncManager;

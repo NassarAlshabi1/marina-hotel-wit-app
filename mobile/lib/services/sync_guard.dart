@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 /// حارس مشترك لمنع تداخل عمليات المزامنة عبر الخدمات المختلفة.
 ///
 /// ✅ إصلاح P2-10: بدلاً من دمج 8 Timer.periodic مختلفة (التي تشغّلها
-/// `SmartSyncManager`, `GoogleDriveUnifiedSyncCoordinator`, `CloudflareSyncManager`)
+/// `SmartSyncManager`, `GoogleDriveUnifiedSyncCoordinator`, `AppwriteSyncManager`)
 /// في موجد موحد واحد — وهو refactor معماري كبير ومخاطر عالية — نضيف هذا
 /// الحارس الخفيف كطبقة throttle عبرية.
 ///

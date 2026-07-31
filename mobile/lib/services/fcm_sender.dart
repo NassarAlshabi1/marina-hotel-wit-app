@@ -410,7 +410,7 @@ class FcmSender {
   /// الحصول على معرّف الجهاز الحالي (للاستبعاد من الإرسال)
   Future<String?> _getMyDeviceId() async {
     try {
-      // استخدام SharedPreferences عبر CloudflareSyncManager
+      // استخدام SharedPreferences عبر AppwriteSyncManager
       // تجنّباً لـ import cycle
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString('appwrite_device_id') ??

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import 'cloudflare_sync_manager.dart';
+import 'appwrite_sync_manager.dart';
 import 'unified_sync_orchestrator.dart';
 
 /// خدمة الصيانة — تُجمّع عمليات الصيانة المتعددة الخطوات في method واحد
@@ -19,10 +19,10 @@ class MaintenanceService {
     Future<void> Function()? resetOutboxErrors,
   }) async {
     try {
-      final appwriteManager = CloudflareSyncManager();
+      final appwriteManager = AppwriteSyncManager();
       if (appwriteManager == null) {
         debugPrint(
-          '⚠️ MaintenanceService: CloudflareSyncManager not initialized',
+          '⚠️ MaintenanceService: AppwriteSyncManager not initialized',
         );
         return;
       }
