@@ -463,11 +463,8 @@ class CloudflareSyncManager {
   }
 
   void clearAuditLog() => _auditLog.clear();
-}
 
-
-
-  // ─── Stubs for methods called by existing screens ──────────
+// ─── Stubs for methods called by existing screens ──────────
   
   Future<int> pushLocalChanges() async => await sync(push: true, pull: false).then((r) => r.recordsPushed);
   Future<int> pushAllLocalData() async => 0;
@@ -478,6 +475,9 @@ class CloudflareSyncManager {
   
   // AppwriteService compatibility (some files pass this)
   dynamic get appwriteService => null;
+}
+
+
 
 // ═══ Backward compatibility aliases ═══════════════════════════
 // All files that imported AppwriteSyncManager will get these aliases
