@@ -1,0 +1,28 @@
+name = "marina-hotel-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# ─── D1 Database ──────────────────────────────────────────────
+[[d1_databases]]
+binding = "DB"
+database_name = "marina-hotel-db"
+database_id = "marina-hotel-db"
+
+# ─── R2 Storage ───────────────────────────────────────────────
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "marina-hotel-files"
+
+# ─── Environment Variables ────────────────────────────────────
+[vars]
+JWT_SECRET = "change-this-in-production-use-wrangler-secret"
+JWT_EXPIRY_HOURS = "24"
+RATE_LIMIT_WINDOW = "60"
+RATE_LIMIT_MAX = "100"
+CORS_ORIGIN = "*"
+
+# ─── KV for rate limiting ─────────────────────────────────────
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "rate-limit-kv"
