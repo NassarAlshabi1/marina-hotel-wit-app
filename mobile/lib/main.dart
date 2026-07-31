@@ -232,7 +232,7 @@ void _startHealthChecker() {
     // فالـ auto-sync (دقيقتين) سيرصد الفشل عبر retry/backoff على أي حال.
     //
     /// للتراجع: أزل المعامل interval للعودة للافتراضي (30 ثانية).
-    notifier.startPeriodicCheck(interval: const Duration(minutes: 5));
+    // notifier.startPeriodicCheck(interval: const Duration(minutes: 5));
     dlog('🏥 [Main] Health checker started (5min interval)');
   } catch (e) {
     dwarn(() => '[Main] Health checker init failed: $e');
@@ -584,7 +584,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
             final result = await CloudflareMigrationService.instance.migrate(
               db: database,
               token: syncManager.token!,
-              deviceId: CloudflareSyncManager.currentDeviceIdStatic!,
+              deviceId: CloudflareSyncManager.currentDeviceIdStaticStatic!,
             );
             dlog('🔄 Migration: ${result.totalPushed}/${result.totalRecords} pushed, ${result.totalFailed} failed');
           } catch (e) {

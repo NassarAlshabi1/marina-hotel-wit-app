@@ -36,7 +36,6 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/env.dart';
-import '../utils/env.dart';
 import 'crashlytics_service.dart';
 import 'fcm_jwt_helper.dart';
 
