@@ -575,7 +575,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     Future<void>.delayed(const Duration(seconds: 2), () async {
       try {
         final syncManager = ref.read(cloudflare.cloudflareSyncManagerProvider);
-        await syncManager.initialize(db: database);
+        await syncManager.initialize(database: DatabaseManager.instance);
 
         // ✅ Cloudflare migration: push local data to D1 on first run
         if (!await CloudflareMigrationService.instance.isMigrationComplete()) {
@@ -690,7 +690,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           }
         }
 
-        await 
+        // Realtime sync started
         await // Realtime sync started
         debugPrint('📡 Realtime sync + auto sync started');
       } catch (e) {
@@ -790,7 +790,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   }
 
   /// تهيئة FCM للإشعارات بين الأجهزة
-  Future<void> _initializeFcm(dynamic syncManager) async {
+  Future<void> _initializeFcm(AppwriteSyncManager syncManager) async {
     final fcm = FcmService();
 
     // حقن الاعتمادات لتجنب import دائري
