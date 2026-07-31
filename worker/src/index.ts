@@ -6,7 +6,6 @@
 import { Database, isValidEntity } from './database';
 import { authMiddleware, handleLogin, hashPassword, signToken } from './auth';
 import { handlePull, handlePush, handleSyncLog, handleConflicts } from './sync';
-import { handleUpload, handleDownload, handleDelete } from './storage';
 import { SyncLockDO } from './sync-lock';
 
 // ─── Environment bindings ─────────────────────────────────────
@@ -15,7 +14,6 @@ export { SyncLockDO };
 
 export interface Env {
   DB: D1Database;
-  BUCKET?: R2Bucket;
   SYNC_LOCK: DurableObjectNamespace;
   RATE_LIMIT: KVNamespace;
   JWT_SECRET: string;
@@ -203,29 +201,6 @@ export default {
       // ─── Sync Conflicts ─────────────────────────────────
       if (path === '/api/sync/conflicts' && method === 'GET') {
         const response = await handleConflicts(request, db, ctx);
-        logRequest(method, path, response.status, Date.now() - startTime, clientIp);
-        return response;
-      }
-
-      // ─── File Upload ─────────────────────────────────────
-      if (path === '/api/files/upload' && method === 'POST') {
-        const response = await handleUpload(request, env.BUCKET ?? null, ctx);
-        logRequest(method, path, response.status, Date.now() - startTime, clientIp);
-        return response;
-      }
-
-      // ─── File Download ───────────────────────────────────
-      if (path.startsWith('/api/files/') && method === 'GET') {
-        const fileId = path.split('/').pop()!;
-        const response = await handleDownload(fileId, env.BUCKET ?? null);
-        logRequest(method, path, response.status, Date.now() - startTime, clientIp);
-        return response;
-      }
-
-      // ─── File Delete ─────────────────────────────────────
-      if (path.startsWith('/api/files/') && method === 'DELETE') {
-        const fileId = path.split('/').pop()!;
-        const response = await handleDelete(fileId, env.BUCKET ?? null, ctx);
         logRequest(method, path, response.status, Date.now() - startTime, clientIp);
         return response;
       }

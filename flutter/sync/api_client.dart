@@ -4,8 +4,6 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'dart:convert';
-import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -154,34 +152,6 @@ class PushSummary {
         success: json['success'] as int? ?? 0,
         failed: json['failed'] as int? ?? 0,
         skipped: json['skipped'] as int? ?? 0,
-      );
-}
-
-/// File metadata
-class FileMetadata {
-  const FileMetadata({
-    required this.id,
-    required this.filename,
-    required this.contentType,
-    required this.size,
-    required this.uploadedBy,
-    required this.uploadedAt,
-  });
-
-  final String id;
-  final String filename;
-  final String contentType;
-  final int size;
-  final String uploadedBy;
-  final int uploadedAt;
-
-  factory FileMetadata.fromJson(Map<String, dynamic> json) => FileMetadata(
-        id: json['id'] as String,
-        filename: json['filename'] as String,
-        contentType: json['content_type'] as String,
-        size: json['size'] as int,
-        uploadedBy: json['uploaded_by'] as String,
-        uploadedAt: json['uploaded_at'] as int,
       );
 }
 
@@ -421,93 +391,6 @@ class ApiClient {
       return ApiResponse.fail(error, statusCode: response.statusCode);
     } catch (e) {
       return ApiResponse.fail('Network error: $e');
-    }
-  }
-
-  /// Upload file to R2
-  Future<ApiResponse<FileMetadata>> uploadFile({
-    required File file,
-    String? contentType,
-  }) async {
-    if (_token == null) {
-      return ApiResponse.fail('Not authenticated');
-    }
-
-    try {
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse('$baseUrl/api/files/upload'),
-      );
-      request.headers['Authorization'] = 'Bearer $_token';
-      request.headers['X-Device-Id'] = _deviceId ?? '';
-      request.files.add(
-        await http.MultipartFile.fromPath('file', file.path),
-      );
-
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-
-      if (response.statusCode == 201) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        return ApiResponse.ok(FileMetadata.fromJson(data), statusCode: 201);
-      }
-
-      final error = jsonDecode(response.body)['error'] as String? ?? 'Upload failed';
-      return ApiResponse.fail(error, statusCode: response.statusCode);
-    } catch (e) {
-      return ApiResponse.fail('Upload error: $e');
-    }
-  }
-
-  /// Download file from R2
-  Future<ApiResponse<Uint8List>> downloadFile(String fileId) async {
-    if (_token == null) {
-      return ApiResponse.fail('Not authenticated');
-    }
-
-    try {
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/files/$fileId'),
-        headers: {
-          'Authorization': 'Bearer $_token',
-          'X-Device-Id': _deviceId ?? '',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        return ApiResponse.ok(response.bodyBytes);
-      }
-
-      final error = jsonDecode(response.body)['error'] as String? ?? 'Download failed';
-      return ApiResponse.fail(error, statusCode: response.statusCode);
-    } catch (e) {
-      return ApiResponse.fail('Download error: $e');
-    }
-  }
-
-  /// Delete file from R2
-  Future<ApiResponse<bool>> deleteFile(String fileId) async {
-    if (_token == null) {
-      return ApiResponse.fail('Not authenticated');
-    }
-
-    try {
-      final response = await http.delete(
-        Uri.parse('$baseUrl/api/files/$fileId'),
-        headers: {
-          'Authorization': 'Bearer $_token',
-          'X-Device-Id': _deviceId ?? '',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        return ApiResponse.ok(true);
-      }
-
-      final error = jsonDecode(response.body)['error'] as String? ?? 'Delete failed';
-      return ApiResponse.fail(error, statusCode: response.statusCode);
-    } catch (e) {
-      return ApiResponse.fail('Delete error: $e');
     }
   }
 

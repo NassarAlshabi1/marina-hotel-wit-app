@@ -358,23 +358,6 @@ class SyncRepository {
     await pullChanges(onApplyChange: onApplyChange);
   }
 
-  // ─── File operations ─────────────────────────────────────
-
-  /// Upload a file to R2
-  Future<ApiResponse<FileMetadata>> uploadFile(File file) {
-    return apiClient.uploadFile(file: file);
-  }
-
-  /// Download a file from R2
-  Future<ApiResponse<List<int>>> downloadFile(String fileId) {
-    return apiClient.downloadFile(fileId);
-  }
-
-  /// Delete a file from R2
-  Future<ApiResponse<bool>> deleteFile(String fileId) {
-    return apiClient.deleteFile(fileId);
-  }
-
   // ─── Conflict management ─────────────────────────────────
 
   /// Get conflicts from local DB

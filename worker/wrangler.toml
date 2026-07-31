@@ -24,11 +24,6 @@ class_name = "SyncLockDO"
 tag = "v1"
 new_sqlite_classes = ["SyncLockDO"]
 
-# ─── R2 Storage (enable R2 in dashboard first, then uncomment) ─
-# [[r2_buckets]]
-# binding = "BUCKET"
-# bucket_name = "marina-hotel-files"
-
 # ─── Environment Variables ────────────────────────────────────
 [vars]
 JWT_SECRET = "marina-hotel-jwt-secret-2026-change-in-production"
