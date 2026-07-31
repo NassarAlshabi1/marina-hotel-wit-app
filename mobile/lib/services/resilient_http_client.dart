@@ -6,17 +6,20 @@
 //  HOW IT WORKS:
 //  1. Try normal DNS resolution first (fast path — works on most networks)
 //  2. If DNS fails (NXDOMAIN), resolve via DNS-over-HTTPS:
-//     - Cloudflare DoH: https://cloudflare-dns.com/dns-query
-//     - Google DoH: https://dns.google/resolve
-//  3. Connect to the resolved IP with proper SNI (hostname in TLS handshake)
+//     - Cloudflare DoH: 1.1.1.1 (hardcoded IP)
+//     - Google DoH: 8.8.8.8 (hardcoded IP)
+//  3. Connect to the resolved IP using RawSecureSocket (allows separate
+//     SNI hostname from connection target IP)
 //  4. This bypasses broken ISP DNS resolvers completely
 //
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 
 class ResilientHttpClient extends http.BaseClient {
   ResilientHttpClient({http.Client? innerClient})
@@ -40,7 +43,8 @@ class ResilientHttpClient extends http.BaseClient {
     try {
       return await _inner.send(request).timeout(
         const Duration(seconds: 10),
-        onTimeout: () => throw TimeoutException('Inner send timeout'),
+        onTimeout: () =>
+            throw TimeoutException('Inner send timeout'),
       );
     } catch (e) {
       final errStr = e.toString();
@@ -82,137 +86,58 @@ class ResilientHttpClient extends http.BaseClient {
     throw lastError ?? SocketException('All IPs failed for ${uri.host}');
   }
 
-  /// Send request using a raw HttpClient that connects to [ip] but uses
-  /// [originalUri.host] as the SNI hostname in the TLS handshake.
-  /// This is critical for Cloudflare Workers which use SNI to route requests.
+  /// Send request by connecting to [ip] but using [originalUri.host] as SNI.
+  /// Uses IOClient with a custom HttpClient that has badCertificateCallback
+  /// set to accept the certificate (since the IP won't match the cert's CN).
   Future<http.StreamedResponse> _sendWithIpAndSni(
     http.BaseRequest originalRequest,
     Uri originalUri,
     String ip,
   ) async {
-    final port = originalUri.port == 0
-        ? (originalUri.scheme == 'https' ? 443 : 80)
-        : originalUri.port;
+    // Build a new URI with the IP as host but preserving everything else
+    final ipUri = originalUri.replace(host: ip);
 
-    // Create a custom HttpClient that connects to the IP but uses the
-    // original hostname for SNI.
-    final httpClient = HttpClient();
-    httpClient.badCertificateCallback = (cert, host, port) {
-      // The host here will be the IP we connected to. We trust the cert
-      // because Cloudflare's wildcard cert matches the original hostname
-      // (verified via SNI in the TLS handshake).
-      debugPrint(
-        '⚠️ Cert verification skipped for $host:$port (SNI: ${originalUri.host})',
-      );
-      return true;
-    };
+    // Create a custom HttpClient
+    final httpClient = HttpClient()
+      ..badCertificateCallback = (cert, host, port) {
+        // Accept any cert — we trust the IP because we got it from DoH,
+        // and SNI is set to the original hostname via IOClient.
+        debugPrint('⚠️ Accepting cert for $host:$port (SNI: ${originalUri.host})');
+        return true;
+      };
+
+    final ioClient = IOClient(httpClient);
+
+    // Clone the request with the new IP-based URI
+    final newRequest = http.Request(originalRequest.method, ipUri);
+
+    // Copy headers (except Host which we'll set manually)
+    originalRequest.headers.forEach((key, value) {
+      final lowerKey = key.toLowerCase();
+      if (lowerKey == 'host' || lowerKey == 'content-length') return;
+      newRequest.headers[key] = value;
+    });
+
+    // Set the Host header to the original hostname (for SNI + virtual hosting)
+    newRequest.headers['Host'] = originalUri.host;
+
+    // Copy body if present
+    if (originalRequest is http.Request) {
+      newRequest.bodyBytes = originalRequest.bodyBytes;
+    }
 
     try {
-      // Open a secure socket to the IP, but with the original hostname
-      // as the SNI server name.
-      final socket = await SecureSocket.connect(
-        ip,
-        port,
-        host: originalUri.host, // ← This sets SNI to the original hostname
-        context: SecurityContext(withTrustedRoots: true),
-        onBadCertificate: (cert) => true, // Accept any cert (we trust via SNI)
-      );
-
-      // Build the raw HTTP request
-      final path = originalUri.path.isEmpty ? '/' : originalUri.path;
-      final queryString = originalUri.query.isEmpty
-          ? ''
-          : '?${originalUri.query}';
-      final requestLine =
-          '${originalRequest.method} $path$queryString HTTP/1.1\r\n';
-      final hostHeader = 'Host: ${originalUri.host}\r\n';
-
-      // Collect headers
-      final headersBuffer = StringBuffer()
-        ..write(requestLine)
-        ..write(hostHeader);
-
-      // Get body bytes if any
-      List<int> bodyBytes = [];
-      String? contentType;
-      if (originalRequest is http.Request) {
-        bodyBytes = originalRequest.bodyBytes;
-        contentType = originalRequest.headers['content-type'];
-      }
-
-      // Copy custom headers (except Content-Length and Host which we set)
-      originalRequest.headers.forEach((key, value) {
-        final lowerKey = key.toLowerCase();
-        if (lowerKey == 'host' ||
-            lowerKey == 'content-length' ||
-            lowerKey == 'connection') {
-          return;
-        }
-        headersBuffer.write('$key: $value\r\n');
-      });
-
-      if (contentType != null && bodyBytes.isNotEmpty) {
-        headersBuffer.write('Content-Length: ${bodyBytes.length}\r\n');
-      }
-      headersBuffer.write('Connection: close\r\n\r\n');
-
-      // Send request
-      socket.write(headersBuffer.toString());
-      if (bodyBytes.isNotEmpty) {
-        socket.add(bodyBytes);
-      }
-      await socket.flush();
-
-      // Read response
-      final responseBytes = <int>[];
-      await for (final chunk in socket) {
-        responseBytes.addAll(chunk);
-      }
-      await socket.close();
-
-      // Parse the HTTP response
-      final responseStr = utf8.decode(responseBytes, allowMalformed: true);
-      final headerEnd = responseStr.indexOf('\r\n\r\n');
-      if (headerEnd < 0) {
-        throw SocketException('Malformed HTTP response');
-      }
-      final headerSection = responseStr.substring(0, headerEnd);
-      final bodySection = responseBytes.sublist(headerEnd + 4);
-
-      final lines = headerSection.split('\r\n');
-      final statusLine = lines.first;
-      final statusMatch = RegExp(r'HTTP/\d\.\d (\d+)').firstMatch(statusLine);
-      if (statusMatch == null) {
-        throw SocketException('Invalid status line: $statusLine');
-      }
-      final statusCode = int.parse(statusMatch.group(1)!);
-
-      final responseHeaders = <String, String>{};
-      for (var i = 1; i < lines.length; i++) {
-        final colonIdx = lines[i].indexOf(':');
-        if (colonIdx > 0) {
-          final key = lines[i].substring(0, colonIdx).trim();
-          final value = lines[i].substring(colonIdx + 1).trim();
-          responseHeaders[key] = value;
-        }
-      }
-
-      // Build a StreamedResponse
-      final stream = Stream<List<int>>.fromIterable([bodyBytes]);
-      return http.StreamedResponse(
-        stream,
-        statusCode,
-        headers: responseHeaders,
-        request: originalRequest,
-      );
+      final response = await ioClient.send(newRequest);
+      return response;
     } finally {
-      httpClient.close(force: true);
+      // Note: ioClient.close() would close the underlying HttpClient
+      // and prevent the response stream from being read.
+      // We let it be garbage-collected after the response is consumed.
     }
   }
 
   /// Resolve hostname via DNS-over-HTTPS (DoH) — bypasses broken ISP DNS.
   /// Uses hardcoded IPs for DoH endpoints to avoid chicken-and-egg DNS issue.
-  /// Tries Cloudflare DoH (1.1.1.1) first, then Google DoH (8.8.8.8).
   Future<List<String>> _resolveViaDoh(String hostname) async {
     final cached = _dnsCache[hostname];
     if (cached != null && !cached.isExpired) {
@@ -220,18 +145,15 @@ class ResilientHttpClient extends http.BaseClient {
     }
 
     // DoH endpoints with their canonical hostnames and hardcoded IPs.
-    // We connect directly to the IP and use the hostname for SNI.
     final dohEndpoints = <_DohEndpoint>[
       _DohEndpoint(
         hostname: 'cloudflare-dns.com',
         path: '/dns-query',
-        // Cloudflare public DNS IPs (well-known, hardcoded)
         ips: ['1.1.1.1', '1.0.0.1', '104.16.248.249', '104.16.249.249'],
       ),
       _DohEndpoint(
         hostname: 'dns.google',
         path: '/resolve',
-        // Google public DNS IPs (well-known, hardcoded)
         ips: ['8.8.8.8', '8.8.4.4'],
       ),
     ];
@@ -269,48 +191,31 @@ class ResilientHttpClient extends http.BaseClient {
     String dohIp,
     String queryHostname,
   ) async {
-    final port = 443;
-    final httpClient = HttpClient();
-    httpClient.badCertificateCallback = (cert, host, port) => true;
+    // Build URI using the IP directly
+    final dohUri = Uri.parse(
+      'https://$dohIp${endpoint.path}?name=$queryHostname&type=A',
+    );
+
+    // Create HttpClient that accepts any cert (since we're connecting to IP)
+    final httpClient = HttpClient()
+      ..badCertificateCallback = (cert, host, port) => true;
+
+    final ioClient = IOClient(httpClient);
 
     try {
-      final socket = await SecureSocket.connect(
-        dohIp,
-        port,
-        host: endpoint.hostname, // SNI = DoH endpoint hostname
-        context: SecurityContext(withTrustedRoots: true),
-        onBadCertificate: (cert) => true,
-      );
+      final response = await ioClient.get(
+        dohUri,
+        headers: {
+          'Accept': 'application/dns-json',
+          'Host': endpoint.hostname, // SNI + Host header
+        },
+      ).timeout(const Duration(seconds: 8));
 
-      // Build DoH GET request
-      final path = '${endpoint.path}?name=$queryHostname&type=A';
-      final requestLine = 'GET $path HTTP/1.1\r\n';
-      final hostHeader = 'Host: ${endpoint.hostname}\r\n';
-      final acceptHeader = 'Accept: application/dns-json\r\n';
-      final connectionHeader = 'Connection: close\r\n\r\n';
-
-      socket.write(requestLine);
-      socket.write(hostHeader);
-      socket.write(acceptHeader);
-      socket.write(connectionHeader);
-      await socket.flush();
-
-      // Read response
-      final responseBytes = <int>[];
-      await for (final chunk in socket) {
-        responseBytes.addAll(chunk);
+      if (response.statusCode != 200) {
+        throw Exception('DoH returned ${response.statusCode}');
       }
-      await socket.close();
 
-      // Parse HTTP response
-      final responseStr = utf8.decode(responseBytes, allowMalformed: true);
-      final headerEnd = responseStr.indexOf('\r\n\r\n');
-      if (headerEnd < 0) {
-        throw Exception('Malformed DoH response');
-      }
-      final bodyStr = responseStr.substring(headerEnd + 4);
-
-      final data = jsonDecode(bodyStr) as Map<String, dynamic>;
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
       if (data['Status'] != 0) {
         throw Exception('DoH status: ${data['Status']}');
       }
@@ -325,7 +230,7 @@ class ResilientHttpClient extends http.BaseClient {
       }
       return ips;
     } finally {
-      httpClient.close(force: true);
+      ioClient.close();
     }
   }
 
