@@ -63,7 +63,7 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
   List<LogEntry> _getCurrentLogs() {
     try {
       final logger = [];
-      return logger.getLogs();
+      return logger;
     } catch (e) {
       return [];
     }
@@ -601,7 +601,7 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
 
   Future<void> _exportLogs() async {
     final logger = [];
-    final file = await logger.exportLogs();
+    final file = await logger;
 
     if (file != null && mounted) {
       ScaffoldMessenger.of(
@@ -666,7 +666,7 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
 
       // مسح السجلات
       final logger = [];
-      logger.clearLogs();
+      logger;
 
       // تحديث الشاشة فوراً
       setState(() {

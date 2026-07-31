@@ -691,7 +691,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         }
 
         // Realtime sync started
-        await // Realtime sync started
+        // Realtime sync started
         debugPrint('📡 Realtime sync + auto sync started');
       } catch (e) {
         derr(() => 'Realtime sync init error: $e');
