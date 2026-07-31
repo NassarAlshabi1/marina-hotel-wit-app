@@ -15,6 +15,20 @@ database_id = "607f1090-83b1-4281-975f-d81b8f6154e7"
 binding = "RATE_LIMIT"
 id = "dd633f440be9478a9a3cb18a5969c022"
 
+# ─── Durable Objects (sync locks + realtime) ──────────────────
+[[durable_objects.bindings]]
+name = "SYNC_LOCK"
+class_name = "SyncLockDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SyncLockDO"]
+
+# ─── R2 Storage (enable R2 in dashboard first, then uncomment) ─
+# [[r2_buckets]]
+# binding = "BUCKET"
+# bucket_name = "marina-hotel-files"
+
 # ─── Environment Variables ────────────────────────────────────
 [vars]
 JWT_SECRET = "marina-hotel-jwt-secret-2026-change-in-production"

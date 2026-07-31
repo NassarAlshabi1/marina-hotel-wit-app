@@ -7,12 +7,16 @@ import { Database, isValidEntity } from './database';
 import { authMiddleware, handleLogin, hashPassword, signToken } from './auth';
 import { handlePull, handlePush, handleSyncLog, handleConflicts } from './sync';
 import { handleUpload, handleDownload, handleDelete } from './storage';
+import { SyncLockDO } from './sync-lock';
 
 // ─── Environment bindings ─────────────────────────────────────
 
+export { SyncLockDO };
+
 export interface Env {
   DB: D1Database;
-  BUCKET: R2Bucket;
+  BUCKET?: R2Bucket;
+  SYNC_LOCK: DurableObjectNamespace;
   RATE_LIMIT: KVNamespace;
   JWT_SECRET: string;
   JWT_EXPIRY_HOURS: string;
@@ -205,7 +209,7 @@ export default {
 
       // ─── File Upload ─────────────────────────────────────
       if (path === '/api/files/upload' && method === 'POST') {
-        const response = await handleUpload(request, env.BUCKET, ctx);
+        const response = await handleUpload(request, env.BUCKET ?? null, ctx);
         logRequest(method, path, response.status, Date.now() - startTime, clientIp);
         return response;
       }
@@ -213,7 +217,7 @@ export default {
       // ─── File Download ───────────────────────────────────
       if (path.startsWith('/api/files/') && method === 'GET') {
         const fileId = path.split('/').pop()!;
-        const response = await handleDownload(fileId, env.BUCKET);
+        const response = await handleDownload(fileId, env.BUCKET ?? null);
         logRequest(method, path, response.status, Date.now() - startTime, clientIp);
         return response;
       }
@@ -221,7 +225,52 @@ export default {
       // ─── File Delete ─────────────────────────────────────
       if (path.startsWith('/api/files/') && method === 'DELETE') {
         const fileId = path.split('/').pop()!;
-        const response = await handleDelete(fileId, env.BUCKET, ctx);
+        const response = await handleDelete(fileId, env.BUCKET ?? null, ctx);
+        logRequest(method, path, response.status, Date.now() - startTime, clientIp);
+        return response;
+      }
+
+      // ─── Durable Object: Sync Lock ────────────────────────
+      // POST /api/sync/lock — acquire a lock on an entity
+      if (path === '/api/sync/lock' && method === 'POST') {
+        const lockId = env.SYNC_LOCK.idFromName('global');
+        const stub = env.SYNC_LOCK.get(lockId);
+        const doRequest = new Request('https://do.internal/lock', { method: 'POST', headers: request.headers, body: await request.text() });
+        const response = await stub.fetch(doRequest);
+        logRequest(method, path, response.status, Date.now() - startTime, clientIp);
+        return response;
+      }
+
+      // POST /api/sync/unlock — release a lock
+      if (path === '/api/sync/unlock' && method === 'POST') {
+        const lockId = env.SYNC_LOCK.idFromName('global');
+        const stub = env.SYNC_LOCK.get(lockId);
+        const doRequest = new Request('https://do.internal/unlock', { method: 'POST', headers: request.headers, body: await request.text() });
+        const response = await stub.fetch(doRequest);
+        logRequest(method, path, response.status, Date.now() - startTime, clientIp);
+        return response;
+      }
+
+      // GET /api/sync/locks — list active locks
+      if (path === '/api/sync/locks' && method === 'GET') {
+        const lockId = env.SYNC_LOCK.idFromName('global');
+        const stub = env.SYNC_LOCK.get(lockId);
+        const doRequest = new Request('https://do.internal/status', { method: 'GET', headers: request.headers });
+        const response = await stub.fetch(doRequest);
+        logRequest(method, path, response.status, Date.now() - startTime, clientIp);
+        return response;
+      }
+
+      // ─── Durable Object: Realtime WebSocket ───────────────
+      // GET /api/realtime — WebSocket upgrade for realtime sync
+      if (path === '/api/realtime' && method === 'GET') {
+        const upgradeHeader = request.headers.get('Upgrade');
+        if (upgradeHeader !== 'websocket') {
+          return json({ error: 'WebSocket upgrade required' }, 400, env);
+        }
+        const lockId = env.SYNC_LOCK.idFromName('global');
+        const stub = env.SYNC_LOCK.get(lockId);
+        const response = await stub.fetch(request);
         logRequest(method, path, response.status, Date.now() - startTime, clientIp);
         return response;
       }

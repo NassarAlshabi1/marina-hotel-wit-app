@@ -38,9 +38,12 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 export async function handleUpload(
   request: Request,
-  bucket: R2Bucket,
+  bucket: R2Bucket | null,
   ctx: AuthContext
 ): Promise<Response> {
+  if (!bucket) {
+    return jsonError('R2 storage not configured. Enable R2 in Cloudflare Dashboard.', 503);
+  }
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
@@ -98,8 +101,11 @@ export async function handleUpload(
 
 export async function handleDownload(
   fileId: string,
-  bucket: R2Bucket
+  bucket: R2Bucket | null
 ): Promise<Response> {
+  if (!bucket) {
+    return jsonError('R2 storage not configured.', 503);
+  }
   try {
     // R2 keys are stored as uploads/{fileId}.{ext}
     // We need to list objects with prefix to find the exact key
@@ -133,9 +139,12 @@ export async function handleDownload(
 
 export async function handleDelete(
   fileId: string,
-  bucket: R2Bucket,
+  bucket: R2Bucket | null,
   ctx: AuthContext
 ): Promise<Response> {
+  if (!bucket) {
+    return jsonError('R2 storage not configured.', 503);
+  }
   try {
     const listed = await bucket.list({ prefix: `uploads/${fileId}`, limit: 1 });
 

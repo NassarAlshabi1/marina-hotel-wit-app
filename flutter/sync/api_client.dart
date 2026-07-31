@@ -9,6 +9,7 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'realtime_client.dart';
 
 /// API response wrapper
 class ApiResponse<T> {
@@ -249,6 +250,109 @@ class ApiClient {
 
   /// Get device ID
   String? get deviceId => _deviceId;
+
+  // ═══ Sync Lock (Durable Object) ═══════════════════════════
+
+  /// Acquire a sync lock on an entity (prevents concurrent writes)
+  Future<ApiResponse<LockResponse>> acquireLock({
+    required String entity,
+    required String entityId,
+    required String operation,
+  }) async {
+    if (_token == null) {
+      return ApiResponse.fail('Not authenticated');
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/sync/lock'),
+        headers: {
+          'Authorization': 'Bearer $_token',
+          'Content-Type': 'application/json',
+          'X-Device-Id': _deviceId ?? '',
+        },
+        body: jsonEncode({
+          'deviceId': _deviceId,
+          'entity': entity,
+          'entityId': entityId,
+          'operation': operation,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return ApiResponse.ok(LockResponse.fromJson(data));
+      }
+
+      final error = jsonDecode(response.body)['error'] as String? ?? 'Lock failed';
+      return ApiResponse.fail(error, statusCode: response.statusCode);
+    } catch (e) {
+      return ApiResponse.fail('Lock error: $e');
+    }
+  }
+
+  /// Release a sync lock
+  Future<ApiResponse<bool>> releaseLock({
+    required String entity,
+    required String entityId,
+  }) async {
+    if (_token == null) {
+      return ApiResponse.fail('Not authenticated');
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/sync/unlock'),
+        headers: {
+          'Authorization': 'Bearer $_token',
+          'Content-Type': 'application/json',
+          'X-Device-Id': _deviceId ?? '',
+        },
+        body: jsonEncode({
+          'deviceId': _deviceId,
+          'entity': entity,
+          'entityId': entityId,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return ApiResponse.ok(true);
+      }
+
+      return ApiResponse.fail('Unlock failed', statusCode: response.statusCode);
+    } catch (e) {
+      return ApiResponse.fail('Unlock error: $e');
+    }
+  }
+
+  /// List active sync locks
+  Future<ApiResponse<List<Map<String, dynamic>>>> getActiveLocks() async {
+    if (_token == null) {
+      return ApiResponse.fail('Not authenticated');
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/sync/locks'),
+        headers: {
+          'Authorization': 'Bearer $_token',
+          'X-Device-Id': _deviceId ?? '',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final locks = (data['locks'] as List? ?? [])
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+        return ApiResponse.ok(locks);
+      }
+
+      return ApiResponse.fail('Failed to fetch locks');
+    } catch (e) {
+      return ApiResponse.fail('Network error: $e');
+    }
+  }
 
   /// Pull changes (Delta Sync)
   Future<ApiResponse<PullResult>> pullChanges({
