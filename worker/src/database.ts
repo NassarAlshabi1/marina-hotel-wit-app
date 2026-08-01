@@ -38,13 +38,41 @@ export interface PushOperation {
 }
 
 // ─── Entity table mapping ─────────────────────────────────────
+// 1:1 mapping — entity name = D1 table name (matches Drift SQLite schema)
+// All 20 tables supported (matches Flutter's cloudflare_config.dart migrationOrder)
 
 const ENTITY_TABLES: Record<string, string> = {
+  // Core hotel entities
   rooms: 'rooms',
   bookings: 'bookings',
   payments: 'payments',
   expenses: 'expenses',
   employees: 'employees',
+  debts: 'debts',
+
+  // Booking-related
+  booking_notes: 'booking_notes',
+  booking_nights: 'booking_nights',
+  booking_price_adjustments: 'booking_price_adjustments',
+  guest_infos: 'guest_infos',
+
+  // Shift & cash
+  shift_notes: 'shift_notes',
+  cash_transactions: 'cash_transactions',
+
+  // Salary
+  salary_cycles: 'salary_cycles',
+  salary_payments: 'salary_payments',
+  salary_withdrawals: 'salary_withdrawals',
+  salary_carry_over_logs: 'salary_carry_over_logs',
+
+  // Adjustments & audit
+  price_adjustments: 'price_adjustments',
+  audit_logs: 'audit_logs',
+  payment_voids: 'payment_voids',
+
+  // Ledger
+  hotel_day_ledger: 'hotel_day_ledger',
 };
 
 const VALID_ENTITIES = new Set(Object.keys(ENTITY_TABLES));
@@ -108,6 +136,29 @@ export class Database {
 
   // ─── Push: Create ──────────────────────────────────────────
 
+  // Cache: table name → Set of valid column names (avoids repeated PRAGMA queries)
+  private _tableColumnsCache: Map<string, Set<string>> = new Map();
+
+  /**
+   * Get the set of valid column names for a table.
+   * Cached to avoid repeated PRAGMA queries.
+   */
+  async getTableColumns(table: string): Promise<Set<string>> {
+    const cached = this._tableColumnsCache.get(table);
+    if (cached) return cached;
+
+    const result = await this.db
+      .prepare(`PRAGMA table_info(${table})`)
+      .all<{ name: string; notnull: number; dflt_value: string | null; type: string }>();
+
+    const cols = new Set<string>();
+    for (const row of result.results) {
+      cols.add(row.name);
+    }
+    this._tableColumnsCache.set(table, cols);
+    return cols;
+  }
+
   async createRecord(
     entity: string,
     data: Record<string, unknown>,
@@ -140,11 +191,36 @@ export class Database {
     if (!record.created_at_epoch) (record as Record<string, unknown>).created_at_epoch = 0;
     if (!record.last_modified_epoch) (record as Record<string, unknown>).last_modified_epoch = 0;
 
-    // Filter out undefined values (D1 doesn't accept them)
+    // ─── Filter to only columns that exist in the target table ───
+    // This prevents "no such column" errors when data contains fields
+    // from a different entity (e.g. guest_phone in debts data).
+    const validColumns = await this.getTableColumns(table);
     const cleanRecord: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(record)) {
-      if (value !== undefined) {
+      if (value !== undefined && validColumns.has(key)) {
         cleanRecord[key] = value;
+      }
+    }
+
+    // ─── Fill NOT NULL columns (without defaults) with empty values ───
+    // Get the column metadata to identify NOT NULL columns without defaults
+    const colMeta = await this.db
+      .prepare(`PRAGMA table_info(${table})`)
+      .all<{ name: string; notnull: number; dflt_value: string | null; type: string }>();
+
+    for (const col of colMeta.results) {
+      // Skip if column has a default, is nullable, is PK/id, or is already in cleanRecord
+      if (col.dflt_value !== null) continue;
+      if (col.notnull === 0) continue;
+      if (col.name === 'id' || col.name === 'local_uuid') continue;
+      if (col.name in cleanRecord) continue;
+
+      // Fill with appropriate empty value based on type
+      const typeLower = col.type.toLowerCase();
+      if (typeLower === 'integer' || typeLower === 'real' || typeLower === 'numeric') {
+        cleanRecord[col.name] = 0;
+      } else {
+        cleanRecord[col.name] = '';
       }
     }
 
@@ -152,10 +228,31 @@ export class Database {
     const placeholders = columns.map(() => '?').join(', ');
     const values = columns.map((col) => cleanRecord[col]);
 
-    await this.db
+    // Use INSERT OR IGNORE for idempotency (duplicate local_uuid = skip)
+    // but check the actual row count to detect silent failures
+    const insertResult = await this.db
       .prepare(`INSERT OR IGNORE INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`)
       .bind(...values)
       .run();
+
+    // If no rows were written, check if the record already exists
+    // (idempotent skip) or if there was a silent constraint violation
+    if (insertResult.meta.changes === 0) {
+      const existing = await this.db
+        .prepare(`SELECT local_uuid FROM ${table} WHERE local_uuid = ?`)
+        .bind(localUuid)
+        .first<{ local_uuid: string }>();
+
+      if (!existing) {
+        // Not a duplicate — a constraint was silently violated.
+        // Retry with a plain INSERT to surface the actual error.
+        console.error(`[CREATE] Silent insert failure for ${entity}/${localUuid}. Retrying with plain INSERT to surface error.`);
+        await this.db
+          .prepare(`INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`)
+          .bind(...values)
+          .run();
+      }
+    }
 
     // Log to sync_log — use local_uuid as entity_id
     await this.logSync(entity, localUuid, 'create', 1, deviceId, record);
