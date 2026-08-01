@@ -91,7 +91,10 @@ class CloudflareSyncManager {
   // Solves DNS_PROBE_FINISHED_NXDOMAIN on Yemeni networks where ISP DNS
   // resolvers fail to resolve *.workers.dev. Falls back to Cloudflare DoH
   // (https://cloudflare-dns.com/dns-query) then Google DoH.
-  final http.Client _httpClient = createResilientHttpClient();
+  // Uses 30s timeout (default) — generous enough for slow networks.
+  final http.Client _httpClient = createResilientHttpClient(
+    timeout: const Duration(seconds: 30),
+  );
 
   // ─── Initialize ─────────────────────────────────────────────
   Future<void> initialize({AppDatabase? database, bool forceRetry = false}) async {

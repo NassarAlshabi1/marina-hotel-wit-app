@@ -22,10 +22,12 @@ import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 
 class ResilientHttpClient extends http.BaseClient {
-  ResilientHttpClient({http.Client? innerClient})
-      : _inner = innerClient ?? http.Client();
+  ResilientHttpClient({http.Client? innerClient, Duration? timeout})
+      : _inner = innerClient ?? http.Client(),
+        _timeout = timeout ?? const Duration(seconds: 30);
 
   final http.Client _inner;
+  final Duration _timeout;
 
   // Cache: hostname → List<IP> (TTL 5 minutes)
   static final Map<String, _DnsCacheEntry> _dnsCache = {};
@@ -42,9 +44,9 @@ class ResilientHttpClient extends http.BaseClient {
     // Try the normal path first (fast — usually works)
     try {
       return await _inner.send(request).timeout(
-        const Duration(seconds: 10),
+        _timeout,
         onTimeout: () =>
-            throw TimeoutException('Inner send timeout'),
+            throw TimeoutException('Inner send timeout (after ${_timeout.inSeconds}s)'),
       );
     } catch (e) {
       final errStr = e.toString();
@@ -262,6 +264,7 @@ class _DohEndpoint {
 }
 
 /// Convenience: create a ResilientHttpClient and use it for all requests.
-http.Client createResilientHttpClient() {
-  return ResilientHttpClient();
+/// Pass [timeout] to customize the per-request timeout (default: 30s).
+http.Client createResilientHttpClient({Duration? timeout}) {
+  return ResilientHttpClient(timeout: timeout);
 }

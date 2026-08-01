@@ -22,8 +22,16 @@ class CloudflareMigrationService {
   static const _migrationCompleteKey = 'cf_migration_complete';
   static const _migrationProgressKey = 'cf_migration_progress';
 
-  /// HTTP client with DoH fallback (bypasses broken ISP DNS)
-  final http.Client _httpClient = createResilientHttpClient();
+  /// HTTP client with DoH fallback (bypasses broken ISP DNS).
+  /// Uses 60s timeout per request — migration batches can be slow on
+  /// Yemeni networks (typical: 2-5s per batch of 5 records).
+  final http.Client _httpClient = createResilientHttpClient(
+    timeout: const Duration(seconds: 60),
+  );
+
+  /// Smaller batch size for migration (5 instead of 25) — each request
+  /// completes faster, reducing timeout failures on slow networks.
+  static const int _migrationBatchSize = 5;
 
   /// Check if migration has already been completed
   Future<bool> isMigrationComplete() async {
@@ -103,41 +111,73 @@ class CloudflareMigrationService {
           });
         }
 
-        // Send in batches
-        for (var i = 0; i < operations.length; i += CloudflareConfig.batchSize) {
+        // Send in batches (smaller batch size for slow networks)
+        for (var i = 0; i < operations.length; i += _migrationBatchSize) {
           final batch = operations.sublist(
             i,
-            (i + CloudflareConfig.batchSize > operations.length)
+            (i + _migrationBatchSize > operations.length)
                 ? operations.length
-                : i + CloudflareConfig.batchSize,
+                : i + _migrationBatchSize,
           );
 
-          final response = await _httpClient.post(
-            Uri.parse('${CloudflareConfig.workerUrl}/api/sync/push'),
-            headers: {
-              'Authorization': 'Bearer $token',
-              'Content-Type': 'application/json',
-            },
-            body: jsonEncode({'operations': batch}),
-          ).timeout(const Duration(seconds: 30));
+          // Retry each batch up to 3 times for transient failures
+          // (timeouts, network blips). On final failure, record errors.
+          bool batchSucceeded = false;
+          for (var attempt = 1; attempt <= 3 && !batchSucceeded; attempt++) {
+            try {
+              final response = await _httpClient.post(
+                Uri.parse('${CloudflareConfig.workerUrl}/api/sync/push'),
+                headers: {
+                  'Authorization': 'Bearer $token',
+                  'Content-Type': 'application/json',
+                },
+                body: jsonEncode({'operations': batch}),
+              );
 
-          if (response.statusCode == 200) {
-            final result = jsonDecode(response.body) as Map<String, dynamic>;
-            final summary = result['summary'] as Map<String, dynamic>? ?? {};
-            totalPushed += (summary['success'] as int? ?? 0);
-            totalFailed += (summary['failed'] as int? ?? 0);
+              if (response.statusCode == 200) {
+                final result =
+                    jsonDecode(response.body) as Map<String, dynamic>;
+                final summary =
+                    result['summary'] as Map<String, dynamic>? ?? {};
+                totalPushed += (summary['success'] as int? ?? 0);
+                totalFailed += (summary['failed'] as int? ?? 0);
 
-            if ((summary['failed'] as int? ?? 0) > 0) {
-              final results = result['results'] as List? ?? [];
-              for (final r in results) {
-                if (!((r as Map)['success'] as bool? ?? false)) {
-                  errors.add('$entity: ${r['error']}');
+                if ((summary['failed'] as int? ?? 0) > 0) {
+                  final results = result['results'] as List? ?? [];
+                  for (final r in results) {
+                    if (!((r as Map)['success'] as bool? ?? false)) {
+                      errors.add('$entity: ${r['error']}');
+                    }
+                  }
                 }
+                batchSucceeded = true;
+              } else {
+                // Non-200: retry only on 5xx server errors
+                if (response.statusCode >= 500 && attempt < 3) {
+                  debugPrint(
+                    '  ⚠️ $entity batch HTTP ${response.statusCode}, retry $attempt/3...',
+                  );
+                  await Future.delayed(Duration(seconds: attempt * 2));
+                  continue;
+                }
+                totalFailed += batch.length;
+                errors.add('$entity: HTTP ${response.statusCode}');
+                batchSucceeded = true; // Don't retry client errors
+              }
+            } catch (e) {
+              if (attempt < 3) {
+                debugPrint(
+                  '  ⚠️ $entity batch failed (attempt $attempt/3): $e — retrying...',
+                );
+                await Future.delayed(Duration(seconds: attempt * 2));
+              } else {
+                // Final attempt failed
+                totalFailed += batch.length;
+                errors.add('$entity batch (after 3 retries): $e');
+                debugPrint('  ❌ $entity batch final failure: $e');
+                batchSucceeded = true; // Move on to next batch
               }
             }
-          } else {
-            totalFailed += batch.length;
-            errors.add('$entity: HTTP ${response.statusCode}');
           }
 
           // Report progress
