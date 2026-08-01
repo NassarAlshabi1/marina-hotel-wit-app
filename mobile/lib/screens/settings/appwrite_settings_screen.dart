@@ -51,6 +51,9 @@ class _AppwriteSettingsScreenState
   int _migrationTotal = 0;
   String _migrationTable = '';
   bool _migrationCompleted = false;
+  double _networkSpeedKBps = 0;
+  double _effectiveSpeedKBps = 0;
+  DateTime? _migrationStartTime;
 
   @override
   void initState() {
@@ -1778,20 +1781,82 @@ class _AppwriteSettingsScreenState
                         ClipRRect(
                           borderRadius: BorderRadius.circular(4),
                           child: LinearProgressIndicator(
-                            value: _migrationCurrent / _migrationTotal,
+                            value: _migrationTotal > 0
+                                ? _migrationCurrent / _migrationTotal
+                                : 0,
                             backgroundColor: Colors.teal.shade100,
                             valueColor: const AlwaysStoppedAnimation<Color>(
                               Colors.teal,
                             ),
                           ),
                         ),
+                        const SizedBox(height: 6),
+                        // Stats row: records + speed + ETA
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '$_migrationCurrent / $_migrationTotal سجل',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.teal.shade700,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (_effectiveSpeedKBps > 0) ...[
+                              Text(
+                                '${_effectiveSpeedKBps.toStringAsFixed(1)} KB/s',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: _effectiveSpeedKBps >= 50
+                                      ? Colors.green
+                                      : _effectiveSpeedKBps >= 20
+                                          ? Colors.orange
+                                          : Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              if (_migrationTotal > 0 &&
+                                  _migrationCurrent < _migrationTotal) ...[
+                                Builder(builder: (context) {
+                                  final remaining =
+                                      _migrationTotal - _migrationCurrent;
+                                  final recordsPerSec =
+                                      _effectiveSpeedKBps > 0
+                                          ? (_effectiveSpeedKBps * 1024) / 150
+                                          : 0;
+                                  final etaSecs = recordsPerSec > 0
+                                      ? (remaining / recordsPerSec).round()
+                                      : 0;
+                                  final etaMin = (etaSecs / 60).floor();
+                                  final etaSec = etaSecs % 60;
+                                  return Text(
+                                    'متبقي: ${etaMin}د ${etaSec}ث',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  );
+                                }),
+                              ],
+                            ],
+                          ],
+                        ),
                         const SizedBox(height: 4),
-                        Text(
-                          '$_migrationCurrent / $_migrationTotal سجل',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.teal.shade700,
-                          ),
+                        // Compression + parallel indicator
+                        Row(
+                          children: [
+                            Icon(Icons.compress,
+                                size: 12, color: Colors.teal.shade600),
+                            const SizedBox(width: 4),
+                            Text(
+                              'gzip + 5 parallel',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.teal.shade600,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ] else ...[
@@ -1900,6 +1965,8 @@ class _AppwriteSettingsScreenState
       _migrationTable = '';
       _migrationCurrent = 0;
       _migrationTotal = 0;
+      _effectiveSpeedKBps = 0;
+      _migrationStartTime = DateTime.now();
     });
 
     try {
@@ -1985,11 +2052,26 @@ class _AppwriteSettingsScreenState
         deviceId: deviceId,
         onProgress: (current, total, table) {
           if (mounted) {
+            // Calculate effective throughput (records per second → KB/s)
+            // Each record is ~500 bytes JSON, but with gzip it's ~150 bytes
+            // transmitted. With parallel batches (5x), effective speed is
+            // records/s × 150 bytes × 5 = bytes/s effective.
+            final elapsed = _migrationStartTime != null
+                ? DateTime.now().difference(_migrationStartTime!).inSeconds
+                : 0;
+            double effectiveKBps = 0;
+            if (elapsed > 0 && current > 0) {
+              // 150 bytes per record (gzipped) × records pushed
+              final bytesTransmitted = current * 150;
+              effectiveKBps = (bytesTransmitted / 1024) / elapsed;
+            }
+
             setState(() {
               _migrationCurrent = current;
               _migrationTotal = total;
               _migrationTable = table;
               _migrationStatus = 'جاري الرفع...';
+              _effectiveSpeedKBps = effectiveKBps;
             });
           }
         },

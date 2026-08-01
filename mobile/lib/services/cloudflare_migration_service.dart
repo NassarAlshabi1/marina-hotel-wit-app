@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import 'dart:convert';
-import 'dart:io' show gzip, zlib;
+import 'dart:io' show gzip, zlib, GZipCodec;
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
@@ -261,8 +261,12 @@ class CloudflareMigrationService {
     // repetitive JSON with field names like local_uuid, created_at, etc.)
     final jsonPayload = jsonEncode({'operations': batch});
     final jsonBytes = utf8.encode(jsonPayload);
-    final compressedBytes = gzip.encode(jsonBytes, level: 9);
-    final compressionRatio = (compressedBytes.length / jsonBytes.length * 100).round();
+    // Use GZipCodec with level 9 for maximum compression
+    final gzipCodec = GZipCodec(level: 9);
+    final compressedBytes = gzipCodec.encode(jsonBytes);
+    final compressionRatio = jsonBytes.isEmpty
+        ? 100
+        : (compressedBytes.length / jsonBytes.length * 100).round();
     debugPrint('    🗜️ $entity batch: ${jsonBytes.length}B → '
         '${compressedBytes.length}B (${compressionRatio}% of original)');
 
