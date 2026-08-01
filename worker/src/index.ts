@@ -31,22 +31,15 @@ async function checkRateLimit(
   window: number,
   maxRequests: number
 ): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
-  const now = Date.now();
-  const windowStart = Math.floor(now / (window * 1000)) * (window * 1000);
-  const key = `rl:${clientId}:${windowStart}`;
-
-  const current = parseInt((await kv.get(key)) || '0', 10);
-  const allowed = current < maxRequests;
-  const remaining = Math.max(0, maxRequests - current - 1);
-  const resetAt = windowStart + window * 1000;
-
-  if (allowed) {
-    await kv.put(key, (current + 1).toString(), {
-      expirationTtl: window,
-    });
-  }
-
-  return { allowed, remaining, resetAt };
+  // ⚠️ KV-based rate limiting disabled — Cloudflare free tier has a
+  // daily KV write limit (1000 writes/day) that gets exhausted quickly
+  // during migration (4934 records × 15 parallel = thousands of requests).
+  // Once exhausted, ALL API calls fail with Error 1101.
+  //
+  // Rate limiting is not critical for this app's functionality.
+  // The Worker has built-in DDoS protection from Cloudflare's edge.
+  // If needed later, implement rate limiting using D1 (no daily limit).
+  return { allowed: true, remaining: maxRequests, resetAt: Date.now() + window * 1000 };
 }
 
 // ─── CORS Headers ─────────────────────────────────────────────
