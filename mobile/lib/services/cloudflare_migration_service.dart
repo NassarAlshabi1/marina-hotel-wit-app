@@ -13,6 +13,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'cloudflare_config.dart';
 import 'cloudflare_sync_manager.dart';
 import 'local_db.dart';
+import 'resilient_http_client.dart';
 
 class CloudflareMigrationService {
   CloudflareMigrationService._();
@@ -20,6 +21,9 @@ class CloudflareMigrationService {
 
   static const _migrationCompleteKey = 'cf_migration_complete';
   static const _migrationProgressKey = 'cf_migration_progress';
+
+  /// HTTP client with DoH fallback (bypasses broken ISP DNS)
+  final http.Client _httpClient = createResilientHttpClient();
 
   /// Check if migration has already been completed
   Future<bool> isMigrationComplete() async {
@@ -108,7 +112,7 @@ class CloudflareMigrationService {
                 : i + CloudflareConfig.batchSize,
           );
 
-          final response = await http.post(
+          final response = await _httpClient.post(
             Uri.parse('${CloudflareConfig.workerUrl}/api/sync/push'),
             headers: {
               'Authorization': 'Bearer $token',

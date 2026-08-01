@@ -15,6 +15,9 @@ import '../../providers/appwrite_providers.dart' show connectionStatusProvider;
 import '../../services/appwrite_backup_service.dart';
 import '../../services/appwrite_cache_manager.dart';
 import '../../services/appwrite_models.dart';
+import '../../services/cloudflare_migration_service.dart';
+import '../../services/cloudflare_sync_manager.dart';
+import '../../services/local_db.dart';
 import 'appwrite_connection_settings_screen.dart';
 import 'appwrite_logs_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
@@ -40,6 +43,14 @@ class _AppwriteSettingsScreenState
   bool _logConsole = true;
   bool _logFile = false;
   bool _isLoading = false;
+
+  // Migration state
+  bool _isMigrating = false;
+  String _migrationStatus = '';
+  int _migrationCurrent = 0;
+  int _migrationTotal = 0;
+  String _migrationTable = '';
+  bool _migrationCompleted = false;
 
   @override
   void initState() {
@@ -976,6 +987,9 @@ class _AppwriteSettingsScreenState
               onPressed: _pullAllData,
             ),
             const SizedBox(height: 12),
+            // ═══ Cloudflare D1 Migration Button ═══
+            _buildMigrationCard(context),
+            const SizedBox(height: 12),
             ListTile(
               leading: const Icon(Icons.restart_alt, color: Colors.orange),
               title: const Text('إعادة تعيين المزامنة'),
@@ -1673,6 +1687,386 @@ class _AppwriteSettingsScreenState
         setState(() => _isLoading = false);
       } else {
         _isLoading = false;
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  //  Cloudflare D1 Migration (Local SQLite → D1)
+  // ═══════════════════════════════════════════════════════════════
+
+  Widget _buildMigrationCard(BuildContext context) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  _migrationCompleted ? Icons.cloud_done : Icons.sync,
+                  color: _migrationCompleted ? Colors.green : Colors.teal,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'ترحيل البيانات إلى Cloudflare D1',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            const Text(
+              'يرفع كل البيانات المحلية (الغرف، الحجوزات، المدفوعات، '
+              'الموظفين، الديون، المصروفات، ...) من قاعدة SQLite المحلية '
+              'إلى قاعدة بيانات Cloudflare D1 السحابية دفعة واحدة.',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '• يدعم 22 جدول تلقائياً\n'
+              '• يستخدم DoH fallback لتجاوز مشاكل DNS\n'
+              '• يكمل من حيث توقف (resumable)\n'
+              '• يستغرق عادةً 30 ثانية - 2 دقيقة',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+
+            // Status / Progress display
+            if (_isMigrating || _migrationStatus.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _migrationCompleted
+                      ? Colors.green.shade50
+                      : Colors.teal.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _migrationCompleted
+                        ? Colors.green
+                        : Colors.teal,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_isMigrating) ...[
+                      Row(
+                        children: [
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _migrationTable.isNotEmpty
+                                  ? '$_migrationStatus — جدول: $_migrationTable'
+                                  : _migrationStatus,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_migrationTotal > 0) ...[
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: _migrationCurrent / _migrationTotal,
+                            backgroundColor: Colors.teal.shade100,
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              Colors.teal,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '$_migrationCurrent / $_migrationTotal سجل',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.teal.shade700,
+                          ),
+                        ),
+                      ],
+                    ] else ...[
+                      Row(
+                        children: [
+                          Icon(
+                            _migrationCompleted
+                                ? Icons.check_circle
+                                : Icons.info,
+                            color: _migrationCompleted
+                                ? Colors.green
+                                : Colors.teal,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _migrationStatus,
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 16),
+
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isMigrating ? null : _migrateToCloudflare,
+                    icon: const Icon(Icons.cloud_sync),
+                    label: Text(
+                      _migrationCompleted
+                          ? 'إعادة الترحيل'
+                          : 'بدء الترحيل إلى D1',
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _migrateToCloudflare() async {
+    // Confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('تأكيد الترحيل إلى Cloudflare D1'),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('سيتم رفع جميع البيانات المحلية إلى Cloudflare D1.'),
+            SizedBox(height: 12),
+            Text('• 22 جدول (غرف، حجوزات، مدفوعات، ...)',
+                style: TextStyle(fontSize: 13)),
+            Text('• البيانات الموجودة في D1 لن تُحذف',
+                style: TextStyle(fontSize: 13)),
+            Text('• العمليات idempotent (آمنة للتكرار)',
+                style: TextStyle(fontSize: 13)),
+            Text('• لا توقف التطبيق أثناء الترحيل',
+                style: TextStyle(fontSize: 13)),
+            SizedBox(height: 12),
+            Text(
+              '⚠️ تأكد من اتصال الإنترنت المستقر قبل البدء.',
+              style: TextStyle(fontSize: 12, color: Colors.orange),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop<bool>(context, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop<bool>(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+            child: const Text('بدء الترحيل'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() {
+      _isMigrating = true;
+      _migrationCompleted = false;
+      _migrationStatus = 'جاري تسجيل الدخول إلى Cloudflare...';
+      _migrationTable = '';
+      _migrationCurrent = 0;
+      _migrationTotal = 0;
+    });
+
+    try {
+      // 1) Initialize CloudflareSyncManager (login + get token)
+      final manager = CloudflareSyncManager();
+      await manager.initialize(forceRetry: true);
+
+      if (!manager.isAvailable || manager.token == null) {
+        setState(() {
+          _isMigrating = false;
+          _migrationStatus =
+              'فشل تسجيل الدخول: ${manager.initError ?? "خطأ غير معروف"}';
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('فشل الترحيل: ${manager.initError}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // 2) Get device ID
+      final deviceId = manager.currentDeviceId ??
+          CloudflareSyncManager.currentDeviceIdStatic ??
+          'unknown';
+
+      // 3) Get local database
+      final db = DatabaseManager.instance;
+
+      setState(() {
+        _migrationStatus = 'جاري التحقق من حالة الترحيل السابقة...';
+      });
+
+      // 4) Check if migration was already completed
+      final alreadyComplete =
+          await CloudflareMigrationService.instance.isMigrationComplete();
+
+      if (alreadyComplete) {
+        final resetConfirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('الترحيل مكتمل سابقاً'),
+            content: const Text(
+              'تم ترحيل البيانات سابقاً. هل تريد إعادة الترحيل من البداية؟\n\n'
+              'سيؤدي ذلك إلى مسح حالة التقدم وإعادة رفع كل البيانات.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop<bool>(context, false),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop<bool>(context, true),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                child: const Text('إعادة الترحيل'),
+              ),
+            ],
+          ),
+        );
+
+        if (resetConfirmed == true) {
+          await CloudflareMigrationService.instance.reset();
+        } else {
+          setState(() {
+            _isMigrating = false;
+            _migrationStatus = 'تم إلغاء الترحيل (مكتمل سابقاً)';
+          });
+          return;
+        }
+      }
+
+      // 5) Run migration with progress callback
+      setState(() {
+        _migrationStatus = 'جاري ترحيل البيانات...';
+      });
+
+      final result = await CloudflareMigrationService.instance.migrate(
+        db: db,
+        token: manager.token!,
+        deviceId: deviceId,
+        onProgress: (current, total, table) {
+          if (mounted) {
+            setState(() {
+              _migrationCurrent = current;
+              _migrationTotal = total;
+              _migrationTable = table;
+              _migrationStatus = 'جاري الرفع...';
+            });
+          }
+        },
+      );
+
+      // 6) Show result
+      setState(() {
+        _isMigrating = false;
+        _migrationCompleted = result.isSuccess;
+        _migrationStatus = result.isSuccess
+            ? '✅ تم الترحيل بنجاح: ${result.totalPushed}/${result.totalRecords} '
+                'سجل في ${result.duration.inSeconds} ثانية'
+            : '⚠️ اكتمل الترحيل مع ${result.totalFailed} فشل من أصل '
+                '${result.totalRecords} سجل';
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result.isSuccess
+                  ? 'تم ترحيل ${result.totalPushed} سجل إلى Cloudflare D1'
+                  : 'اكتمل الترحيل مع ${result.totalFailed} أخطاء',
+            ),
+            backgroundColor:
+                result.isSuccess ? Colors.green : Colors.orange,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+
+        // Show detailed errors if any
+        if (result.errors.isNotEmpty && mounted) {
+          unawaited(
+            showDialog<void>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('تفاصيل الأخطاء'),
+                content: SizedBox(
+                  width: double.maxFinite,
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: result.errors.length,
+                    itemBuilder: (context, index) {
+                      return ListTile(
+                        leading: const Icon(Icons.error_outline,
+                            color: Colors.red, size: 20),
+                        title: Text(
+                          result.errors[index],
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('إغلاق'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _isMigrating = false;
+        _migrationStatus = '❌ خطأ: $e';
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في الترحيل: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
