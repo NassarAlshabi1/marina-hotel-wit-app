@@ -10,6 +10,8 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:uuid/uuid.dart';
 
 import '../data/sync_models.dart' as sync_models;
+import '../utils/hotel_time_engine.dart';
+import '../utils/time.dart';
 
 part 'local_db.g.dart';
 
@@ -934,7 +936,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 50;
+  int get schemaVersion => 51;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2571,6 +2573,51 @@ class AppDatabase extends _$AppDatabase {
             'Migration 50: additional indexes created successfully',
             name: 'db.migration',
           );
+        }
+
+        // ─── Migration 51: إصلاح booking_price_adjustments ───
+        // تعطيل is_active للسجلات التي:
+        //   1. لها cancelled_at (تم إلغاؤها) لكن is_active=1
+        //   2. لها endHotelDay < اليوم الفندقي لكن is_active=1
+        // هذا يمنع ظهور تعديلات منتهية/ملغاة كـ "نشطة" في UI.
+        if (from < 51) {
+          try {
+            // 1) السجلات الملغاة
+            await m.database.customStatement(
+              "UPDATE booking_price_adjustments SET is_active = 0 "
+              "WHERE cancelled_at IS NOT NULL AND is_active = 1",
+            );
+            developer.log(
+              'Migration 51: deactivated cancelled adjustments',
+              name: 'db.migration',
+            );
+          } catch (e) {
+            developer.log(
+              'Migration 51: failed to deactivate cancelled: $e',
+              name: 'db.migration',
+            );
+          }
+
+          try {
+            // 2) السجلات المنتهية (endHotelDay < اليوم)
+            final todayHotelDay = HotelTimeEngine.getHotelDayKey();
+            await m.database.customStatement(
+              "UPDATE booking_price_adjustments SET is_active = 0 "
+              "WHERE end_hotel_day IS NOT NULL "
+              "AND end_hotel_day != '' "
+              "AND end_hotel_day < '$todayHotelDay' "
+              "AND is_active = 1",
+            );
+            developer.log(
+              'Migration 51: deactivated expired adjustments (before $todayHotelDay)',
+              name: 'db.migration',
+            );
+          } catch (e) {
+            developer.log(
+              'Migration 51: failed to deactivate expired: $e',
+              name: 'db.migration',
+            );
+          }
         }
       }
     },

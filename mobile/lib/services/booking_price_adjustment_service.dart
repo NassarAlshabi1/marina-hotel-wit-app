@@ -375,8 +375,13 @@ class BookingPriceAdjustmentService {
     final bool fullyCancelled =
         effectiveEnd == null || effectiveEnd.compareTo(effectiveStart) < 0;
 
+    // ─── إصلاح: تعطيل is_active دائماً عند الإلغاء ───
+    // المشكلة السابقة: كنا نُبقي is_active = true للسجلات التي لها
+    // ليالي سابقة مخفّضة. لكن هذا يسبب ظهورها في UI كـ "نشطة" رغم
+    // أنها مُلغية. الحل: نعطّل is_active دائماً عند الإلغاء، ونحتفظ
+    // بـ endHotelDay لمعرفة آخر ليلة مخفّضة (للحسابات التاريخية).
     final update = BookingPriceAdjustmentsCompanion(
-      isActive: Value(!fullyCancelled),
+      isActive: const Value(false), // ⚠️ دائماً false عند الإلغاء
       endHotelDay: Value(effectiveEnd),
       cancelledAt: Value(nowIso),
       cancelledBy: Value(cancelledBy),
@@ -396,7 +401,7 @@ class BookingPriceAdjustmentService {
       op: 'update',
       localUuid: adjustmentUuid,
       payload: {
-        'isActive': !fullyCancelled,
+        'isActive': false, // ⚠️ دائماً false
         'endHotelDay': effectiveEnd,
         'cancelledAt': nowIso,
         'cancelledBy': cancelledBy,
@@ -415,8 +420,57 @@ class BookingPriceAdjustmentService {
     );
 
     debugPrint(
-      '⏹️ تم إنهاء تعديل السعر: $adjustmentUuid (ساري حتى $effectiveEnd)',
+      '⏹️ تم إنهاء تعديل السعر: $adjustmentUuid (ساري حتى $effectiveEnd، is_active=false)',
     );
+  }
+
+  /// إصلاح السجلات المعلّقة: يعطّل is_active للسجلات التي انتهت مدتها
+  /// (endHotelDay < todayHotelDay) لكنها ما زالت نشطة في قاعدة البيانات.
+  /// هذا يُحسّن دقة عرض UI ويمنع ظهور تعديلات منتهية كـ "نشطة".
+  Future<int> deactivateExpiredAdjustments() async {
+    final todayHotelDay = HotelTimeEngine.getHotelDayKey();
+
+    // ابحث عن السجلات النشطة التي انتهت مدتها
+    final expired = await (db.select(db.bookingPriceAdjustments)
+          ..where((a) => a.isActive.equals(true))
+          ..where((a) => a.endHotelDay.isNotNull())
+          ..where((a) => a.endHotelDay.isSmallerOrEqualValue(todayHotelDay)))
+        .get();
+
+    if (expired.isEmpty) return 0;
+
+    final now = Time.nowEpoch();
+    final nowIso = DateTime.now().toUtc().toIso8601String();
+    int count = 0;
+
+    for (final adj in expired) {
+      await (db.update(db.bookingPriceAdjustments)
+            ..where((a) => a.localUuid.equals(adj.localUuid)))
+          .write(BookingPriceAdjustmentsCompanion(
+        isActive: const Value(false),
+        updatedAt: Value(now),
+        lastModified: Value(now),
+        version: Value(adj.version + 1),
+      ));
+
+      // مزامنة التحديث
+      final outboxDao = OutboxDao(db);
+      await outboxDao.merge(
+        entity: 'booking_price_adjustments',
+        op: 'update',
+        localUuid: adj.localUuid,
+        payload: {
+          'isActive': false,
+          'endHotelDay': adj.endHotelDay,
+        },
+        clientTs: now,
+      );
+
+      count++;
+    }
+
+    debugPrint('🧹 تم تعطيل $count تعديل منتهي (is_active → false)');
+    return count;
   }
 
   Future<List<BookingPriceAdjustment>> getActiveAdjustments(

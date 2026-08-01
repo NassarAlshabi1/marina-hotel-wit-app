@@ -116,6 +116,29 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       _discountStartDateControllers[booking.id]?.addListener(_markUnsaved);
       _checkinDateControllers[booking.id]?.addListener(_markUnsaved);
     }
+
+    // ─── تعطيل التعديلات المنتهية تلقائياً عند فتح الشاشة ───
+    // هذا يضمن أن السجلات التي انتهت مدتها (endHotelDay < اليوم الفندقي)
+    // يتم تعطيل is_active لها، فلا تظهر في UI كـ "نشطة" رغم انتهائها.
+    // Also syncs the change to D1 via outbox.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _deactivateExpiredAdjustments();
+    });
+  }
+
+  /// تعطيل التعديلات المنتهية تلقائياً (يتبع اليوم الفندقي).
+  Future<void> _deactivateExpiredAdjustments() async {
+    try {
+      final db = ref.read(databaseProvider);
+      final count = await BookingPriceAdjustmentService(db)
+          .deactivateExpiredAdjustments();
+      if (count > 0 && mounted) {
+        debugPrint('🧹 تم تعطيل $count تعديل منتهي عند فتح شاشة الضيف');
+        setState(() {}); // تحديث UI لإزالة التعديلات المنتهية
+      }
+    } catch (e) {
+      debugPrint('⚠️ خطأ في تعطيل التعديلات المنتهية: $e');
+    }
   }
 
   @override
