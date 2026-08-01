@@ -1850,7 +1850,7 @@ class _AppwriteSettingsScreenState
                                 size: 12, color: Colors.teal.shade600),
                             const SizedBox(width: 4),
                             Text(
-                              'gzip + 5 parallel',
+                              'SQL + gzip + 15 parallel',
                               style: TextStyle(
                                 fontSize: 10,
                                 color: Colors.teal.shade600,

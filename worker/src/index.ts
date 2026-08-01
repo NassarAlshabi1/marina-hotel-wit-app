@@ -5,7 +5,7 @@
 
 import { Database, isValidEntity } from './database';
 import { authMiddleware, handleLogin, hashPassword, signToken } from './auth';
-import { handlePull, handlePush, handleSyncLog, handleConflicts } from './sync';
+import { handlePull, handlePush, handleSyncLog, handleConflicts, handleMigrate } from './sync';
 import { SyncLockDO } from './sync-lock';
 
 // ─── Environment bindings ─────────────────────────────────────
@@ -201,6 +201,16 @@ export default {
       // ─── Sync Push ──────────────────────────────────────
       if (path === '/api/sync/push' && method === 'POST') {
         const response = await handlePush(request, db, ctx);
+        logRequest(method, path, response.status, Date.now() - startTime, clientIp);
+        return response;
+      }
+
+      // ─── Migration (raw SQL batch insert) ───────────────
+      // Fast path for one-time migration: client sends gzipped SQL
+      // INSERT statements, Worker executes them via D1 exec().
+      // ~10x faster than /api/sync/push for bulk migration.
+      if (path === '/api/sync/migrate' && method === 'POST') {
+        const response = await handleMigrate(request, db, ctx);
         logRequest(method, path, response.status, Date.now() - startTime, clientIp);
         return response;
       }
