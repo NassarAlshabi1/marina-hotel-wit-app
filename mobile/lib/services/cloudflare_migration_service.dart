@@ -307,7 +307,19 @@ class CloudflareMigrationService {
       }
     }
 
-    final columnsStr = requiredColumns.join(', ');
+    // ─── Column name mapping: Drift quirks → D1 canonical names ───
+    // Drift converts camelCase getters with consecutive uppercase letters
+    // differently than expected. For example, `employeeID` (Dart getter)
+    // becomes `employee_i_d` in SQLite (Drift splits each uppercase letter).
+    // D1 uses the canonical `employee_id` naming. We map the Drift-generated
+    // column names back to D1's canonical names when building SQL.
+    const columnRenames = <String, String>{
+      'employee_i_d': 'employee_id', // from Drift getter `employeeID`
+    };
+    final d1Columns = requiredColumns
+        .map((col) => columnRenames[col] ?? col)
+        .toList();
+    final columnsStr = d1Columns.join(', ');
 
     // Build VALUES clauses with proper escaping + fill defaults
     // For FK columns, use 0 instead of the actual value to avoid FK
