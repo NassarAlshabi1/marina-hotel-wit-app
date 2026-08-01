@@ -345,7 +345,7 @@ class CloudflareMigrationService {
       valuesClauses.add('(${values.join(', ')})');
     }
 
-    return 'INSERT OR IGNORE INTO $tableName ($columnsStr) VALUES\n'
+    return 'INSERT OR REPLACE INTO $tableName ($columnsStr) VALUES\n'
         '${valuesClauses.join(',\n')};';
   }
 
