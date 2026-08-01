@@ -70,13 +70,29 @@ export async function handlePush(
   ctx: AuthContext
 ): Promise<Response> {
   try {
-    // ─── Size limit check ────────────────────────────────────
+    // ─── Size limit check (use compressed size if gzip) ─────
     const contentLength = parseInt(request.headers.get('Content-Length') || '0', 10);
     if (contentLength > MAX_PAYLOAD_SIZE) {
       return jsonResponse({ error: 'Payload too large' }, 413);
     }
 
-    const body = await request.json() as { operations: PushOperation[] };
+    // ─── Decompress gzip if Content-Encoding: gzip ──────────
+    // Cloudflare Workers automatically decompresses gzip responses, but
+    // for REQUESTS we need to handle it manually using DecompressionStream.
+    let bodyText: string;
+    const contentEncoding = request.headers.get('Content-Encoding') || '';
+
+    if (contentEncoding === 'gzip') {
+      // Use the native DecompressionStream API (supported in Workers runtime)
+      const ds = new DecompressionStream('gzip');
+      const decompressedStream = request.body!.pipeThrough(ds);
+      const decompressedBuffer = await new Response(decompressedStream).arrayBuffer();
+      bodyText = new TextDecoder().decode(decompressedBuffer);
+    } else {
+      bodyText = await request.text();
+    }
+
+    const body = JSON.parse(bodyText) as { operations: PushOperation[] };
 
     if (!body.operations || !Array.isArray(body.operations)) {
       return jsonResponse({ error: 'operations array required' }, 400);
