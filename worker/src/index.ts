@@ -109,6 +109,20 @@ export default {
       return json({ status: 'ok', timestamp: Date.now(), version: '1.0.0' }, 200, env);
     }
 
+    // ─── Ping endpoint for network speed measurement (no auth) ──
+    // Returns a ~1KB payload so the client can measure download speed.
+    // Used by CloudflareMigrationService to adjust batch size dynamically.
+    if (path === '/api/ping') {
+      const payload = {
+        status: 'ok',
+        timestamp: Date.now(),
+        server_time: Math.floor(Date.now() / 1000),
+        // 1KB of padding for speed measurement
+        padding: 'x'.repeat(1024),
+      };
+      return json(payload, 200, env);
+    }
+
     // ─── Extract client ID for rate limiting ─────────────────
     const clientIp = request.headers.get('CF-Connecting-IP') || 'unknown';
     const rateLimitWindow = parseInt(env.RATE_LIMIT_WINDOW, 10) || 60;

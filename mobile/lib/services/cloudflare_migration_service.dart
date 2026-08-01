@@ -47,6 +47,46 @@ class CloudflareMigrationService {
     return Map<String, bool>.from(jsonDecode(json) as Map);
   }
 
+  /// Measure network speed by downloading /api/ping (1KB payload).
+  /// Returns speed in KB/s. Used to adjust batch size dynamically.
+  Future<double> _measureNetworkSpeed() async {
+    try {
+      final stopwatch = Stopwatch()..start();
+      final response = await _httpClient.get(
+        Uri.parse('${CloudflareConfig.workerUrl}/api/ping'),
+      ).timeout(const Duration(seconds: 10));
+      stopwatch.stop();
+
+      if (response.statusCode != 200) return 1.0; // assume slow
+
+      final elapsedSeconds = stopwatch.elapsedMilliseconds / 1000;
+      if (elapsedSeconds == 0) return 100.0; // very fast
+
+      // Response is ~1KB + headers ~0.5KB = ~1.5KB total
+      const responseSizeKB = 1.5;
+      final speedKBps = responseSizeKB / elapsedSeconds;
+
+      debugPrint('📊 Network speed: ${speedKBps.toStringAsFixed(1)} KB/s '
+          '(${elapsedSeconds.toStringAsFixed(2)}s for /api/ping)');
+      return speedKBps;
+    } catch (e) {
+      debugPrint('⚠️ Network speed measurement failed: $e — assuming 1 KB/s');
+      return 1.0; // assume very slow
+    }
+  }
+
+  /// Calculate optimal batch size based on network speed.
+  /// - < 2 KB/s: 2 records per batch (very slow, minimize payload)
+  /// - 2-5 KB/s: 5 records per batch (slow)
+  /// - 5-20 KB/s: 10 records per batch (moderate)
+  /// - > 20 KB/s: 25 records per batch (fast)
+  int _calculateBatchSize(double speedKBps) {
+    if (speedKBps < 2) return 2;
+    if (speedKBps < 5) return 5;
+    if (speedKBps < 20) return 10;
+    return 25;
+  }
+
   /// Run the full migration
   Future<MigrationResult> migrate({
     required AppDatabase db,
@@ -59,6 +99,12 @@ class CloudflareMigrationService {
     int totalPushed = 0;
     int totalFailed = 0;
     final errors = <String>[];
+
+    // ─── Measure network speed and set adaptive batch size ───
+    final networkSpeed = await _measureNetworkSpeed();
+    int currentBatchSize = _calculateBatchSize(networkSpeed);
+    debugPrint('🔄 Starting Cloudflare migration (network: '
+        '${networkSpeed.toStringAsFixed(1)} KB/s, batch size: $currentBatchSize)');
     final completedTables = await getMigrationProgress();
 
     debugPrint('🔄 Starting Cloudflare migration...');
@@ -111,13 +157,13 @@ class CloudflareMigrationService {
           });
         }
 
-        // Send in batches (smaller batch size for slow networks)
-        for (var i = 0; i < operations.length; i += _migrationBatchSize) {
+        // Send in batches with adaptive batch size
+        for (var i = 0; i < operations.length; i += currentBatchSize) {
           final batch = operations.sublist(
             i,
-            (i + _migrationBatchSize > operations.length)
+            (i + currentBatchSize > operations.length)
                 ? operations.length
-                : i + _migrationBatchSize,
+                : i + currentBatchSize,
           );
 
           // Retry each batch up to 3 times for transient failures
@@ -169,15 +215,27 @@ class CloudflareMigrationService {
                 debugPrint(
                   '  ⚠️ $entity batch failed (attempt $attempt/3): $e — retrying...',
                 );
-                await Future.delayed(Duration(seconds: attempt * 2));
+                // Linear backoff (not exponential — better for slow networks)
+                await Future.delayed(Duration(seconds: attempt));
               } else {
-                // Final attempt failed
+                // Final attempt failed — reduce batch size for next iteration
                 totalFailed += batch.length;
                 errors.add('$entity batch (after 3 retries): $e');
                 debugPrint('  ❌ $entity batch final failure: $e');
                 batchSucceeded = true; // Move on to next batch
+
+                // Adaptive: reduce batch size on failure (min 1)
+                if (currentBatchSize > 1) {
+                  currentBatchSize = (currentBatchSize ~/ 2).clamp(1, 25);
+                  debugPrint('  📉 Reducing batch size to $currentBatchSize');
+                }
               }
             }
+          }
+
+          // Adaptive: increase batch size on success (up to 25)
+          if (currentBatchSize < 25) {
+            currentBatchSize = (currentBatchSize + 2).clamp(1, 25);
           }
 
           // Report progress
