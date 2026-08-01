@@ -243,5 +243,15 @@ class MigrationResult {
   final List<String> errors;
   final Duration duration;
 
-  bool get isSuccess => totalFailed == 0;
+  /// Migration is successful only if:
+  /// 1. At least one record was pushed (totalPushed > 0), AND
+  /// 2. No records failed (totalFailed == 0)
+  /// This prevents false "success" when all batches silently fail.
+  bool get isSuccess => totalPushed > 0 && totalFailed == 0;
+
+  /// Partial success: some records pushed, some failed
+  bool get isPartialSuccess => totalPushed > 0 && totalFailed > 0;
+
+  /// Complete failure: nothing pushed at all
+  bool get isCompleteFailure => totalPushed == 0;
 }

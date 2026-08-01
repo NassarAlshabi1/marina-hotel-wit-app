@@ -1995,27 +1995,44 @@ class _AppwriteSettingsScreenState
         },
       );
 
-      // 6) Show result
+      // 6) Show result with accurate success/failure detection
       setState(() {
         _isMigrating = false;
         _migrationCompleted = result.isSuccess;
-        _migrationStatus = result.isSuccess
-            ? '✅ تم الترحيل بنجاح: ${result.totalPushed}/${result.totalRecords} '
-                'سجل في ${result.duration.inSeconds} ثانية'
-            : '⚠️ اكتمل الترحيل مع ${result.totalFailed} فشل من أصل '
-                '${result.totalRecords} سجل';
+
+        if (result.isCompleteFailure) {
+          // All records failed — show clear error
+          _migrationStatus = '❌ فشل الترحيل بالكامل: 0/${result.totalRecords} '
+              'سجل مُرحَّل في ${result.duration.inSeconds} ثانية. '
+              '${result.errors.length} خطأ. تحقق من اتصال الإنترنت وحاول مجدداً.';
+        } else if (result.isPartialSuccess) {
+          // Some succeeded, some failed
+          _migrationStatus = '⚠️ ترحيل جزئي: ${result.totalPushed}/'
+              '${result.totalRecords} سجل نجح، ${result.totalFailed} فشل '
+              'في ${result.duration.inSeconds} ثانية';
+        } else {
+          // Full success
+          _migrationStatus = '✅ تم الترحيل بنجاح: ${result.totalPushed}/'
+              '${result.totalRecords} سجل في ${result.duration.inSeconds} ثانية';
+        }
       });
 
       if (mounted) {
+        final snackBarMsg = result.isCompleteFailure
+            ? 'فشل الترحيل بالكامل — تحقق من الأخطاء'
+            : result.isPartialSuccess
+                ? 'ترحيل جزئي: ${result.totalPushed} نجح، ${result.totalFailed} فشل'
+                : 'تم ترحيل ${result.totalPushed} سجل إلى Cloudflare D1';
+        final snackBarColor = result.isCompleteFailure
+            ? Colors.red
+            : result.isPartialSuccess
+                ? Colors.orange
+                : Colors.green;
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              result.isSuccess
-                  ? 'تم ترحيل ${result.totalPushed} سجل إلى Cloudflare D1'
-                  : 'اكتمل الترحيل مع ${result.totalFailed} أخطاء',
-            ),
-            backgroundColor:
-                result.isSuccess ? Colors.green : Colors.orange,
+            content: Text(snackBarMsg),
+            backgroundColor: snackBarColor,
             duration: const Duration(seconds: 5),
           ),
         );
