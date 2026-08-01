@@ -38,27 +38,42 @@ class CloudflareConfig {
     'guest_infos': 'guest_infos',
   };
 
-  /// Tables to migrate (ordered by dependency)
+  /// Tables to migrate (ordered by FK dependency — topological sort)
+  /// Parent tables must be migrated before child tables that reference them.
+  /// Order:
+  ///   1. rooms, employees (no FK deps)
+  ///   2. salary_cycles (deps: employees)
+  ///   3. cash_transactions (no FK deps)
+  ///   4. bookings (deps: rooms)
+  ///   5. guest_infos (no FK deps)
+  ///   6. booking_notes, booking_nights, booking_price_adjustments (deps: bookings)
+  ///   7. payments (deps: bookings, cash_transactions)
+  ///   8. expenses (deps: cash_transactions)
+  ///   9. debts (deps: bookings)
+  ///  10. salary_payments (deps: salary_cycles, employees)
+  ///  11. salary_withdrawals (deps: employees, expenses)
+  ///  12. salary_carry_over_logs (deps: employees)
+  ///  13. audit_logs, payment_voids, shift_notes, price_adjustments
   static const List<String> migrationOrder = [
     'rooms',
     'employees',
+    'salary_cycles',
+    'cash_transactions',
     'bookings',
+    'guest_infos',
+    'booking_notes',
+    'booking_nights',
+    'booking_price_adjustments',
     'payments',
     'expenses',
     'debts',
-    'booking_nights',
-    'booking_price_adjustments',
-    'guest_infos',
+    'salary_payments',
     'salary_withdrawals',
-    'shift_notes',
-    'cash_transactions',
-    'booking_notes',
-    'price_adjustments',
+    'salary_carry_over_logs',
     'audit_logs',
     'payment_voids',
-    'salary_cycles',
-    'salary_payments',
-    'salary_carry_over_logs',
+    'shift_notes',
+    'price_adjustments',
   ];
 
   static String? tableNameFor(String entity) => entityToTable[entity];

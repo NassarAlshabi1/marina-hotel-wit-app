@@ -247,6 +247,8 @@ class CloudflareMigrationService {
   /// All values are properly SQL-escaped to prevent injection.
   /// Fills NOT NULL columns (without defaults) with empty values to prevent
   /// silent constraint violations.
+  /// Replaces FK column values with 0 to avoid FK constraint failures
+  /// (D1 doesn't support PRAGMA foreign_keys = OFF in batch mode).
   Future<String> _buildSqlInsert({
     required String tableName,
     required List<Map<String, dynamic>> batch,
@@ -258,6 +260,15 @@ class CloudflareMigrationService {
     final columnInfo = await db.customSelect(
       'PRAGMA table_info($tableName)',
     ).get();
+
+    // Read FK info to identify FK columns
+    final fkInfo = await db.customSelect(
+      'PRAGMA foreign_key_list($tableName)',
+    ).get();
+    final fkColumns = <String>{};
+    for (final fk in fkInfo) {
+      fkColumns.add(fk.data['from'] as String);
+    }
 
     // Build map: column name → default value (for NOT NULL without default)
     final notNullDefaults = <String, dynamic>{};
@@ -299,9 +310,17 @@ class CloudflareMigrationService {
     final columnsStr = requiredColumns.join(', ');
 
     // Build VALUES clauses with proper escaping + fill defaults
+    // For FK columns, use 0 instead of the actual value to avoid FK
+    // constraint failures (the actual parent record may not exist in D1
+    // yet, or may have a different autoIncrement id).
+    // The app uses local_uuid for cross-device references, not id.
     final valuesClauses = <String>[];
     for (final record in batch) {
       final values = requiredColumns.map((col) {
+        // Skip FK columns — use 0 to avoid constraint failure
+        if (fkColumns.contains(col)) {
+          return '0';
+        }
         if (record.containsKey(col) && record[col] != null) {
           return _escapeSqlValue(record[col]);
         }

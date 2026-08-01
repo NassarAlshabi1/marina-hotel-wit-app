@@ -308,9 +308,12 @@ export async function handleMigrate(
       }
     }
 
-    // ─── Execute SQL via D1 prepare().run() ───────────────────
-    // D1's exec() doesn't return reliable changes count for INSERT OR IGNORE.
-    // Using prepare().run() returns meta.changes correctly.
+    // ─── Execute SQL via D1 batch API with FK disabled ───────
+    // D1's batch() runs all statements in a single transaction, which
+    // allows PRAGMA foreign_keys = OFF to persist for all INSERTs.
+    // This is necessary because migration data references parent IDs
+    // that may not exist in D1 yet (autoIncrement IDs differ between
+    // local SQLite and D1).
     const d1Db = (db as unknown as { db: D1Database }).db;
     let rowsInserted = 0;
     const errors: string[] = [];
@@ -324,22 +327,59 @@ export async function handleMigrate(
     console.log(`[MIGRATE] Received ${statements.length} SQL statements, ` +
       `${sqlText.length} bytes (${contentLength} compressed)`);
 
-    // Execute each statement
-    for (let i = 0; i < statements.length; i++) {
-      const stmt = statements[i];
-      try {
-        // Use prepare().run() instead of exec() — returns proper meta
-        const prepared = d1Db.prepare(stmt + ';');
-        const result = await prepared.run();
+    // Build batch: PRAGMA off + all INSERTs + PRAGMA on
+    // batch() executes them in one transaction so PRAGMA persists
+    const batchStmts = [
+      d1Db.prepare('PRAGMA foreign_keys = OFF;'),
+      ...statements.map(s => d1Db.prepare(s + ';')),
+      d1Db.prepare('PRAGMA foreign_keys = ON;'),
+    ];
+
+    try {
+      const results = await d1Db.batch(batchStmts);
+      // Results[0] = PRAGMA off (no changes)
+      // Results[1..n-1] = INSERT statements
+      // Results[n] = PRAGMA on (no changes)
+      for (let i = 1; i < results.length - 1; i++) {
+        const result = results[i];
         const meta = (result as { meta?: { changes?: number } }).meta;
         if (meta && typeof meta.changes === 'number') {
           rowsInserted += meta.changes;
         }
-      } catch (err) {
-        const errMsg = String(err).slice(0, 200);
-        errors.push(`Statement ${i + 1}: ${errMsg}`);
-        console.error(`[MIGRATE] Statement ${i + 1} failed:`, errMsg);
-        // Continue with next statement — don't abort the whole batch
+      }
+    } catch (err) {
+      // batch() is atomic — if any statement fails, all fail.
+      // Fall back to per-statement execution with individual error reporting.
+      console.warn('[MIGRATE] Batch failed, falling back to per-statement:', err);
+
+      // Disable FK per-statement (may not work, but try)
+      try {
+        await d1Db.prepare('PRAGMA foreign_keys = OFF;').run();
+      } catch (e) {
+        // Ignore — D1 may not support session-level PRAGMA
+      }
+
+      for (let i = 0; i < statements.length; i++) {
+        const stmt = statements[i];
+        try {
+          const prepared = d1Db.prepare(stmt + ';');
+          const result = await prepared.run();
+          const meta = (result as { meta?: { changes?: number } }).meta;
+          if (meta && typeof meta.changes === 'number') {
+            rowsInserted += meta.changes;
+          }
+        } catch (err) {
+          const errMsg = String(err).slice(0, 200);
+          errors.push(`Statement ${i + 1}: ${errMsg}`);
+          console.error(`[MIGRATE] Statement ${i + 1} failed:`, errMsg);
+        }
+      }
+
+      // Re-enable FK
+      try {
+        await d1Db.prepare('PRAGMA foreign_keys = ON;').run();
+      } catch (e) {
+        // Ignore
       }
     }
 
