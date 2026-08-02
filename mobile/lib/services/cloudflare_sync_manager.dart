@@ -5,6 +5,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show GZipCodec;
 
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
@@ -300,13 +301,21 @@ class CloudflareSyncManager {
       };
     }).toList();
 
+    // ─── gzip compress the push payload for faster upload ───
+    final jsonPayload = jsonEncode({'operations': operations});
+    final jsonBytes = utf8.encode(jsonPayload);
+    final gzipCodec = GZipCodec(level: 6); // level 6 = good balance of speed/ratio
+    final compressedBytes = gzipCodec.encode(jsonBytes);
+
     final response = await _httpClient.post(
       Uri.parse('${CloudflareConfig.workerUrl}/api/sync/push'),
       headers: {
         'Authorization': 'Bearer $_token',
         'Content-Type': 'application/json',
+        'Content-Encoding': 'gzip',
+        'Content-Length': compressedBytes.length.toString(),
       },
-      body: jsonEncode({'operations': operations}),
+      body: compressedBytes,
     ).timeout(const Duration(seconds: 30));
 
     if (response.statusCode != 200) {

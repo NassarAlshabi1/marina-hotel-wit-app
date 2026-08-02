@@ -26,20 +26,41 @@ export interface Env {
 // ─── Rate Limiting ────────────────────────────────────────────
 
 async function checkRateLimit(
-  kv: KVNamespace,
+  db: Database,
   clientId: string,
   window: number,
   maxRequests: number
 ): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
-  // ⚠️ KV-based rate limiting disabled — Cloudflare free tier has a
-  // daily KV write limit (1000 writes/day) that gets exhausted quickly
-  // during migration (4934 records × 15 parallel = thousands of requests).
-  // Once exhausted, ALL API calls fail with Error 1101.
-  //
-  // Rate limiting is not critical for this app's functionality.
-  // The Worker has built-in DDoS protection from Cloudflare's edge.
-  // If needed later, implement rate limiting using D1 (no daily limit).
-  return { allowed: true, remaining: maxRequests, resetAt: Date.now() + window * 1000 };
+  const now = Date.now();
+  const windowStart = Math.floor(now / (window * 1000)) * (window * 1000);
+  const resetAt = windowStart + window * 1000;
+
+  try {
+    // Use D1 for rate limiting (no daily write limit, unlike KV)
+    // INSERT OR REPLACE atomically increments the counter
+    const result = await db.db.prepare(
+      'INSERT INTO rate_limits (client_id, window_start, count) VALUES (?, ?, 1) ' +
+      'ON CONFLICT (client_id, window_start) DO UPDATE SET count = count + 1 ' +
+      'RETURNING count'
+    ).bind(clientId, windowStart).first<{ count: number }>();
+
+    const current = result?.count ?? 1;
+    const allowed = current <= maxRequests;
+    const remaining = Math.max(0, maxRequests - current);
+
+    // Clean up old windows periodically (1% chance per request)
+    if (Math.random() < 0.01) {
+      const cutoff = now - (window * 1000 * 2); // keep last 2 windows
+      await db.db.prepare('DELETE FROM rate_limits WHERE window_start < ?')
+        .bind(cutoff).run();
+    }
+
+    return { allowed, remaining, resetAt };
+  } catch (err) {
+    // If D1 fails, allow the request (fail-open for availability)
+    console.warn('Rate limit D1 error (allowing request):', err);
+    return { allowed: true, remaining: maxRequests, resetAt: now + window * 1000 };
+  }
 }
 
 // ─── CORS Headers ─────────────────────────────────────────────
@@ -121,8 +142,9 @@ export default {
     const rateLimitWindow = parseInt(env.RATE_LIMIT_WINDOW, 10) || 60;
     const rateLimitMax = parseInt(env.RATE_LIMIT_MAX, 10) || 100;
 
-    // ─── Rate limit check ────────────────────────────────────
-    const rateResult = await checkRateLimit(env.RATE_LIMIT, clientIp, rateLimitWindow, rateLimitMax);
+    // ─── Rate limit check (D1-based, no KV daily limit) ─────
+    const rateDb = new Database(env.DB);
+    const rateResult = await checkRateLimit(rateDb, clientIp, rateLimitWindow, rateLimitMax);
     if (!rateResult.allowed) {
       logRequest(method, path, 429, Date.now() - startTime, clientIp);
       return json(
@@ -213,6 +235,34 @@ export default {
         const response = await handleSyncLog(request, db, ctx);
         logRequest(method, path, response.status, Date.now() - startTime, clientIp);
         return response;
+      }
+
+      // ─── Stats (monitoring endpoint) ────────────────────
+      // Returns aggregate stats for monitoring/debugging
+      if (path === '/api/stats' && method === 'GET') {
+        try {
+          const tableCounts: Record<string, number> = {};
+          const tables = ['rooms', 'bookings', 'payments', 'expenses', 'employees',
+            'debts', 'booking_nights', 'salary_withdrawals', 'guest_infos',
+            'booking_price_adjustments', 'devices', 'users', 'rate_limits'];
+          for (const t of tables) {
+            const r = await db.db.prepare(`SELECT COUNT(*) as c FROM ${t}`).first<{ c: number }>();
+            tableCounts[t] = r?.c ?? 0;
+          }
+          const rlResult = await db.db.prepare(
+            'SELECT COUNT(*) as c FROM rate_limits'
+          ).first<{ c: number }>();
+          logRequest(method, path, 200, Date.now() - startTime, clientIp);
+          return json({
+            tables: tableCounts,
+            rate_limit_entries: rlResult?.c ?? 0,
+            server_time: Math.floor(Date.now() / 1000),
+            uptime_hint: 'Workers are stateless — no uptime tracking',
+          }, 200, env);
+        } catch (err) {
+          logRequest(method, path, 500, Date.now() - startTime, clientIp);
+          return json({ error: 'Stats failed', detail: String(err) }, 500, env);
+        }
       }
 
       // ─── Sync Conflicts ─────────────────────────────────

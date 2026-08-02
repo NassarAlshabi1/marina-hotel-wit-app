@@ -25,8 +25,9 @@ tag = "v1"
 new_sqlite_classes = ["SyncLockDO"]
 
 # ─── Environment Variables ────────────────────────────────────
+# JWT_SECRET is stored as a Cloudflare Secret (not in plaintext here)
+# Set via: wrangler secret put JWT_SECRET
 [vars]
-JWT_SECRET = "marina-hotel-jwt-secret-2026-change-in-production"
 JWT_EXPIRY_HOURS = "24"
 RATE_LIMIT_WINDOW = "60"
 RATE_LIMIT_MAX = "100"
