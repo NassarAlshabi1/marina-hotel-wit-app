@@ -13,10 +13,15 @@ This is a comprehensive, enterprise-grade GitHub Actions workflow specifically d
 - **Performance Benchmarks**: Measures app performance metrics
 
 ### 🔍 Advanced Quality Metrics
-- **Duplicate Code Detection**: Identifies code duplication using jscpd
-- **Code Complexity Analysis**: Measures cyclomatic complexity with Lizard and Radon
-- **Security Scanning**: Basic security checks for dependencies
+- **Duplicate Code Detection**: Identifies code duplication using jscpd (Dart support)
+- **Code Complexity Analysis**: Measures cyclomatic complexity with Lizard (Dart support)
+- **Security & Dependency Audit**: `dart pub outdated` + dependency tree dump + known-vulnerable package scan
 - **Code Metrics**: Tracks lines of code, test coverage, and component counts
+
+> **Note**: Previous versions of this workflow included Python-specific scanners
+> (`bandit`, `safety`, `radon`). These have been removed because they don't
+> produce meaningful signal for a Dart/Flutter codebase. The remaining tools
+> (`jscpd`, `lizard`) are language-agnostic and explicitly support Dart.
 
 ### 📊 Reporting
 - **Detailed Summaries**: Comprehensive GitHub step summaries
@@ -70,8 +75,8 @@ The workflow runs automatically on:
   - Checkout code
   - Setup Flutter SDK
   - Setup Java (for Android)
-  - Setup Python and Node.js
-  - Install global tools (jscpd, dart-sass, lizard, radon, bandit, safety)
+  - Setup Node.js (for jscpd)
+  - Install global tools (jscpd, lizard)
   - Run Flutter doctor
   - Install dependencies
   - Run build_runner
@@ -106,9 +111,9 @@ The workflow runs automatically on:
 - **Purpose**: Deep quality analysis
 - **Duration**: ~15 minutes
 - **Tasks**:
-  - Duplicate code detection
-  - Security scanning
-  - Code complexity analysis
+  - Duplicate code detection (jscpd — Dart support)
+  - Security & dependency audit (`dart pub outdated` + dependency tree)
+  - Code complexity analysis (Lizard — Dart support)
   - Generate comprehensive metrics
   - Upload quality reports
 
@@ -270,15 +275,17 @@ Example:
 - [Dart Analysis Options](https://dart.dev/guides/language/analysis-options)
 - [Very Good Analysis](https://pub.dev/packages/very_good_analysis)
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [jscpd Documentation](https://github.com/kucherenko/jscpd)
-- [Lizard Complexity Analyzer](https://github.com/terryyin/lizard)
-- [Radon Metrics](https://github.com/rubik/radon)
+- [jscpd Documentation](https://github.com/kucherenko/jscpd) — supports Dart
+- [Lizard Complexity Analyzer](https://github.com/terryyin/lizard) — supports Dart
+- [dart pub outdated](https://dart.dev/tools/pub/cmd/pub-outdated) — dependency audit
+- [dart_code_metrics](https://pub.dev/packages/dart_code_metrics) — optional Dart-specific metrics (not currently in dev_dependencies)
 
 ## 🔄 Version History
 
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0.0 | 2026-08-02 | Initial release - Enhanced mobile quality gate workflow |
+| 1.1.0 | 2026-08-03 | Removed Python-specific scanners (bandit, safety, radon) and dart-sass. Replaced with Dart-native security audit (`dart pub outdated` + dependency tree + known-vulnerable package scan). Removed Python setup step. Updated documentation to reflect the actual stack being scanned. |
 
 ## 📝 License
 
