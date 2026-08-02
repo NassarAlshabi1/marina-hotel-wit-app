@@ -79,7 +79,7 @@ dev_dependencies:
   json_serializable: ^6.14.0
   mockito: ^5.4.4
   patrol: ^4.7.1
-  very_good_analysis: ^10.0.0
+  very_good_analysis: ^10.3.0
 
   
 flutter:

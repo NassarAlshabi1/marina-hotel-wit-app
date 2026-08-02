@@ -306,8 +306,6 @@ mixin _$SyncSettings implements DiagnosticableTreeMixin {
 @pragma('vm:prefer-inline')
 $SyncSettingsCopyWith<SyncSettings> get copyWith => _$SyncSettingsCopyWithImpl<SyncSettings>(this as SyncSettings, _$identity);
 
-  /// Serializes this SyncSettings to a JSON map.
-  Map<String, dynamic> toJson();
 
 @override
 void debugFillProperties(DiagnosticPropertiesBuilder properties) {
@@ -500,7 +498,7 @@ return $default(_that.autoSyncEnabled,_that.syncIntervalMinutes,_that.syncOnWifi
 }
 
 /// @nodoc
-@JsonSerializable()
+@JsonSerializable(createToJson: false)
 
 class _SyncSettings with DiagnosticableTreeMixin implements SyncSettings {
   const _SyncSettings({this.autoSyncEnabled = true, this.syncIntervalMinutes = 5, this.syncOnWifiOnly = true, this.compressData = true, this.defaultPriority = SyncPriority.normal});
@@ -518,10 +516,7 @@ class _SyncSettings with DiagnosticableTreeMixin implements SyncSettings {
 @pragma('vm:prefer-inline')
 _$SyncSettingsCopyWith<_SyncSettings> get copyWith => __$SyncSettingsCopyWithImpl<_SyncSettings>(this, _$identity);
 
-@override
-Map<String, dynamic> toJson() {
-  return _$SyncSettingsToJson(this, );
-}
+
 @override
 void debugFillProperties(DiagnosticPropertiesBuilder properties) {
   properties
