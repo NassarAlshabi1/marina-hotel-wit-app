@@ -92,26 +92,35 @@ jobs:
       - name: 📚 Checkout Code
         uses: actions/checkout@v5
 
-      - name: 🐍 Setup Python (for analysis scripts only)
-        uses: actions/setup-python@v5
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2.23.0
         with:
-          python-version: "3.10"
+          flutter-version: '3.44.4'
+          channel: stable
+          cache: true
+          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
 
       - name: 🟢 Setup Node.js
         uses: actions/setup-node@v7
         with:
           node-version: "24"
 
-      - name: 📦 Install Tools (Dart/Flutter-relevant only)
-        # Note: Removed Python security tools (bandit, safety, radon, lizard)
-        # that are designed for Python projects. jscpd supports Dart format.
+      - name: 📦 Install Tools (Dart-native + jscpd for duplicate detection)
+        # Note: Python security tools (bandit, safety, radon, lizard) REMOVED —
+        # they target Python projects. Dart code analysis is now done via
+        # dart_code_linter (DCL) which is Dart-native.
         run: npm install -g jscpd
+
+      - name: 📥 Flutter Pub Get
+        working-directory: mobile
+        run: flutter pub get
 
       # ─────────────────────────────────────────────────────────────────────
       #  Full-only: Duplicate Code + Dart-specific Quality Checks
-      #  Note: Removed Python tools (bandit, safety, radon, lizard) that
-      #  are designed for Python projects, not Flutter/Dart. Replaced with
-      #  Dart-relevant checks per very_good_analysis recommendations.
+      #  All Dart analysis is now done via dart_code_linter (DCL).
+      #  DCL provides: cyclomatic-complexity, maintainability-index,
+      #  number-of-parameters, source-lines-of-code, maximum-nesting-level,
+      #  check-unused-code, check-unused-files (configured in mobile/dcl.yaml)
       # ─────────────────────────────────────────────────────────────────────
       - name: 👯 Find Duplicate Code (jscpd — supports Dart)
         run: |
@@ -121,15 +130,27 @@ jobs:
             --reporters json \
             --output ./reports || true
 
-      - name: 🏗️ Architecture Validation (Dart-aware)
-        run: python3 scripts/architecture-validator.py --project-root mobile || true
-
-      - name: 📊 Run Custom Reports (Dart code analysis)
+      - name: 📊 Dart Code Linter — Metrics (replaces Python complexity-report)
+        # replaces: scripts/complexity-report.py
+        # provides: cyclomatic-complexity, maintainability-index, source-lines-of-code,
+        #           number-of-fields, number-of-parameters, maximum-nesting-level
+        working-directory: mobile
         run: |
           mkdir -p reports
-          python3 scripts/performance-report.py mobile/lib || true
-          python3 scripts/complexity-report.py mobile/lib || true
-          python3 scripts/dead-code-report.py || true
+          dart run dart_code_linter:metrics analyze lib \
+            --reporter=console \
+            --json-output=reports/dcl-metrics.json || true
+
+      - name: 🪦 Dart Code Linter — Unused Code (replaces Python dead-code-report)
+        # replaces: scripts/dead-code-report.py
+        # provides: check-unused-code, check-unused-files
+        working-directory: mobile
+        run: |
+          dart run dart_code_linter:metrics check-unused-code lib \
+            --reporter=console || true
+
+      - name: 🏗️ Architecture Validation (Dart-aware)
+        run: python3 scripts/architecture-validator.py --project-root mobile || true
 
       - name: 🔒 Security Scan (Dart/Flutter-focused)
         run: bash scripts/security-scan.sh mobile/lib || true

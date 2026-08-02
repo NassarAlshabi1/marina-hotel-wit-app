@@ -1,28 +1,28 @@
 # ═══════════════════════════════════════════════════════════════
-#  Marina Hotel — Analysis Options
-#  Based on Very Good Analysis (VGV) — Professional Quality Standards
-#  https://pub.dev/packages/very_good_analysis
+#  Marina Hotel — Analysis Options (Best-in-Class 2026)
+#  Based on Very Good Analysis (VGV) — Professional Quality Gate
 # ═══════════════════════════════════════════════════════════════
 #
-#  ✅ Uses very_good_analysis ^10.0.0 as base (VGV global standards)
-#  ✅ strict-casts, strict-inference, strict-raw-types enabled
-#  ✅ Flutter Best Practices rules enabled
-#  ✅ Excludes generated files (*.g.dart, *.freezed.dart)
-#  ✅ Project-specific overrides documented below
-#
-#  Rules temporarily disabled (with rationale):
-#    - public_member_api_docs: requires documenting every public member (phased)
-#    - lines_longer_than_80_chars: project uses line-length 120
-#    - avoid_print: disabled — using dlog() instead
-#    - avoid_catches_without_on_clauses: needs gradual refactor
-#    - avoid_catching_errors: needs gradual refactor
-#    - cascade_invocations: not compatible with current code style
-#    - one_member_abstracts: prefer abstract class with single member
+#  ✅ يستخدم very_good_analysis كقاعدة (معايير VGV عالمية)
+#     include غير مُنسّق (unversioned) → دائماً أحدث القواعد تلقائياً
+#     (راجع: https://pub.dev/packages/very_good_analysis#usage)
+#  ✅ strict-casts, strict-inference, strict-raw-types مُفعّلة
+#  ✅ custom_lint plugin مُفعّل (لمساعدات riverpod_lint)
+#  ✅ قواعد Performance + Flutter Best Practices مُفعّلة
+#  ✅ القواعد الأمنية المعاد تفعيلها (Phase-2 migration):
+#       - avoid_dynamic_calls   (type safety)
+#       - close_sinks           (memory leaks)
+#       - discarded_futures     (unhandled async errors)
+#       - avoid_slow_async_io   (main-thread protection)
+#  ✅ Suppress القواعد على مستوى المشروع يتم عبر linter.rules: <rule>: false
+#     (الطريقة الموثقة في VGA README، وليس عبر analyzer.errors)
 # ═══════════════════════════════════════════════════════════════
 
-include: package:very_good_analysis/analysis_options.10.0.0.yaml
+include: package:very_good_analysis/analysis_options.yaml
 
 analyzer:
+  plugins:
+    - custom_lint
   exclude:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
@@ -43,90 +43,120 @@ analyzer:
     strict-raw-types: true
 
   errors:
-    # === Errors (blocking) ===
+    # === Errors (blocking) — هذه diagnostics من الـ analyzer وليست lint rules ===
     missing_return: error
     missing_required_param: error
     invalid_annotation_target: ignore
 
-    # === Warnings → Errors (VGV strict) ===
-    close_sinks: ignore
-
-    # === Temporarily disabled for migration ===
-    public_member_api_docs: ignore
-    lines_longer_than_80_chars: ignore
-    avoid_print: ignore
-    avoid_catches_without_on_clauses: ignore
-    avoid_catching_errors: ignore
-    cascade_invocations: ignore
-    one_member_abstracts: ignore
-    prefer_function_declarations_over_variables: ignore
-    prefer_final_parameters: ignore
-    specify_nonobvious_property_types: ignore
-    no_default_cases: ignore
-    flutter_style_todos: ignore
-    document_ignores: ignore
-    missing_code_block_language_in_doc_comment: ignore
-    unintended_html_in_doc_comment: ignore
-    dangling_library_doc_comments: ignore
-    no_runtimeType_toString: ignore
-    avoid_web_libraries_in_flutter: ignore
-    combinators_ordering: ignore
-    library_annotations: ignore
-    library_prefixes: ignore
-    unnecessary_library_directive: ignore
-    unnecessary_library_name: ignore
-    use_setters_to_change_properties: ignore
-    use_string_buffers: ignore
-    use_truncating_division: ignore
-    # Phase 2 migration — requires structural changes in many files:
-    always_put_required_named_parameters_first: warning
-    use_build_context_synchronously: warning
-    parameter_assignments: ignore
-    avoid_positional_boolean_parameters: ignore
-    prefer_int_literals: ignore
-    avoid_bool_literals_in_conditional_expressions: ignore
-    literal_only_boolean_expressions: ignore
-    type_literal_in_constant_pattern: ignore
-    strict_top_level_inference: ignore
-    implicit_reopen: ignore
-    depend_on_referenced_packages: ignore
-    deprecated_consistency: ignore
-    conditional_uri_does_not_exist: ignore
-    secure_pubspec_urls: ignore
-    use_null_aware_elements: ignore
-    unnecessary_underscores: ignore
-    no_wildcard_variable_uses: ignore
-    no_leading_underscores_for_library_prefixes: ignore
-    no_leading_underscores_for_local_identifiers: ignore
-    implicit_call_tearoffs: ignore
-    discarded_futures: ignore
-    unreachable_from_main: ignore
-    unnecessary_unawaited: ignore
-    unnecessary_late: ignore
-    avoid_escaping_inner_quotes: ignore
-    prefer_inlined_adds: ignore
-    matching_super_parameters: ignore
-    avoid_slow_async_io: ignore
-    avoid_type_to_string: ignore
-    avoid_equals_and_hash_code_on_mutable_classes: ignore
-    avoid_double_and_int_checks: ignore
-    avoid_js_rounded_ints: ignore
-    avoid_field_initializers_in_const_classes: ignore
-    avoid_init_to_null: ignore
-    avoid_dynamic_calls: ignore
-    avoid_shadowing_type_parameters: ignore
-    avoid_returning_this: ignore
-    avoid_setters_without_getters: ignore
-    avoid_private_typedef_functions: ignore
-    avoid_multiple_declarations_per_line: ignore
-    invalid_case_patterns: ignore
-    invalid_runtime_check_with_js_interop_types: ignore
-    collection_methods_unrelated_type: ignore
-
 linter:
   rules:
+    # ═══════════════════════════════════════════════════════════════════
+    # Project-level suppressions (per VGA README documentation)
+    # Pattern: <rule_name>: false
+    # Reason: إيقاف قواعد lint غير مناسبة للمشروع أو تتطلب ترحيل تدريجي
+    # ═══════════════════════════════════════════════════════════════════
+
     # === Project-specific overrides ===
-    always_use_package_imports: false
+    always_use_package_imports: false  # المشروع يستخدم relative imports
     avoid_final_parameters: false
+    omit_local_variable_types: false  # نُفضّل الأنواع الصريحة للقراءة
+
+    # === Temporarily disabled for migration (Phase-2) ===
+    public_member_api_docs: false  # يتطلب توثيق كل member عام (مرحلي)
+    lines_longer_than_80_chars: false  # المشروع يستخدم line-length 120
+    avoid_print: false  # نستخدم dlog() بدلاً منها
+    avoid_catches_without_on_clauses: false  # يحتاج refactor تدريجي
+    avoid_catching_errors: false  # يحتاج refactor تدريجي
+    cascade_invocations: false  # غير متوافق مع style المشروع الحالي
+    one_member_abstracts: false  # يُفضّل abstract class مع member واحد
+    prefer_function_declarations_over_variables: false
+    prefer_final_parameters: false
+    specify_nonobvious_property_types: false
+    no_default_cases: false
+    flutter_style_todos: false
+    document_ignores: false
+    missing_code_block_language_in_doc_comment: false
+    unintended_html_in_doc_comment: false
+    dangling_library_doc_comments: false
+    no_runtimeType_toString: false
+    avoid_web_libraries_in_flutter: false
+    combinators_ordering: false
+    library_annotations: false
+    library_prefixes: false
+    unnecessary_library_directive: false
+    unnecessary_library_name: false
+    use_setters_to_change_properties: false
+    use_string_buffers: false
+    use_truncating_division: false
+    parameter_assignments: false  # Refactor needed — Phase 2
+    avoid_positional_boolean_parameters: false
+    prefer_int_literals: false
+    avoid_bool_literals_in_conditional_expressions: false
+    literal_only_boolean_expressions: false
+    type_literal_in_constant_pattern: false
+    strict_top_level_inference: false
+    implicit_reopen: false
+    depend_on_referenced_packages: false
+    deprecated_consistency: false
+    conditional_uri_does_not_exist: false
+    secure_pubspec_urls: false
+    use_null_aware_elements: false
+    unnecessary_underscores: false
+    no_wildcard_variable_uses: false
+    no_leading_underscores_for_library_prefixes: false
+    no_leading_underscores_for_local_identifiers: false
+    implicit_call_tearoffs: false
+    unreachable_from_main: false
+    unnecessary_unawaited: false
+    unnecessary_late: false
+    avoid_escaping_inner_quotes: false
+    prefer_inlined_adds: false
+    matching_super_parameters: false
+    avoid_type_to_string: false
+    avoid_equals_and_hash_code_on_mutable_classes: false
+    avoid_double_and_int_checks: false
+    avoid_js_rounded_ints: false
+    avoid_field_initializers_in_const_classes: false
+    avoid_init_to_null: false
+    avoid_shadowing_type_parameters: false
+    avoid_returning_this: false
+    avoid_setters_without_getters: false
+    avoid_private_typedef_functions: false
+    avoid_multiple_declarations_per_line: false
+    invalid_case_patterns: false
+    invalid_runtime_check_with_js_interop_types: false
+    collection_methods_unrelated_type: false
+
+    # === VGA 10.x new rules — temporarily disabled for migration ===
+    simple_directive_paths: false
+    avoid_types_on_closure_parameters: false
+    unnecessary_ignore: false
+    use_if_null_to_convert_nulls_to_bools: false
+
+    # ═══════════════════════════════════════════════════════════════════
+    # RE-ENABLED SECURITY & PERFORMANCE RULES (Phase-2 migration)
+    # هذه القواعد كانت مُعطّلة سابقاً وأُعيد تفعيلها لاكتشاف المشاكل مبكراً
+    # إن واجهت CI failures، أضف `// ignore:` محلياً مع TODO بدلاً من تعطيل القاعدة
+    # ═══════════════════════════════════════════════════════════════════
+    discarded_futures: true          # منع unhandled async errors
+    avoid_slow_async_io: true        # حماية الـ Main Thread
+    avoid_dynamic_calls: true        # type safety (JSON parsing excluded via cast)
+    close_sinks: true                # منع memory leaks من StreamControllers
+
+    # === Phase 2 migration — severity downgrades ===
+    always_put_required_named_parameters_first: true
+    use_build_context_synchronously: true
+
+    # === Performance Optimization Rules ===
+    avoid_unnecessary_containers: true
+    prefer_const_constructors: true
+    prefer_const_constructors_in_immutables: true
+    prefer_const_literals_to_create_immutables: true
+
+    # === Flutter Best Practices ===
+    prefer_const_declarations: true
+    prefer_final_fields: true
+    prefer_final_locals: true
+
+    # === Explicitly enabled (relative imports preference) ===
     prefer_relative_imports: true
-    omit_local_variable_types: false
