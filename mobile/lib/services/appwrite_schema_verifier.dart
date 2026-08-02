@@ -343,7 +343,6 @@ class AppwriteSchemaVerifier {
         {'key': 'localUuid', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'bookingLocalUuid', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'bookingLocalId', 'type': 'integer'},
-<<<<<<< Updated upstream
         {'key': 'adjustmentType', 'type': 'integer', 'required': true}, // 0=discount, 1=surcharge
         {'key': 'adjustmentMode', 'type': 'string', 'size': 20, 'default': 'per_night'},
         // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15)
@@ -353,7 +352,6 @@ class AppwriteSchemaVerifier {
         {'key': 'roomNumber', 'type': 'string', 'size': 20},
         {'key': 'effectiveHotelDay', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'endHotelDay', 'type': 'string', 'size': 50},
-=======
         {'key': 'adjustmentType', 'type': 'integer', 'required': true},
         {
           'key': 'adjustmentMode',
@@ -371,7 +369,6 @@ class AppwriteSchemaVerifier {
         // ✅ appliedDate: التاريخ الذي طُبِّق فيه التعديل (same as effectiveHotelDay)
         {'key': 'appliedDate', 'type': 'string', 'size': 50, 'required': true},
         {'key': 'endHotelDay', 'type': 'string', 'size': 10},
->>>>>>> Stashed changes
         {'key': 'isActive', 'type': 'boolean', 'default': true},
         {'key': 'reason', 'type': 'string', 'size': 500},
         {'key': 'appliedBy', 'type': 'string', 'size': 100},
