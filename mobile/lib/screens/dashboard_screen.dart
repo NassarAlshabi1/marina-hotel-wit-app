@@ -59,7 +59,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   void initState() {
     super.initState();
     // ✅ Analytics: تتبّع مشاهدة الشاشة لفهم سلوك المستخدم
-    unawaited(AnalyticsService().logScreenView(screenName: 'dashboard', screenClass: 'DashboardScreen'));
+    unawaited(
+      AnalyticsService().logScreenView(
+        screenName: 'dashboard',
+        screenClass: 'DashboardScreen',
+      ),
+    );
     // سحب البيانات من Appwrite تلقائياً عند فتح التطبيق
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _autoPullFromAppwrite();
@@ -113,7 +118,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       // ✅ إشعار تحميل قابل للإغلاق برمجياً
       LoadingSnackBar? loading;
       if (mounted) {
-        loading = LoadingSnackBar.show(context, message: '📥 جاري سحب البيانات...');
+        loading = LoadingSnackBar.show(
+          context,
+          message: '📥 جاري سحب البيانات...',
+        );
       }
 
       final syncManager = ref.read(appwriteSyncManagerProvider);
@@ -126,7 +134,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
 
       // ─── تسجيل وقت هذا السحب التلقائي ───
-      await prefs.setInt(SyncConstants.lastAppOpenPullKey, DateTime.now().millisecondsSinceEpoch);
+      await prefs.setInt(
+        SyncConstants.lastAppOpenPullKey,
+        DateTime.now().millisecondsSinceEpoch,
+      );
 
       if (mounted && pulledCount > 0) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -146,7 +157,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
             backgroundColor: Colors.green.shade600,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
       } else if (mounted) {
@@ -173,22 +186,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     return PerformanceInspector(
       name: 'DashboardScreen',
       child: Scaffold(
-      backgroundColor: Colors.grey.shade100,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 16),
-            _buildStatisticsCards(),
-            const SizedBox(height: 20),
-            _buildRoomsSection(),
-            const SizedBox(height: 12),
-            _buildColorInstructions(),
-          ],
+        backgroundColor: Colors.grey.shade100,
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 16),
+              _buildStatisticsCards(),
+              const SizedBox(height: 20),
+              _buildRoomsSection(),
+              const SizedBox(height: 12),
+              _buildColorInstructions(),
+            ],
+          ),
         ),
       ),
-    )
     );
   }
 
@@ -200,7 +213,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            gradient: LinearGradient(colors: [Colors.blue.shade600, Colors.blue.shade400]),
+            gradient: LinearGradient(
+              colors: [Colors.blue.shade600, Colors.blue.shade400],
+            ),
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Icon(Icons.hotel, color: Colors.white, size: 18),
@@ -210,20 +225,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('فندق مارينا', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const Text(
+                'فندق مارينا',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               Row(
                 children: [
-                  const Text('لوحة التحكم', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  const Text(
+                    'لوحة التحكم',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
                   const SizedBox(width: 6),
                   // ✅ رقم إصدار APK — يُقرأ ديناميكياً من package_info_plus.
                   // يظهر للمستخدم مباشرةً في الـ header حتى يسهل التحقق من
                   // النسخة المثبّتة دون فتح شاشة الإعدادات.
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 1,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.blue.shade50,
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.blue.shade200, width: 0.5),
+                      border: Border.all(
+                        color: Colors.blue.shade200,
+                        width: 0.5,
+                      ),
                     ),
                     child: Text(
                       'v$versionLabel',
@@ -258,15 +285,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               final expensesAsync = ref.watch(todayExpensesProvider);
 
               // التعامل مع حالة التحميل
-              final isLoading = incomeAsync.isLoading || expensesAsync.isLoading;
+              final isLoading =
+                  incomeAsync.isLoading || expensesAsync.isLoading;
               final hasError = incomeAsync.hasError || expensesAsync.hasError;
 
               if (isLoading) {
-                return _buildStatCard('المتبقي', '...', Icons.savings, Colors.indigo);
+                return _buildStatCard(
+                  'المتبقي',
+                  '...',
+                  Icons.savings,
+                  Colors.indigo,
+                );
               }
 
               if (hasError) {
-                return _buildStatCard('المتبقي', '--', Icons.savings, Colors.indigo);
+                return _buildStatCard(
+                  'المتبقي',
+                  '--',
+                  Icons.savings,
+                  Colors.indigo,
+                );
               }
 
               final income = incomeAsync.valueOrNull ?? 0.0;
@@ -288,10 +326,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             builder: (context, ref, _) {
               final paymentsAsync = ref.watch(todayPaymentsProvider);
               return paymentsAsync.when(
-                loading: () => _buildStatCard('مدفوعات اليوم', '...', Icons.payments_rounded, Colors.green),
-                error: (e, _) => _buildStatCard('مدفوعات اليوم', '--', Icons.payments_rounded, Colors.green),
-                data: (total) =>
-                    _buildStatCard('مدفوعات اليوم', currencyFmt.format(total), Icons.payments_rounded, Colors.green),
+                loading: () => _buildStatCard(
+                  'مدفوعات اليوم',
+                  '...',
+                  Icons.payments_rounded,
+                  Colors.green,
+                ),
+                error: (e, _) => _buildStatCard(
+                  'مدفوعات اليوم',
+                  '--',
+                  Icons.payments_rounded,
+                  Colors.green,
+                ),
+                data: (total) => _buildStatCard(
+                  'مدفوعات اليوم',
+                  currencyFmt.format(total),
+                  Icons.payments_rounded,
+                  Colors.green,
+                ),
               );
             },
           ),
@@ -302,8 +354,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             builder: (context, ref, _) {
               final expensesAsync = ref.watch(todayExpensesProvider);
               return expensesAsync.when(
-                loading: () => _buildStatCard('المصروفات', '...', Icons.money_off_rounded, Colors.red),
-                error: (e, _) => _buildStatCard('المصروفات', '--', Icons.money_off_rounded, Colors.red),
+                loading: () => _buildStatCard(
+                  'المصروفات',
+                  '...',
+                  Icons.money_off_rounded,
+                  Colors.red,
+                ),
+                error: (e, _) => _buildStatCard(
+                  'المصروفات',
+                  '--',
+                  Icons.money_off_rounded,
+                  Colors.red,
+                ),
                 data: (total) => _buildStatCard(
                   'المصروفات',
                   currencyFmt.format(total),
@@ -311,7 +373,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   Colors.red,
                   onTap: () => Navigator.push<void>(
                     context,
-                    MaterialPageRoute<void>(builder: (_) => const ExpensesReportScreen()),
+                    MaterialPageRoute<void>(
+                      builder: (_) => const ExpensesReportScreen(),
+                    ),
                   ),
                 ),
               );
@@ -322,7 +386,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color, {VoidCallback? onTap}) {
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color, {
+    VoidCallback? onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -330,7 +400,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 4, offset: Offset(0, 2))],
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0D000000),
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -339,10 +415,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             const SizedBox(height: 6),
             Text(
               value,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
             const SizedBox(height: 1),
-            Text(title, style: TextStyle(fontSize: 9, color: Colors.grey.shade600)),
+            Text(
+              title,
+              style: TextStyle(fontSize: 9, color: Colors.grey.shade600),
+            ),
           ],
         ),
       ),
@@ -364,11 +447,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  Icon(Icons.error_outline, color: Colors.red.shade400, size: 40),
+                  Icon(
+                    Icons.error_outline,
+                    color: Colors.red.shade400,
+                    size: 40,
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     'تعذر تحميل الغرف',
-                    style: TextStyle(color: Colors.red.shade600, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.red.shade600,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -387,25 +477,42 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildRoomsCard(List<RoomWithPaymentStatus> roomsWithStatus) {
-    final Map<String, RoomWithPaymentStatus> roomsMap = {for (final rws in roomsWithStatus) rws.room.roomNumber: rws};
+    final Map<String, RoomWithPaymentStatus> roomsMap = {
+      for (final rws in roomsWithStatus) rws.room.roomNumber: rws,
+    };
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 4, offset: Offset(0, 2))],
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D000000),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Text('حالة الغرف', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const Text(
+                'حالة الغرف',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
               const Spacer(),
               _buildLegendItem('محجوزة', Colors.red.shade600),
               const SizedBox(width: 8),
-              _buildLegendItem('متأخر', _overdueColor()),
+              _buildLegendSplitItem(
+                'تنبيه 22:00',
+                Colors.red.shade600,
+                Colors.orange.shade500,
+              ),
+              const SizedBox(width: 8),
+              _buildLegendItem('متأخر 23:00', _overdueColor()),
               const SizedBox(width: 8),
               _buildLegendItem('شاغرة', Colors.green.shade600),
             ],
@@ -424,7 +531,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             itemBuilder: (context, index) {
               final roomNumber = _dashboardRoomNumbers[index];
               final rws = roomsMap[roomNumber];
-              return RepaintBoundary(child: _buildRoomButton(context, roomNumber, rws));
+              return RepaintBoundary(
+                child: _buildRoomButton(context, roomNumber, rws),
+              );
             },
           ),
         ],
@@ -439,39 +548,139 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         Container(
           width: 10,
           height: 10,
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
         ),
         const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+        Text(
+          label,
+          style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+        ),
       ],
     );
   }
 
-  Widget _buildRoomButton(BuildContext context, String roomNumber, RoomWithPaymentStatus? rws) {
+  /// ✅ عنصر legend يُظهر شريطاً مزدوج اللون (أحمر + برتقالي) لتمثيل
+  /// حالة "التنبيه المبكر" (22:00-23:00) التي يظهر فيها جزء من الزر برتقالي.
+  Widget _buildLegendSplitItem(
+    String label,
+    Color leftColor,
+    Color rightColor,
+  ) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 10,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(3),
+            gradient: LinearGradient(
+              begin: Alignment.centerRight,
+              end: Alignment.centerLeft,
+              colors: [leftColor, rightColor],
+              stops: const [0.55, 0.55],
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRoomButton(
+    BuildContext context,
+    String roomNumber,
+    RoomWithPaymentStatus? rws,
+  ) {
     final Color bgColor = rws?.roomColor ?? Colors.grey.shade400;
     final String tooltipText = rws != null ? rws.displayStatus : 'غير مسجلة';
     final bool isOverdue = rws?.isPaymentOverdue ?? false;
+    final bool isLatePayment = rws?.isLatePayment ?? false;
 
     // ✅ إصلاح الوميض: استخدام ValueKey يمنع flutter_animate من إعادة تشغيل
     // الرسوم المتحركة عند إعادة بناء الـ widget بنفس البيانات
     // المفتاح يتضمن حالة التأخر فقط — لا يتغير إلا عند تغيير الحالة فعلياً
-    final keySuffix = isOverdue ? '_overdue' : '_normal';
+    final keySuffix = isOverdue
+        ? '_overdue'
+        : isLatePayment
+        ? '_late'
+        : '_normal';
+
+    // ✅ مرحلة التحذير المبكر (22:00-23:00 + رصيد متبقي):
+    // نُظهر Gradient أفقي: 60% من الجهة اليمنى باللون الأحمر (لون الغرفة المحجوزة)
+    // و 40% من الجهة اليسرى باللون البرتقالي كـ "شريط تنبيه" جزئي.
+    // هذا يلبي طلب المستخدم: "الغرفة المحجوزة أحمر + جزء من الزر برتقالي".
+    final BoxDecoration? lateDecoration = isLatePayment && !isOverdue
+        ? BoxDecoration(
+            gradient: LinearGradient(
+              // RTL: نبدأ من اليمين. اليمين = أحمر، اليسار = برتقالي
+              begin: Alignment.centerRight,
+              end: Alignment.centerLeft,
+              colors: [
+                Colors.red.shade600,
+                Colors.red.shade600,
+                Colors.orange.shade500,
+                Colors.orange.shade500,
+              ],
+              stops: const [0.0, 0.55, 0.55, 1.0],
+            ),
+            borderRadius: BorderRadius.circular(10),
+            // ✅ حدود برتقالية لإبراز التنبيه
+            border: Border.all(color: Colors.orange.shade700, width: 1.5),
+          )
+        : null;
 
     final Widget button = Tooltip(
-      message: tooltipText,
+      message: isLatePayment && !isOverdue
+          ? '$tooltipText — تنبيه: السداد بعد ساعة (22:00+)'
+          : tooltipText,
       child: GestureDetector(
-        onLongPress: rws != null ? () => _showRoomOptionsDialog(context, rws.room) : null,
+        onLongPress: rws != null
+            ? () => _showRoomOptionsDialog(context, rws.room)
+            : null,
         child: Material(
           key: ValueKey('room_$roomNumber$keySuffix'),
-          color: bgColor,
+          color: lateDecoration == null ? bgColor : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
           child: InkWell(
             borderRadius: BorderRadius.circular(10),
             onTap: () => _handleRoomTap(context, roomNumber, rws?.room),
-            child: Center(
-              child: Text(
-                roomNumber,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+            child: Container(
+              // ✅ تطبيق الـ Gradient فقط في حالة التحذير المبكر
+              decoration: lateDecoration,
+              alignment: Alignment.center,
+              child: Stack(
+                children: [
+                  // ✅ نص رقم الغرفة في المنتصف
+                  Center(
+                    child: Text(
+                      roomNumber,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  // ✅ أيقونة تنبيه صغيرة في الزاوية اليسرى (الجهة البرتقالية)
+                  if (lateDecoration != null)
+                    Positioned(
+                      top: 2,
+                      left: 2,
+                      child: Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.white.withValues(alpha: 0.9),
+                        size: 10,
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -498,6 +707,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             end: const Offset(1.0, 1.0),
             duration: 800.ms,
             curve: Curves.easeInOut,
+          );
+    }
+
+    // ✅ مرحلة التحذير المبكر: نبضة خفيفة جداً (بدون وميض كامل) للفت الانتباه
+    // فقط كل 3 ثوانٍ بدلاً من الـ 800ms المستخدمة في مرحلة التأخر الفعلي.
+    if (isLatePayment) {
+      return button
+          .animate(key: ValueKey('anim_${roomNumber}_late'))
+          .shimmer(
+            duration: 2400.ms,
+            color: Colors.orange.shade300.withValues(alpha: 0.4),
           );
     }
 
@@ -539,7 +759,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
           ],
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء'))],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+        ],
       ),
     );
   }
@@ -551,7 +776,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تم تحديث حالة الغرفة ${room.roomNumber} إلى $newStatus'),
+            content: Text(
+              'تم تحديث حالة الغرفة ${room.roomNumber} إلى $newStatus',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -560,12 +787,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('خطأ في تحديث الحالة: $e'), backgroundColor: Colors.red));
+        ).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في تحديث الحالة: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
 
-  Future<void> _handleRoomTap(BuildContext context, String roomNumber, Room? room) async {
+  Future<void> _handleRoomTap(
+    BuildContext context,
+    String roomNumber,
+    Room? room,
+  ) async {
     if (room != null) {
       final isAvailable = StatusUtils.isRoomAvailable(room.status);
       final isOccupied = StatusUtils.isRoomOccupied(room.status);
@@ -582,7 +818,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('الغرفة $roomNumber غير مسجلة في النظام'), duration: const Duration(seconds: 3)),
+        SnackBar(
+          content: Text('الغرفة $roomNumber غير مسجلة في النظام'),
+          duration: const Duration(seconds: 3),
+        ),
       );
     }
   }
@@ -590,18 +829,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   void _navigateToNewBooking(BuildContext context, String roomNumber) {
     Navigator.of(
       context,
-    ).push<void>(MaterialPageRoute<void>(builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber)));
+    ).push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
+      ),
+    );
   }
 
-  Future<void> _navigateToPaymentForRoom(BuildContext context, String roomNumber) async {
+  Future<void> _navigateToPaymentForRoom(
+    BuildContext context,
+    String roomNumber,
+  ) async {
     try {
       final bookingsRepo = ref.read(bookingsRepoProvider);
-      final activeBooking = await bookingsRepo.getActiveBookingForRoom(roomNumber);
+      final activeBooking = await bookingsRepo.getActiveBookingForRoom(
+        roomNumber,
+      );
 
       if (activeBooking == null) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('لا يوجد حجز محجوز للغرفة $roomNumber'), backgroundColor: Colors.orange),
+            SnackBar(
+              content: Text('لا يوجد حجز محجوز للغرفة $roomNumber'),
+              backgroundColor: Colors.orange,
+            ),
           );
         }
         return;
@@ -611,12 +862,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         unawaited(
           Navigator.of(
             context,
-          ).push<void>(MaterialPageRoute<void>(builder: (context) => BookingPaymentScreen(booking: activeBooking))),
+          ).push<void>(
+            MaterialPageRoute<void>(
+              builder: (context) =>
+                  BookingPaymentScreen(booking: activeBooking),
+            ),
+          ),
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ: $e'), backgroundColor: Colors.red),
+        );
       }
     }
   }
@@ -637,7 +895,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إغلاق'),
+          ),
           if (!StatusUtils.isRoomOccupied(room.status))
             ElevatedButton(
               onPressed: () {
@@ -654,14 +915,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _buildColorInstructions() {
     return Align(
       alignment: Alignment.centerRight,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Wrap(
+        alignment: WrapAlignment.end,
+        spacing: 8,
+        runSpacing: 4,
         children: [
-          _buildInstructionDot(Colors.green.shade600, 'شاغرة (متاحة)'),
-          const SizedBox(width: 12),
-          _buildInstructionDot(Colors.red.shade600, 'محجوزة (مشغولة)'),
-          const SizedBox(width: 12),
-          _buildInstructionDot(Colors.red.shade600, 'وميض: تأخر سداد (11م-5ص)'),
+          _buildInstructionDot(Colors.green.shade600, 'شاغرة'),
+          _buildInstructionDot(Colors.red.shade600, 'محجوزة'),
+          _buildInstructionDot(
+            Colors.orange.shade500,
+            'تنبيه (22:00-23:00): جزء برتقالي',
+          ),
+          _buildInstructionDot(
+            Colors.orange.shade700,
+            'وميض (23:00-05:00): تأخر فعلي',
+          ),
         ],
       ),
     );
@@ -674,7 +942,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         Container(
           width: 6,
           height: 6,
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
         ),
         const SizedBox(width: 3),
         Text(label, style: TextStyle(fontSize: 8, color: Colors.grey.shade500)),
