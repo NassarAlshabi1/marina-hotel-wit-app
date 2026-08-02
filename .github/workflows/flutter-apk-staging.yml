@@ -57,7 +57,7 @@ jobs:
         run: flutter pub get
 
       - name: Generate code (e.g., using Freezed, json_serializable)
-        run: flutter pub run build_runner build --delete-conflicting-outputs
+        run: flutter pub run build_runner build 
 
       - name: Build staging APK
         # Uses unified keystore with consistent SHA-1: 67:12:57:A2:9B:53:FA:71:AC:BC:0F:A8:C9:54:2F:3F:46:0B:A8:1C

@@ -76,7 +76,7 @@ jobs:
 
       - name: 🏗️ Generate code (build_runner)
         working-directory: mobile
-        run: dart run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build 
 
       # ═══════════════════════════════════════════════════════════
       #  Tests + Coverage (full mode only)

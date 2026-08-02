@@ -71,7 +71,7 @@ jobs:
         run: flutter pub get
 
       - name: 🔧 Generate build_runner files
-        run: dart run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build 
 
       - name: 🔍 Run flutter analyze
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
@@ -150,7 +150,7 @@ jobs:
         run: flutter pub get
 
       - name: 🔧 Generate build_runner files
-        run: dart run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build 
 
       # ─────────────────────────────────────────────────────────────────────
       #  تشغيل benchmark tests مع إخراج machine-readable
@@ -319,7 +319,7 @@ jobs:
         run: flutter pub get
 
       - name: 🔧 Generate build_runner files
-        run: dart run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build 
 
       - name: 📥 Download current benchmark results
         uses: actions/download-artifact@v4

@@ -148,7 +148,7 @@ jobs:
       #  9. توليد ملفات drift/freezed اللازمة قبل البناء
       # ─────────────────────────────────────────────────────────────────────
       - name: 🔧 Generate build_runner files
-        run: dart run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build 
 
       # ─────────────────────────────────────────────────────────────────────
       #  10. AVD cache — يُسرِّع الـ runs القادمة بشكل كبير

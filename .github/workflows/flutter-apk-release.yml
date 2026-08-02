@@ -111,8 +111,10 @@ jobs:
         run: flutter pub run build_runner clean
 
       - name: Generate code (e.g., using Freezed, json_serializable)
-        # Use delete-conflicting-outputs and verbose logging to avoid conflicts and aid debugging
-        run: flutter pub run build_runner build --delete-conflicting-outputs --verbose
+        # Build runner: generate Freezed/Drift/json_serializable code
+        # Note: --delete-conflicting-outputs is deprecated in newer build_runner versions.
+        # Flutter 3.44.4 handles conflicts automatically.
+        run: flutter pub run build_runner build --verbose
 
       - name: Build release APK
         # Uses unified keystore with consistent SHA-1: 67:12:57:A2:9B:53:FA:71:AC:BC:0F:A8:C9:54:2F:3F:46:0B:A8:1C
