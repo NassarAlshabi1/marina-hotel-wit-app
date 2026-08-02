@@ -12,10 +12,10 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'cloudflare_config.dart';
 import '../utils/env.dart';
-import 'local_db.dart';
+import 'cloudflare_config.dart';
 import 'daos/outbox_dao.dart';
+import 'local_db.dart';
 import 'resilient_http_client.dart';
 import 'sync_enums.dart';
 
@@ -58,9 +58,9 @@ class CloudflareRealtimeSync {
 // ─── CloudflareSyncManager ─────────────────────────────────────
 
 class CloudflareSyncManager {
-  CloudflareSyncManager._();
-  static final CloudflareSyncManager _instance = CloudflareSyncManager._();
   factory CloudflareSyncManager() => _instance;
+  static final CloudflareSyncManager _instance = CloudflareSyncManager._internal();
+  CloudflareSyncManager._internal();
 
   // ─── Static device ID (same interface as AppwriteSyncManager) ──
   static String? _staticDeviceId;
@@ -503,33 +503,71 @@ class CloudflareSyncManager {
   // يحاول تحديد نوع الجدول من حقول السجل المستلم من D1
   String? _detectEntity(Map<String, dynamic> record) {
     // Core entities
-    if (record.containsKey('room_number') && record.containsKey('price')) return 'rooms';
-    if (record.containsKey('guest_name') && record.containsKey('checkin_date')) return 'bookings';
-    if (record.containsKey('amount') && record.containsKey('payment_method')) return 'payments';
-    if (record.containsKey('expense_type') && record.containsKey('description')) return 'expenses';
-    if (record.containsKey('basic_salary') && record.containsKey('position')) return 'employees';
-    if (record.containsKey('debt_reason') && record.containsKey('remaining_amount')) return 'debts';
+    if (record.containsKey('room_number') && record.containsKey('price')) {
+      return 'rooms';
+    }
+    if (record.containsKey('guest_name') && record.containsKey('checkin_date')) {
+      return 'bookings';
+    }
+    if (record.containsKey('amount') && record.containsKey('payment_method')) {
+      return 'payments';
+    }
+    if (record.containsKey('expense_type') && record.containsKey('description')) {
+      return 'expenses';
+    }
+    if (record.containsKey('basic_salary') && record.containsKey('position')) {
+      return 'employees';
+    }
+    if (record.containsKey('debt_reason') && record.containsKey('remaining_amount')) {
+      return 'debts';
+    }
 
     // Booking-related
-    if (record.containsKey('final_rate') && record.containsKey('hotel_day_key')) return 'booking_nights';
-    if (record.containsKey('adjustment_type') && record.containsKey('effective_hotel_day')) return 'booking_price_adjustments';
-    if (record.containsKey('note_text') && record.containsKey('alert_type')) return 'booking_notes';
-    if (record.containsKey('guest_name') && record.containsKey('id_number')) return 'guest_infos';
+    if (record.containsKey('final_rate') && record.containsKey('hotel_day_key')) {
+      return 'booking_nights';
+    }
+    if (record.containsKey('adjustment_type') && record.containsKey('effective_hotel_day')) {
+      return 'booking_price_adjustments';
+    }
+    if (record.containsKey('note_text') && record.containsKey('alert_type')) {
+      return 'booking_notes';
+    }
+    if (record.containsKey('guest_name') && record.containsKey('id_number')) {
+      return 'guest_infos';
+    }
 
     // Shift & cash
-    if (record.containsKey('shift_date') && record.containsKey('is_read')) return 'shift_notes';
-    if (record.containsKey('transaction_type') && record.containsKey('transaction_time')) return 'cash_transactions';
+    if (record.containsKey('shift_date') && record.containsKey('is_read')) {
+      return 'shift_notes';
+    }
+    if (record.containsKey('transaction_type') && record.containsKey('transaction_time')) {
+      return 'cash_transactions';
+    }
 
     // Salary
-    if (record.containsKey('cycle_key') && record.containsKey('expected_amount')) return 'salary_cycles';
-    if (record.containsKey('payment_date_iso') && record.containsKey('cycle_id')) return 'salary_payments';
-    if (record.containsKey('withdrawal_type') && record.containsKey('amount')) return 'salary_withdrawals';
-    if (record.containsKey('previous_cycle_start') && record.containsKey('new_cycle_start')) return 'salary_carry_over_logs';
+    if (record.containsKey('cycle_key') && record.containsKey('expected_amount')) {
+      return 'salary_cycles';
+    }
+    if (record.containsKey('payment_date_iso') && record.containsKey('cycle_id')) {
+      return 'salary_payments';
+    }
+    if (record.containsKey('withdrawal_type') && record.containsKey('amount')) {
+      return 'salary_withdrawals';
+    }
+    if (record.containsKey('previous_cycle_start') && record.containsKey('new_cycle_start')) {
+      return 'salary_carry_over_logs';
+    }
 
     // Adjustments & audit
-    if (record.containsKey('target_type') && record.containsKey('target_uuid')) return 'price_adjustments';
-    if (record.containsKey('operation_type') && record.containsKey('entity_type')) return 'audit_logs';
-    if (record.containsKey('void_reason') && record.containsKey('voided_by')) return 'payment_voids';
+    if (record.containsKey('target_type') && record.containsKey('target_uuid')) {
+      return 'price_adjustments';
+    }
+    if (record.containsKey('operation_type') && record.containsKey('entity_type')) {
+      return 'audit_logs';
+    }
+    if (record.containsKey('void_reason') && record.containsKey('voided_by')) {
+      return 'payment_voids';
+    }
 
     // hotel_day_ledger is local-only — should not be pulled
     // (but if it arrives, we skip it)
@@ -540,8 +578,12 @@ class CloudflareSyncManager {
   // ─── Convert value for Drift ────────────────────────────────
   dynamic _toDriftValue(dynamic value) {
     if (value == null) return null;
-    if (value is bool) return value ? 1 : 0;
-    if (value is List || value is Map) return jsonEncode(value);
+    if (value is bool) {
+      return value ? 1 : 0;
+    }
+    if (value is List || value is Map) {
+      return jsonEncode(value);
+    }
     return value;
   }
 

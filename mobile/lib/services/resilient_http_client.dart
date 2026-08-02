@@ -88,7 +88,7 @@ class ResilientHttpClient extends http.BaseClient {
     throw lastError ?? SocketException('All IPs failed for ${uri.host}');
   }
 
-  /// Send request by connecting to [ip] but using [originalUri.host] as SNI.
+  /// Send request by connecting to the IP but using the original URI host as SNI.
   /// Uses IOClient with a custom HttpClient that has badCertificateCallback
   /// set to accept the certificate (since the IP won't match the cert's CN).
   Future<http.StreamedResponse> _sendWithIpAndSni(
@@ -186,8 +186,8 @@ class ResilientHttpClient extends http.BaseClient {
     return [];
   }
 
-  /// Send DoH query by connecting directly to [dohIp] with [endpoint.hostname]
-  /// as SNI. This avoids any DNS lookup for the DoH endpoint itself.
+  /// Send DoH query by connecting directly to the DoH IP with the endpoint
+  /// hostname as SNI. This avoids any DNS lookup for the DoH endpoint itself.
   Future<List<String>> _tryDohWithIp(
     _DohEndpoint endpoint,
     String dohIp,
