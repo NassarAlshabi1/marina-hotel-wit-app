@@ -15,7 +15,7 @@ class Time {
   static String hotelDayKey({
     DateTime? now,
     int cutoffHour = 14,
-    int cutoffMinute = 0,
+    int cutoffMinute = 1, // ✅ 14:01 (not 14:00) — matches HotelTimeEngine
   }) {
     final base = now ?? DateTime.now();
     final shifted = base.subtract(
@@ -27,7 +27,7 @@ class Time {
   static String hotelDayKeyFromIso(
     String? isoString, {
     int cutoffHour = 14,
-    int cutoffMinute = 0,
+    int cutoffMinute = 1, // ✅ 14:01
   }) {
     if (isoString == null || isoString.trim().isEmpty) {
       return hotelDayKey(cutoffHour: cutoffHour, cutoffMinute: cutoffMinute);
@@ -48,7 +48,7 @@ class Time {
   static DateTime hotelDayStart(
     DateTime value, {
     int cutoffHour = 14,
-    int cutoffMinute = 0,
+    int cutoffMinute = 1, // ✅ 14:01
   }) {
     final start = DateTime(
       value.year,
@@ -73,7 +73,7 @@ class Time {
   static DateTime hotelDayStartForNewBooking(
     DateTime checkin, {
     int cutoffHour = 14,
-    int cutoffMinute = 0,
+    int cutoffMinute = 1, // ✅ 14:01
   }) {
     if (checkin.hour < cutoffHour ||
         (checkin.hour == cutoffHour && checkin.minute < cutoffMinute)) {
@@ -95,7 +95,7 @@ class Time {
   static String hotelDayStartIso(
     String hotelDay, {
     int cutoffHour = 14,
-    int cutoffMinute = 0,
+    int cutoffMinute = 1, // ✅ 14:01
   }) {
     final h = cutoffHour.toString().padLeft(2, '0');
     final m = cutoffMinute.toString().padLeft(2, '0');
@@ -108,7 +108,7 @@ class Time {
   static String hotelDayEndIso(
     String hotelDay, {
     int cutoffHour = 14,
-    int cutoffMinute = 0,
+    int cutoffMinute = 1, // ✅ 14:01
   }) {
     final next = _nextDateString(hotelDay);
     return hotelDayStartIso(
@@ -159,7 +159,7 @@ class Time {
     DateTime checkin, {
     DateTime? checkout,
     int cutoffHour = 14,
-    int cutoffMinute = 0,
+    int cutoffMinute = 1, // ✅ 14:01 — matches HotelTimeEngine boundary
   }) {
     final end = checkout ?? DateTime.now();
 

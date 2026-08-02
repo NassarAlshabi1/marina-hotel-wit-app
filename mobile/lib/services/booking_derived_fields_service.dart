@@ -258,19 +258,21 @@ class BookingDerivedFieldsService {
         cutoffHour ?? RemoteConfigService.instance.checkoutHour;
     final segments = <_NightSegment>[];
 
-    // استخدام المنطق الموحد لحساب عدد الليالي بناءً على الساعة 14:00
+    // ✅ استخدام HotelTimeEngine كمرجع موحد (14:01)
     final int totalNights = Time.nightsWithCutoff(
       checkin,
       checkout: checkout,
       cutoffHour: resolvedCutoffHour,
+      // cutoffMinute defaults to 1 (14:01) — matches HotelTimeEngine
     );
 
-    // حساب بداية "يوم الفندق" لعملية تسجيل الدخول
+    // حساب بداية "يوم الفندق" لعملية تسجيل الدخول (14:01)
     DateTime startOfCheckinHotelDay = DateTime(
       checkin.year,
       checkin.month,
       checkin.day,
       resolvedCutoffHour,
+      1, // ✅ 14:01 — matches HotelTimeEngine boundaryMinute
     );
     if (checkin.isBefore(startOfCheckinHotelDay)) {
       startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(
