@@ -16,6 +16,10 @@
 
 include: package:very_good_analysis/analysis_options.10.0.0.yaml
 
+# Marina Hotel - Custom Analysis Rules for Mobile
+# هذه الإعدادات مخصصة لمشروع Marina Hotel Mobile
+# هدفنا: جودة كود عالية + أداء ممتاز + أفضل الممارسات
+
 analyzer:
   exclude:
     - "**/*.g.dart"
@@ -126,3 +130,18 @@ linter:
     avoid_final_parameters: false
     prefer_relative_imports: true
     omit_local_variable_types: false  # نُفضّل الأنواع الصريحة للقراءة
+    
+    # === Performance Optimization Rules ===
+    # هذه القواعد تساعد في تحسين أداء التطبيق
+    avoid_unnecessary_containers: true
+    prefer_const_constructors: true
+    prefer_const_constructors_in_immutables: true
+    prefer_const_literals_to_create_immutables: true
+    use_build_context_synchronously: true
+    avoid_slow_async_io: true
+    
+    # === Flutter Best Practices ===
+    prefer_const_declarations: true
+    avoid_unnecessary_setstate: true
+    prefer_final_fields: true
+    prefer_final_locals: true
