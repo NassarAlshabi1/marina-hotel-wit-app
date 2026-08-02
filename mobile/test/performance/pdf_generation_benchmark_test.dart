@@ -18,6 +18,15 @@
 
 // ignore_for_file: lines_longer_than_80_chars, avoid_redundant_argument_values
 
+// This file is tagged as 'performance' so it can be excluded from
+// CI runs via --exclude-tags performance. Performance benchmarks
+// require real Appwrite/path_provider setup and are too slow for
+// regular CI. Run them explicitly via:
+//   flutter test test/performance/ --include-tags performance
+@Tags(['performance'])
+library marina_hotel_mobile.test.performance.pdf_generation_benchmark_test;
+
+
 import 'dart:io' show File, ProcessInfo;
 import 'dart:typed_data' show ByteData, Uint8List;
 

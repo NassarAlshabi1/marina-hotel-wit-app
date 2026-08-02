@@ -15,6 +15,15 @@
 //    - معايير Flutter الرسمية: 16ms/frame = 60 FPS
 // ============================================================================
 
+// This file is tagged as 'performance' so it can be excluded from
+// CI runs via --exclude-tags performance. Performance benchmarks
+// require real Appwrite/path_provider setup and are too slow for
+// regular CI. Run them explicitly via:
+//   flutter test test/performance/ --include-tags performance
+@Tags(['performance'])
+library marina_hotel_mobile.test.performance.benchmark_test;
+
+
 import 'dart:async';
 import 'dart:convert' show jsonDecode;
 import 'dart:io' show Directory, File;

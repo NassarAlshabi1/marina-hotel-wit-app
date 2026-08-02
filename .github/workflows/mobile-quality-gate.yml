@@ -269,12 +269,20 @@ jobs:
         
       - name: 🧪 Run Unit Tests with Coverage
         working-directory: ${{ env.WORKING_DIRECTORY }}
+        # ✅ FIX: --exclude-tags performance لاستبعاد اختبارات الأداء
+        #    (test/performance/*) التي:
+        #      - تحتاج Appwrite + path_provider حقيقيين (تفشل في CI)
+        #      - تسبب "Timer is still pending" hang في tearDownAll
+        #      - تستغرق 15+ دقيقة وتُلغى بسبب job timeout
+        #    هذه الاختبارات benchmarks وليست unit tests، تُشغّل يدوياً
+        #    عبر: flutter test test/performance/ --include-tags performance
         run: |
-          echo "🧪 Running unit tests with coverage..."
+          echo "🧪 Running unit tests with coverage (excluding performance)..."
           flutter test \
             --coverage \
             --concurrency=4 \
             --timeout=120s \
+            --exclude-tags performance \
             --test-randomize-ordering-seed random \
             --reporter compact \
             2>&1 | tee test_results.log
@@ -474,12 +482,48 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [setup, analyze, test]
-    if: inputs.check_level == 'full'
+    # ✅ FIX: الـ job كان مشروطاً بـ inputs.check_level == 'full'
+    #    لكن inputs متاحة فقط في workflow_dispatch، وليس في push/pull_request.
+    #    هذا جعل الـ job دائماً skipped في CI العادي، مما يُعطّل:
+    #      - Duplicate Code Detection (jscpd)
+    #      - Security & Dependency Audit
+    #      - Code Complexity Analysis (lizard)
+    #    الآن يعمل دائماً بعد نجاح setup + analyze (test اختياري لأن
+    #    continue-on-error: true قد يسمح بفشله).
+    if: always() && needs.setup.result == 'success' && needs.analyze.result == 'success'
     
     steps:
       - name: 📥 Checkout Code
         uses: actions/checkout@v5
-        
+
+      - name: 💾 Setup Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: ⬢ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: 📦 Install Quality Tools
+        # jscpd: needs Node.js (Dart duplicate detection)
+        # lizard: needs Python (Dart complexity analysis)
+        run: |
+          npm install -g jscpd
+          pip install lizard
+
+      - name: 📦 Install Dependencies
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+        run: flutter pub get
+
       - name: 🔍 Find Duplicate Code (jscpd)
         working-directory: ${{ env.WORKING_DIRECTORY }}
         run: |
