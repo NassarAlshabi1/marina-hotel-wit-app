@@ -188,11 +188,20 @@ class Time {
     const int secondsInDay = 24 * 3600;
 
     // عدد الليالي هو ناتج قسمة الثواني الكلية على ثواني اليوم الواحد + 1
-    // إذا كان الوقت بالضبط 14:00 (أي مضاعفات 24 ساعة)، لا يتم احتساب يوم جديد
+    // إذا كان وقت المغادرة قبل الـ cutoff (أي مضاعفات 24 ساعة بالضبط
+    // مثل checkout عند 14:01 والـ cutoff عند 14:01)، لا يتم احتساب يوم جديد.
+    // لكن إذا كان وقت المغادرة عند أو بعد الـ cutoff، يجب احتساب يوم إضافي.
     int nights = (totalSeconds ~/ secondsInDay) + 1;
 
+    // اطرح 1 فقط إذا كانت المدة مضاعف دقيق لليوم
+    // AND وقت المغادرة قبل الـ cutoff
     if (totalSeconds > 0 && totalSeconds % secondsInDay == 0) {
-      nights -= 1;
+      // تحقق: هل وقت المغادرة قبل الـ cutoff؟
+      final isCheckoutBeforeCutoff = end.hour < cutoffHour ||
+          (end.hour == cutoffHour && end.minute < cutoffMinute);
+      if (isCheckoutBeforeCutoff) {
+        nights -= 1;
+      }
     }
 
     return nights > 0 ? nights : 1;

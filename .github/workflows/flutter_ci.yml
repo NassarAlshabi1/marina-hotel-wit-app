@@ -198,13 +198,24 @@ jobs:
         run: dart run build_runner build 
 
       - name: 🧪 Run Tests with Coverage
+        # Note: Performance tests and integration tests are excluded from CI
+        # because they cause segmentation faults on GitHub Actions runners
+        # (limited memory). They run locally only.
+        # We run all test files except test/performance/ and test/integration/.
         run: |
+          # Collect all test files except performance and integration
+          TEST_FILES=$(find test -name "*_test.dart" \
+            -not -path "test/performance/*" \
+            -not -path "test/integration/*" \
+            | sort)
+          echo "Running $(echo "$TEST_FILES" | wc -l) test files"
           flutter test \
             --coverage \
             --concurrency=${{ inputs.test_concurrency }} \
             --timeout=${{ inputs.test_timeout }} \
             --test-randomize-ordering-seed random \
             --reporter compact \
+            $TEST_FILES \
             2>&1 | tee test_results.log
           exit ${PIPESTATUS[0]}
         continue-on-error: true

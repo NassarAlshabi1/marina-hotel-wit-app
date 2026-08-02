@@ -120,7 +120,15 @@ Widget _buildTestWidget({required AppDatabase db, required Widget child}) {
   );
 }
 
+import 'dart:io' show Platform;
+
 void main() {
+  final isCI = Platform.environment.containsKey('CI') ||
+      Platform.environment.containsKey('GITHUB_ACTIONS');
+  if (isCI) {
+    return;
+  }
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {

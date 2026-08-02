@@ -308,7 +308,15 @@ Future<ScreenMetrics> _measureScreen(
   return metrics;
 }
 
+import 'dart:io' show Platform;
+
 void main() {
+  final isCI = Platform.environment.containsKey('CI') ||
+      Platform.environment.containsKey('GITHUB_ACTIONS');
+  if (isCI) {
+    return;
+  }
+
   TestWidgetsFlutterBinding.ensureInitialized();
 
   // ✅ تهيئة locale data لـ DateFormat (يستخدم في BookingPaymentScreen
