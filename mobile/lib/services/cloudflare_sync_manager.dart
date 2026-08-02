@@ -279,14 +279,38 @@ class CloudflareSyncManager {
   Future<int> _pushOutbox() async {
     if (_db == null) return 0;
 
-    final outboxDao = OutboxDao(_db!);
-    final pending = await (outboxDao.select(outboxDao.outbox)
-          ..where((t) => t.processingStatus.isIn(['pending', 'failed']))
-          ..orderBy([(t) => OrderingTerm.asc(t.clientTs)])
-          ..limit(CloudflareConfig.batchSize))
-        .get();
+    int totalPushed = 0;
 
+    // ✅ حلقة الرفع: تكرر حتى يفرغ outbox من كل السجلات العالقة
+    // هذا يضمن أن زر "رفع التغييرات" يرفع كل التغييرات دفعة واحدة
+    // وليس فقط أول 25 سجل.
+    while (true) {
+      final outboxDao = OutboxDao(_db!);
+      final pending = await (outboxDao.select(outboxDao.outbox)
+            ..where((t) => t.processingStatus.isIn(['pending', 'failed']))
+            ..orderBy([(t) => OrderingTerm.asc(t.clientTs)])
+            ..limit(CloudflareConfig.batchSize))
+          .get();
+
+      if (pending.isEmpty) break;
+
+      final pushed = await _pushBatch(pending);
+      totalPushed += pushed;
+
+      // إذا فشل الرفع (0 سجل مرفوع), توقف — ستبقى العالقة
+      if (pushed == 0) break;
+
+      debugPrint('📤 Pushed $pushed operations (total: $totalPushed)');
+    }
+
+    return totalPushed;
+  }
+
+  /// رفع دفعة واحدة من outbox
+  Future<int> _pushBatch(List<dynamic> pending) async {
     if (pending.isEmpty) return 0;
+
+    final outboxDao = OutboxDao(_db!);
 
     final operations = pending.map((item) {
       final data = jsonDecode(item.payload) as Map<String, dynamic>;
