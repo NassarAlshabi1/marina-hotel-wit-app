@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,7 +11,6 @@ import '../providers/repository_providers.dart';
 import '../providers/room_payment_status_provider.dart';
 import '../services/analytics_service.dart';
 import '../services/local_db.dart';
-import '../services/remote_config_service.dart';
 import '../services/sync/sync_gate.dart';
 import '../services/sync_constants.dart';
 import '../utils/loading_snackbar.dart';
@@ -169,16 +167,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     } catch (e) {
       debugPrint('❌ فشل السحب التلقائي عند الفتح: $e');
     }
-  }
-
-  /// لون الغرفة المتأخرة عن السداد — يُقرأ من Remote Config
-  Color _overdueColor() {
-    final hex = RemoteConfigService.instance.overdueRoomColor;
-    final parsed = int.tryParse('FF$hex', radix: 16);
-    if (parsed == null) {
-      return Colors.red; // fallback آمن
-    }
-    return Color(parsed);
   }
 
   @override
@@ -512,7 +500,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 Colors.orange.shade500,
               ),
               const SizedBox(width: 8),
-              _buildLegendItem('متأخر 23:00', _overdueColor()),
+              _buildLegendItem('متأخر 23:00', Colors.red.shade800),
               const SizedBox(width: 8),
               _buildLegendItem('شاغرة', Colors.green.shade600),
             ],
@@ -614,10 +602,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         : '_normal';
 
     // ✅ مرحلة التحذير المبكر (22:00-23:00 + رصيد متبقي):
-    // نُظهر Gradient أفقي: 60% من الجهة اليمنى باللون الأحمر (لون الغرفة المحجوزة)
-    // و 40% من الجهة اليسرى باللون البرتقالي كـ "شريط تنبيه" جزئي.
+    // نُظهر Gradient أفقي: 55% من الجهة اليمنى باللون الأحمر (لون الغرفة المحجوزة)
+    // و 45% من الجهة اليسرى باللون البرتقالي كـ "شريط تنبيه" جزئي.
     // هذا يلبي طلب المستخدم: "الغرفة المحجوزة أحمر + جزء من الزر برتقالي".
-    final BoxDecoration? lateDecoration = isLatePayment && !isOverdue
+    //
+    // ✅ مرحلة التأخر الفعلي (23:00-05:00 + رصيد متبقي):
+    // بدون وميض الآن — نُظهر Gradient أحمر داكن + حدود حمراء سميكة + أيقونة
+    // خطأ بدلاً من أيقونة التحذير للتمييز البصري الواضح.
+    final BoxDecoration? alertDecoration = isOverdue
+        ? BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.centerRight,
+              end: Alignment.centerLeft,
+              colors: [
+                Colors.red.shade800,
+                Colors.red.shade600,
+                Colors.red.shade400,
+              ],
+              stops: const [0.0, 0.5, 1.0],
+            ),
+            borderRadius: BorderRadius.circular(10),
+            // ✅ حدود حمراء سميكة لإبراز التأخر الفعلي
+            border: Border.all(color: Colors.red.shade900, width: 2.0),
+          )
+        : isLatePayment
         ? BoxDecoration(
             gradient: LinearGradient(
               // RTL: نبدأ من اليمين. اليمين = أحمر، اليسار = برتقالي
@@ -638,7 +646,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         : null;
 
     final Widget button = Tooltip(
-      message: isLatePayment && !isOverdue
+      message: isOverdue
+          ? '$tooltipText — متأخر السداد (23:00+)'
+          : isLatePayment
           ? '$tooltipText — تنبيه: السداد بعد ساعة (22:00+)'
           : tooltipText,
       child: GestureDetector(
@@ -647,14 +657,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             : null,
         child: Material(
           key: ValueKey('room_$roomNumber$keySuffix'),
-          color: lateDecoration == null ? bgColor : Colors.transparent,
+          color: alertDecoration == null ? bgColor : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
           child: InkWell(
             borderRadius: BorderRadius.circular(10),
             onTap: () => _handleRoomTap(context, roomNumber, rws?.room),
             child: Container(
-              // ✅ تطبيق الـ Gradient فقط في حالة التحذير المبكر
-              decoration: lateDecoration,
+              // ✅ تطبيق الـ Gradient في حالتي التحذير المبكر والتأخر الفعلي.
+              decoration: alertDecoration,
               alignment: Alignment.center,
               child: Stack(
                 children: [
@@ -669,8 +679,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       ),
                     ),
                   ),
-                  // ✅ أيقونة تنبيه صغيرة في الزاوية اليسرى (الجهة البرتقالية)
-                  if (lateDecoration != null)
+                  // ✅ أيقونة تنبيه صغيرة في الزاوية اليسرى للتحذير المبكر
+                  if (isLatePayment && !isOverdue)
                     Positioned(
                       top: 2,
                       left: 2,
@@ -678,6 +688,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         Icons.warning_amber_rounded,
                         color: Colors.white.withValues(alpha: 0.9),
                         size: 10,
+                      ),
+                    ),
+                  // ✅ أيقونة خطأ في الزاوية اليسرى للتأخر الفعلي
+                  if (isOverdue)
+                    Positioned(
+                      top: 2,
+                      left: 2,
+                      child: Icon(
+                        Icons.error_outline,
+                        color: Colors.white.withValues(alpha: 0.95),
+                        size: 11,
                       ),
                     ),
                 ],
@@ -688,39 +709,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
     );
 
-    if (isOverdue) {
-      // ✅ إصلاح الوميض: استخدام target(uniqueKey) لمنع إعادة تشغيل
-      // الرسوم المتحركة عند إعادة بناء القائمة بدون تغيير حقيقي
-      return button
-          .animate(key: ValueKey('anim_${roomNumber}_overdue'))
-          .tint(color: const Color(0x40FF9800), duration: 800.ms)
-          .scale(
-            begin: const Offset(1.0, 1.0),
-            end: const Offset(1.03, 1.03),
-            duration: 800.ms,
-            curve: Curves.easeInOut,
-          )
-          .then()
-          .tint(color: const Color(0x00FF9800), duration: 800.ms)
-          .scale(
-            begin: const Offset(1.03, 1.03),
-            end: const Offset(1.0, 1.0),
-            duration: 800.ms,
-            curve: Curves.easeInOut,
-          );
-    }
-
-    // ✅ مرحلة التحذير المبكر: نبضة خفيفة جداً (بدون وميض كامل) للفت الانتباه
-    // فقط كل 3 ثوانٍ بدلاً من الـ 800ms المستخدمة في مرحلة التأخر الفعلي.
-    if (isLatePayment) {
-      return button
-          .animate(key: ValueKey('anim_${roomNumber}_late'))
-          .shimmer(
-            duration: 2400.ms,
-            color: Colors.orange.shade300.withValues(alpha: 0.4),
-          );
-    }
-
+    // ✅ تم إلغاء جميع الوميض والرسوم المتحركة بناءً على طلب المستخدم.
+    // الغرفة المتأخرة تظهر بـ Gradient ثابت (أحمر + برتقالي) بدون أي حركة.
+    // الغرفة في نافذة 23:00-05:00 تظهر بـ Gradient أحمر بالكامل + حدود حمراء.
+    // الاعتماد على الألوان الثابتة + الأيقونات التنبيهية بدلاً من الوميض.
     return button;
   }
 
@@ -927,8 +919,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             'تنبيه (22:00-23:00): جزء برتقالي',
           ),
           _buildInstructionDot(
-            Colors.orange.shade700,
-            'وميض (23:00-05:00): تأخر فعلي',
+            Colors.red.shade800,
+            'متأخر (23:00-05:00): أحمر داكن + حدود',
           ),
         ],
       ),
