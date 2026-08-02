@@ -10,7 +10,9 @@
 // المرجع: https://github.com/simolus3/drift/issues/358
 
 import 'dart:async';
+import 'dart:io' show Directory;
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -30,5 +32,46 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   // ignore: deprecated_member_use
   SharedPreferences.setMockInitialValues({});
 
+  // ✅ Mock لـ path_provider — يُسجّل MethodChannel mock يُرجع مساراً مؤقتاً
+  // هذا يمنع MissingPluginException عند استدعاء:
+  //   - getApplicationDocumentsDirectory (يستخدمه Appwrite ClientIO._getCookiePath)
+  //   - getTemporaryDirectory (يستخدمه Appwrite لـ cookie storage)
+  //   - getApplicationSupportDirectory
+  //
+  // المشكلة كانت: اختبارات test/performance/ تُبنى شاشات حقيقية (DashboardScreen)
+  // التي تستدعي AppwriteService في initState → ClientIO.init() → path_provider
+  // بدون هذا الـ mock، تفشل الاختبارات بـ MissingPluginException على CI.
+  //
+  // نُرجع مساراً مؤقتاً حقيقياً (Directory.systemTemp.createTempSync) ليكون
+  // قابلاً للكتابة في CI Linux runners.
+  final tempDir = await Directory.systemTemp.createTemp('marina_test_');
+  final tempPath = tempDir.path;
+
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(
+    const MethodChannel('plugins.flutter.io/path_provider'),
+    (MethodCall methodCall) async {
+      switch (methodCall.method) {
+        case 'getApplicationDocumentsDirectory':
+        case 'getTemporaryDirectory':
+        case 'getApplicationSupportDirectory':
+        case 'getLibraryDirectory':
+        case 'getDownloadsDirectory':
+          return tempPath;
+        default:
+          return null;
+      }
+    },
+  );
+
   await testMain();
+
+  // ✅ تنظيف المجلد المؤقت بعد انتهاء جميع الاختبارات
+  try {
+    if (tempDir.existsSync()) {
+      await tempDir.delete(recursive: true);
+    }
+  } catch (_) {
+    // silent — cleanup is best-effort
+  }
 }
