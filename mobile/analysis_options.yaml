@@ -1,18 +1,24 @@
-# Marina Hotel - Analysis Options
-# Very Good Analysis (VGV) — Professional Quality Gate
-# Updated: 2026-07-18
+# ═══════════════════════════════════════════════════════════════
+#  Marina Hotel — Analysis Options
+#  Based on Very Good Analysis (VGV) — Professional Quality Standards
+#  https://pub.dev/packages/very_good_analysis
+# ═══════════════════════════════════════════════════════════════
 #
-# ✅ يستخدم very_good_analysis 10.x كقاعدة (معايير VGV عالمية)
-# ✅ strict-casts, strict-inference, strict-raw-types مُفعّلة
-# ✅ قواعد Performance + Flutter Best Practices مُفعّلة
-# ✅ بعض القواعد الصارمة مُعطّلة مؤقتاً حتى اكتمال الترحيل:
-#    - public_member_api_docs: يتطلب توثيق كل member عام ( مرحلي)
-#    - lines_longer_than_80_chars: المشروع يستخدم line-length 120
-#    - avoid_print: مُعطّلة — نستخدم dlog() بدلاً منها
-#    - avoid_catches_without_on_clauses: يحتاج refactor تدريجي
-#    - avoid_catching_errors: يحتاج refactor تدريجي
-#    - cascade_invocations: غير متوافق مع style المشروع الحالي
-#    - one_member_abstracts: يُفضّل abstract class مع member واحد
+#  ✅ Uses very_good_analysis ^10.0.0 as base (VGV global standards)
+#  ✅ strict-casts, strict-inference, strict-raw-types enabled
+#  ✅ Flutter Best Practices rules enabled
+#  ✅ Excludes generated files (*.g.dart, *.freezed.dart)
+#  ✅ Project-specific overrides documented below
+#
+#  Rules temporarily disabled (with rationale):
+#    - public_member_api_docs: requires documenting every public member (phased)
+#    - lines_longer_than_80_chars: project uses line-length 120
+#    - avoid_print: disabled — using dlog() instead
+#    - avoid_catches_without_on_clauses: needs gradual refactor
+#    - avoid_catching_errors: needs gradual refactor
+#    - cascade_invocations: not compatible with current code style
+#    - one_member_abstracts: prefer abstract class with single member
+# ═══════════════════════════════════════════════════════════════
 
 include: package:very_good_analysis/analysis_options.10.0.0.yaml
 
@@ -75,7 +81,7 @@ analyzer:
     # Phase 2 migration — requires structural changes in many files:
     always_put_required_named_parameters_first: warning
     use_build_context_synchronously: warning
-    parameter_assignments: ignore  # Refactor needed — Phase 2
+    parameter_assignments: ignore
     avoid_positional_boolean_parameters: ignore
     prefer_int_literals: ignore
     avoid_bool_literals_in_conditional_expressions: ignore
@@ -120,9 +126,7 @@ analyzer:
 linter:
   rules:
     # === Project-specific overrides ===
-    # القواعد التالية مُفعّلة في VGA لكن نُعطّلها مؤقتاً
-    # حتى اكتمال الترحيل:
-    always_use_package_imports: false  # المشروع يستخدم relative imports
+    always_use_package_imports: false
     avoid_final_parameters: false
     prefer_relative_imports: true
-    omit_local_variable_types: false  # نُفضّل الأنواع الصريحة للقراءة
+    omit_local_variable_types: false

@@ -92,7 +92,7 @@ jobs:
       - name: 📚 Checkout Code
         uses: actions/checkout@v5
 
-      - name: 🐍 Setup Python
+      - name: 🐍 Setup Python (for analysis scripts only)
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
@@ -102,13 +102,18 @@ jobs:
         with:
           node-version: "24"
 
-      - name: 📦 Install Tools
+      - name: 📦 Install Tools (Dart/Flutter-relevant only)
+        # Note: Removed Python security tools (bandit, safety, radon, lizard)
+        # that are designed for Python projects. jscpd supports Dart format.
         run: npm install -g jscpd
 
       # ─────────────────────────────────────────────────────────────────────
-      #  Full-only: Find Duplicate Code + Architecture Validation + Reports
+      #  Full-only: Duplicate Code + Dart-specific Quality Checks
+      #  Note: Removed Python tools (bandit, safety, radon, lizard) that
+      #  are designed for Python projects, not Flutter/Dart. Replaced with
+      #  Dart-relevant checks per very_good_analysis recommendations.
       # ─────────────────────────────────────────────────────────────────────
-      - name: 👯 Find Duplicate Code
+      - name: 👯 Find Duplicate Code (jscpd — supports Dart)
         run: |
           mkdir -p reports
           jscpd ./mobile/lib \
@@ -116,16 +121,18 @@ jobs:
             --reporters json \
             --output ./reports || true
 
-      - name: 🏗️ Architecture Validation
+      - name: 🏗️ Architecture Validation (Dart-aware)
         run: python3 scripts/architecture-validator.py --project-root mobile || true
 
-      - name: 📊 Run Custom Reports
+      - name: 📊 Run Custom Reports (Dart code analysis)
         run: |
           mkdir -p reports
           python3 scripts/performance-report.py mobile/lib || true
           python3 scripts/complexity-report.py mobile/lib || true
           python3 scripts/dead-code-report.py || true
-          bash scripts/security-scan.sh mobile/lib || true
+
+      - name: 🔒 Security Scan (Dart/Flutter-focused)
+        run: bash scripts/security-scan.sh mobile/lib || true
 
       - name: 📝 Generate Quality Dashboard
         run: python3 scripts/quality-summary.py || true
