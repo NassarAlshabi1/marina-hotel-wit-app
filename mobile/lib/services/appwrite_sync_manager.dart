@@ -2237,6 +2237,8 @@ class AppwriteSyncManager {
           localVectorClock: existingRoom?.vectorClock,
           entityName: 'rooms',
           localUuid: localUuid,
+          // ✅ FIX: تمرير localData لتمكين SmartConflictResolver (3-way merge).
+          localData: existingRoom?.toJson(),
         )).shouldApplyRemote) {
           continue; // البيانات مطابقة أو السجل محذوف محلياً
         }
@@ -2277,6 +2279,8 @@ class AppwriteSyncManager {
           localVectorClock: existingBooking?.vectorClock,
           entityName: 'bookings',
           localUuid: localUuid,
+          // ✅ FIX: تمرير localData لتمكين SmartConflictResolver (3-way merge).
+          localData: existingBooking?.toJson(),
         )).shouldApplyRemote) {
           continue; // البيانات مطابقة أو السجل محذوف محلياً
         }
@@ -2488,6 +2492,8 @@ class AppwriteSyncManager {
           localVectorClock: existing?.vectorClock,
           entityName: 'employees',
           localUuid: localUuid,
+          // ✅ FIX: تمرير localData لتمكين SmartConflictResolver (3-way merge).
+          localData: existing?.toJson(),
         )).shouldApplyRemote) {
           continue;
         }
@@ -2552,6 +2558,8 @@ class AppwriteSyncManager {
           localVectorClock: existing?.vectorClock,
           entityName: 'expenses',
           localUuid: localUuid,
+          // ✅ FIX: تمرير localData لتمكين SmartConflictResolver (3-way merge).
+          localData: existing?.toJson(),
         )).shouldApplyRemote) {
           continue;
         }
@@ -3692,6 +3700,8 @@ class AppwriteSyncManager {
           localVectorClock: existing?.vectorClock,
           entityName: 'guest_infos',
           localUuid: localUuid,
+          // ✅ FIX: تمرير localData لتمكين SmartConflictResolver (3-way merge).
+          localData: existing?.toJson(),
         )).shouldApplyRemote) {
           continue;
         }
@@ -3775,6 +3785,8 @@ class AppwriteSyncManager {
           localVectorClock: existing?.vectorClock,
           entityName: 'salary_withdrawals',
           localUuid: localUuid,
+          // ✅ FIX: تمرير localData لتمكين SmartConflictResolver (3-way merge).
+          localData: existing?.toJson(),
         )).shouldApplyRemote) {
           continue;
         }
@@ -6055,6 +6067,8 @@ class AppwriteSyncManager {
           localVectorClock: existingForCheck?.vectorClock,
           entityName: 'blacklist',
           localUuid: localUuid,
+          // ✅ FIX: تمرير localData لتمكين SmartConflictResolver (3-way merge).
+          localData: existingForCheck?.toJson(),
         )).shouldApplyRemote) {
           _logger.debug(
             'Skipping blacklist ${doc.$id}: local is newer or equal '
@@ -6451,6 +6465,8 @@ class AppwriteSyncManager {
           localVectorClock: existing?.vectorClock,
           entityName: 'shift_notes',
           localUuid: localUuid,
+          // ✅ FIX: تمرير localData لتمكين SmartConflictResolver (3-way merge).
+          localData: existing?.toJson(),
         )).shouldApplyRemote) {
           continue;
         }
@@ -6493,6 +6509,8 @@ class AppwriteSyncManager {
           localVectorClock: existing?.vectorClock,
           entityName: 'booking_notes',
           localUuid: localUuid,
+          // ✅ FIX: تمرير localData لتمكين SmartConflictResolver (3-way merge).
+          localData: existing?.toJson(),
         )).shouldApplyRemote) {
           continue;
         }
@@ -6538,6 +6556,8 @@ class AppwriteSyncManager {
           localVectorClock: existing?.vectorClock,
           entityName: 'booking_nights',
           localUuid: localUuid,
+          // ✅ FIX: تمرير localData لتمكين SmartConflictResolver (3-way merge).
+          localData: existing?.toJson(),
         )).shouldApplyRemote) {
           continue;
         }
@@ -6620,6 +6640,8 @@ class AppwriteSyncManager {
           localVectorClock: existing?.vectorClock,
           entityName: 'cash_transactions',
           localUuid: localUuid,
+          // ✅ FIX: تمرير localData لتمكين SmartConflictResolver (3-way merge).
+          localData: existing?.toJson(),
         )).shouldApplyRemote) {
           continue;
         }
@@ -6664,6 +6686,8 @@ class AppwriteSyncManager {
           localVectorClock: existing?.vectorClock,
           entityName: 'salary_cycles',
           localUuid: localUuid,
+          // ✅ FIX: تمرير localData لتمكين SmartConflictResolver (3-way merge).
+          localData: existing?.toJson(),
         )).shouldApplyRemote) {
           continue;
         }
@@ -6795,6 +6819,8 @@ class AppwriteSyncManager {
           localVectorClock: existing?.vectorClock,
           entityName: 'salary_payments',
           localUuid: localUuid,
+          // ✅ FIX: تمرير localData لتمكين SmartConflictResolver (3-way merge).
+          localData: existing?.toJson(),
         )).shouldApplyRemote) {
           continue;
         }
@@ -6889,6 +6915,8 @@ class AppwriteSyncManager {
           localVectorClock: existing?.vectorClock,
           entityName: 'booking_price_adjustments',
           localUuid: localUuid,
+          // ✅ FIX: تمرير localData لتمكين SmartConflictResolver (3-way merge).
+          localData: existing?.toJson(),
         )).shouldApplyRemote) {
           continue;
         }
@@ -6998,6 +7026,8 @@ class AppwriteSyncManager {
           localVectorClock: existing?.vectorClock,
           entityName: 'price_adjustments',
           localUuid: localUuid,
+          // ✅ FIX: تمرير localData لتمكين SmartConflictResolver (3-way merge).
+          localData: existing?.toJson(),
         )).shouldApplyRemote) {
           continue;
         }
@@ -7089,6 +7119,8 @@ class AppwriteSyncManager {
           localVectorClock: null,
           entityName: 'audit_logs',
           localUuid: localUuid,
+          // ✅ FIX: تمرير localData لتمكين SmartConflictResolver (3-way merge).
+          localData: existing?.toJson(),
         )).shouldApplyRemote) {
           continue;
         }
@@ -7368,6 +7400,8 @@ class AppwriteSyncManager {
           localVectorClock: existing?.vectorClock,
           entityName: 'payment_voids',
           localUuid: localUuid,
+          // ✅ FIX: تمرير localData لتمكين SmartConflictResolver (3-way merge).
+          localData: existing?.toJson(),
         )).shouldApplyRemote) {
           continue;
         }
