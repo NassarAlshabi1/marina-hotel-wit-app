@@ -565,7 +565,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final keySuffix = isOverdue ? '_overdue' : '_normal';
 
     final Widget button = Tooltip(
-      message: tooltipText,
+      message: isOverdue
+          ? '$tooltipText — ⚠️ تأخر سداد (بعد 10 مساءً)'
+          : tooltipText,
       child: GestureDetector(
         onLongPress: rws != null
             ? () => _showRoomOptionsDialog(context, rws.room)
@@ -577,15 +579,71 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           child: InkWell(
             borderRadius: BorderRadius.circular(10),
             onTap: () => _handleRoomTap(context, roomNumber, rws?.room),
-            child: Center(
-              child: Text(
-                roomNumber,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
+            child: Stack(
+              children: [
+                // رقم الغرفة في المنتصف
+                Center(
+                  child: Text(
+                    roomNumber,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
                 ),
-              ),
+                // ─── شريط برتقالي على اليمين عند تأخر الدفع ───
+                // يظهر بعد الساعة 10 مساءً للغرف المحجوزة التي لها رصيد متبقي
+                if (isOverdue)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 12,
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade400,
+                        borderRadius: const BorderRadius.only(
+                          topRight: Radius.circular(10),
+                          bottomRight: Radius.circular(10),
+                        ),
+                      ),
+                      child: const Center(
+                        child: RotatedBox(
+                          quarterTurns: 3,
+                          child: Text(
+                            '⚠',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 8,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                // ─── نقطة برتقالية في الأعلى عند تأخر الدفع ───
+                if (isOverdue)
+                  Positioned(
+                    left: 4,
+                    top: 4,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade300,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.orange.withValues(alpha: 0.6),
+                            blurRadius: 4,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
@@ -597,19 +655,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       // الرسوم المتحركة عند إعادة بناء القائمة بدون تغيير حقيقي
       return button
           .animate(key: ValueKey('anim_${roomNumber}_overdue'))
-          .tint(color: const Color(0x40FF9800), duration: 800.ms)
+          .tint(color: const Color(0x30FF9800), duration: 1000.ms)
           .scale(
             begin: const Offset(1.0, 1.0),
-            end: const Offset(1.03, 1.03),
-            duration: 800.ms,
+            end: const Offset(1.02, 1.02),
+            duration: 1000.ms,
             curve: Curves.easeInOut,
           )
           .then()
-          .tint(color: const Color(0x00FF9800), duration: 800.ms)
+          .tint(color: const Color(0x00FF9800), duration: 1000.ms)
           .scale(
-            begin: const Offset(1.03, 1.03),
+            begin: const Offset(1.02, 1.02),
             end: const Offset(1.0, 1.0),
-            duration: 800.ms,
+            duration: 1000.ms,
             curve: Curves.easeInOut,
           );
     }

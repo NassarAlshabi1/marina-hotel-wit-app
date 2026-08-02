@@ -122,8 +122,8 @@ final roomsWithPaymentStatusProvider =
 
             if (hasRemainingBalance) {
               final hour = currentTime.hour;
-              // تأخر السداد يبدأ من الساعة 11 مساءً إلى 5 صباحاً
-              if (hour >= 23 || hour < 5) {
+              // تنبيه تأخر الدفع يبدأ من الساعة 22 (10 مساءً) إلى 5 صباحاً
+              if (hour >= 22 || hour < 5) {
                 isPaymentOverdue = true;
               }
             }
