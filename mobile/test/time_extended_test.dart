@@ -39,21 +39,21 @@ void main() {
     });
 
     group('hotelDayKey', () {
-      test('قبل الساعة 14:00 يجب إرجاع اليوم السابق', () {
+      test('قبل الساعة 14:01 يجب إرجاع اليوم السابق', () {
         final morning = DateTime(2024, 1, 15, 10, 0);
-        final key = Time.hotelDayKey(now: morning, cutoffHour: 14);
+        final key = Time.hotelDayKey(now: morning, cutoffHour: 14, cutoffMinute: 1);
         expect(key, '2024-01-14');
       });
 
-      test('بعد الساعة 14:00 يجب إرجاع اليوم الحالي', () {
+      test('بعد الساعة 14:01 يجب إرجاع اليوم الحالي', () {
         final evening = DateTime(2024, 1, 15, 16, 0);
-        final key = Time.hotelDayKey(now: evening, cutoffHour: 14);
+        final key = Time.hotelDayKey(now: evening, cutoffHour: 14, cutoffMinute: 1);
         expect(key, '2024-01-15');
       });
 
-      test('في تمام الساعة 14:00 يجب إرجاع اليوم الحالي', () {
+      test('في تمام الساعة 14:01 يجب إرجاع اليوم الحالي', () {
         final cutoff = DateTime(2024, 1, 15, 14, 0);
-        final key = Time.hotelDayKey(now: cutoff, cutoffHour: 14);
+        final key = Time.hotelDayKey(now: cutoff, cutoffHour: 14, cutoffMinute: 1);
         expect(key, '2024-01-15');
       });
 
@@ -67,7 +67,7 @@ void main() {
     group('hotelDayStart', () {
       test('يجب إرجاع بداية يوم الفندق للوقت بعد القطع', () {
         final evening = DateTime(2024, 1, 15, 18, 0);
-        final start = Time.hotelDayStart(evening, cutoffHour: 14);
+        final start = Time.hotelDayStart(evening, cutoffHour: 14, cutoffMinute: 1);
         expect(start.year, 2024);
         expect(start.month, 1);
         expect(start.day, 15);
@@ -76,7 +76,7 @@ void main() {
 
       test('يجب إرجاع بداية اليوم السابق للوقت قبل القطع', () {
         final morning = DateTime(2024, 1, 15, 10, 0);
-        final start = Time.hotelDayStart(morning, cutoffHour: 14);
+        final start = Time.hotelDayStart(morning, cutoffHour: 14, cutoffMinute: 1);
         expect(start.day, 14);
         expect(start.hour, 14);
       });
@@ -84,14 +84,14 @@ void main() {
 
     group('hotelDayStartIso', () {
       test('يجب إرجاع تاريخ ISO لبداية يوم الفندق', () {
-        final iso = Time.hotelDayStartIso('2024-01-15', cutoffHour: 14);
+        final iso = Time.hotelDayStartIso('2024-01-15', cutoffHour: 14, cutoffMinute: 1);
         expect(iso, '2024-01-15T14:00:00');
       });
     });
 
     group('hotelDayEndIso', () {
       test('يجب إرجاع تاريخ ISO لنهاية يوم الفندق', () {
-        final iso = Time.hotelDayEndIso('2024-01-15', cutoffHour: 14);
+        final iso = Time.hotelDayEndIso('2024-01-15', cutoffHour: 14, cutoffMinute: 1);
         expect(iso, '2024-01-16T14:00:00');
       });
     });
@@ -120,19 +120,19 @@ void main() {
     group('حالات حدية', () {
       test('منتصف الليل', () {
         final midnight = DateTime(2024, 1, 15, 0, 0);
-        final key = Time.hotelDayKey(now: midnight, cutoffHour: 14);
+        final key = Time.hotelDayKey(now: midnight, cutoffHour: 14, cutoffMinute: 1);
         expect(key, '2024-01-14');
       });
 
       test('نهاية العام', () {
         final newYearsEve = DateTime(2024, 12, 31, 23, 59);
-        final key = Time.hotelDayKey(now: newYearsEve, cutoffHour: 14);
+        final key = Time.hotelDayKey(now: newYearsEve, cutoffHour: 14, cutoffMinute: 1);
         expect(key, '2024-12-31');
       });
 
       test('بداية العام', () {
         final newYear = DateTime(2024, 1, 1, 10, 0);
-        final key = Time.hotelDayKey(now: newYear, cutoffHour: 14);
+        final key = Time.hotelDayKey(now: newYear, cutoffHour: 14, cutoffMinute: 1);
         expect(key, '2023-12-31');
       });
     });
