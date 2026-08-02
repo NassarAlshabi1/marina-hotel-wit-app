@@ -54,7 +54,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   }
 
   Future<void> _initializeDefaults() async {
-    // الافتراضي: اليوم الفندقي الحالي (14:00 → 14:00)
+    // الافتراضي: اليوم الفندقي الحالي (14:01 → 14:00)
     final range = DateFilterController.getDefaultHotelDayRange();
     _fromDate = range.from;
     _toDate = range.to;

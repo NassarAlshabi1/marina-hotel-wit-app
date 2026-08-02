@@ -66,7 +66,7 @@ class StayBalanceResult {
 
   // ─── الأيام ───
 
-  /// الأيام المقضية فعلياً حتى الآن (بناءً على قاعدة 14:00)
+  /// الأيام المقضية فعلياً حتى الآن (بناءً على قاعدة 14:01)
   final int actualNightsSpent;
 
   /// إجمالي الليالي التي يغطيها المدفوع التراكمي
@@ -244,7 +244,7 @@ class StayBalanceCalculator {
       manualCheckout,
     );
 
-    // ─── حساب بداية يوم الفندق الأول (قاعدة 14:00) ───
+    // ─── حساب بداية يوم الفندق الأول (قاعدة 14:01) ───
     DateTime firstHotelDay = DateTime(
       checkin.year,
       checkin.month,

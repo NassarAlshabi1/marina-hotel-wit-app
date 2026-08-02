@@ -356,7 +356,7 @@ class RestoreFixService {
                 ? DateTime.parse(booking.checkoutDate!)
                 : now);
 
-      // حساب الليالي باستخدام قاعدة الساعة 14:00
+      // حساب الليالي باستخدام قاعدة الساعة 14:01
       final calculatedNights = Time.nightsWithCutoff(
         checkinDate,
         checkout: checkoutDate,
@@ -374,7 +374,7 @@ class RestoreFixService {
           oldValue: booking.calculatedNights.toString(),
           newValue: calculatedNights.toString(),
           reason:
-              'إعادة حساب الليالي بناءً على تاريخ الدخول والخروج مع قاعدة 14:00',
+              'إعادة حساب الليالي بناءً على تاريخ الدخول والخروج مع قاعدة 14:01',
           fixType: 'nights_recalc',
         );
 

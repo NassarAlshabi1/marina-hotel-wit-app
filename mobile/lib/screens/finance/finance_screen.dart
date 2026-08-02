@@ -201,7 +201,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   Widget _buildHotelDayCard() {
     final now = DateTime.now();
     final hotelDay = HotelTimeEngine.getHotelDayKey();
-    final cutoff = now.hour >= 14;
+    final cutoff = HotelTimeEngine.isAfterCutoff(now);
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -276,7 +276,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                 ),
                 const SizedBox(width: 3),
                 Text(
-                  cutoff ? 'بعد 14:00' : 'قبل 14:00',
+                  cutoff ? 'بعد 14:01' : 'قبل 14:01',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 10,

@@ -74,7 +74,7 @@ class BookingDerivedFieldsService {
 
     // For active bookings (no actual checkout), expectedNights should dynamically
     // grow with the current time (totalNights from calculation which uses moment).
-    // This ensures payment screens show the correct number of nights if they stay past 14:00.
+    // This ensures payment screens show the correct number of nights if they stay past 14:01.
     final expectedNightsValue =
         (actualCheckout == null && StatusUtils.isBookingActive(booking))
         ? calculation.financialSummary.totalNights

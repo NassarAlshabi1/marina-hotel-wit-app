@@ -985,7 +985,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     final checkoutDt = _parseDateTime(_checkout.text.trim());
 
     // استخدام الوقت الحالي كمرجع للمغادرة إذا لم يتم تحديد موعد خروج مخطط له
-    // لضمان تطبيق قاعدة الساعة 14:00 بشكل ديناميكي
+    // لضمان تطبيق قاعدة الساعة 14:01 بشكل ديناميكي
     final effectiveCheckout = checkoutDt ?? DateTime.now();
 
     final nights = Time.nightsWithCutoff(

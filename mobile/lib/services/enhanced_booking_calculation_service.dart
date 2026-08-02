@@ -530,7 +530,7 @@ class EnhancedBookingCalculationService {
       checkout = actualCheckout.isBefore(moment) ? actualCheckout : moment;
     } else if (bookingActive) {
       // For active guests, always calculate up to the current moment
-      // This ensures that if they stay past 14:00, a new night is added automatically
+      // This ensures that if they stay past 14:01, a new night is added automatically
       checkout = moment;
     } else if (plannedCheckout != null && plannedCheckout.isBefore(moment)) {
       checkout = plannedCheckout;
@@ -651,7 +651,7 @@ class EnhancedBookingCalculationService {
   }) {
     final segments = <_NightSegment>[];
 
-    // استخدام المنطق الموحد لحساب عدد الليالي بناءً على الساعة 14:00
+    // استخدام المنطق الموحد لحساب عدد الليالي بناءً على الساعة 14:01
     final int totalNights = Time.nightsWithCutoff(
       checkin,
       checkout: checkout,

@@ -82,7 +82,7 @@ class _SalaryWithdrawalsReportScreenState
   }
 
   Future<void> _initializeDefaults() async {
-    // ✅ افتراضي: اليوم الفندقي الحالي (14:00 → 13:59)
+    // ✅ افتراضي: اليوم الفندقي الحالي (14:01 → 14:00)
     final range = DateFilterController.getDefaultHotelDayRange();
     _fromDate = range.from;
     _toDate = range.to;

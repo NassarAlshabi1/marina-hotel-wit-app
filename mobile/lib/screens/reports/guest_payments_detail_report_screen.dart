@@ -87,7 +87,7 @@ class _GuestPaymentsDetailReportScreenState
 
   static final _dateFormatter = DateFormat('yyyy/MM/dd');
 
-  /// حساب الأيام المقضية فعلياً بناءً على قاعدة الساعة 14:00
+  /// حساب الأيام المقضية فعلياً بناءً على قاعدة الساعة 14:01
   /// ✅ إصلاح: عند فشل تحليل تاريخ الدخول، نستخدم اليوم الفندقي بدلاً من DateTime.now()
   int _getActualDaysSpent(Booking b) {
     final checkin = DateTime.tryParse(b.checkinDate);

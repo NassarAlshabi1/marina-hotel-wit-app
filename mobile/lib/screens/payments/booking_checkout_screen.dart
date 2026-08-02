@@ -231,7 +231,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                       Text('الليالي المتوقعة: $expectedNights'),
                       if (actualCheckout != null)
                         Text('الليالي الفعلية: $nightsCount'),
-                      // مؤشر إضافة ليالي بعد الساعة 14:00 للنزلاء الذين لم يسجلوا خروج
+                      // مؤشر إضافة ليالي بعد الساعة 14:01 للنزلاء الذين لم يسجلوا خروج
                       if (hasNotCheckedOut &&
                           nowIsAfterCutoff &&
                           actualNights > expectedNights)
@@ -256,7 +256,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                'تمت إضافة ${actualNights - expectedNights} ليلة بعد الساعة 14:00 (لم يسجل النزيل خروج)',
+                                'تمت إضافة ${actualNights - expectedNights} ليلة بعد الساعة 14:01 (لم يسجل النزيل خروج)',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.orange.shade700,

@@ -282,7 +282,7 @@ class PaymentSummaryCard extends StatelessWidget {
             actualNightsDynamic > expectedNights)
           _infoBadge(
             icon: Icons.schedule,
-            text: '+${actualNightsDynamic - expectedNights} ليلة بعد 14:00',
+            text: '+${actualNightsDynamic - expectedNights} ليلة بعد 14:01',
             bgColor: Colors.orange.shade100,
             borderColor: Colors.orange.shade400,
             textColor: Colors.orange.shade700,
