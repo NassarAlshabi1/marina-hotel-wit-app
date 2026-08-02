@@ -17,8 +17,8 @@ class CentralSyncCoordinator {
   DateTime? _lastSyncTime;
   int _syncCount = 0;
 
-  static const Duration unifiedDebounce = Duration(seconds: 1);
-  static const Duration syncCooldown = Duration(seconds: 2);
+  static const Duration unifiedDebounce = Duration(seconds: 2);
+  static const Duration syncCooldown = Duration(seconds: 3);
 
   void notifyLocalChange({required String table, required String operation}) {
     dlog(() => '🔔 CentralSyncCoordinator: تغيير في $table ($operation)');

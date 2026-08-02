@@ -2,7 +2,6 @@ import 'package:drift/drift.dart' as d;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../services/daos/outbox_dao.dart';
 import '../services/local_db.dart';
 import '../services/telegram/telegram_config.dart';
 import '../services/telegram/telegram_report_service.dart';
@@ -331,29 +330,7 @@ class NightAuditService {
       await (db.update(
         db.hotelDayLedger,
       )..where((t) => t.id.equals(existing.id))).write(companion);
-
-      // ✅ رفع تلقائي إلى D1
-      final outboxDao = OutboxDao(db);
-      await outboxDao.merge(
-        entity: 'hotel_day_ledger',
-        op: 'update',
-        localUuid: existing.localUuid,
-        payload: {
-          'hotelDayKey': hotelDayKey,
-          'totalIncome': data.totalIncome,
-          'totalExpenses': data.totalExpenses,
-          'pendingBalances': data.pendingBalances,
-          'occupancyRate': data.occupancyRate,
-          'bookingsProcessed': data.activeBookings,
-          'paymentsProcessed': data.paymentsProcessed,
-          'debtsProcessed': data.debtsProcessed,
-          'expensesProcessed': data.expensesProcessed,
-          'status': 'closed',
-        },
-        clientTs: now,
-      );
-
-      debugPrint('📝 [NightAudit] Ledger updated for $hotelDayKey (synced)');
+      debugPrint('📝 [NightAudit] Ledger updated for $hotelDayKey (local only)');
     } else {
       final uuid = _generateUuid();
       await db
@@ -366,30 +343,11 @@ class NightAuditService {
               version: const d.Value(1),
             ),
           );
-
-      // ✅ رفع تلقائي إلى D1
-      final outboxDao = OutboxDao(db);
-      await outboxDao.merge(
-        entity: 'hotel_day_ledger',
-        op: 'create',
-        localUuid: uuid,
-        payload: {
-          'hotelDayKey': hotelDayKey,
-          'totalIncome': data.totalIncome,
-          'totalExpenses': data.totalExpenses,
-          'pendingBalances': data.pendingBalances,
-          'occupancyRate': data.occupancyRate,
-          'bookingsProcessed': data.activeBookings,
-          'paymentsProcessed': data.paymentsProcessed,
-          'debtsProcessed': data.debtsProcessed,
-          'expensesProcessed': data.expensesProcessed,
-          'status': 'closed',
-        },
-        clientTs: now,
-      );
-
-      debugPrint('📝 [NightAudit] Ledger created for $hotelDayKey (synced)');
+      debugPrint('📝 [NightAudit] Ledger created for $hotelDayKey (local only)');
     }
+    // ⚠️ hotel_day_ledger is a LOCAL-ONLY table — not synced to D1.
+    // It's computed from other tables (payments, expenses, bookings)
+    // which are already synced individually via their own outbox entries.
   }
 
   String _generateUuid() {
