@@ -108,13 +108,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         }
       }
 
-      // التأكد من الاتصال
-      // Connection check (Cloudflare)
-      final isConnected = true;
-      if (false) {
-        return;
-      }
-
+      // Connection check (Cloudflare) — always connected
       // ✅ إشعار تحميل قابل للإغلاق برمجياً
       LoadingSnackBar? loading;
       if (mounted) {

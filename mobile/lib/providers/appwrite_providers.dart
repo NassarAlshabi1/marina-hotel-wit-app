@@ -81,15 +81,13 @@ class ConnectionStatusNotifier extends Notifier<ConnectionState> {
       await manager.initialize();
       state = ConnectionState(
         isConnected: manager.isAvailable,
-        isChecking: false,
+        
         status: manager.isAvailable ? 'connected' : 'disconnected',
         lastChecked: DateTime.now(),
         errorMessage: manager.initError,
       );
     } catch (e) {
       state = ConnectionState(
-        isConnected: false,
-        isChecking: false,
         status: 'error',
         errorMessage: e.toString(),
         lastChecked: DateTime.now(),

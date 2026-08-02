@@ -371,10 +371,6 @@ class BookingPriceAdjustmentService {
       effectiveEnd = yesterdayHotelDay;
     }
 
-    // إذا لم يتبقَّ أي ليلة مخفّضة → نعطّل التخفيض بالكامل
-    final bool fullyCancelled =
-        effectiveEnd == null || effectiveEnd.compareTo(effectiveStart) < 0;
-
     // ─── إصلاح: تعطيل is_active دائماً عند الإلغاء ───
     // المشكلة السابقة: كنا نُبقي is_active = true للسجلات التي لها
     // ليالي سابقة مخفّضة. لكن هذا يسبب ظهورها في UI كـ "نشطة" رغم
@@ -440,7 +436,6 @@ class BookingPriceAdjustmentService {
     if (expired.isEmpty) return 0;
 
     final now = Time.nowEpoch();
-    final nowIso = DateTime.now().toUtc().toIso8601String();
     int count = 0;
 
     for (final adj in expired) {

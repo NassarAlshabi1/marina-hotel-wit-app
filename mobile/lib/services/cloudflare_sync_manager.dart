@@ -151,7 +151,7 @@ class CloudflareSyncManager {
           debugPrint(
             '⚠️ Cloudflare init attempt $attempt failed (transient), retrying in 2s: $e',
           );
-          await Future.delayed(const Duration(seconds: 2));
+          await Future<void>.delayed(const Duration(seconds: 2));
           continue;
         }
 
@@ -417,7 +417,7 @@ class CloudflareSyncManager {
     if (existing != null) {
       final localId = existing.data['id'];
       final setClauses = cleanRecord.keys.map((c) => '$c = ?').join(', ');
-      final values = cleanRecord.values.map((v) => _toDriftValue(v)).toList();
+      final values = cleanRecord.values.map(_toDriftValue).toList();
       await _db!.customStatement(
         'UPDATE $tableName SET $setClauses WHERE id = ?',
         [...values, localId],
@@ -425,7 +425,7 @@ class CloudflareSyncManager {
     } else {
       final columns = cleanRecord.keys.join(', ');
       final placeholders = cleanRecord.keys.map((_) => '?').join(', ');
-      final values = cleanRecord.values.map((v) => _toDriftValue(v)).toList();
+      final values = cleanRecord.values.map(_toDriftValue).toList();
       await _db!.customStatement(
         'INSERT OR IGNORE INTO $tableName ($columns) VALUES ($placeholders)',
         values,
@@ -460,8 +460,14 @@ class CloudflareSyncManager {
   void startAutoSync({Duration interval = const Duration(minutes: 15)}) {
     _autoSyncTimer?.cancel();
     _autoSyncTimer = Timer.periodic(interval, (_) {
-      sync().catchError((e) {
+      sync().catchError((Object e) {
         debugPrint('⚠️ Auto-sync error: $e');
+        return SyncResult(
+          status: SyncStatus.failed,
+          timestamp: DateTime.now(),
+          duration: Duration.zero,
+          errorMessage: e.toString(),
+        );
       });
     });
     debugPrint('⏰ Auto-sync started: every ${interval.inMinutes} minutes');
@@ -528,7 +534,7 @@ class CloudflareSyncManager {
 
 // ─── Stubs for methods called by existing screens ──────────
 
-  Future<int> pushLocalChanges() async => await sync(push: true, pull: false).then((r) => r.recordsPushed);
+  Future<int> pushLocalChanges() async => sync(pull: false).then((r) => r.recordsPushed);
   Future<int> pushAllLocalData() async => 0;
   Future<void> pullAllDataWithDisabledFK() async {}
   Future<void> pushAllEntities() async {}
@@ -537,13 +543,13 @@ class CloudflareSyncManager {
 
   // ─── Pull remote changes (delta) — used by UnifiedSyncOrchestrator ──
   Future<bool> pullRemoteChanges() async {
-    final result = await sync(push: false, pull: true);
+    final result = await sync();
     return result.isSuccess;
   }
 
   // ─── Pull ALL remote data — used by appwrite_settings_screen ──
   Future<void> pullAllRemoteData() async {
-    await sync(push: false, pull: true);
+    await sync(push: false);
   }
 
   // AppwriteService compatibility (some files pass this)

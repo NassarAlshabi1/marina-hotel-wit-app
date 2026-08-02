@@ -11,7 +11,6 @@ import 'package:uuid/uuid.dart';
 
 import '../data/sync_models.dart' as sync_models;
 import '../utils/hotel_time_engine.dart';
-import '../utils/time.dart';
 
 part 'local_db.g.dart';
 
@@ -2584,8 +2583,8 @@ class AppDatabase extends _$AppDatabase {
           try {
             // 1) السجلات الملغاة
             await m.database.customStatement(
-              "UPDATE booking_price_adjustments SET is_active = 0 "
-              "WHERE cancelled_at IS NOT NULL AND is_active = 1",
+              'UPDATE booking_price_adjustments SET is_active = 0 '
+              'WHERE cancelled_at IS NOT NULL AND is_active = 1',
             );
             developer.log(
               'Migration 51: deactivated cancelled adjustments',
@@ -2602,11 +2601,11 @@ class AppDatabase extends _$AppDatabase {
             // 2) السجلات المنتهية (endHotelDay < اليوم)
             final todayHotelDay = HotelTimeEngine.getHotelDayKey();
             await m.database.customStatement(
-              "UPDATE booking_price_adjustments SET is_active = 0 "
-              "WHERE end_hotel_day IS NOT NULL "
+              'UPDATE booking_price_adjustments SET is_active = 0 '
+              'WHERE end_hotel_day IS NOT NULL '
               "AND end_hotel_day != '' "
               "AND end_hotel_day < '$todayHotelDay' "
-              "AND is_active = 1",
+              'AND is_active = 1',
             );
             developer.log(
               'Migration 51: deactivated expired adjustments (before $todayHotelDay)',

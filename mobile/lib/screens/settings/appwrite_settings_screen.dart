@@ -51,7 +51,6 @@ class _AppwriteSettingsScreenState
   int _migrationTotal = 0;
   String _migrationTable = '';
   bool _migrationCompleted = false;
-  double _networkSpeedKBps = 0;
   double _effectiveSpeedKBps = 0;
   DateTime? _migrationStartTime;
 
@@ -1831,7 +1830,7 @@ class _AppwriteSettingsScreenState
                                   final etaMin = (etaSecs / 60).floor();
                                   final etaSec = etaSecs % 60;
                                   return Text(
-                                    'متبقي: ${etaMin}د ${etaSec}ث',
+                                    'متبقي: $etaMinد $etaSecث',
                                     style: TextStyle(
                                       fontSize: 10,
                                       color: Colors.grey.shade600,
@@ -2030,7 +2029,7 @@ class _AppwriteSettingsScreenState
           ),
         );
 
-        if (resetConfirmed == true) {
+        if (resetConfirmed ?? false) {
           await CloudflareMigrationService.instance.reset();
         } else {
           setState(() {

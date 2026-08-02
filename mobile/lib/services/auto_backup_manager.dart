@@ -8,7 +8,6 @@ import '../utils/debug_log.dart';
 import '../utils/hotel_time_engine.dart';
 import 'appwrite_service.dart';
 import 'appwrite_sync_manager.dart';
-import 'sync_enums.dart' show SyncStatus;
 import 'booking_derived_fields_service.dart';
 import 'google_drive_backup_service.dart';
 import 'google_drive_delta_sync.dart';
@@ -598,9 +597,7 @@ class AutoBackupManager {
           _appwriteService!.isInitialized &&
           _database != null) {
         try {
-          final syncManager =
-              AppwriteSyncManager() ??
-              AppwriteSyncManager();
+          final syncManager = AppwriteSyncManager();
           final result = await syncManager.sync();
           results['appwrite'] = {
             'push': {

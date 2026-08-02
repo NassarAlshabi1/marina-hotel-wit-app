@@ -43,7 +43,6 @@ import 'services/app_session_manager.dart';
 // REMOVED: import 'services/appwrite_realtime_sync.dart';
 import 'services/cloudflare_sync_manager.dart';
 import 'services/cloudflare_migration_service.dart';
-import 'services/cloudflare_config.dart';
 import 'services/auto_backup_manager.dart';
 import 'services/background_sync_service.dart';
 import 'services/battery_optimizer.dart';
@@ -64,8 +63,6 @@ import 'services/local_notification_service.dart';
 import 'services/logging/log_models.dart';
 import 'services/posthog_service.dart';
 import 'services/remote_config_service.dart';
-// REMOVED: 
-import 'services/secondary_sync_manager.dart';
 import 'services/seed.dart';
 import 'services/smart_sync_manager.dart';
 import 'services/sync_conflict_event_bus.dart';
@@ -244,12 +241,7 @@ void _startHealthChecker() {
 Future<void> _initializeSecondarySync() async {
   try {
     // SecondaryAppwriteConfig removed (Cloudflare migration)
-    if (false) {  // SecondaryAppwriteConfig removed
-      SecondarySyncManager.instance.startAutoSync();
-      debugPrint('🔵 [Main] Secondary sync auto-started');
-    } else {
-      debugPrint('🔵 [Main] Secondary sync disabled or not configured');
-    }
+    debugPrint('🔵 [Main] Secondary sync disabled or not configured');
   } catch (e) {
     debugPrint( '[Main] Secondary sync init failed: $e');
   }
@@ -910,7 +902,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       debugPrint( 'Error disposing BatteryOptimizer: $e');
     }
     try {
-      // ignore: deprecated_member_use_from_same_package
       // Realtime disposed
     } catch (e) {
       debugPrint( 'Error disposing realtime: $e');

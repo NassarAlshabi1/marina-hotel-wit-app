@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../components/app_scaffold.dart';
-import '../../providers/appwrite_providers.dart';
 import '../../services/appwrite_logger.dart';
 
 class AppwriteLogsScreen extends ConsumerStatefulWidget {
@@ -663,12 +662,9 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
       _stopAutoRefresh();
 
       // مسح السجلات
-      final logger = [];
-      logger;
-
       // تحديث الشاشة فوراً
       setState(() {
-        _currentLogs = [];
+        _currentLogs = <LogEntry>[];
       });
 
       // إعادة تشغيل التحديث التلقائي

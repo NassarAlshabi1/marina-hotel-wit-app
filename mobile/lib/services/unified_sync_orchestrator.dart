@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/sync_models.dart' as models;
 import '../utils/debug_log.dart';
 import 'analytics_service.dart';
-import 'appwrite_service.dart';
 import 'appwrite_sync_manager.dart' show AppwriteSyncManager;
 import 'sync_enums.dart' show SyncStatus;
 import 'google_drive_backup_service.dart';
@@ -509,7 +508,6 @@ class UnifiedSyncOrchestrator {
     }
     final db = _database ?? DatabaseManager.instance;
     _database ??= db;
-    final service = AppwriteService();
     final manager = AppwriteSyncManager();
     await manager.initialize();
     _appwrite = manager;
