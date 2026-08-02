@@ -64,6 +64,31 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
     },
   );
 
+  // ✅ Mock لـ package_info_plus — يمنع MissingPluginException عند استدعاء
+  // PackageInfo.fromPlatform() الذي يستخدمه:
+  //   - appVersionProvider (في dashboard_screen.dart)
+  //   - CrashlyticsService (لتسجيل إصدار التطبيق)
+  //   - PostHogService (لتتبع الإصدار)
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(
+    const MethodChannel('dev.fluttercommunity.plus/package_info'),
+    (MethodCall methodCall) async {
+      switch (methodCall.method) {
+        case 'getAll':
+          return <String, dynamic>{
+            'appName': 'Marina Hotel Test',
+            'packageName': 'com.aden.marina.test',
+            'version': '1.0.0',
+            'buildNumber': '1',
+            'buildSignature': '',
+            'installerStore': null,
+          };
+        default:
+          return null;
+      }
+    },
+  );
+
   await testMain();
 
   // ✅ تنظيف المجلد المؤقت بعد انتهاء جميع الاختبارات

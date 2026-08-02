@@ -559,29 +559,32 @@ jobs:
           # 1. Outdated dependencies (includes security advisories from pub.dev)
           echo "🔒 Checking for outdated/vulnerable dependencies..."
           dart pub outdated --no-dev-dependencies > reports/outdated-deps.txt 2>&1 || true
-          OUTDATED_COUNT=$(grep -c "^*" reports/outdated-deps.txt 2>/dev/null || echo "0")
-          echo "OUTDATED_COUNT=$OUTDATED_COUNT" >> $GITHUB_ENV
+          # ✅ FIX: grep -c may return empty on failure → $GITHUB_ENV error.
+          #    Use ${VAR:-0} to default to 0 if empty.
+          OUTDATED_COUNT=$(grep -c "^*" reports/outdated-deps.txt 2>/dev/null || true)
+          OUTDATED_COUNT=${OUTDATED_COUNT:-0}
+          # Validate it's a number, default to 0 if not
+          if ! [[ "$OUTDATED_COUNT" =~ ^[0-9]+$ ]]; then
+            OUTDATED_COUNT=0
+          fi
+          echo "OUTDATED_COUNT=$OUTDATED_COUNT" >> "$GITHUB_ENV"
 
           # 2. Full dependency tree for audit trail
           dart pub deps --style=tree > reports/dependency-tree.txt 2>&1 || true
 
           # 3. Check for known-vulnerable packages (heuristic)
-          #    Matches package names against a small static list of
-          #    packages with known historical CVEs. This is a basic
-          #    check — for production, integrate pub.dev advisories API.
           echo "🔍 Scanning for known-vulnerable packages..."
+          VULN_HITS=0
           if [ -f "pubspec.lock" ]; then
-            VULN_HITS=0
-            # Example patterns — extend as needed
             for pkg in "http:0.13.0" " dio:4.0.0"; do
               if grep -q "$pkg" pubspec.lock 2>/dev/null; then
                 echo "⚠️ Found potentially vulnerable package: $pkg"
                 VULN_HITS=$((VULN_HITS + 1))
               fi
             done
-            echo "VULN_HITS=$VULN_HITS" >> $GITHUB_ENV
-            echo "Dependency scan complete. Vulnerable packages found: $VULN_HITS"
           fi
+          echo "VULN_HITS=$VULN_HITS" >> "$GITHUB_ENV"
+          echo "Dependency scan complete. Vulnerable packages found: $VULN_HITS"
 
           # 4. Flutter analyze already runs Dart security lints via
           #    very_good_analysis (avoid_dynamic_calls, etc.)

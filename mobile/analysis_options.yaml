@@ -17,6 +17,11 @@ include: package:very_good_analysis/analysis_options.yaml
 # هدفنا: جودة كود عالية + أداء ممتاز + أفضل الممارسات
 
 analyzer:
+  plugins:
+    # ✅ custom_lint: يُفعّل riverpod_lint الذي يكتشف أخطاء Riverpod
+    #    أثناء التحليل الثابت (مثل استدعاء ref.read داخل build).
+    - custom_lint
+
   exclude:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
@@ -100,7 +105,7 @@ linter:
     no_leading_underscores_for_library_prefixes: false
     no_leading_underscores_for_local_identifiers: false
     implicit_call_tearoffs: false
-    discarded_futures: false
+    discarded_futures: true  # ✅ RE-ENABLED: منع تجاهل Future بطريق الخطأ (memory leak risk)
     unreachable_from_main: false
     unnecessary_unawaited: false
     unnecessary_late: false
@@ -114,7 +119,7 @@ linter:
     avoid_js_rounded_ints: false
     avoid_field_initializers_in_const_classes: false
     avoid_init_to_null: false
-    avoid_dynamic_calls: false
+    avoid_dynamic_calls: true  # ✅ RE-ENABLED: منع الاستدعاءات الديناميكية (type safety)
     avoid_shadowing_type_parameters: false
     avoid_returning_this: false
     avoid_setters_without_getters: false
@@ -123,7 +128,9 @@ linter:
     invalid_case_patterns: false
     invalid_runtime_check_with_js_interop_types: false
     collection_methods_unrelated_type: false
-    close_sinks: false  # Has unresolved false positives (per VGA excluded list)
+    # close_sinks: معطّل بناءً على توصية VGA الرسمية (unresolved false positives)
+    # بدلاً منه، نعتمد على riverpod_lint لرصد تسريبات الـ providers
+    close_sinks: false  # Kept disabled per VGA excluded list (false positives)
 
     # === Phase 2 migration — severity downgrades ===
     # هذه القواعد نُبقيها مُفعّلة لكن نخفض شدتها من error إلى warning

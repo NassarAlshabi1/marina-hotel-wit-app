@@ -79,6 +79,8 @@ dev_dependencies:
   json_serializable: ^6.14.0
   mockito: ^5.4.4
   patrol: ^4.7.1
+  riverpod_lint: ^2.6.5
+  custom_lint: ^0.7.7
   very_good_analysis: ^10.3.0
 
   
