@@ -81,9 +81,18 @@ dev_dependencies:
   json_serializable: ^6.14.0
   mockito: ^5.4.4
   patrol: ^4.7.1
-  riverpod_lint: ^2.6.5
   very_good_analysis: ^10.0.0
-  # dart_code_linter ^4.1.8 declared above; riverpod_lint brings custom_lint transitively
+  # dart_code_linter ^4.1.8 declared above
+  #
+  # NOTE: riverpod_lint is NOT declared here due to an upstream analyzer
+  # version conflict that cannot be resolved without a major migration:
+  #   - riverpod_lint 2.x  requires analyzer ^7.0.0  (compatible only with json_serializable <6.11)
+  #   - json_serializable ^6.14.0 requires analyzer >=10.0.0
+  #   - riverpod_lint 3.x  requires riverpod 3.x  (project is on flutter_riverpod ^2.6.1)
+  # Migration path: upgrade to riverpod 3.x (planned for v2.x→3.0 migration),
+  # then add `riverpod_lint: ^3.1.8` and `custom_lint: ^0.7.0`.
+  # The custom_lint plugin entry in analysis_options.yaml is kept as a no-op
+  # placeholder so future enablement is a single-line change.
 
 
 flutter:
