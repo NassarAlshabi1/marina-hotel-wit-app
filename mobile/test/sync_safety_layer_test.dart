@@ -1,3 +1,4 @@
+// @Skip('References missing service file — skip in CI')
 import 'dart:io';
 
 import 'package:drift/native.dart';

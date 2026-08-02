@@ -239,7 +239,7 @@ void main() {
           'description': 'تمام الساعة 14:00',
         },
         {
-          'checkout': DateTime(2024, 11, 6, 14, 0, 1), // بعد 14:01 بثانية واحدة
+          'checkout': DateTime(2024, 11, 6, 14, 1, 1), // بعد 14:01 بثانية واحدة
           'expectedDays': 2,
           'description': 'بعد 14:01 بثانية واحدة',
         },

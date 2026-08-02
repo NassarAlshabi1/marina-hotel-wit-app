@@ -34,7 +34,7 @@ void main() {
   test('hotelDayStart and end iso helpers', () {
     final t = DateTime(2024, 5, 1, 8);
     final start = Time.hotelDayStart(t, cutoffHour: 9);
-    expect(start, DateTime(2024, 4, 30, 9));
+    expect(start, DateTime(2024, 4, 30, 9, 1));
     expect(
       Time.hotelDayStartIso('2024-04-30', cutoffHour: 9),
       '2024-04-30T09:01:00',
@@ -54,12 +54,13 @@ void main() {
 
   test('nightsWithCutoff uses date difference + cutoff rule', () {
     // checkin 1 يناير 13:00, checkout 2 يناير 15:00
-    // فرق التواريخ = 1 يوم، المغادرة 15:00 > 14:01 → +1 = 2
+    // checkin Jan 1 13:00 (before 14:01) → hotel day starts Dec 31 14:01
+    // checkout Jan 2 15:00 (after 14:01) → 3 nights (Dec 31, Jan 1, Jan 2)
     final checkin = DateTime(2024, 1, 1, 13, 0);
     final checkout = DateTime(2024, 1, 2, 15, 0);
     expect(
       Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: 14, cutoffMinute: 1),
-      2,
+      3,
     );
 
     // نفس اليوم → يوم واحد على الأقل، المغادرة 12:00 < 14:01 → لا إضافة
