@@ -372,7 +372,7 @@ class CloudflareSyncManager {
               ..where((t) => t.id.equals(outboxItem.id as int)))
             .write(OutboxCompanion(
           processingStatus: const Value('failed'),
-          attempts: Value(outboxItem.attempts as int + 1),
+          attempts: Value((outboxItem.attempts as int) + 1),
           lastError: Value(item['error'] as String?),
         ));
       }
