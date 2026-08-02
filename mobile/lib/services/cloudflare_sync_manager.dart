@@ -313,14 +313,14 @@ class CloudflareSyncManager {
     final outboxDao = OutboxDao(_db!);
 
     final operations = pending.map((item) {
-      final data = jsonDecode(item.payload) as Map<String, dynamic>;
+      final data = jsonDecode(item.payload as String) as Map<String, dynamic>;
       return {
-        'idempotencyKey': item.idempotencyKey,
-        'entity': item.entity,
-        'operation': item.op,
+        'idempotencyKey': item.idempotencyKey as String,
+        'entity': item.entity as String,
+        'operation': item.op as String,
         'data': data,
         'vectorClock': data['vector_clock'] as String? ?? '{}',
-        'updatedAt': item.clientTs,
+        'updatedAt': item.clientTs as int,
         if (_deviceId != null) 'deviceId': _deviceId,
       };
     }).toList();
@@ -328,7 +328,7 @@ class CloudflareSyncManager {
     // ─── gzip compress the push payload for faster upload ───
     final jsonPayload = jsonEncode({'operations': operations});
     final jsonBytes = utf8.encode(jsonPayload);
-    final gzipCodec = GZipCodec(level: 6); // level 6 = good balance of speed/ratio
+    final gzipCodec = GZipCodec(); // default level 6 = good balance
     final compressedBytes = gzipCodec.encode(jsonBytes);
 
     final response = await _httpClient.post(
@@ -364,15 +364,15 @@ class CloudflareSyncManager {
 
       if (success) {
         await (outboxDao.delete(outboxDao.outbox)
-              ..where((t) => t.id.equals(outboxItem.id)))
+              ..where((t) => t.id.equals(outboxItem.id as int)))
             .go();
         successCount++;
       } else {
         await (outboxDao.update(outboxDao.outbox)
-              ..where((t) => t.id.equals(outboxItem.id)))
+              ..where((t) => t.id.equals(outboxItem.id as int)))
             .write(OutboxCompanion(
           processingStatus: const Value('failed'),
-          attempts: Value(outboxItem.attempts + 1),
+          attempts: Value(outboxItem.attempts as int + 1),
           lastError: Value(item['error'] as String?),
         ));
       }
