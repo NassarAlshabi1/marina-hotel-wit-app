@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 // ============================================================================
 //  Marina Hotel — Memory Leak Detection Benchmark
 //  ============================================================================
@@ -248,8 +250,6 @@ String _analyzeLeak(List<_IterationMetrics> results) {
     return '✅ NO LEAK DETECTED: late delta average < 5MB';
   }
 }
-
-import 'dart:io' show Platform;
 
 void main() {
   final isCI = Platform.environment.containsKey('CI') ||

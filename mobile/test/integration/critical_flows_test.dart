@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 // ============================================================================
 //  Marina Hotel — Integration Tests for Critical Flows
 //  ============================================================================
@@ -119,8 +121,6 @@ Widget _buildTestWidget({required AppDatabase db, required Widget child}) {
     child: MaterialApp(home: child),
   );
 }
-
-import 'dart:io' show Platform;
 
 void main() {
   final isCI = Platform.environment.containsKey('CI') ||

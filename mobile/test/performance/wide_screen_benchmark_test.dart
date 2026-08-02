@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 // ============================================================================
 //  Marina Hotel — Wide Coverage Production Screen Benchmark
 //  ============================================================================
@@ -307,8 +309,6 @@ Future<ScreenMetrics> _measureScreen(
 
   return metrics;
 }
-
-import 'dart:io' show Platform;
 
 void main() {
   final isCI = Platform.environment.containsKey('CI') ||
