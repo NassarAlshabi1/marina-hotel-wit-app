@@ -439,16 +439,39 @@ class CloudflareSyncManager {
     final localUuid = record['local_uuid'] as String?;
     if (localUuid == null) return;
 
+    final remoteUpdatedAt = record['updated_at'] as int? ?? 0;
+
+    // ✅ LWW (Last Write Wins): تحقق من أن السجل البعيد أحدث من المحلي
     final existing = await _db!.customSelect(
-      'SELECT id FROM $tableName WHERE local_uuid = ?',
+      'SELECT id, updated_at FROM $tableName WHERE local_uuid = ?',
       variables: [Variable<String>(localUuid)],
     ).getSingleOrNull();
 
-    final cleanRecord = Map<String, dynamic>.from(record);
-    cleanRecord.remove('id');
-
     if (existing != null) {
+      final localUpdatedAt = existing.data['updated_at'] as int? ?? 0;
+
+      // ✅ تخطي إذا كان السجل المحلي أحدث (المستخدم عدّل محلياً ولم يرفع بعد)
+      if (localUpdatedAt > remoteUpdatedAt) {
+        debugPrint('  ⏭️ $entity/$localUuid: محلي أحدث ($localUpdatedAt > $remoteUpdatedAt) — تخطي');
+        return;
+      }
+
       final localId = existing.data['id'];
+      final cleanRecord = Map<String, dynamic>.from(record);
+      cleanRecord.remove('id');
+
+      // ✅ معالجة الحذف الناعم (soft delete)
+      final deletedAt = record['deleted_at'];
+      if (deletedAt != null) {
+        // السجل محذوف في D1 → حدّث deleted_at محلياً (لا تحذف فعلياً)
+        await _db!.customStatement(
+          'UPDATE $tableName SET deleted_at = ?, updated_at = ?, last_modified = ? WHERE id = ?',
+          [deletedAt, remoteUpdatedAt, remoteUpdatedAt, localId],
+        );
+        debugPrint('  🗑️ $entity/$localUuid: soft delete applied');
+        return;
+      }
+
       final setClauses = cleanRecord.keys.map((c) => '$c = ?').join(', ');
       final values = cleanRecord.values.map(_toDriftValue).toList();
       await _db!.customStatement(
@@ -456,6 +479,10 @@ class CloudflareSyncManager {
         [...values, localId],
       );
     } else {
+      // ✅ سجل جديد — أدخله
+      final cleanRecord = Map<String, dynamic>.from(record);
+      cleanRecord.remove('id');
+
       final columns = cleanRecord.keys.join(', ');
       final placeholders = cleanRecord.keys.map((_) => '?').join(', ');
       final values = cleanRecord.values.map(_toDriftValue).toList();
@@ -467,17 +494,40 @@ class CloudflareSyncManager {
   }
 
   // ─── Detect entity from record fields ───────────────────────
+  // يحاول تحديد نوع الجدول من حقول السجل المستلم من D1
   String? _detectEntity(Map<String, dynamic> record) {
+    // Core entities
     if (record.containsKey('room_number') && record.containsKey('price')) return 'rooms';
     if (record.containsKey('guest_name') && record.containsKey('checkin_date')) return 'bookings';
     if (record.containsKey('amount') && record.containsKey('payment_method')) return 'payments';
     if (record.containsKey('expense_type') && record.containsKey('description')) return 'expenses';
     if (record.containsKey('basic_salary') && record.containsKey('position')) return 'employees';
     if (record.containsKey('debt_reason') && record.containsKey('remaining_amount')) return 'debts';
+
+    // Booking-related
     if (record.containsKey('final_rate') && record.containsKey('hotel_day_key')) return 'booking_nights';
-    if (record.containsKey('adjustment_type') && record.containsKey('amount')) return 'booking_price_adjustments';
+    if (record.containsKey('adjustment_type') && record.containsKey('effective_hotel_day')) return 'booking_price_adjustments';
+    if (record.containsKey('note_text') && record.containsKey('alert_type')) return 'booking_notes';
     if (record.containsKey('guest_name') && record.containsKey('id_number')) return 'guest_infos';
+
+    // Shift & cash
+    if (record.containsKey('shift_date') && record.containsKey('is_read')) return 'shift_notes';
+    if (record.containsKey('transaction_type') && record.containsKey('transaction_time')) return 'cash_transactions';
+
+    // Salary
+    if (record.containsKey('cycle_key') && record.containsKey('expected_amount')) return 'salary_cycles';
+    if (record.containsKey('payment_date_iso') && record.containsKey('cycle_id')) return 'salary_payments';
     if (record.containsKey('withdrawal_type') && record.containsKey('amount')) return 'salary_withdrawals';
+    if (record.containsKey('previous_cycle_start') && record.containsKey('new_cycle_start')) return 'salary_carry_over_logs';
+
+    // Adjustments & audit
+    if (record.containsKey('target_type') && record.containsKey('target_uuid')) return 'price_adjustments';
+    if (record.containsKey('operation_type') && record.containsKey('entity_type')) return 'audit_logs';
+    if (record.containsKey('void_reason') && record.containsKey('voided_by')) return 'payment_voids';
+
+    // hotel_day_ledger is local-only — should not be pulled
+    // (but if it arrives, we skip it)
+
     return null;
   }
 
