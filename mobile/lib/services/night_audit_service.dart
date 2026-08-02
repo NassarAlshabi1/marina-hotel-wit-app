@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' as d;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../services/daos/outbox_dao.dart';
 import '../services/local_db.dart';
 import '../services/telegram/telegram_config.dart';
 import '../services/telegram/telegram_report_service.dart';
@@ -330,19 +331,64 @@ class NightAuditService {
       await (db.update(
         db.hotelDayLedger,
       )..where((t) => t.id.equals(existing.id))).write(companion);
-      debugPrint('📝 [NightAudit] Ledger updated for $hotelDayKey');
+
+      // ✅ رفع تلقائي إلى D1
+      final outboxDao = OutboxDao(db);
+      await outboxDao.merge(
+        entity: 'hotel_day_ledger',
+        op: 'update',
+        localUuid: existing.localUuid,
+        payload: {
+          'hotelDayKey': hotelDayKey,
+          'totalIncome': data.totalIncome,
+          'totalExpenses': data.totalExpenses,
+          'pendingBalances': data.pendingBalances,
+          'occupancyRate': data.occupancyRate,
+          'bookingsProcessed': data.activeBookings,
+          'paymentsProcessed': data.paymentsProcessed,
+          'debtsProcessed': data.debtsProcessed,
+          'expensesProcessed': data.expensesProcessed,
+          'status': 'closed',
+        },
+        clientTs: now,
+      );
+
+      debugPrint('📝 [NightAudit] Ledger updated for $hotelDayKey (synced)');
     } else {
+      final uuid = _generateUuid();
       await db
           .into(db.hotelDayLedger)
           .insert(
             companion.copyWith(
               createdAt: d.Value(now),
-              localUuid: d.Value(_generateUuid()),
+              localUuid: d.Value(uuid),
               origin: const d.Value('local'),
               version: const d.Value(1),
             ),
           );
-      debugPrint('📝 [NightAudit] Ledger created for $hotelDayKey');
+
+      // ✅ رفع تلقائي إلى D1
+      final outboxDao = OutboxDao(db);
+      await outboxDao.merge(
+        entity: 'hotel_day_ledger',
+        op: 'create',
+        localUuid: uuid,
+        payload: {
+          'hotelDayKey': hotelDayKey,
+          'totalIncome': data.totalIncome,
+          'totalExpenses': data.totalExpenses,
+          'pendingBalances': data.pendingBalances,
+          'occupancyRate': data.occupancyRate,
+          'bookingsProcessed': data.activeBookings,
+          'paymentsProcessed': data.paymentsProcessed,
+          'debtsProcessed': data.debtsProcessed,
+          'expensesProcessed': data.expensesProcessed,
+          'status': 'closed',
+        },
+        clientTs: now,
+      );
+
+      debugPrint('📝 [NightAudit] Ledger created for $hotelDayKey (synced)');
     }
   }
 
