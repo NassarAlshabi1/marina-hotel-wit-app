@@ -217,12 +217,18 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
 
   /// الحصول على حجز حسب localUuid
   Future<Booking?> getByLocalUuid(String localUuid) async {
-    return (select(bookings)..where((t) => t.localUuid.equals(localUuid))..limit(1)).getSingleOrNull();
+    return (select(bookings)
+          ..where((t) => t.localUuid.equals(localUuid))
+          ..limit(1))
+        .getSingleOrNull();
   }
 
   /// الحصول على حجز حسب serverBookingId
   Future<Booking?> getByServerId(int serverId) async {
-    return (select(bookings)..where((t) => t.serverBookingId.equals(serverId))..limit(1)).getSingleOrNull();
+    return (select(bookings)
+          ..where((t) => t.serverBookingId.equals(serverId))
+          ..limit(1))
+        .getSingleOrNull();
   }
 
   /// تحديث serverBookingId لحجز موجود
@@ -234,7 +240,9 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
 
   /// عدد الحجوزات حسب الحالة
   Future<int> countByStatus(String status, {bool includeDeleted = false}) async {
-    final query = selectOnly(bookings)..addColumns([bookings.id.count()])..where(bookings.status.equals(status));
+    final query = selectOnly(bookings)
+      ..addColumns([bookings.id.count()])
+      ..where(bookings.status.equals(status));
     if (!includeDeleted) {
       query.where(bookings.deletedAt.isNull());
     }
@@ -281,7 +289,9 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
 
   /// جميع الحجوزات المحذوفة
   Future<List<Booking>> getDeletedBookings({int? limit}) async {
-    final q = select(bookings)..where((t) => t.deletedAt.isNotNull())..orderBy([(t) => OrderingTerm(expression: t.deletedAt, mode: OrderingMode.desc)]);
+    final q = select(bookings)
+      ..where((t) => t.deletedAt.isNotNull())
+      ..orderBy([(t) => OrderingTerm(expression: t.deletedAt, mode: OrderingMode.desc)]);
     if (limit != null) {
       q.limit(limit);
     }

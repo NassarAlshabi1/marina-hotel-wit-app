@@ -312,12 +312,13 @@ class EnhancedPdfUtils {
   }
 
   /// بناء صندوق إحصائيات
-  static pw.Widget buildStatisticsBox({      required String title,
-      required String value,
-      required ArabicPdfFonts fonts,
-      String? subtitle,
-      PdfColor? color,
-      String? icon,
+  static pw.Widget buildStatisticsBox({
+    required String title,
+    required String value,
+    required ArabicPdfFonts fonts,
+    String? subtitle,
+    PdfColor? color,
+    String? icon,
   }) {
     final baseColor = color ?? PdfColors.primary;
     // Replicate the old `flatten(PdfColors.textWhite, 0.2)` logic to maintain visual consistency.

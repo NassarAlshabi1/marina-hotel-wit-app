@@ -248,8 +248,7 @@ void _startHealthChecker() {
 Future<void> _initializeSecondarySync() async {
   try {
     await SecondaryAppwriteConfig.ensureInitialized();
-    if (SecondaryAppwriteConfig.isEnabled &&
-        SecondaryAppwriteConfig.isConfigured) {
+    if (SecondaryAppwriteConfig.isEnabled && SecondaryAppwriteConfig.isConfigured) {
       SecondarySyncManager.instance.startAutoSync();
       dlog('🔵 [Main] Secondary sync auto-started');
     } else {
@@ -372,8 +371,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     await _configureAutoSyncEngine(autoSyncEngine);
 
     // تفعيل المزامنة التلقائية عند فتح التطبيق (فقط إذا كان المستخدم قد فعّلها)
-    final driveSyncEnabled =
-        prefs.getBool('google_drive_sync_enabled') ?? false;
+    final driveSyncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
     if (backupService.isSignedIn && driveSyncEnabled) {
       dlog('🔔 إشعار أنظمة المزامنة بتسجيل الدخول...');
       await autoSyncEngine.start();
@@ -520,9 +518,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     ref.listen<AppDatabase>(databaseProvider, (previous, database) {
-      if (_sessionConfigured &&
-          previous != null &&
-          identical(previous, database)) {
+      if (_sessionConfigured && previous != null && identical(previous, database)) {
         return;
       }
       _enqueueDatabase(database);
@@ -550,8 +546,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         }
         AppSessionManager.configure(
           database: database,
-          deviceIdResolver: () async =>
-              GoogleDriveUnifiedSyncCoordinator.instance.deviceId,
+          deviceIdResolver: () async => GoogleDriveUnifiedSyncCoordinator.instance.deviceId,
           syncManager: ref.read(appwrite.appwriteSyncManagerProvider),
         );
         await Seeder(database).seedIfEmpty();
@@ -613,8 +608,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         // Realtime WebSocket (عند تفعيله) يوفر إشعارات فورية بين الأدوار.
         final syncPrefs = await SharedPreferences.getInstance();
         final intervalMinutes =
-            syncPrefs.getInt(SyncConstants.autoSyncIntervalPrefKey) ??
-            SyncConstants.autoSyncIntervalDefaultMinutes;
+            syncPrefs.getInt(SyncConstants.autoSyncIntervalPrefKey) ?? SyncConstants.autoSyncIntervalDefaultMinutes;
         final clampedMinutes = intervalMinutes.clamp(
           SyncConstants.autoSyncIntervalMinMinutes,
           SyncConstants.autoSyncIntervalMaxMinutes,
@@ -727,9 +721,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         'employees': 'موظفين',
       };
       final tableName = tableNames[event.table] ?? event.table;
-      final sideText = event.winnerSide == 'local'
-          ? 'الإصدار المحلي'
-          : 'إصدار السيرفر';
+      final sideText = event.winnerSide == 'local' ? 'الإصدار المحلي' : 'إصدار السيرفر';
       messenger.showSnackBar(
         SnackBar(
           content: Text('تضارب في $tableName: تم تفضيل $sideText'),
@@ -979,8 +971,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           .read(backupStatusProvider.notifier)
           .refreshSignInStatus()
           .catchError(
-            (Object e, StackTrace s) =>
-                derr(() => 'Error in refreshSignInStatus: $e\n$s'),
+            (Object e, StackTrace s) => derr(() => 'Error in refreshSignInStatus: $e\n$s'),
           );
       // ✅ تحسين أداء: تقليل تكرار المزامنة عند العودة — مزامنة واحدة فقط
       // سابقاً: 4 عمليات مزامنة متوازية (consumePendingAndSync + _syncOnResume +
@@ -989,12 +980,10 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       unawaited(_syncOnResume());
       // إشعار خدمات المزامنة بالعودة — بدون بدء مزامنة مستقلة (ستكتفي بالتحقق)
       UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
-        (Object e, StackTrace s) =>
-            derr(() => 'Error in UnifiedSync onAppForeground: $e\n$s'),
+        (Object e, StackTrace s) => derr(() => 'Error in UnifiedSync onAppForeground: $e\n$s'),
       );
       SyncGuardian.instance.onAppForeground().catchError(
-        (Object e, StackTrace s) =>
-            derr(() => 'Error in SyncGuardian onAppForeground: $e\n$s'),
+        (Object e, StackTrace s) => derr(() => 'Error in SyncGuardian onAppForeground: $e\n$s'),
       );
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
@@ -1006,16 +995,14 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // حتى لو قُتل التطبيق قبل اكتمال _pushPendingChangesOnPause
       unawaited(
         SyncContinuationService.scheduleSyncCompletion().catchError(
-          (Object e, StackTrace s) =>
-              derr(() => 'Error scheduling sync continuation: $e\n$s'),
+          (Object e, StackTrace s) => derr(() => 'Error scheduling sync continuation: $e\n$s'),
         ),
       );
       // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
       Future.microtask(
         AppSessionManager.onAppCloseOrBackground,
       ).catchError(
-        (Object e, StackTrace s) =>
-            derr(() => 'Error in onAppCloseOrBackground: $e\n$s'),
+        (Object e, StackTrace s) => derr(() => 'Error in onAppCloseOrBackground: $e\n$s'),
       );
     }
   }
@@ -1148,9 +1135,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   Widget build(BuildContext context) {
     final routeKey = _currentRoute.replaceAll('/', '');
     final allowed = _can(routeKey.isEmpty ? 'dashboard' : routeKey);
-    final body = allowed
-        ? _buildRoute(_currentRoute)
-        : const Center(child: Text('ليس لديك صلاحية لعرض هذه الصفحة'));
+    final body = allowed ? _buildRoute(_currentRoute) : const Center(child: Text('ليس لديك صلاحية لعرض هذه الصفحة'));
 
     final actions = _buildGlobalActions(context);
 
@@ -1395,8 +1380,7 @@ Future<bool> _executeAutoSyncTask(
 ) async {
   try {
     final prefs = await SharedPreferences.getInstance();
-    final googleDriveEnabled =
-        prefs.getBool('google_drive_sync_enabled') ?? false;
+    final googleDriveEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
 
     if (!googleDriveEnabled) {
       developer.log(

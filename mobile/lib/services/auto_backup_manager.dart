@@ -534,7 +534,9 @@ class AutoBackupManager {
       // ✅ Batch 3: استخدام singleton بدل إنشاء instance جديد عبر المصنع
       if (_appwriteService != null && _appwriteService!.isInitialized && _database != null) {
         try {
-          final syncManager = AppwriteSyncManager.instance ?? AppwriteSyncManager(appwriteService: _appwriteService!, database: _database!);
+          final syncManager =
+              AppwriteSyncManager.instance ??
+              AppwriteSyncManager(appwriteService: _appwriteService!, database: _database!);
           final result = await syncManager.sync();
           results['appwrite'] = {
             'push': {'success': result.status == SyncStatus.success, 'count': result.recordsPushed},

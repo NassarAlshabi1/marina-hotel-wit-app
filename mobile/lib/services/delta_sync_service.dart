@@ -203,8 +203,7 @@ class DeltaSyncService {
     for (final row in rows) {
       final table = row.read<String>('table_name');
       final uuid = row.read<String>('local_uuid');
-      final payload =
-          jsonDecode(row.read<String>('payload')) as Map<String, dynamic>;
+      final payload = jsonDecode(row.read<String>('payload')) as Map<String, dynamic>;
       result.putIfAbsent(table, () => {})[uuid] = MirrorRow(
         localUuid: uuid,
         rowHash: row.read<String>('row_hash'),
@@ -490,8 +489,7 @@ class DeltaSyncService {
         fetchAll: () => db.select(db.bookingPriceAdjustments).get(),
         localUuid: (dynamic row) => (row as BookingPriceAdjustment).localUuid,
         createdAt: (dynamic row) => (row as BookingPriceAdjustment).createdAt,
-        lastModified: (dynamic row) =>
-            (row as BookingPriceAdjustment).lastModified,
+        lastModified: (dynamic row) => (row as BookingPriceAdjustment).lastModified,
         deletedAt: (dynamic row) => (row as BookingPriceAdjustment).deletedAt,
         toJson: (dynamic row) => (row as BookingPriceAdjustment).toJson(),
       ),
@@ -629,13 +627,9 @@ _DeltaSyncIsolateOutput _computeDeltaSyncInIsolate(
       } else {
         final isFirstSyncForTable = !hasMirror;
         final isNewRecordInMirror = previous == null;
-        final createdAfterLastSync =
-            createdAt != null && createdAt > input.normalizedSince;
+        final createdAfterLastSync = createdAt != null && createdAt > input.normalizedSince;
 
-        final shouldInsert =
-            isFirstSyncForTable ||
-            (hasMirror && isNewRecordInMirror) ||
-            createdAfterLastSync;
+        final shouldInsert = isFirstSyncForTable || (hasMirror && isNewRecordInMirror) || createdAfterLastSync;
 
         if (shouldInsert) {
           changes.add(
@@ -648,9 +642,7 @@ _DeltaSyncIsolateOutput _computeDeltaSyncInIsolate(
               clientTimestamp: clientTs,
             ),
           );
-        } else if (previous != null &&
-            lastModified != null &&
-            lastModified > input.normalizedSince) {
+        } else if (previous != null && lastModified != null && lastModified > input.normalizedSince) {
           changes.add(
             DeltaSyncChange(
               entity: entityData.entity,
@@ -673,9 +665,7 @@ _DeltaSyncIsolateOutput _computeDeltaSyncInIsolate(
       seen.add(localUuid);
     }
 
-    final missing = existingMirror.keys
-        .where((uuid) => !seen.contains(uuid))
-        .toList();
+    final missing = existingMirror.keys.where((uuid) => !seen.contains(uuid)).toList();
     for (final uuid in missing) {
       final previous = existingMirror[uuid];
       if (previous == null) continue;
@@ -699,8 +689,7 @@ _DeltaSyncIsolateOutput _computeDeltaSyncInIsolate(
       //   - تم إرسال الـ delete ضمن دورة سابقة
       //   - الخادم يعرف عنه
       //   - لا حاجة لإعادة الإرسال
-      final shouldEmit =
-          previousDeletedAt == null || deleteStamp > input.normalizedSince;
+      final shouldEmit = previousDeletedAt == null || deleteStamp > input.normalizedSince;
       if (shouldEmit) {
         payload['deleted_at'] = deleteStamp;
         payload['row_hash'] = previous.rowHash;

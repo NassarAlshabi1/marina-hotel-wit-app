@@ -132,8 +132,7 @@ class BookingPriceAdjustmentsAdapter extends EntityAdapter<BookingPriceAdjustmen
       _k(src, 'adjustmentMode', 'adjustment_mode'): model.adjustmentMode,
       _k(src, 'amount', 'amount'): model.amount, // ✅ Appwrite: double (fixed 2026-07-26)
       // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15)
-      _k(src, 'effectiveHotelDay', 'effective_hotel_day'):
-          model.effectiveHotelDay,
+      _k(src, 'effectiveHotelDay', 'effective_hotel_day'): model.effectiveHotelDay,
       // ✅ إصلاح 2026-07-26: hotelDayKey مطلوب على Appwrite Cloud
       // محلياً effectiveHotelDay = hotelDayKey (نفس القيمة، اسم مختلف)
       _k(src, 'hotelDayKey', 'hotel_day_key'): model.effectiveHotelDay,

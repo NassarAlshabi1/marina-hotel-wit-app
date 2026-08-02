@@ -63,8 +63,9 @@ class SmartSyncStatusWidget extends ConsumerWidget {
 
 /// Widget لإشعارات المزامنة التفاعلية
 class SmartSyncNotificationListener extends ConsumerStatefulWidget {
-  const SmartSyncNotificationListener({      required this.child,
-      super.key,
+  const SmartSyncNotificationListener({
+    required this.child,
+    super.key,
   });
   final Widget child;
 

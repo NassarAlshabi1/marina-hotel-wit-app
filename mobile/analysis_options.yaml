@@ -130,13 +130,22 @@ linter:
     always_put_required_named_parameters_first: true
     use_build_context_synchronously: true
 
+    # === VGA 10.3.0 new rules — temporarily disabled for migration ===
+    # هذه القواعد جديدة في VGA 10.3.0 ولم تكن في 10.0.0. نُعطّلها مؤقتاً
+    # حتى نُهاجر الكود تدريجياً (نفس نهج Phase 2 Migration).
+    simple_directive_paths: false
+    avoid_types_on_closure_parameters: false
+    unnecessary_ignore: false
+    use_if_null_to_convert_nulls_to_bools: false
+
     # === Performance Optimization Rules ===
     # هذه القواعد تساعد في تحسين أداء التطبيق
+    # ملاحظة: avoid_slow_async_io مُعطّل أعلاه (false) في قسم suppressions
+    # لأنه يُسبب false positives في بعض عمليات dart:io. لا نكرره هنا.
     avoid_unnecessary_containers: true
     prefer_const_constructors: true
     prefer_const_constructors_in_immutables: true
     prefer_const_literals_to_create_immutables: true
-    avoid_slow_async_io: true
 
     # === Flutter Best Practices ===
     prefer_const_declarations: true

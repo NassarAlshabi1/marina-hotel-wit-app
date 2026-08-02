@@ -697,7 +697,10 @@ class SyncConflicts extends Table {
   TextColumn get createdAt => text()();
 
   List<Index> get indexes => [
-    Index('idx_sync_conflicts_table_uuid', 'CREATE INDEX idx_sync_conflicts_table_uuid ON sync_conflicts (table_name, uuid)'),
+    Index(
+      'idx_sync_conflicts_table_uuid',
+      'CREATE INDEX idx_sync_conflicts_table_uuid ON sync_conflicts (table_name, uuid)',
+    ),
   ];
 }
 

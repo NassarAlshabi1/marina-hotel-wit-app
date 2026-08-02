@@ -90,8 +90,7 @@ class InvoiceExportData {
   final String paymentMethod;
   final String receivedBy;
 
-  double get total =>
-      items.fold(0.0, (sum, item) => sum + item.total);
+  double get total => items.fold(0.0, (sum, item) => sum + item.total);
 }
 
 class InvoiceItem {
@@ -213,9 +212,7 @@ class ExportService {
         ..cellStyle = CellStyle(
           bold: true,
           fontSize: 10,
-          backgroundColorHex: isTotal
-              ? ExcelColor.fromHexString('FFF0F0F0')
-              : ExcelColor.fromHexString('FFFFF8E7'),
+          backgroundColorHex: isTotal ? ExcelColor.fromHexString('FFF0F0F0') : ExcelColor.fromHexString('FFFFF8E7'),
         );
 
       summarySheet.cell(
@@ -224,9 +221,7 @@ class ExportService {
         ..value = IntCellValue(row.$2)
         ..cellStyle = CellStyle(
           fontSize: 10,
-          backgroundColorHex: isTotal
-              ? ExcelColor.fromHexString('FFF0F0F0')
-              : ExcelColor.fromHexString('FFFFF8E7'),
+          backgroundColorHex: isTotal ? ExcelColor.fromHexString('FFF0F0F0') : ExcelColor.fromHexString('FFFFF8E7'),
         );
 
       summarySheet.cell(
@@ -236,12 +231,8 @@ class ExportService {
         ..cellStyle = CellStyle(
           bold: isTotal,
           fontSize: isTotal ? 11 : 10,
-          fontColorHex: isTotal
-              ? ExcelColor.fromHexString('FFB46B00')
-              : ExcelColor.fromHexString('FF333333'),
-          backgroundColorHex: isTotal
-              ? ExcelColor.fromHexString('FFF0F0F0')
-              : ExcelColor.fromHexString('FFFFF8E7'),
+          fontColorHex: isTotal ? ExcelColor.fromHexString('FFB46B00') : ExcelColor.fromHexString('FF333333'),
+          backgroundColorHex: isTotal ? ExcelColor.fromHexString('FFF0F0F0') : ExcelColor.fromHexString('FFFFF8E7'),
           horizontalAlign: HorizontalAlign.Right,
         );
 
@@ -252,9 +243,7 @@ class ExportService {
         ..cellStyle = CellStyle(
           fontSize: 9,
           fontColorHex: ExcelColor.fromHexString('FF666666'),
-          backgroundColorHex: isTotal
-              ? ExcelColor.fromHexString('FFF0F0F0')
-              : ExcelColor.fromHexString('FFFFF8E7'),
+          backgroundColorHex: isTotal ? ExcelColor.fromHexString('FFF0F0F0') : ExcelColor.fromHexString('FFFFF8E7'),
         );
     }
 
@@ -304,9 +293,7 @@ class ExportService {
       final s = salaries[i];
       final rowIndex = 3 + i;
       final isNegative = s.amount < 0;
-      final bgColor = isNegative
-          ? ExcelColor.fromHexString('FFFFEBEE')
-          : ExcelColor.fromHexString('FFFFFFFF');
+      final bgColor = isNegative ? ExcelColor.fromHexString('FFFFEBEE') : ExcelColor.fromHexString('FFFFFFFF');
 
       salarySheet.cell(
           CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex),
@@ -344,9 +331,7 @@ class ExportService {
         ..value = DoubleCellValue(s.amount)
         ..cellStyle = CellStyle(
           fontSize: 10,
-          fontColorHex: isNegative
-              ? ExcelColor.fromHexString('FFC0392B')
-              : ExcelColor.fromHexString('FF333333'),
+          fontColorHex: isNegative ? ExcelColor.fromHexString('FFC0392B') : ExcelColor.fromHexString('FF333333'),
           backgroundColorHex: bgColor,
           horizontalAlign: HorizontalAlign.Right,
         );

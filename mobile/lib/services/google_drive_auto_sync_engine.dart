@@ -149,9 +149,10 @@ class AutoSyncEngine with WidgetsBindingObserver {
   ///
   /// يُرجع false إذا كانت البوّابة مشغولة (العملية لم تُنفّذ)، ويُرجع
   /// نتيجة syncNow الحقيقية إذا نُفّذت.
-  Future<bool> _guardedSyncNow({      required String reason,
-      bool push = true,
-      bool pull = true,
+  Future<bool> _guardedSyncNow({
+    required String reason,
+    bool push = true,
+    bool pull = true,
   }) async {
     final result = await SyncGate.instance.runGuarded<bool>(
       operation: push && pull ? 'auto_sync' : (pull ? 'auto_pull' : 'auto_push'),

@@ -106,8 +106,7 @@ void main() {
       debugPrint('  Average frame time: ${avgFrameMs.toStringAsFixed(2)}ms');
       debugPrint('  Target: < 300ms/frame for acceptable UX');
 
-      expect(scrollStopwatch.elapsedMilliseconds, lessThan(3000),
-          reason: 'scroll 250 عنصر يجب أن يكون < 3 ثواني');
+      expect(scrollStopwatch.elapsedMilliseconds, lessThan(3000), reason: 'scroll 250 عنصر يجب أن يكون < 3 ثواني');
     });
   });
 
@@ -149,8 +148,7 @@ void main() {
       debugPrint('  Frames pumped: $frameCount');
       debugPrint('  Average frame time: ${avgFrameMs.toStringAsFixed(2)}ms');
 
-      expect(scrollStopwatch.elapsedMilliseconds, lessThan(3000),
-          reason: 'scroll 100 عنصر يجب أن يكون < 3 ثواني');
+      expect(scrollStopwatch.elapsedMilliseconds, lessThan(3000), reason: 'scroll 100 عنصر يجب أن يكون < 3 ثواني');
     });
   });
 
@@ -202,10 +200,8 @@ void main() {
       }
 
       // كلاهما يجب أن يكتمل خلال 1 ثانية
-      expect(builderBuildMs, lessThan(1000),
-          reason: 'ListView.builder build < 1s');
-      expect(childrenBuildMs, lessThan(1000),
-          reason: 'ListView(children:) build < 1s');
+      expect(builderBuildMs, lessThan(1000), reason: 'ListView.builder build < 1s');
+      expect(childrenBuildMs, lessThan(1000), reason: 'ListView(children:) build < 1s');
     });
   });
 }

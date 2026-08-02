@@ -23,8 +23,7 @@ import 'local_db.dart';
 
 class LatePaymentNotificationService {
   LatePaymentNotificationService._();
-  static final LatePaymentNotificationService instance =
-      LatePaymentNotificationService._();
+  static final LatePaymentNotificationService instance = LatePaymentNotificationService._();
 
   Timer? _timer;
   bool _isRunning = false;
@@ -39,8 +38,7 @@ class LatePaymentNotificationService {
   /// قناة الإشعارات المخصصة لتنبيهات السداد.
   static const String _channelId = 'marina_late_payment_channel';
   static const String _channelName = 'تنبيهات السداد المتأخر';
-  static const String _channelDescription =
-      'تنبيهات عند تأخر سداد الغرف المحجوزة (22:00+)';
+  static const String _channelDescription = 'تنبيهات عند تأخر سداد الغرف المحجوزة (22:00+)';
 
   /// IDs ثابتة للإشعارات حتى نتمكن من تحديثها بدل تكرارها.
   static const int _lateNotificationId = 9001;

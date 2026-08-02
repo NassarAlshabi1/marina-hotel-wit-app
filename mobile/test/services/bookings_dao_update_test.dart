@@ -70,9 +70,7 @@ void main() {
   }
 
   group('BookingsDao.updateById — إصلاح InvalidDataException', () {
-    test(
-        'EC-1: تحديث جزئي بحقل واحد (status فقط) لا يُسبب InvalidDataException',
-        () async {
+    test('EC-1: تحديث جزئي بحقل واحد (status فقط) لا يُسبب InvalidDataException', () async {
       // Arrange
       await _seedRoom('101');
       final bookingId = await _seedBooking(roomNumber: '101');
@@ -162,9 +160,7 @@ void main() {
       expect(result, 0);
     });
 
-    test(
-        'EC-5: تحديث guestPhone فقط (سيناريو شائع في booking_payment_screen)',
-        () async {
+    test('EC-5: تحديث guestPhone فقط (سيناريو شائع في booking_payment_screen)', () async {
       // Arrange
       await _seedRoom('104');
       final bookingId = await _seedBooking(roomNumber: '104');

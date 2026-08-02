@@ -28,39 +28,39 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
     return PerformanceInspector(
       name: 'AutoSyncEngineMonitorScreen',
       child: Scaffold(
-      appBar: AppBar(
-        title: const Text('محرك المزامنة التلقائي'),
-        backgroundColor: Colors.blue.shade700,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              ref.invalidate(autoSyncEngineStatusProvider);
-              ref.invalidate(conflictStatisticsProvider);
-            },
-          ),
-        ],
-      ),
-      body: engineState.when(
-        data: (state) => _buildContent(context, state, syncHealth),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              Text('خطأ: $error'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => ref.invalidate(autoSyncEngineStateProvider),
-                child: const Text('إعادة المحاولة'),
-              ),
-            ],
+        appBar: AppBar(
+          title: const Text('محرك المزامنة التلقائي'),
+          backgroundColor: Colors.blue.shade700,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () {
+                ref.invalidate(autoSyncEngineStatusProvider);
+                ref.invalidate(conflictStatisticsProvider);
+              },
+            ),
+          ],
+        ),
+        body: engineState.when(
+          data: (state) => _buildContent(context, state, syncHealth),
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stack) => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                Text('خطأ: $error'),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => ref.invalidate(autoSyncEngineStateProvider),
+                  child: const Text('إعادة المحاولة'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    )
     );
   }
 
@@ -557,7 +557,6 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
     try {
       final result = await ref.read(autoSyncEngineProvider).forceSyncNow();
 
-
       if (mounted) {
         Navigator.of(context).pop();
       }
@@ -825,7 +824,6 @@ class _AutoSyncEngineMonitorScreenState extends ConsumerState<AutoSyncEngineMoni
   Future<void> _showConflictStrategySettings(BuildContext context) async {
     final resolver = ref.read(conflictResolverProvider);
     final currentStrategy = await resolver.getStrategy();
-
 
     if (mounted) {
       unawaited(

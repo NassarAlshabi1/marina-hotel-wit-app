@@ -220,8 +220,8 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
   bool _isUniqueConstraintError(Object error) {
     final message = error.toString().toLowerCase();
     return message.contains('unique constraint failed') ||
-           message.contains('constraint failed') ||
-           message.contains('duplicate entry');
+        message.contains('constraint failed') ||
+        message.contains('duplicate entry');
   }
 
   String _targetLabel(List<Column> target) {

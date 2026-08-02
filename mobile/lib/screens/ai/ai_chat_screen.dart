@@ -387,113 +387,113 @@ class _AiChatScreenState extends State<AiChatScreen> with SingleTickerProviderSt
     return PerformanceInspector(
       name: 'AiChatScreen',
       child: Scaffold(
-      appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              _isAnyAvailable ? Icons.smart_toy : Icons.smart_toy_outlined,
-              color: _isAnyAvailable ? Colors.amber : Colors.grey,
-            ),
-            const SizedBox(width: 8),
-            const Text('المساعد الذكي'),
-            if (_isAnyAvailable) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(_activeProvider.displayName, style: const TextStyle(color: Colors.green, fontSize: 11)),
+        appBar: AppBar(
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _isAnyAvailable ? Icons.smart_toy : Icons.smart_toy_outlined,
+                color: _isAnyAvailable ? Colors.amber : Colors.grey,
               ),
+              const SizedBox(width: 8),
+              const Text('المساعد الذكي'),
+              if (_isAnyAvailable) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(_activeProvider.displayName, style: const TextStyle(color: Colors.green, fontSize: 11)),
+                ),
+              ],
             ],
+          ),
+          actions: [
+            // سجل التدقيق
+            IconButton(icon: const Icon(Icons.history), tooltip: 'سجل العمليات', onPressed: _showAuditLog),
           ],
         ),
-        actions: [
-          // سجل التدقيق
-          IconButton(icon: const Icon(Icons.history), tooltip: 'سجل العمليات', onPressed: _showAuditLog),
-        ],
-      ),
-      body: Column(
-        children: [
-          // شريط تحذير إذا لم يكن متاحاً
-          if (!_isAnyAvailable)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                border: Border(bottom: BorderSide(color: Colors.orange.shade200)),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.warning_amber, color: Colors.orange.shade700, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'المساعد الذكي غير متاح',
-                          style: TextStyle(color: Colors.orange.shade800, fontSize: 13, fontWeight: FontWeight.bold),
-                        ),
-                        if (GeminiService.instance.initError != null) ...[
-                          const SizedBox(height: 4),
+        body: Column(
+          children: [
+            // شريط تحذير إذا لم يكن متاحاً
+            if (!_isAnyAvailable)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  border: Border(bottom: BorderSide(color: Colors.orange.shade200)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.warning_amber, color: Colors.orange.shade700, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            'Gemini: ${GeminiService.instance.initError}',
-                            style: TextStyle(color: Colors.orange.shade700, fontSize: 11),
+                            'المساعد الذكي غير متاح',
+                            style: TextStyle(color: Colors.orange.shade800, fontSize: 13, fontWeight: FontWeight.bold),
                           ),
-                        ],
+                          if (GeminiService.instance.initError != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'Gemini: ${GeminiService.instance.initError}',
+                              style: TextStyle(color: Colors.orange.shade700, fontSize: 11),
+                            ),
+                          ],
 
-                        const SizedBox(height: 6),
-                        SizedBox(
-                          height: 28,
-                          child: ElevatedButton.icon(
-                            onPressed: _retryInit,
-                            icon: const Icon(Icons.refresh, size: 14),
-                            label: const Text('إعادة المحاولة', style: TextStyle(fontSize: 11)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.orange.shade700,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          const SizedBox(height: 6),
+                          SizedBox(
+                            height: 28,
+                            child: ElevatedButton.icon(
+                              onPressed: _retryInit,
+                              icon: const Icon(Icons.refresh, size: 14),
+                              label: const Text('إعادة المحاولة', style: TextStyle(fontSize: 11)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orange.shade700,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+
+            // قائمة الرسائل
+            Expanded(
+              child: _messages.isEmpty
+                  ? _buildEmptyState()
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.all(12),
+                      itemCount: _messages.length + (_isLoading ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index >= _messages.length) {
+                          return RepaintBoundary(child: _buildLoadingBubble());
+                        }
+                        return _buildMessageBubble(_messages[index]);
+                      },
+                    ),
             ),
 
-          // قائمة الرسائل
-          Expanded(
-            child: _messages.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(12),
-                    itemCount: _messages.length + (_isLoading ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (index >= _messages.length) {
-                        return RepaintBoundary(child: _buildLoadingBubble());
-                      }
-                      return _buildMessageBubble(_messages[index]);
-                    },
-                  ),
-          ),
+            // اقتراحات سريعة
+            if (_messages.length <= 1 && !_isAnyAvailable) _buildQuickSuggestions(),
 
-          // اقتراحات سريعة
-          if (_messages.length <= 1 && !_isAnyAvailable) _buildQuickSuggestions(),
-
-          // حقل الإدخال
-          _buildInputField(theme),
-        ],
+            // حقل الإدخال
+            _buildInputField(theme),
+          ],
+        ),
       ),
-    )
     );
   }
 

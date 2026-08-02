@@ -58,13 +58,13 @@ class PerfWarning {
   final Map<String, dynamic> metadata;
 
   Map<String, dynamic> toJson() => {
-        'type': type.name,
-        'message': message,
-        'severity': severity.name,
-        'timestamp': timestamp.toIso8601String(),
-        'suggestion': suggestion,
-        'metadata': metadata,
-      };
+    'type': type.name,
+    'message': message,
+    'severity': severity.name,
+    'timestamp': timestamp.toIso8601String(),
+    'suggestion': suggestion,
+    'metadata': metadata,
+  };
 }
 
 /// تتبُّع عملية معينة (custom trace)
@@ -75,16 +75,15 @@ class PerfTrace {
   DateTime? endedAt;
   Map<String, dynamic>? metadata;
 
-  int get elapsedMs =>
-      (endedAt ?? DateTime.now()).difference(startedAt).inMilliseconds;
+  int get elapsedMs => (endedAt ?? DateTime.now()).difference(startedAt).inMilliseconds;
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'startedAt': startedAt.toIso8601String(),
-        'endedAt': endedAt?.toIso8601String(),
-        'elapsedMs': elapsedMs,
-        if (metadata != null) 'metadata': metadata,
-      };
+    'name': name,
+    'startedAt': startedAt.toIso8601String(),
+    'endedAt': endedAt?.toIso8601String(),
+    'elapsedMs': elapsedMs,
+    if (metadata != null) 'metadata': metadata,
+  };
 }
 
 /// إعدادات المراقبة
@@ -179,8 +178,10 @@ class PerformanceMonitor {
       _memoryTimer = Timer.periodic(const Duration(seconds: 1), (_) => _sampleMemory());
     }
 
-    debugPrint('🚀 PerformanceMonitor بدأ التشغيل (FPS: ${_config.fpsWarningThreshold}Hz threshold, '
-        'memory: ${_config.memoryGrowthThresholdMB}MB threshold)');
+    debugPrint(
+      '🚀 PerformanceMonitor بدأ التشغيل (FPS: ${_config.fpsWarningThreshold}Hz threshold, '
+      'memory: ${_config.memoryGrowthThresholdMB}MB threshold)',
+    );
   }
 
   /// يُوقِف المراقبة ويُصدِر الموارد
@@ -256,11 +257,13 @@ class PerformanceMonitor {
     try {
       final currentRss = ProcessInfo.currentRss;
       final maxRss = ProcessInfo.maxRss;
-      _memorySamples.add(_MemorySample(
-        timestamp: DateTime.now(),
-        currentRssBytes: currentRss,
-        maxRssBytes: maxRss,
-      ));
+      _memorySamples.add(
+        _MemorySample(
+          timestamp: DateTime.now(),
+          currentRssBytes: currentRss,
+          maxRssBytes: maxRss,
+        ),
+      );
       if (_memorySamples.length > _maxMemorySamples) {
         _memorySamples.removeRange(0, _memorySamples.length - _maxMemorySamples);
       }
@@ -285,11 +288,11 @@ class PerformanceMonitor {
     } catch (_) {}
   }
 
-  double get currentMemoryMB =>
-      _memorySamples.isEmpty ? 0 : _memorySamples.last.currentRssBytes / (1024 * 1024);
+  double get currentMemoryMB => _memorySamples.isEmpty ? 0 : _memorySamples.last.currentRssBytes / (1024 * 1024);
 
-  double get peakMemoryMB =>
-      _memorySamples.isEmpty ? 0 : _memorySamples.map((s) => s.maxRssBytes).reduce((a, b) => a > b ? a : b) / (1024 * 1024);
+  double get peakMemoryMB => _memorySamples.isEmpty
+      ? 0
+      : _memorySamples.map((s) => s.maxRssBytes).reduce((a, b) => a > b ? a : b) / (1024 * 1024);
 
   // ═══════════════════════════════════════════════════════════════════
   //  التتبُّعات (Custom Traces)
@@ -535,26 +538,32 @@ class PerformanceMonitor {
     debugPrint('  Score:        ${report['score']}/100');
     debugPrint('  FPS:          ${(report['fps'] as Map)['current']}');
     debugPrint('  Frame time:   ${(report['fps'] as Map)['averageFrameTimeMs']}ms avg');
-    debugPrint('  Jank:         ${(report['fps'] as Map)['jankFrames']}/${(report['fps'] as Map)['totalFrames']} frames');
-    debugPrint('  Memory:       ${(report['memory'] as Map)['currentMB']}MB current, '
-        '${(report['memory'] as Map)['peakMB']}MB peak');
-    debugPrint('  Rebuilds:     ${(report['rebuilds'] as Map)['total']} total '
-        '(${(report['rebuilds'] as Map)['uniqueWidgets']} unique widgets)');
-    debugPrint('  Warnings:     ${(report['warnings'] as Map)['critical']} critical, '
-        '${(report['warnings'] as Map)['warning']} warnings');
+    debugPrint(
+      '  Jank:         ${(report['fps'] as Map)['jankFrames']}/${(report['fps'] as Map)['totalFrames']} frames',
+    );
+    debugPrint(
+      '  Memory:       ${(report['memory'] as Map)['currentMB']}MB current, '
+      '${(report['memory'] as Map)['peakMB']}MB peak',
+    );
+    debugPrint(
+      '  Rebuilds:     ${(report['rebuilds'] as Map)['total']} total '
+      '(${(report['rebuilds'] as Map)['uniqueWidgets']} unique widgets)',
+    );
+    debugPrint(
+      '  Warnings:     ${(report['warnings'] as Map)['critical']} critical, '
+      '${(report['warnings'] as Map)['warning']} warnings',
+    );
     debugPrint('═══════════════════════════════════════════════════════════');
     debugPrint('');
   }
 
   List<Map<String, dynamic>> _topRebuiltWidgets(int limit) {
-    final sorted = _rebuildCounts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+    final sorted = _rebuildCounts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
     return sorted.take(limit).map((e) => {'widget': e.key, 'count': e.value}).toList();
   }
 
   List<Map<String, dynamic>> _slowestTraces(int limit) {
-    final sorted = _completedTraces.toList()
-      ..sort((a, b) => b.elapsedMs.compareTo(a.elapsedMs));
+    final sorted = _completedTraces.toList()..sort((a, b) => b.elapsedMs.compareTo(a.elapsedMs));
     return sorted.take(limit).map((t) => t.toJson()).toList();
   }
 
@@ -582,11 +591,12 @@ class PerformanceMonitor {
 ///  PerformanceInspector — Widget لالتفاف widgets محددة لقياس rebuild
 /// ════════════════════════════════════════════════════════════════════
 class PerformanceInspector extends StatelessWidget {
-  const PerformanceInspector({      required this.name,
-      required this.child,
-      super.key,
-      this.showBadge = false,
-      this.onRebuild,
+  const PerformanceInspector({
+    required this.name,
+    required this.child,
+    super.key,
+    this.showBadge = false,
+    this.onRebuild,
   });
   final String name;
   final Widget child;
@@ -645,8 +655,8 @@ class MemoryTracker {
 
   /// يُعيد الـ disposables غير المُغلقة (potential leaks)
   Map<String, Duration> get undisposed => _tracked.map(
-        (id, time) => MapEntry(id, DateTime.now().difference(time)),
-      );
+    (id, time) => MapEntry(id, DateTime.now().difference(time)),
+  );
 
   /// يطبع تقرير الـ leaks
   void printLeaks() {

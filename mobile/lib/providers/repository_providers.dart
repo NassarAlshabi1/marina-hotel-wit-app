@@ -47,7 +47,9 @@ final diagnosticsLoggerProvider = ChangeNotifierProvider<DiagnosticsLogger>((ref
 final databaseProvider = Provider<AppDatabase>((ref) => DatabaseManager.instance);
 final adapterRegistryProvider = Provider<AdapterRegistry>((ref) => AdapterRegistry.instance);
 
-final outboxDaoProvider = Provider<OutboxDao>((ref) => OutboxDao(ref.read(databaseProvider), ref.read(adapterRegistryProvider)));
+final outboxDaoProvider = Provider<OutboxDao>(
+  (ref) => OutboxDao(ref.read(databaseProvider), ref.read(adapterRegistryProvider)),
+);
 final bookingsDaoProvider = Provider<BookingsDao>(
   (ref) => BookingsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider), ref.read(adapterRegistryProvider)),
 );
@@ -57,7 +59,9 @@ final paymentsDaoProvider = Provider<PaymentsDao>(
 final expensesDaoProvider = Provider<ExpensesDao>(
   (ref) => ExpensesDao(ref.read(databaseProvider), ref.read(outboxDaoProvider), ref.read(adapterRegistryProvider)),
 );
-final debtsDaoProvider = Provider<DebtsDao>((ref) => DebtsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider), ref.read(adapterRegistryProvider)));
+final debtsDaoProvider = Provider<DebtsDao>(
+  (ref) => DebtsDao(ref.read(databaseProvider), ref.read(outboxDaoProvider), ref.read(adapterRegistryProvider)),
+);
 final employeesDaoProvider = Provider<EmployeesDao>(
   (ref) => EmployeesDao(ref.read(databaseProvider), ref.read(outboxDaoProvider), ref.read(adapterRegistryProvider)),
 );
@@ -270,7 +274,10 @@ final liveRoomByNumberProvider = StreamProvider.autoDispose.family<Room?, String
 });
 
 /// تعديلات الأسعار النشطة لحجز محدد (بديل StreamBuilder<List<BookingPriceAdjustment>>).
-final bookingPriceAdjustmentsProvider = StreamProvider.autoDispose.family<List<BookingPriceAdjustment>, int>((ref, bookingId) {
+final bookingPriceAdjustmentsProvider = StreamProvider.autoDispose.family<List<BookingPriceAdjustment>, int>((
+  ref,
+  bookingId,
+) {
   final db = ref.watch(databaseProvider);
   return (db.select(db.bookingPriceAdjustments)
         ..where((a) => a.bookingLocalId.equals(bookingId))

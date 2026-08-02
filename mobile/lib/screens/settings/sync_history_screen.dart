@@ -44,47 +44,47 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
     return PerformanceInspector(
       name: 'SyncHistoryScreen',
       child: Scaffold(
-      appBar: AppBar(
-        title: const Text('سجل المزامنة'),
-        actions: [
-          IconButton(icon: const Icon(Icons.filter_list), onPressed: _showFilterDialog, tooltip: 'تصفية'),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => ref.invalidate(syncHistoryProvider),
-            tooltip: 'تحديث',
-          ),
-        ],
-      ),
-      body: logsAsync.when(
-        data: (logs) {
-          if (logs.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.history_toggle_off, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('لا توجد عمليات مزامنة مسجلة', style: TextStyle(fontSize: 18, color: Colors.grey)),
-                ],
-              ),
-            );
-          }
+        appBar: AppBar(
+          title: const Text('سجل المزامنة'),
+          actions: [
+            IconButton(icon: const Icon(Icons.filter_list), onPressed: _showFilterDialog, tooltip: 'تصفية'),
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: () => ref.invalidate(syncHistoryProvider),
+              tooltip: 'تحديث',
+            ),
+          ],
+        ),
+        body: logsAsync.when(
+          data: (logs) {
+            if (logs.isEmpty) {
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.history_toggle_off, size: 64, color: Colors.grey),
+                    SizedBox(height: 16),
+                    Text('لا توجد عمليات مزامنة مسجلة', style: TextStyle(fontSize: 18, color: Colors.grey)),
+                  ],
+                ),
+              );
+            }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: logs.length,
-            itemBuilder: (context, index) {
-              final log = logs[index];
-              return _buildLogCard(log);
-            },
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: Text('خطأ: $error', style: const TextStyle(color: Colors.red)),
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: logs.length,
+              itemBuilder: (context, index) {
+                final log = logs[index];
+                return _buildLogCard(log);
+              },
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => Center(
+            child: Text('خطأ: $error', style: const TextStyle(color: Colors.red)),
+          ),
         ),
       ),
-    )
     );
   }
 

@@ -6,17 +6,18 @@ import '../../widgets/report_date_filter.dart';
 /// ويدجت مشتركة لبناء هيكل صفحات التقارير (AppScaffold + فلتر تاريخ + زر بحث PDF)
 /// لتجنب تكرار كود البنية المشتركة بين شاشات التقارير المختلفة
 class ReportPageScaffold extends StatelessWidget {
-  const ReportPageScaffold({      required this.title,
-      required this.filterController,
-      required this.onDateRangeChanged,
-      required this.onExportPdf,
-      required this.onSearch,
-      required this.isPdfEnabled,
-      required this.isLoading,
-      required this.filterWidgets,
-      required this.summaryWidget,
-      required this.contentWidget,
-      super.key,
+  const ReportPageScaffold({
+    required this.title,
+    required this.filterController,
+    required this.onDateRangeChanged,
+    required this.onExportPdf,
+    required this.onSearch,
+    required this.isPdfEnabled,
+    required this.isLoading,
+    required this.filterWidgets,
+    required this.summaryWidget,
+    required this.contentWidget,
+    super.key,
   });
 
   final String title;

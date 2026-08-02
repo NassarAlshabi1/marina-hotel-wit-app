@@ -179,9 +179,7 @@ class FloorHeader extends StatelessWidget {
             if (isCollapsible) ...[
               const SizedBox(width: 8),
               Icon(
-                isExpanded
-                    ? Icons.keyboard_arrow_up
-                    : Icons.keyboard_arrow_down,
+                isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
                 color: Theme.of(context).primaryColor,
               ),
             ],
@@ -343,8 +341,7 @@ class FloorSection extends StatefulWidget {
   State<FloorSection> createState() => _FloorSectionState();
 }
 
-class _FloorSectionState extends State<FloorSection>
-    with SingleTickerProviderStateMixin {
+class _FloorSectionState extends State<FloorSection> with SingleTickerProviderStateMixin {
   late bool _isExpanded;
   late AnimationController _animationController;
   late Animation<double> _animation;

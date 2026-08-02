@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
 class NeuCard extends StatelessWidget {
-  const NeuCard({      required this.child,
-      super.key,
-      this.padding,
-      this.margin,
-      this.onTap,
-      this.borderRadius = 16,
+  const NeuCard({
+    required this.child,
+    super.key,
+    this.padding,
+    this.margin,
+    this.onTap,
+    this.borderRadius = 16,
   });
   final Widget child;
   final EdgeInsetsGeometry? padding;
@@ -43,13 +44,14 @@ class NeuCard extends StatelessWidget {
 }
 
 class NeuStatCard extends StatelessWidget {
-  const NeuStatCard({      required this.icon,
-      required this.title,
-      required this.value,
-      super.key,
-      this.iconColor,
-      this.valueColor,
-      this.emphasize = false,
+  const NeuStatCard({
+    required this.icon,
+    required this.title,
+    required this.value,
+    super.key,
+    this.iconColor,
+    this.valueColor,
+    this.emphasize = false,
   });
   final IconData icon;
   final String title;
@@ -106,10 +108,11 @@ class NeuStatCard extends StatelessWidget {
 }
 
 class NeuDateButton extends StatelessWidget {
-  const NeuDateButton({      required this.icon,
-      required this.label,
-      required this.onTap,
-      super.key,
+  const NeuDateButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    super.key,
   });
   final IconData icon;
   final String label;
@@ -148,10 +151,11 @@ class NeuDateButton extends StatelessWidget {
 }
 
 class NeuQuickFilterChip extends StatelessWidget {
-  const NeuQuickFilterChip({      required this.label,
-      required this.selected,
-      required this.onTap,
-      super.key,
+  const NeuQuickFilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    super.key,
   });
   final String label;
   final bool selected;
@@ -188,11 +192,12 @@ class NeuQuickFilterChip extends StatelessWidget {
 }
 
 class NeuSectionHeader extends StatelessWidget {
-  const NeuSectionHeader({      required this.icon,
-      required this.title,
-      super.key,
-      this.trailing,
-      this.iconColor,
+  const NeuSectionHeader({
+    required this.icon,
+    required this.title,
+    super.key,
+    this.trailing,
+    this.iconColor,
   });
   final IconData icon;
   final String title;

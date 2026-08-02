@@ -117,7 +117,12 @@ class AppwriteFullPull {
         repo: reg.cashTransactions,
       ),
       // 5. ليالي الحجز (تعتمد على الحجوزات)
-      _PullEntity(name: 'booking_nights', collectionId: AppwriteConfig.bookingNightsCollectionId, repo: reg.nights, maxRecords: 1000),
+      _PullEntity(
+        name: 'booking_nights',
+        collectionId: AppwriteConfig.bookingNightsCollectionId,
+        repo: reg.nights,
+        maxRecords: 1000,
+      ),
       // 6. ملاحظات الحجز (تعتمد على الحجوزات)
       _PullEntity(name: 'booking_notes', collectionId: AppwriteConfig.bookingNotesCollectionId, repo: reg.bookingNotes),
       // 7. المدفوعات (تعتمد على الحجوزات والمعاملات النقدية)
