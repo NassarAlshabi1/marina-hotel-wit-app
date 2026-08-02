@@ -17,9 +17,12 @@ bool _listsEqual(List<RoomWithPaymentStatus> a, List<RoomWithPaymentStatus> b) {
     final rb = b[i];
     if (ra.room.localUuid != rb.room.localUuid) return false;
     if (ra.isPaymentOverdue != rb.isPaymentOverdue) return false;
-    if (ra.isLatePayment != rb.isLatePayment) return false;
-    if (ra.activeBooking?.localUuid != rb.activeBooking?.localUuid)
+    if (ra.isLatePayment != rb.isLatePayment) {
       return false;
+    }
+    if (ra.activeBooking?.localUuid != rb.activeBooking?.localUuid) {
+      return false;
+    }
     if (ra.room.status != rb.room.status) return false;
   }
   return true;
