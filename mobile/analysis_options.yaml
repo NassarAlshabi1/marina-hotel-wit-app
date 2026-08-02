@@ -17,10 +17,14 @@ include: package:very_good_analysis/analysis_options.yaml
 # هدفنا: جودة كود عالية + أداء ممتاز + أفضل الممارسات
 
 analyzer:
-  plugins:
-    # ✅ custom_lint: يُفعّل riverpod_lint الذي يكتشف أخطاء Riverpod
-    #    أثناء التحليل الثابت (مثل استدعاء ref.read داخل build).
-    - custom_lint
+  # ✅ custom_lint plugin: معطّل مؤقتاً لأن riverpod_lint 2.x و 3.x
+  #    غير متوافقين مع إصدار Riverpod الحالي (2.6.1) + Dart 3.8.0.
+  #    riverpod_lint 2.x يتطلب custom_lint_builder ^0.7.0 الذي يفشل
+  #    في حل الإصدارات مع analyzer 7.x على Dart 3.8.
+  #    riverpod_lint 3.x يتطلب Riverpod 3.0.0 (ترقية كبيرة).
+  #    TODO: أعد تفعيل custom_lint بعد ترقية Riverpod إلى 3.x.
+  # plugins:
+  #   - custom_lint
 
   exclude:
     - "**/*.g.dart"
