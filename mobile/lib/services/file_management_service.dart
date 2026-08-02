@@ -176,7 +176,8 @@ class FileManagementService {
           continue;
         }
 
-        final stat = await file.stat();
+        // avoid_slow_async_io: statSync is faster than `await stat()` for local files
+        final stat = file.statSync();
         final dateKey =
             '${stat.modified.year}-${stat.modified.month.toString().padLeft(2, '0')}-${stat.modified.day.toString().padLeft(2, '0')}';
 
@@ -636,7 +637,8 @@ class FileManagementService {
     final entities = dir.listSync();
     for (final entity in entities) {
       try {
-        final stat = await entity.stat();
+        // avoid_slow_async_io: statSync is faster than `await stat()` for local entities
+        final stat = entity.statSync();
         if (stat.modified.isBefore(cutoffTime)) {
           if (entity is File) {
             await entity.delete();
