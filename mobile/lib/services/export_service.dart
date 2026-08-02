@@ -520,7 +520,8 @@ class ExportService {
       if (dir == null) return null;
 
       final downloadsDir = Directory('${dir.path}/Download');
-      if (!await downloadsDir.exists()) {
+      // avoid_slow_async_io: existsSync is faster than `await exists()` for local dirs
+      if (!downloadsDir.existsSync()) {
         await downloadsDir.create(recursive: true);
       }
 
