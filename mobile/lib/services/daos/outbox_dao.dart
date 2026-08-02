@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import '../adapters/adapter_registry.dart';
 import '../appwrite_logger.dart';
 import '../appwrite_sync_manager.dart';
+import '../central_sync_coordinator.dart';
 import '../crashlytics_service.dart';
 import '../local_db.dart';
 import '../secondary_appwrite_config.dart';
@@ -296,7 +297,29 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
           deliveredToSecondary: Value(deliveredToSecondary),
         ),
       );
+    }).then((id) {
+      // ✅ Auto-sync trigger: إشعار CentralSyncCoordinator تلقائياً
+      // بعد كل عملية كتابة في outbox (create/update/delete).
+      // هذا يضمن رفع التغييرات فوراً إلى D1 بدون انتظار المزامنة الدورية.
+      // CentralSyncCoordinator يستخدم debounce (3 ثوانٍ) لتجميع
+      // العمليات المتتالية وتجنب المزامنة المتكررة.
+      _notifySyncCoordinator(entity, op);
+      return id;
     });
+  }
+
+  /// إشعار CentralSyncCoordinator لتشغيل المزامنة التلقائية.
+  /// يستخدم debounce داخلياً (3 ثوانٍ) لتجميع العمليات المتتالية.
+  static void _notifySyncCoordinator(String entity, String op) {
+    try {
+      CentralSyncCoordinator.instance.notifyLocalChange(
+        table: entity,
+        operation: op,
+      );
+    } catch (e) {
+      // تجاهل الأخطاء — المزامنة ستحدث لاحقاً عبر المزامنة الدورية
+      debugPrint('⚠️ Auto-sync trigger failed for $entity/$op: $e');
+    }
   }
 
   /// جلب دفعة من عناصر outbox للمعالجة
