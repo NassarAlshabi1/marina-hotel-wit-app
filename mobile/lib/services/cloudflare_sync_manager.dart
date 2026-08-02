@@ -58,9 +58,9 @@ class CloudflareRealtimeSync {
 // ─── CloudflareSyncManager ─────────────────────────────────────
 
 class CloudflareSyncManager {
-  CloudflareSyncManager._internal();
   factory CloudflareSyncManager() => _instance;
   static final CloudflareSyncManager _instance = CloudflareSyncManager._internal();
+  CloudflareSyncManager._internal();
 
   // ─── Static device ID (same interface as AppwriteSyncManager) ──
   static String? _staticDeviceId;
