@@ -113,6 +113,9 @@ export class Database {
       const rows = await stmt.bind(cursor, limit).all();
       for (const row of rows.results) {
         const record = row as unknown as SyncRecord;
+        // ✅ أضف _entity لكل سجل ليتمكن Flutter من معرفة الجدول
+        // بدون الحاجة لتخمين نوعه من الحقول
+        (record as Record<string, unknown>)._entity = ent;
         allChanges.push(record);
         if (record.updated_at > maxTimestamp) {
           maxTimestamp = record.updated_at;

@@ -412,7 +412,10 @@ class CloudflareSyncManager {
 
       for (final change in changes) {
         final record = Map<String, dynamic>.from(change as Map);
-        final entity = _detectEntity(record);
+        // ✅ استخدم _entity المُرسل من Worker بدلاً من التخمين
+        final entity = record['_entity'] as String? ?? _detectEntity(record);
+        record.remove('_entity'); // لا تخزّن هذا الحقل في SQLite
+
         if (entity != null) {
           await _applyChange(entity, record);
           totalPulled++;
@@ -435,6 +438,9 @@ class CloudflareSyncManager {
 
     final tableName = CloudflareConfig.tableNameFor(entity);
     if (tableName == null) return;
+
+    // ✅ تنظيف الحقول التقنية التي لا يجب تخزينها في SQLite
+    record.remove('_entity');
 
     final localUuid = record['local_uuid'] as String?;
     if (localUuid == null) return;
