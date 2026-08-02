@@ -7,12 +7,12 @@ import '../data/sync_models.dart' as models;
 import '../utils/debug_log.dart';
 import 'analytics_service.dart';
 import 'appwrite_sync_manager.dart' show AppwriteSyncManager;
-import 'sync_enums.dart' show SyncStatus;
 import 'google_drive_backup_service.dart';
 import 'google_drive_logger.dart';
 import 'google_drive_unified_sync_coordinator.dart';
 import 'local_db.dart';
 import 'smart_sync_manager.dart';
+import 'sync_enums.dart' show SyncStatus;
 import 'sync_integrity_checker.dart';
 
 class UnifiedSyncState {
