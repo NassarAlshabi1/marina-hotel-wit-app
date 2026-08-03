@@ -425,54 +425,33 @@ class UnifiedSyncOrchestrator {
 
   Future<String> _computeUnifiedChecksum() async {
     final db = _database!;
-    final results = await Future.wait([
-      db.select(db.rooms).get(),
-      db.select(db.bookings).get(),
-      db.select(db.bookingNotes).get(),
-      db.select(db.employees).get(),
-      db.select(db.expenses).get(),
-      db.select(db.cashTransactions).get(),
-      db.select(db.payments).get(),
-      db.select(db.debts).get(),
-      db.select(db.bookingNights).get(),
-      db.select(db.hotelDayLedger).get(),
-      db.select(db.shiftNotes).get(),
-    ]);
+    // Load each table with its proper type to keep type safety (avoid_dynamic_calls).
+    // Future.wait on mixed-type futures would return List<List<dynamic>> and force
+    // dynamic .toJson() calls below.
+    final rooms = await db.select(db.rooms).get();
+    final bookings = await db.select(db.bookings).get();
+    final bookingNotes = await db.select(db.bookingNotes).get();
+    final employees = await db.select(db.employees).get();
+    final expenses = await db.select(db.expenses).get();
+    final cashTransactions = await db.select(db.cashTransactions).get();
+    final payments = await db.select(db.payments).get();
+    final debts = await db.select(db.debts).get();
+    final bookingNights = await db.select(db.bookingNights).get();
+    final hotelDayLedger = await db.select(db.hotelDayLedger).get();
+    final shiftNotes = await db.select(db.shiftNotes).get();
 
     final tablesPayload = <String, List<Map<String, dynamic>>>{
-      'rooms': (results[0] as List)
-          .map((e) => e.toJson() as Map<String, dynamic>)
-          .toList(),
-      'bookings': (results[1] as List)
-          .map((e) => e.toJson() as Map<String, dynamic>)
-          .toList(),
-      'booking_notes': (results[2] as List)
-          .map((e) => e.toJson() as Map<String, dynamic>)
-          .toList(),
-      'employees': (results[3] as List)
-          .map((e) => e.toJson() as Map<String, dynamic>)
-          .toList(),
-      'expenses': (results[4] as List)
-          .map((e) => e.toJson() as Map<String, dynamic>)
-          .toList(),
-      'cash_transactions': (results[5] as List)
-          .map((e) => e.toJson() as Map<String, dynamic>)
-          .toList(),
-      'payments': (results[6] as List)
-          .map((e) => e.toJson() as Map<String, dynamic>)
-          .toList(),
-      'debts': (results[7] as List)
-          .map((e) => e.toJson() as Map<String, dynamic>)
-          .toList(),
-      'booking_nights': (results[8] as List)
-          .map((e) => e.toJson() as Map<String, dynamic>)
-          .toList(),
-      'hotel_day_ledger': (results[9] as List)
-          .map((e) => e.toJson() as Map<String, dynamic>)
-          .toList(),
-      'shift_notes': (results[10] as List)
-          .map((e) => e.toJson() as Map<String, dynamic>)
-          .toList(),
+      'rooms': rooms.map((r) => r.toJson()).toList(),
+      'bookings': bookings.map((b) => b.toJson()).toList(),
+      'booking_notes': bookingNotes.map((n) => n.toJson()).toList(),
+      'employees': employees.map((e) => e.toJson()).toList(),
+      'expenses': expenses.map((e) => e.toJson()).toList(),
+      'cash_transactions': cashTransactions.map((c) => c.toJson()).toList(),
+      'payments': payments.map((p) => p.toJson()).toList(),
+      'debts': debts.map((d) => d.toJson()).toList(),
+      'booking_nights': bookingNights.map((n) => n.toJson()).toList(),
+      'hotel_day_ledger': hotelDayLedger.map((l) => l.toJson()).toList(),
+      'shift_notes': shiftNotes.map((s) => s.toJson()).toList(),
     };
     return Isolate.run(
       () => models.SyncChecksum.compute({'tables': tablesPayload}),

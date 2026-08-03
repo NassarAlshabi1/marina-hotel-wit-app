@@ -61,12 +61,14 @@ class FileManagementService {
       final backupData = await backupService.exportDatabaseToJson();
 
       // إنشاء تقرير قابل للقراءة
+      // Cast metadata to typed Map to avoid avoid_dynamic_calls on metadata[...]
+      final metadata = backupData['metadata'] as Map<String, dynamic>;
       final report = {
         'تقرير_مارينا_هوتيل': {
           'معلومات_عامة': {
             'تاريخ_التقرير': timestamp.toIso8601String(),
-            'إصدار_التطبيق': backupData['metadata']['app_version'],
-            'إجمالي_السجلات': backupData['metadata']['total_records'],
+            'إصدار_التطبيق': metadata['app_version'],
+            'إجمالي_السجلات': metadata['total_records'],
           },
           'ملخص_البيانات': {
             'عدد_الغرف': (backupData['rooms'] as List).length,
@@ -516,7 +518,8 @@ class FileManagementService {
       readableContent.writeln('=== تقرير مارينا هوتيل ===\n');
 
       if (backupData.containsKey('metadata')) {
-        final metadata = backupData['metadata'];
+        // Cast metadata to typed Map to avoid avoid_dynamic_calls on metadata[...]
+        final metadata = backupData['metadata'] as Map<String, dynamic>;
         readableContent.writeln('📋 معلومات النسخة الاحتياطية:');
         readableContent.writeln('   إصدار التطبيق: ${metadata['app_version']}');
         readableContent.writeln(

@@ -1292,8 +1292,11 @@ class AppwriteService {
 
   /// اختبار شامل للاتصال (قراءة فقط - لا يعتمد على كتابة المستندات)
   Future<Map<String, dynamic>> fullConnectionTest() async {
+    // Use a typed local `tests` map to avoid `avoid_dynamic_calls` violations
+    // when accessing results['tests']['rooms'] etc. (results['tests'] is dynamic).
+    final tests = <String, dynamic>{};
     final results = <String, dynamic>{
-      'tests': <String, dynamic>{},
+      'tests': tests,
       'overall_success': false,
     };
 
@@ -1312,10 +1315,10 @@ class AppwriteService {
           operationName: 'listDocuments(rooms)',
           timeout: const Duration(seconds: 10),
         );
-        results['tests']['rooms'] = true;
+        tests['rooms'] = true;
       } catch (e) {
-        results['tests']['rooms'] = false;
-        results['tests']['rooms_error'] = e.toString();
+        tests['rooms'] = false;
+        tests['rooms_error'] = e.toString();
       }
 
       // 2. اختبار القراءة من bookings
@@ -1330,10 +1333,10 @@ class AppwriteService {
           operationName: 'listDocuments(bookings)',
           timeout: const Duration(seconds: 5),
         );
-        results['tests']['bookings'] = true;
+        tests['bookings'] = true;
       } catch (e) {
-        results['tests']['bookings'] = false;
-        results['tests']['bookings_error'] = e.toString();
+        tests['bookings'] = false;
+        tests['bookings_error'] = e.toString();
       }
 
       // 3. اختبار القراءة من devices
@@ -1348,16 +1351,15 @@ class AppwriteService {
           operationName: 'listDocuments(devices)',
           timeout: const Duration(seconds: 5),
         );
-        results['tests']['devices'] = true;
+        tests['devices'] = true;
       } catch (e) {
-        results['tests']['devices'] = false;
-        results['tests']['devices_error'] = e.toString();
+        tests['devices'] = false;
+        tests['devices_error'] = e.toString();
       }
 
       // حساب الحالة النهائية - ping يعتمد على rooms فقط
-      final tests = results['tests'] as Map<String, dynamic>;
       results['overall_success'] = tests['rooms'] == true;
-      results['tests']['ping'] = tests['rooms'];
+      tests['ping'] = tests['rooms'];
 
       if (results['overall_success'] == true) {
         _logger.info('Full connection test passed', tag: 'CONNECTION_TEST');

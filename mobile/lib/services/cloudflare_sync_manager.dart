@@ -307,20 +307,20 @@ class CloudflareSyncManager {
   }
 
   /// رفع دفعة واحدة من outbox
-  Future<int> _pushBatch(List<dynamic> pending) async {
+  Future<int> _pushBatch(List<OutboxData> pending) async {
     if (pending.isEmpty) return 0;
 
     final outboxDao = OutboxDao(_db!);
 
     final operations = pending.map((item) {
-      final data = jsonDecode(item.payload as String) as Map<String, dynamic>;
+      final data = jsonDecode(item.payload) as Map<String, dynamic>;
       return {
-        'idempotencyKey': item.idempotencyKey as String,
-        'entity': item.entity as String,
-        'operation': item.op as String,
+        'idempotencyKey': item.idempotencyKey,
+        'entity': item.entity,
+        'operation': item.op,
         'data': data,
         'vectorClock': data['vector_clock'] as String? ?? '{}',
-        'updatedAt': item.clientTs as int,
+        'updatedAt': item.clientTs,
         if (_deviceId != null) 'deviceId': _deviceId,
       };
     }).toList();
@@ -364,15 +364,15 @@ class CloudflareSyncManager {
 
       if (success) {
         await (outboxDao.delete(outboxDao.outbox)
-              ..where((t) => t.id.equals(outboxItem.id as int)))
+              ..where((t) => t.id.equals(outboxItem.id)))
             .go();
         successCount++;
       } else {
         await (outboxDao.update(outboxDao.outbox)
-              ..where((t) => t.id.equals(outboxItem.id as int)))
+              ..where((t) => t.id.equals(outboxItem.id)))
             .write(OutboxCompanion(
           processingStatus: const Value('failed'),
-          attempts: Value((outboxItem.attempts as int) + 1),
+          attempts: Value(outboxItem.attempts + 1),
           lastError: Value(item['error'] as String?),
         ));
       }

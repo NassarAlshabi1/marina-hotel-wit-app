@@ -594,11 +594,17 @@ class AppwriteSchemaVerifier {
     }
 
     final databases = Databases(client);
+    // Use typed locals to avoid `avoid_dynamic_calls` violations when accessing
+    // results['collections'][id] / results['missing'].add(...) (results[x] is dynamic).
+    final collections = <String, dynamic>{};
+    final missing = <Map<String, dynamic>>[];
+    final errors = <String>[];
+    final summary = <String, dynamic>{};
     final results = <String, dynamic>{
-      'collections': <String, dynamic>{},
-      'missing': <Map<String, dynamic>>[],
-      'errors': <String>[],
-      'summary': <String, dynamic>{},
+      'collections': collections,
+      'missing': missing,
+      'errors': errors,
+      'summary': summary,
     };
 
     int totalCollections = 0;
@@ -623,7 +629,7 @@ class AppwriteSchemaVerifier {
         foundCollections++;
         debugPrint('   ✅ موجود: ${schema['name']}');
 
-        results['collections'][collectionId] = {
+        collections[collectionId] = {
           'found': true,
           'name': schema['name'],
           'total_documents': response.total,
@@ -633,8 +639,8 @@ class AppwriteSchemaVerifier {
       } catch (e) {
         missingCollections++;
         debugPrint('   ❌ غير موجود: $collectionId');
-        results['missing'].add(collectionId);
-        results['collections'][collectionId] = {
+        missing.add(collectionId);
+        collections[collectionId] = {
           'found': false,
           'error': e.toString(),
         };
@@ -643,13 +649,11 @@ class AppwriteSchemaVerifier {
       debugPrint('');
     }
 
-    results['summary'] = {
-      'total': totalCollections,
-      'found': foundCollections,
-      'missing': missingCollections,
-      'percentage': ((foundCollections / totalCollections) * 100)
-          .toStringAsFixed(1),
-    };
+    summary['total'] = totalCollections;
+    summary['found'] = foundCollections;
+    summary['missing'] = missingCollections;
+    summary['percentage'] = ((foundCollections / totalCollections) * 100)
+        .toStringAsFixed(1);
 
     debugPrint('═══════════════════════════════════════');
     debugPrint('📊 ملخص التحقق');
@@ -657,13 +661,13 @@ class AppwriteSchemaVerifier {
     debugPrint('إجمالي الجداول المطلوبة: $totalCollections');
     debugPrint('✅ موجود: $foundCollections');
     debugPrint('❌ ناقص: $missingCollections');
-    debugPrint('📈 نسبة الاكتمال: ${results['summary']['percentage']}%');
+    debugPrint('📈 نسبة الاكتمال: ${summary['percentage']}%');
     debugPrint('═══════════════════════════════════════\n');
 
     if (missingCollections > 0) {
       debugPrint('⚠️  الجداول الناقصة:');
-      for (final missing in (results['missing'] as List)) {
-        debugPrint('   - $missing');
+      for (final missingItem in missing) {
+        debugPrint('   - $missingItem');
       }
       debugPrint('\n💡 يرجى إنشاء الجداول الناقصة في Appwrite Console');
       debugPrint('   راجع: mobile/APPWRITE_SCHEMA_VERIFICATION.md\n');
@@ -690,18 +694,21 @@ class AppwriteSchemaVerifier {
 
     debugPrint('# إنشاء Attributes:');
     final includeSyncFields = schema['includeSyncFields'] != false;
-    final allAttributes = [
-      ...(schema['attributes']! as List),
+    // Cast attributes to List<Map<String, dynamic>> so .key/.type/.size access
+    // is typed (avoids avoid_dynamic_calls).
+    final allAttributes = <Map<String, dynamic>>[
+      for (final attr in (schema['attributes']! as List))
+        attr as Map<String, dynamic>,
       if (includeSyncFields) ..._syncFields,
     ];
 
     for (final attr in allAttributes) {
-      final key = attr['key'];
-      final type = attr['type'];
+      final key = attr['key'] as String;
+      final type = attr['type'] as String;
       final required = attr['required'] == true ? 'true' : 'false';
 
       if (type == 'string') {
-        final size = attr['size'] ?? 255;
+        final size = (attr['size'] as int?) ?? 255;
         debugPrint(r'appwrite databases createStringAttribute \');
         debugPrint('  --databaseId ${AppwriteConfigManager.databaseId} \\');
         debugPrint('  --collectionId $collectionId \\');
