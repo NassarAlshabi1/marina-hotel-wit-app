@@ -14,6 +14,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../providers/repository_providers.dart';
 import '../utils/app_logger.dart';
+import '../utils/json_isolate.dart';
 import 'backup_serializers.dart';
 import 'google_drive_backup_service.dart';
 import 'local_db.dart';
@@ -441,7 +442,9 @@ class LocalBackupService {
       decodedBytes = rawBytes;
     }
     final jsonString = utf8.decode(decodedBytes);
-    final backupData = jsonDecode(jsonString) as Map<String, dynamic>;
+    // ✅ Performance: استخدم Isolate لـ JSON parsing للأحمال الكبيرة
+    // (backup files can be 10+ MB → causes ANR on weak devices)
+    final backupData = await JsonIsolate.decodeAsMap(jsonString);
 
     if (!backupData.containsKey('metadata')) {
       throw Exception('النسخة الاحتياطية لا تحتوي على بيانات وصفية');

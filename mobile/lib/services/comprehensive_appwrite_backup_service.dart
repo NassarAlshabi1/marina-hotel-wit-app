@@ -14,6 +14,7 @@ import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_service.dart';
 import 'local_db.dart';
+import '../utils/json_isolate.dart';
 
 /// خدمة النسخ الاحتياطي والاستعادة الشاملة لـ Appwrite
 /// تتيح هذه الخدمة تصدير جميع البيانات من قاعدة البيانات المحلية إلى ملف JSON
@@ -220,7 +221,8 @@ class ComprehensiveAppwriteBackupService {
         onProgress('قراءة ملف النسخة الاحتياطية...', 0.0);
       }
       final content = await backupFile.readAsString();
-      final data = jsonDecode(content) as Map<String, dynamic>;
+      // ✅ Performance: استخدم Isolate لـ JSON parsing (backup files كبيرة)
+      final data = await JsonIsolate.decodeAsMap(content);
 
       final collections = data['collections'] as Map<String, dynamic>;
 
