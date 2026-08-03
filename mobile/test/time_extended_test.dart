@@ -1,4 +1,6 @@
-@Skip('Causes segmentation fault on CI headless runners. Run locally.')
+// Note: This test was previously @Skip'd due to segfault, but root cause was
+// actually sidebar_permissions_test.dart loading before it. With that test
+// fixed, this pure unit test (no widgets, no drift) should run cleanly.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/utils/time.dart';
 
