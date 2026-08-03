@@ -591,15 +591,19 @@ class CloudflareSyncManager {
   void startAutoSync({Duration interval = const Duration(minutes: 15)}) {
     _autoSyncTimer?.cancel();
     _autoSyncTimer = Timer.periodic(interval, (_) {
-      sync().catchError((Object e) {
-        debugPrint('⚠️ Auto-sync error: $e');
-        return SyncResult(
-          status: SyncStatus.failed,
-          timestamp: DateTime.now(),
-          duration: Duration.zero,
-          errorMessage: e.toString(),
-        );
-      });
+      // Fire-and-forget: sync errors are handled by catchError, not awaited
+      // because Timer.periodic callback is synchronous.
+      unawaited(
+        sync().catchError((Object e) {
+          debugPrint('⚠️ Auto-sync error: $e');
+          return SyncResult(
+            status: SyncStatus.failed,
+            timestamp: DateTime.now(),
+            duration: Duration.zero,
+            errorMessage: e.toString(),
+          );
+        }),
+      );
     });
     debugPrint('⏰ Auto-sync started: every ${interval.inMinutes} minutes');
   }

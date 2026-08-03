@@ -205,7 +205,9 @@ class UnifiedSyncOrchestrator {
 
   /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
   static void disposeInstance() {
-    instance.dispose();
+    // dispose() returns Future<void>; we fire-and-forget it here because
+    // disposeInstance is synchronous (called from app shutdown hooks).
+    unawaited(instance.dispose());
   }
 
   Future<void> notifyLocalChange({String? table, String? operation}) async {

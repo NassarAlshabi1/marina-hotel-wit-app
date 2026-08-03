@@ -639,7 +639,10 @@ class AppwriteSchemaVerifier {
       } catch (e) {
         missingCollections++;
         debugPrint('   ❌ غير موجود: $collectionId');
-        missing.add(collectionId);
+        missing.add(<String, dynamic>{
+          'collectionId': collectionId,
+          'error': e.toString(),
+        });
         collections[collectionId] = {
           'found': false,
           'error': e.toString(),
