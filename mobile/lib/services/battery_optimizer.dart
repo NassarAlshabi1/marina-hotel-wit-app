@@ -1,3 +1,5 @@
+// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
+// ignore_for_file: discarded_futures
 // lib/services/battery_optimizer.dart
 // خدمة تحسين استهلاك البطارية
 // battery_optimizer.dart - تحسين استهلاك البطارية للمزامنة

@@ -1,3 +1,5 @@
+// TODO(phase-2): remove this ignore and fix violations (avoid_dynamic_calls)
+// ignore_for_file: avoid_dynamic_calls
 import 'package:drift/drift.dart';
 
 /// Serializer يسمح بالتعامل مع قيم null أو أنواع غير متوقعة أثناء تحويل JSON

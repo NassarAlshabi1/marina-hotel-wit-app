@@ -1,3 +1,5 @@
+// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
+// ignore_for_file: discarded_futures
 // ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

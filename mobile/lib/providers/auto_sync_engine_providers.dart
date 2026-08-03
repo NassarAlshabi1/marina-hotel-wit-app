@@ -1,3 +1,5 @@
+// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
+// ignore_for_file: discarded_futures
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/google_drive_auto_sync_engine.dart';

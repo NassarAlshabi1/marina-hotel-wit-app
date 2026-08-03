@@ -1,3 +1,5 @@
+// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
+// ignore_for_file: discarded_futures
 // lib/screens/ai/ai_chat_screen.dart
 // شاشة المحادثة مع المساعد الذكي "ماريانا"
 // ✅ تصميم محسّن + نسخ المخرجات + تنسيق احترافي للأوامر

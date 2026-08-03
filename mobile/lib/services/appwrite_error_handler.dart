@@ -1,3 +1,5 @@
+// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
+// ignore_for_file: discarded_futures
 import 'package:appwrite/appwrite.dart';
 import 'package:flutter/material.dart';
 import 'appwrite_logger.dart';

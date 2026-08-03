@@ -1,3 +1,5 @@
+// TODO(phase-2): remove this ignore and fix violations (avoid_dynamic_calls)
+// ignore_for_file: avoid_dynamic_calls
 import 'dart:convert';
 import 'dart:io';
 import 'package:appwrite/appwrite.dart';

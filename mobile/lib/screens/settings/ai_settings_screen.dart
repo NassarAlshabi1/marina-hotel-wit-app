@@ -1,3 +1,5 @@
+// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
+// ignore_for_file: discarded_futures
 // lib/screens/settings/ai_settings_screen.dart
 // شاشة إعدادات المساعد الذكي — تتيح تخصيص المزود والموديل ومفتاح API
 

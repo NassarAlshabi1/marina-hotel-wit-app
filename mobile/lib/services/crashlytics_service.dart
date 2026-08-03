@@ -1,3 +1,5 @@
+// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
+// ignore_for_file: discarded_futures
 // lib/services/crashlytics_service.dart
 // خدمة Crashlytics لتتبع الأخطاء والإبلاغ عنها
 // مرتبطة بـ Firebase Crashlytics + DiagnosticsLogger

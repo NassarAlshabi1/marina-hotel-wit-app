@@ -1,3 +1,5 @@
+// TODO(phase-2): remove this ignore and fix violations (avoid_dynamic_calls, discarded_futures)
+// ignore_for_file: avoid_dynamic_calls, discarded_futures
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../services/local_db.dart';

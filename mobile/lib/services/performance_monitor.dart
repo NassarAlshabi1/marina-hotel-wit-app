@@ -1,3 +1,5 @@
+// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
+// ignore_for_file: discarded_futures
 // lib/services/performance_monitor.dart
 // مراقبة الأداء — Firebase Performance Trace API للمزامنة والعمليات الحرجة
 //

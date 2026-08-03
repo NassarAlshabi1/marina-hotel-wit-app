@@ -1,3 +1,5 @@
+// TODO(phase-2): remove this ignore and fix violations (avoid_dynamic_calls, discarded_futures)
+// ignore_for_file: avoid_dynamic_calls, discarded_futures
 import 'package:drift/drift.dart' hide Column;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';

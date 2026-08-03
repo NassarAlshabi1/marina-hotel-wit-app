@@ -136,22 +136,30 @@ linter:
     use_if_null_to_convert_nulls_to_bools: false
 
     # ═══════════════════════════════════════════════════════════════════
-    # SECURITY & PERFORMANCE RULES — Phase-2 Migration Plan
-    # هذه القواعد كانت مُعطّلة سابقاً. تم تفعيل ما يمكن إصلاحه الآن،
-    # وأُجّل الباقي لـ Phase-2 مع توثيق واضح لعدد المخالفات.
+    # SECURITY & PERFORMANCE RULES — Phase-2 Migration
+    # ✅ ALL FOUR STRICT RULES NOW ENABLED GLOBALLY
+    #
+    # Files with pre-existing violations have `// ignore_for_file:` directives
+    # with TODO(phase-2) markers. Each file-level ignore should be removed
+    # once its violations are properly fixed.
+    #
+    # Progress (as of 2026-08-03):
+    #   ✅ close_sinks: 0 violations (passing globally)
+    #   ✅ avoid_slow_async_io: 0 violations (3 fixed via statSync/existsSync)
+    #   ✅ avoid_dynamic_calls: enabled globally
+    #       - 7 files fully fixed (no ignore needed)
+    #       - 13 files have // ignore_for_file: avoid_dynamic_calls (TODO)
+    #   ✅ discarded_futures: enabled globally
+    #       - 7 files fully fixed (no ignore needed)
+    #       - 96 files have // ignore_for_file: discarded_futures (TODO)
+    #
+    # Migration path: remove file-level ignores one by one, fix violations,
+    # verify with `flutter analyze`. Target: zero ignores by v2.0.0.
     # ═══════════════════════════════════════════════════════════════════
-    # ✅ ENABLED (passing — keep active):
-    close_sinks: true                # منع memory leaks من StreamControllers (0 violations)
-    avoid_slow_async_io: true        # حماية الـ Main Thread (3 violations, fixable)
-
-    # ⏳ DEFERRED to Phase-2 (too many violations to fix in one pass):
-    # - discarded_futures: 277 violations — needs bulk `unawaited()` wrapping
-    # - avoid_dynamic_calls: 104 violations — mostly JSON decoding (json.decode
-    #   returns dynamic); needs explicit casts like `(json['x'] as String)`
-    # Migration: re-enable per-file with `// ignore_for_file:` then flip to `true`
-    # once each file's violations are fixed. Target: enable both by v2.0.0.
-    discarded_futures: false         # TODO(phase-2): re-enable after bulk fix
-    avoid_dynamic_calls: false       # TODO(phase-2): re-enable after JSON cast refactor
+    close_sinks: true                # منع memory leaks من StreamControllers
+    avoid_slow_async_io: true        # حماية الـ Main Thread
+    discarded_futures: true          # منع unhandled async errors
+    avoid_dynamic_calls: true        # type safety (JSON parsing needs explicit casts)
 
     # === Phase 2 migration — severity downgrades ===
     always_put_required_named_parameters_first: true
