@@ -2,6 +2,15 @@
 
 /// يُشغّل benchmark_test.dart ثم يطبع تقرير الـ warnings التفصيلي
 /// من PerformanceMonitor لفحص الأنواع والمصادر.
+// This file is tagged as 'performance' so it can be excluded from
+// CI runs via --exclude-tags performance. Performance benchmarks
+// require real Appwrite/path_provider setup and are too slow for
+// regular CI. Run them explicitly via:
+//   flutter test test/performance/ --include-tags performance
+@Tags(['performance'])
+library marina_hotel_mobile.test.performance.warnings_audit_test;
+
+
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';

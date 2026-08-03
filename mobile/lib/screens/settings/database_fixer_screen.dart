@@ -108,32 +108,32 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
     return PerformanceInspector(
       name: 'DatabaseFixerScreen',
       child: Scaffold(
-      appBar: AppBar(
-        title: const Text('إصلاح قاعدة البيانات'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _isLoading ? null : _runValidation,
-            tooltip: 'إعادة التحقق',
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildInfoCard(),
-                  const SizedBox(height: 16),
-                  if (_validationReport != null) ...[_buildValidationCard(), const SizedBox(height: 16)],
-                  if (_fixResult != null) ...[_buildFixResultCard(), const SizedBox(height: 16)],
-                  if (_validationReport?.hasIssues ?? false) _buildFixButton(),
-                ],
-              ),
+        appBar: AppBar(
+          title: const Text('إصلاح قاعدة البيانات'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _isLoading ? null : _runValidation,
+              tooltip: 'إعادة التحقق',
             ),
-    )
+          ],
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildInfoCard(),
+                    const SizedBox(height: 16),
+                    if (_validationReport != null) ...[_buildValidationCard(), const SizedBox(height: 16)],
+                    if (_fixResult != null) ...[_buildFixResultCard(), const SizedBox(height: 16)],
+                    if (_validationReport?.hasIssues ?? false) _buildFixButton(),
+                  ],
+                ),
+              ),
+      ),
     );
   }
 

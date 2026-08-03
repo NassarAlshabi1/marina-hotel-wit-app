@@ -11,6 +11,5 @@ mixin _$ExpensesDaoMixin on DatabaseAccessor<AppDatabase> {
 class ExpensesDaoManager {
   final _$ExpensesDaoMixin _db;
   ExpensesDaoManager(this._db);
-  $$ExpensesTableTableManager get expenses =>
-      $$ExpensesTableTableManager(_db.attachedDatabase, _db.expenses);
+  $$ExpensesTableTableManager get expenses => $$ExpensesTableTableManager(_db.attachedDatabase, _db.expenses);
 }

@@ -42,7 +42,12 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     _tabController = TabController(length: 3, vsync: this);
     CrashlyticsService.instance.setCurrentScreen('PaymentsMainScreen');
     // ✅ Analytics: تتبّع مشاهدة شاشة المدفوعات
-    unawaited(AnalyticsService().logScreenView(screenName: 'payments_main', screenClass: 'PaymentsMainScreen'));
+    unawaited(
+      AnalyticsService().logScreenView(
+        screenName: 'payments_main',
+        screenClass: 'PaymentsMainScreen',
+      ),
+    );
   }
 
   @override
@@ -70,7 +75,10 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
               labelColor: Colors.green.shade800,
               unselectedLabelColor: Colors.grey.shade600,
               indicatorColor: Colors.green,
-              labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              labelStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
               unselectedLabelStyle: const TextStyle(fontSize: 11),
               tabs: const [
                 Tab(text: 'نظرة عامة', icon: Icon(Icons.dashboard, size: 18)),
@@ -81,7 +89,11 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
             Expanded(
               child: TabBarView(
                 controller: _tabController,
-                children: [_buildOverviewTab(), _buildTransactionsTab(), _buildActiveBookingsTab()],
+                children: [
+                  _buildOverviewTab(),
+                  _buildTransactionsTab(),
+                  _buildActiveBookingsTab(),
+                ],
               ),
             ),
           ],
@@ -107,7 +119,10 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
               children: [
                 Icon(Icons.payment_outlined, size: 64, color: Colors.grey),
                 SizedBox(height: 16),
-                Text('لا توجد مدفوعات مسجلة', style: TextStyle(fontSize: 18, color: Colors.grey)),
+                Text(
+                  'لا توجد مدفوعات مسجلة',
+                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                ),
               ],
             ),
           );
@@ -155,7 +170,10 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
       }
       return false;
     }).toList();
-    final todayAmount = todayPayments.fold<double>(0, (sum, p) => sum + p.amount);
+    final todayAmount = todayPayments.fold<double>(
+      0,
+      (sum, p) => sum + p.amount,
+    );
 
     // مدفوعات هذا الشهر
     final monthlyPayments = payments.where((p) {
@@ -166,7 +184,10 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         return false;
       }
     }).toList();
-    final monthlyAmount = monthlyPayments.fold<double>(0, (sum, p) => sum + p.amount);
+    final monthlyAmount = monthlyPayments.fold<double>(
+      0,
+      (sum, p) => sum + p.amount,
+    );
 
     return Row(
       children: [
@@ -200,7 +221,12 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
@@ -244,7 +270,10 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('توزيع المدفوعات حسب الطريقة', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'توزيع المدفوعات حسب الطريقة',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 16),
             SizedBox(
               height: 200,
@@ -258,7 +287,11 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                           '${entry.key}\n${(entry.value / methodCounts.values.reduce((a, b) => a + b) * 100).toStringAsFixed(1)}%',
                       color: color,
                       radius: 80,
-                      titleStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                      titleStyle: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     );
                   }).toList(),
                   centerSpaceRadius: 40,
@@ -291,7 +324,9 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     // ترتيب تنازلي حسب التاريخ
     todayPayments.sort((a, b) {
       try {
-        return DateTime.parse(b.paymentDate).compareTo(DateTime.parse(a.paymentDate));
+        return DateTime.parse(
+          b.paymentDate,
+        ).compareTo(DateTime.parse(a.paymentDate));
       } catch (_) {
         return 0;
       }
@@ -308,8 +343,14 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('مدفوعات اليوم الفندقي', style: Theme.of(context).textTheme.titleMedium),
-                TextButton(onPressed: () => _tabController.animateTo(1), child: const Text('عرض الكل')),
+                Text(
+                  'مدفوعات اليوم الفندقي',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                TextButton(
+                  onPressed: () => _tabController.animateTo(1),
+                  child: const Text('عرض الكل'),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -321,9 +362,14 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                     color: _getPaymentMethodColor(payment.paymentMethod),
                   ),
                   title: Text(CurrencyFormatter.formatAmount(payment.amount)),
-                  subtitle: Text('${payment.paymentMethod} • ${payment.paymentDate}'),
+                  subtitle: Text(
+                    '${payment.paymentMethod} • ${payment.paymentDate}',
+                  ),
                   trailing: payment.roomNumber != null
-                      ? Chip(label: Text(payment.roomNumber!), backgroundColor: Colors.blue.shade50)
+                      ? Chip(
+                          label: Text(payment.roomNumber!),
+                          backgroundColor: Colors.blue.shade50,
+                        )
                       : null,
                 ),
               ),
@@ -355,7 +401,10 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
               children: [
                 Icon(Icons.hotel_outlined, size: 64, color: Colors.grey),
                 SizedBox(height: 16),
-                Text('لا توجد حجوزات نشطة', style: TextStyle(fontSize: 18, color: Colors.grey)),
+                Text(
+                  'لا توجد حجوزات نشطة',
+                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                ),
               ],
             ),
           );
@@ -370,41 +419,181 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
               children: [
                 Icon(Icons.check_circle_outline, size: 64, color: Colors.green),
                 SizedBox(height: 16),
-                Text('جميع الحجوزات مكتملة!', style: TextStyle(fontSize: 18, color: Colors.green)),
+                Text(
+                  'جميع الحجوزات مكتملة!',
+                  style: TextStyle(fontSize: 18, color: Colors.green),
+                ),
               ],
             ),
           );
         }
+
+        // ✅ تنبيه تأخر السداد: نحسب الساعة الحالية لتحديد ما إذا كان
+        // الحجز يحتاج إلى مؤشر برتقالي (22:00-23:00) أو أحمر متأخر (23:00-05:00).
+        final now = DateTime.now();
+        final hour = now.hour;
+        final isLateWindow = hour >= 22 && hour < 23;
+        final isOverdueWindow = hour >= 23 || hour < 5;
 
         return ListView.builder(
           padding: const EdgeInsets.all(12),
           itemCount: activeBookings.length,
           itemBuilder: (context, index) {
             final booking = activeBookings[index];
+            // ✅ حالة تأخر السداد الخاصة بهذا الحجز (لا تظهر إلا إذا كان
+            // هناك رصيد متبقي + نحن داخل نافذة التنبيه الليلية).
+            final hasRemainingBalance = booking.remainingBalanceCached.round() > 0;
+            final isLate = hasRemainingBalance && isLateWindow;
+            final isOverdue = hasRemainingBalance && isOverdueWindow;
+
+            // ✅ لون دائرة رقم الغرفة يتغير حسب الحالة.
+            final Color avatarBg = isOverdue
+                ? Colors.red.shade100
+                : isLate
+                ? Colors.orange.shade100
+                : Colors.orange.shade100;
+            final Color avatarFg = isOverdue
+                ? Colors.red.shade700
+                : isLate
+                ? Colors.orange.shade700
+                : Colors.orange;
+
             return RepaintBoundary(
               child: Card(
                 margin: const EdgeInsets.only(bottom: 6),
+                // ✅ حدود ملوّنة عند التنبيه للتأخر
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: isOverdue
+                      ? BorderSide(color: Colors.red.shade700, width: 1.5)
+                      : isLate
+                      ? BorderSide(color: Colors.orange.shade700, width: 1.2)
+                      : BorderSide.none,
+                ),
                 child: ListTile(
                   dense: true,
                   visualDensity: VisualDensity.compact,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   leading: CircleAvatar(
                     radius: 16,
-                    backgroundColor: Colors.orange.shade100,
+                    backgroundColor: avatarBg,
                     child: Text(
                       booking.roomNumber,
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange, fontSize: 11),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: avatarFg,
+                        fontSize: 11,
+                      ),
                     ),
                   ),
-                  title: Text(booking.guestName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  title: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          booking.guestName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      // ✅ شارة تنبيه برتقالية/حمراء عند التأخر
+                      if (isLate)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.orange.shade700,
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.warning_amber_rounded,
+                                size: 10,
+                                color: Colors.orange.shade700,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                'تنبيه 22:00',
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  color: Colors.orange.shade800,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else if (isOverdue)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.red.shade700,
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                size: 10,
+                                color: Colors.red.shade700,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                'متأخر',
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  color: Colors.red.shade800,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('الهاتف: ${booking.guestPhone}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                      Text('دخول: ${booking.checkinDate}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                      Text(
+                        'الهاتف: ${booking.guestPhone}',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      Text(
+                        'دخول: ${booking.checkinDate}',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey,
+                        ),
+                      ),
                       Text(
                         'الجنسية: ${booking.guestNationality}',
-                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey,
+                        ),
                       ),
                     ],
                   ),
@@ -412,15 +601,28 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                     onPressed: () {
                       Navigator.push<void>(
                         context,
-                        MaterialPageRoute<void>(builder: (context) => BookingCheckoutScreen(booking: booking)),
+                        MaterialPageRoute<void>(
+                          builder: (context) => BookingCheckoutScreen(booking: booking),
+                        ),
                       );
                     },
                     icon: const Icon(Icons.payment, size: 14),
-                    label: const Text('دفع', style: TextStyle(fontSize: 13)),
+                    label: Text(
+                      isOverdue ? 'دفع فوري' : 'دفع',
+                      style: const TextStyle(fontSize: 13),
+                    ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
+                      // ✅ زر الدفع يتحول إلى أحمر/برتقالي حسب حالة التأخر.
+                      backgroundColor: isOverdue
+                          ? Colors.red.shade700
+                          : isLate
+                          ? Colors.orange.shade600
+                          : Colors.green,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                     ),
                   ),
                   isThreeLine: true,
@@ -493,7 +695,13 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // اختيار طريقة الدفع
-                      const Text('طريقة الدفع', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      const Text(
+                        'طريقة الدفع',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,
@@ -501,7 +709,11 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                         children: PaymentMethod.values.map((method) {
                           final isSelected = selectedMethod == method;
                           return ChoiceChip(
-                            avatar: Icon(method.icon, size: 16, color: isSelected ? Colors.white : method.color),
+                            avatar: Icon(
+                              method.icon,
+                              size: 16,
+                              color: isSelected ? Colors.white : method.color,
+                            ),
                             label: Text(
                               method.displayName,
                               style: TextStyle(
@@ -531,7 +743,9 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                           border: OutlineInputBorder(),
                         ),
                         keyboardType: TextInputType.number,
-                        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d+'))],
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'^\d+')),
+                        ],
                       ),
                       const SizedBox(height: 12),
 
@@ -550,7 +764,10 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                       // ملاحظات
                       TextField(
                         controller: notesController,
-                        decoration: const InputDecoration(labelText: 'ملاحظات (اختياري)', border: OutlineInputBorder()),
+                        decoration: const InputDecoration(
+                          labelText: 'ملاحظات (اختياري)',
+                          border: OutlineInputBorder(),
+                        ),
                         maxLines: 2,
                       ),
                     ],
@@ -558,7 +775,10 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                 ),
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('إلغاء'),
+                ),
                 ElevatedButton(
                   onPressed: _isSavingPayment.value
                       ? null
@@ -569,14 +789,19 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                           referenceController.text,
                           selectedMethod,
                         ),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                  ),
                   child: ValueListenableBuilder<bool>(
                     valueListenable: _isSavingPayment,
                     builder: (context, isSaving, _) => isSaving
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
                         : const Text('تسجيل الدفعة'),
                   ),
@@ -604,7 +829,12 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     if (parsedAmount == null || parsedAmount <= 0) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('يرجى إدخال مبلغ صحيح'), backgroundColor: Colors.red));
+      ).showSnackBar(
+        const SnackBar(
+          content: Text('يرجى إدخال مبلغ صحيح'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
@@ -642,7 +872,9 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تم تسجيل الدفعة ${CurrencyFormatter.formatAmount(parsedAmount)} بنجاح'),
+            content: Text(
+              'تم تسجيل الدفعة ${CurrencyFormatter.formatAmount(parsedAmount)} بنجاح',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -660,7 +892,12 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         if (!mounted) return;
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('فشل تسجيل الدفعة: $e'), backgroundColor: Colors.red));
+        ).showSnackBar(
+          SnackBar(
+            content: Text('فشل تسجيل الدفعة: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } finally {
       if (mounted) {

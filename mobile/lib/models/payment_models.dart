@@ -37,19 +37,20 @@ enum PaymentStatus {
 
 /// نموذج بيانات الدفعة
 class Payment {
-  Payment({      required this.id,
-      required this.bookingId,
-      required this.amount,
-      required this.method,
-      required this.status,
-      required this.paymentDate,
-      required this.receivedBy,
-      required this.createdAt,
-      required this.updatedAt,
-      this.notes,
-      this.referenceNumber,
-      this.cardLastFourDigits,
-      this.bankName,
+  Payment({
+    required this.id,
+    required this.bookingId,
+    required this.amount,
+    required this.method,
+    required this.status,
+    required this.paymentDate,
+    required this.receivedBy,
+    required this.createdAt,
+    required this.updatedAt,
+    this.notes,
+    this.referenceNumber,
+    this.cardLastFourDigits,
+    this.bankName,
   });
 
   factory Payment.fromJson(Map<String, dynamic> json) {
@@ -157,15 +158,16 @@ class BookingPaymentSummary {
 
 /// نموذج الإيصال
 class Receipt {
-  Receipt({      required this.receiptNumber,
-      required this.payment,
-      required this.guestName,
-      required this.guestPhone,
-      required this.roomNumber,
-      required this.generatedAt,
-      this.hotelName = 'فندق مارينا بلازا',
-      this.hotelAddress = 'عدن - اليمن - شارع أحمد قاسم',
-      this.hotelPhone = '+967-2-324457',
+  Receipt({
+    required this.receiptNumber,
+    required this.payment,
+    required this.guestName,
+    required this.guestPhone,
+    required this.roomNumber,
+    required this.generatedAt,
+    this.hotelName = 'فندق مارينا بلازا',
+    this.hotelAddress = 'عدن - اليمن - شارع أحمد قاسم',
+    this.hotelPhone = '+967-2-324457',
   });
   final String receiptNumber;
   final Payment payment;
@@ -638,7 +640,10 @@ class Invoice {
       // ═════════════════════════════════════════════════════════
       if (payments.isNotEmpty) ...[
         pw.SizedBox(height: 14),
-        _buildSectionTitle(fonts, 'سجل المدفوعات المفصّل (${payments.length} ${payments.length == 1 ? "دفعة" : "دفعة"})'),
+        _buildSectionTitle(
+          fonts,
+          'سجل المدفوعات المفصّل (${payments.length} ${payments.length == 1 ? "دفعة" : "دفعة"})',
+        ),
         pw.SizedBox(height: 6),
         _buildPaymentsTable(fonts),
       ],
@@ -986,8 +991,7 @@ class Invoice {
   /// ════════════════════════════════════════════════════════════════════
   pw.Widget _buildPaymentsTable(ArabicPdfFonts fonts) {
     // ترتيب الدفعات حسب التاريخ تصاعدياً (الأقدم أولاً)
-    final sortedPayments = List<Payment>.from(payments)
-      ..sort((a, b) => a.paymentDate.compareTo(b.paymentDate));
+    final sortedPayments = List<Payment>.from(payments)..sort((a, b) => a.paymentDate.compareTo(b.paymentDate));
 
     return pw.Container(
       width: double.infinity,
@@ -998,12 +1002,12 @@ class Invoice {
       child: pw.Table(
         border: pw.TableBorder.all(color: _cBorder, width: 0.5),
         columnWidths: const {
-          0: pw.FlexColumnWidth(0.6),  // #
-          1: pw.FlexColumnWidth(2.4),  // التاريخ (كامل + وقت)
-          2: pw.FlexColumnWidth(2.2),  // طريقة الدفع
-          3: pw.FlexColumnWidth(2.0),  // المرجع
-          4: pw.FlexColumnWidth(1.8),  // المبلغ
-          5: pw.FlexColumnWidth(1.4),  // الحالة
+          0: pw.FlexColumnWidth(0.6), // #
+          1: pw.FlexColumnWidth(2.4), // التاريخ (كامل + وقت)
+          2: pw.FlexColumnWidth(2.2), // طريقة الدفع
+          3: pw.FlexColumnWidth(2.0), // المرجع
+          4: pw.FlexColumnWidth(1.8), // المبلغ
+          5: pw.FlexColumnWidth(1.4), // الحالة
         },
         children: [
           // ═══════════════════════════════════════════════════════════════
@@ -1046,7 +1050,9 @@ class Invoice {
             String refText;
             if (p.referenceNumber != null && p.referenceNumber!.isNotEmpty) {
               refText = p.referenceNumber!;
-            } else if (p.method == PaymentMethod.card && p.cardLastFourDigits != null && p.cardLastFourDigits!.isNotEmpty) {
+            } else if (p.method == PaymentMethod.card &&
+                p.cardLastFourDigits != null &&
+                p.cardLastFourDigits!.isNotEmpty) {
               refText = '**** ${p.cardLastFourDigits}';
             } else if (p.method == PaymentMethod.transfer && p.bankName != null && p.bankName!.isNotEmpty) {
               refText = p.bankName!;

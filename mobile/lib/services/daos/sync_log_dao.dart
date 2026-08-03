@@ -36,14 +36,15 @@ class SyncLogEntry {
 
 /// إحصائيات المزامنة
 class SyncStats {
-  SyncStats({      required this.totalSyncs,
-      required this.successfulSyncs,
-      required this.failedSyncs,
-      required this.successRate,
-      required this.totalRecordsPulled,
-      required this.totalRecordsPushed,
-      required this.averageDurationMs,
-      this.lastSync,
+  SyncStats({
+    required this.totalSyncs,
+    required this.successfulSyncs,
+    required this.failedSyncs,
+    required this.successRate,
+    required this.totalRecordsPulled,
+    required this.totalRecordsPushed,
+    required this.averageDurationMs,
+    this.lastSync,
   });
   final int totalSyncs;
   final int successfulSyncs;

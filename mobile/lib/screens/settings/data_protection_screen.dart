@@ -459,29 +459,29 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     return PerformanceInspector(
       name: 'DataProtectionScreen',
       child: Scaffold(
-      appBar: AppBar(title: const Text('إدارة النسخ والمزامنة')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSummaryRow(autoBackupStatus, syncStatus, backupState, appwriteConnection, appwriteStats),
-            const SizedBox(height: 24),
-            _buildSectionTitle('مزامنة Appwrite السحابية', Icons.cloud_sync),
-            const SizedBox(height: 12),
-            _buildAppwriteSection(appwriteConnection, appwriteStats),
-            const SizedBox(height: 32),
-            _buildSectionTitle('المزامنة الذكية', Icons.sync_alt),
-            const SizedBox(height: 12),
-            _buildSyncSection(syncStatus),
-            const SizedBox(height: 32),
-            _buildSectionTitle('النسخ الاحتياطي الذكي', Icons.backup),
-            const SizedBox(height: 12),
-            _buildBackupSection(autoBackupStatus, backupState),
-          ],
+        appBar: AppBar(title: const Text('إدارة النسخ والمزامنة')),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSummaryRow(autoBackupStatus, syncStatus, backupState, appwriteConnection, appwriteStats),
+              const SizedBox(height: 24),
+              _buildSectionTitle('مزامنة Appwrite السحابية', Icons.cloud_sync),
+              const SizedBox(height: 12),
+              _buildAppwriteSection(appwriteConnection, appwriteStats),
+              const SizedBox(height: 32),
+              _buildSectionTitle('المزامنة الذكية', Icons.sync_alt),
+              const SizedBox(height: 12),
+              _buildSyncSection(syncStatus),
+              const SizedBox(height: 32),
+              _buildSectionTitle('النسخ الاحتياطي الذكي', Icons.backup),
+              const SizedBox(height: 12),
+              _buildBackupSection(autoBackupStatus, backupState),
+            ],
+          ),
         ),
       ),
-    )
     );
   }
 

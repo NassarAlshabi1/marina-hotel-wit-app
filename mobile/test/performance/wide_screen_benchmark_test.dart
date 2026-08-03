@@ -23,6 +23,15 @@
 
 // ignore_for_file: lines_longer_than_80_chars
 
+// This file is tagged as 'performance' so it can be excluded from
+// CI runs via --exclude-tags performance. Performance benchmarks
+// require real Appwrite/path_provider setup and are too slow for
+// regular CI. Run them explicitly via:
+//   flutter test test/performance/ --include-tags performance
+@Tags(['performance'])
+library marina_hotel_mobile.test.performance.wide_screen_benchmark_test;
+
+
 import 'dart:io' show ProcessInfo;
 
 import 'package:drift/drift.dart' as d;
@@ -335,8 +344,7 @@ void main() {
       debugPrint('✓ $metrics');
 
       expect(metrics.passed, true, reason: metrics.failureReason ?? '');
-      expect(metrics.totalMs, lessThan(3000),
-          reason: 'DashboardScreen يجب أن تُبنى خلال < 3 ثواني');
+      expect(metrics.totalMs, lessThan(3000), reason: 'DashboardScreen يجب أن تُبنى خلال < 3 ثواني');
       // ✅ تنظيف أي timers معلّقة من debounceStream و drift قبل نهاية الـ test
       // لتجنب assertion '!timersPending' في flutter_test.
       await _cleanupPendingTimers(tester);
@@ -358,8 +366,7 @@ void main() {
       debugPrint('✓ $metrics');
 
       expect(metrics.passed, true, reason: metrics.failureReason ?? '');
-      expect(metrics.totalMs, lessThan(3000),
-          reason: 'RoomsListScreen يجب أن تُبنى خلال < 3 ثواني');
+      expect(metrics.totalMs, lessThan(3000), reason: 'RoomsListScreen يجب أن تُبنى خلال < 3 ثواني');
       await _cleanupPendingTimers(tester);
     });
   });
@@ -385,8 +392,7 @@ void main() {
       debugPrint('✓ $metrics');
 
       expect(metrics.passed, true, reason: metrics.failureReason ?? '');
-      expect(metrics.totalMs, lessThan(5000),
-          reason: 'BookingPaymentScreen يجب أن تُبنى خلال < 5 ثواني');
+      expect(metrics.totalMs, lessThan(5000), reason: 'BookingPaymentScreen يجب أن تُبنى خلال < 5 ثواني');
       await _cleanupPendingTimers(tester);
     });
   });
@@ -406,8 +412,7 @@ void main() {
       debugPrint('✓ $metrics');
 
       expect(metrics.passed, true, reason: metrics.failureReason ?? '');
-      expect(metrics.totalMs, lessThan(3000),
-          reason: 'DebtsListScreen يجب أن تُبنى خلال < 3 ثواني');
+      expect(metrics.totalMs, lessThan(3000), reason: 'DebtsListScreen يجب أن تُبنى خلال < 3 ثواني');
       await _cleanupPendingTimers(tester);
     });
   });
@@ -427,8 +432,7 @@ void main() {
       debugPrint('✓ $metrics');
 
       expect(metrics.passed, true, reason: metrics.failureReason ?? '');
-      expect(metrics.totalMs, lessThan(3000),
-          reason: 'EmployeesListScreen يجب أن تُبنى خلال < 3 ثواني');
+      expect(metrics.totalMs, lessThan(3000), reason: 'EmployeesListScreen يجب أن تُبنى خلال < 3 ثواني');
       await _cleanupPendingTimers(tester);
     });
   });
@@ -448,8 +452,7 @@ void main() {
       debugPrint('✓ $metrics');
 
       expect(metrics.passed, true, reason: metrics.failureReason ?? '');
-      expect(metrics.totalMs, lessThan(3000),
-          reason: 'BookingsListScreen يجب أن تُبنى خلال < 3 ثواني');
+      expect(metrics.totalMs, lessThan(3000), reason: 'BookingsListScreen يجب أن تُبنى خلال < 3 ثواني');
       await _cleanupPendingTimers(tester);
     });
   });
@@ -482,16 +485,13 @@ void main() {
 
       // التحقق أن كل الشاشات نجحت
       final failed = allMetrics.where((m) => !m.passed).toList();
-      expect(failed, isEmpty,
-          reason: 'كل الشاشات يجب أن تنجح. الفاشلة: ${failed.map((m) => m.screenName).join(", ")}');
+      expect(failed, isEmpty, reason: 'كل الشاشات يجب أن تنجح. الفاشلة: ${failed.map((m) => m.screenName).join(", ")}');
 
       // التحقق أن متوسط زمن البناء معقول
       if (allMetrics.isNotEmpty) {
-        final avgTotal = allMetrics.fold<int>(0, (s, m) => s + m.totalMs) /
-            allMetrics.length;
+        final avgTotal = allMetrics.fold<int>(0, (s, m) => s + m.totalMs) / allMetrics.length;
         debugPrint('  📈 متوسط زمن البناء الكلي: ${avgTotal.toStringAsFixed(0)}ms');
-        expect(avgTotal, lessThan(3000),
-            reason: 'متوسط زمن البناء يجب أن يكون < 3 ثواني');
+        expect(avgTotal, lessThan(3000), reason: 'متوسط زمن البناء يجب أن يكون < 3 ثواني');
       }
     });
   });

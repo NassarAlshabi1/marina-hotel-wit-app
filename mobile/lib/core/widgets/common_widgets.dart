@@ -3,14 +3,15 @@ import '../constants/ui_constants.dart';
 
 /// Info Row Widget - عرض معلومة بصيغة (Label: Value)
 class InfoRow extends StatelessWidget {
-  const InfoRow({      required this.label,
-      required this.value,
-      super.key,
-      this.icon,
-      this.iconColor,
-      this.labelStyle,
-      this.valueStyle,
-      this.isExpandable = false,
+  const InfoRow({
+    required this.label,
+    required this.value,
+    super.key,
+    this.icon,
+    this.iconColor,
+    this.labelStyle,
+    this.valueStyle,
+    this.isExpandable = false,
   });
   final String label;
   final String value;
@@ -63,13 +64,14 @@ class InfoRow extends StatelessWidget {
 
 /// Stat Card Widget - عرض إحصائية برقم وأيقونة
 class StatCard extends StatelessWidget {
-  const StatCard({      required this.title,
-      required this.value,
-      required this.icon,
-      required this.color,
-      super.key,
-      this.onTap,
-      this.subtitle,
+  const StatCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+    super.key,
+    this.onTap,
+    this.subtitle,
   });
   final String title;
   final String value;
@@ -127,12 +129,13 @@ class StatCard extends StatelessWidget {
 
 /// Status Badge Widget - عرض حالة بلون وأيقونة
 class StatusBadge extends StatelessWidget {
-  const StatusBadge({      required this.status,
-      super.key,
-      this.color,
-      this.icon,
-      this.showIcon = true,
-      this.fontSize,
+  const StatusBadge({
+    required this.status,
+    super.key,
+    this.color,
+    this.icon,
+    this.showIcon = true,
+    this.fontSize,
   });
   final String status;
   final Color? color;
@@ -168,11 +171,12 @@ class StatusBadge extends StatelessWidget {
 
 /// Section Header Widget - عنوان قسم
 class SectionHeader extends StatelessWidget {
-  const SectionHeader({      required this.title,
-      super.key,
-      this.icon,
-      this.action,
-      this.color,
+  const SectionHeader({
+    required this.title,
+    super.key,
+    this.icon,
+    this.action,
+    this.color,
   });
   final String title;
   final IconData? icon;
@@ -208,11 +212,12 @@ class SectionHeader extends StatelessWidget {
 
 /// Empty State Widget - عرض حالة فارغة
 class EmptyStateWidget extends StatelessWidget {
-  const EmptyStateWidget({      required this.message,
-      super.key,
-      this.icon = Icons.inbox_outlined,
-      this.actionLabel,
-      this.onAction,
+  const EmptyStateWidget({
+    required this.message,
+    super.key,
+    this.icon = Icons.inbox_outlined,
+    this.actionLabel,
+    this.onAction,
   });
   final String message;
   final IconData icon;
@@ -269,9 +274,10 @@ class LoadingStateWidget extends StatelessWidget {
 
 /// Error State Widget - عرض حالة خطأ
 class ErrorStateWidget extends StatelessWidget {
-  const ErrorStateWidget({      required this.message,
-      super.key,
-      this.onRetry,
+  const ErrorStateWidget({
+    required this.message,
+    super.key,
+    this.onRetry,
   });
   final String message;
   final VoidCallback? onRetry;
@@ -308,10 +314,11 @@ class ErrorStateWidget extends StatelessWidget {
 
 /// Info Badge Widget - badge للأرقام والإشعارات
 class InfoBadge extends StatelessWidget {
-  const InfoBadge({      required this.text,
-      super.key,
-      this.backgroundColor,
-      this.textColor,
+  const InfoBadge({
+    required this.text,
+    super.key,
+    this.backgroundColor,
+    this.textColor,
   });
   final String text;
   final Color? backgroundColor;

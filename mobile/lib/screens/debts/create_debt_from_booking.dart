@@ -103,49 +103,49 @@ class _CreateDebtFromBookingScreenState extends ConsumerState<CreateDebtFromBook
     }
     final dropdownColor = Theme.of(context).textTheme.bodyMedium?.color;
     return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('اختر الحجز', style: _titleStyle),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<Booking>(
-                  initialValue: bookings.contains(_selectedBooking) ? _selectedBooking : null,
-                  isExpanded: true,
-                  style: _fieldStyle.copyWith(color: dropdownColor),
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('اختر الحجز', style: _titleStyle),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<Booking>(
+              initialValue: bookings.contains(_selectedBooking) ? _selectedBooking : null,
+              isExpanded: true,
+              style: _fieldStyle.copyWith(color: dropdownColor),
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              items: bookings.map((booking) {
+                return DropdownMenuItem(
+                  value: booking,
+                  child: Text(
+                    '${booking.roomNumber} - ${booking.guestName}',
+                    overflow: TextOverflow.ellipsis,
+                    style: _fieldStyle.copyWith(color: dropdownColor),
                   ),
-                  items: bookings.map((booking) {
-                    return DropdownMenuItem(
-                      value: booking,
-                      child: Text(
-                        '${booking.roomNumber} - ${booking.guestName}',
-                        overflow: TextOverflow.ellipsis,
-                        style: _fieldStyle.copyWith(color: dropdownColor),
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (booking) {
-                    setState(() {
-                      _selectedBooking = booking;
-                      _debtData = null;
-                      if (booking != null) {
-                        final checkin = DateTime.tryParse(booking.checkinDate);
-                        if (checkin != null) {
-                          _fromDate = checkin;
-                          _toDate = _resolveCheckout(booking);
-                        }
-                      }
-                    });
-                  },
-                ),
-              ],
+                );
+              }).toList(),
+              onChanged: (booking) {
+                setState(() {
+                  _selectedBooking = booking;
+                  _debtData = null;
+                  if (booking != null) {
+                    final checkin = DateTime.tryParse(booking.checkinDate);
+                    if (checkin != null) {
+                      _fromDate = checkin;
+                      _toDate = _resolveCheckout(booking);
+                    }
+                  }
+                });
+              },
             ),
-          ),
-        );
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildBookingInfo() {

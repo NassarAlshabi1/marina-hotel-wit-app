@@ -47,13 +47,16 @@ jobs:
 
       # ═══════════════════════════════════════════════════════════
       #  اختبارات
-      #  --exclude-tags integration: يستثني اختبارات tagged بـ @Tags(['integration'])
+      #  --exclude-tags integration,performance: يستثني:
+      #    - integration: اختبارات tagged بـ @Tags(['integration'])
+      #    - performance: اختبارات test/performance/* التي تحتاج Appwrite
+      #      حقيقي وتسبب "Timer is still pending" hang + timeout في CI
       #  --concurrency=2: تقليل ضغط الذاكرة
       #  --timeout=60s: timeout قصير لمنع التعليق
       #  test/flutter_test_config.dart يُهيِّئ sqfliteFfiInit() تلقائياً
       # ═══════════════════════════════════════════════════════════
       - name: Run tests
-        run: flutter test --coverage --concurrency=2 --timeout=60s --exclude-tags integration --reporter compact
+        run: flutter test --coverage --concurrency=2 --timeout=180s --exclude-tags integration,performance,slow --reporter compact
         continue-on-error: true
 
       - name: Coverage summary

@@ -57,18 +57,20 @@ class SyncTask {
 }
 
 class SyncTaskResult {
-  const SyncTaskResult({      required this.success,
-      required this.duration,
-      this.recordsProcessed = 0,
-      this.conflicts = 0,
-      this.error,
-      this.metadata,
+  const SyncTaskResult({
+    required this.success,
+    required this.duration,
+    this.recordsProcessed = 0,
+    this.conflicts = 0,
+    this.error,
+    this.metadata,
   });
 
-  factory SyncTaskResult.success({      required Duration duration,
-      int recordsProcessed = 0,
-      int conflicts = 0,
-      Map<String, dynamic>? metadata,
+  factory SyncTaskResult.success({
+    required Duration duration,
+    int recordsProcessed = 0,
+    int conflicts = 0,
+    Map<String, dynamic>? metadata,
   }) => SyncTaskResult(
     success: true,
     recordsProcessed: recordsProcessed,
@@ -88,15 +90,16 @@ class SyncTaskResult {
 }
 
 class SyncHealth {
-  const SyncHealth({      required this.isHealthy,
-      required this.successRate,
-      required this.consecutiveFailures,
-      required this.avgSyncDuration,
-      required this.pendingTasks,
-      required this.outboxCount,
-      required this.circuitStates,
-      this.lastSuccessfulSync,
-      this.lastFailedSync,
+  const SyncHealth({
+    required this.isHealthy,
+    required this.successRate,
+    required this.consecutiveFailures,
+    required this.avgSyncDuration,
+    required this.pendingTasks,
+    required this.outboxCount,
+    required this.circuitStates,
+    this.lastSuccessfulSync,
+    this.lastFailedSync,
   });
   final bool isHealthy;
   final double successRate;

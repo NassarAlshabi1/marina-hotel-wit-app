@@ -2,18 +2,19 @@
 
 /// نموذج الجهاز المسجل
 class AppwriteDevice {
-  AppwriteDevice({      required this.id,
-      required this.deviceName,
-      required this.deviceModel,
-      required this.osVersion,
-      required this.lastSeen,
-      required this.status,
-      required this.createdAt,
-      required this.updatedAt,
-      required this.version,
-      this.lastActive,
-      this.origin,
-      this.localUuid,
+  AppwriteDevice({
+    required this.id,
+    required this.deviceName,
+    required this.deviceModel,
+    required this.osVersion,
+    required this.lastSeen,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.version,
+    this.lastActive,
+    this.origin,
+    this.localUuid,
   });
 
   factory AppwriteDevice.fromJson(Map<String, dynamic> json) {
@@ -87,17 +88,18 @@ class AppwriteDevice {
 
 /// نموذج سجل المزامنة
 class AppwriteSyncLog {
-  AppwriteSyncLog({      required this.id,
-      required this.deviceId,
-      required this.syncType,
-      required this.startTime,
-      required this.status,
-      this.endTime,
-      this.recordsPushed = 0,
-      this.recordsPulled = 0,
-      this.conflicts = 0,
-      this.errorMessage,
-      this.details,
+  AppwriteSyncLog({
+    required this.id,
+    required this.deviceId,
+    required this.syncType,
+    required this.startTime,
+    required this.status,
+    this.endTime,
+    this.recordsPushed = 0,
+    this.recordsPulled = 0,
+    this.conflicts = 0,
+    this.errorMessage,
+    this.details,
   });
 
   factory AppwriteSyncLog.fromJson(Map<String, dynamic> json) {

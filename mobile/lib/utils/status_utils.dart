@@ -95,7 +95,10 @@ class StatusUtils {
   static bool isRoomOccupied(String status) {
     final normalized = _normalize(status);
     // إذا كانت الحالة "مكتمل" أو "checked_out" فهي ليست مشغولة
-    if (normalized == 'مكتمل' || normalized == 'completed' || normalized == 'checked_out' || normalized == 'checked out') {
+    if (normalized == 'مكتمل' ||
+        normalized == 'completed' ||
+        normalized == 'checked_out' ||
+        normalized == 'checked out') {
       return false;
     }
     return _occupiedRoomStatuses.contains(normalized);

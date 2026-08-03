@@ -860,32 +860,17 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
         [
           'نسبة المصروفات إلى الإيرادات',
           '${expenseRatio.toStringAsFixed(1)}%',
-          if (expenseRatio < 60)
-            'ممتاز'
-          else if (expenseRatio < 80)
-            'جيد'
-          else
-            'مرتفع',
+          if (expenseRatio < 60) 'ممتاز' else if (expenseRatio < 80) 'جيد' else 'مرتفع',
         ],
         [
           'نسبة الرواتب إلى الإيرادات',
           '${salaryExpenseRatio.toStringAsFixed(1)}%',
-          if (salaryExpenseRatio < 30)
-            'ممتاز'
-          else if (salaryExpenseRatio < 50)
-            'جيد'
-          else
-            'مرتفع',
+          if (salaryExpenseRatio < 30) 'ممتاز' else if (salaryExpenseRatio < 50) 'جيد' else 'مرتفع',
         ],
         [
           'معدل تغطية الديون',
           if (debtCoverage > 0) '${debtCoverage.toStringAsFixed(2)}x' else 'غير كافٍ',
-          if (debtCoverage > 2)
-            'ممتاز'
-          else if (debtCoverage > 1)
-            'جيد'
-          else
-            'ضعيف',
+          if (debtCoverage > 2) 'ممتاز' else if (debtCoverage > 1) 'جيد' else 'ضعيف',
         ],
       ],
     );
@@ -1946,48 +1931,48 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
         runSpacing: 8,
         alignment: WrapAlignment.center,
         children: [
-        SizedBox(
-          width: 140,
-          child: NeuStatCard(
-            icon: Icons.trending_down_rounded,
-            title: 'إجمالي الدخل',
-            value: _currencyFormat.format(_incomeTotal),
-            iconColor: Colors.green,
-            valueColor: Colors.green.shade700,
+          SizedBox(
+            width: 140,
+            child: NeuStatCard(
+              icon: Icons.trending_down_rounded,
+              title: 'إجمالي الدخل',
+              value: _currencyFormat.format(_incomeTotal),
+              iconColor: Colors.green,
+              valueColor: Colors.green.shade700,
+            ),
           ),
-        ),
-        SizedBox(
-          width: 140,
-          child: NeuStatCard(
-            icon: Icons.trending_up_rounded,
-            title: 'إجمالي المصروفات',
-            value: _currencyFormat.format(_expenseTotal),
-            iconColor: Colors.red,
-            valueColor: Colors.red.shade700,
+          SizedBox(
+            width: 140,
+            child: NeuStatCard(
+              icon: Icons.trending_up_rounded,
+              title: 'إجمالي المصروفات',
+              value: _currencyFormat.format(_expenseTotal),
+              iconColor: Colors.red,
+              valueColor: Colors.red.shade700,
+            ),
           ),
-        ),
-        SizedBox(
-          width: 140,
-          child: NeuStatCard(
-            icon: Icons.people_rounded,
-            title: 'مصروفات الرواتب',
-            value: _currencyFormat.format(_salaryTotal),
-            iconColor: Colors.orange,
-            valueColor: Colors.orange.shade700,
+          SizedBox(
+            width: 140,
+            child: NeuStatCard(
+              icon: Icons.people_rounded,
+              title: 'مصروفات الرواتب',
+              value: _currencyFormat.format(_salaryTotal),
+              iconColor: Colors.orange,
+              valueColor: Colors.orange.shade700,
+            ),
           ),
-        ),
-        SizedBox(
-          width: 140,
-          child: NeuStatCard(
-            icon: _net >= 0 ? Icons.rocket_launch_rounded : Icons.warning_rounded,
-            title: 'صافي الربح',
-            value: _currencyFormat.format(_net),
-            iconColor: _net >= 0 ? Colors.teal : Colors.red,
-            valueColor: _net >= 0 ? Colors.teal.shade700 : Colors.red.shade700,
-            emphasize: true,
+          SizedBox(
+            width: 140,
+            child: NeuStatCard(
+              icon: _net >= 0 ? Icons.rocket_launch_rounded : Icons.warning_rounded,
+              title: 'صافي الربح',
+              value: _currencyFormat.format(_net),
+              iconColor: _net >= 0 ? Colors.teal : Colors.red,
+              valueColor: _net >= 0 ? Colors.teal.shade700 : Colors.red.shade700,
+              emphasize: true,
+            ),
           ),
-        ),
-      ],
+        ],
       ),
     );
   }
@@ -2070,12 +2055,12 @@ class _IncomeExpenseReportScreenState extends ConsumerState<IncomeExpenseReportS
                   ),
                 ],
               ),
-            trailing: Text(
-              '${entry.isIncome ? '+' : '-'}${_currencyFormat.format(entry.amount)}',
-              style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 11),
+              trailing: Text(
+                '${entry.isIncome ? '+' : '-'}${_currencyFormat.format(entry.amount)}',
+                style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 11),
+              ),
             ),
           ),
-        ),
         );
       },
     );

@@ -25,6 +25,15 @@
 
 // ignore_for_file: lines_longer_than_80_chars, avoid_redundant_argument_values
 
+// This file is tagged as 'performance' so it can be excluded from
+// CI runs via --exclude-tags performance. Performance benchmarks
+// require real Appwrite/path_provider setup and are too slow for
+// regular CI. Run them explicitly via:
+//   flutter test test/performance/ --include-tags performance
+@Tags(['performance'])
+library marina_hotel_mobile.test.performance.appwrite_sync_flow_benchmark_test;
+
+
 import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
@@ -119,8 +128,11 @@ void main() {
       debugPrint('  Drift overhead: ${stopwatch.elapsedMilliseconds - phase2.elapsedMilliseconds}ms');
 
       expect(batch.length, 100);
-      expect(stopwatch.elapsedMilliseconds, lessThan(200),
-          reason: 'push 100 records يجب أن يكون < 200ms (شبكة 50ms + drift)');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(200),
+        reason: 'push 100 records يجب أن يكون < 200ms (شبكة 50ms + drift)',
+      );
     });
   });
 
@@ -163,8 +175,11 @@ void main() {
       debugPrint('  Phase 2 (insertOne × 100 in tx): ${phase2.elapsedMilliseconds}ms');
       debugPrint('  Drift overhead: ${stopwatch.elapsedMilliseconds - phase1.elapsedMilliseconds}ms');
 
-      expect(stopwatch.elapsedMilliseconds, lessThan(500),
-          reason: 'pull 100 records يجب أن يكون < 500ms (شبكة 50ms + drift)');
+      expect(
+        stopwatch.elapsedMilliseconds,
+        lessThan(500),
+        reason: 'pull 100 records يجب أن يكون < 500ms (شبكة 50ms + drift)',
+      );
     });
   });
 
@@ -219,8 +234,7 @@ void main() {
       debugPrint('  Network sim: ~100ms (50ms push + 50ms pull)');
       debugPrint('  Drift overhead: ${stopwatch.elapsedMilliseconds - 100}ms');
 
-      expect(stopwatch.elapsedMilliseconds, lessThan(500),
-          reason: 'full sync cycle يجب أن يكون < 500ms');
+      expect(stopwatch.elapsedMilliseconds, lessThan(500), reason: 'full sync cycle يجب أن يكون < 500ms');
     });
   });
 
@@ -230,11 +244,14 @@ void main() {
   group('⚖️ Conflict Resolution (LWW, 100 records)', () {
     test('LWW resolution لـ 100 سجل خلال < 50ms', () async {
       // محاكاة 100 سجل مع conflict (localTs vs remoteTs)
-      final conflicts = List.generate(100, (i) => {
-        'localUuid': 'conflict-$i',
-        'localLastModified': i < 50 ? 2000 : 1000, // 50 محلي أحدث
-        'remoteLastModified': i < 50 ? 1000 : 2000, // 50 بعيد أحدث
-      });
+      final conflicts = List.generate(
+        100,
+        (i) => {
+          'localUuid': 'conflict-$i',
+          'localLastModified': i < 50 ? 2000 : 1000, // 50 محلي أحدث
+          'remoteLastModified': i < 50 ? 1000 : 2000, // 50 بعيد أحدث
+        },
+      );
 
       final stopwatch = Stopwatch()..start();
       var localWins = 0;
@@ -253,8 +270,7 @@ void main() {
       debugPrint('✓ LWW conflict resolution (100 records): ${stopwatch.elapsedMilliseconds}ms');
       debugPrint('  Local wins: $localWins, Remote wins: $remoteWins');
 
-      expect(stopwatch.elapsedMilliseconds, lessThan(50),
-          reason: 'LWW لـ 100 سجل يجب أن يكون < 50ms');
+      expect(stopwatch.elapsedMilliseconds, lessThan(50), reason: 'LWW لـ 100 سجل يجب أن يكون < 50ms');
       expect(localWins, 50);
       expect(remoteWins, 50);
     });
@@ -336,8 +352,7 @@ void main() {
       }
       debugPrint('  Total: ${total}ms');
 
-      expect(total, lessThan(500),
-          reason: 'إجمالي latency يجب أن يكون < 500ms');
+      expect(total, lessThan(500), reason: 'إجمالي latency يجب أن يكون < 500ms');
     });
   });
 

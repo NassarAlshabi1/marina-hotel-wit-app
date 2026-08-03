@@ -5,6 +5,7 @@
 [![Dart Version](https://img.shields.io/badge/Dart-3.4.0-blue.svg)](https://dart.dev/)
 [![Android API](https://img.shields.io/badge/Android-API%2021%2B-green.svg)](https://developer.android.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![style: very good analysis](https://img.shields.io/badge/style-very_good_analysis-B22C89.svg)](https://pub.dev/packages/very_good_analysis)
 
 **نظام إدارة فندقي عربي شامل ومتكامل** - مصمم خصيصاً للسوق العربي مع دعم كامل للغة العربية واتجاه RTL. يدعم العمل دون إنترنت مع مزامنة ذكية عند الاتصال.
 

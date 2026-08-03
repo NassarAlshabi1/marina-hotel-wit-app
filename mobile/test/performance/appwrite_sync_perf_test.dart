@@ -13,6 +13,15 @@
 //    flutter test test/performance/appwrite_sync_perf_test.dart --reporter expanded
 // ============================================================================
 
+// This file is tagged as 'performance' so it can be excluded from
+// CI runs via --exclude-tags performance. Performance benchmarks
+// require real Appwrite/path_provider setup and are too slow for
+// regular CI. Run them explicitly via:
+//   flutter test test/performance/ --include-tags performance
+@Tags(['performance'])
+library marina_hotel_mobile.test.performance.appwrite_sync_perf_test;
+
+
 import 'dart:convert' show JsonEncoder, jsonDecode, jsonEncode;
 import 'dart:io' show Directory, File;
 

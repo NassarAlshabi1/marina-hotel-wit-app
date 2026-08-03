@@ -109,9 +109,30 @@ void main() {
 
   group('OutboxDao — takeBatch', () {
     test('takeBatch يعيد السجلات المنتظرة بالترتيب الصحيح', () async {
-      await outboxDao.merge(entity: 'expenses', op: 'create', localUuid: 'exp-1', payload: {}, clientTs: 100, source: 'local');
-      await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'room-1', payload: {}, clientTs: 200, source: 'local');
-      await outboxDao.merge(entity: 'bookings', op: 'create', localUuid: 'bkg-1', payload: {}, clientTs: 300, source: 'local');
+      await outboxDao.merge(
+        entity: 'expenses',
+        op: 'create',
+        localUuid: 'exp-1',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
+      await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'room-1',
+        payload: {},
+        clientTs: 200,
+        source: 'local',
+      );
+      await outboxDao.merge(
+        entity: 'bookings',
+        op: 'create',
+        localUuid: 'bkg-1',
+        payload: {},
+        clientTs: 300,
+        source: 'local',
+      );
 
       final batch = await outboxDao.takeBatch(10);
       // UPDATE … RETURNING * لا يضمن ترتيب الصفوف، نتحقق فقط من المحتوى
@@ -123,7 +144,14 @@ void main() {
     });
 
     test('takeBatch يحدّد حالة السجلات إلى processing', () async {
-      await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'room-1', payload: {}, clientTs: 100, source: 'local');
+      await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'room-1',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
       final batch = await outboxDao.takeBatch(10);
       expect(batch.length, 1);
       expect(batch.first.processingStatus, 'processing');
@@ -132,7 +160,14 @@ void main() {
     });
 
     test('takeBatch لا يلتقط السجلات المُسلّمة للرئيسي (delivered_to_primary=1)', () async {
-      final id = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'room-1', payload: {}, clientTs: 100, source: 'local');
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'room-1',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
       // سلّم يدوياً للرئيسي
       await db.customStatement('UPDATE outbox SET delivered_to_primary = 1 WHERE id = ?', [id]);
       final batch = await outboxDao.takeBatch(10);
@@ -140,8 +175,22 @@ void main() {
     });
 
     test('takeBatch يلتقط حسب source عندما يُمرّر', () async {
-      await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r1', payload: {}, clientTs: 100, source: 'local');
-      await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r2', payload: {}, clientTs: 101, source: 'restore');
+      await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r1',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
+      await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r2',
+        payload: {},
+        clientTs: 101,
+        source: 'restore',
+      );
       final batch = await outboxDao.takeBatch(10, sources: const ['local']);
       expect(batch.length, 1);
       expect(batch.first.source, 'local');
@@ -150,7 +199,14 @@ void main() {
 
   group('OutboxDao — dual-delivery lifecycle', () {
     test('markDeliveredToPrimary يحذف السجل إذا كان مُسلّماً للثانوي أيضاً', () async {
-      final id = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r1', payload: {}, clientTs: 100, source: 'local');
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r1',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
       // delivered_to_secondary افتراضياً true (لأن SecondaryAppwriteConfig غير مُهيّأ)
       // delivered_to_primary = false (افتراضي)
       await outboxDao.markDeliveredToPrimary(id);
@@ -160,7 +216,14 @@ void main() {
     });
 
     test('markDeliveredToPrimary يحذف السجل فقط إذا كان مُسلّماً للثانوي أيضاً', () async {
-      final id = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r1', payload: {}, clientTs: 100, source: 'local');
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r1',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
       // اجعل delivered_to_secondary=false لمحاكاة Secondary قيد الانتظار
       await db.customStatement('UPDATE outbox SET delivered_to_secondary = 0 WHERE id = ?', [id]);
       await outboxDao.markDeliveredToPrimary(id);
@@ -172,7 +235,14 @@ void main() {
     });
 
     test('markDeliveredToSecondary يحذف السجل عندما يكون مُسلّماً للرئيسي أيضاً', () async {
-      final id = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r1', payload: {}, clientTs: 100, source: 'local');
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r1',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
       await db.customStatement('UPDATE outbox SET delivered_to_secondary = 0 WHERE id = ?', [id]);
       // سلّم للرئيسي أولاً
       await outboxDao.markDeliveredToPrimary(id);
@@ -184,7 +254,14 @@ void main() {
 
     test('دورة حياة كاملة: pending → processing → completed + تسليم كلا الوجهتين', () async {
       // 1) إنشاء سجل
-      final id = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r1', payload: {}, clientTs: 100, source: 'local');
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r1',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
       await db.customStatement('UPDATE outbox SET delivered_to_secondary = 0 WHERE id = ?', [id]);
       expect(await outboxDao.countPendingPushable(), 1);
 
@@ -206,7 +283,14 @@ void main() {
 
   group('OutboxDao — reclaimForPush', () {
     test('يُعيد السجلات العالقة في processing إلى pending', () async {
-      final id = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r1', payload: {}, clientTs: 100, source: 'local');
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r1',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
       // اجعل السجل في processing مع processing_started_at قديم جداً
       await db.customStatement(
         "UPDATE outbox SET processing_status = 'processing', processing_started_at = 1000 WHERE id = ?",
@@ -221,7 +305,14 @@ void main() {
     });
 
     test('يُعيد السجلات الفاشلة ذات المحاولات القليلة إلى pending', () async {
-      final id = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r1', payload: {}, clientTs: 100, source: 'local');
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r1',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
       await outboxDao.setError(id, 'Transient error', 3);
       final reclaimed = await outboxDao.reclaimForPush(maxFailedAttempts: 5);
       expect(reclaimed, 1);
@@ -230,14 +321,28 @@ void main() {
     });
 
     test('لا يُعيد السجلات الفاشلة فوق maxFailedAttempts', () async {
-      final id = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r1', payload: {}, clientTs: 100, source: 'local');
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r1',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
       await outboxDao.setError(id, 'Many failures', 10);
       final reclaimed = await outboxDao.reclaimForPush(maxFailedAttempts: 5);
       expect(reclaimed, 0, reason: 'لم يتجاوز maxFailedAttempts');
     });
 
     test('لا يُعيد السجلات الـ dead', () async {
-      final id = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r1', payload: {}, clientTs: 100, source: 'local');
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r1',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
       await outboxDao.setDead(id, 'Permanent', 10);
       final reclaimed = await outboxDao.reclaimForPush();
       expect(reclaimed, 0);
@@ -246,14 +351,28 @@ void main() {
 
   group('OutboxDao — retryFailedWithBackoff', () {
     test('يُعيد السجلات الفاشلة ذات المحاولات القليلة فوراً', () async {
-      final id = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r1', payload: {}, clientTs: 100, source: 'local');
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r1',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
       await outboxDao.setError(id, 'Error', 3);
       final retried = await outboxDao.retryFailedWithBackoff(maxAttempts: 5);
       expect(retried, 1);
     });
 
     test('يُعيد السجلات عالية المحاولات بعد انقضاء backoffMinutes', () async {
-      final id = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r1', payload: {}, clientTs: 100, source: 'local');
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r1',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
       await outboxDao.setError(id, 'Error', 10);
       // clientTs=100 قديم — يجب أن يُلتقط بالـ backoff
       final retried = await outboxDao.retryFailedWithBackoff(maxAttempts: 5, backoffMinutes: 0);
@@ -261,7 +380,14 @@ void main() {
     });
 
     test('لا يُعيد السجلات الـ dead', () async {
-      final id = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r1', payload: {}, clientTs: 100, source: 'local');
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r1',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
       await outboxDao.setDead(id, 'Permanent', 10);
       final retried = await outboxDao.retryFailedWithBackoff();
       expect(retried, 0);
@@ -270,20 +396,54 @@ void main() {
 
   group('OutboxDao — counting methods', () {
     test('countPendingPushable يحسب فقط pending + delivered_to_primary=0', () async {
-      await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r1', payload: {}, clientTs: 100, source: 'local');
-      await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r2', payload: {}, clientTs: 101, source: 'local');
-      final id3 = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r3', payload: {}, clientTs: 102, source: 'local');
+      await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r1',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
+      await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r2',
+        payload: {},
+        clientTs: 101,
+        source: 'local',
+      );
+      final id3 = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r3',
+        payload: {},
+        clientTs: 102,
+        source: 'local',
+      );
       await db.customStatement('UPDATE outbox SET delivered_to_primary = 1 WHERE id = ?', [id3]);
       expect(await outboxDao.countPendingPushable(), 2);
     });
 
     test('countUndeliveredToPrimary يشمل pending + processing + failed', () async {
-      final id1 = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r1', payload: {}, clientTs: 100, source: 'local');
-      final id2 = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r2', payload: {}, clientTs: 101, source: 'local');
+      final id1 = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r1',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
+      final id2 = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r2',
+        payload: {},
+        clientTs: 101,
+        source: 'local',
+      );
       await db.customStatement("UPDATE outbox SET processing_status = 'processing' WHERE id = ?", [id1]);
       await outboxDao.setError(id2, 'Error', 1);
-      expect(await outboxDao.countUndeliveredToPrimary(), 2,
-          reason: 'يجب أن يشمل processing و failed أيضاً');
+      expect(await outboxDao.countUndeliveredToPrimary(), 2, reason: 'يجب أن يشمل processing و failed أيضاً');
     });
   });
 
@@ -328,8 +488,22 @@ void main() {
 
   group('OutboxDao — cleanup methods', () {
     test('cleanupCompleted يحذف السجلات المُكتملة القديمة فقط', () async {
-      final oldId = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r-old', payload: {}, clientTs: 100, source: 'local');
-      final newId = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r-new', payload: {}, clientTs: 2000000000, source: 'local');
+      final oldId = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r-old',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
+      final newId = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r-new',
+        payload: {},
+        clientTs: 2000000000,
+        source: 'local',
+      );
       await outboxDao.markCompleted([oldId, newId]);
       // سيحذف فقط clientTs < (الآن - olderThan)
       final deleted = await outboxDao.cleanupCompleted(olderThan: const Duration(days: 1));
@@ -340,34 +514,69 @@ void main() {
     });
 
     test('cleanupOrphanedEntries يحذف السجلات الفاشلة كثيرة المحاولات', () async {
-      final id = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'orphan', payload: {}, clientTs: 100, source: 'local');
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'orphan',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
       await outboxDao.setError(id, 'Unknown entity', 10);
       final deleted = await outboxDao.cleanupOrphanedEntries(maxAttempts: 5, olderThan: const Duration(days: 1));
       expect(deleted, 1);
     });
 
     test('cleanupForSoftDeletedEntities يحذف سجلات outbox المُكتملة للكيانات المحذوفة', () async {
-      final id = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'deleted-room', payload: {}, clientTs: 100, source: 'local');
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'deleted-room',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
       await outboxDao.markCompleted([id]);
       final cleaned = await outboxDao.cleanupForSoftDeletedEntities({'deleted-room': 2000});
       expect(cleaned, 1);
     });
 
     test('cleanupForMissingEntities يحذف سجلات pending/failed للكيانات غير الموجودة', () async {
-      final id = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'missing', payload: {}, clientTs: 100, source: 'local');
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'missing',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
       final cleaned = await outboxDao.cleanupForMissingEntities(['missing']);
       expect(cleaned, 1);
     });
 
     test('removePulledEntities يحذف سجلات outbox للبيانات المسحوبة من السحابة', () async {
-      await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'pulled-room', payload: {}, clientTs: 100, source: 'local');
+      await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'pulled-room',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
       final removed = await outboxDao.removePulledEntities(['pulled-room'], entity: 'rooms');
       expect(removed, 1);
       expect(await outboxDao.count(), 0);
     });
 
     test('cleanupStuckEntries يُعيد السجلات العالقة في processing إلى pending', () async {
-      final id = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'stuck', payload: {}, clientTs: 100, source: 'local');
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'stuck',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
       await db.customStatement(
         "UPDATE outbox SET processing_status = 'processing', processing_started_at = 1000 WHERE id = ?",
         [id],
@@ -381,7 +590,14 @@ void main() {
 
   group('OutboxDao — getConflicts / resolveConflict', () {
     test('getConflicts يُعيد السجلات الفاشلة', () async {
-      final id = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'conflict-room', payload: {'status': 'active'}, clientTs: 100, source: 'local');
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'conflict-room',
+        payload: {'status': 'active'},
+        clientTs: 100,
+        source: 'local',
+      );
       await outboxDao.setError(id, 'Conflict detected', 1);
       final conflicts = await outboxDao.getConflicts();
       expect(conflicts.length, 1);
@@ -390,7 +606,14 @@ void main() {
     });
 
     test('resolveConflict يُعيد السجل إلى pending مع بيانات محلولة', () async {
-      final id = await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'resolve-room', payload: {'status': 'old'}, clientTs: 100, source: 'local');
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'resolve-room',
+        payload: {'status': 'old'},
+        clientTs: 100,
+        source: 'local',
+      );
       await outboxDao.setError(id, 'Conflict', 1);
       await outboxDao.resolveConflict(id, {'status': 'resolved'}, resolution: 'localWins');
       final conflicts = await outboxDao.getConflicts();
@@ -406,8 +629,22 @@ void main() {
 
   group('OutboxDao — bulk delivery flags', () {
     test('markAllLocalAsUndeliveredToSecondary يجعل كل السجلات المحلية غير مُسلّمة للثانوي', () async {
-      await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r1', payload: {}, clientTs: 100, source: 'local');
-      await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r2', payload: {}, clientTs: 101, source: 'restore');
+      await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r1',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
+      await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r2',
+        payload: {},
+        clientTs: 101,
+        source: 'restore',
+      );
       final changed = await outboxDao.markAllLocalAsUndeliveredToSecondary();
       expect(changed, 1, reason: 'فقط source=local يتأثر');
       final pending = await outboxDao.countPendingForSecondary();
@@ -415,7 +652,14 @@ void main() {
     });
 
     test('markAllLocalAsDeliveredToSecondary يجعل كل السجلات المحلية مُسلّمة للثانوي', () async {
-      await outboxDao.merge(entity: 'rooms', op: 'create', localUuid: 'r1', payload: {}, clientTs: 100, source: 'local');
+      await outboxDao.merge(
+        entity: 'rooms',
+        op: 'create',
+        localUuid: 'r1',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
       final changed = await outboxDao.markAllLocalAsDeliveredToSecondary();
       expect(changed, 1);
       expect(await outboxDao.countPendingForSecondary(), 0);
@@ -444,7 +688,14 @@ void main() {
       await db.customStatement('UPDATE outbox SET delivered_to_secondary = 0 WHERE id = ?', [id]);
       // merge مجدداً — SecondaryAppwriteConfig.isEnabled يرمي خطأ (SharedPreferences غير مُهيّأ)
       // لذا delivered_to_secondary يعود لـ true (fallback)
-      await outboxDao.merge(entity: 'rooms', op: 'update', localUuid: 'r1', payload: {}, clientTs: 200, source: 'local');
+      await outboxDao.merge(
+        entity: 'rooms',
+        op: 'update',
+        localUuid: 'r1',
+        payload: {},
+        clientTs: 200,
+        source: 'local',
+      );
       final record = await (db.select(db.outbox)..where((t) => t.id.equals(id))).getSingleOrNull();
       expect(record, isNotNull);
       expect(record!.deliveredToSecondary, true, reason: 'fallback إلى true عند عدم توفر SharedPreferences');

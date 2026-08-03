@@ -9,27 +9,27 @@ class SchemaComparisonScreen extends StatelessWidget {
     return PerformanceInspector(
       name: 'SchemaComparisonScreen',
       child: Scaffold(
-      appBar: AppBar(
-        title: const Text('مقارنة بنية قاعدة البيانات'),
-        actions: [IconButton(icon: const Icon(Icons.info_outline), onPressed: () => _showInfoDialog(context))],
+        appBar: AppBar(
+          title: const Text('مقارنة بنية قاعدة البيانات'),
+          actions: [IconButton(icon: const Icon(Icons.info_outline), onPressed: () => _showInfoDialog(context))],
+        ),
+        body: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _buildOverviewCard(),
+            const SizedBox(height: 16),
+            _buildSyncFieldsComparison(),
+            const SizedBox(height: 16),
+            _buildNamingConventions(),
+            const SizedBox(height: 16),
+            _buildDataFlowDiagram(),
+            const SizedBox(height: 16),
+            _buildFixesSummary(),
+            const SizedBox(height: 16),
+            _buildRecommendations(),
+          ],
+        ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildOverviewCard(),
-          const SizedBox(height: 16),
-          _buildSyncFieldsComparison(),
-          const SizedBox(height: 16),
-          _buildNamingConventions(),
-          const SizedBox(height: 16),
-          _buildDataFlowDiagram(),
-          const SizedBox(height: 16),
-          _buildFixesSummary(),
-          const SizedBox(height: 16),
-          _buildRecommendations(),
-        ],
-      ),
-    )
     );
   }
 

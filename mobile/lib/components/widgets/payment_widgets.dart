@@ -4,10 +4,11 @@ import '../../utils/currency_formatter.dart';
 
 /// Widget لعرض بطاقة ملخص المدفوعات للحجز
 class PaymentSummaryWidget extends StatelessWidget {
-  const PaymentSummaryWidget({      required this.summary,
-      super.key,
-      this.onTap,
-      this.compact = false,
+  const PaymentSummaryWidget({
+    required this.summary,
+    super.key,
+    this.onTap,
+    this.compact = false,
   });
   final BookingPaymentSummary summary;
   final VoidCallback? onTap;
@@ -124,11 +125,12 @@ class PaymentSummaryWidget extends StatelessWidget {
 
 /// Widget لعرض بطاقة دفعة واحدة
 class PaymentCard extends StatelessWidget {
-  const PaymentCard({      required this.payment,
-      super.key,
-      this.onTap,
-      this.actions,
-      this.showBookingId = true,
+  const PaymentCard({
+    required this.payment,
+    super.key,
+    this.onTap,
+    this.actions,
+    this.showBookingId = true,
   });
   final Payment payment;
   final VoidCallback? onTap;
@@ -265,9 +267,10 @@ class PaymentCard extends StatelessWidget {
 
 /// Widget لعرض شارة حالة الدفعة
 class PaymentStatusBadge extends StatelessWidget {
-  const PaymentStatusBadge({      required this.status,
-      super.key,
-      this.fontSize,
+  const PaymentStatusBadge({
+    required this.status,
+    super.key,
+    this.fontSize,
   });
   final PaymentStatus status;
   final double? fontSize;
@@ -291,10 +294,11 @@ class PaymentStatusBadge extends StatelessWidget {
 
 /// Widget لعرض طريقة الدفع
 class PaymentMethodChip extends StatelessWidget {
-  const PaymentMethodChip({      required this.method,
-      super.key,
-      this.isSelected = false,
-      this.onTap,
+  const PaymentMethodChip({
+    required this.method,
+    super.key,
+    this.isSelected = false,
+    this.onTap,
   });
   final PaymentMethod method;
   final bool isSelected;
@@ -333,9 +337,10 @@ class PaymentMethodChip extends StatelessWidget {
 
 /// Widget لعرض إحصائيات المدفوعات
 class PaymentStatsWidget extends StatelessWidget {
-  const PaymentStatsWidget({      required this.payments,
-      required this.title,
-      super.key,
+  const PaymentStatsWidget({
+    required this.payments,
+    required this.title,
+    super.key,
   });
   final List<Payment> payments;
   final String title;
@@ -471,10 +476,11 @@ class PaymentStatsWidget extends StatelessWidget {
 
 /// Widget لاختيار طريقة الدفع
 class PaymentMethodSelector extends StatelessWidget {
-  const PaymentMethodSelector({      required this.onMethodSelected,
-      super.key,
-      this.selectedMethod,
-      this.availableMethods = const [PaymentMethod.cash, PaymentMethod.transfer],
+  const PaymentMethodSelector({
+    required this.onMethodSelected,
+    super.key,
+    this.selectedMethod,
+    this.availableMethods = const [PaymentMethod.cash, PaymentMethod.transfer],
   });
   final PaymentMethod? selectedMethod;
   final void Function(PaymentMethod) onMethodSelected;
@@ -539,12 +545,13 @@ class PaymentMethodSelector extends StatelessWidget {
 
 /// Widget لعرض ملخص الفاتورة
 class InvoiceSummaryWidget extends StatelessWidget {
-  const InvoiceSummaryWidget({      required this.totalAmount,
-      required this.paidAmount,
-      required this.remainingAmount,
-      required this.nights,
-      required this.roomRate,
-      super.key,
+  const InvoiceSummaryWidget({
+    required this.totalAmount,
+    required this.paidAmount,
+    required this.remainingAmount,
+    required this.nights,
+    required this.roomRate,
+    super.key,
   });
   final double totalAmount;
   final double paidAmount;
@@ -603,12 +610,13 @@ class InvoiceSummaryWidget extends StatelessWidget {
 
 /// Widget لزر العمليات السريعة
 class QuickPaymentButton extends StatelessWidget {
-  const QuickPaymentButton({      required this.label,
-      required this.amount,
-      required this.icon,
-      required this.color,
-      required this.onPressed,
-      super.key,
+  const QuickPaymentButton({
+    required this.label,
+    required this.amount,
+    required this.icon,
+    required this.color,
+    required this.onPressed,
+    super.key,
   });
   final String label;
   final double amount;

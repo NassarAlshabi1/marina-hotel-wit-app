@@ -180,6 +180,7 @@ class PriceAdjustmentService {
 
   Future<void> _createAuditLog({required String action, required String details, required String performedBy}) async {
     final now = DateTime.now();
+    final epoch = Time.nowEpoch();
     await db
         .into(db.auditLogs)
         .insert(
@@ -193,10 +194,16 @@ class PriceAdjustmentService {
             performedBy: Value(performedBy),
             deviceId: const Value('app'),
             hotelDayKey: Value(HotelTimeEngine.getHotelDayKey(dateTime: now)),
-            timestamp: Value(Time.nowEpoch()),
+            timestamp: Value(epoch),
             timestampIso: Value(now.toIso8601String()),
             isFinancial: const Value(true),
-            createdAt: Value(Time.nowEpoch()),
+            createdAt: Value(epoch),
+            // ✅ FIX: SyncFields مطلوبة في schema الـ DB — بدونها يفشل الإدراج
+            updatedAt: Value(epoch),
+            lastModified: Value(epoch),
+            origin: const Value('local'),
+            version: const Value(1),
+            vectorClock: const Value('{}'),
           ),
         );
   }

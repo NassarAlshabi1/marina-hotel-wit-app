@@ -17,7 +17,12 @@ bool _listsEqual(List<RoomWithPaymentStatus> a, List<RoomWithPaymentStatus> b) {
     final rb = b[i];
     if (ra.room.localUuid != rb.room.localUuid) return false;
     if (ra.isPaymentOverdue != rb.isPaymentOverdue) return false;
-    if (ra.activeBooking?.localUuid != rb.activeBooking?.localUuid) return false;
+    if (ra.isLatePayment != rb.isLatePayment) {
+      return false;
+    }
+    if (ra.activeBooking?.localUuid != rb.activeBooking?.localUuid) {
+      return false;
+    }
     if (ra.room.status != rb.room.status) return false;
   }
   return true;
@@ -25,9 +30,19 @@ bool _listsEqual(List<RoomWithPaymentStatus> a, List<RoomWithPaymentStatus> b) {
 
 /// نموذج بيانات يجمع بين الغرفة وحالة تأخر السداد
 class RoomWithPaymentStatus {
-  RoomWithPaymentStatus({required this.room, required this.isPaymentOverdue, this.activeBooking});
+  RoomWithPaymentStatus({
+    required this.room,
+    required this.isPaymentOverdue,
+    this.activeBooking,
+    this.isLatePayment = false,
+  });
   final Room room;
   final bool isPaymentOverdue;
+
+  /// ✅ مرحلة تحذير مبكرة (22:00-23:59): الغرفة محجوزة + رصيد متبقي +
+  /// الوقت بين 22:00 و 23:59 مساءً. في هذه المرحلة يتحول جزء من الزر
+  /// إلى اللون البرتقالي للتنبيه.
+  final bool isLatePayment;
 
   /// ✅ الحجز النشط المرتبط بالغرفة (إن وجد)
   /// يُستخدم لتحديد حالة الإشغال بدلاً من الاعتماد على room.status المخزن
@@ -36,6 +51,10 @@ class RoomWithPaymentStatus {
 
   /// ✅ هل توجد غرفة بحجز نشط فعلي؟
   bool get hasActiveBooking => activeBooking != null;
+
+  /// ✅ هل تحتاج الغرفة لإظهار المؤشر البرتقالي الجزئي؟
+  /// يصبح true عند 22:00+ مع وجود رصيد متبقي (مرحلة التحذير المبكر).
+  bool get hasLatePaymentIndicator => isLatePayment || isPaymentOverdue;
 
   Color get roomColor {
     // صيانة - الأولوية القصوى
@@ -106,6 +125,7 @@ final roomsWithPaymentStatusProvider = StreamProvider.autoDispose<List<RoomWithP
 
     final result = rooms.map((room) {
       bool isPaymentOverdue = false;
+      bool isLatePayment = false;
 
       // ✅ استخدام bookingByRoom لتحديد وجود حجز نشط فعلي
       // بدلاً من الاعتماد على room.status الذي قد يكون قديماً
@@ -116,14 +136,26 @@ final roomsWithPaymentStatusProvider = StreamProvider.autoDispose<List<RoomWithP
 
         if (hasRemainingBalance) {
           final hour = currentTime.hour;
-          // تأخر السداد يبدأ من الساعة 11 مساءً إلى 5 صباحاً
+          // ✅ مرحلة التحذير المبكر: من 22:00 (10 مساءً) إلى 23:59
+          // في هذه المرحلة يظهر مؤشر برتقالي جزئي على الزر للتنبيه
+          // أن السداد سيتأخر قريباً.
+          if (hour >= 22 && hour < 23) {
+            isLatePayment = true;
+          }
+          // ✅ مرحلة التأخر الفعلي: من 23:00 (11 مساءً) إلى 05:00 (5 صباحاً)
+          // في هذه المرحلة يكون الزر بأكمله ينبض باللون البرتقالي/الأحمر.
           if (hour >= 23 || hour < 5) {
             isPaymentOverdue = true;
           }
         }
       }
 
-      return RoomWithPaymentStatus(room: room, isPaymentOverdue: isPaymentOverdue, activeBooking: activeBooking);
+      return RoomWithPaymentStatus(
+        room: room,
+        isPaymentOverdue: isPaymentOverdue,
+        isLatePayment: isLatePayment,
+        activeBooking: activeBooking,
+      );
     }).toList();
 
     // ✅ إصلاح الوميض: لا نُرسل بيانات جديدة إذا كانت مطابقة للسابقة
@@ -149,13 +181,13 @@ final roomsWithPaymentStatusProvider = StreamProvider.autoDispose<List<RoomWithP
   });
 
   // تحديث الوقت كل دقيقة لإعادة حساب حالة التأخر
-  // ✅ نُعيد الحساب فقط خلال نافذة التأخر (23:00-05:00)
-  // خارج النافذة نحدّث الوقت فقط بدون إعادة حساب مكلفة
+  // ✅ نُعيد الحساب فقط خلال نافذتي التحذير (22:00-23:00) والتأخر (23:00-05:00)
+  // خارج النافذتين نحدّث الوقت فقط بدون إعادة حساب مكلفة
   // تنبيه: تغييرات البيانات (غرف/حجوزات) تُعيد الحساب دائماً بغض النظر عن الوقت
   final timer = Timer.periodic(const Duration(minutes: 1), (_) {
     lastTime = DateTime.now();
     final hour = lastTime.hour;
-    if (hour >= 23 || hour < 5) {
+    if (hour >= 22 || hour < 5) {
       computeAndEmit();
     }
   });
@@ -179,7 +211,9 @@ final roomsWithPaymentStatusProvider = StreamProvider.autoDispose<List<RoomWithP
 /// عدد الغرف المشغولة — يُحدّث فقط عندما يتغير العدد (وليس عند تغيير حالات فردية)
 final occupiedRoomsCountProvider = Provider<int>((ref) {
   return ref.watch(
-    roomsWithPaymentStatusProvider.select((rooms) => rooms.valueOrNull?.where((r) => r.hasActiveBooking).length ?? 0),
+    roomsWithPaymentStatusProvider.select(
+      (rooms) => rooms.valueOrNull?.where((r) => r.hasActiveBooking).length ?? 0,
+    ),
   );
 });
 
@@ -189,7 +223,9 @@ final availableRoomsCountProvider = Provider<int>((ref) {
     roomsWithPaymentStatusProvider.select(
       (rooms) =>
           rooms.valueOrNull
-              ?.where((r) => !r.hasActiveBooking && !StatusUtils.isUnderMaintenance(r.room.status))
+              ?.where(
+                (r) => !r.hasActiveBooking && !StatusUtils.isUnderMaintenance(r.room.status),
+              )
               .length ??
           0,
     ),
@@ -199,7 +235,19 @@ final availableRoomsCountProvider = Provider<int>((ref) {
 /// عدد الغرف المتأخرة السداد — يُحدّث فقط عندما يتغير العدد
 final overdueRoomsCountProvider = Provider<int>((ref) {
   return ref.watch(
-    roomsWithPaymentStatusProvider.select((rooms) => rooms.valueOrNull?.where((r) => r.isPaymentOverdue).length ?? 0),
+    roomsWithPaymentStatusProvider.select(
+      (rooms) => rooms.valueOrNull?.where((r) => r.isPaymentOverdue).length ?? 0,
+    ),
+  );
+});
+
+/// ✅ عدد الغرف في مرحلة التحذير المبكر (22:00-23:00 + رصيد متبقي)
+/// في هذه المرحلة يظهر مؤشر برتقالي جزئي على الزر للتنبيه.
+final latePaymentRoomsCountProvider = Provider<int>((ref) {
+  return ref.watch(
+    roomsWithPaymentStatusProvider.select(
+      (rooms) => rooms.valueOrNull?.where((r) => r.isLatePayment).length ?? 0,
+    ),
   );
 });
 

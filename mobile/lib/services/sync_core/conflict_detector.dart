@@ -58,8 +58,7 @@ class ConflictDetectionResult {
   /// جميع التعارضات تُحل تلقائياً — لا يوجد تصعيد يدوي
   /// ما عدا التعارضات المتزامنة التي تمس حقولاً مالية/حرجة
   bool get needsManualResolution =>
-      type == ConflictType.concurrentSameFields &&
-      conflictingFields.any(ConflictDetector.isCriticalField);
+      type == ConflictType.concurrentSameFields && conflictingFields.any(ConflictDetector.isCriticalField);
 
   /// جميع التعارضات قابلة للحل التلقائي
   bool get canAutoResolve => !needsManualResolution;

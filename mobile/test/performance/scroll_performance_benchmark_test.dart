@@ -17,6 +17,15 @@
 
 // ignore_for_file: lines_longer_than_80_chars
 
+// This file is tagged as 'performance' so it can be excluded from
+// CI runs via --exclude-tags performance. Performance benchmarks
+// require real Appwrite/path_provider setup and are too slow for
+// regular CI. Run them explicitly via:
+//   flutter test test/performance/ --include-tags performance
+@Tags(['performance'])
+library marina_hotel_mobile.test.performance.scroll_performance_benchmark_test;
+
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -106,8 +115,7 @@ void main() {
       debugPrint('  Average frame time: ${avgFrameMs.toStringAsFixed(2)}ms');
       debugPrint('  Target: < 300ms/frame for acceptable UX');
 
-      expect(scrollStopwatch.elapsedMilliseconds, lessThan(3000),
-          reason: 'scroll 250 عنصر يجب أن يكون < 3 ثواني');
+      expect(scrollStopwatch.elapsedMilliseconds, lessThan(3000), reason: 'scroll 250 عنصر يجب أن يكون < 3 ثواني');
     });
   });
 
@@ -149,8 +157,7 @@ void main() {
       debugPrint('  Frames pumped: $frameCount');
       debugPrint('  Average frame time: ${avgFrameMs.toStringAsFixed(2)}ms');
 
-      expect(scrollStopwatch.elapsedMilliseconds, lessThan(3000),
-          reason: 'scroll 100 عنصر يجب أن يكون < 3 ثواني');
+      expect(scrollStopwatch.elapsedMilliseconds, lessThan(3000), reason: 'scroll 100 عنصر يجب أن يكون < 3 ثواني');
     });
   });
 
@@ -202,10 +209,8 @@ void main() {
       }
 
       // كلاهما يجب أن يكتمل خلال 1 ثانية
-      expect(builderBuildMs, lessThan(1000),
-          reason: 'ListView.builder build < 1s');
-      expect(childrenBuildMs, lessThan(1000),
-          reason: 'ListView(children:) build < 1s');
+      expect(builderBuildMs, lessThan(1000), reason: 'ListView.builder build < 1s');
+      expect(childrenBuildMs, lessThan(1000), reason: 'ListView(children:) build < 1s');
     });
   });
 }

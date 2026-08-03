@@ -8,9 +8,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///
 /// القيم الافتراضية (مدمجة في التطبيق — يُمكن للمستخدم تغييرها في أي وقت
 /// من شاشة الإعدادات، أو استعادتها عبر زر "استعادة الافتراضي"):
-///   - isEnabled = true (مفعّل افتراضياً بالبيانات الافتراضية)
-///   - isPushEnabled = true (الرفع مُفعّل افتراضياً)
+///   - isEnabled = false (معطّل افتراضياً — المستخدم يُفعّله يدوياً عند الحاجة)
+///   - isPushEnabled = false (الرفع معطّل افتراضياً)
 ///   - isPullEnabled = false (السحب معطّل افتراضياً)
+///
+/// ✅ تم التعطيل الافتراضي بناءً على طلب المستخدم لمنع الرفع المزدوج
+///    غير المرغوب فيه لـ Primary + Secondary في الإعداد الافتراضي.
+///    المستخدم يُفعّل Secondary يدوياً من شاشة الإعدادات عند الحاجة
+///    لتشغيل نسخة احتياطية على Appwrite Cloud آخر.
 class SecondaryAppwriteConfig {
   // ═══════════════════════════════════════════════════════════════════════
   //  القيم الافتراضية المُدمجة في التطبيق
@@ -22,8 +27,8 @@ class SecondaryAppwriteConfig {
   static const String defaultDatabaseId = '6a4409b50019dd39dde5';
   static const String defaultApiKey =
       'standard_c0ab6ac2628715c7714eb312e2272a55ae41809dcc156c7e4553874e4a6ad9f3d3e9169d8a69b84f7d746b108905041e412a66ec66d03e122ccb056484c43d2a27f7839088bf60385ab58061624bbcc1f82271c09d608536e68d9cc0ff1b05b83ae4fe14c4dc4ce38840317ea555155f1733141450b3097df09a2a1b4b154a6c';
-  static const bool defaultEnabled = true;
-  static const bool defaultPushEnabled = true;
+  static const bool defaultEnabled = false;
+  static const bool defaultPushEnabled = false;
   static const bool defaultPullEnabled = false;
 
   static const String _keyEnabled = 'secondary_appwrite_enabled';

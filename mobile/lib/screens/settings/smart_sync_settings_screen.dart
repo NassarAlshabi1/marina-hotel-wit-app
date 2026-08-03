@@ -32,7 +32,6 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
       final manager = ref.read(smartSyncManagerProvider);
       await manager.setEnabled(enabled);
 
-
       ref.invalidate(smartSyncStatusProvider);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -57,7 +56,6 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
       final manager = ref.read(smartSyncManagerProvider);
       await manager.setSyncInterval(minutes);
 
-
       ref.invalidate(smartSyncStatusProvider);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -79,7 +77,6 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
       final manager = ref.read(smartSyncManagerProvider);
       await manager.setConflictResolution(resolution);
 
-
       ref.invalidate(smartSyncStatusProvider);
 
       ScaffoldMessenger.of(
@@ -100,7 +97,6 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
     try {
       final manager = ref.read(smartSyncManagerProvider);
       await manager.forceSyncNow();
-
 
       ref.invalidate(smartSyncStatusProvider);
 
@@ -161,42 +157,42 @@ class _SmartSyncSettingsScreenState extends ConsumerState<SmartSyncSettingsScree
     return PerformanceInspector(
       name: 'SmartSyncSettingsScreen',
       child: Scaffold(
-      appBar: AppBar(
-        title: const Text('المزامنة التلقائية الذكية'),
-        centerTitle: true,
-        elevation: 0,
-        actions: [
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-            ),
-        ],
-      ),
-      body: statusAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              Text('خطأ في تحميل الإعدادات: $error'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () => ref.invalidate(smartSyncStatusProvider),
-                child: const Text('إعادة تحميل'),
+        appBar: AppBar(
+          title: const Text('المزامنة التلقائية الذكية'),
+          centerTitle: true,
+          elevation: 0,
+          actions: [
+            if (_isLoading)
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
               ),
-            ],
+          ],
+        ),
+        body: statusAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stack) => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error, size: 64, color: Colors.red),
+                const SizedBox(height: 16),
+                Text('خطأ في تحميل الإعدادات: $error'),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => ref.invalidate(smartSyncStatusProvider),
+                  child: const Text('إعادة تحميل'),
+                ),
+              ],
+            ),
+          ),
+          data: (status) => healthAsync.when(
+            data: (health) => _buildSettingsUI(status, health),
+            loading: () => _buildSettingsUI(status, null),
+            error: (_, __) => _buildSettingsUI(status, null),
           ),
         ),
-        data: (status) => healthAsync.when(
-          data: (health) => _buildSettingsUI(status, health),
-          loading: () => _buildSettingsUI(status, null),
-          error: (_, __) => _buildSettingsUI(status, null),
-        ),
       ),
-    )
     );
   }
 

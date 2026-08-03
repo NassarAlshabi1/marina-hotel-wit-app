@@ -23,19 +23,20 @@ class DebtsRepository {
   Future<List<Debt>> listByBookingLocalId(int bookingLocalId, {bool includeDeleted = false}) =>
       dao.listByBookingLocalId(bookingLocalId, includeDeleted: includeDeleted);
 
-  Future<int> create({      required String guestName,
-      required String checkinDate,
-      required String checkoutDate,
-      required double totalAmount,
-      required double paidAmount,
-      required String paymentDate,
-      int? bookingLocalId,
-      String? dateRecorded,
-      String? debtReason,
-      bool? isSettled,
-      String? pledge,
-      String? pledgeType,
-      String? note,
+  Future<int> create({
+    required String guestName,
+    required String checkinDate,
+    required String checkoutDate,
+    required double totalAmount,
+    required double paidAmount,
+    required String paymentDate,
+    int? bookingLocalId,
+    String? dateRecorded,
+    String? debtReason,
+    bool? isSettled,
+    String? pledge,
+    String? pledgeType,
+    String? note,
   }) async {
     try {
       final remaining = (totalAmount - paidAmount).clamp(0, double.infinity).toDouble();

@@ -44,28 +44,28 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
     return PerformanceInspector(
       name: 'RestoreFixScreen',
       child: Scaffold(
-      appBar: AppBar(
-        title: const Text('الإصلاح التلقائي للنسخة الاحتياطية'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // بطاقة التحكم الرئيسية
-            _buildMainControlCard(context, isLoading),
-            const SizedBox(height: 20),
+        appBar: AppBar(
+          title: const Text('الإصلاح التلقائي للنسخة الاحتياطية'),
+          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // بطاقة التحكم الرئيسية
+              _buildMainControlCard(context, isLoading),
+              const SizedBox(height: 20),
 
-            // بطاقة التقرير الأخير
-            if (lastReport != null) ...[_buildLastReportCard(context, lastReport), const SizedBox(height: 20)],
+              // بطاقة التقرير الأخير
+              if (lastReport != null) ...[_buildLastReportCard(context, lastReport), const SizedBox(height: 20)],
 
-            // بطاقة سجلات الإصلاح
-            _buildFixLogsCard(context, fixLogsAsyncValue),
-          ],
+              // بطاقة سجلات الإصلاح
+              _buildFixLogsCard(context, fixLogsAsyncValue),
+            ],
+          ),
         ),
       ),
-    )
     );
   }
 

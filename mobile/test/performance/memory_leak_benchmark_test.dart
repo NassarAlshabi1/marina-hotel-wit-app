@@ -18,6 +18,15 @@
 
 // ignore_for_file: lines_longer_than_80_chars
 
+// This file is tagged as 'performance' so it can be excluded from
+// CI runs via --exclude-tags performance. Performance benchmarks
+// require real Appwrite/path_provider setup and are too slow for
+// regular CI. Run them explicitly via:
+//   flutter test test/performance/ --include-tags performance
+@Tags(['performance'])
+library marina_hotel_mobile.test.performance.memory_leak_benchmark_test;
+
+
 import 'dart:io' show ProcessInfo;
 
 import 'package:drift/drift.dart' as d;
@@ -184,10 +193,12 @@ Future<List<_IterationMetrics>> _runIterations(
     metrics.afterRss = ProcessInfo.currentRss;
     results.add(metrics);
 
-    debugPrint('  Iteration ${i + 1}/$iterations: '
-        'before=${(metrics.beforeRss / 1024 / 1024).toStringAsFixed(1)}MB '
-        'after=${(metrics.afterRss / 1024 / 1024).toStringAsFixed(1)}MB '
-        'delta=${metrics.deltaMB >= 0 ? "+" : ""}${metrics.deltaMB.toStringAsFixed(2)}MB');
+    debugPrint(
+      '  Iteration ${i + 1}/$iterations: '
+      'before=${(metrics.beforeRss / 1024 / 1024).toStringAsFixed(1)}MB '
+      'after=${(metrics.afterRss / 1024 / 1024).toStringAsFixed(1)}MB '
+      'delta=${metrics.deltaMB >= 0 ? "+" : ""}${metrics.deltaMB.toStringAsFixed(2)}MB',
+    );
   }
 
   return results;
@@ -214,8 +225,10 @@ String _analyzeLeak(List<_IterationMetrics> results) {
   debugPrint('    First iteration delta: ${(firstDelta / 1024 / 1024).toStringAsFixed(2)}MB');
   debugPrint('    Last iteration delta:  ${(lastDelta / 1024 / 1024).toStringAsFixed(2)}MB');
   debugPrint('    Average late delta (last 3): ${(avgLateDelta / 1024 / 1024).toStringAsFixed(2)}MB');
-  debugPrint('    Total growth (iter 1 before → iter ${results.length} after): '
-      '${(totalGrowth / 1024 / 1024).toStringAsFixed(2)}MB');
+  debugPrint(
+    '    Total growth (iter 1 before → iter ${results.length} after): '
+    '${(totalGrowth / 1024 / 1024).toStringAsFixed(2)}MB',
+  );
 
   if (avgLateDelta > leakThreshold) {
     return '⚠️ LEAK SUSPECTED: late delta average > 5MB';
@@ -249,11 +262,14 @@ void main() {
       debugPrint('  Result: $analysis');
 
       // التحقق أن النمو الكلي < 100MB (على مدى 10 iterations)
-      final totalGrowthMB =
-          (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
-      expect(totalGrowthMB, lessThan(100),
-          reason: 'النمو الكلي عبر 10 iterations يجب أن يكون < 100MB. '
-          'الفعلي: ${totalGrowthMB.toStringAsFixed(2)}MB');
+      final totalGrowthMB = (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
+      expect(
+        totalGrowthMB,
+        lessThan(100),
+        reason:
+            'النمو الكلي عبر 10 iterations يجب أن يكون < 100MB. '
+            'الفعلي: ${totalGrowthMB.toStringAsFixed(2)}MB',
+      );
     });
   });
 
@@ -272,11 +288,14 @@ void main() {
       final analysis = _analyzeLeak(results);
       debugPrint('  Result: $analysis');
 
-      final totalGrowthMB =
-          (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
-      expect(totalGrowthMB, lessThan(100),
-          reason: 'النمو الكلي عبر 10 iterations يجب أن يكون < 100MB. '
-          'الفعلي: ${totalGrowthMB.toStringAsFixed(2)}MB');
+      final totalGrowthMB = (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
+      expect(
+        totalGrowthMB,
+        lessThan(100),
+        reason:
+            'النمو الكلي عبر 10 iterations يجب أن يكون < 100MB. '
+            'الفعلي: ${totalGrowthMB.toStringAsFixed(2)}MB',
+      );
     });
   });
 
@@ -295,11 +314,14 @@ void main() {
       final analysis = _analyzeLeak(results);
       debugPrint('  Result: $analysis');
 
-      final totalGrowthMB =
-          (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
-      expect(totalGrowthMB, lessThan(100),
-          reason: 'النمو الكلي عبر 10 iterations يجب أن يكون < 100MB. '
-          'الفعلي: ${totalGrowthMB.toStringAsFixed(2)}MB');
+      final totalGrowthMB = (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
+      expect(
+        totalGrowthMB,
+        lessThan(100),
+        reason:
+            'النمو الكلي عبر 10 iterations يجب أن يكون < 100MB. '
+            'الفعلي: ${totalGrowthMB.toStringAsFixed(2)}MB',
+      );
     });
   });
 
@@ -318,11 +340,14 @@ void main() {
       final analysis = _analyzeLeak(results);
       debugPrint('  Result: $analysis');
 
-      final totalGrowthMB =
-          (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
-      expect(totalGrowthMB, lessThan(100),
-          reason: 'النمو الكلي عبر 10 iterations يجب أن يكون < 100MB. '
-          'الفعلي: ${totalGrowthMB.toStringAsFixed(2)}MB');
+      final totalGrowthMB = (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
+      expect(
+        totalGrowthMB,
+        lessThan(100),
+        reason:
+            'النمو الكلي عبر 10 iterations يجب أن يكون < 100MB. '
+            'الفعلي: ${totalGrowthMB.toStringAsFixed(2)}MB',
+      );
     });
   });
 
@@ -341,11 +366,14 @@ void main() {
       final analysis = _analyzeLeak(results);
       debugPrint('  Result: $analysis');
 
-      final totalGrowthMB =
-          (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
-      expect(totalGrowthMB, lessThan(100),
-          reason: 'النمو الكلي عبر 10 iterations يجب أن يكون < 100MB. '
-          'الفعلي: ${totalGrowthMB.toStringAsFixed(2)}MB');
+      final totalGrowthMB = (results.last.afterRss - results.first.beforeRss) / (1024 * 1024);
+      expect(
+        totalGrowthMB,
+        lessThan(100),
+        reason:
+            'النمو الكلي عبر 10 iterations يجب أن يكون < 100MB. '
+            'الفعلي: ${totalGrowthMB.toStringAsFixed(2)}MB',
+      );
     });
   });
 

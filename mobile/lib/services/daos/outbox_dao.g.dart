@@ -11,6 +11,5 @@ mixin _$OutboxDaoMixin on DatabaseAccessor<AppDatabase> {
 class OutboxDaoManager {
   final _$OutboxDaoMixin _db;
   OutboxDaoManager(this._db);
-  $$OutboxTableTableManager get outbox =>
-      $$OutboxTableTableManager(_db.attachedDatabase, _db.outbox);
+  $$OutboxTableTableManager get outbox => $$OutboxTableTableManager(_db.attachedDatabase, _db.outbox);
 }

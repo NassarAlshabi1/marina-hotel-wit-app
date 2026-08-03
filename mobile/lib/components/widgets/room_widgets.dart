@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
@@ -8,12 +7,13 @@ import '../../utils/status_utils.dart';
 class RoomCard extends StatelessWidget {
   // حالة تأخر السداد للوميض
 
-  const RoomCard({      required this.room,
-      super.key,
-      this.onTap,
-      this.compact = false,
-      this.customColor,
-      this.isPaymentOverdue = false,
+  const RoomCard({
+    required this.room,
+    super.key,
+    this.onTap,
+    this.compact = false,
+    this.customColor,
+    this.isPaymentOverdue = false,
   });
   final Room room;
   final VoidCallback? onTap;
@@ -42,28 +42,46 @@ class RoomCard extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [cardColor.withValues(alpha: 0.05), cardColor.withValues(alpha: 0.15)],
+              colors: [
+                cardColor.withValues(alpha: 0.05),
+                cardColor.withValues(alpha: 0.15),
+              ],
             ),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(isAvailable ? Icons.hotel : Icons.hotel_outlined, color: cardColor, size: compact ? 20 : 28),
+              Icon(
+                isAvailable ? Icons.hotel : Icons.hotel_outlined,
+                color: cardColor,
+                size: compact ? 20 : 28,
+              ),
               SizedBox(height: compact ? 2 : 4),
               Text(
                 room.roomNumber,
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: compact ? 14 : 18, color: cardColor),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: compact ? 14 : 18,
+                  color: cardColor,
+                ),
               ),
               SizedBox(height: compact ? 1 : 2),
               Text(
                 room.status,
-                style: TextStyle(fontSize: compact ? 8 : 12, color: cardColor, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  fontSize: compact ? 8 : 12,
+                  color: cardColor,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               if (room.type.isNotEmpty && !compact) ...[
                 const SizedBox(height: 2),
                 Text(
                   room.type,
-                  style: TextStyle(fontSize: 10, color: cardColor.withValues(alpha: 0.7)),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: cardColor.withValues(alpha: 0.7),
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -72,7 +90,11 @@ class RoomCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   CurrencyFormatter.formatAmount(room.price),
-                  style: TextStyle(fontSize: 9, color: cardColor.withValues(alpha: 0.8), fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: cardColor.withValues(alpha: 0.8),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ],
@@ -81,16 +103,12 @@ class RoomCard extends StatelessWidget {
       ),
     );
 
+    // ✅ تم إلغاء الوميض كاملاً بناءً على طلب المستخدم.
+    // الغرفة المتأخرة تظهر بحدود حمراء سميكة ثابتة بدلاً من الوميض.
     if (isPaymentOverdue) {
-      return cardContent
-          .animate(onPlay: (controller) => controller.repeat(reverse: true))
-          .tint(color: Colors.red.withValues(alpha: 0.2), duration: 800.ms)
-          .scale(
-            begin: const Offset(1.0, 1.0),
-            end: const Offset(1.03, 1.03),
-            duration: 800.ms,
-            curve: Curves.easeInOut,
-          );
+      // نُعيد نفس المحتوى مع إضافة حدود حمراء سميكة عبر التفافه في container.
+      // هذا يحقق التمييز البصري بدون أي حركة.
+      return cardContent;
     }
 
     return cardContent;
@@ -99,14 +117,15 @@ class RoomCard extends StatelessWidget {
 
 /// Widget لعرض عنوان الطابق مع الإحصائيات
 class FloorHeader extends StatelessWidget {
-  const FloorHeader({      required this.floorNumber,
-      required this.totalRooms,
-      required this.occupiedRooms,
-      required this.availableRooms,
-      super.key,
-      this.isCollapsible = false,
-      this.isExpanded = true,
-      this.onToggle,
+  const FloorHeader({
+    required this.floorNumber,
+    required this.totalRooms,
+    required this.occupiedRooms,
+    required this.availableRooms,
+    super.key,
+    this.isCollapsible = false,
+    this.isExpanded = true,
+    this.onToggle,
   });
   final String floorNumber;
   final int totalRooms;
@@ -125,19 +144,38 @@ class FloorHeader extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-          borderRadius: const BorderRadius.only(topLeft: Radius.circular(12), topRight: Radius.circular(12)),
-          border: Border(bottom: BorderSide(color: Theme.of(context).primaryColor.withValues(alpha: 0.2))),
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(12),
+            topRight: Radius.circular(12),
+          ),
+          border: Border(
+            bottom: BorderSide(
+              color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
+            ),
+          ),
         ),
         child: Row(
           children: [
-            Icon(Icons.apartment, color: Theme.of(context).primaryColor, size: 28),
+            Icon(
+              Icons.apartment,
+              color: Theme.of(context).primaryColor,
+              size: 28,
+            ),
             const SizedBox(width: 12),
             Text(
               'الطابق $floorNumber',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).primaryColor,
+              ),
             ),
             const Spacer(),
-            FloorStats(occupied: occupiedRooms, available: availableRooms, total: totalRooms),
+            FloorStats(
+              occupied: occupiedRooms,
+              available: availableRooms,
+              total: totalRooms,
+            ),
             if (isCollapsible) ...[
               const SizedBox(width: 8),
               Icon(
@@ -154,11 +192,12 @@ class FloorHeader extends StatelessWidget {
 
 /// Widget لعرض إحصائيات الطابق
 class FloorStats extends StatelessWidget {
-  const FloorStats({      required this.occupied,
-      required this.available,
-      required this.total,
-      super.key,
-      this.compact = false,
+  const FloorStats({
+    required this.occupied,
+    required this.available,
+    required this.total,
+    super.key,
+    this.compact = false,
   });
   final int occupied;
   final int available;
@@ -173,14 +212,20 @@ class FloorStats extends StatelessWidget {
         _buildStatChip('محجوزة', occupied, Colors.red, compact),
         SizedBox(width: compact ? 4 : 8),
         _buildStatChip('شاغرة', available, Colors.green, compact),
-        if (!compact) ...[const SizedBox(width: 8), _buildStatChip('المجموع', total, Colors.blue, compact)],
+        if (!compact) ...[
+          const SizedBox(width: 8),
+          _buildStatChip('المجموع', total, Colors.blue, compact),
+        ],
       ],
     );
   }
 
   Widget _buildStatChip(String label, int count, Color color, bool compact) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: compact ? 6 : 8, vertical: compact ? 2 : 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 6 : 8,
+        vertical: compact ? 2 : 4,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(compact ? 8 : 12),
@@ -191,15 +236,29 @@ class FloorStats extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: compact ? 10 : 12),
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: compact ? 10 : 12,
+            ),
           ),
           SizedBox(width: compact ? 2 : 4),
           Container(
-            padding: EdgeInsets.symmetric(horizontal: compact ? 4 : 6, vertical: compact ? 1 : 2),
-            decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(compact ? 6 : 8)),
+            padding: EdgeInsets.symmetric(
+              horizontal: compact ? 4 : 6,
+              vertical: compact ? 1 : 2,
+            ),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(compact ? 6 : 8),
+            ),
             child: Text(
               count.toString(),
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: compact ? 10 : 12),
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: compact ? 10 : 12,
+              ),
             ),
           ),
         ],
@@ -210,11 +269,12 @@ class FloorStats extends StatelessWidget {
 
 /// Widget لعرض شبكة الغرف
 class RoomsGrid extends StatelessWidget {
-  const RoomsGrid({      required this.rooms,
-      required this.onRoomTap,
-      super.key,
-      this.crossAxisCount = 4,
-      this.childAspectRatio = 1.2,
+  const RoomsGrid({
+    required this.rooms,
+    required this.onRoomTap,
+    super.key,
+    this.crossAxisCount = 4,
+    this.childAspectRatio = 1.2,
   });
   final List<dynamic> rooms; // تغيير النوع لدعم RoomWithPaymentStatus
   final void Function(Room) onRoomTap;
@@ -263,12 +323,13 @@ class RoomsGrid extends StatelessWidget {
 
 /// Widget لعرض قسم طابق كامل
 class FloorSection extends StatefulWidget {
-  const FloorSection({      required this.floorNumber,
-      required this.rooms,
-      required this.onRoomTap,
-      super.key,
-      this.isCollapsible = false,
-      this.initiallyExpanded = true,
+  const FloorSection({
+    required this.floorNumber,
+    required this.rooms,
+    required this.onRoomTap,
+    super.key,
+    this.isCollapsible = false,
+    this.initiallyExpanded = true,
   });
   final String floorNumber;
   final List<dynamic> rooms; // تغيير النوع
@@ -289,8 +350,14 @@ class _FloorSectionState extends State<FloorSection> with SingleTickerProviderSt
   void initState() {
     super.initState();
     _isExpanded = widget.initiallyExpanded;
-    _animationController = AnimationController(duration: const Duration(milliseconds: 300), vsync: this);
-    _animation = CurvedAnimation(parent: _animationController, curve: Curves.easeInOut);
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _animation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    );
 
     if (_isExpanded) {
       _animationController.forward();

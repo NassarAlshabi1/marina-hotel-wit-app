@@ -256,11 +256,8 @@ class AppwriteSyncUtils {
       'deviceId',
       'effectiveHotelDay',
       'endHotelDay',
-<<<<<<< Updated upstream
-=======
       'hotelDayKey',
       'appliedDate',
->>>>>>> Stashed changes
       'idempotencyKey',
       'isActive',
       'lastModified',
@@ -1466,13 +1463,10 @@ class AppwriteSyncUtils {
       'adjustmentMode': 'string',
       'amount': 'double',
       'effectiveHotelDay': 'string',
-<<<<<<< Updated upstream
-=======
       // ✅ إصلاح 2026-07-26: hotelDayKey مطلوب على Appwrite Cloud
       // محلياً effectiveHotelDay = hotelDayKey (نفس القيمة، اسم مختلف)
       'hotelDayKey': 'string',
       'appliedDate': 'string',
->>>>>>> Stashed changes
       'endHotelDay': 'string',
       'isActive': 'boolean',
       'reason': 'string',

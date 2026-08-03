@@ -76,6 +76,7 @@ jobs:
       test_concurrency: 4
       test_timeout: ${{ inputs.check_level == 'full' && '120s' || '60s' }}
       run_benchmarks: ${{ inputs.run_tests != false }}
+      java_version: '17'
 
   # ═══════════════════════════════════════════════════════════════
   #  Job 2: Extended Quality Checks (full mode only)
