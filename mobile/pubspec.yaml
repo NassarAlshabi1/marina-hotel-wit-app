@@ -79,10 +79,12 @@ dev_dependencies:
   json_serializable: ^6.14.0
   mockito: ^5.4.4
   patrol: ^4.7.1
-  # riverpod_lint: غير متوافق حالياً — يتطلب analyzer ^7.0.0
-  # لكن json_serializable 6.14+ يتطلب analyzer >=10.0.0.
-  # التعارض لا يُحل إلا بترقية Riverpod إلى 3.x (تتطلب تغييرات كبيرة).
-  # TODO: أضف riverpod_lint بعد ترقية Riverpod إلى 3.x.
+  # riverpod_lint: غير متوافق مع flutter_riverpod 2.x + deps الحديثة.
+  # riverpod_lint 2.x يتطلب analyzer ^7.0.0 لكن build_runner/freezed/
+  # drift_dev/json_serializable/mockito تتطلب analyzer >=8.0.0.
+  # riverpod_lint 3.x يتطلب flutter_riverpod 3.x (breaking changes كبيرة:
+  # StateNotifierProvider محذوف، ref.read يتطلب أنواع صريحة).
+  # TODO: أضف riverpod_lint بعد ترقية Riverpod إلى 3.x (refactor كبير).
   very_good_analysis: ^10.3.0
 
   
