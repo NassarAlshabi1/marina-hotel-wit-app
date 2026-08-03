@@ -249,6 +249,7 @@ class BookingPriceAdjustmentService {
     String? reason,
     String? appliedBy,
     AdjustmentMode mode = AdjustmentMode.perNight,
+    DateTime? now,
   }) async {
     final booking = await (db.select(
       db.bookings,
@@ -310,7 +311,7 @@ class BookingPriceAdjustmentService {
       clientTs: now,
     );
 
-    await _recalculateBookingNights(booking.id);
+    await _recalculateBookingNights(booking.id, now: now);
 
     await AutoBackupManager.instance.onDataChange(
       'booking_price_adjustments',
@@ -554,7 +555,7 @@ class BookingPriceAdjustmentService {
     );
   }
 
-  Future<void> _recalculateBookingNights(int bookingId) async {
+  Future<void> _recalculateBookingNights(int bookingId, {DateTime? now}) async {
     final booking = await (db.select(
       db.bookings,
     )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
@@ -564,13 +565,13 @@ class BookingPriceAdjustmentService {
 
     await BookingDerivedFieldsService(
       db,
-    ).refreshForBooking(booking, forceRebuild: true);
+    ).refreshForBooking(booking, now: now, forceRebuild: true);
 
     debugPrint('🔄 تم إعادة حساب الحجز #$bookingId');
   }
 
-  Future<void> recalculateAfterSync(int bookingId) async {
-    await _recalculateBookingNights(bookingId);
+  Future<void> recalculateAfterSync(int bookingId, {DateTime? now}) async {
+    await _recalculateBookingNights(bookingId, now: now);
   }
 
   Future<List<Booking>> getLongStayBookingsWithoutSurcharge({

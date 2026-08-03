@@ -1,13 +1,7 @@
-// TODO(test-debt): These tests use fixed dates (2025-01-12) but the
-// EnhancedBookingCalculationService.calculateForBooking() internally uses
-// DateTime.now() to compute totalNights dynamically. Since current date is
-// 2026-08, the service computes ~200+ nights instead of the expected 7,
-// causing Expected: 101000 / Actual: 8531000 (80x difference).
-//
-// Fix requires API change: thread `now` parameter through
-// _recalculateBookingNights → refreshForBooking → calculateForBooking.
-// Tracked as separate refactor task.
-@Skip('Test dates (2025-01) mismatch with service DateTime.now() (2026-08). Requires API refactor to inject `now`.')
+// Note: These tests use fixed dates (2025-01-12) and now pass `now` parameter
+// to applyTemporaryAdjustment() to avoid DateTime.now() mismatch.
+// The service's _recalculateBookingNights now accepts optional `now` that
+// threads through to EnhancedBookingCalculationService.calculateForBooking().
 import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
@@ -133,6 +127,7 @@ void main() {
           endHotelDay: '2025-01-16',
           reason: 'خصم خاص',
           appliedBy: 'المدير',
+          now: DateTime(2025, 1, 17),
         );
 
         final updatedBooking = await (db.select(
@@ -237,6 +232,7 @@ void main() {
         effectiveHotelDay: '2025-02-13',
         reason: 'زيادة الشهر الثاني',
         appliedBy: 'المدير',
+        now: DateTime(2025, 2, 28),
       );
 
       final updatedBooking = await (db.select(
@@ -329,6 +325,7 @@ void main() {
         effectiveHotelDay: '2025-02-01',
         reason: 'خصم مستمر',
         appliedBy: 'المدير',
+        now: DateTime(2025, 2, 10),
       );
 
       var updatedBooking = await (db.select(
@@ -608,6 +605,7 @@ void main() {
         endHotelDay: '2025-01-07',
         reason: 'خصم VIP',
         appliedBy: 'المدير',
+        now: DateTime(2025, 1, 10),
       );
 
       final report = await adjustmentService.generateLostRevenueReport();
