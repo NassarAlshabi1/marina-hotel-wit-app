@@ -127,7 +127,7 @@ void main() {
           endHotelDay: '2025-01-16',
           reason: 'خصم خاص',
           appliedBy: 'المدير',
-          now: DateTime(2025, 1, 17),
+          calculationTime: DateTime(2025, 1, 17),
         );
 
         final updatedBooking = await (db.select(
@@ -232,7 +232,7 @@ void main() {
         effectiveHotelDay: '2025-02-13',
         reason: 'زيادة الشهر الثاني',
         appliedBy: 'المدير',
-        now: DateTime(2025, 2, 28),
+        calculationTime: DateTime(2025, 2, 28),
       );
 
       final updatedBooking = await (db.select(
@@ -325,7 +325,7 @@ void main() {
         effectiveHotelDay: '2025-02-01',
         reason: 'خصم مستمر',
         appliedBy: 'المدير',
-        now: DateTime(2025, 2, 10),
+        calculationTime: DateTime(2025, 2, 10),
       );
 
       var updatedBooking = await (db.select(
@@ -605,7 +605,7 @@ void main() {
         endHotelDay: '2025-01-07',
         reason: 'خصم VIP',
         appliedBy: 'المدير',
-        now: DateTime(2025, 1, 10),
+        calculationTime: DateTime(2025, 1, 10),
       );
 
       final report = await adjustmentService.generateLostRevenueReport();

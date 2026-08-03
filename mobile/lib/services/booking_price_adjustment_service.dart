@@ -249,7 +249,7 @@ class BookingPriceAdjustmentService {
     String? reason,
     String? appliedBy,
     AdjustmentMode mode = AdjustmentMode.perNight,
-    DateTime? now,
+    DateTime? calculationTime,
   }) async {
     final booking = await (db.select(
       db.bookings,
@@ -311,7 +311,7 @@ class BookingPriceAdjustmentService {
       clientTs: now,
     );
 
-    await _recalculateBookingNights(booking.id, now: now);
+    await _recalculateBookingNights(booking.id, now: calculationTime);
 
     await AutoBackupManager.instance.onDataChange(
       'booking_price_adjustments',
