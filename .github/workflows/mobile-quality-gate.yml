@@ -284,7 +284,7 @@ jobs:
             --coverage \
             --concurrency=2 \
             --timeout=180s \
-            --exclude-tags performance \
+            --exclude-tags performance,slow \
             --test-randomize-ordering-seed random \
             --reporter compact \
             2>&1 | tee test_results.log

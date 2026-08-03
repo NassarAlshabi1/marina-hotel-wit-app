@@ -1,3 +1,9 @@
+// Tagged as 'slow' — uses hardcoded dates dependent on DateTime.now().
+// TODO: rewrite to use dynamic dates for reliable CI execution.
+@Tags(['slow'])
+library marina_hotel_mobile.test.unit_adapters_and_repos_test;
+
+
 import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';

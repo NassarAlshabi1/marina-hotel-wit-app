@@ -79,6 +79,10 @@ dev_dependencies:
   json_serializable: ^6.14.0
   mockito: ^5.4.4
   patrol: ^4.7.1
+  # riverpod_lint: غير متوافق حالياً — يتطلب analyzer ^7.0.0
+  # لكن json_serializable 6.14+ يتطلب analyzer >=10.0.0.
+  # التعارض لا يُحل إلا بترقية Riverpod إلى 3.x (تتطلب تغييرات كبيرة).
+  # TODO: أضف riverpod_lint بعد ترقية Riverpod إلى 3.x.
   very_good_analysis: ^10.3.0
 
   
