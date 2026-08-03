@@ -15,8 +15,6 @@
 import 'dart:convert';
 import 'dart:isolate';
 
-import 'package:flutter/foundation.dart';
-
 class JsonIsolate {
   JsonIsolate._();
 
