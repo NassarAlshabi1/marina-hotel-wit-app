@@ -242,7 +242,7 @@ jobs:
   test:
     name: Unit Tests & Coverage
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     needs: [setup, analyze]
     if: ${{ inputs.run_tests != false || inputs.check_level != 'performance' }}
     
@@ -276,12 +276,14 @@ jobs:
         #      - تستغرق 15+ دقيقة وتُلغى بسبب job timeout
         #    هذه الاختبارات benchmarks وليست unit tests، تُشغّل يدوياً
         #    عبر: flutter test test/performance/ --include-tags performance
+        # ✅ FIX: --concurrency=2 (بدل 4) لتقليل ضغط الذاكرة على CI runner
+        # ✅ FIX: --timeout=180s (بدل 120s) لمنع timeout على PBKDF2 tests
         run: |
           echo "🧪 Running unit tests with coverage (excluding performance)..."
           flutter test \
             --coverage \
-            --concurrency=4 \
-            --timeout=120s \
+            --concurrency=2 \
+            --timeout=180s \
             --exclude-tags performance \
             --test-randomize-ordering-seed random \
             --reporter compact \
