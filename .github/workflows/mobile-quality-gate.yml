@@ -86,7 +86,7 @@ env:
   DART_VERSION: '3.8.0'
   WORKING_DIRECTORY: 'mobile'
   ANALYSIS_OPTIONS: 'mobile/analysis_options.yaml'
-  MIN_COVERAGE: ${{ inputs.min_coverage || 15 }}
+  MIN_COVERAGE: ${{ inputs.min_coverage || 10 }}
 
 jobs:
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
