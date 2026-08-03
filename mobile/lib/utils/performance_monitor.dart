@@ -75,7 +75,8 @@ class PerfTrace {
   DateTime? endedAt;
   Map<String, dynamic>? metadata;
 
-  int get elapsedMs => (endedAt ?? DateTime.now()).difference(startedAt).inMilliseconds;
+  int get elapsedMs =>
+      (endedAt ?? DateTime.now()).difference(startedAt).inMilliseconds;
 
   Map<String, dynamic> toJson() => {
     'name': name,
@@ -175,7 +176,12 @@ class PerformanceMonitor {
     }
 
     if (_config.collectMemory && !kIsWeb) {
-      _memoryTimer = Timer.periodic(const Duration(seconds: 1), (_) => _sampleMemory());
+      // ✅ خفض تردد أخذ عينات الذاكرة من 1 ثانية إلى 5 ثواني
+      // لتقليل ضغط CPU على الأجهزة الضعيفة (1 ثانية = استهلاك بطارية + CPU)
+      _memoryTimer = Timer.periodic(
+        const Duration(seconds: 5),
+        (_) => _sampleMemory(),
+      );
     }
 
     debugPrint(
@@ -217,8 +223,13 @@ class PerformanceMonitor {
             PerfWarningType.jankFrame,
             'إطار بطيء: ${totalMs}ms (build=$buildMs, raster=$rasterMs)',
             PerfSeverity.critical,
-            suggestion: 'استخدم RepaintBoundary أو أزل العمليات الثقيلة من build()',
-            metadata: {'buildMs': buildMs, 'rasterMs': rasterMs, 'totalMs': totalMs},
+            suggestion:
+                'استخدم RepaintBoundary أو أزل العمليات الثقيلة من build()',
+            metadata: {
+              'buildMs': buildMs,
+              'rasterMs': rasterMs,
+              'totalMs': totalMs,
+            },
           );
         }
       }
@@ -265,7 +276,10 @@ class PerformanceMonitor {
         ),
       );
       if (_memorySamples.length > _maxMemorySamples) {
-        _memorySamples.removeRange(0, _memorySamples.length - _maxMemorySamples);
+        _memorySamples.removeRange(
+          0,
+          _memorySamples.length - _maxMemorySamples,
+        );
       }
 
       // كشف نمو الذاكرة المشبوه
@@ -280,19 +294,28 @@ class PerformanceMonitor {
             PerfWarningType.memoryGrowth,
             'نمو الذاكرة: +${growthMB.toStringAsFixed(1)}MB خلال 30 ثانية',
             PerfSeverity.warning,
-            suggestion: 'تحقَّق من controllers/streams غير مُغلقة. استخدم MemoryTracker.trackDisposable()',
-            metadata: {'growthMB': growthMB, 'currentRssMB': currentRss / (1024 * 1024)},
+            suggestion:
+                'تحقَّق من controllers/streams غير مُغلقة. استخدم MemoryTracker.trackDisposable()',
+            metadata: {
+              'growthMB': growthMB,
+              'currentRssMB': currentRss / (1024 * 1024),
+            },
           );
         }
       }
     } catch (_) {}
   }
 
-  double get currentMemoryMB => _memorySamples.isEmpty ? 0 : _memorySamples.last.currentRssBytes / (1024 * 1024);
+  double get currentMemoryMB => _memorySamples.isEmpty
+      ? 0
+      : _memorySamples.last.currentRssBytes / (1024 * 1024);
 
   double get peakMemoryMB => _memorySamples.isEmpty
       ? 0
-      : _memorySamples.map((s) => s.maxRssBytes).reduce((a, b) => a > b ? a : b) / (1024 * 1024);
+      : _memorySamples
+                .map((s) => s.maxRssBytes)
+                .reduce((a, b) => a > b ? a : b) /
+            (1024 * 1024);
 
   // ═══════════════════════════════════════════════════════════════════
   //  التتبُّعات (Custom Traces)
@@ -357,7 +380,8 @@ class PerformanceMonitor {
         PerfWarningType.highRebuildCount,
         'الـ widget "$widgetName" أُعيد بناؤه $count مرة',
         PerfSeverity.warning,
-        suggestion: 'استخدم const constructor أو ValueListenableBuilder أو .select() في Riverpod',
+        suggestion:
+            'استخدم const constructor أو ValueListenableBuilder أو .select() في Riverpod',
         metadata: {'widgetName': widgetName, 'count': count},
       );
     }
@@ -441,7 +465,9 @@ class PerformanceMonitor {
 
     // 4. استقرار الذاكرة (15 نقطة)
     if (_memorySamples.length >= 30) {
-      final growthMB = currentMemoryMB - (_memorySamples.first.currentRssBytes / (1024 * 1024));
+      final growthMB =
+          currentMemoryMB -
+          (_memorySamples.first.currentRssBytes / (1024 * 1024));
       if (growthMB > _config.memoryGrowthThresholdMB) {
         score -= 15;
       } else if (growthMB > _config.memoryGrowthThresholdMB / 2) {
@@ -457,14 +483,20 @@ class PerformanceMonitor {
     }
 
     // 6. عدد التحذيرات (10 نقطة)
-    final criticalCount = _warnings.where((w) => w.severity == PerfSeverity.critical).length;
-    final warningCount = _warnings.where((w) => w.severity == PerfSeverity.warning).length;
+    final criticalCount = _warnings
+        .where((w) => w.severity == PerfSeverity.critical)
+        .length;
+    final warningCount = _warnings
+        .where((w) => w.severity == PerfSeverity.warning)
+        .length;
     score -= criticalCount * 5;
     score -= warningCount * 2;
 
     // 7. متوسط زمن التتبُّعات (10 نقاط)
     if (_completedTraces.isNotEmpty) {
-      final avgTraceMs = _completedTraces.map((t) => t.elapsedMs).reduce((a, b) => a + b) / _completedTraces.length;
+      final avgTraceMs =
+          _completedTraces.map((t) => t.elapsedMs).reduce((a, b) => a + b) /
+          _completedTraces.length;
       if (avgTraceMs > 500) {
         score -= 10;
       } else if (avgTraceMs > 200) {
@@ -490,7 +522,9 @@ class PerformanceMonitor {
         'averageFrameTimeMs': averageFrameTimeMs.toStringAsFixed(2),
         'totalFrames': _totalFrames,
         'jankFrames': _jankFrames,
-        'jankRatio': _totalFrames > 0 ? (_jankFrames / _totalFrames).toStringAsFixed(3) : '0',
+        'jankRatio': _totalFrames > 0
+            ? (_jankFrames / _totalFrames).toStringAsFixed(3)
+            : '0',
       },
       'memory': {
         'currentMB': currentMemoryMB.toStringAsFixed(1),
@@ -509,8 +543,12 @@ class PerformanceMonitor {
       },
       'warnings': {
         'total': _warnings.length,
-        'critical': _warnings.where((w) => w.severity == PerfSeverity.critical).length,
-        'warning': _warnings.where((w) => w.severity == PerfSeverity.warning).length,
+        'critical': _warnings
+            .where((w) => w.severity == PerfSeverity.critical)
+            .length,
+        'warning': _warnings
+            .where((w) => w.severity == PerfSeverity.warning)
+            .length,
         'recent': _warnings.reversed.take(10).map((w) => w.toJson()).toList(),
       },
       'score': performanceScore,
@@ -537,7 +575,9 @@ class PerformanceMonitor {
     debugPrint('═══════════════════════════════════════════════════════════');
     debugPrint('  Score:        ${report['score']}/100');
     debugPrint('  FPS:          ${(report['fps'] as Map)['current']}');
-    debugPrint('  Frame time:   ${(report['fps'] as Map)['averageFrameTimeMs']}ms avg');
+    debugPrint(
+      '  Frame time:   ${(report['fps'] as Map)['averageFrameTimeMs']}ms avg',
+    );
     debugPrint(
       '  Jank:         ${(report['fps'] as Map)['jankFrames']}/${(report['fps'] as Map)['totalFrames']} frames',
     );
@@ -558,12 +598,17 @@ class PerformanceMonitor {
   }
 
   List<Map<String, dynamic>> _topRebuiltWidgets(int limit) {
-    final sorted = _rebuildCounts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-    return sorted.take(limit).map((e) => {'widget': e.key, 'count': e.value}).toList();
+    final sorted = _rebuildCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return sorted
+        .take(limit)
+        .map((e) => {'widget': e.key, 'count': e.value})
+        .toList();
   }
 
   List<Map<String, dynamic>> _slowestTraces(int limit) {
-    final sorted = _completedTraces.toList()..sort((a, b) => b.elapsedMs.compareTo(a.elapsedMs));
+    final sorted = _completedTraces.toList()
+      ..sort((a, b) => b.elapsedMs.compareTo(a.elapsedMs));
     return sorted.take(limit).map((t) => t.toJson()).toList();
   }
 
@@ -626,7 +671,11 @@ class PerformanceInspector extends StatelessWidget {
               ),
               child: Text(
                 '${PerformanceMonitor.instance.rebuildCounts[name] ?? 0}',
-                style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -666,7 +715,9 @@ class MemoryTracker {
     }
     debugPrint('⚠️ MemoryTracker: ${_tracked.length} disposables غير مُغلقة:');
     for (final entry in _tracked.entries) {
-      debugPrint('   • ${entry.key}: ${entry.value.difference(DateTime.now()).abs().inSeconds}s');
+      debugPrint(
+        '   • ${entry.key}: ${entry.value.difference(DateTime.now()).abs().inSeconds}s',
+      );
     }
   }
 }

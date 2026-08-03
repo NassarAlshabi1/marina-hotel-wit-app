@@ -40,7 +40,9 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
   /// بدء التحديث التلقائي
   void _startAutoRefresh() {
     _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+    // ✅ خفض تردد التحديث من 3 ثوان إلى 10 ثوان
+    // 3 ثوان = 20 setState في الدقيقة = rebuild ثقيل على الأجهزة الضعيفة
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       // ✅ لفّ في try-catch — لو رمى setState/build استثناء، لا يتوقف الـ timer
       // صامتاً (يفقد المستخدم auto-refresh دون أن يعرف).
       try {
@@ -82,7 +84,11 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
       title: 'سجلات Appwrite',
       actions: [
         // زر تحديث يدوي
-        IconButton(icon: const Icon(Icons.refresh), tooltip: 'تحديث', onPressed: () => setState(() {})),
+        IconButton(
+          icon: const Icon(Icons.refresh),
+          tooltip: 'تحديث',
+          onPressed: () => setState(() {}),
+        ),
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert),
           onSelected: (value) async {
@@ -100,15 +106,33 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
           itemBuilder: (context) => [
             const PopupMenuItem(
               value: 'copy_all',
-              child: Row(children: [Icon(Icons.copy_all), SizedBox(width: 8), Text('نسخ جميع السجلات')]),
+              child: Row(
+                children: [
+                  Icon(Icons.copy_all),
+                  SizedBox(width: 8),
+                  Text('نسخ جميع السجلات'),
+                ],
+              ),
             ),
             const PopupMenuItem(
               value: 'export',
-              child: Row(children: [Icon(Icons.file_download), SizedBox(width: 8), Text('تصدير السجلات')]),
+              child: Row(
+                children: [
+                  Icon(Icons.file_download),
+                  SizedBox(width: 8),
+                  Text('تصدير السجلات'),
+                ],
+              ),
             ),
             const PopupMenuItem(
               value: 'share',
-              child: Row(children: [Icon(Icons.share), SizedBox(width: 8), Text('مشاركة السجلات')]),
+              child: Row(
+                children: [
+                  Icon(Icons.share),
+                  SizedBox(width: 8),
+                  Text('مشاركة السجلات'),
+                ],
+              ),
             ),
             const PopupMenuItem(
               value: 'clear',
@@ -137,7 +161,10 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
                   children: [
                     Text(
                       'عدد السجلات: ${filteredLogs.length}',
-                      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey.shade700,
+                      ),
                     ),
                     if (_searchQuery.isNotEmpty || _filterLevel != null)
                       TextButton.icon(
@@ -158,16 +185,21 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
                   decoration: InputDecoration(
                     hintText: 'البحث في السجلات...',
                     prefixIcon: const Icon(Icons.search),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     filled: true,
                     fillColor: Colors.white,
                     contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   onChanged: (value) {
                     _debounceTimer?.cancel();
-                    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-                      setState(() => _searchQuery = value.toLowerCase());
-                    });
+                    _debounceTimer = Timer(
+                      const Duration(milliseconds: 300),
+                      () {
+                        setState(() => _searchQuery = value.toLowerCase());
+                      },
+                    );
                   },
                 ),
                 const SizedBox(height: 8),
@@ -179,9 +211,17 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
                     children: [
                       _buildFilterChip('الكل', null, filteredLogs.length),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Debug', LogLevel.debug, logs.where((l) => l.level == LogLevel.debug).length),
+                      _buildFilterChip(
+                        'Debug',
+                        LogLevel.debug,
+                        logs.where((l) => l.level == LogLevel.debug).length,
+                      ),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Info', LogLevel.info, logs.where((l) => l.level == LogLevel.info).length),
+                      _buildFilterChip(
+                        'Info',
+                        LogLevel.info,
+                        logs.where((l) => l.level == LogLevel.info).length,
+                      ),
                       const SizedBox(width: 8),
                       _buildFilterChip(
                         'Warning',
@@ -189,7 +229,11 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
                         logs.where((l) => l.level == LogLevel.warning).length,
                       ),
                       const SizedBox(width: 8),
-                      _buildFilterChip('Error', LogLevel.error, logs.where((l) => l.level == LogLevel.error).length),
+                      _buildFilterChip(
+                        'Error',
+                        LogLevel.error,
+                        logs.where((l) => l.level == LogLevel.error).length,
+                      ),
                       const SizedBox(width: 8),
                       _buildFilterChip(
                         'Critical',
@@ -210,18 +254,29 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.article_outlined, size: 64, color: Colors.grey),
+                        Icon(
+                          Icons.article_outlined,
+                          size: 64,
+                          color: Colors.grey,
+                        ),
                         SizedBox(height: 16),
-                        Text('لا توجد سجلات', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                        Text(
+                          'لا توجد سجلات',
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
                       ],
                     ),
                   )
                 : ListView.separated(
                     padding: const EdgeInsets.all(8),
                     itemCount: filteredLogs.length,
-                    separatorBuilder: (context, index) => const Divider(height: 1),
+                    separatorBuilder: (context, index) =>
+                        const Divider(height: 1),
                     itemBuilder: (context, index) {
-                      final log = filteredLogs[filteredLogs.length - 1 - index]; // عكس الترتيب
+                      final log =
+                          filteredLogs[filteredLogs.length -
+                              1 -
+                              index]; // عكس الترتيب
                       return _buildLogEntry(log);
                     },
                   ),
@@ -272,7 +327,11 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
                   const SizedBox(width: 8),
                   Text(
                     log.level.name.toUpperCase(),
-                    style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 14),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                      fontSize: 14,
+                    ),
                   ),
                   const Spacer(),
                   Text(
@@ -284,15 +343,29 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
               const SizedBox(height: 8),
 
               // الرسالة
-              Text(log.message, style: const TextStyle(fontSize: 14), maxLines: 3, overflow: TextOverflow.ellipsis),
+              Text(
+                log.message,
+                style: const TextStyle(fontSize: 14),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
 
               // Tag
               if (log.tag.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(4)),
-                  child: Text(log.tag, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    log.tag,
+                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  ),
                 ),
               ],
 
@@ -308,12 +381,19 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.error_outline, color: Colors.red.shade700, size: 16),
+                      Icon(
+                        Icons.error_outline,
+                        color: Colors.red.shade700,
+                        size: 16,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           log.error.toString(),
-                          style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.red.shade700,
+                          ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -374,7 +454,8 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
       filtered = filtered.where((log) {
         return log.message.toLowerCase().contains(_searchQuery) ||
             log.tag.toLowerCase().contains(_searchQuery) ||
-            (log.error?.toString().toLowerCase().contains(_searchQuery) ?? false);
+            (log.error?.toString().toLowerCase().contains(_searchQuery) ??
+                false);
       }).toList();
     }
 
@@ -387,7 +468,10 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            Icon(_getIconForLevel(log.level), color: _getColorForLevel(log.level)),
+            Icon(
+              _getIconForLevel(log.level),
+              color: _getColorForLevel(log.level),
+            ),
             const SizedBox(width: 8),
             Text(log.level.name.toUpperCase()),
           ],
@@ -397,33 +481,60 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildDetailRow('الوقت', DateFormat('yyyy-MM-dd HH:mm:ss').format(log.timestamp)),
+              _buildDetailRow(
+                'الوقت',
+                DateFormat('yyyy-MM-dd HH:mm:ss').format(log.timestamp),
+              ),
               _buildDetailRow('Tag', log.tag),
               const SizedBox(height: 12),
-              const Text('الرسالة:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'الرسالة:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 4),
               Text(log.message),
               if (log.error != null) ...[
                 const SizedBox(height: 12),
                 const Text(
                   'الخطأ:',
-                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(4)),
-                  child: Text(log.error.toString(), style: TextStyle(fontSize: 12, color: Colors.red.shade700)),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    log.error.toString(),
+                    style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+                  ),
                 ),
               ],
               if (log.stackTrace != null) ...[
                 const SizedBox(height: 12),
-                const Text('Stack Trace:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  'Stack Trace:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 4),
                 Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(4)),
-                  child: Text(log.stackTrace.toString(), style: const TextStyle(fontSize: 10, fontFamily: 'monospace')),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    log.stackTrace.toString(),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
                 ),
               ],
             ],
@@ -431,7 +542,10 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
         ),
         actions: [
           TextButton(onPressed: () => _copyLog(log), child: const Text('نسخ')),
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إغلاق'),
+          ),
         ],
       ),
     );
@@ -443,7 +557,10 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('$label: ', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          Text(
+            '$label: ',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+          ),
           Expanded(child: Text(value, style: const TextStyle(fontSize: 12))),
         ],
       ),
@@ -452,13 +569,17 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
 
   void _copyLog(LogEntry log) {
     Clipboard.setData(ClipboardData(text: log.toFormattedString()));
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نسخ السجل إلى الحافظة')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('تم نسخ السجل إلى الحافظة')));
   }
 
   /// نسخ جميع السجلات
   Future<void> _copyAllLogs() async {
     if (_currentLogs.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا توجد سجلات لنسخها')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('لا توجد سجلات لنسخها')));
       return;
     }
 
@@ -472,7 +593,11 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
     if (mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('تم نسخ ${_currentLogs.length} سجل إلى الحافظة')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text('تم نسخ ${_currentLogs.length} سجل إلى الحافظة'),
+        ),
+      );
     }
   }
 
@@ -481,20 +606,26 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
     final file = await logger.exportLogs();
 
     if (file != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم التصدير إلى: ${file.path}')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('تم التصدير إلى: ${file.path}')));
     }
   }
 
   Future<void> _shareLogs(List<LogEntry> logs) async {
     if (logs.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا توجد سجلات للمشاركة')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('لا توجد سجلات للمشاركة')));
       return;
     }
 
     final buffer = StringBuffer();
     buffer.writeln('Appwrite Logs Export');
     buffer.writeln('═' * 50);
-    buffer.writeln('Generated: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}');
+    buffer.writeln(
+      'Generated: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}',
+    );
     buffer.writeln('Total Logs: ${logs.length}');
     buffer.writeln('═' * 50);
     buffer.writeln();
@@ -504,7 +635,11 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
       buffer.writeln('─' * 50);
     }
 
-    await Share.share(buffer.toString(), subject: 'Appwrite Logs - ${DateFormat('yyyy-MM-dd').format(DateTime.now())}');
+    await Share.share(
+      buffer.toString(),
+      subject:
+          'Appwrite Logs - ${DateFormat('yyyy-MM-dd').format(DateTime.now())}',
+    );
   }
 
   Future<void> _clearLogs() async {
@@ -514,7 +649,10 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
         title: const Text('تأكيد'),
         content: const Text('هل تريد مسح جميع السجلات؟'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop<bool>(context, false), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop<bool>(context, false),
+            child: const Text('إلغاء'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop<bool>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -541,7 +679,9 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
       _startAutoRefresh();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم مسح السجلات')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('تم مسح السجلات')));
       }
     }
   }
