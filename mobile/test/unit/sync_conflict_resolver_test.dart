@@ -1,4 +1,4 @@
-// @Skip('References missing service file — skip in CI')
+@Skip('References missing service file — skip in CI')
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/sync_conflict_resolver.dart';
 

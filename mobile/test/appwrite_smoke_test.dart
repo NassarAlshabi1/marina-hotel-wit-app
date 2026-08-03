@@ -1,4 +1,4 @@
-// @Skip('Integration test — causes segfault in CI. Run locally.')
+@Skip('Integration test — causes segfault in CI. Run locally.')
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/appwrite_service.dart';

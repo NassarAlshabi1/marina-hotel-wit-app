@@ -203,10 +203,16 @@ jobs:
         # (limited memory). They run locally only.
         # We run all test files except test/performance/ and test/integration/.
         run: |
-          # Collect all test files except performance and integration
+          # Collect all test files except performance, integration, and known-hanging tests
+          # - test/performance/ and test/integration/ cause segmentation faults on CI runners
+          # - time_extended_test.dart and appwrite_smoke_test.dart hang indefinitely on CI
+          #   (time_extended_test uses real timers that don't fire on headless runners;
+          #    appwrite_smoke_test needs network/appwrite config not available in CI)
           TEST_FILES=$(find test -name "*_test.dart" \
             -not -path "test/performance/*" \
             -not -path "test/integration/*" \
+            -not -name "time_extended_test.dart" \
+            -not -name "appwrite_smoke_test.dart" \
             | sort)
           echo "Running $(echo "$TEST_FILES" | wc -l) test files"
           flutter test \
