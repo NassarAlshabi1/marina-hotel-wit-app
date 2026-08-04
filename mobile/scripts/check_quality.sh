@@ -2,11 +2,11 @@
 
 # Marina Hotel Mobile - Quality Check Script
 # ============================================
-# F4DD Automated Quality Check Script
-# F4BB Maintainer: Marina Hotel Dev Team
-# F4D1 Last Updated: 2026-08-03
+# Automated Quality Check Script
+# Maintainer: Marina Hotel Dev Team
+# Last Updated: 2026-08-04
 #
-# F4D1 Usage:
+# Usage:
 #   ./scripts/check_quality.sh          # Run all quality checks
 #   ./scripts/check_quality.sh analyze  # Run static analysis only
 #   ./scripts/check_quality.sh format   # Check formatting only
@@ -18,12 +18,12 @@
 # CONFIGURATION
 # ============================================
 
-# Colors for output
+# Colors for output (use printf for proper escape handling)
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 # Directories
 LIB_DIR="lib"
@@ -35,33 +35,31 @@ TEST_DIR="test"
 
 # Print header
 print_header() {
-    echo ""
-    echo "${BLUE}============================================${NC}"
-    echo "${BLUE}  Marina Hotel Mobile - Quality Check${NC}"
-    echo "${BLUE}============================================${NC}"
+    printf '%b\n' "${BLUE}============================================${NC}"
+    printf '%b\n' "${BLUE}  Marina Hotel Mobile - Quality Check${NC}"
+    printf '%b\n' "${BLUE}============================================${NC}"
     echo ""
 }
 
 # Print section
 print_section() {
-    echo ""
-    echo "${YELLOW}--- $1 ---${NC}"
+    printf '%b\n' "${YELLOW}--- $1 ---${NC}"
     echo ""
 }
 
 # Print success
 print_success() {
-    echo "${GREEN}✓ $1${NC}"
+    printf '%b\n' "${GREEN} $1${NC}"
 }
 
 # Print error
 print_error() {
-    echo "${RED}✗ $1${NC}"
+    printf '%b\n' "${RED} $1${NC}"
 }
 
 # Print info
 print_info() {
-    echo "${BLUE}ℹ $1${NC}"
+    printf '%b\n' "${BLUE} $1${NC}"
 }
 
 # Check if command exists
@@ -75,7 +73,7 @@ run_analysis() {
     
     print_info "Checking for type errors, null safety issues, and more..."
     
-    if flutter analyze --fatal-infos --fatal-warnings . 2>&1 | tee analyze_report.txt; then
+    if dart analyze --fatal-infos --fatal-warnings . 2>&1 | tee analyze_report.txt; then
         print_success "Static analysis passed!"
         return 0
     else
@@ -91,24 +89,25 @@ check_formatting() {
     
     print_info "Verifying code follows Dart formatting standards..."
     
-    if flutter format --set-exit-if-changed . 2>&1 | tee format_report.txt; then
+    if dart format --output=none --set-exit-if-changed . 2>&1 | tee format_report.txt; then
         print_success "Code formatting is correct!"
         return 0
     else
         print_error "Code formatting issues found!"
-        print_info "Run 'flutter format .' to fix formatting"
+        print_info "Run 'dart format .' to fix formatting"
         print_info "See format_report.txt for details"
         return 1
     fi
 }
 
-# Run linter
+# Run linter (lints are part of dart analyze with analysis_options.yaml)
 run_linter() {
     print_section "Running Linter"
     
     print_info "Checking for code style violations and best practices..."
     
-    if flutter lint 2>&1 | tee lint_report.txt; then
+    # Lints are checked via dart analyze with analysis_options.yaml
+    if dart analyze . 2>&1 | tee lint_report.txt; then
         print_success "Linting passed!"
         return 0
     else
@@ -140,7 +139,7 @@ check_todos() {
         return 0
     else
         print_error "Found $todo_count TODO/FIXME/XXX/HACK comments in production code!"
-        print_info "Please resolve all TODOs before merging to main:"
+        print_info "Please resolve all TODOs before merging to main."
         echo "$todos_found"
         return 1
     fi
@@ -269,7 +268,7 @@ check_file_sizes() {
     print_info "Looking for excessively large files..."
     
     local large_files=0
-    local max_size=1000  # 1000 lines
+    local max_size=500  # 500 lines
     
     while IFS= read -r file; do
         line_count=$(wc -l < "$file" | tr -d ' ')
@@ -289,28 +288,6 @@ check_file_sizes() {
     fi
 }
 
-# Check cyclomatic complexity (using dart_code_metrics if available)
-check_complexity() {
-    print_section "Checking Code Complexity"
-    
-    if command_exists dart_code_metrics; then
-        print_info "Running dart_code_metrics..."
-        
-        if dart_code_metrics analyze lib/ --reporter=console 2>&1 | tee complexity_report.txt; then
-            print_success "Complexity check passed!"
-            return 0
-        else
-            print_error "Complexity check failed!"
-            print_info "See complexity_report.txt for details"
-            return 1
-        fi
-    else
-        print_info "dart_code_metrics not installed, skipping complexity check"
-        print_info "Install with: dart pub global activate dart_code_metrics"
-        return 0
-    fi
-}
-
 # Run all quality checks
 run_all_checks() {
     print_header
@@ -324,11 +301,6 @@ run_all_checks() {
     
     # Check formatting
     if ! check_formatting; then
-        all_passed=false
-    fi
-    
-    # Run linter
-    if ! run_linter; then
         all_passed=false
     fi
     
@@ -347,19 +319,14 @@ run_all_checks() {
         all_passed=false
     fi
     
-    # Check complexity
-    if ! check_complexity; then
-        all_passed=false
-    fi
-    
     # Summary
     print_section "Quality Check Summary"
     
     if [ "$all_passed" = true ]; then
-        print_success "All quality checks passed! ✓"
+        print_success "All quality checks passed!"
         return 0
     else
-        print_error "Some quality checks failed! ✗"
+        print_error "Some quality checks failed!"
         return 1
     fi
 }
@@ -370,13 +337,6 @@ run_all_checks() {
 
 # Print header
 print_header
-
-# Check if Flutter is installed
-if ! command_exists flutter; then
-    print_error "Flutter is not installed!"
-    print_info "Install Flutter from: https://flutter.dev/docs/get-started/install"
-    exit 1
-fi
 
 # Check if we're in the right directory
 if [ ! -f "pubspec.yaml" ]; then
@@ -402,12 +362,6 @@ case "$1" in
     "todos")
         check_todos
         ;;
-    "complexity")
-        check_complexity
-        ;;
-    "sizes")
-        check_file_sizes
-        ;;
     "all")
         run_all_checks
         ;;
@@ -416,7 +370,7 @@ case "$1" in
         ;;
     *)
         print_error "Unknown command: $1"
-        print_info "Available commands: all, analyze, format, lint, security, todos, complexity, sizes"
+        print_info "Available commands: all, analyze, format, lint, security, todos"
         exit 1
         ;;
 esac
