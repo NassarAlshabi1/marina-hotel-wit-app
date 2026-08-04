@@ -37,7 +37,8 @@ class PasswordHasher {
   static const String _algorithmPrefix = 'pbkdf2_sha256';
 
   /// مولّد أرقام عشوائي آمن
-  static final _secureRandom = pc.SecureRandom('Fortuna')..seed(pc.KeyParameter(_generateSeed()));
+  static final _secureRandom = pc.SecureRandom('Fortuna')
+    ..seed(pc.KeyParameter(_generateSeed()));
 
   /// توليد seed عشوائي للـ Fortuna PRNG
   static Uint8List _generateSeed() {

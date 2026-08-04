@@ -54,57 +54,77 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
     try {
       // 1. تحميل بيانات الغرف (مع cache)
-      final roomsData = await PerformanceTimer.measure('reports_load_rooms', perf, () async {
-        if (!force && _cachedRooms != null) {
-          return _cachedRooms!;
-        }
-        final rooms = await db.select(db.rooms).get();
-        final result = {'rooms': rooms};
-        _cachedRooms = result;
-        return result;
-      }, recordsProcessed: 1);
+      final roomsData = await PerformanceTimer.measure(
+        'reports_load_rooms',
+        perf,
+        () async {
+          if (!force && _cachedRooms != null) {
+            return _cachedRooms!;
+          }
+          final rooms = await db.select(db.rooms).get();
+          final result = {'rooms': rooms};
+          _cachedRooms = result;
+          return result;
+        },
+        recordsProcessed: 1,
+      );
       final rooms = roomsData['rooms'] as List;
 
       // 2. تحميل البيانات المالية (مع cache)
-      final finData = await PerformanceTimer.measure('reports_load_financials', perf, () async {
-        if (!force && _cachedFinancials != null) {
-          return _cachedFinancials!;
-        }
-        // ✅ إصلاح: فلترة المدفوعات باليوم الفندقي الحالي بدلاً من كل المدفوعات
-        //以前: كان يجلب كل المدفوعات ويجمعها بدون فلترة تاريخ
-        // الآن: يعرض فقط إيرادات ومصروفات اليوم الفندقي الحالي
-        final hotelDay = HotelTimeEngine.getHotelDayKey();
+      final finData = await PerformanceTimer.measure(
+        'reports_load_financials',
+        perf,
+        () async {
+          if (!force && _cachedFinancials != null) {
+            return _cachedFinancials!;
+          }
+          // ✅ إصلاح: فلترة المدفوعات باليوم الفندقي الحالي بدلاً من كل المدفوعات
+          //以前: كان يجلب كل المدفوعات ويجمعها بدون فلترة تاريخ
+          // الآن: يعرض فقط إيرادات ومصروفات اليوم الفندقي الحالي
+          final hotelDay = HotelTimeEngine.getHotelDayKey();
 
-        // المدفوعات: فلترة بـ hotelDayKey
-        final paymentsQuery = db.select(db.payments)
-          ..where((p) => p.deletedAt.isNull())
-          ..where((p) => p.isVoided.equals(false))
-          ..where((p) => p.hotelDayKey.equals(hotelDay) | (p.hotelDayKey.isNull() & p.paymentDate.like('$hotelDay%')));
-        final todayPayments = await paymentsQuery.get();
-        double income = 0;
-        for (final p in todayPayments) {
-          income += p.amount;
-        }
+          // المدفوعات: فلترة بـ hotelDayKey
+          final paymentsQuery = db.select(db.payments)
+            ..where((p) => p.deletedAt.isNull())
+            ..where((p) => p.isVoided.equals(false))
+            ..where(
+              (p) =>
+                  p.hotelDayKey.equals(hotelDay) |
+                  (p.hotelDayKey.isNull() & p.paymentDate.like('$hotelDay%')),
+            );
+          final todayPayments = await paymentsQuery.get();
+          double income = 0;
+          for (final p in todayPayments) {
+            income += p.amount;
+          }
 
-        // المصروفات: فلترة بـ hotelDayKey
-        final expensesQuery = db.select(db.expenses)
-          ..where((e) => e.deletedAt.isNull())
-          ..where((e) => e.hotelDayKey.equals(hotelDay) | (e.hotelDayKey.isNull() & e.date.like('$hotelDay%')));
-        final todayExpenses = await expensesQuery.get();
-        double expense = 0;
-        for (final e in todayExpenses) {
-          expense += e.amount;
-        }
-        final result = {'income': income, 'expense': expense};
-        _cachedFinancials = result;
-        return result;
-      }, recordsProcessed: 1);
+          // المصروفات: فلترة بـ hotelDayKey
+          final expensesQuery = db.select(db.expenses)
+            ..where((e) => e.deletedAt.isNull())
+            ..where(
+              (e) =>
+                  e.hotelDayKey.equals(hotelDay) |
+                  (e.hotelDayKey.isNull() & e.date.like('$hotelDay%')),
+            );
+          final todayExpenses = await expensesQuery.get();
+          double expense = 0;
+          for (final e in todayExpenses) {
+            expense += e.amount;
+          }
+          final result = {'income': income, 'expense': expense};
+          _cachedFinancials = result;
+          return result;
+        },
+        recordsProcessed: 1,
+      );
 
       // 3. بناء الرسوم البيانية
       final total = rooms.isEmpty ? 1 : rooms.length;
 
       final daily = List.generate(7, (i) {
-        final busy = rooms.where((r) => StatusUtils.isRoomOccupied(r.status as String)).length;
+        final busy = rooms
+            .where((r) => StatusUtils.isRoomOccupied(r.status as String))
+            .length;
         final occ = (busy * 100 / total).round().toDouble();
         return BarChartGroupData(
           x: i,
@@ -115,11 +135,21 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       final revExp = [
         BarChartGroupData(
           x: 0,
-          barRods: [BarChartRodData(toY: (finData['income'] as num).toDouble(), color: Colors.green)],
+          barRods: [
+            BarChartRodData(
+              toY: (finData['income'] as num).toDouble(),
+              color: Colors.green,
+            ),
+          ],
         ),
         BarChartGroupData(
           x: 1,
-          barRods: [BarChartRodData(toY: (finData['expense'] as num).toDouble(), color: Colors.red)],
+          barRods: [
+            BarChartRodData(
+              toY: (finData['expense'] as num).toDouble(),
+              color: Colors.red,
+            ),
+          ],
         ),
       ];
 
@@ -175,8 +205,16 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     return AppScaffold(
       title: 'التقارير',
       actions: [
-        IconButton(onPressed: () => _loadData(force: true), icon: const Icon(Icons.refresh), tooltip: 'تحديث'),
-        IconButton(onPressed: () => ref.read(syncProvider).runSync(), icon: const Icon(Icons.sync), tooltip: 'مزامنة'),
+        IconButton(
+          onPressed: () => _loadData(force: true),
+          icon: const Icon(Icons.refresh),
+          tooltip: 'تحديث',
+        ),
+        IconButton(
+          onPressed: () => ref.read(syncProvider).runSync(),
+          icon: const Icon(Icons.sync),
+          tooltip: 'مزامنة',
+        ),
       ],
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -187,7 +225,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    EmptyState(title: 'تعذر تحميل التقارير', subtitle: _loadError, icon: Icons.error_outline),
+                    EmptyState(
+                      title: 'تعذر تحميل التقارير',
+                      subtitle: _loadError,
+                      icon: Icons.error_outline,
+                    ),
                     const SizedBox(height: 10),
                     ElevatedButton.icon(
                       onPressed: () => _loadData(force: true),
@@ -204,7 +246,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 // ─── التقارير المالية ───
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 4),
-                  child: Text('التقارير المالية', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  child: Text(
+                    'التقارير المالية',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
                 ),
                 const SizedBox(height: 6),
                 _ReportShortcut(
@@ -218,7 +263,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   icon: Icons.assignment,
                   label: 'تقرير تفصيلي - الأيام والمدفوعات',
                   color: Colors.indigo,
-                  onTap: () => _navigate((_) => const GuestPaymentsDetailReportScreen()),
+                  onTap: () =>
+                      _navigate((_) => const GuestPaymentsDetailReportScreen()),
                 ),
                 const SizedBox(height: 4),
                 _ReportShortcut(
@@ -232,21 +278,26 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   icon: Icons.stacked_line_chart,
                   label: 'تقرير الدخل والخرج',
                   color: Colors.teal,
-                  onTap: () => _navigate((_) => const IncomeExpenseReportScreen()),
+                  onTap: () =>
+                      _navigate((_) => const IncomeExpenseReportScreen()),
                 ),
                 const SizedBox(height: 4),
                 _ReportShortcut(
                   icon: Icons.payments_outlined,
                   label: 'تقرير سحبيات الرواتب',
                   color: Colors.blue,
-                  onTap: () => _navigate((_) => const SalaryWithdrawalsReportScreen()),
+                  onTap: () =>
+                      _navigate((_) => const SalaryWithdrawalsReportScreen()),
                 ),
                 const SizedBox(height: 10),
 
                 // ─── تقارير المخاطر والمتابعة ───
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 4),
-                  child: Text('تقارير المخاطر والمتابعة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  child: Text(
+                    'تقارير المخاطر والمتابعة',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
                 ),
                 const SizedBox(height: 6),
                 _ReportShortcut(
@@ -260,7 +311,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 // ─── مؤشرات سريعة ───
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 4),
-                  child: Text('مؤشرات سريعة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  child: Text(
+                    'مؤشرات سريعة',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
                 ),
                 const SizedBox(height: 8),
 
@@ -279,7 +333,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   height: 150,
                   child: BarChart(
                     BarChartData(
-                      barGroups: _chartData['dailyOcc'] as List<BarChartGroupData>? ?? [],
+                      barGroups:
+                          _chartData['dailyOcc'] as List<BarChartGroupData>? ??
+                          [],
                       borderData: FlBorderData(show: false),
                       gridData: const FlGridData(show: false),
                     ),
@@ -297,7 +353,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   height: 150,
                   child: BarChart(
                     BarChartData(
-                      barGroups: _chartData['revExp'] as List<BarChartGroupData>? ?? [],
+                      barGroups:
+                          _chartData['revExp'] as List<BarChartGroupData>? ??
+                          [],
                       borderData: FlBorderData(show: false),
                       gridData: const FlGridData(show: false),
                     ),
@@ -306,13 +364,18 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 const SizedBox(height: 10),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 4),
-                  child: Text('أعلى الغرف إشغالاً', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11)),
+                  child: Text(
+                    'أعلى الغرف إشغالاً',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
+                  ),
                 ),
                 SizedBox(
                   height: 150,
                   child: BarChart(
                     BarChartData(
-                      barGroups: _chartData['topRooms'] as List<BarChartGroupData>? ?? [],
+                      barGroups:
+                          _chartData['topRooms'] as List<BarChartGroupData>? ??
+                          [],
                       borderData: FlBorderData(show: false),
                       gridData: const FlGridData(show: false),
                     ),
@@ -346,18 +409,32 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                 const SizedBox(width: 4),
                 Text(
                   'اليوم الفندقي: $hotelDay',
-                  style: TextStyle(fontSize: 9, color: Colors.grey.shade500, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: Colors.grey.shade500,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 6),
             Row(
               children: [
-                Expanded(child: _buildFinIndicator('الإيرادات', income, Colors.green)),
+                Expanded(
+                  child: _buildFinIndicator('الإيرادات', income, Colors.green),
+                ),
                 Container(width: 1, height: 36, color: Colors.grey.shade200),
-                Expanded(child: _buildFinIndicator('المصروفات', expense, Colors.red)),
+                Expanded(
+                  child: _buildFinIndicator('المصروفات', expense, Colors.red),
+                ),
                 Container(width: 1, height: 36, color: Colors.grey.shade200),
-                Expanded(child: _buildFinIndicator('صافي', net, net >= 0 ? Colors.teal : Colors.orange)),
+                Expanded(
+                  child: _buildFinIndicator(
+                    'صافي',
+                    net,
+                    net >= 0 ? Colors.teal : Colors.orange,
+                  ),
+                ),
               ],
             ),
           ],
@@ -372,7 +449,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       children: [
         Text(
           fmt.format(value),
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: color),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: color,
+          ),
         ),
         const SizedBox(height: 2),
         Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
@@ -387,7 +468,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 }
 
 class _ReportShortcut extends StatelessWidget {
-  const _ReportShortcut({required this.icon, required this.label, required this.color, required this.onTap});
+  const _ReportShortcut({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String label;
@@ -408,8 +494,15 @@ class _ReportShortcut extends StatelessWidget {
           backgroundColor: color.withValues(alpha: 0.12),
           child: Icon(icon, color: color, size: 18),
         ),
-        title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+        title: Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+        ),
+        trailing: const Icon(
+          Icons.arrow_forward_ios,
+          size: 14,
+          color: Colors.grey,
+        ),
       ),
     );
   }

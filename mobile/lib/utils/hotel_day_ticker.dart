@@ -82,7 +82,13 @@ class HotelDayTicker {
   void _scheduleNext() {
     _timer?.cancel();
     final now = DateTime.now();
-    var next = DateTime(now.year, now.month, now.day, _hotelStartHour, _hotelStartMinute);
+    var next = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      _hotelStartHour,
+      _hotelStartMinute,
+    );
     // إذا تجاوزنا 14:01 اليوم، الهدف هو 14:01 غداً
     if (!now.isBefore(next)) {
       next = next.add(const Duration(days: 1));

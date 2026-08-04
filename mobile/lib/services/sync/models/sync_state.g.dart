@@ -13,7 +13,9 @@ _SyncSettings _$SyncSettingsFromJson(
   syncIntervalMinutes: (json['sync_interval_minutes'] as num?)?.toInt() ?? 5,
   syncOnWifiOnly: json['sync_on_wifi_only'] as bool? ?? true,
   compressData: json['compress_data'] as bool? ?? true,
-  defaultPriority: $enumDecodeNullable(_$SyncPriorityEnumMap, json['default_priority']) ?? SyncPriority.normal,
+  defaultPriority:
+      $enumDecodeNullable(_$SyncPriorityEnumMap, json['default_priority']) ??
+      SyncPriority.normal,
 );
 
 const _$SyncPriorityEnumMap = {

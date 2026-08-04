@@ -245,7 +245,9 @@ void main() {
         final third = await deltaSync.compute();
         // ✅ The fix: third sync should NOT re-emit the delete.
         // (Either zero changes, or zero changes for entity 'rooms'.)
-        final roomsChanges = third.changes.where((c) => c.entity == 'rooms').toList();
+        final roomsChanges = third.changes
+            .where((c) => c.entity == 'rooms')
+            .toList();
         expect(
           roomsChanges,
           isEmpty,

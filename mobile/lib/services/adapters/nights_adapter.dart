@@ -8,7 +8,8 @@ import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
 
-class NightsAdapter extends EntityAdapter<BookingNight, BookingNightsCompanion> {
+class NightsAdapter
+    extends EntityAdapter<BookingNight, BookingNightsCompanion> {
   NightsAdapter(this.resolver);
   final IdResolver resolver;
 
@@ -22,14 +23,25 @@ class NightsAdapter extends EntityAdapter<BookingNight, BookingNightsCompanion> 
   String get tableName => 'booking_nights';
 
   @override
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
+  Future<ResolveResult> resolveRefs(
+    AppDatabase db,
+    Map<String, dynamic> json, {
+    required Source src,
+  }) async {
     final bookingUuid =
         _asString(json, 'bookingUuidCache', src) ??
         _asString(json, 'booking_uuid_cache', src) ??
         _asString(json, 'booking_uuid', src);
-    final serverBookingId = _asInt(json, 'serverBookingId', src) ?? _asInt(json, 'booking_id', src);
-    final localId = _asInt(json, 'bookingLocalId', src) ?? _asInt(json, 'booking_local_id', src);
-    final resolvedId = await resolver.resolveBooking(localId: localId, serverId: serverBookingId, uuid: bookingUuid);
+    final serverBookingId =
+        _asInt(json, 'serverBookingId', src) ?? _asInt(json, 'booking_id', src);
+    final localId =
+        _asInt(json, 'bookingLocalId', src) ??
+        _asInt(json, 'booking_local_id', src);
+    final resolvedId = await resolver.resolveBooking(
+      localId: localId,
+      serverId: serverBookingId,
+      uuid: bookingUuid,
+    );
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
 
@@ -37,7 +49,8 @@ class NightsAdapter extends EntityAdapter<BookingNight, BookingNightsCompanion> 
     // بدلاً من وضع bookingLocalId = Value.absent() مما يسبب InvalidDataException
     // لأن bookingLocalId حقل مطلوب (NOT NULL FK) في جدول booking_nights
     // خدمة RestoreFixService ستعيد بناء الليالي من بيانات الحجز لاحقاً
-    final shouldSkip = resolvedId == null && (src == Source.appwrite || src == Source.drive);
+    final shouldSkip =
+        resolvedId == null && (src == Source.appwrite || src == Source.drive);
     final skipReason = shouldSkip
         ? 'booking_night: لا يمكن العثور على الحجز المرتبط '
               '(uuid=$bookingUuid, serverId=$serverBookingId, localId=$localId) '
@@ -55,13 +68,25 @@ class NightsAdapter extends EntityAdapter<BookingNight, BookingNightsCompanion> 
   }
 
   @override
-  BookingNightsCompanion fromJson(Map<String, dynamic> json, {required Source src, required ResolveResult refs}) {
+  BookingNightsCompanion fromJson(
+    Map<String, dynamic> json, {
+    required Source src,
+    required ResolveResult refs,
+  }) {
     final now = Time.nowEpoch();
-    final createdAt = refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified = refs.lastModifiedEpoch ?? _epoch(json, 'lastModified', src) ?? createdAt;
+    final createdAt =
+        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final lastModified =
+        refs.lastModifiedEpoch ??
+        _epoch(json, 'lastModified', src) ??
+        createdAt;
     return BookingNightsCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(_asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src) ?? IdGen.uuid()),
+      localUuid: d.Value(
+        _asString(json, 'localUuid', src) ??
+            _asString(json, 'local_uuid', src) ??
+            IdGen.uuid(),
+      ),
       serverId: _vInt(json, 'serverId', src),
       // ✅ إصلاح حرج: لا نستخدم bookingLocalId الخام من الجهاز البعيد
       // معرّف الزيادة التلقائية يختلف بين الأجهزة — bookingLocalId=5 على جهاز A ≠ جهاز B
@@ -71,19 +96,70 @@ class NightsAdapter extends EntityAdapter<BookingNight, BookingNightsCompanion> 
           : (src == Source.appwrite || src == Source.drive)
           ? const d.Value.absent()
           : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
-      hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key', fallback: ''),
-      nightStart: _vStr(json, 'nightStart', src, altKey: 'night_start', fallback: ''),
+      hotelDayKey: _vStr(
+        json,
+        'hotelDayKey',
+        src,
+        altKey: 'hotel_day_key',
+        fallback: '',
+      ),
+      nightStart: _vStr(
+        json,
+        'nightStart',
+        src,
+        altKey: 'night_start',
+        fallback: '',
+      ),
       nightEnd: _vStr(json, 'nightEnd', src, altKey: 'night_end', fallback: ''),
-      nightlyRate: _vDouble(json, 'nightlyRate', src, altKey: 'nightly_rate', fallback: 0),
+      nightlyRate: _vDouble(
+        json,
+        'nightlyRate',
+        src,
+        altKey: 'nightly_rate',
+        fallback: 0,
+      ),
       sequence: _vInt(json, 'sequence', src, fallback: 0),
-      isProcessedByAutoFix: _vBool(json, 'isProcessedByAutoFix', src, fallback: false),
-      baseRate: _vDouble(json, 'baseRate', src, altKey: 'base_rate', fallback: 0),
-      adjustment: _vDouble(json, 'adjustment', src, altKey: 'adjustment', fallback: 0),
-      finalRate: _vDouble(json, 'finalRate', src, altKey: 'final_rate', fallback: 0),
-      appliedAdjustmentUuid: _vStr(json, 'appliedAdjustmentUuid', src, altKey: 'applied_adjustment_uuid'),
+      isProcessedByAutoFix: _vBool(
+        json,
+        'isProcessedByAutoFix',
+        src,
+        fallback: false,
+      ),
+      baseRate: _vDouble(
+        json,
+        'baseRate',
+        src,
+        altKey: 'base_rate',
+        fallback: 0,
+      ),
+      adjustment: _vDouble(
+        json,
+        'adjustment',
+        src,
+        altKey: 'adjustment',
+        fallback: 0,
+      ),
+      finalRate: _vDouble(
+        json,
+        'finalRate',
+        src,
+        altKey: 'final_rate',
+        fallback: 0,
+      ),
+      appliedAdjustmentUuid: _vStr(
+        json,
+        'appliedAdjustmentUuid',
+        src,
+        altKey: 'applied_adjustment_uuid',
+      ),
       // ✅ إصلاح (P0-3): قراءة appliedAdjustmentsJson عند pull.
       // PayloadMapper يُرسله لكن الـ adapter لم يكن يقرأه.
-      appliedAdjustmentsJson: _vStr(json, 'appliedAdjustmentsJson', src, altKey: 'applied_adjustments_json'),
+      appliedAdjustmentsJson: _vStr(
+        json,
+        'appliedAdjustmentsJson',
+        src,
+        altKey: 'applied_adjustments_json',
+      ),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
@@ -92,7 +168,12 @@ class NightsAdapter extends EntityAdapter<BookingNight, BookingNightsCompanion> 
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
       createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
-      lastModifiedEpoch: _vInt(json, 'lastModifiedEpoch', src, fallback: lastModified),
+      lastModifiedEpoch: _vInt(
+        json,
+        'lastModifiedEpoch',
+        src,
+        fallback: lastModified,
+      ),
       version: _vInt(json, 'version', src, fallback: 1),
       // ✅ إصلاح: عند src=Source.appwrite، نصر على origin='server' دائماً
       // لمنع مشكلة أن البيانات المسحوبة من السيرفر تحمل origin='mobile'
@@ -100,8 +181,19 @@ class NightsAdapter extends EntityAdapter<BookingNight, BookingNightsCompanion> 
       origin: src == Source.appwrite || src == Source.drive
           ? const d.Value('server')
           : _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vStr(json, 'vectorClock', src, altKey: 'vector_clock', fallback: '{}'),
-      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
+      vectorClock: _vStr(
+        json,
+        'vectorClock',
+        src,
+        altKey: 'vector_clock',
+        fallback: '{}',
+      ),
+      idempotencyKey: _vStr(
+        json,
+        'idempotencyKey',
+        src,
+        altKey: 'idempotency_key',
+      ),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -118,15 +210,18 @@ class NightsAdapter extends EntityAdapter<BookingNight, BookingNightsCompanion> 
       _k(src, 'nightEnd', 'night_end'): model.nightEnd,
       _k(src, 'nightlyRate', 'nightly_rate'): model.nightlyRate,
       _k(src, 'sequence', 'sequence'): model.sequence,
-      _k(src, 'isProcessedByAutoFix', 'is_processed_by_auto_fix'): model.isProcessedByAutoFix,
+      _k(src, 'isProcessedByAutoFix', 'is_processed_by_auto_fix'):
+          model.isProcessedByAutoFix,
       _k(src, 'baseRate', 'base_rate'): model.baseRate,
       _k(src, 'adjustment', 'adjustment'): model.adjustment,
       _k(src, 'finalRate', 'final_rate'): model.finalRate,
-      _k(src, 'appliedAdjustmentUuid', 'applied_adjustment_uuid'): model.appliedAdjustmentUuid,
+      _k(src, 'appliedAdjustmentUuid', 'applied_adjustment_uuid'):
+          model.appliedAdjustmentUuid,
       // ✅ إصلاح (P0-3): إضافة appliedAdjustmentsJson الذي كان مفقوداً.
       // PayloadMapper يُرسله لكن الـ adapter لم يكن يُرسله — فقدان بيانات.
       // Appwrite schema: string size=5000 (مُتحقّق منه).
-      _k(src, 'appliedAdjustmentsJson', 'applied_adjustments_json'): model.appliedAdjustmentsJson,
+      _k(src, 'appliedAdjustmentsJson', 'applied_adjustments_json'):
+          model.appliedAdjustmentsJson,
       _k(src, 'createdAt', 'created_at'): model.createdAt,
       _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
       _k(src, 'createdAtIso', 'created_at_iso'): model.createdAtIso,
@@ -135,7 +230,8 @@ class NightsAdapter extends EntityAdapter<BookingNight, BookingNightsCompanion> 
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
       _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'):
+          model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
@@ -145,23 +241,59 @@ class NightsAdapter extends EntityAdapter<BookingNight, BookingNightsCompanion> 
   }
 }
 
-d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src, {String? altKey, int? fallback}) {
-  final v = _asInt(json, key, src) ?? (altKey != null ? _asInt(json, altKey, src) : null) ?? fallback;
+d.Value<int> _vInt(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  int? fallback,
+}) {
+  final v =
+      _asInt(json, key, src) ??
+      (altKey != null ? _asInt(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src, {String? altKey, String? fallback}) {
-  final v = _asString(json, key, src) ?? (altKey != null ? _asString(json, altKey, src) : null) ?? fallback;
+d.Value<String> _vStr(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  String? fallback,
+}) {
+  final v =
+      _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<double> _vDouble(Map<String, dynamic> json, String key, Source src, {String? altKey, double? fallback}) {
-  final v = _asDouble(json, key, src) ?? (altKey != null ? _asDouble(json, altKey, src) : null) ?? fallback;
+d.Value<double> _vDouble(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  double? fallback,
+}) {
+  final v =
+      _asDouble(json, key, src) ??
+      (altKey != null ? _asDouble(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<bool> _vBool(Map<String, dynamic> json, String key, Source src, {String? altKey, bool? fallback}) {
-  final v = _asBool(json, key, src) ?? (altKey != null ? _asBool(json, altKey, src) : null) ?? fallback;
+d.Value<bool> _vBool(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  bool? fallback,
+}) {
+  final v =
+      _asBool(json, key, src) ??
+      (altKey != null ? _asBool(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
@@ -253,7 +385,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) => src == Source.drive ? snake : camel;
+String _k(Source src, String camel, String snake) =>
+    src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
   // ✅ إصلاح: تحويل camelCase → snake_case لجميع المصادر بما فيها Drive

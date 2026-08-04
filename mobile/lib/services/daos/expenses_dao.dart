@@ -18,7 +18,8 @@ part 'expenses_dao.g.dart';
 @DriftAccessor(tables: [Expenses])
 class ExpensesDao extends DatabaseAccessor<AppDatabase>
     with _$ExpensesDaoMixin, OptimisticLockDaoMixin<Expenses, Expense> {
-  ExpensesDao(super.db, this.outboxDao, [AdapterRegistry? a]) : adapters = a ?? AdapterRegistry.instance;
+  ExpensesDao(super.db, this.outboxDao, [AdapterRegistry? a])
+    : adapters = a ?? AdapterRegistry.instance;
   final OutboxDao outboxDao;
   final AdapterRegistry adapters;
 
@@ -35,7 +36,11 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.deletedAt.isNull());
     }
     if (from != null && to != null) {
-      q.where((t) => t.date.isBiggerOrEqualValue(from) & t.date.isSmallerOrEqualValue(to));
+      q.where(
+        (t) =>
+            t.date.isBiggerOrEqualValue(from) &
+            t.date.isSmallerOrEqualValue(to),
+      );
     }
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
@@ -71,7 +76,15 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       // 'رواتب' → أيضاً 'سحب راتب' و 'خصم من الراتب'
       // لأن المستخدم يختار 'رواتب' لكن البيانات تُحفظ بأنواع مختلفة
       if (expenseType == 'رواتب') {
-        q.where((t) => t.expenseType.isIn(['رواتب', 'سحب راتب', 'سحب من الراتب', 'خصم راتب', 'خصم من الراتب']));
+        q.where(
+          (t) => t.expenseType.isIn([
+            'رواتب',
+            'سحب راتب',
+            'سحب من الراتب',
+            'خصم راتب',
+            'خصم من الراتب',
+          ]),
+        );
       } else {
         q.where((t) => t.expenseType.equals(expenseType));
       }
@@ -113,23 +126,35 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       // (مثل "2026-05-19 14:30") مما يجعل المقارنة النصية دقيقة
       q.where(
         (t) =>
-            (t.hotelDayKey.isNotNull() & t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
-            (t.hotelDayKey.isNull() & t.date.isBiggerOrEqualValue(fromHotelDay)) |
+            (t.hotelDayKey.isNotNull() &
+                t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
+            (t.hotelDayKey.isNull() &
+                t.date.isBiggerOrEqualValue(fromHotelDay)) |
             (t.hotelDayKey.isNull() & t.date.like('$fromHotelDay%')),
       );
     }
     if (toHotelDay != null) {
       q.where(
         (t) =>
-            (t.hotelDayKey.isNotNull() & t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
-            (t.hotelDayKey.isNull() & t.date.isSmallerOrEqualValue(toHotelDay)) |
+            (t.hotelDayKey.isNotNull() &
+                t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
+            (t.hotelDayKey.isNull() &
+                t.date.isSmallerOrEqualValue(toHotelDay)) |
             (t.hotelDayKey.isNull() & t.date.like('$toHotelDay%')),
       );
     }
     if (expenseType != null && expenseType.isNotEmpty) {
       // ✅ إصلاح: توسيع فلتر 'رواتب' ليشمل أنواع الرواتب المشتقة
       if (expenseType == 'رواتب') {
-        q.where((t) => t.expenseType.isIn(['رواتب', 'سحب راتب', 'سحب من الراتب', 'خصم راتب', 'خصم من الراتب']));
+        q.where(
+          (t) => t.expenseType.isIn([
+            'رواتب',
+            'سحب راتب',
+            'سحب من الراتب',
+            'خصم راتب',
+            'خصم من الراتب',
+          ]),
+        );
       } else {
         q.where((t) => t.expenseType.equals(expenseType));
       }
@@ -147,7 +172,11 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     return q.get();
   }
 
-  Stream<List<Expense>> watchList({bool includeDeleted = false, int? limit, int offset = 0}) {
+  Stream<List<Expense>> watchList({
+    bool includeDeleted = false,
+    int? limit,
+    int offset = 0,
+  }) {
     final q = select(expenses);
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
@@ -169,14 +198,18 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     q.where((t) => t.deletedAt.isNull());
 
     final byKey = expenses.hotelDayKey.equals(hotelDayKey);
-    final byDateFallback = expenses.hotelDayKey.isNull() & expenses.date.like('$hotelDayKey%');
+    final byDateFallback =
+        expenses.hotelDayKey.isNull() & expenses.date.like('$hotelDayKey%');
 
     q.where((t) => byKey | byDateFallback);
     return q.watch();
   }
 
   /// جلب المصروفات لتاريخ محدد
-  Future<List<Expense>> listByDate(String date, {bool includeDeleted = false}) async {
+  Future<List<Expense>> listByDate(
+    String date, {
+    bool includeDeleted = false,
+  }) async {
     final q = select(expenses);
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
@@ -185,32 +218,44 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     return q.get();
   }
 
-  Future<List<Expense>> listByHotelDayKey(String hotelDayKey, {bool includeDeleted = false}) async {
+  Future<List<Expense>> listByHotelDayKey(
+    String hotelDayKey, {
+    bool includeDeleted = false,
+  }) async {
     final q = select(expenses);
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
     }
 
     final byKey = expenses.hotelDayKey.equals(hotelDayKey);
-    final byDateFallback = expenses.hotelDayKey.isNull() & expenses.date.like('$hotelDayKey%');
+    final byDateFallback =
+        expenses.hotelDayKey.isNull() & expenses.date.like('$hotelDayKey%');
 
     q.where((t) => byKey | byDateFallback);
     return q.get();
   }
 
-  Future<Expense?> getById(int id) => (select(expenses)..where((t) => t.id.equals(id))).getSingleOrNull();
-  Stream<Expense?> watchById(int id) => (select(expenses)..where((t) => t.id.equals(id))).watchSingleOrNull();
-  Future<Expense?> getByLocalUuid(String localUuid) =>
-      (select(expenses)..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+  Future<Expense?> getById(int id) =>
+      (select(expenses)..where((t) => t.id.equals(id))).getSingleOrNull();
+  Stream<Expense?> watchById(int id) =>
+      (select(expenses)..where((t) => t.id.equals(id))).watchSingleOrNull();
+  Future<Expense?> getByLocalUuid(String localUuid) => (select(
+    expenses,
+  )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   Future<Expense?> getByServerId(String serverId) {
     final parsedServerId = _parseServerId(serverId);
     if (parsedServerId == null) {
       return Future.value();
     }
-    return (select(expenses)..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
+    return (select(
+      expenses,
+    )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
   }
 
-  Future<int> insertOne(ExpensesCompanion data, {bool originIsServer = false}) async {
+  Future<int> insertOne(
+    ExpensesCompanion data, {
+    bool originIsServer = false,
+  }) async {
     final now = Time.nowEpoch();
     final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
     final comp = data.copyWith(
@@ -219,7 +264,9 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       updatedAt: Value(now),
       lastModified: Value(now),
       origin: Value(originIsServer ? 'server' : 'local'),
-      deviceId: originIsServer ? const Value.absent() : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
+      deviceId: originIsServer
+          ? const Value.absent()
+          : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
     );
 
     // ✅ إصلاح PR review: إخراج FCM خارج transaction
@@ -242,14 +289,20 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       unawaited(
         FcmSender().notifyExpenseAdded(
           amount: comp.amount.value,
-          expenseType: comp.expenseType.present ? comp.expenseType.value : 'مصروف',
+          expenseType: comp.expenseType.present
+              ? comp.expenseType.value
+              : 'مصروف',
         ),
       );
     }
     return id;
   }
 
-  Future<int> updateById(int id, ExpensesCompanion data, {bool originIsServer = false}) async {
+  Future<int> updateById(
+    int id,
+    ExpensesCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
@@ -258,21 +311,34 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       }
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified = originIsServer && data.lastModified.present ? data.lastModified : Value(now);
+      final effectiveLastModified = originIsServer && data.lastModified.present
+          ? data.lastModified
+          : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
         version: Value(existing.version + 1),
       );
-      final rows = await (update(expenses)..where((t) => t.id.equals(id))).write(comp);
+      final rows = await (update(
+        expenses,
+      )..where((t) => t.id.equals(id))).write(comp);
       if (rows > 0 && !originIsServer) {
-        await _mergeOutbox(op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, clientTs: now);
+        await _mergeOutbox(
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          clientTs: now,
+        );
       }
       return rows;
     });
   }
 
-  Future<int> updateByLocalUuid(String localUuid, ExpensesCompanion data, {bool originIsServer = false}) async {
+  Future<int> updateByLocalUuid(
+    String localUuid,
+    ExpensesCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getByLocalUuid(localUuid);
@@ -281,42 +347,66 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       }
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified = originIsServer && data.lastModified.present ? data.lastModified : Value(now);
+      final effectiveLastModified = originIsServer && data.lastModified.present
+          ? data.lastModified
+          : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
         version: Value(existing.version + 1),
       );
-      final rows = await (update(expenses)..where((t) => t.localUuid.equals(localUuid))).write(comp);
+      final rows = await (update(
+        expenses,
+      )..where((t) => t.localUuid.equals(localUuid))).write(comp);
       if (rows > 0 && !originIsServer) {
-        await _mergeOutbox(op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, clientTs: now);
+        await _mergeOutbox(
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          clientTs: now,
+        );
       }
       return rows;
     });
   }
 
-  Future<int> updateByServerId(String? serverId, ExpensesCompanion data, {bool originIsServer = false}) async {
+  Future<int> updateByServerId(
+    String? serverId,
+    ExpensesCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final parsedServerId = _parseServerId(serverId);
       if (parsedServerId == null) {
         return 0;
       }
       final now = Time.nowEpoch();
-      final existing = await (select(expenses)..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
+      final existing = await (select(
+        expenses,
+      )..where((t) => t.serverId.equals(parsedServerId))).getSingleOrNull();
       if (existing == null) {
         return 0;
       }
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified = originIsServer && data.lastModified.present ? data.lastModified : Value(now);
+      final effectiveLastModified = originIsServer && data.lastModified.present
+          ? data.lastModified
+          : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
         version: Value(existing.version + 1),
       );
-      final rows = await (update(expenses)..where((t) => t.serverId.equals(parsedServerId))).write(comp);
+      final rows = await (update(
+        expenses,
+      )..where((t) => t.serverId.equals(parsedServerId))).write(comp);
       if (rows > 0 && !originIsServer) {
-        await _mergeOutbox(op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, clientTs: now);
+        await _mergeOutbox(
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          clientTs: now,
+        );
       }
       return rows;
     });
@@ -333,13 +423,23 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       if (existing == null) {
         return 0;
       }
-      final rows = await (update(expenses)..where((t) => t.id.equals(id))).write(
-        ExpensesCompanion(deletedAt: Value(now), updatedAt: Value(now), lastModified: Value(now)),
-      );
+      final rows = await (update(expenses)..where((t) => t.id.equals(id)))
+          .write(
+            ExpensesCompanion(
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              lastModified: Value(now),
+            ),
+          );
       if (rows > 0 && !originIsServer) {
         // ✅ نستخدم 'update' بدلاً من 'delete' لأن softDelete يحدّث deletedAt
         // ولا يحذف المستند من Appwrite — الجهاز الآخر يحتاج رؤية deletedAt
-        await _mergeOutbox(op: 'update', localUuid: existing.localUuid, serverId: existing.serverId, clientTs: now);
+        await _mergeOutbox(
+          op: 'update',
+          localUuid: existing.localUuid,
+          serverId: existing.serverId,
+          clientTs: now,
+        );
       }
       return rows;
     });
@@ -400,7 +500,10 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
   /// ✅ إصلاح حرج: تغليف العملية بالكامل في transaction لمنع فقدان البيانات
   /// إذا تعطل التطبيق أثناء الاستيراد، البيانات القديمة لا تُحذف إلا بعد
   /// نجاح إدراج جميع البيانات الجديدة
-  Future<void> importFromJson(List<Map<String, dynamic>> data, {bool clearExisting = false}) async {
+  Future<void> importFromJson(
+    List<Map<String, dynamic>> data, {
+    bool clearExisting = false,
+  }) async {
     await transaction(() async {
       if (clearExisting) {
         await delete(expenses).go();

@@ -16,7 +16,8 @@ class PaymentsListScreen extends ConsumerStatefulWidget {
   ConsumerState<PaymentsListScreen> createState() => _PaymentsListScreenState();
 }
 
-class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with SyncOnExitMixin {
+class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
+    with SyncOnExitMixin {
   @override
   String get screenId => 'payments_list';
 
@@ -63,7 +64,12 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
                 value: 'sort_desc',
                 child: Row(
                   children: [
-                    Icon(Icons.arrow_downward, color: _sortOrder == 'desc' ? Colors.amber.shade700 : Colors.grey),
+                    Icon(
+                      Icons.arrow_downward,
+                      color: _sortOrder == 'desc'
+                          ? Colors.amber.shade700
+                          : Colors.grey,
+                    ),
                     const SizedBox(width: 8),
                     const Text('الأحدث أولاً'),
                   ],
@@ -73,7 +79,12 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
                 value: 'sort_asc',
                 child: Row(
                   children: [
-                    Icon(Icons.arrow_upward, color: _sortOrder == 'asc' ? Colors.amber.shade700 : Colors.grey),
+                    Icon(
+                      Icons.arrow_upward,
+                      color: _sortOrder == 'asc'
+                          ? Colors.amber.shade700
+                          : Colors.grey,
+                    ),
                     const SizedBox(width: 8),
                     const Text('الأقدم أولاً'),
                   ],
@@ -102,7 +113,10 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
             // ─── قائمة المدفوعات ───
             Expanded(
               child: StreamBuilder(
-                stream: debounceStream(repo.watchAll(), const Duration(milliseconds: 150)),
+                stream: debounceStream(
+                  repo.watchAll(),
+                  const Duration(milliseconds: 150),
+                ),
                 builder: (context, snapshot) {
                   // ✅ معالجة حالة الخطأ قبل ConnectionState.waiting — بدونها
                   // قد لا يظهر للمستخدم أي feedback عند انفجار الـ stream.
@@ -111,9 +125,16 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.error_outline, size: 64, color: Colors.red),
+                          Icon(
+                            Icons.error_outline,
+                            size: 64,
+                            color: Colors.red,
+                          ),
                           SizedBox(height: 16),
-                          Text('حدث خطأ أثناء تحميل المدفوعات', style: TextStyle(fontSize: 16)),
+                          Text(
+                            'حدث خطأ أثناء تحميل المدفوعات',
+                            style: TextStyle(fontSize: 16),
+                          ),
                           SizedBox(height: 8),
                           Text(
                             'تحقّق من اتصال الشبكة وحاول مرة أخرى.',
@@ -125,7 +146,11 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
                     );
                   }
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator(color: Color(0xFFFFCC80)));
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFFFFCC80),
+                      ),
+                    );
                   }
 
                   final payments = snapshot.data ?? [];
@@ -164,11 +189,19 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
                         // ─── القائمة ───
                         Expanded(
                           child: ListView.separated(
-                            padding: const EdgeInsets.only(top: 8, right: 12, left: 12, bottom: 80),
+                            padding: const EdgeInsets.only(
+                              top: 8,
+                              right: 12,
+                              left: 12,
+                              bottom: 80,
+                            ),
                             itemCount: filtered.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 6),
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 6),
                             itemBuilder: (context, index) {
-                              return RepaintBoundary(child: _buildPaymentCard(filtered[index]));
+                              return RepaintBoundary(
+                                child: _buildPaymentCard(filtered[index]),
+                              );
                             },
                           ),
                         ),
@@ -204,7 +237,11 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
           prefixIcon: Icon(Icons.search, color: Colors.grey.shade500, size: 20),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
-                  icon: Icon(Icons.clear, color: Colors.grey.shade500, size: 18),
+                  icon: Icon(
+                    Icons.clear,
+                    color: Colors.grey.shade500,
+                    size: 18,
+                  ),
                   onPressed: () => setState(() => _searchQuery = ''),
                 )
               : null,
@@ -243,13 +280,19 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
                   style: TextStyle(
                     fontSize: 11,
                     color: isSelected ? Colors.white : _getMethodColor(method),
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                 ),
                 selected: isSelected,
                 selectedColor: _getMethodColor(method),
                 backgroundColor: Colors.white,
-                side: BorderSide(color: isSelected ? _getMethodColor(method) : Colors.grey.shade300),
+                side: BorderSide(
+                  color: isSelected
+                      ? _getMethodColor(method)
+                      : Colors.grey.shade300,
+                ),
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -274,13 +317,19 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
                   style: TextStyle(
                     fontSize: 11,
                     color: isSelected ? Colors.white : Colors.amber.shade700,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                 ),
                 selected: isSelected,
                 selectedColor: const Color(0xFFFFCC80),
                 backgroundColor: Colors.white,
-                side: BorderSide(color: isSelected ? const Color(0xFFFFCC80) : Colors.grey.shade300),
+                side: BorderSide(
+                  color: isSelected
+                      ? const Color(0xFFFFCC80)
+                      : Colors.grey.shade300,
+                ),
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -302,7 +351,10 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
   // ═══════════════════════════════════════════
 
   Widget _buildStatsBar(List<dynamic> payments) {
-    final total = payments.fold<double>(0, (s, p) => s + (p.amount as num).toDouble());
+    final total = payments.fold<double>(
+      0,
+      (s, p) => s + (p.amount as num).toDouble(),
+    );
     final now = DateTime.now();
     final today = payments.where((p) {
       try {
@@ -312,7 +364,10 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
         return false;
       }
     });
-    final todayTotal = today.fold<double>(0, (s, p) => s + (p.amount as num).toDouble());
+    final todayTotal = today.fold<double>(
+      0,
+      (s, p) => s + (p.amount as num).toDouble(),
+    );
     final cashTotal = payments
         .where((p) => p.paymentMethod == 'نقدي')
         .fold<double>(0, (s, p) => s + (p.amount as num).toDouble());
@@ -331,7 +386,11 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
         ),
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
-          BoxShadow(color: const Color(0xFFFFB74D).withValues(alpha: 0.3), blurRadius: 4, offset: const Offset(0, 2)),
+          BoxShadow(
+            color: const Color(0xFFFFB74D).withValues(alpha: 0.3),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: Row(
@@ -352,10 +411,20 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
       children: [
         Text(
           CurrencyFormatter.formatAmount(amount),
-          style: TextStyle(color: valueColor, fontSize: 14, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: valueColor,
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(height: 2),
-        Text(label, style: TextStyle(color: valueColor.withValues(alpha: 0.8), fontSize: 10)),
+        Text(
+          label,
+          style: TextStyle(
+            color: valueColor.withValues(alpha: 0.8),
+            fontSize: 10,
+          ),
+        ),
       ],
     );
   }
@@ -365,7 +434,8 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
   // ═══════════════════════════════════════════
 
   Widget _buildResultsCount(List<dynamic> payments) {
-    final hasFilters = _filterMethod != null || _filterType != null || _searchQuery.isNotEmpty;
+    final hasFilters =
+        _filterMethod != null || _filterType != null || _searchQuery.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: Row(
@@ -373,12 +443,20 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
         children: [
           Text(
             '$payments دفعة',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           if (hasFilters)
             Text(
               'نتائج مفلترة',
-              style: TextStyle(fontSize: 11, color: Colors.amber.shade700, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.amber.shade700,
+                fontWeight: FontWeight.w500,
+              ),
             ),
         ],
       ),
@@ -430,32 +508,53 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
                     Row(
                       children: [
                         Text(
-                          CurrencyFormatter.formatAmount((payment.amount as num).toDouble()),
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                          CurrencyFormatter.formatAmount(
+                            (payment.amount as num).toDouble(),
+                          ),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFCC80).withValues(alpha: 0.3),
+                            color: const Color(
+                              0xFFFFCC80,
+                            ).withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             revenueLabel,
-                            style: TextStyle(fontSize: 10, color: Colors.amber.shade800, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.amber.shade800,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                         if (isToday) ...[
                           const SizedBox(width: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 5,
+                              vertical: 1,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.green.shade100,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
                               'اليوم',
-                              style: TextStyle(fontSize: 9, color: Colors.green.shade700, fontWeight: FontWeight.w600),
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: Colors.green.shade700,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ],
@@ -465,38 +564,62 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
                     // الصف الثاني: طريقة الدفع + التاريخ
                     Row(
                       children: [
-                        Icon(Icons.payment, size: 13, color: Colors.grey.shade500),
+                        Icon(
+                          Icons.payment,
+                          size: 13,
+                          color: Colors.grey.shade500,
+                        ),
                         const SizedBox(width: 3),
                         Text(
                           payment.paymentMethod as String,
-                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade600,
+                          ),
                         ),
                         const SizedBox(width: 10),
-                        Icon(Icons.calendar_today, size: 12, color: Colors.grey.shade400),
+                        Icon(
+                          Icons.calendar_today,
+                          size: 12,
+                          color: Colors.grey.shade400,
+                        ),
                         const SizedBox(width: 3),
                         Text(
                           formattedDate,
                           style: TextStyle(
                             fontSize: 11,
-                            color: isToday ? Colors.green.shade600 : Colors.grey.shade500,
-                            fontWeight: isToday ? FontWeight.w600 : FontWeight.normal,
+                            color: isToday
+                                ? Colors.green.shade600
+                                : Colors.grey.shade500,
+                            fontWeight: isToday
+                                ? FontWeight.w600
+                                : FontWeight.normal,
                           ),
                         ),
                       ],
                     ),
                     // الصف الثالث: ملاحظات
-                    if (payment.notes != null && (payment.notes as String).trim().isNotEmpty) ...[
+                    if (payment.notes != null &&
+                        (payment.notes as String).trim().isNotEmpty) ...[
                       const SizedBox(height: 3),
                       Row(
                         children: [
-                          Icon(Icons.notes, size: 12, color: Colors.grey.shade400),
+                          Icon(
+                            Icons.notes,
+                            size: 12,
+                            color: Colors.grey.shade400,
+                          ),
                           const SizedBox(width: 3),
                           Expanded(
                             child: Text(
                               payment.notes as String,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontStyle: FontStyle.italic),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey.shade500,
+                                fontStyle: FontStyle.italic,
+                              ),
                             ),
                           ),
                         ],
@@ -507,9 +630,13 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
               ),
               const SizedBox(width: 8),
               // رقم الغرفة
-              if (payment.roomNumber != null && (payment.roomNumber as String).trim().isNotEmpty)
+              if (payment.roomNumber != null &&
+                  (payment.roomNumber as String).trim().isNotEmpty)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.blue.shade50,
                     borderRadius: BorderRadius.circular(8),
@@ -522,13 +649,18 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
                       const SizedBox(height: 1),
                       Text(
                         payment.roomNumber as String,
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue.shade700),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade700,
+                        ),
                       ),
                     ],
                   ),
                 ),
               // سهم التنقل
-              if (payment.roomNumber == null || (payment.roomNumber as String).trim().isEmpty)
+              if (payment.roomNumber == null ||
+                  (payment.roomNumber as String).trim().isEmpty)
                 Icon(Icons.chevron_left, color: Colors.grey.shade400, size: 20),
             ],
           ),
@@ -552,7 +684,9 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
       builder: (ctx) => Directionality(
         textDirection: ui.TextDirection.rtl,
         child: AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Row(
             children: [
               Container(
@@ -562,7 +696,11 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
                   color: methodColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(_getMethodIcon(payment.paymentMethod as String), color: methodColor, size: 18),
+                child: Icon(
+                  _getMethodIcon(payment.paymentMethod as String),
+                  color: methodColor,
+                  size: 18,
+                ),
               ),
               const SizedBox(width: 10),
               const Text('تفاصيل الدفعة'),
@@ -574,7 +712,9 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
             children: [
               _detailDivider(
                 'المبلغ',
-                CurrencyFormatter.formatAmount((payment.amount as num).toDouble()),
+                CurrencyFormatter.formatAmount(
+                  (payment.amount as num).toDouble(),
+                ),
                 icon: Icons.payments_outlined,
                 color: Colors.green,
               ),
@@ -584,33 +724,61 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
                 icon: _getMethodIcon(payment.paymentMethod as String),
                 color: methodColor,
               ),
-              _detailDivider('نوع الإيراد', revenueLabel, icon: Icons.category, color: Colors.amber.shade700),
+              _detailDivider(
+                'نوع الإيراد',
+                revenueLabel,
+                icon: Icons.category,
+                color: Colors.amber.shade700,
+              ),
               _detailDivider(
                 'التاريخ',
                 isToday ? '$formattedDate (اليوم)' : formattedDate,
                 icon: Icons.event,
                 color: isToday ? Colors.green : Colors.blue,
               ),
-              if (payment.roomNumber != null && (payment.roomNumber as String).trim().isNotEmpty)
-                _detailDivider('رقم الغرفة', payment.roomNumber as String, icon: Icons.hotel, color: Colors.indigo),
-              if (payment.referenceNumber != null && (payment.referenceNumber as String).trim().isNotEmpty)
+              if (payment.roomNumber != null &&
+                  (payment.roomNumber as String).trim().isNotEmpty)
+                _detailDivider(
+                  'رقم الغرفة',
+                  payment.roomNumber as String,
+                  icon: Icons.hotel,
+                  color: Colors.indigo,
+                ),
+              if (payment.referenceNumber != null &&
+                  (payment.referenceNumber as String).trim().isNotEmpty)
                 _detailDivider(
                   'رقم المرجع',
                   payment.referenceNumber as String,
                   icon: Icons.numbers,
                   color: Colors.purple,
                 ),
-              if (payment.notes != null && (payment.notes as String).trim().isNotEmpty)
-                _detailDivider('ملاحظات', payment.notes as String, icon: Icons.notes, color: Colors.grey),
+              if (payment.notes != null &&
+                  (payment.notes as String).trim().isNotEmpty)
+                _detailDivider(
+                  'ملاحظات',
+                  payment.notes as String,
+                  icon: Icons.notes,
+                  color: Colors.grey,
+                ),
             ],
           ),
-          actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('إغلاق'))],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('إغلاق'),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _detailDivider(String label, String value, {required IconData icon, required Color color}) {
+  Widget _detailDivider(
+    String label,
+    String value, {
+    required IconData icon,
+    required Color color,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -621,7 +789,11 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
             width: 80,
             child: Text(
               '$label:',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade700,
+              ),
             ),
           ),
           Expanded(child: Text(value, style: const TextStyle(fontSize: 13))),
@@ -634,7 +806,11 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
   //  حالة فارغة
   // ═══════════════════════════════════════════
 
-  Widget _buildEmptyState({required IconData icon, required String title, required String subtitle}) {
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -642,13 +818,20 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
           Container(
             width: 80,
             height: 80,
-            decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              shape: BoxShape.circle,
+            ),
             child: Icon(icon, size: 40, color: Colors.grey.shade400),
           ),
           const SizedBox(height: 16),
           Text(
             title,
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade700,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
@@ -670,16 +853,25 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
       // فلتر البحث
       if (_searchQuery.isNotEmpty) {
         final q = _searchQuery.toLowerCase();
-        final amountMatch = CurrencyFormatter.formatAmount((p.amount as num).toDouble()).contains(q);
-        final methodMatch = (p.paymentMethod as String).toLowerCase().contains(q);
-        final roomMatch = ((p.roomNumber as String?) ?? '').toLowerCase().contains(q);
-        final notesMatch = ((p.notes as String?) ?? '').toLowerCase().contains(q);
+        final amountMatch = CurrencyFormatter.formatAmount(
+          (p.amount as num).toDouble(),
+        ).contains(q);
+        final methodMatch = (p.paymentMethod as String).toLowerCase().contains(
+          q,
+        );
+        final roomMatch = ((p.roomNumber as String?) ?? '')
+            .toLowerCase()
+            .contains(q);
+        final notesMatch = ((p.notes as String?) ?? '').toLowerCase().contains(
+          q,
+        );
         if (!amountMatch && !methodMatch && !roomMatch && !notesMatch) {
           return false;
         }
       }
       // فلتر طريقة الدفع
-      if (_filterMethod != null && (p.paymentMethod as String) != _filterMethod) {
+      if (_filterMethod != null &&
+          (p.paymentMethod as String) != _filterMethod) {
         return false;
       }
       // فلتر نوع الإيراد
@@ -694,7 +886,9 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
       try {
         final dateA = DateTime.parse(a.paymentDate as String);
         final dateB = DateTime.parse(b.paymentDate as String);
-        return _sortOrder == 'desc' ? dateB.compareTo(dateA) : dateA.compareTo(dateB);
+        return _sortOrder == 'desc'
+            ? dateB.compareTo(dateA)
+            : dateA.compareTo(dateB);
       } catch (_) {
         return 0;
       }
@@ -769,7 +963,9 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen> with Sy
     try {
       final date = DateTime.parse(dateStr);
       final now = DateTime.now();
-      return date.year == now.year && date.month == now.month && date.day == now.day;
+      return date.year == now.year &&
+          date.month == now.month &&
+          date.day == now.day;
     } catch (_) {
       return false;
     }

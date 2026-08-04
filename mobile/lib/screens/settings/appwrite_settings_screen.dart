@@ -23,10 +23,12 @@ class AppwriteSettingsScreen extends ConsumerStatefulWidget {
   const AppwriteSettingsScreen({super.key});
 
   @override
-  ConsumerState<AppwriteSettingsScreen> createState() => _AppwriteSettingsScreenState();
+  ConsumerState<AppwriteSettingsScreen> createState() =>
+      _AppwriteSettingsScreenState();
 }
 
-class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen> {
+class _AppwriteSettingsScreenState
+    extends ConsumerState<AppwriteSettingsScreen> {
   bool _syncEnabled = false;
   int _syncInterval = 15;
   bool _autoSyncOnConnect = true;
@@ -50,7 +52,8 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
     setState(() {
       _syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
       _syncInterval = prefs.getInt('appwrite_sync_interval') ?? 15;
-      _autoSyncOnConnect = prefs.getBool('appwrite_auto_sync_on_connect') ?? true;
+      _autoSyncOnConnect =
+          prefs.getBool('appwrite_auto_sync_on_connect') ?? true;
       _cacheEnabled = prefs.getBool('appwrite_cache_enabled') ?? true;
       _cacheTTLHours = prefs.getInt('appwrite_cache_ttl') ?? 6;
       _cacheMaxSizeMB = prefs.getInt('appwrite_cache_max_size') ?? 20;
@@ -151,7 +154,11 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
   }
 
   // ==================== قسم حالة الاتصال ====================
-  Widget _buildConnectionSection(BuildContext context, ap.ConnectionState state, Map<String, String> info) {
+  Widget _buildConnectionSection(
+    BuildContext context,
+    ap.ConnectionState state,
+    Map<String, String> info,
+  ) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -162,7 +169,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               children: [
                 Icon(Icons.cloud, color: Colors.blue, size: 24),
                 SizedBox(width: 8),
-                Text('حالة الاتصال', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  'حالة الاتصال',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const Divider(height: 24),
@@ -171,9 +181,14 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: state.isConnected ? Colors.green.shade50 : Colors.red.shade50,
+                color: state.isConnected
+                    ? Colors.green.shade50
+                    : Colors.red.shade50,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: state.isConnected ? Colors.green : Colors.red, width: 2),
+                border: Border.all(
+                  color: state.isConnected ? Colors.green : Colors.red,
+                  width: 2,
+                ),
               ),
               child: Row(
                 children: [
@@ -192,7 +207,9 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: state.isConnected ? Colors.green : Colors.red,
+                            color: state.isConnected
+                                ? Colors.green
+                                : Colors.red,
                           ),
                         ),
                         if (state.errorMessage != null) ...[
@@ -202,11 +219,15 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
                               Expanded(
                                 child: Text(
                                   state.errorMessage!,
-                                  style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.red.shade700,
+                                  ),
                                 ),
                               ),
                               IconButton(
-                                onPressed: () => _copyToClipboard(state.errorMessage!),
+                                onPressed: () =>
+                                    _copyToClipboard(state.errorMessage!),
                                 icon: const Icon(Icons.copy, size: 16),
                                 tooltip: 'نسخ الخطأ',
                                 padding: EdgeInsets.zero,
@@ -229,7 +250,9 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
               onTap: () => Navigator.push<void>(
                 context,
-                MaterialPageRoute<void>(builder: (_) => const AppwriteConnectionSettingsScreen()),
+                MaterialPageRoute<void>(
+                  builder: (_) => const AppwriteConnectionSettingsScreen(),
+                ),
               ),
             ),
             const Divider(height: 24),
@@ -247,9 +270,15 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               child: ElevatedButton.icon(
                 onPressed: state.isChecking ? null : _checkConnection,
                 icon: state.isChecking
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : const Icon(Icons.refresh),
-                label: Text(state.isChecking ? 'جاري الفحص...' : 'اختبار الاتصال'),
+                label: Text(
+                  state.isChecking ? 'جاري الفحص...' : 'اختبار الاتصال',
+                ),
               ),
             ),
           ],
@@ -259,7 +288,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
   }
 
   // ==================== قسم المزامنة ====================
-  Widget _buildSyncSection(BuildContext context, AsyncValue<Map<String, dynamic>> statsAsync) {
+  Widget _buildSyncSection(
+    BuildContext context,
+    AsyncValue<Map<String, dynamic>> statsAsync,
+  ) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -270,7 +302,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               children: [
                 Icon(Icons.sync, color: Colors.cyan, size: 24),
                 SizedBox(width: 8),
-                Text('إعدادات المزامنة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  'إعدادات المزامنة',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const Divider(height: 24),
@@ -278,7 +313,9 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
             // تفعيل المزامنة
             _buildSettingSwitch(
               title: 'تفعيل المزامنة التلقائية',
-              subtitle: _syncEnabled ? 'يتم المزامنة تلقائياً في الخلفية' : 'المزامنة التلقائية معطّلة (يدوي فقط)',
+              subtitle: _syncEnabled
+                  ? 'يتم المزامنة تلقائياً في الخلفية'
+                  : 'المزامنة التلقائية معطّلة (يدوي فقط)',
               value: _syncEnabled,
               onChanged: (value) async {
                 setState(() => _syncEnabled = value);
@@ -287,7 +324,11 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(value ? 'تم تفعيل المزامنة التلقائية' : 'تم إيقاف المزامنة التلقائية'),
+                      content: Text(
+                        value
+                            ? 'تم تفعيل المزامنة التلقائية'
+                            : 'تم إيقاف المزامنة التلقائية',
+                      ),
                       duration: const Duration(seconds: 2),
                     ),
                   );
@@ -303,7 +344,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
                 trailing: DropdownButton<int>(
                   value: _syncInterval,
                   items: [5, 10, 15, 30, 60].map((int value) {
-                    return DropdownMenuItem<int>(value: value, child: Text('$value دقيقة'));
+                    return DropdownMenuItem<int>(
+                      value: value,
+                      child: Text('$value دقيقة'),
+                    );
                   }).toList(),
                   onChanged: (value) async {
                     if (value != null) {
@@ -317,7 +361,9 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
             // مزامنة عند الاتصال
             _buildSettingSwitch(
               title: 'مزامنة عند الاتصال التلقائي',
-              subtitle: _autoSyncOnConnect ? 'مزامنة البيانات فور اتصال التطبيق' : 'انتظار المزامنة الدورية أو اليدوية',
+              subtitle: _autoSyncOnConnect
+                  ? 'مزامنة البيانات فور اتصال التطبيق'
+                  : 'انتظار المزامنة الدورية أو اليدوية',
               value: _autoSyncOnConnect,
               onChanged: (value) async {
                 setState(() => _autoSyncOnConnect = value);
@@ -334,7 +380,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               error: (e, _) => Row(
                 children: [
                   Expanded(
-                    child: Text('خطأ: $e', style: const TextStyle(color: Colors.red)),
+                    child: Text(
+                      'خطأ: $e',
+                      style: const TextStyle(color: Colors.red),
+                    ),
                   ),
                   IconButton(
                     onPressed: () => _copyToClipboard('خطأ: $e'),
@@ -365,7 +414,9 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
                     onPressed: () {
                       Navigator.push<void>(
                         context,
-                        MaterialPageRoute<void>(builder: (context) => const AppwriteSyncStatsScreen()),
+                        MaterialPageRoute<void>(
+                          builder: (context) => const AppwriteSyncStatsScreen(),
+                        ),
                       );
                     },
                     icon: const Icon(Icons.analytics),
@@ -467,7 +518,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               children: [
                 Icon(Icons.storage, color: Colors.purple, size: 24),
                 SizedBox(width: 8),
-                Text('إعدادات التخزين المؤقت', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  'إعدادات التخزين المؤقت',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const Divider(height: 24),
@@ -491,13 +545,18 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               trailing: DropdownButton<int>(
                 value: _cacheTTLHours,
                 items: [1, 2, 6, 12, 24].map((int value) {
-                  return DropdownMenuItem<int>(value: value, child: Text('$value ساعة'));
+                  return DropdownMenuItem<int>(
+                    value: value,
+                    child: Text('$value ساعة'),
+                  );
                 }).toList(),
                 onChanged: (value) {
                   if (value != null) {
                     setState(() => _cacheTTLHours = value);
                     _saveSettings();
-                    ref.read(ap.appwriteCacheManagerProvider).setDefaultTTL(Duration(hours: value));
+                    ref
+                        .read(ap.appwriteCacheManagerProvider)
+                        .setDefaultTTL(Duration(hours: value));
                   }
                 },
               ),
@@ -510,13 +569,18 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               trailing: DropdownButton<int>(
                 value: _cacheMaxSizeMB,
                 items: [5, 10, 20, 50, 100].map((int value) {
-                  return DropdownMenuItem<int>(value: value, child: Text('$value MB'));
+                  return DropdownMenuItem<int>(
+                    value: value,
+                    child: Text('$value MB'),
+                  );
                 }).toList(),
                 onChanged: (value) {
                   if (value != null) {
                     setState(() => _cacheMaxSizeMB = value);
                     _saveSettings();
-                    ref.read(ap.appwriteCacheManagerProvider).setMaxSizeMB(value);
+                    ref
+                        .read(ap.appwriteCacheManagerProvider)
+                        .setMaxSizeMB(value);
                   }
                 },
               ),
@@ -586,7 +650,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               children: [
                 Icon(Icons.article, color: Colors.green, size: 24),
                 SizedBox(width: 8),
-                Text('إعدادات السجلات', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  'إعدادات السجلات',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const Divider(height: 24),
@@ -597,8 +664,13 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               subtitle: Text(_logLevel.toUpperCase()),
               trailing: DropdownButton<String>(
                 value: _logLevel,
-                items: ['debug', 'info', 'warning', 'error', 'critical'].map((String value) {
-                  return DropdownMenuItem<String>(value: value, child: Text(value.toUpperCase()));
+                items: ['debug', 'info', 'warning', 'error', 'critical'].map((
+                  String value,
+                ) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value.toUpperCase()),
+                  );
                 }).toList(),
                 onChanged: (value) {
                   if (value != null) {
@@ -640,7 +712,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
                 onPressed: () {
                   Navigator.push<void>(
                     context,
-                    MaterialPageRoute<void>(builder: (context) => const backup_v2.ComprehensiveBackupScreen()),
+                    MaterialPageRoute<void>(
+                      builder: (context) =>
+                          const backup_v2.ComprehensiveBackupScreen(),
+                    ),
                   );
                 },
                 icon: const Icon(Icons.backup),
@@ -697,7 +772,9 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
                     onPressed: () {
                       Navigator.push<void>(
                         context,
-                        MaterialPageRoute<void>(builder: (context) => const AppwriteLogsScreen()),
+                        MaterialPageRoute<void>(
+                          builder: (context) => const AppwriteLogsScreen(),
+                        ),
                       );
                     },
                     icon: const Icon(Icons.visibility),
@@ -718,7 +795,9 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
                     onPressed: _clearLogs,
                     icon: const Icon(Icons.delete),
                     label: const Text('مسح'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                    ),
                   ),
                 ),
               ],
@@ -730,7 +809,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
   }
 
   // ==================== قسم الأجهزة المسجلة ====================
-  Widget _buildDevicesSection(BuildContext context, AsyncValue<List<AppwriteDevice>> devicesAsync) {
+  Widget _buildDevicesSection(
+    BuildContext context,
+    AsyncValue<List<AppwriteDevice>> devicesAsync,
+  ) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -741,7 +823,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               children: [
                 Icon(Icons.devices, color: Colors.teal, size: 24),
                 SizedBox(width: 8),
-                Text('الأجهزة المسجلة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  'الأجهزة المسجلة',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const Divider(height: 24),
@@ -750,24 +835,40 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               data: (devices) {
                 if (devices.isEmpty) {
                   return const Center(
-                    child: Padding(padding: EdgeInsets.all(16), child: Text('لا توجد أجهزة مسجلة')),
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text('لا توجد أجهزة مسجلة'),
+                    ),
                   );
                 }
                 return Column(
                   children: devices.map<Widget>((device) {
                     return ListTile(
-                      leading: const Icon(Icons.phone_android, color: Colors.teal),
+                      leading: const Icon(
+                        Icons.phone_android,
+                        color: Colors.teal,
+                      ),
                       title: Text(device.deviceName),
-                      subtitle: Text('${device.deviceModel} - ${device.osVersion}'),
+                      subtitle: Text(
+                        '${device.deviceModel} - ${device.osVersion}',
+                      ),
                       trailing: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
-                          color: device.status == 'active' ? Colors.green : Colors.grey,
+                          color: device.status == 'active'
+                              ? Colors.green
+                              : Colors.grey,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           device.status == 'active' ? 'نشط' : 'غير نشط',
-                          style: const TextStyle(color: Colors.white, fontSize: 12),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     );
@@ -778,7 +879,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               error: (e, _) => Row(
                 children: [
                   Expanded(
-                    child: Text('خطأ: $e', style: const TextStyle(color: Colors.red)),
+                    child: Text(
+                      'خطأ: $e',
+                      style: const TextStyle(color: Colors.red),
+                    ),
                   ),
                   IconButton(
                     onPressed: () => _copyToClipboard('خطأ: $e'),
@@ -822,7 +926,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               children: [
                 Icon(Icons.data_usage, color: Colors.indigo, size: 24),
                 SizedBox(width: 8),
-                Text('إدارة البيانات', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  'إدارة البيانات',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const Divider(height: 24),
@@ -893,15 +1000,30 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               children: [
                 Icon(Icons.science, color: Colors.deepOrange, size: 24),
                 SizedBox(width: 8),
-                Text('الاختبارات والتشخيص', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  'الاختبارات والتشخيص',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const Divider(height: 24),
-            _buildActionButton(label: 'اختبار الاتصال', icon: Icons.network_check, onPressed: _testConnection),
+            _buildActionButton(
+              label: 'اختبار الاتصال',
+              icon: Icons.network_check,
+              onPressed: _testConnection,
+            ),
             const SizedBox(height: 8),
-            _buildActionButton(label: 'اختبار المزامنة', icon: Icons.sync_problem, onPressed: _testSync),
+            _buildActionButton(
+              label: 'اختبار المزامنة',
+              icon: Icons.sync_problem,
+              onPressed: _testSync,
+            ),
             const SizedBox(height: 8),
-            _buildActionButton(label: 'اختبار الذاكرة المؤقتة', icon: Icons.memory, onPressed: _testCache),
+            _buildActionButton(
+              label: 'اختبار الذاكرة المؤقتة',
+              icon: Icons.memory,
+              onPressed: _testCache,
+            ),
           ],
         ),
       ),
@@ -934,17 +1056,30 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               Icon(icon, color: color),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 6),
-          Text(subtitle, style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color ?? Colors.black87)),
+          Text(
+            subtitle,
+            style: TextStyle(
+              color:
+                  Theme.of(context).textTheme.bodyMedium?.color ??
+                  Colors.black87,
+            ),
+          ),
           const SizedBox(height: 8),
           ...details.map(
             (detail) => Padding(
               padding: const EdgeInsets.only(bottom: 4),
-              child: Text('• $detail', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              child: Text(
+                '• $detail',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -996,17 +1131,29 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
     );
   }
 
-  Widget _buildStatCard({required String title, required String value, required IconData icon, required Color color}) {
+  Widget _buildStatCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
       child: Column(
         children: [
           Icon(icon, color: color, size: 24),
           const SizedBox(height: 4),
           Text(
             value,
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
           ),
           Text(title, style: const TextStyle(fontSize: 10, color: Colors.grey)),
         ],
@@ -1026,7 +1173,9 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
         onPressed: _isLoading ? null : onPressed,
         icon: Icon(icon),
         label: Text(label),
-        style: color != null ? ElevatedButton.styleFrom(backgroundColor: color) : null,
+        style: color != null
+            ? ElevatedButton.styleFrom(backgroundColor: color)
+            : null,
       ),
     );
   }
@@ -1066,11 +1215,17 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
             content: Row(
               children: [
                 Expanded(
-                  child: Text(result.isSuccess ? 'تمت المزامنة بنجاح' : 'فشلت المزامنة: ${result.errorMessage}'),
+                  child: Text(
+                    result.isSuccess
+                        ? 'تمت المزامنة بنجاح'
+                        : 'فشلت المزامنة: ${result.errorMessage}',
+                  ),
                 ),
                 if (!result.isSuccess)
                   IconButton(
-                    onPressed: () => _copyToClipboard('فشلت المزامنة: ${result.errorMessage}'),
+                    onPressed: () => _copyToClipboard(
+                      'فشلت المزامنة: ${result.errorMessage}',
+                    ),
                     icon: const Icon(Icons.copy, size: 16),
                     tooltip: 'نسخ الخطأ',
                     padding: EdgeInsets.zero,
@@ -1090,7 +1245,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
             content: Row(
               children: [
                 Expanded(
-                  child: Text('خطأ: $e', style: const TextStyle(color: Colors.red)),
+                  child: Text(
+                    'خطأ: $e',
+                    style: const TextStyle(color: Colors.red),
+                  ),
                 ),
                 IconButton(
                   onPressed: () => _copyToClipboard('خطأ: $e'),
@@ -1117,7 +1275,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
         title: const Text('تأكيد'),
         content: const Text('هل تريد مسح جميع البيانات المؤقتة؟'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop<bool>(context, false), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop<bool>(context, false),
+            child: const Text('إلغاء'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop<bool>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -1130,7 +1291,9 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
     if (confirmed ?? false) {
       ref.read(ap.appwriteCacheManagerProvider).clear();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم مسح الذاكرة المؤقتة')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('تم مسح الذاكرة المؤقتة')));
       }
     }
   }
@@ -1142,7 +1305,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
         title: const Text('تأكيد'),
         content: const Text('هل تريد مسح جميع السجلات؟'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop<bool>(context, false), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop<bool>(context, false),
+            child: const Text('إلغاء'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop<bool>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -1155,7 +1321,9 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
     if (confirmed ?? false) {
       ref.read(ap.appwriteLoggerProvider).clearLogs();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم مسح السجلات')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('تم مسح السجلات')));
       }
     }
   }
@@ -1167,7 +1335,9 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(file != null ? 'تم التصدير إلى: ${file.path}' : 'فشل التصدير'),
+            content: Text(
+              file != null ? 'تم التصدير إلى: ${file.path}' : 'فشل التصدير',
+            ),
             backgroundColor: file != null ? Colors.green : Colors.red,
           ),
         );
@@ -1179,7 +1349,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
             content: Row(
               children: [
                 Expanded(
-                  child: Text('خطأ: $e', style: const TextStyle(color: Colors.red)),
+                  child: Text(
+                    'خطأ: $e',
+                    style: const TextStyle(color: Colors.red),
+                  ),
                 ),
                 IconButton(
                   onPressed: () => _copyToClipboard('خطأ: $e'),
@@ -1216,8 +1389,14 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop<bool>(context, false), child: const Text('إلغاء')),
-          ElevatedButton(onPressed: () => Navigator.pop<bool>(context, true), child: const Text('بدء النسخ')),
+          TextButton(
+            onPressed: () => Navigator.pop<bool>(context, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop<bool>(context, true),
+            child: const Text('بدء النسخ'),
+          ),
         ],
       ),
     );
@@ -1251,10 +1430,13 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
     setState(() => _isLoading = true);
     try {
       final deviceId = ref.read(ap.appwriteSyncManagerProvider).currentDeviceId;
-      final service = AppwriteBackupService(appwriteService: ref.read(ap.appwriteServiceProvider));
+      final service = AppwriteBackupService(
+        appwriteService: ref.read(ap.appwriteServiceProvider),
+      );
 
       // ✅ اختيار المسار الذي يحدّده المستخدم لحفظ النسخة الاحتياطية
-      final suggestedName = 'appwrite_full_backup_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now().toUtc())}.json';
+      final suggestedName =
+          'appwrite_full_backup_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now().toUtc())}.json';
       final chosenPath = await FilePicker.platform.saveFile(
         dialogTitle: 'اختر مكان حفظ النسخة الاحتياطية',
         fileName: suggestedName,
@@ -1262,19 +1444,26 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
       if (chosenPath == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إلغاء اختيار مسار الحفظ')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تم إلغاء اختيار مسار الحفظ')),
+          );
         }
         return;
       }
 
-      final result = await service.exportBackup(deviceId: deviceId, includeSchema: true, targetPath: chosenPath);
+      final result = await service.exportBackup(
+        deviceId: deviceId,
+        includeSchema: true,
+        targetPath: chosenPath,
+      );
 
       if (!mounted) {
         return;
       }
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
-      final sortedCounts = result.counts.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+      final sortedCounts = result.counts.entries.toList()
+        ..sort((a, b) => a.key.compareTo(b.key));
 
       unawaited(
         showDialog<void>(
@@ -1296,7 +1485,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('إغلاق'),
+              ),
               TextButton(
                 onPressed: () async {
                   Navigator.pop(context);
@@ -1315,7 +1507,12 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('فشل إنشاء النسخة الاحتياطية: $e'), backgroundColor: Colors.red));
+      ).showSnackBar(
+        SnackBar(
+          content: Text('فشل إنشاء النسخة الاحتياطية: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -1342,8 +1539,14 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop<bool>(context, false), child: const Text('إلغاء')),
-          ElevatedButton(onPressed: () => Navigator.pop<bool>(context, true), child: const Text('بدء الرفع')),
+          TextButton(
+            onPressed: () => Navigator.pop<bool>(context, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop<bool>(context, true),
+            child: const Text('بدء الرفع'),
+          ),
         ],
       ),
     );
@@ -1359,7 +1562,12 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('تم رفع البيانات بنجاح'), backgroundColor: Colors.green));
+        ).showSnackBar(
+          const SnackBar(
+            content: Text('تم رفع البيانات بنجاح'),
+            backgroundColor: Colors.green,
+          ),
+        );
         ref.invalidate(ap.syncStatsProvider);
       }
     } catch (e) {
@@ -1408,8 +1616,14 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop<bool>(context, false), child: const Text('إلغاء')),
-          ElevatedButton(onPressed: () => Navigator.pop<bool>(context, true), child: const Text('بدء السحب')),
+          TextButton(
+            onPressed: () => Navigator.pop<bool>(context, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop<bool>(context, true),
+            child: const Text('بدء السحب'),
+          ),
         ],
       ),
     );
@@ -1425,7 +1639,12 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('تم سحب البيانات بنجاح'), backgroundColor: Colors.green));
+        ).showSnackBar(
+          const SnackBar(
+            content: Text('تم سحب البيانات بنجاح'),
+            backgroundColor: Colors.green,
+          ),
+        );
         ref.invalidate(ap.syncStatsProvider);
       }
     } catch (e) {
@@ -1464,7 +1683,10 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
         title: const Text('تأكيد'),
         content: const Text('هل تريد إعادة تعيين حالة المزامنة؟'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop<bool>(context, false), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop<bool>(context, false),
+            child: const Text('إلغاء'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop<bool>(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
@@ -1477,7 +1699,9 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
     if (confirmed ?? false) {
       await ref.read(ap.appwriteSyncManagerProvider).resetSyncState();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إعادة تعيين المزامنة')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم إعادة تعيين المزامنة')),
+        );
         ref.invalidate(ap.syncStatsProvider);
       }
     }
@@ -1488,7 +1712,9 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
   }
 
   Future<void> _testSync() async {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اختبار المزامنة...')));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('اختبار المزامنة...')));
     await _syncNow();
   }
 
@@ -1507,11 +1733,20 @@ class _AppwriteSettingsScreenState extends ConsumerState<AppwriteSettingsScreen>
               Text('العناصر الصالحة: ${stats.validEntries}'),
               Text('العناصر منتهية: ${stats.expiredEntries}'),
               Text('الحجم المستخدم: ${stats.totalSizeMB} MB'),
-              Text('نسبة الاستخدام: ${stats.usagePercentage.toStringAsFixed(1)}%'),
-              Text('معدل الإصابة: ${(stats.hitRate * 100).toStringAsFixed(1)}%'),
+              Text(
+                'نسبة الاستخدام: ${stats.usagePercentage.toStringAsFixed(1)}%',
+              ),
+              Text(
+                'معدل الإصابة: ${(stats.hitRate * 100).toStringAsFixed(1)}%',
+              ),
             ],
           ),
-          actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق'))],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إغلاق'),
+            ),
+          ],
         ),
       ),
     );

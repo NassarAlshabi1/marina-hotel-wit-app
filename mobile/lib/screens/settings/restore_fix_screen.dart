@@ -12,13 +12,17 @@ import '../../services/restore_fix_service.dart';
 import '../../utils/performance_monitor.dart';
 
 // مقدم خدمة الإصلاح التلقائي
-final restoreFixServiceProvider = Provider<RestoreFixService>((ref) => RestoreFixService(DatabaseManager.instance));
+final restoreFixServiceProvider = Provider<RestoreFixService>(
+  (ref) => RestoreFixService(DatabaseManager.instance),
+);
 
 // مقدم لتقرير الإصلاح الأخير
 final lastFixReportProvider = StateProvider<RestoreFixReport?>((ref) => null);
 
 // مقدم لسجلات الإصلاح
-final fixLogsProvider = FutureProvider.autoDispose<List<RestoreFixLogData>>((ref) async {
+final fixLogsProvider = FutureProvider.autoDispose<List<RestoreFixLogData>>((
+  ref,
+) async {
   final service = ref.read(restoreFixServiceProvider);
   return service.getFixLogs(limit: 50);
 });
@@ -58,7 +62,10 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
               const SizedBox(height: 20),
 
               // بطاقة التقرير الأخير
-              if (lastReport != null) ...[_buildLastReportCard(context, lastReport), const SizedBox(height: 20)],
+              if (lastReport != null) ...[
+                _buildLastReportCard(context, lastReport),
+                const SizedBox(height: 20),
+              ],
 
               // بطاقة سجلات الإصلاح
               _buildFixLogsCard(context, fixLogsAsyncValue),
@@ -95,9 +102,15 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
             ElevatedButton.icon(
               onPressed: isLoading ? null : () => _runManualFix(context),
               icon: isLoading
-                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Icon(Icons.play_arrow),
-              label: Text(isLoading ? 'جاري التشغيل...' : 'تشغيل الإصلاح التلقائي يدوياً'),
+              label: Text(
+                isLoading ? 'جاري التشغيل...' : 'تشغيل الإصلاح التلقائي يدوياً',
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
@@ -130,7 +143,11 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
                 const SizedBox(width: 8),
                 Text(
                   'نتيجة آخر تشغيل',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: statusColor),
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: statusColor,
+                  ),
                 ),
               ],
             ),
@@ -141,15 +158,24 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
             if (isSuccess) ...[
               _buildReportRow('الحجوزات المُصلحة', '${report.bookingsFixed}'),
               _buildReportRow('الغرف المحدثة', '${report.roomsUpdated}'),
-              _buildReportRow('المدفوعات المتحقق منها', '${report.paymentsRecalculated}'),
+              _buildReportRow(
+                'المدفوعات المتحقق منها',
+                '${report.paymentsRecalculated}',
+              ),
               if (report.changes.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                const Text('التغييرات المُطبقة:', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  'التغييرات المُطبقة:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 8),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: report.changes
@@ -157,7 +183,10 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
                         .map(
                           (change) => Padding(
                             padding: const EdgeInsets.only(bottom: 4),
-                            child: Text('• $change', style: const TextStyle(fontSize: 12)),
+                            child: Text(
+                              '• $change',
+                              style: const TextStyle(fontSize: 12),
+                            ),
                           ),
                         )
                         .toList(),
@@ -166,12 +195,19 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
                 if (report.changes.length > 5)
                   Text(
                     '... و ${report.changes.length - 5} تغيير إضافي',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
               ],
             ] else if (report.error != null) ...[
               const SizedBox(height: 12),
-              const Text('تفاصيل الخطأ:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'تفاصيل الخطأ:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               const SizedBox(height: 8),
               Container(
                 width: double.infinity,
@@ -181,7 +217,10 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.red[200]!),
                 ),
-                child: Text(report.error!, style: const TextStyle(fontSize: 12, color: Colors.red)),
+                child: Text(
+                  report.error!,
+                  style: const TextStyle(fontSize: 12, color: Colors.red),
+                ),
               ),
             ],
           ],
@@ -191,7 +230,10 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
   }
 
   /// بطاقة سجلات الإصلاح
-  Widget _buildFixLogsCard(BuildContext context, AsyncValue<List<RestoreFixLogData>> fixLogsAsyncValue) {
+  Widget _buildFixLogsCard(
+    BuildContext context,
+    AsyncValue<List<RestoreFixLogData>> fixLogsAsyncValue,
+  ) {
     return Card(
       elevation: 4,
       child: Padding(
@@ -202,7 +244,10 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('سجلات الإصلاح', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text(
+                  'سجلات الإصلاح',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
                 IconButton(
                   onPressed: () => _exportLogsAsJson(context),
                   icon: const Icon(Icons.download),
@@ -221,17 +266,25 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
                         children: [
                           Icon(Icons.history, size: 48, color: Colors.grey),
                           SizedBox(height: 16),
-                          Text('لا توجد سجلات إصلاح', style: TextStyle(fontSize: 16, color: Colors.grey)),
+                          Text(
+                            'لا توجد سجلات إصلاح',
+                            style: TextStyle(fontSize: 16, color: Colors.grey),
+                          ),
                         ],
                       ),
                     ),
                   );
                 }
 
-                return Column(children: logs.take(10).map(_buildLogEntry).toList());
+                return Column(
+                  children: logs.take(10).map(_buildLogEntry).toList(),
+                );
               },
               loading: () => const Center(
-                child: Padding(padding: EdgeInsets.all(32.0), child: CircularProgressIndicator()),
+                child: Padding(
+                  padding: EdgeInsets.all(32.0),
+                  child: CircularProgressIndicator(),
+                ),
               ),
               error: (error, stack) => Center(
                 child: Padding(
@@ -299,15 +352,24 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: getFixTypeColor(log.fixType), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(
+                  color: getFixTypeColor(log.fixType),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Text(
                   getFixTypeLabel(log.fixType),
-                  style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               const Spacer(),
               Text(
-                _formatDateTime(DateTime.fromMillisecondsSinceEpoch(log.executedAt * 1000)),
+                _formatDateTime(
+                  DateTime.fromMillisecondsSinceEpoch(log.executedAt * 1000),
+                ),
                 style: const TextStyle(fontSize: 10, color: Colors.grey),
               ),
             ],
@@ -318,7 +380,11 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
             const SizedBox(height: 4),
             Text(
               '${log.fieldName}: ${log.oldValue} ← ${log.newValue}',
-              style: const TextStyle(fontSize: 10, color: Colors.grey, fontFamily: 'monospace'),
+              style: const TextStyle(
+                fontSize: 10,
+                color: Colors.grey,
+                fontFamily: 'monospace',
+              ),
             ),
           ],
         ],
@@ -355,7 +421,12 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
       // إظهار رسالة بدء التشغيل
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('🔄 بدء عملية الإصلاح التلقائي...'), duration: Duration(seconds: 2)));
+      ).showSnackBar(
+        const SnackBar(
+          content: Text('🔄 بدء عملية الإصلاح التلقائي...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
 
       // تشغيل الإصلاح
       final report = await service.runAutoFixAfterRestore();
@@ -372,20 +443,32 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
       if (report.success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ اكتمل الإصلاح بنجاح: ${report.bookingsFixed} حجز، ${report.roomsUpdated} غرفة'),
+            content: Text(
+              '✅ اكتمل الإصلاح بنجاح: ${report.bookingsFixed} حجز، ${report.roomsUpdated} غرفة',
+            ),
             backgroundColor: Colors.green,
           ),
         );
       } else {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('❌ فشل الإصلاح: ${report.error}'), backgroundColor: Colors.red));
+        ).showSnackBar(
+          SnackBar(
+            content: Text('❌ فشل الإصلاح: ${report.error}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('خطأ غير متوقع: $e'), backgroundColor: Colors.red));
+      ).showSnackBar(
+        SnackBar(
+          content: Text('خطأ غير متوقع: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     } finally {
       ref.read(fixServiceLoadingProvider.notifier).state = false;
     }
@@ -399,7 +482,8 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
 
       // حفظ الملف
       final directory = await getApplicationCacheDirectory();
-      final fileName = 'restore_fix_logs_${DateTime.now().millisecondsSinceEpoch}.json';
+      final fileName =
+          'restore_fix_logs_${DateTime.now().millisecondsSinceEpoch}.json';
       final file = File('${directory.path}/$fileName');
 
       await file.writeAsString(jsonEncode(jsonData));
@@ -415,12 +499,22 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('✅ تم تصدير السجلات بنجاح'), backgroundColor: Colors.green));
+      ).showSnackBar(
+        const SnackBar(
+          content: Text('✅ تم تصدير السجلات بنجاح'),
+          backgroundColor: Colors.green,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('خطأ في التصدير: $e'), backgroundColor: Colors.red));
+      ).showSnackBar(
+        SnackBar(
+          content: Text('خطأ في التصدير: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 

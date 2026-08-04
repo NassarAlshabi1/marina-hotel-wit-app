@@ -18,25 +18,36 @@ class ShiftNotesRepository {
     return dao
         .list(bookingId: ShiftNoteAdapter.generalNotesBookingId)
         .asStream()
-        .map((bookingNotes) => bookingNotes.map(ShiftNoteAdapter.fromBookingNote).toList());
+        .map(
+          (bookingNotes) =>
+              bookingNotes.map(ShiftNoteAdapter.fromBookingNote).toList(),
+        );
   }
 
   /// جلب جميع الملاحظات العامة النشطة
   Future<List<ShiftNote>> listAllActive() async {
-    final bookingNotes = await dao.listFiltered(bookingId: ShiftNoteAdapter.generalNotesBookingId, isActive: true);
+    final bookingNotes = await dao.listFiltered(
+      bookingId: ShiftNoteAdapter.generalNotesBookingId,
+      isActive: true,
+    );
     return bookingNotes.map(ShiftNoteAdapter.fromBookingNote).toList();
   }
 
   /// جلب الملاحظات غير المقروءة
   Future<List<ShiftNote>> listUnread() async {
-    final bookingNotes = await dao.listFiltered(bookingId: ShiftNoteAdapter.generalNotesBookingId, isActive: true);
+    final bookingNotes = await dao.listFiltered(
+      bookingId: ShiftNoteAdapter.generalNotesBookingId,
+      isActive: true,
+    );
     return bookingNotes.map(ShiftNoteAdapter.fromBookingNote).toList();
   }
 
   /// جلب الملاحظات عالية الأولوية
   Future<List<ShiftNote>> listHighPriority() async {
     final allNotes = await listAllActive();
-    return allNotes.where((note) => note.priority == NotePriority.high).toList();
+    return allNotes
+        .where((note) => note.priority == NotePriority.high)
+        .toList();
   }
 
   /// إنشاء ملاحظة جديدة
@@ -47,7 +58,9 @@ class ShiftNotesRepository {
         bookingId: const d.Value(ShiftNoteAdapter.generalNotesBookingId),
         noteText: d.Value(data['note_text'] as String),
         alertType: d.Value(data['alert_type'] as String),
-        alertUntil: data['alert_until'] != null ? d.Value(data['alert_until'] as String?) : const d.Value.absent(),
+        alertUntil: data['alert_until'] != null
+            ? d.Value(data['alert_until'] as String?)
+            : const d.Value.absent(),
         isActive: d.Value(data['is_active'] as int),
       ),
     );
@@ -66,7 +79,9 @@ class ShiftNotesRepository {
       BookingNotesCompanion(
         noteText: d.Value(data['note_text'] as String),
         alertType: d.Value(data['alert_type'] as String),
-        alertUntil: data['alert_until'] != null ? d.Value(data['alert_until'] as String?) : const d.Value.absent(),
+        alertUntil: data['alert_until'] != null
+            ? d.Value(data['alert_until'] as String?)
+            : const d.Value.absent(),
         isActive: d.Value(data['is_active'] as int),
       ),
     );
@@ -124,7 +139,8 @@ class ShiftNotesRepository {
     }
 
     final bookingNote = await dao.getById(id);
-    if (bookingNote == null || bookingNote.bookingId != ShiftNoteAdapter.generalNotesBookingId) {
+    if (bookingNote == null ||
+        bookingNote.bookingId != ShiftNoteAdapter.generalNotesBookingId) {
       return null;
     }
 
@@ -133,7 +149,10 @@ class ShiftNotesRepository {
 
   /// عدد الملاحظات غير المقروءة
   Future<int> getUnreadCount() async {
-    return dao.countFiltered(bookingId: ShiftNoteAdapter.generalNotesBookingId, isActive: true);
+    return dao.countFiltered(
+      bookingId: ShiftNoteAdapter.generalNotesBookingId,
+      isActive: true,
+    );
   }
 
   /// عدد الملاحظات عالية الأولوية

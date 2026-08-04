@@ -42,7 +42,8 @@ class CacheStatistics {
   final int hits;
   final int misses;
 
-  double get usagePercentage => maxSizeBytes > 0 ? (totalSizeBytes / maxSizeBytes) * 100 : 0;
+  double get usagePercentage =>
+      maxSizeBytes > 0 ? (totalSizeBytes / maxSizeBytes) * 100 : 0;
 
   String get totalSizeMB => (totalSizeBytes / (1024 * 1024)).toStringAsFixed(2);
   String get maxSizeMB => (maxSizeBytes / (1024 * 1024)).toStringAsFixed(2);
@@ -52,9 +53,11 @@ class CacheStatistics {
 class AppwriteCacheManager {
   factory AppwriteCacheManager() => _instance;
   AppwriteCacheManager._internal();
-  static final AppwriteCacheManager _instance = AppwriteCacheManager._internal();
+  static final AppwriteCacheManager _instance =
+      AppwriteCacheManager._internal();
 
-  final Map<String, CacheEntry<dynamic>> _cache = HashMap<String, CacheEntry<dynamic>>();
+  final Map<String, CacheEntry<dynamic>> _cache =
+      HashMap<String, CacheEntry<dynamic>>();
   Timer? _cleanupTimer;
 
   int _hits = 0;
@@ -88,7 +91,11 @@ class AppwriteCacheManager {
       return;
     }
 
-    final entry = CacheEntry<T>(data: data, timestamp: DateTime.now(), ttl: ttl ?? _defaultTTL);
+    final entry = CacheEntry<T>(
+      data: data,
+      timestamp: DateTime.now(),
+      ttl: ttl ?? _defaultTTL,
+    );
 
     _cache[key] = entry;
     _evictIfNeeded();
@@ -177,7 +184,11 @@ class AppwriteCacheManager {
   void _evictIfNeeded() {
     while (_getTotalSize() > _maxSizeBytes && _cache.isNotEmpty) {
       // إزالة أقدم عنصر
-      final oldestKey = _cache.entries.reduce((a, b) => a.value.timestamp.isBefore(b.value.timestamp) ? a : b).key;
+      final oldestKey = _cache.entries
+          .reduce(
+            (a, b) => a.value.timestamp.isBefore(b.value.timestamp) ? a : b,
+          )
+          .key;
       _cache.remove(oldestKey);
     }
   }

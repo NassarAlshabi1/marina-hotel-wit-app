@@ -34,7 +34,13 @@ import 'appwrite_service.dart';
 import 'crashlytics_service.dart';
 
 /// نوع الحدث المهم لإرسال إشعار FCM
-enum FcmEventType { bookingCreated, bookingCheckedOut, paymentAdded, expenseAdded, backupCompleted }
+enum FcmEventType {
+  bookingCreated,
+  bookingCheckedOut,
+  paymentAdded,
+  expenseAdded,
+  backupCompleted,
+}
 
 /// خدمة إرسال FCM مباشرة من التطبيق للأجهزة الأخرى.
 ///
@@ -51,7 +57,10 @@ class FcmSender {
   static const _fcmEndpoint = 'https://fcm.googleapis.com/fcm/send';
 
   /// إرسال إشعار حجز جديد
-  Future<void> notifyBookingCreated({required String roomNumber, required String guestName}) async {
+  Future<void> notifyBookingCreated({
+    required String roomNumber,
+    required String guestName,
+  }) async {
     await _sendToAllDevices(
       type: FcmEventType.bookingCreated,
       title: 'حجز جديد',
@@ -61,7 +70,10 @@ class FcmSender {
   }
 
   /// إرسال إشعار خروج نزيل
-  Future<void> notifyBookingCheckedOut({required String roomNumber, required String guestName}) async {
+  Future<void> notifyBookingCheckedOut({
+    required String roomNumber,
+    required String guestName,
+  }) async {
     await _sendToAllDevices(
       type: FcmEventType.bookingCheckedOut,
       title: 'خروج نزيل',
@@ -71,7 +83,10 @@ class FcmSender {
   }
 
   /// إرسال إشعار دفعة جديدة
-  Future<void> notifyPaymentAdded({required double amount, required String roomNumber}) async {
+  Future<void> notifyPaymentAdded({
+    required double amount,
+    required String roomNumber,
+  }) async {
     await _sendToAllDevices(
       type: FcmEventType.paymentAdded,
       title: 'دفعة جديدة',
@@ -81,7 +96,10 @@ class FcmSender {
   }
 
   /// إرسال إشعار مصروف جديد
-  Future<void> notifyExpenseAdded({required double amount, required String expenseType}) async {
+  Future<void> notifyExpenseAdded({
+    required double amount,
+    required String expenseType,
+  }) async {
     await _sendToAllDevices(
       type: FcmEventType.expenseAdded,
       title: 'مصروف جديد',
@@ -133,7 +151,13 @@ class FcmSender {
           'sound': 'default',
           'click_action': 'FLUTTER_NOTIFICATION_CLICK',
         },
-        'data': {'type': 'marina_sync', 'event': eventTypeString, 'title': title, 'body': body, ...data},
+        'data': {
+          'type': 'marina_sync',
+          'event': eventTypeString,
+          'title': title,
+          'body': body,
+          ...data,
+        },
         'priority': 'high',
         'content_available': true,
       };
@@ -142,7 +166,10 @@ class FcmSender {
       final response = await http
           .post(
             Uri.parse(_fcmEndpoint),
-            headers: {'Content-Type': 'application/json', 'Authorization': 'key=${Env.fcmServerKey}'},
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'key=${Env.fcmServerKey}',
+            },
             body: jsonEncode(payload),
           )
           .timeout(const Duration(seconds: 10));
@@ -156,7 +183,9 @@ class FcmSender {
           '(event=$eventTypeString, recipients=${tokens.length})',
         );
       } else {
-        debugPrint('⚠️ FCM send failed: ${response.statusCode} - ${response.body}');
+        debugPrint(
+          '⚠️ FCM send failed: ${response.statusCode} - ${response.body}',
+        );
         unawaited(
           CrashlyticsService.instance.recordSyncError(
             operation: 'fcm_send',
@@ -226,7 +255,8 @@ class FcmSender {
       // استخدام SharedPreferences عبر AppwriteSyncManager
       // تجنّباً لـ import cycle
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getString('appwrite_device_id') ?? prefs.getString('appwrite_realtime_device_id');
+      return prefs.getString('appwrite_device_id') ??
+          prefs.getString('appwrite_realtime_device_id');
     } catch (_) {
       return null;
     }

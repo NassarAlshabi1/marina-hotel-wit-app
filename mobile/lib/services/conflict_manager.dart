@@ -38,11 +38,14 @@ class ConflictManager {
   ConflictManager(this.db);
 
   final AppDatabase db;
-  final _conflictsController = StreamController<List<PendingConflict>>.broadcast();
+  final _conflictsController =
+      StreamController<List<PendingConflict>>.broadcast();
   final List<PendingConflict> _pendingConflicts = [];
 
-  Stream<List<PendingConflict>> get conflictsStream => _conflictsController.stream;
-  List<PendingConflict> get pendingConflicts => List.unmodifiable(_pendingConflicts);
+  Stream<List<PendingConflict>> get conflictsStream =>
+      _conflictsController.stream;
+  List<PendingConflict> get pendingConflicts =>
+      List.unmodifiable(_pendingConflicts);
   int get pendingCount => _pendingConflicts.length;
 
   Future<void> recordConflict({
@@ -52,7 +55,8 @@ class ConflictManager {
     required Map<String, dynamic> remoteData,
     Map<String, dynamic>? autoResolution,
   }) async {
-    final conflictId = '${table}_${uuid}_${DateTime.now().millisecondsSinceEpoch}';
+    final conflictId =
+        '${table}_${uuid}_${DateTime.now().millisecondsSinceEpoch}';
 
     final conflict = PendingConflict(
       id: conflictId,
@@ -73,7 +77,10 @@ class ConflictManager {
     await _persistConflict(conflict);
   }
 
-  Future<void> resolveManually({required String conflictId, required Map<String, dynamic> resolution}) async {
+  Future<void> resolveManually({
+    required String conflictId,
+    required Map<String, dynamic> resolution,
+  }) async {
     final index = _pendingConflicts.indexWhere((c) => c.id == conflictId);
     if (index == -1) {
       return;
@@ -101,16 +108,26 @@ class ConflictManager {
   Future<void> _persistConflict(PendingConflict conflict) async {
     try {
       final existingQuery = db.select(db.syncConflicts)
-        ..where((t) => t.targetTable.equals(conflict.table) & t.uuid.equals(conflict.uuid));
+        ..where(
+          (t) =>
+              t.targetTable.equals(conflict.table) &
+              t.uuid.equals(conflict.uuid),
+        );
 
       final existing = await existingQuery.getSingleOrNull();
 
       if (existing != null) {
-        await (db.update(db.syncConflicts)..where((t) => t.id.equals(existing.id))).write(
+        await (db.update(
+          db.syncConflicts,
+        )..where((t) => t.id.equals(existing.id))).write(
           SyncConflictsCompanion(
             localPayload: Value(jsonEncode(conflict.localData)),
             remotePayload: Value(jsonEncode(conflict.remoteData)),
-            resolution: Value(conflict.resolution != null ? jsonEncode(conflict.resolution) : ''),
+            resolution: Value(
+              conflict.resolution != null
+                  ? jsonEncode(conflict.resolution)
+                  : '',
+            ),
           ),
         );
       } else {
@@ -130,7 +147,9 @@ class ConflictManager {
                 uuid: conflict.uuid,
                 localPayload: jsonEncode(conflict.localData),
                 remotePayload: jsonEncode(conflict.remoteData),
-                resolution: conflict.resolution != null ? jsonEncode(conflict.resolution) : '',
+                resolution: conflict.resolution != null
+                    ? jsonEncode(conflict.resolution)
+                    : '',
                 createdAt: conflict.detectedAt.toIso8601String(),
               ),
             );
@@ -140,7 +159,10 @@ class ConflictManager {
     }
   }
 
-  Future<void> _updateConflictResolution(String conflictId, Map<String, dynamic> resolution) async {
+  Future<void> _updateConflictResolution(
+    String conflictId,
+    Map<String, dynamic> resolution,
+  ) async {
     try {
       // ✅ استخراج الجدول و UUID من conflictId
       // الصيغة: ${table}_${uuid}_$timestamp
@@ -173,11 +195,14 @@ class ConflictManager {
         return;
       }
 
-      final query = db.select(db.syncConflicts)..where((t) => t.targetTable.equals(table) & t.uuid.equals(uuid));
+      final query = db.select(db.syncConflicts)
+        ..where((t) => t.targetTable.equals(table) & t.uuid.equals(uuid));
 
       final existing = await query.getSingleOrNull();
       if (existing != null) {
-        await (db.update(db.syncConflicts)..where((t) => t.id.equals(existing.id))).write(
+        await (db.update(
+          db.syncConflicts,
+        )..where((t) => t.id.equals(existing.id))).write(
           SyncConflictsCompanion(resolution: Value(jsonEncode(resolution))),
         );
       }
@@ -205,7 +230,8 @@ class ConflictManager {
           localData = jsonDecode(row.localPayload) as Map<String, dynamic>;
           remoteData = jsonDecode(row.remotePayload) as Map<String, dynamic>;
           if (row.resolution.isNotEmpty) {
-            resolutionData = jsonDecode(row.resolution) as Map<String, dynamic>?;
+            resolutionData =
+                jsonDecode(row.resolution) as Map<String, dynamic>?;
           }
         } catch (e) {
           debugPrint('❌ فشل في فك ترميز بيانات التعارض: $e');
@@ -232,11 +258,15 @@ class ConflictManager {
 
   /// حذف التعارضات التي تم حلها تلقائياً
   /// [olderThan] — يحذف فقط التعارضات الأقدم من هذه المدة
-  Future<int> deleteResolvedConflicts({Duration olderThan = const Duration(hours: 1)}) async {
+  Future<int> deleteResolvedConflicts({
+    Duration olderThan = const Duration(hours: 1),
+  }) async {
     final cutoff = DateTime.now().subtract(olderThan);
     final rows =
         await (db.delete(db.syncConflicts)..where(
-              (t) => t.createdAt.isSmallerOrEqualValue(cutoff.toIso8601String()) & (t.resolution.equals('')).not(),
+              (t) =>
+                  t.createdAt.isSmallerOrEqualValue(cutoff.toIso8601String()) &
+                  (t.resolution.equals('')).not(),
             ))
             .go();
     if (rows > 0) {

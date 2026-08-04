@@ -14,10 +14,12 @@ class GoogleDriveLoginScreen extends ConsumerStatefulWidget {
   const GoogleDriveLoginScreen({super.key});
 
   @override
-  ConsumerState<GoogleDriveLoginScreen> createState() => _GoogleDriveLoginScreenState();
+  ConsumerState<GoogleDriveLoginScreen> createState() =>
+      _GoogleDriveLoginScreenState();
 }
 
-class _GoogleDriveLoginScreenState extends ConsumerState<GoogleDriveLoginScreen> {
+class _GoogleDriveLoginScreenState
+    extends ConsumerState<GoogleDriveLoginScreen> {
   bool _isSigningIn = false;
   bool _isCheckingSilent = true;
   String? _errorMessage;
@@ -39,7 +41,9 @@ class _GoogleDriveLoginScreenState extends ConsumerState<GoogleDriveLoginScreen>
         try {
           await ref.read(autoBackupManagerProvider).setEnabled(true);
         } catch (e) {
-          debugPrint('⚠️ Failed to enable auto backup after silent sign-in: $e');
+          debugPrint(
+            '⚠️ Failed to enable auto backup after silent sign-in: $e',
+          );
         }
       }
     } catch (_) {
@@ -99,7 +103,11 @@ class _GoogleDriveLoginScreenState extends ConsumerState<GoogleDriveLoginScreen>
         child: AlertDialog(
           title: const Row(
             children: [
-              Icon(Icons.warning_amber, color: AppColors.warningColor, size: 28),
+              Icon(
+                Icons.warning_amber,
+                color: AppColors.warningColor,
+                size: 28,
+              ),
               SizedBox(width: 8),
               Text('تحذير'),
             ],
@@ -113,10 +121,15 @@ class _GoogleDriveLoginScreenState extends ConsumerState<GoogleDriveLoginScreen>
             style: TextStyle(fontSize: 15, height: 1.5),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('العودة لتسجيل الدخول')),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('العودة لتسجيل الدخول'),
+            ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.warningColor),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.warningColor,
+              ),
               child: const Text('المتابعة بدون مزامنة'),
             ),
           ],
@@ -181,17 +194,28 @@ class _GoogleDriveLoginScreenState extends ConsumerState<GoogleDriveLoginScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Icon(Icons.cloud_outlined, size: 80, color: AppColors.primaryColor),
+                        const Icon(
+                          Icons.cloud_outlined,
+                          size: 80,
+                          color: AppColors.primaryColor,
+                        ),
                         const SizedBox(height: 24),
                         const Text(
                           'تسجيل الدخول إلى Google Drive',
-                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 16),
                         const Text(
                           'للحصول على أفضل تجربة والمزامنة التلقائية للبيانات بين أجهزتك، يرجى تسجيل الدخول إلى Google Drive',
-                          style: TextStyle(fontSize: 15, color: AppColors.textSecondary, height: 1.5),
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: AppColors.textSecondary,
+                            height: 1.5,
+                          ),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 24),
@@ -206,25 +230,52 @@ class _GoogleDriveLoginScreenState extends ConsumerState<GoogleDriveLoginScreen>
                             children: [
                               Row(
                                 children: [
-                                  Icon(Icons.check_circle, color: AppColors.successColor, size: 20),
+                                  Icon(
+                                    Icons.check_circle,
+                                    color: AppColors.successColor,
+                                    size: 20,
+                                  ),
                                   SizedBox(width: 8),
-                                  Expanded(child: Text('مزامنة تلقائية للبيانات', style: TextStyle(fontSize: 14))),
+                                  Expanded(
+                                    child: Text(
+                                      'مزامنة تلقائية للبيانات',
+                                      style: TextStyle(fontSize: 14),
+                                    ),
+                                  ),
                                 ],
                               ),
                               SizedBox(height: 8),
                               Row(
                                 children: [
-                                  Icon(Icons.check_circle, color: AppColors.successColor, size: 20),
+                                  Icon(
+                                    Icons.check_circle,
+                                    color: AppColors.successColor,
+                                    size: 20,
+                                  ),
                                   SizedBox(width: 8),
-                                  Expanded(child: Text('نسخ احتياطي آمن في السحابة', style: TextStyle(fontSize: 14))),
+                                  Expanded(
+                                    child: Text(
+                                      'نسخ احتياطي آمن في السحابة',
+                                      style: TextStyle(fontSize: 14),
+                                    ),
+                                  ),
                                 ],
                               ),
                               SizedBox(height: 8),
                               Row(
                                 children: [
-                                  Icon(Icons.check_circle, color: AppColors.successColor, size: 20),
+                                  Icon(
+                                    Icons.check_circle,
+                                    color: AppColors.successColor,
+                                    size: 20,
+                                  ),
                                   SizedBox(width: 8),
-                                  Expanded(child: Text('إمكانية الوصول من أي جهاز', style: TextStyle(fontSize: 14))),
+                                  Expanded(
+                                    child: Text(
+                                      'إمكانية الوصول من أي جهاز',
+                                      style: TextStyle(fontSize: 14),
+                                    ),
+                                  ),
                                 ],
                               ),
                             ],
@@ -235,17 +286,26 @@ class _GoogleDriveLoginScreenState extends ConsumerState<GoogleDriveLoginScreen>
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: AppColors.dangerColor.withValues(alpha: 0.1),
+                              color: AppColors.dangerColor.withValues(
+                                alpha: 0.1,
+                              ),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.error_outline, color: AppColors.dangerColor, size: 20),
+                                const Icon(
+                                  Icons.error_outline,
+                                  color: AppColors.dangerColor,
+                                  size: 20,
+                                ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     _errorMessage!,
-                                    style: const TextStyle(color: AppColors.dangerColor, fontSize: 13),
+                                    style: const TextStyle(
+                                      color: AppColors.dangerColor,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -259,16 +319,31 @@ class _GoogleDriveLoginScreenState extends ConsumerState<GoogleDriveLoginScreen>
                               ? const SizedBox(
                                   height: 18,
                                   width: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
                                 )
                               : const Icon(Icons.login),
-                          label: Text(_isSigningIn ? 'جارٍ تسجيل الدخول...' : 'تسجيل الدخول بـ Google Drive'),
-                          style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+                          label: Text(
+                            _isSigningIn
+                                ? 'جارٍ تسجيل الدخول...'
+                                : 'تسجيل الدخول بـ Google Drive',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
                         ),
                         const SizedBox(height: 12),
                         TextButton(
                           onPressed: _isSigningIn ? null : _handleSkip,
-                          child: const Text('تخطي', style: TextStyle(color: AppColors.textSecondary, fontSize: 15)),
+                          child: const Text(
+                            'تخطي',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 15,
+                            ),
+                          ),
                         ),
                       ],
                     ),

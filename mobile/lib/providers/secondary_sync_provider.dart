@@ -69,6 +69,7 @@ class SecondarySyncNotifier extends StateNotifier<SecondarySyncState> {
 }
 
 /// Provider لحالة المزامنة الثانوية
-final secondarySyncProvider = StateNotifierProvider<SecondarySyncNotifier, SecondarySyncState>((ref) {
-  return SecondarySyncNotifier();
-});
+final secondarySyncProvider =
+    StateNotifierProvider<SecondarySyncNotifier, SecondarySyncState>((ref) {
+      return SecondarySyncNotifier();
+    });

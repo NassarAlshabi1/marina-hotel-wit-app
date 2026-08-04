@@ -22,14 +22,19 @@ final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
   // ✅ إصلاح Gemini: استخدام ref.watch بدلاً من ref.read داخل provider
   final service = ref.watch(appwriteServiceProvider);
   final database = ref.watch(databaseProvider);
-  final manager = AppwriteSyncManager(appwriteService: service, database: database);
+  final manager = AppwriteSyncManager(
+    appwriteService: service,
+    database: database,
+  );
 
   ref.onDispose(manager.dispose);
 
   return manager;
 });
 
-final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((ref) {
+final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((
+  ref,
+) {
   // ✅ إصلاح Gemini: استخدام ref.watch بدلاً من ref.read داخل provider
   final appwriteSync = ref.watch(appwriteSyncManagerProvider);
   final db = ref.watch(databaseProvider);
@@ -63,17 +68,26 @@ final appwriteErrorHandlerProvider = Provider<AppwriteErrorHandler>((ref) {
 // ============ State Providers ============
 
 /// مزود حالة الاتصال
-final connectionStatusProvider = StateNotifierProvider<ConnectionStatusNotifier, ConnectionState>((ref) {
-  return ConnectionStatusNotifier(ref);
-});
+final connectionStatusProvider =
+    StateNotifierProvider<ConnectionStatusNotifier, ConnectionState>((ref) {
+      return ConnectionStatusNotifier(ref);
+    });
 
 class ConnectionState {
-  ConnectionState({required this.isConnected, this.isChecking = false, this.errorMessage});
+  ConnectionState({
+    required this.isConnected,
+    this.isChecking = false,
+    this.errorMessage,
+  });
   final bool isConnected;
   final bool isChecking;
   final String? errorMessage;
 
-  ConnectionState copyWith({bool? isConnected, bool? isChecking, String? errorMessage}) {
+  ConnectionState copyWith({
+    bool? isConnected,
+    bool? isChecking,
+    String? errorMessage,
+  }) {
     return ConnectionState(
       isConnected: isConnected ?? this.isConnected,
       isChecking: isChecking ?? this.isChecking,
@@ -83,7 +97,8 @@ class ConnectionState {
 }
 
 class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
-  ConnectionStatusNotifier(this.ref) : super(ConnectionState(isConnected: false));
+  ConnectionStatusNotifier(this.ref)
+    : super(ConnectionState(isConnected: false));
   final Ref ref;
 
   Future<void> checkConnection() async {
@@ -94,11 +109,19 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
       await service.initialize();
       final connectionResult = await service.testConnection();
       final isConnected = connectionResult['overall_success'] == true;
-      final failureMessage = isConnected ? null : (connectionResult['error'] as String?) ?? 'فشل الاتصال بـ Appwrite';
+      final failureMessage = isConnected
+          ? null
+          : (connectionResult['error'] as String?) ?? 'فشل الاتصال بـ Appwrite';
 
-      state = ConnectionState(isConnected: isConnected, errorMessage: failureMessage);
+      state = ConnectionState(
+        isConnected: isConnected,
+        errorMessage: failureMessage,
+      );
     } catch (e) {
-      state = ConnectionState(isConnected: false, errorMessage: 'خطأ في الاتصال: $e');
+      state = ConnectionState(
+        isConnected: false,
+        errorMessage: 'خطأ في الاتصال: $e',
+      );
     }
   }
 }
@@ -106,7 +129,9 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
 // ============ Data Providers ============
 
 /// مزود إحصائيات المزامنة
-final syncStatsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+final syncStatsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((
+  ref,
+) async {
   // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
   final syncManager = ref.watch(appwriteSyncManagerProvider);
   return syncManager.getSyncStatistics();

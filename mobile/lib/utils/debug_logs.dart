@@ -3,7 +3,8 @@ import 'package:flutter/foundation.dart';
 class DebugLogs {
   static const _maxEntries = 300;
   static final List<String> _entries = [];
-  static final ValueNotifier<List<String>> notifier = ValueNotifier<List<String>>(const []);
+  static final ValueNotifier<List<String>> notifier =
+      ValueNotifier<List<String>>(const []);
 
   static void add(String source, String message) {
     final entry = '[${DateTime.now().toIso8601String()}][$source] $message';

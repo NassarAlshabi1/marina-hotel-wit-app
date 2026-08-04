@@ -12,10 +12,12 @@ class TelegramSettingsScreen extends ConsumerStatefulWidget {
   const TelegramSettingsScreen({super.key});
 
   @override
-  ConsumerState<TelegramSettingsScreen> createState() => _TelegramSettingsScreenState();
+  ConsumerState<TelegramSettingsScreen> createState() =>
+      _TelegramSettingsScreenState();
 }
 
-class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen> {
+class _TelegramSettingsScreenState
+    extends ConsumerState<TelegramSettingsScreen> {
   final _botTokenController = TextEditingController();
   final _chatIdController = TextEditingController();
   final _reportTimeController = TextEditingController();
@@ -78,14 +80,22 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                   // ─────────────────────────────────
                   // قسم الإشعارات الفورية
                   // ─────────────────────────────────
-                  _buildSectionTitle('الإشعارات الفورية', Icons.notifications_active, theme),
+                  _buildSectionTitle(
+                    'الإشعارات الفورية',
+                    Icons.notifications_active,
+                    theme,
+                  ),
                   _buildNotificationsCard(tgState, theme),
                   const SizedBox(height: 16),
 
                   // ─────────────────────────────────
                   // قسم التقرير اليومي
                   // ─────────────────────────────────
-                  _buildSectionTitle('التقرير اليومي التلقائي', Icons.assessment, theme),
+                  _buildSectionTitle(
+                    'التقرير اليومي التلقائي',
+                    Icons.assessment,
+                    theme,
+                  ),
                   _buildDailyReportCard(tgState, theme),
                   const SizedBox(height: 16),
 
@@ -98,7 +108,8 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                 ],
 
                 // رسالة الحالة
-                if (tgState.message != null) _buildStatusMessage(tgState, theme),
+                if (tgState.message != null)
+                  _buildStatusMessage(tgState, theme),
 
                 const SizedBox(height: 32),
               ],
@@ -109,7 +120,11 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
   // ─────────────────────────────────────────────────
   // بطاقة التفعيل الرئيسية
   // ─────────────────────────────────────────────────
-  Widget _buildMainToggleCard(BuildContext context, TelegramState state, ThemeData theme) {
+  Widget _buildMainToggleCard(
+    BuildContext context,
+    TelegramState state,
+    ThemeData theme,
+  ) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -127,17 +142,31 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                         : Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.telegram, color: state.isEnabled ? const Color(0xFF0088cc) : Colors.grey, size: 32),
+                  child: Icon(
+                    Icons.telegram,
+                    color: state.isEnabled
+                        ? const Color(0xFF0088cc)
+                        : Colors.grey,
+                    size: 32,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Telegram Bot', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                      const Text(
+                        'Telegram Bot',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       const SizedBox(height: 4),
                       Text(
-                        state.isEnabled ? 'مفعّل — الإشعارات والتقارير نشطة' : 'معطّل — لن يتم إرسال أي شيء',
+                        state.isEnabled
+                            ? 'مفعّل — الإشعارات والتقارير نشطة'
+                            : 'معطّل — لن يتم إرسال أي شيء',
                         style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                       ),
                     ],
@@ -145,7 +174,8 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                 ),
                 Switch(
                   value: state.isEnabled,
-                  onChanged: (value) => ref.read(telegramProvider.notifier).setEnabled(value),
+                  onChanged: (value) =>
+                      ref.read(telegramProvider.notifier).setEnabled(value),
                   activeThumbColor: const Color(0xFF0088cc),
                 ),
               ],
@@ -161,12 +191,19 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, color: Colors.orange[700], size: 20),
+                    Icon(
+                      Icons.info_outline,
+                      color: Colors.orange[700],
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'فعّل Telegram Bot لإرسال إشعارات فورية وتقارير يومية تلقائية لموظفي الفندق',
-                        style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.orange[800],
+                        ),
                       ),
                     ),
                   ],
@@ -191,7 +228,11 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
         child: Column(
           children: [
             // Bot Token
-            _buildInfoRow(icon: Icons.vpn_key, label: 'Bot Token', subtitle: 'من @BotFather في Telegram'),
+            _buildInfoRow(
+              icon: Icons.vpn_key,
+              label: 'Bot Token',
+              subtitle: 'من @BotFather في Telegram',
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: _botTokenController,
@@ -200,11 +241,17 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                 hintText: '7602573830:AAHxxxxxxxxxxxxxxxxxxx',
                 prefixIcon: const Icon(Icons.password, size: 20),
                 suffixIcon: IconButton(
-                  icon: Icon(_showToken ? Icons.visibility_off : Icons.visibility, size: 20),
+                  icon: Icon(
+                    _showToken ? Icons.visibility_off : Icons.visibility,
+                    size: 20,
+                  ),
                   onPressed: () => setState(() => _showToken = !_showToken),
                 ),
                 border: const OutlineInputBorder(),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 isDense: true,
               ),
             ),
@@ -214,7 +261,11 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
             const SizedBox(height: 8),
 
             // Chat ID
-            _buildInfoRow(icon: Icons.tag, label: 'Chat ID', subtitle: 'من @userinfobot في Telegram'),
+            _buildInfoRow(
+              icon: Icons.tag,
+              label: 'Chat ID',
+              subtitle: 'من @userinfobot في Telegram',
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: _chatIdController,
@@ -222,7 +273,10 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                 hintText: '5944227208',
                 prefixIcon: Icon(Icons.person, size: 20),
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 isDense: true,
               ),
               keyboardType: TextInputType.number,
@@ -234,7 +288,10 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
               children: [
                 if (state.isConfigured)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.green.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
@@ -242,18 +299,29 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.check_circle, color: Colors.green, size: 14),
+                        const Icon(
+                          Icons.check_circle,
+                          color: Colors.green,
+                          size: 14,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           'مُعدّ',
-                          style: TextStyle(color: Colors.green[700], fontSize: 11, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            color: Colors.green[700],
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
                   )
                 else
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.grey.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
@@ -261,9 +329,19 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.cloud_off, color: Colors.grey, size: 14),
+                        const Icon(
+                          Icons.cloud_off,
+                          color: Colors.grey,
+                          size: 14,
+                        ),
                         const SizedBox(width: 4),
-                        Text('غير مُعدّ', style: TextStyle(color: Colors.grey[600], fontSize: 11)),
+                        Text(
+                          'غير مُعدّ',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 11,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -280,7 +358,10 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : const Icon(Icons.save),
                 label: Text(_isSaving ? 'جاري الحفظ...' : 'حفظ الإعدادات'),
@@ -288,7 +369,9 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                   backgroundColor: const Color(0xFF0088cc),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
             ),
@@ -302,16 +385,25 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                 decoration: BoxDecoration(
                   color: const Color(0xFF0088cc).withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFF0088cc).withValues(alpha: 0.2)),
+                  border: Border.all(
+                    color: const Color(0xFF0088cc).withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.help_outline, color: Color(0xFF0088cc), size: 20),
+                    const Icon(
+                      Icons.help_outline,
+                      color: Color(0xFF0088cc),
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'كيف تحصل على Bot Token و Chat ID؟ اضغط هنا',
-                        style: TextStyle(fontSize: 12, color: const Color(0xFF0088cc).withValues(alpha: 0.8)),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: const Color(0xFF0088cc).withValues(alpha: 0.8),
+                        ),
                       ),
                     ),
                   ],
@@ -347,7 +439,9 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                   ),
                   child: Icon(
                     Icons.notifications_active,
-                    color: state.isNotificationsEnabled ? Colors.green : Colors.grey,
+                    color: state.isNotificationsEnabled
+                        ? Colors.green
+                        : Colors.grey,
                     size: 24,
                   ),
                 ),
@@ -356,10 +450,18 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('الإشعارات الفورية', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      const Text(
+                        'الإشعارات الفورية',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       const SizedBox(height: 2),
                       Text(
-                        state.isNotificationsEnabled ? 'يتم إرسال إشعارات عند الأحداث' : 'الإشعارات معطّلة',
+                        state.isNotificationsEnabled
+                            ? 'يتم إرسال إشعارات عند الأحداث'
+                            : 'الإشعارات معطّلة',
                         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                     ],
@@ -367,7 +469,9 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                 ),
                 Switch(
                   value: state.isNotificationsEnabled,
-                  onChanged: (value) => ref.read(telegramProvider.notifier).setNotificationsEnabled(value),
+                  onChanged: (value) => ref
+                      .read(telegramProvider.notifier)
+                      .setNotificationsEnabled(value),
                   activeThumbColor: Colors.green,
                 ),
               ],
@@ -379,7 +483,10 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
               const SizedBox(height: 8),
               const Align(
                 alignment: Alignment.centerRight,
-                child: Text('الأحداث المُراقَبة:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                child: Text(
+                  'الأحداث المُراقَبة:',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -426,7 +533,9 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                   ),
                   child: Icon(
                     Icons.assessment,
-                    color: state.isDailyReportEnabled ? const Color(0xFF0088cc) : Colors.grey,
+                    color: state.isDailyReportEnabled
+                        ? const Color(0xFF0088cc)
+                        : Colors.grey,
                     size: 24,
                   ),
                 ),
@@ -437,7 +546,10 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                     children: [
                       const Text(
                         'التقرير اليومي التلقائي',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -451,7 +563,9 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                 ),
                 Switch(
                   value: state.isDailyReportEnabled,
-                  onChanged: (value) => ref.read(telegramProvider.notifier).setDailyReportEnabled(value),
+                  onChanged: (value) => ref
+                      .read(telegramProvider.notifier)
+                      .setDailyReportEnabled(value),
                   activeThumbColor: const Color(0xFF0088cc),
                 ),
               ],
@@ -467,20 +581,29 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                 children: [
                   const Icon(Icons.schedule, size: 20),
                   const SizedBox(width: 8),
-                  const Text('وقت الإرسال:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text(
+                    'وقت الإرسال:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: GestureDetector(
                       onTap: () => _selectReportTime(context),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.grey[300]!),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           state.dailyReportTime,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ),
@@ -499,17 +622,32 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                      const Icon(
+                        Icons.check_circle,
+                        color: Colors.green,
+                        size: 16,
+                      ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           'آخر تقرير: ${state.lastReportSent}',
-                          style: TextStyle(color: Colors.green[700], fontSize: 12),
+                          style: TextStyle(
+                            color: Colors.green[700],
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                       TextButton(
-                        onPressed: () => ref.read(telegramProvider.notifier).resetLastReport(),
-                        child: const Text('إعادة إرسال', style: TextStyle(color: Color(0xFF0088cc), fontSize: 11)),
+                        onPressed: () => ref
+                            .read(telegramProvider.notifier)
+                            .resetLastReport(),
+                        child: const Text(
+                          'إعادة إرسال',
+                          style: TextStyle(
+                            color: Color(0xFF0088cc),
+                            fontSize: 11,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -520,12 +658,18 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
               const SizedBox(height: 12),
               const Align(
                 alignment: Alignment.centerRight,
-                child: Text('محتوى التقرير:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                child: Text(
+                  'محتوى التقرير:',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
               ),
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -563,11 +707,20 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
               child: OutlinedButton.icon(
                 onPressed: state.status == TelegramSetupStatus.testing
                     ? null
-                    : () => ref.read(telegramProvider.notifier).testConnection(),
+                    : () =>
+                          ref.read(telegramProvider.notifier).testConnection(),
                 icon: state.status == TelegramSetupStatus.testing
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : const Icon(Icons.wifi_tethering),
-                label: Text(state.status == TelegramSetupStatus.testing ? 'جاري الاختبار...' : 'اختبار الاتصال'),
+                label: Text(
+                  state.status == TelegramSetupStatus.testing
+                      ? 'جاري الاختبار...'
+                      : 'اختبار الاتصال',
+                ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF0088cc),
                   side: const BorderSide(color: Color(0xFF0088cc)),
@@ -584,16 +737,22 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
               child: ElevatedButton.icon(
                 onPressed: state.status == TelegramSetupStatus.sendingReport
                     ? null
-                    : () => ref.read(telegramProvider.notifier).sendTestReport(),
+                    : () =>
+                          ref.read(telegramProvider.notifier).sendTestReport(),
                 icon: state.status == TelegramSetupStatus.sendingReport
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : const Icon(Icons.send),
                 label: Text(
-                  state.status == TelegramSetupStatus.sendingReport ? 'جاري الإرسال...' : 'إرسال تقرير تجريبي',
+                  state.status == TelegramSetupStatus.sendingReport
+                      ? 'جاري الإرسال...'
+                      : 'إرسال تقرير تجريبي',
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0088cc),
@@ -675,13 +834,17 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
     final time = await showTimePicker(
       context: context,
       initialTime: TimeOfDay(hour: hour, minute: minute),
-      builder: (context, child) => Directionality(textDirection: TextDirection.ltr, child: child!),
+      builder: (context, child) =>
+          Directionality(textDirection: TextDirection.ltr, child: child!),
     );
 
     if (time != null) {
-      final formatted = '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+      final formatted =
+          '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
       _reportTimeController.text = formatted;
-      unawaited(ref.read(telegramProvider.notifier).setDailyReportTime(formatted));
+      unawaited(
+        ref.read(telegramProvider.notifier).setDailyReportTime(formatted),
+      );
     }
   }
 
@@ -695,7 +858,10 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('🔐 الحصول على Bot Token:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            Text(
+              '🔐 الحصول على Bot Token:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
             SizedBox(height: 4),
             Text('1. افتح Telegram وابحث عن @BotFather'),
             Text('2. أرسل /newbot'),
@@ -703,18 +869,31 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
             Text('4. اختر username (مثلاً: marina_hotel_bot)'),
             Text('5. انسخ Token من الرد'),
             SizedBox(height: 12),
-            Text('👤 الحصول على Chat ID:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            Text(
+              '👤 الحصول على Chat ID:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
             SizedBox(height: 4),
             Text('1. افتح Telegram وابحث عن @userinfobot'),
             Text('2. اضغط Start'),
             Text('3. انسخ رقم ID'),
             SizedBox(height: 12),
-            Text('✅ اختبار:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            Text(
+              '✅ اختبار:',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
             SizedBox(height: 4),
-            Text('بعد الحفظ اضغط "اختبار الاتصال" وتحقق من وصول رسالة في Telegram'),
+            Text(
+              'بعد الحفظ اضغط "اختبار الاتصال" وتحقق من وصول رسالة في Telegram',
+            ),
           ],
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('فهمت'))],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('فهمت'),
+          ),
+        ],
       ),
     );
   }
@@ -728,14 +907,22 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
           const SizedBox(width: 8),
           Text(
             title,
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue[800]),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.blue[800],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildInfoRow({required IconData icon, required String label, required String subtitle}) {
+  Widget _buildInfoRow({
+    required IconData icon,
+    required String label,
+    required String subtitle,
+  }) {
     return Row(
       children: [
         Icon(icon, size: 18, color: Colors.grey[600]),
@@ -743,8 +930,14 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            Text(subtitle, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+            Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            Text(
+              subtitle,
+              style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+            ),
           ],
         ),
       ],
@@ -761,7 +954,11 @@ class _TelegramSettingsScreenState extends ConsumerState<TelegramSettingsScreen>
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500),
+        style: TextStyle(
+          fontSize: 11,
+          color: color,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }

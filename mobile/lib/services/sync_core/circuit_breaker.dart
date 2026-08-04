@@ -17,7 +17,8 @@ class CircuitBreakerConfig {
 }
 
 class CircuitBreaker {
-  CircuitBreaker({required this.name, CircuitBreakerConfig? config}) : config = config ?? const CircuitBreakerConfig();
+  CircuitBreaker({required this.name, CircuitBreakerConfig? config})
+    : config = config ?? const CircuitBreakerConfig();
   final String name;
   final CircuitBreakerConfig config;
 
@@ -42,14 +43,18 @@ class CircuitBreaker {
       if (_shouldAttemptReset()) {
         _transitionTo(CircuitState.halfOpen);
       } else {
-        throw CircuitBreakerOpenException('Circuit breaker [$name] مفتوح - الخدمة غير متاحة مؤقتًا');
+        throw CircuitBreakerOpenException(
+          'Circuit breaker [$name] مفتوح - الخدمة غير متاحة مؤقتًا',
+        );
       }
     }
 
     // ✅ P1-9 fix: في half-open، اسمح بمسبار واحد فقط
     if (_state == CircuitState.halfOpen) {
       if (_halfOpenProbeInFlight) {
-        throw CircuitBreakerOpenException('Circuit breaker [$name] half-open — مسبار قيد التنفيذ');
+        throw CircuitBreakerOpenException(
+          'Circuit breaker [$name] half-open — مسبار قيد التنفيذ',
+        );
       }
       _halfOpenProbeInFlight = true;
     }
@@ -60,7 +65,10 @@ class CircuitBreaker {
       return result;
     } on TimeoutException catch (e) {
       _onFailure();
-      throw CircuitBreakerTimeoutException('Circuit breaker [$name] تجاوز المهلة الزمنية', originalException: e);
+      throw CircuitBreakerTimeoutException(
+        'Circuit breaker [$name] تجاوز المهلة الزمنية',
+        originalException: e,
+      );
     } catch (e) {
       _onFailure();
       rethrow;
@@ -70,7 +78,10 @@ class CircuitBreaker {
     }
   }
 
-  Future<T?> executeSafe<T>(Future<T> Function() operation, {T? defaultValue}) async {
+  Future<T?> executeSafe<T>(
+    Future<T> Function() operation, {
+    T? defaultValue,
+  }) async {
     try {
       return await execute(operation);
     } on CircuitBreakerOpenException catch (e) {
@@ -87,7 +98,9 @@ class CircuitBreaker {
 
     if (_state == CircuitState.halfOpen) {
       _successCount++;
-      debugPrint('✅ [CircuitBreaker] [$name] نجاح في halfOpen: $_successCount/${config.successThreshold}');
+      debugPrint(
+        '✅ [CircuitBreaker] [$name] نجاح في halfOpen: $_successCount/${config.successThreshold}',
+      );
 
       if (_successCount >= config.successThreshold) {
         _transitionTo(CircuitState.closed);
@@ -101,7 +114,9 @@ class CircuitBreaker {
     _lastFailureTime = DateTime.now();
     _successCount = 0;
 
-    debugPrint('⚠️ [CircuitBreaker] [$name] فشل: $_failureCount/${config.failureThreshold}');
+    debugPrint(
+      '⚠️ [CircuitBreaker] [$name] فشل: $_failureCount/${config.failureThreshold}',
+    );
 
     if (_state == CircuitState.halfOpen) {
       _transitionTo(CircuitState.open);
@@ -188,7 +203,10 @@ class CircuitBreakerOpenException implements Exception {
 }
 
 class CircuitBreakerTimeoutException implements Exception {
-  CircuitBreakerTimeoutException(this.message, {required this.originalException});
+  CircuitBreakerTimeoutException(
+    this.message, {
+    required this.originalException,
+  });
   final String message;
   final TimeoutException originalException;
 

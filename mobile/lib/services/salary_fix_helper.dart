@@ -53,11 +53,17 @@ class SalaryFixHelper {
       // بدون هذا الفحص، قد نُصلح مصروفات قبل وصول موظفيها.
       final employeesCount = await _db.employees.count().getSingle();
       if (employeesCount == 0) {
-        AppLogger.info('Salary fix deferred — no employees synced yet (waiting for first pull).', tag: 'SALARY_FIX');
+        AppLogger.info(
+          'Salary fix deferred — no employees synced yet (waiting for first pull).',
+          tag: 'SALARY_FIX',
+        );
         return; // سيُعاد المحاولة في المرة القادمة (نفس الدالة).
       }
 
-      AppLogger.info('Starting one-time salary fix (first run after pull)...', tag: 'SALARY_FIX');
+      AppLogger.info(
+        'Starting one-time salary fix (first run after pull)...',
+        tag: 'SALARY_FIX',
+      );
 
       // 1. إصلاح البيانات المحلية (يُضيف للـ outbox تلقائياً عبر repo.update).
       final fixedCount = await _fixOrphanSalaryExpenses();
@@ -72,13 +78,21 @@ class SalaryFixHelper {
         // AppwriteSyncManager.pull() — ستُرفع التغييرات في الـ sync التالي
         // تلقائياً عبر outbox. استدعاء sync() هنا قد يسبب recursive lock.
       } else {
-        AppLogger.info('No orphan salary expenses found. Marking fix as done.', tag: 'SALARY_FIX');
+        AppLogger.info(
+          'No orphan salary expenses found. Marking fix as done.',
+          tag: 'SALARY_FIX',
+        );
       }
 
       // 2. ضبط الـ flag (حتى لو لم يجد شيئاً — لا حاجة للتكرار).
       await prefs.setBool(_fixDoneKey, true);
     } catch (e, st) {
-      AppLogger.error('❌ Salary fix failed — will retry on next sync.', error: e, stackTrace: st, tag: 'SALARY_FIX');
+      AppLogger.error(
+        '❌ Salary fix failed — will retry on next sync.',
+        error: e,
+        stackTrace: st,
+        tag: 'SALARY_FIX',
+      );
       // لا نضبط الـ flag عند الفشل — يُعاد المحاولة في المرة القادمة.
     }
   }
@@ -134,7 +148,10 @@ class SalaryFixHelper {
       return 0;
     }
 
-    AppLogger.info('🔍 Found ${orphans.length} orphan salary expenses to repair.', tag: 'SALARY_FIX');
+    AppLogger.info(
+      '🔍 Found ${orphans.length} orphan salary expenses to repair.',
+      tag: 'SALARY_FIX',
+    );
 
     for (final row in orphans) {
       final expenseId = row.read<int>('id');
@@ -152,7 +169,11 @@ class SalaryFixHelper {
         if (employee != null) {
           // employeeUuid موجود وصالح → فقط عيّن relatedId.
           // تحديث عبر repo يضمن outbox merge + updatedAt.
-          await repo.update(expenseId, relatedId: employee.id, employeeUuid: employee.localUuid);
+          await repo.update(
+            expenseId,
+            relatedId: employee.id,
+            employeeUuid: employee.localUuid,
+          );
           fixedCount++;
           AppLogger.debug(
             '  ✅ Expense #$expenseId fixed via employeeUuid '
@@ -204,7 +225,10 @@ class SalaryFixHelper {
       }
 
       if (employeeIdFromWithdrawal == null) {
-        AppLogger.warning('  ⚠️ Expense #$expenseId: no salary_withdrawal found, leaving as is.', tag: 'SALARY_FIX');
+        AppLogger.warning(
+          '  ⚠️ Expense #$expenseId: no salary_withdrawal found, leaving as is.',
+          tag: 'SALARY_FIX',
+        );
         continue;
       }
 
@@ -227,9 +251,15 @@ class SalaryFixHelper {
 
       // أعد ربط المصروف (relatedId + employeeUuid معاً).
       // تحديث عبر repo يضمن outbox merge + updatedAt للرفع للسحاب.
-      await repo.update(expenseId, relatedId: employee.id, employeeUuid: employee.localUuid);
+      await repo.update(
+        expenseId,
+        relatedId: employee.id,
+        employeeUuid: employee.localUuid,
+      );
       fixedCount++;
-      final uuidPreview = employee.localUuid.length >= 8 ? employee.localUuid.substring(0, 8) : employee.localUuid;
+      final uuidPreview = employee.localUuid.length >= 8
+          ? employee.localUuid.substring(0, 8)
+          : employee.localUuid;
       AppLogger.debug(
         '  ✅ Expense #$expenseId fixed via salary_withdrawal '
         '→ employee #${employee.id} (uuid: $uuidPreview...)',

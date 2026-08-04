@@ -58,7 +58,12 @@ class RecoveryResult {
 }
 
 class RollbackPoint {
-  const RollbackPoint({required this.id, required this.description, required this.timestamp, required this.snapshot});
+  const RollbackPoint({
+    required this.id,
+    required this.description,
+    required this.timestamp,
+    required this.snapshot,
+  });
   final String id;
   final String description;
   final DateTime timestamp;
@@ -119,7 +124,9 @@ class SyncErrorRecovery {
       final code = exception.code ?? 0;
       // 4xx — أخطاء العميل (غالباً غير قابلة لإعادة المحاولة)
       if (code == 400 || code == 401 || code == 403 || code == 404) {
-        return code == 401 || code == 403 ? ErrorSeverity.high : ErrorSeverity.medium;
+        return code == 401 || code == 403
+            ? ErrorSeverity.high
+            : ErrorSeverity.medium;
       }
       // 429 — rate limit (قابل لإعادة المحاولة)
       if (code == 429) return ErrorSeverity.medium;
@@ -129,16 +136,22 @@ class SyncErrorRecovery {
 
     // fallback: مطابقة نصية للأنواع غير AppwriteException
     final message = exception.toString().toLowerCase();
-    if (message.contains('network') || message.contains('connection') || message.contains('timeout')) {
+    if (message.contains('network') ||
+        message.contains('connection') ||
+        message.contains('timeout')) {
       return ErrorSeverity.low;
     }
     if (message.contains('conflict') || message.contains('version')) {
       return ErrorSeverity.medium;
     }
-    if (message.contains('permission') || message.contains('unauthorized') || message.contains('forbidden')) {
+    if (message.contains('permission') ||
+        message.contains('unauthorized') ||
+        message.contains('forbidden')) {
       return ErrorSeverity.high;
     }
-    if (message.contains('corrupt') || message.contains('integrity') || message.contains('fatal')) {
+    if (message.contains('corrupt') ||
+        message.contains('integrity') ||
+        message.contains('fatal')) {
       return ErrorSeverity.critical;
     }
     return ErrorSeverity.medium;
@@ -149,7 +162,9 @@ class SyncErrorRecovery {
     if (exception is AppwriteException) {
       final code = exception.code ?? 0;
       // 4xx (عدا 429) = غير قابل لإعادة المحاولة
-      if (code == 400 || code == 401 || code == 403 || code == 404) return false;
+      if (code == 400 || code == 401 || code == 403 || code == 404) {
+        return false;
+      }
       // 429 + 5xx = قابل لإعادة المحاولة
       if (code == 429 || code >= 500) return true;
     }
@@ -162,7 +177,9 @@ class SyncErrorRecovery {
         message.contains('temporary')) {
       return true;
     }
-    if (message.contains('permission') || message.contains('corrupt') || message.contains('invalid')) {
+    if (message.contains('permission') ||
+        message.contains('corrupt') ||
+        message.contains('invalid')) {
       return false;
     }
     return true;
@@ -281,7 +298,9 @@ class SyncErrorRecovery {
         id: id,
         description: description,
         timestamp: DateTime.now(),
-        snapshot: snapshot.map((k, v) => MapEntry(k, List<Map<String, dynamic>>.from(v as List))),
+        snapshot: snapshot.map(
+          (k, v) => MapEntry(k, List<Map<String, dynamic>>.from(v as List)),
+        ),
       );
 
       _rollbackPoints.insert(0, rollbackPoint);
@@ -295,7 +314,10 @@ class SyncErrorRecovery {
     }
   }
 
-  Future<bool> restoreFromRollbackPoint(String pointId, AppDatabase database) async {
+  Future<bool> restoreFromRollbackPoint(
+    String pointId,
+    AppDatabase database,
+  ) async {
     final point = _rollbackPoints.firstWhere(
       (p) => p.id == pointId,
       orElse: () => throw Exception('نقطة الاستعادة غير موجودة'),
@@ -311,7 +333,8 @@ class SyncErrorRecovery {
     }
   }
 
-  List<RollbackPoint> get availableRollbackPoints => List.unmodifiable(_rollbackPoints);
+  List<RollbackPoint> get availableRollbackPoints =>
+      List.unmodifiable(_rollbackPoints);
 
   Map<ErrorSeverity, int> getErrorSummary() {
     final summary = <ErrorSeverity, int>{};

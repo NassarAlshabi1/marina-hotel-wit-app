@@ -30,7 +30,10 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
               children: [
                 const Icon(Icons.error, size: 64, color: Colors.red),
                 const SizedBox(height: 16),
-                const Text('خطأ في تحميل الإحصائيات', style: TextStyle(fontSize: 16)),
+                const Text(
+                  'خطأ في تحميل الإحصائيات',
+                  style: TextStyle(fontSize: 16),
+                ),
                 const SizedBox(height: 8),
                 Text(
                   error.toString(),
@@ -45,7 +48,11 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context, WidgetRef ref, Map<String, dynamic> stats) {
+  Widget _buildContent(
+    BuildContext context,
+    WidgetRef ref,
+    Map<String, dynamic> stats,
+  ) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -67,7 +74,11 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildOutboxAndActions(BuildContext context, WidgetRef ref, Map<String, dynamic> stats) {
+  Widget _buildOutboxAndActions(
+    BuildContext context,
+    WidgetRef ref,
+    Map<String, dynamic> stats,
+  ) {
     final outboxCount = stats['outboxCount'] ?? 0;
     return Card(
       child: Padding(
@@ -78,9 +89,15 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Outbox', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Outbox',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 4),
-                  Text('$outboxCount عنصر قيد الإرسال', style: const TextStyle(fontSize: 14)),
+                  Text(
+                    '$outboxCount عنصر قيد الإرسال',
+                    style: const TextStyle(fontSize: 14),
+                  ),
                 ],
               ),
             ),
@@ -91,7 +108,9 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
                 await manager.sync();
                 ref.invalidate(syncStatsProvider);
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تمت إعادة المحاولة')));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('تمت إعادة المحاولة')),
+                  );
                 }
               },
               icon: const Icon(Icons.refresh),
@@ -108,7 +127,13 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
                 if (context.mounted) {
                   ScaffoldMessenger.of(
                     context,
-                  ).showSnackBar(const SnackBar(content: Text('تفريغ ذكي: تم تهيئة المحاولات وحذف العناصر القديمة')));
+                  ).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'تفريغ ذكي: تم تهيئة المحاولات وحذف العناصر القديمة',
+                      ),
+                    ),
+                  );
                 }
               },
               icon: const Icon(Icons.cleaning_services),
@@ -136,7 +161,10 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
               children: [
                 Icon(Icons.bar_chart, color: Colors.blue, size: 24),
                 SizedBox(width: 8),
-                Text('ملخص المزامنة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  'ملخص المزامنة',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const Divider(height: 24),
@@ -144,7 +172,14 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
             // الصف الأول
             Row(
               children: [
-                Expanded(child: _buildStatBox('إجمالي المزامنات', '$totalSyncs', Icons.sync_alt, Colors.blue)),
+                Expanded(
+                  child: _buildStatBox(
+                    'إجمالي المزامنات',
+                    '$totalSyncs',
+                    Icons.sync_alt,
+                    Colors.blue,
+                  ),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildStatBox(
@@ -161,9 +196,23 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
             // الصف الثاني
             Row(
               children: [
-                Expanded(child: _buildStatBox('المزامنات الناجحة', '$successfulSyncs', Icons.check, Colors.green)),
+                Expanded(
+                  child: _buildStatBox(
+                    'المزامنات الناجحة',
+                    '$successfulSyncs',
+                    Icons.check,
+                    Colors.green,
+                  ),
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: _buildStatBox('المزامنات الفاشلة', '$failedSyncs', Icons.error, Colors.red)),
+                Expanded(
+                  child: _buildStatBox(
+                    'المزامنات الفاشلة',
+                    '$failedSyncs',
+                    Icons.error,
+                    Colors.red,
+                  ),
+                ),
               ],
             ),
           ],
@@ -186,7 +235,11 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
           const SizedBox(height: 8),
           Text(
             value,
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color),
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
@@ -213,7 +266,10 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
               children: [
                 Icon(Icons.pie_chart, color: Colors.green, size: 24),
                 SizedBox(width: 8),
-                Text('معدل النجاح', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  'معدل النجاح',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const SizedBox(height: 24),
@@ -228,14 +284,22 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
                       title: '${successRate.toStringAsFixed(1)}%',
                       color: Colors.green,
                       radius: 80,
-                      titleStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                      titleStyle: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                     PieChartSectionData(
                       value: failRate,
                       title: '${failRate.toStringAsFixed(1)}%',
                       color: Colors.red,
                       radius: 80,
-                      titleStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                      titleStyle: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ],
                   sectionsSpace: 2,
@@ -266,7 +330,11 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
     final recordsPulled = (stats['totalRecordsPulled'] as num?)?.toInt() ?? 0;
     final conflicts = (stats['totalConflicts'] as num?)?.toInt() ?? 0;
 
-    final maxValue = [recordsPushed, recordsPulled, conflicts].reduce((a, b) => a > b ? a : b).toDouble();
+    final maxValue = [
+      recordsPushed,
+      recordsPulled,
+      conflicts,
+    ].reduce((a, b) => a > b ? a : b).toDouble();
 
     return Card(
       child: Padding(
@@ -278,7 +346,10 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
               children: [
                 Icon(Icons.swap_vert, color: Colors.purple, size: 24),
                 SizedBox(width: 8),
-                Text('البيانات المنقولة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  'البيانات المنقولة',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const SizedBox(height: 24),
@@ -297,11 +368,20 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
                         getTitlesWidget: (value, meta) {
                           switch (value.toInt()) {
                             case 0:
-                              return const Text('رفع', style: TextStyle(fontSize: 12));
+                              return const Text(
+                                'رفع',
+                                style: TextStyle(fontSize: 12),
+                              );
                             case 1:
-                              return const Text('تحميل', style: TextStyle(fontSize: 12));
+                              return const Text(
+                                'تحميل',
+                                style: TextStyle(fontSize: 12),
+                              );
                             case 2:
-                              return const Text('تضارب', style: TextStyle(fontSize: 12));
+                              return const Text(
+                                'تضارب',
+                                style: TextStyle(fontSize: 12),
+                              );
                             default:
                               return const Text('');
                           }
@@ -313,14 +393,20 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
                         showTitles: true,
                         reservedSize: 40,
                         getTitlesWidget: (value, meta) {
-                          return Text(value.toInt().toString(), style: const TextStyle(fontSize: 10));
+                          return Text(
+                            value.toInt().toString(),
+                            style: const TextStyle(fontSize: 10),
+                          );
                         },
                       ),
                     ),
                     topTitles: const AxisTitles(),
                     rightTitles: const AxisTitles(),
                   ),
-                  gridData: FlGridData(drawVerticalLine: false, horizontalInterval: maxValue > 0 ? maxValue / 5 : 1),
+                  gridData: FlGridData(
+                    drawVerticalLine: false,
+                    horizontalInterval: maxValue > 0 ? maxValue / 5 : 1,
+                  ),
                   borderData: FlBorderData(show: false),
                   barGroups: [
                     BarChartGroupData(
@@ -330,7 +416,9 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
                           toY: recordsPushed.toDouble(),
                           color: Colors.orange,
                           width: 40,
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(4),
+                          ),
                         ),
                       ],
                     ),
@@ -341,7 +429,9 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
                           toY: recordsPulled.toDouble(),
                           color: Colors.purple,
                           width: 40,
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(4),
+                          ),
                         ),
                       ],
                     ),
@@ -352,7 +442,9 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
                           toY: conflicts.toDouble(),
                           color: Colors.amber,
                           width: 40,
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(4),
+                          ),
                         ),
                       ],
                     ),
@@ -367,8 +459,18 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildDataItem('رفع', recordsPushed, Icons.upload, Colors.orange),
-                _buildDataItem('تحميل', recordsPulled, Icons.download, Colors.purple),
+                _buildDataItem(
+                  'رفع',
+                  recordsPushed,
+                  Icons.upload,
+                  Colors.orange,
+                ),
+                _buildDataItem(
+                  'تحميل',
+                  recordsPulled,
+                  Icons.download,
+                  Colors.purple,
+                ),
                 _buildDataItem('تضارب', conflicts, Icons.warning, Colors.amber),
               ],
             ),
@@ -391,18 +493,28 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
               children: [
                 Icon(Icons.history, color: Colors.teal, size: 24),
                 SizedBox(width: 8),
-                Text('آخر مزامنة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  'آخر مزامنة',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const Divider(height: 24),
             if (lastSyncTime != null) ...[
-              _buildInfoRow('الوقت', _formatDateTime(lastSyncTime), Icons.access_time),
+              _buildInfoRow(
+                'الوقت',
+                _formatDateTime(lastSyncTime),
+                Icons.access_time,
+              ),
               _buildInfoRow('منذ', _timeAgo(lastSyncTime), Icons.schedule),
             ] else ...[
               const Center(
                 child: Padding(
                   padding: EdgeInsets.all(16),
-                  child: Text('لم تتم أي مزامنة بعد', style: TextStyle(color: Colors.grey)),
+                  child: Text(
+                    'لم تتم أي مزامنة بعد',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                 ),
               ),
             ],
@@ -433,7 +545,11 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
         const SizedBox(height: 4),
         Text(
           '$value',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
         ),
         Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
       ],
@@ -449,7 +565,10 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
           const SizedBox(width: 12),
           Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
           const Spacer(),
-          Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          ),
         ],
       ),
     );

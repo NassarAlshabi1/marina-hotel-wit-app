@@ -21,7 +21,8 @@ class AppwriteBackupResult {
 }
 
 class AppwriteBackupService {
-  AppwriteBackupService({AppwriteService? appwriteService}) : _appwriteService = appwriteService ?? AppwriteService();
+  AppwriteBackupService({AppwriteService? appwriteService})
+    : _appwriteService = appwriteService ?? AppwriteService();
 
   final AppwriteService _appwriteService;
 
@@ -55,10 +56,11 @@ class AppwriteBackupService {
 
     while (true) {
       try {
-        final result = await (_appwriteService.databases as dynamic).listCollections(
-          databaseId: AppwriteConfigManager.databaseId,
-          queries: [Query.limit(limit), Query.offset(offset)],
-        );
+        final result = await (_appwriteService.databases as dynamic)
+            .listCollections(
+              databaseId: AppwriteConfigManager.databaseId,
+              queries: [Query.limit(limit), Query.offset(offset)],
+            );
         final batch = (result as dynamic).collections as List<dynamic>? ?? [];
         if (batch.isEmpty) {
           break;
@@ -77,10 +79,11 @@ class AppwriteBackupService {
     if (allCollections.isEmpty && usedFallback) {
       for (final id in _defaultCollectionIds) {
         try {
-          final collection = await (_appwriteService.databases as dynamic).getCollection(
-            databaseId: AppwriteConfigManager.databaseId,
-            collectionId: id,
-          );
+          final collection = await (_appwriteService.databases as dynamic)
+              .getCollection(
+                databaseId: AppwriteConfigManager.databaseId,
+                collectionId: id,
+              );
           allCollections.add(collection);
         } catch (_) {
           allCollections.add({r'$id': id});
@@ -114,7 +117,11 @@ class AppwriteBackupService {
     }
   }
 
-  Future<AppwriteBackupResult> exportBackup({String? deviceId, bool includeSchema = false, String? targetPath}) async {
+  Future<AppwriteBackupResult> exportBackup({
+    String? deviceId,
+    bool includeSchema = false,
+    String? targetPath,
+  }) async {
     await _appwriteService.initialize();
 
     final timestamp = DateTime.now().toUtc();
@@ -137,8 +144,13 @@ class AppwriteBackupService {
     }
 
     for (final id in collectionIds) {
-      final docs = await _appwriteService.listAllDocuments(collectionId: id, useCache: false);
-      collections[id] = docs.map((doc) => {r'$id': doc.$id, ...doc.data}).toList();
+      final docs = await _appwriteService.listAllDocuments(
+        collectionId: id,
+        useCache: false,
+      );
+      collections[id] = docs
+          .map((doc) => {r'$id': doc.$id, ...doc.data})
+          .toList();
       counts[id] = docs.length;
     }
 
@@ -174,11 +186,17 @@ class AppwriteBackupService {
       }
 
       final prefix = includeSchema ? 'appwrite_full_backup' : 'appwrite_backup';
-      final fileName = '${prefix}_${DateFormat('yyyyMMdd_HHmmss').format(timestamp)}.json';
+      final fileName =
+          '${prefix}_${DateFormat('yyyyMMdd_HHmmss').format(timestamp)}.json';
       file = File('${targetDir.path}/$fileName');
     }
     await file.writeAsString(jsonEncode(payload));
 
-    return AppwriteBackupResult(file: file, counts: counts, totalRecords: totalRecords, timestamp: timestamp);
+    return AppwriteBackupResult(
+      file: file,
+      counts: counts,
+      totalRecords: totalRecords,
+      timestamp: timestamp,
+    );
   }
 }

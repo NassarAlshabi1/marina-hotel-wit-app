@@ -48,7 +48,8 @@ class WhatsAppDailyReportState {
       status: status ?? this.status,
       message: message ?? this.message,
       isEnabled: isEnabled ?? this.isEnabled,
-      isNotificationsEnabled: isNotificationsEnabled ?? this.isNotificationsEnabled,
+      isNotificationsEnabled:
+          isNotificationsEnabled ?? this.isNotificationsEnabled,
       isDailyReportEnabled: isDailyReportEnabled ?? this.isDailyReportEnabled,
       dailyReportTime: dailyReportTime ?? this.dailyReportTime,
       lastReportSent: lastReportSent ?? this.lastReportSent,
@@ -59,7 +60,8 @@ class WhatsAppDailyReportState {
 }
 
 /// Notifier للتحكم في حالة التقرير اليومي عبر واتساب
-class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState> {
+class WhatsAppDailyReportNotifier
+    extends StateNotifier<WhatsAppDailyReportState> {
   WhatsAppDailyReportNotifier() : super(const WhatsAppDailyReportState()) {
     _initialize();
   }
@@ -72,9 +74,12 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
     try {
       final prefs = await SharedPreferences.getInstance();
       final enabled = prefs.getBool('telegram_enabled') ?? true;
-      final notificationsEnabled = prefs.getBool('telegram_notifications_enabled') ?? true;
-      final dailyReportEnabled = prefs.getBool('telegram_daily_report_enabled') ?? true;
-      final reportTime = prefs.getString('telegram_daily_report_time') ?? '02:00';
+      final notificationsEnabled =
+          prefs.getBool('telegram_notifications_enabled') ?? true;
+      final dailyReportEnabled =
+          prefs.getBool('telegram_daily_report_enabled') ?? true;
+      final reportTime =
+          prefs.getString('telegram_daily_report_time') ?? '02:00';
       final lastReportSent = prefs.getString('telegram_last_report_sent');
 
       state = state.copyWith(
@@ -95,7 +100,9 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
     state = state.copyWith(
       isEnabled: enabled,
       status: WhatsAppReportStatus.success,
-      message: enabled ? 'تم تفعيل واتساب — الإشعارات والتقارير نشطة' : 'تم تعطيل واتساب',
+      message: enabled
+          ? 'تم تفعيل واتساب — الإشعارات والتقارير نشطة'
+          : 'تم تعطيل واتساب',
     );
     _clearMessageAfterDelay();
   }
@@ -106,7 +113,9 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
     state = state.copyWith(
       isNotificationsEnabled: enabled,
       status: WhatsAppReportStatus.success,
-      message: enabled ? 'تم تفعيل الإشعارات الفورية عبر واتساب' : 'تم تعطيل الإشعارات الفورية',
+      message: enabled
+          ? 'تم تفعيل الإشعارات الفورية عبر واتساب'
+          : 'تم تعطيل الإشعارات الفورية',
     );
     _clearMessageAfterDelay();
   }
@@ -117,13 +126,18 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
     state = state.copyWith(
       isDailyReportEnabled: enabled,
       status: WhatsAppReportStatus.success,
-      message: enabled ? 'تم تفعيل التقرير اليومي التلقائي' : 'تم تعطيل التقرير اليومي التلقائي',
+      message: enabled
+          ? 'تم تفعيل التقرير اليومي التلقائي'
+          : 'تم تعطيل التقرير اليومي التلقائي',
     );
     // جدولة/إلغاء إنذار التقرير اليومي
     try {
       if (enabled && state.isEnabled) {
         final parts = state.dailyReportTime.split(':');
-        await AlarmBackup.rescheduleTelegramReport(int.parse(parts[0]), int.parse(parts[1]));
+        await AlarmBackup.rescheduleTelegramReport(
+          int.parse(parts[0]),
+          int.parse(parts[1]),
+        );
       } else {
         await AlarmBackup.cancelTelegramReportAlarm();
       }
@@ -141,7 +155,10 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
     try {
       if (state.isDailyReportEnabled && state.isEnabled) {
         final parts = time.split(':');
-        await AlarmBackup.rescheduleTelegramReport(int.parse(parts[0]), int.parse(parts[1]));
+        await AlarmBackup.rescheduleTelegramReport(
+          int.parse(parts[0]),
+          int.parse(parts[1]),
+        );
       }
     } catch (e) {
       debugPrint('خطأ في إعادة جدولة إنذار التقرير: $e');
@@ -150,7 +167,10 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
 
   /// اختبار الاتصال — إرسال رسالة اختبار عبر CallMeBot
   Future<void> testConnection() async {
-    state = state.copyWith(status: WhatsAppReportStatus.testing, message: 'جاري اختبار الاتصال بواتساب...');
+    state = state.copyWith(
+      status: WhatsAppReportStatus.testing,
+      message: 'جاري اختبار الاتصال بواتساب...',
+    );
 
     try {
       final success = await _reports.sendReportNow();
@@ -167,7 +187,10 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
         );
       }
     } catch (e) {
-      state = state.copyWith(status: WhatsAppReportStatus.error, message: 'خطأ في الاتصال: $e');
+      state = state.copyWith(
+        status: WhatsAppReportStatus.error,
+        message: 'خطأ في الاتصال: $e',
+      );
     }
 
     _clearMessageAfterDelay();
@@ -175,7 +198,10 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
 
   /// إرسال تقرير تجريبي
   Future<void> sendTestReport() async {
-    state = state.copyWith(status: WhatsAppReportStatus.sendingReport, message: 'جاري تجميع وإرسال التقرير...');
+    state = state.copyWith(
+      status: WhatsAppReportStatus.sendingReport,
+      message: 'جاري تجميع وإرسال التقرير...',
+    );
 
     try {
       final success = await _reports.sendReportNow();
@@ -186,10 +212,16 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
           message: 'تم إرسال التقرير التجريبي بنجاح عبر واتساب!',
         );
       } else {
-        state = state.copyWith(status: WhatsAppReportStatus.error, message: 'فشل إرسال التقرير — تحقق من الإعدادات');
+        state = state.copyWith(
+          status: WhatsAppReportStatus.error,
+          message: 'فشل إرسال التقرير — تحقق من الإعدادات',
+        );
       }
     } catch (e) {
-      state = state.copyWith(status: WhatsAppReportStatus.error, message: 'خطأ في إرسال التقرير: $e');
+      state = state.copyWith(
+        status: WhatsAppReportStatus.error,
+        message: 'خطأ في إرسال التقرير: $e',
+      );
     }
 
     _clearMessageAfterDelay();
@@ -211,7 +243,8 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
       if (!_mounted) {
         return;
       }
-      if (state.status == WhatsAppReportStatus.success || state.status == WhatsAppReportStatus.error) {
+      if (state.status == WhatsAppReportStatus.success ||
+          state.status == WhatsAppReportStatus.error) {
         state = state.copyWith(status: WhatsAppReportStatus.idle);
       }
     });
@@ -231,9 +264,15 @@ class WhatsAppDailyReportNotifier extends StateNotifier<WhatsAppDailyReportState
 }
 
 /// Provider رئيسي للتقرير اليومي عبر واتساب
-final whatsappDailyReportProvider = StateNotifierProvider<WhatsAppDailyReportNotifier, WhatsAppDailyReportState>(
-  (ref) => WhatsAppDailyReportNotifier(),
-);
+final whatsappDailyReportProvider =
+    StateNotifierProvider<
+      WhatsAppDailyReportNotifier,
+      WhatsAppDailyReportState
+    >(
+      (ref) => WhatsAppDailyReportNotifier(),
+    );
 
 /// Provider للوصول إلى خدمة التقارير
-final whatsappDailyReportServiceProvider = Provider<TelegramReportService>((ref) => TelegramReportService.instance);
+final whatsappDailyReportServiceProvider = Provider<TelegramReportService>(
+  (ref) => TelegramReportService.instance,
+);

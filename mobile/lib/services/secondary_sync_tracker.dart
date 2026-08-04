@@ -86,14 +86,18 @@ class SyncSessionSummary {
         buf.writeln('  📁 ${entry.key} (${entry.value.length}):');
         for (final err in entry.value) {
           final type = err.isPermanent ? '☠️' : '⚠️';
-          final reason = err.reason.length > 150 ? '${err.reason.substring(0, 150)}...' : err.reason;
+          final reason = err.reason.length > 150
+              ? '${err.reason.substring(0, 150)}...'
+              : err.reason;
           buf.writeln('    $type [${err.localUuid}] $reason');
         }
       }
       buf.writeln();
     }
 
-    buf.writeln('🕐 ${sessionTime?.toLocal().toIso8601String() ?? DateTime.now().toLocal().toIso8601String()}');
+    buf.writeln(
+      '🕐 ${sessionTime?.toLocal().toIso8601String() ?? DateTime.now().toLocal().toIso8601String()}',
+    );
     buf.writeln('Marina Hotel — Secondary Sync Report');
     return buf.toString();
   }
@@ -106,7 +110,8 @@ class SyncSessionSummary {
 class SecondarySyncTracker {
   SecondarySyncTracker._();
   static SecondarySyncTracker? _instance;
-  static SecondarySyncTracker get instance => _instance ??= SecondarySyncTracker._();
+  static SecondarySyncTracker get instance =>
+      _instance ??= SecondarySyncTracker._();
 
   /// أخطاء الجلسة الحالية
   final List<SyncErrorEntry> _currentSessionErrors = [];
@@ -171,10 +176,12 @@ class SecondarySyncTracker {
   SyncSessionSummary? get lastSession => _lastSession;
 
   /// نص تقرير المزامنة الأخير (جاهز للنسخ)
-  String get lastReportText => _lastSession?.textSummary ?? 'لا توجد جلسة مزامنة سابقة';
+  String get lastReportText =>
+      _lastSession?.textSummary ?? 'لا توجد جلسة مزامنة سابقة';
 
   /// أخطاء الجلسة الحالية
-  List<SyncErrorEntry> get currentErrors => List.unmodifiable(_currentSessionErrors);
+  List<SyncErrorEntry> get currentErrors =>
+      List.unmodifiable(_currentSessionErrors);
 
   /// هل هناك أخطاء في الجلسة الحالية؟
   bool get hasErrorsInCurrentSession => _currentSessionErrors.isNotEmpty;
@@ -192,7 +199,8 @@ class SecondarySyncTracker {
   }
 
   /// الأخطاء الدائمة (التي وصلت Dead)
-  List<SyncErrorEntry> get permanentErrors => _currentSessionErrors.where((e) => e.isPermanent).toList();
+  List<SyncErrorEntry> get permanentErrors =>
+      _currentSessionErrors.where((e) => e.isPermanent).toList();
 
   /// مسح سجل الأخطاء
   void clear() {

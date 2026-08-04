@@ -2,7 +2,14 @@ import 'package:drift/drift.dart';
 import 'enhanced_booking_calculation_service.dart';
 import 'local_db.dart';
 
-enum IssueType { orphanedRecord, duplicateUuid, versionInconsistency, amountMismatch, missingReference, invalidStatus }
+enum IssueType {
+  orphanedRecord,
+  duplicateUuid,
+  versionInconsistency,
+  amountMismatch,
+  missingReference,
+  invalidStatus,
+}
 
 class IntegrityIssue {
   IntegrityIssue({
@@ -21,7 +28,8 @@ class IntegrityIssue {
   final bool isCritical;
 
   @override
-  String toString() => 'IntegrityIssue($type): $table${uuid != null ? '/$uuid' : ''} - $description';
+  String toString() =>
+      'IntegrityIssue($type): $table${uuid != null ? '/$uuid' : ''} - $description';
 
   String toArabicMessage() {
     switch (type) {
@@ -42,8 +50,11 @@ class IntegrityIssue {
 }
 
 class IntegrityReport {
-  IntegrityReport({required this.issues, required this.timestamp, Duration? checkDuration})
-    : checkDuration = checkDuration ?? Duration.zero;
+  IntegrityReport({
+    required this.issues,
+    required this.timestamp,
+    Duration? checkDuration,
+  }) : checkDuration = checkDuration ?? Duration.zero;
   final List<IntegrityIssue> issues;
   final DateTime timestamp;
   final Duration checkDuration;
@@ -87,7 +98,11 @@ class SyncIntegrityChecker {
     final endTime = DateTime.now();
     final duration = endTime.difference(startTime);
 
-    return IntegrityReport(issues: issues, timestamp: endTime, checkDuration: duration);
+    return IntegrityReport(
+      issues: issues,
+      timestamp: endTime,
+      checkDuration: duration,
+    );
   }
 
   Future<List<IntegrityIssue>> _checkOrphanedPayments(AppDatabase db) async {
@@ -108,7 +123,8 @@ class SyncIntegrityChecker {
           type: IssueType.orphanedRecord,
           table: 'payments',
           uuid: row.read<String>('local_uuid'),
-          description: 'Payment without associated booking (booking_local_id: ${row.read<int?>('booking_local_id')})',
+          description:
+              'Payment without associated booking (booking_local_id: ${row.read<int?>('booking_local_id')})',
           isCritical: true,
         ),
       );
@@ -135,7 +151,8 @@ class SyncIntegrityChecker {
           type: IssueType.orphanedRecord,
           table: 'debts',
           uuid: row.read<String>('local_uuid'),
-          description: 'Debt without associated booking (booking_local_id: ${row.read<int?>('booking_local_id')})',
+          description:
+              'Debt without associated booking (booking_local_id: ${row.read<int?>('booking_local_id')})',
           isCritical: true,
         ),
       );
@@ -147,7 +164,15 @@ class SyncIntegrityChecker {
   Future<List<IntegrityIssue>> _checkDuplicateUuids(AppDatabase db) async {
     final issues = <IntegrityIssue>[];
 
-    final tables = ['bookings', 'payments', 'rooms', 'expenses', 'debts', 'employees', 'booking_notes'];
+    final tables = [
+      'bookings',
+      'payments',
+      'rooms',
+      'expenses',
+      'debts',
+      'employees',
+      'booking_notes',
+    ];
 
     for (final table in tables) {
       final duplicates = await db.customSelect('''
@@ -180,7 +205,14 @@ class SyncIntegrityChecker {
   Future<List<IntegrityIssue>> _checkVersionConsistency(AppDatabase db) async {
     final issues = <IntegrityIssue>[];
 
-    final tables = ['bookings', 'payments', 'rooms', 'expenses', 'debts', 'employees'];
+    final tables = [
+      'bookings',
+      'payments',
+      'rooms',
+      'expenses',
+      'debts',
+      'employees',
+    ];
 
     for (final table in tables) {
       final invalidVersions = await db.customSelect('''
@@ -231,7 +263,8 @@ class SyncIntegrityChecker {
           type: IssueType.amountMismatch,
           table: 'bookings',
           uuid: uuid,
-          description: 'Payment amount mismatch: cached=$cachedPaid, actual=$actualPaid',
+          description:
+              'Payment amount mismatch: cached=$cachedPaid, actual=$actualPaid',
           metadata: {
             'cached_paid': cachedPaid,
             'actual_paid': actualPaid,
@@ -245,7 +278,9 @@ class SyncIntegrityChecker {
     return issues;
   }
 
-  Future<List<IntegrityIssue>> _checkPaymentBookingReferences(AppDatabase db) async {
+  Future<List<IntegrityIssue>> _checkPaymentBookingReferences(
+    AppDatabase db,
+  ) async {
     final issues = <IntegrityIssue>[];
 
     final invalidRefs = await db.customSelect('''
@@ -266,7 +301,8 @@ class SyncIntegrityChecker {
           type: IssueType.missingReference,
           table: 'payments',
           uuid: row.read<String>('local_uuid'),
-          description: 'Payment references non-existent or deleted booking (id: ${row.read<int?>('booking_local_id')})',
+          description:
+              'Payment references non-existent or deleted booking (id: ${row.read<int?>('booking_local_id')})',
           isCritical: true,
         ),
       );
@@ -275,7 +311,9 @@ class SyncIntegrityChecker {
     return issues;
   }
 
-  Future<List<IntegrityIssue>> _checkDebtBookingReferences(AppDatabase db) async {
+  Future<List<IntegrityIssue>> _checkDebtBookingReferences(
+    AppDatabase db,
+  ) async {
     final issues = <IntegrityIssue>[];
 
     final invalidRefs = await db.customSelect('''
@@ -296,7 +334,8 @@ class SyncIntegrityChecker {
           type: IssueType.missingReference,
           table: 'debts',
           uuid: row.read<String>('local_uuid'),
-          description: 'Debt references non-existent or deleted booking (id: ${row.read<int?>('booking_local_id')})',
+          description:
+              'Debt references non-existent or deleted booking (id: ${row.read<int?>('booking_local_id')})',
           isCritical: true,
         ),
       );
@@ -329,7 +368,10 @@ class SyncIntegrityChecker {
     );
   }
 
-  Future<void> _fixVersionInconsistency(AppDatabase db, IntegrityIssue issue) async {
+  Future<void> _fixVersionInconsistency(
+    AppDatabase db,
+    IntegrityIssue issue,
+  ) async {
     await db.customStatement(
       '''
       UPDATE ${issue.table}
@@ -345,7 +387,9 @@ class SyncIntegrityChecker {
       return;
     }
 
-    final booking = await (db.select(db.bookings)..where((t) => t.localUuid.equals(issue.uuid!))).getSingleOrNull();
+    final booking = await (db.select(
+      db.bookings,
+    )..where((t) => t.localUuid.equals(issue.uuid!))).getSingleOrNull();
 
     if (booking == null) {
       return;
@@ -356,7 +400,9 @@ class SyncIntegrityChecker {
     final calculation = await calcService.calculateForBooking(booking);
     final summary = calculation.financialSummary;
 
-    await (db.update(db.bookings)..where((t) => t.localUuid.equals(issue.uuid!))).write(
+    await (db.update(
+      db.bookings,
+    )..where((t) => t.localUuid.equals(issue.uuid!))).write(
       BookingsCompanion(
         totalDueCached: Value(summary.totalDue.toDouble()),
         totalPaidCached: Value(summary.totalPaid.toDouble()),

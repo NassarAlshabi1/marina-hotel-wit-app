@@ -8,7 +8,8 @@ class CentralSyncCoordinator {
   factory CentralSyncCoordinator() => _instance;
 
   CentralSyncCoordinator._internal();
-  static final CentralSyncCoordinator _instance = CentralSyncCoordinator._internal();
+  static final CentralSyncCoordinator _instance =
+      CentralSyncCoordinator._internal();
   static CentralSyncCoordinator get instance => _instance;
 
   Timer? _debounceTimer;
@@ -41,12 +42,19 @@ class CentralSyncCoordinator {
 
   /// إشعار موحد للأنظمة: يُبلغ AutoBackupManager ويلغي المزامنة التفاضلية.
   /// يستبدل النمط المتكرر في الشاشات الذي يستدعي كل خدمة على حدة.
-  Future<void> notifyTableChange({required String table, required String operation}) async {
+  Future<void> notifyTableChange({
+    required String table,
+    required String operation,
+  }) async {
     await AutoBackupManager.instance.onDataChange(table, operation);
     notifyLocalChange(table: table, operation: operation);
   }
 
-  Future<bool> syncNow({bool push = true, bool pull = true, String reason = 'manual'}) async {
+  Future<bool> syncNow({
+    bool push = true,
+    bool pull = true,
+    String reason = 'manual',
+  }) async {
     _debounceTimer?.cancel();
     return _performSync(push: push, pull: pull, reason: reason);
   }
@@ -60,16 +68,25 @@ class CentralSyncCoordinator {
       final elapsed = DateTime.now().difference(_lastSyncTime!);
       if (elapsed < syncCooldown) {
         final remaining = syncCooldown - elapsed;
-        dlog(() => '⏸️ Sync في cooldown ($elapsed < $syncCooldown), scheduling after $remaining');
+        dlog(
+          () =>
+              '⏸️ Sync في cooldown ($elapsed < $syncCooldown), scheduling after $remaining',
+        );
 
         _debounceTimer?.cancel();
         _debounceTimer = Timer(remaining, () async {
           // ✅ إصلاح جذري: Timer callback async بدون try-catch يُسبب
           // unhandled async error → Crashlytics Fatal
           try {
-            await _performSync(push: push, pull: pull, reason: 'cooldown_delayed:$reason');
+            await _performSync(
+              push: push,
+              pull: pull,
+              reason: 'cooldown_delayed:$reason',
+            );
           } catch (e, stackTrace) {
-            derr(() => 'CentralSyncCoordinator: خطأ في cooldown delayed sync: $e');
+            derr(
+              () => 'CentralSyncCoordinator: خطأ في cooldown delayed sync: $e',
+            );
             derr(() => 'Stack trace: $stackTrace');
           }
         });
@@ -85,10 +102,16 @@ class CentralSyncCoordinator {
 
     _isSyncing = true;
     _syncCount++;
-    dlog(() => '🔄 [$_syncCount] بدء المزامنة: $reason (push: $push, pull: $pull)');
+    dlog(
+      () => '🔄 [$_syncCount] بدء المزامنة: $reason (push: $push, pull: $pull)',
+    );
 
     try {
-      final success = await UnifiedSyncOrchestrator.instance.syncNow(push: push, pull: pull, reason: reason);
+      final success = await UnifiedSyncOrchestrator.instance.syncNow(
+        push: push,
+        pull: pull,
+        reason: reason,
+      );
 
       if (success) {
         _lastSyncTime = DateTime.now();
@@ -125,7 +148,8 @@ class CentralSyncCoordinator {
       'has_pending_debounce': _debounceTimer?.isActive ?? false,
       'sync_count': _syncCount,
       'cooldown_remaining': _lastSyncTime != null
-          ? syncCooldown.inSeconds - DateTime.now().difference(_lastSyncTime!).inSeconds
+          ? syncCooldown.inSeconds -
+                DateTime.now().difference(_lastSyncTime!).inSeconds
           : 0,
     };
   }

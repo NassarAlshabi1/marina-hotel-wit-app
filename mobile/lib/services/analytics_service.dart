@@ -72,8 +72,12 @@ class SyncStats {
     'averageSyncTimeMs': averageSyncTime.inMilliseconds,
     'lastSyncTime': lastSyncTime?.toIso8601String(),
     'isHealthy': isHealthy,
-    'failureRate': totalPushOperations > 0 ? totalFailures / totalPushOperations : 0.0,
-    'retryRate': totalPushOperations > 0 ? totalRetries / totalPushOperations : 0.0,
+    'failureRate': totalPushOperations > 0
+        ? totalFailures / totalPushOperations
+        : 0.0,
+    'retryRate': totalPushOperations > 0
+        ? totalRetries / totalPushOperations
+        : 0.0,
   };
 }
 
@@ -105,7 +109,10 @@ class AnalyticsService {
       await _analytics!.setAnalyticsCollectionEnabled(true);
       developer.log('✅ AnalyticsService initialized', name: 'AnalyticsService');
     } catch (e) {
-      developer.log('⚠️ Analytics initialization failed: $e', name: 'AnalyticsService');
+      developer.log(
+        '⚠️ Analytics initialization failed: $e',
+        name: 'AnalyticsService',
+      );
       // لا نوقف التطبيق بسبب فشل التحليلات
     }
   }
@@ -117,7 +124,10 @@ class AnalyticsService {
   }
 
   /// تسجيل حدث مزامنة
-  Future<void> logSyncEvent(SyncAnalyticsEvent event, {Map<String, dynamic> parameters = const {}}) async {
+  Future<void> logSyncEvent(
+    SyncAnalyticsEvent event, {
+    Map<String, dynamic> parameters = const {},
+  }) async {
     if (!_isEnabled) {
       return;
     }
@@ -130,7 +140,11 @@ class AnalyticsService {
     };
 
     // تسجيل محلي
-    developer.log('📊 Analytics: $eventName', name: 'AnalyticsService', error: allParameters);
+    developer.log(
+      '📊 Analytics: $eventName',
+      name: 'AnalyticsService',
+      error: allParameters,
+    );
 
     // تحديث الإحصائيات المحلية
     _updateSessionStats(event);
@@ -146,23 +160,35 @@ class AnalyticsService {
   /// تسجيل بدء المزامنة
   Future<void> logSyncStart({required String trigger}) async {
     _lastSyncStartTime = DateTime.now();
-    await logSyncEvent(SyncAnalyticsEvent.syncStarted, parameters: {'trigger': trigger});
+    await logSyncEvent(
+      SyncAnalyticsEvent.syncStarted,
+      parameters: {'trigger': trigger},
+    );
   }
 
   /// تسجيل اكتمال المزامنة
-  Future<void> logSyncComplete({required int itemsProcessed, required Duration duration}) async {
+  Future<void> logSyncComplete({
+    required int itemsProcessed,
+    required Duration duration,
+  }) async {
     await logSyncEvent(
       SyncAnalyticsEvent.syncCompleted,
       parameters: {
         'itemsProcessed': itemsProcessed,
         'durationMs': duration.inMilliseconds,
-        'itemsPerSecond': itemsProcessed > 0 && duration.inSeconds > 0 ? itemsProcessed / duration.inSeconds : 0.0,
+        'itemsPerSecond': itemsProcessed > 0 && duration.inSeconds > 0
+            ? itemsProcessed / duration.inSeconds
+            : 0.0,
       },
     );
   }
 
   /// تسجيل فشل المزامنة
-  Future<void> logSyncFailure({required String error, required String operation, required int attempt}) async {
+  Future<void> logSyncFailure({
+    required String error,
+    required String operation,
+    required int attempt,
+  }) async {
     _sessionFailures++;
     await logSyncEvent(
       SyncAnalyticsEvent.syncFailed,
@@ -171,33 +197,58 @@ class AnalyticsService {
   }
 
   /// تسجيل دفعة مكتملة
-  Future<void> logBatchCompleted({required int itemsCount, required Duration duration}) async {
+  Future<void> logBatchCompleted({
+    required int itemsCount,
+    required Duration duration,
+  }) async {
     _sessionPushCount += itemsCount;
     await logSyncEvent(
       SyncAnalyticsEvent.batchPushCompleted,
-      parameters: {'itemsCount': itemsCount, 'durationMs': duration.inMilliseconds},
+      parameters: {
+        'itemsCount': itemsCount,
+        'durationMs': duration.inMilliseconds,
+      },
     );
   }
 
   /// تسجيل فشل دفعة
-  Future<void> logBatchFailed({required String error, required int itemsCount, required int attempt}) async {
+  Future<void> logBatchFailed({
+    required String error,
+    required int itemsCount,
+    required int attempt,
+  }) async {
     await logSyncEvent(
       SyncAnalyticsEvent.batchPushFailed,
-      parameters: {'error': error, 'itemsCount': itemsCount, 'attempt': attempt},
+      parameters: {
+        'error': error,
+        'itemsCount': itemsCount,
+        'attempt': attempt,
+      },
     );
   }
 
   /// تسجيل محاولة إعادة
-  Future<void> logRetryAttempt({required String operation, required int attempt, required Duration delay}) async {
+  Future<void> logRetryAttempt({
+    required String operation,
+    required int attempt,
+    required Duration delay,
+  }) async {
     _sessionRetries++;
     await logSyncEvent(
       SyncAnalyticsEvent.retryAttempt,
-      parameters: {'operation': operation, 'attempt': attempt, 'delayMs': delay.inMilliseconds},
+      parameters: {
+        'operation': operation,
+        'attempt': attempt,
+        'delayMs': delay.inMilliseconds,
+      },
     );
   }
 
   /// تسجيل الوصول للحد الأقصى من المحاولات
-  Future<void> logMaxRetriesReached({required String operation, required int totalAttempts}) async {
+  Future<void> logMaxRetriesReached({
+    required String operation,
+    required int totalAttempts,
+  }) async {
     await logSyncEvent(
       SyncAnalyticsEvent.maxRetriesReached,
       parameters: {'operation': operation, 'totalAttempts': totalAttempts},
@@ -205,7 +256,10 @@ class AnalyticsService {
   }
 
   /// تسجيل نزاع محلول
-  Future<void> logConflictResolved({required String resolution, required String entityType}) async {
+  Future<void> logConflictResolved({
+    required String resolution,
+    required String entityType,
+  }) async {
     _sessionConflicts++;
     await logSyncEvent(
       SyncAnalyticsEvent.conflictResolved,
@@ -216,7 +270,9 @@ class AnalyticsService {
   /// الحصول على إحصائيات الجلسة الحالية
   SyncStats getSessionStats() {
     final now = DateTime.now();
-    final lastSyncDuration = _lastSyncStartTime != null ? now.difference(_lastSyncStartTime!) : Duration.zero;
+    final lastSyncDuration = _lastSyncStartTime != null
+        ? now.difference(_lastSyncStartTime!)
+        : Duration.zero;
 
     return SyncStats(
       totalPushOperations: _sessionPushCount,
@@ -289,16 +345,25 @@ class AnalyticsService {
   }
 
   /// تسجيل وقت المستخدم على الشاشة
-  Future<void> logScreenView({required String screenName, String? screenClass}) async {
+  Future<void> logScreenView({
+    required String screenName,
+    String? screenClass,
+  }) async {
     try {
-      await _analytics?.logScreenView(screenName: screenName, screenClass: screenClass ?? screenName);
+      await _analytics?.logScreenView(
+        screenName: screenName,
+        screenClass: screenClass ?? screenName,
+      );
     } catch (e) {
       // تجاهل أخطاء التحليلات
     }
   }
 
   /// تسجيل حدث مخصص
-  Future<void> logCustomEvent({required String name, Map<String, dynamic> parameters = const {}}) async {
+  Future<void> logCustomEvent({
+    required String name,
+    Map<String, dynamic> parameters = const {},
+  }) async {
     if (!_isEnabled) {
       return;
     }
@@ -306,7 +371,9 @@ class AnalyticsService {
     try {
       await _analytics?.logEvent(
         name: name,
-        parameters: parameters.map((key, value) => MapEntry(key, value as Object)),
+        parameters: parameters.map(
+          (key, value) => MapEntry(key, value as Object),
+        ),
       );
     } catch (e) {
       // تجاهل الأخطاء

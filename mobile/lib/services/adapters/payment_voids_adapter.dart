@@ -9,7 +9,8 @@ import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
 
-class PaymentVoidsAdapter extends EntityAdapter<PaymentVoid, PaymentVoidsCompanion> {
+class PaymentVoidsAdapter
+    extends EntityAdapter<PaymentVoid, PaymentVoidsCompanion> {
   PaymentVoidsAdapter(this.resolver);
   final IdResolver resolver;
 
@@ -23,31 +24,77 @@ class PaymentVoidsAdapter extends EntityAdapter<PaymentVoid, PaymentVoidsCompani
   String get tableName => 'payment_voids';
 
   @override
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
-    final bookingUuid = _asString(json, 'bookingUuid', src) ?? _asString(json, 'booking_uuid', src);
+  Future<ResolveResult> resolveRefs(
+    AppDatabase db,
+    Map<String, dynamic> json, {
+    required Source src,
+  }) async {
+    final bookingUuid =
+        _asString(json, 'bookingUuid', src) ??
+        _asString(json, 'booking_uuid', src);
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
-    return ResolveResult(bookingUuidCache: bookingUuid, createdAtEpoch: createdAt, lastModifiedEpoch: lastModified);
+    return ResolveResult(
+      bookingUuidCache: bookingUuid,
+      createdAtEpoch: createdAt,
+      lastModifiedEpoch: lastModified,
+    );
   }
 
   @override
-  PaymentVoidsCompanion fromJson(Map<String, dynamic> json, {required Source src, required ResolveResult refs}) {
+  PaymentVoidsCompanion fromJson(
+    Map<String, dynamic> json, {
+    required Source src,
+    required ResolveResult refs,
+  }) {
     final now = Time.nowEpoch();
-    final createdAt = refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified = refs.lastModifiedEpoch ?? _epoch(json, 'lastModified', src) ?? createdAt;
+    final createdAt =
+        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final lastModified =
+        refs.lastModifiedEpoch ??
+        _epoch(json, 'lastModified', src) ??
+        createdAt;
     final voidedAt = _epoch(json, 'voidedAt', src) ?? now;
 
     return PaymentVoidsCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(_asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src) ?? IdGen.uuid()),
+      localUuid: d.Value(
+        _asString(json, 'localUuid', src) ??
+            _asString(json, 'local_uuid', src) ??
+            IdGen.uuid(),
+      ),
       serverId: _vInt(json, 'serverId', src),
-      originalPaymentUuid: _vStr(json, 'originalPaymentUuid', src, altKey: 'original_payment_uuid', fallback: ''),
-      originalPaymentId: _vInt(json, 'originalPaymentId', src, altKey: 'original_payment_id', fallback: 0),
+      originalPaymentUuid: _vStr(
+        json,
+        'originalPaymentUuid',
+        src,
+        altKey: 'original_payment_uuid',
+        fallback: '',
+      ),
+      originalPaymentId: _vInt(
+        json,
+        'originalPaymentId',
+        src,
+        altKey: 'original_payment_id',
+        fallback: 0,
+      ),
       bookingUuid: refs.bookingUuidCache != null
           ? d.Value(refs.bookingUuidCache!)
-          : _vStr(json, 'bookingUuid', src, altKey: 'booking_uuid', fallback: ''),
+          : _vStr(
+              json,
+              'bookingUuid',
+              src,
+              altKey: 'booking_uuid',
+              fallback: '',
+            ),
       voidedAmount: _vInt(json, 'voidedAmount', src, altKey: 'voided_amount'),
-      voidReason: _vStr(json, 'voidReason', src, altKey: 'void_reason', fallback: ''),
+      voidReason: _vStr(
+        json,
+        'voidReason',
+        src,
+        altKey: 'void_reason',
+        fallback: '',
+      ),
       voidedBy: _vStr(json, 'voidedBy', src, altKey: 'voided_by', fallback: ''),
       voidedAt: d.Value(voidedAt),
       voidedAtIso: _vStr(
@@ -55,17 +102,32 @@ class PaymentVoidsAdapter extends EntityAdapter<PaymentVoid, PaymentVoidsCompani
         'voidedAtIso',
         src,
         altKey: 'voided_at_iso',
-        fallback: DateTime.fromMillisecondsSinceEpoch(voidedAt * 1000).toIso8601String(),
+        fallback: DateTime.fromMillisecondsSinceEpoch(
+          voidedAt * 1000,
+        ).toIso8601String(),
       ),
-      hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key', fallback: ''),
-      reversalPaymentUuid: _vStr(json, 'reversalPaymentUuid', src, altKey: 'reversal_payment_uuid'),
+      hotelDayKey: _vStr(
+        json,
+        'hotelDayKey',
+        src,
+        altKey: 'hotel_day_key',
+        fallback: '',
+      ),
+      reversalPaymentUuid: _vStr(
+        json,
+        'reversalPaymentUuid',
+        src,
+        altKey: 'reversal_payment_uuid',
+      ),
       approvedBy: _vStr(json, 'approvedBy', src, altKey: 'approved_by'),
       createdAt: d.Value(createdAt),
       updatedAt: d.Value(_epoch(json, 'updatedAt', src) ?? createdAt),
       deletedAt: _vInt(json, 'deletedAt', src),
       lastModified: d.Value(lastModified),
       createdAtEpoch: d.Value(_asInt(json, 'createdAtEpoch', src) ?? createdAt),
-      lastModifiedEpoch: d.Value(_asInt(json, 'lastModifiedEpoch', src) ?? lastModified),
+      lastModifiedEpoch: d.Value(
+        _asInt(json, 'lastModifiedEpoch', src) ?? lastModified,
+      ),
       createdAtIso: _vStr(json, 'createdAtIso', src),
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
@@ -76,10 +138,26 @@ class PaymentVoidsAdapter extends EntityAdapter<PaymentVoid, PaymentVoidsCompani
       origin: src == Source.appwrite || src == Source.drive
           ? const d.Value('server')
           : _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vStr(json, 'vectorClock', src, altKey: 'vector_clock', fallback: '{}'),
-      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
+      vectorClock: _vStr(
+        json,
+        'vectorClock',
+        src,
+        altKey: 'vector_clock',
+        fallback: '{}',
+      ),
+      idempotencyKey: _vStr(
+        json,
+        'idempotencyKey',
+        src,
+        altKey: 'idempotency_key',
+      ),
       note: _vStr(json, 'note', src),
-      originalAmount: _vDoubleNullable(json, 'originalAmount', src, altKey: 'original_amount'),
+      originalAmount: _vDoubleNullable(
+        json,
+        'originalAmount',
+        src,
+        altKey: 'original_amount',
+      ),
       paymentUuid: _vStr(json, 'paymentUuid', src, altKey: 'payment_uuid'),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
@@ -91,8 +169,10 @@ class PaymentVoidsAdapter extends EntityAdapter<PaymentVoid, PaymentVoidsCompani
       _k(src, 'id', 'id'): model.id,
       _k(src, 'localUuid', 'local_uuid'): model.localUuid,
       _k(src, 'serverId', 'server_id'): model.serverId,
-      _k(src, 'originalPaymentUuid', 'original_payment_uuid'): model.originalPaymentUuid,
-      _k(src, 'originalPaymentId', 'original_payment_id'): model.originalPaymentId,
+      _k(src, 'originalPaymentUuid', 'original_payment_uuid'):
+          model.originalPaymentUuid,
+      _k(src, 'originalPaymentId', 'original_payment_id'):
+          model.originalPaymentId,
       _k(src, 'bookingUuid', 'booking_uuid'): model.bookingUuid,
       _k(src, 'voidedAmount', 'voided_amount'): model.voidedAmount,
       _k(src, 'voidReason', 'void_reason'): model.voidReason,
@@ -100,7 +180,8 @@ class PaymentVoidsAdapter extends EntityAdapter<PaymentVoid, PaymentVoidsCompani
       _k(src, 'voidedAt', 'voided_at'): model.voidedAt,
       _k(src, 'voidedAtIso', 'voided_at_iso'): model.voidedAtIso,
       _k(src, 'hotelDayKey', 'hotel_day_key'): model.hotelDayKey,
-      _k(src, 'reversalPaymentUuid', 'reversal_payment_uuid'): model.reversalPaymentUuid,
+      _k(src, 'reversalPaymentUuid', 'reversal_payment_uuid'):
+          model.reversalPaymentUuid,
       _k(src, 'approvedBy', 'approved_by'): model.approvedBy,
       _k(src, 'createdAt', 'created_at'): model.createdAt,
       _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
@@ -110,7 +191,8 @@ class PaymentVoidsAdapter extends EntityAdapter<PaymentVoid, PaymentVoidsCompani
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
       _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'):
+          model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
@@ -123,13 +205,31 @@ class PaymentVoidsAdapter extends EntityAdapter<PaymentVoid, PaymentVoidsCompani
   }
 }
 
-d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src, {String? altKey, int? fallback}) {
-  final v = _asInt(json, key, src) ?? (altKey != null ? _asInt(json, altKey, src) : null) ?? fallback;
+d.Value<int> _vInt(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  int? fallback,
+}) {
+  final v =
+      _asInt(json, key, src) ??
+      (altKey != null ? _asInt(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src, {String? altKey, String? fallback}) {
-  final v = _asString(json, key, src) ?? (altKey != null ? _asString(json, altKey, src) : null) ?? fallback;
+d.Value<String> _vStr(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  String? fallback,
+}) {
+  final v =
+      _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
@@ -184,7 +284,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) => src == Source.drive ? snake : camel;
+String _k(Source src, String camel, String snake) =>
+    src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
   // ✅ إصلاح: تحويل camelCase → snake_case لجميع المصادر بما فيها Drive
@@ -203,8 +304,15 @@ String? _altKey(String camel, Source src) {
 
 // ✅ Helpers إضافية للحقول الجديدة (v2)
 
-d.Value<double?> _vDoubleNullable(Map<String, dynamic> json, String key, Source src, {String? altKey}) {
-  final v = _asDouble(json, key, src) ?? (altKey != null ? _asFloat(json, altKey, src) : null);
+d.Value<double?> _vDoubleNullable(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+}) {
+  final v =
+      _asDouble(json, key, src) ??
+      (altKey != null ? _asFloat(json, altKey, src) : null);
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 

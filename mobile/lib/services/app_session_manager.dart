@@ -56,7 +56,9 @@ class AppSessionManager {
             AppSessionsCompanion.insert(
               sessionUuid: _activeSessionUuid!,
               sessionStartIso: _sessionStart!.toIso8601String(),
-              deviceId: deviceId != null ? Value(deviceId) : const Value.absent(),
+              deviceId: deviceId != null
+                  ? Value(deviceId)
+                  : const Value.absent(),
               durationSeconds: const Value(0),
             ),
           );
@@ -78,7 +80,9 @@ class AppSessionManager {
     final sessionUuid = _activeSessionUuid;
     if (db != null && sessionUuid != null) {
       final deviceId = await _resolveDeviceId();
-      await (db.update(db.appSessions)..where((tbl) => tbl.sessionUuid.equals(sessionUuid))).write(
+      await (db.update(
+        db.appSessions,
+      )..where((tbl) => tbl.sessionUuid.equals(sessionUuid))).write(
         AppSessionsCompanion(
           sessionEndIso: Value(end.toIso8601String()),
           durationSeconds: Value(durationSeconds),
@@ -127,7 +131,9 @@ class AppSessionManager {
       final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
       if (!appwriteEnabled) {
-        debugPrint('ℹ️ [AppOpen] Appwrite sync is disabled in settings. Skipping pull.');
+        debugPrint(
+          'ℹ️ [AppOpen] Appwrite sync is disabled in settings. Skipping pull.',
+        );
         return;
       }
 
@@ -175,7 +181,9 @@ class AppSessionManager {
       // تحديث وقت آخر سحب ناجح
       await prefs.setInt(lastPullKey, nowMs);
 
-      debugPrint('✅ [AppOpen] Smart pull completed: ${result.recordsPulled} records pulled.');
+      debugPrint(
+        '✅ [AppOpen] Smart pull completed: ${result.recordsPulled} records pulled.',
+      );
     } catch (e) {
       debugPrint('❌ [AppOpen] Error during automatic Appwrite pull: $e');
     }

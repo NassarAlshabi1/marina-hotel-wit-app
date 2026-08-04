@@ -75,7 +75,10 @@ class SyncPullService {
       }
 
       final data = list.documents.first.data;
-      final raw = data['lastModified'] ?? data['last_modified'] ?? data['last_modified_epoch'];
+      final raw =
+          data['lastModified'] ??
+          data['last_modified'] ??
+          data['last_modified_epoch'];
 
       final value = raw is int
           ? raw
@@ -124,7 +127,10 @@ class SyncPullService {
       return [];
     }
     final cutoffSeconds = lastPullTs - _safetyWindowSeconds;
-    final cutoffIso = DateTime.fromMillisecondsSinceEpoch(cutoffSeconds * 1000, isUtc: true).toIso8601String();
+    final cutoffIso = DateTime.fromMillisecondsSinceEpoch(
+      cutoffSeconds * 1000,
+      isUtc: true,
+    ).toIso8601String();
     return [Query.greaterThan(r'$updatedAt', cutoffIso)];
   }
 
@@ -134,10 +140,16 @@ class SyncPullService {
   /// نسخة متزامنة (non-async) تستقبل remoteEpochIsMillis كمعامل للتوافق
   /// مع الكود الموجود، لكنها تتجاهله الآن لأن `$updatedAt` بصيغة ISO
   /// (لا يتأثر بوحدة الثواني/الميلي ثانية).
-  List<String> bookingNightsDeltaQueries(int lastPullTs, {required bool remoteEpochIsMillis}) {
+  List<String> bookingNightsDeltaQueries(
+    int lastPullTs, {
+    required bool remoteEpochIsMillis,
+  }) {
     if (lastPullTs > 0) {
       final cutoffSeconds = lastPullTs - _safetyWindowSeconds;
-      final cutoffIso = DateTime.fromMillisecondsSinceEpoch(cutoffSeconds * 1000, isUtc: true).toIso8601String();
+      final cutoffIso = DateTime.fromMillisecondsSinceEpoch(
+        cutoffSeconds * 1000,
+        isUtc: true,
+      ).toIso8601String();
       return [Query.greaterThan(r'$updatedAt', cutoffIso)];
     }
     return []; // full fetch
@@ -168,7 +180,9 @@ class SyncPullService {
   /// يُعالج الحالة التي يكون فيها الطابع الزمني بالميلي ثانية.
   Future<int> getLastPullTs() async {
     try {
-      final state = await (database.select(database.syncState)..where((t) => t.id.equals(1))).getSingleOrNull();
+      final state = await (database.select(
+        database.syncState,
+      )..where((t) => t.id.equals(1))).getSingleOrNull();
       final ts = state?.lastPullTs ?? 0;
       if (ts > 10000000000) {
         return ts ~/ 1000;
@@ -189,7 +203,12 @@ class SyncPullService {
     try {
       await database
           .into(database.syncState)
-          .insertOnConflictUpdate(SyncStateCompanion(id: const drift.Value(1), lastPullTs: drift.Value(ts)));
+          .insertOnConflictUpdate(
+            SyncStateCompanion(
+              id: const drift.Value(1),
+              lastPullTs: drift.Value(ts),
+            ),
+          );
     } catch (e) {
       _logger.warning('Failed to update lastPullTs: $e', tag: 'SYNC');
     }

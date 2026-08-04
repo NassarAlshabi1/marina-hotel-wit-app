@@ -3,14 +3,24 @@ import 'package:crypto/crypto.dart';
 
 /// حالة المزامنة الحالية لبث التحديثات إلى الواجهة
 class SyncStatus {
-  SyncStatus({required this.phase, required this.message, this.progress, this.error});
+  SyncStatus({
+    required this.phase,
+    required this.message,
+    this.progress,
+    this.error,
+  });
 
   final SyncPhase phase;
   final String message;
   final double? progress;
   final Object? error;
 
-  SyncStatus copyWith({SyncPhase? phase, String? message, double? progress, Object? error}) {
+  SyncStatus copyWith({
+    SyncPhase? phase,
+    String? message,
+    double? progress,
+    Object? error,
+  }) {
     return SyncStatus(
       phase: phase ?? this.phase,
       message: message ?? this.message,
@@ -76,12 +86,19 @@ class SyncSnapshot {
     final rawTables = json['tables'] as Map<String, dynamic>? ?? {};
     final parsedTables = <String, List<Map<String, dynamic>>>{};
     for (final entry in rawTables.entries) {
-      final list = (entry.value as List<dynamic>? ?? []).map((item) => Map<String, dynamic>.from(item as Map)).toList();
+      final list = (entry.value as List<dynamic>? ?? [])
+          .map((item) => Map<String, dynamic>.from(item as Map))
+          .toList();
       parsedTables[entry.key] = list;
     }
     final metadataSource = json['metadata'];
-    final metadataJson = metadataSource is Map ? Map<String, dynamic>.from(metadataSource) : <String, dynamic>{};
-    return SyncSnapshot(metadata: SyncMetadata.fromJson(metadataJson), tables: parsedTables);
+    final metadataJson = metadataSource is Map
+        ? Map<String, dynamic>.from(metadataSource)
+        : <String, dynamic>{};
+    return SyncSnapshot(
+      metadata: SyncMetadata.fromJson(metadataJson),
+      tables: parsedTables,
+    );
   }
 
   final SyncMetadata metadata;
@@ -143,7 +160,11 @@ class SyncQueueEntry {
 
 /// نتيجة الدمج تحتوي على النسخة المحدثة وقائمة العمليات المطبقة
 class SyncMergeResult {
-  SyncMergeResult({required this.mergedSnapshot, required this.appliedOperations, required this.conflicts});
+  SyncMergeResult({
+    required this.mergedSnapshot,
+    required this.appliedOperations,
+    required this.conflicts,
+  });
 
   final SyncSnapshot mergedSnapshot;
   final List<SyncOperation> appliedOperations;
@@ -207,7 +228,9 @@ class SyncChecksum {
 
   /// حساب checksum وطول البيانات الخام في method واحد
   /// لتجنب تسلسل الـ JSON مرتين.
-  static ({String checksum, int rawByteLength}) computeWithLength(Map<String, dynamic> data) {
+  static ({String checksum, int rawByteLength}) computeWithLength(
+    Map<String, dynamic> data,
+  ) {
     final normalized = normalize(data);
     final normalizedBytes = utf8.encode(jsonEncode(normalized));
     final checksum = sha256.convert(normalizedBytes).toString();
@@ -270,7 +293,11 @@ class SyncResult {
 
 /// نتيجة التحقق من صحة Mirror
 class MirrorValidationResult {
-  MirrorValidationResult({required this.isValid, required this.issues, required this.validatedAt});
+  MirrorValidationResult({
+    required this.isValid,
+    required this.issues,
+    required this.validatedAt,
+  });
 
   final bool isValid;
   final List<String> issues;

@@ -14,15 +14,16 @@ void main() {
     SharedPreferences.setMockInitialValues({});
 
     // Mock path_provider لتجنب MissingPluginException من appwrite client
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
-      const MethodChannel('plugins.flutter.io/path_provider'),
-      (MethodCall methodCall) async {
-        if (methodCall.method == 'getApplicationDocumentsDirectory') {
-          return Directory.systemTemp.path;
-        }
-        return null;
-      },
-    );
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+          const MethodChannel('plugins.flutter.io/path_provider'),
+          (MethodCall methodCall) async {
+            if (methodCall.method == 'getApplicationDocumentsDirectory') {
+              return Directory.systemTemp.path;
+            }
+            return null;
+          },
+        );
 
     await SecondaryAppwriteConfig.ensureInitialized();
   });

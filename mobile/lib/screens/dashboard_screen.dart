@@ -273,7 +273,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               final expensesAsync = ref.watch(todayExpensesProvider);
 
               // التعامل مع حالة التحميل
-              final isLoading = incomeAsync.isLoading || expensesAsync.isLoading;
+              final isLoading =
+                  incomeAsync.isLoading || expensesAsync.isLoading;
               final hasError = incomeAsync.hasError || expensesAsync.hasError;
 
               if (isLoading) {
@@ -651,7 +652,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ? '$tooltipText — تنبيه: السداد بعد ساعة (22:00+)'
           : tooltipText,
       child: GestureDetector(
-        onLongPress: rws != null ? () => _showRoomOptionsDialog(context, rws.room) : null,
+        onLongPress: rws != null
+            ? () => _showRoomOptionsDialog(context, rws.room)
+            : null,
         child: Material(
           key: ValueKey('room_$roomNumber$keySuffix'),
           color: alertDecoration == null ? bgColor : Colors.transparent,
@@ -853,7 +856,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             context,
           ).push<void>(
             MaterialPageRoute<void>(
-              builder: (context) => BookingPaymentScreen(booking: activeBooking),
+              builder: (context) =>
+                  BookingPaymentScreen(booking: activeBooking),
             ),
           ),
         );

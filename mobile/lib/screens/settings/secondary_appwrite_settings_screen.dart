@@ -23,10 +23,12 @@ class SecondaryAppwriteSettingsScreen extends ConsumerStatefulWidget {
   const SecondaryAppwriteSettingsScreen({super.key});
 
   @override
-  ConsumerState<SecondaryAppwriteSettingsScreen> createState() => _SecondaryAppwriteSettingsScreenState();
+  ConsumerState<SecondaryAppwriteSettingsScreen> createState() =>
+      _SecondaryAppwriteSettingsScreenState();
 }
 
-class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwriteSettingsScreen> {
+class _SecondaryAppwriteSettingsScreenState
+    extends ConsumerState<SecondaryAppwriteSettingsScreen> {
   final _endpointCtrl = TextEditingController();
   final _projectIdCtrl = TextEditingController();
   final _databaseIdCtrl = TextEditingController();
@@ -94,10 +96,16 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
           'هل تريد المتابعة؟',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('استعادة'),
           ),
         ],
@@ -132,7 +140,10 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ فشل الاستعادة: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('❌ فشل الاستعادة: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -181,13 +192,23 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('✅ تم حفظ الإعدادات'), backgroundColor: Colors.green));
+        ).showSnackBar(
+          const SnackBar(
+            content: Text('✅ تم حفظ الإعدادات'),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('❌ فشل الحفظ: $e'), backgroundColor: Colors.red));
+        ).showSnackBar(
+          SnackBar(
+            content: Text('❌ فشل الحفظ: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -221,7 +242,8 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
       if (endpoint.isEmpty || projectId.isEmpty || databaseId.isEmpty) {
         setState(() {
           _testSuccess = false;
-          _testResult = 'يرجى ملء جميع الحقول (Endpoint، Project ID، Database ID)';
+          _testResult =
+              'يرجى ملء جميع الحقول (Endpoint، Project ID، Database ID)';
         });
         return;
       }
@@ -281,7 +303,11 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
       );
     } catch (e) {
       stopwatch.stop();
-      return ConnectionTestResult(success: false, message: '❌ فشل: $e', latencyMs: stopwatch.elapsedMilliseconds);
+      return ConnectionTestResult(
+        success: false,
+        message: '❌ فشل: $e',
+        latencyMs: stopwatch.elapsedMilliseconds,
+      );
     }
   }
 
@@ -310,8 +336,14 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop<bool>(context, false), child: const Text('إلغاء')),
-          ElevatedButton(onPressed: () => Navigator.pop<bool>(context, true), child: const Text('بدء الرفع')),
+          TextButton(
+            onPressed: () => Navigator.pop<bool>(context, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop<bool>(context, true),
+            child: const Text('بدء الرفع'),
+          ),
         ],
       ),
     );
@@ -352,7 +384,9 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
         _currentCollectionRecords = progress.totalRecords;
         _currentCollectionDone = progress.collectionProgress;
         _completedRecords = progress.successCount + progress.failureCount;
-        _totalRecordsToUpload = progress.totalRecords > 0 ? progress.totalRecords : _totalRecordsToUpload;
+        _totalRecordsToUpload = progress.totalRecords > 0
+            ? progress.totalRecords
+            : _totalRecordsToUpload;
       });
     });
 
@@ -369,7 +403,8 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
             _fullBackupResult = '❌ ${stats.error}';
           } else if (stats.failureCount == 0) {
             _fullBackupSuccess = true;
-            _fullBackupResult = '✅ تم رفع ${stats.successCount} سجل بنجاح في ${stats.totalCollections} جدول';
+            _fullBackupResult =
+                '✅ تم رفع ${stats.successCount} سجل بنجاح في ${stats.totalCollections} جدول';
           } else {
             _fullBackupSuccess = stats.successCount > 0;
             _fullBackupResult =
@@ -383,7 +418,9 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(_fullBackupResult),
-            backgroundColor: _fullBackupSuccess == true ? Colors.green : Colors.orange,
+            backgroundColor: _fullBackupSuccess == true
+                ? Colors.green
+                : Colors.orange,
           ),
         );
       }
@@ -398,7 +435,9 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
         });
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('فشل الرفع: $e'), backgroundColor: Colors.red));
+        ).showSnackBar(
+          SnackBar(content: Text('فشل الرفع: $e'), backgroundColor: Colors.red),
+        );
       }
     }
   }
@@ -420,14 +459,24 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: stats.failedCollections == 0 ? Colors.green.shade50 : Colors.orange.shade50,
+                  color: stats.failedCollections == 0
+                      ? Colors.green.shade50
+                      : Colors.orange.shade50,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildSummaryChip('إجمالي الجداول', '${stats.totalCollections}', Colors.blue),
-                    _buildSummaryChip('مكتمل', '${stats.fullySuccessfulCollections}', Colors.green),
+                    _buildSummaryChip(
+                      'إجمالي الجداول',
+                      '${stats.totalCollections}',
+                      Colors.blue,
+                    ),
+                    _buildSummaryChip(
+                      'مكتمل',
+                      '${stats.fullySuccessfulCollections}',
+                      Colors.green,
+                    ),
                     _buildSummaryChip(
                       'فاشل',
                       '${stats.failedCollections}',
@@ -451,11 +500,19 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.error_outline, size: 16, color: Colors.red),
+                          const Icon(
+                            Icons.error_outline,
+                            size: 16,
+                            color: Colors.red,
+                          ),
                           const SizedBox(width: 6),
                           Text(
                             'أسباب الفشل (${stats.failedRecords.length} سجل):',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.red),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red,
+                            ),
                           ),
                         ],
                       ),
@@ -465,17 +522,29 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                           padding: const EdgeInsets.only(bottom: 3),
                           child: Row(
                             children: [
-                              const Icon(Icons.arrow_left, size: 12, color: Colors.red),
+                              const Icon(
+                                Icons.arrow_left,
+                                size: 12,
+                                color: Colors.red,
+                              ),
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
                                   entry.key,
-                                  style: TextStyle(fontSize: 10, color: Colors.red.shade700, fontFamily: 'monospace'),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.red.shade700,
+                                    fontFamily: 'monospace',
+                                  ),
                                 ),
                               ),
                               Text(
                                 '×${entry.value}',
-                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.red.shade700),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red.shade700,
+                                ),
                               ),
                               IconButton(
                                 onPressed: () => _copyToClipboard(entry.key),
@@ -494,7 +563,10 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                 const SizedBox(height: 12),
               ],
 
-              const Text('تفاصيل كل جدول:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              const Text(
+                'تفاصيل كل جدول:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
               const SizedBox(height: 8),
               Flexible(
                 child: ListView.builder(
@@ -504,7 +576,8 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                     final d = details[index];
                     final isOk = d['isFullySuccessful'] as bool;
                     final name = d['name'] as String;
-                    final collectionFailures = stats.failuresByCollection[name] ?? [];
+                    final collectionFailures =
+                        stats.failuresByCollection[name] ?? [];
                     return ExpansionTile(
                       dense: true,
                       tilePadding: EdgeInsets.zero,
@@ -513,15 +586,29 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                         color: isOk ? Colors.green : Colors.red,
                         size: 20,
                       ),
-                      title: Text(name, style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
+                      title: Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
                       subtitle: Text(
                         'نجح: ${d['success']} / فشل: ${d['failure']} / إجمالي: ${d['total']}',
-                        style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey.shade600,
+                        ),
                       ),
                       trailing: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
-                          color: isOk ? Colors.green.shade50 : Colors.red.shade50,
+                          color: isOk
+                              ? Colors.green.shade50
+                              : Colors.red.shade50,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -536,7 +623,11 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                       children: [
                         if (collectionFailures.isNotEmpty)
                           Padding(
-                            padding: const EdgeInsets.only(left: 32, right: 8, bottom: 8),
+                            padding: const EdgeInsets.only(
+                              left: 32,
+                              right: 8,
+                              bottom: 8,
+                            ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: collectionFailures
@@ -557,8 +648,13 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                                             ),
                                           ),
                                           IconButton(
-                                            onPressed: () => _copyToClipboard('${f.documentId ?? '?'}: ${f.reason}'),
-                                            icon: const Icon(Icons.copy, size: 12),
+                                            onPressed: () => _copyToClipboard(
+                                              '${f.documentId ?? '?'}: ${f.reason}',
+                                            ),
+                                            icon: const Icon(
+                                              Icons.copy,
+                                              size: 12,
+                                            ),
                                             tooltip: 'نسخ الخطأ',
                                             padding: EdgeInsets.zero,
                                             constraints: const BoxConstraints(),
@@ -578,7 +674,12 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
             ],
           ),
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق'))],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إغلاق'),
+          ),
+        ],
       ),
     );
   }
@@ -589,7 +690,11 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
       children: [
         Text(
           value,
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
         ),
         Text(label, style: TextStyle(fontSize: 9, color: Colors.grey.shade600)),
       ],
@@ -597,8 +702,11 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
   }
 
   Widget _buildCountdownCard() {
-    final remainingCollections = _totalCollectionsToUpload - _completedCollections;
-    final collectionProgress = _totalCollectionsToUpload > 0 ? _completedCollections / _totalCollectionsToUpload : 0.0;
+    final remainingCollections =
+        _totalCollectionsToUpload - _completedCollections;
+    final collectionProgress = _totalCollectionsToUpload > 0
+        ? _completedCollections / _totalCollectionsToUpload
+        : 0.0;
 
     String elapsedStr = '';
     String etaStr = '';
@@ -608,7 +716,8 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
 
       if (_completedCollections > 0 && _totalCollectionsToUpload > 0) {
         final avgPerCollection = elapsed.inSeconds / _completedCollections;
-        final remainingSeconds = (remainingCollections * avgPerCollection).round();
+        final remainingSeconds = (remainingCollections * avgPerCollection)
+            .round();
         final etaMin = remainingSeconds ~/ 60;
         final etaSec = remainingSeconds % 60;
         etaStr = '$etaMinد $etaSecث';
@@ -625,24 +734,43 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
           children: [
             Row(
               children: [
-                const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
                 const SizedBox(width: 8),
-                const Text('جاري رفع البيانات...', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                const Text(
+                  'جاري رفع البيانات...',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                ),
                 const Spacer(),
-                Text(elapsedStr, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                Text(
+                  elapsedStr,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                ),
               ],
             ),
             const SizedBox(height: 12),
 
             Row(
               children: [
-                Text('الجداول: ', style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                Text(
+                  'الجداول: ',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                ),
                 Text(
                   '$_completedCollections / $_totalCollectionsToUpload',
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(width: 8),
-                Text('(متبقي: $remainingCollections)', style: TextStyle(fontSize: 11, color: Colors.orange.shade700)),
+                Text(
+                  '(متبقي: $remainingCollections)',
+                  style: TextStyle(fontSize: 11, color: Colors.orange.shade700),
+                ),
               ],
             ),
             const SizedBox(height: 6),
@@ -657,7 +785,10 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
 
             if (_currentCollectionName.isNotEmpty) ...[
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.deepPurple.shade50,
                   borderRadius: BorderRadius.circular(8),
@@ -665,7 +796,11 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.table_chart, size: 14, color: Colors.deepPurple.shade700),
+                    Icon(
+                      Icons.table_chart,
+                      size: 14,
+                      color: Colors.deepPurple.shade700,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -680,17 +815,24 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                     ),
                     Text(
                       '$_currentCollectionDone / $_currentCollectionRecords',
-                      style: TextStyle(fontSize: 11, color: Colors.deepPurple.shade600),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.deepPurple.shade600,
+                      ),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 8),
               LinearProgressIndicator(
-                value: _currentCollectionRecords > 0 ? _currentCollectionDone / _currentCollectionRecords : 0,
+                value: _currentCollectionRecords > 0
+                    ? _currentCollectionDone / _currentCollectionRecords
+                    : 0,
                 minHeight: 4,
                 backgroundColor: Colors.grey.shade200,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.deepPurple.shade300),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  Colors.deepPurple.shade300,
+                ),
                 borderRadius: BorderRadius.circular(2),
               ),
             ],
@@ -699,9 +841,24 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildCountdownStat('منقضي', elapsedStr, Icons.timer, Colors.blue),
-                _buildCountdownStat('متبقي', etaStr.isEmpty ? '—' : etaStr, Icons.hourglass_top, Colors.orange),
-                _buildCountdownStat('سجلات', '$_completedRecords', Icons.list, Colors.green),
+                _buildCountdownStat(
+                  'منقضي',
+                  elapsedStr,
+                  Icons.timer,
+                  Colors.blue,
+                ),
+                _buildCountdownStat(
+                  'متبقي',
+                  etaStr.isEmpty ? '—' : etaStr,
+                  Icons.hourglass_top,
+                  Colors.orange,
+                ),
+                _buildCountdownStat(
+                  'سجلات',
+                  '$_completedRecords',
+                  Icons.list,
+                  Colors.green,
+                ),
               ],
             ),
           ],
@@ -710,7 +867,12 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
     );
   }
 
-  Widget _buildCountdownStat(String label, String value, IconData icon, Color color) {
+  Widget _buildCountdownStat(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -718,7 +880,11 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
         const SizedBox(height: 4),
         Text(
           value,
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color),
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
         ),
         Text(label, style: TextStyle(fontSize: 9, color: Colors.grey.shade600)),
       ],
@@ -728,7 +894,10 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
   Future<void> _toggleFailover(bool active) async {
     if (active && !SecondaryAppwriteConfig.isConfigured) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('⚠️ يجب إدخال بيانات الاتصال أولاً وحفظها'), backgroundColor: Colors.orange),
+        const SnackBar(
+          content: Text('⚠️ يجب إدخال بيانات الاتصال أولاً وحفظها'),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
@@ -755,7 +924,12 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('❌ فشل التبديل: $e'), backgroundColor: Colors.red));
+        ).showSnackBar(
+          SnackBar(
+            content: Text('❌ فشل التبديل: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _switchingFailover = false);
@@ -785,7 +959,11 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
             IconButton(
               onPressed: _saving ? null : _save,
               icon: _saving
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Icon(Icons.save),
               tooltip: 'حفظ',
             ),
@@ -810,7 +988,10 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
 
             Card(
               child: SwitchListTile(
-                title: const Text('تفعيل الوجهة الثانوية', style: TextStyle(fontWeight: FontWeight.bold)),
+                title: const Text(
+                  'تفعيل الوجهة الثانوية',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 subtitle: Text(
                   enabled ? 'مفعّل' : 'معطّل',
                   style: TextStyle(color: enabled ? Colors.green : Colors.grey),
@@ -833,8 +1014,11 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                     // تفعيل: نُعلّم كل السجلات كـ "غير مُسلّمة للثانوي" ليتم رفعها
                     final db = ref.read(databaseProvider);
                     final outboxDao = OutboxDao(db);
-                    final count = await outboxDao.markAllLocalAsUndeliveredToSecondary();
-                    debugPrint('🔵 [Secondary] Marked $count records as undelivered to secondary');
+                    final count = await outboxDao
+                        .markAllLocalAsUndeliveredToSecondary();
+                    debugPrint(
+                      '🔵 [Secondary] Marked $count records as undelivered to secondary',
+                    );
                     if (SecondaryAppwriteConfig.isPushEnabled) {
                       SecondarySyncManager.instance.startAutoSync();
                     }
@@ -842,8 +1026,11 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                     // تعطيل: نُعلّم كل السجلات كـ "مُسلّمة للثانوي" لمنع حجبها
                     final db = ref.read(databaseProvider);
                     final outboxDao = OutboxDao(db);
-                    final count = await outboxDao.markAllLocalAsDeliveredToSecondary();
-                    debugPrint('🔵 [Secondary] Marked $count records as delivered to secondary (disabled)');
+                    final count = await outboxDao
+                        .markAllLocalAsDeliveredToSecondary();
+                    debugPrint(
+                      '🔵 [Secondary] Marked $count records as delivered to secondary (disabled)',
+                    );
                     SecondarySyncManager.instance.stopAutoSync();
                   }
                   setState(() {});
@@ -863,14 +1050,19 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                         color: failoverActive ? Colors.orange : Colors.blue,
                       ),
                       const SizedBox(width: 8),
-                      const Text('تجاوز الفشل (Failover)', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const Text(
+                        'تجاوز الفشل (Failover)',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ],
                   ),
                   subtitle: Text(
                     failoverActive
                         ? '⚠️ نشط — كل العمليات تتم على الوجهة الثانوية'
                         : 'عند التفعيل: استخدم الثانوية كوجهة أساسية مؤقتاً',
-                    style: TextStyle(color: failoverActive ? Colors.orange : Colors.grey),
+                    style: TextStyle(
+                      color: failoverActive ? Colors.orange : Colors.grey,
+                    ),
                   ),
                   value: failoverActive,
                   onChanged: _switchingFailover ? null : _toggleFailover,
@@ -885,7 +1077,10 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
             //  حتى يتمكن المستخدم من تعديلها قبل التفعيل، ولأنها ممتلئة بقيم
             //  افتراضية صالحة عند فتح الشاشة لأول مرة.
             // ════════════════════════════════════════════════════════════════
-            const Text('بيانات الاتصال', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              'بيانات الاتصال',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 4),
             Text(
               'القيم الحالية هي الافتراضية المُدمجة. يُمكنك تعديلها في أي وقت ثم الضغط على حفظ.',
@@ -935,8 +1130,11 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.key),
                 suffixIcon: IconButton(
-                  icon: Icon(_obscureApiKey ? Icons.visibility : Icons.visibility_off),
-                  onPressed: () => setState(() => _obscureApiKey = !_obscureApiKey),
+                  icon: Icon(
+                    _obscureApiKey ? Icons.visibility : Icons.visibility_off,
+                  ),
+                  onPressed: () =>
+                      setState(() => _obscureApiKey = !_obscureApiKey),
                 ),
               ),
               autocorrect: false,
@@ -948,7 +1146,10 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
             //  العمليات المفعّلة — Push مُفعّل افتراضياً (الرفع فقط)
             //  يُمكن للمستخدم تعطيل Push في أي وقت، وتفعيل Pull إن احتاج.
             // ════════════════════════════════════════════════════════════════
-            const Text('العمليات المفعّلة', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text(
+              'العمليات المفعّلة',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 4),
             Text(
               'الإعداد الافتراضي: Push مُفعّل، Pull معطّل. '
@@ -967,7 +1168,9 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                         Text('Push (رفع البيانات)'),
                       ],
                     ),
-                    subtitle: const Text('نسخ التغييرات من هذا الجهاز إلى الوجهة الثانوية'),
+                    subtitle: const Text(
+                      'نسخ التغييرات من هذا الجهاز إلى الوجهة الثانوية',
+                    ),
                     value: pushEnabled,
                     onChanged: (v) async {
                       await SecondaryAppwriteConfig.saveConfig(
@@ -992,12 +1195,18 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                   SwitchListTile(
                     title: const Row(
                       children: [
-                        Icon(Icons.cloud_download, size: 20, color: Colors.orange),
+                        Icon(
+                          Icons.cloud_download,
+                          size: 20,
+                          color: Colors.orange,
+                        ),
                         SizedBox(width: 8),
                         Text('Pull (سحب البيانات)'),
                       ],
                     ),
-                    subtitle: const Text('عند تفعيل Failover: السحب من الوجهة الثانوية'),
+                    subtitle: const Text(
+                      'عند تفعيل Failover: السحب من الوجهة الثانوية',
+                    ),
                     value: pullEnabled,
                     onChanged: (v) async {
                       await SecondaryAppwriteConfig.saveConfig(
@@ -1019,16 +1228,29 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
             const SizedBox(height: 16),
 
             if (enabled && isConfigured) ...[
-              if (_uploadingFullBackup) ...[_buildCountdownCard(), const SizedBox(height: 12)],
+              if (_uploadingFullBackup) ...[
+                _buildCountdownCard(),
+                const SizedBox(height: 12),
+              ],
               Row(
                 children: [
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: _uploadingFullBackup ? null : _uploadFullBackup,
+                      onPressed: _uploadingFullBackup
+                          ? null
+                          : _uploadFullBackup,
                       icon: _uploadingFullBackup
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
                           : const Icon(Icons.backup),
-                      label: Text(_uploadingFullBackup ? 'جاري الرفع...' : 'رفع نسخة شاملة'),
+                      label: Text(
+                        _uploadingFullBackup
+                            ? 'جاري الرفع...'
+                            : 'رفع نسخة شاملة',
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.deepPurple,
                         foregroundColor: Colors.white,
@@ -1042,15 +1264,25 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: _fullBackupSuccess == true ? Colors.green.shade50 : Colors.red.shade50,
+                    color: _fullBackupSuccess == true
+                        ? Colors.green.shade50
+                        : Colors.red.shade50,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: _fullBackupSuccess == true ? Colors.green.shade200 : Colors.red.shade200),
+                    border: Border.all(
+                      color: _fullBackupSuccess == true
+                          ? Colors.green.shade200
+                          : Colors.red.shade200,
+                    ),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        _fullBackupSuccess == true ? Icons.check_circle : Icons.error,
-                        color: _fullBackupSuccess == true ? Colors.green : Colors.red,
+                        _fullBackupSuccess == true
+                            ? Icons.check_circle
+                            : Icons.error,
+                        color: _fullBackupSuccess == true
+                            ? Colors.green
+                            : Colors.red,
                       ),
                       const SizedBox(width: 8),
                       Expanded(child: Text(_fullBackupResult)),
@@ -1071,7 +1303,11 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                     child: OutlinedButton.icon(
                       onPressed: _testingConnection ? null : _testConnection,
                       icon: _testingConnection
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
                           : const Icon(Icons.wifi_tethering),
                       label: const Text('اختبار الاتصال'),
                     ),
@@ -1083,9 +1319,15 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: _testSuccess == true ? Colors.green.shade50 : Colors.red.shade50,
+                    color: _testSuccess == true
+                        ? Colors.green.shade50
+                        : Colors.red.shade50,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: _testSuccess == true ? Colors.green.shade200 : Colors.red.shade200),
+                    border: Border.all(
+                      color: _testSuccess == true
+                          ? Colors.green.shade200
+                          : Colors.red.shade200,
+                    ),
                   ),
                   child: Row(
                     children: [
@@ -1126,8 +1368,14 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                         'هل أنت متأكد؟',
                       ),
                       actions: [
-                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
-                        TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('مسح')),
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('إلغاء'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: const Text('مسح'),
+                        ),
                       ],
                     ),
                   );
@@ -1136,11 +1384,16 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
                   SecondaryAppwriteService().invalidate();
                   _loadConfig();
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🧹 تم مسح الإعدادات')));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('🧹 تم مسح الإعدادات')),
+                    );
                   }
                 },
                 icon: const Icon(Icons.delete_outline, color: Colors.red),
-                label: const Text('مسح الإعدادات', style: TextStyle(color: Colors.red)),
+                label: const Text(
+                  'مسح الإعدادات',
+                  style: TextStyle(color: Colors.red),
+                ),
               ),
             ],
 
@@ -1154,7 +1407,12 @@ class _SecondaryAppwriteSettingsScreenState extends ConsumerState<SecondaryAppwr
 
 /// بطاقة معلومات بسيطة
 class _InfoCard extends StatelessWidget {
-  const _InfoCard({required this.icon, required this.color, required this.title, required this.body});
+  const _InfoCard({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.body,
+  });
 
   final IconData icon;
   final Color color;
@@ -1175,9 +1433,18 @@ class _InfoCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text(body, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text(
+                    body,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
                 ],
               ),
             ),

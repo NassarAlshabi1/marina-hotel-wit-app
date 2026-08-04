@@ -8,18 +8,26 @@ import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
 
-class SalaryWithdrawalsAdapter extends EntityAdapter<SalaryWithdrawal, SalaryWithdrawalsCompanion> {
+class SalaryWithdrawalsAdapter
+    extends EntityAdapter<SalaryWithdrawal, SalaryWithdrawalsCompanion> {
   SalaryWithdrawalsAdapter(this.resolver);
   final IdResolver resolver;
 
   /// ✅ كتابة expense_id في عمود SQL خام بعد الإدراج
   /// العمود أُضيف عبر Migration 40 ولا يوجد في الـ data class المُولّد
-  Future<void> writeExpenseIdRaw(AppDatabase db, int salaryWithdrawalId, int expenseId) async {
+  Future<void> writeExpenseIdRaw(
+    AppDatabase db,
+    int salaryWithdrawalId,
+    int expenseId,
+  ) async {
     try {
-      await db.customStatement('UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?', [
-        expenseId,
-        salaryWithdrawalId,
-      ]);
+      await db.customStatement(
+        'UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?',
+        [
+          expenseId,
+          salaryWithdrawalId,
+        ],
+      );
     } catch (_) {
       // العمود قد لا يكون موجوداً
     }
@@ -35,15 +43,21 @@ class SalaryWithdrawalsAdapter extends EntityAdapter<SalaryWithdrawal, SalaryWit
   String get tableName => 'salary_withdrawals';
 
   @override
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
+  Future<ResolveResult> resolveRefs(
+    AppDatabase db,
+    Map<String, dynamic> json, {
+    required Source src,
+  }) async {
     // ✅ حل FK الموظف بالترتيب: UUID -> id -> serverId -> employeeId
     final remoteEmployeeUuid =
         _asString(json, 'employeeUuid', src) ??
         _asString(json, 'employee_uuid', src) ??
         _asString(json, 'employeeLocalUuid', src) ??
         _asString(json, 'employee_local_uuid', src);
-    final remoteEmployeeId = _asInt(json, 'employeeId', src) ?? _asInt(json, 'employee_id', src);
-    final remoteServerId = _asInt(json, 'serverId', src) ?? _asInt(json, 'server_id', src);
+    final remoteEmployeeId =
+        _asInt(json, 'employeeId', src) ?? _asInt(json, 'employee_id', src);
+    final remoteServerId =
+        _asInt(json, 'serverId', src) ?? _asInt(json, 'server_id', src);
 
     final resolvedEmployeeId = await resolver.resolveEmployee(
       uuid: remoteEmployeeUuid,
@@ -57,7 +71,9 @@ class SalaryWithdrawalsAdapter extends EntityAdapter<SalaryWithdrawal, SalaryWit
 
     // ✅ إصلاح حرج: إذا لم يتم العثور على الموظف المرتبط، نُعلم السجل للتخطي
     // لأن employeeId حقل مطلوب (NOT NULL FK) في جدول salary_withdrawals
-    final shouldSkip = resolvedEmployeeId == null && (src == Source.appwrite || src == Source.drive);
+    final shouldSkip =
+        resolvedEmployeeId == null &&
+        (src == Source.appwrite || src == Source.drive);
     final skipReason = shouldSkip
         ? 'salary_withdrawal: لا يمكن العثور على الموظف المرتبط '
               '(uuid=$remoteEmployeeUuid, serverId=$remoteServerId, localId=$remoteEmployeeId) '
@@ -74,10 +90,18 @@ class SalaryWithdrawalsAdapter extends EntityAdapter<SalaryWithdrawal, SalaryWit
   }
 
   @override
-  SalaryWithdrawalsCompanion fromJson(Map<String, dynamic> json, {required Source src, required ResolveResult refs}) {
+  SalaryWithdrawalsCompanion fromJson(
+    Map<String, dynamic> json, {
+    required Source src,
+    required ResolveResult refs,
+  }) {
     final now = Time.nowEpoch();
-    final createdAt = refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified = refs.lastModifiedEpoch ?? _epoch(json, 'lastModified', src) ?? createdAt;
+    final createdAt =
+        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final lastModified =
+        refs.lastModifiedEpoch ??
+        _epoch(json, 'lastModified', src) ??
+        createdAt;
     // دعم الحقول القديمة من Appwrite (date, action, note, notes, expenseId)
     // عند السحب من السيرفر، قد تأتي بالحقل القديم أو الجديد
     final appwriteDate = _asString(json, 'date', src);
@@ -87,7 +111,8 @@ class SalaryWithdrawalsAdapter extends EntityAdapter<SalaryWithdrawal, SalaryWit
     final appwriteExpenseId = _asInt(json, 'expenseId', src);
     final wd = _asString(json, 'withdrawDate', src) ?? appwriteDate ?? '';
     final wt = _asString(json, 'withdrawalType', src) ?? appwriteAction;
-    final desc = _asString(json, 'description', src) ?? appwriteNotes ?? appwriteNote;
+    final desc =
+        _asString(json, 'description', src) ?? appwriteNotes ?? appwriteNote;
     String? reasonVal = _asString(json, 'reason', src);
     if (reasonVal == null && appwriteExpenseId != null) {
       reasonVal = 'exp_$appwriteExpenseId';
@@ -95,7 +120,11 @@ class SalaryWithdrawalsAdapter extends EntityAdapter<SalaryWithdrawal, SalaryWit
 
     return SalaryWithdrawalsCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(_asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src) ?? IdGen.uuid()),
+      localUuid: d.Value(
+        _asString(json, 'localUuid', src) ??
+            _asString(json, 'local_uuid', src) ??
+            IdGen.uuid(),
+      ),
       serverId: _vInt(json, 'serverId', src),
       // ✅ إصلاح دقيق: استخدام employeeLocalId المحلول بدل القيمة الخام من Appwrite
       // إذا لم يتم حل الموظف (لا يوجد محلياً — يتيم أو محذوف)، نتخطى الحقل
@@ -123,7 +152,12 @@ class SalaryWithdrawalsAdapter extends EntityAdapter<SalaryWithdrawal, SalaryWit
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
       createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
-      lastModifiedEpoch: _vInt(json, 'lastModifiedEpoch', src, fallback: lastModified),
+      lastModifiedEpoch: _vInt(
+        json,
+        'lastModifiedEpoch',
+        src,
+        fallback: lastModified,
+      ),
       version: _vInt(json, 'version', src, fallback: 1),
       // ✅ إصلاح: عند src=Source.appwrite، نصر على origin='server' دائماً
       // لمنع مشكلة أن البيانات المسحوبة من السيرفر تحمل origin='mobile'
@@ -131,8 +165,19 @@ class SalaryWithdrawalsAdapter extends EntityAdapter<SalaryWithdrawal, SalaryWit
       origin: src == Source.appwrite || src == Source.drive
           ? const d.Value('server')
           : _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vStr(json, 'vectorClock', src, altKey: 'vector_clock', fallback: '{}'),
-      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
+      vectorClock: _vStr(
+        json,
+        'vectorClock',
+        src,
+        altKey: 'vector_clock',
+        fallback: '{}',
+      ),
+      idempotencyKey: _vStr(
+        json,
+        'idempotencyKey',
+        src,
+        altKey: 'idempotency_key',
+      ),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -173,7 +218,8 @@ class SalaryWithdrawalsAdapter extends EntityAdapter<SalaryWithdrawal, SalaryWit
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
       _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'):
+          model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
@@ -206,18 +252,45 @@ class SalaryWithdrawalsAdapter extends EntityAdapter<SalaryWithdrawal, SalaryWit
 
 // ─── Helpers ───────────────────────────────────────────────────────────
 
-d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src, {String? altKey, int? fallback}) {
-  final v = _asInt(json, key, src) ?? (altKey != null ? _asInt(json, altKey, src) : null) ?? fallback;
+d.Value<int> _vInt(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  int? fallback,
+}) {
+  final v =
+      _asInt(json, key, src) ??
+      (altKey != null ? _asInt(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src, {String? altKey, String? fallback}) {
-  final v = _asString(json, key, src) ?? (altKey != null ? _asString(json, altKey, src) : null) ?? fallback;
+d.Value<String> _vStr(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  String? fallback,
+}) {
+  final v =
+      _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<double> _vDouble(Map<String, dynamic> json, String key, Source src, {String? altKey, double? fallback}) {
-  final v = _asDouble(json, key, src) ?? (altKey != null ? _asDouble(json, altKey, src) : null) ?? fallback;
+d.Value<double> _vDouble(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  double? fallback,
+}) {
+  final v =
+      _asDouble(json, key, src) ??
+      (altKey != null ? _asDouble(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
@@ -289,7 +362,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) => src == Source.drive ? snake : camel;
+String _k(Source src, String camel, String snake) =>
+    src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
   // ✅ إصلاح: تحويل camelCase → snake_case لجميع المصادر بما فيها Drive

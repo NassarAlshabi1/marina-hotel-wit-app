@@ -46,7 +46,8 @@ class GoogleDriveLogger extends ChangeNotifier {
       if (!logsDir.existsSync()) {
         await logsDir.create(recursive: true);
       }
-      final fileName = 'drive_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.log';
+      final fileName =
+          'drive_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.log';
       _logFile = File('${logsDir.path}/$fileName');
     } catch (e) {
       debugPrint('Error initializing drive log file: $e');
@@ -92,7 +93,10 @@ class GoogleDriveLogger extends ChangeNotifier {
 
   Future<void> _writeToFile(LogEntry entry) async {
     try {
-      await _logFile?.writeAsString('${entry.toFormattedString()}\n', mode: FileMode.append);
+      await _logFile?.writeAsString(
+        '${entry.toFormattedString()}\n',
+        mode: FileMode.append,
+      );
     } catch (e) {
       debugPrint('Error writing drive log: $e');
     }
@@ -125,12 +129,34 @@ class GoogleDriveLogger extends ChangeNotifier {
     log(message, level: LogLevel.warning, tag: tag, error: error);
   }
 
-  void error(String message, {String tag = 'DRIVE', dynamic error, StackTrace? stackTrace}) {
-    log(message, level: LogLevel.error, tag: tag, error: error, stackTrace: stackTrace);
+  void error(
+    String message, {
+    String tag = 'DRIVE',
+    dynamic error,
+    StackTrace? stackTrace,
+  }) {
+    log(
+      message,
+      level: LogLevel.error,
+      tag: tag,
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 
-  void critical(String message, {String tag = 'DRIVE', dynamic error, StackTrace? stackTrace}) {
-    log(message, level: LogLevel.critical, tag: tag, error: error, stackTrace: stackTrace);
+  void critical(
+    String message, {
+    String tag = 'DRIVE',
+    dynamic error,
+    StackTrace? stackTrace,
+  }) {
+    log(
+      message,
+      level: LogLevel.critical,
+      tag: tag,
+      error: error,
+      stackTrace: stackTrace,
+    );
   }
 
   List<LogEntry> getLogs({LogLevel? filterLevel}) {
@@ -161,7 +187,8 @@ class GoogleDriveLogger extends ChangeNotifier {
   Future<File?> exportLogs() async {
     try {
       final directory = await getApplicationDocumentsDirectory();
-      final fileName = 'drive_logs_${DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now())}.txt';
+      final fileName =
+          'drive_logs_${DateFormat('yyyy-MM-dd_HHmmss').format(DateTime.now())}.txt';
       final file = File('${directory.path}/$fileName');
       final buffer = StringBuffer();
       for (final log in _logs) {

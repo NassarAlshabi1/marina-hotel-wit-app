@@ -8,7 +8,8 @@ import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
 
-class PriceAdjustmentsAdapter extends EntityAdapter<PriceAdjustment, PriceAdjustmentsCompanion> {
+class PriceAdjustmentsAdapter
+    extends EntityAdapter<PriceAdjustment, PriceAdjustmentsCompanion> {
   PriceAdjustmentsAdapter(this.resolver);
   final IdResolver resolver;
 
@@ -22,32 +23,98 @@ class PriceAdjustmentsAdapter extends EntityAdapter<PriceAdjustment, PriceAdjust
   String get tableName => 'price_adjustments';
 
   @override
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
+  Future<ResolveResult> resolveRefs(
+    AppDatabase db,
+    Map<String, dynamic> json, {
+    required Source src,
+  }) async {
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
-    return ResolveResult(createdAtEpoch: createdAt, lastModifiedEpoch: lastModified);
+    return ResolveResult(
+      createdAtEpoch: createdAt,
+      lastModifiedEpoch: lastModified,
+    );
   }
 
   @override
-  PriceAdjustmentsCompanion fromJson(Map<String, dynamic> json, {required Source src, required ResolveResult refs}) {
+  PriceAdjustmentsCompanion fromJson(
+    Map<String, dynamic> json, {
+    required Source src,
+    required ResolveResult refs,
+  }) {
     final now = Time.nowEpoch();
-    final createdAt = refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified = refs.lastModifiedEpoch ?? _epoch(json, 'lastModified', src) ?? createdAt;
+    final createdAt =
+        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final lastModified =
+        refs.lastModifiedEpoch ??
+        _epoch(json, 'lastModified', src) ??
+        createdAt;
 
     return PriceAdjustmentsCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(_asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src) ?? IdGen.uuid()),
+      localUuid: d.Value(
+        _asString(json, 'localUuid', src) ??
+            _asString(json, 'local_uuid', src) ??
+            IdGen.uuid(),
+      ),
       serverId: _vInt(json, 'serverId', src),
-      targetType: _vStr(json, 'targetType', src, altKey: 'target_type', fallback: ''),
-      targetUuid: _vStr(json, 'targetUuid', src, altKey: 'target_uuid', fallback: ''),
-      adjustmentType: _vStr(json, 'adjustmentType', src, altKey: 'adjustment_type', fallback: ''),
-      previousValue: _vInt(json, 'previousValue', src, altKey: 'previous_value'),
+      targetType: _vStr(
+        json,
+        'targetType',
+        src,
+        altKey: 'target_type',
+        fallback: '',
+      ),
+      targetUuid: _vStr(
+        json,
+        'targetUuid',
+        src,
+        altKey: 'target_uuid',
+        fallback: '',
+      ),
+      adjustmentType: _vStr(
+        json,
+        'adjustmentType',
+        src,
+        altKey: 'adjustment_type',
+        fallback: '',
+      ),
+      previousValue: _vInt(
+        json,
+        'previousValue',
+        src,
+        altKey: 'previous_value',
+      ),
       newValue: _vInt(json, 'newValue', src, altKey: 'new_value'),
       reason: _vStr(json, 'reason', src),
-      effectiveDate: _vStr(json, 'effectiveDate', src, altKey: 'effective_date', fallback: ''),
-      appliedBy: _vStr(json, 'appliedBy', src, altKey: 'applied_by', fallback: ''),
-      hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key', fallback: ''),
-      isReversed: _vBool(json, 'isReversed', src, altKey: 'is_reversed', fallback: false),
+      effectiveDate: _vStr(
+        json,
+        'effectiveDate',
+        src,
+        altKey: 'effective_date',
+        fallback: '',
+      ),
+      appliedBy: _vStr(
+        json,
+        'appliedBy',
+        src,
+        altKey: 'applied_by',
+        fallback: '',
+      ),
+      hotelDayKey: _vStr(
+        json,
+        'hotelDayKey',
+        src,
+        altKey: 'hotel_day_key',
+        fallback: '',
+      ),
+      isReversed: _vBool(
+        json,
+        'isReversed',
+        src,
+        altKey: 'is_reversed',
+        fallback: false,
+      ),
       reversedAt: _vStr(json, 'reversedAt', src, altKey: 'reversed_at'),
       reversedBy: _vStr(json, 'reversedBy', src, altKey: 'reversed_by'),
       createdAt: d.Value(createdAt),
@@ -55,7 +122,9 @@ class PriceAdjustmentsAdapter extends EntityAdapter<PriceAdjustment, PriceAdjust
       deletedAt: _vInt(json, 'deletedAt', src),
       lastModified: d.Value(lastModified),
       createdAtEpoch: d.Value(_asInt(json, 'createdAtEpoch', src) ?? createdAt),
-      lastModifiedEpoch: d.Value(_asInt(json, 'lastModifiedEpoch', src) ?? lastModified),
+      lastModifiedEpoch: d.Value(
+        _asInt(json, 'lastModifiedEpoch', src) ?? lastModified,
+      ),
       createdAtIso: _vStr(json, 'createdAtIso', src),
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
@@ -66,8 +135,19 @@ class PriceAdjustmentsAdapter extends EntityAdapter<PriceAdjustment, PriceAdjust
       origin: src == Source.appwrite || src == Source.drive
           ? const d.Value('server')
           : _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vStr(json, 'vectorClock', src, altKey: 'vector_clock', fallback: '{}'),
-      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
+      vectorClock: _vStr(
+        json,
+        'vectorClock',
+        src,
+        altKey: 'vector_clock',
+        fallback: '{}',
+      ),
+      idempotencyKey: _vStr(
+        json,
+        'idempotencyKey',
+        src,
+        altKey: 'idempotency_key',
+      ),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -104,7 +184,8 @@ class PriceAdjustmentsAdapter extends EntityAdapter<PriceAdjustment, PriceAdjust
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
       _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
       _k(src, 'lastModified', 'last_modified'): safeLastModified,
-      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'):
+          model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
@@ -114,18 +195,45 @@ class PriceAdjustmentsAdapter extends EntityAdapter<PriceAdjustment, PriceAdjust
   }
 }
 
-d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src, {String? altKey, int? fallback}) {
-  final v = _asInt(json, key, src) ?? (altKey != null ? _asInt(json, altKey, src) : null) ?? fallback;
+d.Value<int> _vInt(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  int? fallback,
+}) {
+  final v =
+      _asInt(json, key, src) ??
+      (altKey != null ? _asInt(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src, {String? altKey, String? fallback}) {
-  final v = _asString(json, key, src) ?? (altKey != null ? _asString(json, altKey, src) : null) ?? fallback;
+d.Value<String> _vStr(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  String? fallback,
+}) {
+  final v =
+      _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<bool> _vBool(Map<String, dynamic> json, String key, Source src, {String? altKey, bool? fallback}) {
-  final v = _asBool(json, key, src) ?? (altKey != null ? _asBool(json, altKey, src) : null) ?? fallback;
+d.Value<bool> _vBool(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  bool? fallback,
+}) {
+  final v =
+      _asBool(json, key, src) ??
+      (altKey != null ? _asBool(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
@@ -200,7 +308,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) => src == Source.drive ? snake : camel;
+String _k(Source src, String camel, String snake) =>
+    src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
   // ✅ إصلاح: تحويل camelCase → snake_case لجميع المصادر بما فيها Drive

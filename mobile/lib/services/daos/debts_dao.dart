@@ -10,40 +10,61 @@ part 'debts_dao.g.dart';
 
 @DriftAccessor(tables: [Debts])
 class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
-  DebtsDao(super.db, this.outboxDao, [AdapterRegistry? a]) : adapters = a ?? AdapterRegistry.instance;
+  DebtsDao(super.db, this.outboxDao, [AdapterRegistry? a])
+    : adapters = a ?? AdapterRegistry.instance;
   final AdapterRegistry adapters;
   final OutboxDao outboxDao;
 
-  Future<List<Debt>> list({bool includeDeleted = false, int? limit, int? offset}) {
+  Future<List<Debt>> list({
+    bool includeDeleted = false,
+    int? limit,
+    int? offset,
+  }) {
     final query = select(debts);
     if (!includeDeleted) {
       query.where((t) => t.deletedAt.isNull());
     }
-    query.orderBy([(t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc)]);
+    query.orderBy([
+      (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
+    ]);
     if (limit != null) {
       query.limit(limit, offset: offset);
     }
     return query.get();
   }
 
-  Future<List<Debt>> listByBookingLocalId(int bookingLocalId, {bool includeDeleted = false, int? limit, int? offset}) {
-    final query = select(debts)..where((t) => t.bookingLocalId.equals(bookingLocalId));
+  Future<List<Debt>> listByBookingLocalId(
+    int bookingLocalId, {
+    bool includeDeleted = false,
+    int? limit,
+    int? offset,
+  }) {
+    final query = select(debts)
+      ..where((t) => t.bookingLocalId.equals(bookingLocalId));
     if (!includeDeleted) {
       query.where((t) => t.deletedAt.isNull());
     }
-    query.orderBy([(t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc)]);
+    query.orderBy([
+      (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
+    ]);
     if (limit != null) {
       query.limit(limit, offset: offset);
     }
     return query.get();
   }
 
-  Stream<List<Debt>> watchList({bool includeDeleted = false, int? limit, int offset = 0}) {
+  Stream<List<Debt>> watchList({
+    bool includeDeleted = false,
+    int? limit,
+    int offset = 0,
+  }) {
     final query = select(debts);
     if (!includeDeleted) {
       query.where((t) => t.deletedAt.isNull());
     }
-    query.orderBy([(t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc)]);
+    query.orderBy([
+      (t) => OrderingTerm(expression: t.paymentDate, mode: OrderingMode.desc),
+    ]);
     if (limit != null) {
       query.limit(limit, offset: offset);
     }
@@ -58,7 +79,10 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     return (select(debts)..where((t) => t.id.equals(id))).watchSingleOrNull();
   }
 
-  Future<int> insertOne(DebtsCompanion data, {bool originIsServer = false}) async {
+  Future<int> insertOne(
+    DebtsCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final uuid = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
@@ -69,7 +93,9 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
         lastModified: Value(now),
         version: const Value(1),
         origin: Value(originIsServer ? 'server' : 'local'),
-        deviceId: originIsServer ? const Value.absent() : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
+        deviceId: originIsServer
+            ? const Value.absent()
+            : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
       );
       final id = await into(debts).insert(companion);
       if (!originIsServer) {
@@ -77,7 +103,9 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
           entity: 'debts',
           op: 'create',
           localUuid: uuid,
-          serverId: companion.serverId.present ? companion.serverId.value : null,
+          serverId: companion.serverId.present
+              ? companion.serverId.value
+              : null,
           payload: _payloadFrom(companion),
           clientTs: now,
         );
@@ -86,7 +114,11 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     });
   }
 
-  Future<int> updateById(int id, DebtsCompanion data, {bool originIsServer = false}) async {
+  Future<int> updateById(
+    int id,
+    DebtsCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final existing = await getById(id);
       if (existing == null) {
@@ -95,13 +127,17 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
       final now = Time.nowEpoch();
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified = originIsServer && data.lastModified.present ? data.lastModified : Value(now);
+      final effectiveLastModified = originIsServer && data.lastModified.present
+          ? data.lastModified
+          : Value(now);
       final companion = data.copyWith(
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
         version: Value(existing.version + 1),
       );
-      final rows = await (update(debts)..where((t) => t.id.equals(id))).write(companion);
+      final rows = await (update(
+        debts,
+      )..where((t) => t.id.equals(id))).write(companion);
       if (rows > 0 && !originIsServer) {
         await outboxDao.merge(
           entity: 'debts',
@@ -124,7 +160,11 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
         return 0;
       }
       final rows = await (update(debts)..where((t) => t.id.equals(id))).write(
-        DebtsCompanion(deletedAt: Value(now), updatedAt: Value(now), lastModified: Value(now)),
+        DebtsCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          lastModified: Value(now),
+        ),
       );
       if (rows > 0 && !originIsServer) {
         // ✅ نستخدم 'update' بدلاً من 'delete' لأن softDelete يحدّث deletedAt
@@ -146,7 +186,9 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     return (delete(debts)..where((t) => t.id.equals(id))).go();
   }
 
-  Future<List<Map<String, dynamic>>> exportToJson({bool includeDeleted = false}) async {
+  Future<List<Map<String, dynamic>>> exportToJson({
+    bool includeDeleted = false,
+  }) async {
     final items = await list(includeDeleted: includeDeleted);
     return items.map((e) => e.toJson()).toList();
   }
@@ -198,7 +240,10 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
     return m;
   }
 
-  Future<void> importFromJson(List<Map<String, dynamic>> data, {bool clearExisting = false}) async {
+  Future<void> importFromJson(
+    List<Map<String, dynamic>> data, {
+    bool clearExisting = false,
+  }) async {
     await transaction(() async {
       if (clearExisting) {
         await delete(debts).go();

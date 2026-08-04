@@ -7,7 +7,11 @@ import '../adapters/source.dart';
 import '../local_db.dart';
 
 class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
-  BaseRepository({required this.db, required this.table, required this.adapter});
+  BaseRepository({
+    required this.db,
+    required this.table,
+    required this.adapter,
+  });
 
   static final Map<String, List<List<Column>>> _conflictTargetCache = {};
 
@@ -27,7 +31,10 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     _batchUuidCache = null;
   }
 
-  Future<int> upsertFromJson(Map<String, dynamic> json, {required Source src}) async {
+  Future<int> upsertFromJson(
+    Map<String, dynamic> json, {
+    required Source src,
+  }) async {
     // ✅ إصلاح حرج: إزالة id البعيد عند المزامنة من السيرفر
     // id هو auto-increment محلي — تمرير id البعيد يسبب تصادم:
     // UNIQUE constraint failed: table.id
@@ -36,7 +43,8 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     // الحل: إزالة id من البيانات ليقوم SQLite بتعيين id تلقائي
     // للسجلات الجديدة، أو استخدام id المحلي الموجود للتحديث.
     if (src == Source.appwrite || src == Source.drive) {
-      final localUuid = json['localUuid'] as String? ?? json['local_uuid'] as String?;
+      final localUuid =
+          json['localUuid'] as String? ?? json['local_uuid'] as String?;
       if (localUuid != null) {
         // تحقق هل يوجد سجل محلي بنفس local_uuid
         final existing = await _findByLocalUuid(localUuid);
@@ -76,7 +84,9 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
 
     for (final target in targets) {
       try {
-        return await db.into(table).insert(comp, onConflict: DoUpdate((_) => comp, target: target));
+        return await db
+            .into(table)
+            .insert(comp, onConflict: DoUpdate((_) => comp, target: target));
       } catch (e, st) {
         lastError = e;
         lastStack = st;
@@ -89,7 +99,12 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
           );
           continue;
         }
-        developer.log('Upsert failed for ${table.actualTableName}', error: e, stackTrace: st, name: 'BaseRepository');
+        developer.log(
+          'Upsert failed for ${table.actualTableName}',
+          error: e,
+          stackTrace: st,
+          name: 'BaseRepository',
+        );
         rethrow;
       }
     }
@@ -154,11 +169,15 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
       return cached;
     }
 
-    final columnsByName = <String, Column>{for (final column in table.$columns) column.$name: column};
+    final columnsByName = <String, Column>{
+      for (final column in table.$columns) column.$name: column,
+    };
     final targets = <List<Column>>[];
     final sanitizedName = tableName.replaceAll("'", "''");
 
-    final indexRows = await db.customSelect("PRAGMA index_list('$sanitizedName')").get();
+    final indexRows = await db
+        .customSelect("PRAGMA index_list('$sanitizedName')")
+        .get();
     for (final row in indexRows) {
       final isUnique = row.data['unique'] == 1 || row.data['unique'] == true;
       if (!isUnique) {
@@ -169,7 +188,9 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
         continue;
       }
       final sanitizedIndex = indexName.replaceAll("'", "''");
-      final infoRows = await db.customSelect("PRAGMA index_info('$sanitizedIndex')").get();
+      final infoRows = await db
+          .customSelect("PRAGMA index_info('$sanitizedIndex')")
+          .get();
       final cols = <Column>[];
       for (final info in infoRows) {
         final name = info.data['name']?.toString();
@@ -334,11 +355,16 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
 
         // حل localUuid + id باستخدام الـ batch lookup المُسبق
         if (src == Source.appwrite || src == Source.drive) {
-          final localUuid = jsonCopy['localUuid'] as String? ?? jsonCopy['local_uuid'] as String?;
+          final localUuid =
+              jsonCopy['localUuid'] as String? ??
+              jsonCopy['local_uuid'] as String?;
           if (localUuid != null) {
             // ✅ استخدم الـ Map المُسبق التحضير (O(1)) بدلاً من استعلام SQL
             final existing =
-                existingUuidToId[localUuid] ?? (existingUuidToId.isEmpty ? await _findByLocalUuid(localUuid) : null);
+                existingUuidToId[localUuid] ??
+                (existingUuidToId.isEmpty
+                    ? await _findByLocalUuid(localUuid)
+                    : null);
             if (existing == null) {
               jsonCopy.remove('id');
             } else {
@@ -388,11 +414,15 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     var inserted = 0;
 
     for (var i = 0; i < companions.length; i += chunkSize) {
-      final end = (i + chunkSize < companions.length) ? i + chunkSize : companions.length;
+      final end = (i + chunkSize < companions.length)
+          ? i + chunkSize
+          : companions.length;
       final chunk = companions.sublist(i, end);
 
       try {
-        await db.batch((b) => b.insertAll(table, chunk, mode: InsertMode.insertOrReplace));
+        await db.batch(
+          (b) => b.insertAll(table, chunk, mode: InsertMode.insertOrReplace),
+        );
         inserted += chunk.length;
       } catch (e, st) {
         // ✅ fallback: عند فشل chunk كامل، نتراجع للإدراج صف-بصف

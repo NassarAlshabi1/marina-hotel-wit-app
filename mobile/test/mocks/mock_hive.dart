@@ -8,7 +8,8 @@ import 'dart:typed_data';
 class MockHiveBox<T> {
   final Map<String, T> _data = {};
   final String name;
-  final StreamController<String> _changeController = StreamController<String>.broadcast();
+  final StreamController<String> _changeController =
+      StreamController<String>.broadcast();
 
   MockHiveBox(this.name);
 
@@ -71,7 +72,8 @@ class MockHiveLazyBox<T> extends MockHiveBox<T> {
 
   Future<T?> getAsync(String key) async => get(key);
 
-  Future<Map<String, T>> toMap() async => Map.fromEntries(keys.map((k) => MapEntry(k, get(k)!)));
+  Future<Map<String, T>> toMap() async =>
+      Map.fromEntries(keys.map((k) => MapEntry(k, get(k)!)));
 }
 
 /// Mock لـ Hive
@@ -103,7 +105,8 @@ class MockHive {
 
   MockHiveBox<T>? box<T>(String name) => _boxes[name] as MockHiveBox<T>?;
 
-  MockHiveLazyBox<T>? lazyBox<T>(String name) => _lazyBoxes[name] as MockHiveLazyBox<T>?;
+  MockHiveLazyBox<T>? lazyBox<T>(String name) =>
+      _lazyBoxes[name] as MockHiveLazyBox<T>?;
 
   Future<bool> boxExists(String name) async => _boxes.containsKey(name);
 
@@ -182,7 +185,10 @@ abstract class MockHiveTypeAdapter<T> {
 /// Helper للاختبارات
 class HiveTestHelper {
   /// إنشاء Mock Box جاهز للاختبار
-  static MockHiveBox<T> createMockBox<T>(String name, {Map<String, T>? initialData}) {
+  static MockHiveBox<T> createMockBox<T>(
+    String name, {
+    Map<String, T>? initialData,
+  }) {
     final box = MockHiveBox<T>(name);
     if (initialData != null) {
       initialData.forEach((key, value) {
@@ -193,7 +199,10 @@ class HiveTestHelper {
   }
 
   /// إنشاء Mock Lazy Box جاهز للاختبار
-  static MockHiveLazyBox<T> createMockLazyBox<T>(String name, {Map<String, T>? initialData}) {
+  static MockHiveLazyBox<T> createMockLazyBox<T>(
+    String name, {
+    Map<String, T>? initialData,
+  }) {
     final box = MockHiveLazyBox<T>(name);
     if (initialData != null) {
       initialData.forEach((key, value) {

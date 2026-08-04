@@ -22,7 +22,8 @@ void configurePerformance() {
   // الافتراضي: 1000 صورة / 100MB — كثير جداً لأجهزة 1-2GB RAM
   // الحد الجديد: 200 صورة / 20MB — كافٍ لـ UI بدون OOM
   PaintingBinding.instance.imageCache.maximumSize = 200;
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 20 * 1024 * 1024; // 20MB
+  PaintingBinding.instance.imageCache.maximumSizeBytes =
+      20 * 1024 * 1024; // 20MB
 
   // ═══════════════════════════════════════════════════════════════
   //  2. تخفيض viewport cache للـ ListView على الأجهزة الضعيفة

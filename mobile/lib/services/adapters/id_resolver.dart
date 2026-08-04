@@ -23,7 +23,12 @@ class IdResolver {
     return uuid.replaceAll('-', '');
   }
 
-  Future<int?> resolveBooking({int? localId, int? serverId, String? uuid, bool fromRemote = false}) async {
+  Future<int?> resolveBooking({
+    int? localId,
+    int? serverId,
+    String? uuid,
+    bool fromRemote = false,
+  }) async {
     if (uuid != null && uuid.isNotEmpty) {
       // ✅ إصلاح حرج: محاولة كلا صيغتي UUID (بالشرطات وبدون)
       // المشكلة: بعض السجلات على Appwrite Cloud مخزّنة بـ UUID بدون شرطات
@@ -102,7 +107,12 @@ class IdResolver {
   /// المشكلة: بعض السجلات على Appwrite Cloud مخزّنة بـ UUID بدون شرطات
   /// (legacy). عند السحب، employeeUuid في salary_withdrawals قد يكون بصيغة
   /// مختلفة عن localUuid في الموظفين المحليين → المطابقة تفشل → سجل يتيم.
-  Future<int?> resolveEmployee({int? localId, String? uuid, int? serverId, int? employeeId}) async {
+  Future<int?> resolveEmployee({
+    int? localId,
+    String? uuid,
+    int? serverId,
+    int? employeeId,
+  }) async {
     // 1. البحث بالـ UUID أولاً (الأكثر دقة للمزامنة)
     if (uuid != null && uuid.isNotEmpty) {
       // 1a) ابحث بالـ UUID كما هو (مطابقة تامة)

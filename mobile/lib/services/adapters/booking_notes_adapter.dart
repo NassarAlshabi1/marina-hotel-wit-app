@@ -8,7 +8,8 @@ import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
 
-class BookingNotesAdapter extends EntityAdapter<BookingNote, BookingNotesCompanion> {
+class BookingNotesAdapter
+    extends EntityAdapter<BookingNote, BookingNotesCompanion> {
   BookingNotesAdapter(this.resolver);
   final IdResolver resolver;
 
@@ -22,13 +23,21 @@ class BookingNotesAdapter extends EntityAdapter<BookingNote, BookingNotesCompani
   String get tableName => 'booking_notes';
 
   @override
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
+  Future<ResolveResult> resolveRefs(
+    AppDatabase db,
+    Map<String, dynamic> json, {
+    required Source src,
+  }) async {
     final bookingUuid =
         _asString(json, 'bookingUuidCache', src) ??
         _asString(json, 'booking_uuid_cache', src) ??
         _asString(json, 'booking_uuid', src);
-    final bookingLocalId = _asInt(json, 'bookingId', src) ?? _asInt(json, 'booking_id', src);
-    final resolvedId = await resolver.resolveBooking(localId: bookingLocalId, uuid: bookingUuid);
+    final bookingLocalId =
+        _asInt(json, 'bookingId', src) ?? _asInt(json, 'booking_id', src);
+    final resolvedId = await resolver.resolveBooking(
+      localId: bookingLocalId,
+      uuid: bookingUuid,
+    );
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
     return ResolveResult(
@@ -40,17 +49,40 @@ class BookingNotesAdapter extends EntityAdapter<BookingNote, BookingNotesCompani
   }
 
   @override
-  BookingNotesCompanion fromJson(Map<String, dynamic> json, {required Source src, required ResolveResult refs}) {
+  BookingNotesCompanion fromJson(
+    Map<String, dynamic> json, {
+    required Source src,
+    required ResolveResult refs,
+  }) {
     final now = Time.nowEpoch();
-    final createdAt = refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified = refs.lastModifiedEpoch ?? _epoch(json, 'lastModified', src) ?? createdAt;
+    final createdAt =
+        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final lastModified =
+        refs.lastModifiedEpoch ??
+        _epoch(json, 'lastModified', src) ??
+        createdAt;
     return BookingNotesCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(_asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src) ?? IdGen.uuid()),
+      localUuid: d.Value(
+        _asString(json, 'localUuid', src) ??
+            _asString(json, 'local_uuid', src) ??
+            IdGen.uuid(),
+      ),
       serverId: _vInt(json, 'serverId', src),
-      bookingId: d.Value(refs.bookingLocalId ?? _asInt(json, 'bookingId', src) ?? _asInt(json, 'booking_id', src) ?? 0),
+      bookingId: d.Value(
+        refs.bookingLocalId ??
+            _asInt(json, 'bookingId', src) ??
+            _asInt(json, 'booking_id', src) ??
+            0,
+      ),
       noteText: _vStr(json, 'noteText', src, altKey: 'note_text', fallback: ''),
-      alertType: _vStr(json, 'alertType', src, altKey: 'alert_type', fallback: ''),
+      alertType: _vStr(
+        json,
+        'alertType',
+        src,
+        altKey: 'alert_type',
+        fallback: '',
+      ),
       alertUntil: _vStr(json, 'alertUntil', src, altKey: 'alert_until'),
       isActive: _vInt(json, 'isActive', src, fallback: 1),
       createdAt: d.Value(createdAt),
@@ -61,7 +93,12 @@ class BookingNotesAdapter extends EntityAdapter<BookingNote, BookingNotesCompani
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
       createdAtEpoch: _vInt(json, 'createdAtEpoch', src, fallback: createdAt),
-      lastModifiedEpoch: _vInt(json, 'lastModifiedEpoch', src, fallback: lastModified),
+      lastModifiedEpoch: _vInt(
+        json,
+        'lastModifiedEpoch',
+        src,
+        fallback: lastModified,
+      ),
       version: _vInt(json, 'version', src, fallback: 1),
       // ✅ إصلاح: عند src=Source.appwrite، نصر على origin='server' دائماً
       // لمنع مشكلة أن البيانات المسحوبة من السيرفر تحمل origin='mobile'
@@ -69,8 +106,19 @@ class BookingNotesAdapter extends EntityAdapter<BookingNote, BookingNotesCompani
       origin: src == Source.appwrite || src == Source.drive
           ? const d.Value('server')
           : _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vStr(json, 'vectorClock', src, altKey: 'vector_clock', fallback: '{}'),
-      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
+      vectorClock: _vStr(
+        json,
+        'vectorClock',
+        src,
+        altKey: 'vector_clock',
+        fallback: '{}',
+      ),
+      idempotencyKey: _vStr(
+        json,
+        'idempotencyKey',
+        src,
+        altKey: 'idempotency_key',
+      ),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -94,7 +142,8 @@ class BookingNotesAdapter extends EntityAdapter<BookingNote, BookingNotesCompani
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
       _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'):
+          model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
@@ -104,13 +153,31 @@ class BookingNotesAdapter extends EntityAdapter<BookingNote, BookingNotesCompani
   }
 }
 
-d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src, {String? altKey, int? fallback}) {
-  final v = _asInt(json, key, src) ?? (altKey != null ? _asInt(json, altKey, src) : null) ?? fallback;
+d.Value<int> _vInt(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  int? fallback,
+}) {
+  final v =
+      _asInt(json, key, src) ??
+      (altKey != null ? _asInt(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src, {String? altKey, String? fallback}) {
-  final v = _asString(json, key, src) ?? (altKey != null ? _asString(json, altKey, src) : null) ?? fallback;
+d.Value<String> _vStr(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  String? fallback,
+}) {
+  final v =
+      _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
@@ -165,7 +232,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) => src == Source.drive ? snake : camel;
+String _k(Source src, String camel, String snake) =>
+    src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
   // ✅ إصلاح: تحويل camelCase → snake_case لجميع المصادر بما فيها Drive

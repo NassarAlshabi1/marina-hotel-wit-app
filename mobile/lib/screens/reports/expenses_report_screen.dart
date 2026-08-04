@@ -22,12 +22,21 @@ import 'report_page_scaffold.dart';
 const _typeConfig = <String, _ExpenseTypeConfig>{
   'رواتب': _ExpenseTypeConfig(Icons.account_balance_wallet, Colors.purple),
   'سحب راتب': _ExpenseTypeConfig(Icons.account_balance_wallet, Colors.purple),
-  'سحب من الراتب': _ExpenseTypeConfig(Icons.account_balance_wallet, Colors.purple),
+  'سحب من الراتب': _ExpenseTypeConfig(
+    Icons.account_balance_wallet,
+    Colors.purple,
+  ),
   'خصم راتب': _ExpenseTypeConfig(Icons.remove_circle_outline, Colors.purple),
-  'خصم من الراتب': _ExpenseTypeConfig(Icons.remove_circle_outline, Colors.purple),
+  'خصم من الراتب': _ExpenseTypeConfig(
+    Icons.remove_circle_outline,
+    Colors.purple,
+  ),
   'ديزل': _ExpenseTypeConfig(Icons.local_gas_station, Colors.amber),
   'صيانة': _ExpenseTypeConfig(Icons.build, Colors.orange),
-  'فواتير كهرباء ومياه': _ExpenseTypeConfig(Icons.electrical_services, Colors.teal),
+  'فواتير كهرباء ومياه': _ExpenseTypeConfig(
+    Icons.electrical_services,
+    Colors.teal,
+  ),
   'مستلزمات': _ExpenseTypeConfig(Icons.inventory_2, Colors.indigo),
   'مساعدة محتاج': _ExpenseTypeConfig(Icons.volunteer_activism, Colors.pink),
   'اخرى': _ExpenseTypeConfig(Icons.more_horiz, Colors.grey),
@@ -44,7 +53,13 @@ _ExpenseTypeConfig _configForType(String type) {
 
 /// هل النوع مرتبط بالرواتب
 bool _isSalaryType(String type) {
-  const salaryKeywords = ['رواتب', 'سحب راتب', 'سحب من الراتب', 'خصم راتب', 'خصم من الراتب'];
+  const salaryKeywords = [
+    'رواتب',
+    'سحب راتب',
+    'سحب من الراتب',
+    'خصم راتب',
+    'خصم من الراتب',
+  ];
   for (final keyword in salaryKeywords) {
     if (type.contains(keyword)) {
       return true;
@@ -76,7 +91,8 @@ class ExpensesReportScreen extends ConsumerStatefulWidget {
   final String totalRowLabel;
 
   @override
-  ConsumerState<ExpensesReportScreen> createState() => _ExpensesReportScreenState();
+  ConsumerState<ExpensesReportScreen> createState() =>
+      _ExpensesReportScreenState();
 }
 
 class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
@@ -124,7 +140,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         _availableTypes
           ..clear()
           ..addAll(widget.allowedTypes!.toList());
-        _selectedType = widget.showTypeFilter ? (widget.initialType ?? widget.allowedTypes!.first) : null;
+        _selectedType = widget.showTypeFilter
+            ? (widget.initialType ?? widget.allowedTypes!.first)
+            : null;
       });
     } else {
       await _loadExpenseTypes();
@@ -136,9 +154,18 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     final db = ref.read(databaseProvider);
     // ✅ إصلاح: فلترة المصروفات المحذوفة soft-delete
     // بدون هذا الفلتر، أنواع المصروفات المحذوفة تظهر في القائمة المنسدلة
-    final query = await db.customSelect('SELECT DISTINCT expense_type FROM expenses WHERE deleted_at IS NULL').get();
+    final query = await db
+        .customSelect(
+          'SELECT DISTINCT expense_type FROM expenses WHERE deleted_at IS NULL',
+        )
+        .get();
     // ✅ إزالة "سحب راتب" — نوع مُشتق يُحفظ تلقائياً عند "رواتب" → "سحب من الراتب"
-    final types = query.map((row) => row.data['expense_type'] as String).where((t) => t != 'سحب راتب').toList()..sort();
+    final types =
+        query
+            .map((row) => row.data['expense_type'] as String)
+            .where((t) => t != 'سحب راتب')
+            .toList()
+          ..sort();
     setState(() {
       _availableTypes
         ..clear()
@@ -181,7 +208,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       _typeSubtotals[row.type] = (_typeSubtotals[row.type] ?? 0) + row.amount;
     }
     // ترتيب حسب المبلغ الأعلى
-    final sortedKeys = _typeSubtotals.keys.toList()..sort((a, b) => _typeSubtotals[b]!.compareTo(_typeSubtotals[a]!));
+    final sortedKeys = _typeSubtotals.keys.toList()
+      ..sort((a, b) => _typeSubtotals[b]!.compareTo(_typeSubtotals[a]!));
     final ordered = <String, List<_ExpenseReportRow>>{};
     for (final key in sortedKeys) {
       ordered[key] = _grouped[key]!;
@@ -206,10 +234,17 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     //   _toDate  = 19-May 14:00:59 → toHotelDay   = "2026-05-18" ✓
     //   → فقط مصروفات hotelDayKey="2026-05-18" ✅
     final fromHotelDay = _fromDate != null
-        ? HotelTimeEngine.getHotelDayKey(dateTime: _fromDate!.add(const Duration(seconds: 1)))
+        ? HotelTimeEngine.getHotelDayKey(
+            dateTime: _fromDate!.add(const Duration(seconds: 1)),
+          )
         : null;
-    final toHotelDay = _toDate != null ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate) : null;
-    final selectedType = widget.showTypeFilter && _selectedType != null && _selectedType!.isNotEmpty
+    final toHotelDay = _toDate != null
+        ? HotelTimeEngine.getHotelDayKey(dateTime: _toDate)
+        : null;
+    final selectedType =
+        widget.showTypeFilter &&
+            _selectedType != null &&
+            _selectedType!.isNotEmpty
         ? _selectedType
         : null;
 
@@ -226,37 +261,50 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     );
 
     if (widget.allowedTypes != null && widget.allowedTypes!.isNotEmpty) {
-      expenses = expenses.where((expense) => widget.allowedTypes!.contains(expense.expenseType)).toList();
+      expenses = expenses
+          .where(
+            (expense) => widget.allowedTypes!.contains(expense.expenseType),
+          )
+          .toList();
     }
 
     // ─── سحب أسماء الموظفين من جدول expenses ───
     final employeeMap = <int, Employee>{};
-    final employeeIds = expenses.map((e) => e.relatedId).whereType<int>().toSet();
+    final employeeIds = expenses
+        .map((e) => e.relatedId)
+        .whereType<int>()
+        .toSet();
 
     // ─── سحب سحوبات الرواتب من salary_withdrawals ───
     // ✅ إصلاح: جلب salary_withdrawals أيضاً عند اختيار نوع راتب
     // لعرض السحوبات اليتيمة المرتبطة بنوع الراتب المحدد
     final shouldFetchSalaryWithdrawals =
-        showAll || (selectedType != null && _isSalaryType(selectedType)); // ignore: unnecessary_null_comparison
+        showAll ||
+        (_isSalaryType(selectedType)); // ignore: unnecessary_null_comparison
     List<SalaryWithdrawal> salaryWithdrawals = [];
     if (shouldFetchSalaryWithdrawals) {
       try {
-        var swQuery = db.select(db.salaryWithdrawals)..where((tbl) => tbl.deletedAt.isNull());
+        var swQuery = db.select(db.salaryWithdrawals)
+          ..where((tbl) => tbl.deletedAt.isNull());
         // ✅ إصلاح: فلترة salary_withdrawals بـ hotelDayKey أيضاً
         if (fromHotelDay != null) {
           swQuery = swQuery
             ..where(
               (tbl) =>
-                  (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
-                  (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isBiggerOrEqualValue(fromHotelDay)),
+                  (tbl.hotelDayKey.isNotNull() &
+                      tbl.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
+                  (tbl.hotelDayKey.isNull() &
+                      tbl.withdrawDate.isBiggerOrEqualValue(fromHotelDay)),
             );
         }
         if (toHotelDay != null) {
           swQuery = swQuery
             ..where(
               (tbl) =>
-                  (tbl.hotelDayKey.isNotNull() & tbl.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
-                  (tbl.hotelDayKey.isNull() & tbl.withdrawDate.isSmallerOrEqualValue(toHotelDay)),
+                  (tbl.hotelDayKey.isNotNull() &
+                      tbl.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
+                  (tbl.hotelDayKey.isNull() &
+                      tbl.withdrawDate.isSmallerOrEqualValue(toHotelDay)),
             );
         }
         salaryWithdrawals = await swQuery.get();
@@ -271,7 +319,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
     // جلب بيانات الموظفين دفعة واحدة
     if (employeeIds.isNotEmpty) {
-      final employees = await (db.select(db.employees)..where((tbl) => tbl.id.isIn(employeeIds.toList()))).get();
+      final employees = await (db.select(
+        db.employees,
+      )..where((tbl) => tbl.id.isIn(employeeIds.toList()))).get();
       for (final employee in employees) {
         employeeMap[employee.id] = employee;
       }
@@ -333,7 +383,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
 
     // ─── بناء مجموعة من المصروفات التي تمت إضافتها بالفعل ───
     final Set<int> addedExpenseIds = {}; // معرفات المصروفات المضافة
-    final Set<int> addedWithdrawalIds = {}; // معرفات السحوبات المضافة (لتجنب التكرار)
+    final Set<int> addedWithdrawalIds =
+        {}; // معرفات السحوبات المضافة (لتجنب التكرار)
 
     // ─── أولاً: إضافة جميع المصروفات من جدول expenses (باستثناء السلفة) ───
     for (final expense in expenses) {
@@ -343,10 +394,13 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       if (expense.expenseType == 'سلفة') {
         continue;
       }
-      final employee = expense.relatedId != null ? employeeMap[expense.relatedId!] : null;
+      final employee = expense.relatedId != null
+          ? employeeMap[expense.relatedId!]
+          : null;
       // ✅ إصلاح: عرض تاريخ اليوم الفندقي بدلاً من التاريخ التقويمي
       // المصروفات القديمة قد يكون date فيها تقويمياً مختلفاً عن hotelDayKey
-      final displayDateStr = (expense.hotelDayKey != null && expense.hotelDayKey!.isNotEmpty)
+      final displayDateStr =
+          (expense.hotelDayKey != null && expense.hotelDayKey!.isNotEmpty)
           ? expense.hotelDayKey!
           : expense.date;
       final date = _parseExpenseDate(displayDateStr);
@@ -380,12 +434,14 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         bool hasMatchingExpense = false;
 
         // ─── السحوبات المباشرة لا تُطابق أبداً (ليس لها مصروف مقابل) ───
-        final isDirectWithdrawal = sw.reason != null && sw.reason!.startsWith('direct_withdrawal_');
+        final isDirectWithdrawal =
+            sw.reason != null && sw.reason!.startsWith('direct_withdrawal_');
 
         if (!isDirectWithdrawal) {
           // ─── الطريقة 1: مطابقة عبر عمود expense_id (الأكثر موثوقية) ───
           final expenseIdFromColumn = swExpenseIdMap[sw.id];
-          if (expenseIdFromColumn != null && addedExpenseIds.contains(expenseIdFromColumn)) {
+          if (expenseIdFromColumn != null &&
+              addedExpenseIds.contains(expenseIdFromColumn)) {
             hasMatchingExpense = true;
           }
 
@@ -407,10 +463,17 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
             for (final expense in expenses) {
               if (_isSalaryType(expense.expenseType) &&
                   expense.relatedId == sw.employeeId &&
-                  _hotelDayKeysMatch(expense.hotelDayKey, sw.hotelDayKey, expense.date, sw.withdrawDate) &&
+                  _hotelDayKeysMatch(
+                    expense.hotelDayKey,
+                    sw.hotelDayKey,
+                    expense.date,
+                    sw.withdrawDate,
+                  ) &&
                   expense.amount.abs() == sw.amount.abs()) {
                 hasMatchingExpense = true;
-                debugPrint('⚠️ تم ربط سحب راتب قديم (id=${sw.id}) بمصروف (id=${expense.id}) عبر المطابقة بالبيانات');
+                debugPrint(
+                  '⚠️ تم ربط سحب راتب قديم (id=${sw.id}) بمصروف (id=${expense.id}) عبر المطابقة بالبيانات',
+                );
                 break;
               }
             }
@@ -421,16 +484,20 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         if (!hasMatchingExpense) {
           final employee = employeeMap[sw.employeeId];
           // ✅ إصلاح: عرض تاريخ اليوم الفندقي بدلاً من التاريخ التقويمي
-          final swDisplayDate = (sw.hotelDayKey != null && sw.hotelDayKey!.isNotEmpty)
+          final swDisplayDate =
+              (sw.hotelDayKey != null && sw.hotelDayKey!.isNotEmpty)
               ? sw.hotelDayKey!
               : sw.withdrawDate;
           final date = _parseExpenseDate(swDisplayDate);
           final wType = sw.withdrawalType ?? 'سحب راتب';
-          final isDeduction = wType.contains('خصم') || wType.contains('deduction');
+          final isDeduction =
+              wType.contains('خصم') || wType.contains('deduction');
           final displayType = isDeduction ? 'خصم من الراتب' : 'سحب راتب';
 
           final descParts = <String>[];
-          if (sw.reason != null && sw.reason!.isNotEmpty && !sw.reason!.startsWith('exp_')) {
+          if (sw.reason != null &&
+              sw.reason!.isNotEmpty &&
+              !sw.reason!.startsWith('exp_')) {
             descParts.add(sw.reason!);
           }
           if (sw.description != null && sw.description!.isNotEmpty) {
@@ -458,7 +525,11 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     // ترتيب حسب التاريخ الأحدث
     rows.sort((a, b) => b.date.compareTo(a.date));
 
-    return _ExpensesReportResult(rows: rows, totalAmount: totalAmount, hasSalaryData: hasSalaryData);
+    return _ExpensesReportResult(
+      rows: rows,
+      totalAmount: totalAmount,
+      hasSalaryData: hasSalaryData,
+    );
   }
 
   // ─── PDF ───
@@ -466,9 +537,15 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     if (_rows.isEmpty) {
       return;
     }
-    final fromLabel = _fromDate != null ? DateFormat('yyyy-MM-dd').format(_fromDate!) : 'غير محدد';
-    final toLabel = _toDate != null ? DateFormat('yyyy-MM-dd').format(_toDate!) : 'غير محدد';
-    final selectedTypeLabel = _selectedType?.isNotEmpty ?? false ? _selectedType! : 'الكل';
+    final fromLabel = _fromDate != null
+        ? DateFormat('yyyy-MM-dd').format(_fromDate!)
+        : 'غير محدد';
+    final toLabel = _toDate != null
+        ? DateFormat('yyyy-MM-dd').format(_toDate!)
+        : 'غير محدد';
+    final selectedTypeLabel = _selectedType?.isNotEmpty ?? false
+        ? _selectedType!
+        : 'الكل';
 
     // عرض عمود الموظف تلقائياً عند وجود بيانات رواتب أو تفعيله يدوياً
     final showEmployeeCol = widget.includeEmployeeDetails || _hasSalaryData;
@@ -487,12 +564,19 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         if (row.description.isNotEmpty) row.description else '-',
       ];
       if (showEmployeeCol) {
-        cells.add(row.employee?.name ?? (row.isSalaryWithdrawal ? 'غير محدد' : '-'));
+        cells.add(
+          row.employee?.name ?? (row.isSalaryWithdrawal ? 'غير محدد' : '-'),
+        );
       }
       dataRows.add(cells);
     }
 
-    final totalRow = [widget.totalRowLabel, EnhancedPdfUtils.formatNumber(_totalAmount), '', ''];
+    final totalRow = [
+      widget.totalRowLabel,
+      EnhancedPdfUtils.formatNumber(_totalAmount),
+      '',
+      '',
+    ];
     if (showEmployeeCol) {
       totalRow.add('');
     }
@@ -510,8 +594,14 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
               child: pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text(label, style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
-                  pw.Text(value, style: pw.TextStyle(font: fonts.regular, fontSize: 11)),
+                  pw.Text(
+                    label,
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 11),
+                  ),
+                  pw.Text(
+                    value,
+                    style: pw.TextStyle(font: fonts.regular, fontSize: 11),
+                  ),
                 ],
               ),
             );
@@ -524,11 +614,16 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
               metaRow('الفترة', 'من $fromLabel إلى $toLabel'),
               metaRow(widget.typeLabel, selectedTypeLabel),
               metaRow('عدد السجلات', _rows.length.toString()),
-              if (_hasSalaryData) metaRow('يشمل', 'مصروفات تشغيلية + سحوبات الرواتب'),
+              if (_hasSalaryData)
+                metaRow('يشمل', 'مصروفات تشغيلية + سحوبات الرواتب'),
             ],
           );
 
-          pw.Widget buildSummaryItem(String title, String value, PdfColor accent) {
+          pw.Widget buildSummaryItem(
+            String title,
+            String value,
+            PdfColor accent,
+          ) {
             return pw.Container(
               padding: const pw.EdgeInsets.all(12),
               decoration: pw.BoxDecoration(
@@ -540,12 +635,20 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                 children: [
                   pw.Text(
                     title,
-                    style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: PdfColors.textDark),
+                    style: pw.TextStyle(
+                      font: fonts.regular,
+                      fontSize: 11,
+                      color: PdfColors.textDark,
+                    ),
                   ),
                   pw.SizedBox(height: 4),
                   pw.Text(
                     value,
-                    style: pw.TextStyle(font: fonts.bold, fontSize: 16, color: accent),
+                    style: pw.TextStyle(
+                      font: fonts.bold,
+                      fontSize: 16,
+                      color: accent,
+                    ),
                   ),
                 ],
               ),
@@ -553,7 +656,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           }
 
           // ملخص الرواتب مقابل المصروفات التشغيلية
-          final salaryTotal = _rows.where((r) => _isSalaryType(r.type)).fold<double>(0, (sum, r) => sum + r.amount);
+          final salaryTotal = _rows
+              .where((r) => _isSalaryType(r.type))
+              .fold<double>(0, (sum, r) => sum + r.amount);
           final nonSalaryTotal = _totalAmount - salaryTotal;
 
           return [
@@ -589,7 +694,13 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                         ),
                       ),
                       pw.SizedBox(width: 8),
-                      pw.Expanded(child: buildSummaryItem('عدد السجلات', _rows.length.toString(), PdfColors.info)),
+                      pw.Expanded(
+                        child: buildSummaryItem(
+                          'عدد السجلات',
+                          _rows.length.toString(),
+                          PdfColors.info,
+                        ),
+                      ),
                     ],
                   ),
                   if (_hasSalaryData) ...[
@@ -649,7 +760,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
               decoration: InputDecoration(
                 labelText: widget.typeLabel,
                 isDense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 6,
+                ),
               ),
               style: TextStyle(
                 fontSize: 12,
@@ -698,7 +812,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
               message: 'لم يتم العثور على مصروفات ضمن النطاق المحدد.',
               icon: Icons.receipt_long,
             )
-          : ListView(padding: const EdgeInsets.only(bottom: 8), children: _buildGroupedList()),
+          : ListView(
+              padding: const EdgeInsets.only(bottom: 8),
+              children: _buildGroupedList(),
+            ),
     );
   }
 
@@ -714,7 +831,13 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       final cfg = _configForType(type);
       // رأس المجموعة
       widgets.add(
-        _buildGroupHeader(type: type, icon: cfg.icon, color: cfg.color, count: items.length, subtotal: subtotal),
+        _buildGroupHeader(
+          type: type,
+          icon: cfg.icon,
+          color: cfg.color,
+          count: items.length,
+          subtotal: subtotal,
+        ),
       );
       widgets.add(const SizedBox(height: 2));
 
@@ -754,19 +877,30 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(5)),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(5),
+            ),
             child: Icon(icon, size: 14, color: color),
           ),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
               type,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
           ),
           Text(
             _currencyFmt.format(subtotal),
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
           ),
           const SizedBox(width: 6),
           Container(
@@ -778,7 +912,11 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
             ),
             child: Text(
               '$count',
-              style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey.shade600),
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade600,
+              ),
             ),
           ),
         ],
@@ -787,7 +925,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   }
 
   /// بطاقة المصروف المفصلة (مصغّرة)
-  Widget _buildDetailedExpenseCard(_ExpenseReportRow row, {required int rowIndex}) {
+  Widget _buildDetailedExpenseCard(
+    _ExpenseReportRow row, {
+    required int rowIndex,
+  }) {
     final cfg = _configForType(row.type);
     final hasDesc = row.description.isNotEmpty;
     final hasEmployee = row.employee != null;
@@ -798,7 +939,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: isSalary ? Colors.purple.shade100 : Colors.grey.shade100, width: isSalary ? 0.8 : 0.4),
+        side: BorderSide(
+          color: isSalary ? Colors.purple.shade100 : Colors.grey.shade100,
+          width: isSalary ? 0.8 : 0.4,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -819,7 +963,11 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                   alignment: Alignment.center,
                   child: Text(
                     '$rowIndex',
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: cfg.color),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: cfg.color,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -827,23 +975,45 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                 Expanded(
                   child: Row(
                     children: [
-                      Icon(Icons.calendar_today, size: 11, color: Colors.grey.shade500),
+                      Icon(
+                        Icons.calendar_today,
+                        size: 11,
+                        color: Colors.grey.shade500,
+                      ),
                       const SizedBox(width: 2),
                       Text(
                         _dateLabelFormat.format(row.date),
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade700,
+                        ),
                       ),
                       const SizedBox(width: 6),
-                      Icon(Icons.access_time, size: 11, color: Colors.grey.shade400),
+                      Icon(
+                        Icons.access_time,
+                        size: 11,
+                        color: Colors.grey.shade400,
+                      ),
                       const SizedBox(width: 2),
-                      Text(_timeFormat.format(row.date), style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                      Text(
+                        _timeFormat.format(row.date),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 // المبلغ
                 Text(
                   _currencyFmt.format(row.amount),
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: cfg.color),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: cfg.color,
+                  ),
                 ),
               ],
             ),
@@ -859,7 +1029,11 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                   Expanded(
                     child: Text(
                       row.description,
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade700, height: 1.3),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade700,
+                        height: 1.3,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -876,7 +1050,12 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                 decoration: BoxDecoration(
                   color: isSalary ? Colors.purple.shade50 : Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: isSalary ? Colors.purple.shade200 : Colors.blue.shade100, width: 0.4),
+                  border: Border.all(
+                    color: isSalary
+                        ? Colors.purple.shade200
+                        : Colors.blue.shade100,
+                    width: 0.4,
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -884,31 +1063,55 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                     Icon(
                       Icons.person_outline,
                       size: 11,
-                      color: isSalary ? Colors.purple.shade400 : Colors.blue.shade400,
+                      color: isSalary
+                          ? Colors.purple.shade400
+                          : Colors.blue.shade400,
                     ),
                     const SizedBox(width: 3),
                     Text(
                       hasEmployee
                           ? row.employee!.name
-                          : (row.relatedId != null ? 'موظف #${row.relatedId}' : 'موظف غير محدد'),
+                          : (row.relatedId != null
+                                ? 'موظف #${row.relatedId}'
+                                : 'موظف غير محدد'),
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
-                        color: isSalary ? Colors.purple.shade700 : Colors.blue.shade600,
+                        color: isSalary
+                            ? Colors.purple.shade700
+                            : Colors.blue.shade600,
                       ),
                     ),
                     if (hasEmployee && row.employee!.phone.isNotEmpty) ...[
                       const SizedBox(width: 4),
                       Icon(Icons.phone, size: 10, color: Colors.grey.shade400),
                       const SizedBox(width: 2),
-                      Text(row.employee!.phone, style: TextStyle(fontSize: 9, color: Colors.grey.shade500)),
+                      Text(
+                        row.employee!.phone,
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
                     ],
                     if (hasEmployee && row.employee!.position.isNotEmpty) ...[
                       const SizedBox(width: 4),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
-                        decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(3)),
-                        child: Text(row.employee!.position, style: TextStyle(fontSize: 8, color: Colors.grey.shade600)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 3,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                        child: Text(
+                          row.employee!.position,
+                          style: TextStyle(
+                            fontSize: 8,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
                       ),
                     ],
                   ],
@@ -922,20 +1125,34 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 1,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.purple.shade50,
                       borderRadius: BorderRadius.circular(3),
-                      border: Border.all(color: Colors.purple.shade200, width: 0.4),
+                      border: Border.all(
+                        color: Colors.purple.shade200,
+                        width: 0.4,
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.info_outline, size: 9, color: Colors.purple.shade400),
+                        Icon(
+                          Icons.info_outline,
+                          size: 9,
+                          color: Colors.purple.shade400,
+                        ),
                         const SizedBox(width: 2),
                         Text(
                           'سحب راتب',
-                          style: TextStyle(fontSize: 8, fontWeight: FontWeight.w600, color: Colors.purple.shade600),
+                          style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.purple.shade600,
+                          ),
                         ),
                       ],
                     ),
@@ -956,7 +1173,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     }
 
     // حساب إجمالي الرواتب والمصروفات التشغيلية
-    final salaryTotal = _rows.where((r) => _isSalaryType(r.type)).fold<double>(0, (sum, r) => sum + r.amount);
+    final salaryTotal = _rows
+        .where((r) => _isSalaryType(r.type))
+        .fold<double>(0, (sum, r) => sum + r.amount);
     final nonSalaryTotal = _totalAmount - salaryTotal;
     final salaryCount = _rows.where((r) => _isSalaryType(r.type)).length;
 
@@ -975,19 +1194,33 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
             children: [
               const Icon(Icons.payments, color: Colors.orange, size: 14),
               const SizedBox(width: 5),
-              Text(widget.totalSummaryLabel, style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+              Text(
+                widget.totalSummaryLabel,
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+              ),
               const Spacer(),
               Text(
                 _currencyFmt.format(_totalAmount),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.orange),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: Colors.orange,
+                ),
               ),
               const SizedBox(width: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(5)),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(5),
+                ),
                 child: Text(
                   '${_rows.length} عملية',
-                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.blue.shade700),
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade700,
+                  ),
                 ),
               ),
             ],
@@ -1003,15 +1236,25 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                 // سحوبات الرواتب
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.purple.shade50,
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.purple.shade200, width: 0.3),
+                      border: Border.all(
+                        color: Colors.purple.shade200,
+                        width: 0.3,
+                      ),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.account_balance_wallet, size: 11, color: Colors.purple.shade600),
+                        Icon(
+                          Icons.account_balance_wallet,
+                          size: 11,
+                          color: Colors.purple.shade600,
+                        ),
                         const SizedBox(width: 3),
                         Expanded(
                           child: Column(
@@ -1036,7 +1279,13 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                             ],
                           ),
                         ),
-                        Text('$salaryCount', style: TextStyle(fontSize: 8, color: Colors.purple.shade400)),
+                        Text(
+                          '$salaryCount',
+                          style: TextStyle(
+                            fontSize: 8,
+                            color: Colors.purple.shade400,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -1045,15 +1294,25 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                 // مصروفات تشغيلية
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.teal.shade50,
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.teal.shade200, width: 0.3),
+                      border: Border.all(
+                        color: Colors.teal.shade200,
+                        width: 0.3,
+                      ),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.build_circle, size: 11, color: Colors.teal.shade600),
+                        Icon(
+                          Icons.build_circle,
+                          size: 11,
+                          color: Colors.teal.shade600,
+                        ),
                         const SizedBox(width: 3),
                         Expanded(
                           child: Column(
@@ -1061,7 +1320,11 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                             children: [
                               Text(
                                 'مصروفات تشغيلية',
-                                style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.teal.shade700),
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.teal.shade700,
+                                ),
                               ),
                               Text(
                                 _currencyFmt.format(nonSalaryTotal),
@@ -1076,7 +1339,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                         ),
                         Text(
                           '${_rows.length - salaryCount}',
-                          style: TextStyle(fontSize: 8, color: Colors.teal.shade400),
+                          style: TextStyle(
+                            fontSize: 8,
+                            color: Colors.teal.shade400,
+                          ),
                         ),
                       ],
                     ),
@@ -1103,7 +1369,12 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   /// مطابقة مفتاحي اليوم الفندقي بين مصروف وسحب راتب
   /// تأخذ بعين الاعتبار أن البيانات القديمة قد لا تحتوي على hotelDayKey
   /// في هذه الحالة نلجأ لمقارنة جزء التاريخ فقط (yyyy-MM-dd)
-  static bool _hotelDayKeysMatch(String? expenseHotelDayKey, String? swHotelDayKey, String expenseDate, String swDate) {
+  static bool _hotelDayKeysMatch(
+    String? expenseHotelDayKey,
+    String? swHotelDayKey,
+    String expenseDate,
+    String swDate,
+  ) {
     // أفضل حالة: كلاهما يحتوي على hotelDayKey
     if (expenseHotelDayKey != null &&
         expenseHotelDayKey.isNotEmpty &&
@@ -1121,7 +1392,9 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
       return DateTime.fromMillisecondsSinceEpoch(0);
     }
     final hasTime = trimmed.length > 10;
-    final normalized = hasTime ? trimmed.replaceFirst(' ', 'T') : '${trimmed}T00:00:00';
+    final normalized = hasTime
+        ? trimmed.replaceFirst(' ', 'T')
+        : '${trimmed}T00:00:00';
     try {
       return DateTime.parse(normalized);
     } catch (e) {
@@ -1163,7 +1436,11 @@ class _ExpenseReportRow {
 }
 
 class _ExpensesReportResult {
-  _ExpensesReportResult({required this.rows, required this.totalAmount, required this.hasSalaryData});
+  _ExpensesReportResult({
+    required this.rows,
+    required this.totalAmount,
+    required this.hasSalaryData,
+  });
 
   final List<_ExpenseReportRow> rows;
   final double totalAmount;

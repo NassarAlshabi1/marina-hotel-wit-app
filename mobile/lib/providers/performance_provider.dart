@@ -18,7 +18,11 @@ class PerformanceMetrics {
 }
 
 class PerformanceState {
-  PerformanceState({required this.metrics, required this.averageTimings, required this.isMonitoring});
+  PerformanceState({
+    required this.metrics,
+    required this.averageTimings,
+    required this.isMonitoring,
+  });
   final List<PerformanceMetrics> metrics;
   final Map<String, double> averageTimings;
   final bool isMonitoring;
@@ -37,14 +41,22 @@ class PerformanceState {
 }
 
 class PerformanceNotifier extends StateNotifier<PerformanceState> {
-  PerformanceNotifier() : super(PerformanceState(metrics: [], averageTimings: {}, isMonitoring: kDebugMode));
+  PerformanceNotifier()
+    : super(
+        PerformanceState(
+          metrics: [],
+          averageTimings: {},
+          isMonitoring: kDebugMode,
+        ),
+      );
 
   void recordOperation(PerformanceMetrics metric) {
     if (!state.isMonitoring) {
       return;
     }
 
-    final newMetrics = List<PerformanceMetrics>.from(state.metrics)..add(metric);
+    final newMetrics = List<PerformanceMetrics>.from(state.metrics)
+      ..add(metric);
     if (newMetrics.length > 100) {
       newMetrics.removeRange(0, newMetrics.length - 100);
     }
@@ -61,14 +73,20 @@ class PerformanceNotifier extends StateNotifier<PerformanceState> {
   Map<String, double> _calculateAverages(List<PerformanceMetrics> metrics) {
     final Map<String, List<double>> byOperation = {};
     for (final m in metrics) {
-      byOperation.putIfAbsent(m.operation, () => []).add(m.duration.inMilliseconds.toDouble());
+      byOperation
+          .putIfAbsent(m.operation, () => [])
+          .add(m.duration.inMilliseconds.toDouble());
     }
-    return {for (final e in byOperation.entries) e.key: e.value.reduce((a, b) => a + b) / e.value.length};
+    return {
+      for (final e in byOperation.entries)
+        e.key: e.value.reduce((a, b) => a + b) / e.value.length,
+    };
   }
 
   Map<String, dynamic> getReport() {
-    final slowest = state.metrics.where((m) => m.duration.inMilliseconds > 500).toList()
-      ..sort((a, b) => a.duration.compareTo(b.duration));
+    final slowest =
+        state.metrics.where((m) => m.duration.inMilliseconds > 500).toList()
+          ..sort((a, b) => a.duration.compareTo(b.duration));
 
     return {
       'monitoringEnabled': state.isMonitoring,
@@ -76,7 +94,13 @@ class PerformanceNotifier extends StateNotifier<PerformanceState> {
       'averageTimings': state.averageTimings,
       'slowestOperations': slowest
           .take(5)
-          .map((m) => {'operation': m.operation, 'duration': m.durationMs, 'records': m.recordsProcessed})
+          .map(
+            (m) => {
+              'operation': m.operation,
+              'duration': m.durationMs,
+              'records': m.recordsProcessed,
+            },
+          )
           .toList(),
     };
   }
@@ -90,12 +114,17 @@ class PerformanceNotifier extends StateNotifier<PerformanceState> {
   }
 }
 
-final performanceProvider = StateNotifierProvider<PerformanceNotifier, PerformanceState>((ref) {
-  return PerformanceNotifier();
-});
+final performanceProvider =
+    StateNotifierProvider<PerformanceNotifier, PerformanceState>((ref) {
+      return PerformanceNotifier();
+    });
 
 class PerformanceTimer {
-  PerformanceTimer({required this.operation, required this.notifier, this.recordsProcessed = 0}) {
+  PerformanceTimer({
+    required this.operation,
+    required this.notifier,
+    this.recordsProcessed = 0,
+  }) {
     _stopwatch.start();
   }
   final String operation;
@@ -121,7 +150,11 @@ class PerformanceTimer {
     Future<T> Function() fn, {
     int recordsProcessed = 0,
   }) async {
-    final timer = PerformanceTimer(operation: operation, notifier: notifier, recordsProcessed: recordsProcessed);
+    final timer = PerformanceTimer(
+      operation: operation,
+      notifier: notifier,
+      recordsProcessed: recordsProcessed,
+    );
     try {
       return await fn();
     } finally {
@@ -131,7 +164,16 @@ class PerformanceTimer {
 }
 
 extension PerformanceExtension on PerformanceNotifier {
-  Future<T> timed<T>(String operation, Future<T> Function() fn, {int records = 0}) async {
-    return PerformanceTimer.measure(operation, this, fn, recordsProcessed: records);
+  Future<T> timed<T>(
+    String operation,
+    Future<T> Function() fn, {
+    int records = 0,
+  }) async {
+    return PerformanceTimer.measure(
+      operation,
+      this,
+      fn,
+      recordsProcessed: records,
+    );
   }
 }

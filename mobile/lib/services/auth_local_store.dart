@@ -34,10 +34,30 @@ class AuthLocalStore {
   ];
 
   static const Map<String, Map<String, dynamic>> _fixedAccounts = {
-    'admin': {'password': 'admin', 'user_type': 'admin', 'full_name': 'مدير النظام', 'id': 1},
-    'm': {'password': '1', 'user_type': 'supervisor', 'full_name': 'محمد', 'id': 2},
-    'ahmed': {'password': '2222', 'user_type': 'employee', 'full_name': 'أحمد', 'id': 3},
-    '1': {'password': '1', 'user_type': 'supervisor', 'full_name': 'محمد', 'id': 4},
+    'admin': {
+      'password': 'admin',
+      'user_type': 'admin',
+      'full_name': 'مدير النظام',
+      'id': 1,
+    },
+    'm': {
+      'password': '1',
+      'user_type': 'supervisor',
+      'full_name': 'محمد',
+      'id': 2,
+    },
+    'ahmed': {
+      'password': '2222',
+      'user_type': 'employee',
+      'full_name': 'أحمد',
+      'id': 3,
+    },
+    '1': {
+      'password': '1',
+      'user_type': 'supervisor',
+      'full_name': 'محمد',
+      'id': 4,
+    },
   };
 
   static const Map<String, List<String>> _fixedPermissions = {
@@ -66,13 +86,21 @@ class AuthLocalStore {
       if (decoded is Map) {
         return decoded.map((key, value) {
           if (value is Map) {
-            return MapEntry(key.toString(), value.map((k, v) => MapEntry(k.toString(), v)));
+            return MapEntry(
+              key.toString(),
+              value.map((k, v) => MapEntry(k.toString(), v)),
+            );
           }
           return MapEntry(key.toString(), <String, dynamic>{});
         });
       }
     } catch (e, st) {
-      AppLogger.warning('فشل قراءة الحسابات المخصصة المحفوظة', tag: 'AUTH', error: e, stackTrace: st);
+      AppLogger.warning(
+        'فشل قراءة الحسابات المخصصة المحفوظة',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
     }
     return {};
   }
@@ -126,7 +154,10 @@ class AuthLocalStore {
     try {
       final appwrite = AppwriteService();
       await appwrite.initialize();
-      final docs = await appwrite.listDocuments(collectionId: 'app_users', useCache: false);
+      final docs = await appwrite.listDocuments(
+        collectionId: 'app_users',
+        useCache: false,
+      );
       final cloudAccounts = <String, Map<String, dynamic>>{};
       for (final doc in docs) {
         final d = doc.data;
@@ -150,16 +181,26 @@ class AuthLocalStore {
         };
       }
       if (cloudAccounts.isNotEmpty) {
-        AppLogger.debug('Cloud users loaded: ${cloudAccounts.keys.join(', ')}', tag: 'AUTH');
+        AppLogger.debug(
+          'Cloud users loaded: ${cloudAccounts.keys.join(', ')}',
+          tag: 'AUTH',
+        );
       }
       return cloudAccounts;
     } catch (e) {
-      AppLogger.warning('Failed to load cloud users (fallback to local only)', tag: 'AUTH', error: e);
+      AppLogger.warning(
+        'Failed to load cloud users (fallback to local only)',
+        tag: 'AUTH',
+        error: e,
+      );
       return {};
     }
   }
 
-  Future<Map<String, dynamic>?> validateCredentials(String username, String password) async {
+  Future<Map<String, dynamic>?> validateCredentials(
+    String username,
+    String password,
+  ) async {
     final normalized = username.trim();
 
     // 1️⃣ البحث في الحسابات المحلية (hardcoded + custom)
@@ -187,7 +228,10 @@ class AuthLocalStore {
     // ✅ ترحيل تلقائي: إذا كانت كلمة المرور المخزّنة نصاً صريحاً (legacy)،
     // نُعيد تشفيرها بـ PBKDF2 ونُحدّث التخزين والسحابة.
     if (!PasswordHasher.isHashed(storedPassword) && storedPassword.isNotEmpty) {
-      AppLogger.info('🔄 Migrating plaintext password to PBKDF2 for user: $normalized', tag: 'AUTH');
+      AppLogger.info(
+        '🔄 Migrating plaintext password to PBKDF2 for user: $normalized',
+        tag: 'AUTH',
+      );
       final hashedPassword = PasswordHasher.hash(password);
       await _migratePasswordToHashed(normalized, account, hashedPassword);
     }
@@ -215,7 +259,10 @@ class AuthLocalStore {
       try {
         final appwrite = AppwriteService();
         await appwrite.initialize();
-        final docs = await appwrite.listDocuments(collectionId: 'app_users', useCache: false);
+        final docs = await appwrite.listDocuments(
+          collectionId: 'app_users',
+          useCache: false,
+        );
         for (final doc in docs) {
           if ((doc.data['username']?.toString() ?? '') == normalized) {
             final version = doc.data['credentials_version'] as int? ?? 0;
@@ -224,7 +271,12 @@ class AuthLocalStore {
           }
         }
       } catch (e, st) {
-        AppLogger.warning('تعذر حفظ credentials_version للمستخدم $normalized', tag: 'AUTH', error: e, stackTrace: st);
+        AppLogger.warning(
+          'تعذر حفظ credentials_version للمستخدم $normalized',
+          tag: 'AUTH',
+          error: e,
+          stackTrace: st,
+        );
       }
     } else {
       perms = await getPermissions(normalized);
@@ -262,7 +314,12 @@ class AuthLocalStore {
     final id = _nextUserId(accounts);
     // ✅ تشفير كلمة المرور قبل التخزين المحلي
     final hashedPassword = PasswordHasher.hash(password);
-    accounts[normalized] = {'password': hashedPassword, 'full_name': fullName, 'user_type': userType, 'id': id};
+    accounts[normalized] = {
+      'password': hashedPassword,
+      'full_name': fullName,
+      'user_type': userType,
+      'id': id,
+    };
     await _saveCustomAccounts(accounts);
     await setPermissions(normalized, permissions);
 
@@ -321,7 +378,10 @@ class AuthLocalStore {
           'deviceId': await _getDeviceId() ?? '',
         },
       );
-      AppLogger.debug('User $username pushed to cloud (password hashed)', tag: 'AUTH');
+      AppLogger.debug(
+        'User $username pushed to cloud (password hashed)',
+        tag: 'AUTH',
+      );
 
       // ✅ مزامنة Secondary Appwrite: إرسال نفس البيانات للوجهة الثانوية
       await _pushToSecondary(docId, {
@@ -343,7 +403,11 @@ class AuthLocalStore {
         'deviceId': await _getDeviceId() ?? '',
       });
     } catch (e) {
-      AppLogger.warning('Failed to push user $username to cloud', tag: 'AUTH', error: e);
+      AppLogger.warning(
+        'Failed to push user $username to cloud',
+        tag: 'AUTH',
+        error: e,
+      );
     }
   }
 
@@ -361,7 +425,11 @@ class AuthLocalStore {
 
       final service = SecondaryAppwriteService.instance;
       await service.ensureInitialized();
-      await service.upsertDocument(collectionId: 'app_users', documentId: docId, data: data);
+      await service.upsertDocument(
+        collectionId: 'app_users',
+        documentId: docId,
+        data: data,
+      );
       debugPrint('📤 [Auth] User synced to Secondary: $docId');
     } catch (e) {
       // فشل Secondary غير حرج — Primary لديه البيانات
@@ -380,7 +448,11 @@ class AuthLocalStore {
 
       final service = SecondaryAppwriteService.instance;
       await service.ensureInitialized();
-      await service.upsertDocument(collectionId: 'app_users', documentId: docId, data: data);
+      await service.upsertDocument(
+        collectionId: 'app_users',
+        documentId: docId,
+        data: data,
+      );
       debugPrint('📤 [Auth] User updated in Secondary: $docId');
     } catch (e) {
       debugPrint('⚠️ [Auth] Secondary update failed for user $docId: $e');
@@ -390,13 +462,17 @@ class AuthLocalStore {
   /// ✅ حذف مستخدم من الوجهة الثانوية
   Future<void> _deleteFromSecondary(String docId) async {
     try {
-      if (!SecondaryAppwriteConfig.isEnabled || !SecondaryAppwriteConfig.isConfigured) {
+      if (!SecondaryAppwriteConfig.isEnabled ||
+          !SecondaryAppwriteConfig.isConfigured) {
         return;
       }
 
       final service = SecondaryAppwriteService.instance;
       await service.ensureInitialized();
-      await service.deleteDocument(collectionId: 'app_users', documentId: docId);
+      await service.deleteDocument(
+        collectionId: 'app_users',
+        documentId: docId,
+      );
       debugPrint('📤 [Auth] User deleted from Secondary: $docId');
     } catch (e) {
       debugPrint('⚠️ [Auth] Secondary delete failed for user $docId: $e');
@@ -405,7 +481,11 @@ class AuthLocalStore {
 
   /// ✅ ترحيل كلمة مرور من نص صريح إلى PBKDF2 hash
   /// يُحدّث التخزين المحلي (custom accounts) والسحابة (إذا كان حساباً سحابياً)
-  Future<void> _migratePasswordToHashed(String username, Map<String, dynamic> account, String hashedPassword) async {
+  Future<void> _migratePasswordToHashed(
+    String username,
+    Map<String, dynamic> account,
+    String hashedPassword,
+  ) async {
     try {
       // 1️⃣ تحديث الحسابات المحلية المخصصة (custom)
       final accounts = await _loadCustomAccounts();
@@ -458,8 +538,12 @@ class AuthLocalStore {
       await appwrite.initialize();
 
       // سحب المستند الحالي لمعرفة credentials_version الحالي
-      final currentDoc = await appwrite.getDocument(collectionId: 'app_users', documentId: docId);
-      final currentVersion = currentDoc.data['credentials_version'] as int? ?? 0;
+      final currentDoc = await appwrite.getDocument(
+        collectionId: 'app_users',
+        documentId: docId,
+      );
+      final currentVersion =
+          currentDoc.data['credentials_version'] as int? ?? 0;
       final nextVersion = currentVersion + 1;
 
       final data = <String, dynamic>{'credentials_version': nextVersion};
@@ -473,7 +557,9 @@ class AuthLocalStore {
         data['user_type'] = newUserType;
         data['role'] = newUserType;
       }
-      if (newPermissions != null) data['permissions'] = jsonEncode(newPermissions);
+      if (newPermissions != null) {
+        data['permissions'] = jsonEncode(newPermissions);
+      }
       if (active != null) data['active'] = active;
 
       // ✅ تحديث حقول المزامنة الأساسية فقط
@@ -482,16 +568,27 @@ class AuthLocalStore {
       data['lastModified'] = now;
       data['version'] = (currentDoc.data['version'] as int? ?? 1) + 1;
 
-      await appwrite.updateDocument(collectionId: 'app_users', documentId: docId, data: data);
+      await appwrite.updateDocument(
+        collectionId: 'app_users',
+        documentId: docId,
+        data: data,
+      );
 
-      AppLogger.info('Cloud user $username updated (version $currentVersion → $nextVersion)', tag: 'AUTH');
+      AppLogger.info(
+        'Cloud user $username updated (version $currentVersion → $nextVersion)',
+        tag: 'AUTH',
+      );
 
       // ✅ مزامنة Secondary Appwrite: تحديث نفس البيانات في الوجهة الثانوية
       await _updateSecondary(docId, data);
 
       return true;
     } catch (e) {
-      AppLogger.error('Failed to update cloud user $username', tag: 'AUTH', error: e);
+      AppLogger.error(
+        'Failed to update cloud user $username',
+        tag: 'AUTH',
+        error: e,
+      );
       return false;
     }
   }
@@ -501,7 +598,10 @@ class AuthLocalStore {
     try {
       final appwrite = AppwriteService();
       await appwrite.initialize();
-      await appwrite.deleteDocument(collectionId: 'app_users', documentId: docId);
+      await appwrite.deleteDocument(
+        collectionId: 'app_users',
+        documentId: docId,
+      );
       AppLogger.info('Cloud user deleted (doc: $docId)', tag: 'AUTH');
 
       // ✅ مزامنة Secondary Appwrite: حذف من الوجهة الثانوية
@@ -556,14 +656,22 @@ class AuthLocalStore {
       // listDocuments API call إضافي بلا داعٍ في كل فحص جلسة (كل 30 ثانية).
       //
       /// للتراجع: أعد استدعاء listDocuments('app_users') بدل استخدام cloudAccount.
-      final cloudVersion = (cloudAccount['credentials_version'] as num?)?.toInt() ?? 0;
+      final cloudVersion =
+          (cloudAccount['credentials_version'] as num?)?.toInt() ?? 0;
       if (cloudVersion != storedVersion) {
-        AppLogger.warning('Session invalid for $username: local=$storedVersion, cloud=$cloudVersion', tag: 'AUTH');
+        AppLogger.warning(
+          'Session invalid for $username: local=$storedVersion, cloud=$cloudVersion',
+          tag: 'AUTH',
+        );
         return false;
       }
       return true;
     } catch (e) {
-      AppLogger.warning('Session check failed (ignoring)', tag: 'AUTH', error: e);
+      AppLogger.warning(
+        'Session check failed (ignoring)',
+        tag: 'AUTH',
+        error: e,
+      );
       return true;
     }
   }
@@ -601,7 +709,9 @@ class AuthLocalStore {
     // حسابات سحابية من Appwrite (app_users)
     try {
       final cloudAccounts = await loadCloudAccounts();
-      final localUsernames = result.map((a) => a['username'].toString()).toSet();
+      final localUsernames = result
+          .map((a) => a['username'].toString())
+          .toSet();
       cloudAccounts.forEach((username, data) {
         // تجنب التكرار مع الحسابات المحلية
         if (!localUsernames.contains(username)) {
@@ -618,7 +728,12 @@ class AuthLocalStore {
       });
     } catch (e, st) {
       // فشل سحب السحابي — لا مشكلة، نعرض المحلي فقط
-      AppLogger.warning('فشل سحب الحسابات السحابية أثناء التجميع التفصيلي', tag: 'AUTH', error: e, stackTrace: st);
+      AppLogger.warning(
+        'فشل سحب الحسابات السحابية أثناء التجميع التفصيلي',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
     }
 
     result.sort((a, b) {
@@ -646,7 +761,12 @@ class AuthLocalStore {
       }
       return null;
     } catch (e, st) {
-      AppLogger.warning('بيانات المستخدم الحالي غير صالحة في التخزين المحلي', tag: 'AUTH', error: e, stackTrace: st);
+      AppLogger.warning(
+        'بيانات المستخدم الحالي غير صالحة في التخزين المحلي',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
       return null;
     }
   }
@@ -680,7 +800,10 @@ class AuthLocalStore {
     final prefs = await SharedPreferences.getInstance();
     final typeStr = prefs.getString(_kAuthType);
     if (typeStr == null) return AuthType.local;
-    return AuthType.values.firstWhere((e) => e.name == typeStr, orElse: () => AuthType.local);
+    return AuthType.values.firstWhere(
+      (e) => e.name == typeStr,
+      orElse: () => AuthType.local,
+    );
   }
 
   Future<List<String>> getPermissions(String username) async {
@@ -698,7 +821,12 @@ class AuthLocalStore {
         }
       }
     } catch (e, st) {
-      AppLogger.warning('تعذر تحميل الصلاحيات من السحابة للمستخدم $username', tag: 'AUTH', error: e, stackTrace: st);
+      AppLogger.warning(
+        'تعذر تحميل الصلاحيات من السحابة للمستخدم $username',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
     }
 
     // 2️⃣ fallback: الصلاحيات المحلية
@@ -715,7 +843,12 @@ class AuthLocalStore {
       }
       return _fixedPermissions[username] ?? <String>[];
     } catch (e, st) {
-      AppLogger.warning('تعذر تحليل خريطة الأذونات المحلية للمستخدم $username', tag: 'AUTH', error: e, stackTrace: st);
+      AppLogger.warning(
+        'تعذر تحليل خريطة الأذونات المحلية للمستخدم $username',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
       return _fixedPermissions[username] ?? <String>[];
     }
   }
@@ -731,7 +864,12 @@ class AuthLocalStore {
           map = decoded.map((k, v) => MapEntry(k.toString(), v));
         }
       } catch (e, st) {
-        AppLogger.warning('فشل قراءة بيانات الأذونات المحفوظة', tag: 'AUTH', error: e, stackTrace: st);
+        AppLogger.warning(
+          'فشل قراءة بيانات الأذونات المحفوظة',
+          tag: 'AUTH',
+          error: e,
+          stackTrace: st,
+        );
       }
     }
     map[username] = permissions;
@@ -745,7 +883,10 @@ class AuthLocalStore {
   }
 
   /// تحديث صلاحيات مستخدم سحابي في Appwrite
-  Future<void> _updateCloudPermissions(String username, List<String> permissions) async {
+  Future<void> _updateCloudPermissions(
+    String username,
+    List<String> permissions,
+  ) async {
     try {
       final appwrite = AppwriteService();
       await appwrite.initialize();
@@ -759,12 +900,19 @@ class AuthLocalStore {
         documentId: docId,
         data: {'permissions': jsonEncode(permissions)},
       );
-      AppLogger.debug('Permissions updated for $username in cloud', tag: 'AUTH');
+      AppLogger.debug(
+        'Permissions updated for $username in cloud',
+        tag: 'AUTH',
+      );
 
       // ✅ مزامنة Secondary Appwrite: تحديث الصلاحيات في الوجهة الثانوية
       await _updateSecondary(docId, {'permissions': jsonEncode(permissions)});
     } catch (e) {
-      AppLogger.warning('Failed to update cloud permissions for $username', tag: 'AUTH', error: e);
+      AppLogger.warning(
+        'Failed to update cloud permissions for $username',
+        tag: 'AUTH',
+        error: e,
+      );
     }
   }
 
@@ -783,7 +931,12 @@ class AuthLocalStore {
           }
         }
       } catch (e, st) {
-        AppLogger.warning('فشل قراءة أسماء المستخدمين من الأذونات', tag: 'AUTH', error: e, stackTrace: st);
+        AppLogger.warning(
+          'فشل قراءة أسماء المستخدمين من الأذونات',
+          tag: 'AUTH',
+          error: e,
+          stackTrace: st,
+        );
       }
     }
     // إضافة أسماء المستخدمين السحابيين
@@ -791,7 +944,12 @@ class AuthLocalStore {
       final cloudAccounts = await loadCloudAccounts();
       names.addAll(cloudAccounts.keys);
     } catch (e, st) {
-      AppLogger.warning('تعذر إضافة المستخدمين السحابيين إلى قائمة الأسماء', tag: 'AUTH', error: e, stackTrace: st);
+      AppLogger.warning(
+        'تعذر إضافة المستخدمين السحابيين إلى قائمة الأسماء',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
     }
     final list = names.toList();
     list.sort();
@@ -812,7 +970,8 @@ class AuthLocalStore {
   Future<String?> _getDeviceId() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getString('appwrite_device_id') ?? prefs.getString('appwrite_realtime_device_id');
+      return prefs.getString('appwrite_device_id') ??
+          prefs.getString('appwrite_realtime_device_id');
     } catch (_) {
       return null;
     }

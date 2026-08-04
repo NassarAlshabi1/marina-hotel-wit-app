@@ -1,9 +1,3 @@
-// Tagged as 'slow' — uses hardcoded dates dependent on DateTime.now().
-// TODO: rewrite to use dynamic dates for reliable CI execution.
-@Tags(['slow'])
-library marina_hotel_mobile.test.sidebar_permissions_test;
-
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,7 +11,11 @@ class FakeAuthNotifier extends AuthNotifier {
   @override
   Future<void> restoreSession() async {}
   @override
-  Future<void> login(String username, String password, {bool rememberMe = false}) async {}
+  Future<void> login(
+    String username,
+    String password, {
+    bool rememberMe = false,
+  }) async {}
   @override
   Future<void> logout() async {}
 }
@@ -37,13 +35,20 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          authProvider.overrideWith((ref) => FakeAuthNotifier(AuthState(isAuthenticated: true, currentUser: user))),
+          authProvider.overrideWith(
+            (ref) => FakeAuthNotifier(
+              AuthState(isAuthenticated: true, currentUser: user),
+            ),
+          ),
         ],
         child: const Directionality(
           textDirection: TextDirection.rtl,
           child: MaterialApp(
             home: Scaffold(
-              body: AdminSidebar(currentRoute: '/dashboard', onRouteSelected: _noop),
+              body: AdminSidebar(
+                currentRoute: '/dashboard',
+                onRouteSelected: _noop,
+              ),
             ),
           ),
         ),

@@ -10,18 +10,26 @@ import '../local_db.dart';
 
 String _normalizeArabic(String input) {
   var s = input.trim();
-  s = s.replaceAll(RegExp('[\u0617-\u061A\u064B-\u0652\u0670\u0653-\u065F\u06D6-\u06ED]'), ''); // tashkeel
+  s = s.replaceAll(
+    RegExp('[\u0617-\u061A\u064B-\u0652\u0670\u0653-\u065F\u06D6-\u06ED]'),
+    '',
+  ); // tashkeel
   s = s.replaceAll('\u0640', ''); // tatweel
   s = s.replaceAll(RegExp('[إأٱآ]'), 'ا');
   s = s.replaceAll('ؤ', 'و');
   s = s.replaceAll('ئ', 'ي');
   s = s.replaceAll('ى', 'ي');
-  s = s.replaceAll(RegExp('[^\u0621-\u064A0-9 ]+'), ' '); // keep arabic letters, digits, space
+  s = s.replaceAll(
+    RegExp('[^\u0621-\u064A0-9 ]+'),
+    ' ',
+  ); // keep arabic letters, digits, space
   s = s.replaceAll(RegExp(' +'), ' ').trim();
   return s.toLowerCase();
 }
 
-List<String> _tokens(String name) => _normalizeArabic(name).split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
+List<String> _tokens(String name) => _normalizeArabic(
+  name,
+).split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
 
 bool _tripleMatch(List<String> a, List<String> b) {
   if (a.length < 3 || b.length < 3) {
@@ -113,7 +121,9 @@ class BlacklistRepository {
   Future<List<BlacklistEntry>> listAll() async {
     final rows =
         await (db.select(db.shiftNotes)
-              ..where((t) => t.createdBy.equals(_createdByTag) & t.deletedAt.isNull())
+              ..where(
+                (t) => t.createdBy.equals(_createdByTag) & t.deletedAt.isNull(),
+              )
               ..orderBy([(t) => d.OrderingTerm.desc(t.createdAt)]))
             .get();
     return rows.map(_fromRow).toList();
@@ -187,7 +197,9 @@ class BlacklistRepository {
   }
 
   Future<bool> updateActive(int id, bool active) async {
-    final row = await (db.select(db.shiftNotes)..where((t) => t.id.equals(id))).getSingleOrNull();
+    final row = await (db.select(
+      db.shiftNotes,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
     if (row == null) {
       return false;
     }
@@ -200,8 +212,10 @@ class BlacklistRepository {
     payload['active'] = active;
     final now = Time.nowEpoch();
     // ✅ bump version + OCC: فحص version في WHERE لمنع lost update
-    final updated = await (db.update(db.shiftNotes)..where((t) => t.id.equals(id) & t.version.equals(row.version)))
-        .write(
+    final updated =
+        await (db.update(
+          db.shiftNotes,
+        )..where((t) => t.id.equals(id) & t.version.equals(row.version))).write(
           ShiftNotesCompanion(
             content: d.Value(jsonEncode(payload)),
             updatedAt: d.Value(now),
@@ -234,14 +248,18 @@ class BlacklistRepository {
     String? notes,
     String? reportedBy,
   }) async {
-    final row = await (db.select(db.shiftNotes)..where((t) => t.id.equals(id))).getSingleOrNull();
+    final row = await (db.select(
+      db.shiftNotes,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
     if (row == null) {
       return false;
     }
     final oldPayload = jsonDecode(row.content) as Map<String, dynamic>;
     final now = Time.nowEpoch();
-    final updated = await (db.update(db.shiftNotes)..where((t) => t.id.equals(id) & t.version.equals(row.version)))
-        .write(
+    final updated =
+        await (db.update(
+          db.shiftNotes,
+        )..where((t) => t.id.equals(id) & t.version.equals(row.version))).write(
           ShiftNotesCompanion(
             title: d.Value(name.trim()),
             content: d.Value(
@@ -252,7 +270,10 @@ class BlacklistRepository {
                   phone: phone?.trim(),
                   reason: reason?.trim(),
                   notes: notes?.trim(),
-                  reportedBy: reportedBy ?? (oldPayload['reportedBy'] as String?) ?? 'police',
+                  reportedBy:
+                      reportedBy ??
+                      (oldPayload['reportedBy'] as String?) ??
+                      'police',
                   active: (oldPayload['active'] as bool?) ?? true,
                 ),
               ),
@@ -276,7 +297,8 @@ class BlacklistRepository {
           'phone': phone?.trim() ?? '',
           'reason': reason?.trim() ?? '',
           'notes': notes?.trim() ?? '',
-          'reportedBy': reportedBy ?? (oldPayload['reportedBy'] as String?) ?? 'police',
+          'reportedBy':
+              reportedBy ?? (oldPayload['reportedBy'] as String?) ?? 'police',
           'active': (oldPayload['active'] as bool?) ?? true,
           'lastModified': now,
         },
@@ -290,7 +312,9 @@ class BlacklistRepository {
   /// ✅ إصلاح: حذف ناعم (soft delete) بدلاً من الحذف الفعلي
   /// لتوافق مع آلية المزامنة التي تعتمد على deletedAt
   Future<bool> delete(int id) async {
-    final row = await (db.select(db.shiftNotes)..where((t) => t.id.equals(id))).getSingleOrNull();
+    final row = await (db.select(
+      db.shiftNotes,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
     if (row == null) {
       return false;
     }
@@ -299,15 +323,16 @@ class BlacklistRepository {
     final nowIso = DateTime.now().toUtc().toIso8601String();
 
     // ✅ حذف ناعم: تعيين deletedAt بدلاً من حذف الصف فعلياً
-    final updated = await (db.update(db.shiftNotes)..where((t) => t.id.equals(id))).write(
-      ShiftNotesCompanion(
-        deletedAt: d.Value(now),
-        deletedAtIso: d.Value(nowIso),
-        updatedAt: d.Value(now),
-        lastModified: d.Value(now),
-        version: d.Value(row.version + 1),
-      ),
-    );
+    final updated =
+        await (db.update(db.shiftNotes)..where((t) => t.id.equals(id))).write(
+          ShiftNotesCompanion(
+            deletedAt: d.Value(now),
+            deletedAtIso: d.Value(nowIso),
+            updatedAt: d.Value(now),
+            lastModified: d.Value(now),
+            version: d.Value(row.version + 1),
+          ),
+        );
 
     if (updated > 0) {
       await _outboxDao.merge(
@@ -331,9 +356,13 @@ class BlacklistRepository {
   /// تطابق: الاسم الكامل أو أول 3 أسماء متطابقة
   /// ✅ إصلاح: استبعاد المحذوفة ناعماً
   Future<BlacklistEntry?> findBlacklistMatch(String name) async {
-    final rows = await (db.select(
-      db.shiftNotes,
-    )..where((t) => t.createdBy.equals(_createdByTag) & t.deletedAt.isNull())).get();
+    final rows =
+        await (db.select(
+              db.shiftNotes,
+            )..where(
+              (t) => t.createdBy.equals(_createdByTag) & t.deletedAt.isNull(),
+            ))
+            .get();
     final nNorm = _normalizeArabic(name);
     final nTokens = _tokens(name);
     for (final row in rows) {

@@ -12,7 +12,11 @@ class BookingDerivedFieldsService {
 
   final AppDatabase db;
 
-  Future<void> refreshForBookingId(int bookingId, {DateTime? now, bool forceRebuild = false}) async {
+  Future<void> refreshForBookingId(
+    int bookingId, {
+    DateTime? now,
+    bool forceRebuild = false,
+  }) async {
     final booking =
         await (db.select(db.bookings)
               ..where((b) => b.id.equals(bookingId))
@@ -28,19 +32,34 @@ class BookingDerivedFieldsService {
   /// Refresh derived fields for a single booking (opens its own transaction).
   /// Use this for single-booking updates. For batch updates, use
   /// [refreshAllActiveBookings] which batches all writes in one transaction.
-  Future<void> refreshForBooking(Booking booking, {DateTime? now, bool forceRebuild = false}) async {
+  Future<void> refreshForBooking(
+    Booking booking, {
+    DateTime? now,
+    bool forceRebuild = false,
+  }) async {
     await db.transaction(() async {
-      await _refreshForBookingInTransaction(booking, now: now, forceRebuild: forceRebuild);
+      await _refreshForBookingInTransaction(
+        booking,
+        now: now,
+        forceRebuild: forceRebuild,
+      );
     });
   }
 
   /// Core logic that runs inside an existing transaction.
   /// Does NOT open its own transaction — must only be called from within
   /// a `db.transaction` block or `refreshAllActiveBookings`.
-  Future<void> _refreshForBookingInTransaction(Booking booking, {DateTime? now, bool forceRebuild = false}) async {
+  Future<void> _refreshForBookingInTransaction(
+    Booking booking, {
+    DateTime? now,
+    bool forceRebuild = false,
+  }) async {
     final moment = now ?? DateTime.now();
     final calcService = EnhancedBookingCalculationService(db);
-    final calculation = await calcService.calculateForBooking(booking, now: moment);
+    final calculation = await calcService.calculateForBooking(
+      booking,
+      now: moment,
+    );
 
     await calcService.updateNightlyRecords(
       booking,
@@ -56,14 +75,19 @@ class BookingDerivedFieldsService {
     // For active bookings (no actual checkout), expectedNights should dynamically
     // grow with the current time (totalNights from calculation which uses moment).
     // This ensures payment screens show the correct number of nights if they stay past 14:00.
-    final expectedNightsValue = (actualCheckout == null && StatusUtils.isBookingActive(booking))
+    final expectedNightsValue =
+        (actualCheckout == null && StatusUtils.isBookingActive(booking))
         ? calculation.financialSummary.totalNights
         : (plannedCheckout != null && actualCheckout == null
               ? calculation.financialSummary.totalNights
               : booking.expectedNights);
 
-    final isOverdue = calculation.bookingActive && plannedCheckout != null && moment.isAfter(plannedCheckout);
-    final needsReview = isOverdue || calculation.financialSummary.remainingBalance > 0;
+    final isOverdue =
+        calculation.bookingActive &&
+        plannedCheckout != null &&
+        moment.isAfter(plannedCheckout);
+    final needsReview =
+        isOverdue || calculation.financialSummary.remainingBalance > 0;
 
     final nowUtc = DateTime.now().toUtc();
     final stamp = nowUtc.millisecondsSinceEpoch ~/ 1000;
@@ -79,9 +103,15 @@ class BookingDerivedFieldsService {
         lastNightEpoch: d.Value(calculation.lastNightEpoch),
         isOverdue: d.Value(isOverdue),
         needsCheckoutReview: d.Value(needsReview),
-        totalDueCached: d.Value(calculation.financialSummary.totalDue.toDouble()),
-        totalPaidCached: d.Value(calculation.financialSummary.totalPaid.toDouble()),
-        remainingBalanceCached: d.Value(calculation.financialSummary.remainingBalance.toDouble()),
+        totalDueCached: d.Value(
+          calculation.financialSummary.totalDue.toDouble(),
+        ),
+        totalPaidCached: d.Value(
+          calculation.financialSummary.totalPaid.toDouble(),
+        ),
+        remainingBalanceCached: d.Value(
+          calculation.financialSummary.remainingBalance.toDouble(),
+        ),
         isFullyPaid: d.Value(calculation.financialSummary.isFullyPaid),
         hotelDayCheckin: d.Value(calculation.hotelDayCheckin),
         hotelDayCheckout: d.Value(calculation.hotelDayCheckout),
@@ -98,7 +128,9 @@ class BookingDerivedFieldsService {
     final moment = now ?? DateTime.now();
     final activeBookings =
         await (db.select(db.bookings)
-              ..where((b) => b.actualCheckout.isNull() | b.actualCheckout.equals(''))
+              ..where(
+                (b) => b.actualCheckout.isNull() | b.actualCheckout.equals(''),
+              )
               ..where((b) => b.deletedAt.isNull()))
             .get();
 
@@ -113,11 +145,16 @@ class BookingDerivedFieldsService {
       for (final booking in active) {
         try {
           final cutoffHour = RemoteConfigService.instance.checkoutHour;
-          if (StatusUtils.isBookingProvisional(booking) && moment.hour >= cutoffHour) {
+          if (StatusUtils.isBookingProvisional(booking) &&
+              moment.hour >= cutoffHour) {
             await _promoteProvisionalBooking(booking.id);
             promoted++;
           }
-          await _refreshForBookingInTransaction(booking, now: moment, forceRebuild: true);
+          await _refreshForBookingInTransaction(
+            booking,
+            now: moment,
+            forceRebuild: true,
+          );
           refreshed++;
         } catch (e) {
           debugPrint('⚠️ خطأ في تحديث حجز ${booking.id}: $e');
@@ -137,7 +174,9 @@ class BookingDerivedFieldsService {
   Future<void> _promoteProvisionalBooking(int bookingId) async {
     await (db.update(
       db.bookings,
-    )..where((b) => b.id.equals(bookingId))).write(const BookingsCompanion(status: d.Value('محجوزة')));
+    )..where((b) => b.id.equals(bookingId))).write(
+      const BookingsCompanion(status: d.Value('محجوزة')),
+    );
   }
 
   // ignore: unused_element
@@ -153,11 +192,19 @@ class BookingDerivedFieldsService {
     }
     var rate = baseRate;
     if (discount > 0 && discountType != 'total') {
-      final segDay = DateTime(segmentStart.year, segmentStart.month, segmentStart.day);
+      final segDay = DateTime(
+        segmentStart.year,
+        segmentStart.month,
+        segmentStart.day,
+      );
       if (discountStartDate == null) {
         rate = (baseRate - discount).clamp(0.0, baseRate);
       } else {
-        final discountDay = DateTime(discountStartDate.year, discountStartDate.month, discountStartDate.day);
+        final discountDay = DateTime(
+          discountStartDate.year,
+          discountStartDate.month,
+          discountStartDate.day,
+        );
         if (!segDay.isBefore(discountDay)) {
           rate = (baseRate - discount).clamp(0.0, baseRate);
         }
@@ -202,17 +249,33 @@ class BookingDerivedFieldsService {
   }
 
   // ignore: unused_element
-  List<_NightSegment> _buildNightSegments(DateTime checkin, DateTime checkout, {int? cutoffHour}) {
-    final int resolvedCutoffHour = cutoffHour ?? RemoteConfigService.instance.checkoutHour;
+  List<_NightSegment> _buildNightSegments(
+    DateTime checkin,
+    DateTime checkout, {
+    int? cutoffHour,
+  }) {
+    final int resolvedCutoffHour =
+        cutoffHour ?? RemoteConfigService.instance.checkoutHour;
     final segments = <_NightSegment>[];
 
     // استخدام المنطق الموحد لحساب عدد الليالي بناءً على الساعة 14:00
-    final int totalNights = Time.nightsWithCutoff(checkin, checkout: checkout, cutoffHour: resolvedCutoffHour);
+    final int totalNights = Time.nightsWithCutoff(
+      checkin,
+      checkout: checkout,
+      cutoffHour: resolvedCutoffHour,
+    );
 
     // حساب بداية "يوم الفندق" لعملية تسجيل الدخول
-    DateTime startOfCheckinHotelDay = DateTime(checkin.year, checkin.month, checkin.day, resolvedCutoffHour);
+    DateTime startOfCheckinHotelDay = DateTime(
+      checkin.year,
+      checkin.month,
+      checkin.day,
+      resolvedCutoffHour,
+    );
     if (checkin.isBefore(startOfCheckinHotelDay)) {
-      startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(const Duration(days: 1));
+      startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(
+        const Duration(days: 1),
+      );
     }
 
     for (int i = 0; i < totalNights; i++) {
@@ -225,10 +288,14 @@ class BookingDerivedFieldsService {
       // نهاية الشريحة: وقت المغادرة الفعلي لآخر شريحة، أو بداية يوم الفندق التالي للشرائح البينية
       final nextHotelDay = dayDate.add(const Duration(days: 1));
       final segEnd = i == totalNights - 1
-          ? (checkout.isAfter(segStart) ? checkout : segStart.add(const Duration(minutes: 1)))
+          ? (checkout.isAfter(segStart)
+                ? checkout
+                : segStart.add(const Duration(minutes: 1)))
           : nextHotelDay;
 
-      segments.add(_NightSegment(hotelDayKey: dayKey, start: segStart, end: segEnd));
+      segments.add(
+        _NightSegment(hotelDayKey: dayKey, start: segStart, end: segEnd),
+      );
     }
 
     return segments;
@@ -236,7 +303,11 @@ class BookingDerivedFieldsService {
 }
 
 class _NightSegment {
-  const _NightSegment({required this.hotelDayKey, required this.start, required this.end});
+  const _NightSegment({
+    required this.hotelDayKey,
+    required this.start,
+    required this.end,
+  });
 
   final String hotelDayKey;
   final DateTime start;

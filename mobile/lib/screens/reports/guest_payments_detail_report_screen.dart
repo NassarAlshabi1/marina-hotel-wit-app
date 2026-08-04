@@ -25,10 +25,12 @@ class GuestPaymentsDetailReportScreen extends ConsumerStatefulWidget {
   const GuestPaymentsDetailReportScreen({super.key});
 
   @override
-  ConsumerState<GuestPaymentsDetailReportScreen> createState() => _GuestPaymentsDetailReportScreenState();
+  ConsumerState<GuestPaymentsDetailReportScreen> createState() =>
+      _GuestPaymentsDetailReportScreenState();
 }
 
-class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsDetailReportScreen> {
+class _GuestPaymentsDetailReportScreenState
+    extends ConsumerState<GuestPaymentsDetailReportScreen> {
   String _searchQuery = '';
   String _filterStatus = 'all'; // all, partial, unpaid, overpaid
   String _sortBy = 'room'; // room, name, remaining
@@ -48,7 +50,9 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
   /// الذي يُنتج نتائج خاطئة (0 أيام، تاريخ خروج خاطئ)
   static StayBalanceResult _safeFallback(Booking b) {
     final checkin = DateTime.tryParse(b.checkinDate);
-    final checkout = (b.checkoutDate != null && b.checkoutDate!.isNotEmpty) ? DateTime.tryParse(b.checkoutDate!) : null;
+    final checkout = (b.checkoutDate != null && b.checkoutDate!.isNotEmpty)
+        ? DateTime.tryParse(b.checkoutDate!)
+        : null;
     // ✅ إصلاح: إذا فشل تحليل تاريخ الدخول، نستخدم بداية اليوم الفندقي الحالي
     // بدلاً من DateTime.now() الذي يُسبب حسابات خاطئة
     final hotelDay = HotelTimeEngine.getHotelDay(DateTime.now());
@@ -140,8 +144,14 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
 
     try {
       final adjustments = _adjustmentsByBookingId[b.id];
-      final filtered = StayBalanceCalculator.filterActiveAdjustments(b, adjustments ?? []);
-      final result = StayBalanceCalculator.calculate(b, priceAdjustments: filtered);
+      final filtered = StayBalanceCalculator.filterActiveAdjustments(
+        b,
+        adjustments ?? [],
+      );
+      final result = StayBalanceCalculator.calculate(
+        b,
+        priceAdjustments: filtered,
+      );
       // حفظ في التخزين المؤقت
       _coverageCache[b.id] = result;
       return result;
@@ -220,8 +230,14 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
       for (final b in bookings) {
         try {
           final adjustments = grouped[b.id];
-          final filtered = StayBalanceCalculator.filterActiveAdjustments(b, adjustments ?? []);
-          newCache[b.id] = StayBalanceCalculator.calculate(b, priceAdjustments: filtered);
+          final filtered = StayBalanceCalculator.filterActiveAdjustments(
+            b,
+            adjustments ?? [],
+          );
+          newCache[b.id] = StayBalanceCalculator.calculate(
+            b,
+            priceAdjustments: filtered,
+          );
         } catch (e) {
           debugPrint('⚠️ خطأ في حساب تغطية الحجز ${b.id}: $e');
           newCache[b.id] = _safeFallback(b);
@@ -262,7 +278,9 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
     }
 
     if (_filterStatus == 'partial') {
-      filtered = filtered.where((b) => b.totalPaidCached > 0 && b.remainingBalanceCached > 0).toList();
+      filtered = filtered
+          .where((b) => b.totalPaidCached > 0 && b.remainingBalanceCached > 0)
+          .toList();
     } else if (_filterStatus == 'unpaid') {
       filtered = filtered.where((b) => b.totalPaidCached <= 0).toList();
     } else if (_filterStatus == 'overpaid') {
@@ -294,8 +312,16 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
       titleColor: Colors.black,
       subtitleColor: Colors.black,
       actions: [
-        IconButton(icon: const Icon(Icons.print_outlined), onPressed: _exportAllBookingsPdf, tooltip: 'طباعة التقرير'),
-        IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshData, tooltip: 'تحديث البيانات'),
+        IconButton(
+          icon: const Icon(Icons.print_outlined),
+          onPressed: _exportAllBookingsPdf,
+          tooltip: 'طباعة التقرير',
+        ),
+        IconButton(
+          icon: const Icon(Icons.refresh),
+          onPressed: _refreshData,
+          tooltip: 'تحديث البيانات',
+        ),
       ],
       body: Column(
         children: [
@@ -312,33 +338,50 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
                         SizedBox(height: 12),
                         Text(
                           'جاري حساب البيانات...',
-                          style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ],
                     ),
                   )
                 : bookingsAsync.when(
-                    loading: () => const Center(child: CircularProgressIndicator()),
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
                     error: (e, _) => Center(
                       child: Padding(
                         padding: const EdgeInsets.all(24),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                            const Icon(
+                              Icons.error_outline,
+                              size: 48,
+                              color: Colors.red,
+                            ),
                             const SizedBox(height: 12),
                             const Text(
                               'خطأ في تحميل البيانات',
-                              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red,
+                              ),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               '$e',
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 16),
-                            FilledButton(onPressed: _refreshData, child: const Text('إعادة المحاولة')),
+                            FilledButton(
+                              onPressed: _refreshData,
+                              child: const Text('إعادة المحاولة'),
+                            ),
                           ],
                         ),
                       ),
@@ -358,7 +401,13 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -366,7 +415,10 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
             style: const TextStyle(fontWeight: FontWeight.bold),
             decoration: InputDecoration(
               hintText: 'ابحث باسم النزيل أو رقم الغرفة...',
-              hintStyle: TextStyle(fontWeight: FontWeight.normal, color: Colors.grey[500]),
+              hintStyle: TextStyle(
+                fontWeight: FontWeight.normal,
+                color: Colors.grey[500],
+              ),
               prefixIcon: const Icon(Icons.search),
               suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
@@ -374,8 +426,13 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
                       onPressed: () => setState(() => _searchQuery = ''),
                     )
                   : null,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 6,
+              ),
               isDense: true,
               filled: true,
               fillColor: Colors.grey.shade50,
@@ -402,19 +459,31 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
             children: [
               Expanded(
                 child: InkWell(
-                  onTap: () => setState(() => _showOnlyActive = !_showOnlyActive),
+                  onTap: () =>
+                      setState(() => _showOnlyActive = !_showOnlyActive),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 12,
+                    ),
                     decoration: BoxDecoration(
-                      color: _showOnlyActive ? Colors.blue.shade50 : Colors.grey.shade100,
+                      color: _showOnlyActive
+                          ? Colors.blue.shade50
+                          : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: _showOnlyActive ? Colors.blue.shade200 : Colors.grey.shade300),
+                      border: Border.all(
+                        color: _showOnlyActive
+                            ? Colors.blue.shade200
+                            : Colors.grey.shade300,
+                      ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          _showOnlyActive ? Icons.check_circle : Icons.circle_outlined,
+                          _showOnlyActive
+                              ? Icons.check_circle
+                              : Icons.circle_outlined,
                           size: 16,
                           color: _showOnlyActive ? Colors.blue : Colors.grey,
                         ),
@@ -424,7 +493,9 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: _showOnlyActive ? Colors.blue.shade700 : Colors.grey.shade700,
+                            color: _showOnlyActive
+                                ? Colors.blue.shade700
+                                : Colors.grey.shade700,
                           ),
                         ),
                       ],
@@ -439,16 +510,28 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
                   decoration: InputDecoration(
                     labelText: 'ترتيب حسب',
                     labelStyle: const TextStyle(fontSize: 12),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     filled: true,
                     fillColor: Colors.grey.shade50,
                   ),
-                  style: const TextStyle(fontSize: 12, color: Colors.black, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                  ),
                   items: const [
                     DropdownMenuItem(value: 'room', child: Text('رقم الغرفة')),
                     DropdownMenuItem(value: 'name', child: Text('اسم النزيل')),
-                    DropdownMenuItem(value: 'remaining', child: Text('المبلغ المتبقي')),
+                    DropdownMenuItem(
+                      value: 'remaining',
+                      child: Text('المبلغ المتبقي'),
+                    ),
                   ],
                   onChanged: (v) {
                     if (v != null) {
@@ -467,7 +550,10 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
   Widget _buildFilterChip(String label, String value, Color color) {
     final isSelected = _filterStatus == value;
     return FilterChip(
-      label: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+      ),
       selected: isSelected,
       onSelected: (_) => setState(() => _filterStatus = value),
       selectedColor: color.withValues(alpha: 0.2),
@@ -497,7 +583,10 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
               const SizedBox(height: 12),
               const Text(
                 'حدث خطأ أثناء عرض التقرير',
-                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
@@ -507,7 +596,10 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
                 maxLines: 3,
               ),
               const SizedBox(height: 16),
-              FilledButton(onPressed: _refreshData, child: const Text('إعادة المحاولة')),
+              FilledButton(
+                onPressed: _refreshData,
+                child: const Text('إعادة المحاولة'),
+              ),
             ],
           ),
         ),
@@ -538,11 +630,13 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
     final totalPaid = filtered.fold(0.0, (s, b) => s + b.totalPaidCached);
     final totalRemaining = filtered.fold(
       0.0,
-      (s, b) => s + (b.remainingBalanceCached > 0 ? b.remainingBalanceCached : 0),
+      (s, b) =>
+          s + (b.remainingBalanceCached > 0 ? b.remainingBalanceCached : 0),
     );
     final totalCredit = filtered.fold(
       0.0,
-      (s, b) => s + (b.remainingBalanceCached < 0 ? -b.remainingBalanceCached : 0),
+      (s, b) =>
+          s + (b.remainingBalanceCached < 0 ? -b.remainingBalanceCached : 0),
     );
 
     return Column(
@@ -554,14 +648,30 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
             children: [
               _buildSummaryItem('النزلاء', '${filtered.length}', Colors.white),
               const Spacer(),
-              _buildSummaryItem('المستحق', CurrencyFormatter.formatAmount(totalDue), Colors.amber.shade300),
+              _buildSummaryItem(
+                'المستحق',
+                CurrencyFormatter.formatAmount(totalDue),
+                Colors.amber.shade300,
+              ),
               const Spacer(),
-              _buildSummaryItem('المحصل', CurrencyFormatter.formatAmount(totalPaid), Colors.green.shade300),
+              _buildSummaryItem(
+                'المحصل',
+                CurrencyFormatter.formatAmount(totalPaid),
+                Colors.green.shade300,
+              ),
               const Spacer(),
-              _buildSummaryItem('المتبقي', CurrencyFormatter.formatAmount(totalRemaining), Colors.orange.shade300),
+              _buildSummaryItem(
+                'المتبقي',
+                CurrencyFormatter.formatAmount(totalRemaining),
+                Colors.orange.shade300,
+              ),
               if (totalCredit > 0) ...[
                 const Spacer(),
-                _buildSummaryItem('زيادة', CurrencyFormatter.formatAmount(totalCredit), Colors.teal.shade300),
+                _buildSummaryItem(
+                  'زيادة',
+                  CurrencyFormatter.formatAmount(totalCredit),
+                  Colors.teal.shade300,
+                ),
               ],
             ],
           ),
@@ -570,7 +680,8 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
             itemCount: filtered.length,
-            itemBuilder: (context, index) => RepaintBoundary(child: _buildBookingCard(filtered[index])),
+            itemBuilder: (context, index) =>
+                RepaintBoundary(child: _buildBookingCard(filtered[index])),
           ),
         ),
       ],
@@ -584,7 +695,11 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
         const SizedBox(height: 2),
         Text(
           value,
-          style: TextStyle(color: valueColor, fontWeight: FontWeight.bold, fontSize: 12),
+          style: TextStyle(
+            color: valueColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
         ),
       ],
     );
@@ -595,14 +710,21 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
   Widget _buildBookingCard(Booking b) {
     final actualDays = _getActualDaysSpent(b);
     final coverage = _calculateCoverage(b);
-    final nightlyRate = coverage.effectiveNightlyRate > 0 ? coverage.effectiveNightlyRate : _getAverageNightlyRate(b);
+    final nightlyRate = coverage.effectiveNightlyRate > 0
+        ? coverage.effectiveNightlyRate
+        : _getAverageNightlyRate(b);
     final plannedCheckout = coverage.autoCheckoutDate;
-    final isAutoOverdue = DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
-    final autoOverdueDays = isAutoOverdue ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now()) : 0;
+    final isAutoOverdue =
+        DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
+    final autoOverdueDays = isAutoOverdue
+        ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now())
+        : 0;
     final autoOverdueCost = autoOverdueDays * nightlyRate;
 
     final consumedCost = coverage.consumedCost;
-    final paidPercent = consumedCost > 0 ? (b.totalPaidCached / consumedCost * 100) : 100.0;
+    final paidPercent = consumedCost > 0
+        ? (b.totalPaidCached / consumedCost * 100)
+        : 100.0;
     final remaining = b.remainingBalanceCached;
     final isCredit = remaining < 0;
 
@@ -623,7 +745,13 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
                 const Divider(height: 8),
                 _buildDaysSection(b, actualDays, coverage),
                 const SizedBox(height: 5),
-                _buildFinancialSection(b, nightlyRate, paidPercent, isCredit, remaining),
+                _buildFinancialSection(
+                  b,
+                  nightlyRate,
+                  paidPercent,
+                  isCredit,
+                  remaining,
+                ),
                 if (isAutoOverdue && autoOverdueDays > 0) ...[
                   const SizedBox(height: 5),
                   _buildOverdueAlert(autoOverdueDays, autoOverdueCost),
@@ -641,9 +769,15 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
     final isCredit = remaining < 0;
     final displayRemaining = isCredit ? -remaining : remaining;
     final remainingLabel = isCredit ? 'رصيد للنزيل' : 'متبقي';
-    final remainingColor = isCredit ? Colors.green.shade700 : Colors.red.shade700;
-    final remainingBgColor = isCredit ? Colors.green.shade50 : Colors.red.shade50;
-    final remainingBorderColor = isCredit ? Colors.green.shade200 : Colors.red.shade200;
+    final remainingColor = isCredit
+        ? Colors.green.shade700
+        : Colors.red.shade700;
+    final remainingBgColor = isCredit
+        ? Colors.green.shade50
+        : Colors.red.shade50;
+    final remainingBorderColor = isCredit
+        ? Colors.green.shade200
+        : Colors.red.shade200;
 
     return Container(
       padding: const EdgeInsets.all(6),
@@ -656,10 +790,17 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(color: Colors.blue.shade700, borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade700,
+              borderRadius: BorderRadius.circular(8),
+            ),
             child: Text(
               'غرفة ${b.roomNumber}',
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -669,7 +810,10 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
               children: [
                 Text(
                   b.guestName,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
@@ -691,11 +835,19 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
               children: [
                 Text(
                   remainingLabel,
-                  style: TextStyle(fontSize: 8, color: remainingColor, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 8,
+                    color: remainingColor,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 Text(
                   CurrencyFormatter.formatAmount(displayRemaining),
-                  style: TextStyle(fontSize: 12, color: remainingColor, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: remainingColor,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -717,15 +869,30 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
 
   Widget _buildDatesSection(Booking b, StayBalanceResult coverage) {
     final plannedCheckout = coverage.autoCheckoutDate;
-    final isAutoOverdue = DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
-    final autoOverdueDays = isAutoOverdue ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now()) : 0;
+    final isAutoOverdue =
+        DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
+    final autoOverdueDays = isAutoOverdue
+        ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now())
+        : 0;
 
     return Column(
       children: [
         Row(
           children: [
-            Expanded(child: _buildInfoItem(Icons.login, 'الدخول', _dateFormatter.format(coverage.checkinDate))),
-            Expanded(child: _buildInfoItem(Icons.nights_stay, 'الليالي المدفوعة', '${coverage.totalPaidNights} ليلة')),
+            Expanded(
+              child: _buildInfoItem(
+                Icons.login,
+                'الدخول',
+                _dateFormatter.format(coverage.checkinDate),
+              ),
+            ),
+            Expanded(
+              child: _buildInfoItem(
+                Icons.nights_stay,
+                'الليالي المدفوعة',
+                '${coverage.totalPaidNights} ليلة',
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 3),
@@ -734,14 +901,20 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
           decoration: BoxDecoration(
             color: isAutoOverdue ? Colors.orange.shade50 : Colors.blue.shade50,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: isAutoOverdue ? Colors.orange.shade200 : Colors.blue.shade200),
+            border: Border.all(
+              color: isAutoOverdue
+                  ? Colors.orange.shade200
+                  : Colors.blue.shade200,
+            ),
           ),
           child: Row(
             children: [
               Icon(
                 isAutoOverdue ? Icons.autorenew : Icons.event_available,
                 size: 18,
-                color: isAutoOverdue ? Colors.orange.shade700 : Colors.blue.shade700,
+                color: isAutoOverdue
+                    ? Colors.orange.shade700
+                    : Colors.blue.shade700,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -749,11 +922,15 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isAutoOverdue ? 'المغادرة المخططة (مُمدَّدة)' : 'المغادرة المخططة (محسوبة)',
+                      isAutoOverdue
+                          ? 'المغادرة المخططة (مُمدَّدة)'
+                          : 'المغادرة المخططة (محسوبة)',
                       style: TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.bold,
-                        color: isAutoOverdue ? Colors.orange.shade700 : Colors.blue.shade700,
+                        color: isAutoOverdue
+                            ? Colors.orange.shade700
+                            : Colors.blue.shade700,
                       ),
                     ),
                     const SizedBox(height: 1),
@@ -764,7 +941,9 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: isAutoOverdue ? Colors.orange.shade900 : Colors.blue.shade900,
+                            color: isAutoOverdue
+                                ? Colors.orange.shade900
+                                : Colors.blue.shade900,
                           ),
                         ),
                       ],
@@ -774,11 +953,21 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
               ),
               if (isAutoOverdue && autoOverdueDays > 0)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  decoration: BoxDecoration(color: Colors.orange.shade700, borderRadius: BorderRadius.circular(5)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade700,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
                   child: Text(
                     '+$autoOverdueDays يوم تمديد',
-                    style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
             ],
@@ -790,11 +979,19 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
 
   // ─── قسم الأيام ───
 
-  Widget _buildDaysSection(Booking b, int actualDays, StayBalanceResult coverage) {
+  Widget _buildDaysSection(
+    Booking b,
+    int actualDays,
+    StayBalanceResult coverage,
+  ) {
     final plannedCheckout = coverage.autoCheckoutDate;
-    final isAutoOverdue = DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
-    final autoOverdueDays = isAutoOverdue ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now()) : 0;
-    final nightsUntilPlanned = !isAutoOverdue && plannedCheckout.isAfter(DateTime.now())
+    final isAutoOverdue =
+        DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
+    final autoOverdueDays = isAutoOverdue
+        ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now())
+        : 0;
+    final nightsUntilPlanned =
+        !isAutoOverdue && plannedCheckout.isAfter(DateTime.now())
         ? Time.nightsWithCutoff(DateTime.now(), checkout: plannedCheckout)
         : 0;
 
@@ -803,18 +1000,42 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
         Expanded(child: _buildDaysStat('المقضية', '$actualDays', Colors.blue)),
         const SizedBox(width: 4),
         if (isAutoOverdue && autoOverdueDays > 0)
-          Expanded(child: _buildDaysStat('إضافية (تمديد)', '+$autoOverdueDays', Colors.orange))
+          Expanded(
+            child: _buildDaysStat(
+              'إضافية (تمديد)',
+              '+$autoOverdueDays',
+              Colors.orange,
+            ),
+          )
         else
-          Expanded(child: _buildDaysStat('المتبقية', '$nightsUntilPlanned', Colors.purple)),
+          Expanded(
+            child: _buildDaysStat(
+              'المتبقية',
+              '$nightsUntilPlanned',
+              Colors.purple,
+            ),
+          ),
         const SizedBox(width: 4),
-        Expanded(child: _buildDaysStat('المخططة', '${coverage.totalPaidNights}', Colors.grey)),
+        Expanded(
+          child: _buildDaysStat(
+            'المخططة',
+            '${coverage.totalPaidNights}',
+            Colors.grey,
+          ),
+        ),
       ],
     );
   }
 
   // ─── قسم المبالغ المالية ───
 
-  Widget _buildFinancialSection(Booking b, double nightlyRate, double paidPercent, bool isCredit, double remaining) {
+  Widget _buildFinancialSection(
+    Booking b,
+    double nightlyRate,
+    double paidPercent,
+    bool isCredit,
+    double remaining,
+  ) {
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
@@ -829,7 +1050,11 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
             children: [
               Text(
                 'تغطية التكاليف الحالية',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey.shade700,
+                ),
               ),
               Text(
                 '${paidPercent.toStringAsFixed(0)}%',
@@ -848,14 +1073,28 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
               value: (paidPercent / 100).clamp(0.0, 1.0),
               minHeight: 4,
               backgroundColor: Colors.grey.shade200,
-              valueColor: AlwaysStoppedAnimation<Color>(paidPercent >= 100 ? Colors.green : Colors.orange),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                paidPercent >= 100 ? Colors.green : Colors.orange,
+              ),
             ),
           ),
           const SizedBox(height: 6),
           Row(
             children: [
-              Expanded(child: _buildAmountDetail('إجمالي العقد', b.totalDueCached, Colors.blue.shade900)),
-              Expanded(child: _buildAmountDetail('إجمالي المدفوع', b.totalPaidCached, Colors.green.shade800)),
+              Expanded(
+                child: _buildAmountDetail(
+                  'إجمالي العقد',
+                  b.totalDueCached,
+                  Colors.blue.shade900,
+                ),
+              ),
+              Expanded(
+                child: _buildAmountDetail(
+                  'إجمالي المدفوع',
+                  b.totalPaidCached,
+                  Colors.green.shade800,
+                ),
+              ),
               Expanded(
                 child: _buildAmountDetail(
                   isCredit ? 'رصيد للنزيل' : 'متبقي عليه',
@@ -887,7 +1126,11 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
           Expanded(
             child: Text(
               'تجاوز موعد المغادرة بـ $overdueDays يوم (تكلفة إضافية: ${CurrencyFormatter.formatAmount(overdueCost)} ريال)',
-              style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 10),
+              style: const TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+                fontSize: 10,
+              ),
             ),
           ),
         ],
@@ -905,8 +1148,14 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: const TextStyle(fontSize: 9, color: Colors.grey)),
-            Text(value, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 9, color: Colors.grey),
+            ),
+            Text(
+              value,
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
       ],
@@ -925,11 +1174,19 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
         children: [
           Text(
             value,
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color),
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
           ),
           Text(
             label,
-            style: TextStyle(fontSize: 9, color: color.withValues(alpha: 0.8), fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 9,
+              color: color.withValues(alpha: 0.8),
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
@@ -941,12 +1198,20 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
       children: [
         Text(
           CurrencyFormatter.formatAmount(value),
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
         ),
         const SizedBox(height: 1),
         Text(
           label,
-          style: const TextStyle(fontSize: 8, color: Colors.black54, fontWeight: FontWeight.w500),
+          style: const TextStyle(
+            fontSize: 8,
+            color: Colors.black54,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ],
     );
@@ -955,11 +1220,16 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
   // ───────────────────── تصدير PDF ─────────────────────
 
   Future<void> _exportGuestStatementPdf(Booking b) async {
-    final payments = await ref.read(paymentsRepoProvider).paymentsByBooking(b.id).first;
+    final payments = await ref
+        .read(paymentsRepoProvider)
+        .paymentsByBooking(b.id)
+        .first;
     final actualDays = _getActualDaysSpent(b);
     final coverage = _calculateCoverage(b);
     final consumedCost = coverage.consumedCost;
-    final nightlyRate = coverage.effectiveNightlyRate > 0 ? coverage.effectiveNightlyRate : _getAverageNightlyRate(b);
+    final nightlyRate = coverage.effectiveNightlyRate > 0
+        ? coverage.effectiveNightlyRate
+        : _getAverageNightlyRate(b);
 
     final config = ReportPdfConfig(
       title: 'كشف حساب نزيل تفصيلي',
@@ -972,14 +1242,26 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
             title: 'ملخص الحساب والمدة الزمانية',
             fonts: fonts,
             content: [
-              _buildPdfInfoRow(fonts, 'تاريخ الوصول:', _dateFormatter.format(coverage.checkinDate)),
+              _buildPdfInfoRow(
+                fonts,
+                'تاريخ الوصول:',
+                _dateFormatter.format(coverage.checkinDate),
+              ),
               _buildPdfInfoRow(
                 fonts,
                 'تاريخ المغادرة المتوقع (يدوي):',
                 coverage.formatDate(coverage.manualCheckoutDate),
               ),
-              _buildPdfInfoRow(fonts, 'عدد الأيام المقضية حتى الآن:', '$actualDays يوم'),
-              _buildPdfInfoRow(fonts, 'الأيام المتبقية حتى المغادرة:', '${coverage.manualNightsRemaining} يوم'),
+              _buildPdfInfoRow(
+                fonts,
+                'عدد الأيام المقضية حتى الآن:',
+                '$actualDays يوم',
+              ),
+              _buildPdfInfoRow(
+                fonts,
+                'الأيام المتبقية حتى المغادرة:',
+                '${coverage.manualNightsRemaining} يوم',
+              ),
               _buildPdfInfoRow(
                 fonts,
                 'سعر الغرفة لليلة الواحدة:',
@@ -1004,7 +1286,11 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
                         ),
                         pw.Text(
                           '${CurrencyFormatter.formatAmount(consumedCost)} ريال',
-                          style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: const PdfColor(0, 0, 0)),
+                          style: pw.TextStyle(
+                            font: fonts.bold,
+                            fontSize: 11,
+                            color: const PdfColor(0, 0, 0),
+                          ),
                         ),
                       ],
                     ),
@@ -1015,7 +1301,9 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
                       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                       children: [
                         pw.Text(
-                          b.remainingBalanceCached < 0 ? 'المتبقي (له):' : 'المتبقي (عليه):',
+                          b.remainingBalanceCached < 0
+                              ? 'المتبقي (له):'
+                              : 'المتبقي (عليه):',
                           style: pw.TextStyle(
                             font: fonts.bold,
                             fontSize: 11,
@@ -1039,7 +1327,10 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
                   ),
                 ],
               ),
-              pw.Divider(color: const PdfColor(0.85, 0.85, 0.85), thickness: 0.3),
+              pw.Divider(
+                color: const PdfColor(0.85, 0.85, 0.85),
+                thickness: 0.3,
+              ),
               _buildPdfInfoRow(
                 fonts,
                 'إجمالي المبالغ المدفوعة:',
@@ -1052,15 +1343,20 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
 
         // ─── قسم المغادرة المخططة (محسوبة من المدفوعات) + التمديد عند التجاوز ───
         final plannedCheckout = coverage.autoCheckoutDate;
-        final isAutoOverdue = DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
-        final autoOverdueDays = isAutoOverdue ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now()) : 0;
+        final isAutoOverdue =
+            DateTime.now().isAfter(plannedCheckout) && coverage.hasPayments;
+        final autoOverdueDays = isAutoOverdue
+            ? Time.nightsWithCutoff(plannedCheckout, checkout: DateTime.now())
+            : 0;
         final autoOverdueCost = autoOverdueDays * nightlyRate;
 
         pdfContent.add(pw.SizedBox(height: 16));
 
         pdfContent.add(
           epdf.EnhancedPdfUtils.buildInfoCard(
-            title: isAutoOverdue ? 'المغادرة المخططة (مُمدَّدة تلقائياً)' : 'المغادرة المخططة (محسوبة من المدفوعات)',
+            title: isAutoOverdue
+                ? 'المغادرة المخططة (مُمدَّدة تلقائياً)'
+                : 'المغادرة المخططة (محسوبة من المدفوعات)',
             fonts: fonts,
             content: [
               _buildPdfInfoRow(
@@ -1069,8 +1365,16 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
                 '${CurrencyFormatter.formatAmount(b.totalPaidCached)} ريال',
                 valueColor: const PdfColor(0.0, 0.5, 0.8),
               ),
-              _buildPdfInfoRow(fonts, 'سعر الليلة:', '${CurrencyFormatter.formatAmount(nightlyRate)} ريال'),
-              _buildPdfInfoRow(fonts, 'الليالي المدفوعة:', '${coverage.totalPaidNights} ليلة'),
+              _buildPdfInfoRow(
+                fonts,
+                'سعر الليلة:',
+                '${CurrencyFormatter.formatAmount(nightlyRate)} ريال',
+              ),
+              _buildPdfInfoRow(
+                fonts,
+                'الليالي المدفوعة:',
+                '${coverage.totalPaidNights} ليلة',
+              ),
               _buildPdfInfoRow(
                 fonts,
                 'المغادرة المخططة:',
@@ -1091,7 +1395,10 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
                     : const PdfColor(0.9, 0.3, 0.1),
               ),
               if (isAutoOverdue && autoOverdueDays > 0) ...[
-                pw.Divider(color: const PdfColor(0.8, 0.8, 0.8), thickness: 0.5),
+                pw.Divider(
+                  color: const PdfColor(0.8, 0.8, 0.8),
+                  thickness: 0.5,
+                ),
                 _buildPdfInfoRow(
                   fonts,
                   'تمديد تلقائي:',
@@ -1128,12 +1435,22 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
           // ─── جدول المدفوعات ───
           pw.Text(
             'سجل المدفوعات التفصيلي',
-            style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: const PdfColor(0.0, 0.12, 0.36)),
+            style: pw.TextStyle(
+              font: fonts.bold,
+              fontSize: 14,
+              color: const PdfColor(0.0, 0.12, 0.36),
+            ),
           ),
           pw.SizedBox(height: 10),
           epdf.EnhancedPdfUtils.buildProfessionalTable(
             fonts: fonts,
-            headers: ['التاريخ', 'المبلغ', 'طريقة الدفع', 'رقم المرجع', 'ملاحظات'],
+            headers: [
+              'التاريخ',
+              'المبلغ',
+              'طريقة الدفع',
+              'رقم المرجع',
+              'ملاحظات',
+            ],
             data: payments
                 .map(
                   (p) => [
@@ -1157,7 +1474,10 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
               pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text('ملاحظات:', style: pw.TextStyle(font: fonts.bold, fontSize: 10)),
+                  pw.Text(
+                    'ملاحظات:',
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 10),
+                  ),
                   pw.Text(
                     'يُحتسب اليوم الفندقي من الساعة 2:00 ظهراً.',
                     style: pw.TextStyle(font: fonts.regular, fontSize: 9),
@@ -1174,9 +1494,16 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
               ),
               pw.Column(
                 children: [
-                  pw.Text('ختم وتوقيع الإدارة', style: pw.TextStyle(font: fonts.bold, fontSize: 12)),
+                  pw.Text(
+                    'ختم وتوقيع الإدارة',
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 12),
+                  ),
                   pw.SizedBox(height: 40),
-                  pw.Container(width: 120, height: 1, color: const PdfColor(0, 0, 0)),
+                  pw.Container(
+                    width: 120,
+                    height: 1,
+                    color: const PdfColor(0, 0, 0),
+                  ),
                 ],
               ),
             ],
@@ -1203,7 +1530,12 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
     await ReportPdfBuilder.buildAndShare(config);
   }
 
-  pw.Widget _buildPdfInfoRow(epdf.ArabicPdfFonts fonts, String label, String value, {PdfColor? valueColor}) {
+  pw.Widget _buildPdfInfoRow(
+    epdf.ArabicPdfFonts fonts,
+    String label,
+    String value, {
+    PdfColor? valueColor,
+  }) {
     return pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 3),
       child: pw.Row(
@@ -1211,11 +1543,19 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
         children: [
           pw.Text(
             label,
-            style: pw.TextStyle(font: fonts.regular, fontSize: 11, color: const PdfColor(0.15, 0.15, 0.15)),
+            style: pw.TextStyle(
+              font: fonts.regular,
+              fontSize: 11,
+              color: const PdfColor(0.15, 0.15, 0.15),
+            ),
           ),
           pw.Text(
             value,
-            style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: valueColor ?? const PdfColor(0, 0, 0)),
+            style: pw.TextStyle(
+              font: fonts.bold,
+              fontSize: 11,
+              color: valueColor ?? const PdfColor(0, 0, 0),
+            ),
           ),
         ],
       ),
@@ -1226,12 +1566,16 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
 
   Future<void> _exportAllBookingsPdf() async {
     final db = ref.read(databaseProvider);
-    final allBookings = await (db.select(db.bookings)..where((b) => b.deletedAt.isNull())).get();
+    final allBookings = await (db.select(
+      db.bookings,
+    )..where((b) => b.deletedAt.isNull())).get();
 
     final filtered = _filterAndSort(allBookings);
     if (filtered.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لا توجد بيانات للتصدير')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('لا توجد بيانات للتصدير')));
       }
       return;
     }
@@ -1240,11 +1584,13 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
     final totalPaid = filtered.fold(0.0, (s, b) => s + b.totalPaidCached);
     final totalRemaining = filtered.fold(
       0.0,
-      (s, b) => s + (b.remainingBalanceCached > 0 ? b.remainingBalanceCached : 0),
+      (s, b) =>
+          s + (b.remainingBalanceCached > 0 ? b.remainingBalanceCached : 0),
     );
     final totalCredit = filtered.fold(
       0.0,
-      (s, b) => s + (b.remainingBalanceCached < 0 ? -b.remainingBalanceCached : 0),
+      (s, b) =>
+          s + (b.remainingBalanceCached < 0 ? -b.remainingBalanceCached : 0),
     );
 
     final now = DateTime.now();
@@ -1262,7 +1608,12 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
             fonts: fonts,
             content: [
               _buildPdfInfoRow(fonts, 'تاريخ التقرير:', dateStr),
-              _buildPdfInfoRow(fonts, 'عدد النزلاء:', '${filtered.length}', valueColor: const PdfColor(0.0, 0.4, 0.8)),
+              _buildPdfInfoRow(
+                fonts,
+                'عدد النزلاء:',
+                '${filtered.length}',
+                valueColor: const PdfColor(0.0, 0.4, 0.8),
+              ),
               _buildPdfInfoRow(
                 fonts,
                 'إجمالي المستحق:',
@@ -1304,10 +1655,22 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
               title: 'غرفة ${b.roomNumber} — ${b.guestName}',
               fonts: fonts,
               content: [
-                _buildPdfInfoRow(fonts, 'تاريخ الوصول:', _dateFormatter.format(coverage.checkinDate)),
-                _buildPdfInfoRow(fonts, 'المغادرة المتوقعة:', coverage.formatDate(coverage.manualCheckoutDate)),
+                _buildPdfInfoRow(
+                  fonts,
+                  'تاريخ الوصول:',
+                  _dateFormatter.format(coverage.checkinDate),
+                ),
+                _buildPdfInfoRow(
+                  fonts,
+                  'المغادرة المتوقعة:',
+                  coverage.formatDate(coverage.manualCheckoutDate),
+                ),
                 _buildPdfInfoRow(fonts, 'الأيام المقضية:', '$actualDays يوم'),
-                _buildPdfInfoRow(fonts, 'سعر الليلة:', '${CurrencyFormatter.formatAmount(nightlyRate)} ريال'),
+                _buildPdfInfoRow(
+                  fonts,
+                  'سعر الليلة:',
+                  '${CurrencyFormatter.formatAmount(nightlyRate)} ريال',
+                ),
                 // ✅ عرض الإجمالي والمبلغ المتبقي في سطر واحد
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -1326,7 +1689,11 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
                           ),
                           pw.Text(
                             '${CurrencyFormatter.formatAmount(b.totalDueCached)} ريال',
-                            style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: const PdfColor(0, 0, 0)),
+                            style: pw.TextStyle(
+                              font: fonts.bold,
+                              fontSize: 10,
+                              color: const PdfColor(0, 0, 0),
+                            ),
                           ),
                         ],
                       ),
@@ -1337,7 +1704,9 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
                           pw.Text(
-                            b.remainingBalanceCached < 0 ? 'المتبقي (له):' : 'المتبقي (عليه):',
+                            b.remainingBalanceCached < 0
+                                ? 'المتبقي (له):'
+                                : 'المتبقي (عليه):',
                             style: pw.TextStyle(
                               font: fonts.bold,
                               fontSize: 10,
@@ -1361,7 +1730,10 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
                     ),
                   ],
                 ),
-                pw.Divider(color: const PdfColor(0.85, 0.85, 0.85), thickness: 0.3),
+                pw.Divider(
+                  color: const PdfColor(0.85, 0.85, 0.85),
+                  thickness: 0.3,
+                ),
                 _buildPdfInfoRow(
                   fonts,
                   'إجمالي المدفوع:',
@@ -1369,14 +1741,21 @@ class _GuestPaymentsDetailReportScreenState extends ConsumerState<GuestPaymentsD
                   valueColor: const PdfColor(0.0, 0.5, 0.2),
                 ),
                 if (coverage.hasPayments) ...[
-                  pw.Divider(color: const PdfColor(0.8, 0.8, 0.8), thickness: 0.5),
+                  pw.Divider(
+                    color: const PdfColor(0.8, 0.8, 0.8),
+                    thickness: 0.5,
+                  ),
                   _buildPdfInfoRow(
                     fonts,
                     'المغادرة التلقائية:',
                     _dateFormatter.format(coverage.autoCheckoutDate),
                     valueColor: const PdfColor(0.0, 0.4, 0.7),
                   ),
-                  _buildPdfInfoRow(fonts, 'الليالي المدفوعة:', '${coverage.totalPaidNights} ليلة'),
+                  _buildPdfInfoRow(
+                    fonts,
+                    'الليالي المدفوعة:',
+                    '${coverage.totalPaidNights} ليلة',
+                  ),
                   if (coverage.isAutoExtended)
                     _buildPdfInfoRow(
                       fonts,

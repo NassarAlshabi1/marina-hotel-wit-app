@@ -22,14 +22,21 @@ class ExpensesRepository {
   late final ExpensesDao dao;
 
   Stream<List<Expense>> watchAll() => dao.watchList();
-  Stream<List<Expense>> watchByHotelDayKey(String hotelDayKey) => dao.watchByHotelDayKey(hotelDayKey);
+  Stream<List<Expense>> watchByHotelDayKey(String hotelDayKey) =>
+      dao.watchByHotelDayKey(hotelDayKey);
   Stream<Expense?> watchOne(int id) => dao.watchById(id);
-  Future<List<Expense>> listFiltered({String? from, String? to, String? expenseType}) =>
-      dao.listFiltered(from: from, to: to, expenseType: expenseType);
+  Future<List<Expense>> listFiltered({
+    String? from,
+    String? to,
+    String? expenseType,
+  }) => dao.listFiltered(from: from, to: to, expenseType: expenseType);
 
   /// البحث المتقدم مع دعم البحث النصي في الوصف ونوع المصروف
-  Future<List<Expense>> listWithSearch({String? search, String? from, String? to}) =>
-      dao.list(search: search, from: from, to: to);
+  Future<List<Expense>> listWithSearch({
+    String? search,
+    String? from,
+    String? to,
+  }) => dao.list(search: search, from: from, to: to);
 
   /// فلترة بـ hotelDayKey مع دعم البحث النصي — الطريقة الدقيقة
   Future<List<Expense>> listFilteredByHotelDay({
@@ -64,7 +71,8 @@ class ExpensesRepository {
       // ✅ إصلاح: استخدام hotelDayKey الممرّر إن وُجد، وإلا حسابه
       // - للمصروفات الجديدة: يُمرّر HotelTimeEngine.getHotelDayKey() (اليوم الفندقي الحالي)
       // - للمصروفات القديمة / الاستيراد: يُحسب من التاريخ التقويمي
-      final effectiveHotelDayKey = hotelDayKey ?? _hotelDayKeyFromCalendarDate(normalizedDate);
+      final effectiveHotelDayKey =
+          hotelDayKey ?? _hotelDayKeyFromCalendarDate(normalizedDate);
       final result = await dao.insertOne(
         ExpensesCompanion(
           expenseType: d.Value(expenseType),
@@ -78,7 +86,13 @@ class ExpensesRepository {
               : const d.Value.absent(),
         ),
       );
-      unawaited(AutoBackupManager.instance.onDataChange('expenses', 'INSERT', recordData: {'amount': amount}));
+      unawaited(
+        AutoBackupManager.instance.onDataChange(
+          'expenses',
+          'INSERT',
+          recordData: {'amount': amount},
+        ),
+      );
       unawaited(
         WhatsAppNotificationService.instance.notifyNewExpense(
           category: expenseType,
@@ -166,15 +180,25 @@ class ExpensesRepository {
     String? employeeUuid,
   }) async {
     try {
-      final normalizedDate = date != null ? Time.safeIsoToDateString(date) : null;
+      final normalizedDate = date != null
+          ? Time.safeIsoToDateString(date)
+          : null;
       final result = await dao.updateById(
         id,
         ExpensesCompanion(
-          expenseType: expenseType != null ? d.Value(expenseType) : const d.Value.absent(),
-          relatedId: relatedId != null ? d.Value(relatedId) : const d.Value.absent(),
-          description: description != null ? d.Value(description) : const d.Value.absent(),
+          expenseType: expenseType != null
+              ? d.Value(expenseType)
+              : const d.Value.absent(),
+          relatedId: relatedId != null
+              ? d.Value(relatedId)
+              : const d.Value.absent(),
+          description: description != null
+              ? d.Value(description)
+              : const d.Value.absent(),
           amount: amount != null ? d.Value(amount) : const d.Value.absent(),
-          date: normalizedDate != null ? d.Value(normalizedDate) : const d.Value.absent(),
+          date: normalizedDate != null
+              ? d.Value(normalizedDate)
+              : const d.Value.absent(),
           // ✅ إصلاح: استخدام hotelDayKey الممرّر إن وُجد، وإلا حسابه من التاريخ
           hotelDayKey: hotelDayKey != null
               ? d.Value(hotelDayKey)
@@ -190,7 +214,13 @@ class ExpensesRepository {
         ),
       );
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange('expenses', 'UPDATE', recordData: {'id': id}));
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
+            'expenses',
+            'UPDATE',
+            recordData: {'id': id},
+          ),
+        );
       }
       return result;
     } catch (e, stack) {
@@ -209,7 +239,13 @@ class ExpensesRepository {
     try {
       final result = await dao.softDelete(id);
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange('expenses', 'DELETE', recordData: {'id': id}));
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
+            'expenses',
+            'DELETE',
+            recordData: {'id': id},
+          ),
+        );
       }
       return result;
     } catch (e, stack) {
@@ -237,7 +273,9 @@ class ExpensesRepository {
   /// استيراد بيانات المصروفات
   Future<void> importData(Map<String, dynamic> data) async {
     if (data.containsKey('data') && data['data'] is List) {
-      await dao.importFromJson(List<Map<String, dynamic>>.from(data['data'] as List));
+      await dao.importFromJson(
+        List<Map<String, dynamic>>.from(data['data'] as List),
+      );
     }
   }
 
@@ -268,7 +306,10 @@ class ExpensesRepository {
         .customSelect(
           'SELECT COALESCE(SUM(amount), 0.0) AS total FROM expenses '
           'WHERE deleted_at IS NULL AND (hotel_day_key = ? OR (hotel_day_key IS NULL AND date LIKE ?))',
-          variables: [d.Variable.withString(hotelDayKey), d.Variable.withString('$hotelDayKey%')],
+          variables: [
+            d.Variable.withString(hotelDayKey),
+            d.Variable.withString('$hotelDayKey%'),
+          ],
           readsFrom: {db.expenses},
         )
         .getSingle();
@@ -283,7 +324,10 @@ class ExpensesRepository {
         .customSelect(
           'SELECT COALESCE(SUM(amount), 0.0) AS total FROM expenses '
           'WHERE deleted_at IS NULL AND (hotel_day_key = ? OR (hotel_day_key IS NULL AND date LIKE ?))',
-          variables: [d.Variable.withString(hotelDayKey), d.Variable.withString('$hotelDayKey%')],
+          variables: [
+            d.Variable.withString(hotelDayKey),
+            d.Variable.withString('$hotelDayKey%'),
+          ],
           readsFrom: {db.expenses},
         )
         .watchSingle()
@@ -308,7 +352,9 @@ class ExpensesRepository {
       if (expense.hotelDayKey != correctKey) {
         await (db.update(
           db.expenses,
-        )..where((t) => t.id.equals(expense.id))).write(ExpensesCompanion(hotelDayKey: d.Value(correctKey)));
+        )..where((t) => t.id.equals(expense.id))).write(
+          ExpensesCompanion(hotelDayKey: d.Value(correctKey)),
+        );
         fixed++;
       }
     }
@@ -332,7 +378,9 @@ class ExpensesRepository {
       final year = int.tryParse(parts[0]) ?? 1;
       final month = int.tryParse(parts[1]) ?? 1;
       final day = int.tryParse(parts[2]) ?? 1;
-      return HotelTimeEngine.getHotelDayKey(dateTime: DateTime(year, month, day, 14, 1));
+      return HotelTimeEngine.getHotelDayKey(
+        dateTime: DateTime(year, month, day, 14, 1),
+      );
     } catch (_) {
       return HotelTimeEngine.getHotelDayKey();
     }

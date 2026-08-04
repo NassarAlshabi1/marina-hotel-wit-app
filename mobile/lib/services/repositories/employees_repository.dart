@@ -10,15 +10,19 @@ import '../daos/outbox_dao.dart';
 import '../local_db.dart';
 
 class EmployeesRepository {
-  EmployeesRepository(this.db) : outbox = OutboxDao(db), dao = EmployeesDao(db, OutboxDao(db));
+  EmployeesRepository(this.db)
+    : outbox = OutboxDao(db),
+      dao = EmployeesDao(db, OutboxDao(db));
   final AppDatabase db;
   final OutboxDao outbox;
   final EmployeesDao dao;
 
-  Stream<List<Employee>> watchAll({String? search}) => dao.watchList(search: search);
+  Stream<List<Employee>> watchAll({String? search}) =>
+      dao.watchList(search: search);
   Stream<Employee?> watchOne(int id) => dao.watchById(id);
 
-  String _normalizeStatus(String status) => StatusUtils.canonicalEmployeeStatus(status);
+  String _normalizeStatus(String status) =>
+      StatusUtils.canonicalEmployeeStatus(status);
 
   Future<int> create({
     required String name,
@@ -42,7 +46,13 @@ class EmployeesRepository {
           status: d.Value(normalizedStatus),
         ),
       );
-      unawaited(AutoBackupManager.instance.onDataChange('employees', 'INSERT', recordData: {'name': name}));
+      unawaited(
+        AutoBackupManager.instance.onDataChange(
+          'employees',
+          'INSERT',
+          recordData: {'name': name},
+        ),
+      );
       return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
@@ -74,17 +84,35 @@ class EmployeesRepository {
         id,
         EmployeesCompanion(
           name: name != null ? d.Value(name) : const d.Value.absent(),
-          basicSalary: (salary ?? basicSalary) != null ? d.Value((salary ?? basicSalary)!) : const d.Value.absent(),
-          position: position != null ? d.Value(position) : const d.Value.absent(),
+          basicSalary: (salary ?? basicSalary) != null
+              ? d.Value((salary ?? basicSalary)!)
+              : const d.Value.absent(),
+          position: position != null
+              ? d.Value(position)
+              : const d.Value.absent(),
           phone: phone != null ? d.Value(phone) : const d.Value.absent(),
-          hireDate: hireDate != null ? d.Value(hireDate) : const d.Value.absent(),
-          status: status != null ? d.Value(_normalizeStatus(status)) : const d.Value.absent(),
-          terminationDate: terminationDate != null ? d.Value(terminationDate) : const d.Value.absent(),
-          terminationReason: terminationReason != null ? d.Value(terminationReason) : const d.Value.absent(),
+          hireDate: hireDate != null
+              ? d.Value(hireDate)
+              : const d.Value.absent(),
+          status: status != null
+              ? d.Value(_normalizeStatus(status))
+              : const d.Value.absent(),
+          terminationDate: terminationDate != null
+              ? d.Value(terminationDate)
+              : const d.Value.absent(),
+          terminationReason: terminationReason != null
+              ? d.Value(terminationReason)
+              : const d.Value.absent(),
         ),
       );
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange('employees', 'UPDATE', recordData: {'id': id}));
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
+            'employees',
+            'UPDATE',
+            recordData: {'id': id},
+          ),
+        );
       }
       return result;
     } catch (e, stack) {
@@ -114,13 +142,21 @@ class EmployeesRepository {
     localUuid,
     EmployeesCompanion(
       name: name != null ? d.Value(name) : const d.Value.absent(),
-      basicSalary: (salary ?? basicSalary) != null ? d.Value((salary ?? basicSalary)!) : const d.Value.absent(),
+      basicSalary: (salary ?? basicSalary) != null
+          ? d.Value((salary ?? basicSalary)!)
+          : const d.Value.absent(),
       position: position != null ? d.Value(position) : const d.Value.absent(),
       phone: phone != null ? d.Value(phone) : const d.Value.absent(),
       hireDate: hireDate != null ? d.Value(hireDate) : const d.Value.absent(),
-      status: status != null ? d.Value(_normalizeStatus(status)) : const d.Value.absent(),
-      terminationDate: terminationDate != null ? d.Value(terminationDate) : const d.Value.absent(),
-      terminationReason: terminationReason != null ? d.Value(terminationReason) : const d.Value.absent(),
+      status: status != null
+          ? d.Value(_normalizeStatus(status))
+          : const d.Value.absent(),
+      terminationDate: terminationDate != null
+          ? d.Value(terminationDate)
+          : const d.Value.absent(),
+      terminationReason: terminationReason != null
+          ? d.Value(terminationReason)
+          : const d.Value.absent(),
     ),
   );
 
@@ -175,7 +211,13 @@ class EmployeesRepository {
         ),
       );
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange('employees', 'REACTIVATE', recordData: {'id': id}));
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
+            'employees',
+            'REACTIVATE',
+            recordData: {'id': id},
+          ),
+        );
       }
       return result;
     } catch (e, stack) {
@@ -194,7 +236,13 @@ class EmployeesRepository {
     try {
       final result = await dao.softDelete(id);
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange('employees', 'DELETE', recordData: {'id': id}));
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
+            'employees',
+            'DELETE',
+            recordData: {'id': id},
+          ),
+        );
       }
       return result;
     } catch (e, stack) {
@@ -222,7 +270,9 @@ class EmployeesRepository {
   /// استيراد بيانات الموظفين
   Future<void> importData(Map<String, dynamic> data) async {
     if (data.containsKey('data') && data['data'] is List) {
-      await dao.importFromJson(List<Map<String, dynamic>>.from(data['data'] as List));
+      await dao.importFromJson(
+        List<Map<String, dynamic>>.from(data['data'] as List),
+      );
     }
   }
 

@@ -18,7 +18,15 @@ enum SyncStrategy { full, delta, incremental, snapshot }
 
 enum SyncDirection { push, pull, bidirectional }
 
-enum OrchestratorState { idle, initializing, syncing, recovering, paused, error, disposed }
+enum OrchestratorState {
+  idle,
+  initializing,
+  syncing,
+  recovering,
+  paused,
+  error,
+  disposed,
+}
 
 class SyncTask {
   SyncTask({
@@ -79,8 +87,16 @@ class SyncTaskResult {
     metadata: metadata,
   );
 
-  factory SyncTaskResult.failure({required String error, required Duration duration, Map<String, dynamic>? metadata}) =>
-      SyncTaskResult(success: false, duration: duration, error: error, metadata: metadata);
+  factory SyncTaskResult.failure({
+    required String error,
+    required Duration duration,
+    Map<String, dynamic>? metadata,
+  }) => SyncTaskResult(
+    success: false,
+    duration: duration,
+    error: error,
+    metadata: metadata,
+  );
   final bool success;
   final int recordsProcessed;
   final int conflicts;
@@ -142,7 +158,10 @@ class SyncMetricsData {
     if (recentDurations.isEmpty) {
       return Duration.zero;
     }
-    final total = recentDurations.fold<int>(0, (sum, d) => sum + d.inMilliseconds);
+    final total = recentDurations.fold<int>(
+      0,
+      (sum, d) => sum + d.inMilliseconds,
+    );
     return Duration(milliseconds: total ~/ recentDurations.length);
   }
 
@@ -238,7 +257,8 @@ class SyncOrchestrator {
   SyncMetricsData get metrics => _metrics;
 
   Future<void> initialize(AppDatabase database) async {
-    if (_state != OrchestratorState.idle && _state != OrchestratorState.disposed) {
+    if (_state != OrchestratorState.idle &&
+        _state != OrchestratorState.disposed) {
       return;
     }
 
@@ -249,7 +269,10 @@ class SyncOrchestrator {
 
     _circuitBreakers['appwrite'] = CircuitBreaker(
       name: 'appwrite',
-      config: const CircuitBreakerConfig(failureThreshold: 3, resetTimeout: Duration(minutes: 2)),
+      config: const CircuitBreakerConfig(
+        failureThreshold: 3,
+        resetTimeout: Duration(minutes: 2),
+      ),
     );
 
     _circuitBreakers['google_drive'] = CircuitBreaker(
@@ -263,18 +286,25 @@ class SyncOrchestrator {
 
     await ConnectivityService.instance.initialize();
 
-    _connectivitySubscription = ConnectivityService.instance.statusStream.listen((status) {
-      if (status.isOnline && _state == OrchestratorState.paused) {
-        _setState(OrchestratorState.idle);
-        _processTasks();
-      } else if (!status.isOnline && _state == OrchestratorState.syncing) {
-        _setState(OrchestratorState.paused);
-      }
-    });
+    _connectivitySubscription = ConnectivityService.instance.statusStream
+        .listen((status) {
+          if (status.isOnline && _state == OrchestratorState.paused) {
+            _setState(OrchestratorState.idle);
+            _processTasks();
+          } else if (!status.isOnline && _state == OrchestratorState.syncing) {
+            _setState(OrchestratorState.paused);
+          }
+        });
 
-    _healthCheckTimer = Timer.periodic(const Duration(minutes: 1), (_) => _performHealthCheck());
+    _healthCheckTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _performHealthCheck(),
+    );
 
-    _taskProcessorTimer = Timer.periodic(const Duration(seconds: 10), (_) => _processTasks());
+    _taskProcessorTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _processTasks(),
+    );
 
     await _loadPersistedMetrics();
 
@@ -296,7 +326,9 @@ class SyncOrchestrator {
 
     _taskQueue.sort((a, b) => a.priority.index.compareTo(b.priority.index));
 
-    debugPrint('📋 [Orchestrator] مهمة مجدولة: ${task.name} (${task.priority.name})');
+    debugPrint(
+      '📋 [Orchestrator] مهمة مجدولة: ${task.name} (${task.priority.name})',
+    );
 
     if (_state == OrchestratorState.idle) {
       unawaited(_processTasks());
@@ -312,17 +344,25 @@ class SyncOrchestrator {
       task.lastAttempt = DateTime.now();
 
       if (!ConnectivityService.instance.isOnline) {
-        return SyncTaskResult.failure(error: 'لا يوجد اتصال بالإنترنت', duration: DateTime.now().difference(startTime));
+        return SyncTaskResult.failure(
+          error: 'لا يوجد اتصال بالإنترنت',
+          duration: DateTime.now().difference(startTime),
+        );
       }
 
       if (task.canExecute != null && !task.canExecute!()) {
-        return SyncTaskResult.failure(error: 'شروط التنفيذ غير متوفرة', duration: DateTime.now().difference(startTime));
+        return SyncTaskResult.failure(
+          error: 'شروط التنفيذ غير متوفرة',
+          duration: DateTime.now().difference(startTime),
+        );
       }
 
       SyncTaskResult result;
 
       if (circuitBreaker != null) {
-        result = await circuitBreaker.execute(() => task.execute().timeout(task.timeout));
+        result = await circuitBreaker.execute(
+          () => task.execute().timeout(task.timeout),
+        );
       } else {
         result = await task.execute().timeout(task.timeout);
       }
@@ -330,8 +370,14 @@ class SyncOrchestrator {
       final duration = DateTime.now().difference(startTime);
 
       if (result.success) {
-        _metrics.recordSuccess(duration, result.recordsProcessed, result.conflicts);
-        debugPrint('✅ [Orchestrator] ${task.name}: ${result.recordsProcessed} سجل في ${duration.inMilliseconds}ms');
+        _metrics.recordSuccess(
+          duration,
+          result.recordsProcessed,
+          result.conflicts,
+        );
+        debugPrint(
+          '✅ [Orchestrator] ${task.name}: ${result.recordsProcessed} سجل في ${duration.inMilliseconds}ms',
+        );
       } else {
         _metrics.recordFailure(duration);
         debugPrint('❌ [Orchestrator] ${task.name}: ${result.error}');
@@ -344,7 +390,10 @@ class SyncOrchestrator {
     } on TimeoutException {
       final duration = DateTime.now().difference(startTime);
       _metrics.recordFailure(duration);
-      return SyncTaskResult.failure(error: 'انتهت المهلة الزمنية', duration: duration);
+      return SyncTaskResult.failure(
+        error: 'انتهت المهلة الزمنية',
+        duration: duration,
+      );
     } catch (e) {
       final duration = DateTime.now().difference(startTime);
       _metrics.recordFailure(duration);
@@ -382,7 +431,9 @@ class SyncOrchestrator {
           _taskQueue.add(task);
         } else {
           _taskQueue.removeAt(0);
-          debugPrint('🗑️ [Orchestrator] تم حذف المهمة بعد ${task.attempts} محاولات: ${task.name}');
+          debugPrint(
+            '🗑️ [Orchestrator] تم حذف المهمة بعد ${task.attempts} محاولات: ${task.name}',
+          );
         }
       }
 
@@ -397,7 +448,8 @@ class SyncOrchestrator {
 
     return SyncHealth(
       isHealthy:
-          _metrics.consecutiveFailures < 3 && _circuitBreakers.values.every((cb) => cb.state != CircuitState.open),
+          _metrics.consecutiveFailures < 3 &&
+          _circuitBreakers.values.every((cb) => cb.state != CircuitState.open),
       successRate: _metrics.successRate,
       consecutiveFailures: _metrics.consecutiveFailures,
       avgSyncDuration: _metrics.avgDuration,
@@ -441,18 +493,29 @@ class SyncOrchestrator {
 
   Future<List<DataIntegrityCheck>> verifyDataIntegrity() async {
     final checks = <DataIntegrityCheck>[];
-    final tables = ['rooms', 'bookings', 'employees', 'expenses', 'payments', 'debts'];
+    final tables = [
+      'rooms',
+      'bookings',
+      'employees',
+      'expenses',
+      'payments',
+      'debts',
+    ];
 
     for (final table in tables) {
       try {
         final result = await _database
-            .customSelect('SELECT COUNT(*) as count FROM $table WHERE deleted_at IS NULL')
+            .customSelect(
+              'SELECT COUNT(*) as count FROM $table WHERE deleted_at IS NULL',
+            )
             .getSingle();
 
         final count = result.data['count'] as int? ?? 0;
 
         final dataResult = await _database
-            .customSelect('SELECT * FROM $table WHERE deleted_at IS NULL ORDER BY local_uuid LIMIT 1000')
+            .customSelect(
+              'SELECT * FROM $table WHERE deleted_at IS NULL ORDER BY local_uuid LIMIT 1000',
+            )
             .get();
 
         final rowJsonList = dataResult.map((r) => jsonEncode(r.data)).toList();
@@ -462,7 +525,12 @@ class SyncOrchestrator {
         });
 
         checks.add(
-          DataIntegrityCheck(tableName: table, checksum: checksum, recordCount: count, timestamp: DateTime.now()),
+          DataIntegrityCheck(
+            tableName: table,
+            checksum: checksum,
+            recordCount: count,
+            timestamp: DateTime.now(),
+          ),
         );
       } catch (e) {
         debugPrint('⚠️ [Orchestrator] خطأ في فحص $table: $e');
@@ -479,10 +547,13 @@ class SyncOrchestrator {
       if (json != null) {
         final data = jsonDecode(json) as Map<String, dynamic>;
         _metrics.totalSyncs = (data['totalSyncs'] as num?)?.toInt() ?? 0;
-        _metrics.successfulSyncs = (data['successfulSyncs'] as num?)?.toInt() ?? 0;
+        _metrics.successfulSyncs =
+            (data['successfulSyncs'] as num?)?.toInt() ?? 0;
         _metrics.failedSyncs = (data['failedSyncs'] as num?)?.toInt() ?? 0;
-        _metrics.totalRecordsProcessed = (data['totalRecordsProcessed'] as num?)?.toInt() ?? 0;
-        _metrics.totalConflicts = (data['totalConflicts'] as num?)?.toInt() ?? 0;
+        _metrics.totalRecordsProcessed =
+            (data['totalRecordsProcessed'] as num?)?.toInt() ?? 0;
+        _metrics.totalConflicts =
+            (data['totalConflicts'] as num?)?.toInt() ?? 0;
       }
     } catch (e) {
       debugPrint('⚠️ [Orchestrator] خطأ في تحميل المقاييس: $e');
@@ -492,7 +563,10 @@ class SyncOrchestrator {
   Future<void> _persistMetrics() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('sync_orchestrator_metrics', jsonEncode(_metrics.toJson()));
+      await prefs.setString(
+        'sync_orchestrator_metrics',
+        jsonEncode(_metrics.toJson()),
+      );
     } catch (e) {
       debugPrint('⚠️ [Orchestrator] خطأ في حفظ المقاييس: $e');
     }
@@ -508,7 +582,8 @@ class SyncOrchestrator {
   }
 
   void pause() {
-    if (_state == OrchestratorState.syncing || _state == OrchestratorState.idle) {
+    if (_state == OrchestratorState.syncing ||
+        _state == OrchestratorState.idle) {
       _setState(OrchestratorState.paused);
     }
   }

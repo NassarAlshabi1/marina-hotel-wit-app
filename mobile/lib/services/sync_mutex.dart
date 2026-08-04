@@ -42,7 +42,10 @@ class SyncMutex {
   }
 
   /// Runs the action exclusively, acquiring lock before and releasing after.
-  Future<T?> runExclusive<T>(Future<T> Function() action, {Duration? timeout}) async {
+  Future<T?> runExclusive<T>(
+    Future<T> Function() action, {
+    Duration? timeout,
+  }) async {
     final acquired = await acquire(timeout: timeout);
     if (!acquired) {
       return null;

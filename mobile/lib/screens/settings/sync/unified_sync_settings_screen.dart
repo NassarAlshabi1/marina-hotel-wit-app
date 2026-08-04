@@ -16,10 +16,12 @@ class UnifiedSyncSettingsScreen extends ConsumerStatefulWidget {
   const UnifiedSyncSettingsScreen({super.key});
 
   @override
-  ConsumerState<UnifiedSyncSettingsScreen> createState() => _UnifiedSyncSettingsScreenState();
+  ConsumerState<UnifiedSyncSettingsScreen> createState() =>
+      _UnifiedSyncSettingsScreenState();
 }
 
-class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsScreen> {
+class _UnifiedSyncSettingsScreenState
+    extends ConsumerState<UnifiedSyncSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
@@ -62,7 +64,9 @@ class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsS
   Widget _buildOverviewSection() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UIConstants.radiusLG)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(UIConstants.spacingMD),
         child: Column(
@@ -70,9 +74,16 @@ class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsS
           children: [
             const Row(
               children: [
-                Icon(Icons.info_outline, color: UIConstants.syncColor, size: UIConstants.iconSizeMD),
+                Icon(
+                  Icons.info_outline,
+                  color: UIConstants.syncColor,
+                  size: UIConstants.iconSizeMD,
+                ),
                 SizedBox(width: UIConstants.spacingSM),
-                Text('حالة المزامنة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  'حالة المزامنة',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
             const SizedBox(height: UIConstants.spacingMD),
@@ -81,8 +92,18 @@ class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsS
               value: DateTimeFormatter.getRelativeTime('2024-01-29T18:00:00'),
               icon: Icons.schedule,
             ),
-            const InfoRow(label: 'حالة الاتصال', value: 'متصل', icon: Icons.wifi, iconColor: Colors.green),
-            const InfoRow(label: 'عناصر معلقة', value: '0', icon: Icons.pending, iconColor: Colors.orange),
+            const InfoRow(
+              label: 'حالة الاتصال',
+              value: 'متصل',
+              icon: Icons.wifi,
+              iconColor: Colors.green,
+            ),
+            const InfoRow(
+              label: 'عناصر معلقة',
+              value: '0',
+              icon: Icons.pending,
+              iconColor: Colors.orange,
+            ),
           ],
         ),
       ),
@@ -92,7 +113,9 @@ class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsS
   Widget _buildGeneralSettingsSection() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UIConstants.radiusLG)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
       child: Column(
         children: [
           SwitchListTile(
@@ -126,16 +149,25 @@ class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsS
   Widget _buildPerformanceSection() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UIConstants.radiusLG)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
       child: Column(
         children: [
           const Padding(
             padding: EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
-                Icon(Icons.speed, color: UIConstants.syncColor, size: UIConstants.iconSizeMD),
+                Icon(
+                  Icons.speed,
+                  color: UIConstants.syncColor,
+                  size: UIConstants.iconSizeMD,
+                ),
                 SizedBox(width: UIConstants.spacingSM),
-                Text('الأداء والبطارية', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  'الأداء والبطارية',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
           ),
@@ -171,16 +203,25 @@ class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsS
   Widget _buildSmartSyncSection() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UIConstants.radiusLG)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
       child: Column(
         children: [
           const Padding(
             padding: EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
-                Icon(Icons.psychology, color: Colors.purple, size: UIConstants.iconSizeMD),
+                Icon(
+                  Icons.psychology,
+                  color: Colors.purple,
+                  size: UIConstants.iconSizeMD,
+                ),
                 SizedBox(width: UIConstants.spacingSM),
-                Text('المزامنة الذكية', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  'المزامنة الذكية',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
           ),
@@ -216,16 +257,25 @@ class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsS
   Widget _buildAppwriteSyncSection() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UIConstants.radiusLG)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
       child: Column(
         children: [
           const Padding(
             padding: EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
-                Icon(Icons.cloud_sync, color: Colors.blue, size: UIConstants.iconSizeMD),
+                Icon(
+                  Icons.cloud_sync,
+                  color: Colors.blue,
+                  size: UIConstants.iconSizeMD,
+                ),
                 SizedBox(width: UIConstants.spacingSM),
-                Text('Appwrite Sync', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text(
+                  'Appwrite Sync',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
           ),
@@ -261,16 +311,25 @@ class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsS
   Widget _buildAdvancedSection() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UIConstants.radiusLG)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
       child: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(UIConstants.spacingMD),
             child: Row(
               children: [
-                Icon(Icons.settings_suggest, color: Colors.grey.shade700, size: UIConstants.iconSizeMD),
+                Icon(
+                  Icons.settings_suggest,
+                  color: Colors.grey.shade700,
+                  size: UIConstants.iconSizeMD,
+                ),
                 const SizedBox(width: UIConstants.spacingSM),
-                const Text('إعدادات متقدمة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text(
+                  'إعدادات متقدمة',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ],
             ),
           ),
@@ -337,7 +396,12 @@ class _UnifiedSyncSettingsScreenState extends ConsumerState<UnifiedSyncSettingsS
             ),
           ],
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء'))],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+        ],
       ),
     );
   }

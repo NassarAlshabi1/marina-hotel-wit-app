@@ -59,7 +59,9 @@ class DatabaseHealthChecker {
     }
   }
 
-  Future<bool> ensureHealthy({Duration timeout = const Duration(seconds: 5)}) async {
+  Future<bool> ensureHealthy({
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
     if (!DatabaseManager.isInitialized) {
       debugPrint('⚠️ Database not initialized');
       return false;
@@ -96,23 +98,36 @@ class DatabaseHealth {
     this.errorMessage,
   });
 
-  factory DatabaseHealth.healthy([int? responseTime]) =>
-      DatabaseHealth._(status: DatabaseHealthStatus.healthy, responseTimeMs: responseTime, timestamp: DateTime.now());
+  factory DatabaseHealth.healthy([int? responseTime]) => DatabaseHealth._(
+    status: DatabaseHealthStatus.healthy,
+    responseTimeMs: responseTime,
+    timestamp: DateTime.now(),
+  );
 
-  factory DatabaseHealth.slow(int responseTime) =>
-      DatabaseHealth._(status: DatabaseHealthStatus.slow, responseTimeMs: responseTime, timestamp: DateTime.now());
+  factory DatabaseHealth.slow(int responseTime) => DatabaseHealth._(
+    status: DatabaseHealthStatus.slow,
+    responseTimeMs: responseTime,
+    timestamp: DateTime.now(),
+  );
 
-  factory DatabaseHealth.notInitialized() =>
-      DatabaseHealth._(status: DatabaseHealthStatus.notInitialized, timestamp: DateTime.now());
+  factory DatabaseHealth.notInitialized() => DatabaseHealth._(
+    status: DatabaseHealthStatus.notInitialized,
+    timestamp: DateTime.now(),
+  );
 
-  factory DatabaseHealth.error(String message) =>
-      DatabaseHealth._(status: DatabaseHealthStatus.error, errorMessage: message, timestamp: DateTime.now());
+  factory DatabaseHealth.error(String message) => DatabaseHealth._(
+    status: DatabaseHealthStatus.error,
+    errorMessage: message,
+    timestamp: DateTime.now(),
+  );
   final DatabaseHealthStatus status;
   final int? responseTimeMs;
   final String? errorMessage;
   final DateTime timestamp;
 
-  bool get isHealthy => status == DatabaseHealthStatus.healthy || status == DatabaseHealthStatus.slow;
+  bool get isHealthy =>
+      status == DatabaseHealthStatus.healthy ||
+      status == DatabaseHealthStatus.slow;
 }
 
 enum DatabaseHealthStatus { healthy, slow, notInitialized, error }

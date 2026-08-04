@@ -1,9 +1,3 @@
-// Tagged as 'slow' — uses hardcoded dates dependent on DateTime.now().
-// TODO: rewrite to use dynamic dates for reliable CI execution.
-@Tags(['slow'])
-library marina_hotel_mobile.test.unit_adapters_and_repos_test;
-
-
 import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -30,7 +24,10 @@ void main() {
   // ═══════════════════════════════════════════════════════════════
   // Helper: إدراج موظف للاختبار
   // ═══════════════════════════════════════════════════════════════
-  Future<int> insertEmployee({String uuid = 'emp-1', String name = 'أحمد'}) async {
+  Future<int> insertEmployee({
+    String uuid = 'emp-1',
+    String name = 'أحمد',
+  }) async {
     return db
         .into(db.employees)
         .insert(
@@ -55,7 +52,10 @@ void main() {
   // ═══════════════════════════════════════════════════════════════
   // Helper: إدراج غرفة وحجز للاختبار
   // ═══════════════════════════════════════════════════════════════
-  Future<int> insertRoomAndBooking({String roomUuid = 'room-1', String bookingUuid = 'booking-1'}) async {
+  Future<int> insertRoomAndBooking({
+    String roomUuid = 'room-1',
+    String bookingUuid = 'booking-1',
+  }) async {
     await db
         .into(db.rooms)
         .insert(
@@ -115,7 +115,11 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryCycles.adapter.resolveRefs(db, json, src: Source.appwrite);
+      final refs = await adapters.salaryCycles.adapter.resolveRefs(
+        db,
+        json,
+        src: Source.appwrite,
+      );
 
       expect(refs.shouldSkip, isTrue);
       expect(refs.skipReason, isNotNull);
@@ -138,7 +142,11 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryCycles.adapter.resolveRefs(db, json, src: Source.appwrite);
+      final refs = await adapters.salaryCycles.adapter.resolveRefs(
+        db,
+        json,
+        src: Source.appwrite,
+      );
 
       expect(refs.shouldSkip, isFalse);
       expect(refs.skipReason, isNull);
@@ -162,12 +170,23 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryCycles.adapter.resolveRefs(db, json, src: Source.appwrite);
-      final comp = adapters.salaryCycles.adapter.fromJson(json, src: Source.appwrite, refs: refs);
+      final refs = await adapters.salaryCycles.adapter.resolveRefs(
+        db,
+        json,
+        src: Source.appwrite,
+      );
+      final comp = adapters.salaryCycles.adapter.fromJson(
+        json,
+        src: Source.appwrite,
+        refs: refs,
+      );
       await db.into(db.salaryCycles).insert(comp);
 
       final row = await db.select(db.salaryCycles).getSingle();
-      final out = adapters.salaryCycles.toJsonForSource(row, src: Source.appwrite);
+      final out = adapters.salaryCycles.toJsonForSource(
+        row,
+        src: Source.appwrite,
+      );
 
       expect(out['localUuid'], 'sc-1');
       expect(out['cycleKey'], '2025-06');
@@ -193,8 +212,16 @@ void main() {
         'last_modified': 200,
       };
 
-      final refs = await adapters.salaryCycles.adapter.resolveRefs(db, json, src: Source.drive);
-      final comp = adapters.salaryCycles.adapter.fromJson(json, src: Source.drive, refs: refs);
+      final refs = await adapters.salaryCycles.adapter.resolveRefs(
+        db,
+        json,
+        src: Source.drive,
+      );
+      final comp = adapters.salaryCycles.adapter.fromJson(
+        json,
+        src: Source.drive,
+        refs: refs,
+      );
       await db.into(db.salaryCycles).insert(comp);
 
       final row = await db.select(db.salaryCycles).getSingle();
@@ -224,7 +251,11 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(db, json, src: Source.appwrite);
+      final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(
+        db,
+        json,
+        src: Source.appwrite,
+      );
 
       expect(refs.shouldSkip, isTrue);
       expect(refs.skipReason, contains('لا يمكن العثور'));
@@ -244,38 +275,53 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(db, json, src: Source.appwrite);
+      final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(
+        db,
+        json,
+        src: Source.appwrite,
+      );
 
       expect(refs.shouldSkip, isFalse);
       expect(refs.employeeLocalId, isNotNull);
     });
 
-    test('fromJson يتعامل مع الحقول القديمة (date, action, note, expenseId)', () async {
-      await insertEmployee();
+    test(
+      'fromJson يتعامل مع الحقول القديمة (date, action, note, expenseId)',
+      () async {
+        await insertEmployee();
 
-      final json = {
-        'localUuid': 'sw-1',
-        'employeeUuid': 'emp-1',
-        'amount': 1000,
-        'date': '2025-06-15',
-        'action': 'سحب راتب',
-        'note': 'ملاحظة',
-        'expenseId': 5,
-        'hotelDayKey': '2025-06-15',
-        'createdAt': 100,
-        'lastModified': 200,
-      };
+        final json = {
+          'localUuid': 'sw-1',
+          'employeeUuid': 'emp-1',
+          'amount': 1000,
+          'date': '2025-06-15',
+          'action': 'سحب راتب',
+          'note': 'ملاحظة',
+          'expenseId': 5,
+          'hotelDayKey': '2025-06-15',
+          'createdAt': 100,
+          'lastModified': 200,
+        };
 
-      final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(db, json, src: Source.appwrite);
-      final comp = adapters.salaryWithdrawals.adapter.fromJson(json, src: Source.appwrite, refs: refs);
-      await db.into(db.salaryWithdrawals).insert(comp);
+        final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(
+          db,
+          json,
+          src: Source.appwrite,
+        );
+        final comp = adapters.salaryWithdrawals.adapter.fromJson(
+          json,
+          src: Source.appwrite,
+          refs: refs,
+        );
+        await db.into(db.salaryWithdrawals).insert(comp);
 
-      final row = await db.select(db.salaryWithdrawals).getSingle();
-      expect(row.withdrawDate, '2025-06-15');
-      expect(row.withdrawalType, 'سحب راتب');
-      expect(row.description, 'ملاحظة');
-      expect(row.reason, 'exp_5'); // appwriteExpenseId → 'exp_5'
-    });
+        final row = await db.select(db.salaryWithdrawals).getSingle();
+        expect(row.withdrawDate, '2025-06-15');
+        expect(row.withdrawalType, 'سحب راتب');
+        expect(row.description, 'ملاحظة');
+        expect(row.reason, 'exp_5'); // appwriteExpenseId → 'exp_5'
+      },
+    );
 
     test('toJson يستخرج expenseId من reason (exp_XX)', () async {
       await insertEmployee();
@@ -293,12 +339,23 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(db, json, src: Source.appwrite);
-      final comp = adapters.salaryWithdrawals.adapter.fromJson(json, src: Source.appwrite, refs: refs);
+      final refs = await adapters.salaryWithdrawals.adapter.resolveRefs(
+        db,
+        json,
+        src: Source.appwrite,
+      );
+      final comp = adapters.salaryWithdrawals.adapter.fromJson(
+        json,
+        src: Source.appwrite,
+        refs: refs,
+      );
       await db.into(db.salaryWithdrawals).insert(comp);
 
       final row = await db.select(db.salaryWithdrawals).getSingle();
-      final out = adapters.salaryWithdrawals.toJsonForSource(row, src: Source.appwrite);
+      final out = adapters.salaryWithdrawals.toJsonForSource(
+        row,
+        src: Source.appwrite,
+      );
 
       expect(out['expenseId'], 42);
       expect(out['date'], '2025-06-15'); // Appwrite required field
@@ -323,7 +380,11 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.nights.adapter.resolveRefs(db, json, src: Source.appwrite);
+      final refs = await adapters.nights.adapter.resolveRefs(
+        db,
+        json,
+        src: Source.appwrite,
+      );
 
       expect(refs.shouldSkip, isTrue);
       expect(refs.skipReason, contains('لا يمكن العثور على الحجز'));
@@ -344,7 +405,11 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.nights.adapter.resolveRefs(db, json, src: Source.appwrite);
+      final refs = await adapters.nights.adapter.resolveRefs(
+        db,
+        json,
+        src: Source.appwrite,
+      );
 
       expect(refs.shouldSkip, isFalse);
       expect(refs.bookingLocalId, isNotNull);
@@ -369,8 +434,16 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.nights.adapter.resolveRefs(db, json, src: Source.appwrite);
-      final comp = adapters.nights.adapter.fromJson(json, src: Source.appwrite, refs: refs);
+      final refs = await adapters.nights.adapter.resolveRefs(
+        db,
+        json,
+        src: Source.appwrite,
+      );
+      final comp = adapters.nights.adapter.fromJson(
+        json,
+        src: Source.appwrite,
+        refs: refs,
+      );
       await db.into(db.bookingNights).insert(comp);
 
       final row = await db.select(db.bookingNights).getSingle();
@@ -399,7 +472,11 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryPayments.adapter.resolveRefs(db, json, src: Source.appwrite);
+      final refs = await adapters.salaryPayments.adapter.resolveRefs(
+        db,
+        json,
+        src: Source.appwrite,
+      );
 
       expect(refs.shouldSkip, isTrue);
       expect(refs.skipReason, contains('لا يمكن العثور على دورة الراتب'));
@@ -442,7 +519,11 @@ void main() {
         'lastModified': 200,
       };
 
-      final refs = await adapters.salaryPayments.adapter.resolveRefs(db, json, src: Source.appwrite);
+      final refs = await adapters.salaryPayments.adapter.resolveRefs(
+        db,
+        json,
+        src: Source.appwrite,
+      );
 
       expect(refs.shouldSkip, isFalse);
       expect(refs.salaryCycleLocalId, isNotNull);
@@ -453,23 +534,29 @@ void main() {
   // BaseRepository — upsertFromJson مع shouldSkip
   // ═══════════════════════════════════════════════════════════════
   group('BaseRepository — upsertFromJson مع shouldSkip', () {
-    test('upsertFromJson يرجع -1 عند shouldSkip=true (موظف غير موجود)', () async {
-      final json = {
-        'localUuid': 'sc-orphan',
-        'employeeUuid': 'non-existent-uuid',
-        'cycleKey': '2025-06',
-        'hotelDayStart': '2025-06-01',
-        'hotelDayEnd': '2025-06-30',
-        'expectedAmount': 5000,
-        'status': 'draft',
-        'createdAt': 100,
-        'lastModified': 200,
-      };
+    test(
+      'upsertFromJson يرجع -1 عند shouldSkip=true (موظف غير موجود)',
+      () async {
+        final json = {
+          'localUuid': 'sc-orphan',
+          'employeeUuid': 'non-existent-uuid',
+          'cycleKey': '2025-06',
+          'hotelDayStart': '2025-06-01',
+          'hotelDayEnd': '2025-06-30',
+          'expectedAmount': 5000,
+          'status': 'draft',
+          'createdAt': 100,
+          'lastModified': 200,
+        };
 
-      final result = await adapters.salaryCycles.upsertFromJson(json, src: Source.appwrite);
+        final result = await adapters.salaryCycles.upsertFromJson(
+          json,
+          src: Source.appwrite,
+        );
 
-      expect(result, -1); // تم التخطي
-    });
+        expect(result, -1); // تم التخطي
+      },
+    );
 
     test('upsertFromJson ينجح عند وجود الموظف', () async {
       await insertEmployee();
@@ -486,7 +573,10 @@ void main() {
         'lastModified': 200,
       };
 
-      final result = await adapters.salaryCycles.upsertFromJson(json, src: Source.appwrite);
+      final result = await adapters.salaryCycles.upsertFromJson(
+        json,
+        src: Source.appwrite,
+      );
 
       expect(result, greaterThan(0)); // تم الإدراج بنجاح
     });
@@ -507,7 +597,10 @@ void main() {
         'lastModified': 200,
       };
 
-      final result = await adapters.salaryCycles.upsertFromJson(json, src: Source.appwrite);
+      final result = await adapters.salaryCycles.upsertFromJson(
+        json,
+        src: Source.appwrite,
+      );
 
       // تم الإدراج بنجاح رغم وجود id بعيد
       expect(result, greaterThan(0));
@@ -603,7 +696,13 @@ void main() {
       final repo = SalaryWithdrawalsRepository(db);
 
       // إنشاء أول
-      await repo.saveFromExpense(expenseId: 5, employeeId: empId, action: 'سحب راتب', amount: 2000, date: '2025-06-15');
+      await repo.saveFromExpense(
+        expenseId: 5,
+        employeeId: empId,
+        action: 'سحب راتب',
+        amount: 2000,
+        date: '2025-06-15',
+      );
 
       // تحديث بنفس expenseId
       await repo.saveFromExpense(
@@ -625,7 +724,13 @@ void main() {
       final empId = await insertEmployee();
       final repo = SalaryWithdrawalsRepository(db);
 
-      await repo.createFromExpense(expenseId: 10, employeeId: empId, reason: 'exp_10', amount: 500, date: '2025-06-15');
+      await repo.createFromExpense(
+        expenseId: 10,
+        employeeId: empId,
+        reason: 'سحب راتب لمصروف exp_10',
+        amount: 500,
+        date: '2025-06-15',
+      );
 
       // قبل الحذف
       expect((await repo.listActive()).length, 1);
@@ -647,8 +752,20 @@ void main() {
       final empId2 = await insertEmployee(uuid: 'emp-2', name: 'محمد');
       final repo = SalaryWithdrawalsRepository(db);
 
-      await repo.createFromExpense(expenseId: 1, employeeId: empId1, reason: 'exp_1', amount: 1000, date: '2025-06-15');
-      await repo.createFromExpense(expenseId: 2, employeeId: empId2, reason: 'exp_2', amount: 2000, date: '2025-06-15');
+      await repo.createFromExpense(
+        expenseId: 1,
+        employeeId: empId1,
+        reason: 'exp_1',
+        amount: 1000,
+        date: '2025-06-15',
+      );
+      await repo.createFromExpense(
+        expenseId: 2,
+        employeeId: empId2,
+        reason: 'exp_2',
+        amount: 2000,
+        date: '2025-06-15',
+      );
 
       final emp1Withdrawals = await repo.listByEmployeeId(empId1);
       expect(emp1Withdrawals.length, 1);

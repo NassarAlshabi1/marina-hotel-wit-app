@@ -23,13 +23,16 @@ class RoomsListScreen extends ConsumerStatefulWidget {
   ConsumerState<RoomsListScreen> createState() => _RoomsListScreenState();
 }
 
-class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnExitMixin {
+class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
+    with SyncOnExitMixin {
   @override
   String get screenId => 'rooms_list';
 
   bool _isGridView = true;
 
-  Map<String, List<RoomWithPaymentStatus>> _groupByFloor(List<RoomWithPaymentStatus> rooms) {
+  Map<String, List<RoomWithPaymentStatus>> _groupByFloor(
+    List<RoomWithPaymentStatus> rooms,
+  ) {
     final Map<String, List<RoomWithPaymentStatus>> floorMap = {};
     for (final roomData in rooms) {
       String floorNumber = '0';
@@ -71,7 +74,11 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
             tooltip: _isGridView ? 'عرض قائمة' : 'عرض شبكي',
           ),
           if (canRooms)
-            IconButton(onPressed: () => _editRoom(context, ref), icon: const Icon(Icons.add), tooltip: 'إضافة غرفة'),
+            IconButton(
+              onPressed: () => _editRoom(context, ref),
+              icon: const Icon(Icons.add),
+              tooltip: 'إضافة غرفة',
+            ),
         ],
         body: roomsStream.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -84,7 +91,8 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
                 Text('خطأ: $e', textAlign: TextAlign.center),
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
-                  onPressed: () => ref.invalidate(roomsWithPaymentStatusProvider),
+                  onPressed: () =>
+                      ref.invalidate(roomsWithPaymentStatusProvider),
                   icon: const Icon(Icons.refresh),
                   label: const Text('إعادة المحاولة'),
                 ),
@@ -96,7 +104,9 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
               return _buildEmptyState(canRooms);
             }
 
-            return _isGridView ? _buildGridView(rooms, canRooms) : _buildListView(rooms, canRooms);
+            return _isGridView
+                ? _buildGridView(rooms, canRooms)
+                : _buildListView(rooms, canRooms);
           },
         ),
       ),
@@ -115,12 +125,22 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
               color: AppColors.primaryColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(50),
             ),
-            child: Icon(Icons.hotel, size: 50, color: AppColors.primaryColor.withValues(alpha: 0.7)),
+            child: Icon(
+              Icons.hotel,
+              size: 50,
+              color: AppColors.primaryColor.withValues(alpha: 0.7),
+            ),
           ),
           const SizedBox(height: 24),
-          const Text('لا توجد غرف مسجلة', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const Text(
+            'لا توجد غرف مسجلة',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 8),
-          const Text('ابدأ بإضافة الغرف لإدارة الفندق', style: TextStyle(color: AppColors.textSecondary)),
+          const Text(
+            'ابدأ بإضافة الغرف لإدارة الفندق',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
           if (canAdd) ...[
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -150,7 +170,12 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
           final floorRooms = floorMap[floorNumber]!;
           // ✅ حساب الغرف المتاحة بناءً على الحجز النشط بدلاً من room.status المخزن
           final availableCount = floorRooms
-              .where((r) => !r.hasActiveBooking && r.room.status != 'صيانة' && r.room.status != 'maintenance')
+              .where(
+                (r) =>
+                    !r.hasActiveBooking &&
+                    r.room.status != 'صيانة' &&
+                    r.room.status != 'maintenance',
+              )
               .length;
 
           return RepaintBoundary(
@@ -166,7 +191,9 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: MediaQuery.of(context).size.width > 600 ? 5 : 3,
+                      crossAxisCount: MediaQuery.of(context).size.width > 600
+                          ? 5
+                          : 3,
                       childAspectRatio: 0.85,
                       crossAxisSpacing: 10,
                       mainAxisSpacing: 10,
@@ -177,7 +204,12 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
                       return RepaintBoundary(
                         child: _RoomGridCard(
                           roomData: roomData,
-                          onTap: () => _showRoomActions(context, ref, roomData.room, canEdit),
+                          onTap: () => _showRoomActions(
+                            context,
+                            ref,
+                            roomData.room,
+                            canEdit,
+                          ),
                         ),
                       );
                     },
@@ -205,8 +237,11 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
           return RepaintBoundary(
             child: _RoomListCard(
               roomData: roomData,
-              onTap: () => _showRoomActions(context, ref, roomData.room, canEdit),
-              onEdit: canEdit ? () => _editRoom(context, ref, existing: roomData.room) : null,
+              onTap: () =>
+                  _showRoomActions(context, ref, roomData.room, canEdit),
+              onEdit: canEdit
+                  ? () => _editRoom(context, ref, existing: roomData.room)
+                  : null,
             ),
           );
         },
@@ -214,7 +249,12 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
     );
   }
 
-  void _showRoomActions(BuildContext context, WidgetRef ref, Room room, bool canEdit) {
+  void _showRoomActions(
+    BuildContext context,
+    WidgetRef ref,
+    Room room,
+    bool canEdit,
+  ) {
     final isAvailable = StatusUtils.isRoomAvailable(room.status);
 
     showModalBottomSheet<void>(
@@ -234,7 +274,10 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
                 width: 40,
                 height: 4,
                 margin: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
               _buildRoomHeader(room, isAvailable),
               const Divider(),
@@ -246,7 +289,10 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
                       color: AppColors.primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.edit, color: AppColors.primaryColor),
+                    child: const Icon(
+                      Icons.edit,
+                      color: AppColors.primaryColor,
+                    ),
                   ),
                   title: const Text('تعديل الغرفة'),
                   subtitle: const Text('تغيير السعر والنوع والحالة'),
@@ -259,19 +305,30 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: (isAvailable ? AppColors.dangerColor : AppColors.successColor).withValues(alpha: 0.1),
+                      color:
+                          (isAvailable
+                                  ? AppColors.dangerColor
+                                  : AppColors.successColor)
+                              .withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
                       isAvailable ? Icons.block : Icons.check_circle,
-                      color: isAvailable ? AppColors.dangerColor : AppColors.successColor,
+                      color: isAvailable
+                          ? AppColors.dangerColor
+                          : AppColors.successColor,
                     ),
                   ),
-                  title: Text(isAvailable ? 'تحويل إلى محجوزة' : 'تحويل إلى شاغرة'),
+                  title: Text(
+                    isAvailable ? 'تحويل إلى محجوزة' : 'تحويل إلى شاغرة',
+                  ),
                   subtitle: const Text('تغيير حالة الغرفة بسرعة'),
                   onTap: () async {
                     Navigator.pop(ctx);
-                    await _quickStatusChange(room, isAvailable ? 'محجوزة' : 'شاغرة');
+                    await _quickStatusChange(
+                      room,
+                      isAvailable ? 'محجوزة' : 'شاغرة',
+                    );
                   },
                 ),
               ],
@@ -282,7 +339,10 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
                     color: AppColors.infoColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.info_outline, color: AppColors.infoColor),
+                  child: const Icon(
+                    Icons.info_outline,
+                    color: AppColors.infoColor,
+                  ),
                 ),
                 title: const Text('تفاصيل الغرفة'),
                 subtitle: const Text('عرض المعلومات الكاملة'),
@@ -308,7 +368,10 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
           Container(
             width: 50,
             height: 50,
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Icon(Icons.hotel, color: color),
           ),
           const SizedBox(width: 16),
@@ -316,14 +379,26 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('غرفة ${room.roomNumber}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                Text(room.type.isEmpty ? 'غرفة فندقية' : room.type, style: TextStyle(color: Colors.grey[600])),
+                Text(
+                  'غرفة ${room.roomNumber}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+                Text(
+                  room.type.isEmpty ? 'غرفة فندقية' : room.type,
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
               ],
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+            ),
             child: Text(
               room.status, // ✅ room.status سيكون صحيحاً بعد refreshAllRoomOccupancy
               style: TextStyle(color: color, fontWeight: FontWeight.bold),
@@ -339,11 +414,15 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
     // ✅ منع تحويل غرفة لشاغرة إذا كان عليها حجز نشط
     if (newStatus == 'شاغرة') {
       final bookingsRepo = ref.read(bookingsRepoProvider);
-      final activeBooking = await bookingsRepo.getActiveBookingForRoom(room.roomNumber);
+      final activeBooking = await bookingsRepo.getActiveBookingForRoom(
+        room.roomNumber,
+      );
       if (activeBooking != null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('لا يمكن تحويل الغرفة ${room.roomNumber}: يوجد حجز نشط (${activeBooking.guestName})'),
+            content: Text(
+              'لا يمكن تحويل الغرفة ${room.roomNumber}: يوجد حجز نشط (${activeBooking.guestName})',
+            ),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
@@ -355,18 +434,28 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('تم تغيير حالة الغرفة ${room.roomNumber} إلى $newStatus'),
+          content: Text(
+            'تم تغيير حالة الغرفة ${room.roomNumber} إلى $newStatus',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
     }
   }
 
-  Future<void> _editRoom(BuildContext context, WidgetRef ref, {Room? existing}) async {
+  Future<void> _editRoom(
+    BuildContext context,
+    WidgetRef ref, {
+    Room? existing,
+  }) async {
     final formKey = GlobalKey<FormState>();
-    final roomNumberCtrl = TextEditingController(text: existing?.roomNumber ?? '');
+    final roomNumberCtrl = TextEditingController(
+      text: existing?.roomNumber ?? '',
+    );
     final typeCtrl = TextEditingController(text: existing?.type ?? '');
-    final priceCtrl = TextEditingController(text: existing?.price.toString() ?? '');
+    final priceCtrl = TextEditingController(
+      text: existing?.price.toString() ?? '',
+    );
     String status = existing?.status ?? 'شاغرة';
     final String? imageUrl = existing?.imageUrl;
 
@@ -375,7 +464,9 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
         child: AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Row(
             children: [
               Container(
@@ -384,10 +475,17 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
                   color: AppColors.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(existing == null ? Icons.add : Icons.edit, color: AppColors.primaryColor),
+                child: Icon(
+                  existing == null ? Icons.add : Icons.edit,
+                  color: AppColors.primaryColor,
+                ),
               ),
               const SizedBox(width: 12),
-              Text(existing == null ? 'إضافة غرفة جديدة' : 'تعديل غرفة ${existing.roomNumber}'),
+              Text(
+                existing == null
+                    ? 'إضافة غرفة جديدة'
+                    : 'تعديل غرفة ${existing.roomNumber}',
+              ),
             ],
           ),
           content: Form(
@@ -401,7 +499,9 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
                     decoration: InputDecoration(
                       labelText: 'رقم الغرفة',
                       prefixIcon: const Icon(Icons.meeting_room),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     readOnly: existing != null,
                     validator: (v) {
@@ -418,7 +518,9 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
                       labelText: 'نوع الغرفة',
                       prefixIcon: const Icon(Icons.category),
                       hintText: 'مثال: فردية، مزدوجة، جناح',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -427,7 +529,9 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
                     decoration: InputDecoration(
                       labelText: 'السعر لليلة',
                       prefixIcon: const Icon(Icons.attach_money),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     keyboardType: TextInputType.number,
                     validator: (v) {
@@ -443,44 +547,59 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
                   ),
                   const SizedBox(height: 16),
                   StatefulBuilder(
-                    builder: (context, setLocalState) => DropdownButtonFormField<String>(
-                      initialValue: status,
-                      decoration: InputDecoration(
-                        labelText: 'الحالة',
-                        prefixIcon: const Icon(Icons.toggle_on),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'شاغرة',
-                          child: Row(
-                            children: [
-                              Icon(Icons.check_circle, color: AppColors.successColor, size: 18),
-                              SizedBox(width: 8),
-                              Text('شاغرة'),
-                            ],
+                    builder: (context, setLocalState) =>
+                        DropdownButtonFormField<String>(
+                          initialValue: status,
+                          decoration: InputDecoration(
+                            labelText: 'الحالة',
+                            prefixIcon: const Icon(Icons.toggle_on),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'شاغرة',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.check_circle,
+                                    color: AppColors.successColor,
+                                    size: 18,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text('شاغرة'),
+                                ],
+                              ),
+                            ),
+                            DropdownMenuItem(
+                              value: 'محجوزة',
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.block,
+                                    color: AppColors.dangerColor,
+                                    size: 18,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Text('محجوزة'),
+                                ],
+                              ),
+                            ),
+                          ],
+                          onChanged: (v) =>
+                              setLocalState(() => status = v ?? status),
                         ),
-                        DropdownMenuItem(
-                          value: 'محجوزة',
-                          child: Row(
-                            children: [
-                              Icon(Icons.block, color: AppColors.dangerColor, size: 18),
-                              SizedBox(width: 8),
-                              Text('محجوزة'),
-                            ],
-                          ),
-                        ),
-                      ],
-                      onChanged: (v) => setLocalState(() => status = v ?? status),
-                    ),
                   ),
                 ],
               ),
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
             FilledButton.icon(
               onPressed: () {
                 if (formKey.currentState?.validate() ?? false) {
@@ -555,7 +674,12 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
       }
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('فشل حفظ الغرفة: $e'), backgroundColor: Colors.red.shade900));
+      ).showSnackBar(
+        SnackBar(
+          content: Text('فشل حفظ الغرفة: $e'),
+          backgroundColor: Colors.red.shade900,
+        ),
+      );
     } finally {
       // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات دائماً
       roomNumberCtrl.dispose();
@@ -574,7 +698,10 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
     final db = ref.read(databaseProvider);
     final service = PriceAdjustmentService(db);
 
-    final preview = await service.previewPriceChange(roomNumber: roomNumber, newPrice: newPrice);
+    final preview = await service.previewPriceChange(
+      roomNumber: roomNumber,
+      newPrice: newPrice,
+    );
 
     final affectedBookings = preview['bookingsAffected'] as int;
     if (affectedBookings == 0) {
@@ -593,7 +720,9 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
         child: AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Row(
             children: [
               Container(
@@ -602,7 +731,10 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
                   color: AppColors.warningColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.price_change, color: AppColors.warningColor),
+                child: const Icon(
+                  Icons.price_change,
+                  color: AppColors.warningColor,
+                ),
               ),
               const SizedBox(width: 12),
               const Text('تطبيق السعر الجديد؟'),
@@ -614,16 +746,28 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
             children: [
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Column(
                       children: [
-                        const Text('السعر القديم', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                        const Text(
+                          'السعر القديم',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
                         Text(
                           CurrencyFormatter.formatAmount(oldPrice),
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
                       ],
                     ),
@@ -633,13 +777,21 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
                     ),
                     Column(
                       children: [
-                        const Text('السعر الجديد', style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                        const Text(
+                          'السعر الجديد',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
                         Text(
                           CurrencyFormatter.formatAmount(newPrice),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
-                            color: newPrice > oldPrice ? AppColors.successColor : AppColors.dangerColor,
+                            color: newPrice > oldPrice
+                                ? AppColors.successColor
+                                : AppColors.dangerColor,
                           ),
                         ),
                       ],
@@ -648,19 +800,32 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
                 ),
               ),
               const SizedBox(height: 16),
-              _buildImpactRow(Icons.book, 'الحجوزات المتأثرة', affectedBookings.toString()),
-              _buildImpactRow(Icons.nightlight, 'الليالي المتأثرة', nightsAffected.toString()),
+              _buildImpactRow(
+                Icons.book,
+                'الحجوزات المتأثرة',
+                affectedBookings.toString(),
+              ),
+              _buildImpactRow(
+                Icons.nightlight,
+                'الليالي المتأثرة',
+                nightsAffected.toString(),
+              ),
               const Divider(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('الفرق الإجمالي:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text(
+                    'الفرق الإجمالي:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   Text(
                     '${totalDiff >= 0 ? "+" : ""}${CurrencyFormatter.formatAmount(totalDiff)}',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
-                      color: totalDiff >= 0 ? AppColors.successColor : AppColors.dangerColor,
+                      color: totalDiff >= 0
+                          ? AppColors.successColor
+                          : AppColors.dangerColor,
                     ),
                   ),
                 ],
@@ -668,8 +833,14 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('تطبيق على الحجوزات')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('تطبيق على الحجوزات'),
+            ),
           ],
         ),
       ),
@@ -677,7 +848,8 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
 
     if (apply ?? false) {
       final auth = ref.read(authProvider);
-      final userName = auth.currentUser?.name ?? auth.currentUser?.username ?? 'موظف';
+      final userName =
+          auth.currentUser?.name ?? auth.currentUser?.username ?? 'موظف';
 
       await service.applyRoomPriceChange(
         roomNumber: roomNumber,
@@ -687,7 +859,10 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen> with SyncOnEx
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم تحديث أسعار الحجوزات بنجاح'), backgroundColor: AppColors.successColor),
+          const SnackBar(
+            content: Text('تم تحديث أسعار الحجوزات بنجاح'),
+            backgroundColor: AppColors.successColor,
+          ),
         );
       }
     }
@@ -734,7 +909,10 @@ class _FloorExpansionTile extends StatelessWidget {
       ),
       child: ExpansionTile(
         initiallyExpanded: initiallyExpanded,
-        title: Text('الطابق $floorNumber', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        title: Text(
+          'الطابق $floorNumber',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
         subtitle: Text(
           'إجمالي: $totalRooms | شاغر: $availableRooms',
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
@@ -745,7 +923,11 @@ class _FloorExpansionTile extends StatelessWidget {
             color: AppColors.primaryColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: const Icon(Icons.apartment, color: AppColors.primaryColor, size: 20),
+          child: const Icon(
+            Icons.apartment,
+            color: AppColors.primaryColor,
+            size: 20,
+          ),
         ),
         children: children,
       ),
@@ -762,7 +944,10 @@ class _RoomGridCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final room = roomData.room;
     // ✅ استخدام displayStatus المشتق من الحجز النشط بدلاً من room.status المخزن
-    final isAvailable = !roomData.hasActiveBooking && room.status != 'صيانة' && room.status != 'maintenance';
+    final isAvailable =
+        !roomData.hasActiveBooking &&
+        room.status != 'صيانة' &&
+        room.status != 'maintenance';
     // استخدام اللون التلقائي من الموديل
     final cardColor = roomData.roomColor;
 
@@ -775,8 +960,17 @@ class _RoomGridCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: cardColor.withValues(alpha: 0.3), width: 1.5),
-            boxShadow: [BoxShadow(color: cardColor.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 2))],
+            border: Border.all(
+              color: cardColor.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: cardColor.withValues(alpha: 0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -784,13 +978,24 @@ class _RoomGridCard extends StatelessWidget {
               Container(
                 width: 36,
                 height: 36,
-                decoration: BoxDecoration(color: cardColor.withValues(alpha: 0.1), shape: BoxShape.circle),
-                child: Icon(isAvailable ? Icons.hotel : Icons.hotel_outlined, color: cardColor, size: 20),
+                decoration: BoxDecoration(
+                  color: cardColor.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isAvailable ? Icons.hotel : Icons.hotel_outlined,
+                  color: cardColor,
+                  size: 20,
+                ),
               ),
               const SizedBox(height: 6),
               Text(
                 room.roomNumber,
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: cardColor),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: cardColor,
+                ),
               ),
               const SizedBox(height: 2),
               Container(
@@ -801,7 +1006,11 @@ class _RoomGridCard extends StatelessWidget {
                 ),
                 child: Text(
                   roomData.displayStatus,
-                  style: TextStyle(fontSize: 9, color: cardColor, fontWeight: FontWeight.w500),
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: cardColor,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
               if (room.type.isNotEmpty) ...[
@@ -822,7 +1031,11 @@ class _RoomGridCard extends StatelessWidget {
 }
 
 class _RoomListCard extends StatelessWidget {
-  const _RoomListCard({required this.roomData, required this.onTap, this.onEdit});
+  const _RoomListCard({
+    required this.roomData,
+    required this.onTap,
+    this.onEdit,
+  });
   final RoomWithPaymentStatus roomData; // تغيير النوع
   final VoidCallback onTap;
   final VoidCallback? onEdit;
@@ -831,7 +1044,10 @@ class _RoomListCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final room = roomData.room;
     // ✅ استخدام displayStatus المشتق من الحجز النشط بدلاً من room.status المخزن
-    final isAvailable = !roomData.hasActiveBooking && room.status != 'صيانة' && room.status != 'maintenance';
+    final isAvailable =
+        !roomData.hasActiveBooking &&
+        room.status != 'صيانة' &&
+        room.status != 'maintenance';
     // استخدام اللون التلقائي من الموديل
     final statusColor = roomData.roomColor;
 
@@ -856,7 +1072,11 @@ class _RoomListCard extends StatelessWidget {
                 child: Center(
                   child: Text(
                     room.roomNumber,
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: statusColor),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: statusColor,
+                    ),
                   ),
                 ),
               ),
@@ -869,17 +1089,29 @@ class _RoomListCard extends StatelessWidget {
                       children: [
                         Text(
                           'غرفة ${room.roomNumber}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
                         ),
                         if (room.type.isNotEmpty) ...[
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.infoColor.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: Text(room.type, style: const TextStyle(fontSize: 10, color: AppColors.infoColor)),
+                            child: Text(
+                              room.type,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: AppColors.infoColor,
+                              ),
+                            ),
                           ),
                         ],
                       ],
@@ -887,11 +1119,18 @@ class _RoomListCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.attach_money, size: 14, color: Colors.grey[600]),
+                        Icon(
+                          Icons.attach_money,
+                          size: 14,
+                          color: Colors.grey[600],
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           CurrencyFormatter.formatAmount(room.price),
-                          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 13,
+                          ),
                         ),
                       ],
                     ),
@@ -899,7 +1138,10 @@ class _RoomListCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
@@ -907,11 +1149,19 @@ class _RoomListCard extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(isAvailable ? Icons.check_circle : Icons.block, size: 14, color: statusColor),
+                    Icon(
+                      isAvailable ? Icons.check_circle : Icons.block,
+                      size: 14,
+                      color: statusColor,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       roomData.displayStatus,
-                      style: TextStyle(color: statusColor, fontWeight: FontWeight.w600, fontSize: 12),
+                      style: TextStyle(
+                        color: statusColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
@@ -922,7 +1172,11 @@ class _RoomListCard extends StatelessWidget {
                   onPressed: onEdit,
                   icon: const Icon(Icons.edit, size: 20),
                   color: AppColors.primaryColor,
-                  style: IconButton.styleFrom(backgroundColor: AppColors.primaryColor.withValues(alpha: 0.1)),
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.primaryColor.withValues(
+                      alpha: 0.1,
+                    ),
+                  ),
                 ),
               ],
             ],

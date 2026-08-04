@@ -1,9 +1,3 @@
-// Tagged as 'slow' — uses hardcoded dates dependent on DateTime.now().
-// TODO: rewrite to use dynamic dates for reliable CI execution.
-@Tags(['slow'])
-library marina_hotel_mobile.test.restore_fix_service_test;
-
-
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -109,7 +103,9 @@ void main() {
       final report = await service.runAutoFixAfterRestore();
 
       expect(report.success, isTrue);
-      final debt = await (database.select(database.debts)..where((d) => d.localUuid.equals(debtUuid))).getSingle();
+      final debt = await (database.select(
+        database.debts,
+      )..where((d) => d.localUuid.equals(debtUuid))).getSingle();
       expect(debt.totalAmount, closeTo(600.0, 0.01));
       expect(debt.paidAmount, closeTo(600.0, 0.01));
       expect(debt.remainingAmount, closeTo(0.0, 0.01));
@@ -197,11 +193,16 @@ void main() {
               lastModified: Value(now),
             ),
           );
-      final failingService = RestoreFixService(database, onBeforeCommit: () => Future.error(Exception('fail')));
+      final failingService = RestoreFixService(
+        database,
+        onBeforeCommit: () => Future.error(Exception('fail')),
+      );
       final report = await failingService.runAutoFixAfterRestore();
 
       expect(report.success, isFalse);
-      final room = await (database.select(database.rooms)..where((r) => r.roomNumber.equals('201'))).getSingle();
+      final room = await (database.select(
+        database.rooms,
+      )..where((r) => r.roomNumber.equals('201'))).getSingle();
       expect(room.status, equals(originalStatus));
     });
 
@@ -233,7 +234,9 @@ void main() {
               checkinDate: Value(DateTime(2024, 8, 10, 16).toIso8601String()),
               checkoutDate: Value(DateTime(2024, 8, 13, 15).toIso8601String()),
               status: const Value('محجوزة'),
-              actualCheckout: Value(DateTime(2024, 8, 13, 15).toIso8601String()),
+              actualCheckout: Value(
+                DateTime(2024, 8, 13, 15).toIso8601String(),
+              ),
               expectedNights: const Value(1),
               calculatedNights: const Value(1),
               createdAt: Value(now),
@@ -263,12 +266,19 @@ void main() {
       final updatedBooking = await (database.select(
         database.bookings,
       )..where((b) => b.id.equals(bookingId))).getSingle();
-      final expectedNights = Time.nightsWithCutoff(DateTime(2024, 8, 10, 16), checkout: DateTime(2024, 8, 13, 15));
+      final expectedNights = Time.nightsWithCutoff(
+        DateTime(2024, 8, 10, 16),
+        checkout: DateTime(2024, 8, 13, 15),
+      );
       expect(updatedBooking.calculatedNights, equals(expectedNights));
-      final room = await (database.select(database.rooms)..where((r) => r.roomNumber.equals('301'))).getSingle();
+      final room = await (database.select(
+        database.rooms,
+      )..where((r) => r.roomNumber.equals('301'))).getSingle();
       expect(room.status, equals(StatusUtils.roomStatusForOccupancy(true)));
       final fixLogs = await database.select(database.restoreFixLog).get();
-      final conflictLogs = await database.customSelect('SELECT * FROM restore_conflict_log').get();
+      final conflictLogs = await database
+          .customSelect('SELECT * FROM restore_conflict_log')
+          .get();
       expect(fixLogs, isNotEmpty);
       expect(conflictLogs, isNotEmpty);
     });
@@ -306,7 +316,12 @@ void main() {
 
       final computation = await deltaService.compute();
 
-      expect(computation.changes.any((c) => c.entity == 'rooms' && c.operation == 'insert'), isTrue);
+      expect(
+        computation.changes.any(
+          (c) => c.entity == 'rooms' && c.operation == 'insert',
+        ),
+        isTrue,
+      );
       final change = computation.changes.first;
       expect(change.clientTimestamp, greaterThan(1000000000000));
       expect((change.data['created_at'] as int), greaterThan(1000000000000));
@@ -341,13 +356,24 @@ void main() {
         ),
       );
       final updateTs = now + 100;
-      await (database.update(database.rooms)..where((t) => t.roomNumber.equals('501'))).write(
-        RoomsCompanion(price: const Value(150.0), updatedAt: Value(updateTs), lastModified: Value(updateTs)),
+      await (database.update(
+        database.rooms,
+      )..where((t) => t.roomNumber.equals('501'))).write(
+        RoomsCompanion(
+          price: const Value(150.0),
+          updatedAt: Value(updateTs),
+          lastModified: Value(updateTs),
+        ),
       );
 
       final secondComputation = await deltaService.compute();
 
-      expect(secondComputation.changes.any((c) => c.entity == 'rooms' && c.operation == 'update'), isTrue);
+      expect(
+        secondComputation.changes.any(
+          (c) => c.entity == 'rooms' && c.operation == 'update',
+        ),
+        isTrue,
+      );
     });
 
     test('detects deletes after soft removal', () async {
@@ -379,13 +405,26 @@ void main() {
         ),
       );
       final deleteTs = now + 200;
-      await (database.update(database.rooms)..where((t) => t.roomNumber.equals('601'))).write(
-        RoomsCompanion(deletedAt: Value(deleteTs), lastModified: Value(deleteTs)),
+      await (database.update(
+        database.rooms,
+      )..where((t) => t.roomNumber.equals('601'))).write(
+        RoomsCompanion(
+          deletedAt: Value(deleteTs),
+          lastModified: Value(deleteTs),
+        ),
       );
 
       final deleteComputation = await deltaService.compute();
 
-      expect(deleteComputation.changes.any((c) => c.entity == 'rooms' && c.operation == 'delete'), isTrue);
+      expect(
+        deleteComputation.changes.any(
+          (c) =>
+              c.entity == 'rooms' &&
+              c.operation == 'update' &&
+              c.data['deleted_at'] != null,
+        ),
+        isTrue,
+      );
     });
   });
 }

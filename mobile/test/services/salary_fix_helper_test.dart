@@ -49,7 +49,10 @@ void main() {
   // ═══════════════════════════════════════════════════════════════════════
 
   /// إنشاء موظف اختبار وإرجاع id.
-  Future<int> createEmployee({String name = 'أحمد محمد', String localUuid = 'emp-uuid-001'}) async {
+  Future<int> createEmployee({
+    String name = 'أحمد محمد',
+    String localUuid = 'emp-uuid-001',
+  }) async {
     final id = await db
         .into(db.employees)
         .insert(
@@ -84,12 +87,16 @@ void main() {
         .insert(
           ExpensesCompanion(
             expenseType: d.Value(expenseType),
-            relatedId: relatedId == null ? const d.Value.absent() : d.Value(relatedId),
+            relatedId: relatedId == null
+                ? const d.Value.absent()
+                : d.Value(relatedId),
             description: const d.Value('سحب راتب قديم'),
             amount: const d.Value(10000),
             date: const d.Value('2026-06-01'),
             hotelDayKey: const d.Value('2026-06-01'),
-            employeeUuid: employeeUuid == null ? const d.Value.absent() : d.Value(employeeUuid),
+            employeeUuid: employeeUuid == null
+                ? const d.Value.absent()
+                : d.Value(employeeUuid),
             localUuid: d.Value(localUuid),
             createdAt: const d.Value(1000),
             updatedAt: const d.Value(1000),
@@ -105,7 +112,10 @@ void main() {
   }
 
   /// إنشاء سحب راتب مرتبط بمصروف.
-  Future<int> createSalaryWithdrawal({required int expenseId, required int employeeId}) async {
+  Future<int> createSalaryWithdrawal({
+    required int expenseId,
+    required int employeeId,
+  }) async {
     final id = await db
         .into(db.salaryWithdrawals)
         .insert(
@@ -127,13 +137,18 @@ void main() {
           ),
         );
     // كتابة expense_id في العمود الخام (مثل ما يفعل repository)
-    await db.customStatement('UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?', [expenseId, id]);
+    await db.customStatement(
+      'UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?',
+      [expenseId, id],
+    );
     return id;
   }
 
   /// جلب مصروف بالـ id.
   Future<Expense?> getExpense(int id) async {
-    return (db.select(db.expenses)..where((t) => t.id.equals(id))).getSingleOrNull();
+    return (db.select(
+      db.expenses,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
   /// جلب عدد عناصر outbox لمصروف معين.
@@ -172,51 +187,70 @@ void main() {
 
       final fixed = await getExpense(expenseId);
       expect(fixed, isNotNull);
-      expect(fixed!.relatedId, empId, reason: 'relatedId يجب أن يشير للموظف الصحيح');
-      expect(fixed.employeeUuid, 'emp-uuid-001', reason: 'employeeUuid يجب أن يُملأ');
-      expect(fixed.lastModified, greaterThan(1000), reason: 'lastModified يجب أن يُحدّث');
-      expect(fixed.updatedAt, greaterThan(1000), reason: 'updatedAt يجب أن يُحدّث');
+      expect(
+        fixed!.relatedId,
+        empId,
+        reason: 'relatedId يجب أن يشير للموظف الصحيح',
+      );
+      expect(
+        fixed.employeeUuid,
+        'emp-uuid-001',
+        reason: 'employeeUuid يجب أن يُملأ',
+      );
+      expect(
+        fixed.lastModified,
+        greaterThan(1000),
+        reason: 'lastModified يجب أن يُحدّث',
+      );
+      expect(
+        fixed.updatedAt,
+        greaterThan(1000),
+        reason: 'updatedAt يجب أن يُحدّث',
+      );
       expect(fixed.version, 2, reason: 'version يجب أن يُزاد');
     });
 
-    test('يُصلح مصروف راتب يتيم له سحب مرتبط عبر reason (pre-migration 40)', () async {
-      // ترتيب: موظف + مصروف + سحب بـ reason فقط (بدون expense_id)
-      final empId = await createEmployee();
-      final expenseId = await createOrphanSalaryExpense(
-        expenseType: 'خصم من الراتب',
-        relatedId: null,
-        employeeUuid: null,
-      );
-      // إنشاء سحب بـ reason فقط (محاكاة pre-migration 40)
-      final swId = await db
-          .into(db.salaryWithdrawals)
-          .insert(
-            SalaryWithdrawalsCompanion(
-              employeeId: d.Value(empId),
-              amount: const d.Value(5000),
-              withdrawDate: const d.Value('2026-06-01'),
-              reason: d.Value('exp_$expenseId'),
-              localUuid: const d.Value('sw-reason-001'),
-              createdAt: const d.Value(1000),
-              updatedAt: const d.Value(1000),
-              lastModified: const d.Value(1000),
-              createdAtEpoch: const d.Value(1000),
-              lastModifiedEpoch: const d.Value(1000),
-              version: const d.Value(1),
-              origin: const d.Value('local'),
-              vectorClock: const d.Value('{}'),
-            ),
-          );
-      // ملاحظة: لا نكتب expense_id (محاكاة DB قديمة)
+    test(
+      'يُصلح مصروف راتب يتيم له سحب مرتبط عبر reason (pre-migration 40)',
+      () async {
+        // ترتيب: موظف + مصروف + سحب بـ reason فقط (بدون expense_id)
+        final empId = await createEmployee();
+        final expenseId = await createOrphanSalaryExpense(
+          expenseType: 'خصم من الراتب',
+          relatedId: null,
+          employeeUuid: null,
+        );
+        // إنشاء سحب بـ reason فقط (محاكاة pre-migration 40)
+        final swId = await db
+            .into(db.salaryWithdrawals)
+            .insert(
+              SalaryWithdrawalsCompanion(
+                employeeId: d.Value(empId),
+                amount: const d.Value(5000),
+                withdrawDate: const d.Value('2026-06-01'),
+                reason: d.Value('exp_$expenseId'),
+                localUuid: const d.Value('sw-reason-001'),
+                createdAt: const d.Value(1000),
+                updatedAt: const d.Value(1000),
+                lastModified: const d.Value(1000),
+                createdAtEpoch: const d.Value(1000),
+                lastModifiedEpoch: const d.Value(1000),
+                version: const d.Value(1),
+                origin: const d.Value('local'),
+                vectorClock: const d.Value('{}'),
+              ),
+            );
+        // ملاحظة: لا نكتب expense_id (محاكاة DB قديمة)
 
-      final helper = SalaryFixHelper(db);
-      final fixedCount = await helper.fixOrphanSalaryExpensesForTest();
+        final helper = SalaryFixHelper(db);
+        final fixedCount = await helper.fixOrphanSalaryExpensesForTest();
 
-      expect(fixedCount, 1);
-      final fixed = await getExpense(expenseId);
-      expect(fixed!.relatedId, empId);
-      expect(fixed.employeeUuid, 'emp-uuid-001');
-    });
+        expect(fixedCount, 1);
+        final fixed = await getExpense(expenseId);
+        expect(fixed!.relatedId, empId);
+        expect(fixed.employeeUuid, 'emp-uuid-001');
+      },
+    );
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -261,7 +295,11 @@ void main() {
 
       expect(fixedCount, 0, reason: 'لا يجب إصلاح شيء بدون سحب مرتبط');
       final unchanged = await getExpense(expenseId);
-      expect(unchanged!.relatedId, 999, reason: 'relatedId يجب أن يبقى كما هو (لا تصفير)');
+      expect(
+        unchanged!.relatedId,
+        999,
+        reason: 'relatedId يجب أن يبقى كما هو (لا تصفير)',
+      );
     });
   });
 
@@ -281,7 +319,10 @@ void main() {
       // تحديث localUuid للمصروف ليكون فريداً
       await db.customUpdate(
         'UPDATE expenses SET local_uuid = ? WHERE id = ?',
-        variables: [d.Variable.withString('exp-outbox-test-001'), d.Variable.withInt(expenseId)],
+        variables: [
+          d.Variable.withString('exp-outbox-test-001'),
+          d.Variable.withInt(expenseId),
+        ],
         updates: {db.expenses},
       );
       await createSalaryWithdrawal(expenseId: expenseId, employeeId: empId);
@@ -329,7 +370,11 @@ void main() {
       // ثاني تشغيل: يجب أن يتخطى (flag مُضبوط)
       await helper.runOnceAfterFirstPull();
       final fixed2 = await getExpense(expenseId);
-      expect(fixed2!.relatedId, 999, reason: 'الإصلاح الثاني يجب أن يتخطى (flag مُضبوط)');
+      expect(
+        fixed2!.relatedId,
+        999,
+        reason: 'الإصلاح الثاني يجب أن يتخطى (flag مُضبوط)',
+      );
     });
 
     test('runOnceAfterFirstPull يتأجل عندما لا يوجد موظفون', () async {
@@ -345,11 +390,19 @@ void main() {
 
       // يجب أن يبقى المصروف دون إصلاح (التأجيل)
       final unchanged = await getExpense(expenseId);
-      expect(unchanged!.relatedId, 999, reason: 'يجب التأجيل حتى وصول الموظفين');
+      expect(
+        unchanged!.relatedId,
+        999,
+        reason: 'يجب التأجيل حتى وصول الموظفين',
+      );
 
       // flag يجب أن لا يُضبط (لإعادة المحاولة لاحقاً)
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool('salary_fix_v1_done'), isNull, reason: 'flag يجب أن لا يُضبط عند التأجيل');
+      expect(
+        prefs.getBool('salary_fix_v1_done'),
+        isNull,
+        reason: 'flag يجب أن لا يُضبط عند التأجيل',
+      );
     });
   });
 
@@ -370,7 +423,11 @@ void main() {
 
       final after = await getExpense(expenseId);
       // يجب أن لا يُصفّر relatedId (يبقى 999 أو يُعاد ربطه إن وُجد سحب)
-      expect(after!.relatedId, isNot(null), reason: 'relatedId يجب أن لا يُصفّر لمصروف راتب');
+      expect(
+        after!.relatedId,
+        isNot(null),
+        reason: 'relatedId يجب أن لا يُصفّر لمصروف راتب',
+      );
     });
 
     test('يُصفّر relatedId لمصروف نوعه employee (سلوك قديم)', () async {
@@ -399,7 +456,11 @@ void main() {
       await fixer.fixAllIssues();
 
       final after = await getExpense(expenseId);
-      expect(after!.relatedId, isNull, reason: 'relatedId يجب أن يُصفّر لمصروف employee (سلوك قديم)');
+      expect(
+        after!.relatedId,
+        isNull,
+        reason: 'relatedId يجب أن يُصفّر لمصروف employee (سلوك قديم)',
+      );
     });
   });
 

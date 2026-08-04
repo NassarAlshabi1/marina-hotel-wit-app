@@ -44,7 +44,10 @@ class AutoBackupTask {
   }
 
   /// جدولة النسخ الأسبوعي
-  static Future<void> scheduleWeekly({String time = '02:00', int weekday = 1}) async {
+  static Future<void> scheduleWeekly({
+    String time = '02:00',
+    int weekday = 1,
+  }) async {
     try {
       await _cancelExisting();
 
@@ -72,7 +75,10 @@ class AutoBackupTask {
   }
 
   /// جدولة النسخ الشهري
-  static Future<void> scheduleMonthly({String time = '02:00', int day = 1}) async {
+  static Future<void> scheduleMonthly({
+    String time = '02:00',
+    int day = 1,
+  }) async {
     try {
       await _cancelExisting();
 
@@ -121,7 +127,13 @@ class AutoBackupTask {
     final targetHour = int.tryParse(timeParts[0]) ?? 0;
     final targetMinute = int.tryParse(timeParts[1]) ?? 0;
 
-    var targetTime = DateTime(now.year, now.month, now.day, targetHour, targetMinute);
+    var targetTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      targetHour,
+      targetMinute,
+    );
 
     // إذا كان الوقت المستهدف قد مر اليوم، اجدوله للغد
     if (targetTime.isBefore(now)) {
@@ -142,7 +154,13 @@ class AutoBackupTask {
     final daysUntilWeekday = (weekday - now.weekday + 7) % 7;
     final targetDate = now.add(Duration(days: daysUntilWeekday));
 
-    var targetTime = DateTime(targetDate.year, targetDate.month, targetDate.day, targetHour, targetMinute);
+    var targetTime = DateTime(
+      targetDate.year,
+      targetDate.month,
+      targetDate.day,
+      targetHour,
+      targetMinute,
+    );
 
     // إذا كان الوقت المستهدف قد مر، اجدوله للأسبوع القادم
     if (targetTime.isBefore(now)) {
@@ -171,7 +189,13 @@ class AutoBackupTask {
       }
     }
 
-    final targetTime = DateTime(targetDate.year, targetDate.month, targetDate.day, targetHour, targetMinute);
+    final targetTime = DateTime(
+      targetDate.year,
+      targetDate.month,
+      targetDate.day,
+      targetHour,
+      targetMinute,
+    );
 
     return targetTime.difference(now);
   }
@@ -183,7 +207,10 @@ class AutoBackupTask {
         'immediateBackup',
         taskName,
         constraints: Constraints(networkType: NetworkType.connected),
-        inputData: {'frequency': 'immediate', 'time': DateTime.now().toIso8601String()},
+        inputData: {
+          'frequency': 'immediate',
+          'time': DateTime.now().toIso8601String(),
+        },
         existingWorkPolicy: ExistingWorkPolicy.replace,
       );
       debugPrint('✅ تم تشغيل مهمة النسخ الفوري');
@@ -234,7 +261,9 @@ void callbackDispatcher() {
             await driveBackupService.performAutoBackup();
             debugPrint('✅ تم النسخ الاحتياطي السحابي بنجاح');
           } else {
-            debugPrint('⚠️ تعذر تسجيل الدخول تلقائياً إلى Google Drive، تم تخطي النسخ السحابي');
+            debugPrint(
+              '⚠️ تعذر تسجيل الدخول تلقائياً إلى Google Drive، تم تخطي النسخ السحابي',
+            );
           }
         } catch (e) {
           debugPrint('❌ خطأ في النسخ الاحتياطي السحابي: $e');

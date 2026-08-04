@@ -36,7 +36,9 @@ class AppwriteConfigManager {
       debugPrint('   Endpoint: $_endpoint');
       debugPrint('   Project ID: $_projectId');
       debugPrint('   Database ID: $_databaseId');
-      debugPrint('   API Key: ${_apiKeyValue.isEmpty ? '(empty)' : '${_apiKeyValue.substring(0, 12)}...'}');
+      debugPrint(
+        '   API Key: ${_apiKeyValue.isEmpty ? '(empty)' : '${_apiKeyValue.substring(0, 12)}...'}',
+      );
     }
   }
 

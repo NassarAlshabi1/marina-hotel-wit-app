@@ -61,7 +61,8 @@ class AppwriteConfig {
 
   // جداول التدقيق المالي والتعديلات
   static const String priceAdjustmentsCollectionId = 'price_adjustments';
-  static const String bookingPriceAdjustmentsCollectionId = 'booking_price_adjustments';
+  static const String bookingPriceAdjustmentsCollectionId =
+      'booking_price_adjustments';
   static const String auditLogsCollectionId = 'audit_logs';
   static const String paymentVoidsCollectionId = 'payment_voids';
 
@@ -114,7 +115,8 @@ class AppwriteConfig {
   static const int maxCacheSizeMB = 20;
   static const int maxRetries = 3;
   static const Duration initialRetryDelay = Duration(seconds: 2);
-  static const double retryBackoffMultiplier = 2.0; // Exponential backoff multiplier
+  static const double retryBackoffMultiplier =
+      2.0; // Exponential backoff multiplier
 
   // إعدادات Timeout
   static const Duration defaultTimeout = Duration(seconds: 30);

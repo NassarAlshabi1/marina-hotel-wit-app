@@ -53,8 +53,12 @@ class ShimmerLoading extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     // ألوان Shimmer تتكيف مع وضع السمة (فاتح/داكن)
-    final effectiveBaseColor = baseColor ?? (isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE0E0E0));
-    final effectiveHighlightColor = highlightColor ?? (isDark ? const Color(0xFF3A3A3A) : const Color(0xFFF5F5F5));
+    final effectiveBaseColor =
+        baseColor ??
+        (isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE0E0E0));
+    final effectiveHighlightColor =
+        highlightColor ??
+        (isDark ? const Color(0xFF3A3A3A) : const Color(0xFFF5F5F5));
 
     if (customShimmer != null) {
       return customShimmer!;
@@ -68,7 +72,9 @@ class ShimmerLoading extends StatelessWidget {
         child: Column(
           children: List.generate(itemCount, (index) {
             return Padding(
-              padding: EdgeInsets.only(bottom: index < itemCount - 1 ? spacing : 0),
+              padding: EdgeInsets.only(
+                bottom: index < itemCount - 1 ? spacing : 0,
+              ),
               child: _buildDefaultShimmerItem(context),
             );
           }),
@@ -81,7 +87,10 @@ class ShimmerLoading extends StatelessWidget {
   Widget _buildDefaultShimmerItem(BuildContext context) {
     return Container(
       height: itemHeight,
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(borderRadius)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(borderRadius),
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
@@ -109,13 +118,19 @@ class ShimmerLoading extends StatelessWidget {
   }
 
   /// بناء خط وهمي
-  Widget _buildShimmerLine({required double height, required double widthFraction}) {
+  Widget _buildShimmerLine({
+    required double height,
+    required double widthFraction,
+  }) {
     return FractionallySizedBox(
       widthFactor: widthFraction,
       alignment: AlignmentDirectional.centerStart,
       child: Container(
         height: height,
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4)),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(4),
+        ),
       ),
     );
   }
@@ -125,7 +140,10 @@ class ShimmerLoading extends StatelessWidget {
     return Container(
       width: diameter,
       height: diameter,
-      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+      ),
     );
   }
 }
@@ -193,8 +211,12 @@ class ShimmerTableRow extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final effectiveBaseColor = baseColor ?? (isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE0E0E0));
-    final effectiveHighlightColor = highlightColor ?? (isDark ? const Color(0xFF3A3A3A) : const Color(0xFFF5F5F5));
+    final effectiveBaseColor =
+        baseColor ??
+        (isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE0E0E0));
+    final effectiveHighlightColor =
+        highlightColor ??
+        (isDark ? const Color(0xFF3A3A3A) : const Color(0xFFF5F5F5));
 
     return Shimmer.fromColors(
       baseColor: effectiveBaseColor,
@@ -212,7 +234,9 @@ class ShimmerTableRow extends StatelessWidget {
             // صفوف وهمية
             ...List.generate(rowCount, (index) {
               return Padding(
-                padding: EdgeInsets.only(bottom: index < rowCount - 1 ? spacing : 0),
+                padding: EdgeInsets.only(
+                  bottom: index < rowCount - 1 ? spacing : 0,
+                ),
                 child: _buildRow(height: rowHeight),
               );
             }),
@@ -226,7 +250,10 @@ class ShimmerTableRow extends StatelessWidget {
   Widget _buildRow({required double height, bool isHeader = false}) {
     return Container(
       height: height,
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(borderRadius)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(borderRadius),
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Row(
         children: List.generate(columnWidths.length, (index) {
@@ -236,7 +263,9 @@ class ShimmerTableRow extends StatelessWidget {
           // خلايا الرأس أطول قليلاً وأكثر سمكاً
           final cellHeight = isHeader ? 12.0 : 14.0;
           // أول عمود (الرقم) والعمود الأخير (المبلغ) أقصر
-          final widthFraction = (index == 0 || isLast) ? width * 0.6 : width * 0.85;
+          final widthFraction = (index == 0 || isLast)
+              ? width * 0.6
+              : width * 0.85;
 
           return Expanded(
             flex: (width * 100).round().clamp(1, 100),
@@ -244,10 +273,15 @@ class ShimmerTableRow extends StatelessWidget {
               padding: EdgeInsetsDirectional.only(end: isLast ? 0 : 8.0),
               child: FractionallySizedBox(
                 widthFactor: widthFraction.clamp(0.1, 1.0),
-                alignment: isLast ? AlignmentDirectional.centerEnd : AlignmentDirectional.centerStart,
+                alignment: isLast
+                    ? AlignmentDirectional.centerEnd
+                    : AlignmentDirectional.centerStart,
                 child: Container(
                   height: cellHeight,
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(3)),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
                 ),
               ),
             ),
@@ -267,7 +301,13 @@ class ShimmerTableRow extends StatelessWidget {
 /// ShimmerSummaryCard(itemCount: 4)
 /// ```
 class ShimmerSummaryCard extends StatelessWidget {
-  const ShimmerSummaryCard({super.key, this.itemCount = 4, this.baseColor, this.highlightColor, this.padding});
+  const ShimmerSummaryCard({
+    super.key,
+    this.itemCount = 4,
+    this.baseColor,
+    this.highlightColor,
+    this.padding,
+  });
 
   /// عدد بطاقات الملخص الوهمية
   final int itemCount;
@@ -286,8 +326,12 @@ class ShimmerSummaryCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final effectiveBaseColor = baseColor ?? (isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE0E0E0));
-    final effectiveHighlightColor = highlightColor ?? (isDark ? const Color(0xFF3A3A3A) : const Color(0xFFF5F5F5));
+    final effectiveBaseColor =
+        baseColor ??
+        (isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE0E0E0));
+    final effectiveHighlightColor =
+        highlightColor ??
+        (isDark ? const Color(0xFF3A3A3A) : const Color(0xFFF5F5F5));
 
     return Shimmer.fromColors(
       baseColor: effectiveBaseColor,
@@ -299,12 +343,17 @@ class ShimmerSummaryCard extends StatelessWidget {
           runSpacing: 12,
           children: List.generate(itemCount, (index) {
             // البطاقات في صفين (2 في كل صف)
-            final width = (MediaQuery.of(context).size.width - 44) / (itemCount > 2 ? 2 : itemCount);
+            final width =
+                (MediaQuery.of(context).size.width - 44) /
+                (itemCount > 2 ? 2 : itemCount);
             return SizedBox(
               width: width,
               height: 90,
               child: Container(
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -314,13 +363,19 @@ class ShimmerSummaryCard extends StatelessWidget {
                     Container(
                       height: 10,
                       width: 60,
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(3)),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
                     ),
                     // مبلغ وهمي كبير
                     Container(
                       height: 22,
                       width: 120,
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4)),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
                     ),
                   ],
                 ),

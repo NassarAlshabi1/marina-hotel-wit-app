@@ -20,7 +20,10 @@ enum AdjustmentType {
   final int value;
 
   static AdjustmentType fromValue(int value) {
-    return AdjustmentType.values.firstWhere((e) => e.value == value, orElse: () => AdjustmentType.discount);
+    return AdjustmentType.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => AdjustmentType.discount,
+    );
   }
 }
 
@@ -32,7 +35,10 @@ enum AdjustmentMode {
   final String value;
 
   static AdjustmentMode fromValue(String? value) {
-    return AdjustmentMode.values.firstWhere((e) => e.value == value, orElse: () => AdjustmentMode.perNight);
+    return AdjustmentMode.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => AdjustmentMode.perNight,
+    );
   }
 }
 
@@ -134,12 +140,16 @@ class BookingPriceAdjustmentService {
     String? endHotelDay,
     AdjustmentMode mode = AdjustmentMode.perNight,
   }) async {
-    final booking = await (db.select(db.bookings)..where((b) => b.id.equals(bookingId))).getSingleOrNull();
+    final booking = await (db.select(
+      db.bookings,
+    )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
     if (booking == null) {
       throw StateError('Booking not found: $bookingId');
     }
 
-    final room = await (db.select(db.rooms)..where((r) => r.roomNumber.equals(booking.roomNumber))).getSingleOrNull();
+    final room = await (db.select(
+      db.rooms,
+    )..where((r) => r.roomNumber.equals(booking.roomNumber))).getSingleOrNull();
     if (room == null) {
       throw StateError('Room not found: ${booking.roomNumber}');
     }
@@ -161,12 +171,15 @@ class BookingPriceAdjustmentService {
 
     final nightsInRange = nights.where((night) {
       final nightDate = DateTime.parse(night.hotelDayKey);
-      return !nightDate.isBefore(effectiveDate) && (endDate == null || !nightDate.isAfter(endDate));
+      return !nightDate.isBefore(effectiveDate) &&
+          (endDate == null || !nightDate.isAfter(endDate));
     }).toList();
 
     for (final night in nights) {
       final nightDate = DateTime.parse(night.hotelDayKey);
-      final isInRange = !nightDate.isBefore(effectiveDate) && (endDate == null || !nightDate.isAfter(endDate));
+      final isInRange =
+          !nightDate.isBefore(effectiveDate) &&
+          (endDate == null || !nightDate.isAfter(endDate));
 
       final double baseRate = night.nightlyRate;
       double adjustmentAmount = 0;
@@ -296,14 +309,19 @@ class BookingPriceAdjustmentService {
       recordData: adjustment.toColumns(false),
     );
 
-    final result = await (db.select(db.bookingPriceAdjustments)..where((a) => a.localUuid.equals(uuid))).getSingle();
+    final result = await (db.select(
+      db.bookingPriceAdjustments,
+    )..where((a) => a.localUuid.equals(uuid))).getSingle();
 
     debugPrint('✅ تم تطبيق تعديل السعر: $uuid للحجز $bookingLocalUuid');
 
     return result;
   }
 
-  Future<void> cancelAdjustment({required String adjustmentUuid, String? cancelledBy}) async {
+  Future<void> cancelAdjustment({
+    required String adjustmentUuid,
+    String? cancelledBy,
+  }) async {
     final adjustment = await (db.select(
       db.bookingPriceAdjustments,
     )..where((a) => a.localUuid.equals(adjustmentUuid))).getSingleOrNull();
@@ -325,7 +343,9 @@ class BookingPriceAdjustmentService {
     // (تضميني على كلا الطرفين)، فلو وضعنا اليوم ستُحسب ليلة اليوم
     // كمخفّضة وهذا خطأ لأن المستخدم أنهى التخفيض بنفس اليوم.
     final todayHotelDay = HotelTimeEngine.getHotelDayKey();
-    final yesterdayHotelDay = Time.dateToString(DateTime.parse(todayHotelDay).subtract(const Duration(days: 1)));
+    final yesterdayHotelDay = Time.dateToString(
+      DateTime.parse(todayHotelDay).subtract(const Duration(days: 1)),
+    );
 
     // لا يجوز أن يكون endHotelDay قبل effectiveHotelDay
     final effectiveStart = adjustment.effectiveHotelDay;
@@ -358,7 +378,9 @@ class BookingPriceAdjustmentService {
       version: Value(adjustment.version + 1),
     );
 
-    await (db.update(db.bookingPriceAdjustments)..where((a) => a.localUuid.equals(adjustmentUuid))).write(update);
+    await (db.update(
+      db.bookingPriceAdjustments,
+    )..where((a) => a.localUuid.equals(adjustmentUuid))).write(update);
 
     // إنشاء outbox entry للمزامنة
     final outboxDao = OutboxDao(db);
@@ -385,10 +407,14 @@ class BookingPriceAdjustmentService {
       recordData: update.toColumns(false),
     );
 
-    debugPrint('⏹️ تم إنهاء تعديل السعر: $adjustmentUuid (ساري حتى $effectiveEnd)');
+    debugPrint(
+      '⏹️ تم إنهاء تعديل السعر: $adjustmentUuid (ساري حتى $effectiveEnd)',
+    );
   }
 
-  Future<List<BookingPriceAdjustment>> getActiveAdjustments(String bookingLocalUuid) async {
+  Future<List<BookingPriceAdjustment>> getActiveAdjustments(
+    String bookingLocalUuid,
+  ) async {
     return (db.select(db.bookingPriceAdjustments)
           ..where((a) => a.bookingLocalUuid.equals(bookingLocalUuid))
           ..where((a) => a.isActive.equals(true))
@@ -397,7 +423,9 @@ class BookingPriceAdjustmentService {
         .get();
   }
 
-  Future<List<BookingPriceAdjustment>> getAllAdjustments(String bookingLocalUuid) async {
+  Future<List<BookingPriceAdjustment>> getAllAdjustments(
+    String bookingLocalUuid,
+  ) async {
     return (db.select(db.bookingPriceAdjustments)
           ..where((a) => a.bookingLocalUuid.equals(bookingLocalUuid))
           ..where((a) => a.deletedAt.isNull())
@@ -414,7 +442,10 @@ class BookingPriceAdjustmentService {
   /// `_fetchActiveAdjustments` في `EnhancedBookingCalculationService` تتحقق
   /// أن `adj.roomNumber == booking.roomNumber`. بدون هذا التحديث ستُتجاهل
   /// التعديلات بعد النقل ولن تُطبَّق على الحساب.
-  Future<void> transferAdjustmentsToRoom({required int bookingId, required String newRoomNumber}) async {
+  Future<void> transferAdjustmentsToRoom({
+    required int bookingId,
+    required String newRoomNumber,
+  }) async {
     final adjustments =
         await (db.select(db.bookingPriceAdjustments)
               ..where((a) => a.bookingLocalId.equals(bookingId))
@@ -433,7 +464,9 @@ class BookingPriceAdjustmentService {
     // الآن: 1 معاملة للتحديث + 1 معاملة لـ mergeBatch = 2 معاملة فقط
     await db.transaction(() async {
       for (final adj in adjustments) {
-        await (db.update(db.bookingPriceAdjustments)..where((a) => a.localUuid.equals(adj.localUuid))).write(
+        await (db.update(
+          db.bookingPriceAdjustments,
+        )..where((a) => a.localUuid.equals(adj.localUuid))).write(
           BookingPriceAdjustmentsCompanion(
             roomNumber: Value(newRoomNumber),
             updatedAt: Value(now),
@@ -459,16 +492,23 @@ class BookingPriceAdjustmentService {
           .toList(),
     );
 
-    dlog(() => 'تم نقل ${adjustments.length} تعديل(ات) سعر للغرفة $newRoomNumber للحجز #$bookingId');
+    dlog(
+      () =>
+          'تم نقل ${adjustments.length} تعديل(ات) سعر للغرفة $newRoomNumber للحجز #$bookingId',
+    );
   }
 
   Future<void> _recalculateBookingNights(int bookingId) async {
-    final booking = await (db.select(db.bookings)..where((b) => b.id.equals(bookingId))).getSingleOrNull();
+    final booking = await (db.select(
+      db.bookings,
+    )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
     if (booking == null) {
       return;
     }
 
-    await BookingDerivedFieldsService(db).refreshForBooking(booking, forceRebuild: true);
+    await BookingDerivedFieldsService(
+      db,
+    ).refreshForBooking(booking, forceRebuild: true);
 
     debugPrint('🔄 تم إعادة حساب الحجز #$bookingId');
   }
@@ -477,7 +517,9 @@ class BookingPriceAdjustmentService {
     await _recalculateBookingNights(bookingId);
   }
 
-  Future<List<Booking>> getLongStayBookingsWithoutSurcharge({int minimumNights = 30}) async {
+  Future<List<Booking>> getLongStayBookingsWithoutSurcharge({
+    int minimumNights = 30,
+  }) async {
     final now = DateTime.now();
     final cutoffDate = now.subtract(Duration(days: minimumNights));
     final cutoffStr = Time.dateToString(cutoffDate);
@@ -496,11 +538,16 @@ class BookingPriceAdjustmentService {
     final allSurcharges =
         await (db.select(db.bookingPriceAdjustments)
               ..where((a) => a.bookingLocalId.isIn(bookingIds))
-              ..where((a) => a.adjustmentType.equals(AdjustmentType.surcharge.value))
+              ..where(
+                (a) => a.adjustmentType.equals(AdjustmentType.surcharge.value),
+              )
               ..where((a) => a.isActive.equals(true))
               ..where((a) => a.deletedAt.isNull()))
             .get();
-    final surchargeBookingIds = allSurcharges.map((a) => a.bookingLocalId).whereType<int>().toSet();
+    final surchargeBookingIds = allSurcharges
+        .map((a) => a.bookingLocalId)
+        .whereType<int>()
+        .toSet();
 
     for (final booking in bookings) {
       if (!surchargeBookingIds.contains(booking.id)) {
@@ -511,11 +558,17 @@ class BookingPriceAdjustmentService {
     return result;
   }
 
-  Future<LostRevenueReport> generateLostRevenueReport({String? fromHotelDay, String? toHotelDay}) async {
-    final query = db.select(db.bookingPriceAdjustments)..where((a) => a.deletedAt.isNull());
+  Future<LostRevenueReport> generateLostRevenueReport({
+    String? fromHotelDay,
+    String? toHotelDay,
+  }) async {
+    final query = db.select(db.bookingPriceAdjustments)
+      ..where((a) => a.deletedAt.isNull());
 
     if (fromHotelDay != null) {
-      query.where((a) => a.effectiveHotelDay.isBiggerOrEqualValue(fromHotelDay));
+      query.where(
+        (a) => a.effectiveHotelDay.isBiggerOrEqualValue(fromHotelDay),
+      );
     }
     if (toHotelDay != null) {
       query.where((a) => a.effectiveHotelDay.isSmallerOrEqualValue(toHotelDay));
@@ -523,7 +576,10 @@ class BookingPriceAdjustmentService {
 
     final adjustments = await query.get();
 
-    final bookingIds = adjustments.map((a) => a.bookingLocalId).whereType<int>().toSet();
+    final bookingIds = adjustments
+        .map((a) => a.bookingLocalId)
+        .whereType<int>()
+        .toSet();
 
     double totalPotentialRevenue = 0;
     double totalActualRevenue = 0;
@@ -532,14 +588,20 @@ class BookingPriceAdjustmentService {
     final bookingDetails = <BookingLostRevenue>[];
 
     // ✅ تحسين أداء: batch lookup بدل N+1 — جلب كل الحجوزات والغرف والليالي مرة واحدة
-    final bookingList = await (db.select(db.bookings)..where((b) => b.id.isIn(bookingIds))).get();
+    final bookingList = await (db.select(
+      db.bookings,
+    )..where((b) => b.id.isIn(bookingIds))).get();
     final bookingMap = {for (final b in bookingList) b.id: b};
 
     final roomNumbers = bookingList.map((b) => b.roomNumber).toSet();
-    final roomList = await (db.select(db.rooms)..where((r) => r.roomNumber.isIn(roomNumbers))).get();
+    final roomList = await (db.select(
+      db.rooms,
+    )..where((r) => r.roomNumber.isIn(roomNumbers))).get();
     final roomMap = {for (final r in roomList) r.roomNumber: r};
 
-    final nightsList = await (db.select(db.bookingNights)..where((n) => n.bookingLocalId.isIn(bookingIds))).get();
+    final nightsList = await (db.select(
+      db.bookingNights,
+    )..where((n) => n.bookingLocalId.isIn(bookingIds))).get();
     final nightsMap = <int, List<BookingNight>>{};
     for (final night in nightsList) {
       nightsMap.putIfAbsent(night.bookingLocalId, () => []).add(night);
@@ -558,10 +620,15 @@ class BookingPriceAdjustmentService {
 
       final nights = nightsMap[bookingId] ?? const [];
 
-      final bookingAdjustments = adjustments.where((a) => a.bookingLocalId == bookingId).toList();
+      final bookingAdjustments = adjustments
+          .where((a) => a.bookingLocalId == bookingId)
+          .toList();
 
       final double potentialRevenue = nights.length * room.price;
-      final double actualRevenue = nights.fold<double>(0, (sum, n) => sum + n.nightlyRate);
+      final double actualRevenue = nights.fold<double>(
+        0,
+        (sum, n) => sum + n.nightlyRate,
+      );
       double lostRevenue = 0;
       double gainedRevenue = 0;
 
@@ -569,12 +636,15 @@ class BookingPriceAdjustmentService {
 
       for (final adj in bookingAdjustments) {
         final effectiveDate = DateTime.parse(adj.effectiveHotelDay);
-        final endDate = adj.endHotelDay != null ? DateTime.parse(adj.endHotelDay!) : null;
+        final endDate = adj.endHotelDay != null
+            ? DateTime.parse(adj.endHotelDay!)
+            : null;
 
         int nightsAffected = 0;
         for (final night in nights) {
           final nightDate = DateTime.parse(night.hotelDayKey);
-          if (!nightDate.isBefore(effectiveDate) && (endDate == null || !nightDate.isAfter(endDate))) {
+          if (!nightDate.isBefore(effectiveDate) &&
+              (endDate == null || !nightDate.isAfter(endDate))) {
             nightsAffected++;
           }
         }
@@ -632,7 +702,9 @@ class BookingPriceAdjustmentService {
     );
   }
 
-  Stream<List<BookingPriceAdjustment>> watchActiveAdjustments(String bookingLocalUuid) {
+  Stream<List<BookingPriceAdjustment>> watchActiveAdjustments(
+    String bookingLocalUuid,
+  ) {
     return (db.select(db.bookingPriceAdjustments)
           ..where((a) => a.bookingLocalUuid.equals(bookingLocalUuid))
           ..where((a) => a.isActive.equals(true))

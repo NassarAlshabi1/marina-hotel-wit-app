@@ -21,7 +21,8 @@ const String batteryAwareSyncTask = 'marina-hotel-battery-aware-sync';
 class BackgroundSyncService {
   factory BackgroundSyncService() => _instance;
   BackgroundSyncService._internal();
-  static final BackgroundSyncService _instance = BackgroundSyncService._internal();
+  static final BackgroundSyncService _instance =
+      BackgroundSyncService._internal();
 
   bool _isInitialized = false;
   final BatteryOptimizer _batteryOptimizer = BatteryOptimizer();
@@ -54,9 +55,15 @@ class BackgroundSyncService {
 
       _isInitialized = true;
 
-      developer.log('✅ BackgroundSyncService initialized', name: 'BackgroundSyncService');
+      developer.log(
+        '✅ BackgroundSyncService initialized',
+        name: 'BackgroundSyncService',
+      );
     } catch (e) {
-      developer.log('⚠️ BackgroundSyncService init error: $e', name: 'BackgroundSyncService');
+      developer.log(
+        '⚠️ BackgroundSyncService init error: $e',
+        name: 'BackgroundSyncService',
+      );
     }
   }
 
@@ -86,7 +93,9 @@ class BackgroundSyncService {
         periodicSyncTask,
         frequency: _syncInterval,
         constraints: Constraints(
-          networkType: requireUnmeteredNetwork ? NetworkType.unmetered : NetworkType.connected,
+          networkType: requireUnmeteredNetwork
+              ? NetworkType.unmetered
+              : NetworkType.connected,
           requiresCharging: requireCharging,
           requiresBatteryNotLow: requiresBatteryNotLow,
           requiresStorageNotLow: _requiresStorageNotLow,
@@ -101,10 +110,16 @@ class BackgroundSyncService {
 
       await _analytics.logSyncEvent(
         SyncAnalyticsEvent.syncStarted,
-        parameters: {'trigger': 'register_periodic', 'interval_minutes': _syncInterval.inMinutes},
+        parameters: {
+          'trigger': 'register_periodic',
+          'interval_minutes': _syncInterval.inMinutes,
+        },
       );
     } catch (e) {
-      developer.log('⚠️ Failed to register periodic sync: $e', name: 'BackgroundSyncService');
+      developer.log(
+        '⚠️ Failed to register periodic sync: $e',
+        name: 'BackgroundSyncService',
+      );
     }
   }
 
@@ -124,15 +139,23 @@ class BackgroundSyncService {
         backgroundSyncTask,
         initialDelay: delay,
         constraints: Constraints(
-          networkType: requireNetwork ? NetworkType.connected : NetworkType.connected,
+          networkType: requireNetwork
+              ? NetworkType.connected
+              : NetworkType.connected,
           requiresCharging: requireCharging,
         ),
         existingWorkPolicy: ExistingWorkPolicy.replace,
       );
 
-      developer.log('✅ Scheduled one-time sync in ${delay.inMinutes} minutes', name: 'BackgroundSyncService');
+      developer.log(
+        '✅ Scheduled one-time sync in ${delay.inMinutes} minutes',
+        name: 'BackgroundSyncService',
+      );
     } catch (e) {
-      developer.log('⚠️ Failed to schedule one-time sync: $e', name: 'BackgroundSyncService');
+      developer.log(
+        '⚠️ Failed to schedule one-time sync: $e',
+        name: 'BackgroundSyncService',
+      );
     }
   }
 
@@ -160,9 +183,15 @@ class BackgroundSyncService {
         existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
       );
 
-      developer.log('✅ Registered battery-aware sync', name: 'BackgroundSyncService');
+      developer.log(
+        '✅ Registered battery-aware sync',
+        name: 'BackgroundSyncService',
+      );
     } catch (e) {
-      developer.log('⚠️ Failed to register battery-aware sync: $e', name: 'BackgroundSyncService');
+      developer.log(
+        '⚠️ Failed to register battery-aware sync: $e',
+        name: 'BackgroundSyncService',
+      );
     }
   }
 
@@ -175,9 +204,15 @@ class BackgroundSyncService {
     try {
       await Workmanager().cancelAll();
 
-      developer.log('✅ Cancelled all background sync tasks', name: 'BackgroundSyncService');
+      developer.log(
+        '✅ Cancelled all background sync tasks',
+        name: 'BackgroundSyncService',
+      );
     } catch (e) {
-      developer.log('⚠️ Failed to cancel syncs: $e', name: 'BackgroundSyncService');
+      developer.log(
+        '⚠️ Failed to cancel syncs: $e',
+        name: 'BackgroundSyncService',
+      );
     }
   }
 
@@ -190,7 +225,10 @@ class BackgroundSyncService {
     try {
       await Workmanager().cancelByUniqueName(uniqueName);
     } catch (e) {
-      developer.log('⚠️ Failed to cancel sync $uniqueName: $e', name: 'BackgroundSyncService');
+      developer.log(
+        '⚠️ Failed to cancel sync $uniqueName: $e',
+        name: 'BackgroundSyncService',
+      );
     }
   }
 
@@ -205,7 +243,10 @@ class BackgroundSyncService {
 
   /// تشغيل المزامنة اليدوية في الخلفية
   static Future<bool> executeBackgroundSync() async {
-    developer.log('🔄 Executing background sync', name: 'BackgroundSyncService');
+    developer.log(
+      '🔄 Executing background sync',
+      name: 'BackgroundSyncService',
+    );
 
     final stopwatch = Stopwatch()..start();
     final analytics = AnalyticsService();
@@ -214,14 +255,20 @@ class BackgroundSyncService {
       // التحقق من الاتصال
       final connectivity = await Connectivity().checkConnectivity();
       if (connectivity.contains(ConnectivityResult.none)) {
-        developer.log('⚠️ No connectivity, skipping background sync', name: 'BackgroundSyncService');
+        developer.log(
+          '⚠️ No connectivity, skipping background sync',
+          name: 'BackgroundSyncService',
+        );
         return false;
       }
 
       // التحقق من البطارية
       final batteryOptimizer = BatteryOptimizer();
       if (!batteryOptimizer.shouldSync) {
-        developer.log('🔋 Battery conditions not met, skipping background sync', name: 'BackgroundSyncService');
+        developer.log(
+          '🔋 Battery conditions not met, skipping background sync',
+          name: 'BackgroundSyncService',
+        );
         return false;
       }
 
@@ -233,18 +280,31 @@ class BackgroundSyncService {
 
       await analytics.logSyncEvent(
         SyncAnalyticsEvent.syncCompleted,
-        parameters: {'trigger': 'background', 'duration_ms': stopwatch.elapsedMilliseconds},
+        parameters: {
+          'trigger': 'background',
+          'duration_ms': stopwatch.elapsedMilliseconds,
+        },
       );
 
-      developer.log('✅ Background sync completed in ${stopwatch.elapsedMilliseconds}ms', name: 'BackgroundSyncService');
+      developer.log(
+        '✅ Background sync completed in ${stopwatch.elapsedMilliseconds}ms',
+        name: 'BackgroundSyncService',
+      );
 
       return true;
     } catch (e) {
       stopwatch.stop();
 
-      await analytics.logSyncFailure(error: e.toString(), operation: 'background_sync', attempt: 1);
+      await analytics.logSyncFailure(
+        error: e.toString(),
+        operation: 'background_sync',
+        attempt: 1,
+      );
 
-      developer.log('❌ Background sync failed: $e', name: 'BackgroundSyncService');
+      developer.log(
+        '❌ Background sync failed: $e',
+        name: 'BackgroundSyncService',
+      );
 
       return false;
     }
@@ -270,7 +330,10 @@ class BackgroundSyncService {
 @pragma('vm:entry-point')
 void _callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
-    developer.log('📋 Background task executed: $task', name: 'BackgroundSyncService');
+    developer.log(
+      '📋 Background task executed: $task',
+      name: 'BackgroundSyncService',
+    );
 
     switch (task) {
       case periodicSyncTask:
@@ -282,10 +345,16 @@ void _callbackDispatcher() {
       case 'autoBackupTask':
       case 'marina_auto_sync_now':
       case 'marina_auto_sync_periodic':
-        developer.log('📋 Routing task $task to BackgroundSyncService', name: 'BackgroundSyncService');
+        developer.log(
+          '📋 Routing task $task to BackgroundSyncService',
+          name: 'BackgroundSyncService',
+        );
         return BackgroundSyncService.executeBackgroundSync();
       default:
-        developer.log('⚠️ Unknown task: $task → treating as sync', name: 'BackgroundSyncService');
+        developer.log(
+          '⚠️ Unknown task: $task → treating as sync',
+          name: 'BackgroundSyncService',
+        );
         // ✅ P0-7: بدل false (الذي يُسقط المهمة)، نحاول المزامنة
         return BackgroundSyncService.executeBackgroundSync();
     }

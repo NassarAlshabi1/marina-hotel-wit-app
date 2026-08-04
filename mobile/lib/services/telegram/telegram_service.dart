@@ -74,7 +74,10 @@ class TelegramApiClient {
   }
 
   /// إرسال رسالة إلى Chat ID المحفوظ في الإعدادات
-  Future<bool> sendToDefaultChat({required String text, String parseMode = 'HTML'}) async {
+  Future<bool> sendToDefaultChat({
+    required String text,
+    String parseMode = 'HTML',
+  }) async {
     final chatId = await TelegramConfig.getChatId();
     if (chatId.isEmpty) {
       debugPrint('⚠️ Telegram: Chat ID غير مضبوط');

@@ -34,17 +34,46 @@ class HotelTimeEngine {
     DateTime hotelDayEnd;
 
     // إذا كان الوقت الحالي قبل الساعة 14:01
-    if (date.hour < boundaryHour || (date.hour == boundaryHour && date.minute < boundaryMinute)) {
+    if (date.hour < boundaryHour ||
+        (date.hour == boundaryHour && date.minute < boundaryMinute)) {
       // اليوم الفندقي بدأ أمس الساعة 14:01
-      hotelDayStart = DateTime(date.year, date.month, date.day - 1, boundaryHour, boundaryMinute);
+      hotelDayStart = DateTime(
+        date.year,
+        date.month,
+        date.day - 1,
+        boundaryHour,
+        boundaryMinute,
+      );
       // وينتهي اليوم الساعة 14:00:59
-      hotelDayEnd = DateTime(date.year, date.month, date.day, boundaryHour, 0, 59, 999);
+      hotelDayEnd = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        boundaryHour,
+        0,
+        59,
+        999,
+      );
     } else {
       // إذا كان الوقت الحالي بعد أو يساوي الساعة 14:01
       // اليوم الفندقي بدأ اليوم الساعة 14:01
-      hotelDayStart = DateTime(date.year, date.month, date.day, boundaryHour, boundaryMinute);
+      hotelDayStart = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        boundaryHour,
+        boundaryMinute,
+      );
       // وينتهي غداً الساعة 14:00:59
-      hotelDayEnd = DateTime(date.year, date.month, date.day + 1, boundaryHour, 0, 59, 999);
+      hotelDayEnd = DateTime(
+        date.year,
+        date.month,
+        date.day + 1,
+        boundaryHour,
+        0,
+        59,
+        999,
+      );
     }
 
     return {'start': hotelDayStart, 'end': hotelDayEnd};
@@ -68,7 +97,9 @@ class HotelTimeEngine {
   /// - 2025-01-15 14:00 → 2025-01-14 (نهاية اليوم الفندقي 14)
   /// - 2025-01-15 14:01 → 2025-01-15 (بداية يوم فندقي جديد)
   static DateTime getHotelDay(DateTime dt) {
-    final isAfterBoundary = dt.hour > boundaryHour || (dt.hour == boundaryHour && dt.minute >= boundaryMinute);
+    final isAfterBoundary =
+        dt.hour > boundaryHour ||
+        (dt.hour == boundaryHour && dt.minute >= boundaryMinute);
     if (isAfterBoundary) {
       return DateTime(dt.year, dt.month, dt.day);
     } else {
@@ -89,7 +120,9 @@ class HotelTimeEngine {
       return getHotelDayKey();
     }
     try {
-      final normalized = isoString.trim().contains('T') ? isoString.trim() : isoString.trim().replaceFirst(' ', 'T');
+      final normalized = isoString.trim().contains('T')
+          ? isoString.trim()
+          : isoString.trim().replaceFirst(' ', 'T');
       final dt = DateTime.parse(normalized);
       return getHotelDayKey(dateTime: dt);
     } catch (_) {
@@ -137,7 +170,9 @@ class HotelTimeEngine {
       boundaryHour,
       boundaryMinute,
     );
-    final effectiveStart = discountDayStart.isAfter(checkIn) ? discountDayStart : checkIn;
+    final effectiveStart = discountDayStart.isAfter(checkIn)
+        ? discountDayStart
+        : checkIn;
     if (!checkOut.isAfter(effectiveStart)) {
       return 0;
     }
@@ -152,12 +187,14 @@ class HotelTimeEngine {
   /// true إذا الوقت >= 14:01:00.
   static bool isNowAfterCutoff() {
     final now = DateTime.now();
-    return now.hour > boundaryHour || (now.hour == boundaryHour && now.minute >= boundaryMinute);
+    return now.hour > boundaryHour ||
+        (now.hour == boundaryHour && now.minute >= boundaryMinute);
   }
 
   /// هل الوقت المحدد بعد ساعة بداية اليوم الفندقي؟
   static bool isAfterCutoff(DateTime dateTime) {
-    return dateTime.hour > boundaryHour || (dateTime.hour == boundaryHour && dateTime.minute >= boundaryMinute);
+    return dateTime.hour > boundaryHour ||
+        (dateTime.hour == boundaryHour && dateTime.minute >= boundaryMinute);
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -197,7 +234,10 @@ class HotelTimeEngine {
 
   /// هل الحجز متأخر عن الخروج؟
   /// حجز نشط وتجاوز تاريخ الخروج المحدد.
-  static bool isOverdue({required String status, required String? checkoutDate}) {
+  static bool isOverdue({
+    required String status,
+    required String? checkoutDate,
+  }) {
     if (status != 'نشط') {
       return false;
     }
@@ -206,7 +246,11 @@ class HotelTimeEngine {
     }
 
     try {
-      final checkout = DateTime.parse(checkoutDate.contains('T') ? checkoutDate : checkoutDate.replaceFirst(' ', 'T'));
+      final checkout = DateTime.parse(
+        checkoutDate.contains('T')
+            ? checkoutDate
+            : checkoutDate.replaceFirst(' ', 'T'),
+      );
       return DateTime.now().isAfter(checkout);
     } catch (_) {
       return false;
@@ -215,7 +259,10 @@ class HotelTimeEngine {
 
   /// هل يحتاج مراجعة الخروج؟
   /// إما متأخر أو لديه رصيد متبقي.
-  static bool needsCheckoutReview({required bool isOverdue, required double remainingBalance}) {
+  static bool needsCheckoutReview({
+    required bool isOverdue,
+    required double remainingBalance,
+  }) {
     return isOverdue || remainingBalance > 0;
   }
 
@@ -231,7 +278,13 @@ class HotelTimeEngine {
   /// الفترة المتبقية حتى بداية اليوم الفندقي التالي (14:01).
   static Duration timeUntilNextHotelDay() {
     final now = DateTime.now();
-    var next = DateTime(now.year, now.month, now.day, boundaryHour, boundaryMinute);
+    var next = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      boundaryHour,
+      boundaryMinute,
+    );
     if (!now.isBefore(next)) {
       next = next.add(const Duration(days: 1));
     }
@@ -268,7 +321,9 @@ class HotelTimeEngine {
   }
 
   /// تصفية بيانات الحجز من الحقول المحسوبة قبل الرفع.
-  static Map<String, dynamic> stripComputedFields(Map<String, dynamic> payload) {
+  static Map<String, dynamic> stripComputedFields(
+    Map<String, dynamic> payload,
+  ) {
     final result = Map<String, dynamic>.from(payload);
     bookingComputedFields.forEach(result.remove);
     return result;

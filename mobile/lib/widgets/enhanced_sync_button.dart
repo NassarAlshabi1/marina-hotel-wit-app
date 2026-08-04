@@ -25,7 +25,8 @@ class EnhancedSyncButton extends ConsumerStatefulWidget {
   ConsumerState<EnhancedSyncButton> createState() => _EnhancedSyncButtonState();
 }
 
-class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with SingleTickerProviderStateMixin {
+class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   StreamSubscription<OrchestratorState>? _stateSubscription;
   StreamSubscription<SyncHealth>? _healthSubscription;
@@ -38,7 +39,10 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000));
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
 
     _setupListeners();
   }
@@ -59,17 +63,20 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
       }
     });
 
-    _healthSubscription = SyncOrchestrator.instance.healthStream.listen((health) {
+    _healthSubscription = SyncOrchestrator.instance.healthStream.listen((
+      health,
+    ) {
       if (mounted) {
         setState(() => _health = health);
       }
     });
 
-    _connectivitySubscription = ConnectivityService.instance.statusStream.listen((status) {
-      if (mounted) {
-        setState(() => _isOnline = status.isOnline);
-      }
-    });
+    _connectivitySubscription = ConnectivityService.instance.statusStream
+        .listen((status) {
+          if (mounted) {
+            setState(() => _isOnline = status.isOnline);
+          }
+        });
 
     _isOnline = ConnectivityService.instance.isOnline;
   }
@@ -125,7 +132,11 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
         );
       }
     } catch (e) {
-      final error = SyncErrorRecovery.instance.createError(operation: 'manual_sync', table: 'all', exception: e);
+      final error = SyncErrorRecovery.instance.createError(
+        operation: 'manual_sync',
+        table: 'all',
+        exception: e,
+      );
       SyncErrorRecovery.instance.logError(error);
 
       if (mounted) {
@@ -140,7 +151,11 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
             ),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
-            action: SnackBarAction(label: 'تفاصيل', textColor: Colors.white, onPressed: () => _showErrorDetails(error)),
+            action: SnackBarAction(
+              label: 'تفاصيل',
+              textColor: Colors.white,
+              onPressed: () => _showErrorDetails(error),
+            ),
           ),
         );
       }
@@ -174,11 +189,20 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
               _buildDetailRow('الخطورة', error.severity.name),
               _buildDetailRow('قابل للإعادة', error.isRetriable ? 'نعم' : 'لا'),
               const SizedBox(height: 8),
-              const Text('الرسالة:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'الرسالة:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(4)),
-                child: Text(error.message, style: const TextStyle(fontSize: 12)),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  error.message,
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
             ],
           ),
@@ -192,7 +216,10 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
               },
               child: const Text('إعادة المحاولة'),
             ),
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إغلاق'),
+          ),
         ],
       ),
     );
@@ -213,7 +240,9 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
   void _showSyncOptions() {
     showModalBottomSheet<void>(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
       builder: (context) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -225,7 +254,10 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
                 children: [
                   Icon(Icons.sync, color: Theme.of(context).primaryColor),
                   const SizedBox(width: 8),
-                  const Text('خيارات المزامنة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'خيارات المزامنة',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ],
               ),
               const Divider(),
@@ -259,7 +291,10 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.health_and_safety, color: Colors.purple),
+                leading: const Icon(
+                  Icons.health_and_safety,
+                  color: Colors.purple,
+                ),
                 title: const Text('فحص سلامة البيانات'),
                 subtitle: const Text('التحقق من تكامل قاعدة البيانات'),
                 onTap: () async {
@@ -271,7 +306,9 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
                 ListTile(
                   leading: const Icon(Icons.history, color: Colors.red),
                   title: const Text('سجل الأخطاء'),
-                  subtitle: Text('${SyncErrorRecovery.instance.recentErrors.length} خطأ'),
+                  subtitle: Text(
+                    '${SyncErrorRecovery.instance.recentErrors.length} خطأ',
+                  ),
                   onTap: () {
                     Navigator.pop(context);
                     _showErrorLog();
@@ -287,7 +324,10 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
   Widget _buildHealthStatus() {
     final health = _health;
     if (health == null) {
-      return const ListTile(leading: CircularProgressIndicator(strokeWidth: 2), title: Text('جاري فحص صحة النظام...'));
+      return const ListTile(
+        leading: CircularProgressIndicator(strokeWidth: 2),
+        title: Text('جاري فحص صحة النظام...'),
+      );
     }
 
     final healthColor = health.isHealthy ? Colors.green : Colors.orange;
@@ -308,8 +348,13 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
               Icon(healthIcon, color: healthColor, size: 20),
               const SizedBox(width: 8),
               Text(
-                health.isHealthy ? 'النظام يعمل بشكل صحيح' : 'يوجد مشاكل في النظام',
-                style: TextStyle(fontWeight: FontWeight.bold, color: healthColor),
+                health.isHealthy
+                    ? 'النظام يعمل بشكل صحيح'
+                    : 'يوجد مشاكل في النظام',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: healthColor,
+                ),
               ),
             ],
           ),
@@ -317,7 +362,11 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildStatChip('نجاح', '${(health.successRate * 100).toStringAsFixed(0)}%', Colors.green),
+              _buildStatChip(
+                'نجاح',
+                '${(health.successRate * 100).toStringAsFixed(0)}%',
+                Colors.green,
+              ),
               _buildStatChip('معلق', '${health.pendingTasks}', Colors.orange),
               _buildStatChip('Outbox', '${health.outboxCount}', Colors.blue),
             ],
@@ -330,7 +379,10 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
   Widget _buildStatChip(String label, String value, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -338,7 +390,11 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
           const SizedBox(width: 4),
           Text(
             value,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
           ),
         ],
       ),
@@ -359,16 +415,27 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('✅ تم رفع التغييرات'), backgroundColor: Colors.green));
+        ).showSnackBar(
+          const SnackBar(
+            content: Text('✅ تم رفع التغييرات'),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
     } catch (e) {
       debugPrint('❌ خطأ في رفع التغييرات: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('تعذر رفع التغييرات. تحقق من الاتصال ثم أعد المحاولة'),
+            content: const Text(
+              'تعذر رفع التغييرات. تحقق من الاتصال ثم أعد المحاولة',
+            ),
             backgroundColor: Colors.red,
-            action: SnackBarAction(label: 'إعادة', textColor: Colors.white, onPressed: _pushOnly),
+            action: SnackBarAction(
+              label: 'إعادة',
+              textColor: Colors.white,
+              onPressed: _pushOnly,
+            ),
           ),
         );
       }
@@ -395,16 +462,27 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('✅ تم تحديث البيانات'), backgroundColor: Colors.green));
+        ).showSnackBar(
+          const SnackBar(
+            content: Text('✅ تم تحديث البيانات'),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
     } catch (e) {
       debugPrint('❌ خطأ في سحب التحديثات: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('تعذر سحب التحديثات. تحقق من الاتصال ثم أعد المحاولة'),
+            content: const Text(
+              'تعذر سحب التحديثات. تحقق من الاتصال ثم أعد المحاولة',
+            ),
             backgroundColor: Colors.red,
-            action: SnackBarAction(label: 'إعادة', textColor: Colors.white, onPressed: _pullOnly),
+            action: SnackBarAction(
+              label: 'إعادة',
+              textColor: Colors.white,
+              onPressed: _pullOnly,
+            ),
           ),
         );
       }
@@ -424,7 +502,11 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
         barrierDismissible: false,
         builder: (context) => const AlertDialog(
           content: Row(
-            children: [CircularProgressIndicator(), SizedBox(width: 16), Text('جاري فحص سلامة البيانات...')],
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('جاري فحص سلامة البيانات...'),
+            ],
           ),
         ),
       ),
@@ -451,19 +533,30 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
                 children: checks
                     .map(
                       (check) => ListTile(
-                        leading: const Icon(Icons.table_chart, color: Colors.blue),
+                        leading: const Icon(
+                          Icons.table_chart,
+                          color: Colors.blue,
+                        ),
                         title: Text(check.tableName),
                         subtitle: Text('${check.recordCount} سجل'),
                         trailing: Text(
                           check.checksum.substring(0, 8),
-                          style: const TextStyle(fontFamily: 'monospace', fontSize: 10),
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 10,
+                          ),
                         ),
                       ),
                     )
                     .toList(),
               ),
             ),
-            actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق'))],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('إغلاق'),
+              ),
+            ],
           ),
         ),
       );
@@ -473,7 +566,10 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
       }
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تعذر فحص سلامة البيانات. أعد المحاولة لاحقاً'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('تعذر فحص سلامة البيانات. أعد المحاولة لاحقاً'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -513,7 +609,9 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
                 ),
                 title: Text(error.operation),
                 subtitle: Text(
-                  error.message.length > 50 ? '${error.message.substring(0, 50)}...' : error.message,
+                  error.message.length > 50
+                      ? '${error.message.substring(0, 50)}...'
+                      : error.message,
                   style: const TextStyle(fontSize: 11),
                 ),
                 trailing: Text(
@@ -532,7 +630,10 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
             },
             child: const Text('مسح السجل'),
           ),
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إغلاق'),
+          ),
         ],
       ),
     );
@@ -586,7 +687,11 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
                 ),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
-                  BoxShadow(color: buttonColor.withValues(alpha: 0.3), blurRadius: 4, offset: const Offset(0, 4)),
+                  BoxShadow(
+                    color: buttonColor.withValues(alpha: 0.3),
+                    blurRadius: 4,
+                    offset: const Offset(0, 4),
+                  ),
                 ],
               ),
               child: Material(
@@ -606,7 +711,11 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
                         if (_isSyncing)
                           RotationTransition(
                             turns: _animationController,
-                            child: Icon(buttonIcon, size: 20, color: Colors.white),
+                            child: Icon(
+                              buttonIcon,
+                              size: 20,
+                              color: Colors.white,
+                            ),
                           )
                         else
                           Icon(buttonIcon, size: 20, color: Colors.white),
@@ -636,11 +745,18 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                   ),
-                  constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                  constraints: const BoxConstraints(
+                    minWidth: 20,
+                    minHeight: 20,
+                  ),
                   child: Center(
                     child: Text(
                       pendingCount > 99 ? '99+' : '$pendingCount',
-                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -656,14 +772,21 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton> with Si
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 2),
                   ),
-                  child: const Icon(Icons.warning, size: 12, color: Colors.white),
+                  child: const Icon(
+                    Icons.warning,
+                    size: 12,
+                    color: Colors.white,
+                  ),
                 ),
               ),
           ],
         ),
         if (widget.showLastSyncTime && health?.lastSuccessfulSync != null) ...[
           const SizedBox(height: 4),
-          Text(_formatLastSync(health!.lastSuccessfulSync!), style: const TextStyle(fontSize: 10, color: Colors.grey)),
+          Text(
+            _formatLastSync(health!.lastSuccessfulSync!),
+            style: const TextStyle(fontSize: 10, color: Colors.grey),
+          ),
         ],
       ],
     );

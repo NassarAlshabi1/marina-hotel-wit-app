@@ -47,9 +47,11 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
             const SizedBox(height: UIConstants.spacingLG),
 
             // آخر نسخة محلية
-            if (backupState.lastLocalBackupTime != null) _buildLastBackupCard(backupState.lastLocalBackupTime!),
+            if (backupState.lastLocalBackupTime != null)
+              _buildLastBackupCard(backupState.lastLocalBackupTime!),
 
-            if (backupState.lastLocalBackupTime != null) const SizedBox(height: UIConstants.spacingLG),
+            if (backupState.lastLocalBackupTime != null)
+              const SizedBox(height: UIConstants.spacingLG),
 
             // قائمة النسخ المحلية
             SectionHeader(
@@ -64,26 +66,34 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
             if (localBackups.isEmpty)
               _buildEmptyState()
             else
-              ...localBackups.map((backup) => _buildBackupItem(backup, backupState)),
+              ...localBackups.map(
+                (backup) => _buildBackupItem(backup, backupState),
+              ),
 
             const SizedBox(height: 80),
           ],
         ),
 
         // شريط التقدم
-        if (backupState.isWorking && backupState.progress != null) _buildProgressOverlay(backupState),
+        if (backupState.isWorking && backupState.progress != null)
+          _buildProgressOverlay(backupState),
       ],
     );
   }
 
-  Widget _buildStorageInfoCard(Map<String, dynamic>? folderInfo, BackupState backupState) {
+  Widget _buildStorageInfoCard(
+    Map<String, dynamic>? folderInfo,
+    BackupState backupState,
+  ) {
     final path = folderInfo?['path'] as String? ?? 'جاري التحميل...';
     final totalSizeMb = folderInfo?['total_size_mb'] as String? ?? '0';
     final count = folderInfo?['backups_count'] as int? ?? 0;
 
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UIConstants.radiusLG)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(UIConstants.spacingMD),
         child: Column(
@@ -92,15 +102,22 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
               children: [
                 Icon(
                   Icons.sd_storage,
-                  color: backupState.hasStoragePermission ? Colors.green : Colors.red,
+                  color: backupState.hasStoragePermission
+                      ? Colors.green
+                      : Colors.red,
                   size: UIConstants.iconSizeMD,
                 ),
                 const SizedBox(width: UIConstants.spacingSM),
-                const Text('تخزين الجهاز', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const Text(
+                  'تخزين الجهاز',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
                 const Spacer(),
                 if (!backupState.hasStoragePermission)
                   TextButton.icon(
-                    onPressed: () => ref.read(backupStatusProvider.notifier).checkStoragePermissions(),
+                    onPressed: () => ref
+                        .read(backupStatusProvider.notifier)
+                        .checkStoragePermissions(),
                     icon: const Icon(Icons.lock_open, size: 16),
                     label: const Text('منح الأذونات'),
                     style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -108,9 +125,22 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
               ],
             ),
             const SizedBox(height: UIConstants.spacingMD),
-            InfoRow(label: 'المسار', value: path, icon: Icons.folder, isExpandable: true),
-            InfoRow(label: 'عدد النسخ', value: '$count نسخة', icon: Icons.layers),
-            InfoRow(label: 'المساحة المستخدمة', value: '$totalSizeMb ميجابايت', icon: Icons.data_usage),
+            InfoRow(
+              label: 'المسار',
+              value: path,
+              icon: Icons.folder,
+              isExpandable: true,
+            ),
+            InfoRow(
+              label: 'عدد النسخ',
+              value: '$count نسخة',
+              icon: Icons.layers,
+            ),
+            InfoRow(
+              label: 'المساحة المستخدمة',
+              value: '$totalSizeMb ميجابايت',
+              icon: Icons.data_usage,
+            ),
           ],
         ),
       ),
@@ -127,7 +157,10 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
                 ? const SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
                 : const Icon(Icons.backup),
             label: const Text('نسخ الآن'),
@@ -144,7 +177,9 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
             onPressed: backupState.isWorking ? null : _importBackup,
             icon: const Icon(Icons.file_download),
             label: const Text('استيراد نسخة'),
-            style: OutlinedButton.styleFrom(padding: const EdgeInsets.all(UIConstants.spacingMD)),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.all(UIConstants.spacingMD),
+            ),
           ),
         ),
       ],
@@ -167,17 +202,26 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
 
     return Card(
       elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UIConstants.radiusLG)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(UIConstants.spacingMD),
         child: Row(
           children: [
-            Icon(Icons.history, color: Colors.blue.shade400, size: UIConstants.iconSizeMD),
+            Icon(
+              Icons.history,
+              color: Colors.blue.shade400,
+              size: UIConstants.iconSizeMD,
+            ),
             const SizedBox(width: UIConstants.spacingSM),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('آخر نسخة محلية', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                const Text(
+                  'آخر نسخة محلية',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
                 const SizedBox(height: 2),
                 Text(
                   '$relativeTime - ${DateTimeFormatter.formatDateTime(lastBackupTime.toIso8601String())}',
@@ -194,7 +238,9 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
   Widget _buildEmptyState() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(UIConstants.radiusLG)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
@@ -203,7 +249,11 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
             const SizedBox(height: UIConstants.spacingMD),
             Text(
               'لا توجد نسخ احتياطية محلية',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade700,
+              ),
             ),
             const SizedBox(height: UIConstants.spacingSM),
             Text(
@@ -219,7 +269,9 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
 
   Widget _buildBackupItem(LocalBackupFile backup, BackupState backupState) {
     final metadata = backup.metadata;
-    final formatLabel = backup.format == BackupFormat.sqlite ? 'SQLite' : 'JSON';
+    final formatLabel = backup.format == BackupFormat.sqlite
+        ? 'SQLite'
+        : 'JSON';
 
     return Card(
       margin: const EdgeInsets.only(bottom: UIConstants.spacingSM),
@@ -249,7 +301,11 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
               ),
               child: Text(
                 formatLabel,
-                style: TextStyle(fontSize: 10, color: Colors.blue.shade700, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.blue.shade700,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
@@ -259,17 +315,28 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
           children: [
             const SizedBox(height: 4),
             Text(
-              DateTimeFormatter.formatDateTime(backup.createdTime.toIso8601String()),
+              DateTimeFormatter.formatDateTime(
+                backup.createdTime.toIso8601String(),
+              ),
               style: const TextStyle(fontSize: 12),
             ),
             Row(
               children: [
-                Text(FileSizeFormatter.formatBytes(backup.sizeBytes), style: const TextStyle(fontSize: 11)),
+                Text(
+                  FileSizeFormatter.formatBytes(backup.sizeBytes),
+                  style: const TextStyle(fontSize: 11),
+                ),
                 if (metadata != null) ...[
                   const SizedBox(width: 8),
-                  Text('${metadata.totalRecords} سجل', style: const TextStyle(fontSize: 11)),
+                  Text(
+                    '${metadata.totalRecords} سجل',
+                    style: const TextStyle(fontSize: 11),
+                  ),
                   const SizedBox(width: 8),
-                  Text('v${metadata.databaseVersion}', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+                  Text(
+                    'v${metadata.databaseVersion}',
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  ),
                 ],
               ],
             ),
@@ -279,11 +346,23 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
           itemBuilder: (context) => [
             const PopupMenuItem(
               value: 'restore',
-              child: Row(children: [Icon(Icons.restore, size: 20), SizedBox(width: 8), Text('استعادة')]),
+              child: Row(
+                children: [
+                  Icon(Icons.restore, size: 20),
+                  SizedBox(width: 8),
+                  Text('استعادة'),
+                ],
+              ),
             ),
             const PopupMenuItem(
               value: 'share',
-              child: Row(children: [Icon(Icons.share, size: 20), SizedBox(width: 8), Text('مشاركة')]),
+              child: Row(
+                children: [
+                  Icon(Icons.share, size: 20),
+                  SizedBox(width: 8),
+                  Text('مشاركة'),
+                ],
+              ),
             ),
             const PopupMenuItem(
               value: 'delete',
@@ -312,7 +391,11 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
         decoration: BoxDecoration(
           color: Colors.white,
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, -2)),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 4,
+              offset: const Offset(0, -2),
+            ),
           ],
         ),
         child: Column(
@@ -320,9 +403,18 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
           children: [
             Row(
               children: [
-                const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: Text(backupState.message ?? 'جاري المعالجة...', style: const TextStyle(fontSize: 13))),
+                Expanded(
+                  child: Text(
+                    backupState.message ?? 'جاري المعالجة...',
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -346,11 +438,21 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
       if (state.status == BackupStatus.success) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(state.message ?? 'تم إنشاء النسخة'), backgroundColor: Colors.green));
+        ).showSnackBar(
+          SnackBar(
+            content: Text(state.message ?? 'تم إنشاء النسخة'),
+            backgroundColor: Colors.green,
+          ),
+        );
       } else if (state.status == BackupStatus.error) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(state.message ?? 'حدث خطأ'), backgroundColor: Colors.red));
+        ).showSnackBar(
+          SnackBar(
+            content: Text(state.message ?? 'حدث خطأ'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -362,21 +464,36 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
       if (state.status == BackupStatus.success) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(state.message ?? 'تم الاستيراد'), backgroundColor: Colors.green));
+        ).showSnackBar(
+          SnackBar(
+            content: Text(state.message ?? 'تم الاستيراد'),
+            backgroundColor: Colors.green,
+          ),
+        );
       } else if (state.status == BackupStatus.error) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(state.message ?? 'حدث خطأ'), backgroundColor: Colors.red));
+        ).showSnackBar(
+          SnackBar(
+            content: Text(state.message ?? 'حدث خطأ'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
 
-  Future<void> _handleBackupAction(String action, LocalBackupFile backup) async {
+  Future<void> _handleBackupAction(
+    String action,
+    LocalBackupFile backup,
+  ) async {
     switch (action) {
       case 'restore':
         _confirmRestore(backup);
       case 'share':
-        await ref.read(backupStatusProvider.notifier).shareLocalBackup(backup.filePath);
+        await ref
+            .read(backupStatusProvider.notifier)
+            .shareLocalBackup(backup.filePath);
       case 'delete':
         _confirmDelete(backup);
     }
@@ -394,13 +511,19 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
           'الحجم: ${FileSizeFormatter.formatBytes(backup.sizeBytes)}',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               _restoreBackup(backup);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('استعادة'),
           ),
         ],
@@ -409,18 +532,28 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
   }
 
   Future<void> _restoreBackup(LocalBackupFile backup) async {
-    await ref.read(backupStatusProvider.notifier).restoreFromLocalBackup(backup.filePath);
+    await ref
+        .read(backupStatusProvider.notifier)
+        .restoreFromLocalBackup(backup.filePath);
 
     if (mounted) {
       final state = ref.read(backupStatusProvider);
       if (state.status == BackupStatus.success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تمت الاستعادة بنجاح - سيتم تحديث البيانات'), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text('تمت الاستعادة بنجاح - سيتم تحديث البيانات'),
+            backgroundColor: Colors.green,
+          ),
         );
       } else if (state.status == BackupStatus.error) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(state.message ?? 'فشلت الاستعادة'), backgroundColor: Colors.red));
+        ).showSnackBar(
+          SnackBar(
+            content: Text(state.message ?? 'فشلت الاستعادة'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -435,7 +568,10 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
           'لا يمكن التراجع عن هذا الإجراء.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
@@ -450,12 +586,19 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
   }
 
   Future<void> _deleteBackup(LocalBackupFile backup) async {
-    await ref.read(backupStatusProvider.notifier).deleteLocalBackup(backup.filePath);
+    await ref
+        .read(backupStatusProvider.notifier)
+        .deleteLocalBackup(backup.filePath);
 
     if (mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('تم حذف النسخة الاحتياطية'), backgroundColor: Colors.orange));
+      ).showSnackBar(
+        const SnackBar(
+          content: Text('تم حذف النسخة الاحتياطية'),
+          backgroundColor: Colors.orange,
+        ),
+      );
     }
   }
 

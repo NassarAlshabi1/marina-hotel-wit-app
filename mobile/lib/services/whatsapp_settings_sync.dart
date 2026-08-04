@@ -25,7 +25,8 @@ class WhatsAppSettingsSync {
         'wa_api_base_url': prefs.getString('wa_api_base_url') ?? '',
         'wa_api_instance_id': prefs.getString('wa_api_instance_id') ?? '',
         'wa_api_token': prefs.getString('wa_api_token') ?? '',
-        'wa_custom_url_template': prefs.getString('wa_custom_url_template') ?? '',
+        'wa_custom_url_template':
+            prefs.getString('wa_custom_url_template') ?? '',
       };
 
       final dbId = AppwriteConfigManager.databaseId;
@@ -63,7 +64,8 @@ class WhatsAppSettingsSync {
   }
 
   /// تنزيل إعدادات الواتساب من Appwrite وحفظها محلياً
-  Future<({bool success, String? error, Map<String, String>? settings})> downloadFromCloud() async {
+  Future<({bool success, String? error, Map<String, String>? settings})>
+  downloadFromCloud() async {
     try {
       await _appwrite.initialize();
 
@@ -76,7 +78,13 @@ class WhatsAppSettingsSync {
 
       final prefs = await SharedPreferences.getInstance();
 
-      final fields = ['wa_api_type', 'wa_api_base_url', 'wa_api_instance_id', 'wa_api_token', 'wa_custom_url_template'];
+      final fields = [
+        'wa_api_type',
+        'wa_api_base_url',
+        'wa_api_instance_id',
+        'wa_api_token',
+        'wa_custom_url_template',
+      ];
 
       final saved = <String, String>{};
       for (final field in fields) {

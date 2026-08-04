@@ -1,9 +1,3 @@
-// Tagged as 'slow' — uses hardcoded dates dependent on DateTime.now().
-// TODO: rewrite to use dynamic dates for reliable CI execution.
-@Tags(['slow'])
-library marina_hotel_mobile.test.time_extended_test;
-
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/utils/time.dart';
 
@@ -35,12 +29,12 @@ void main() {
     group('dateToString', () {
       test('يجب تحويل DateTime إلى سلسلة نصية', () {
         final date = DateTime(2024, 1, 15);
-        expect(Time.dateToString(date), '2026-08-08');
+        expect(Time.dateToString(date), '2024-01-15');
       });
 
       test('يجب إضافة الأصفار للأرقام الصغيرة', () {
         final date = DateTime(2024, 3, 5);
-        expect(Time.dateToString(date), '2026-09-27');
+        expect(Time.dateToString(date), '2024-03-05');
       });
     });
 
@@ -48,25 +42,27 @@ void main() {
       test('قبل الساعة 14:00 يجب إرجاع اليوم السابق', () {
         final morning = DateTime(2024, 1, 15, 10, 0);
         final key = Time.hotelDayKey(now: morning, cutoffHour: 14);
-        expect(key, '2026-08-07');
+        expect(key, '2024-01-14');
       });
 
       test('بعد الساعة 14:00 يجب إرجاع اليوم الحالي', () {
         final evening = DateTime(2024, 1, 15, 16, 0);
         final key = Time.hotelDayKey(now: evening, cutoffHour: 14);
-        expect(key, '2026-08-08');
+        expect(key, '2024-01-15');
       });
 
       test('في تمام الساعة 14:00 يجب إرجاع اليوم الحالي', () {
         final cutoff = DateTime(2024, 1, 15, 14, 0);
         final key = Time.hotelDayKey(now: cutoff, cutoffHour: 14);
-        expect(key, '2026-08-08');
+        expect(key, '2024-01-15');
       });
 
       test('يجب دعم ساعات قطع مختلفة', () {
         final time = DateTime(2024, 1, 15, 11, 0);
-        expect(Time.hotelDayKey(now: time, cutoffHour: 12), '2026-08-07');
-        expect(Time.hotelDayKey(now: time, cutoffHour: 10), '2026-08-08');
+        // 11:00 with cutoff 12 → before cutoff → previous day
+        expect(Time.hotelDayKey(now: time, cutoffHour: 12), '2024-01-14');
+        // 11:00 with cutoff 10 → after cutoff → same day
+        expect(Time.hotelDayKey(now: time, cutoffHour: 10), '2024-01-15');
       });
     });
 
@@ -90,25 +86,25 @@ void main() {
 
     group('hotelDayStartIso', () {
       test('يجب إرجاع تاريخ ISO لبداية يوم الفندق', () {
-        final iso = Time.hotelDayStartIso('2026-08-08', cutoffHour: 14);
-        expect(iso, '2026-08-08T14:00:00');
+        final iso = Time.hotelDayStartIso('2024-08-08', cutoffHour: 14);
+        expect(iso, '2024-08-08T14:00:00');
       });
     });
 
     group('hotelDayEndIso', () {
       test('يجب إرجاع تاريخ ISO لنهاية يوم الفندق', () {
-        final iso = Time.hotelDayEndIso('2026-08-08', cutoffHour: 14);
-        expect(iso, '2026-08-09T14:00:00');
+        final iso = Time.hotelDayEndIso('2024-08-08', cutoffHour: 14);
+        expect(iso, '2024-08-09T14:00:00');
       });
     });
 
     group('safeIsoToDateString', () {
       test('يجب تحويل تاريخ ISO إلى سلسلة تاريخ', () {
-        expect(Time.safeIsoToDateString('2026-08-08T10:30:00'), '2026-08-08');
+        expect(Time.safeIsoToDateString('2024-08-08T10:30:00'), '2024-08-08');
       });
 
       test('يجب معالجة التاريخ بدون وقت', () {
-        expect(Time.safeIsoToDateString('2026-08-08'), '2026-08-08');
+        expect(Time.safeIsoToDateString('2024-08-08'), '2024-08-08');
       });
 
       test('يجب إرجاع تاريخ اليوم للقيم الفارغة', () {
@@ -127,19 +123,19 @@ void main() {
       test('منتصف الليل', () {
         final midnight = DateTime(2024, 1, 15, 0, 0);
         final key = Time.hotelDayKey(now: midnight, cutoffHour: 14);
-        expect(key, '2026-08-07');
+        expect(key, '2024-01-14');
       });
 
       test('نهاية العام', () {
         final newYearsEve = DateTime(2024, 12, 31, 23, 59);
         final key = Time.hotelDayKey(now: newYearsEve, cutoffHour: 14);
-        expect(key, '2027-07-25');
+        expect(key, '2024-12-31');
       });
 
       test('بداية العام', () {
         final newYear = DateTime(2024, 1, 1, 10, 0);
         final key = Time.hotelDayKey(now: newYear, cutoffHour: 14);
-        expect(key, '2026-07-24');
+        expect(key, '2023-12-31');
       });
     });
   });

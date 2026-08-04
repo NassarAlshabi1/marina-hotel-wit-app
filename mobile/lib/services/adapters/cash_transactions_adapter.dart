@@ -8,7 +8,8 @@ import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
 
-class CashTransactionsAdapter extends EntityAdapter<CashTransaction, CashTransactionsCompanion> {
+class CashTransactionsAdapter
+    extends EntityAdapter<CashTransaction, CashTransactionsCompanion> {
   CashTransactionsAdapter(this.resolver);
   final IdResolver resolver;
 
@@ -22,33 +23,64 @@ class CashTransactionsAdapter extends EntityAdapter<CashTransaction, CashTransac
   String get tableName => 'cash_transactions';
 
   @override
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
-    final uuid = _asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src) ?? IdGen.uuid();
+  Future<ResolveResult> resolveRefs(
+    AppDatabase db,
+    Map<String, dynamic> json, {
+    required Source src,
+  }) async {
+    final uuid =
+        _asString(json, 'localUuid', src) ??
+        _asString(json, 'local_uuid', src) ??
+        IdGen.uuid();
     // ignore: unused_local_variable
-    final serverId = _asInt(json, 'serverId', src) ?? _asInt(json, 'server_id', src);
+    final serverId =
+        _asInt(json, 'serverId', src) ?? _asInt(json, 'server_id', src);
     // ignore: unused_local_variable
     final localId = _asInt(json, 'id', src);
 
     final createdAt = _epoch(json, 'createdAt', src);
     final lastModified = _epoch(json, 'lastModified', src);
 
-    return ResolveResult(bookingUuidCache: uuid, createdAtEpoch: createdAt, lastModifiedEpoch: lastModified);
+    return ResolveResult(
+      bookingUuidCache: uuid,
+      createdAtEpoch: createdAt,
+      lastModifiedEpoch: lastModified,
+    );
   }
 
   @override
-  CashTransactionsCompanion fromJson(Map<String, dynamic> json, {required Source src, required ResolveResult refs}) {
+  CashTransactionsCompanion fromJson(
+    Map<String, dynamic> json, {
+    required Source src,
+    required ResolveResult refs,
+  }) {
     final now = Time.nowEpoch();
-    final createdAt = refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified = refs.lastModifiedEpoch ?? _epoch(json, 'lastModified', src) ?? createdAt;
+    final createdAt =
+        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final lastModified =
+        refs.lastModifiedEpoch ??
+        _epoch(json, 'lastModified', src) ??
+        createdAt;
 
     return CashTransactionsCompanion(
       id: _vInt(json, 'id', src),
       localUuid: d.Value(refs.bookingUuidCache ?? IdGen.uuid()),
       serverId: _vInt(json, 'serverId', src),
       registerId: _vInt(json, 'registerId', src, altKey: 'register_id'),
-      transactionType: _vStr(json, 'transactionType', src, altKey: 'transaction_type', fallback: 'expense'),
+      transactionType: _vStr(
+        json,
+        'transactionType',
+        src,
+        altKey: 'transaction_type',
+        fallback: 'expense',
+      ),
       amount: _vDouble(json, 'amount', src),
-      referenceType: _vStr(json, 'referenceType', src, altKey: 'reference_type'),
+      referenceType: _vStr(
+        json,
+        'referenceType',
+        src,
+        altKey: 'reference_type',
+      ),
       referenceId: _vInt(json, 'referenceId', src, altKey: 'reference_id'),
       description: _vStr(json, 'description', src),
       transactionTime: _vStr(
@@ -64,7 +96,9 @@ class CashTransactionsAdapter extends EntityAdapter<CashTransaction, CashTransac
       deletedAt: _vInt(json, 'deletedAt', src),
       lastModified: d.Value(lastModified),
       createdAtEpoch: d.Value(_asInt(json, 'createdAtEpoch', src) ?? createdAt),
-      lastModifiedEpoch: d.Value(_asInt(json, 'lastModifiedEpoch', src) ?? lastModified),
+      lastModifiedEpoch: d.Value(
+        _asInt(json, 'lastModifiedEpoch', src) ?? lastModified,
+      ),
       createdAtIso: _vStr(json, 'createdAtIso', src),
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
@@ -75,8 +109,19 @@ class CashTransactionsAdapter extends EntityAdapter<CashTransaction, CashTransac
       origin: src == Source.appwrite || src == Source.drive
           ? const d.Value('server')
           : _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vStr(json, 'vectorClock', src, altKey: 'vector_clock', fallback: '{}'),
-      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
+      vectorClock: _vStr(
+        json,
+        'vectorClock',
+        src,
+        altKey: 'vector_clock',
+        fallback: '{}',
+      ),
+      idempotencyKey: _vStr(
+        json,
+        'idempotencyKey',
+        src,
+        altKey: 'idempotency_key',
+      ),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
     );
   }
@@ -103,7 +148,8 @@ class CashTransactionsAdapter extends EntityAdapter<CashTransaction, CashTransac
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
       _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'):
+          model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
@@ -116,18 +162,45 @@ class CashTransactionsAdapter extends EntityAdapter<CashTransaction, CashTransac
 // Helpers (Copied from bookings_adapter.dart to avoid dependency issues if not shared)
 // In a real refactor, these should be in a shared mixin or utility file.
 
-d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src, {String? altKey, int? fallback}) {
-  final v = _asInt(json, key, src) ?? (altKey != null ? _asInt(json, altKey, src) : null) ?? fallback;
+d.Value<int> _vInt(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  int? fallback,
+}) {
+  final v =
+      _asInt(json, key, src) ??
+      (altKey != null ? _asInt(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src, {String? altKey, String? fallback}) {
-  final v = _asString(json, key, src) ?? (altKey != null ? _asString(json, altKey, src) : null) ?? fallback;
+d.Value<String> _vStr(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  String? fallback,
+}) {
+  final v =
+      _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<double> _vDouble(Map<String, dynamic> json, String key, Source src, {String? altKey, double? fallback}) {
-  final v = _asDouble(json, key, src) ?? (altKey != null ? _asDouble(json, altKey, src) : null) ?? fallback;
+d.Value<double> _vDouble(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  double? fallback,
+}) {
+  final v =
+      _asDouble(json, key, src) ??
+      (altKey != null ? _asDouble(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
@@ -200,7 +273,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) => src == Source.drive ? snake : camel;
+String _k(Source src, String camel, String snake) =>
+    src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
   // ✅ إصلاح: تحويل camelCase → snake_case لجميع المصادر بما فيها Drive

@@ -17,7 +17,8 @@ part 'bookings_dao.g.dart';
 @DriftAccessor(tables: [Bookings])
 class BookingsDao extends DatabaseAccessor<AppDatabase>
     with _$BookingsDaoMixin, OptimisticLockDaoMixin<Bookings, Booking> {
-  BookingsDao(super.db, this.outboxDao, [AdapterRegistry? a]) : adapters = a ?? AdapterRegistry.instance;
+  BookingsDao(super.db, this.outboxDao, [AdapterRegistry? a])
+    : adapters = a ?? AdapterRegistry.instance;
   final OutboxDao outboxDao;
   final AdapterRegistry adapters;
 
@@ -42,13 +43,19 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.status.equals(status));
     }
     if (from != null && to != null) {
-      q.where((t) => t.checkinDate.isBiggerOrEqualValue(from) & t.checkinDate.isSmallerOrEqualValue(to));
+      q.where(
+        (t) =>
+            t.checkinDate.isBiggerOrEqualValue(from) &
+            t.checkinDate.isSmallerOrEqualValue(to),
+      );
     }
     if (search != null && search.trim().isNotEmpty) {
       final s = '%${search.trim()}%';
       q.where((t) => t.guestName.like(s) | t.guestPhone.like(s));
     }
-    q.orderBy([(t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc)]);
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc),
+    ]);
     if (limit != null) {
       q.limit(limit, offset: offset ?? 0);
     }
@@ -72,17 +79,24 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     if (status != null && status.isNotEmpty) {
       q.where((t) => t.status.equals(status));
     }
-    q.orderBy([(t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc)]);
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc),
+    ]);
     if (limit != null) {
       q.limit(limit, offset: offset);
     }
     return q.watch();
   }
 
-  Future<Booking?> getById(int id) => (select(bookings)..where((t) => t.id.equals(id))).getSingleOrNull();
-  Stream<Booking?> watchById(int id) => (select(bookings)..where((t) => t.id.equals(id))).watchSingleOrNull();
+  Future<Booking?> getById(int id) =>
+      (select(bookings)..where((t) => t.id.equals(id))).getSingleOrNull();
+  Stream<Booking?> watchById(int id) =>
+      (select(bookings)..where((t) => t.id.equals(id))).watchSingleOrNull();
 
-  Future<int> insertOne(BookingsCompanion data, {bool originIsServer = false}) async {
+  Future<int> insertOne(
+    BookingsCompanion data, {
+    bool originIsServer = false,
+  }) async {
     final now = Time.nowEpoch();
     final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
     final comp = data.copyWith(
@@ -91,7 +105,9 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       updatedAt: Value(now),
       lastModified: Value(now),
       origin: Value(originIsServer ? 'server' : 'local'),
-      deviceId: originIsServer ? const Value.absent() : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
+      deviceId: originIsServer
+          ? const Value.absent()
+          : Value(AppwriteSyncManager.currentDeviceIdStatic ?? ''),
     );
 
     // ✅ إصلاح PR review: إخراج FCM خارج transaction لمنع إشعارات كاذبة
@@ -113,12 +129,21 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     // ✅ FCM: إشعار الأجهزة الأخرى بإنشاء حجز جديد (fire-and-forget)
     // يتم بعد نجاح الـ transaction — لن يُرسل إشعار لحجز لم يُحفظ.
     if (!originIsServer && comp.roomNumber.present && comp.guestName.present) {
-      unawaited(FcmSender().notifyBookingCreated(roomNumber: comp.roomNumber.value, guestName: comp.guestName.value));
+      unawaited(
+        FcmSender().notifyBookingCreated(
+          roomNumber: comp.roomNumber.value,
+          guestName: comp.guestName.value,
+        ),
+      );
     }
     return id;
   }
 
-  Future<int> updateById(int id, BookingsCompanion data, {bool originIsServer = false}) async {
+  Future<int> updateById(
+    int id,
+    BookingsCompanion data, {
+    bool originIsServer = false,
+  }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
       final existing = await getById(id);
@@ -127,7 +152,9 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       }
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified = originIsServer && data.lastModified.present ? data.lastModified : Value(now);
+      final effectiveLastModified = originIsServer && data.lastModified.present
+          ? data.lastModified
+          : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
@@ -151,7 +178,9 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       // الحقول الحاضرة — وهو السلوك المطلوب لتحديث جزئي. هذا يتوافق مع
       // الأسلوب المعتمد في كل DAOs الأخرى (employees، cash_transactions،
       // outbox، debts) ومع softDelete/restore في نفس bookings_dao.dart.
-      final rows = await (update(bookings)..where((t) => t.id.equals(id))).write(comp);
+      final rows = await (update(
+        bookings,
+      )..where((t) => t.id.equals(id))).write(comp);
       if (rows == 0) {
         return 0;
       }
@@ -159,7 +188,9 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
         await _mergeOutbox(
           op: 'update',
           localUuid: existing.localUuid,
-          serverId: comp.serverId.present ? comp.serverId.value : existing.serverId,
+          serverId: comp.serverId.present
+              ? comp.serverId.value
+              : existing.serverId,
           clientTs: now,
         );
       }
@@ -232,14 +263,22 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// تحديث serverBookingId لحجز موجود
-  Future<int> updateServerBookingId(String localUuid, int serverBookingId) async {
-    return (update(bookings)..where((t) => t.localUuid.equals(localUuid))).write(
+  Future<int> updateServerBookingId(
+    String localUuid,
+    int serverBookingId,
+  ) async {
+    return (update(
+      bookings,
+    )..where((t) => t.localUuid.equals(localUuid))).write(
       BookingsCompanion(serverBookingId: Value(serverBookingId)),
     );
   }
 
   /// عدد الحجوزات حسب الحالة
-  Future<int> countByStatus(String status, {bool includeDeleted = false}) async {
+  Future<int> countByStatus(
+    String status, {
+    bool includeDeleted = false,
+  }) async {
     final query = selectOnly(bookings)
       ..addColumns([bookings.id.count()])
       ..where(bookings.status.equals(status));
@@ -253,8 +292,18 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
   /// حجوزات نشطة لغرفة معينة
   Future<List<Booking>> getActiveBookingsForRoom(String roomNumber) async {
     return (select(bookings)
-          ..where((t) => t.roomNumber.equals(roomNumber) & t.deletedAt.isNull() & t.status.equals('نشط'))
-          ..orderBy([(t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc)]))
+          ..where(
+            (t) =>
+                t.roomNumber.equals(roomNumber) &
+                t.deletedAt.isNull() &
+                t.status.equals('نشط'),
+          )
+          ..orderBy([
+            (t) => OrderingTerm(
+              expression: t.checkinDate,
+              mode: OrderingMode.desc,
+            ),
+          ]))
         .get();
   }
 
@@ -262,7 +311,12 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
   Future<List<Booking>> getUpcomingBookings({int? limit}) async {
     final today = DateTime.now().toIso8601String().split('T').first;
     final query = select(bookings)
-      ..where((t) => t.deletedAt.isNull() & t.checkinDate.isBiggerOrEqualValue(today) & t.status.equals('نشط'))
+      ..where(
+        (t) =>
+            t.deletedAt.isNull() &
+            t.checkinDate.isBiggerOrEqualValue(today) &
+            t.status.equals('نشط'),
+      )
       ..orderBy([(t) => OrderingTerm(expression: t.checkinDate)]);
     if (limit != null) {
       query.limit(limit);
@@ -271,16 +325,25 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// البحث عن حجوزات حسب نص (اسم الضيف، رقم الهاتف، رقم الغرفة)
-  Future<List<Booking>> search(String query, {bool includeDeleted = false, int? limit}) async {
+  Future<List<Booking>> search(
+    String query, {
+    bool includeDeleted = false,
+    int? limit,
+  }) async {
     final q = select(bookings);
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
     }
     if (query.trim().isNotEmpty) {
       final s = '%${query.trim()}%';
-      q.where((t) => t.guestName.like(s) | t.guestPhone.like(s) | t.roomNumber.like(s));
+      q.where(
+        (t) =>
+            t.guestName.like(s) | t.guestPhone.like(s) | t.roomNumber.like(s),
+      );
     }
-    q.orderBy([(t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc)]);
+    q.orderBy([
+      (t) => OrderingTerm(expression: t.checkinDate, mode: OrderingMode.desc),
+    ]);
     if (limit != null) {
       q.limit(limit);
     }
@@ -291,7 +354,9 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
   Future<List<Booking>> getDeletedBookings({int? limit}) async {
     final q = select(bookings)
       ..where((t) => t.deletedAt.isNotNull())
-      ..orderBy([(t) => OrderingTerm(expression: t.deletedAt, mode: OrderingMode.desc)]);
+      ..orderBy([
+        (t) => OrderingTerm(expression: t.deletedAt, mode: OrderingMode.desc),
+      ]);
     if (limit != null) {
       q.limit(limit);
     }
@@ -340,7 +405,10 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// استيراد الحجوزات من JSON
-  Future<void> importFromJson(List<Map<String, dynamic>> data, {bool clearExisting = false}) async {
+  Future<void> importFromJson(
+    List<Map<String, dynamic>> data, {
+    bool clearExisting = false,
+  }) async {
     await transaction(() async {
       if (clearExisting) {
         await delete(bookings).go();

@@ -257,7 +257,8 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
     final methodCounts = <String, double>{};
 
     for (final payment in payments) {
-      methodCounts[payment.paymentMethod] = (methodCounts[payment.paymentMethod] ?? 0) + payment.amount;
+      methodCounts[payment.paymentMethod] =
+          (methodCounts[payment.paymentMethod] ?? 0) + payment.amount;
     }
 
     if (methodCounts.isEmpty) {
@@ -410,7 +411,9 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
           );
         }
 
-        final activeBookings = snapshot.data!.where((booking) => StatusUtils.isActiveBooking(booking.status)).toList();
+        final activeBookings = snapshot.data!
+            .where((booking) => StatusUtils.isActiveBooking(booking.status))
+            .toList();
 
         if (activeBookings.isEmpty) {
           return const Center(
@@ -442,7 +445,8 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
             final booking = activeBookings[index];
             // ✅ حالة تأخر السداد الخاصة بهذا الحجز (لا تظهر إلا إذا كان
             // هناك رصيد متبقي + نحن داخل نافذة التنبيه الليلية).
-            final hasRemainingBalance = booking.remainingBalanceCached.round() > 0;
+            final hasRemainingBalance =
+                booking.remainingBalanceCached.round() > 0;
             final isLate = hasRemainingBalance && isLateWindow;
             final isOverdue = hasRemainingBalance && isOverdueWindow;
 
@@ -602,7 +606,8 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                       Navigator.push<void>(
                         context,
                         MaterialPageRoute<void>(
-                          builder: (context) => BookingCheckoutScreen(booking: booking),
+                          builder: (context) =>
+                              BookingCheckoutScreen(booking: booking),
                         ),
                       );
                     },
@@ -719,7 +724,9 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                               style: TextStyle(
                                 fontSize: 12,
                                 color: isSelected ? Colors.white : method.color,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
                               ),
                             ),
                             selected: isSelected,
@@ -750,7 +757,8 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                       const SizedBox(height: 12),
 
                       // رقم المرجع (للتحويل والشيك)
-                      if (selectedMethod == PaymentMethod.transfer || selectedMethod == PaymentMethod.check) ...[
+                      if (selectedMethod == PaymentMethod.transfer ||
+                          selectedMethod == PaymentMethod.check) ...[
                         TextField(
                           controller: referenceController,
                           decoration: const InputDecoration(

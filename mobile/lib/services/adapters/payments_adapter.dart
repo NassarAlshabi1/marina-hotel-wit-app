@@ -23,13 +23,20 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
   String get tableName => 'payments';
 
   @override
-  Future<ResolveResult> resolveRefs(AppDatabase db, Map<String, dynamic> json, {required Source src}) async {
+  Future<ResolveResult> resolveRefs(
+    AppDatabase db,
+    Map<String, dynamic> json, {
+    required Source src,
+  }) async {
     final bookingUuid =
         _asString(json, 'bookingUuidCache', src) ??
         _asString(json, 'booking_uuid_cache', src) ??
         _asString(json, 'booking_uuid', src);
-    final serverBookingId = _asInt(json, 'serverBookingId', src) ?? _asInt(json, 'booking_id', src);
-    final localId = _asInt(json, 'bookingLocalId', src) ?? _asInt(json, 'booking_local_id', src);
+    final serverBookingId =
+        _asInt(json, 'serverBookingId', src) ?? _asInt(json, 'booking_id', src);
+    final localId =
+        _asInt(json, 'bookingLocalId', src) ??
+        _asInt(json, 'booking_local_id', src);
     final resolvedId = await resolver.resolveBooking(
       localId: localId,
       serverId: serverBookingId,
@@ -42,7 +49,9 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
     // تحذير إذا كان لدينا booking_local_id لكن لم نتمكن من حل المرجع
     if (resolvedId == null && localId != null) {
       // تسجيل تحذير فقط، سيتم معالجة الخطأ في _syncPayments
-      debugPrint('[PaymentsAdapter] Warning: Could not resolve booking for localId: $localId');
+      debugPrint(
+        '[PaymentsAdapter] Warning: Could not resolve booking for localId: $localId',
+      );
     }
 
     final createdAt = _epoch(json, 'createdAt', src);
@@ -56,15 +65,32 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
   }
 
   @override
-  PaymentsCompanion fromJson(Map<String, dynamic> json, {required Source src, required ResolveResult refs}) {
+  PaymentsCompanion fromJson(
+    Map<String, dynamic> json, {
+    required Source src,
+    required ResolveResult refs,
+  }) {
     final now = Time.nowEpoch();
-    final createdAt = refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
-    final lastModified = refs.lastModifiedEpoch ?? _epoch(json, 'lastModified', src) ?? createdAt;
+    final createdAt =
+        refs.createdAtEpoch ?? _epoch(json, 'createdAt', src) ?? now;
+    final lastModified =
+        refs.lastModifiedEpoch ??
+        _epoch(json, 'lastModified', src) ??
+        createdAt;
     return PaymentsCompanion(
       id: _vInt(json, 'id', src),
-      localUuid: d.Value(_asString(json, 'localUuid', src) ?? _asString(json, 'local_uuid', src) ?? IdGen.uuid()),
+      localUuid: d.Value(
+        _asString(json, 'localUuid', src) ??
+            _asString(json, 'local_uuid', src) ??
+            IdGen.uuid(),
+      ),
       serverId: _vInt(json, 'serverId', src),
-      serverPaymentId: _vInt(json, 'serverPaymentId', src, altKey: 'payment_id'),
+      serverPaymentId: _vInt(
+        json,
+        'serverPaymentId',
+        src,
+        altKey: 'payment_id',
+      ),
       // ✅ إصلاح حرج: لا نستخدم bookingLocalId الخام من الجهاز البعيد
       // معرّف الزيادة التلقائية يختلف بين الأجهزة — bookingLocalId=5 على جهاز A ≠ جهاز B
       // إذا فشل resolveBooking، نترك الحقل فارغاً و bookingUuidCache يُحفظ لإعادة الربط لاحقاً
@@ -73,19 +99,57 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
           : (src == Source.appwrite || src == Source.drive)
           ? const d.Value.absent()
           : _vInt(json, 'bookingLocalId', src, altKey: 'booking_local_id'),
-      serverBookingId: _vInt(json, 'serverBookingId', src, altKey: 'booking_id'),
+      serverBookingId: _vInt(
+        json,
+        'serverBookingId',
+        src,
+        altKey: 'booking_id',
+      ),
       roomNumber: _vStr(json, 'roomNumber', src, altKey: 'room_number'),
       amount: _vDouble(json, 'amount', src),
-      paymentDate: _vStr(json, 'paymentDate', src, altKey: 'payment_date', fallback: ''),
+      paymentDate: _vStr(
+        json,
+        'paymentDate',
+        src,
+        altKey: 'payment_date',
+        fallback: '',
+      ),
       notes: _vStr(json, 'notes', src),
-      paymentMethod: _vStr(json, 'paymentMethod', src, altKey: 'payment_method', fallback: ''),
-      revenueType: _vStr(json, 'revenueType', src, altKey: 'revenue_type', fallback: ''),
-      cashTransactionLocalId: _vInt(json, 'cashTransactionLocalId', src, altKey: 'cash_transaction_local_id'),
-      cashTransactionServerId: _vInt(json, 'cashTransactionServerId', src, altKey: 'cash_transaction_id'),
+      paymentMethod: _vStr(
+        json,
+        'paymentMethod',
+        src,
+        altKey: 'payment_method',
+        fallback: '',
+      ),
+      revenueType: _vStr(
+        json,
+        'revenueType',
+        src,
+        altKey: 'revenue_type',
+        fallback: '',
+      ),
+      cashTransactionLocalId: _vInt(
+        json,
+        'cashTransactionLocalId',
+        src,
+        altKey: 'cash_transaction_local_id',
+      ),
+      cashTransactionServerId: _vInt(
+        json,
+        'cashTransactionServerId',
+        src,
+        altKey: 'cash_transaction_id',
+      ),
       referenceNumber: _vStr(json, 'referenceNumber', src),
       hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
       isPendingBalance: _vBool(json, 'isPendingBalance', src, fallback: false),
-      linkedDebtUuid: _vStr(json, 'linkedDebtUuid', src, altKey: 'linked_debt_uuid'),
+      linkedDebtUuid: _vStr(
+        json,
+        'linkedDebtUuid',
+        src,
+        altKey: 'linked_debt_uuid',
+      ),
       bookingUuidCache: refs.bookingUuidCache != null
           ? d.Value(refs.bookingUuidCache)
           : _vStr(json, 'bookingUuidCache', src, altKey: 'booking_uuid_cache'),
@@ -94,7 +158,9 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       deletedAt: _vInt(json, 'deletedAt', src),
       lastModified: d.Value(lastModified),
       createdAtEpoch: d.Value(_asInt(json, 'createdAtEpoch', src) ?? createdAt),
-      lastModifiedEpoch: d.Value(_asInt(json, 'lastModifiedEpoch', src) ?? lastModified),
+      lastModifiedEpoch: d.Value(
+        _asInt(json, 'lastModifiedEpoch', src) ?? lastModified,
+      ),
       createdAtIso: _vStr(json, 'createdAtIso', src),
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
       deletedAtIso: _vStr(json, 'deletedAtIso', src),
@@ -105,8 +171,19 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       origin: src == Source.appwrite || src == Source.drive
           ? const d.Value('server')
           : _vStr(json, 'origin', src, fallback: 'server'),
-      vectorClock: _vStr(json, 'vectorClock', src, altKey: 'vector_clock', fallback: '{}'),
-      idempotencyKey: _vStr(json, 'idempotencyKey', src, altKey: 'idempotency_key'),
+      vectorClock: _vStr(
+        json,
+        'vectorClock',
+        src,
+        altKey: 'vector_clock',
+        fallback: '{}',
+      ),
+      idempotencyKey: _vStr(
+        json,
+        'idempotencyKey',
+        src,
+        altKey: 'idempotency_key',
+      ),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
       discountAmount: _vDouble(json, 'discountAmount', src),
       discountStartDate: _vStr(json, 'discountStartDate', src),
@@ -132,8 +209,10 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       _k(src, 'notes', 'notes'): model.notes,
       _k(src, 'paymentMethod', 'payment_method'): model.paymentMethod,
       _k(src, 'revenueType', 'revenue_type'): model.revenueType,
-      _k(src, 'cashTransactionLocalId', 'cash_transaction_local_id'): model.cashTransactionLocalId,
-      _k(src, 'cashTransactionServerId', 'cash_transaction_id'): model.cashTransactionServerId,
+      _k(src, 'cashTransactionLocalId', 'cash_transaction_local_id'):
+          model.cashTransactionLocalId,
+      _k(src, 'cashTransactionServerId', 'cash_transaction_id'):
+          model.cashTransactionServerId,
       _k(src, 'referenceNumber', 'reference_number'): model.referenceNumber,
       _k(src, 'hotelDayKey', 'hotel_day_key'): model.hotelDayKey,
       _k(src, 'isPendingBalance', 'is_pending_balance'): model.isPendingBalance,
@@ -146,7 +225,8 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       _k(src, 'deletedAt', 'deleted_at'): model.deletedAt,
       _k(src, 'deletedAtIso', 'deleted_at_iso'): model.deletedAtIso,
       _k(src, 'lastModified', 'last_modified'): model.lastModified,
-      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'): model.lastModifiedEpoch,
+      _k(src, 'lastModifiedEpoch', 'last_modified_epoch'):
+          model.lastModifiedEpoch,
       _k(src, 'version', 'version'): model.version,
       _k(src, 'origin', 'origin'): model.origin,
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
@@ -155,7 +235,8 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       // ✅ تم إضافة الحقول التالية إلى Appwrite Cloud (2026-05-15)
       _k(src, 'discountAmount', 'discount_amount'): model.discountAmount,
       // ⚠️ discountStartDate على Cloud هو datetime — نرسل ISO string وهو متوافق
-      _k(src, 'discountStartDate', 'discount_start_date'): model.discountStartDate,
+      _k(src, 'discountStartDate', 'discount_start_date'):
+          model.discountStartDate,
       _k(src, 'isVoided', 'is_voided'): model.isVoided,
       _k(src, 'voidedAt', 'voided_at'): model.voidedAt,
       _k(src, 'voidedBy', 'voided_by'): model.voidedBy,
@@ -163,23 +244,59 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
   }
 }
 
-d.Value<int> _vInt(Map<String, dynamic> json, String key, Source src, {String? altKey, int? fallback}) {
-  final v = _asInt(json, key, src) ?? (altKey != null ? _asInt(json, altKey, src) : null) ?? fallback;
+d.Value<int> _vInt(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  int? fallback,
+}) {
+  final v =
+      _asInt(json, key, src) ??
+      (altKey != null ? _asInt(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<String> _vStr(Map<String, dynamic> json, String key, Source src, {String? altKey, String? fallback}) {
-  final v = _asString(json, key, src) ?? (altKey != null ? _asString(json, altKey, src) : null) ?? fallback;
+d.Value<String> _vStr(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  String? fallback,
+}) {
+  final v =
+      _asString(json, key, src) ??
+      (altKey != null ? _asString(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<double> _vDouble(Map<String, dynamic> json, String key, Source src, {String? altKey, double? fallback}) {
-  final v = _asDouble(json, key, src) ?? (altKey != null ? _asDouble(json, altKey, src) : null) ?? fallback;
+d.Value<double> _vDouble(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  double? fallback,
+}) {
+  final v =
+      _asDouble(json, key, src) ??
+      (altKey != null ? _asDouble(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
-d.Value<bool> _vBool(Map<String, dynamic> json, String key, Source src, {String? altKey, bool? fallback}) {
-  final v = _asBool(json, key, src) ?? (altKey != null ? _asBool(json, altKey, src) : null) ?? fallback;
+d.Value<bool> _vBool(
+  Map<String, dynamic> json,
+  String key,
+  Source src, {
+  String? altKey,
+  bool? fallback,
+}) {
+  final v =
+      _asBool(json, key, src) ??
+      (altKey != null ? _asBool(json, altKey, src) : null) ??
+      fallback;
   return v == null ? const d.Value.absent() : d.Value(v);
 }
 
@@ -273,7 +390,8 @@ Object? _raw(Map<String, dynamic> json, String key, Source src) {
   return null;
 }
 
-String _k(Source src, String camel, String snake) => src == Source.drive ? snake : camel;
+String _k(Source src, String camel, String snake) =>
+    src == Source.drive ? snake : camel;
 
 String? _altKey(String camel, Source src) {
   // ✅ إصلاح: تحويل camelCase → snake_case لجميع المصادر بما فيها Drive

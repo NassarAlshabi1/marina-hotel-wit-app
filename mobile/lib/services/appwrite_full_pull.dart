@@ -57,7 +57,10 @@ class AppwriteFullPull {
         try {
           final count = await _pullEntity(entity, result);
           result.counts[entity.name] = count;
-          _logger.info('✅ تم سحب $count سجل من ${entity.name}', tag: 'FULL_PULL');
+          _logger.info(
+            '✅ تم سحب $count سجل من ${entity.name}',
+            tag: 'FULL_PULL',
+          );
         } catch (e) {
           _logger.error('❌ فشل سحب ${entity.name}: $e', tag: 'FULL_PULL');
           result.failedEntities.add(entity.name);
@@ -79,17 +82,29 @@ class AppwriteFullPull {
       // ✅ فحص سلامة FK بعد السحب
       try {
         final violations = await _database!
-            .customSelect('PRAGMA foreign_key_check', readsFrom: Set.unmodifiable({}))
+            .customSelect(
+              'PRAGMA foreign_key_check',
+              readsFrom: Set.unmodifiable({}),
+            )
             .get();
         if (violations.isNotEmpty) {
-          _logger.warning('⚠️ ${violations.length} انتهاك FK بعد السحب الشامل', tag: 'FULL_PULL');
+          _logger.warning(
+            '⚠️ ${violations.length} انتهاك FK بعد السحب الشامل',
+            tag: 'FULL_PULL',
+          );
           // حذف السجلات اليتيمة تلقائياً
           for (final row in violations) {
             final table = row.data['table']?.toString() ?? '';
             final rowId = row.data['rowid']?.toString() ?? '';
             try {
-              await _database!.customStatement('DELETE FROM $table WHERE rowid = ?', [int.tryParse(rowId)]);
-              _logger.info('🧹 تم حذف سجل يتيم من $table (rowid=$rowId)', tag: 'FULL_PULL');
+              await _database!.customStatement(
+                'DELETE FROM $table WHERE rowid = ?',
+                [int.tryParse(rowId)],
+              );
+              _logger.info(
+                '🧹 تم حذف سجل يتيم من $table (rowid=$rowId)',
+                tag: 'FULL_PULL',
+              );
             } catch (_) {}
           }
         }
@@ -105,11 +120,23 @@ class AppwriteFullPull {
 
     return [
       // 1. الغرف أولاً (Bookings.roomNumber → Rooms.roomNumber)
-      _PullEntity(name: 'rooms', collectionId: AppwriteConfig.roomsCollectionId, repo: reg.rooms),
+      _PullEntity(
+        name: 'rooms',
+        collectionId: AppwriteConfig.roomsCollectionId,
+        repo: reg.rooms,
+      ),
       // 2. الموظفين (SalaryCycles.employeeId, SalaryWithdrawals.employeeId → Employees.id)
-      _PullEntity(name: 'employees', collectionId: AppwriteConfig.employeesCollectionId, repo: reg.employees),
+      _PullEntity(
+        name: 'employees',
+        collectionId: AppwriteConfig.employeesCollectionId,
+        repo: reg.employees,
+      ),
       // 3. الحجوزات (تعتمد على الغرف)
-      _PullEntity(name: 'bookings', collectionId: AppwriteConfig.bookingsCollectionId, repo: reg.bookings),
+      _PullEntity(
+        name: 'bookings',
+        collectionId: AppwriteConfig.bookingsCollectionId,
+        repo: reg.bookings,
+      ),
       // 4. المعاملات النقدية (يجب أن تسبق المدفوعات - FK: payments.cashTransactionLocalId)
       _PullEntity(
         name: 'cash_transactions',
@@ -124,15 +151,35 @@ class AppwriteFullPull {
         maxRecords: 1000,
       ),
       // 6. ملاحظات الحجز (تعتمد على الحجوزات)
-      _PullEntity(name: 'booking_notes', collectionId: AppwriteConfig.bookingNotesCollectionId, repo: reg.bookingNotes),
+      _PullEntity(
+        name: 'booking_notes',
+        collectionId: AppwriteConfig.bookingNotesCollectionId,
+        repo: reg.bookingNotes,
+      ),
       // 7. المدفوعات (تعتمد على الحجوزات والمعاملات النقدية)
-      _PullEntity(name: 'payments', collectionId: AppwriteConfig.paymentsCollectionId, repo: reg.payments),
+      _PullEntity(
+        name: 'payments',
+        collectionId: AppwriteConfig.paymentsCollectionId,
+        repo: reg.payments,
+      ),
       // 8. المصروفات
-      _PullEntity(name: 'expenses', collectionId: AppwriteConfig.expensesCollectionId, repo: reg.expenses),
+      _PullEntity(
+        name: 'expenses',
+        collectionId: AppwriteConfig.expensesCollectionId,
+        repo: reg.expenses,
+      ),
       // 9. الديون (تعتمد على الحجوزات)
-      _PullEntity(name: 'debts', collectionId: AppwriteConfig.debtsCollectionId, repo: reg.debts),
+      _PullEntity(
+        name: 'debts',
+        collectionId: AppwriteConfig.debtsCollectionId,
+        repo: reg.debts,
+      ),
       // 10. دورات الرواتب (تعتمد على الموظفين)
-      _PullEntity(name: 'salary_cycles', collectionId: AppwriteConfig.salaryCyclesCollectionId, repo: reg.salaryCycles),
+      _PullEntity(
+        name: 'salary_cycles',
+        collectionId: AppwriteConfig.salaryCyclesCollectionId,
+        repo: reg.salaryCycles,
+      ),
       // 11. مدفوعات الرواتب (تعتمد على دورات الرواتب)
       _PullEntity(
         name: 'salary_payments',
@@ -146,7 +193,11 @@ class AppwriteFullPull {
         repo: reg.salaryWithdrawals,
       ),
       // 13. ملاحظات الورديات (لا FK)
-      _PullEntity(name: 'shift_notes', collectionId: AppwriteConfig.shiftNotesCollectionId, repo: reg.shiftNotes),
+      _PullEntity(
+        name: 'shift_notes',
+        collectionId: AppwriteConfig.shiftNotesCollectionId,
+        repo: reg.shiftNotes,
+      ),
       // 14. تعديلات الأسعار (لا FK)
       _PullEntity(
         name: 'price_adjustments',
@@ -160,18 +211,33 @@ class AppwriteFullPull {
         repo: reg.bookingPriceAdjustments,
       ),
       // 16. سجلات التدقيق (لا FK)
-      _PullEntity(name: 'audit_logs', collectionId: AppwriteConfig.auditLogsCollectionId, repo: reg.auditLogs),
+      _PullEntity(
+        name: 'audit_logs',
+        collectionId: AppwriteConfig.auditLogsCollectionId,
+        repo: reg.auditLogs,
+      ),
       // 17. إلغاءات الدفع (لا FK — يستخدم UUID فقط)
-      _PullEntity(name: 'payment_voids', collectionId: AppwriteConfig.paymentVoidsCollectionId, repo: reg.paymentVoids),
+      _PullEntity(
+        name: 'payment_voids',
+        collectionId: AppwriteConfig.paymentVoidsCollectionId,
+        repo: reg.paymentVoids,
+      ),
       // 18. معلومات الضيوف (لا FK)
-      _PullEntity(name: 'guest_infos', collectionId: AppwriteConfig.guestInfosCollectionId, repo: reg.guestInfos),
+      _PullEntity(
+        name: 'guest_infos',
+        collectionId: AppwriteConfig.guestInfosCollectionId,
+        repo: reg.guestInfos,
+      ),
     ];
   }
 
   /// سحب كيان واحد - جميع السجلات بدون فلترة
   Future<int> _pullEntity(_PullEntity entity, FullPullResult result) async {
     if (entity.collectionId == null) {
-      _logger.warning('⚠️ لا يوجد collectionId لـ ${entity.name}', tag: 'FULL_PULL');
+      _logger.warning(
+        '⚠️ لا يوجد collectionId لـ ${entity.name}',
+        tag: 'FULL_PULL',
+      );
       return 0;
     }
 
@@ -180,7 +246,10 @@ class AppwriteFullPull {
     int errorCount = 0;
     int skippedCount = 0;
 
-    _logger.info('📥 بدء سحب ${entity.name} من collection: ${entity.collectionId}', tag: 'FULL_PULL');
+    _logger.info(
+      '📥 بدء سحب ${entity.name} من collection: ${entity.collectionId}',
+      tag: 'FULL_PULL',
+    );
 
     // حلقة لجلب جميع السجلات على دفعات
     _pullLoop:
@@ -198,7 +267,10 @@ class AppwriteFullPull {
         final totalAvailable = response.total;
 
         if (documents.isEmpty) {
-          _logger.info('📭 لا مزيد من السجلات في ${entity.name}', tag: 'FULL_PULL');
+          _logger.info(
+            '📭 لا مزيد من السجلات في ${entity.name}',
+            tag: 'FULL_PULL',
+          );
           break; // لا مزيد من السجلات
         }
 
@@ -226,7 +298,9 @@ class AppwriteFullPull {
 
             // استخدام document ID كـ localUuid إذا لم يكن موجوداً
             remoteData['localUuid'] =
-                remoteData['localUuid']?.toString() ?? remoteData['local_uuid']?.toString() ?? doc.$id;
+                remoteData['localUuid']?.toString() ??
+                remoteData['local_uuid']?.toString() ??
+                doc.$id;
 
             // ✅ إصلاح دقيق: فحص FK قبل الإدراج للجداول ذات القيود
             // هذا يمنع انتهاكات FK عند سحب سجلات يتيمة (تشير لآباء محذوفين)
@@ -246,9 +320,16 @@ class AppwriteFullPull {
 
             // ✅ LWW: حل التعارضات تلقائياً - المحلي الأحدث يفوز للمبالغ المالية
             // يمنع طمس مبلغ محلي أحدث بمبلغ بعيد أقدم عند السحب الشامل
-            final localUuid = remoteData['localUuid']?.toString() ?? remoteData['local_uuid']?.toString();
-            if (localUuid != null && localUuid.isNotEmpty && _isFinancialEntity(entity.name)) {
-              final localTs = await _getLocalLastModified(entity.name, localUuid);
+            final localUuid =
+                remoteData['localUuid']?.toString() ??
+                remoteData['local_uuid']?.toString();
+            if (localUuid != null &&
+                localUuid.isNotEmpty &&
+                _isFinancialEntity(entity.name)) {
+              final localTs = await _getLocalLastModified(
+                entity.name,
+                localUuid,
+              );
               final remoteTs = _extractRemoteLastModified(remoteData);
               if (localTs != null && remoteTs != null && localTs >= remoteTs) {
                 skippedCount++;
@@ -272,14 +353,23 @@ class AppwriteFullPull {
           } on SqliteException catch (e) {
             // ✅ انتهاك FK — تخطي السجل بدلاً من إيقاف السحب
             if (e.resultCode == 787) {
-              _logger.warning('⏭️ تخطي سجل يتيم من ${entity.name}: FK constraint failed - $e', tag: 'FULL_PULL');
+              _logger.warning(
+                '⏭️ تخطي سجل يتيم من ${entity.name}: FK constraint failed - $e',
+                tag: 'FULL_PULL',
+              );
             } else {
               errorCount++;
-              _logger.warning('⚠️ فشل حفظ سجل من ${entity.name}: $e', tag: 'FULL_PULL');
+              _logger.warning(
+                '⚠️ فشل حفظ سجل من ${entity.name}: $e',
+                tag: 'FULL_PULL',
+              );
             }
           } catch (e) {
             errorCount++;
-            _logger.warning('⚠️ فشل حفظ سجل من ${entity.name}: $e', tag: 'FULL_PULL');
+            _logger.warning(
+              '⚠️ فشل حفظ سجل من ${entity.name}: $e',
+              tag: 'FULL_PULL',
+            );
             // الاستمرار في معالجة باقي السجلات
           }
         }
@@ -291,7 +381,10 @@ class AppwriteFullPull {
           break;
         }
       } catch (e) {
-        _logger.error('❌ خطأ في جلب دفعة من ${entity.name}: $e', tag: 'FULL_PULL');
+        _logger.error(
+          '❌ خطأ في جلب دفعة من ${entity.name}: $e',
+          tag: 'FULL_PULL',
+        );
         break;
       }
     }
@@ -316,14 +409,17 @@ class AppwriteFullPull {
         // حل FK بثلاث مستويات: UUID → id → serverId
         case 'salary_withdrawals':
           {
-            final remoteEmployeeId = _asIntSafe(data, 'employeeId') ?? _asIntSafe(data, 'employee_id');
+            final remoteEmployeeId =
+                _asIntSafe(data, 'employeeId') ??
+                _asIntSafe(data, 'employee_id');
             final employeeUuid =
                 (data['employeeUuid'] as String?) ??
                 (data['employee_uuid'] as String?) ??
                 (data['employeeLocalUuid'] as String?) ??
                 (data['employee_local_uuid'] as String?);
 
-            if (remoteEmployeeId != null || (employeeUuid != null && employeeUuid.isNotEmpty)) {
+            if (remoteEmployeeId != null ||
+                (employeeUuid != null && employeeUuid.isNotEmpty)) {
               Employee? employee;
 
               // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
@@ -371,14 +467,17 @@ class AppwriteFullPull {
         // حل FK بثلاث مستويات: UUID → id → serverId
         case 'salary_cycles':
           {
-            final remoteEmployeeId = _asIntSafe(data, 'employeeId') ?? _asIntSafe(data, 'employee_id');
+            final remoteEmployeeId =
+                _asIntSafe(data, 'employeeId') ??
+                _asIntSafe(data, 'employee_id');
             final employeeUuid =
                 (data['employeeUuid'] as String?) ??
                 (data['employee_uuid'] as String?) ??
                 (data['employeeLocalUuid'] as String?) ??
                 (data['employee_local_uuid'] as String?);
 
-            if (remoteEmployeeId != null || (employeeUuid != null && employeeUuid.isNotEmpty)) {
+            if (remoteEmployeeId != null ||
+                (employeeUuid != null && employeeUuid.isNotEmpty)) {
               Employee? employee;
 
               // الطريقة 1: البحث بالـ UUID
@@ -424,7 +523,8 @@ class AppwriteFullPull {
 
         // ✅ salary_payments: SalaryCycles ← SalaryPayments.cycleId (NOT NULL)
         case 'salary_payments':
-          final remoteCycleId = _asIntSafe(data, 'cycleId') ?? _asIntSafe(data, 'cycle_id');
+          final remoteCycleId =
+              _asIntSafe(data, 'cycleId') ?? _asIntSafe(data, 'cycle_id');
           if (remoteCycleId != null) {
             var cycle =
                 await (db.select(db.salaryCycles)
@@ -437,7 +537,10 @@ class AppwriteFullPull {
                       ..limit(1))
                     .getSingleOrNull();
             if (cycle == null) {
-              _logger.warning('⏭️ تخطي salary_payment يتيم: الدورة $remoteCycleId غير موجودة محلياً', tag: 'FULL_PULL');
+              _logger.warning(
+                '⏭️ تخطي salary_payment يتيم: الدورة $remoteCycleId غير موجودة محلياً',
+                tag: 'FULL_PULL',
+              );
               return false;
             }
           }
@@ -445,7 +548,10 @@ class AppwriteFullPull {
         // باقي الجداول: FK nullable أو يُعالجها adapter بـ drift.Value.absent()
       }
     } catch (e) {
-      _logger.warning('⚠️ فشل فحص FK المسبق لـ $entityName: $e', tag: 'FULL_PULL');
+      _logger.warning(
+        '⚠️ فشل فحص FK المسبق لـ $entityName: $e',
+        tag: 'FULL_PULL',
+      );
     }
     return true; // افتراض النجاح
   }
@@ -523,7 +629,10 @@ class AppwriteFullPull {
 
   /// استخراج طابع زمني من البيانات البعيدة
   int? _extractRemoteLastModified(Map<String, dynamic> data) {
-    final v = data['lastModified'] ?? data['last_modified'] ?? data['lastModifiedEpoch'];
+    final v =
+        data['lastModified'] ??
+        data['last_modified'] ??
+        data['lastModifiedEpoch'];
     if (v is int) return v;
     if (v is num) return v.toInt();
     if (v is String) return int.tryParse(v);
@@ -550,7 +659,12 @@ class AppwriteFullPull {
 class _PullEntity {
   // BaseRepository<dynamic, dynamic>
 
-  _PullEntity({required this.name, this.collectionId, this.repo, this.maxRecords});
+  _PullEntity({
+    required this.name,
+    this.collectionId,
+    this.repo,
+    this.maxRecords,
+  });
   final String name;
   final String? collectionId;
   final dynamic repo;

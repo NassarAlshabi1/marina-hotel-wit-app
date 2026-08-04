@@ -133,12 +133,19 @@ class SyncHealthMonitor {
 
   Future<int> _getStuckProcessingCount(AppDatabase db) async {
     try {
-      final thresholdSec = DateTime.now().subtract(processingStuckThreshold).millisecondsSinceEpoch ~/ 1000;
+      final thresholdSec =
+          DateTime.now()
+              .subtract(processingStuckThreshold)
+              .millisecondsSinceEpoch ~/
+          1000;
       final result = await db
           .customSelect(
             'SELECT COUNT(*) AS cnt FROM outbox WHERE processing_status = ? '
             'AND processing_started_at < ?',
-            variables: [Variable.withString('processing'), Variable.withInt(thresholdSec)],
+            variables: [
+              Variable.withString('processing'),
+              Variable.withInt(thresholdSec),
+            ],
             readsFrom: {db.outbox},
           )
           .getSingle();
@@ -154,11 +161,17 @@ class SyncHealthMonitor {
           .customSelect(
             'SELECT entity, COUNT(*) AS cnt FROM outbox '
             'WHERE processing_status IN (?, ?) GROUP BY entity',
-            variables: [Variable.withString('pending'), Variable.withString('failed')],
+            variables: [
+              Variable.withString('pending'),
+              Variable.withString('failed'),
+            ],
             readsFrom: {db.outbox},
           )
           .get();
-      return {for (final row in result) row.read<String>('entity'): row.read<int>('cnt')};
+      return {
+        for (final row in result)
+          row.read<String>('entity'): row.read<int>('cnt'),
+      };
     } catch (_) {
       return {};
     }
@@ -190,7 +203,9 @@ class SyncHealthMonitor {
     final sizes = <String, int>{};
     for (final table in tables) {
       try {
-        final result = await db.customSelect('SELECT COUNT(*) AS cnt FROM $table').getSingle();
+        final result = await db
+            .customSelect('SELECT COUNT(*) AS cnt FROM $table')
+            .getSingle();
         sizes[table] = result.read<int>('cnt');
       } catch (_) {
         sizes[table] = -1; // خطأ
@@ -220,7 +235,8 @@ class SyncHealthMonitor {
       return SyncHealthStatus.critical;
     }
     // error: فشل كثير أو عناصر معلقة قديمة جداً
-    if (failedCount > 20 || (oldestPendingAge != null && oldestPendingAge > stuckThreshold)) {
+    if (failedCount > 20 ||
+        (oldestPendingAge != null && oldestPendingAge > stuckThreshold)) {
       return SyncHealthStatus.error;
     }
     // warning: فشل متوسط أو عناصر معلقة كثيرة

@@ -11,7 +11,8 @@ import 'crashlytics_service.dart';
 class AppwriteRealtimeSync {
   factory AppwriteRealtimeSync() => _instance;
   AppwriteRealtimeSync._internal();
-  static final AppwriteRealtimeSync _instance = AppwriteRealtimeSync._internal();
+  static final AppwriteRealtimeSync _instance =
+      AppwriteRealtimeSync._internal();
 
   Realtime? _realtime;
   RealtimeSubscription? _subscription;
@@ -73,9 +74,12 @@ class AppwriteRealtimeSync {
     // ✅ إذا كان WebSocket معطّلاً (لا يدعمه السيرفر/الشبكة)،
     // نعتمد على FCM + auto-sync بدلاً من WebSocket Realtime.
     // هذا يمنع إهدار البطارية في 6 محاولات إعادة اتصال فاشلة.
-    final realtimeEnabled = prefs.getBool('appwrite_realtime_ws_enabled') ?? false;
+    final realtimeEnabled =
+        prefs.getBool('appwrite_realtime_ws_enabled') ?? false;
     if (!realtimeEnabled) {
-      debugPrint('📡 Realtime: WebSocket disabled — relying on FCM + auto-sync');
+      debugPrint(
+        '📡 Realtime: WebSocket disabled — relying on FCM + auto-sync',
+      );
       _startPollingFallback();
       return;
     }
@@ -84,7 +88,10 @@ class AppwriteRealtimeSync {
     _intentionallyStopped = false;
 
     final channels = _collections
-        .map((c) => 'databases.${AppwriteConfig.databaseId}.collections.$c.documents')
+        .map(
+          (c) =>
+              'databases.${AppwriteConfig.databaseId}.collections.$c.documents',
+        )
         .toList();
 
     try {
@@ -115,7 +122,9 @@ class AppwriteRealtimeSync {
         },
       );
     } catch (e) {
-      debugPrint('❌ Realtime: WebSocket not available — falling back to polling');
+      debugPrint(
+        '❌ Realtime: WebSocket not available — falling back to polling',
+      );
       debugPrint('   Error: $e');
       // ✅ WebSocket غير متاح — نعتمد على polling
       _startPollingFallback();
@@ -130,7 +139,9 @@ class AppwriteRealtimeSync {
   void _startPollingFallback() {
     if (_pollingTimer != null) return;
 
-    debugPrint('📡 Realtime: started polling fallback (every ${_pollingInterval.inSeconds}s)');
+    debugPrint(
+      '📡 Realtime: started polling fallback (every ${_pollingInterval.inSeconds}s)',
+    );
 
     _pollingTimer = Timer.periodic(_pollingInterval, (_) {
       if (_intentionallyStopped) return;
@@ -141,7 +152,9 @@ class AppwriteRealtimeSync {
       if (!_hasPendingChanges) {
         hasRemoteChanges.value = true;
         _hasPendingChanges = true;
-        debugPrint('📡 Realtime: polling check — UI flag set (auto-sync will pull)');
+        debugPrint(
+          '📡 Realtime: polling check — UI flag set (auto-sync will pull)',
+        );
       }
     });
   }
@@ -167,7 +180,12 @@ class AppwriteRealtimeSync {
     // ✅ تحسين: تصفية أنواع الأحداث (create/update/delete فقط)
     // لا نهتم بـ permissions.update أو أحداث النظام
     final eventTypes = message.events;
-    final isDataChange = eventTypes.any((e) => e.endsWith('.create') || e.endsWith('.update') || e.endsWith('.delete'));
+    final isDataChange = eventTypes.any(
+      (e) =>
+          e.endsWith('.create') ||
+          e.endsWith('.update') ||
+          e.endsWith('.delete'),
+    );
 
     if (!isDataChange) {
       debugPrint('📡 Realtime: ignoring non-data event: $eventTypes');
@@ -179,7 +197,8 @@ class AppwriteRealtimeSync {
     if (updatedAt != null) {
       try {
         final serverTime = DateTime.parse(updatedAt as String);
-        if (_lastServerUpdate == null || serverTime.isAfter(_lastServerUpdate!)) {
+        if (_lastServerUpdate == null ||
+            serverTime.isAfter(_lastServerUpdate!)) {
           _lastServerUpdate = serverTime;
         }
       } catch (e) {
@@ -199,7 +218,9 @@ class AppwriteRealtimeSync {
 
       // ✅ تحسين: زيادة عداد التغييرات
       pendingRemoteChangesCount.value++;
-      debugPrint('📡 Realtime: pending changes count = ${pendingRemoteChangesCount.value}');
+      debugPrint(
+        '📡 Realtime: pending changes count = ${pendingRemoteChangesCount.value}',
+      );
     });
   }
 
@@ -237,10 +258,13 @@ class AppwriteRealtimeSync {
     // ✅ إصلاح P2-13: حد أقصى لمحاولات إعادة الاتصال لتجنب إهدار البطارية
     // بعد 6 محاولات (5s → 10s → 20s → 40s → 60s → 60s = ~3.5 min total)
     if (_reconnectAttempts > _maxReconnectAttempts) {
-      debugPrint('📡 Realtime: max reconnect attempts ($_maxReconnectAttempts) reached — giving up');
+      debugPrint(
+        '📡 Realtime: max reconnect attempts ($_maxReconnectAttempts) reached — giving up',
+      );
       CrashlyticsService.instance.recordSyncError(
         operation: 'realtime_reconnect_giveup',
-        error: 'Max reconnect attempts reached after $_maxReconnectAttempts tries',
+        error:
+            'Max reconnect attempts reached after $_maxReconnectAttempts tries',
         severity: CrashlyticsSeverity.warning,
         context: {'deviceId': _currentDeviceId ?? 'unknown'},
       );
@@ -248,13 +272,19 @@ class AppwriteRealtimeSync {
     }
 
     // ✅ P1-14 fix: backoff أسّي محدود (5s → 10s → 20s → 40s → 60s capped)
-    final delaySeconds = (_reconnectAttempts == 1) ? 5 : (5 * (1 << (_reconnectAttempts - 1))).clamp(5, 60);
+    final delaySeconds = (_reconnectAttempts == 1)
+        ? 5
+        : (5 * (1 << (_reconnectAttempts - 1))).clamp(5, 60);
 
     CrashlyticsService.instance.recordSyncError(
       operation: 'realtime_reconnect',
-      error: 'Connection lost — reconnecting in ${delaySeconds}s (attempt $_reconnectAttempts/$_maxReconnectAttempts)',
+      error:
+          'Connection lost — reconnecting in ${delaySeconds}s (attempt $_reconnectAttempts/$_maxReconnectAttempts)',
       severity: CrashlyticsSeverity.info,
-      context: {'deviceId': _currentDeviceId ?? 'unknown', 'attempt': _reconnectAttempts},
+      context: {
+        'deviceId': _currentDeviceId ?? 'unknown',
+        'attempt': _reconnectAttempts,
+      },
     );
 
     // ✅ P1-14 fix: إغلاق الاشتراك القديم قبل إعادة الاشتراك

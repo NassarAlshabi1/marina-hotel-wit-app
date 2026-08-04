@@ -28,14 +28,26 @@ void main() {
     test('P1-5: isCircuitOpen = false عند التهيئة (لا فشل بعد)', () {
       final mgr = SecondarySyncManager.instance;
       // بدون استدعاء sync()، الـ breaker يجب أن يكون مغلقاً
-      expect(mgr.isCircuitOpen, isFalse, reason: 'الـ circuit breaker يجب أن يبدأ مغلقاً');
-      expect(mgr.circuitOpenUntil, isNull, reason: 'لا يوجد وقت إغلاق قبل أي فشل');
+      expect(
+        mgr.isCircuitOpen,
+        isFalse,
+        reason: 'الـ circuit breaker يجب أن يبدأ مغلقاً',
+      );
+      expect(
+        mgr.circuitOpenUntil,
+        isNull,
+        reason: 'لا يوجد وقت إغلاق قبل أي فشل',
+      );
     });
 
     test('P1-6: isSyncing = false عند التهيئة (لا توجد جلسة جارية)', () {
       final mgr = SecondarySyncManager.instance;
       expect(mgr.isSyncing, isFalse, reason: 'يجب أن يبدأ في حالة idle');
-      expect(mgr.syncStartedAt, isNull, reason: 'لا يوجد وقت بدء قبل أي sync()');
+      expect(
+        mgr.syncStartedAt,
+        isNull,
+        reason: 'لا يوجد وقت بدء قبل أي sync()',
+      );
     });
 
     test('P0-2: isPermanentError يصنّف 400/401/403 كأخطاء دائمة', () {
@@ -53,29 +65,50 @@ void main() {
       expect(err403.code, 403);
 
       // التحقق من الأكواد غير الدائمة (يجب أن تُعامل كأخطاء عابرة)
-      expect(err404.code, 404, reason: '404 = not found = عابر (سيُعاد المحاولة)');
-      expect(err500.code, 500, reason: '500 = server error = عابر (سيُعاد المحاولة)');
+      expect(
+        err404.code,
+        404,
+        reason: '404 = not found = عابر (سيُعاد المحاولة)',
+      );
+      expect(
+        err500.code,
+        500,
+        reason: '500 = server error = عابر (سيُعاد المحاولة)',
+      );
     });
 
-    test('P2: pushLocalChanges → false عندما sync() تُرجع failed > 0', () async {
-      // لا نستدعي الحقيقية لأنها تحتاج DB. نتحقّق فقط من أن الـ signature
-      // صحيح وأنها تُرجع Future<bool>.
-      final mgr = SecondarySyncManager.instance;
-      // قبل أي sync، lastSync = null
-      expect(mgr.lastSync, isNull);
-      // isAutoSyncEnabled = false قبل startAutoSync
-      expect(mgr.isAutoSyncEnabled, isFalse);
-    });
+    test(
+      'P2: pushLocalChanges → false عندما sync() تُرجع failed > 0',
+      () async {
+        // لا نستدعي الحقيقية لأنها تحتاج DB. نتحقّق فقط من أن الـ signature
+        // صحيح وأنها تُرجع Future<bool>.
+        final mgr = SecondarySyncManager.instance;
+        // قبل أي sync، lastSync = null
+        expect(mgr.lastSync, isNull);
+        // isAutoSyncEnabled = false قبل startAutoSync
+        expect(mgr.isAutoSyncEnabled, isFalse);
+      },
+    );
 
     test('P1-5: stopAutoSync يلغي المؤقّت', () {
       final mgr = SecondarySyncManager.instance;
       mgr.stopAutoSync();
-      expect(mgr.isAutoSyncEnabled, isFalse, reason: 'بعد stopAutoSync يجب أن يكون isAutoSyncEnabled = false');
+      expect(
+        mgr.isAutoSyncEnabled,
+        isFalse,
+        reason: 'بعد stopAutoSync يجب أن يكون isAutoSyncEnabled = false',
+      );
     });
 
     group('SecondarySyncResult', () {
       test('يحتوي على حقل dead (P0-2)', () {
-        final result = SecondarySyncResult(success: false, message: 'test', pushed: 5, failed: 2, dead: 1);
+        final result = SecondarySyncResult(
+          success: false,
+          message: 'test',
+          pushed: 5,
+          failed: 2,
+          dead: 1,
+        );
         expect(
           result.dead,
           1,

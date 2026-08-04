@@ -56,7 +56,8 @@ class RetryStrategy {
       case RetryBackoffType.exponential:
         // ✅ P1-12 fix: استخدام round() بدل toInt() لمنع بتر القيم
         final exponential = pow(config.backoffMultiplier, attemptNumber - 1);
-        final delayMs = (config.initialDelay.inMilliseconds * exponential).round();
+        final delayMs = (config.initialDelay.inMilliseconds * exponential)
+            .round();
         baseDelay = Duration(milliseconds: delayMs);
 
       case RetryBackoffType.fibonacci:
@@ -123,7 +124,9 @@ class RetryStrategy {
         }
 
         final delay = calculateDelay(attempt);
-        debugPrint('⏳ [Retry] انتظار ${delay.inSeconds} ثانية قبل المحاولة التالية');
+        debugPrint(
+          '⏳ [Retry] انتظار ${delay.inSeconds} ثانية قبل المحاولة التالية',
+        );
 
         if (onRetry != null) {
           onRetry(attempt, error);
@@ -143,7 +146,11 @@ class RetryStrategy {
     void Function(int attempt, dynamic error)? onRetry,
   }) async {
     try {
-      return await execute(operation: operation, shouldRetry: shouldRetry, onRetry: onRetry);
+      return await execute(
+        operation: operation,
+        shouldRetry: shouldRetry,
+        onRetry: onRetry,
+      );
     } catch (e) {
       debugPrint('🔄 [Retry] استخدام القيمة الاحتياطية بعد فشل جميع المحاولات');
       return fallback();

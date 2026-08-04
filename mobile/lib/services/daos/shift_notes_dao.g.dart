@@ -11,5 +11,6 @@ mixin _$ShiftNotesDaoMixin on DatabaseAccessor<AppDatabase> {
 class ShiftNotesDaoManager {
   final _$ShiftNotesDaoMixin _db;
   ShiftNotesDaoManager(this._db);
-  $$ShiftNotesTableTableManager get shiftNotes => $$ShiftNotesTableTableManager(_db.attachedDatabase, _db.shiftNotes);
+  $$ShiftNotesTableTableManager get shiftNotes =>
+      $$ShiftNotesTableTableManager(_db.attachedDatabase, _db.shiftNotes);
 }
