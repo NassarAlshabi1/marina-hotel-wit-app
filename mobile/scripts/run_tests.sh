@@ -43,32 +43,32 @@ PERFORMANCE_TESTS="test/performance/"
 # Print header
 print_header() {
     echo ""
-    echo "${BLUE}============================================${NC}"
-    echo "${BLUE}  Marina Hotel Mobile - Test Runner${NC}"
-    echo "${BLUE}============================================${NC}"
+    printf '%b\n' "${BLUE}============================================${NC}"
+    printf '%b\n' "${BLUE}  Marina Hotel Mobile - Test Runner${NC}"
+    printf '%b\n' "${BLUE}============================================${NC}"
     echo ""
 }
 
 # Print section
 print_section() {
     echo ""
-    echo "${YELLOW}--- $1 ---${NC}"
+    printf '%b\n' "${YELLOW}--- $1 ---${NC}"
     echo ""
 }
 
 # Print success
 print_success() {
-    echo "${GREEN}✓ $1${NC}"
+    printf '%b\n' "${GREEN}✓ $1${NC}"
 }
 
 # Print error
 print_error() {
-    echo "${RED}✗ $1${NC}"
+    printf '%b\n' "${RED}✗ $1${NC}"
 }
 
 # Print info
 print_info() {
-    echo "${BLUE}ℹ $1${NC}"
+    printf '%b\n' "${BLUE}ℹ $1${NC}"
 }
 
 # Check if command exists

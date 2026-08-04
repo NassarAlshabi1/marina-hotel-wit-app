@@ -36,32 +36,32 @@ TEST_DIR="test"
 # Print header
 print_header() {
     echo ""
-    echo "${BLUE}============================================${NC}"
-    echo "${BLUE}  Marina Hotel Mobile - Quality Check${NC}"
-    echo "${BLUE}============================================${NC}"
+    printf '%b\n' "${BLUE}============================================${NC}"
+    printf '%b\n' "${BLUE}  Marina Hotel Mobile - Quality Check${NC}"
+    printf '%b\n' "${BLUE}============================================${NC}"
     echo ""
 }
 
 # Print section
 print_section() {
     echo ""
-    echo "${YELLOW}--- $1 ---${NC}"
+    printf '%b\n' "${YELLOW}--- $1 ---${NC}"
     echo ""
 }
 
 # Print success
 print_success() {
-    echo "${GREEN}✓ $1${NC}"
+    printf '%b\n' "${GREEN}✓ $1${NC}"
 }
 
 # Print error
 print_error() {
-    echo "${RED}✗ $1${NC}"
+    printf '%b\n' "${RED}✗ $1${NC}"
 }
 
 # Print info
 print_info() {
-    echo "${BLUE}ℹ $1${NC}"
+    printf '%b\n' "${BLUE}ℹ $1${NC}"
 }
 
 # Check if command exists
@@ -75,7 +75,7 @@ run_analysis() {
     
     print_info "Checking for type errors, null safety issues, and more..."
     
-    if flutter analyze --fatal-infos --fatal-warnings . 2>&1 | tee analyze_report.txt; then
+    if dart analyze --fatal-infos --fatal-warnings . 2>&1 | tee analyze_report.txt; then
         print_success "Static analysis passed!"
         return 0
     else
@@ -91,12 +91,12 @@ check_formatting() {
     
     print_info "Verifying code follows Dart formatting standards..."
     
-    if flutter format --set-exit-if-changed . 2>&1 | tee format_report.txt; then
+    if dart format --output=none --set-exit-if-changed . 2>&1 | tee format_report.txt; then
         print_success "Code formatting is correct!"
         return 0
     else
         print_error "Code formatting issues found!"
-        print_info "Run 'flutter format .' to fix formatting"
+        print_info "Run 'dart format .' to fix formatting"
         print_info "See format_report.txt for details"
         return 1
     fi
@@ -108,7 +108,8 @@ run_linter() {
     
     print_info "Checking for code style violations and best practices..."
     
-    if flutter lint 2>&1 | tee lint_report.txt; then
+    # Lints are enforced via `dart analyze` using analysis_options.yaml
+    if dart analyze --fatal-infos --fatal-warnings . 2>&1 | tee lint_report.txt; then
         print_success "Linting passed!"
         return 0
     else

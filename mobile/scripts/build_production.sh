@@ -41,32 +41,32 @@ OUTPUT_BUNDLE_DIR="build/app/outputs/bundle/release"
 # Print header
 print_header() {
     echo ""
-    echo "${BLUE}============================================${NC}"
-    echo "${BLUE}  Marina Hotel Mobile - Production Build${NC}"
-    echo "${BLUE}============================================${NC}"
+    printf '%b\n' "${BLUE}============================================${NC}"
+    printf '%b\n' "${BLUE}  Marina Hotel Mobile - Production Build${NC}"
+    printf '%b\n' "${BLUE}============================================${NC}"
     echo ""
 }
 
 # Print section
 print_section() {
     echo ""
-    echo "${YELLOW}--- $1 ---${NC}"
+    printf '%b\n' "${YELLOW}--- $1 ---${NC}"
     echo ""
 }
 
 # Print success
 print_success() {
-    echo "${GREEN}✓ $1${NC}"
+    printf '%b\n' "${GREEN}✓ $1${NC}"
 }
 
 # Print error
 print_error() {
-    echo "${RED}✗ $1${NC}"
+    printf '%b\n' "${RED}✗ $1${NC}"
 }
 
 # Print info
 print_info() {
-    echo "${BLUE}ℹ $1${NC}"
+    printf '%b\n' "${BLUE}ℹ $1${NC}"
 }
 
 # Check if command exists
@@ -130,7 +130,7 @@ install_dependencies() {
     print_info "Checking for outdated dependencies..."
     flutter pub outdated 2>&1 | tee outdated_dependencies.txt
     
-    if [ -s "outdated_dependencies.txt" ]; then
+    if grep -q "Showing outdated packages" outdated_dependencies.txt 2>/dev/null; then
         print_error "Outdated dependencies found!"
         print_info "See outdated_dependencies.txt for details"
         print_info "Run 'flutter pub upgrade' to update dependencies"
@@ -164,7 +164,7 @@ run_quality_checks() {
     
     # Run static analysis
     print_info "Running static analysis..."
-    if ! flutter analyze --fatal-infos --fatal-warnings .; then
+    if ! dart analyze --fatal-infos --fatal-warnings .; then
         print_error "Static analysis failed"
         all_passed=false
     else
@@ -173,16 +173,16 @@ run_quality_checks() {
     
     # Check formatting
     print_info "Checking code formatting..."
-    if ! flutter format --set-exit-if-changed .; then
+    if ! dart format --output=none --set-exit-if-changed .; then
         print_error "Code formatting check failed"
         all_passed=false
     else
         print_success "Code formatting check passed"
     fi
     
-    # Run linter
+    # Run linter (lints are enforced via `dart analyze` using analysis_options.yaml)
     print_info "Running linter..."
-    if ! flutter lint; then
+    if ! dart analyze --fatal-infos --fatal-warnings .; then
         print_error "Linting failed"
         all_passed=false
     else
