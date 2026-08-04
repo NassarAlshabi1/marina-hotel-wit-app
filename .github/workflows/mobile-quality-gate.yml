@@ -331,6 +331,7 @@ jobs:
       - name: 📈 Test & Coverage Summary
         if: always()
         working-directory: ${{ env.WORKING_DIRECTORY }}
+        continue-on-error: true
         run: |
           {
             echo "## 🧪 Test & Coverage Report"
@@ -343,9 +344,9 @@ jobs:
             echo ""
             
             if [ -f "test_results.log" ]; then
-              TEST_COUNT=$(grep -oE '[0-9]+ tests' test_results.log | head -1 | grep -oE '[0-9]+')
-              PASSED_COUNT=$(grep -oE '[0-9]+ passed' test_results.log | head -1 | grep -oE '[0-9]+')
-              FAILED_COUNT=$(grep -oE '[0-9]+ failed' test_results.log | head -1 | grep -oE '[0-9]+')
+              TEST_COUNT=$(grep -oE '[0-9]+ tests' test_results.log | head -1 | grep -oE '[0-9]+' || echo "N/A")
+              PASSED_COUNT=$(grep -oE '[0-9]+ passed' test_results.log | head -1 | grep -oE '[0-9]+' || echo "N/A")
+              FAILED_COUNT=$(grep -oE '[0-9]+ failed' test_results.log | head -1 | grep -oE '[0-9]+' || echo "N/A")
               
               echo "### Test Results"
               echo "- Total tests: $TEST_COUNT"
@@ -377,7 +378,7 @@ jobs:
         if: always() && inputs.upload_reports == true
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: coverage-report-${{ github.ref_name }}-${{ github.run_id }}
+          name: coverage-report-${{ github.run_id }}
           path: ${{ env.WORKING_DIRECTORY }}/coverage/
           retention-days: 14
           if-no-files-found: ignore
