@@ -22,6 +22,7 @@ import '../../services/cloudflare_sync_manager.dart';
 import '../../services/local_db.dart';
 import 'appwrite_connection_settings_screen.dart';
 import 'appwrite_logs_screen.dart';
+import 'error_tracker_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
 import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
 
@@ -795,6 +796,21 @@ class _AppwriteSettingsScreenState
                     },
                     icon: const Icon(Icons.visibility),
                     label: const Text('عرض السجلات'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.push<void>(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (context) => const ErrorTrackerScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.error_outline),
+                    label: const Text('تتبع الأخطاء'),
                   ),
                 ),
                 const SizedBox(width: 8),

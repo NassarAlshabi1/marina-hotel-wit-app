@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../screens/settings/error_tracker_screen.dart' show logHttpError, logError, ErrorCategory;
 import 'cloudflare_config.dart';
 import 'local_db.dart';
 import 'resilient_http_client.dart';
@@ -456,12 +457,26 @@ class CloudflareMigrationService {
           }
           continue;
         } else if (response.statusCode >= 500 && attempt < 3) {
+          // ✅ سجل في شاشة تتبع الأخطاء
+          logHttpError(
+            title: '$entity: خطأ خادم (HTTP ${response.statusCode})',
+            statusCode: response.statusCode,
+            responseBody: response.body,
+            source: 'migration:$entity',
+          );
           debugPrint('    ⚠️ $entity SQL batch HTTP ${response.statusCode}, '
               'retry $attempt/3...');
           await Future<void>.delayed(Duration(seconds: attempt));
           continue;
         } else {
           failed += batch.length;
+          // ✅ سجل في شاشة تتبع الأخطاء
+          logHttpError(
+            title: '$entity: فشل الترحيل (HTTP ${response.statusCode})',
+            statusCode: response.statusCode,
+            responseBody: response.body,
+            source: 'migration:$entity',
+          );
           batchErrors.add('$entity: HTTP ${response.statusCode} — ${response.body}');
           return _BatchResult(pushed: pushed, failed: failed, errors: batchErrors);
         }
@@ -471,6 +486,13 @@ class CloudflareMigrationService {
           await Future<void>.delayed(Duration(seconds: attempt));
         } else {
           failed += batch.length;
+          // ✅ سجل في شاشة تتبع الأخطاء
+          logError(
+            title: '$entity: استثناء غير متوقع',
+            message: e.toString(),
+            category: ErrorCategory.migration,
+            source: 'migration:$entity',
+          );
           batchErrors.add('$entity SQL batch (after 3 retries): $e');
           debugPrint('    ❌ $entity SQL batch final failure: $e');
           return _BatchResult(pushed: pushed, failed: failed, errors: batchErrors);
