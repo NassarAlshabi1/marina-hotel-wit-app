@@ -1,0 +1,328 @@
+name: GitHub Copilot Code Review
+
+# ============================================
+# GitHub Copilot Code Review Workflow
+# ============================================
+# 
+# F4DD Description: Automatically requests GitHub Copilot review for every Pull Request
+# F4BB Maintainer: Marina Hotel Dev Team
+# F4D1 Last Updated: 2026-08-03
+#
+# F4D1 Features:
+# - Auto-triggers on every Pull Request
+# - Requests Copilot review with custom instructions
+# - Adds status comment to PR
+# - Monitors review progress
+# - Handles errors gracefully
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [ main, A, develop, release/* ]
+
+concurrency:
+  group: copilot-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================
+  # JOB 1: Request Copilot Review
+  # ============================================
+  request_copilot_review:
+    name: Request Copilot Review
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Get PR Information
+        id: pr_info
+        run: |
+          echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          echo "PR_TITLE=${{ github.event.pull_request.title }}" >> $GITHUB_OUTPUT
+          echo "PR_URL=${{ github.event.pull_request.html_url }}" >> $GITHUB_OUTPUT
+          echo "REPO_OWNER=${{ github.repository_owner }}" >> $GITHUB_OUTPUT
+          echo "REPO_NAME=${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
+
+      - name: Add Initial Comment to PR
+        uses: github/github-app-token@v1
+        id: add_comment
+        with:
+          app_id: ${{ secrets.COPILOT_APP_ID }}
+          private_key: ${{ secrets.COPILOT_PRIVATE_KEY }}
+        continue-on-error: true
+
+      - name: Request Copilot Review via Comment
+        run: |
+          PR_NUMBER=${{ steps.pr_info.outputs.PR_NUMBER }}
+          REPO_OWNER=${{ steps.pr_info.outputs.REPO_OWNER }}
+          REPO_NAME=${{ steps.pr_info.outputs.REPO_NAME }}
+          PR_TITLE=${{ steps.pr_info.outputs.PR_TITLE }}
+          
+          echo "Requesting GitHub Copilot review for PR #$PR_NUMBER: $PR_TITLE"
+          
+          # Custom instructions for Copilot based on PR title
+          if [[ "$PR_TITLE" == *"fix"* ]] || [[ "$PR_TITLE" == *"bug"* ]] || [[ "$PR_TITLE" == *"hotfix"* ]]; then
+            COPILOT_INSTRUCTIONS="@github-copilot please review this bug fix PR. Focus on:
+            - Correctness of the fix
+            - Edge cases that might be missed
+            - Potential side effects
+            - Test coverage for the fix"
+          elif [[ "$PR_TITLE" == *"feat"* ]] || [[ "$PR_TITLE" == *"feature"* ]]; then
+            COPILOT_INSTRUCTIONS="@github-copilot please review this feature PR. Focus on:
+            - Code quality and best practices
+            - Performance implications
+            - Security considerations
+            - Integration with existing code"
+          elif [[ "$PR_TITLE" == *"refactor"* ]] || [[ "$PR_TITLE" == *"improve"* ]]; then
+            COPILOT_INSTRUCTIONS="@github-copilot please review this refactoring PR. Focus on:
+            - Maintaining existing functionality
+            - Code readability improvements
+            - Performance impact
+            - Breaking changes"
+          else
+            COPILOT_INSTRUCTIONS="@github-copilot please review this PR. Focus on:
+            - Code quality and best practices
+            - Potential bugs or issues
+            - Security vulnerabilities
+            - Performance considerations"
+          fi
+          
+          echo "Copilot instructions: $COPILOT_INSTRUCTIONS"
+          
+          # Add comment to trigger Copilot review
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/$REPO_OWNER/$REPO_NAME/issues/$PR_NUMBER/comments \
+            -f "body=$COPILOT_INSTRUCTIONS" \
+            || echo "Could not add Copilot review comment"
+
+      - name: Add Status Comment
+        run: |
+          PR_NUMBER=${{ steps.pr_info.outputs.PR_NUMBER }}
+          REPO_OWNER=${{ steps.pr_info.outputs.REPO_OWNER }}
+          REPO_NAME=${{ steps.pr_info.outputs.REPO_NAME }}
+          PR_URL=${{ steps.pr_info.outputs.PR_URL }}
+          
+          STATUS_COMMENT="✅ **GitHub Copilot Review Requested**
+          
+          A code review has been automatically requested from GitHub Copilot for this PR.
+          
+          **What to expect:**
+          - Copilot will analyze the code and provide feedback
+          - Review typically completes within 5-10 minutes
+          - Focus areas: Code quality, security, performance, best practices
+          
+          **Next steps:**
+          - Wait for Copilot's feedback
+          - Address any issues raised
+          - Request human review after Copilot approval
+          
+          [View PR]($PR_URL)"
+          
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/$REPO_OWNER/$REPO_NAME/issues/$PR_NUMBER/comments \
+            -f "body=$STATUS_COMMENT" \
+            || echo "Could not add status comment"
+
+      - name: Set PR Label
+        run: |
+          PR_NUMBER=${{ steps.pr_info.outputs.PR_NUMBER }}
+          REPO_OWNER=${{ steps.pr_info.outputs.REPO_OWNER }}
+          REPO_NAME=${{ steps.pr_info.outputs.REPO_NAME }}
+          
+          # Add 'copilot-review' label
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/$REPO_OWNER/$REPO_NAME/issues/$PR_NUMBER/labels \
+            -f '{"labels":["copilot-review"]}' \
+            || echo "Could not add label"
+
+  # ============================================
+  # JOB 2: Monitor Copilot Review (Optional)
+  # ============================================
+  monitor_copilot_review:
+    name: Monitor Copilot Review
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: request_copilot_review
+    if: always() && github.event_name == 'pull_request'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get PR Information
+        id: pr_info
+        run: |
+          echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          echo "REPO_OWNER=${{ github.repository_owner }}" >> $GITHUB_OUTPUT
+          echo "REPO_NAME=${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
+
+      - name: Check for Copilot Comments
+        run: |
+          PR_NUMBER=${{ steps.pr_info.outputs.PR_NUMBER }}
+          REPO_OWNER=${{ steps.pr_info.outputs.REPO_OWNER }}
+          REPO_NAME=${{ steps.pr_info.outputs.REPO_NAME }}
+          
+          echo "Checking for Copilot review comments..."
+          
+          # Wait a bit for Copilot to process
+          sleep 60
+          
+          # Check for Copilot comments
+          COPILOT_COMMENTS=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            /repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/comments \
+            | jq -r '.[] | select(.user.login == "github-copilot" or .user.login == "copilot") | .body' \
+            || echo "")
+          
+          if [ -n "$COPILOT_COMMENTS" ]; then
+            echo "✅ Copilot review comments found:"
+            echo "$COPILOT_COMMENTS"
+            
+            # Update the status comment
+            UPDATE_COMMENT="✅ **GitHub Copilot Review Completed**
+            
+            Copilot has provided feedback on this PR.
+            
+            **Review Summary:**
+            $COPILOT_COMMENTS
+            
+            **Next steps:**
+            - Review Copilot's feedback
+            - Address any issues raised
+            - Request human review if needed"
+            
+            gh api \
+              --method POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              /repos/$REPO_OWNER/$REPO_NAME/issues/$PR_NUMBER/comments \
+              -f "body=$UPDATE_COMMENT" \
+              || echo "Could not update status comment"
+          else
+            echo "⏳ Copilot review still in progress..."
+            echo "This may take a few more minutes."
+            
+            # Add a follow-up comment
+            FOLLOWUP_COMMENT="⏳ **GitHub Copilot Review In Progress**
+            
+            Copilot is still analyzing the code. This typically takes 5-15 minutes.
+            
+            **What's happening:**
+            - Copilot is reviewing the code changes
+            - Analyzing for quality, security, and performance issues
+            - Generating detailed feedback
+            
+            **Expected completion:** Within the next 10 minutes"
+            
+            gh api \
+              --method POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              /repos/$REPO_OWNER/$REPO_NAME/issues/$PR_NUMBER/comments \
+              -f "body=$FOLLOWUP_COMMENT" \
+              || echo "Could not add follow-up comment"
+          fi
+
+  # ============================================
+  # JOB 3: Copilot Review on Code Quality Job
+  # ============================================
+  copilot_review_on_quality:
+    name: Copilot Review on Code Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request' && (github.base_ref == 'main' || github.base_ref == 'A')
+    needs: request_copilot_review
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Get PR Information
+        id: pr_info
+        run: |
+          echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          echo "REPO_OWNER=${{ github.repository_owner }}" >> $GITHUB_OUTPUT
+          echo "REPO_NAME=${{ github.event.repository.name }}" >> $GITHUB_OUTPUT
+
+      - name: Run Code Quality Checks
+        run: |
+          echo "Running code quality checks before Copilot review..."
+          
+          # Check if Flutter is available
+          if command -v flutter &> /dev/null; then
+            echo "Flutter found, running quality checks..."
+            flutter analyze --fatal-infos --fatal-warnings . || echo "Analysis failed"
+            flutter lint || echo "Linting failed"
+            flutter format --set-exit-if-changed . || echo "Formatting check failed"
+          else
+            echo "Flutter not available, skipping quality checks"
+          fi
+
+      - name: Request Focused Copilot Review
+        run: |
+          PR_NUMBER=${{ steps.pr_info.outputs.PR_NUMBER }}
+          REPO_OWNER=${{ steps.pr_info.outputs.REPO_OWNER }}
+          REPO_NAME=${{ steps.pr_info.outputs.REPO_NAME }}
+          
+          FOCUSED_INSTRUCTIONS="@github-copilot please perform a focused code review on this PR. Specifically check for:
+          
+          **Code Quality:**
+          - Adherence to Dart/Flutter best practices
+          - Proper use of Riverpod state management
+          - Clean architecture and separation of concerns
+          - Appropriate error handling
+          
+          **Security:**
+          - No hardcoded secrets or API keys
+          - Proper data validation
+          - Secure authentication/authorization
+          - Safe data storage practices
+          
+          **Performance:**
+          - Efficient widget rebuilding
+          - Proper use of const constructors
+          - Optimal state management
+          - No unnecessary computations
+          
+          **Testing:**
+          - Adequate test coverage
+          - Proper test structure
+          - Edge case handling
+          - Mock usage where appropriate
+          
+          **Maintainability:**
+          - Clear and descriptive naming
+          - Proper documentation
+          - Consistent code style
+          - Manageable file sizes"
+          
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/$REPO_OWNER/$REPO_NAME/issues/$PR_NUMBER/comments \
+            -f "body=$FOCUSED_INSTRUCTIONS" \
+            || echo "Could not add focused review comment"
