@@ -134,7 +134,7 @@ generate_code() {
     print_section "Generating Code"
     
     print_info "Running build_runner..."
-    if flutter pub run build_runner build --delete-conflicting-outputs; then
+    if flutter pub run build_runner build; then
         print_success "Code generation completed"
     else
         print_error "Code generation failed"

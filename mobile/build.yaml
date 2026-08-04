@@ -1,33 +1,24 @@
 # Marina Hotel Mobile - Build Configuration
 # ============================================
-# F4DD Build Runner Configuration for Code Generation
-# F4BB Maintainer: Marina Hotel Dev Team
-# F4D1 Last Updated: 2026-08-03
+# Build Runner Configuration for Code Generation
+# Maintainer: Marina Hotel Dev Team
+# Last Updated: 2026-08-04
 #
-# F4D1 Usage:
+# Usage:
 #   flutter pub run build_runner build
 #   flutter pub run build_runner watch
 #   flutter pub run build_runner clean
-#   flutter pub run build_runner build --delete-conflicting-outputs
 
 # ============================================
 # GLOBAL BUILD OPTIONS
 # ============================================
 global_options:
-  # F499 Build Configuration
+  # Build Configuration
   build_extensions:
     "^lib/{{path}}": "generated/{{path}}"
   
-  # F4C4 Enable for all targets
+  # Enable for all targets
   auto_apply: all
-  
-  # F4CD Exclude patterns
-  exclude:
-    - "**.g.dart"
-    - "**.freezed.dart"
-    - "**/generated/**"
-    - "test/**"
-    - "integration_test/**"
 
 # ============================================
 # TARGETS CONFIGURATION
@@ -35,7 +26,7 @@ global_options:
 
 targets:
   $default:
-    # F499 Builders Configuration
+    # Builders Configuration
     builders:
       # ==========================================
       # FREEZED (Immutable Classes & Serialization)
@@ -43,22 +34,18 @@ targets:
       freezed:
         enabled: true
         options:
-          # F4CD Generate to_json/toJson methods
+          # Generate to_json/toJson methods
           generate_to_json: true
-          # F4CD Generate from_json/fromJson methods
+          # Generate from_json/fromJson methods
           generate_from_json: true
-          # F4CD Generate copyWith method
+          # Generate copyWith method
           generate_copy_with: true
-          # F4CD Generate == and hashCode
+          # Generate == and hashCode
           generate_equals: true
-          # F4CD Generate toString
+          # Generate toString
           generate_to_string: true
-          # F4CD Use nullable for all fields
+          # Use nullable for all fields
           use_nullable: true
-          # F4CD Generate for all freezed classes
-          use_generated_from_json: true
-          # F4CD Generate for all freezed classes
-          use_generated_to_json: true
           
       # ==========================================
       # JSON SERIALIZABLE (JSON Conversion)
@@ -66,20 +53,20 @@ targets:
       json_serializable:
         enabled: true
         options:
-          # F4CD Generate toJson method
+          # Generate toJson method
           generate_to_json: true
-          # F4CD Generate fromJson method
+          # Generate fromJson method
           generate_from_json: true
-          # F4CD Use nullable for all fields
+          # Use nullable for all fields
           use_nullable: true
-          # F4CD Generate for all classes with JsonSerializable
+          # Generate for all classes with JsonSerializable
           use_generated_from_json: true
           use_generated_to_json: true
-          # F4CD Field renaming strategy
+          # Field renaming strategy
           field_rename: snake
-          # F4CD Ignore unannotated fields
+          # Ignore unannotated fields
           ignore_unannotated: false
-          # F4CD Explicit toJson
+          # Explicit toJson
           explicit_to_json: true
           
       # ==========================================
@@ -88,9 +75,9 @@ targets:
       riverpod_generator:
         enabled: true
         options:
-          # F4CD Generate provider classes
+          # Generate provider classes
           generate_provider: true
-          # F4CD Generate for all providers
+          # Generate for all providers
           use_generated_provider: true
           
       # ==========================================
@@ -99,11 +86,11 @@ targets:
       drift_dev:
         enabled: true
         options:
-          # F4CD Generate database classes
+          # Generate database classes
           generate_database: true
-          # F4CD Generate DAOs
+          # Generate DAOs
           generate_daos: true
-          # F4CD Generate for all drift files
+          # Generate for all drift files
           use_generated_database: true
           use_generated_daos: true
           
@@ -113,43 +100,34 @@ targets:
       mockito:
         enabled: true
         options:
-          # F4CD Generate mocks for all classes
+          # Generate mocks for all classes
           generate_mocks: true
-          # F4CD Generate for all mockable classes
+          # Generate for all mockable classes
           use_generated_mocks: true
-          
-      # ==========================================
-      # BUILD WEB COMPILERS (For Web Support)
-      # ==========================================
-      build_web_compilers|entrypoint:
-        enabled: false  # Disable for mobile-only builds
-        
-      build_web_compilers|module:
-        enabled: false  # Disable for mobile-only builds
 
   # ============================================
   # SPECIFIC TARGETS (Custom Configuration)
   # ============================================
   
-  # F4CD Lib Directory (Main Source)
+  # Lib Directory (Main Source)
   lib:
     builders:
       freezed:
         options:
-          # F4CD Custom output directory for lib
+          # Custom output directory for lib
           output_directory: "generated/lib"
           
       json_serializable:
         options:
-          # F4CD Custom output directory for lib
+          # Custom output directory for lib
           output_directory: "generated/lib"
           
       riverpod_generator:
         options:
-          # F4CD Custom output directory for lib
+          # Custom output directory for lib
           output_directory: "generated/lib"
 
-  # F4CD Test Directory
+  # Test Directory
   test:
     builders:
       freezed:
@@ -167,7 +145,7 @@ targets:
         options:
           output_directory: "generated/test/mocks"
 
-  # F4CD Integration Test Directory
+  # Integration Test Directory
   integration_test:
     builders:
       freezed:
@@ -184,20 +162,3 @@ targets:
         enabled: true
         options:
           output_directory: "generated/integration_test/mocks"
-
-# ============================================
-# POST-BUILD SCRIPTS
-# ============================================
-
-# F4CD Post-build script to clean up generated files
-post_build_script: |
-  #!/bin/bash
-  echo "Running post-build cleanup..."
-  
-  # Remove duplicate generated files
-  find generated/ -name "*.dart" -type f | sort | uniq -d | xargs rm -f
-  
-  # Format generated files
-  flutter format generated/
-  
-  echo "Post-build cleanup complete!"

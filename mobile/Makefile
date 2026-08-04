@@ -192,7 +192,7 @@ generate: generate-all ## Generate all code (Freezed, JSON, Riverpod, etc.)
 
 generate-all: ## Generate all code using build_runner
 	@printf '%b\n' "${YELLOW}Generating code...${NC}"
-	flutter pub run build_runner build --delete-conflicting-outputs
+	flutter pub run build_runner build
 	@printf '%b\n' "${GREEN}Code generation complete!${NC}"
 
 watch: ## Watch for changes and regenerate code
