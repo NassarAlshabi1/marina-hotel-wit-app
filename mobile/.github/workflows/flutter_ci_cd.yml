@@ -1,0 +1,511 @@
+name: Flutter CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, A, develop, release/* ]
+  pull_request:
+    branches: [ main, A ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================
+  # JOB 1: Code Quality & Static Analysis
+  # ============================================
+  code_quality:
+    name: Code Quality & Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.7'
+          channel: 'stable'
+          cache: true
+          cache-key: 'flutter-3.35.7'
+
+      - name: Cache Pub dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.pub-cache
+            **/pubspec.lock
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run Flutter Analyzer
+        run: flutter analyze --fatal-infos --fatal-warnings .
+
+      - name: Check Code Formatting
+        run: flutter format --set-exit-if-changed .
+
+      - name: Run Linter
+        run: flutter lint
+
+      - name: Check for TODO comments (Production Warning)
+        run: |
+          if grep -r "TODO\|FIXME\|XXX\|HACK" lib/ --include="*.dart" --exclude-dir=generated; then
+            echo "::warning::Found TODO/FIXME comments in production code!"
+            echo "Please resolve all TODOs before merging to main."
+            exit 1
+          fi
+
+  # ============================================
+  # JOB 2: Unit & Widget Tests
+  # ============================================
+  unit_widget_tests:
+    name: Unit & Widget Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: code_quality
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.7'
+          channel: 'stable'
+          cache: true
+
+      - name: Cache Pub dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.pub-cache
+            **/pubspec.lock
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code (Freezed, JSON Serializable, etc.)
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Run Unit Tests with Coverage
+        run: |
+          flutter test test/unit/ --coverage --coverage-path=coverage/unit.lcov 2>&1 | tee test_results_unit.txt
+
+      - name: Run Widget Tests with Coverage
+        run: |
+          flutter test test/widget/ --coverage --coverage-path=coverage/widget.lcov 2>&1 | tee test_results_widget.txt
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            test_results_*.txt
+            coverage/
+
+  # ============================================
+  # JOB 3: Integration Tests
+  # ============================================
+  integration_tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: code_quality
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.7'
+          channel: 'stable'
+          cache: true
+
+      - name: Cache Pub dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.pub-cache
+            **/pubspec.lock
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Run Integration Tests
+        run: |
+          flutter test integration_test/ --coverage --coverage-path=coverage/integration.lcov 2>&1 | tee test_results_integration.txt
+
+      - name: Upload Integration Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: |
+            test_results_integration.txt
+            coverage/integration.lcov
+
+  # ============================================
+  # JOB 4: Code Coverage Report
+  # ============================================
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [unit_widget_tests, integration_tests]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Coverage Files
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results
+          path: coverage/
+
+      - name: Download Integration Coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: integration-test-results
+          path: coverage/
+
+      - name: Install lcov (for coverage combination)
+        run: sudo apt-get install -y lcov
+
+      - name: Combine Coverage Files
+        run: |
+          # Initialize combined file
+          lcov --rc lcov_branch_coverage=1 -c -i -d . -o coverage/combined.lcov
+          
+          # Add all lcov files
+          for file in coverage/*.lcov; do
+            if [ -f "$file" ]; then
+              lcov --rc lcov_branch_coverage=1 -a "$file" -o coverage/combined.lcov
+            fi
+          done
+          
+          # Generate HTML report
+          if [ -f coverage/combined.lcov ]; then
+            genhtml coverage/combined.lcov --output-directory coverage/html
+          fi
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+
+      - name: Check Minimum Coverage (80%)
+        run: |
+          if [ -f coverage/combined.lcov ]; then
+            TOTAL_LINES=$(lcov --summary coverage/combined.lcov | grep -oP '\d+(?=% of all lines)' | head -1)
+            COVERED_LINES=$(lcov --summary coverage/combined.lcov | grep -oP '\d+(?= lines)' | head -1)
+            COVERAGE_PERCENT=$(( (COVERED_LINES * 100) / TOTAL_LINES ))
+            echo "Current coverage: $COVERAGE_PERCENT%"
+            
+            if [ "$COVERAGE_PERCENT" -lt 80 ]; then
+              echo "::error::Code coverage is below 80% ($COVERAGE_PERCENT%)!"
+              exit 1
+            else
+              echo "::notice::Code coverage is $COVERAGE_PERCENT% (>= 80% required)"
+            fi
+          else
+            echo "::warning::No coverage files found!"
+          fi
+
+  # ============================================
+  # JOB 5: Build APK (Production)
+  # ============================================
+  build_production:
+    name: Build Production APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: [code_quality, unit_widget_tests, integration_tests]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/A' || contains(github.ref, 'refs/heads/release/')
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.7'
+          channel: 'stable'
+          cache: true
+
+      - name: Cache Pub dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.pub-cache
+            **/pubspec.lock
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Build APK (Release)
+        run: |
+          flutter build apk \
+            --release \
+            --split-per-abi \
+            --no-tree-shake-icons \
+            --obfuscate \
+            --split-debug-info=./debug_symbols
+
+      - name: Rename APK files
+        run: |
+          mv build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk build/app/outputs/flutter-apk/marina_hotel_armeabi-v7a_${{ github.sha }}.apk
+          mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk build/app/outputs/flutter-apk/marina_hotel_arm64-v8a_${{ github.sha }}.apk
+          mv build/app/outputs/flutter-apk/app-x86_64-release.apk build/app/outputs/flutter-apk/marina_hotel_x86_64_${{ github.sha }}.apk
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-apks
+          path: build/app/outputs/flutter-apk/*.apk
+
+      - name: Upload Debug Symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-symbols
+          path: debug_symbols/
+
+  # ============================================
+  # JOB 6: Build AppBundle (Google Play)
+  # ============================================
+  build_appbundle:
+    name: Build AppBundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: [code_quality, unit_widget_tests, integration_tests]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/A' || contains(github.ref, 'refs/heads/release/')
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.7'
+          channel: 'stable'
+          cache: true
+
+      - name: Cache Pub dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.pub-cache
+            **/pubspec.lock
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Build AppBundle (Release)
+        run: |
+          flutter build appbundle \
+            --release \
+            --no-tree-shake-icons \
+            --obfuscate \
+            --split-debug-info=./debug_symbols
+
+      - name: Rename AppBundle
+        run: |
+          mv build/app/outputs/bundle/release/app-release.aab build/app/outputs/bundle/release/marina_hotel_${{ github.sha }}.aab
+
+      - name: Upload AppBundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-appbundle
+          path: build/app/outputs/bundle/release/*.aab
+
+      - name: Upload Debug Symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-symbols-bundle
+          path: debug_symbols/
+
+  # ============================================
+  # JOB 7: Security Scan
+  # ============================================
+  security_scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: code_quality
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.7'
+          channel: 'stable'
+
+      - name: Scan for Secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+      - name: Check for Hardcoded API Keys
+        run: |
+          if grep -r "apiKey\|api_key\|API_KEY\|secret\|password\|token" lib/ --include="*.dart" --exclude-dir=generated | grep -v "const String.*="; then
+            echo "::error::Found potential hardcoded secrets in code!"
+            exit 1
+          fi
+
+  # ============================================
+  # JOB 8: Performance Audit
+  # ============================================
+  performance_audit:
+    name: Performance Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: code_quality
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.7'
+          channel: 'stable'
+
+      - name: Run Performance Tests
+        run: flutter test test/performance/ --reporter=json > performance_report.json || true
+
+      - name: Upload Performance Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-report
+          path: performance_report.json
+
+  # ============================================
+  # JOB 9: GitHub Copilot Code Review (Auto-Trigger on PR)
+  # ============================================
+  copilot_review:
+    name: GitHub Copilot Code Review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request' && (github.base_ref == 'main' || github.base_ref == 'A')
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Request GitHub Copilot Review
+        uses: github/github-app-token@v1
+        id: get_token
+        with:
+          app_id: ${{ secrets.COPILOT_APP_ID }}
+          private_key: ${{ secrets.COPILOT_PRIVATE_KEY }}
+
+      - name: Trigger Copilot Review
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          REPO_OWNER=${{ github.repository_owner }}
+          REPO_NAME=${{ github.event.repository.name }}
+          
+          echo "Triggering GitHub Copilot Review for PR #$PR_NUMBER"
+          echo "Repository: $REPO_OWNER/$REPO_NAME"
+          
+          # Use GitHub CLI to request Copilot review
+          if command -v gh &> /dev/null; then
+            echo "Using GitHub CLI to request Copilot review..."
+            gh api \
+              --method POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${{ steps.get_token.outputs.token }}" \
+              /repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/reviews \
+              -f "event=COMMENT" \
+              -f "body=@github-copilot please review this PR" \
+              || echo "GitHub CLI method not available, trying alternative..."
+          fi
+          
+          # Alternative: Use curl to request Copilot review
+          echo "Requesting Copilot review via GitHub API..."
+          curl -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/pulls/$PR_NUMBER/reviews" \
+            -d '{"event":"COMMENT","body":"@github-copilot please review this PR"}' \
+            || echo "Copilot review request failed"
+
+      - name: Wait for Copilot Review
+        run: |
+          echo "Copilot review has been requested for PR #${{ github.event.pull_request.number }}"
+          echo "You can check the review status at:"
+          echo "https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
+          
+          # Add a comment to the PR
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            /repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments \
+            -f "body=✅ GitHub Copilot review has been requested for this PR. Please wait for the automated feedback." \
+            || echo "Could not add comment to PR"
+
+      - name: Check Copilot Review Status
+        run: |
+          echo "Checking Copilot review status..."
+          sleep 30  # Wait for Copilot to start processing
+          
+          # Check if Copilot has commented
+          REVIEW_COMMENTS=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            /repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments \
+            | jq -r '.[] | select(.user.login == "github-copilot") | .body' \
+            || echo "")
+          
+          if [ -n "$REVIEW_COMMENTS" ]; then
+            echo "✅ Copilot review is in progress or completed"
+            echo "Review comments:"
+            echo "$REVIEW_COMMENTS"
+          else
+            echo "⏳ Copilot review is still processing..."
+            echo "This may take a few minutes."
+          fi

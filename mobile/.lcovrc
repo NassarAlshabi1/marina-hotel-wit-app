@@ -1,0 +1,185 @@
+# Marina Hotel Mobile - LCOV Configuration
+# ============================================
+# F4DD LCOV Configuration for Code Coverage
+# F4BB Maintainer: Marina Hotel Dev Team
+# F4D1 Last Updated: 2026-08-03
+#
+# F4D1 Usage:
+#   lcov --rc lcov_branch_coverage=1 -c -i -d . -o coverage/combined.lcov
+#   genhtml coverage/combined.lcov --output-directory coverage/html
+
+# ============================================
+# GLOBAL OPTIONS
+# ============================================
+
+# F499 Enable branch coverage
+lcov_branch_coverage = 1
+
+# F499 Enable function coverage
+lcov_function_coverage = 1
+
+# F499 Quiet mode (suppress non-error messages)
+quiet = 1
+
+# ============================================
+# FILE EXCLUSIONS
+# ============================================
+
+# F4CD Exclude generated files
+exclude_pattern = 
+  */generated/*
+  */.g.dart
+  */.freezed.dart
+  */.mocks.dart
+  */firebase_options.dart
+
+# F4CD Exclude test files
+exclude_pattern = 
+  */test/*
+  */integration_test/*
+
+# F4CD Exclude build directories
+exclude_pattern = 
+  */build/*
+  */.dart_tool/*
+
+# F4CD Exclude platform-specific directories
+exclude_pattern = 
+  */android/*
+  */ios/*
+  */web/*
+  */windows/*
+  */macos/*
+  */linux/*
+
+# ============================================
+# DIRECTORY EXCLUSIONS
+# ============================================
+
+# F4CD Exclude entire directories
+exclude_directory = 
+  generated
+  build
+  .dart_tool
+  android
+  ios
+  web
+  windows
+  macos
+  linux
+  test
+  integration_test
+
+# ============================================
+# FILE INCLUSIONS
+# ============================================
+
+# F499 Include only Dart files
+include_pattern = 
+  */lib/*
+
+# ============================================
+# OUTPUT OPTIONS
+# ============================================
+
+# F499 Output directory for coverage files
+output_directory = coverage/
+
+# F499 Coverage file name
+output_filename = combined.lcov
+
+# ============================================
+# GENHTML OPTIONS
+# ============================================
+
+# F499 HTML output directory
+html_output_directory = coverage/html/
+
+# F499 HTML title
+html_title = "Marina Hotel Mobile - Code Coverage Report"
+
+# F499 Show branch coverage in HTML
+html_branch_coverage = 1
+
+# F499 Show function coverage in HTML
+html_function_coverage = 1
+
+# F499 Show line coverage in HTML
+html_line_coverage = 1
+
+# F499 Show detailed coverage information
+html_details = 1
+
+# F499 Show legend
+html_legend = 1
+
+# F499 Show summary
+html_summary = 1
+
+# F499 Minimum coverage percentage for green color
+html_min_covered = 80
+
+# F499 Maximum coverage percentage for red color
+html_max_uncovered = 20
+
+# ============================================
+# COVERAGE THRESHOLDS
+# ============================================
+
+# F499 Minimum required coverage percentage
+coverage_threshold = 80
+
+# F499 Branch coverage threshold
+branch_coverage_threshold = 70
+
+# F499 Function coverage threshold
+function_coverage_threshold = 70
+
+# F499 Line coverage threshold
+line_coverage_threshold = 80
+
+# ============================================
+# REPORT OPTIONS
+# ============================================
+
+# F499 Generate summary report
+summary = 1
+
+# F499 Show only summary (no details)
+summary_only = 0
+
+# F499 Show detailed report
+summary_details = 1
+
+# ============================================
+# FILTER OPTIONS
+# ============================================
+
+# F499 Filter out test files from reports
+filter_test_files = 1
+
+# F499 Filter out generated files from reports
+filter_generated_files = 1
+
+# F499 Filter out build files from reports
+filter_build_files = 1
+
+# ============================================
+# PERFORMANCE OPTIONS
+# ============================================
+
+# F499 Use faster algorithm for large projects
+fast = 1
+
+# F499 Number of threads for parallel processing
+threads = 4
+
+# ============================================
+# DEBUG OPTIONS
+# ============================================
+
+# F499 Enable debug output (disable for production)
+debug = 0
+
+# F499 Verbose output
+debug_verbose = 0
