@@ -123,9 +123,11 @@ export default {
       return json({ status: 'ok', timestamp: Date.now(), version: '1.0.0' }, 200, env);
     }
 
-    // ─── Ping endpoint for network speed measurement (no auth) ──
+    // ─── Ping endpoint for network speed measurement (no auth, no rate limit) ──
     // Returns a ~1KB payload so the client can measure download speed.
     // Used by CloudflareMigrationService to adjust batch size dynamically.
+    // Excluded from rate limiting because it's a single lightweight request
+    // that runs once before migration starts.
     if (path === '/api/ping') {
       const payload = {
         status: 'ok',
@@ -140,17 +142,23 @@ export default {
     // ─── Extract client ID for rate limiting ─────────────────
     const clientIp = request.headers.get('CF-Connecting-IP') || 'unknown';
     const rateLimitWindow = parseInt(env.RATE_LIMIT_WINDOW, 10) || 60;
-    const rateLimitMax = parseInt(env.RATE_LIMIT_MAX, 10) || 100;
+    const rateLimitMax = parseInt(env.RATE_LIMIT_MAX, 10) || 1000;
 
     // ─── Rate limit check (D1-based, no KV daily limit) ─────
     const rateDb = new Database(env.DB);
     const rateResult = await checkRateLimit(rateDb, clientIp, rateLimitWindow, rateLimitMax);
     if (!rateResult.allowed) {
       logRequest(method, path, 429, Date.now() - startTime, clientIp);
-      return json(
-        { error: 'Rate limit exceeded', retry_after: rateResult.resetAt },
-        429,
-        env
+      // ✅ Add Retry-After header (seconds) for proper HTTP 429 semantics.
+      // Client should respect this header and not retry before it elapses.
+      const retryAfterSec = Math.ceil((rateResult.resetAt - Date.now()) / 1000);
+      const headers = new Headers({ 'Content-Type': 'application/json' });
+      const cors = corsHeaders(env.CORS_ORIGIN);
+      cors.forEach((val: string, key: string) => headers.set(key, val));
+      headers.set('Retry-After', String(Math.max(1, retryAfterSec)));
+      return new Response(
+        JSON.stringify({ error: 'Rate limit exceeded', retry_after: rateResult.resetAt }),
+        { status: 429, headers }
       );
     }
 

@@ -80,8 +80,9 @@ class CloudflareMigrationService {
   /// - 10-30 KB/s: 50 records per batch
   /// - > 30 KB/s: 100 records per batch (max efficiency)
   int _calculateBatchSize(double speedKBps) {
-    // With SQL + gzip + 15 parallel, effective speed is ~30x raw
-    final effectiveSpeed = speedKBps * 30;
+    // With SQL + gzip + 5 parallel, effective speed is ~15x raw
+    // (reduced from 30x with 15 parallel to respect rate limits)
+    final effectiveSpeed = speedKBps * 15;
     if (effectiveSpeed < 60) return 10;
     if (effectiveSpeed < 300) return 25;
     if (effectiveSpeed < 900) return 50;
@@ -169,10 +170,15 @@ class CloudflareMigrationService {
         }
 
         debugPrint('  📦 $entity: ${allBatches.length} SQL batches '
-            '($currentBatchSize records each, parallel=15, gzip=on)');
+            '($currentBatchSize records each, parallel=5, gzip=on)');
 
-        // Process batches in groups of 15 (parallel) for maximum throughput
-        const parallelCount = 15;
+        // Process batches in groups of 5 (parallel) — reduced from 15 to
+        // respect Cloudflare Worker rate limit (1000 req/min per IP).
+        // With 5 parallel + 500ms delay between groups, we send ~10 req/sec
+        // = 600 req/min, well within the 1000/min budget.
+        // The 15-parallel version was hitting 212 req in <60s, exceeding
+        // the old 100/min limit and causing HTTP 429 errors.
+        const parallelCount = 5;
         for (var g = 0; g < allBatches.length; g += parallelCount) {
           final group = allBatches.sublist(
             g,
@@ -198,6 +204,12 @@ class CloudflareMigrationService {
             totalPushed += result.pushed;
             totalFailed += result.failed;
             errors.addAll(result.errors);
+          }
+
+          // Rate-limit throttle: wait 500ms between parallel groups
+          // to avoid burst-requesting the Worker (prevents 429).
+          if (g + parallelCount < allBatches.length) {
+            await Future<void>.delayed(const Duration(milliseconds: 500));
           }
 
           // Report progress after each parallel group
@@ -424,6 +436,25 @@ class CloudflareMigrationService {
             }
           }
           return _BatchResult(pushed: pushed, failed: failed, errors: batchErrors);
+        } else if (response.statusCode == 429 && attempt < 3) {
+          // ✅ Rate limit handling: respect retry_after from server.
+          // The Worker returns { error, retry_after } where retry_after is
+          // a Unix timestamp (ms) when the rate limit window resets.
+          // We wait until that timestamp + 1s safety margin, then retry.
+          try {
+            final body = jsonDecode(response.body) as Map<String, dynamic>;
+            final retryAfterMs = body['retry_after'] as int? ?? 0;
+            final nowMs = DateTime.now().millisecondsSinceEpoch;
+            final waitMs = (retryAfterMs - nowMs).clamp(1000, 60000);
+            debugPrint('    ⏳ $entity SQL batch rate-limited (429), '
+                'waiting ${(waitMs / 1000).toStringAsFixed(1)}s before '
+                'retry $attempt/3...');
+            await Future<void>.delayed(Duration(milliseconds: waitMs + 1000));
+          } catch (_) {
+            // If we can't parse retry_after, use exponential backoff
+            await Future<void>.delayed(Duration(seconds: 5 * attempt));
+          }
+          continue;
         } else if (response.statusCode >= 500 && attempt < 3) {
           debugPrint('    ⚠️ $entity SQL batch HTTP ${response.statusCode}, '
               'retry $attempt/3...');

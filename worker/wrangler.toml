@@ -30,5 +30,5 @@ new_sqlite_classes = ["SyncLockDO"]
 [vars]
 JWT_EXPIRY_HOURS = "24"
 RATE_LIMIT_WINDOW = "60"
-RATE_LIMIT_MAX = "100"
+RATE_LIMIT_MAX = "1000"
 CORS_ORIGIN = "*"
