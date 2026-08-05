@@ -2864,7 +2864,7 @@ _ReportResult _processReportData(_ReportParams params) {
       dt = DateTime.parse(
         dateStr.length > 10 ? dateStr.replaceFirst(' ', 'T') : dateStr,
       );
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in income_expense_report_screen.dart: ');
       continue;
     }
@@ -2895,7 +2895,7 @@ _ReportResult _processReportData(_ReportParams params) {
       dt = DateTime.parse(
         dateStr.length > 10 ? dateStr.replaceFirst(' ', 'T') : dateStr,
       );
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in income_expense_report_screen.dart: ');
       continue;
     }

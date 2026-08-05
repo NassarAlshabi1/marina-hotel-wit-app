@@ -1836,7 +1836,7 @@ class GoogleDriveBackupService {
         } else {
           _log('ℹ️ مزامنة Appwrite معطلة');
         }
-      } catch (e, st) {
+      } catch (e) {
         _log('⚠️ خطأ في مزامنة Appwrite: $e');
         _logger.warning(
           'فشلت مزامنة Appwrite بعد الاستعادة: $e',

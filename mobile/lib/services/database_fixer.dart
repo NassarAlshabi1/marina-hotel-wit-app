@@ -250,7 +250,7 @@ class DatabaseFixer {
                   if (swRow != null) {
                     employeeIdFromWithdrawal = swRow.read<int>('employee_id');
                   }
-                } catch (e, st) {
+                } catch (e) {
       debugPrint('⚠️ Swallowed error in database_fixer.dart: ');
                   // العمود expense_id قد لا يكون موجوداً في DBs القديمة جداً.
                 }

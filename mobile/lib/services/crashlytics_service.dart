@@ -71,7 +71,7 @@ class CrashlyticsService {
   Future<void> setRoomNumber(String roomNumber) async {
     try {
       await _crashlytics?.setCustomKey('room_number', roomNumber);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 
@@ -79,7 +79,7 @@ class CrashlyticsService {
   Future<void> setSyncStatus(String status) async {
     try {
       await _crashlytics?.setCustomKey('sync_status', status);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 
@@ -87,7 +87,7 @@ class CrashlyticsService {
   Future<void> setUserRole(String role) async {
     try {
       await _crashlytics?.setCustomKey('user_role', role);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 
@@ -95,7 +95,7 @@ class CrashlyticsService {
   Future<void> setHotelDayKey(String hotelDayKey) async {
     try {
       await _crashlytics?.setCustomKey('hotel_day_key', hotelDayKey);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 
@@ -103,7 +103,7 @@ class CrashlyticsService {
   Future<void> setSyncEngine(String engine) async {
     try {
       await _crashlytics?.setCustomKey('sync_engine', engine);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 
@@ -111,7 +111,7 @@ class CrashlyticsService {
   Future<void> setNetworkType(String networkType) async {
     try {
       await _crashlytics?.setCustomKey('network_type', networkType);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 
@@ -119,7 +119,7 @@ class CrashlyticsService {
   Future<void> setDeviceId(String deviceId) async {
     try {
       await _crashlytics?.setCustomKey('device_id', deviceId);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 
@@ -290,7 +290,7 @@ class CrashlyticsService {
           ...extra.entries.map((e) => '${e.key}: ${e.value}'),
         ],
       );
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');
       // لا نوقف التطبيق بسبب فشل Crashlytics
     }
@@ -347,7 +347,7 @@ class CrashlyticsService {
           ...context.entries.map((e) => '${e.key}: ${e.value}'),
         ],
       );
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 
@@ -397,7 +397,7 @@ class CrashlyticsService {
         stackTrace ?? StackTrace.current,
         reason: context ?? 'unexpected_error',
       );
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 
@@ -409,7 +409,7 @@ class CrashlyticsService {
 
     try {
       await _crashlytics?.log(message);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 
@@ -441,7 +441,7 @@ class CrashlyticsService {
             customKeys?.entries.map((e) => '${e.key}: ${e.value}').toList() ??
             [],
       );
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 
@@ -457,7 +457,7 @@ class CrashlyticsService {
 
     try {
       await _crashlytics?.setUserIdentifier(userId);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 
@@ -469,7 +469,7 @@ class CrashlyticsService {
 
     try {
       await _crashlytics?.setCustomKey(key, value.toString());
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 
@@ -490,7 +490,7 @@ class CrashlyticsService {
 
     try {
       await _crashlytics?.sendUnsentReports();
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 
@@ -517,7 +517,7 @@ class CrashlyticsService {
 
     try {
       _crashlytics?.recordFlutterFatalError(details);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 
@@ -528,7 +528,7 @@ class CrashlyticsService {
 
     try {
       _crashlytics?.recordError(error, stack, fatal: true);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 

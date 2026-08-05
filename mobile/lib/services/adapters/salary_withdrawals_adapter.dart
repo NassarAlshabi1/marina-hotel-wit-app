@@ -29,7 +29,7 @@ class SalaryWithdrawalsAdapter
           salaryWithdrawalId,
         ],
       );
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in salary_withdrawals_adapter.dart: ');
       // العمود قد لا يكون موجوداً
     }

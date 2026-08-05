@@ -49,7 +49,7 @@ class _GoogleDriveLoginScreenState
           );
         }
       }
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in google_drive_login_screen.dart: ');
       // فشل الصامت — يظهر الواجهة العادية
     }

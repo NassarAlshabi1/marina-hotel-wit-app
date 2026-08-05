@@ -86,7 +86,7 @@ class WhatsAppService {
               json['correspondentsStatus']?['description'] as String? ??
               'تجاوز الحصة الشهرية';
           return (success: false, quotaMessage: desc);
-        } catch (e, st) {
+        } catch (e) {
       debugPrint('⚠️ Swallowed error in whatsapp_service.dart: ');
           return (success: false, quotaMessage: 'تجاوز الحصة الشهرية');
         }

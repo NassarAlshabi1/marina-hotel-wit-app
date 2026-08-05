@@ -242,7 +242,7 @@ int? _epoch(Map<String, dynamic> json, String key, Source src) {
   final normalized = s.contains('T') ? s : s.replaceFirst(' ', 'T');
   try {
     return DateTime.parse(normalized).millisecondsSinceEpoch ~/ 1000;
-  } catch (e, st) {
+  } catch (e) {
       debugPrint('⚠️ Swallowed error in shift_notes_adapter.dart: ');
     return null;
   }

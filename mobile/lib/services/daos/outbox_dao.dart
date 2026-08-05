@@ -230,7 +230,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       deliveredToSecondary =
           !SecondaryAppwriteConfig.isEnabled ||
           !SecondaryAppwriteConfig.isPushEnabled;
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in outbox_dao.dart: ');
       // إذا فشل الوصول للإعدادات (SharedPreferences غير مهيأ)، نستخدم true (آمن)
     }
@@ -887,7 +887,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       if (fetchRemote != null) {
         try {
           remote = await fetchRemote(entry.entity, entry.localUuid);
-        } catch (e, st) {
+        } catch (e) {
       debugPrint('⚠️ Swallowed error in outbox_dao.dart: ');
           // فشل جلب البيانات البعيدة — نستخدم fallback
         }
@@ -1042,7 +1042,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       deliveredToSecondary =
           !SecondaryAppwriteConfig.isEnabled ||
           !SecondaryAppwriteConfig.isPushEnabled;
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in outbox_dao.dart: ');}
 
     if (source == 'local' && op != 'delete') {
@@ -1147,7 +1147,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
           localUuid,
         ],
       );
-    } catch (e, st) {
+    } catch (e) {
       // ✅ تحسين: تسجيل الخطأ بدلاً من التجاهل الصامت
       // الـ VC bump ليس حرجاً لدرجة تعطيل الكتابة، لكنه مهم لكشف التعارضات
       // نسجّل محلياً + نُرسل إلى Crashlytics بـ low severity

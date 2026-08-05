@@ -1298,7 +1298,7 @@ void _unifiedCallbackDispatcher() {
           );
           return await _executeLegacySyncTask(task, inputData);
       }
-    } catch (e, st) {
+    } catch (e) {
       developer.log(
         '❌ [WorkManager] Task $task failed',
         name: 'WorkManager',
@@ -1382,7 +1382,7 @@ Future<bool> _executeSyncCompletionTask(
     }
 
     return success;
-  } catch (e, st) {
+  } catch (e) {
     developer.log(
       '❌ [SyncContinuation] فشل',
       name: 'SyncContinuation',
@@ -1419,7 +1419,7 @@ Future<bool> _executeAutoSyncTask(
     await prefs.setBool('auto_sync_pending', !success);
 
     return success;
-  } catch (e, st) {
+  } catch (e) {
     developer.log(
       '❌ [AutoSyncTask] فشل',
       name: 'AutoSyncTask',
@@ -1440,7 +1440,7 @@ Future<bool> _executeBackupAfterInactivity(
       reason: 'workmanager_backup_inactivity',
     );
     return success;
-  } catch (e, st) {
+  } catch (e) {
     developer.log(
       '❌ [BackupInactivity] فشل',
       name: 'BackupInactivity',
@@ -1461,7 +1461,7 @@ Future<bool> _executeLegacySyncTask(
       reason: 'workmanager_legacy_$task',
     );
     return success;
-  } catch (e, st) {
+  } catch (e) {
     developer.log(
       '❌ [LegacySync] فشل ($task)',
       name: 'LegacySync',

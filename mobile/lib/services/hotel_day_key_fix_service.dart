@@ -95,7 +95,7 @@ class HotelDayKeyFixService {
       return HotelTimeEngine.getHotelDayKey(
         dateTime: DateTime(year, month, day, 14, 1),
       );
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in hotel_day_key_fix_service.dart: ');
       return HotelTimeEngine.getHotelDayKey();
     }
@@ -416,7 +416,7 @@ class HotelDayKeyFixService {
                 [item.expenseId, item.id],
               );
             }
-          } catch (e, st) {
+          } catch (e) {
       debugPrint('⚠️ Swallowed error in hotel_day_key_fix_service.dart: ');
             // العمود قد لا يكون موجوداً
           }

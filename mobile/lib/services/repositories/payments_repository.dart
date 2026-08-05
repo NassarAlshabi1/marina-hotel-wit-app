@@ -131,7 +131,7 @@ class PaymentsRepository {
       });
 
       unawaited(
-        AutoBackupManager.instance.onDataChange(
+        unawaited(AutoBackupManager.instance.onDataChange(
           'payments',
           'INSERT',
           recordData: {'amount': amount},
@@ -230,7 +230,7 @@ class PaymentsRepository {
 
       if (result > 0) {
         unawaited(
-          AutoBackupManager.instance.onDataChange(
+          unawaited(AutoBackupManager.instance.onDataChange(
             'payments',
             'UPDATE',
             recordData: {'id': id},
@@ -268,7 +268,7 @@ class PaymentsRepository {
 
       if (result > 0) {
         unawaited(
-          AutoBackupManager.instance.onDataChange(
+          unawaited(AutoBackupManager.instance.onDataChange(
             'payments',
             'DELETE',
             recordData: {'id': id},
@@ -378,7 +378,7 @@ class PaymentsRepository {
             roomNumber = booking.roomNumber;
             guestName = booking.guestName;
           }
-        } catch (e, st) {
+        } catch (e) {
       debugPrint('⚠️ Swallowed error in payments_repository.dart: ');}
       }
 
@@ -391,7 +391,7 @@ class PaymentsRepository {
         ),
       );
       unawaited(
-        TelegramNotificationService.instance.notifyPayment(
+        unawaited(TelegramNotificationService.instance.notifyPayment(
           roomNumber: roomNumber,
           guestName: guestName,
           amount: payment.amount,

@@ -125,7 +125,7 @@ class SqliteBackupRestore {
 
       debugPrint('✅ SQLite backup created at: $destPath');
       return destPath;
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('❌ Failed to backup database: $e\n$st');
       rethrow;
     }
@@ -260,7 +260,7 @@ class SqliteBackupRestore {
       }
 
       debugPrint('✅ SQLite database restored from: $sourcePath');
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('❌ Failed to restore database: $e\n$st');
       rethrow;
     }

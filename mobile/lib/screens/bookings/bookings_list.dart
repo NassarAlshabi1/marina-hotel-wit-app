@@ -751,7 +751,7 @@ String _formatDate(String s) {
   try {
     final d = DateTime.parse(s);
     return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-  } catch (e, st) {
+  } catch (e) {
       debugPrint('⚠️ Swallowed error in bookings_list.dart: ');
     return s;
   }

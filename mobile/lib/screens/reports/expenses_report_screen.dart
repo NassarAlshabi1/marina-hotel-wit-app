@@ -315,7 +315,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         for (final sw in salaryWithdrawals) {
           employeeIds.add(sw.employeeId);
         }
-      } catch (e, st) {
+      } catch (e) {
       debugPrint('⚠️ Swallowed error in expenses_report_screen.dart: ');
         // في حال عدم وجود الجدول أو خطأ آخر
       }
@@ -380,7 +380,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
             swExpenseIdMap[swId] = expId;
           }
         }
-      } catch (e, st) {
+      } catch (e) {
       debugPrint('⚠️ Swallowed error in expenses_report_screen.dart: ');
         // العمود قد لا يكون موجوداً بعد في الإصدارات القديمة — نتخطى
       }
@@ -1366,7 +1366,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   static int? _readNullableInt(QueryRow row, String column) {
     try {
       return row.read<int>(column);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in expenses_report_screen.dart: ');
       return null;
     }

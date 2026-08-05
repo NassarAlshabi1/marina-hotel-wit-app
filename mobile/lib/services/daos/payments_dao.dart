@@ -322,7 +322,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
                   .getSingleOrNull();
           roomNumber = booking?.roomNumber;
           guestName = booking?.guestName;
-        } catch (e, st) {
+        } catch (e) {
       debugPrint('⚠️ Swallowed error in payments_dao.dart: ');
           // تجاهل — roomNumber/guestName اختياريان في الإشعار
         }

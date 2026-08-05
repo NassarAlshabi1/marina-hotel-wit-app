@@ -243,7 +243,7 @@ class BookingDerivedFieldsService {
     final withSeconds = normalized.length == 16 ? '$normalized:00' : normalized;
     try {
       return DateTime.parse(withSeconds);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in booking_derived_fields_service.dart: ');
       return null;
     }

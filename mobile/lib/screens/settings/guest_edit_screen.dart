@@ -407,7 +407,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
           'lastModified': nowEpoch,
         },
       );
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in guest_edit_screen.dart: ');
       // سجل التدقيق غير حرج — لا نوقف العملية إذا فشل
     }
@@ -586,7 +586,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     }
     try {
       return DateTime.parse(value);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in guest_edit_screen.dart: ');
       return null;
     }

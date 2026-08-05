@@ -331,7 +331,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         return DateTime.parse(
           b.paymentDate,
         ).compareTo(DateTime.parse(a.paymentDate));
-      } catch (e, st) {
+      } catch (e) {
       debugPrint('⚠️ Swallowed error in payments_main_screen.dart: ');
         return 0;
       }

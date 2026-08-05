@@ -74,7 +74,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
           : dateStr.replaceFirst(' ', 'T');
       final dt = DateTime.parse(normalized);
       return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in finance_screen.dart: ');
       // Fallback: محاولة split على المسافة
       final parts = dateStr.split(' ');
@@ -1105,7 +1105,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
       if (result.quotaMessage != null) {
         debugPrint('تجاوز حصة الواتساب: ${result.quotaMessage}');
       }
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in finance_screen.dart: ');
       debugPrint('تعذّر إرسال إشعار واتساب للدفعة التراكمية');
     }

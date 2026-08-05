@@ -121,7 +121,7 @@ class GoogleDriveSignInManager {
   Future<void> signOut() async {
     try {
       await client.signOut();
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in google_drive_sign_in_manager.dart: ');}
     await persistSignInState(null);
   }

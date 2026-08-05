@@ -73,7 +73,7 @@ class AppwriteBackupService {
           break;
         }
         offset += limit;
-      } catch (e, st) {
+      } catch (e) {
       debugPrint('⚠️ Swallowed error in appwrite_backup_service.dart: ');
         usedFallback = true;
         break;
@@ -89,7 +89,7 @@ class AppwriteBackupService {
                 collectionId: id,
               );
           allCollections.add(collection);
-        } catch (e, st) {
+        } catch (e) {
       debugPrint('⚠️ Swallowed error in appwrite_backup_service.dart: ');
           allCollections.add({r'$id': id});
         }
@@ -106,7 +106,7 @@ class AppwriteBackupService {
     try {
       final map = (collection as dynamic).toMap();
       return Map<String, dynamic>.from(map as Map);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in appwrite_backup_service.dart: ');
       try {
         final dynamic c = collection;
@@ -117,7 +117,7 @@ class AppwriteBackupService {
           'documentSecurity': c.documentSecurity,
           'permissions': c.permissions,
         };
-      } catch (e, st) {
+      } catch (e) {
       debugPrint('⚠️ Swallowed error in appwrite_backup_service.dart: ');
         return {'raw': collection.toString()};
       }

@@ -99,7 +99,7 @@ class BookingsRepository {
       });
 
       unawaited(
-        AutoBackupManager.instance.onDataChange(
+        unawaited(AutoBackupManager.instance.onDataChange(
           'bookings',
           'INSERT',
           recordData: {'id': result},
@@ -228,7 +228,7 @@ class BookingsRepository {
 
       if (result > 0) {
         unawaited(
-          AutoBackupManager.instance.onDataChange(
+          unawaited(AutoBackupManager.instance.onDataChange(
             'bookings',
             'UPDATE',
             recordData: {'id': id},
@@ -260,7 +260,7 @@ class BookingsRepository {
       final result = await dao.softDelete(id);
       if (result > 0) {
         unawaited(
-          AutoBackupManager.instance.onDataChange(
+          unawaited(AutoBackupManager.instance.onDataChange(
             'bookings',
             'DELETE',
             recordData: {'id': id},
@@ -437,7 +437,7 @@ class BookingsRepository {
         ),
       );
       unawaited(
-        TelegramNotificationService.instance.notifyNewBooking(
+        unawaited(TelegramNotificationService.instance.notifyNewBooking(
           roomNumber: roomNumber,
           guestName: guestName,
           guestPhone: guestPhone,
@@ -475,7 +475,7 @@ class BookingsRepository {
           ),
         );
         unawaited(
-          TelegramNotificationService.instance.notifyCheckIn(
+          unawaited(TelegramNotificationService.instance.notifyCheckIn(
             roomNumber: roomNumber,
             guestName: guestName,
             guestPhone: booking.guestPhone,
@@ -496,7 +496,7 @@ class BookingsRepository {
           ),
         );
         unawaited(
-          TelegramNotificationService.instance.notifyCheckOut(
+          unawaited(TelegramNotificationService.instance.notifyCheckOut(
             roomNumber: roomNumber,
             guestName: guestName,
             actualNights: booking.calculatedNights,

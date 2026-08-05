@@ -28,7 +28,7 @@ class SalaryWithdrawalsRepository {
           salaryWithdrawalId,
         ],
       );
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in salary_withdrawals_repository.dart: ');
       // العمود قد لا يكون موجوداً في الإصدارات القديمة — نتخطى بصمت
     }
@@ -43,7 +43,7 @@ class SalaryWithdrawalsRepository {
             ..limit(1))
           .getSingleOrNull();
       return emp?.name;
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in salary_withdrawals_repository.dart: ');
       return null;
     }
@@ -175,7 +175,7 @@ class SalaryWithdrawalsRepository {
           matched = byId;
         }
       }
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in salary_withdrawals_repository.dart: ');
       // العمود قد لا يكون موجوداً
     }
@@ -419,7 +419,7 @@ class SalaryWithdrawalsRepository {
           _db.salaryWithdrawals,
         )..where((t) => t.id.isIn(ids))).get();
       }
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in salary_withdrawals_repository.dart: ');
       // العمود قد لا يكون موجوداً
     }
@@ -519,7 +519,7 @@ class SalaryWithdrawalsRepository {
       return HotelTimeEngine.getHotelDayKey(
         dateTime: DateTime(year, month, day, 14, 1),
       );
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in salary_withdrawals_repository.dart: ');
       return HotelTimeEngine.getHotelDayKey();
     }

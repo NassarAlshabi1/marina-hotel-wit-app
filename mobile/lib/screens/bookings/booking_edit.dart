@@ -1106,7 +1106,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       // إشعار أنظمة المزامنة والنسخ الاحتياطي بالتغييرات (method واحد موحد)
       await ref
           .read(centralSyncCoordinatorProvider)
-          .notifyTableChange(table: 'rooms', operation: 'batch_update_status');
+          unawaited(.notifyTableChange(table: 'rooms', operation: 'batch_update_status');
     } catch (e) {
       debugPrint('Error refreshing room occupancy: $e');
     }
@@ -1120,7 +1120,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     final withSeconds = normalized.length == 16 ? '$normalized:00' : normalized;
     try {
       return DateTime.parse(withSeconds);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in booking_edit.dart: ');
       return null;
     }

@@ -26,7 +26,7 @@ class DateParser {
     final withSeconds = normalized.length == 16 ? '$normalized:00' : normalized;
     try {
       return DateTime.parse(withSeconds);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in date_parser.dart: ');
       return null;
     }

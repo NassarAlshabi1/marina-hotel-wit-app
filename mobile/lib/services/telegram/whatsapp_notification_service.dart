@@ -68,7 +68,7 @@ class WhatsAppNotificationService {
   bool _checkWhatsAppEnabled() {
     try {
       return RemoteConfigService.instance.whatsappEnabled;
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in whatsapp_notification_service.dart: ');
       // Remote Config غير متاح — الإشعارات مفعلة افتراضياً
       return true;
@@ -148,7 +148,7 @@ class WhatsAppNotificationService {
           if (json['success'] == true || json['sent'] == true) {
             return true;
           }
-        } catch (e, st) {
+        } catch (e) {
       debugPrint('⚠️ Swallowed error in whatsapp_notification_service.dart: ');
           if (body.toLowerCase().contains('sent') ||
               body.toLowerCase().contains('ok') ||

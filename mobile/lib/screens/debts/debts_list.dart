@@ -1,3 +1,4 @@
+    }
 // TODO(phase-2): remove this ignore and fix violations (discarded_futures)
 // ignore_for_file: discarded_futures
 // ignore_for_file: use_build_context_synchronously
@@ -868,8 +869,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           .map((p) => p as Map<String, dynamic>)
           .where((p) => p['amount'] != null)
           .toList();
-    } catch (e, st) {
-      debugPrint('⚠️ Swallowed error in debts_list.dart: ');
+    } catch (e) {
+      debugPrint('⚠️ Swallowed error in debts_list.dart: $e');
       return [];
     }
   }
@@ -887,8 +888,9 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       try {
         final decoded = jsonDecode(debt.note ?? '{}') as Map<String, dynamic>;
         originalNote = decoded['original_note'] as String?;
-      } catch (e, st) {
-      debugPrint('⚠️ Swallowed error in debts_list.dart: ');}
+      } catch (e) {
+        debugPrint('⚠️ Swallowed error in debts_list.dart: $e');
+      }
     } else if (debt.note != null &&
         debt.note!.isNotEmpty &&
         !debt.note!.startsWith('{')) {
@@ -1606,8 +1608,9 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       if (booking != null) {
         phone = booking.guestPhone;
       }
-    } catch (e, st) {
-      debugPrint('⚠️ Swallowed error in debts_list.dart: ');}
+    } catch (e) {
+      debugPrint('⚠️ Swallowed error in debts_list.dart: $e');
+    }
 
     if (phone.isEmpty) {
       if (mounted) {
@@ -1768,4 +1771,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       );
     }
   }
+}
+
+}
 }

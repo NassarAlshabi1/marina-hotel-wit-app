@@ -263,7 +263,7 @@ class LocalBackupService {
 
         try {
           await db.customSelect('PRAGMA wal_checkpoint(FULL)').get();
-        } catch (e, st) {
+        } catch (e) {
           AppLogger.error(
             'فشل تنفيذ WAL checkpoint',
             tag: 'BACKUP',
@@ -273,7 +273,7 @@ class LocalBackupService {
         }
         try {
           await db.customStatement('VACUUM');
-        } catch (e, st) {
+        } catch (e) {
           AppLogger.error(
             'فشل تنفيذ VACUUM',
             tag: 'BACKUP',
@@ -771,7 +771,7 @@ class LocalBackupService {
             name: 'SyncSafety',
           );
         }
-      } catch (e, st) {
+      } catch (e) {
       debugPrint('⚠️ Swallowed error in local_backup_service.dart: ');}
     }
   }
@@ -966,7 +966,7 @@ class LocalBackupService {
         } catch (e) {
           try {
             await File(newFilePath).delete();
-          } catch (e, st) {
+          } catch (e) {
             // تجاهل مقصود — تنظيف أفضل جهد
             AppLogger.warning(
               'فشل حذف ملف مؤقت أثناء الاستعادة',

@@ -72,7 +72,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       final db = ref.read(databaseProvider);
       final derivedService = BookingDerivedFieldsService(db);
       await derivedService.refreshAllActiveBookings();
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in payments_report_screen.dart: ');}
     await _fetchReport();
   }
@@ -681,7 +681,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         : value.replaceFirst(' ', 'T');
     try {
       return DateTime.parse(normalized);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in payments_report_screen.dart: ');
       // طباعة الخطأ (اختياري) وإرجاع null ليتجاهل المُستدعي السجل
       debugPrint('_parseDateTime: فشل تحليل "$value"');

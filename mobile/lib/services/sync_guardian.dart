@@ -108,7 +108,7 @@ class SyncGuardian {
         dwarn(() => 'فشل رفع التغييرات: $e');
         try {
           await AutoSyncTask.scheduleImmediateSync();
-        } catch (e, st) {
+        } catch (e) {
           AppLogger.warning(
             'فشل فحص حماية المزامنة',
             tag: 'SYNC_GUARD',

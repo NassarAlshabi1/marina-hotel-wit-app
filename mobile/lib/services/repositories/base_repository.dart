@@ -87,7 +87,7 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
         return await db
             .into(table)
             .insert(comp, onConflict: DoUpdate((_) => comp, target: target));
-      } catch (e, st) {
+      } catch (e) {
         lastError = e;
         lastStack = st;
         if (_isUniqueConstraintError(e)) {
@@ -389,7 +389,7 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
 
         final comp = adapter.fromJson(jsonCopy, src: src, refs: refs);
         companions.add(comp);
-      } catch (e, st) {
+      } catch (e) {
         developer.log(
           'Pre-resolve failed for row in ${table.actualTableName}',
           error: e,
@@ -424,7 +424,7 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
           (b) => b.insertAll(table, chunk, mode: InsertMode.insertOrReplace),
         );
         inserted += chunk.length;
-      } catch (e, st) {
+      } catch (e) {
         // ✅ fallback: عند فشل chunk كامل، نتراجع للإدراج صف-بصف
         // للحفاظ على عزل الأخطاء (skip bad row, continue)
         developer.log(

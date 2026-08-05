@@ -26,7 +26,7 @@ class PdfUtils {
       final data = await rootBundle.load('assets/images/hotel_logo.jpg');
       final Uint8List bytes = data.buffer.asUint8List();
       return pw.MemoryImage(bytes);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in pdf_utils.dart: ');
       return null;
     }

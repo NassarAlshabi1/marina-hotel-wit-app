@@ -301,7 +301,7 @@ class PerformanceMonitor {
           );
         }
       }
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in performance_monitor.dart: ');}
   }
 

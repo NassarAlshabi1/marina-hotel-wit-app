@@ -44,7 +44,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     try {
       final info = await PackageInfo.fromPlatform();
       return '${info.version}+${info.buildNumber}';
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in settings_screen.dart: ');
       return '1.2.0+3';
     }

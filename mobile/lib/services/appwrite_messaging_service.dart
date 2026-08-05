@@ -102,7 +102,7 @@ class AppwriteMessagingService {
 
       _isInitialized = true;
       debugPrint('✅ Appwrite Messaging Service initialized');
-    } catch (e, st) {
+    } catch (e) {
       AppLogger.error(
         'فشل تهيئة Appwrite Messaging',
         tag: 'Messaging',
@@ -202,7 +202,7 @@ class AppwriteMessagingService {
       _subscribeToRealtime();
 
       return deviceId;
-    } catch (e, st) {
+    } catch (e) {
       AppLogger.error(
         'فشل تسجيل جهاز في Messaging',
         tag: 'Messaging',
@@ -298,7 +298,7 @@ class AppwriteMessagingService {
       );
 
       debugPrint('✅ Subscribed to Messaging Realtime');
-    } catch (e, st) {
+    } catch (e) {
       AppLogger.error(
         'فشل الاشتراك في Realtime',
         tag: 'Messaging',

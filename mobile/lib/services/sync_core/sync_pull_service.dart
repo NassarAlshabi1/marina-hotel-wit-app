@@ -92,7 +92,7 @@ class SyncPullService {
       final isMillis = value != null && value > 10000000000;
       _remoteEpochIsMillis = isMillis;
       return isMillis;
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in sync_pull_service.dart: ');
       _remoteEpochIsMillis = false;
       return false;
@@ -190,7 +190,7 @@ class SyncPullService {
         return ts ~/ 1000;
       }
       return ts;
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in sync_pull_service.dart: ');
       _logger.warning('Failed to read lastPullTs, using 0', tag: 'SYNC');
       return 0;

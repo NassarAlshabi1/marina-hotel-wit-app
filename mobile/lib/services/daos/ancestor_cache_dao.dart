@@ -48,7 +48,7 @@ class AncestorCacheDao extends DatabaseAccessor<AppDatabase>
     if (row == null) return null;
     try {
       return jsonDecode(row.dataJson) as Map<String, dynamic>;
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in ancestor_cache_dao.dart: ');
       return null;
     }

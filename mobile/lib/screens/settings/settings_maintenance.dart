@@ -138,7 +138,7 @@ class _SettingsMaintenanceScreenState
             : (v is num)
             ? v.toInt()
             : 0;
-      } catch (e, st) {
+      } catch (e) {
       debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
     }
 
@@ -163,7 +163,7 @@ class _SettingsMaintenanceScreenState
     int outboxCount = 0;
     try {
       outboxCount = await ref.read(outboxDaoProvider).count();
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
 
     // Logs
@@ -176,7 +176,7 @@ class _SettingsMaintenanceScreenState
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       appVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
     try {
       final deviceInfo = DeviceInfoPlugin();
@@ -189,7 +189,7 @@ class _SettingsMaintenanceScreenState
         deviceModel = ios.name;
         osVersion = 'iOS ${ios.systemVersion}';
       }
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
 
     return _SystemInfo(
@@ -1163,7 +1163,7 @@ class _SettingsMaintenanceScreenState
                 // ✅ إصلاح P1: إعادة تهيئة المزامنة بعد reset
                 try {
                   await ref.read(syncGuardianProvider).restart();
-                } catch (e, st) {
+                } catch (e) {
       debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
 
                 _hideLoading();
@@ -1176,7 +1176,7 @@ class _SettingsMaintenanceScreenState
                 // ✅ P0 fix: ضمان إعادة فتح قاعدة البيانات حتى لو فشل الحذف
                 try {
                   await DatabaseManager.reopen();
-                } catch (e, st) {
+                } catch (e) {
       debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
               }
             },

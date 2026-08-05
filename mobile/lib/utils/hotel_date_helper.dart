@@ -68,7 +68,7 @@ class HotelDateHelper {
           : isoString.trim().replaceFirst(' ', 'T');
       final dt = DateTime.parse(normalized);
       return getHotelDayKey(dateTime: dt);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in hotel_date_helper.dart: ');
       return getHotelDayKey();
     }

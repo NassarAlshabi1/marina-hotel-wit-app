@@ -251,7 +251,7 @@ void _invalidateAll(WidgetRef ref, String listKey) {
 final expenseTypesProvider = FutureProvider<List<String>>((ref) async {
   try {
     return await ref.watch(customListNamesProvider(kListKeyExpenseType).future);
-  } catch (e, st) {
+  } catch (e) {
       debugPrint('⚠️ Swallowed error in custom_list_providers.dart: ');
     return kDefaultExpenseTypes;
   }

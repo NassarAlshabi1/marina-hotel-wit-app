@@ -133,7 +133,7 @@ DateTime _parseDateTime(dynamic value) {
   if (value is String) {
     try {
       return DateTime.parse(value);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in financial_models.dart: ');
       return DateTime(1970);
     }

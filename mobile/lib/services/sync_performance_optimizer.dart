@@ -231,10 +231,10 @@ class SyncPerformanceOptimizer {
       );
       await response.drain<void>();
       return response.statusCode < HttpStatus.internalServerError;
-    } on SocketException catch (e, st) {
+    } on SocketException catch (e) {
       debugPrint('⚠️ Swallowed error in sync_performance_optimizer.dart: ');
       return false;
-    } on TimeoutException catch (e, st) {
+    } on TimeoutException catch (e) {
       debugPrint('⚠️ Swallowed error in sync_performance_optimizer.dart: ');
       return false;
     } catch (e) {

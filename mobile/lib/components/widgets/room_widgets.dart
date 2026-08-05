@@ -315,7 +315,7 @@ class RoomsGrid extends StatelessWidget {
           room = roomData.room as Room;
           customColor = roomData.roomColor as Color?;
           isPaymentOverdue = roomData.isPaymentOverdue as bool;
-        } catch (e, st) {
+        } catch (e) {
       debugPrint('⚠️ Swallowed error in room_widgets.dart: ');
           room = roomData as Room;
         }
@@ -404,7 +404,7 @@ class _FloorSectionState extends State<FloorSection>
       Room room;
       try {
         room = roomData.room as Room;
-      } catch (e, st) {
+      } catch (e) {
       debugPrint('⚠️ Swallowed error in room_widgets.dart: ');
         room = roomData as Room;
       }

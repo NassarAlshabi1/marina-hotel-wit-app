@@ -47,7 +47,7 @@ class EmployeesRepository {
         ),
       );
       unawaited(
-        AutoBackupManager.instance.onDataChange(
+        unawaited(AutoBackupManager.instance.onDataChange(
           'employees',
           'INSERT',
           recordData: {'name': name},
@@ -107,7 +107,7 @@ class EmployeesRepository {
       );
       if (result > 0) {
         unawaited(
-          AutoBackupManager.instance.onDataChange(
+          unawaited(AutoBackupManager.instance.onDataChange(
             'employees',
             'UPDATE',
             recordData: {'id': id},
@@ -178,7 +178,7 @@ class EmployeesRepository {
       );
       if (result > 0) {
         unawaited(
-          AutoBackupManager.instance.onDataChange(
+          unawaited(AutoBackupManager.instance.onDataChange(
             'employees',
             'TERMINATE',
             recordData: {'id': id, 'type': terminationType},
@@ -212,7 +212,7 @@ class EmployeesRepository {
       );
       if (result > 0) {
         unawaited(
-          AutoBackupManager.instance.onDataChange(
+          unawaited(AutoBackupManager.instance.onDataChange(
             'employees',
             'REACTIVATE',
             recordData: {'id': id},
@@ -237,7 +237,7 @@ class EmployeesRepository {
       final result = await dao.softDelete(id);
       if (result > 0) {
         unawaited(
-          AutoBackupManager.instance.onDataChange(
+          unawaited(AutoBackupManager.instance.onDataChange(
             'employees',
             'DELETE',
             recordData: {'id': id},

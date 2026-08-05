@@ -62,7 +62,7 @@ class SalaryPaymentsAdapter
         if (row != null) {
           resolvedCycleId = row.id;
         }
-      } catch (e, st) {
+      } catch (e) {
       debugPrint('⚠️ Swallowed error in salary_payments_adapter.dart: ');}
     }
 

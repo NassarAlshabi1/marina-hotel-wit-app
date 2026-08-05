@@ -91,7 +91,7 @@ class PasswordHasher {
 
       // مقارنة ثابتة الزمن (constant-time comparison) لمنع timing attacks
       return _constantTimeEquals(expectedHash, actualHash);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in password_hasher.dart: ');
       return false;
     }

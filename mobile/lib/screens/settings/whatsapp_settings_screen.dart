@@ -457,7 +457,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
   Future<void> _openUrl(String url) async {
     try {
       await Process.run('xdg-open', [url]);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in whatsapp_settings_screen.dart: ');}
   }
 

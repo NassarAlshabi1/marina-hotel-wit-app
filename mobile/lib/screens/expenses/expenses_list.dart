@@ -883,7 +883,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         // بعد 14:01 → التاريخ = اليوم الحالي (اليوم الفندقي الحالي)
         selectedDate = HotelTimeEngine.getHotelDay(DateTime.now());
       }
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in expenses_list.dart: ');
       selectedDate = HotelTimeEngine.getHotelDay(DateTime.now());
     }

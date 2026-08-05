@@ -341,7 +341,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           errorMessage: e.toString(),
           durationMs: stopwatch.elapsedMilliseconds,
         );
-      } catch (e, st) {
+      } catch (e) {
       debugPrint('⚠️ Swallowed error in dashboard_sync_button.dart: ');}
 
       if (mounted) {
@@ -380,7 +380,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     try {
       controller.stop();
       controller.reset();
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in dashboard_sync_button.dart: ');
       // الـ controller تم dispose — تجاهل
     }

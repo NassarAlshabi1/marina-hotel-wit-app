@@ -184,7 +184,7 @@ class RestoreFixService {
   Future<Directory> _resolveCacheDirectory() async {
     try {
       return await getApplicationCacheDirectory();
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in restore_fix_service.dart: ');
       return Directory.systemTemp.createTemp('marina_cache_');
     }
@@ -1076,7 +1076,7 @@ class RestoreFixService {
     }
     try {
       return DateTime.parse(raw);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in restore_fix_service.dart: ');
       return null;
     }

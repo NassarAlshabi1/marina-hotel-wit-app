@@ -909,7 +909,7 @@ class _SecondaryAppwriteSettingsScreenState
       await SecondaryAppwriteConfig.setFailoverActive(active);
       try {
         await AppwriteSyncManager().initialize();
-      } catch (e, st) {
+      } catch (e) {
       debugPrint('⚠️ Swallowed error in secondary_appwrite_settings_screen.dart: ');}
 
       if (mounted) {

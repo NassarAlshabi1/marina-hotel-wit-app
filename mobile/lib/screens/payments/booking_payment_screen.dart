@@ -1082,7 +1082,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         );
       }
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in booking_payment_screen.dart: ');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1405,7 +1405,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         );
       }
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in booking_payment_screen.dart: ');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2308,7 +2308,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         );
       }
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in booking_payment_screen.dart: ');
       // تجاهل الأخطاء
     }
@@ -4037,7 +4037,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         );
       }
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in booking_payment_screen.dart: ');
       // تجاهل الأخطاء، الدفعة مسجلة بنجاح
     }

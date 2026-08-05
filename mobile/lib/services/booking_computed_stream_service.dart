@@ -63,7 +63,7 @@ DateTime? _parseDate(String? value) {
   final withSeconds = normalized.length == 16 ? '$normalized:00' : normalized;
   try {
     return DateTime.parse(withSeconds);
-  } catch (e, st) {
+  } catch (e) {
       debugPrint('⚠️ Swallowed error in booking_computed_stream_service.dart: ');
     return null;
   }

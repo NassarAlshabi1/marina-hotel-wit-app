@@ -19,7 +19,7 @@ final appVersionProvider = FutureProvider<String>((ref) async {
   try {
     final info = await PackageInfo.fromPlatform();
     return '${info.version}+${info.buildNumber}';
-  } catch (e, st) {
+  } catch (e) {
       debugPrint('⚠️ Swallowed error in core_providers.dart: ');
     // Fallback ثابت في حال فشل package_info_plus (نادراً، يحدث فقط في
     // اختبارات الوحدة بدون Flutter binding مهيّأ).

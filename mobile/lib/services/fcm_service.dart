@@ -262,7 +262,7 @@ class FcmService {
       final realtime = _getRealtimeSync();
       realtime?.hasRemoteChanges.value = true;
       realtime?.pendingRemoteChangesCount.value++;
-    } catch (e, st) {
+    } catch (e) {
       AppLogger.warning(
         'فشل تشغيل المزامنة عبر FCM',
         tag: 'FCM',
@@ -295,7 +295,7 @@ class FcmService {
     try {
       // يتم حقن الـ provider من main.dart عبر setInstance
       return _syncManagerInstance;
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in fcm_service.dart: ');
       return null;
     }
@@ -305,7 +305,7 @@ class FcmService {
   dynamic _getRealtimeSync() {
     try {
       return _realtimeInstance;
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in fcm_service.dart: ');
       return null;
     }

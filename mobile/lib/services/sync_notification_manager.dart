@@ -156,7 +156,7 @@ class SyncNotificationManager {
     Future<void>.delayed(const Duration(seconds: 5), () {
       try {
         overlayEntry.remove();
-      } catch (e, st) {
+      } catch (e) {
       debugPrint('⚠️ Swallowed error in sync_notification_manager.dart: ');}
     });
 
@@ -285,7 +285,7 @@ class SyncNotificationManager {
     Future<void>.delayed(const Duration(seconds: 7), () {
       try {
         overlayEntry.remove();
-      } catch (e, st) {
+      } catch (e) {
       debugPrint('⚠️ Swallowed error in sync_notification_manager.dart: ');}
     });
 
@@ -459,7 +459,7 @@ class SyncNotificationManager {
     Future<void>.delayed(const Duration(seconds: 10), () {
       try {
         overlayEntry.remove();
-      } catch (e, st) {
+      } catch (e) {
       debugPrint('⚠️ Swallowed error in sync_notification_manager.dart: ');}
     });
 

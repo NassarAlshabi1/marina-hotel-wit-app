@@ -641,7 +641,7 @@ class SmartSyncManager {
 
       // إرسال عبر Telegram
       unawaited(
-        TelegramNotificationService.instance.notifySyncError(
+        unawaited(TelegramNotificationService.instance.notifySyncError(
           operation: 'sync',
           error: errorMsg,
         ),

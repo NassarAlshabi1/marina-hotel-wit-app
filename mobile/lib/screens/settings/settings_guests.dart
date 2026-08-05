@@ -1103,7 +1103,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     }
     try {
       return DateTime.parse(value);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in settings_guests.dart: ');
       return null;
     }
@@ -1117,7 +1117,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     try {
       final dt = DateTime.parse(dateStr);
       return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in settings_guests.dart: ');
       return '--:--';
     }
@@ -1128,7 +1128,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       final newDt = DateTime.parse(newDate);
       final oldDt = DateTime.parse(oldDate);
       return newDt.hour != oldDt.hour || newDt.minute != oldDt.minute;
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in settings_guests.dart: ');
       return false;
     }

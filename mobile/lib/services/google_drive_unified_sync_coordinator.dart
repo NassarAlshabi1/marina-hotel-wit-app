@@ -917,7 +917,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     }
     try {
       return DateTime.parse(iso);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in google_drive_unified_sync_coordinator.dart: ');
       return null;
     }

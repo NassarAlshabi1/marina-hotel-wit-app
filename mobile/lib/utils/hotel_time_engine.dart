@@ -126,7 +126,7 @@ class HotelTimeEngine {
           : isoString.trim().replaceFirst(' ', 'T');
       final dt = DateTime.parse(normalized);
       return getHotelDayKey(dateTime: dt);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in hotel_time_engine.dart: ');
       return getHotelDayKey();
     }
@@ -254,7 +254,7 @@ class HotelTimeEngine {
             : checkoutDate.replaceFirst(' ', 'T'),
       );
       return DateTime.now().isAfter(checkout);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in hotel_time_engine.dart: ');
       return false;
     }

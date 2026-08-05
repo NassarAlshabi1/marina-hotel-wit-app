@@ -64,7 +64,7 @@ class SalaryAdvanceInstallmentsService {
       DateTime baseDate;
       try {
         baseDate = DateTime.parse(date);
-      } catch (e, st) {
+      } catch (e) {
       debugPrint('⚠️ Swallowed error in salary_advance_installments_service.dart: ');
         baseDate = DateTime.now();
       }
