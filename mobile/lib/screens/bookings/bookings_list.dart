@@ -18,7 +18,6 @@ import '../../utils/time.dart';
 import '../payments/booking_payment_screen.dart';
 import '../payments/payments_main_screen.dart';
 import 'booking_edit.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 class BookingsListScreen extends ConsumerStatefulWidget {
   const BookingsListScreen({super.key});

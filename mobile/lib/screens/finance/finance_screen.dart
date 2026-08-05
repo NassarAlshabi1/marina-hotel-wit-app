@@ -19,7 +19,6 @@ import '../../utils/status_utils.dart';
 import '../../utils/stream_helpers.dart';
 import '../../utils/time.dart';
 import '../payments/booking_checkout_screen.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 class FinanceScreen extends ConsumerStatefulWidget {
   const FinanceScreen({super.key});

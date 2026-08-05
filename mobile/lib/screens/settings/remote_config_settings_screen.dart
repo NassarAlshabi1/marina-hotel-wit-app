@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/remote_config_provider.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 class RemoteConfigSettingsScreen extends ConsumerStatefulWidget {
   const RemoteConfigSettingsScreen({super.key});

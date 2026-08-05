@@ -15,7 +15,6 @@ import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/time.dart';
 import 'create_debt_from_booking.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 class DebtsListScreen extends ConsumerStatefulWidget {
   const DebtsListScreen({super.key});

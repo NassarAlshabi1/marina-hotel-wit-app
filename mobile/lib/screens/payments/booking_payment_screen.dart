@@ -35,7 +35,6 @@ import '../../utils/time.dart';
 import 'payment_history_screen.dart';
 import 'widgets/actions_tab.dart';
 import 'widgets/payment_summary_card.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 class BookingPaymentScreen extends ConsumerStatefulWidget {
   const BookingPaymentScreen({

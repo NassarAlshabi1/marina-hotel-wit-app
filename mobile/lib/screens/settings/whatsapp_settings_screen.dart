@@ -14,7 +14,6 @@ import '../../services/appwrite_config.dart';
 import '../../services/whatsapp_service.dart';
 import '../../services/whatsapp_settings_sync.dart';
 import '../../utils/message_templates.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 class WhatsAppSettingsScreen extends ConsumerStatefulWidget {
   const WhatsAppSettingsScreen({super.key});

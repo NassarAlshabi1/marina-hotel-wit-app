@@ -17,7 +17,6 @@ import '../services/secondary_appwrite_config.dart';
 import '../services/secondary_sync_manager.dart';
 import '../services/sync/sync_gate.dart';
 import '../utils/loading_snackbar.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 class DashboardSyncButton extends ConsumerStatefulWidget {
   const DashboardSyncButton({super.key});

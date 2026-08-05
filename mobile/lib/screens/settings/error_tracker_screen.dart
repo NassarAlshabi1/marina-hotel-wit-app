@@ -16,7 +16,6 @@ import 'package:share_plus/share_plus.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/appwrite_logger.dart';
 import '../../services/logging/log_models.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 /// نوع الخطأ للفلترة
 enum ErrorCategory {

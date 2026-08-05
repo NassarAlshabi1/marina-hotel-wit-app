@@ -29,7 +29,6 @@ import 'settings_users.dart';
 import 'sync_health/sync_health_screen.dart';
 import 'whatsapp_daily_report_screen.dart';
 import 'whatsapp_settings_screen.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
