@@ -1437,6 +1437,3 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen> with SyncOnEx
   }
 }
 
-}
-}
-}
