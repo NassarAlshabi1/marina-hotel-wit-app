@@ -119,7 +119,7 @@ class CrashlyticsService {
   Future<void> setDeviceId(String deviceId) async {
     try {
       await _crashlytics?.setCustomKey('device_id', deviceId);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 
@@ -180,7 +180,7 @@ class CrashlyticsService {
         '✅ CrashlyticsService initialized (${kDebugMode ? 'DEBUG' : 'RELEASE'})',
         name: 'CrashlyticsService',
       );
-    } catch (e, st) {
+    } catch (e) {
       developer.log(
         '⚠️ Crashlytics Firebase failed — local logging active: $e',
         name: 'CrashlyticsService',
@@ -290,7 +290,7 @@ class CrashlyticsService {
           ...extra.entries.map((e) => '${e.key}: ${e.value}'),
         ],
       );
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');
       // لا نوقف التطبيق بسبب فشل Crashlytics
     }
@@ -347,7 +347,7 @@ class CrashlyticsService {
           ...context.entries.map((e) => '${e.key}: ${e.value}'),
         ],
       );
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 
@@ -409,7 +409,7 @@ class CrashlyticsService {
 
     try {
       await _crashlytics?.log(message);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 
@@ -441,7 +441,7 @@ class CrashlyticsService {
             customKeys?.entries.map((e) => '${e.key}: ${e.value}').toList() ??
             [],
       );
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 
@@ -469,7 +469,7 @@ class CrashlyticsService {
 
     try {
       await _crashlytics?.setCustomKey(key, value.toString());
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 
@@ -490,7 +490,7 @@ class CrashlyticsService {
 
     try {
       await _crashlytics?.sendUnsentReports();
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 
@@ -528,7 +528,7 @@ class CrashlyticsService {
 
     try {
       _crashlytics?.recordError(error, stack, fatal: true);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in crashlytics_service.dart: ');}
   }
 

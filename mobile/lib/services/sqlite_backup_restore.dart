@@ -54,7 +54,7 @@ class SqliteBackupRestore {
             await documentsTarget.create(recursive: true);
           }
           return documentsTarget;
-        } catch (e, st) {
+        } catch (e) {
           debugPrint(
             '⚠️ Failed to access default backup dir, falling back: $e',
           );
@@ -78,7 +78,7 @@ class SqliteBackupRestore {
         final downloadsDir = await getDownloadsDirectory();
         dir = downloadsDir ?? await getApplicationDocumentsDirectory();
       }
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Failed to resolve user dir, falling back to app docs: $e');
     }
 
@@ -147,7 +147,7 @@ class SqliteBackupRestore {
         await db.close();
       }
       debugPrint('✅ WAL checkpoint (TRUNCATE) completed before backup');
-    } catch (e, st) {
+    } catch (e) {
       // checkpoint فشل — لا نمنع النسخة الاحتياطية، لكن نسجّل التحذير
       debugPrint('⚠️ WAL checkpoint failed (proceeding with backup): $e');
     }
@@ -244,7 +244,7 @@ class SqliteBackupRestore {
           try {
             await sidecar.delete();
             debugPrint('🧹 حذف ملف $suffix القديم قبل إعادة الفتح');
-          } catch (e, st) {
+          } catch (e) {
             debugPrint(
               '⚠️ فشل حذف $suffix القديم: $e — قد يسبب مشاكل عند الفتح',
             );

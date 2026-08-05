@@ -75,7 +75,7 @@ class RemoteConfigService {
         _lastFetchStatus = status.toString();
         _lastFetchTime = DateTime.now();
         developer.log('Remote Config activated: $status', name: 'RemoteConfig');
-      } catch (e, st) {
+      } catch (e) {
         developer.log(
           'Remote Config fetch failed (using defaults): $e',
           name: 'RemoteConfig',
@@ -124,7 +124,7 @@ class RemoteConfigService {
       _lastFetchTime = DateTime.now();
       developer.log('Remote Config force fetch: $status', name: 'RemoteConfig');
       return status;
-    } catch (e, st) {
+    } catch (e) {
       _lastFetchStatus = 'error: $e';
       developer.log(
         'Remote Config force fetch error: $e',

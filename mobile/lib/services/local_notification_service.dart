@@ -311,7 +311,7 @@ class LocalNotificationService {
   Future<void> cancelAll() async {
     try {
       await _plugin.cancelAll();
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in local_notification_service.dart: ');}
   }
 

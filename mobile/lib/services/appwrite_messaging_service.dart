@@ -155,7 +155,7 @@ class AppwriteMessagingService {
           },
         );
         debugPrint('✅ Messaging device updated: $deviceId');
-      } on AppwriteException catch (e, st) {
+      } on AppwriteException catch (e) {
         if (e.code == 404) {
           // ignore: deprecated_member_use
           await _databases.createDocument(
@@ -263,7 +263,7 @@ class AppwriteMessagingService {
       subscribed.remove(topicId);
       await prefs.setStringList('messaging_subscribed_topics', subscribed);
       debugPrint('✅ Unsubscribed from: $topicId');
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Failed to unsubscribe from $topicId: $e');
     }
   }
@@ -339,7 +339,7 @@ class AppwriteMessagingService {
         _showLocalNotification(title, body, data);
         _triggerSync();
       }
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Messaging: failed to handle message: $e');
     }
   }
@@ -373,7 +373,7 @@ class AppwriteMessagingService {
         payload: jsonEncode(data),
       );
       debugPrint('🔔 Messaging: local notification shown: $title');
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Messaging: show notification failed: $e');
     }
   }
@@ -390,7 +390,7 @@ class AppwriteMessagingService {
         await syncManager.sync(push: false);
         debugPrint('✅ Messaging: sync completed');
       }
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Messaging: sync error: $e');
     }
   }
@@ -423,7 +423,7 @@ class AppwriteMessagingService {
             ?.createNotificationChannel(_messagingChannel);
       }
       debugPrint('✅ Messaging: local notifications initialized');
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Messaging: local notifications init failed: $e');
     }
   }

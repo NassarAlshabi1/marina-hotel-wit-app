@@ -103,7 +103,7 @@ Future<void> main() async {
   try {
     await Firebase.initializeApp();
     debugPrint('✅ Firebase Core initialized');
-  } catch (e, st) {
+  } catch (e) {
     debugPrint( 'Firebase Core initialization failed: $e');
     debugPrint('ℹ️ التطبيق يعمل بالإعدادات المحلية بدون Firebase');
   }
@@ -240,7 +240,7 @@ Future<void> _initializeSecondarySync() async {
   try {
     // SecondaryAppwriteConfig removed (Cloudflare migration)
     debugPrint('🔵 [Main] Secondary sync disabled or not configured');
-  } catch (e, st) {
+  } catch (e) {
     debugPrint( '[Main] Secondary sync init failed: $e');
   }
 }
@@ -278,7 +278,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       } else {
         debugPrint('ℹ️ لا توجد جلسة محفوظة - المستخدم يحتاج لتسجيل دخول يدوي');
       }
-    } catch (e, st) {
+    } catch (e) {
       debugPrint( 'فشلت استعادة الجلسة: $e');
     }
 
@@ -323,7 +323,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     try {
       await SyncGuardian.instance.initialize(database: database);
       debugPrint('✅ SyncGuardian initialized');
-    } catch (e, st) {
+    } catch (e) {
       debugPrint( 'SyncGuardian init failed (non-fatal): $e');
     }
 
@@ -340,7 +340,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       // تسجيل فحص دوري للمزامنات المعلّقة (كل 15 دقيقة)
       await SyncContinuationService.schedulePeriodicCheck();
       debugPrint('✅ WorkManager + SyncContinuationService initialized');
-    } catch (e, st) {
+    } catch (e) {
       debugPrint( 'WorkManager init failed (non-fatal): $e');
     }
 
@@ -600,7 +600,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         // تهيئة FCM للإشعارات بين الأجهزة
         try {
           await _initializeFcm(syncManager);
-        } catch (e, st) {
+        } catch (e) {
           debugPrint( 'FCM initialization error: $e');
         }
 
@@ -663,7 +663,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
             );
             debugPrint('✅ Initial sync on app start completed');
           }
-        } catch (e, st) {
+        } catch (e) {
           debugPrint( 'Initial sync on app start failed: $e');
         }
 
@@ -681,7 +681,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         // Realtime sync started
         // Realtime sync started
         debugPrint('📡 Realtime sync + auto sync started');
-      } catch (e, st) {
+      } catch (e) {
         derr(() => 'Realtime sync init error: $e');
       }
     });
@@ -769,7 +769,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     _localAutoSyncRunning = true;
     try {
       await ref.read(syncServiceProvider).runSync();
-    } catch (e, st) {
+    } catch (e) {
       derr(() => 'Local auto sync error: $e');
     } finally {
       _lastLocalAutoSync = DateTime.now();
@@ -821,7 +821,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       debugPrint(
         '✅ Push on resume completed (pull handled by UnifiedSyncOrchestrator)',
       );
-    } catch (e, st) {
+    } catch (e) {
       debugPrint( 'Sync on resume error: $e');
     }
   }
@@ -844,7 +844,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // مهلة 10 ثوانٍ — إذا لم يكتمل، البيانات محفوظة في outbox
       await syncManager.sync(pull: false).timeout(const Duration(seconds: 10));
       debugPrint('✅ Push on pause completed');
-    } catch (e, st) {
+    } catch (e) {
       // البيانات محفوظة في outbox — لن تُفقد أبداً
       debugPrint( 'Push on pause error (data safe in outbox): $e');
 
@@ -964,7 +964,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     // ✅ Batch 3: تنظيف SyncGuardian timer + StreamController
     try {
       await SyncGuardian.disposeInstance();
-    } catch (e, st) {
+    } catch (e) {
       debugPrint( 'Error disposing SyncGuardian: $e');
     }
     debugPrint('✅ All singleton services disposed');
@@ -1264,7 +1264,7 @@ void _unifiedCallbackDispatcher() {
     try {
       // SecondaryAppwriteConfig removed (Cloudflare migration)
       // AppwriteConfigManager removed
-    } catch (e, st) {
+    } catch (e) {
       developer.log('⚠️ [WorkManager] Init failed: $e', name: 'WorkManager');
     }
 

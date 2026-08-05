@@ -179,7 +179,7 @@ void logHttpError({
     try {
       final body = jsonDecode(responseBody) as Map<String, dynamic>;
       retryAfterMs = body['retry_after'] as int?;
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in error_tracker_screen.dart: ');
       // Not JSON, ignore
     }

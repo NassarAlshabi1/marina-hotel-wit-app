@@ -187,7 +187,7 @@ class AuthLocalStore {
         );
       }
       return cloudAccounts;
-    } catch (e, st) {
+    } catch (e) {
       AppLogger.warning(
         'Failed to load cloud users (fallback to local only)',
         tag: 'AUTH',
@@ -402,7 +402,7 @@ class AuthLocalStore {
         'vectorClock': '{}',
         'deviceId': await _getDeviceId() ?? '',
       });
-    } catch (e, st) {
+    } catch (e) {
       AppLogger.warning(
         'Failed to push user $username to cloud',
         tag: 'AUTH',
@@ -431,7 +431,7 @@ class AuthLocalStore {
         data: data,
       );
       debugPrint('📤 [Auth] User synced to Secondary: $docId');
-    } catch (e, st) {
+    } catch (e) {
       // فشل Secondary غير حرج — Primary لديه البيانات
       debugPrint('⚠️ [Auth] Secondary sync failed for user $docId: $e');
     }
@@ -454,7 +454,7 @@ class AuthLocalStore {
         data: data,
       );
       debugPrint('📤 [Auth] User updated in Secondary: $docId');
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ [Auth] Secondary update failed for user $docId: $e');
     }
   }
@@ -474,7 +474,7 @@ class AuthLocalStore {
         documentId: docId,
       );
       debugPrint('📤 [Auth] User deleted from Secondary: $docId');
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ [Auth] Secondary delete failed for user $docId: $e');
     }
   }
@@ -583,7 +583,7 @@ class AuthLocalStore {
       await _updateSecondary(docId, data);
 
       return true;
-    } catch (e, st) {
+    } catch (e) {
       AppLogger.error(
         'Failed to update cloud user $username',
         tag: 'AUTH',
@@ -608,7 +608,7 @@ class AuthLocalStore {
       await _deleteFromSecondary(docId);
 
       return true;
-    } catch (e, st) {
+    } catch (e) {
       AppLogger.warning('Failed to delete cloud user', tag: 'AUTH', error: e);
       return false;
     }
@@ -666,7 +666,7 @@ class AuthLocalStore {
         return false;
       }
       return true;
-    } catch (e, st) {
+    } catch (e) {
       AppLogger.warning(
         'Session check failed (ignoring)',
         tag: 'AUTH',
@@ -907,7 +907,7 @@ class AuthLocalStore {
 
       // ✅ مزامنة Secondary Appwrite: تحديث الصلاحيات في الوجهة الثانوية
       await _updateSecondary(docId, {'permissions': jsonEncode(permissions)});
-    } catch (e, st) {
+    } catch (e) {
       AppLogger.warning(
         'Failed to update cloud permissions for $username',
         tag: 'AUTH',
@@ -972,7 +972,7 @@ class AuthLocalStore {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString('appwrite_device_id') ??
           prefs.getString('appwrite_realtime_device_id');
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in auth_local_store.dart: ');
       return null;
     }

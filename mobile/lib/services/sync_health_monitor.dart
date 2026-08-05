@@ -102,7 +102,7 @@ class SyncHealthMonitor {
           )
           .getSingle();
       return result.read<int>('cnt');
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in sync_health_monitor.dart: ');
       return 0;
     }
@@ -127,7 +127,7 @@ class SyncHealthMonitor {
       if (oldestEpoch == 0) return null;
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       return Duration(seconds: now - oldestEpoch);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in sync_health_monitor.dart: ');
       return null;
     }
@@ -152,7 +152,7 @@ class SyncHealthMonitor {
           )
           .getSingle();
       return result.read<int>('cnt');
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in sync_health_monitor.dart: ');
       return 0;
     }
@@ -175,7 +175,7 @@ class SyncHealthMonitor {
         for (final row in result)
           row.read<String>('entity'): row.read<int>('cnt'),
       };
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in sync_health_monitor.dart: ');
       return {};
     }
@@ -223,7 +223,7 @@ class SyncHealthMonitor {
     try {
       final result = await db.customSelect('PRAGMA foreign_key_check').get();
       return result.length;
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in sync_health_monitor.dart: ');
       return 0;
     }

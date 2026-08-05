@@ -175,7 +175,7 @@ class FcmSender {
         FcmServiceAccountCredentials creds;
         try {
           creds = FcmServiceAccountCredentials.fromBase64(raw);
-        } catch (e, st) {
+        } catch (e) {
       debugPrint('⚠️ Swallowed error in fcm_sender.dart: ');
           // ربما JSON خام — جرّب مباشرة
           creds = FcmServiceAccountCredentials.fromJsonString(raw);
@@ -416,7 +416,7 @@ class FcmSender {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString('appwrite_device_id') ??
           prefs.getString('appwrite_realtime_device_id');
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in fcm_sender.dart: ');
       return null;
     }

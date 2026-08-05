@@ -164,7 +164,7 @@ class ScreenSyncController {
         );
         return false;
       }
-    } on CircuitBreakerOpenException catch (e, st) {
+    } on CircuitBreakerOpenException catch (e) {
       debugPrint('🔌 [$screenId] Circuit breaker مفتوح: $e');
       _emitStatus(SyncStatus.error);
       return false;
@@ -218,7 +218,7 @@ class ScreenSyncController {
           'سيتم المحاولة لاحقاً عبر auto-sync',
         );
       }
-    } catch (e, st) {
+    } catch (e) {
       // فشل Secondary ليس خطأ قاتلاً — Primary نجح بالفعل
       // السجلات تبقى في outbox حتى تنجح محاولة Secondary التالية
       debugPrint('⚠️ [$screenId] خطأ في الرفع للثانوي (غير حرج): $e');

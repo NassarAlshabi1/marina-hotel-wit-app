@@ -143,7 +143,7 @@ class SyncGuardian {
     Future<void>.delayed(SyncConstants.appForegroundDelay, () async {
       try {
         await _orchestrator!.onAppForeground();
-      } catch (e, st) {
+      } catch (e) {
         _log('⚠️ فشل سحب التغييرات: $e');
       }
     });
@@ -189,7 +189,7 @@ class SyncGuardian {
         } else {
           _emitHealth();
         }
-      } catch (e, st) {
+      } catch (e) {
         _log('⚠️ SyncGuardian pending monitor خطأ: $e');
         // لا rethrow — نمنع fatal crash
       }

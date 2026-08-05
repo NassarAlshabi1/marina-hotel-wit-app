@@ -97,7 +97,7 @@ class FcmService {
 
       _isInitialized = true;
       debugPrint('✅ FCM Service initialized');
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ FCM initialization error: $e');
       // لا نمنع التطبيق من العمل إذا فشل FCM
     }
@@ -128,7 +128,7 @@ class FcmService {
         token = await _messaging.getToken();
       }
       return token;
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Failed to get FCM token: $e');
       return null;
     }
@@ -184,7 +184,7 @@ class FcmService {
             ?.createNotificationChannel(_syncChannel);
       }
       debugPrint('✅ Local notifications initialized');
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Local notifications init failed: $e');
     }
   }
@@ -220,7 +220,7 @@ class FcmService {
         payload: jsonEncode(message.data),
       );
       debugPrint('🔔 Local notification shown: $title');
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Show local notification failed: $e');
     }
   }
@@ -278,7 +278,7 @@ class FcmService {
         await syncManager.sync(push: false);
         debugPrint('✅ FCM: pull completed');
       }
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ FCM: pull error: $e');
     }
   }
@@ -305,7 +305,7 @@ class FcmService {
   dynamic _getRealtimeSync() {
     try {
       return _realtimeInstance;
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in fcm_service.dart: ');
       return null;
     }
@@ -348,7 +348,7 @@ class FcmService {
         // اشترك في Topics الافتراضية
         await messagingService.subscribeToTopics(MessagingTopics.all);
       }
-    } catch (e, st) {
+    } catch (e) {
       // آمن للفشل — نُسجّل تحذيراً فقط
       debugPrint(
         '⚠️ Appwrite Messaging registration failed (FCM still works): $e',

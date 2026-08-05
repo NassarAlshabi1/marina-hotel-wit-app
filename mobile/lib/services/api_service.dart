@@ -118,7 +118,7 @@ class ApiService {
         return resData['success'] == true;
       }
       return false;
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('⚠️ Swallowed error in api_service.dart: ');
       return false;
     }

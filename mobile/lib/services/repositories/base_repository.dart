@@ -330,7 +330,7 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
         if (allUuids.isNotEmpty) {
           existingUuidToId = await _batchFindByLocalUuid(allUuids);
         }
-      } catch (e, st) {
+      } catch (e) {
         developer.log(
           'Batch UUID lookup failed for ${table.actualTableName}, '
           'falling back to per-row lookup: $e',
