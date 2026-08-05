@@ -142,7 +142,7 @@ jobs:
 
       - name: 🏗️ Run Build Runner
         if: inputs.run_build_runner == true
-        run: dart run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build
 
       - name: ✨ Check Formatting
         run: |
@@ -195,7 +195,7 @@ jobs:
 
       - name: 🏗️ Run Build Runner
         if: inputs.run_build_runner == true
-        run: dart run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build
 
       - name: 🧪 Run Tests with Coverage
         # Note: Performance tests and integration tests are excluded from CI
@@ -325,7 +325,7 @@ jobs:
 
       - name: 🏗️ Run Build Runner
         if: inputs.run_build_runner == true
-        run: dart run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build
 
       - name: 🧪 Run Performance Benchmarks
         run: |
