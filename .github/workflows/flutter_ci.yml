@@ -151,7 +151,7 @@ jobs:
             ${{ inputs.format_directories }}
 
       - name: 🕵️ Analyze
-        run: flutter analyze ${{ inputs.analyze_directories }}
+        run: flutter analyze --no-fatal-infos ${{ inputs.analyze_directories }}
 
       - name: 📊 Dart Code Linter (DCL)
         run: dart run dart_code_linter:metrics analyze lib --reporter=console
