@@ -1104,9 +1104,11 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
       await roomsRepo.refreshAllRoomOccupancy();
 
       // إشعار أنظمة المزامنة والنسخ الاحتياطي بالتغييرات (method واحد موحد)
-      await ref
-          .read(centralSyncCoordinatorProvider)
-          unawaited(.notifyTableChange(table: 'rooms', operation: 'batch_update_status');
+      unawaited(
+        ref
+            .read(centralSyncCoordinatorProvider)
+            .notifyTableChange(table: 'rooms', operation: 'batch_update_status'),
+      );
     } catch (e) {
       debugPrint('Error refreshing room occupancy: $e');
     }
