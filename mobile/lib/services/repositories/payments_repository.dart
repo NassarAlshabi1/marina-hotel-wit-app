@@ -130,8 +130,7 @@ class PaymentsRepository {
         return id;
       });
 
-      unawaited(
-        unawaited(AutoBackupManager.instance.onDataChange(
+      unawaited(AutoBackupManager.instance.onDataChange(
           'payments',
           'INSERT',
           recordData: {'amount': amount},
@@ -229,8 +228,7 @@ class PaymentsRepository {
       });
 
       if (result > 0) {
-        unawaited(
-          unawaited(AutoBackupManager.instance.onDataChange(
+        unawaited(AutoBackupManager.instance.onDataChange(
             'payments',
             'UPDATE',
             recordData: {'id': id},
@@ -267,8 +265,7 @@ class PaymentsRepository {
       });
 
       if (result > 0) {
-        unawaited(
-          unawaited(AutoBackupManager.instance.onDataChange(
+        unawaited(AutoBackupManager.instance.onDataChange(
             'payments',
             'DELETE',
             recordData: {'id': id},
@@ -390,8 +387,7 @@ class PaymentsRepository {
           paymentMethod: payment.paymentMethod,
         ),
       );
-      unawaited(
-        unawaited(TelegramNotificationService.instance.notifyPayment(
+      unawaited(TelegramNotificationService.instance.notifyPayment(
           roomNumber: roomNumber,
           guestName: guestName,
           amount: payment.amount,

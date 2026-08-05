@@ -98,8 +98,7 @@ class BookingsRepository {
         return id;
       });
 
-      unawaited(
-        unawaited(AutoBackupManager.instance.onDataChange(
+      unawaited(AutoBackupManager.instance.onDataChange(
           'bookings',
           'INSERT',
           recordData: {'id': result},
@@ -227,8 +226,7 @@ class BookingsRepository {
       });
 
       if (result > 0) {
-        unawaited(
-          unawaited(AutoBackupManager.instance.onDataChange(
+        unawaited(AutoBackupManager.instance.onDataChange(
             'bookings',
             'UPDATE',
             recordData: {'id': id},
@@ -259,8 +257,7 @@ class BookingsRepository {
     try {
       final result = await dao.softDelete(id);
       if (result > 0) {
-        unawaited(
-          unawaited(AutoBackupManager.instance.onDataChange(
+        unawaited(AutoBackupManager.instance.onDataChange(
             'bookings',
             'DELETE',
             recordData: {'id': id},
@@ -436,8 +433,7 @@ class BookingsRepository {
           nights: nights,
         ),
       );
-      unawaited(
-        unawaited(TelegramNotificationService.instance.notifyNewBooking(
+      unawaited(TelegramNotificationService.instance.notifyNewBooking(
           roomNumber: roomNumber,
           guestName: guestName,
           guestPhone: guestPhone,
@@ -474,8 +470,7 @@ class BookingsRepository {
             expectedNights: booking.expectedNights,
           ),
         );
-        unawaited(
-          unawaited(TelegramNotificationService.instance.notifyCheckIn(
+        unawaited(TelegramNotificationService.instance.notifyCheckIn(
             roomNumber: roomNumber,
             guestName: guestName,
             guestPhone: booking.guestPhone,
@@ -495,8 +490,7 @@ class BookingsRepository {
             remaining: remaining > 0 ? remaining : null,
           ),
         );
-        unawaited(
-          unawaited(TelegramNotificationService.instance.notifyCheckOut(
+        unawaited(TelegramNotificationService.instance.notifyCheckOut(
             roomNumber: roomNumber,
             guestName: guestName,
             actualNights: booking.calculatedNights,

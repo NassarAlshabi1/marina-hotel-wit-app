@@ -41,8 +41,7 @@ class RoomsRepository {
           imageUrl: d.Value(imageUrl),
         ),
       );
-      unawaited(
-        unawaited(AutoBackupManager.instance.onDataChange(
+      unawaited(AutoBackupManager.instance.onDataChange(
           'rooms',
           'INSERT',
           recordData: {'room_number': roomNumber},
@@ -82,8 +81,7 @@ class RoomsRepository {
         ),
       );
       if (result > 0) {
-        unawaited(
-          unawaited(AutoBackupManager.instance.onDataChange(
+        unawaited(AutoBackupManager.instance.onDataChange(
             'rooms',
             'UPDATE',
             recordData: {'id': id},
@@ -125,8 +123,7 @@ class RoomsRepository {
         originIsServer: originIsServer,
       );
       if (result > 0) {
-        unawaited(
-          unawaited(AutoBackupManager.instance.onDataChange(
+        unawaited(AutoBackupManager.instance.onDataChange(
             'rooms',
             'UPDATE',
             recordData: {'room_number': roomNumber},
@@ -164,8 +161,7 @@ class RoomsRepository {
       }
       final result = await dao.softDelete(roomNumber);
       if (result > 0) {
-        unawaited(
-          unawaited(AutoBackupManager.instance.onDataChange(
+        unawaited(AutoBackupManager.instance.onDataChange(
             'rooms',
             'DELETE',
             recordData: {'room_number': roomNumber},
