@@ -1,3 +1,4 @@
+// ignore_for_file: directives_ordering, use_late_for_private_fields_and_variables, avoid_redundant_argument_values, discarded_futures, prefer_const_constructors
 // ═══════════════════════════════════════════════════════════════
 //  error_tracker_screen.dart — شاشة تتبع ونسخ الأخطاء
 //  تجمع كل أخطاء النظام (مزامنة، migration، قاعدة بيانات، شبكة)
@@ -236,7 +237,6 @@ class _ErrorTrackerScreenState extends State<ErrorTrackerScreen> {
   String _searchQuery = '';
   Timer? _refreshTimer;
   List<TrackedError> _currentErrors = [];
-  TrackedError? _selectedError;
 
   @override
   void initState() {
@@ -442,7 +442,7 @@ class _ErrorTrackerScreenState extends State<ErrorTrackerScreen> {
           ],
         ),
       ],
-      child: Column(
+      body: Column(
         children: [
           // ─── شريط البحث ────────────────────────────────────
           Padding(
@@ -593,7 +593,7 @@ class _ErrorTrackerScreenState extends State<ErrorTrackerScreen> {
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
+      body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
@@ -634,7 +634,7 @@ class _ErrorTrackerScreenState extends State<ErrorTrackerScreen> {
         content: SizedBox(
           width: double.maxFinite,
           child: SingleChildScrollView(
-            child: Column(
+            body: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _DetailRow('الوقت', error.formattedTime),
@@ -784,7 +784,7 @@ class _ErrorCard extends StatelessWidget {
               const SizedBox(width: 12),
               // المحتوى
               Expanded(
-                child: Column(
+                body: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
