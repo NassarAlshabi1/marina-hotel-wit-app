@@ -8,6 +8,7 @@ import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class BookingCalculationResult {
   const BookingCalculationResult({
@@ -623,7 +624,8 @@ class EnhancedBookingCalculationService {
     final withSeconds = normalized.length == 16 ? '$normalized:00' : normalized;
     try {
       return DateTime.parse(withSeconds);
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in enhanced_booking_calculation_service.dart: ');
       return null;
     }
   }

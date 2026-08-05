@@ -19,6 +19,7 @@ import '../../services/local_db.dart';
 import '../../services/screen_sync_controller.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class BookingEditScreen extends ConsumerStatefulWidget {
   const BookingEditScreen({super.key, this.existing, this.initialRoomNumber});
@@ -1119,7 +1120,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     final withSeconds = normalized.length == 16 ? '$normalized:00' : normalized;
     try {
       return DateTime.parse(withSeconds);
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in booking_edit.dart: ');
       return null;
     }
   }

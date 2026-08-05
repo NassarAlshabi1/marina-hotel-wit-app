@@ -295,7 +295,8 @@ class FcmService {
     try {
       // يتم حقن الـ provider من main.dart عبر setInstance
       return _syncManagerInstance;
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in fcm_service.dart: ');
       return null;
     }
   }
@@ -304,7 +305,8 @@ class FcmService {
   dynamic _getRealtimeSync() {
     try {
       return _realtimeInstance;
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in fcm_service.dart: ');
       return null;
     }
   }

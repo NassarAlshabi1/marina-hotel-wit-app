@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 /// مدير الإشعارات للمزامنة التلقائية
 class SyncNotificationManager {
@@ -155,7 +156,8 @@ class SyncNotificationManager {
     Future<void>.delayed(const Duration(seconds: 5), () {
       try {
         overlayEntry.remove();
-      } catch (_) {}
+      } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in sync_notification_manager.dart: ');}
     });
 
     // اهتزاز خفيف للإشعار
@@ -283,7 +285,8 @@ class SyncNotificationManager {
     Future<void>.delayed(const Duration(seconds: 7), () {
       try {
         overlayEntry.remove();
-      } catch (_) {}
+      } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in sync_notification_manager.dart: ');}
     });
 
     // اهتزاز للتنبيه
@@ -456,7 +459,8 @@ class SyncNotificationManager {
     Future<void>.delayed(const Duration(seconds: 10), () {
       try {
         overlayEntry.remove();
-      } catch (_) {}
+      } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in sync_notification_manager.dart: ');}
     });
 
     // اهتزاز للإشعار

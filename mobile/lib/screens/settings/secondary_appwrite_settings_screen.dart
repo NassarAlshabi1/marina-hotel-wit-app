@@ -18,6 +18,7 @@ import '../../services/secondary_appwrite_service.dart';
 import '../../services/secondary_backup_service.dart';
 import '../../services/appwrite_sync_manager.dart';
 import '../../utils/performance_monitor.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 /// شاشة إعدادات الوجهة الثانوية لـ Appwrite
 /// تتيح: تفعيل/تعطيل + إدخال بيانات الاتصال + خيارات push/pull منفصلة + failover
@@ -908,7 +909,8 @@ class _SecondaryAppwriteSettingsScreenState
       await SecondaryAppwriteConfig.setFailoverActive(active);
       try {
         await AppwriteSyncManager().initialize();
-      } catch (_) {}
+      } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in secondary_appwrite_settings_screen.dart: ');}
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

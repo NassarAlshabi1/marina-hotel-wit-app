@@ -115,7 +115,8 @@ class AppSessionManager {
     if (_deviceIdResolver != null) {
       try {
         return await _deviceIdResolver!();
-      } catch (_) {
+      } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in app_session_manager.dart: ');
         return null;
       }
     }

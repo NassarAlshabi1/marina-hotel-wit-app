@@ -7,6 +7,7 @@ import 'entity_adapter.dart';
 import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class SalaryPaymentsAdapter
     extends EntityAdapter<SalaryPayment, SalaryPaymentsCompanion> {
@@ -61,7 +62,8 @@ class SalaryPaymentsAdapter
         if (row != null) {
           resolvedCycleId = row.id;
         }
-      } catch (_) {}
+      } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in salary_payments_adapter.dart: ');}
     }
 
     final createdAt = _epoch(json, 'createdAt', src);

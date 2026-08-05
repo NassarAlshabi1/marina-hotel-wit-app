@@ -19,6 +19,7 @@ import '../../utils/status_utils.dart';
 import '../../utils/stream_helpers.dart';
 import '../../utils/time.dart';
 import '../payments/booking_checkout_screen.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class FinanceScreen extends ConsumerStatefulWidget {
   const FinanceScreen({super.key});
@@ -73,7 +74,8 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
           : dateStr.replaceFirst(' ', 'T');
       final dt = DateTime.parse(normalized);
       return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in finance_screen.dart: ');
       // Fallback: محاولة split على المسافة
       final parts = dateStr.split(' ');
       if (parts.length >= 2 && parts.last.length >= 5) {
@@ -1103,7 +1105,8 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
       if (result.quotaMessage != null) {
         debugPrint('تجاوز حصة الواتساب: ${result.quotaMessage}');
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in finance_screen.dart: ');
       debugPrint('تعذّر إرسال إشعار واتساب للدفعة التراكمية');
     }
   }

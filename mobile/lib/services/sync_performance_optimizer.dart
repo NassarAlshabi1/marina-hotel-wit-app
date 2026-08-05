@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'appwrite_config.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 /// مُحسِّن أداء المزامنة
 /// يراقب حالة الاتصال ويحسن أداء المزامنة بناءً على نوع الشبكة
@@ -230,9 +231,11 @@ class SyncPerformanceOptimizer {
       );
       await response.drain<void>();
       return response.statusCode < HttpStatus.internalServerError;
-    } on SocketException catch (_) {
+    } on SocketException catch (e, st) {
+      debugPrint('⚠️ Swallowed error in sync_performance_optimizer.dart: ');
       return false;
-    } on TimeoutException catch (_) {
+    } on TimeoutException catch (e, st) {
+      debugPrint('⚠️ Swallowed error in sync_performance_optimizer.dart: ');
       return false;
     } catch (e) {
       debugPrint('❌ خطأ في فحص الاتصال: $e');

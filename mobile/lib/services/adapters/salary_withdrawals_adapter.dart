@@ -7,6 +7,7 @@ import 'entity_adapter.dart';
 import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class SalaryWithdrawalsAdapter
     extends EntityAdapter<SalaryWithdrawal, SalaryWithdrawalsCompanion> {
@@ -28,7 +29,8 @@ class SalaryWithdrawalsAdapter
           salaryWithdrawalId,
         ],
       );
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in salary_withdrawals_adapter.dart: ');
       // العمود قد لا يكون موجوداً
     }
   }

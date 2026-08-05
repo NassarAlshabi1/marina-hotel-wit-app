@@ -15,6 +15,7 @@ import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../utils/time.dart';
 import '../../widgets/report_date_filter.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class DebtsReportScreen extends ConsumerStatefulWidget {
   const DebtsReportScreen({super.key});
@@ -707,11 +708,13 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
         : value.replaceFirst(' ', 'T');
     try {
       return DateTime.parse(normalized);
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in debts_report_screen.dart: ');
       try {
         final safeDate = Time.safeIsoToDateString(value);
         return DateTime.parse('${safeDate}T00:00:00');
-      } catch (_) {
+      } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in debts_report_screen.dart: ');
         // بيانات تاريخ فاسدة — إرجاع null لتجاهل السجل في التجميع
         return null;
       }

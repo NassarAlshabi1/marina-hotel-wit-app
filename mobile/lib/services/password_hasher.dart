@@ -19,6 +19,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:pointycastle/export.dart' as pc;
+import 'package:flutter/foundation.dart' show debugPrint;
 
 /// خدمة تشفير كلمات المرور
 class PasswordHasher {
@@ -90,7 +91,8 @@ class PasswordHasher {
 
       // مقارنة ثابتة الزمن (constant-time comparison) لمنع timing attacks
       return _constantTimeEquals(expectedHash, actualHash);
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in password_hasher.dart: ');
       return false;
     }
   }

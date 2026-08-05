@@ -451,7 +451,8 @@ class CloudflareMigrationService {
                 'waiting ${(waitMs / 1000).toStringAsFixed(1)}s before '
                 'retry $attempt/3...');
             await Future<void>.delayed(Duration(milliseconds: waitMs + 1000));
-          } catch (_) {
+          } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in cloudflare_migration_service.dart: ');
             // If we can't parse retry_after, use exponential backoff
             await Future<void>.delayed(Duration(seconds: 5 * attempt));
           }

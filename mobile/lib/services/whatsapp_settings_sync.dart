@@ -40,7 +40,8 @@ class WhatsAppSettingsSync {
           documentId: _docId,
           data: data,
         );
-      } catch (_) {
+      } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in whatsapp_settings_sync.dart: ');
         // إذا لم يكن موجوداً، إنشاء مستند جديد
         // ignore: deprecated_member_use
         await _appwrite.databases.createDocument(
@@ -119,7 +120,8 @@ class WhatsAppSettingsSync {
         documentId: _docId,
       );
       return true;
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in whatsapp_settings_sync.dart: ');
       return false;
     }
   }

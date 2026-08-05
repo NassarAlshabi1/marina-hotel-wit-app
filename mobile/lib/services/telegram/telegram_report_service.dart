@@ -320,7 +320,8 @@ class TelegramReportService {
             debugPrint('✅ WhatsApp (CallMeBot): تم إرسال التقرير');
             return true;
           }
-        } catch (_) {
+        } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in telegram_report_service.dart: ');
           if (body.toLowerCase().contains('sent') ||
               body.toLowerCase().contains('ok') ||
               body.toLowerCase().contains('success')) {

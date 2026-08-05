@@ -40,7 +40,8 @@ class Time {
         cutoffHour: cutoffHour,
         cutoffMinute: cutoffMinute,
       );
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in time.dart: ');
       return hotelDayKey(cutoffHour: cutoffHour, cutoffMinute: cutoffMinute);
     }
   }
@@ -129,7 +130,8 @@ class Time {
       final dt = DateTime.parse('${date}T00:00:00');
       final next = dt.add(const Duration(days: 1));
       return dateToString(next);
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in time.dart: ');
       return nowDateString();
     }
   }

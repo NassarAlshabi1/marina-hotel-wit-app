@@ -29,6 +29,7 @@ import 'settings_users.dart';
 import 'sync_health/sync_health_screen.dart';
 import 'whatsapp_daily_report_screen.dart';
 import 'whatsapp_settings_screen.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -43,7 +44,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     try {
       final info = await PackageInfo.fromPlatform();
       return '${info.version}+${info.buildNumber}';
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in settings_screen.dart: ');
       return '1.2.0+3';
     }
   }

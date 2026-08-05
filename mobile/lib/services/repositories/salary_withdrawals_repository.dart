@@ -10,6 +10,7 @@ import '../daos/outbox_dao.dart';
 import '../local_db.dart';
 import '../telegram/telegram_notification_service.dart';
 import '../telegram/whatsapp_notification_service.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class SalaryWithdrawalsRepository {
   SalaryWithdrawalsRepository(this._db) : _outboxDao = OutboxDao(_db);
@@ -27,7 +28,8 @@ class SalaryWithdrawalsRepository {
           salaryWithdrawalId,
         ],
       );
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in salary_withdrawals_repository.dart: ');
       // العمود قد لا يكون موجوداً في الإصدارات القديمة — نتخطى بصمت
     }
   }
@@ -41,7 +43,8 @@ class SalaryWithdrawalsRepository {
             ..limit(1))
           .getSingleOrNull();
       return emp?.name;
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in salary_withdrawals_repository.dart: ');
       return null;
     }
   }
@@ -172,7 +175,8 @@ class SalaryWithdrawalsRepository {
           matched = byId;
         }
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in salary_withdrawals_repository.dart: ');
       // العمود قد لا يكون موجوداً
     }
 
@@ -415,7 +419,8 @@ class SalaryWithdrawalsRepository {
           _db.salaryWithdrawals,
         )..where((t) => t.id.isIn(ids))).get();
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in salary_withdrawals_repository.dart: ');
       // العمود قد لا يكون موجوداً
     }
 
@@ -514,7 +519,8 @@ class SalaryWithdrawalsRepository {
       return HotelTimeEngine.getHotelDayKey(
         dateTime: DateTime(year, month, day, 14, 1),
       );
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in salary_withdrawals_repository.dart: ');
       return HotelTimeEngine.getHotelDayKey();
     }
   }

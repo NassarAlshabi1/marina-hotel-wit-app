@@ -21,6 +21,7 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart' show DatabaseManager;
 import '../../services/sqlite_backup_restore.dart';
 import '../../utils/env.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 // ═══════════════════════════════════════════════════════════════
 //  نموذج البيانات الحقيقية
@@ -137,7 +138,8 @@ class _SettingsMaintenanceScreenState
             : (v is num)
             ? v.toInt()
             : 0;
-      } catch (_) {}
+      } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
     }
 
     // آخر مزامنة
@@ -161,7 +163,8 @@ class _SettingsMaintenanceScreenState
     int outboxCount = 0;
     try {
       outboxCount = await ref.read(outboxDaoProvider).count();
-    } catch (_) {}
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
 
     // Logs
     final logStats = ref.read(diagnosticsLoggerProvider).getStats();
@@ -173,7 +176,8 @@ class _SettingsMaintenanceScreenState
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       appVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
-    } catch (_) {}
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
     try {
       final deviceInfo = DeviceInfoPlugin();
       if (Platform.isAndroid) {
@@ -185,7 +189,8 @@ class _SettingsMaintenanceScreenState
         deviceModel = ios.name;
         osVersion = 'iOS ${ios.systemVersion}';
       }
-    } catch (_) {}
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
 
     return _SystemInfo(
       appVersion: appVersion,
@@ -1158,7 +1163,8 @@ class _SettingsMaintenanceScreenState
                 // ✅ إصلاح P1: إعادة تهيئة المزامنة بعد reset
                 try {
                   await ref.read(syncGuardianProvider).restart();
-                } catch (_) {}
+                } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
 
                 _hideLoading();
                 _showSnack('تم إعادة تعيين التطبيق بنجاح', color: Colors.green);
@@ -1170,7 +1176,8 @@ class _SettingsMaintenanceScreenState
                 // ✅ P0 fix: ضمان إعادة فتح قاعدة البيانات حتى لو فشل الحذف
                 try {
                   await DatabaseManager.reopen();
-                } catch (_) {}
+                } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),

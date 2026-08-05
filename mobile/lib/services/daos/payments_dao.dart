@@ -13,6 +13,7 @@ import '../local_db.dart';
 import '../local_notification_service.dart';
 import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 part 'payments_dao.g.dart';
 
@@ -321,7 +322,8 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
                   .getSingleOrNull();
           roomNumber = booking?.roomNumber;
           guestName = booking?.guestName;
-        } catch (_) {
+        } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in payments_dao.dart: ');
           // تجاهل — roomNumber/guestName اختياريان في الإشعار
         }
       }

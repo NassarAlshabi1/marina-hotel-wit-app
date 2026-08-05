@@ -405,7 +405,8 @@ class GoogleDriveConflictResolver {
     if (lastModified is int) {
       try {
         return DateTime.fromMillisecondsSinceEpoch(lastModified * 1000);
-      } catch (_) {
+      } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in google_drive_conflict_resolver.dart: ');
         return null;
       }
     }
@@ -414,7 +415,8 @@ class GoogleDriveConflictResolver {
     if (updatedAt is int) {
       try {
         return DateTime.fromMillisecondsSinceEpoch(updatedAt * 1000);
-      } catch (_) {
+      } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in google_drive_conflict_resolver.dart: ');
         return null;
       }
     }

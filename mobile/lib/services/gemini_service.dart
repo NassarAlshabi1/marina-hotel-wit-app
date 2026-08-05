@@ -757,7 +757,8 @@ class GeminiService {
                 if (unpaidNights > 10) {
                   s.writeln('      ... (+${unpaidNights - 10} ليالٍ أخرى)');
                 }
-              } catch (_) {
+              } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in gemini_service.dart: ');
                 // تجاهل أخطاء التحليل
               }
             }
@@ -3007,7 +3008,8 @@ ${AiSettingsService.instance.systemPromptExtra}''';
         default:
           return null;
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in gemini_service.dart: ');
       return null;
     }
   }

@@ -1,6 +1,7 @@
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 const List<String> kGoogleDriveScopes = [
   drive.DriveApi.driveFileScope,
@@ -120,7 +121,8 @@ class GoogleDriveSignInManager {
   Future<void> signOut() async {
     try {
       await client.signOut();
-    } catch (_) {}
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in google_drive_sign_in_manager.dart: ');}
     await persistSignInState(null);
   }
 

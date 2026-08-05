@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart'
     show FutureProvider, WidgetRef;
 
 import 'repository_providers.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 // ── مفاتيح القوائم ──────────────────────────────────────────────
 
@@ -250,7 +251,8 @@ void _invalidateAll(WidgetRef ref, String listKey) {
 final expenseTypesProvider = FutureProvider<List<String>>((ref) async {
   try {
     return await ref.watch(customListNamesProvider(kListKeyExpenseType).future);
-  } catch (_) {
+  } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in custom_list_providers.dart: ');
     return kDefaultExpenseTypes;
   }
 });

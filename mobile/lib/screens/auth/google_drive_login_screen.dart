@@ -11,6 +11,7 @@ import '../../providers/auto_backup_provider.dart';
 import '../../providers/backup_provider.dart';
 import '../../utils/performance_monitor.dart';
 import '../../utils/theme.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class GoogleDriveLoginScreen extends ConsumerStatefulWidget {
   const GoogleDriveLoginScreen({super.key});
@@ -48,7 +49,8 @@ class _GoogleDriveLoginScreenState
           );
         }
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in google_drive_login_screen.dart: ');
       // فشل الصامت — يظهر الواجهة العادية
     }
     if (mounted) {

@@ -16,6 +16,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../components/app_scaffold.dart';
 import '../../services/appwrite_logger.dart';
 import '../../services/logging/log_models.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 /// نوع الخطأ للفلترة
 enum ErrorCategory {
@@ -178,7 +179,8 @@ void logHttpError({
     try {
       final body = jsonDecode(responseBody) as Map<String, dynamic>;
       retryAfterMs = body['retry_after'] as int?;
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in error_tracker_screen.dart: ');
       // Not JSON, ignore
     }
   }

@@ -230,7 +230,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       deliveredToSecondary =
           !SecondaryAppwriteConfig.isEnabled ||
           !SecondaryAppwriteConfig.isPushEnabled;
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in outbox_dao.dart: ');
       // إذا فشل الوصول للإعدادات (SharedPreferences غير مهيأ)، نستخدم true (آمن)
     }
 
@@ -886,7 +887,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       if (fetchRemote != null) {
         try {
           remote = await fetchRemote(entry.entity, entry.localUuid);
-        } catch (_) {
+        } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in outbox_dao.dart: ');
           // فشل جلب البيانات البعيدة — نستخدم fallback
         }
       }
@@ -1040,7 +1042,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       deliveredToSecondary =
           !SecondaryAppwriteConfig.isEnabled ||
           !SecondaryAppwriteConfig.isPushEnabled;
-    } catch (_) {}
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in outbox_dao.dart: ');}
 
     if (source == 'local' && op != 'delete') {
       await _bumpVectorClockForLocalWrite(entity, localUuid);

@@ -15,6 +15,7 @@ import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class ExpensesListScreen extends ConsumerStatefulWidget {
   const ExpensesListScreen({super.key});
@@ -882,7 +883,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         // بعد 14:01 → التاريخ = اليوم الحالي (اليوم الفندقي الحالي)
         selectedDate = HotelTimeEngine.getHotelDay(DateTime.now());
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in expenses_list.dart: ');
       selectedDate = HotelTimeEngine.getHotelDay(DateTime.now());
     }
 

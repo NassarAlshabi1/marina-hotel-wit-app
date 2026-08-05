@@ -2864,7 +2864,8 @@ _ReportResult _processReportData(_ReportParams params) {
       dt = DateTime.parse(
         dateStr.length > 10 ? dateStr.replaceFirst(' ', 'T') : dateStr,
       );
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in income_expense_report_screen.dart: ');
       continue;
     }
     // ✅ إزالة isWithinRange — البيانات مُفلترة مسبقاً من SQL
@@ -2894,7 +2895,8 @@ _ReportResult _processReportData(_ReportParams params) {
       dt = DateTime.parse(
         dateStr.length > 10 ? dateStr.replaceFirst(' ', 'T') : dateStr,
       );
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in income_expense_report_screen.dart: ');
       continue;
     }
     // ✅ إزالة isWithinRange — البيانات مُفلترة مسبقاً من SQL

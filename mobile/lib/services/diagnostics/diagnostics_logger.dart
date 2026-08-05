@@ -150,7 +150,8 @@ class DiagnosticsLogger extends ChangeNotifier {
       }
       await file.writeAsString(buffer.toString());
       return file;
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in diagnostics_logger.dart: ');
       return null;
     }
   }
@@ -164,7 +165,8 @@ class DiagnosticsLogger extends ChangeNotifier {
         '${entry.toFormattedString()}\n',
         mode: FileMode.append,
       );
-    } catch (_) {}
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in diagnostics_logger.dart: ');}
   }
 
   /// ✅ إصلاح: إضافة dispose() لتنظيف المستمعين ومنع تسرب الذاكرة

@@ -19,6 +19,7 @@ import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
 import 'report_page_scaffold.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 /// أيقونات وألوان لأنواع المصروفات
 const _typeConfig = <String, _ExpenseTypeConfig>{
@@ -314,7 +315,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
         for (final sw in salaryWithdrawals) {
           employeeIds.add(sw.employeeId);
         }
-      } catch (_) {
+      } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in expenses_report_screen.dart: ');
         // في حال عدم وجود الجدول أو خطأ آخر
       }
     }
@@ -378,7 +380,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
             swExpenseIdMap[swId] = expId;
           }
         }
-      } catch (_) {
+      } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in expenses_report_screen.dart: ');
         // العمود قد لا يكون موجوداً بعد في الإصدارات القديمة — نتخطى
       }
     }
@@ -1363,7 +1366,8 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
   static int? _readNullableInt(QueryRow row, String column) {
     try {
       return row.read<int>(column);
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in expenses_report_screen.dart: ');
       return null;
     }
   }

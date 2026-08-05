@@ -426,18 +426,21 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         try {
           final backups = await _backupService.listBackupFiles();
           state = state.copyWith(availableBackups: backups);
-        } catch (_) {}
+        } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in backup_provider.dart: ');}
 
         try {
           await _notifySyncManagers(true);
-        } catch (_) {}
+        } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in backup_provider.dart: ');}
 
         state = state.copyWith(
           status: BackupStatus.success,
           signedInAccount: account,
         );
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in backup_provider.dart: ');
       // فشل الصامت — لا شيء
     }
   }
@@ -601,7 +604,8 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         driveBackup = state.availableBackups.firstWhere(
           (backup) => backup.fileId == fileId,
         );
-      } catch (_) {
+      } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in backup_provider.dart: ');
         driveBackup = null;
       }
 

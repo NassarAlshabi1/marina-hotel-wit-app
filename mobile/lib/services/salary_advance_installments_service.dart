@@ -2,6 +2,7 @@ import '../utils/time.dart';
 import 'local_db.dart';
 import 'repositories/expenses_repository.dart';
 import 'repositories/salary_withdrawals_repository.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class SalaryAdvanceInstallmentsService {
   SalaryAdvanceInstallmentsService(
@@ -63,7 +64,8 @@ class SalaryAdvanceInstallmentsService {
       DateTime baseDate;
       try {
         baseDate = DateTime.parse(date);
-      } catch (_) {
+      } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in salary_advance_installments_service.dart: ');
         baseDate = DateTime.now();
       }
 

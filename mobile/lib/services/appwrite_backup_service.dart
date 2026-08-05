@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'appwrite_config.dart';
 import 'appwrite_config_manager.dart';
 import 'appwrite_service.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class AppwriteBackupResult {
   const AppwriteBackupResult({
@@ -72,7 +73,8 @@ class AppwriteBackupService {
           break;
         }
         offset += limit;
-      } catch (_) {
+      } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in appwrite_backup_service.dart: ');
         usedFallback = true;
         break;
       }
@@ -87,7 +89,8 @@ class AppwriteBackupService {
                 collectionId: id,
               );
           allCollections.add(collection);
-        } catch (_) {
+        } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in appwrite_backup_service.dart: ');
           allCollections.add({r'$id': id});
         }
       }
@@ -103,7 +106,8 @@ class AppwriteBackupService {
     try {
       final map = (collection as dynamic).toMap();
       return Map<String, dynamic>.from(map as Map);
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in appwrite_backup_service.dart: ');
       try {
         final dynamic c = collection;
         return {
@@ -113,7 +117,8 @@ class AppwriteBackupService {
           'documentSecurity': c.documentSecurity,
           'permissions': c.permissions,
         };
-      } catch (_) {
+      } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in appwrite_backup_service.dart: ');
         return {'raw': collection.toString()};
       }
     }

@@ -10,6 +10,7 @@ import '../appwrite_logger.dart';
 import '../appwrite_service.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 /// خدمة سحب التغييرات من Appwrite Cloud إلى القاعدة المحلية
 ///
@@ -91,7 +92,8 @@ class SyncPullService {
       final isMillis = value != null && value > 10000000000;
       _remoteEpochIsMillis = isMillis;
       return isMillis;
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in sync_pull_service.dart: ');
       _remoteEpochIsMillis = false;
       return false;
     }
@@ -188,7 +190,8 @@ class SyncPullService {
         return ts ~/ 1000;
       }
       return ts;
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in sync_pull_service.dart: ');
       _logger.warning('Failed to read lastPullTs, using 0', tag: 'SYNC');
       return 0;
     }

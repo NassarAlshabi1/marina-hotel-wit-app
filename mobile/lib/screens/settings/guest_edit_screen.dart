@@ -19,6 +19,7 @@ import '../../utils/hotel_time_engine.dart';
 import '../../utils/id.dart';
 import '../../utils/status_utils.dart';
 import 'guest_info.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class GuestEditScreen extends ConsumerStatefulWidget {
   const GuestEditScreen({
@@ -406,7 +407,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
           'lastModified': nowEpoch,
         },
       );
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in guest_edit_screen.dart: ');
       // سجل التدقيق غير حرج — لا نوقف العملية إذا فشل
     }
   }
@@ -584,7 +586,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     }
     try {
       return DateTime.parse(value);
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in guest_edit_screen.dart: ');
       return null;
     }
   }

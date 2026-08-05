@@ -17,6 +17,7 @@ import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/time.dart';
 import 'create_debt_from_booking.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class DebtsListScreen extends ConsumerStatefulWidget {
   const DebtsListScreen({super.key});
@@ -867,7 +868,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
           .map((p) => p as Map<String, dynamic>)
           .where((p) => p['amount'] != null)
           .toList();
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in debts_list.dart: ');
       return [];
     }
   }
@@ -885,7 +887,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       try {
         final decoded = jsonDecode(debt.note ?? '{}') as Map<String, dynamic>;
         originalNote = decoded['original_note'] as String?;
-      } catch (_) {}
+      } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in debts_list.dart: ');}
     } else if (debt.note != null &&
         debt.note!.isNotEmpty &&
         !debt.note!.startsWith('{')) {
@@ -1603,7 +1606,8 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       if (booking != null) {
         phone = booking.guestPhone;
       }
-    } catch (_) {}
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in debts_list.dart: ');}
 
     if (phone.isEmpty) {
       if (mounted) {

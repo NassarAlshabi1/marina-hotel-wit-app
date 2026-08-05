@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../local_db.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 part 'ancestor_cache_dao.g.dart';
 
@@ -47,7 +48,8 @@ class AncestorCacheDao extends DatabaseAccessor<AppDatabase>
     if (row == null) return null;
     try {
       return jsonDecode(row.dataJson) as Map<String, dynamic>;
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in ancestor_cache_dao.dart: ');
       return null;
     }
   }

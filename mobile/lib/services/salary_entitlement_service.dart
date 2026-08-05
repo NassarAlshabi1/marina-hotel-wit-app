@@ -593,10 +593,12 @@ class SalaryEntitlementService {
           ? '$normalized:00'
           : normalized;
       return DateTime.parse(withSeconds);
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in salary_entitlement_service.dart: ');
       try {
         return DateTime.parse(dateStr.split(' ').first);
-      } catch (_) {
+      } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in salary_entitlement_service.dart: ');
         return null;
       }
     }

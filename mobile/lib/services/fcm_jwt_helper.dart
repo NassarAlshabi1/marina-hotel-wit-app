@@ -475,7 +475,8 @@ _RsaComponents _extractRsaComponents(List<int> derBytes) {
       primeP: p,
       primeQ: q,
     );
-  } catch (_) {
+  } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in fcm_jwt_helper.dart: ');
     // ليست PKCS#8 — جرب PKCS#1
   }
 

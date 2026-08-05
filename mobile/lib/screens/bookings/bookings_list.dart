@@ -18,6 +18,7 @@ import '../../utils/time.dart';
 import '../payments/booking_payment_screen.dart';
 import '../payments/payments_main_screen.dart';
 import 'booking_edit.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class BookingsListScreen extends ConsumerStatefulWidget {
   const BookingsListScreen({super.key});
@@ -750,7 +751,8 @@ String _formatDate(String s) {
   try {
     final d = DateTime.parse(s);
     return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-  } catch (_) {
+  } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in bookings_list.dart: ');
     return s;
   }
 }

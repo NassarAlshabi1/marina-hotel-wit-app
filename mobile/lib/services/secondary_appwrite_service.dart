@@ -432,7 +432,8 @@ class SecondaryAppwriteService {
         // يلتقط catch أي فشل async (النظام الأساسي يستخدم return await).
         try {
           return await doUpdate(documentId, suppressErrorLog: true);
-        } catch (_) {
+        } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in secondary_appwrite_service.dart: ');
           rethrow;
         }
       }

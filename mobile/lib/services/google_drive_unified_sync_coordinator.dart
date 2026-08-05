@@ -18,6 +18,7 @@ import 'sync_constants.dart';
 import 'sync_guard.dart';
 import 'sync_locks.dart';
 import 'sync_performance_optimizer.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 enum SyncTrigger { manual, appForeground, localChange, periodic, scheduled }
 
@@ -916,7 +917,8 @@ class GoogleDriveUnifiedSyncCoordinator {
     }
     try {
       return DateTime.parse(iso);
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in google_drive_unified_sync_coordinator.dart: ');
       return null;
     }
   }

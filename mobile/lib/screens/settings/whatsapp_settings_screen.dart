@@ -14,6 +14,7 @@ import '../../services/appwrite_config.dart';
 import '../../services/whatsapp_service.dart';
 import '../../services/whatsapp_settings_sync.dart';
 import '../../utils/message_templates.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class WhatsAppSettingsScreen extends ConsumerStatefulWidget {
   const WhatsAppSettingsScreen({super.key});
@@ -456,7 +457,8 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
   Future<void> _openUrl(String url) async {
     try {
       await Process.run('xdg-open', [url]);
-    } catch (_) {}
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in whatsapp_settings_screen.dart: ');}
   }
 
   @override

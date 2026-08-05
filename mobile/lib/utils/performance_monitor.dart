@@ -301,7 +301,8 @@ class PerformanceMonitor {
           );
         }
       }
-    } catch (_) {}
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in performance_monitor.dart: ');}
   }
 
   double get currentMemoryMB => _memorySamples.isEmpty

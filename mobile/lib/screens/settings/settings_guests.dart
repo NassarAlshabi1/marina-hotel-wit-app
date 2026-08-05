@@ -17,6 +17,7 @@ import '../../utils/time.dart';
 import '../bookings/booking_edit.dart';
 import 'guest_edit_screen.dart';
 import 'guest_info.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class SettingsGuestsScreen extends ConsumerStatefulWidget {
   const SettingsGuestsScreen({super.key});
@@ -1102,7 +1103,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     }
     try {
       return DateTime.parse(value);
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in settings_guests.dart: ');
       return null;
     }
   }
@@ -1115,7 +1117,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     try {
       final dt = DateTime.parse(dateStr);
       return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in settings_guests.dart: ');
       return '--:--';
     }
   }
@@ -1125,7 +1128,8 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       final newDt = DateTime.parse(newDate);
       final oldDt = DateTime.parse(oldDate);
       return newDt.hour != oldDt.hour || newDt.minute != oldDt.minute;
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in settings_guests.dart: ');
       return false;
     }
   }

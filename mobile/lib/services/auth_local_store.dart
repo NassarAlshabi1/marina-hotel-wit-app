@@ -972,7 +972,8 @@ class AuthLocalStore {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString('appwrite_device_id') ??
           prefs.getString('appwrite_realtime_device_id');
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in auth_local_store.dart: ');
       return null;
     }
   }

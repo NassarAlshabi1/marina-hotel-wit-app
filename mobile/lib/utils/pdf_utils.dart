@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/widgets.dart' as pw;
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class ArabicPdfFonts {
   ArabicPdfFonts({required this.base, required this.bold});
@@ -25,7 +26,8 @@ class PdfUtils {
       final data = await rootBundle.load('assets/images/hotel_logo.jpg');
       final Uint8List bytes = data.buffer.asUint8List();
       return pw.MemoryImage(bytes);
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in pdf_utils.dart: ');
       return null;
     }
   }

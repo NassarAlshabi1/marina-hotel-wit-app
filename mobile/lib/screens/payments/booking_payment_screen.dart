@@ -35,6 +35,7 @@ import '../../utils/time.dart';
 import 'payment_history_screen.dart';
 import 'widgets/actions_tab.dart';
 import 'widgets/payment_summary_card.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class BookingPaymentScreen extends ConsumerStatefulWidget {
   const BookingPaymentScreen({
@@ -1081,7 +1082,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         );
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in booking_payment_screen.dart: ');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('تعذّر إرسال رسالة واتساب')),
@@ -1403,7 +1405,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         );
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in booking_payment_screen.dart: ');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('تعذّر إرسال رسالة واتساب')),
@@ -2305,7 +2308,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         );
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in booking_payment_screen.dart: ');
       // تجاهل الأخطاء
     }
   }
@@ -4033,7 +4037,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ),
         );
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in booking_payment_screen.dart: ');
       // تجاهل الأخطاء، الدفعة مسجلة بنجاح
     }
   }

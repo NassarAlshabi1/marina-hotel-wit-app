@@ -5,6 +5,7 @@ import '../utils/hotel_time_engine.dart';
 import '../utils/time.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 /// ✅ خدمة إصلاح hotelDayKey لجميع الجداول
 ///
@@ -94,7 +95,8 @@ class HotelDayKeyFixService {
       return HotelTimeEngine.getHotelDayKey(
         dateTime: DateTime(year, month, day, 14, 1),
       );
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in hotel_day_key_fix_service.dart: ');
       return HotelTimeEngine.getHotelDayKey();
     }
   }
@@ -414,7 +416,8 @@ class HotelDayKeyFixService {
                 [item.expenseId, item.id],
               );
             }
-          } catch (_) {
+          } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in hotel_day_key_fix_service.dart: ');
             // العمود قد لا يكون موجوداً
           }
 

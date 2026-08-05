@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/remote_config_provider.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class RemoteConfigSettingsScreen extends ConsumerStatefulWidget {
   const RemoteConfigSettingsScreen({super.key});
@@ -416,7 +417,8 @@ class _RemoteConfigSettingsScreenState
     try {
       final dt = DateTime.parse(iso);
       return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} — ${dt.day}/${dt.month}/${dt.year}';
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in remote_config_settings_screen.dart: ');
       return iso;
     }
   }

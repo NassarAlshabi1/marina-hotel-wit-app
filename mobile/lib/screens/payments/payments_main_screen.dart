@@ -21,6 +21,7 @@ import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import 'booking_checkout_screen.dart';
 import 'payment_history_screen.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class PaymentsMainScreen extends ConsumerStatefulWidget {
   const PaymentsMainScreen({super.key});
@@ -330,7 +331,8 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         return DateTime.parse(
           b.paymentDate,
         ).compareTo(DateTime.parse(a.paymentDate));
-      } catch (_) {
+      } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in payments_main_screen.dart: ');
         return 0;
       }
     });

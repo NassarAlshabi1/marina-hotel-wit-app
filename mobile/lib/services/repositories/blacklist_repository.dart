@@ -377,7 +377,8 @@ class BlacklistRepository {
           if (active) {
             return _fromRow(row);
           }
-        } catch (_) {
+        } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in blacklist_repository.dart: ');
           return _fromRow(row);
         }
       }

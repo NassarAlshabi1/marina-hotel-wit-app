@@ -1,4 +1,5 @@
 import 'time.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 /// محرك الوقت الفندقي — المصدر الوحيد للحسابات
 ///
@@ -125,7 +126,8 @@ class HotelTimeEngine {
           : isoString.trim().replaceFirst(' ', 'T');
       final dt = DateTime.parse(normalized);
       return getHotelDayKey(dateTime: dt);
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in hotel_time_engine.dart: ');
       return getHotelDayKey();
     }
   }
@@ -252,7 +254,8 @@ class HotelTimeEngine {
             : checkoutDate.replaceFirst(' ', 'T'),
       );
       return DateTime.now().isAfter(checkout);
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in hotel_time_engine.dart: ');
       return false;
     }
   }

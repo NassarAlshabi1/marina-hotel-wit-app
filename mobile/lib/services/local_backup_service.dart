@@ -771,7 +771,8 @@ class LocalBackupService {
             name: 'SyncSafety',
           );
         }
-      } catch (_) {}
+      } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in local_backup_service.dart: ');}
     }
   }
 

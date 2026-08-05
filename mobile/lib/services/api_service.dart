@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../utils/app_logger.dart';
 import 'api_config_service.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class ApiService {
   ApiService._internal() {
@@ -117,7 +118,8 @@ class ApiService {
         return resData['success'] == true;
       }
       return false;
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('⚠️ Swallowed error in api_service.dart: ');
       return false;
     }
   }
