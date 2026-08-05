@@ -1,3 +1,4 @@
+// ignore_for_file: unused_catch_stack
 // lib/services/fcm_sender.dart
 //
 // ✅ خدمة إرسال FCM مباشرة من التطبيق (للأحداث المهمة فقط).

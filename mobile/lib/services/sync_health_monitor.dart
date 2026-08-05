@@ -1,3 +1,4 @@
+// ignore_for_file: unused_catch_stack
 // lib/services/sync_health_monitor.dart
 import 'dart:async';
 

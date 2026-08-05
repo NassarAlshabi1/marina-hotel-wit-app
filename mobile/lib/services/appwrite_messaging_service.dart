@@ -1,5 +1,5 @@
 // TODO(phase-2): remove this ignore and fix violations (avoid_dynamic_calls, discarded_futures)
-// ignore_for_file: avoid_dynamic_calls, discarded_futures
+// ignore_for_file: unused_catch_stack, avoid_dynamic_calls, discarded_futures
 // lib/services/appwrite_messaging_service.dart
 //
 // ✅ خدمة Appwrite Messaging — بديل/مكمّل لـ FCM المباشر.

@@ -1,5 +1,5 @@
 // TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
+// ignore_for_file: unused_catch_stack, discarded_futures
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';

@@ -1,3 +1,4 @@
+// ignore_for_file: unused_catch_stack
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';

@@ -1,3 +1,4 @@
+// ignore_for_file: unused_catch_stack
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';

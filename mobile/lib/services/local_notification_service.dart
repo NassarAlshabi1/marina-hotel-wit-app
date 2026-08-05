@@ -1,3 +1,4 @@
+// ignore_for_file: unused_catch_stack
 // lib/services/local_notification_service.dart
 //
 // ✅ خدمة الإشعارات المحلية الموحّدة (Local Notifications)
