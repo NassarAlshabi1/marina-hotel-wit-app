@@ -22,3 +22,6 @@ scripts/appwrite/backup_splits/
 # Python cache
 __pycache__/
 *.pyc
+Keystore.txt
+*.keystore
+key.properties
