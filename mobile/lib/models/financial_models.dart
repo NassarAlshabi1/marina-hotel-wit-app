@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 class AppliedAdjustment {
   const AppliedAdjustment({
     required this.uuid,

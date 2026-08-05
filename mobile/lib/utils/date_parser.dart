@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 /// أداة مشتركة لتحليل التواريخ النصية.
 ///
 /// تُستخدم في عدة شاشات وخدمات لتحويل سلاسل التاريخ إلى [DateTime].

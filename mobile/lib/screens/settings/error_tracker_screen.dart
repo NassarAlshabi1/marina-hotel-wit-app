@@ -595,7 +595,7 @@ class _ErrorTrackerScreenState extends State<ErrorTrackerScreen> {
 
   Widget _buildEmptyState() {
     return Center(
-      body: Column(
+      child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
@@ -636,7 +636,7 @@ class _ErrorTrackerScreenState extends State<ErrorTrackerScreen> {
         content: SizedBox(
           width: double.maxFinite,
           child: SingleChildScrollView(
-            body: Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _DetailRow('الوقت', error.formattedTime),
@@ -786,7 +786,7 @@ class _ErrorCard extends StatelessWidget {
               const SizedBox(width: 12),
               // المحتوى
               Expanded(
-                body: Column(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(

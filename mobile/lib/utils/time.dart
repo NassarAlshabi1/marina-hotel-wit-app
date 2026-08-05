@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 class Time {
   static const int earlyCheckinGraceHour = 8;
 
