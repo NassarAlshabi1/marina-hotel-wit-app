@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/conflict_manager.dart';
 import '../../utils/performance_monitor.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// شاشة مراقبة التعارضات — تعرض التعارضات المعلقة وتسمح بحلها
 class SyncConflictsScreen extends ConsumerStatefulWidget {
@@ -69,7 +70,7 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
               if (snapshot.hasError) {
                 // 🔒 نسجّل التفاصيل التقنية في debugPrint فقط (للمطورين)، ولا نُظهرها
                 // للمستخدم — قد تحتوي على أسماء جداول/حقول داخلية أو رسائل Appwrite.
-                debugPrint('❌ sync_conflicts stream error: ${snapshot.error}');
+                dlog(() => '❌ sync_conflicts stream error: ${snapshot.error}');
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.all(24),

@@ -17,6 +17,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class AutoOutboxSyncWatcher {
   AutoOutboxSyncWatcher._();
@@ -55,10 +56,10 @@ class AutoOutboxSyncWatcher {
 
       if (_isOnline && !wasOnline) {
         // Just came back online → flush pending outbox
-        debugPrint('🌐 AutoSync: back online → flushing outbox');
+        dlog('🌐 AutoSync: back online → flushing outbox');
         _schedulePush();
       } else if (!_isOnline && wasOnline) {
-        debugPrint('📴 AutoSync: went offline → push paused');
+        dlog('📴 AutoSync: went offline → push paused');
       }
     });
 
@@ -77,7 +78,7 @@ class AutoOutboxSyncWatcher {
           }
         });
 
-    debugPrint('👁️ AutoOutboxSyncWatcher started (offline-aware)');
+    dlog('👁️ AutoOutboxSyncWatcher started (offline-aware)');
   }
 
   void _schedulePush() {
@@ -88,14 +89,12 @@ class AutoOutboxSyncWatcher {
   Future<void> _doPush() async {
     // ✅ Offline check: don't attempt push if no internet
     if (!_isOnline) {
-      debugPrint(
-        '📴 AutoSync: offline — push deferred (outbox retains entries)',
-      );
+      dlog('📴 AutoSync: offline — push deferred (outbox retains entries)');
       return;
     }
 
     if (_pushing) {
-      debugPrint('⏭️ AutoSync: push already in progress');
+      dlog('⏭️ AutoSync: push already in progress');
       return;
     }
 
@@ -105,12 +104,10 @@ class AutoOutboxSyncWatcher {
       if (fn == null) return;
       final result = await fn();
       if (result > 0) {
-        debugPrint('📤 AutoSync: pushed $result changes');
+        dlog(() => '📤 AutoSync: pushed $result changes');
       }
     } catch (e) {
-      debugPrint(
-        '⚠️ AutoSync push error: $e (will retry on next outbox change)',
-      );
+      dlog(() => '⚠️ AutoSync push error: $e (will retry on next outbox change)');
     } finally {
       _pushing = false;
     }

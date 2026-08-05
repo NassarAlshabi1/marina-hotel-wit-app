@@ -8,6 +8,7 @@ import 'entity_adapter.dart';
 import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
   PaymentsAdapter(this.resolver);
@@ -49,9 +50,7 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
     // تحذير إذا كان لدينا booking_local_id لكن لم نتمكن من حل المرجع
     if (resolvedId == null && localId != null) {
       // تسجيل تحذير فقط، سيتم معالجة الخطأ في _syncPayments
-      debugPrint(
-        '[PaymentsAdapter] Warning: Could not resolve booking for localId: $localId',
-      );
+      dlog(() => '[PaymentsAdapter] Warning: Could not resolve booking for localId: $localId');
     }
 
     final createdAt = _epoch(json, 'createdAt', src);

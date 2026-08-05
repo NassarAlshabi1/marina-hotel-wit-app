@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/appwrite_schema_verifier.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// Script للتحقق من مطابقة Schema مع Appwrite Cloud
 ///
@@ -12,7 +13,7 @@ import '../services/appwrite_schema_verifier.dart';
 /// await checkAppwriteSchema();
 /// ```
 Future<void> checkAppwriteSchema() async {
-  debugPrint('🔍 جاري التحقق من Appwrite Schema...');
+  dlog('🔍 جاري التحقق من Appwrite Schema...');
 
   try {
     final results = await AppwriteSchemaVerifier.verifySchema();
@@ -21,37 +22,37 @@ Future<void> checkAppwriteSchema() async {
     final missingAttrs = results['missingAttributes'] as Map;
 
     if (missingCollections.isEmpty && missingAttrs.isEmpty) {
-      debugPrint('✅ Schema مطابق تماماً - جميع الحقول موجودة');
+      dlog('✅ Schema مطابق تماماً - جميع الحقول موجودة');
       return;
     }
 
     if (missingCollections.isNotEmpty) {
-      debugPrint('❌ Collections ناقصة:');
+      dlog('❌ Collections ناقصة:');
       for (final collection in missingCollections) {
-        debugPrint('  - $collection');
+        dlog(() => '  - $collection');
       }
     }
 
     if (missingAttrs.isNotEmpty) {
-      debugPrint('❌ Attributes ناقصة:');
+      dlog('❌ Attributes ناقصة:');
       missingAttrs.forEach((collection, attrs) {
-        debugPrint('  📂 $collection:');
+        dlog(() => '  📂 $collection:');
         for (final attr in attrs as Iterable) {
-          debugPrint('    - $attr');
+          dlog(() => '    - $attr');
         }
       });
 
       // طباعة تعليمات الإضافة
-      debugPrint('\n📖 لإضافة الحقول الناقصة:');
-      debugPrint('1. افتح Appwrite Console');
-      debugPrint('2. اذهب إلى Databases → اختر قاعدة البيانات');
-      debugPrint('3. افتح Collection المطلوب');
-      debugPrint('4. اضغط "Create Attribute" وأضف الحقول الناقصة');
-      debugPrint('\nراجع APPWRITE_SCHEMA_UPDATE.md للتفاصيل');
+      dlog('\n📖 لإضافة الحقول الناقصة:');
+      dlog('1. افتح Appwrite Console');
+      dlog('2. اذهب إلى Databases → اختر قاعدة البيانات');
+      dlog('3. افتح Collection المطلوب');
+      dlog('4. اضغط "Create Attribute" وأضف الحقول الناقصة');
+      dlog('\nراجع APPWRITE_SCHEMA_UPDATE.md للتفاصيل');
     }
   } catch (e, stack) {
-    debugPrint('❌ خطأ في التحقق من Schema: $e');
-    debugPrint('Stack trace: $stack');
+    dlog(() => '❌ خطأ في التحقق من Schema: $e');
+    dlog(() => 'Stack trace: $stack');
   }
 }
 

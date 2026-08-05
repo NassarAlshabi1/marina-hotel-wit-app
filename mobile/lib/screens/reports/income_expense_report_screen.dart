@@ -25,6 +25,7 @@ import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
 import '../../widgets/report_date_filter.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class IncomeExpenseReportScreen extends ConsumerStatefulWidget {
   const IncomeExpenseReportScreen({super.key});
@@ -169,9 +170,7 @@ class _IncomeExpenseReportScreenState
             final toDay = DateTime(toDate.year, toDate.month, toDate.day);
             return !debtDay.isBefore(fromDay) && !debtDay.isAfter(toDay);
           } catch (e) {
-            debugPrint(
-              '⚠️ تعذر تحليل تاريخ الدين dateRecorded="${d.dateRecorded}": $e',
-            );
+            dlog(() => '⚠️ تعذر تحليل تاريخ الدين dateRecorded="${d.dateRecorded}": $e');
             return false; // استبعاد السجل غير الصالح من فلترة الفترة
           }
         }
@@ -196,9 +195,7 @@ class _IncomeExpenseReportScreenState
             final toDay = DateTime(toDate.year, toDate.month, toDate.day);
             return !debtDay.isBefore(fromDay) && !debtDay.isAfter(toDay);
           } catch (e) {
-            debugPrint(
-              '⚠️ تعذر تحليل تاريخ الدين paymentDate="${d.paymentDate}": $e',
-            );
+            dlog(() => '⚠️ تعذر تحليل تاريخ الدين paymentDate="${d.paymentDate}": $e');
             return false; // استبعاد السجل غير الصالح من فلترة الفترة
           }
         }

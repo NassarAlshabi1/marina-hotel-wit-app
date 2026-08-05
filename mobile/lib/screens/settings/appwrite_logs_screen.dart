@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart';
 import '../../services/appwrite_logger.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class AppwriteLogsScreen extends ConsumerStatefulWidget {
   const AppwriteLogsScreen({super.key});
@@ -50,7 +51,7 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
           setState(() {}); // تحديث الشاشة
         }
       } catch (e) {
-        debugPrint('⚠️ appwrite_logs auto-refresh setState failed: $e');
+        dlog(() => '⚠️ appwrite_logs auto-refresh setState failed: $e');
       }
     });
   }

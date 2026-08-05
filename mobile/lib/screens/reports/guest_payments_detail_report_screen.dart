@@ -14,6 +14,7 @@ import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 // ─────────────────────────────────────────────────────────────────
 // يستخدم StayBalanceCalculator المحرك الموحد لحساب الرصيد والتواريخ
@@ -156,7 +157,7 @@ class _GuestPaymentsDetailReportScreenState
       _coverageCache[b.id] = result;
       return result;
     } catch (e) {
-      debugPrint('⚠️ خطأ في حساب تغطية الحجز ${b.id}: $e');
+      dlog(() => '⚠️ خطأ في حساب تغطية الحجز ${b.id}: $e');
       final fallback = _safeFallback(b);
       _coverageCache[b.id] = fallback;
       return fallback;
@@ -239,7 +240,7 @@ class _GuestPaymentsDetailReportScreenState
             priceAdjustments: filtered,
           );
         } catch (e) {
-          debugPrint('⚠️ خطأ في حساب تغطية الحجز ${b.id}: $e');
+          dlog(() => '⚠️ خطأ في حساب تغطية الحجز ${b.id}: $e');
           newCache[b.id] = _safeFallback(b);
         }
         // ✅ السماح بتحديث UI كل 10 حجوزات لمنع تجميد الشاشة
@@ -255,7 +256,7 @@ class _GuestPaymentsDetailReportScreenState
         });
       }
     } catch (e) {
-      debugPrint('Error refreshing data: $e');
+      dlog(() => 'Error refreshing data: $e');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -572,7 +573,7 @@ class _GuestPaymentsDetailReportScreenState
     try {
       return _buildReport(allBookings);
     } catch (e) {
-      debugPrint('⚠️ خطأ في بناء تقرير المدفوعات: $e');
+      dlog(() => '⚠️ خطأ في بناء تقرير المدفوعات: $e');
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),

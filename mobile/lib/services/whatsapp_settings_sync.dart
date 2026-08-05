@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'appwrite_config_manager.dart';
 import 'appwrite_service.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// خدمة مزامنة إعدادات الواتساب مع Appwrite Console
 /// تسمح برفع الإعدادات من الجهاز إلى السحابة وتنزيلها على جهاز آخر
@@ -51,14 +52,14 @@ class WhatsAppSettingsSync {
         );
       }
 
-      debugPrint('WhatsApp settings uploaded to Appwrite successfully');
+      dlog('WhatsApp settings uploaded to Appwrite successfully');
       return (success: true, error: null);
     } on AppwriteException catch (e) {
       final msg = _parseAppwriteError(e);
-      debugPrint('WhatsApp settings upload failed: $msg');
+      dlog(() => 'WhatsApp settings upload failed: $msg');
       return (success: false, error: msg);
     } catch (e) {
-      debugPrint('WhatsApp settings upload error: $e');
+      dlog(() => 'WhatsApp settings upload error: $e');
       return (success: false, error: e.toString());
     }
   }
@@ -96,14 +97,14 @@ class WhatsAppSettingsSync {
         }
       }
 
-      debugPrint('WhatsApp settings downloaded from Appwrite successfully');
+      dlog('WhatsApp settings downloaded from Appwrite successfully');
       return (success: true, error: null, settings: saved);
     } on AppwriteException catch (e) {
       final msg = _parseAppwriteError(e);
-      debugPrint('WhatsApp settings download failed: $msg');
+      dlog(() => 'WhatsApp settings download failed: $msg');
       return (success: false, error: msg, settings: null);
     } catch (e) {
-      debugPrint('WhatsApp settings download error: $e');
+      dlog(() => 'WhatsApp settings download error: $e');
       return (success: false, error: e.toString(), settings: null);
     }
   }

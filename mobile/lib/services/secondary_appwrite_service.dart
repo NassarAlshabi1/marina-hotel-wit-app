@@ -12,6 +12,7 @@ import 'appwrite_network_helper.dart';
 import 'appwrite_sync_utils.dart';
 import 'local_db.dart';
 import 'secondary_appwrite_config.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// خدمة Appwrite الثانوية — تستخدم Appwrite SDK الرسمي (مثل Primary)
 ///
@@ -86,7 +87,7 @@ class SecondaryAppwriteService {
       );
     } catch (e) {
       stopwatch.stop();
-      debugPrint('❌ [Secondary] testConnection failed: $e');
+      dlog(() => '❌ [Secondary] testConnection failed: $e');
       return ConnectionTestResult(
         success: false,
         message: '❌ فشل: $e',
@@ -572,9 +573,7 @@ class SecondaryAppwriteService {
       final collectionId = AppwriteConfig.collectionIdFor(entity);
       if (collectionId == null) {
         // كيان بلا collectionId مُعرّف — لا يمكن رفعه؛ نتخطّاه صراحةً مع تنبيه.
-        debugPrint(
-          '⚠️ [Secondary] تخطّي "$entity": لا يوجد collectionId مطابق',
-        );
+        dlog(() => '⚠️ [Secondary] تخطّي "$entity": لا يوجد collectionId مطابق');
         continue;
       }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// حارس مشترك لمنع تداخل عمليات المزامنة عبر الخدمات المختلفة.
 ///
@@ -44,10 +45,8 @@ class SyncGuard {
     // إذا مضت أكثر من 10 دقائق على "مزامنة نشطة"، فمن المحتمل أنها علقت
     // (deadlock أو crash) — اسمح بمزامنة جديدة كـ safety valve.
     if (elapsed > const Duration(minutes: 10)) {
-      debugPrint(
-        '⚠️ SyncGuard: stale lock detected (label=$_activeSyncLabel, '
-        'elapsed=${elapsed.inSeconds}s) — allowing $label to proceed',
-      );
+      dlog(() => '⚠️ SyncGuard: stale lock detected (label=$_activeSyncLabel, '
+        'elapsed=${elapsed.inSeconds}s) — allowing $label to proceed');
       return true;
     }
     return false;

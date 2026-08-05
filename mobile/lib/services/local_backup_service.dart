@@ -19,6 +19,7 @@ import 'backup_serializers.dart';
 import 'google_drive_backup_service.dart';
 import 'local_db.dart';
 import 'sqlite_backup_restore.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 export 'google_drive_backup_service.dart' show BackupFormat;
 
@@ -90,7 +91,7 @@ class LocalBackupService {
       }
       return true; // على iOS أو منصات أخرى
     } catch (e) {
-      debugPrint('❌ خطأ في التحقق من الأذونات: $e');
+      dlog(() => '❌ خطأ في التحقق من الأذونات: $e');
       return false;
     }
   }
@@ -114,7 +115,7 @@ class LocalBackupService {
 
       if (!selectedDir.existsSync()) {
         await selectedDir.create(recursive: true);
-        debugPrint('✅ تم إنشاء مجلد النسخ الاحتياطي: ${selectedDir.path}');
+        dlog(() => '✅ تم إنشاء مجلد النسخ الاحتياطي: ${selectedDir.path}');
       }
 
       _backupDirectory = selectedDir;
@@ -124,7 +125,7 @@ class LocalBackupService {
 
       return _backupDirectory!;
     } catch (e) {
-      debugPrint('❌ خطأ في إنشاء مجلد النسخ الاحتياطي: $e');
+      dlog(() => '❌ خطأ في إنشاء مجلد النسخ الاحتياطي: $e');
       rethrow;
     }
   }
@@ -134,7 +135,7 @@ class LocalBackupService {
     BackupFormat format = BackupFormat.json,
   }) async {
     try {
-      debugPrint('🔄 بدء إنشاء نسخة احتياطية محلية (${format.name})...');
+      dlog(() => '🔄 بدء إنشاء نسخة احتياطية محلية (${format.name})...');
 
       final hasPermission = await checkPermissions();
       if (!hasPermission) {
@@ -225,11 +226,9 @@ class LocalBackupService {
         final compressedBytes = GZipCodec().encode(jsonBytes);
         await file.writeAsBytes(compressedBytes);
 
-        debugPrint(
-          '✅ نسخة محلية مضغوطة: '
+        dlog(() => '✅ نسخة محلية مضغوطة: '
           '${(jsonBytes.length / 1024).toStringAsFixed(1)} KB → '
-          '${(compressedBytes.length / 1024).toStringAsFixed(1)} KB',
-        );
+          '${(compressedBytes.length / 1024).toStringAsFixed(1)} KB');
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(
@@ -237,9 +236,9 @@ class LocalBackupService {
           timestamp.toIso8601String(),
         );
 
-        debugPrint('✅ تم إنشاء النسخة الاحتياطية المحلية (JSON): $filePath');
-        debugPrint('📊 السجلات المحفوظة: $totalRecords');
-        debugPrint('📁 حجم الملف: ${await file.length()} بايت');
+        dlog(() => '✅ تم إنشاء النسخة الاحتياطية المحلية (JSON): $filePath');
+        dlog(() => '📊 السجلات المحفوظة: $totalRecords');
+        dlog(() => '📁 حجم الملف: ${await file.length()} بايت');
 
         return filePath;
       }
@@ -293,9 +292,7 @@ class LocalBackupService {
           timestamp.toIso8601String(),
         );
 
-        debugPrint(
-          '✅ تم إنشاء النسخة الاحتياطية المحلية (SQLite): $destinationPath',
-        );
+        dlog(() => '✅ تم إنشاء النسخة الاحتياطية المحلية (SQLite): $destinationPath');
         return destinationPath;
       }
 
@@ -303,7 +300,7 @@ class LocalBackupService {
         'تنسيق النسخة الاحتياطية غير مدعوم: ${format.name}',
       );
     } catch (e) {
-      debugPrint('❌ خطأ في إنشاء النسخة الاحتياطية المحلية: $e');
+      dlog(() => '❌ خطأ في إنشاء النسخة الاحتياطية المحلية: $e');
       rethrow;
     }
   }
@@ -435,7 +432,7 @@ class LocalBackupService {
             LocalBackupFile.fromFile(file, metadata: metadata, format: format),
           );
         } catch (e) {
-          debugPrint('⚠️ خطأ في قراءة ملف النسخة الاحتياطية ${file.path}: $e');
+          dlog(() => '⚠️ خطأ في قراءة ملف النسخة الاحتياطية ${file.path}: $e');
           backupFiles.add(LocalBackupFile.fromFile(file, format: format));
         }
       }
@@ -443,10 +440,10 @@ class LocalBackupService {
       // ترتيب حسب تاريخ الإنشاء (الأحدث أولاً)
       backupFiles.sort((a, b) => b.createdTime.compareTo(a.createdTime));
 
-      debugPrint('✅ تم جلب ${backupFiles.length} نسخة احتياطية محلية');
+      dlog(() => '✅ تم جلب ${backupFiles.length} نسخة احتياطية محلية');
       return backupFiles;
     } catch (e) {
-      debugPrint('❌ خطأ في جلب قائمة النسخ الاحتياطية المحلية: $e');
+      dlog(() => '❌ خطأ في جلب قائمة النسخ الاحتياطية المحلية: $e');
       return [];
     }
   }
@@ -457,7 +454,7 @@ class LocalBackupService {
   /// استعادة من نسخة احتياطية محلية
   Future<void> restoreFromLocalBackup(String filePath) async {
     try {
-      debugPrint('🔄 بدء استعادة النسخة الاحتياطية من: $filePath');
+      dlog(() => '🔄 بدء استعادة النسخة الاحتياطية من: $filePath');
 
       final extension = p.extension(filePath).toLowerCase();
       if (extension == '.sqlite') {
@@ -474,7 +471,7 @@ class LocalBackupService {
         'تنسيق النسخة الاحتياطية غير مدعوم للاستعادة: $extension',
       );
     } catch (e) {
-      debugPrint('❌ خطأ في استعادة البيانات من النسخة المحلية: $e');
+      dlog(() => '❌ خطأ في استعادة البيانات من النسخة المحلية: $e');
       rethrow;
     }
   }
@@ -490,9 +487,7 @@ class LocalBackupService {
     List<int> decodedBytes;
     if (rawBytes.length >= 2 && rawBytes[0] == 0x1f && rawBytes[1] == 0x8b) {
       decodedBytes = gzip.decode(rawBytes);
-      debugPrint(
-        '📦 فك ضغط gzip: ${(rawBytes.length / 1024).toStringAsFixed(1)} KB → ${(decodedBytes.length / 1024).toStringAsFixed(1)} KB',
-      );
+      dlog(() => '📦 فك ضغط gzip: ${(rawBytes.length / 1024).toStringAsFixed(1)} KB → ${(decodedBytes.length / 1024).toStringAsFixed(1)} KB');
     } else {
       decodedBytes = rawBytes;
     }
@@ -518,7 +513,7 @@ class LocalBackupService {
       );
     }
 
-    debugPrint('🔄 بدء استعادة البيانات من نسخة JSON...');
+    dlog('🔄 بدء استعادة البيانات من نسخة JSON...');
     final db = getDatabase();
 
     // تعطيل FOREIGN KEYS أثناء الحذف والاستعادة بالكامل
@@ -571,9 +566,7 @@ class LocalBackupService {
           Future<void> Function(Map<String, dynamic> json) insert,
         ) async {
           if (!backupData.containsKey(key)) {
-            debugPrint(
-              '⚠️ النسخة الاحتياطية لا تحتوي على الجدول "$key" — تم التخطي',
-            );
+            dlog(() => '⚠️ النسخة الاحتياطية لا تحتوي على الجدول "$key" — تم التخطي');
             return;
           }
           final list = backupData[key] as List<dynamic>;
@@ -747,18 +740,16 @@ class LocalBackupService {
         // sync_state contains lastPullTs/deviceId from source device
         if (backupData.containsKey('sync_state')) {
           await db.delete(db.syncState).go();
-          debugPrint('🔄 تم مسح sync_state — الجهاز الجديد سيبدأ مزامنة كاملة');
+          dlog('🔄 تم مسح sync_state — الجهاز الجديد سيبدأ مزامنة كاملة');
         }
       }); // ✅ نهاية transaction — atomic: إما كل العمليات تنجح أو تفشل معاً
 
-      debugPrint(
-        '✅ تم استعادة ${metadata.totalRecords} سجل بنجاح من نسخة JSON '
-        '(جميع الجداول الـ20) — atomic transaction',
-      );
+      dlog(() => '✅ تم استعادة ${metadata.totalRecords} سجل بنجاح من نسخة JSON '
+        '(جميع الجداول الـ20) — atomic transaction');
     } finally {
       // إعادة تشغيل FOREIGN KEYS بعد الانتهاء من الاستعادة بالكامل
       await db.customStatement('PRAGMA foreign_keys = ON');
-      debugPrint('🔓 تم إعادة تشغيل FOREIGN KEYS');
+      dlog('🔓 تم إعادة تشغيل FOREIGN KEYS');
 
       // ✅ تحقق من سلامة المفاتيح الأجنبية بعد إعادة التفعيل
       try {
@@ -806,7 +797,7 @@ class LocalBackupService {
     //   3. يحتفظ بنسخة .pre_restore للأمان
     //   4. يُعيد فتح DB بعد الاستعادة
     // المنطق القديم كان يُسبب فقدان بيانات إذا فشل copy بعد deleteDatabase.
-    debugPrint('🗃️ استعادة نسخة SQLite عبر SqliteBackupRestore...');
+    dlog('🗃️ استعادة نسخة SQLite عبر SqliteBackupRestore...');
 
     // التحقق من سلامة الملف قبل الاستعادة (basic integrity check)
     try {
@@ -822,9 +813,9 @@ class LocalBackupService {
           'الملف ليس قاعدة بيانات SQLite صالحة (header غير مطابق)',
         );
       }
-      debugPrint('✅ تم التحقق من header SQLite (${bytes.length} بايت)');
+      dlog(() => '✅ تم التحقق من header SQLite (${bytes.length} بايت)');
     } catch (e) {
-      debugPrint('❌ فشل التحقق من سلامة ملف SQLite: $e');
+      dlog(() => '❌ فشل التحقق من سلامة ملف SQLite: $e');
       rethrow;
     }
 
@@ -836,13 +827,9 @@ class LocalBackupService {
         _prefsLastLocalBackupKey,
         metadata.backupTimestamp.toIso8601String(),
       );
-      debugPrint(
-        '✅ تم استعادة النسخة الاحتياطية (SQLite) بتاريخ ${metadata.backupTimestamp}',
-      );
+      dlog(() => '✅ تم استعادة النسخة الاحتياطية (SQLite) بتاريخ ${metadata.backupTimestamp}');
     } else {
-      debugPrint(
-        '✅ تم استعادة النسخة الاحتياطية (SQLite) بدون بيانات وصفية إضافية',
-      );
+      dlog('✅ تم استعادة النسخة الاحتياطية (SQLite) بدون بيانات وصفية إضافية');
     }
   }
 
@@ -867,9 +854,9 @@ class LocalBackupService {
             'نسخة احتياطية من بيانات تطبيق مارينا هوتيل\nاسم الملف: $fileName',
       );
 
-      debugPrint('✅ تم مشاركة النسخة الاحتياطية: $fileName');
+      dlog(() => '✅ تم مشاركة النسخة الاحتياطية: $fileName');
     } catch (e) {
-      debugPrint('❌ خطأ في مشاركة النسخة الاحتياطية: $e');
+      dlog(() => '❌ خطأ في مشاركة النسخة الاحتياطية: $e');
       rethrow;
     }
   }
@@ -877,7 +864,7 @@ class LocalBackupService {
   /// استيراد نسخة احتياطية من ملف خارجي
   Future<String> importBackupFromFile() async {
     try {
-      debugPrint('🔄 بدء استيراد نسخة احتياطية من ملف خارجي...');
+      dlog('🔄 بدء استيراد نسخة احتياطية من ملف خارجي...');
 
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -922,7 +909,7 @@ class LocalBackupService {
         final ext = extension == '.gz' ? '.json.gz' : '.json';
         final newFilePath = '${backupDir.path}/$baseName$ext';
         await File(newFilePath).writeAsBytes(copyBytes);
-        debugPrint('✅ تم استيراد النسخة الاحتياطية (JSON): $newFilePath');
+        dlog(() => '✅ تم استيراد النسخة الاحتياطية (JSON): $newFilePath');
         return newFilePath;
       }
 
@@ -963,7 +950,7 @@ class LocalBackupService {
 
           final metadataFile = File(_metadataFilePath(newFilePath));
           await metadataFile.writeAsString(jsonEncode(metadata.toJson()));
-          debugPrint('✅ تم استيراد النسخة الاحتياطية (SQLite): $newFilePath');
+          dlog(() => '✅ تم استيراد النسخة الاحتياطية (SQLite): $newFilePath');
           return newFilePath;
         } catch (e) {
           try {
@@ -985,7 +972,7 @@ class LocalBackupService {
 
       throw UnsupportedError('تنسيق الملف غير مدعوم للاستيراد: $extension');
     } catch (e) {
-      debugPrint('❌ خطأ في استيراد النسخة الاحتياطية: $e');
+      dlog(() => '❌ خطأ في استيراد النسخة الاحتياطية: $e');
       rethrow;
     }
   }
@@ -996,7 +983,7 @@ class LocalBackupService {
       final file = File(filePath);
       if (file.existsSync()) {
         await file.delete();
-        debugPrint('✅ تم حذف النسخة الاحتياطية: $filePath');
+        dlog(() => '✅ تم حذف النسخة الاحتياطية: $filePath');
       }
       // ✅ إصلاح: حذف ملف .metadata.json المرافق لنسخ SQLite
       // نسخ SQLite تُخزَّن مع ملف .metadata.json بجانبها (انظر _metadataFilePath).
@@ -1005,10 +992,10 @@ class LocalBackupService {
       final metadataFile = File(metadataPath);
       if (metadataFile.existsSync()) {
         await metadataFile.delete();
-        debugPrint('🧹 تم حذف ملف metadata المرافق: $metadataPath');
+        dlog(() => '🧹 تم حذف ملف metadata المرافق: $metadataPath');
       }
     } catch (e) {
-      debugPrint('❌ خطأ في حذف النسخة الاحتياطية: $e');
+      dlog(() => '❌ خطأ في حذف النسخة الاحتياطية: $e');
       rethrow;
     }
   }
@@ -1016,7 +1003,7 @@ class LocalBackupService {
   /// تصدير نسخة احتياطية إلى مجلد Downloads
   Future<String> exportToDownloads() async {
     try {
-      debugPrint('🔄 تصدير نسخة احتياطية إلى مجلد Downloads...');
+      dlog('🔄 تصدير نسخة احتياطية إلى مجلد Downloads...');
 
       // إنشاء النسخة الاحتياطية أولاً
       await createLocalBackup();
@@ -1061,10 +1048,10 @@ class LocalBackupService {
 
       await sourceFile.copy(exportPath);
 
-      debugPrint('✅ تم تصدير النسخة الاحتياطية إلى: $exportPath');
+      dlog(() => '✅ تم تصدير النسخة الاحتياطية إلى: $exportPath');
       return exportPath;
     } catch (e) {
-      debugPrint('❌ خطأ في تصدير النسخة الاحتياطية: $e');
+      dlog(() => '❌ خطأ في تصدير النسخة الاحتياطية: $e');
       rethrow;
     }
   }
@@ -1133,9 +1120,9 @@ class LocalBackupService {
         await deleteLocalBackup(backup.filePath);
       }
 
-      debugPrint('✅ تم تنظيف ${backupsToDelete.length} نسخة احتياطية قديمة');
+      dlog(() => '✅ تم تنظيف ${backupsToDelete.length} نسخة احتياطية قديمة');
     } catch (e) {
-      debugPrint('❌ خطأ في تنظيف النسخ القديمة: $e');
+      dlog(() => '❌ خطأ في تنظيف النسخ القديمة: $e');
     }
   }
 
@@ -1145,7 +1132,7 @@ class LocalBackupService {
       final backups = await listLocalBackups();
       return backups.fold<int>(0, (total, backup) => total + backup.sizeBytes);
     } catch (e) {
-      debugPrint('❌ خطأ في حساب حجم النسخ: $e');
+      dlog(() => '❌ خطأ في حساب حجم النسخ: $e');
       return 0;
     }
   }
@@ -1165,7 +1152,7 @@ class LocalBackupService {
         'total_size_mb': (totalSize / (1024 * 1024)).toStringAsFixed(2),
       };
     } catch (e) {
-      debugPrint('❌ خطأ في الحصول على معلومات مجلد النسخ: $e');
+      dlog(() => '❌ خطأ في الحصول على معلومات مجلد النسخ: $e');
       return {};
     }
   }

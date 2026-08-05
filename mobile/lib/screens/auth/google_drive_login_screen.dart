@@ -9,6 +9,7 @@ import '../../providers/auto_backup_provider.dart';
 import '../../providers/backup_provider.dart';
 import '../../utils/performance_monitor.dart';
 import '../../utils/theme.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class GoogleDriveLoginScreen extends ConsumerStatefulWidget {
   const GoogleDriveLoginScreen({super.key});
@@ -41,9 +42,7 @@ class _GoogleDriveLoginScreenState
         try {
           await ref.read(autoBackupManagerProvider).setEnabled(true);
         } catch (e) {
-          debugPrint(
-            '⚠️ Failed to enable auto backup after silent sign-in: $e',
-          );
+          dlog(() => '⚠️ Failed to enable auto backup after silent sign-in: $e');
         }
       }
     } catch (_) {
@@ -67,9 +66,9 @@ class _GoogleDriveLoginScreenState
       if (state.isSignedIn) {
         try {
           await ref.read(autoBackupManagerProvider).setEnabled(true);
-          debugPrint('✅ تم تفعيل المزامنة التلقائية');
+          dlog('✅ تم تفعيل المزامنة التلقائية');
         } catch (e) {
-          debugPrint('⚠️ خطأ في تفعيل المزامنة التلقائية: $e');
+          dlog(() => '⚠️ خطأ في تفعيل المزامنة التلقائية: $e');
         }
         if (mounted) {
           setState(() {
@@ -163,7 +162,7 @@ class _GoogleDriveLoginScreenState
       // سحب جميع البيانات مع تعطيل Foreign Keys مؤقتاً لضمان عدم فشل السحب
       await manager.pullAllDataWithDisabledFK();
     } catch (e) {
-      debugPrint('❌ Appwrite auto pull after skip error: $e');
+      dlog(() => '❌ Appwrite auto pull after skip error: $e');
     }
   }
 

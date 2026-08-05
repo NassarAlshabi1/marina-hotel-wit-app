@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// إعدادات الوجهة الثانوية لـ Appwrite (نسخة احتياطية/طوارئ)
 ///
@@ -141,7 +142,7 @@ class SecondaryAppwriteConfig {
       _prefs!.setBool(_keyPullEnabled, pullEnabled),
     ]);
     if (kDebugMode) {
-      debugPrint('✅ Secondary Appwrite config saved (enabled=$enabled)');
+      dlog(() => '✅ Secondary Appwrite config saved (enabled=$enabled)');
     }
   }
 
@@ -161,7 +162,7 @@ class SecondaryAppwriteConfig {
       _prefs!.setBool(_keyPullEnabled, defaultPullEnabled),
     ]);
     if (kDebugMode) {
-      debugPrint('✅ Secondary Appwrite config restored to defaults');
+      dlog('✅ Secondary Appwrite config restored to defaults');
     }
   }
 
@@ -208,19 +209,19 @@ class SecondaryAppwriteConfig {
   /// طباعة الإعدادات للتشخيص
   static void printConfig() {
     if (kDebugMode) {
-      debugPrint('═══════════════════════════════════════');
-      debugPrint('🔧 Secondary Appwrite Configuration');
-      debugPrint('═══════════════════════════════════════');
-      debugPrint('Enabled: $isEnabled');
-      debugPrint('Configured: $isConfigured');
-      debugPrint('Endpoint: $endpoint');
-      debugPrint('Project ID: $projectId');
-      debugPrint('Database ID: $databaseId');
-      debugPrint('Push Enabled: $isPushEnabled');
-      debugPrint('Pull Enabled: $isPullEnabled');
-      debugPrint('Last Sync: $lastSyncTime');
-      debugPrint('Status: $syncStatus');
-      debugPrint('═══════════════════════════════════════');
+      dlog('═══════════════════════════════════════');
+      dlog('🔧 Secondary Appwrite Configuration');
+      dlog('═══════════════════════════════════════');
+      dlog(() => 'Enabled: $isEnabled');
+      dlog(() => 'Configured: $isConfigured');
+      dlog(() => 'Endpoint: $endpoint');
+      dlog(() => 'Project ID: $projectId');
+      dlog(() => 'Database ID: $databaseId');
+      dlog(() => 'Push Enabled: $isPushEnabled');
+      dlog(() => 'Pull Enabled: $isPullEnabled');
+      dlog(() => 'Last Sync: $lastSyncTime');
+      dlog(() => 'Status: $syncStatus');
+      dlog('═══════════════════════════════════════');
     }
   }
 }

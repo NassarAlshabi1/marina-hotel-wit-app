@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class DatabaseHealthChecker {
   DatabaseHealthChecker._();
@@ -47,7 +48,7 @@ class DatabaseHealthChecker {
         _updateHealth(DatabaseHealth.healthy(responseTime));
       }
     } catch (e) {
-      debugPrint('❌ Database health check failed: $e');
+      dlog(() => '❌ Database health check failed: $e');
       _updateHealth(DatabaseHealth.error(e.toString()));
     }
   }
@@ -63,7 +64,7 @@ class DatabaseHealthChecker {
     Duration timeout = const Duration(seconds: 5),
   }) async {
     if (!DatabaseManager.isInitialized) {
-      debugPrint('⚠️ Database not initialized');
+      dlog('⚠️ Database not initialized');
       return false;
     }
 
@@ -72,7 +73,7 @@ class DatabaseHealthChecker {
       await db.customStatement('SELECT 1').timeout(timeout);
       return true;
     } catch (e) {
-      debugPrint('❌ Database health check failed: $e');
+      dlog(() => '❌ Database health check failed: $e');
       return false;
     }
   }

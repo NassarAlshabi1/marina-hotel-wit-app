@@ -21,6 +21,7 @@ import '../widgets/dashboard_sync_button.dart';
 import 'bookings/booking_edit.dart';
 import 'payments/booking_payment_screen.dart';
 import 'reports/expenses_report_screen.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 const List<String> _dashboardRoomNumbers = [
   '101',
@@ -79,11 +80,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       task: _autoPullFromAppwriteInner,
     );
     if (!executed) {
-      debugPrint(
-        'ℹ️ [AutoPull] skipped — SyncGate busy with '
+      dlog(() => 'ℹ️ [AutoPull] skipped — SyncGate busy with '
         '${SyncGate.instance.state.operation} from '
-        '${SyncGate.instance.state.source}',
-      );
+        '${SyncGate.instance.state.source}');
     }
   }
 
@@ -162,10 +161,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         );
       } else if (mounted) {
         // إشعار صامت بأن البيانات محدثة
-        debugPrint('✅ البيانات محدثة — لا توجد سجلات جديدة');
+        dlog('✅ البيانات محدثة — لا توجد سجلات جديدة');
       }
     } catch (e) {
-      debugPrint('❌ فشل السحب التلقائي عند الفتح: $e');
+      dlog(() => '❌ فشل السحب التلقائي عند الفتح: $e');
     }
   }
 
@@ -430,7 +429,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             child: Center(child: CircularProgressIndicator()),
           ),
           error: (e, st) {
-            debugPrint('❌ Dashboard rooms error: $e');
+            dlog(() => '❌ Dashboard rooms error: $e');
             return Padding(
               padding: const EdgeInsets.all(16),
               child: Column(

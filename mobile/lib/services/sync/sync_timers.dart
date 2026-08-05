@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../appwrite_logger.dart';
 import '../daos/outbox_dao.dart';
 import '../sync_constants.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// SyncTimers — يدير كل المؤقتات الدورية للمزامنة
 ///
@@ -86,19 +87,17 @@ class SyncTimers {
         final resetCount = await outboxDao.retryFailedWithBackoff();
         if (resetCount == 0) return;
 
-        debugPrint(
-          '🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $resetCount)',
-        );
+        dlog(() => '🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $resetCount)');
 
         final result = await onPushOnly();
         if (result) {
-          debugPrint('✅ نجحت إعادة محاولة رفع العناصر الفاشلة');
+          dlog('✅ نجحت إعادة محاولة رفع العناصر الفاشلة');
         }
       } catch (e) {
-        debugPrint('⚠️ فشلت إعادة محاولة العناصر الفاشلة: $e');
+        dlog(() => '⚠️ فشلت إعادة محاولة العناصر الفاشلة: $e');
       }
     });
-    debugPrint('🔄 تم تشغيل مؤقت إعادة محاولة العناصر الفاشلة (كل 5 دقائق)');
+    dlog('🔄 تم تشغيل مؤقت إعادة محاولة العناصر الفاشلة (كل 5 دقائق)');
 
     // استعادة stuck 'processing' entries كل دقيقة
     _stuckRecoveryTimer?.cancel();
@@ -115,7 +114,7 @@ class SyncTimers {
         logger.warning('⚠️ فشل استعادة العناصر العالقة: $e', tag: 'SYNC');
       }
     });
-    debugPrint('🔧 تم تشغيل مؤقت استعادة العناصر العالقة (كل دقيقة)');
+    dlog('🔧 تم تشغيل مؤقت استعادة العناصر العالقة (كل دقيقة)');
 
     // تنظيف outbox تلقائي كل 24 ساعة
     _cleanupTimer?.cancel();

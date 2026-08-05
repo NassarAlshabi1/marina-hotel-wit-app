@@ -33,6 +33,7 @@ import '../../utils/time.dart';
 import 'payment_history_screen.dart';
 import 'widgets/actions_tab.dart';
 import 'widgets/payment_summary_card.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class BookingPaymentScreen extends ConsumerStatefulWidget {
   const BookingPaymentScreen({
@@ -2206,9 +2207,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           .watchByNumber(widget.booking.roomNumber)
           .first;
       if (room != null) {
-        debugPrint(
-          '🏠 [EarlyCheckout] Updating room ${room.roomNumber} status to available',
-        );
+        dlog(() => '🏠 [EarlyCheckout] Updating room ${room.roomNumber} status to available');
         await roomsRepo.update(room.id, status: 'شاغرة');
       }
 
@@ -2225,16 +2224,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             .read(appwriteSyncManagerProvider)
             .pushLocalChanges()
             .then((pushedCount) {
-              debugPrint(
-                '📤 [EarlyCheckout] push-only to Appwrite Cloud: '
-                '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred (will retry via outbox)"}',
-              );
+              dlog(() => '📤 [EarlyCheckout] push-only to Appwrite Cloud: '
+                '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred (will retry via outbox)"}');
             })
             .catchError((Object e) {
-              debugPrint(
-                '⚠️ [EarlyCheckout] push to Appwrite Cloud failed: $e — '
-                'سيتم إعادة المحاولة تلقائياً عبر outbox',
-              );
+              dlog(() => '⚠️ [EarlyCheckout] push to Appwrite Cloud failed: $e — '
+                'سيتم إعادة المحاولة تلقائياً عبر outbox');
             }),
       );
 
@@ -2258,7 +2253,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
       );
     } catch (e) {
-      debugPrint('❌ خطأ في المغادرة المبكرة: $e');
+      dlog(() => '❌ خطأ في المغادرة المبكرة: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2385,13 +2380,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             .read(appwriteSyncManagerProvider)
             .pushLocalChanges()
             .then((pushedCount) {
-              debugPrint(
-                '📤 [CreateDebt] push-only to Appwrite Cloud: '
-                '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred"}',
-              );
+              dlog(() => '📤 [CreateDebt] push-only to Appwrite Cloud: '
+                '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred"}');
             })
             .catchError((Object e) {
-              debugPrint('⚠️ [CreateDebt] push failed: $e');
+              dlog(() => '⚠️ [CreateDebt] push failed: $e');
             }),
       );
 
@@ -2414,7 +2407,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
       );
     } catch (e) {
-      debugPrint('❌ خطأ في إنشاء الدين: $e');
+      dlog(() => '❌ خطأ في إنشاء الدين: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -2581,13 +2574,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             .read(appwriteSyncManagerProvider)
             .pushLocalChanges()
             .then((pushedCount) {
-              debugPrint(
-                '📤 [DiscountNights] push to Appwrite: '
-                '${pushedCount > 0 ? "success ($pushedCount)" : "deferred"}',
-              );
+              dlog(() => '📤 [DiscountNights] push to Appwrite: '
+                '${pushedCount > 0 ? "success ($pushedCount)" : "deferred"}');
             })
             .catchError((Object e) {
-              debugPrint('⚠️ [DiscountNights] push failed: $e');
+              dlog(() => '⚠️ [DiscountNights] push failed: $e');
             }),
       );
 
@@ -2602,7 +2593,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
       );
     } catch (e) {
-      debugPrint('❌ خطأ في تطبيق الخصم: $e');
+      dlog(() => '❌ خطأ في تطبيق الخصم: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -2653,9 +2644,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           .watchByNumber(widget.booking.roomNumber)
           .first;
       if (room != null) {
-        debugPrint(
-          '🏠 [Checkout] Updating room ${room.roomNumber} status to available',
-        );
+        dlog(() => '🏠 [Checkout] Updating room ${room.roomNumber} status to available');
         await roomsRepo.update(room.id, status: 'شاغرة');
       }
       // ✅ تسجيل تغيير المزامنة بعد تحرير الغرفة
@@ -2671,16 +2660,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             .read(appwriteSyncManagerProvider)
             .pushLocalChanges()
             .then((pushedCount) {
-              debugPrint(
-                '📤 [Checkout] push-only to Appwrite Cloud: '
-                '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred (will retry via outbox)"}',
-              );
+              dlog(() => '📤 [Checkout] push-only to Appwrite Cloud: '
+                '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred (will retry via outbox)"}');
             })
             .catchError((Object e) {
-              debugPrint(
-                '⚠️ [Checkout] push to Appwrite Cloud failed: $e — '
-                'سيتم إعادة المحاولة تلقائياً عبر outbox',
-              );
+              dlog(() => '⚠️ [Checkout] push to Appwrite Cloud failed: $e — '
+                'سيتم إعادة المحاولة تلقائياً عبر outbox');
             }),
       );
 
@@ -2697,7 +2682,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       );
       Navigator.pop(context);
     } catch (e) {
-      debugPrint('❌ خطأ في تسجيل المغادرة: $e');
+      dlog(() => '❌ خطأ في تسجيل المغادرة: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2902,7 +2887,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
       );
     } catch (e) {
-      debugPrint('❌ خطأ في إلغاء دفعات اليوم: $e');
+      dlog(() => '❌ خطأ في إلغاء دفعات اليوم: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -3991,7 +3976,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
       );
     } catch (e) {
-      debugPrint('❌ خطأ في تمديد الإقامة: $e');
+      dlog(() => '❌ خطأ في تمديد الإقامة: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

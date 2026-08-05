@@ -22,6 +22,7 @@ import '../services/smart_sync_manager.dart';
 import '../services/sqlite_backup_restore.dart';
 import 'appwrite_providers.dart';
 import 'smart_sync_provider.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 const _driveLoginSkippedKey = 'drive_login_skipped';
 
@@ -251,7 +252,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       try {
         account = await _backupService.attemptSilentSignIn();
       } catch (e) {
-        debugPrint('⚠️ خطأ في استعادة جلسة Google Drive: $e');
+        dlog(() => '⚠️ خطأ في استعادة جلسة Google Drive: $e');
       }
 
       // التحقق من تسجيل الدخول في Google Drive
@@ -266,19 +267,17 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           try {
             await _notifySyncManagers(true);
           } catch (e) {
-            debugPrint('⚠️ خطأ في إشعار مديري المزامنة: $e');
+            dlog(() => '⚠️ خطأ في إشعار مديري المزامنة: $e');
           }
         } else {
-          debugPrint(
-            '⏸️ Google Drive sync disabled - skipping sync manager notification at init',
-          );
+          dlog('⏸️ Google Drive sync disabled - skipping sync manager notification at init');
         }
 
         // جلب قائمة النسخ المتاحة في Google Drive (مع معالجة الأخطاء)
         try {
           driveBackups = await _backupService.listBackupFiles();
         } catch (e) {
-          debugPrint('⚠️ خطأ في جلب نسخ Google Drive: $e');
+          dlog(() => '⚠️ خطأ في جلب نسخ Google Drive: $e');
         }
       }
 
@@ -309,7 +308,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         googleDriveSyncEnabled: gdSyncEnabled,
       );
     } catch (e) {
-      debugPrint('❌ خطأ في تهيئة BackupStatusNotifier: $e');
+      dlog(() => '❌ خطأ في تهيئة BackupStatusNotifier: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في التهيئة: $e',
@@ -333,9 +332,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       try {
         final smartSync = SmartSyncManager.instance;
         await smartSync.setEnabled(enabled);
-        debugPrint('🔧 SmartSyncManager: ${enabled ? 'مُفعّل' : 'معطّل'}');
+        dlog(() => '🔧 SmartSyncManager: ${enabled ? 'مُفعّل' : 'معطّل'}');
       } catch (e) {
-        debugPrint('⚠️ خطأ في التحكم بـ SmartSyncManager: $e');
+        dlog(() => '⚠️ خطأ في التحكم بـ SmartSyncManager: $e');
       }
 
       // 2. التحكم في محرك المزامنة التلقائية (AutoSyncEngine)
@@ -344,14 +343,14 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         if (enabled) {
           if (!autoSyncEngine.currentState.isRunning && state.isSignedIn) {
             await autoSyncEngine.start();
-            debugPrint('🔧 AutoSyncEngine: تم التشغيل');
+            dlog('🔧 AutoSyncEngine: تم التشغيل');
           }
         } else {
           autoSyncEngine.stop();
-          debugPrint('🔧 AutoSyncEngine: تم الإيقاف');
+          dlog('🔧 AutoSyncEngine: تم الإيقاف');
         }
       } catch (e) {
-        debugPrint('⚠️ خطأ في التحكم بمحرك المزامنة التلقائية: $e');
+        dlog(() => '⚠️ خطأ في التحكم بمحرك المزامنة التلقائية: $e');
       }
 
       // 3. التحكم في منسق المزامنة الموحد (UnifiedSyncCoordinator)
@@ -359,13 +358,13 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         final coordinator = GoogleDriveUnifiedSyncCoordinator.instance;
         if (enabled && state.isSignedIn && coordinator.isInitialized) {
           await coordinator.onSignInChanged(true);
-          debugPrint('🔧 Coordinator: تم تفعيل المراقبة');
+          dlog('🔧 Coordinator: تم تفعيل المراقبة');
         } else if (!enabled) {
           await coordinator.onSignInChanged(false);
-          debugPrint('🔧 Coordinator: تم إيقاف المراقبة');
+          dlog('🔧 Coordinator: تم إيقاف المراقبة');
         }
       } catch (e) {
-        debugPrint('⚠️ خطأ في التحكم بمنسق المزامنة: $e');
+        dlog(() => '⚠️ خطأ في التحكم بمنسق المزامنة: $e');
       }
 
       state = state.copyWith(
@@ -387,7 +386,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         }
       });
     } catch (e) {
-      debugPrint('❌ خطأ في تغيير حالة مزامنة Google Drive: $e');
+      dlog(() => '❌ خطأ في تغيير حالة مزامنة Google Drive: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في تغيير إعداد المزامنة: $e',
@@ -402,7 +401,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       final smartSync = SmartSyncManager.instance;
       await smartSync.onGoogleDriveSignInChanged(isSignedIn);
     } catch (e) {
-      debugPrint('⚠️ خطأ في إشعار مدير المزامنة: $e');
+      dlog(() => '⚠️ خطأ في إشعار مدير المزامنة: $e');
     }
 
     // إشعار محرك المزامنة التلقائية
@@ -410,7 +409,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       final autoSyncEngine = AutoSyncEngine.instance;
       await autoSyncEngine.onSignInChanged(isSignedIn);
     } catch (e) {
-      debugPrint('⚠️ خطأ في إشعار محرك المزامنة التلقائية: $e');
+      dlog(() => '⚠️ خطأ في إشعار محرك المزامنة التلقائية: $e');
     }
   }
 
@@ -458,7 +457,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         try {
           backups = await _backupService.listBackupFiles();
         } catch (e) {
-          debugPrint('⚠️ خطأ في جلب قائمة النسخ الاحتياطية: $e');
+          dlog(() => '⚠️ خطأ في جلب قائمة النسخ الاحتياطية: $e');
         }
 
         // إشعار مديري المزامنة بتغير حالة تسجيل الدخول (مع معالجة الأخطاء)
@@ -470,12 +469,10 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           try {
             await _notifySyncManagers(true);
           } catch (e) {
-            debugPrint('⚠️ خطأ في إشعار مديري المزامنة: $e');
+            dlog(() => '⚠️ خطأ في إشعار مديري المزامنة: $e');
           }
         } else {
-          debugPrint(
-            '⏸️ Google Drive sync disabled - skipping sync manager notification after sign-in',
-          );
+          dlog('⏸️ Google Drive sync disabled - skipping sync manager notification after sign-in');
         }
 
         state = state.copyWith(
@@ -501,7 +498,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         );
       }
     } catch (e) {
-      debugPrint('❌ خطأ في تسجيل الدخول: $e');
+      dlog(() => '❌ خطأ في تسجيل الدخول: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في تسجيل الدخول: $e',
@@ -524,7 +521,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         availableBackups: [],
       );
     } catch (e) {
-      debugPrint('❌ خطأ في تسجيل الخروج: $e');
+      dlog(() => '❌ خطأ في تسجيل الخروج: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في تسجيل الخروج: $e',
@@ -575,7 +572,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         lastBackupTime: lastBackup,
       );
     } catch (e) {
-      debugPrint('❌ خطأ في إنشاء النسخة الاحتياطية: $e');
+      dlog(() => '❌ خطأ في إنشاء النسخة الاحتياطية: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في إنشاء النسخة الاحتياطية: $e',
@@ -642,11 +639,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       final fixReport = await fixService.runAutoFixAfterRestore();
 
       if (!fixReport.success) {
-        debugPrint('⚠️ فشل الإصلاح التلقائي: ${fixReport.error}');
+        dlog(() => '⚠️ فشل الإصلاح التلقائي: ${fixReport.error}');
       } else {
-        debugPrint(
-          '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة',
-        );
+        dlog(() => '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة');
       }
 
       state = state.copyWith(
@@ -655,7 +650,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 1.0,
       );
     } catch (e) {
-      debugPrint('❌ خطأ في استعادة البيانات: $e');
+      dlog(() => '❌ خطأ في استعادة البيانات: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في استعادة البيانات: $e',
@@ -673,7 +668,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       final backups = await _backupService.listBackupFiles();
       state = state.copyWith(availableBackups: backups);
     } catch (e) {
-      debugPrint('❌ خطأ في تحديث قائمة النسخ: $e');
+      dlog(() => '❌ خطأ في تحديث قائمة النسخ: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في تحديث قائمة النسخ: $e',
@@ -687,7 +682,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       final size = await _backupService.estimateDatabaseSize();
       state = state.copyWith(databaseSizeBytes: size);
     } catch (e) {
-      debugPrint('❌ خطأ في تحديث حجم قاعدة البيانات: $e');
+      dlog(() => '❌ خطأ في تحديث حجم قاعدة البيانات: $e');
     }
   }
 
@@ -744,7 +739,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         message: 'تم تحديث إعدادات النسخ التلقائي',
       );
     } catch (e) {
-      debugPrint('❌ خطأ في تحديث إعدادات النسخ التلقائي: $e');
+      dlog(() => '❌ خطأ في تحديث إعدادات النسخ التلقائي: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في تحديث إعدادات النسخ التلقائي: $e',
@@ -769,13 +764,13 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   /// التحقق من حالة تسجيل الدخول وتحديثها
   Future<void> refreshSignInStatus() async {
     try {
-      debugPrint('🔄 محاولة استعادة الدخول الصامت...');
+      dlog('🔄 محاولة استعادة الدخول الصامت...');
 
       GoogleSignInAccount? account;
       try {
         account = await _backupService.attemptSilentSignIn();
       } catch (e) {
-        debugPrint('⚠️ فشل استعادة الدخول الصامت: $e');
+        dlog(() => '⚠️ فشل استعادة الدخول الصامت: $e');
       }
 
       final prefs = await SharedPreferences.getInstance();
@@ -790,13 +785,13 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       if (isActuallySignedIn &&
           currentUser != null &&
           state.signedInAccount == null) {
-        debugPrint('✅ تم اكتشاف جلسة Google Drive نشطة - تحديث الحالة...');
+        dlog('✅ تم اكتشاف جلسة Google Drive نشطة - تحديث الحالة...');
 
         List<DriveBackupFile> driveBackups = [];
         try {
           driveBackups = await _backupService.listBackupFiles();
         } catch (e) {
-          debugPrint('⚠️ خطأ في جلب قائمة النسخ: $e');
+          dlog(() => '⚠️ خطأ في جلب قائمة النسخ: $e');
         }
 
         // ✅ تعطيل المزامنة حتى مع تسجيل الدخول
@@ -806,12 +801,10 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           try {
             await _notifySyncManagers(true);
           } catch (e) {
-            debugPrint('⚠️ خطأ في إشعار مديري المزامنة: $e');
+            dlog(() => '⚠️ خطأ في إشعار مديري المزامنة: $e');
           }
         } else {
-          debugPrint(
-            '⏸️ Google Drive sync disabled - skipping sync manager notification on refresh',
-          );
+          dlog('⏸️ Google Drive sync disabled - skipping sync manager notification on refresh');
         }
 
         state = state.copyWith(
@@ -820,24 +813,24 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           driveLoginSkipped: false,
         );
 
-        debugPrint('✅ تم تحديث حالة تسجيل الدخول بنجاح');
+        dlog('✅ تم تحديث حالة تسجيل الدخول بنجاح');
       } else if (!isActuallySignedIn && state.signedInAccount != null) {
-        debugPrint('⚠️ تم فقدان جلسة Google Drive - تحديث الحالة...');
+        dlog('⚠️ تم فقدان جلسة Google Drive - تحديث الحالة...');
 
         try {
           await _notifySyncManagers(false);
         } catch (e) {
-          debugPrint('⚠️ خطأ في إشعار مديري المزامنة: $e');
+          dlog(() => '⚠️ خطأ في إشعار مديري المزامنة: $e');
         }
 
         state = state.copyWith(availableBackups: []);
 
-        debugPrint('✅ تم تحديث حالة تسجيل الخروج');
+        dlog('✅ تم تحديث حالة تسجيل الخروج');
       } else {
-        debugPrint('ℹ️ حالة تسجيل الدخول متطابقة - لا حاجة للتحديث');
+        dlog('ℹ️ حالة تسجيل الدخول متطابقة - لا حاجة للتحديث');
       }
     } catch (e) {
-      debugPrint('❌ خطأ في تحديث حالة تسجيل الدخول: $e');
+      dlog(() => '❌ خطأ في تحديث حالة تسجيل الدخول: $e');
     }
   }
 
@@ -873,7 +866,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         );
       }
     } catch (e) {
-      debugPrint('❌ خطأ في التحقق من أذونات التخزين: $e');
+      dlog(() => '❌ خطأ في التحقق من أذونات التخزين: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في التحقق من الأذونات: $e',
@@ -920,9 +913,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         backupFolderInfo: folderInfo,
       );
 
-      debugPrint('💾 Local backup saved at $backupPath');
+      dlog(() => '💾 Local backup saved at $backupPath');
     } catch (e) {
-      debugPrint('❌ خطأ في إنشاء النسخة الاحتياطية المحلية: $e');
+      dlog(() => '❌ خطأ في إنشاء النسخة الاحتياطية المحلية: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في إنشاء النسخة الاحتياطية المحلية: $e',
@@ -955,11 +948,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       final fixReport = await fixService.runAutoFixAfterRestore();
 
       if (!fixReport.success) {
-        debugPrint('⚠️ فشل الإصلاح التلقائي: ${fixReport.error}');
+        dlog(() => '⚠️ فشل الإصلاح التلقائي: ${fixReport.error}');
       } else {
-        debugPrint(
-          '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة',
-        );
+        dlog(() => '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة');
       }
 
       // مزامنة البيانات إلى السحابة إذا طُلب ذلك
@@ -983,9 +974,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
             );
             try {
               await _appwriteSyncManager.pushAllLocalData();
-              debugPrint('✅ تم رفع البيانات إلى Appwrite');
+              dlog('✅ تم رفع البيانات إلى Appwrite');
             } catch (e) {
-              debugPrint('⚠️ فشل رفع البيانات إلى Appwrite: $e');
+              dlog(() => '⚠️ فشل رفع البيانات إلى Appwrite: $e');
             }
           }
 
@@ -997,13 +988,13 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
             );
             try {
               await _smartSyncManager.pushLocalChanges();
-              debugPrint('✅ تم رفع البيانات إلى Google Drive');
+              dlog('✅ تم رفع البيانات إلى Google Drive');
             } catch (e) {
-              debugPrint('⚠️ فشل رفع البيانات إلى Google Drive: $e');
+              dlog(() => '⚠️ فشل رفع البيانات إلى Google Drive: $e');
             }
           }
         } catch (e) {
-          debugPrint('⚠️ خطأ في مزامنة البيانات إلى السحابة: $e');
+          dlog(() => '⚠️ خطأ في مزامنة البيانات إلى السحابة: $e');
           // نستمر بالعملية حتى لو فشلت المزامنة
         }
       }
@@ -1016,7 +1007,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 1.0,
       );
     } catch (e) {
-      debugPrint('❌ خطأ في استعادة البيانات من النسخة المحلية: $e');
+      dlog(() => '❌ خطأ في استعادة البيانات من النسخة المحلية: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في استعادة البيانات: $e',
@@ -1042,7 +1033,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         lastSqliteBackupPath: path,
       );
     } catch (e) {
-      debugPrint('❌ خطأ في النسخ الاحتياطي لملف SQLite: $e');
+      dlog(() => '❌ خطأ في النسخ الاحتياطي لملف SQLite: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'فشل إنشاء نسخة ملف قاعدة البيانات: $e',
@@ -1072,11 +1063,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       final fixReport = await fixService.runAutoFixAfterRestore();
 
       if (!fixReport.success) {
-        debugPrint('⚠️ فشل الإصلاح التلقائي: ${fixReport.error}');
+        dlog(() => '⚠️ فشل الإصلاح التلقائي: ${fixReport.error}');
       } else {
-        debugPrint(
-          '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة',
-        );
+        dlog(() => '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة');
       }
 
       state = state.copyWith(
@@ -1085,7 +1074,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 1.0,
       );
     } catch (e) {
-      debugPrint('❌ خطأ في استعادة ملف SQLite: $e');
+      dlog(() => '❌ خطأ في استعادة ملف SQLite: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'فشل استعادة قاعدة البيانات: $e',
@@ -1102,7 +1091,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         message: 'تم مشاركة النسخة الاحتياطية',
       );
     } catch (e) {
-      debugPrint('❌ خطأ في مشاركة النسخة الاحتياطية: $e');
+      dlog(() => '❌ خطأ في مشاركة النسخة الاحتياطية: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في مشاركة النسخة الاحتياطية: $e',
@@ -1135,9 +1124,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         backupFolderInfo: folderInfo,
       );
 
-      debugPrint('📥 Imported backup from $importedPath');
+      dlog(() => '📥 Imported backup from $importedPath');
     } catch (e) {
-      debugPrint('❌ خطأ في استيراد النسخة الاحتياطية: $e');
+      dlog(() => '❌ خطأ في استيراد النسخة الاحتياطية: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في استيراد النسخة الاحتياطية: $e',
@@ -1164,7 +1153,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
 
       await restoreFromLocalBackup(importedPath, syncToCloud: syncToCloud);
     } catch (e) {
-      debugPrint('❌ خطأ في استيراد واستعادة النسخة: $e');
+      dlog(() => '❌ خطأ في استيراد واستعادة النسخة: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في الاستيراد والاستعادة: $e',
@@ -1189,9 +1178,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 1.0,
       );
 
-      debugPrint('📤 Exported backup to $exportPath');
+      dlog(() => '📤 Exported backup to $exportPath');
     } catch (e) {
-      debugPrint('❌ خطأ في تصدير النسخة الاحتياطية: $e');
+      dlog(() => '❌ خطأ في تصدير النسخة الاحتياطية: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في تصدير النسخة الاحتياطية: $e',
@@ -1215,7 +1204,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         backupFolderInfo: folderInfo,
       );
     } catch (e) {
-      debugPrint('❌ خطأ في حذف النسخة الاحتياطية: $e');
+      dlog(() => '❌ خطأ في حذف النسخة الاحتياطية: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في حذف النسخة الاحتياطية: $e',
@@ -1238,7 +1227,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         backupFolderInfo: folderInfo,
       );
     } catch (e) {
-      debugPrint('❌ خطأ في تحديث قائمة النسخ المحلية: $e');
+      dlog(() => '❌ خطأ في تحديث قائمة النسخ المحلية: $e');
     }
   }
 
@@ -1255,7 +1244,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         message: 'تم تنظيف النسخ القديمة',
       );
     } catch (e) {
-      debugPrint('❌ خطأ في تنظيف النسخ القديمة: $e');
+      dlog(() => '❌ خطأ في تنظيف النسخ القديمة: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في تنظيف النسخ القديمة: $e',
@@ -1339,7 +1328,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         lastBackupTime: lastDriveBackup,
       );
     } catch (e) {
-      debugPrint('❌ خطأ في إنشاء النسخة الاحتياطية الشاملة: $e');
+      dlog(() => '❌ خطأ في إنشاء النسخة الاحتياطية الشاملة: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في إنشاء النسخة الاحتياطية الشاملة: $e',
@@ -1350,10 +1339,10 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
           final tempFile = File(tempSqlitePath);
           if (tempFile.existsSync()) {
             await tempFile.delete();
-            debugPrint('🗑️ تم حذف ملف النسخة المؤقت: $tempSqlitePath');
+            dlog(() => '🗑️ تم حذف ملف النسخة المؤقت: $tempSqlitePath');
           }
         } catch (cleanupError) {
-          debugPrint('⚠️ فشل حذف ملف النسخة المؤقت: $cleanupError');
+          dlog(() => '⚠️ فشل حذف ملف النسخة المؤقت: $cleanupError');
         }
       }
     }
@@ -1378,9 +1367,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 1.0,
       );
 
-      debugPrint('📊 CSV exported to $csvPath');
+      dlog(() => '📊 CSV exported to $csvPath');
     } catch (e) {
-      debugPrint('❌ خطأ في تصدير البيانات إلى CSV: $e');
+      dlog(() => '❌ خطأ في تصدير البيانات إلى CSV: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في تصدير البيانات إلى CSV: $e',
@@ -1405,9 +1394,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 1.0,
       );
 
-      debugPrint('📝 Readable report generated at $reportPath');
+      dlog(() => '📝 Readable report generated at $reportPath');
     } catch (e) {
-      debugPrint('❌ خطأ في إنشاء التقرير الشامل: $e');
+      dlog(() => '❌ خطأ في إنشاء التقرير الشامل: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في إنشاء التقرير الشامل: $e',
@@ -1424,7 +1413,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         message: 'تم مشاركة الملفات بنجاح',
       );
     } catch (e) {
-      debugPrint('❌ خطأ في مشاركة الملفات: $e');
+      dlog(() => '❌ خطأ في مشاركة الملفات: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في مشاركة الملفات: $e',
@@ -1458,9 +1447,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         progress: 1.0,
       );
 
-      debugPrint('🗂️ Backup files merged into $mergedPath');
+      dlog(() => '🗂️ Backup files merged into $mergedPath');
     } catch (e) {
-      debugPrint('❌ خطأ في دمج النسخ الاحتياطية: $e');
+      dlog(() => '❌ خطأ في دمج النسخ الاحتياطية: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في دمج النسخ الاحتياطية: $e',
@@ -1472,14 +1461,14 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   Future<void> analyzeBackupFiles() async {
     try {
       final analysis = await _fileService.analyzeBackupFiles();
-      debugPrint('📊 تحليل النسخ الاحتياطية: $analysis');
+      dlog(() => '📊 تحليل النسخ الاحتياطية: $analysis');
 
       state = state.copyWith(
         status: BackupStatus.success,
         message: 'تم تحليل الملفات - راجع السجلات للتفاصيل',
       );
     } catch (e) {
-      debugPrint('❌ خطأ في تحليل الملفات: $e');
+      dlog(() => '❌ خطأ في تحليل الملفات: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في تحليل الملفات: $e',
@@ -1496,7 +1485,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         message: 'تم تنظيف الملفات المؤقتة',
       );
     } catch (e) {
-      debugPrint('❌ خطأ في تنظيف الملفات المؤقتة: $e');
+      dlog(() => '❌ خطأ في تنظيف الملفات المؤقتة: $e');
       state = state.copyWith(
         status: BackupStatus.error,
         message: 'خطأ في تنظيف الملفات المؤقتة: $e',

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../remote_config_service.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// أنواع أحداث الفندق
 enum WhatsAppEventType {
@@ -117,7 +118,7 @@ class WhatsAppNotificationService {
       final phone = _phone;
       final apiKey = _apiKey;
       if (phone.isEmpty || apiKey.isEmpty) {
-        debugPrint('⚠️ WhatsApp: رقم الهاتف أو مفتاح API فارغ');
+        dlog('⚠️ WhatsApp: رقم الهاتف أو مفتاح API فارغ');
         return false;
       }
 
@@ -154,13 +155,13 @@ class WhatsAppNotificationService {
             return true;
           }
         }
-        debugPrint('⚠️ WhatsApp: فشل الإرسال — $body');
+        dlog(() => '⚠️ WhatsApp: فشل الإرسال — $body');
         return false;
       }
-      debugPrint('⚠️ WhatsApp: HTTP ${response.statusCode} — $body');
+      dlog(() => '⚠️ WhatsApp: HTTP ${response.statusCode} — $body');
       return false;
     } catch (e) {
-      debugPrint('❌ WhatsApp: خطأ في الإرسال — $e');
+      dlog(() => '❌ WhatsApp: خطأ في الإرسال — $e');
       return false;
     }
   }
@@ -174,7 +175,7 @@ class WhatsAppNotificationService {
       // يتم التحكم عبر Remote Config مع fallback إلى SharedPreferences
       final isWhatsAppEnabled = _checkWhatsAppEnabled();
       if (!isWhatsAppEnabled) {
-        debugPrint('⚠️ WhatsApp: الإشعارات معطلة');
+        dlog('⚠️ WhatsApp: الإشعارات معطلة');
         return false;
       }
 
@@ -214,14 +215,12 @@ class WhatsAppNotificationService {
       final success = await _sendViaCallMeBot(buffer.toString().trimRight());
 
       if (success) {
-        debugPrint(
-          '✅ WhatsApp: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}',
-        );
+        dlog(() => '✅ WhatsApp: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}');
       }
 
       return success;
     } catch (e) {
-      debugPrint('❌ WhatsApp: خطأ في إرسال الإشعار: $e');
+      dlog(() => '❌ WhatsApp: خطأ في إرسال الإشعار: $e');
       return false;
     }
   }
@@ -447,9 +446,7 @@ class WhatsAppNotificationService {
       final phone = _phone;
       final apiKey = _apiKey;
       if (phone.isEmpty || apiKey.isEmpty) {
-        debugPrint(
-          '⚠️ WhatsApp: لا يمكن إرسال تنبيه المزامنة - بيانات API فارغة',
-        );
+        dlog('⚠️ WhatsApp: لا يمكن إرسال تنبيه المزامنة - بيانات API فارغة');
         return false;
       }
 
@@ -479,15 +476,13 @@ class WhatsAppNotificationService {
       final response = await _httpClient.get(url);
       final success = response.statusCode == 200;
       if (success) {
-        debugPrint('✅ WhatsApp: تم إرسال تنبيه خطأ مزامنة — $operation');
+        dlog(() => '✅ WhatsApp: تم إرسال تنبيه خطأ مزامنة — $operation');
       } else {
-        debugPrint(
-          '⚠️ WhatsApp: فشل إرسال تنبيه المزامنة — ${response.statusCode}',
-        );
+        dlog(() => '⚠️ WhatsApp: فشل إرسال تنبيه المزامنة — ${response.statusCode}');
       }
       return success;
     } catch (e) {
-      debugPrint('❌ WhatsApp: فشل إرسال تنبيه المزامنة — $e');
+      dlog(() => '❌ WhatsApp: فشل إرسال تنبيه المزامنة — $e');
       return false;
     }
   }
@@ -526,7 +521,7 @@ class WhatsAppNotificationService {
       final response = await _httpClient.get(url);
       return response.statusCode == 200;
     } catch (e) {
-      debugPrint('❌ WhatsApp: فشل إرسال تنبيه Crash — $e');
+      dlog(() => '❌ WhatsApp: فشل إرسال تنبيه Crash — $e');
       return false;
     }
   }

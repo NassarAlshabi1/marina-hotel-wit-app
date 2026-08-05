@@ -10,6 +10,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../appwrite_sync_manager.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 mixin SyncTriggerMixin {
   Timer? _syncDebounceTimer;
@@ -31,22 +32,22 @@ mixin SyncTriggerMixin {
     try {
       final deviceId = AppwriteSyncManager.currentDeviceIdStatic;
       if (deviceId == null || deviceId.isEmpty) {
-        debugPrint('⚠️ triggerSync: no device ID, skipping');
+        dlog('⚠️ triggerSync: no device ID, skipping');
         return;
       }
       final manager = AppwriteSyncManager.instance;
       if (manager == null) {
-        debugPrint('⚠️ triggerSync: sync manager not initialized');
+        dlog('⚠️ triggerSync: sync manager not initialized');
         return;
       }
       unawaited(
         manager.pushLocalChanges().catchError((Object e) {
-          debugPrint('⚠️ Auto-sync push failed: $e');
+          dlog(() => '⚠️ Auto-sync push failed: $e');
           return 0;
         }),
       );
     } catch (e) {
-      debugPrint('⚠️ triggerSync error: $e');
+      dlog(() => '⚠️ triggerSync error: $e');
     }
   }
 

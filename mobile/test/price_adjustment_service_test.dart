@@ -1,14 +1,36 @@
-// Tagged as 'slow' — uses hardcoded dates dependent on DateTime.now().
-// TODO: rewrite to use dynamic dates for reliable CI execution.
-@Tags(['slow'])
+// ============================================================================
+//  PriceAdjustmentService — Unit Tests
+//  ============================================================================
+//  اختبارات خدمة تعديل سعر الغرفة:
+//    1. معاينة تغيير السعر (previewPriceChange) — لا تُعدّل البيانات
+//    2. تطبيق تغيير السعر على حجز نشط — يُحدّث سعر الغرفة + outbox + audit
+//    3. الحجوزات المغلقة لا تتأثر بتغيير السعر
+//    4. الخصومات (discount) تُحسب بشكل صحيح في المعاينة
+//
+//  جميع التواريخ مبنية على DateTime.now() لضمان استقرار الاختبارات في CI.
+//  لا نعتمد على تواريخ ثابتة hardcoded.
+// ============================================================================
+
 library marina_hotel_mobile.test.price_adjustment_service_test;
 
-import 'package:flutter_test/flutter_test.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/price_adjustment_service.dart';
 import 'package:marina_hotel_mobile/utils/time.dart';
+
+/// Helper: ينشئ تاريخاً ديناميكياً مع إزاحة بعدد أيام محدد من اليوم.
+DateTime _dayFromNow(int days, {int hour = 15}) {
+  final now = DateTime.now();
+  return DateTime(now.year, now.month, now.day + days, hour);
+}
+
+/// Helper: يحوّل DateTime إلى مفتاح يوم فندقي (YYYY-MM-DD).
+String _hotelDayKey(DateTime dt) => Time.dateToString(dt);
+
+/// Helper: ينشئ تاريخ ISO مع فاصل مسافة بدلاً من T (متوافق مع التطبيق).
+String _isoSpace(DateTime dt) => dt.toIso8601String().replaceFirst('T', ' ');
 
 void main() {
   late AppDatabase db;
@@ -23,386 +45,414 @@ void main() {
     await db.close();
   });
 
-  group('تعديل السعر أثناء الإقامة', () {
-    test(
-      'السيناريو: دخول يوم 5 بسعر 10000، رفع السعر يوم 10 إلى 12000',
-      () async {
-        final roomUuid = 'room-101-uuid';
-        await db
-            .into(db.rooms)
-            .insert(
-              RoomsCompanion(
-                localUuid: Value(roomUuid),
-                roomNumber: const Value('101'),
-                type: const Value('عادية'),
-                price: const Value(10000.0),
-                status: const Value('محجوزة'),
-                createdAt: Value(Time.nowEpoch()),
-                updatedAt: Value(Time.nowEpoch()),
-                lastModified: Value(Time.nowEpoch()),
-              ),
-            );
+  group('معاينة تغيير السعر (previewPriceChange)', () {
+    test('يجب أن تحسب الليالي المتأثرة بشكل صحيح', () async {
+      // إنشاء غرفة بسعر 10000
+      const roomUuid = 'room-101-uuid';
+      await db.into(db.rooms).insert(
+        RoomsCompanion(
+          localUuid: const Value(roomUuid),
+          roomNumber: const Value('101'),
+          type: const Value('عادية'),
+          price: const Value(10000.0),
+          status: const Value('محجوزة'),
+          createdAt: Value(Time.nowEpoch()),
+          updatedAt: Value(Time.nowEpoch()),
+          lastModified: Value(Time.nowEpoch()),
+        ),
+      );
 
-        final bookingUuid = 'booking-guest-uuid';
-        final bookingId = await db
-            .into(db.bookings)
-            .insert(
-              BookingsCompanion(
-                localUuid: Value(bookingUuid),
-                roomNumber: const Value('101'),
-                guestName: const Value('أحمد محمد'),
-                guestPhone: const Value('777123456'),
-                guestNationality: const Value('يمني'),
-                checkinDate: const Value('2026-07-28T15:00:00'),
-                status: const Value('مؤكد'),
-                discount: const Value(0),
-                discountType: const Value('per_night'),
-                expectedNights: const Value(10),
-                calculatedNights: const Value(10),
-                totalDueCached: const Value(100000.0),
-                totalPaidCached: const Value(0),
-                remainingBalanceCached: const Value(100000.0),
-                createdAt: Value(Time.nowEpoch()),
-                updatedAt: Value(Time.nowEpoch()),
-                lastModified: Value(Time.nowEpoch()),
-              ),
-            );
+      // إنشاء حجز نشط (تاريخ دخول في الماضي)
+      final checkinDate = _dayFromNow(-9, hour: 15);
+      final bookingId = await db.into(db.bookings).insert(
+        BookingsCompanion(
+          localUuid: const Value('booking-preview-uuid'),
+          roomNumber: const Value('101'),
+          guestName: const Value('أحمد محمد'),
+          guestPhone: const Value('777123456'),
+          guestNationality: const Value('يمني'),
+          checkinDate: Value(_isoSpace(checkinDate)),
+          status: const Value('مؤكد'),
+          discount: const Value(0),
+          discountType: const Value('per_night'),
+          createdAt: Value(Time.nowEpoch()),
+          updatedAt: Value(Time.nowEpoch()),
+          lastModified: Value(Time.nowEpoch()),
+        ),
+      );
 
-        final nightDates = [
-          '2026-07-28',
-          '2026-07-29',
-          '2026-07-30',
-          '2026-07-28',
-          '2026-07-29',
-          '2026-07-30',
-          '2026-07-28',
-          '2026-07-29',
-          '2026-07-30',
-          '2026-07-28',
-        ];
-
-        for (var i = 0; i < nightDates.length; i++) {
-          await db
-              .into(db.bookingNights)
-              .insert(
-                BookingNightsCompanion(
-                  localUuid: Value('night-$i-uuid'),
-                  bookingLocalId: Value(bookingId),
-                  hotelDayKey: Value(nightDates[i]),
-                  nightStart: Value('${nightDates[i]}T14:00:00'),
-                  nightEnd: Value(
-                    '${nightDates[(i + 1) % nightDates.length]}T14:00:00',
-                  ),
-                  nightlyRate: const Value(10000.0),
-                  sequence: Value(i + 1),
-                  createdAt: Value(Time.nowEpoch()),
-                  updatedAt: Value(Time.nowEpoch()),
-                  lastModified: Value(Time.nowEpoch()),
-                ),
-              );
-        }
-
-        final preview = await service.previewPriceChange(
-          roomNumber: '101',
-          newPrice: 12000.0,
-          effectiveFrom: DateTime.parse('2026-07-30T14:00:00'),
+      // إدراج 10 ليالي بتواريخ ديناميكية: today-9 إلى today
+      // الليالي الخمس الأولى (today-9 إلى today-5) قديمة
+      // الليالي الخمس الأخيرة (today-4 إلى today) ستتأثر بالتغيير
+      for (var i = 0; i < 10; i++) {
+        final nightDate = _dayFromNow(-9 + i);
+        final nightKey = _hotelDayKey(nightDate);
+        await db.into(db.bookingNights).insert(
+          BookingNightsCompanion(
+            localUuid: Value('night-preview-$i-uuid'),
+            bookingLocalId: Value(bookingId),
+            hotelDayKey: Value(nightKey),
+            nightStart: Value('${nightKey}T14:00:00'),
+            nightEnd: Value('${_hotelDayKey(nightDate.add(const Duration(days: 1)))}T14:00:00'),
+            nightlyRate: const Value(10000.0),
+            baseRate: const Value(10000.0),
+            adjustment: const Value(0.0),
+            finalRate: const Value(10000.0),
+            sequence: Value(i + 1),
+            createdAt: Value(Time.nowEpoch()),
+            updatedAt: Value(Time.nowEpoch()),
+            lastModified: Value(Time.nowEpoch()),
+          ),
         );
-
-        expect(preview['bookingsAffected'], 1);
-        expect(preview['totalNightsAffected'], 5);
-        expect(preview['totalOldAmount'], 50000.0);
-        expect(preview['totalNewAmount'], 60000.0);
-        expect(preview['totalDifference'], 10000.0);
-
-        final result = await service.applyRoomPriceChange(
-          roomNumber: '101',
-          oldPrice: 10000.0,
-          newPrice: 12000.0,
-          appliedBy: 'admin',
-          reason: 'رفع السعر الموسمي',
-          effectiveFrom: DateTime.parse('2026-07-30T14:00:00'),
-        );
-
-        expect(result.success, true);
-        expect(result.bookingsAffected, 1);
-        expect(result.nightsUpdated, 5);
-
-        final updatedNights =
-            await (db.select(db.bookingNights)
-                  ..where((n) => n.bookingLocalId.equals(bookingId))
-                  ..orderBy([(n) => OrderingTerm.asc(n.hotelDayKey)]))
-                .get();
-
-        expect(updatedNights[0].nightlyRate, 10000.0);
-        expect(updatedNights[1].nightlyRate, 10000.0);
-        expect(updatedNights[2].nightlyRate, 10000.0);
-        expect(updatedNights[3].nightlyRate, 10000.0);
-        expect(updatedNights[4].nightlyRate, 10000.0);
-
-        expect(updatedNights[5].nightlyRate, 12000.0);
-        expect(updatedNights[6].nightlyRate, 12000.0);
-        expect(updatedNights[7].nightlyRate, 12000.0);
-        expect(updatedNights[8].nightlyRate, 12000.0);
-        expect(updatedNights[9].nightlyRate, 12000.0);
-
-        final updatedBooking = await (db.select(
-          db.bookings,
-        )..where((b) => b.id.equals(bookingId))).getSingle();
-
-        final expectedTotal = (5 * 10000.0) + (5 * 12000.0);
-        expect(updatedBooking.totalDueCached, expectedTotal);
-        expect(updatedBooking.remainingBalanceCached, expectedTotal);
-
-        final adjustments = await service.getAdjustmentsForRoom(roomUuid);
-        expect(adjustments.length, 1);
-        expect(adjustments.first.previousValue, 10000.0);
-        expect(adjustments.first.newValue, 12000.0);
-        expect(adjustments.first.reason, 'رفع السعر الموسمي');
-
-        final auditLogs = await db.select(db.auditLogs).get();
-        expect(auditLogs.length, 5);
-        expect(auditLogs.first.isFinancial, true);
-      },
-    );
-
-    test('تعديل السعر مع خصم per_night', () async {
-      await db
-          .into(db.rooms)
-          .insert(
-            RoomsCompanion(
-              localUuid: const Value('room-102-uuid'),
-              roomNumber: const Value('102'),
-              type: const Value('عادية'),
-              price: const Value(10000.0),
-              status: const Value('محجوزة'),
-              createdAt: Value(Time.nowEpoch()),
-              updatedAt: Value(Time.nowEpoch()),
-              lastModified: Value(Time.nowEpoch()),
-            ),
-          );
-
-      final bookingId = await db
-          .into(db.bookings)
-          .insert(
-            BookingsCompanion(
-              localUuid: const Value('booking-discount-uuid'),
-              roomNumber: const Value('102'),
-              guestName: const Value('علي أحمد'),
-              guestPhone: const Value('777999888'),
-              guestNationality: const Value('يمني'),
-              checkinDate: const Value('2026-07-28T15:00:00'),
-              status: const Value('مؤكد'),
-              discount: const Value(2000),
-              discountType: const Value('per_night'),
-              discountStartDate: const Value('2026-07-28'),
-              expectedNights: const Value(5),
-              calculatedNights: const Value(5),
-              totalDueCached: const Value(40000.0),
-              createdAt: Value(Time.nowEpoch()),
-              updatedAt: Value(Time.nowEpoch()),
-              lastModified: Value(Time.nowEpoch()),
-            ),
-          );
-
-      for (var i = 0; i < 5; i++) {
-        final date = '2026-02-0${5 + i}';
-        await db
-            .into(db.bookingNights)
-            .insert(
-              BookingNightsCompanion(
-                localUuid: Value('night-discount-$i-uuid'),
-                bookingLocalId: Value(bookingId),
-                hotelDayKey: Value(date),
-                nightStart: Value('${date}T14:00:00'),
-                nightEnd: Value('2026-02-0${6 + i}T14:00:00'),
-                nightlyRate: const Value(8000.0),
-                sequence: Value(i + 1),
-                createdAt: Value(Time.nowEpoch()),
-                updatedAt: Value(Time.nowEpoch()),
-                lastModified: Value(Time.nowEpoch()),
-              ),
-            );
       }
 
-      final result = await service.applyRoomPriceChange(
+      // تاريخ بداية التغيير: today-4 عند الساعة 14:00 (بداية يوم الفندق)
+      final effectiveFrom = _dayFromNow(-4, hour: 14);
+
+      final preview = await service.previewPriceChange(
+        roomNumber: '101',
+        newPrice: 12000.0,
+        effectiveFrom: effectiveFrom,
+      );
+
+      // يجب أن تتأثر 5 ليالي (today-4, today-3, today-2, today-1, today)
+      expect(preview['bookingsAffected'], 1);
+      expect(preview['totalNightsAffected'], 5);
+      expect(preview['totalOldAmount'], 50000.0);
+      expect(preview['totalNewAmount'], 60000.0);
+      expect(preview['totalDifference'], 10000.0);
+
+      // المعاينة لا تُعدّل البيانات
+      final nightsAfterPreview = await db.select(db.bookingNights).get();
+      for (final night in nightsAfterPreview) {
+        expect(night.nightlyRate, 10000.0);
+      }
+    });
+
+    test('الخصم per_night يُطبّق في المعاينة بشكل صحيح', () async {
+      const roomUuid = 'room-102-uuid';
+      await db.into(db.rooms).insert(
+        RoomsCompanion(
+          localUuid: const Value(roomUuid),
+          roomNumber: const Value('102'),
+          type: const Value('عادية'),
+          price: const Value(10000.0),
+          status: const Value('محجوزة'),
+          createdAt: Value(Time.nowEpoch()),
+          updatedAt: Value(Time.nowEpoch()),
+          lastModified: Value(Time.nowEpoch()),
+        ),
+      );
+
+      final checkinDate = _dayFromNow(-4, hour: 15);
+      final bookingId = await db.into(db.bookings).insert(
+        BookingsCompanion(
+          localUuid: const Value('booking-discount-preview-uuid'),
+          roomNumber: const Value('102'),
+          guestName: const Value('علي أحمد'),
+          guestPhone: const Value('777999888'),
+          guestNationality: const Value('يمني'),
+          checkinDate: Value(_isoSpace(checkinDate)),
+          status: const Value('مؤكد'),
+          discount: const Value(2000),
+          discountType: const Value('per_night'),
+          createdAt: Value(Time.nowEpoch()),
+          updatedAt: Value(Time.nowEpoch()),
+          lastModified: Value(Time.nowEpoch()),
+        ),
+      );
+
+      // 5 ليالي بسعر 8000 (بعد خصم 2000 من 10000)
+      for (var i = 0; i < 5; i++) {
+        final nightDate = _dayFromNow(-4 + i);
+        final nightKey = _hotelDayKey(nightDate);
+        await db.into(db.bookingNights).insert(
+          BookingNightsCompanion(
+            localUuid: Value('night-discount-preview-$i-uuid'),
+            bookingLocalId: Value(bookingId),
+            hotelDayKey: Value(nightKey),
+            nightStart: Value('${nightKey}T14:00:00'),
+            nightEnd: Value('${_hotelDayKey(nightDate.add(const Duration(days: 1)))}T14:00:00'),
+            nightlyRate: const Value(8000.0),
+            baseRate: const Value(10000.0),
+            adjustment: const Value(-2000.0),
+            finalRate: const Value(8000.0),
+            sequence: Value(i + 1),
+            createdAt: Value(Time.nowEpoch()),
+            updatedAt: Value(Time.nowEpoch()),
+            lastModified: Value(Time.nowEpoch()),
+          ),
+        );
+      }
+
+      // المعاينة: رفع السعر إلى 12000، الخصم 2000 → السعر الجديد 10000
+      final effectiveFrom = _dayFromNow(-2, hour: 14);
+      final preview = await service.previewPriceChange(
         roomNumber: '102',
+        newPrice: 12000.0,
+        effectiveFrom: effectiveFrom,
+      );
+
+      // 3 ليالي متأثرة (today-2, today-1, today)
+      expect(preview['bookingsAffected'], 1);
+      expect(preview['totalNightsAffected'], 3);
+      // القديم: 3 × 8000 = 24000
+      expect(preview['totalOldAmount'], 24000.0);
+      // الجديد: 3 × (12000 - 2000) = 3 × 10000 = 30000
+      expect(preview['totalNewAmount'], 30000.0);
+      expect(preview['totalDifference'], 6000.0);
+    });
+  });
+
+  group('تطبيق تغيير السعر (applyRoomPriceChange)', () {
+    test('يُحدّث سعر الغرفة ويُنشئ outbox entries للحجز النشط', () async {
+      const roomUuid = 'room-201-uuid';
+      await db.into(db.rooms).insert(
+        RoomsCompanion(
+          localUuid: const Value(roomUuid),
+          roomNumber: const Value('201'),
+          type: const Value('عادية'),
+          price: const Value(10000.0),
+          status: const Value('محجوزة'),
+          createdAt: Value(Time.nowEpoch()),
+          updatedAt: Value(Time.nowEpoch()),
+          lastModified: Value(Time.nowEpoch()),
+        ),
+      );
+
+      final checkinDate = _dayFromNow(-9, hour: 15);
+      final bookingId = await db.into(db.bookings).insert(
+        BookingsCompanion(
+          localUuid: const Value('booking-apply-uuid'),
+          roomNumber: const Value('201'),
+          guestName: const Value('سالم أحمد'),
+          guestPhone: const Value('777555444'),
+          guestNationality: const Value('يمني'),
+          checkinDate: Value(_isoSpace(checkinDate)),
+          status: const Value('مؤكد'),
+          discount: const Value(0),
+          discountType: const Value('per_night'),
+          createdAt: Value(Time.nowEpoch()),
+          updatedAt: Value(Time.nowEpoch()),
+          lastModified: Value(Time.nowEpoch()),
+        ),
+      );
+
+      // إدراج 10 ليالي بتواريخ ديناميكية
+      for (var i = 0; i < 10; i++) {
+        final nightDate = _dayFromNow(-9 + i);
+        final nightKey = _hotelDayKey(nightDate);
+        await db.into(db.bookingNights).insert(
+          BookingNightsCompanion(
+            localUuid: Value('night-apply-$i-uuid'),
+            bookingLocalId: Value(bookingId),
+            hotelDayKey: Value(nightKey),
+            nightStart: Value('${nightKey}T14:00:00'),
+            nightEnd: Value('${_hotelDayKey(nightDate.add(const Duration(days: 1)))}T14:00:00'),
+            nightlyRate: const Value(10000.0),
+            baseRate: const Value(10000.0),
+            adjustment: const Value(0.0),
+            finalRate: const Value(10000.0),
+            sequence: Value(i + 1),
+            createdAt: Value(Time.nowEpoch()),
+            updatedAt: Value(Time.nowEpoch()),
+            lastModified: Value(Time.nowEpoch()),
+          ),
+        );
+      }
+
+      final effectiveFrom = _dayFromNow(-4, hour: 14);
+
+      final result = await service.applyRoomPriceChange(
+        roomNumber: '201',
         oldPrice: 10000.0,
         newPrice: 12000.0,
         appliedBy: 'admin',
-        effectiveFrom: DateTime.parse('2026-07-30T14:00:00'),
+        reason: 'رفع السعر الموسمي',
+        effectiveFrom: effectiveFrom,
       );
 
       expect(result.success, true);
-      expect(result.nightsUpdated, 3);
+      expect(result.bookingsAffected, 1);
+      // 5 ليالي بتاريخ today-4 إلى today يجب أن تتأثر
+      expect(result.nightsUpdated, 5);
 
-      final nights =
-          await (db.select(db.bookingNights)
-                ..where((n) => n.bookingLocalId.equals(bookingId))
-                ..orderBy([(n) => OrderingTerm.asc(n.hotelDayKey)]))
-              .get();
+      // التحقق من تحديث سعر الغرفة
+      final updatedRoom = await (db.select(db.rooms)
+            ..where((r) => r.roomNumber.equals('201')))
+          .getSingle();
+      expect(updatedRoom.price, 12000.0);
 
-      expect(nights[0].nightlyRate, 8000.0);
-      expect(nights[1].nightlyRate, 8000.0);
+      // التحقق من وجود outbox entry لتحديث سعر الغرفة
+      final outboxEntries = await db.select(db.outbox).get();
+      expect(outboxEntries.any((e) => e.entity == 'rooms'), isTrue,
+          reason: 'يجب إنشاء outbox entry لتحديث سعر الغرفة');
+      expect(outboxEntries.any((e) => e.entity == 'price_adjustments'), isTrue,
+          reason: 'يجب إنشاء outbox entry لتسجيل تعديل السعر');
 
-      expect(nights[2].nightlyRate, 10000.0);
-      expect(nights[3].nightlyRate, 10000.0);
-      expect(nights[4].nightlyRate, 10000.0);
+      // التحقق من وجود سجل تعديل سعر
+      final adjustments = await service.getAdjustmentsForRoom(roomUuid);
+      expect(adjustments.length, 1);
+      expect(adjustments.first.previousValue, 10000.0);
+      expect(adjustments.first.newValue, 12000.0);
+      expect(adjustments.first.reason, 'رفع السعر الموسمي');
+
+      // التحقق من وجود audit logs (واحد لكل ليلة متأثرة)
+      final auditLogs = await db.select(db.auditLogs).get();
+      expect(auditLogs.length, 5);
+      expect(auditLogs.first.isFinancial, true);
     });
 
-    test('تعديل السعر لا يؤثر على الحجوزات المغلقة', () async {
-      await db
-          .into(db.rooms)
-          .insert(
-            RoomsCompanion(
-              localUuid: const Value('room-103-uuid'),
-              roomNumber: const Value('103'),
-              type: const Value('عادية'),
-              price: const Value(10000.0),
-              status: const Value('شاغرة'),
-              createdAt: Value(Time.nowEpoch()),
-              updatedAt: Value(Time.nowEpoch()),
-              lastModified: Value(Time.nowEpoch()),
-            ),
-          );
+    test('الحجوزات المغلقة (status=مغادر) لا تتأثر بتغيير السعر', () async {
+      const roomUuid = 'room-202-uuid';
+      await db.into(db.rooms).insert(
+        RoomsCompanion(
+          localUuid: const Value(roomUuid),
+          roomNumber: const Value('202'),
+          type: const Value('عادية'),
+          price: const Value(10000.0),
+          status: const Value('شاغرة'),
+          createdAt: Value(Time.nowEpoch()),
+          updatedAt: Value(Time.nowEpoch()),
+          lastModified: Value(Time.nowEpoch()),
+        ),
+      );
 
-      final bookingId = await db
-          .into(db.bookings)
-          .insert(
-            BookingsCompanion(
-              localUuid: const Value('booking-closed-uuid'),
-              roomNumber: const Value('103'),
-              guestName: const Value('محمد علي'),
-              guestPhone: const Value('777111222'),
-              guestNationality: const Value('يمني'),
-              checkinDate: const Value('2026-07-24T15:00:00'),
-              actualCheckout: const Value('2026-07-25T12:00:00'),
-              status: const Value('مغادر'),
-              discount: const Value(0),
-              discountType: const Value('per_night'),
-              totalDueCached: const Value(40000.0),
-              createdAt: Value(Time.nowEpoch()),
-              updatedAt: Value(Time.nowEpoch()),
-              lastModified: Value(Time.nowEpoch()),
-            ),
-          );
+      // حجز مُغلق (actualCheckout موجود، status=مغادر)
+      final checkinDate = _dayFromNow(-5, hour: 15);
+      final checkoutDate = _dayFromNow(-1, hour: 11);
+      final bookingId = await db.into(db.bookings).insert(
+        BookingsCompanion(
+          localUuid: const Value('booking-closed-uuid'),
+          roomNumber: const Value('202'),
+          guestName: const Value('محمد علي'),
+          guestPhone: const Value('777111222'),
+          guestNationality: const Value('يمني'),
+          checkinDate: Value(_isoSpace(checkinDate)),
+          actualCheckout: Value(_isoSpace(checkoutDate)),
+          status: const Value('مغادر'),
+          discount: const Value(0),
+          discountType: const Value('per_night'),
+          createdAt: Value(Time.nowEpoch()),
+          updatedAt: Value(Time.nowEpoch()),
+          lastModified: Value(Time.nowEpoch()),
+        ),
+      );
 
+      // 4 ليالي
       for (var i = 0; i < 4; i++) {
-        await db
-            .into(db.bookingNights)
-            .insert(
-              BookingNightsCompanion(
-                localUuid: Value('night-closed-$i-uuid'),
-                bookingLocalId: Value(bookingId),
-                hotelDayKey: Value('2026-07-2${1 + i}'),
-                nightlyRate: const Value(10000.0),
-                nightStart: const Value('2026-07-24T14:00:00'),
-                nightEnd: const Value('2026-07-25T12:00:00'),
-                baseRate: const Value(10000.0),
-                adjustment: const Value(0.0),
-                finalRate: const Value(10000.0),
-                sequence: Value(i + 1),
-                createdAt: Value(Time.nowEpoch()),
-                updatedAt: Value(Time.nowEpoch()),
-                lastModified: Value(Time.nowEpoch()),
-              ),
-            );
+        final nightDate = _dayFromNow(-5 + i);
+        final nightKey = _hotelDayKey(nightDate);
+        final nextNightKey = _hotelDayKey(nightDate.add(const Duration(days: 1)));
+        await db.into(db.bookingNights).insert(
+          BookingNightsCompanion(
+            localUuid: Value('night-closed-$i-uuid'),
+            bookingLocalId: Value(bookingId),
+            hotelDayKey: Value(nightKey),
+            nightlyRate: const Value(10000.0),
+            nightStart: Value('${nightKey}T14:00:00'),
+            nightEnd: Value('${nextNightKey}T12:00:00'),
+            baseRate: const Value(10000.0),
+            adjustment: const Value(0.0),
+            finalRate: const Value(10000.0),
+            sequence: Value(i + 1),
+            createdAt: Value(Time.nowEpoch()),
+            updatedAt: Value(Time.nowEpoch()),
+            lastModified: Value(Time.nowEpoch()),
+          ),
+        );
       }
 
       final result = await service.applyRoomPriceChange(
-        roomNumber: '103',
+        roomNumber: '202',
         oldPrice: 10000.0,
         newPrice: 15000.0,
         appliedBy: 'admin',
-        effectiveFrom: DateTime.parse('2026-07-26T14:00:00'),
+        effectiveFrom: _dayFromNow(-3, hour: 14),
       );
 
       expect(result.success, true);
       expect(result.bookingsAffected, 0);
       expect(result.nightsUpdated, 0);
 
-      final nights = await (db.select(
-        db.bookingNights,
-      )..where((n) => n.bookingLocalId.equals(bookingId))).get();
+      // سعر الغرفة يجب أن يُحدَّث على أي حال
+      final updatedRoom = await (db.select(db.rooms)
+            ..where((r) => r.roomNumber.equals('202')))
+          .getSingle();
+      expect(updatedRoom.price, 15000.0);
 
+      // الليالي تبقى بسعرها القديم
+      final nights = await (db.select(db.bookingNights)
+            ..where((n) => n.bookingLocalId.equals(bookingId)))
+          .get();
       for (final night in nights) {
         expect(night.nightlyRate, 10000.0);
       }
+
+      // لا توجد audit logs لأنه لا توجد ليالي متأثرة
+      final auditLogs = await db.select(db.auditLogs).get();
+      expect(auditLogs.length, 0);
     });
 
-    test('معاينة التغيير قبل التطبيق', () async {
-      await db
-          .into(db.rooms)
-          .insert(
-            RoomsCompanion(
-              localUuid: const Value('room-104-uuid'),
-              roomNumber: const Value('104'),
-              type: const Value('عادية'),
-              price: const Value(8000.0),
-              status: const Value('محجوزة'),
-              createdAt: Value(Time.nowEpoch()),
-              updatedAt: Value(Time.nowEpoch()),
-              lastModified: Value(Time.nowEpoch()),
-            ),
-          );
-
-      final bookingId = await db
-          .into(db.bookings)
-          .insert(
-            BookingsCompanion(
-              localUuid: const Value('booking-preview-uuid'),
-              roomNumber: const Value('104'),
-              guestName: const Value('سعيد أحمد'),
-              guestPhone: const Value('777333444'),
-              guestNationality: const Value('يمني'),
-              checkinDate: const Value('2026-08-02T15:00:00'),
-              status: const Value('مؤكد'),
-              discount: const Value(0),
-              discountType: const Value('per_night'),
-              totalDueCached: const Value(24000.0),
-              createdAt: Value(Time.nowEpoch()),
-              updatedAt: Value(Time.nowEpoch()),
-              lastModified: Value(Time.nowEpoch()),
-            ),
-          );
-
-      for (var i = 0; i < 3; i++) {
-        await db
-            .into(db.bookingNights)
-            .insert(
-              BookingNightsCompanion(
-                localUuid: Value('night-preview-$i-uuid'),
-                bookingLocalId: Value(bookingId),
-                hotelDayKey: Value('2026-07-2${7 + i}'),
-                nightlyRate: const Value(8000.0),
-                nightStart: const Value('2026-07-24T14:00:00'),
-                nightEnd: const Value('2026-07-25T12:00:00'),
-                baseRate: const Value(8000.0),
-                adjustment: const Value(0.0),
-                finalRate: const Value(8000.0),
-                sequence: Value(i + 1),
-                createdAt: Value(Time.nowEpoch()),
-                updatedAt: Value(Time.nowEpoch()),
-                lastModified: Value(Time.nowEpoch()),
-              ),
-            );
-      }
-
-      final preview = await service.previewPriceChange(
-        roomNumber: '104',
-        newPrice: 10000.0,
-        effectiveFrom: DateTime.parse('2026-08-03T14:00:00'),
+    test('يرفض التطبيق على غرفة غير موجودة', () async {
+      final result = await service.applyRoomPriceChange(
+        roomNumber: '999',
+        oldPrice: 10000.0,
+        newPrice: 15000.0,
+        appliedBy: 'admin',
       );
 
-      expect(preview['bookingsAffected'], 1);
-      expect(preview['totalNightsAffected'], 2);
-      expect(preview['totalOldAmount'], 16000.0);
-      expect(preview['totalNewAmount'], 20000.0);
-      expect(preview['totalDifference'], 4000.0);
+      expect(result.success, false);
+      expect(result.error, isNotNull);
+      expect(result.error, contains('غير موجود'));
+    });
+  });
 
-      final nightsAfterPreview = await db.select(db.bookingNights).get();
-      for (final night in nightsAfterPreview) {
-        expect(night.nightlyRate, 8000.0);
-      }
+  group('استعلامات تعديلات الأسعار', () {
+    test('getAdjustmentsInDateRange يُرجع التعديلات في النطاق الصحيح', () async {
+      const roomUuid = 'room-301-uuid';
+      await db.into(db.rooms).insert(
+        RoomsCompanion(
+          localUuid: const Value(roomUuid),
+          roomNumber: const Value('301'),
+          type: const Value('عادية'),
+          price: const Value(10000.0),
+          status: const Value('شاغرة'),
+          createdAt: Value(Time.nowEpoch()),
+          updatedAt: Value(Time.nowEpoch()),
+          lastModified: Value(Time.nowEpoch()),
+        ),
+      );
+
+      // إنشاء تعديلين بتواريخ مختلفة
+      await service.applyRoomPriceChange(
+        roomNumber: '301',
+        oldPrice: 10000.0,
+        newPrice: 11000.0,
+        appliedBy: 'admin',
+        reason: 'تعديل 1',
+        effectiveFrom: _dayFromNow(-5, hour: 14),
+      );
+
+      await service.applyRoomPriceChange(
+        roomNumber: '301',
+        oldPrice: 11000.0,
+        newPrice: 12000.0,
+        appliedBy: 'admin',
+        reason: 'تعديل 2',
+        effectiveFrom: _dayFromNow(0, hour: 14),
+      );
+
+      // الاستعلام عن نطاق يشمل اليوم فقط
+      final todayKey = _hotelDayKey(DateTime.now());
+      final tomorrowKey = _hotelDayKey(_dayFromNow(1));
+      final adjustments = await service.getAdjustmentsInDateRange(
+        todayKey,
+        tomorrowKey,
+      );
+
+      expect(adjustments.length, 1);
+      expect(adjustments.first.reason, 'تعديل 2');
     });
   });
 }

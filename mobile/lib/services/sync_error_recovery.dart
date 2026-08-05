@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:appwrite/appwrite.dart';
 import 'package:flutter/foundation.dart';
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 enum RecoveryAction { retry, skip, rollback, escalate, pause }
 
@@ -92,7 +93,7 @@ class SyncErrorRecovery {
       _errorLog.removeLast();
     }
     _errorController.add(error);
-    debugPrint('❌ [Recovery] ${error.severity.name}: ${error.message}');
+    dlog(() => '❌ [Recovery] ${error.severity.name}: ${error.message}');
   }
 
   SyncError createError({
@@ -308,9 +309,9 @@ class SyncErrorRecovery {
         _rollbackPoints.removeLast();
       }
 
-      debugPrint('📍 [Recovery] نقطة استعادة: $description');
+      dlog(() => '📍 [Recovery] نقطة استعادة: $description');
     } catch (e) {
-      debugPrint('⚠️ [Recovery] فشل إنشاء نقطة الاستعادة: $e');
+      dlog(() => '⚠️ [Recovery] فشل إنشاء نقطة الاستعادة: $e');
     }
   }
 
@@ -325,10 +326,10 @@ class SyncErrorRecovery {
 
     try {
       await database.applyMergedData(point.snapshot);
-      debugPrint('✅ [Recovery] تم الاستعادة من: ${point.description}');
+      dlog(() => '✅ [Recovery] تم الاستعادة من: ${point.description}');
       return true;
     } catch (e) {
-      debugPrint('❌ [Recovery] فشل الاستعادة: $e');
+      dlog(() => '❌ [Recovery] فشل الاستعادة: $e');
       return false;
     }
   }

@@ -16,6 +16,7 @@ import 'daos/payments_dao.dart';
 import 'daos/rooms_dao.dart';
 import 'enhanced_booking_calculation_service.dart';
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// استثناء يُرمى عند فشل التحقق من صحة بيانات النسخة الاحتياطية
 class RestoreValidationException implements Exception {
@@ -123,9 +124,7 @@ class RestoreFixService {
     String prefix, {
     bool useTransaction = true,
   }) async {
-    debugPrint(
-      '📸 إنشاء لقطة احتياطية أمان: ${prefix}_restore_snapshot_${Time.nowEpoch()}.json',
-    );
+    dlog(() => '📸 إنشاء لقطة احتياطية أمان: ${prefix}_restore_snapshot_${Time.nowEpoch()}.json');
 
     Future<RestoreSnapshot> doCreate() async {
       final directory = await _resolveCacheDirectory();
@@ -170,7 +169,7 @@ class RestoreFixService {
           totalSizeBytes: await file.length(),
         );
       } catch (e) {
-        debugPrint('❌ خطأ في إنشاء اللقطة الاحتياطية: $e');
+        dlog(() => '❌ خطأ في إنشاء اللقطة الاحتياطية: $e');
         rethrow;
       }
     }
@@ -193,7 +192,7 @@ class RestoreFixService {
   Future<RestoreFixReport> runAutoFixAfterRestore({
     DateTime? backupTimestamp,
   }) async {
-    debugPrint('🔄 بدء عملية الإصلاح التلقائي للنسخة الاحتياطية...');
+    dlog('🔄 بدء عملية الإصلاح التلقائي للنسخة الاحتياطية...');
 
     final startTime = DateTime.now();
     int bookingsFixed = 0;
@@ -215,7 +214,7 @@ class RestoreFixService {
           backupTimestamp,
           now,
         );
-        debugPrint('🔍 العثور على ${bookingsToFix.length} حجز يحتاج إلى إصلاح');
+        dlog(() => '🔍 العثور على ${bookingsToFix.length} حجز يحتاج إلى إصلاح');
 
         for (final booking in bookingsToFix) {
           final bookingChanges = await _fixBookingDatesAndNights(
@@ -267,12 +266,12 @@ class RestoreFixService {
 
       final duration = DateTime.now().difference(startTime).inMilliseconds;
 
-      debugPrint('✅ اكتمل الإصلاح التلقائي بنجاح');
-      debugPrint('📊 الإحصائيات:');
-      debugPrint('   - الحجوزات المصلحة: $bookingsFixed');
-      debugPrint('   - الغرف المحدثة: $roomsUpdated');
-      debugPrint('   - الدفعات المتحقق منها: $paymentsChecked');
-      debugPrint('   - المدة: ${(duration / 1000).toStringAsFixed(1)} ثانية');
+      dlog('✅ اكتمل الإصلاح التلقائي بنجاح');
+      dlog('📊 الإحصائيات:');
+      dlog(() => '   - الحجوزات المصلحة: $bookingsFixed');
+      dlog(() => '   - الغرف المحدثة: $roomsUpdated');
+      dlog(() => '   - الدفعات المتحقق منها: $paymentsChecked');
+      dlog(() => '   - المدة: ${(duration / 1000).toStringAsFixed(1)} ثانية');
 
       return RestoreFixReport(
         success: true,
@@ -284,17 +283,17 @@ class RestoreFixService {
         durationMs: duration,
       );
     } catch (e, stackTrace) {
-      debugPrint('❌ فشل الإصلاح التلقائي: $e');
-      debugPrint('Stack trace: $stackTrace');
+      dlog(() => '❌ فشل الإصلاح التلقائي: $e');
+      dlog(() => 'Stack trace: $stackTrace');
 
       // استعادة اللقطة الاحتياطية في حالة الفشل
       final snapshotPath = snapshot?.filePath;
       if (snapshotPath != null) {
         try {
           await _restoreFromSnapshot(snapshotPath);
-          debugPrint('✅ تم استعادة البيانات من اللقطة الاحتياطية');
+          dlog('✅ تم استعادة البيانات من اللقطة الاحتياطية');
         } catch (restoreError) {
-          debugPrint('❌ فشل في استعادة اللقطة الاحتياطية: $restoreError');
+          dlog(() => '❌ فشل في استعادة اللقطة الاحتياطية: $restoreError');
         }
       }
 
@@ -406,10 +405,10 @@ class RestoreFixService {
         final changeMsg =
             'إصلاح الحجز #${booking.id}: تحديث الليالي من ${booking.calculatedNights} إلى $calculatedNights';
         changes.add(changeMsg);
-        debugPrint('✏️ $changeMsg');
+        dlog(() => '✏️ $changeMsg');
       }
     } catch (e) {
-      debugPrint('⚠️ خطأ في إصلاح الحجز #${booking.id}: $e');
+      dlog(() => '⚠️ خطأ في إصلاح الحجز #${booking.id}: $e');
     }
 
     return changes;
@@ -501,7 +500,7 @@ class RestoreFixService {
           changes.add(
             'تحديث المبالغ المخزنة للحجز #${booking.id}: الإجمالي=$expectedTotal, المدفوع=$totalPaid, المتبقي=$remainingBalance',
           );
-          debugPrint('💰 ${changes.last}');
+          dlog(() => '💰 ${changes.last}');
         }
 
         if ((totalPaid - expectedTotal).abs() > 0 &&
@@ -528,7 +527,7 @@ class RestoreFixService {
           final warningMsg =
               'تنبيه: الحجز #${booking.id} - إجمالي المدفوعات ($totalPaid) لا يتطابق مع المتوقع ($expectedTotal)';
           changes.add(warningMsg);
-          debugPrint('⚠️ $warningMsg');
+          dlog(() => '⚠️ $warningMsg');
         }
       }
 
@@ -586,7 +585,7 @@ class RestoreFixService {
         }
       }
     } catch (e) {
-      debugPrint('⚠️ خطأ في فحص المدفوعات للحجز #${booking.id}: $e');
+      dlog(() => '⚠️ خطأ في فحص المدفوعات للحجز #${booking.id}: $e');
     }
     return changes;
   }
@@ -637,7 +636,7 @@ class RestoreFixService {
           final changeMsg =
               'إصلاح الغرفة ${room.roomNumber}: تحديث الحالة من \'${room.status}\' إلى \'$newStatus\'';
           changes.add(changeMsg);
-          debugPrint('✏️ $changeMsg');
+          dlog(() => '✏️ $changeMsg');
         }
       }
       if (updates.isNotEmpty) {
@@ -660,7 +659,7 @@ class RestoreFixService {
         });
       }
     } catch (e) {
-      debugPrint('⚠️ خطأ في تحديث حالات الغرف: $e');
+      dlog(() => '⚠️ خطأ في تحديث حالات الغرف: $e');
     }
     return changes;
   }
@@ -733,9 +732,7 @@ class RestoreFixService {
       final room = context.roomsByNumber[booking.roomNumber];
 
       if (room == null) {
-        debugPrint(
-          '⚠️ تحذير: الغرفة ${booking.roomNumber} غير موجودة للحجز #${booking.id}',
-        );
+        dlog(() => '⚠️ تحذير: الغرفة ${booking.roomNumber} غير موجودة للحجز #${booking.id}');
         changes.add(
           'تحذير: حجز #${booking.id} مرتبط بغرفة غير موجودة (${booking.roomNumber})',
         );
@@ -1251,7 +1248,7 @@ class RestoreFixService {
         await _rebuildBookingStructures(DateTime.now());
       });
     } catch (e) {
-      debugPrint('❌ فشل في استعادة اللقطة الاحتياطية: $e');
+      dlog(() => '❌ فشل في استعادة اللقطة الاحتياطية: $e');
       rethrow;
     }
   }
@@ -1290,10 +1287,10 @@ class RestoreFixService {
       final file = File(filePath);
       if (file.existsSync()) {
         await file.delete();
-        debugPrint('🗑️ تم حذف اللقطة الاحتياطية: $filePath');
+        dlog(() => '🗑️ تم حذف اللقطة الاحتياطية: $filePath');
       }
     } catch (e) {
-      debugPrint('⚠️ تحذير: لا يمكن حذف اللقطة الاحتياطية: $e');
+      dlog(() => '⚠️ تحذير: لا يمكن حذف اللقطة الاحتياطية: $e');
     }
   }
 

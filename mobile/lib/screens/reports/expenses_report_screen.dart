@@ -17,6 +17,7 @@ import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
 import 'report_page_scaffold.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// أيقونات وألوان لأنواع المصروفات
 const _typeConfig = <String, _ExpenseTypeConfig>{
@@ -471,9 +472,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                   ) &&
                   expense.amount.abs() == sw.amount.abs()) {
                 hasMatchingExpense = true;
-                debugPrint(
-                  '⚠️ تم ربط سحب راتب قديم (id=${sw.id}) بمصروف (id=${expense.id}) عبر المطابقة بالبيانات',
-                );
+                dlog(() => '⚠️ تم ربط سحب راتب قديم (id=${sw.id}) بمصروف (id=${expense.id}) عبر المطابقة بالبيانات');
                 break;
               }
             }
@@ -1398,7 +1397,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     try {
       return DateTime.parse(normalized);
     } catch (e) {
-      debugPrint('⚠️ تعذر تحليل تاريخ المصروف "$value": $e');
+      dlog(() => '⚠️ تعذر تحليل تاريخ المصروف "$value": $e');
       return DateTime.fromMillisecondsSinceEpoch(0);
     }
   }

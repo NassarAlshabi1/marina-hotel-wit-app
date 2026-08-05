@@ -11,6 +11,7 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 // ✅ whatsapp_template_manager ملغي — البناء مباشر
 
 /// شاشة إرسال تذكير واتساب بالمبلغ المتبقي للحجوزات النشطة
@@ -54,7 +55,7 @@ class _ActiveBookingsReminderScreenState
         setState(() => _isInitialLoading = false);
       }
     } catch (e) {
-      debugPrint('⚠️ خطأ في التحديث التلقائي: $e');
+      dlog(() => '⚠️ خطأ في التحديث التلقائي: $e');
       if (mounted) {
         setState(() => _isInitialLoading = false);
       }

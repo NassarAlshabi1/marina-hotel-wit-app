@@ -8,6 +8,7 @@ import '../utils/time.dart';
 import 'appwrite_sync_manager.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// خدمة إلغاء الدفعات (Payment Void)
 ///
@@ -46,12 +47,12 @@ class PaymentVoidService {
                 .getSingleOrNull();
 
         if (payment == null) {
-          debugPrint('⚠️ PaymentVoid: الدفعة $paymentUuid غير موجودة');
+          dlog(() => '⚠️ PaymentVoid: الدفعة $paymentUuid غير موجودة');
           return false;
         }
 
         if (payment.isVoided) {
-          debugPrint('⚠️ PaymentVoid: الدفعة $paymentUuid مُلغاة مسبقاً');
+          dlog(() => '⚠️ PaymentVoid: الدفعة $paymentUuid مُلغاة مسبقاً');
           return false;
         }
 
@@ -82,7 +83,7 @@ class PaymentVoidService {
 
         // إذا لم نتمكن من حل bookingUuid، نرفض العملية
         if (bookingUuid.isEmpty) {
-          debugPrint('⚠️ PaymentVoid: تعذر حل bookingUuid للدفعة $paymentUuid');
+          dlog(() => '⚠️ PaymentVoid: تعذر حل bookingUuid للدفعة $paymentUuid');
           return false;
         }
 
@@ -162,12 +163,12 @@ class PaymentVoidService {
           },
         );
 
-        debugPrint('✅ PaymentVoid: تم إلغاء الدفعة $paymentUuid بنجاح');
+        dlog(() => '✅ PaymentVoid: تم إلغاء الدفعة $paymentUuid بنجاح');
         return true;
       });
     } catch (e, st) {
-      debugPrint('❌ PaymentVoid: فشل إلغاء الدفعة $paymentUuid: $e');
-      debugPrint('Stack: $st');
+      dlog(() => '❌ PaymentVoid: فشل إلغاء الدفعة $paymentUuid: $e');
+      dlog(() => 'Stack: $st');
       return false;
     }
   }

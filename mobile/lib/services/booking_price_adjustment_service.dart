@@ -313,7 +313,7 @@ class BookingPriceAdjustmentService {
       db.bookingPriceAdjustments,
     )..where((a) => a.localUuid.equals(uuid))).getSingle();
 
-    debugPrint('✅ تم تطبيق تعديل السعر: $uuid للحجز $bookingLocalUuid');
+    dlog(() => '✅ تم تطبيق تعديل السعر: $uuid للحجز $bookingLocalUuid');
 
     return result;
   }
@@ -407,9 +407,7 @@ class BookingPriceAdjustmentService {
       recordData: update.toColumns(false),
     );
 
-    debugPrint(
-      '⏹️ تم إنهاء تعديل السعر: $adjustmentUuid (ساري حتى $effectiveEnd)',
-    );
+    dlog(() => '⏹️ تم إنهاء تعديل السعر: $adjustmentUuid (ساري حتى $effectiveEnd)');
   }
 
   Future<List<BookingPriceAdjustment>> getActiveAdjustments(
@@ -510,7 +508,7 @@ class BookingPriceAdjustmentService {
       db,
     ).refreshForBooking(booking, forceRebuild: true);
 
-    debugPrint('🔄 تم إعادة حساب الحجز #$bookingId');
+    dlog(() => '🔄 تم إعادة حساب الحجز #$bookingId');
   }
 
   Future<void> recalculateAfterSync(int bookingId) async {

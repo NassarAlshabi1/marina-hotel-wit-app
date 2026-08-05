@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../local_db.dart';
 import 'recalculate_booking_nights.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// Script لإعادة حساب عدد الليالي والحقول المشتقة لجميع الحجوزات
 /// بناءً على التواريخ الفعلية
@@ -17,17 +18,17 @@ import 'recalculate_booking_nights.dart';
 /// dart run lib/services/migrations/run_recalculate_nights.dart
 /// ```
 Future<void> main() async {
-  debugPrint('🚀 Starting Booking Nights Recalculation Migration');
-  debugPrint('=' * 80);
-  debugPrint('⚠️  WARNING: Ensure the main application is NOT running!');
-  debugPrint('=' * 80);
-  debugPrint('هذه العملية ستقوم بـ:');
-  debugPrint('1. قراءة جميع الحجوزات النشطة');
-  debugPrint('2. إعادة حساب عدد الليالي من تاريخ الدخول حتى الآن');
-  debugPrint('3. إعادة حساب المبالغ المستحقة والمدفوعة');
-  debugPrint('4. تحديث booking_nights لكل حجز');
-  debugPrint('=' * 80);
-  debugPrint('');
+  dlog('🚀 Starting Booking Nights Recalculation Migration');
+  dlog('=' * 80);
+  dlog('⚠️  WARNING: Ensure the main application is NOT running!');
+  dlog('=' * 80);
+  dlog('هذه العملية ستقوم بـ:');
+  dlog('1. قراءة جميع الحجوزات النشطة');
+  dlog('2. إعادة حساب عدد الليالي من تاريخ الدخول حتى الآن');
+  dlog('3. إعادة حساب المبالغ المستحقة والمدفوعة');
+  dlog('4. تحديث booking_nights لكل حجز');
+  dlog('=' * 80);
+  dlog('');
 
   // إنشاء database connection
   final db = DatabaseManager.instance;
@@ -38,7 +39,7 @@ Future<void> main() async {
     final report = await migration.executeWithReport();
 
     // طباعة التقرير
-    debugPrint(report.toString());
+    dlog(report.toString());
 
     // حفظ التقرير في ملف JSON
     final reportFile = File(
@@ -47,15 +48,15 @@ Future<void> main() async {
     await reportFile.writeAsString(
       const JsonEncoder.withIndent('  ').convert(report.toJson()),
     );
-    debugPrint('\n📄 Report saved to: ${reportFile.path}');
+    dlog(() => '\n📄 Report saved to: ${reportFile.path}');
 
     // Exit code
     exit(report.success ? 0 : 1);
   } catch (e, stackTrace) {
-    debugPrint('\n❌ Migration failed with error:');
-    debugPrint(e.toString());
-    debugPrint('\nStack trace:');
-    debugPrint(stackTrace.toString());
+    dlog('\n❌ Migration failed with error:');
+    dlog(e.toString());
+    dlog('\nStack trace:');
+    dlog(stackTrace.toString());
     exit(1);
   } finally {
     // NOTE: We let the process exit clean up the database connection
@@ -66,6 +67,6 @@ Future<void> main() async {
     // await DatabaseManager.close(); // NOT closeForRestore
     //
     // However, for standalone scripts, process exit is sufficient.
-    debugPrint('✅ Migration script completed');
+    dlog('✅ Migration script completed');
   }
 }

@@ -9,6 +9,7 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 
 import 'local_db.dart';
 import 'sync_constants.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class SyncSafetySnapshot {
   SyncSafetySnapshot({
@@ -65,10 +66,10 @@ class SyncSafetyLayer {
         );
         await File(dbPath).copy(dbBackupPath);
         tables['sqliteBackupPath'] = dbBackupPath;
-        debugPrint('✅ تم نسخ ملف SQLite إلى: $dbBackupPath');
+        dlog(() => '✅ تم نسخ ملف SQLite إلى: $dbBackupPath');
       }
     } catch (e) {
-      debugPrint('⚠️ خطأ في نسخ ملف SQLite: $e');
+      dlog(() => '⚠️ خطأ في نسخ ملف SQLite: $e');
     }
 
     final payload = <String, dynamic>{
@@ -145,7 +146,7 @@ class SyncSafetyLayer {
     final rollbackAt = DateTime.now().toUtc();
 
     if (!file.existsSync()) {
-      debugPrint('❌ ملف النسخة الاحتياطية غير موجود: ${snapshot.filePath}');
+      dlog(() => '❌ ملف النسخة الاحتياطية غير موجود: ${snapshot.filePath}');
       _activeSnapshots.remove(snapshot.key);
       return false;
     }
@@ -176,13 +177,11 @@ class SyncSafetyLayer {
           'timestamp': rollbackAt.toIso8601String(),
         });
 
-        debugPrint('✅ تم استعادة قاعدة البيانات بنجاح من النسخة الاحتياطية');
+        dlog('✅ تم استعادة قاعدة البيانات بنجاح من النسخة الاحتياطية');
         _activeSnapshots.remove(snapshot.key);
         return true;
       } catch (rollbackError, stack) {
-        debugPrint(
-          '❌ CRITICAL: فشل التراجع — transaction تم التراجع عنها تلقائياً',
-        );
+        dlog('❌ CRITICAL: فشل التراجع — transaction تم التراجع عنها تلقائياً');
         await _appendLog({
           'event': 'rollback-error',
           'syncId': snapshot.syncId,
@@ -198,7 +197,7 @@ class SyncSafetyLayer {
         // ✅ ضمان إعادة تشغيل FK في كل حالة
         try {
           await db.customStatement('PRAGMA foreign_keys = ON');
-          debugPrint('🔓 تم إعادة تشغيل FOREIGN KEYS');
+          dlog('🔓 تم إعادة تشغيل FOREIGN KEYS');
 
           // ✅ تحقق من سلامة المفاتيح الأجنبية بعد إعادة التفعيل
           try {
@@ -216,11 +215,11 @@ class SyncSafetyLayer {
             }
           } catch (_) {}
         } catch (e) {
-          debugPrint('⚠️ فشل إعادة تشغيل FOREIGN KEYS: $e');
+          dlog(() => '⚠️ فشل إعادة تشغيل FOREIGN KEYS: $e');
         }
       }
     } catch (readError, stack) {
-      debugPrint('❌ فشل قراءة ملف النسخة الاحتياطية: $readError');
+      dlog(() => '❌ فشل قراءة ملف النسخة الاحتياطية: $readError');
       await _appendLog({
         'event': 'rollback-error',
         'syncId': snapshot.syncId,
@@ -309,7 +308,7 @@ class SyncSafetyLayer {
         await db.customStatement('DELETE FROM $table');
       } on Exception catch (e) {
         if (e.toString().contains('no such table')) {
-          debugPrint('ℹ️ الجدول غير موجود، تخطي الحذف: $table');
+          dlog(() => 'ℹ️ الجدول غير موجود، تخطي الحذف: $table');
         } else {
           rethrow;
         }
@@ -346,9 +345,7 @@ class SyncSafetyLayer {
           normalized.entries.where((e) => existingColumns.contains(e.key)),
         );
         if (filtered.isEmpty) {
-          debugPrint(
-            '⚠️ تخطي استعادة صف فارغ لـ $tableName بسبب اختلاف الأعمدة',
-          );
+          dlog(() => '⚠️ تخطي استعادة صف فارغ لـ $tableName بسبب اختلاف الأعمدة');
           continue;
         }
         final columns = filtered.keys.toList();
@@ -362,7 +359,7 @@ class SyncSafetyLayer {
         );
       }
     });
-    debugPrint('✅ تم استعادة ${rows.length} سجل من $tableName');
+    dlog(() => '✅ تم استعادة ${rows.length} سجل من $tableName');
   }
 
   Future<Set<String>> _tableColumns(AppDatabase db, String tableName) async {
@@ -390,7 +387,7 @@ class SyncSafetyLayer {
         return dbPath;
       }
     } catch (e) {
-      debugPrint('⚠️ خطأ في الحصول على مسار قاعدة البيانات: $e');
+      dlog(() => '⚠️ خطأ في الحصول على مسار قاعدة البيانات: $e');
     }
     return null;
   }

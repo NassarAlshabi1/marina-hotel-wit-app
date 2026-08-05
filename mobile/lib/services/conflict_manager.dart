@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class PendingConflict {
   const PendingConflict({
@@ -155,7 +156,7 @@ class ConflictManager {
             );
       }
     } catch (e) {
-      debugPrint('❌ فشل حفظ التعارض: $e');
+      dlog(() => '❌ فشل حفظ التعارض: $e');
     }
   }
 
@@ -207,7 +208,7 @@ class ConflictManager {
         );
       }
     } catch (e) {
-      debugPrint('❌ فشل تحديث حل التعارض: $e');
+      dlog(() => '❌ فشل تحديث حل التعارض: $e');
     }
   }
 
@@ -234,7 +235,7 @@ class ConflictManager {
                 jsonDecode(row.resolution) as Map<String, dynamic>?;
           }
         } catch (e) {
-          debugPrint('❌ فشل في فك ترميز بيانات التعارض: $e');
+          dlog(() => '❌ فشل في فك ترميز بيانات التعارض: $e');
         }
 
         _pendingConflicts.add(
@@ -252,7 +253,7 @@ class ConflictManager {
 
       _conflictsController.add(_pendingConflicts);
     } catch (e) {
-      debugPrint('❌ فشل تحميل التعارضات المعلقة: $e');
+      dlog(() => '❌ فشل تحميل التعارضات المعلقة: $e');
     }
   }
 

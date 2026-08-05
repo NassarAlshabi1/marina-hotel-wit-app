@@ -609,7 +609,7 @@ class GoogleDriveBackupService {
 
   void _log(String message) {
     DebugLogs.add('DriveBackup', message);
-    debugPrint(message);
+    dlog(message);
   }
 
   /// حساب تجزئة SHA-256 لبيانات النسخة الاحتياطية (باستثناء حقل data_hash نفسه)
@@ -1844,7 +1844,7 @@ class GoogleDriveBackupService {
           'فشلت مزامنة Appwrite بعد الاستعادة: $e',
           tag: 'RESTORE',
         );
-        debugPrint('Stack trace: $st');
+        dlog(() => 'Stack trace: $st');
       }
     } catch (e) {
       _log('❌ خطأ في استعادة البيانات: $e');

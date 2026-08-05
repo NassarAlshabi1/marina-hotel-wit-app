@@ -1,5 +1,6 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// استراتيجية حل التضارب
 enum ConflictStrategy { newerWins, devicePriority }
@@ -99,7 +100,7 @@ class ConflictResolver {
       }
     }
 
-    debugPrint('🔍 ConflictResolver: اكتشف ${conflicts.length} تضارب');
+    dlog(() => '🔍 ConflictResolver: اكتشف ${conflicts.length} تضارب');
     return conflicts;
   }
 
@@ -132,9 +133,7 @@ class ConflictResolver {
       resolved[conflict.table]![conflict.uuid] = winner;
 
       final winnerType = winner == conflict.localData ? 'محلي' : 'بعيد';
-      debugPrint(
-        '✅ ConflictResolver: حُل تضارب ${conflict.table}/${conflict.uuid} - الفائز: $winnerType',
-      );
+      dlog(() => '✅ ConflictResolver: حُل تضارب ${conflict.table}/${conflict.uuid} - الفائز: $winnerType');
     }
 
     return resolved;
@@ -178,7 +177,7 @@ class ConflictResolver {
         return DateTime.fromMillisecondsSinceEpoch(timestamp);
       }
     } catch (e) {
-      debugPrint('⚠️ ConflictResolver: فشل تحليل timestamp: $e');
+      dlog(() => '⚠️ ConflictResolver: فشل تحليل timestamp: $e');
     }
 
     return null;

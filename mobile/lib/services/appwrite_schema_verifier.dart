@@ -1,6 +1,7 @@
 import 'package:appwrite/appwrite.dart';
 import 'package:flutter/foundation.dart';
 import 'appwrite_config_manager.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// سكريبت للتحقق من مطابقة جداول Appwrite Cloud
 ///
@@ -595,7 +596,7 @@ class AppwriteSchemaVerifier {
 
   /// التحقق من جميع Collections والـ Attributes
   static Future<Map<String, dynamic>> verifySchema() async {
-    debugPrint('🔍 بدء التحقق من مطابقة جداول Appwrite Cloud...\n');
+    dlog('🔍 بدء التحقق من مطابقة جداول Appwrite Cloud...\n');
 
     final endpoint = AppwriteConfigManager.endpoint;
     final projectId = AppwriteConfigManager.projectId;
@@ -623,7 +624,7 @@ class AppwriteSchemaVerifier {
       final schema = entry.value;
       totalCollections++;
 
-      debugPrint('📋 التحقق من: $collectionId (${schema['name']})');
+      dlog(() => '📋 التحقق من: $collectionId (${schema['name']})');
 
       try {
         // ignore: deprecated_member_use
@@ -634,7 +635,7 @@ class AppwriteSchemaVerifier {
         );
 
         foundCollections++;
-        debugPrint('   ✅ موجود: ${schema['name']}');
+        dlog(() => '   ✅ موجود: ${schema['name']}');
 
         results['collections'][collectionId] = {
           'found': true,
@@ -642,10 +643,10 @@ class AppwriteSchemaVerifier {
           'total_documents': response.total,
         };
 
-        debugPrint('   📄 عدد المستندات: ${response.total}');
+        dlog(() => '   📄 عدد المستندات: ${response.total}');
       } catch (e) {
         missingCollections++;
-        debugPrint('   ❌ غير موجود: $collectionId');
+        dlog(() => '   ❌ غير موجود: $collectionId');
         results['missing'].add(collectionId);
         results['collections'][collectionId] = {
           'found': false,
@@ -653,7 +654,7 @@ class AppwriteSchemaVerifier {
         };
       }
 
-      debugPrint('');
+      dlog('');
     }
 
     results['summary'] = {
@@ -664,24 +665,24 @@ class AppwriteSchemaVerifier {
           .toStringAsFixed(1),
     };
 
-    debugPrint('═══════════════════════════════════════');
-    debugPrint('📊 ملخص التحقق');
-    debugPrint('═══════════════════════════════════════');
-    debugPrint('إجمالي الجداول المطلوبة: $totalCollections');
-    debugPrint('✅ موجود: $foundCollections');
-    debugPrint('❌ ناقص: $missingCollections');
-    debugPrint('📈 نسبة الاكتمال: ${results['summary']['percentage']}%');
-    debugPrint('═══════════════════════════════════════\n');
+    dlog('═══════════════════════════════════════');
+    dlog('📊 ملخص التحقق');
+    dlog('═══════════════════════════════════════');
+    dlog(() => 'إجمالي الجداول المطلوبة: $totalCollections');
+    dlog(() => '✅ موجود: $foundCollections');
+    dlog(() => '❌ ناقص: $missingCollections');
+    dlog(() => '📈 نسبة الاكتمال: ${results['summary']['percentage']}%');
+    dlog('═══════════════════════════════════════\n');
 
     if (missingCollections > 0) {
-      debugPrint('⚠️  الجداول الناقصة:');
+      dlog('⚠️  الجداول الناقصة:');
       for (final missing in (results['missing'] as List)) {
-        debugPrint('   - $missing');
+        dlog(() => '   - $missing');
       }
-      debugPrint('\n💡 يرجى إنشاء الجداول الناقصة في Appwrite Console');
-      debugPrint('   راجع: mobile/APPWRITE_SCHEMA_VERIFICATION.md\n');
+      dlog('\n💡 يرجى إنشاء الجداول الناقصة في Appwrite Console');
+      dlog('   راجع: mobile/APPWRITE_SCHEMA_VERIFICATION.md\n');
     } else {
-      debugPrint('🎉 جميع الجداول موجودة! التطابق كامل.\n');
+      dlog('🎉 جميع الجداول موجودة! التطابق كامل.\n');
     }
 
     return results;
@@ -694,7 +695,7 @@ class AppwriteSchemaVerifier {
       return;
     }
 
-    debugPrint('# إنشاء Collection: $collectionId');
+    dlog(() => '# إنشاء Collection: $collectionId');
     debugPrint(r'appwrite databases createCollection \');
     debugPrint('  --databaseId ${AppwriteConfigManager.databaseId} \\');
     debugPrint('  --collectionId $collectionId \\');

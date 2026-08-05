@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// نوع الحدث
 enum SyncEventType {
@@ -191,7 +192,7 @@ class SyncMonitoringSystem {
     await _loadHistoricalData();
     await _cleanupOldStoredEvents();
     _startHealthChecks();
-    debugPrint('📊 SyncMonitoringSystem: تم التهيئة');
+    dlog('📊 SyncMonitoringSystem: تم التهيئة');
   }
 
   /// تسجيل بداية المزامنة
@@ -456,7 +457,7 @@ class SyncMonitoringSystem {
 
       await prefs.setStringList(key, existing);
     } catch (e) {
-      debugPrint('⚠️ SyncMonitoringSystem: فشل حفظ الحدث: $e');
+      dlog(() => '⚠️ SyncMonitoringSystem: فشل حفظ الحدث: $e');
     }
   }
 
@@ -475,9 +476,9 @@ class SyncMonitoringSystem {
         _events.add(event);
       }
 
-      debugPrint('📊 SyncMonitoringSystem: تم تحميل ${_events.length} حدث');
+      dlog(() => '📊 SyncMonitoringSystem: تم تحميل ${_events.length} حدث');
     } catch (e) {
-      debugPrint('⚠️ SyncMonitoringSystem: فشل تحميل البيانات: $e');
+      dlog(() => '⚠️ SyncMonitoringSystem: فشل تحميل البيانات: $e');
     }
   }
 
@@ -501,12 +502,10 @@ class SyncMonitoringSystem {
       }
 
       if (removedCount > 0) {
-        debugPrint(
-          '🗑️ SyncMonitoringSystem: تم حذف $removedCount سجل قديم (أقدم من $keepDays أيام)',
-        );
+        dlog(() => '🗑️ SyncMonitoringSystem: تم حذف $removedCount سجل قديم (أقدم من $keepDays أيام)');
       }
     } catch (e) {
-      debugPrint('⚠️ SyncMonitoringSystem: فشل تنظيف السجلات القديمة: $e');
+      dlog(() => '⚠️ SyncMonitoringSystem: فشل تنظيف السجلات القديمة: $e');
     }
   }
 
@@ -555,7 +554,7 @@ ${stats.recentErrors.isEmpty ? '  لا توجد أخطاء' : stats.recentErrors
     final cutoffDate = DateTime.now().subtract(olderThan);
     _events.removeWhere((e) => e.timestamp.isBefore(cutoffDate));
 
-    debugPrint('🗑️ SyncMonitoringSystem: تم مسح الأحداث الأقدم من $olderThan');
+    dlog(() => '🗑️ SyncMonitoringSystem: تم مسح الأحداث الأقدم من $olderThan');
   }
 
   /// إيقاف النظام

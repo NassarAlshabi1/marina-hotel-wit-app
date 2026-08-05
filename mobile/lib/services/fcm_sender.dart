@@ -32,6 +32,7 @@ import '../utils/env.dart';
 import 'appwrite_config.dart';
 import 'appwrite_service.dart';
 import 'crashlytics_service.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// نوع الحدث المهم لإرسال إشعار FCM
 enum FcmEventType {
@@ -129,7 +130,7 @@ class FcmSender {
   }) async {
     // ✅ no-op آمن إذا لم يُكوّن FCM
     if (!Env.isFcmSendConfigured) {
-      debugPrint('ℹ️ FCM sender: skipped (FCM_SERVER_KEY not configured)');
+      dlog('ℹ️ FCM sender: skipped (FCM_SERVER_KEY not configured)');
       return;
     }
 
@@ -137,7 +138,7 @@ class FcmSender {
       // 1. قراءة fcmToken لكل الأجهزة من Appwrite.devices
       final tokens = await _getAllDeviceTokens();
       if (tokens.isEmpty) {
-        debugPrint('ℹ️ FCM sender: no registered devices to notify');
+        dlog('ℹ️ FCM sender: no registered devices to notify');
         return;
       }
 
@@ -178,14 +179,10 @@ class FcmSender {
         final responseBody = jsonDecode(response.body) as Map<String, dynamic>;
         final success = responseBody['success'] as int? ?? 0;
         final failure = responseBody['failure'] as int? ?? 0;
-        debugPrint(
-          '✅ FCM sent: $success success, $failure failure '
-          '(event=$eventTypeString, recipients=${tokens.length})',
-        );
+        dlog(() => '✅ FCM sent: $success success, $failure failure '
+          '(event=$eventTypeString, recipients=${tokens.length})');
       } else {
-        debugPrint(
-          '⚠️ FCM send failed: ${response.statusCode} - ${response.body}',
-        );
+        dlog(() => '⚠️ FCM send failed: ${response.statusCode} - ${response.body}');
         unawaited(
           CrashlyticsService.instance.recordSyncError(
             operation: 'fcm_send',
@@ -196,7 +193,7 @@ class FcmSender {
         );
       }
     } catch (e, st) {
-      debugPrint('⚠️ FCM sender error: $e');
+      dlog(() => '⚠️ FCM sender error: $e');
       unawaited(
         CrashlyticsService.instance.recordSyncError(
           operation: 'fcm_send',
@@ -244,7 +241,7 @@ class FcmSender {
 
       return tokens;
     } catch (e) {
-      debugPrint('⚠️ FCM sender: failed to fetch device tokens: $e');
+      dlog(() => '⚠️ FCM sender: failed to fetch device tokens: $e');
       return [];
     }
   }

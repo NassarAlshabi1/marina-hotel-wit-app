@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 
 import '../utils/circular_buffer_logger.dart';
 import '../utils/weak_device_optimizer.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class SyncTask {
   const SyncTask({
@@ -37,7 +38,7 @@ class UnifiedSyncScheduler {
 
   void register(SyncTask task) {
     if (_started) {
-      debugPrint('⚠️ Cannot register after start');
+      dlog('⚠️ Cannot register after start');
       return;
     }
     _tasks.add(task);
@@ -65,7 +66,7 @@ class UnifiedSyncScheduler {
         _executeTask(task);
       });
 
-      debugPrint('✅ Started: ${task.name} (${adjusted.inSeconds}s)');
+      dlog(() => '✅ Started: ${task.name} (${adjusted.inSeconds}s)');
     }
 
     CircularBufferLogger.instance.info(
@@ -95,7 +96,7 @@ class UnifiedSyncScheduler {
 
   Future<void> _executeTask(SyncTask task) async {
     if (_running[task.id] == true) {
-      debugPrint('⏭️ Skip ${task.name} — running');
+      dlog(() => '⏭️ Skip ${task.name} — running');
       return;
     }
 
@@ -103,7 +104,7 @@ class UnifiedSyncScheduler {
     try {
       await task.callback();
     } catch (e, st) {
-      debugPrint('❌ ${task.name} failed: $e');
+      dlog(() => '❌ ${task.name} failed: $e');
       CircularBufferLogger.instance.error(
         'Task ${task.name} failed: $e',
         tag: 'SCHEDULER',

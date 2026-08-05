@@ -8,6 +8,7 @@ import 'auto_backup_manager.dart';
 import 'booking_derived_fields_service.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class PriceAdjustmentService {
   PriceAdjustmentService(this.db);
@@ -142,7 +143,7 @@ class PriceAdjustmentService {
           db,
         ).refreshForBookingId(booking.id, forceRebuild: true);
       } catch (e) {
-        debugPrint('⚠️ خطأ في إعادة حساب حجز ${booking.id}: $e');
+        dlog(() => '⚠️ خطأ في إعادة حساب حجز ${booking.id}: $e');
       }
 
       // حساب النتيجة بعد إعادة الحساب

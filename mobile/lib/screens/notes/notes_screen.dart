@@ -7,6 +7,7 @@ import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../models/shift_note_adapter.dart';
 import '../../providers/repository_providers.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// شاشة الملاحظات البسيطة
 class NotesScreen extends ConsumerStatefulWidget {
@@ -228,7 +229,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
           await repo.markAsRead(note.id);
           unawaited(_refreshData());
         } catch (e) {
-          debugPrint('❌ خطأ في تحديد الملاحظة كمقروءة: $e');
+          dlog(() => '❌ خطأ في تحديد الملاحظة كمقروءة: $e');
         }
       case 'edit':
         _editNote(note);

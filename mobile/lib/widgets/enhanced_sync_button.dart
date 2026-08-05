@@ -9,6 +9,7 @@ import '../providers/repository_providers.dart';
 import '../services/connectivity_service.dart';
 import '../services/sync_error_recovery.dart';
 import '../services/sync_orchestrator.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class EnhancedSyncButton extends ConsumerStatefulWidget {
   const EnhancedSyncButton({
@@ -423,7 +424,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
         );
       }
     } catch (e) {
-      debugPrint('❌ خطأ في رفع التغييرات: $e');
+      dlog(() => '❌ خطأ في رفع التغييرات: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -470,7 +471,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
         );
       }
     } catch (e) {
-      debugPrint('❌ خطأ في سحب التحديثات: $e');
+      dlog(() => '❌ خطأ في سحب التحديثات: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

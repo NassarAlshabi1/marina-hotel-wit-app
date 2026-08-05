@@ -9,6 +9,7 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/widgets.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// تكوين أداء الجهاز الضعيف
 class WeakDeviceOptimizer {
@@ -37,22 +38,16 @@ class WeakDeviceOptimizer {
 
     if (_isWeakDevice) {
       _optimizationLevel = 2; // قصوى
-      debugPrint(
-        '⚠️ Weak device detected: $_processorCount cores, '
-        '$mem MB RAM → optimization level 2',
-      );
+      dlog(() => '⚠️ Weak device detected: $_processorCount cores, '
+        '$mem MB RAM → optimization level 2');
     } else if (_processorCount < 6 || mem < 4096) {
       _optimizationLevel = 1; // متوسط
-      debugPrint(
-        'ℹ️ Mid-range device: $_processorCount cores, '
-        '$mem MB RAM → optimization level 1',
-      );
+      dlog(() => 'ℹ️ Mid-range device: $_processorCount cores, '
+        '$mem MB RAM → optimization level 1');
     } else {
       _optimizationLevel = 0; // عادي
-      debugPrint(
-        '✅ High-end device: $_processorCount cores, '
-        '$mem MB RAM → optimization level 0',
-      );
+      dlog(() => '✅ High-end device: $_processorCount cores, '
+        '$mem MB RAM → optimization level 0');
     }
   }
 

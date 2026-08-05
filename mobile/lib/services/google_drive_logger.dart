@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'logging/log_models.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class GoogleDriveLogger extends ChangeNotifier {
   factory GoogleDriveLogger() => _instance;
@@ -50,7 +51,7 @@ class GoogleDriveLogger extends ChangeNotifier {
           'drive_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.log';
       _logFile = File('${logsDir.path}/$fileName');
     } catch (e) {
-      debugPrint('Error initializing drive log file: $e');
+      dlog(() => 'Error initializing drive log file: $e');
     }
   }
 
@@ -88,7 +89,7 @@ class GoogleDriveLogger extends ChangeNotifier {
 
   void _printToConsole(LogEntry entry) {
     final emoji = _getEmojiForLevel(entry.level);
-    debugPrint('$emoji ${entry.toFormattedString()}');
+    dlog(() => '$emoji ${entry.toFormattedString()}');
   }
 
   Future<void> _writeToFile(LogEntry entry) async {
@@ -98,7 +99,7 @@ class GoogleDriveLogger extends ChangeNotifier {
         mode: FileMode.append,
       );
     } catch (e) {
-      debugPrint('Error writing drive log: $e');
+      dlog(() => 'Error writing drive log: $e');
     }
   }
 

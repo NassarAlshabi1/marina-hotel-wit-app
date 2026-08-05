@@ -3,6 +3,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../services/gemini_service.dart';
 import '../../utils/performance_monitor.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// مزود AI النشط
 enum AiProvider {
@@ -188,7 +189,7 @@ class _AiChatScreenState extends State<AiChatScreen>
         _scrollToBottom();
       }
     } catch (e) {
-      debugPrint('❌ Chat Error: $e');
+      dlog(() => '❌ Chat Error: $e');
       if (mounted) {
         String errorMsg = 'عذراً، حدث خطأ أثناء الاتصال.';
         if (e.toString().contains('API_KEY') || e.toString().contains('401')) {

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'smart_sync_manager.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// مُعلِم المزامنة الفورية - يتلقى إشعارات من الأجهزة الأخرى
 class RealtimeSyncNotifier {
@@ -32,7 +33,7 @@ class RealtimeSyncNotifier {
 
     _pollingTimer = Timer.periodic(_pollingInterval, (_) => _checkForNewSync());
 
-    debugPrint('🔔 بدء الاستماع لإشعارات المزامنة');
+    dlog('🔔 بدء الاستماع لإشعارات المزامنة');
   }
 
   /// إيقاف الاستماع
@@ -41,7 +42,7 @@ class RealtimeSyncNotifier {
     _pollingTimer = null;
     _isListening = false;
 
-    debugPrint('🔕 إيقاف الاستماع لإشعارات المزامنة');
+    dlog('🔕 إيقاف الاستماع لإشعارات المزامنة');
   }
 
   /// التحقق من وجود مزامنة جديدة
@@ -75,10 +76,10 @@ class RealtimeSyncNotifier {
 
         _syncTriggerController.add(trigger);
         await _saveLastProcessedSyncId(syncId);
-        debugPrint('🔔 تم اكتشاف تغييرات جديدة');
+        dlog('🔔 تم اكتشاف تغييرات جديدة');
       }
     } catch (e) {
-      debugPrint('❌ خطأ في التحقق من المزامنة الجديدة: $e');
+      dlog(() => '❌ خطأ في التحقق من المزامنة الجديدة: $e');
     }
   }
 
@@ -96,9 +97,9 @@ class RealtimeSyncNotifier {
         'timestamp': DateTime.now().toUtc().toIso8601String(),
       };
 
-      debugPrint('📤 إرسال إشعار للأجهزة الأخرى: $syncId');
+      dlog(() => '📤 إرسال إشعار للأجهزة الأخرى: $syncId');
     } catch (e) {
-      debugPrint('⚠️ فشل إرسال الإشعار: $e');
+      dlog(() => '⚠️ فشل إرسال الإشعار: $e');
     }
   }
 

@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import '../data/sync_models.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class DeltaSyncChange {
   DeltaSyncChange({
@@ -77,9 +78,7 @@ class DeltaSyncService {
       final hasMirror = previousMirror.containsKey(config.entity);
       if (!hasMirror) {
         fallbackTables.add(config.entity);
-        debugPrint(
-          '⚠️ تعذر إعادة بناء مرآة جدول ${config.entity}، سيتم الاعتماد على createdAt فقط',
-        );
+        dlog(() => '⚠️ تعذر إعادة بناء مرآة جدول ${config.entity}، سيتم الاعتماد على createdAt فقط');
       }
 
       final rowDataList = <_EntityRowData>[];
@@ -271,8 +270,8 @@ class DeltaSyncService {
   Future<void> repairMirrorIfNeeded() async {
     final validation = await validateMirror();
     if (!validation.isValid) {
-      debugPrint('⚠️ Mirror inconsistency detected, repairing...');
-      debugPrint('Issues: ${validation.issues.join(', ')}');
+      dlog('⚠️ Mirror inconsistency detected, repairing...');
+      dlog(() => 'Issues: ${validation.issues.join(');
       await _rebuildMirror();
     }
   }
@@ -303,15 +302,13 @@ class DeltaSyncService {
             [config.entity, uuid, rowHash, jsonEncode(sanitized), nowTs],
           );
         }
-        debugPrint(
-          '✅ Rebuilt mirror for ${config.entity} (${rows.length} rows)',
-        );
+        dlog(() => '✅ Rebuilt mirror for ${config.entity} (${rows.length} rows)');
       } catch (e) {
-        debugPrint('❌ Failed to rebuild mirror for ${config.entity}: $e');
+        dlog(() => '❌ Failed to rebuild mirror for ${config.entity}: $e');
       }
     }
 
-    debugPrint('✅ Mirror rebuild completed');
+    dlog('✅ Mirror rebuild completed');
   }
 
   List<_EntityConfig> _entityConfigs() {

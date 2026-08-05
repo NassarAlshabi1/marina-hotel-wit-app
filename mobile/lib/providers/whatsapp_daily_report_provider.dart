@@ -6,6 +6,7 @@ import '../services/alarm_backup.dart';
 import '../services/telegram/telegram_config.dart';
 import '../services/telegram/telegram_report_service.dart';
 import '../utils/env.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// حالة إعداد التقرير اليومي عبر واتساب
 enum WhatsAppReportStatus { idle, testing, success, error, sendingReport }
@@ -90,7 +91,7 @@ class WhatsAppDailyReportNotifier
         lastReportSent: lastReportSent,
       );
     } catch (e) {
-      debugPrint('خطأ في تهيئة WhatsAppDailyReportNotifier: $e');
+      dlog(() => 'خطأ في تهيئة WhatsAppDailyReportNotifier: $e');
     }
   }
 
@@ -142,7 +143,7 @@ class WhatsAppDailyReportNotifier
         await AlarmBackup.cancelTelegramReportAlarm();
       }
     } catch (e) {
-      debugPrint('خطأ في جدولة إنذار التقرير اليومي: $e');
+      dlog(() => 'خطأ في جدولة إنذار التقرير اليومي: $e');
     }
     _clearMessageAfterDelay();
   }
@@ -161,7 +162,7 @@ class WhatsAppDailyReportNotifier
         );
       }
     } catch (e) {
-      debugPrint('خطأ في إعادة جدولة إنذار التقرير: $e');
+      dlog(() => 'خطأ في إعادة جدولة إنذار التقرير: $e');
     }
   }
 
@@ -232,7 +233,7 @@ class WhatsAppDailyReportNotifier
     try {
       return await _reports.sendDailyReport();
     } catch (e) {
-      debugPrint('خطأ في إرسال التقرير اليومي: $e');
+      dlog(() => 'خطأ في إرسال التقرير اليومي: $e');
       return false;
     }
   }

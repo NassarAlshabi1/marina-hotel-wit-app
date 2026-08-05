@@ -7,6 +7,7 @@ import '../utils/expense_reason_matcher.dart';
 import 'local_db.dart';
 import 'repositories/expenses_repository.dart';
 import 'sync/payload_mapper.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// ✅ مساعد لإصلاح مصروفات الرواتب القديمة (مرة واحدة فقط).
 ///
@@ -275,6 +276,6 @@ class SalaryFixHelper {
   static Future<void> resetFlag() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_fixDoneKey);
-    debugPrint('🔧 Salary fix flag reset — will run again on next sync.');
+    dlog('🔧 Salary fix flag reset — will run again on next sync.');
   }
 }

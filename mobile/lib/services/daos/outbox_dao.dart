@@ -13,6 +13,7 @@ import '../crashlytics_service.dart';
 import '../local_db.dart';
 import '../secondary_appwrite_config.dart';
 import '../vector_clock_service.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 part 'outbox_dao.g.dart';
 
@@ -1131,9 +1132,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         error: e,
         stackTrace: st,
       );
-      debugPrint(
-        '⚠️ Vector clock bump failed for $entity (uuid=$localUuid): $e',
-      );
+      dlog(() => '⚠️ Vector clock bump failed for $entity (uuid=$localUuid): $e');
 
       // إرسال إلى Crashlytics بدون انتظار (fire-and-forget)
       unawaited(

@@ -6,6 +6,7 @@ import '../utils/status_utils.dart';
 import '../utils/time.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class SalaryEntitlement {
   SalaryEntitlement({
@@ -400,10 +401,10 @@ class SalaryEntitlementService {
         },
       );
     } catch (e) {
-      debugPrint('⚠️ فشل تسجيل salary_carry_over_log في outbox: $e');
+      dlog(() => '⚠️ فشل تسجيل salary_carry_over_log في outbox: $e');
     }
 
-    debugPrint('📝 ترحيل تلقائي: $carriedOver للموظف ${employee.name}');
+    dlog(() => '📝 ترحيل تلقائي: $carriedOver للموظف ${employee.name}');
   }
 
   /// جلب كل سجلات الترحيل لموظف

@@ -254,7 +254,7 @@ class SyncConflictResolver {
       }
     } catch (e, st) {
       _log('❌ خطأ في كشف التعارض $table/$localUuid: $e');
-      debugPrint('SyncConflictResolver.detectAndResolve stackTrace: $st');
+      dlog(() => 'SyncConflictResolver.detectAndResolve stackTrace: $st');
       // في حالة الخطأ - الاحتفاظ بالمحلي كإجراء آمن
       return const ConflictCheckResult(
         resolved: true,
@@ -508,6 +508,6 @@ class SyncConflictResolver {
 
   void _log(String message) {
     DebugLogs.add('SyncConflictResolver', message);
-    debugPrint('[SyncConflictResolver] $message');
+    dlog(() => '[SyncConflictResolver] $message');
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 // في الـ class StreamToSignal. بدون alias، يُفسّر Dart `signal<T>(...)` كمرجع
 // للـ getter المحلي بدلاً من الدالة المستوردة من signals_flutter.
 import 'package:signals_flutter/signals_flutter.dart'
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
     as signals
     show Signal, signal;
 
@@ -55,7 +56,7 @@ class StreamToValueNotifier<T> extends ValueNotifier<T> {
         if (value != data) value = data;
       },
       onError: (Object error) {
-        debugPrint('❌ [StreamToValueNotifier] Stream error: $error');
+        dlog(() => '❌ [StreamToValueNotifier] Stream error: $error');
       },
     );
   }
@@ -102,7 +103,7 @@ class StreamToSignal<T> {
         _signal.value = data;
       },
       onError: (Object error) {
-        debugPrint('❌ [StreamToSignal] Stream error: $error');
+        dlog(() => '❌ [StreamToSignal] Stream error: $error');
       },
     );
   }

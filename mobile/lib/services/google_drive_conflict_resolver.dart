@@ -114,7 +114,7 @@ class GoogleDriveConflictResolver {
 
   void _log(String message, {LogLevel level = LogLevel.info}) {
     DebugLogs.add('ConflictResolver', message);
-    debugPrint('[ConflictResolver] $message');
+    dlog(() => '[ConflictResolver] $message');
     _logger?.log(message, level: level, tag: 'CONFLICT');
   }
 
@@ -342,18 +342,14 @@ class GoogleDriveConflictResolver {
       if (!entry.resolved || entry.selectedRecord == null) continue;
       final tableName = _findTableName(entry.selectedRecord!, remoteData);
       if (tableName == null) {
-        debugPrint(
-          '⚠️ mergeRecords: skipping resolution — table not found for record',
-        );
+        dlog('⚠️ mergeRecords: skipping resolution — table not found for record');
         continue;
       }
 
       final recordsList = (merged[tableName] as List<dynamic>?) ?? [];
       final uuid = entry.selectedRecord!['local_uuid'] as String?;
       if (uuid == null) {
-        debugPrint(
-          '⚠️ mergeRecords: skipping record in $tableName — missing local_uuid',
-        );
+        dlog(() => '⚠️ mergeRecords: skipping record in $tableName — missing local_uuid');
         continue;
       }
 
@@ -492,7 +488,7 @@ class GoogleDriveConflictResolver {
       try {
         decoded.add(jsonDecode(entry) as Map<String, dynamic>);
       } catch (e) {
-        debugPrint('WARN: Failed to parse conflict history: $e');
+        dlog(() => 'WARN: Failed to parse conflict history: $e');
       }
     }
 

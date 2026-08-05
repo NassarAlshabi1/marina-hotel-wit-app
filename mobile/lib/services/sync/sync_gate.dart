@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// حالة بوّابة المزامنة العامة — تعكس ما إذا كانت أي عملية مزامنة
 /// جارية في التطبيق كله، بصرف النظر عن المصدر (زر يدوي، سحب تلقائي
@@ -106,10 +107,8 @@ class SyncGate {
   bool tryEnter({required String operation, required String source}) {
     if (notifier.value.isBusy) {
       if (kDebugMode) {
-        debugPrint(
-          '🚫 [SyncGate] rejected entry: already busy with '
-          '${notifier.value.operation} from ${notifier.value.source}',
-        );
+        dlog(() => '🚫 [SyncGate] rejected entry: already busy with '
+          '${notifier.value.operation} from ${notifier.value.source}');
       }
       return false;
     }
@@ -120,7 +119,7 @@ class SyncGate {
       startedAt: DateTime.now(),
     );
     if (kDebugMode) {
-      debugPrint('🔒 [SyncGate] entered: $operation from $source');
+      dlog(() => '🔒 [SyncGate] entered: $operation from $source');
     }
     return true;
   }
@@ -133,10 +132,8 @@ class SyncGate {
     }
     if (kDebugMode) {
       final elapsed = notifier.value.elapsedMs;
-      debugPrint(
-        '🔓 [SyncGate] exited: ${notifier.value.operation} from '
-        '${notifier.value.source} (took ${elapsed}ms)',
-      );
+      dlog(() => '🔓 [SyncGate] exited: ${notifier.value.operation} from '
+        '${notifier.value.source} (took ${elapsed}ms)');
     }
     notifier.value = const SyncGateState();
   }

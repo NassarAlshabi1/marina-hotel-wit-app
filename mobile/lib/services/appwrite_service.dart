@@ -11,6 +11,7 @@ import 'appwrite_health_checker.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_network_helper.dart';
 import 'secondary_appwrite_config.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// خدمة Appwrite الأساسية - CRUD Operations
 class AppwriteService {
@@ -134,9 +135,7 @@ class AppwriteService {
         SecondaryAppwriteConfig.isPullEnabled &&
         SecondaryAppwriteConfig.isEnabled &&
         SecondaryAppwriteConfig.isConfigured) {
-      debugPrint(
-        '🔄 [Failover] Manual failover active — reading from Secondary',
-      );
+      dlog('🔄 [Failover] Manual failover active — reading from Secondary');
       return _listFromSecondary(collectionId, queries);
     }
 
@@ -218,10 +217,8 @@ class AppwriteService {
       if (SecondaryAppwriteConfig.isEnabled &&
           SecondaryAppwriteConfig.isPullEnabled &&
           SecondaryAppwriteConfig.isConfigured) {
-        debugPrint(
-          '🔄 [Failover] Primary listDocuments failed ($primaryError), '
-          'falling back to Secondary for $collectionId',
-        );
+        dlog(() => '🔄 [Failover] Primary listDocuments failed ($primaryError), '
+          'falling back to Secondary for $collectionId');
         try {
           final secondaryDocs = await _listFromSecondary(collectionId, queries);
           // نضع النتيجة في الكاش لتفادي إعادة Failover المتكرر
@@ -234,9 +231,7 @@ class AppwriteService {
           }
           return secondaryDocs;
         } catch (secondaryError) {
-          debugPrint(
-            '❌ [Failover] Secondary also failed for $collectionId: $secondaryError',
-          );
+          dlog(() => '❌ [Failover] Secondary also failed for $collectionId: $secondaryError');
           // نرمي خطأ Primary الأصلي لأنه المصدر الرئيسي
           rethrow;
         }
@@ -288,9 +283,7 @@ class AppwriteService {
       // إذا فشل Primary و Secondary متاح، نقرأ منه
       if (SecondaryAppwriteConfig.isEnabled &&
           SecondaryAppwriteConfig.isConfigured) {
-        debugPrint(
-          '⚠️ [Failover] Primary failed ($e), falling back to Secondary',
-        );
+        dlog(() => '⚠️ [Failover] Primary failed ($e), falling back to Secondary');
         return _listFromSecondary(collectionId, queries);
       }
       rethrow;
@@ -310,9 +303,7 @@ class AppwriteService {
         SecondaryAppwriteConfig.isPullEnabled &&
         SecondaryAppwriteConfig.isEnabled &&
         SecondaryAppwriteConfig.isConfigured) {
-      debugPrint(
-        '🔄 [Failover] Manual failover active — reading from Secondary for getDocument',
-      );
+      dlog('🔄 [Failover] Manual failover active — reading from Secondary for getDocument');
       return _getFromSecondary(collectionId, documentId);
     }
 
@@ -334,9 +325,7 @@ class AppwriteService {
     } catch (e) {
       if (SecondaryAppwriteConfig.isEnabled &&
           SecondaryAppwriteConfig.isConfigured) {
-        debugPrint(
-          '⚠️ [Failover] getDocument Primary failed ($e), falling back to Secondary',
-        );
+        dlog(() => '⚠️ [Failover] getDocument Primary failed ($e), falling back to Secondary');
         return _getFromSecondary(collectionId, documentId);
       }
       rethrow;
@@ -601,9 +590,7 @@ class AppwriteService {
       return await doUpdate(documentId, suppressErrorLog: true, probe: true);
     } on AppwriteException catch (updateError) {
       if (isRateLimit(updateError)) {
-        debugPrint(
-          '⚠️ primary_upsert: 429 on update $documentId — waiting 65s then create',
-        );
+        dlog(() => '⚠️ primary_upsert: 429 on update $documentId — waiting 65s then create');
         await Future<void>.delayed(const Duration(seconds: 65));
         // انتقل مباشرة للخطوة 2 (create)
       } else if (!isNotFound(updateError)) {
@@ -1403,9 +1390,7 @@ class AppwriteService {
         SecondaryAppwriteConfig.isPullEnabled &&
         SecondaryAppwriteConfig.isEnabled &&
         SecondaryAppwriteConfig.isConfigured) {
-      debugPrint(
-        '🔄 [Failover] Manual failover active — reading document from Secondary',
-      );
+      dlog('🔄 [Failover] Manual failover active — reading document from Secondary');
       return _getFromSecondary(collectionId, documentId);
     }
     return _networkHelper.withTimeout(

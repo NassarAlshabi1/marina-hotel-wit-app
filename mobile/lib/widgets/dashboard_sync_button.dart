@@ -15,6 +15,7 @@ import '../services/secondary_appwrite_config.dart';
 import '../services/secondary_sync_manager.dart';
 import '../services/sync/sync_gate.dart';
 import '../utils/loading_snackbar.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class DashboardSyncButton extends ConsumerStatefulWidget {
   const DashboardSyncButton({super.key});
@@ -88,7 +89,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         });
       }
     } catch (e) {
-      debugPrint('❌ خطأ في تحميل عدد التغييرات المعلقة: $e');
+      dlog(() => '❌ خطأ في تحميل عدد التغييرات المعلقة: $e');
     }
   }
 
@@ -106,7 +107,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         _appwriteEnabled = enabled;
       }
     } catch (e) {
-      debugPrint('❌ خطأ في تحميل حالة Appwrite: $e');
+      dlog(() => '❌ خطأ في تحميل حالة Appwrite: $e');
       // في حالة الخطأ — نفترض مفعّل (احتياطي)
       if (mounted) {
         setState(() => _appwriteEnabled = true);
@@ -321,7 +322,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         );
       }
     } catch (e) {
-      debugPrint('❌ خطأ في سحب التغييرات: $e');
+      dlog(() => '❌ خطأ في سحب التغييرات: $e');
 
       // ✅ إغلاق إشعار "جاري" فوراً عند الفشل
       loading?.close();
@@ -554,7 +555,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             'pushed': 0,
             'error': e.toString(),
           };
-          debugPrint('❌ خطأ في رفع التغييرات إلى Appwrite: $e');
+          dlog(() => '❌ خطأ في رفع التغييرات إلى Appwrite: $e');
         }
       }
 
@@ -572,7 +573,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             'pushed': 0,
             'error': e.toString(),
           };
-          debugPrint('❌ خطأ في رفع التغييرات إلى Google Drive: $e');
+          dlog(() => '❌ خطأ في رفع التغييرات إلى Google Drive: $e');
         }
       }
 
@@ -593,14 +594,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
                 .read(secondarySyncProvider.notifier)
                 .updateLastSync(DateTime.now());
           }
-          debugPrint('🔵 [Dashboard] Secondary sync push: $secondaryResult');
+          dlog(() => '🔵 [Dashboard] Secondary sync push: $secondaryResult');
         } catch (e) {
           results['Appwrite الثانوي'] = {
             'success': false,
             'pushed': 0,
             'error': e.toString(),
           };
-          debugPrint('❌ خطأ في رفع التغييرات إلى Appwrite الثانوي: $e');
+          dlog(() => '❌ خطأ في رفع التغييرات إلى Appwrite الثانوي: $e');
         }
       }
 
@@ -735,7 +736,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       ref.invalidate(smartSyncStatusProvider);
     } catch (e) {
-      debugPrint('❌ فشل رفع التغييرات: $e');
+      dlog(() => '❌ فشل رفع التغييرات: $e');
 
       // ✅ تسجيل فشل العملية
       stopwatch.stop();

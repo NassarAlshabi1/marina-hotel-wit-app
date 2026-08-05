@@ -15,6 +15,7 @@ import 'package:http/http.dart' as http;
 import '../data/sync_models.dart';
 import 'google_drive_sign_in_manager.dart';
 import 'sync_constants.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 const _kPrimarySnapshotName = 'sync_data.json.gz';
 const _kIndexFileName = 'sync_index.json';
@@ -276,8 +277,8 @@ class GoogleDriveSyncService {
       _driveApi = drive.DriveApi(_GoogleAuthClient(headers));
       return account;
     } catch (error, stack) {
-      debugPrint('❌ فشل تسجيل الدخول Google Drive: $error');
-      debugPrint('$stack');
+      dlog(() => '❌ فشل تسجيل الدخول Google Drive: $error');
+      dlog(() => '$stack');
       rethrow;
     }
   }
@@ -357,7 +358,7 @@ class GoogleDriveSyncService {
           : null;
       return snapFile?.modifiedTime;
     } catch (error) {
-      debugPrint('⚠️ تعذر قراءة modifiedTime من Google Drive: $error');
+      dlog(() => '⚠️ تعذر قراءة modifiedTime من Google Drive: $error');
       return null;
     }
   }
@@ -523,7 +524,7 @@ class GoogleDriveSyncService {
       final json = jsonDecode(utf8.decode(payload)) as Map<String, dynamic>;
       return DriveSyncIndex.fromJson(json);
     } catch (error) {
-      debugPrint('⚠️ تعذر تحميل ملف الفهرس: $error');
+      dlog(() => '⚠️ تعذر تحميل ملف الفهرس: $error');
       return null;
     }
   }
@@ -641,7 +642,7 @@ class GoogleDriveSyncService {
     try {
       await _cleanupLegacySnapshot(api, keepShardIds: keepIds.toList());
     } catch (e) {
-      debugPrint('⚠️ تحذير: فشل حذف الملفات القديمة (غير حرج): $e');
+      dlog(() => '⚠️ تحذير: فشل حذف الملفات القديمة (غير حرج): $e');
     }
 
     return uploaded;

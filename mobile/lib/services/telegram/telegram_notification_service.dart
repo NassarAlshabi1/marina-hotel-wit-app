@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'telegram_config.dart';
 import 'telegram_service.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// أنواع أحداث الفندق
 enum TelegramEventType {
@@ -126,14 +127,12 @@ class TelegramNotificationService {
       );
 
       if (success) {
-        debugPrint(
-          '✅ Telegram: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}',
-        );
+        dlog(() => '✅ Telegram: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}');
       }
 
       return success;
     } catch (e) {
-      debugPrint('❌ Telegram: خطأ في إرسال الإشعار: $e');
+      dlog(() => '❌ Telegram: خطأ في إرسال الإشعار: $e');
       return false;
     }
   }
@@ -357,9 +356,7 @@ class TelegramNotificationService {
   }) async {
     try {
       if (!await TelegramConfig.isConfigured()) {
-        debugPrint(
-          '⚠️ Telegram: لا يمكن إرسال تنبيه المزامنة - البوت غير مضبوط',
-        );
+        dlog('⚠️ Telegram: لا يمكن إرسال تنبيه المزامنة - البوت غير مضبوط');
         return false;
       }
 
@@ -384,13 +381,13 @@ class TelegramNotificationService {
       );
 
       if (success) {
-        debugPrint('✅ Telegram: تم إرسال تنبيه خطأ مزامنة — $operation');
+        dlog(() => '✅ Telegram: تم إرسال تنبيه خطأ مزامنة — $operation');
       } else {
-        debugPrint('⚠️ Telegram: فشل إرسال تنبيه المزامنة');
+        dlog('⚠️ Telegram: فشل إرسال تنبيه المزامنة');
       }
       return success;
     } catch (e) {
-      debugPrint('❌ Telegram: فشل إرسال تنبيه المزامنة — $e');
+      dlog(() => '❌ Telegram: فشل إرسال تنبيه المزامنة — $e');
       return false;
     }
   }

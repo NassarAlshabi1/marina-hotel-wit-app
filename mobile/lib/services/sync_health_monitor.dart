@@ -5,6 +5,7 @@ import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/foundation.dart';
 
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// خدمة مراقبة صحة نظام المزامنة.
 ///
@@ -74,7 +75,7 @@ class SyncHealthMonitor {
         timestamp: DateTime.now(),
       );
     } catch (e, st) {
-      debugPrint('❌ SyncHealthMonitor.getHealthReport failed: $e\n$st');
+      dlog(() => '❌ SyncHealthMonitor.getHealthReport failed: $e\n$st');
       return SyncHealthReport(
         pendingCount: 0,
         processingCount: 0,

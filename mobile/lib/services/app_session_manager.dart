@@ -9,6 +9,7 @@ import 'package:workmanager/workmanager.dart';
 import '../utils/id.dart';
 import 'appwrite_sync_manager.dart';
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// يتتبع جلسات التطبيق ويسجّلها في قاعدة البيانات،
 /// ويقوم بجدولة النسخ الاحتياطي بعد 15 دقيقة من الاستخدام التراكمي.
@@ -126,14 +127,12 @@ class AppSessionManager {
   /// تم تحسينها لتكون "ذكية": يتم السحب مرة واحدة فقط كل ساعة كحد أقصى عند الفتح.
   static Future<void> _triggerAppOpenAppwritePull() async {
     try {
-      debugPrint('🔄 [AppOpen] Checking for automatic Appwrite pull...');
+      dlog('🔄 [AppOpen] Checking for automatic Appwrite pull...');
       final prefs = await SharedPreferences.getInstance();
       final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
       if (!appwriteEnabled) {
-        debugPrint(
-          'ℹ️ [AppOpen] Appwrite sync is disabled in settings. Skipping pull.',
-        );
+        dlog('ℹ️ [AppOpen] Appwrite sync is disabled in settings. Skipping pull.');
         return;
       }
 
@@ -155,9 +154,7 @@ class AppSessionManager {
         // التحقق مما إذا كان الفارق أقل من 60 دقيقة
         if (difference.inMinutes < 60) {
           final remainingMinutes = 60 - difference.inMinutes;
-          debugPrint(
-            'ℹ️ [AppOpen] Smart Sync: Skipping pull. Last pull was ${difference.inMinutes} mins ago. Next pull available in $remainingMinutes mins.',
-          );
+          dlog(() => 'ℹ️ [AppOpen] Smart Sync: Skipping pull. Last pull was ${difference.inMinutes} mins ago. Next pull available in $remainingMinutes mins.');
           return;
         }
       }
@@ -166,12 +163,12 @@ class AppSessionManager {
       // الانتظار قليلاً للتأكد من استقرار الشبكة والأنظمة
       await Future<void>.delayed(const Duration(seconds: 3));
 
-      debugPrint('📥 [AppOpen] Starting smart automatic Appwrite pull...');
+      dlog('📥 [AppOpen] Starting smart automatic Appwrite pull...');
 
       // استخدام SyncManager المشترك لتجنب مزامنة مزدوجة ومصادمات mutex
       final syncManager = _sharedSyncManager;
       if (syncManager == null) {
-        debugPrint('ℹ️ [AppOpen] No shared SyncManager — skipping pull.');
+        dlog('ℹ️ [AppOpen] No shared SyncManager — skipping pull.');
         return;
       }
 
@@ -181,11 +178,9 @@ class AppSessionManager {
       // تحديث وقت آخر سحب ناجح
       await prefs.setInt(lastPullKey, nowMs);
 
-      debugPrint(
-        '✅ [AppOpen] Smart pull completed: ${result.recordsPulled} records pulled.',
-      );
+      dlog(() => '✅ [AppOpen] Smart pull completed: ${result.recordsPulled} records pulled.');
     } catch (e) {
-      debugPrint('❌ [AppOpen] Error during automatic Appwrite pull: $e');
+      dlog(() => '❌ [AppOpen] Error during automatic Appwrite pull: $e');
     }
   }
 }

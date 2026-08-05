@@ -7,6 +7,7 @@ import '../../utils/hotel_time_engine.dart';
 import '../local_db.dart';
 import '../remote_config_service.dart';
 import 'telegram_config.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// بيانات التقرير اليومي
 class TelegramDailyReportData {
@@ -86,7 +87,7 @@ class TelegramReportService {
       final hotelDayKey = HotelTimeEngine.getHotelDayKey();
       final lastSent = await TelegramConfig.getLastReportSent();
       if (lastSent == hotelDayKey) {
-        debugPrint('⏭️ WhatsApp: تم إرسال تقرير اليوم بالفعل');
+        dlog('⏭️ WhatsApp: تم إرسال تقرير اليوم بالفعل');
         return true;
       }
 
@@ -101,12 +102,12 @@ class TelegramReportService {
 
       if (success) {
         await TelegramConfig.setLastReportSent(hotelDayKey);
-        debugPrint('✅ WhatsApp: تم إرسال التقرير اليومي بنجاح');
+        dlog('✅ WhatsApp: تم إرسال التقرير اليومي بنجاح');
       }
 
       return success;
     } catch (e) {
-      debugPrint('❌ WhatsApp: خطأ في التقرير اليومي: $e');
+      dlog(() => '❌ WhatsApp: خطأ في التقرير اليومي: $e');
       return false;
     }
   }
@@ -134,7 +135,7 @@ class TelegramReportService {
 
       return success;
     } catch (e) {
-      debugPrint('❌ WhatsApp: خطأ في إرسال التقرير: $e');
+      dlog(() => '❌ WhatsApp: خطأ في إرسال التقرير: $e');
       return false;
     }
   }
@@ -285,7 +286,7 @@ class TelegramReportService {
         alerts: alerts,
       );
     } catch (e) {
-      debugPrint('❌ Telegram: خطأ في تجميع بيانات التقرير: $e');
+      dlog(() => '❌ Telegram: خطأ في تجميع بيانات التقرير: $e');
       return null;
     }
   }
@@ -317,7 +318,7 @@ class TelegramReportService {
         try {
           final json = jsonDecode(body) as Map<String, dynamic>;
           if (json['success'] == true || json['sent'] == true) {
-            debugPrint('✅ WhatsApp (CallMeBot): تم إرسال التقرير');
+            dlog('✅ WhatsApp (CallMeBot): تم إرسال التقرير');
             return true;
           }
         } catch (_) {
@@ -327,15 +328,13 @@ class TelegramReportService {
             return true;
           }
         }
-        debugPrint('⚠️ WhatsApp (CallMeBot): فشل الإرسال — $body');
+        dlog(() => '⚠️ WhatsApp (CallMeBot): فشل الإرسال — $body');
         return false;
       }
-      debugPrint(
-        '⚠️ WhatsApp (CallMeBot): HTTP ${response.statusCode} — $body',
-      );
+      dlog(() => '⚠️ WhatsApp (CallMeBot): HTTP ${response.statusCode} — $body');
       return false;
     } catch (e) {
-      debugPrint('❌ WhatsApp (CallMeBot): خطأ — $e');
+      dlog(() => '❌ WhatsApp (CallMeBot): خطأ — $e');
       return false;
     }
   }

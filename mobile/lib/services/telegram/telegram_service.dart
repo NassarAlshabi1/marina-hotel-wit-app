@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import 'telegram_config.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// عميل API للتواصل مع Telegram Bot API
 class TelegramApiClient {
@@ -61,14 +62,14 @@ class TelegramApiClient {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
 
       if (data['ok'] == true) {
-        debugPrint('✅ Telegram: تم إرسال الرسالة بنجاح');
+        dlog('✅ Telegram: تم إرسال الرسالة بنجاح');
         return true;
       } else {
-        debugPrint('⚠️ Telegram: فشل الإرسال: ${data['description']}');
+        dlog(() => '⚠️ Telegram: فشل الإرسال: ${data['description']}');
         return false;
       }
     } catch (e) {
-      debugPrint('❌ Telegram خطأ: $e');
+      dlog(() => '❌ Telegram خطأ: $e');
       return false;
     }
   }
@@ -80,7 +81,7 @@ class TelegramApiClient {
   }) async {
     final chatId = await TelegramConfig.getChatId();
     if (chatId.isEmpty) {
-      debugPrint('⚠️ Telegram: Chat ID غير مضبوط');
+      dlog('⚠️ Telegram: Chat ID غير مضبوط');
       return false;
     }
 
@@ -117,7 +118,7 @@ class TelegramApiClient {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       return data['ok'] == true;
     } catch (e) {
-      debugPrint('❌ Telegram: فشل اختبار الاتصال: $e');
+      dlog(() => '❌ Telegram: فشل اختبار الاتصال: $e');
       return false;
     }
   }

@@ -15,6 +15,7 @@ import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class ExpensesListScreen extends ConsumerStatefulWidget {
   const ExpensesListScreen({super.key});
@@ -1343,7 +1344,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         remainingText =
             'الراتب المتبقي: ${CurrencyFormatter.formatAmount(entitlement.netEntitlement)}';
       } catch (e) {
-        debugPrint('Error calculating remaining salary: $e');
+        dlog(() => 'Error calculating remaining salary: $e');
       }
 
       final message = StringBuffer()
@@ -1392,7 +1393,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         }
       }
     } catch (e) {
-      debugPrint('WhatsApp salary notification error: $e');
+      dlog(() => 'WhatsApp salary notification error: $e');
     }
   }
 

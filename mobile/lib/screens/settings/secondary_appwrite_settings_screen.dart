@@ -16,6 +16,7 @@ import '../../services/secondary_appwrite_service.dart';
 import '../../services/secondary_backup_service.dart';
 import '../../services/appwrite_sync_manager.dart';
 import '../../utils/performance_monitor.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// شاشة إعدادات الوجهة الثانوية لـ Appwrite
 /// تتيح: تفعيل/تعطيل + إدخال بيانات الاتصال + خيارات push/pull منفصلة + failover
@@ -1016,9 +1017,7 @@ class _SecondaryAppwriteSettingsScreenState
                     final outboxDao = OutboxDao(db);
                     final count = await outboxDao
                         .markAllLocalAsUndeliveredToSecondary();
-                    debugPrint(
-                      '🔵 [Secondary] Marked $count records as undelivered to secondary',
-                    );
+                    dlog(() => '🔵 [Secondary] Marked $count records as undelivered to secondary');
                     if (SecondaryAppwriteConfig.isPushEnabled) {
                       SecondarySyncManager.instance.startAutoSync();
                     }
@@ -1028,9 +1027,7 @@ class _SecondaryAppwriteSettingsScreenState
                     final outboxDao = OutboxDao(db);
                     final count = await outboxDao
                         .markAllLocalAsDeliveredToSecondary();
-                    debugPrint(
-                      '🔵 [Secondary] Marked $count records as delivered to secondary (disabled)',
-                    );
+                    dlog(() => '🔵 [Secondary] Marked $count records as delivered to secondary (disabled)');
                     SecondarySyncManager.instance.stopAutoSync();
                   }
                   setState(() {});

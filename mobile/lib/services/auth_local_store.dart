@@ -8,6 +8,7 @@ import 'appwrite_service.dart';
 import 'password_hasher.dart';
 import 'secondary_appwrite_config.dart';
 import 'secondary_appwrite_service.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 enum AuthType { local }
 
@@ -430,10 +431,10 @@ class AuthLocalStore {
         documentId: docId,
         data: data,
       );
-      debugPrint('📤 [Auth] User synced to Secondary: $docId');
+      dlog(() => '📤 [Auth] User synced to Secondary: $docId');
     } catch (e) {
       // فشل Secondary غير حرج — Primary لديه البيانات
-      debugPrint('⚠️ [Auth] Secondary sync failed for user $docId: $e');
+      dlog(() => '⚠️ [Auth] Secondary sync failed for user $docId: $e');
     }
   }
 
@@ -453,9 +454,9 @@ class AuthLocalStore {
         documentId: docId,
         data: data,
       );
-      debugPrint('📤 [Auth] User updated in Secondary: $docId');
+      dlog(() => '📤 [Auth] User updated in Secondary: $docId');
     } catch (e) {
-      debugPrint('⚠️ [Auth] Secondary update failed for user $docId: $e');
+      dlog(() => '⚠️ [Auth] Secondary update failed for user $docId: $e');
     }
   }
 
@@ -473,9 +474,9 @@ class AuthLocalStore {
         collectionId: 'app_users',
         documentId: docId,
       );
-      debugPrint('📤 [Auth] User deleted from Secondary: $docId');
+      dlog(() => '📤 [Auth] User deleted from Secondary: $docId');
     } catch (e) {
-      debugPrint('⚠️ [Auth] Secondary delete failed for user $docId: $e');
+      dlog(() => '⚠️ [Auth] Secondary delete failed for user $docId: $e');
     }
   }
 

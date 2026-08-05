@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auth_local_store.dart' show AuthLocalStore, AuthType;
 import '../utils/app_logger.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class AuthUser {
   const AuthUser({
@@ -196,7 +197,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         _startSessionCheck();
       }
     } catch (e) {
-      debugPrint(r'Error loading cloud accounts: $e');
+      dlog(() => r'Error loading cloud accounts: $e');
     }
   }
 
@@ -234,7 +235,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         _startSessionCheck();
       }
     } catch (e) {
-      debugPrint(r'Error loading cloud accounts: $e');
+      dlog(() => r'Error loading cloud accounts: $e');
     }
   }
 

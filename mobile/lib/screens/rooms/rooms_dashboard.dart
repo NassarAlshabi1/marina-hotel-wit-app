@@ -12,6 +12,7 @@ import '../../services/sync_service.dart';
 import '../../utils/status_utils.dart';
 import '../bookings/booking_edit.dart';
 import '../payments/booking_payment_screen.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class RoomsDashboard extends ConsumerStatefulWidget {
   const RoomsDashboard({super.key});
@@ -55,7 +56,7 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
           return roomsWithStatusAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, st) {
-              debugPrint('❌ RoomsDashboard error: $e\n$st');
+              dlog(() => '❌ RoomsDashboard error: $e\n$st');
               return const Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,

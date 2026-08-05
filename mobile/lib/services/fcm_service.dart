@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/app_logger.dart';
 import 'appwrite_messaging_service.dart';
 import 'appwrite_sync_manager.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// خدمة Firebase Cloud Messaging
 /// تُستخدم لإرسال إشعارات push بين الأجهزة عند حدوث تغييرات في Appwrite
@@ -54,9 +55,7 @@ class FcmService {
       // 3. الحصول على التوكن
       _currentToken = await _getToken();
       if (_currentToken != null) {
-        debugPrint(
-          '✅ FCM token obtained: ${_currentToken!.substring(0, 20)}...',
-        );
+        dlog(() => '✅ FCM token obtained: ${_currentToken!.substring(0, 20)}...');
 
         // 4. حفظ التوكن في SharedPreferences
         final prefs = await SharedPreferences.getInstance();
@@ -71,7 +70,7 @@ class FcmService {
       _tokenRefreshSubscription = _messaging.onTokenRefresh.listen((
         newToken,
       ) async {
-        debugPrint('🔄 FCM token refreshed');
+        dlog('🔄 FCM token refreshed');
         _currentToken = newToken;
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('fcm_token', newToken);
@@ -94,9 +93,9 @@ class FcmService {
       //    لتجنب تكرار الطلب
 
       _isInitialized = true;
-      debugPrint('✅ FCM Service initialized');
+      dlog('✅ FCM Service initialized');
     } catch (e) {
-      debugPrint('⚠️ FCM initialization error: $e');
+      dlog(() => '⚠️ FCM initialization error: $e');
       // لا نمنع التطبيق من العمل إذا فشل FCM
     }
   }
@@ -111,7 +110,7 @@ class FcmService {
     }
 
     final settings = await _messaging.getNotificationSettings();
-    debugPrint('📱 FCM notification settings: ${settings.authorizationStatus}');
+    dlog(() => '📱 FCM notification settings: ${settings.authorizationStatus}');
   }
 
   /// الحصول على توكن FCM الحالي
@@ -127,7 +126,7 @@ class FcmService {
       }
       return token;
     } catch (e) {
-      debugPrint('⚠️ Failed to get FCM token: $e');
+      dlog(() => '⚠️ Failed to get FCM token: $e');
       return null;
     }
   }
@@ -138,7 +137,7 @@ class FcmService {
     _onMessageSubscription = FirebaseMessaging.onMessage.listen((
       RemoteMessage message,
     ) {
-      debugPrint('📩 FCM: foreground message received');
+      dlog('📩 FCM: foreground message received');
       // ✅ عرض إشعار محلي مرئي للمستخدم في foreground
       _showLocalNotification(message);
       _handleIncomingMessage(message);
@@ -147,14 +146,14 @@ class FcmService {
     // --- المستخدم ضغط على الإشعار ---
     _onMessageOpenedAppSubscription = FirebaseMessaging.onMessageOpenedApp
         .listen((RemoteMessage message) {
-          debugPrint('📩 FCM: notification tapped');
+          dlog('📩 FCM: notification tapped');
           _handleIncomingMessage(message);
         });
 
     // --- التطبيق فُتح من إشعار وهو كان مُغلق ---
     FirebaseMessaging.instance.getInitialMessage().then((message) {
       if (message != null) {
-        debugPrint('📩 FCM: opened from terminated state');
+        dlog('📩 FCM: opened from terminated state');
         _handleIncomingMessage(message);
       }
     });
@@ -181,9 +180,9 @@ class FcmService {
             >()
             ?.createNotificationChannel(_syncChannel);
       }
-      debugPrint('✅ Local notifications initialized');
+      dlog('✅ Local notifications initialized');
     } catch (e) {
-      debugPrint('⚠️ Local notifications init failed: $e');
+      dlog(() => '⚠️ Local notifications init failed: $e');
     }
   }
 
@@ -217,9 +216,9 @@ class FcmService {
         details,
         payload: jsonEncode(message.data),
       );
-      debugPrint('🔔 Local notification shown: $title');
+      dlog(() => '🔔 Local notification shown: $title');
     } catch (e) {
-      debugPrint('⚠️ Show local notification failed: $e');
+      dlog(() => '⚠️ Show local notification failed: $e');
     }
   }
 
@@ -230,7 +229,7 @@ class FcmService {
     // التحقق أن الرسالة من نظامنا
     final source = data['type'] ?? data['source'];
     if (source != 'marina_sync') {
-      debugPrint('📩 FCM: ignoring non-sync message ($source)');
+      dlog(() => '📩 FCM: ignoring non-sync message ($source)');
       return;
     }
 
@@ -239,7 +238,7 @@ class FcmService {
     if (senderDeviceId != null) {
       _getMyDeviceId().then((myId) {
         if (myId == senderDeviceId) {
-          debugPrint('📩 FCM: ignoring message from same device');
+          dlog('📩 FCM: ignoring message from same device');
           return;
         }
         // تشغيل السحب من Appwrite
@@ -253,7 +252,7 @@ class FcmService {
 
   /// تشغيل سحب التغييرات من Appwrite
   Future<void> _triggerPull() async {
-    debugPrint('🔄 FCM: triggering pull from Appwrite...');
+    dlog('🔄 FCM: triggering pull from Appwrite...');
 
     // إشعار Realtime بانتظار تغييرات
     try {
@@ -274,10 +273,10 @@ class FcmService {
       final syncManager = _getSyncManager();
       if (syncManager != null) {
         await syncManager.sync(push: false);
-        debugPrint('✅ FCM: pull completed');
+        dlog('✅ FCM: pull completed');
       }
     } catch (e) {
-      debugPrint('⚠️ FCM: pull error: $e');
+      dlog(() => '⚠️ FCM: pull error: $e');
     }
   }
 
@@ -340,15 +339,13 @@ class FcmService {
         fcmToken: fcmToken,
       );
       if (targetId != null) {
-        debugPrint('✅ Device also registered in Appwrite Messaging: $targetId');
+        dlog(() => '✅ Device also registered in Appwrite Messaging: $targetId');
         // اشترك في Topics الافتراضية
         await messagingService.subscribeToTopics(MessagingTopics.all);
       }
     } catch (e) {
       // آمن للفشل — نُسجّل تحذيراً فقط
-      debugPrint(
-        '⚠️ Appwrite Messaging registration failed (FCM still works): $e',
-      );
+      dlog(() => '⚠️ Appwrite Messaging registration failed (FCM still works): $e');
     }
   }
 
@@ -368,7 +365,7 @@ class FcmService {
     _onMessageOpenedAppSubscription = null;
     _currentToken = null;
     _isInitialized = false;
-    debugPrint('🛑 FCM Service disposed');
+    dlog('🛑 FCM Service disposed');
   }
 
   /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)

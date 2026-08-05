@@ -6,6 +6,7 @@ import '../utils/time.dart';
 import 'enhanced_booking_calculation_service.dart';
 import 'local_db.dart';
 import 'remote_config_service.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class BookingDerivedFieldsService {
   BookingDerivedFieldsService(this.db);
@@ -157,16 +158,16 @@ class BookingDerivedFieldsService {
           );
           refreshed++;
         } catch (e) {
-          debugPrint('⚠️ خطأ في تحديث حجز ${booking.id}: $e');
+          dlog(() => '⚠️ خطأ في تحديث حجز ${booking.id}: $e');
         }
       }
     });
 
     if (promoted > 0) {
-      debugPrint('✅ تم تثبيت $promoted حجز مؤقت → محجوزة');
+      dlog(() => '✅ تم تثبيت $promoted حجز مؤقت → محجوزة');
     }
     if (refreshed > 0) {
-      debugPrint('🔄 تم تجديد إقامة $refreshed حجز نشط تلقائياً');
+      dlog(() => '🔄 تم تجديد إقامة $refreshed حجز نشط تلقائياً');
     }
     return refreshed;
   }

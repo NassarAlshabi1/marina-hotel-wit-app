@@ -7,6 +7,7 @@
 library;
 
 import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// خطأ في مزامنة سجل واحد
 class SyncErrorEntry {
@@ -147,7 +148,7 @@ class SecondarySyncTracker {
       ),
     );
     if (kDebugMode) {
-      debugPrint('🔴 [SyncTracker] $entity/$localUuid: $reason');
+      dlog(() => '🔴 [SyncTracker] $entity/$localUuid: $reason');
     }
   }
 

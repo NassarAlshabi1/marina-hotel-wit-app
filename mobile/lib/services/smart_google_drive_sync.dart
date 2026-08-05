@@ -51,7 +51,7 @@ class SmartGoogleDriveSync {
 
   void _log(String message) {
     DebugLogs.add('SmartGDSync', message);
-    debugPrint('[SmartGDSync] $message');
+    dlog(() => '[SmartGDSync] $message');
   }
 
   /// تهيئة الخدمة

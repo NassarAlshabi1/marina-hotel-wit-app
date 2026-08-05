@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'appwrite_config.dart';
 import 'appwrite_config_manager.dart';
 import 'secondary_appwrite_config.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// حالة كل وجهة من وجهات Appwrite
 enum EndpointHealth {
@@ -109,9 +110,7 @@ class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
     // فحص فوري عند البدء
     checkNow();
     _checkTimer = Timer.periodic(interval, (_) => checkNow());
-    debugPrint(
-      '🏥 [HealthChecker] Started periodic check every ${interval.inSeconds}s',
-    );
+    dlog(() => '🏥 [HealthChecker] Started periodic check every ${interval.inSeconds}s');
   }
 
   /// إيقاف الفحص الدوري
@@ -146,16 +145,12 @@ class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
 
       // تسجيل تغييرات الحالة المهمة
       if (state.shouldFailover) {
-        debugPrint(
-          '⚠️ [HealthChecker] FAILOVER ACTIVE — reading from Secondary',
-        );
+        dlog('⚠️ [HealthChecker] FAILOVER ACTIVE — reading from Secondary');
       } else if (primaryResult.health == EndpointHealth.unreachable) {
-        debugPrint(
-          '⚠️ [HealthChecker] Primary unreachable but Secondary not available',
-        );
+        dlog('⚠️ [HealthChecker] Primary unreachable but Secondary not available');
       }
     } catch (e) {
-      debugPrint('❌ [HealthChecker] checkNow failed: $e');
+      dlog(() => '❌ [HealthChecker] checkNow failed: $e');
     } finally {
       _isChecking = false;
     }

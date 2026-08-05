@@ -5,6 +5,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// File-based SQLite backup/restore utilities.
 ///
@@ -55,9 +56,7 @@ class SqliteBackupRestore {
           }
           return documentsTarget;
         } catch (e) {
-          debugPrint(
-            '⚠️ Failed to access default backup dir, falling back: $e',
-          );
+          dlog(() => '⚠️ Failed to access default backup dir, falling back: $e');
         }
         final fallbackDirs = await getExternalStorageDirectories(
           type: StorageDirectory.documents,
@@ -79,7 +78,7 @@ class SqliteBackupRestore {
         dir = downloadsDir ?? await getApplicationDocumentsDirectory();
       }
     } catch (e) {
-      debugPrint('⚠️ Failed to resolve user dir, falling back to app docs: $e');
+      dlog(() => '⚠️ Failed to resolve user dir, falling back to app docs: $e');
     }
 
     dir ??= await getApplicationDocumentsDirectory();
@@ -123,10 +122,10 @@ class SqliteBackupRestore {
         await shmFile.copy('$destPath-shm');
       }
 
-      debugPrint('✅ SQLite backup created at: $destPath');
+      dlog(() => '✅ SQLite backup created at: $destPath');
       return destPath;
     } catch (e, st) {
-      debugPrint('❌ Failed to backup database: $e\n$st');
+      dlog(() => '❌ Failed to backup database: $e\n$st');
       rethrow;
     }
   }
@@ -146,10 +145,10 @@ class SqliteBackupRestore {
       } finally {
         await db.close();
       }
-      debugPrint('✅ WAL checkpoint (TRUNCATE) completed before backup');
+      dlog('✅ WAL checkpoint (TRUNCATE) completed before backup');
     } catch (e) {
       // checkpoint فشل — لا نمنع النسخة الاحتياطية، لكن نسجّل التحذير
-      debugPrint('⚠️ WAL checkpoint failed (proceeding with backup): $e');
+      dlog(() => '⚠️ WAL checkpoint failed (proceeding with backup): $e');
     }
   }
 
@@ -217,7 +216,7 @@ class SqliteBackupRestore {
         final backupFile = File('$dstPath.pre_restore');
         if (backupFile.existsSync()) {
           await backupFile.rename(dstPath);
-          debugPrint('⚠️ تم استعادة DB الأصلي بعد فشل الاستعادة: $renameError');
+          dlog(() => '⚠️ تم استعادة DB الأصلي بعد فشل الاستعادة: $renameError');
         }
         rethrow;
       }
@@ -243,11 +242,9 @@ class SqliteBackupRestore {
         if (sidecar.existsSync()) {
           try {
             await sidecar.delete();
-            debugPrint('🧹 حذف ملف $suffix القديم قبل إعادة الفتح');
+            dlog(() => '🧹 حذف ملف $suffix القديم قبل إعادة الفتح');
           } catch (e) {
-            debugPrint(
-              '⚠️ فشل حذف $suffix القديم: $e — قد يسبب مشاكل عند الفتح',
-            );
+            dlog(() => '⚠️ فشل حذف $suffix القديم: $e — قد يسبب مشاكل عند الفتح');
           }
         }
       }
@@ -259,9 +256,9 @@ class SqliteBackupRestore {
         await DatabaseManager.reopen();
       }
 
-      debugPrint('✅ SQLite database restored from: $sourcePath');
+      dlog(() => '✅ SQLite database restored from: $sourcePath');
     } catch (e, st) {
-      debugPrint('❌ Failed to restore database: $e\n$st');
+      dlog(() => '❌ Failed to restore database: $e\n$st');
       rethrow;
     }
   }

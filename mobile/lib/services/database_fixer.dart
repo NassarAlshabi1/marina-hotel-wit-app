@@ -4,6 +4,7 @@ import '../utils/expense_reason_matcher.dart';
 import 'local_db.dart';
 import 'repositories/expenses_repository.dart';
 import 'sync/payload_mapper.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// خدمة لإصلاح البيانات الفاسدة في قاعدة البيانات
 class DatabaseFixer {
@@ -102,9 +103,9 @@ class DatabaseFixer {
         }
       }
 
-      debugPrint('Fixed $fixed invalid serverId records');
+      dlog(() => 'Fixed $fixed invalid serverId records');
     } catch (e) {
-      debugPrint('Error fixing serverId: $e');
+      dlog(() => 'Error fixing serverId: $e');
     }
 
     return fixed;
@@ -134,12 +135,12 @@ class DatabaseFixer {
           updates: {db.payments},
         );
         fixed++;
-        debugPrint('Fixed orphan payment: $paymentId');
+        dlog(() => 'Fixed orphan payment: $paymentId');
       }
 
-      debugPrint('Fixed $fixed orphan payments');
+      dlog(() => 'Fixed $fixed orphan payments');
     } catch (e) {
-      debugPrint('Error fixing orphan payments: $e');
+      dlog(() => 'Error fixing orphan payments: $e');
     }
 
     return fixed;
@@ -216,20 +217,16 @@ class DatabaseFixer {
                     employeeUuid: byUuid.localUuid,
                   );
                   relinked++;
-                  debugPrint(
-                    'Re-linked orphan salary expense #$expenseId → '
+                  dlog(() => 'Re-linked orphan salary expense #$expenseId → '
                     'employee #${byUuid.id} (uuid: $employeeUuid) '
-                    '+ lastModified updated for cloud sync',
-                  );
+                    '+ lastModified updated for cloud sync');
                   // تمت المعالجة — لا نمرّ عبر فرع التصفير.
                   continue;
                 } else {
                   // UUID موجود لكن الموظف لم يصل بعد — لا نُصفّر.
-                  debugPrint(
-                    '⚠️ Salary expense #$expenseId has employeeUuid '
+                  dlog(() => '⚠️ Salary expense #$expenseId has employeeUuid '
                     '$employeeUuid but employee not yet synced — '
-                    'left related_id=$relatedId intact (not zeroed).',
-                  );
+                    'left related_id=$relatedId intact (not zeroed).');
                   continue;
                 }
               } else {
@@ -294,23 +291,19 @@ class DatabaseFixer {
                       employeeUuid: byWithdrawal.localUuid,
                     );
                     relinked++;
-                    debugPrint(
-                      'Re-linked orphan salary expense #$expenseId via '
+                    dlog(() => 'Re-linked orphan salary expense #$expenseId via '
                       'salary_withdrawal → employee #${byWithdrawal.id} '
                       '(uuid: ${byWithdrawal.localUuid}) '
-                      '+ lastModified updated for cloud sync',
-                    );
+                      '+ lastModified updated for cloud sync');
                     continue;
                   }
                 }
 
                 // فشل كل شيء: لا نُصفّر مصروف الراتب (تفادي فقدان الربط
                 // بصمت). نترك relatedId القديم ونُسجّل تحذيرًا.
-                debugPrint(
-                  '⚠️ Salary expense #$expenseId is orphan with empty '
+                dlog(() => '⚠️ Salary expense #$expenseId is orphan with empty '
                   'employeeUuid and no salary_withdrawal — left '
-                  'related_id=$relatedId intact (not zeroed).',
-                );
+                  'related_id=$relatedId intact (not zeroed).');
                 continue;
               }
             }
@@ -341,15 +334,13 @@ class DatabaseFixer {
             updates: {db.expenses},
           );
           fixed++;
-          debugPrint('Fixed orphan expense: $expenseId');
+          dlog(() => 'Fixed orphan expense: $expenseId');
         }
       }
 
-      debugPrint(
-        'Fixed $fixed orphan expenses; re-linked $relinked salary expenses via UUID',
-      );
+      dlog(() => 'Fixed $fixed orphan expenses; re-linked $relinked salary expenses via UUID');
     } catch (e) {
-      debugPrint('Error fixing orphan expenses: $e');
+      dlog(() => 'Error fixing orphan expenses: $e');
     }
 
     return fixed + relinked;

@@ -12,6 +12,7 @@ import 'secondary_appwrite_config.dart';
 import 'secondary_appwrite_service.dart';
 import 'secondary_sync_tracker.dart';
 import 'sync/payload_mapper.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// Secondary Sync Manager — مزامنة الوجهة الثانوية بنفس outbox الرئيسي.
 ///
@@ -90,11 +91,11 @@ class SecondarySyncManager {
   /// إذا كان Push معطّلاً، لا فائدة من الجدولة لأن sync() سيرفض العملية.
   void startAutoSync({Duration interval = const Duration(minutes: 15)}) {
     if (!SecondaryAppwriteConfig.isEnabled) {
-      debugPrint('🔵 [SecondarySync] Disabled - enable first');
+      dlog('🔵 [SecondarySync] Disabled - enable first');
       return;
     }
     if (!SecondaryAppwriteConfig.isPushEnabled) {
-      debugPrint('🔵 [SecondarySync] Push disabled - no auto-sync');
+      dlog('🔵 [SecondarySync] Push disabled - no auto-sync');
       return;
     }
 
@@ -105,20 +106,18 @@ class SecondarySyncManager {
       try {
         await sync();
       } catch (e) {
-        debugPrint('❌ [SecondarySync] Auto-sync Timer error: $e');
+        dlog(() => '❌ [SecondarySync] Auto-sync Timer error: $e');
         // لا rethrow — نمنع fatal crash
       }
     });
-    debugPrint(
-      '🔵 [SecondarySync] Auto-sync started (every ${interval.inMinutes} min)',
-    );
+    dlog(() => '🔵 [SecondarySync] Auto-sync started (every ${interval.inMinutes} min)');
   }
 
   /// إيقاف المزامنة التلقائية
   void stopAutoSync() {
     _syncTimer?.cancel();
     _syncTimer = null;
-    debugPrint('🔵 [SecondarySync] Auto-sync stopped');
+    dlog('🔵 [SecondarySync] Auto-sync stopped');
   }
 
   /// ✅ P1-6: استرداد العلم إن علِق لأكثر من _syncTimeout.
@@ -127,9 +126,7 @@ class SecondarySyncManager {
     if (!_isSyncing || _syncStartedAt == null) return false;
     final elapsed = DateTime.now().difference(_syncStartedAt!);
     if (elapsed > _syncTimeout) {
-      debugPrint(
-        '⚠️ [SecondarySync] stuck for ${elapsed.inMinutes} min — forcing reset',
-      );
+      dlog(() => '⚠️ [SecondarySync] stuck for ${elapsed.inMinutes} min — forcing reset');
       _isSyncing = false;
       _syncStartedAt = null;
       return true;
@@ -217,12 +214,10 @@ class SecondarySyncManager {
         // هذا يمنع الحلقة المفرغة: 429 → circuit breaker → محاولة جديدة → 429.
         if (AppwriteNetworkHelper().isCircuitBreakerActive) {
           final remaining = AppwriteNetworkHelper().circuitBreakerRemaining;
-          debugPrint(
-            '🔌 [SecondarySync] Network circuit breaker active '
+          dlog(() => '🔌 [SecondarySync] Network circuit breaker active '
             '(remaining ${remaining?.inSeconds ?? 0}s) — '
             'stopping sync to avoid rate limit loop. '
-            '$pushed pushed, $failed failed so far.',
-          );
+            '$pushed pushed, $failed failed so far.');
           break;
         }
 
@@ -261,7 +256,7 @@ class SecondarySyncManager {
               );
             }
           } catch (e) {
-            debugPrint('❌ [SecondarySync] Failed entry ${entry.id}: $e');
+            dlog(() => '❌ [SecondarySync] Failed entry ${entry.id}: $e');
             // ✅ P0-2: تصنيف الخطأ — دائم أم عابر
             final newAttempts = entry.attempts + 1;
             final isPermanent = _isPermanentError(e);
@@ -335,7 +330,7 @@ class SecondarySyncManager {
             .toList(),
       );
     } catch (e) {
-      debugPrint('❌ [SecondarySync] sync() error: $e');
+      dlog(() => '❌ [SecondarySync] sync() error: $e');
       _recordFailure();
       await SecondaryAppwriteConfig.updateSyncStatus('error');
       return SecondarySyncResult(success: false, message: 'خطأ: $e');
@@ -357,7 +352,7 @@ class SecondarySyncManager {
       final result = await service.testConnection();
       return result.success;
     } catch (e) {
-      debugPrint('⚠️ [SecondarySync] connection check failed: $e');
+      dlog(() => '⚠️ [SecondarySync] connection check failed: $e');
       return false;
     }
   }
@@ -366,7 +361,7 @@ class SecondarySyncManager {
   void _recordSuccess() {
     _consecutiveFailures = 0;
     if (_circuitOpenUntil != null) {
-      debugPrint('🟢 [SecondarySync] circuit breaker closed');
+      dlog('🟢 [SecondarySync] circuit breaker closed');
     }
     _circuitOpenUntil = null;
   }
@@ -376,11 +371,9 @@ class SecondarySyncManager {
     _consecutiveFailures++;
     if (_consecutiveFailures >= _circuitBreakerThreshold && !isCircuitOpen) {
       _circuitOpenUntil = DateTime.now().add(_circuitBreakerCooldown);
-      debugPrint(
-        '🔴 [SecondarySync] circuit breaker OPENED for '
+      dlog(() => '🔴 [SecondarySync] circuit breaker OPENED for '
         '${_circuitBreakerCooldown.inMinutes} min '
-        '($_consecutiveFailures consecutive failures)',
-      );
+        '($_consecutiveFailures consecutive failures)');
     }
   }
 
@@ -401,10 +394,10 @@ class SecondarySyncManager {
   /// يُنصح باستخدام Secondary للقراءة فقط عند فشل Primary (Failover).
   Future<bool> pullRemoteChanges() async {
     if (!SecondaryAppwriteConfig.isPullEnabled) {
-      debugPrint('🔵 [SecondarySync] Pull disabled');
+      dlog('🔵 [SecondarySync] Pull disabled');
       return false;
     }
-    debugPrint('🔵 [SecondarySync] Pull not implemented in this version');
+    dlog('🔵 [SecondarySync] Pull not implemented in this version');
     return false;
   }
 
@@ -496,7 +489,7 @@ class SecondarySyncManager {
   ) async {
     final collectionId = AppwriteConfig.collectionIdFor(entry.entity);
     if (collectionId == null) {
-      debugPrint('⚠️ [SecondarySync] Unknown entity: ${entry.entity}');
+      dlog(() => '⚠️ [SecondarySync] Unknown entity: ${entry.entity}');
       // ✅ P0-2: كيان غير معروف = خطأ دائم → dead مباشرة
       final db = DatabaseManager.instance;
       final outboxDao = OutboxDao(db);
@@ -519,9 +512,7 @@ class SecondarySyncManager {
       }
     } catch (e) {
       // في حالة الفشل، نستخدم الحمولة المخزنة كاحتياط
-      debugPrint(
-        '⚠️ [SecondarySync] PayloadMapper failed for ${entry.entity}: $e — using stored payload',
-      );
+      dlog(() => '⚠️ [SecondarySync] PayloadMapper failed for ${entry.entity}: $e — using stored payload');
       payload = _parsePayload(entry.payload);
       payload['localUuid'] = entry.localUuid;
       if (entry.idempotencyKey != null && entry.idempotencyKey!.isNotEmpty) {
@@ -554,9 +545,7 @@ class SecondarySyncManager {
     } on AppwriteException catch (e) {
       // ✅ P0-2: معالجة صحيحة للأخطاء الدائمة → setDead مباشرة
       if (_isPermanentError(e)) {
-        debugPrint(
-          '❌ [SecondarySync] Permanent error for ${entry.entity}/${entry.localUuid}: ${e.code} ${e.message}',
-        );
+        dlog(() => '❌ [SecondarySync] Permanent error for ${entry.entity}/${entry.localUuid}: ${e.code} ${e.message}');
         final db = DatabaseManager.instance;
         final outboxDao = OutboxDao(db);
         await outboxDao.setDead(
@@ -734,7 +723,7 @@ class SecondarySyncManager {
       }
       return {};
     } catch (e) {
-      debugPrint('⚠️ [SecondarySync] Failed to parse payload: $e');
+      dlog(() => '⚠️ [SecondarySync] Failed to parse payload: $e');
       return {};
     }
   }

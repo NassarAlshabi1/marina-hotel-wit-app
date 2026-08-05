@@ -7,19 +7,18 @@
 //    3. PDF export flow — توليد PDF من بيانات حقيقية
 //
 //  يستخدم drift NativeDatabase.memory() + Riverpod providers حقيقية.
+//  جميع التواريخ ديناميكية (مبنية على DateTime.now()) لضمان استقرار الاختبارات
+//  في CI في أي وقت تُشغّل فيه.
 // ============================================================================
 
 // ignore_for_file: lines_longer_than_80_chars
 
-// This file is tagged as 'slow' because it uses hardcoded dates
-// that depend on DateTime.now(). These tests need rewriting to use
-// dynamic dates before they can run reliably in CI.
-@Tags(['slow'])
 library marina_hotel_mobile.test.integration_critical_flows_test;
 
 import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:marina_hotel_mobile/utils/time.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -89,7 +88,7 @@ Future<AppDatabase> _seedFullDatabase() async {
       description: const d.Value('صيانة غرفة 101'),
       amount: const d.Value(50.0),
       date: d.Value(_nowIso()),
-      hotelDayKey: const d.Value('2026-07-21'),
+      hotelDayKey: d.Value(Time.nowDateString()),
       localUuid: const d.Value('expense-test-uuid'),
     ),
   );
@@ -213,7 +212,7 @@ void main() {
           description: const d.Value('راتب موظف'),
           amount: const d.Value(5000.0),
           date: d.Value(_nowIso()),
-          hotelDayKey: const d.Value('2026-07-21'),
+          hotelDayKey: d.Value(Time.nowDateString()),
           localUuid: const d.Value('salary-expense-uuid'),
         ),
       );
@@ -305,7 +304,7 @@ void main() {
           description: const d.Value('مصروف جديد'),
           amount: const d.Value(100.0),
           date: d.Value(_nowIso()),
-          hotelDayKey: const d.Value('2026-07-21'),
+          hotelDayKey: d.Value(Time.nowDateString()),
           localUuid: const d.Value('e2e-create-uuid'),
         ),
       );

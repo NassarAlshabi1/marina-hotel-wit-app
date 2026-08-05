@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// إعدادات Appwrite المركزية
 class AppwriteConfig {
@@ -133,29 +134,29 @@ class AppwriteConfig {
   /// طباعة الإعدادات (للتشخيص)
   static void printConfig() {
     if (kDebugMode) {
-      debugPrint('═══════════════════════════════════════');
-      debugPrint('🔧 Appwrite Configuration');
-      debugPrint('═══════════════════════════════════════');
-      debugPrint('Endpoint: $endpoint');
-      debugPrint('Project ID: $projectId');
-      debugPrint('Database ID: $databaseId');
-      debugPrint('Sync Interval: ${syncInterval.inMinutes} minutes');
-      debugPrint('Cache Expiry: ${cacheExpiry.inHours} hours');
-      debugPrint('Max Cache Size: $maxCacheSizeMB MB');
-      debugPrint('Default Page Size: $defaultPageSize');
-      debugPrint('Max Page Size: $maxPageSize');
-      debugPrint('Batch Size: $batchSize');
-      debugPrint('Max Retries: $maxRetries');
-      debugPrint('Default Timeout: ${defaultTimeout.inSeconds}s');
-      debugPrint('Long Timeout: ${longTimeout.inSeconds}s');
-      debugPrint('═══════════════════════════════════════');
+      dlog('═══════════════════════════════════════');
+      dlog('🔧 Appwrite Configuration');
+      dlog('═══════════════════════════════════════');
+      dlog(() => 'Endpoint: $endpoint');
+      dlog(() => 'Project ID: $projectId');
+      dlog(() => 'Database ID: $databaseId');
+      dlog(() => 'Sync Interval: ${syncInterval.inMinutes} minutes');
+      dlog(() => 'Cache Expiry: ${cacheExpiry.inHours} hours');
+      dlog(() => 'Max Cache Size: $maxCacheSizeMB MB');
+      dlog(() => 'Default Page Size: $defaultPageSize');
+      dlog(() => 'Max Page Size: $maxPageSize');
+      dlog(() => 'Batch Size: $batchSize');
+      dlog(() => 'Max Retries: $maxRetries');
+      dlog(() => 'Default Timeout: ${defaultTimeout.inSeconds}s');
+      dlog(() => 'Long Timeout: ${longTimeout.inSeconds}s');
+      dlog('═══════════════════════════════════════');
     }
   }
 
   /// التحقق من صحة الإعدادات
   static bool validateConfig() {
     if (projectId == 'YOUR_PROJECT_ID_HERE') {
-      debugPrint('❌ Error: Please set your Appwrite Project ID');
+      dlog('❌ Error: Please set your Appwrite Project ID');
       return false;
     }
     return true;

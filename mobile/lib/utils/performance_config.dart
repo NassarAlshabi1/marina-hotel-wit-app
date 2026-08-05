@@ -13,6 +13,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/painting.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// تهيئة تحسينات الأداء — تُستدعى في بداية main() قبل runApp
 void configurePerformance() {
@@ -36,7 +37,7 @@ void configurePerformance() {
   // ═══════════════════════════════════════════════════════════════
   if (Platform.isAndroid) {
     // لا يوجد API مباشر، لكن تقليل image cache يُساعد
-    debugPrint('🚀 Performance: Android — image cache limited to 20MB');
+    dlog('🚀 Performance: Android — image cache limited to 20MB');
   }
 }
 

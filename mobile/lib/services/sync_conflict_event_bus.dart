@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// حدث تضارب في المزامنة
 class SyncConflictEvent {
@@ -65,9 +66,7 @@ class SyncConflictEventBus {
       _recentEvents.removeAt(0);
     }
     _controller.add(event);
-    debugPrint(
-      '[ConflictBus] ${event.table}/${event.localUuid} → ${event.winnerSide}: ${event.reason}',
-    );
+    dlog(() => '[ConflictBus] ${event.table}/${event.localUuid} → ${event.winnerSide}: ${event.reason}');
   }
 
   /// إرسال حدث تضارب مبسط

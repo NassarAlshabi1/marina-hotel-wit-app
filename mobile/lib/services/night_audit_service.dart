@@ -7,6 +7,7 @@ import '../services/telegram/telegram_config.dart';
 import '../services/telegram/telegram_report_service.dart';
 import '../services/telegram/telegram_service.dart' as tg;
 import '../utils/hotel_time_engine.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// ✅ خدمة إقفال اليوم (Night Audit) — تجمع البيانات المالية لليوم الفندقي،
 /// تكتبها في HotelDayLedger، وترسلها عبر WhatsApp و Telegram Bot.
@@ -44,7 +45,7 @@ class NightAuditService {
                   ..limit(1))
                 .getSingleOrNull();
         if (existing != null && existing.status == 'closed') {
-          debugPrint('⚠️ [NightAudit] اليوم $hotelDayKey مُقفل مسبقاً');
+          dlog(() => '⚠️ [NightAudit] اليوم $hotelDayKey مُقفل مسبقاً');
           return NightAuditResult(
             success: false,
             message:
@@ -79,15 +80,13 @@ class NightAuditService {
         final waReportEnabled = await TelegramConfig.isDailyReportEnabled();
         if (waEnabled && waReportEnabled) {
           whatsappSent = await _whatsappReport.sendReportNow();
-          debugPrint(
-            '📱 [NightAudit] WhatsApp: ${whatsappSent ? "sent ✅" : "failed ❌"}',
-          );
+          dlog(() => '📱 [NightAudit] WhatsApp: ${whatsappSent ? "sent ✅" : "failed ❌"}');
         } else {
           whatsappSkipped = true;
-          debugPrint('📱 [NightAudit] WhatsApp: skipped (disabled)');
+          dlog('📱 [NightAudit] WhatsApp: skipped (disabled)');
         }
       } catch (e) {
-        debugPrint('❌ [NightAudit] WhatsApp error: $e');
+        dlog(() => '❌ [NightAudit] WhatsApp error: $e');
       }
 
       // 6) أرسل عبر Telegram Bot
@@ -100,17 +99,13 @@ class NightAuditService {
         if (tgConfigured && tgEnabled && tgReportEnabled) {
           final tgService = tg.TelegramApiClient.instance;
           telegramSent = await tgService.sendToDefaultChat(text: message);
-          debugPrint(
-            '✈️ [NightAudit] Telegram: ${telegramSent ? "sent ✅" : "failed ❌"}',
-          );
+          dlog(() => '✈️ [NightAudit] Telegram: ${telegramSent ? "sent ✅" : "failed ❌"}');
         } else {
           telegramSkipped = true;
-          debugPrint(
-            '✈️ [NightAudit] Telegram: skipped (not configured or disabled)',
-          );
+          dlog('✈️ [NightAudit] Telegram: skipped (not configured or disabled)');
         }
       } catch (e) {
-        debugPrint('❌ [NightAudit] Telegram error: $e');
+        dlog(() => '❌ [NightAudit] Telegram error: $e');
       }
 
       // 7) حدّث lastReportSent لمنع الإرسال المتكرر التلقائي
@@ -146,7 +141,7 @@ class NightAuditService {
         data: data,
       );
     } catch (e) {
-      debugPrint('❌ [NightAudit] error: $e');
+      dlog(() => '❌ [NightAudit] error: $e');
       return NightAuditResult(
         success: false,
         message: 'خطأ في إقفال اليوم: $e',
@@ -293,7 +288,7 @@ class NightAuditService {
         alerts: alerts,
       );
     } catch (e) {
-      debugPrint('❌ [NightAudit] gather error: $e');
+      dlog(() => '❌ [NightAudit] gather error: $e');
       return null;
     }
   }
@@ -330,7 +325,7 @@ class NightAuditService {
       await (db.update(
         db.hotelDayLedger,
       )..where((t) => t.id.equals(existing.id))).write(companion);
-      debugPrint('📝 [NightAudit] Ledger updated for $hotelDayKey');
+      dlog(() => '📝 [NightAudit] Ledger updated for $hotelDayKey');
     } else {
       await db
           .into(db.hotelDayLedger)
@@ -342,7 +337,7 @@ class NightAuditService {
               version: const d.Value(1),
             ),
           );
-      debugPrint('📝 [NightAudit] Ledger created for $hotelDayKey');
+      dlog(() => '📝 [NightAudit] Ledger created for $hotelDayKey');
     }
   }
 

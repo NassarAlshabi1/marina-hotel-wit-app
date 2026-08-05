@@ -19,6 +19,7 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart' show DatabaseManager;
 import '../../services/sqlite_backup_restore.dart';
 import '../../utils/env.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 // ═══════════════════════════════════════════════════════════════
 //  نموذج البيانات الحقيقية
@@ -85,7 +86,7 @@ class _SettingsMaintenanceScreenState
         setState(() => _info = info);
       }
     } catch (e) {
-      debugPrint('⚠️ Failed to load system info: $e');
+      dlog(() => '⚠️ Failed to load system info: $e');
     } finally {
       if (mounted) {
         setState(() => _isLoadingInfo = false);

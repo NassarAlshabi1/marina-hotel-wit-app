@@ -26,6 +26,7 @@ import 'dart:io' show File, Platform, ProcessInfo;
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show FrameTiming, SchedulerBinding;
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// نوع التحذير الأدائي
 enum PerfWarningType {
@@ -161,7 +162,7 @@ class PerformanceMonitor {
   /// يبدأ المراقبة — يُستدعى مرة واحدة في main() قبل runApp
   void start({PerfConfig? config}) {
     if (!kDebugMode) {
-      debugPrint('PerformanceMonitor: معطَّل في release mode');
+      dlog('PerformanceMonitor: معطَّل في release mode');
       return;
     }
     if (_started) return;
@@ -184,10 +185,8 @@ class PerformanceMonitor {
       );
     }
 
-    debugPrint(
-      '🚀 PerformanceMonitor بدأ التشغيل (FPS: ${_config.fpsWarningThreshold}Hz threshold, '
-      'memory: ${_config.memoryGrowthThresholdMB}MB threshold)',
-    );
+    dlog(() => '🚀 PerformanceMonitor بدأ التشغيل (FPS: ${_config.fpsWarningThreshold}Hz threshold, '
+      'memory: ${_config.memoryGrowthThresholdMB}MB threshold)');
   }
 
   /// يُوقِف المراقبة ويُصدِر الموارد
@@ -199,7 +198,7 @@ class PerformanceMonitor {
       SchedulerBinding.instance.removeTimingsCallback(_onFrameTiming);
     }
     _started = false;
-    debugPrint('🛑 PerformanceMonitor توقَّف');
+    dlog('🛑 PerformanceMonitor توقَّف');
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -342,7 +341,7 @@ class PerformanceMonitor {
     if (_completedTraces.length > 100) {
       _completedTraces.removeRange(0, _completedTraces.length - 100);
     }
-    debugPrint('⏱️ [$name] ${trace.elapsedMs}ms');
+    dlog(() => '⏱️ [$name] ${trace.elapsedMs}ms');
     return trace;
   }
 
@@ -415,8 +414,8 @@ class PerformanceMonitor {
     _warningController.add(warning);
 
     final icon = severity == PerfSeverity.critical ? '🔴' : '🟡';
-    debugPrint('$icon [PerfWarning] $message');
-    if (suggestion != null) debugPrint('   💡 $suggestion');
+    dlog(() => '$icon [PerfWarning] $message');
+    if (suggestion != null) dlog(() => '   💡 $suggestion');
   }
 
   List<PerfWarning> get warnings => List.unmodifiable(_warnings);
@@ -563,38 +562,28 @@ class PerformanceMonitor {
   /// يحفظ التقرير في ملف (للـ CI artifact)
   Future<void> saveReportToFile(String path) async {
     final file = await File(path).writeAsString(exportReportJson());
-    debugPrint('📊 Performance report saved to: ${file.path}');
+    dlog(() => '📊 Performance report saved to: ${file.path}');
   }
 
   /// يطبع ملخصاً في console
   void printSummary() {
     final report = exportReport();
-    debugPrint('');
-    debugPrint('═══════════════════════════════════════════════════════════');
-    debugPrint('  📊 Marina Hotel — Performance Summary');
-    debugPrint('═══════════════════════════════════════════════════════════');
-    debugPrint('  Score:        ${report['score']}/100');
-    debugPrint('  FPS:          ${(report['fps'] as Map)['current']}');
-    debugPrint(
-      '  Frame time:   ${(report['fps'] as Map)['averageFrameTimeMs']}ms avg',
-    );
-    debugPrint(
-      '  Jank:         ${(report['fps'] as Map)['jankFrames']}/${(report['fps'] as Map)['totalFrames']} frames',
-    );
-    debugPrint(
-      '  Memory:       ${(report['memory'] as Map)['currentMB']}MB current, '
-      '${(report['memory'] as Map)['peakMB']}MB peak',
-    );
-    debugPrint(
-      '  Rebuilds:     ${(report['rebuilds'] as Map)['total']} total '
-      '(${(report['rebuilds'] as Map)['uniqueWidgets']} unique widgets)',
-    );
-    debugPrint(
-      '  Warnings:     ${(report['warnings'] as Map)['critical']} critical, '
-      '${(report['warnings'] as Map)['warning']} warnings',
-    );
-    debugPrint('═══════════════════════════════════════════════════════════');
-    debugPrint('');
+    dlog('');
+    dlog('═══════════════════════════════════════════════════════════');
+    dlog('  📊 Marina Hotel — Performance Summary');
+    dlog('═══════════════════════════════════════════════════════════');
+    dlog(() => '  Score:        ${report['score']}/100');
+    dlog(() => '  FPS:          ${(report['fps'] as Map)['current']}');
+    dlog(() => '  Frame time:   ${(report['fps'] as Map)['averageFrameTimeMs']}ms avg');
+    dlog(() => '  Jank:         ${(report['fps'] as Map)['jankFrames']}/${(report['fps'] as Map)['totalFrames']} frames');
+    dlog(() => '  Memory:       ${(report['memory'] as Map)['currentMB']}MB current, '
+      '${(report['memory'] as Map)['peakMB']}MB peak');
+    dlog(() => '  Rebuilds:     ${(report['rebuilds'] as Map)['total']} total '
+      '(${(report['rebuilds'] as Map)['uniqueWidgets']} unique widgets)');
+    dlog(() => '  Warnings:     ${(report['warnings'] as Map)['critical']} critical, '
+      '${(report['warnings'] as Map)['warning']} warnings');
+    dlog('═══════════════════════════════════════════════════════════');
+    dlog('');
   }
 
   List<Map<String, dynamic>> _topRebuiltWidgets(int limit) {
@@ -628,7 +617,7 @@ class PerformanceMonitor {
     _warnings.clear();
     _rebuildCounts.clear();
     _totalRebuilds = 0;
-    debugPrint('🔄 PerformanceMonitor تمت إعادة ضبطه');
+    dlog('🔄 PerformanceMonitor تمت إعادة ضبطه');
   }
 }
 
@@ -710,14 +699,12 @@ class MemoryTracker {
   /// يطبع تقرير الـ leaks
   void printLeaks() {
     if (_tracked.isEmpty) {
-      debugPrint('✅ MemoryTracker: لا توجد disposables غير مُغلقة');
+      dlog('✅ MemoryTracker: لا توجد disposables غير مُغلقة');
       return;
     }
-    debugPrint('⚠️ MemoryTracker: ${_tracked.length} disposables غير مُغلقة:');
+    dlog(() => '⚠️ MemoryTracker: ${_tracked.length} disposables غير مُغلقة:');
     for (final entry in _tracked.entries) {
-      debugPrint(
-        '   • ${entry.key}: ${entry.value.difference(DateTime.now()).abs().inSeconds}s',
-      );
+      dlog(() => '   • ${entry.key}: ${entry.value.difference(DateTime.now()).abs().inSeconds}s');
     }
   }
 }
