@@ -25,8 +25,10 @@ class SecondaryAppwriteConfig {
   static const String defaultEndpoint = 'https://fra.cloud.appwrite.io/v1';
   static const String defaultProjectId = '6a4408f300217885fd7b';
   static const String defaultDatabaseId = '6a4409b50019dd39dde5';
-  static const String defaultApiKey =
-      'standard_c0ab6ac2628715c7714eb312e2272a55ae41809dcc156c7e4553874e4a6ad9f3d3e9169d8a69b84f7d746b108905041e412a66ec66d03e122ccb056484c43d2a27f7839088bf60385ab58061624bbcc1f82271c09d608536e68d9cc0ff1b05b83ae4fe14c4dc4ce38840317ea555155f1733141450b3097df09a2a1b4b154a6c';
+  // ✅ SECURITY: API key via --dart-define, NOT hardcoded.
+  static const String defaultApiKey = String.fromEnvironment(
+    'SECONDARY_APPWRITE_API_KEY',
+  );
   static const bool defaultEnabled = false;
   static const bool defaultPushEnabled = false;
   static const bool defaultPullEnabled = false;

@@ -24,8 +24,11 @@ class AppwriteConfig {
   // شاشة إعدادات اتصال Appwrite. عند الاستبدال، يُحفظ المفتاح الجديد في
   // SharedPreferences ويُحمَّل عند بدء التطبيق بدلاً من هذا الافتراضي.
   // استخدم AppwriteConfigManager.apiKey للوصول للقيمة الفعّالة وقت التشغيل.
-  static const String defaultApiKey =
-      'standard_c0ab6ac2628715c7714eb312e2272a55ae41809dcc156c7e4553874e4a6ad9f3d3e9169d8a69b84f7d746b108905041e412a66ec66d03e122ccb056484c43d2a27f7839088bf60385ab58061624bbcc1f82271c09d608536e68d9cc0ff1b05b83ae4fe14c4dc4ce38840317ea555155f1733141450b3097df09a2a1b4b154a6c';
+  // ✅ SECURITY: API key via --dart-define, NOT hardcoded.
+  // Pass at build time: --dart-define=APPWRITE_API_KEY=standard_xxx
+  static const String defaultApiKey = String.fromEnvironment(
+    'APPWRITE_API_KEY',
+  );
 
   // ═══════════════════════════════════════════════════════════════
   //  Messaging — Appwrite Messaging Provider ID
