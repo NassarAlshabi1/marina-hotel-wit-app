@@ -3,9 +3,16 @@
 //
 // Centralized solution: any write to outbox (from any DAO/repository/screen)
 // automatically triggers a debounced push. No per-screen sync calls needed.
+//
+// ✅ Offline-aware: if no internet, skips push and retries when connectivity
+//    is restored. Outbox entries remain in 'pending' status until successful
+//    push, so no data is lost.
+// ✅ Weak-device friendly: uses a single stream subscription (no polling),
+//    debounced push (3s), and prevents overlapping pushes.
 
 import 'dart:async';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 
@@ -16,9 +23,11 @@ class AutoOutboxSyncWatcher {
   static final AutoOutboxSyncWatcher instance = AutoOutboxSyncWatcher._();
 
   StreamSubscription<int>? _subscription;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
   Timer? _debounceTimer;
   bool _pushing = false;
   bool _started = false;
+  bool _isOnline = false;
 
   /// The push function — set during app init.
   /// Returns number of records pushed.
@@ -29,11 +38,26 @@ class AutoOutboxSyncWatcher {
     _pushFn = fn;
   }
 
-  /// Starts watching the outbox.
+  /// Starts watching the outbox + connectivity.
   void start(AppDatabase db) {
     if (_started) return;
     _started = true;
 
+    // 1. Watch connectivity — track online/offline state
+    _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
+      final wasOnline = _isOnline;
+      _isOnline = results.any((r) => r != ConnectivityResult.none);
+
+      if (_isOnline && !wasOnline) {
+        // Just came back online → flush pending outbox
+        debugPrint('🌐 AutoSync: back online → flushing outbox');
+        _schedulePush();
+      } else if (!_isOnline && wasOnline) {
+        debugPrint('📴 AutoSync: went offline → push paused');
+      }
+    });
+
+    // 2. Watch outbox table for new pending entries
     _subscription = db
         .customSelect(
           'SELECT COUNT(*) AS cnt FROM outbox WHERE processing_status = ?',
@@ -48,7 +72,7 @@ class AutoOutboxSyncWatcher {
           }
         });
 
-    debugPrint('👁️ AutoOutboxSyncWatcher started');
+    debugPrint('👁️ AutoOutboxSyncWatcher started (offline-aware)');
   }
 
   void _schedulePush() {
@@ -57,7 +81,19 @@ class AutoOutboxSyncWatcher {
   }
 
   Future<void> _doPush() async {
-    if (_pushing) return;
+    // ✅ Offline check: don't attempt push if no internet
+    if (!_isOnline) {
+      debugPrint(
+        '📴 AutoSync: offline — push deferred (outbox retains entries)',
+      );
+      return;
+    }
+
+    if (_pushing) {
+      debugPrint('⏭️ AutoSync: push already in progress');
+      return;
+    }
+
     _pushing = true;
     try {
       final fn = _pushFn;
@@ -67,14 +103,29 @@ class AutoOutboxSyncWatcher {
         debugPrint('📤 AutoSync: pushed $result changes');
       }
     } catch (e) {
-      debugPrint('⚠️ AutoSync push error: $e');
+      debugPrint(
+        '⚠️ AutoSync push error: $e (will retry on next outbox change)',
+      );
     } finally {
       _pushing = false;
     }
   }
 
+  /// Manually triggers a push (e.g., from a sync button).
+  Future<void> pushNow() async {
+    _debounceTimer?.cancel();
+    await _doPush();
+  }
+
+  /// Whether the device is currently online.
+  bool get isOnline => _isOnline;
+
+  /// Whether a push is currently in progress.
+  bool get isPushing => _pushing;
+
   void stop() {
     _subscription?.cancel();
+    _connectivitySub?.cancel();
     _debounceTimer?.cancel();
     _started = false;
   }
