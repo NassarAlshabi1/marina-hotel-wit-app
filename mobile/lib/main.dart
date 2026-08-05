@@ -43,6 +43,7 @@ import 'services/appwrite_realtime_service.dart';
 import 'services/appwrite_realtime_sync.dart';
 import 'services/appwrite_sync_manager.dart';
 import 'services/auto_backup_manager.dart';
+import 'services/auto_outbox_sync_watcher.dart';
 import 'services/background_sync_service.dart';
 import 'services/battery_optimizer.dart';
 import 'services/central_sync_coordinator.dart';
@@ -149,6 +150,18 @@ Future<void> main() async {
   // غرف محجوزة برصيد متبقي. آمنة للبدء في الـ background — تستخدم Timer
   // وتتوقف تلقائياً عند إغلاق التطبيق.
   LatePaymentNotificationService.instance.start();
+
+  // ✅ AutoOutboxSyncWatcher: يراقب جدول outbox ويُطلق pushLocalChanges
+  // تلقائياً (مع debounce 3 ثوانٍ) عند إضافة أي سجل جديد.
+  // هذا يضمن أن أي عملية CRUD (إضافة/تعديل/حذف) في أي شاشة تُزامن
+  // تلقائياً دون الحاجة لاستدعاء pushLocalChanges يدوياً في كل شاشة.
+  AutoOutboxSyncWatcher.pushFunction = () async {
+    final syncManager = AppwriteSyncManager.instance;
+    if (syncManager == null) return 0;
+    final result = await syncManager.sync(pull: false);
+    return result.recordsPushed;
+  };
+  AutoOutboxSyncWatcher.instance.start(DatabaseManager.instance);
 
   // ─── ربط Crashlytics + DiagnosticsLogger ───
   CrashlyticsService.instance.setupErrorHandlers(
