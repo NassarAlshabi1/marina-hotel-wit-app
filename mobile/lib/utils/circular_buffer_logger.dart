@@ -86,19 +86,35 @@ class CircularBufferLogger {
     unawaited(_persistEntry(entry));
   }
 
+  final List<String> _writeBuffer = [];
+  Timer? _flushTimer;
+
   Future<void> _persistEntry(_LogEntry entry) async {
     if (_logFile == null) return;
-    await _lock.synchronized(() async {
-      try {
-        await _logFile!.writeAsString(
-          '${jsonEncode(entry.toJson())}\n',
-          mode: FileMode.append,
-          flush: true,
-        );
-      } catch (_) {
-        // Best-effort
-      }
-    });
+    _writeBuffer.add('${jsonEncode(entry.toJson())}\n');
+
+    // ✅ Batch writes: flush every 5s or when buffer reaches 50 entries
+    // Prevents fsync on every log call (critical for 1GB RAM devices)
+    if (_writeBuffer.length >= 50) {
+      _flushBuffer();
+    } else {
+      _flushTimer?.cancel();
+      _flushTimer = Timer(const Duration(seconds: 5), _flushBuffer);
+    }
+  }
+
+  void _flushBuffer() {
+    if (_writeBuffer.isEmpty || _logFile == null) return;
+    final batch = _writeBuffer.join();
+    _writeBuffer.clear();
+    _flushTimer?.cancel();
+    unawaited(
+      _lock.synchronized(() async {
+        try {
+          await _logFile!.writeAsString(batch, mode: FileMode.append, flush: true);
+        } catch (_) {}
+      }),
+    );
   }
 
   List<Map<String, dynamic>> readLast(int count) {
@@ -108,6 +124,8 @@ class CircularBufferLogger {
 
   Future<void> clear() async {
     _buffer.clear();
+    _writeBuffer.clear();
+    _flushTimer?.cancel();
     if (_logFile != null) {
       try {
         await _logFile!.writeAsString('', flush: true);

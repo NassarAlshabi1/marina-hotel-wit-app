@@ -43,6 +43,11 @@ class AutoOutboxSyncWatcher {
     if (_started) return;
     _started = true;
 
+    // ✅ Seed initial connectivity state so pushes aren't deferred at launch
+    Connectivity().checkConnectivity().then((results) {
+      _isOnline = results.any((r) => r != ConnectivityResult.none);
+    });
+
     // 1. Watch connectivity — track online/offline state
     _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
       final wasOnline = _isOnline;

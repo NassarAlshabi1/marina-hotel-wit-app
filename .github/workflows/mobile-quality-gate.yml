@@ -147,7 +147,7 @@ jobs:
         
       - name: 🔄 Run Build Runner
         working-directory: ${{ env.WORKING_DIRECTORY }}
-        run: dart run build_runner build --delete-conflicting-outputs
+        run: dart run build_runner build
         continue-on-error: true
 
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
