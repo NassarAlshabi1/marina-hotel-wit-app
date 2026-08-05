@@ -213,7 +213,7 @@ class AppwriteRealtimeService {
         handler: handler,
         events: events,
       );
-    } catch (e) {
+    } catch (e, st) {
       _logger.error(
         'Reconnect attempt #$attempts failed for $collectionId',
         error: e,
@@ -316,7 +316,7 @@ class AppwriteRealtimeService {
           collectionId: collectionId,
           handler: handler,
         );
-      } catch (e) {
+      } catch (e, st) {
         _logger.warning(
           'Failed to subscribe to $collectionId, continuing...',
           error: e,
@@ -457,7 +457,7 @@ class AppwriteRealtimeService {
           // لا شيء
           break;
       }
-    } catch (e) {
+    } catch (e, st) {
       _logger.warning(
         'Failed to update cache on Realtime event',
         error: e,

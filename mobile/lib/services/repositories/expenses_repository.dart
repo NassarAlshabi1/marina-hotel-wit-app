@@ -104,7 +104,7 @@ class ExpensesRepository {
                     ..limit(1))
                   .getSingleOrNull();
               empName = emp?.name;
-            } catch (e) {
+            } catch (e, st) {
       debugPrint('⚠️ Swallowed error in expenses_repository.dart: ');
               // الموظف قد لا يكون متزامناً بعد — نتخطى بصمت
             }
@@ -127,7 +127,7 @@ class ExpensesRepository {
                     ..limit(1))
                   .getSingleOrNull();
               empName = emp?.name;
-            } catch (e) {
+            } catch (e, st) {
       debugPrint('⚠️ Swallowed error in expenses_repository.dart: ');
               // الموظف قد لا يكون متزامناً بعد — نتخطى بصمت
             }
@@ -411,7 +411,7 @@ class ExpensesRepository {
       return HotelTimeEngine.getHotelDayKey(
         dateTime: DateTime(year, month, day, 14, 1),
       );
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('⚠️ Swallowed error in expenses_repository.dart: ');
       return HotelTimeEngine.getHotelDayKey();
     }

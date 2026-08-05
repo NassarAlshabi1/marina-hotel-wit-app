@@ -94,7 +94,7 @@ class AuthLocalStore {
           return MapEntry(key.toString(), <String, dynamic>{});
         });
       }
-    } catch (e) {
+    } catch (e, st) {
       AppLogger.warning(
         'فشل قراءة الحسابات المخصصة المحفوظة',
         tag: 'AUTH',
@@ -187,7 +187,7 @@ class AuthLocalStore {
         );
       }
       return cloudAccounts;
-    } catch (e) {
+    } catch (e, st) {
       AppLogger.warning(
         'Failed to load cloud users (fallback to local only)',
         tag: 'AUTH',
@@ -246,7 +246,7 @@ class AuthLocalStore {
         final permsJson = account['permissions_json'] as String? ?? '[]';
         final parsed = jsonDecode(permsJson);
         perms = (parsed as List).map((e) => e.toString()).toList();
-      } catch (e) {
+      } catch (e, st) {
         AppLogger.warning(
           'فشل تحليل صلاحيات المستخدم السحابي، سيتم استخدام صلاحيات احتياطية',
           tag: 'AUTH',
@@ -270,7 +270,7 @@ class AuthLocalStore {
             break;
           }
         }
-      } catch (e) {
+      } catch (e, st) {
         AppLogger.warning(
           'تعذر حفظ credentials_version للمستخدم $normalized',
           tag: 'AUTH',
@@ -402,7 +402,7 @@ class AuthLocalStore {
         'vectorClock': '{}',
         'deviceId': await _getDeviceId() ?? '',
       });
-    } catch (e) {
+    } catch (e, st) {
       AppLogger.warning(
         'Failed to push user $username to cloud',
         tag: 'AUTH',
@@ -431,7 +431,7 @@ class AuthLocalStore {
         data: data,
       );
       debugPrint('📤 [Auth] User synced to Secondary: $docId');
-    } catch (e) {
+    } catch (e, st) {
       // فشل Secondary غير حرج — Primary لديه البيانات
       debugPrint('⚠️ [Auth] Secondary sync failed for user $docId: $e');
     }
@@ -454,7 +454,7 @@ class AuthLocalStore {
         data: data,
       );
       debugPrint('📤 [Auth] User updated in Secondary: $docId');
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('⚠️ [Auth] Secondary update failed for user $docId: $e');
     }
   }
@@ -474,7 +474,7 @@ class AuthLocalStore {
         documentId: docId,
       );
       debugPrint('📤 [Auth] User deleted from Secondary: $docId');
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('⚠️ [Auth] Secondary delete failed for user $docId: $e');
     }
   }
@@ -510,7 +510,7 @@ class AuthLocalStore {
           AppLogger.debug('Cloud password migrated for $username', tag: 'AUTH');
         }
       }
-    } catch (e) {
+    } catch (e, st) {
       // فشل الترحيل ليس خطأ قاتلاً — المستخدم يسجّل الدخول بنجاح
       // سنحاول الترحيل مرة أخرى في تسجيل الدخول التالي
       AppLogger.warning(
@@ -583,7 +583,7 @@ class AuthLocalStore {
       await _updateSecondary(docId, data);
 
       return true;
-    } catch (e) {
+    } catch (e, st) {
       AppLogger.error(
         'Failed to update cloud user $username',
         tag: 'AUTH',
@@ -608,7 +608,7 @@ class AuthLocalStore {
       await _deleteFromSecondary(docId);
 
       return true;
-    } catch (e) {
+    } catch (e, st) {
       AppLogger.warning('Failed to delete cloud user', tag: 'AUTH', error: e);
       return false;
     }
@@ -666,7 +666,7 @@ class AuthLocalStore {
         return false;
       }
       return true;
-    } catch (e) {
+    } catch (e, st) {
       AppLogger.warning(
         'Session check failed (ignoring)',
         tag: 'AUTH',
@@ -726,7 +726,7 @@ class AuthLocalStore {
           });
         }
       });
-    } catch (e) {
+    } catch (e, st) {
       // فشل سحب السحابي — لا مشكلة، نعرض المحلي فقط
       AppLogger.warning(
         'فشل سحب الحسابات السحابية أثناء التجميع التفصيلي',
@@ -760,7 +760,7 @@ class AuthLocalStore {
         return json.map((key, value) => MapEntry(key.toString(), value));
       }
       return null;
-    } catch (e) {
+    } catch (e, st) {
       AppLogger.warning(
         'بيانات المستخدم الحالي غير صالحة في التخزين المحلي',
         tag: 'AUTH',
@@ -820,7 +820,7 @@ class AuthLocalStore {
           return parsed.map((e) => e.toString()).toList();
         }
       }
-    } catch (e) {
+    } catch (e, st) {
       AppLogger.warning(
         'تعذر تحميل الصلاحيات من السحابة للمستخدم $username',
         tag: 'AUTH',
@@ -842,7 +842,7 @@ class AuthLocalStore {
         }
       }
       return _fixedPermissions[username] ?? <String>[];
-    } catch (e) {
+    } catch (e, st) {
       AppLogger.warning(
         'تعذر تحليل خريطة الأذونات المحلية للمستخدم $username',
         tag: 'AUTH',
@@ -863,7 +863,7 @@ class AuthLocalStore {
         if (decoded is Map) {
           map = decoded.map((k, v) => MapEntry(k.toString(), v));
         }
-      } catch (e) {
+      } catch (e, st) {
         AppLogger.warning(
           'فشل قراءة بيانات الأذونات المحفوظة',
           tag: 'AUTH',
@@ -907,7 +907,7 @@ class AuthLocalStore {
 
       // ✅ مزامنة Secondary Appwrite: تحديث الصلاحيات في الوجهة الثانوية
       await _updateSecondary(docId, {'permissions': jsonEncode(permissions)});
-    } catch (e) {
+    } catch (e, st) {
       AppLogger.warning(
         'Failed to update cloud permissions for $username',
         tag: 'AUTH',
@@ -930,7 +930,7 @@ class AuthLocalStore {
             names.add(k.toString());
           }
         }
-      } catch (e) {
+      } catch (e, st) {
         AppLogger.warning(
           'فشل قراءة أسماء المستخدمين من الأذونات',
           tag: 'AUTH',
@@ -943,7 +943,7 @@ class AuthLocalStore {
     try {
       final cloudAccounts = await loadCloudAccounts();
       names.addAll(cloudAccounts.keys);
-    } catch (e) {
+    } catch (e, st) {
       AppLogger.warning(
         'تعذر إضافة المستخدمين السحابيين إلى قائمة الأسماء',
         tag: 'AUTH',
@@ -972,7 +972,7 @@ class AuthLocalStore {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString('appwrite_device_id') ??
           prefs.getString('appwrite_realtime_device_id');
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('⚠️ Swallowed error in auth_local_store.dart: ');
       return null;
     }

@@ -375,7 +375,7 @@ class PaymentsRepository {
             roomNumber = booking.roomNumber;
             guestName = booking.guestName;
           }
-        } catch (e) {
+        } catch (e, st) {
       debugPrint('⚠️ Swallowed error in payments_repository.dart: ');}
       }
 
@@ -394,7 +394,7 @@ class PaymentsRepository {
           paymentMethod: payment.paymentMethod,
         ),
       );
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('⚠️ فشل إرسال إشعار الدفعة: $e');
     }
   }

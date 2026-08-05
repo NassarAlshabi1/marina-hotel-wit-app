@@ -195,7 +195,7 @@ class GoogleDriveBackupService {
     if (account == null) {
       try {
         account = await _signInManager.signInSilently();
-      } catch (e) {
+      } catch (e, st) {
         _log('⚠️ فشل signInSilently أثناء تحديث الاعتماديات: $e');
       }
     }
@@ -221,7 +221,7 @@ class GoogleDriveBackupService {
     for (var attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         return await action();
-      } on drive.DetailedApiRequestError catch (e) {
+      } on drive.DetailedApiRequestError catch (e, st) {
         final isAuthError = e.status == 401 || e.status == 403;
         final isRateLimit = e.status == 429 || e.status == 503;
         if (!isAuthError && !isRateLimit) rethrow;
@@ -267,7 +267,7 @@ class GoogleDriveBackupService {
       }
 
       return account;
-    } catch (e) {
+    } catch (e, st) {
       final arabicError = _getArabicErrorMessage(e);
       _log('❌ خطأ في تسجيل الدخول في Google Drive: $arabicError');
       _log('❌ تفاصيل الخطأ التقنية: $e');
@@ -296,7 +296,7 @@ class GoogleDriveBackupService {
         _log('ℹ️ لا توجد جلسة محفوظة');
         return null;
       }
-    } catch (e) {
+    } catch (e, st) {
       _log('⚠️ فشلت استعادة الجلسة: $e');
       return null;
     }
@@ -317,7 +317,7 @@ class GoogleDriveBackupService {
 
       _log('⚠️ لا توجد جلسة محفوظة للدخول الهادئ');
       return false;
-    } catch (e) {
+    } catch (e, st) {
       _log('❌ signInSilently error: $e');
       return false;
     }
@@ -330,7 +330,7 @@ class GoogleDriveBackupService {
       _backupFolderId = null;
       _log('✅ تم تسجيل الخروج من Google Drive');
       _logger.info('تم تسجيل الخروج من Google Drive', tag: 'AUTH');
-    } catch (e) {
+    } catch (e, st) {
       _log('❌ خطأ في تسجيل الخروج: $e');
       rethrow;
     }
@@ -370,7 +370,7 @@ class GoogleDriveBackupService {
         }
 
         return _backupFolderId!;
-      } catch (e) {
+      } catch (e, st) {
         _log('❌ خطأ في إنشاء/العثور على مجلد النسخ الاحتياطية: $e');
         rethrow;
       }
@@ -556,7 +556,7 @@ class GoogleDriveBackupService {
 
       _log('✅ تم تصدير البيانات: $totalRecords سجل');
       return backupData;
-    } catch (e) {
+    } catch (e, st) {
       _log('❌ خطأ في تصدير البيانات: $e');
       rethrow;
     }
@@ -737,7 +737,7 @@ class GoogleDriveBackupService {
           throw Exception('فشل في الحصول على معرف الملف المرفوع');
         }
         return fileId;
-      } catch (e) {
+      } catch (e, st) {
         _log('❌ خطأ في رفع النسخة الاحتياطية: $e');
 
         // حذف النسخة الجزئية إذا كانت موجودة
@@ -824,7 +824,7 @@ class GoogleDriveBackupService {
         'message': 'النسخة مكتملة',
         'actual_size': actualSize,
       };
-    } catch (e) {
+    } catch (e, st) {
       return {'is_complete': false, 'message': 'فشل التحقق: $e'};
     }
   }
@@ -978,7 +978,7 @@ class GoogleDriveBackupService {
           } finally {
             await checkpointDb.close();
           }
-        } catch (e) {
+        } catch (e, st) {
           _log('⚠️ WAL checkpoint failed before .db upload (proceeding): $e');
         }
 
@@ -1030,7 +1030,7 @@ class GoogleDriveBackupService {
 
         _log('✅ تم رفع نسخة .db: ${uploadedFile.id}');
         return uploadedFile.id!;
-      } catch (e) {
+      } catch (e, st) {
         _log('❌ خطأ في رفع نسخة .db: $e');
         rethrow;
       }
@@ -1115,7 +1115,7 @@ class GoogleDriveBackupService {
         await tempFile.delete();
 
         _log('✅ تم استعادة نسخة .db بنجاح');
-      } catch (e) {
+      } catch (e, st) {
         _log('❌ خطأ في استعادة نسخة .db: $e');
         rethrow;
       }
@@ -1309,10 +1309,10 @@ class GoogleDriveBackupService {
                   Map<String, dynamic>.from(noteJson as Map),
                   src: Source.drive,
                 );
-              } on InvalidDataException catch (e) {
+              } on InvalidDataException catch (e, st) {
                 skippedNotes++;
                 _log('⚠️ تم تخطي ملاحظة حجز بسبب FK مفقود: $e');
-              } catch (e) {
+              } catch (e, st) {
                 _log('⚠️ فشل استعادة ملاحظة حجز: $e');
               }
             }
@@ -1330,10 +1330,10 @@ class GoogleDriveBackupService {
                   Map<String, dynamic>.from(nightJson as Map),
                   src: Source.drive,
                 );
-              } on InvalidDataException catch (e) {
+              } on InvalidDataException catch (e, st) {
                 skippedNights++;
                 _log('⚠️ تم تخطي ليلة حجز بسبب FK مفقود: $e');
-              } catch (e) {
+              } catch (e, st) {
                 _log('⚠️ فشل استعادة ليلة حجز: $e');
               }
             }
@@ -1428,10 +1428,10 @@ class GoogleDriveBackupService {
                   Map<String, dynamic>.from(debtJson as Map),
                   src: Source.drive,
                 );
-              } on InvalidDataException catch (e) {
+              } on InvalidDataException catch (e, st) {
                 skippedDebts++;
                 _log('⚠️ تم تخطي دين بسبب FK مفقود: $e');
-              } catch (e) {
+              } catch (e, st) {
                 _log('⚠️ فشل استعادة دين: $e');
               }
             }
@@ -1498,12 +1498,12 @@ class GoogleDriveBackupService {
                   Map<String, dynamic>.from(salaryJson as Map),
                   src: Source.drive,
                 );
-              } on InvalidDataException catch (e) {
+              } on InvalidDataException catch (e, st) {
                 skippedPayments++;
                 _log(
                   '⚠️ تم تخطي دفعة راتب بسبب بيانات غير صالحة (FK مفقود): $e',
                 );
-              } catch (e) {
+              } catch (e, st) {
                 _log('⚠️ فشل استعادة دفعة راتب: $e');
               }
             }
@@ -1524,12 +1524,12 @@ class GoogleDriveBackupService {
                   Map<String, dynamic>.from(wJson as Map),
                   src: Source.drive,
                 );
-              } on InvalidDataException catch (e) {
+              } on InvalidDataException catch (e, st) {
                 skippedWithdrawals++;
                 _log(
                   '⚠️ تم تخطي سحب راتب بسبب بيانات غير صالحة (FK مفقود): $e',
                 );
-              } catch (e) {
+              } catch (e, st) {
                 _log('⚠️ فشل استعادة سحب راتب: $e');
               }
             }
@@ -1549,7 +1549,7 @@ class GoogleDriveBackupService {
                   Map<String, dynamic>.from(cJson as Map),
                   src: Source.drive,
                 );
-              } catch (e) {
+              } catch (e, st) {
                 _log('⚠️ فشل استعادة سجل ترحيل راتب: $e');
               }
             }
@@ -1747,7 +1747,7 @@ class GoogleDriveBackupService {
                   await AutoBackupTask.cancelScheduled();
                 }
               }
-            } catch (e) {
+            } catch (e, st) {
               _log('⚠️ خطأ في تطبيق الإعدادات المستعادة: $e');
             }
           }
@@ -1784,7 +1784,7 @@ class GoogleDriveBackupService {
           } else {
             _log('✅ التحقق من FK: لا توجد انتهاكات');
           }
-        } catch (e) {
+        } catch (e, st) {
           _log('⚠️ تعذر التحقق من سلامة FK: $e');
         }
       }
@@ -1836,7 +1836,7 @@ class GoogleDriveBackupService {
         } else {
           _log('ℹ️ مزامنة Appwrite معطلة');
         }
-      } catch (e) {
+      } catch (e, st) {
         _log('⚠️ خطأ في مزامنة Appwrite: $e');
         _logger.warning(
           'فشلت مزامنة Appwrite بعد الاستعادة: $e',
@@ -1844,7 +1844,7 @@ class GoogleDriveBackupService {
         );
         debugPrint('Stack trace: $st');
       }
-    } catch (e) {
+    } catch (e, st) {
       _log('❌ خطأ في استعادة البيانات: $e');
       rethrow;
     }
@@ -1911,7 +1911,7 @@ class GoogleDriveBackupService {
       );
 
       _log('✅ تم جدولة النسخ التلقائي: $frequency في $timeString');
-    } catch (e) {
+    } catch (e, st) {
       _log('❌ خطأ في جدولة النسخ التلقائي: $e');
     }
   }
@@ -1920,7 +1920,7 @@ class GoogleDriveBackupService {
     try {
       await Workmanager().cancelByUniqueName(AutoBackupTask.taskId);
       _log('✅ تم إلغاء النسخ التلقائي');
-    } catch (e) {
+    } catch (e, st) {
       _log('❌ خطأ في إلغاء النسخ التلقائي: $e');
     }
   }
@@ -1938,7 +1938,7 @@ class GoogleDriveBackupService {
       final fileId = await uploadBackup(backupData);
 
       _log('✅ تم النسخ التلقائي بنجاح: $fileId');
-    } catch (e) {
+    } catch (e, st) {
       _log('❌ خطأ في النسخ التلقائي: $e');
     }
   }
@@ -2005,7 +2005,7 @@ class GoogleDriveBackupService {
       final backupData = await exportDatabaseToJson();
       final jsonString = const JsonEncoder().convert(backupData);
       return utf8.encode(jsonString).length;
-    } catch (e) {
+    } catch (e, st) {
       _log('❌ خطأ في تقدير حجم قاعدة البيانات: $e');
       return 0;
     }
@@ -2090,7 +2090,7 @@ class GoogleDriveBackupService {
           try {
             await deleteBackupFile(backup.fileId);
             deletedCount++;
-          } catch (e) {
+          } catch (e, st) {
             _log('⚠️ فشل حذف النسخة ${backup.fileName}: $e');
           }
         }
@@ -2111,7 +2111,7 @@ class GoogleDriveBackupService {
       }
 
       return deletedCount;
-    } catch (e) {
+    } catch (e, st) {
       _log('❌ خطأ في تنظيف النسخ القديمة: $e');
       rethrow;
     }
@@ -2161,7 +2161,7 @@ class GoogleDriveBackupService {
             incompleteBackups.add(backup);
             continue;
           }
-        } catch (e) {
+        } catch (e, st) {
           _log('⚠️ فشل قراءة النسخة (قد تكون تالفة): ${backup.fileName} - $e');
           incompleteBackups.add(backup);
           continue;
@@ -2185,14 +2185,14 @@ class GoogleDriveBackupService {
         try {
           await deleteBackupFile(backup.fileId);
           deletedCount++;
-        } catch (e) {
+        } catch (e, st) {
           _log('⚠️ فشل حذف النسخة الناقصة ${backup.fileName}: $e');
         }
       }
 
       _log('✅ تم حذف $deletedCount نسخة ناقصة');
       return deletedCount;
-    } catch (e) {
+    } catch (e, st) {
       _log('❌ خطأ في فحص النسخ الناقصة: $e');
       return 0;
     }
@@ -2235,7 +2235,7 @@ class GoogleDriveBackupService {
         'oldest_backup_name': backups.last.fileName,
         'newest_backup_name': backups.first.fileName,
       };
-    } catch (e) {
+    } catch (e, st) {
       _log('❌ خطأ في الحصول على إحصائيات النسخ: $e');
       return {};
     }
@@ -2296,7 +2296,7 @@ class GoogleDriveBackupService {
       if (relinked > 0) {
         _log('🔗 تم إعادة ربط $relinked دفعة بالحجوزات بنجاح');
       }
-    } catch (e) {
+    } catch (e, st) {
       _log('⚠️ فشل إعادة ربط المدفوعات: $e');
     }
   }
@@ -2343,7 +2343,7 @@ class GoogleDriveBackupService {
       if (relinked > 0) {
         _log('🔗 تم إعادة ربط $relinked دين بالحجوزات بنجاح');
       }
-    } catch (e) {
+    } catch (e, st) {
       _log('⚠️ فشل إعادة ربط الديون: $e');
     }
   }

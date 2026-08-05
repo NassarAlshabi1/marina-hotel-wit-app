@@ -278,7 +278,7 @@ class SyncErrorRecovery {
         message: 'لم يتم تنفيذ أي إجراء',
         duration: DateTime.now().difference(startTime),
       );
-    } catch (e) {
+    } catch (e, st) {
       return RecoveryResult(
         success: false,
         actionTaken: action,
@@ -311,7 +311,7 @@ class SyncErrorRecovery {
       }
 
       debugPrint('📍 [Recovery] نقطة استعادة: $description');
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('⚠️ [Recovery] فشل إنشاء نقطة الاستعادة: $e');
     }
   }
@@ -329,7 +329,7 @@ class SyncErrorRecovery {
       await database.applyMergedData(point.snapshot);
       debugPrint('✅ [Recovery] تم الاستعادة من: ${point.description}');
       return true;
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('❌ [Recovery] فشل الاستعادة: $e');
       return false;
     }

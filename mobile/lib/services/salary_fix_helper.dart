@@ -86,7 +86,7 @@ class SalaryFixHelper {
 
       // 2. ضبط الـ flag (حتى لو لم يجد شيئاً — لا حاجة للتكرار).
       await prefs.setBool(_fixDoneKey, true);
-    } catch (e) {
+    } catch (e, st) {
       AppLogger.error(
         '❌ Salary fix failed — will retry on next sync.',
         error: e,
@@ -199,7 +199,7 @@ class SalaryFixHelper {
         if (swRow != null) {
           employeeIdFromWithdrawal = swRow.read<int>('employee_id');
         }
-      } catch (e) {
+      } catch (e, st) {
       debugPrint('⚠️ Swallowed error in salary_fix_helper.dart: ');
         // العمود expense_id قد لا يكون موجوداً في DBs القديمة جداً
         // (أُضيف في migration 40) — ننتقل للـ fallback.

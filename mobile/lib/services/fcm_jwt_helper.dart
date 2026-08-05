@@ -196,7 +196,7 @@ class FcmJwtHelper {
         accessToken: accessToken,
         expiresAt: DateTime.now().add(Duration(seconds: expiresIn)),
       );
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('⚠️ FcmJwtHelper: OAuth2 token request error: $e\n$st');
       return null;
     }
@@ -475,7 +475,7 @@ _RsaComponents _extractRsaComponents(List<int> derBytes) {
       primeP: p,
       primeQ: q,
     );
-  } catch (e) {
+  } catch (e, st) {
       debugPrint('⚠️ Swallowed error in fcm_jwt_helper.dart: ');
     // ليست PKCS#8 — جرب PKCS#1
   }

@@ -175,7 +175,7 @@ class FcmSender {
         FcmServiceAccountCredentials creds;
         try {
           creds = FcmServiceAccountCredentials.fromBase64(raw);
-        } catch (e) {
+        } catch (e, st) {
       debugPrint('⚠️ Swallowed error in fcm_sender.dart: ');
           // ربما JSON خام — جرّب مباشرة
           creds = FcmServiceAccountCredentials.fromJsonString(raw);
@@ -260,7 +260,7 @@ class FcmSender {
               '${response.statusCode} ${response.body}',
             );
           }
-        } catch (e) {
+        } catch (e, st) {
           failure++;
           debugPrint('⚠️ FCM v1: send to token failed: $e');
         }
@@ -270,7 +270,7 @@ class FcmSender {
         '✅ FCM v1 sent: $success success, $failure failure '
         '(event=$eventTypeString, recipients=${tokens.length})',
       );
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('⚠️ FCM v1 sender error: $e\n$st');
       unawaited(
         CrashlyticsService.instance.recordSyncError(
@@ -358,7 +358,7 @@ class FcmSender {
           ),
         );
       }
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('⚠️ FCM sender error: $e');
       unawaited(
         CrashlyticsService.instance.recordSyncError(
@@ -402,7 +402,7 @@ class FcmSender {
 
       debugPrint('⚠️ FCM sender: devices/tokens returned ${response.statusCode}');
       return [];
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('⚠️ FCM sender: failed to fetch device tokens: $e');
       return [];
     }
@@ -416,7 +416,7 @@ class FcmSender {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString('appwrite_device_id') ??
           prefs.getString('appwrite_realtime_device_id');
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('⚠️ Swallowed error in fcm_sender.dart: ');
       return null;
     }

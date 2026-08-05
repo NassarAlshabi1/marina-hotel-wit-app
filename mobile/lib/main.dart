@@ -94,7 +94,7 @@ Future<void> main() async {
       sqflite_ffi.sqfliteFfiInit();
       sqflite_ffi.databaseFactory = sqflite_ffi.databaseFactoryFfi;
       debugPrint('✅ sqflite_common_ffi initialized for desktop');
-    } catch (e) {
+    } catch (e, st) {
       debugPrint( 'sqflite_common_ffi init failed: $e');
     }
   }
@@ -103,7 +103,7 @@ Future<void> main() async {
   try {
     await Firebase.initializeApp();
     debugPrint('✅ Firebase Core initialized');
-  } catch (e) {
+  } catch (e, st) {
     debugPrint( 'Firebase Core initialization failed: $e');
     debugPrint('ℹ️ التطبيق يعمل بالإعدادات المحلية بدون Firebase');
   }
@@ -229,7 +229,7 @@ void _startHealthChecker() {
     /// للتراجع: أزل المعامل interval للعودة للافتراضي (30 ثانية).
     // notifier.startPeriodicCheck(interval: const Duration(minutes: 5));
     debugPrint('🏥 [Main] Health checker started (5min interval)');
-  } catch (e) {
+  } catch (e, st) {
     debugPrint( '[Main] Health checker init failed: $e');
   }
 }
@@ -240,7 +240,7 @@ Future<void> _initializeSecondarySync() async {
   try {
     // SecondaryAppwriteConfig removed (Cloudflare migration)
     debugPrint('🔵 [Main] Secondary sync disabled or not configured');
-  } catch (e) {
+  } catch (e, st) {
     debugPrint( '[Main] Secondary sync init failed: $e');
   }
 }
@@ -278,7 +278,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       } else {
         debugPrint('ℹ️ لا توجد جلسة محفوظة - المستخدم يحتاج لتسجيل دخول يدوي');
       }
-    } catch (e) {
+    } catch (e, st) {
       debugPrint( 'فشلت استعادة الجلسة: $e');
     }
 
@@ -323,7 +323,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     try {
       await SyncGuardian.instance.initialize(database: database);
       debugPrint('✅ SyncGuardian initialized');
-    } catch (e) {
+    } catch (e, st) {
       debugPrint( 'SyncGuardian init failed (non-fatal): $e');
     }
 
@@ -340,7 +340,7 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       // تسجيل فحص دوري للمزامنات المعلّقة (كل 15 دقيقة)
       await SyncContinuationService.schedulePeriodicCheck();
       debugPrint('✅ WorkManager + SyncContinuationService initialized');
-    } catch (e) {
+    } catch (e, st) {
       debugPrint( 'WorkManager init failed (non-fatal): $e');
     }
 
@@ -576,7 +576,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
               deviceId: AppwriteSyncManager.currentDeviceIdStatic!,
             );
             debugPrint('🔄 Migration: ${result.totalPushed}/${result.totalRecords} pushed, ${result.totalFailed} failed');
-          } catch (e) {
+          } catch (e, st) {
             debugPrint( '⚠️ Migration error: $e');
           }
         }
@@ -584,7 +584,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         // تسجيل الجهاز تلقائياً
         try {
           await syncManager.registerDevice();
-        } catch (e) {
+        } catch (e, st) {
           debugPrint( 'Device registration error: $e');
         }
 
@@ -593,14 +593,14 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         // (مكمّلة لـ FCM الذي يُرسل للأجهزة الأخرى).
         try {
           await LocalNotificationService.instance.initialize();
-        } catch (e) {
+        } catch (e, st) {
           debugPrint( 'Local notifications init error: $e');
         }
 
         // تهيئة FCM للإشعارات بين الأجهزة
         try {
           await _initializeFcm(syncManager);
-        } catch (e) {
+        } catch (e, st) {
           debugPrint( 'FCM initialization error: $e');
         }
 
@@ -663,7 +663,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
             );
             debugPrint('✅ Initial sync on app start completed');
           }
-        } catch (e) {
+        } catch (e, st) {
           debugPrint( 'Initial sync on app start failed: $e');
         }
 
@@ -681,7 +681,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         // Realtime sync started
         // Realtime sync started
         debugPrint('📡 Realtime sync + auto sync started');
-      } catch (e) {
+      } catch (e, st) {
         derr(() => 'Realtime sync init error: $e');
       }
     });
@@ -769,7 +769,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     _localAutoSyncRunning = true;
     try {
       await ref.read(syncServiceProvider).runSync();
-    } catch (e) {
+    } catch (e, st) {
       derr(() => 'Local auto sync error: $e');
     } finally {
       _lastLocalAutoSync = DateTime.now();
@@ -821,7 +821,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       debugPrint(
         '✅ Push on resume completed (pull handled by UnifiedSyncOrchestrator)',
       );
-    } catch (e) {
+    } catch (e, st) {
       debugPrint( 'Sync on resume error: $e');
     }
   }
@@ -844,7 +844,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // مهلة 10 ثوانٍ — إذا لم يكتمل، البيانات محفوظة في outbox
       await syncManager.sync(pull: false).timeout(const Duration(seconds: 10));
       debugPrint('✅ Push on pause completed');
-    } catch (e) {
+    } catch (e, st) {
       // البيانات محفوظة في outbox — لن تُفقد أبداً
       debugPrint( 'Push on pause error (data safe in outbox): $e');
 
@@ -891,80 +891,80 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     debugPrint('🧹 Disposing singleton services...');
     try {
       await FcmService.disposeInstance();
-    } catch (e) {
+    } catch (e, st) {
       debugPrint( 'Error disposing FcmService: $e');
     }
     try {
       await BatteryOptimizer.disposeInstance();
-    } catch (e) {
+    } catch (e, st) {
       debugPrint( 'Error disposing BatteryOptimizer: $e');
     }
     try {
       // Realtime disposed
-    } catch (e) {
+    } catch (e, st) {
       debugPrint( 'Error disposing realtime: $e');
     }
     try {
       await SyncPerformanceOptimizer.disposeInstance();
-    } catch (e) {
+    } catch (e, st) {
       debugPrint( 'Error disposing SyncPerformanceOptimizer: $e');
     }
     try {
       await SmartSyncManager.disposeInstance();
-    } catch (e) {
+    } catch (e, st) {
       debugPrint( 'Error disposing SmartSyncManager: $e');
     }
     try {
       ConnectivityService.instance.dispose();
-    } catch (e) {
+    } catch (e, st) {
       debugPrint( 'Error disposing ConnectivityService: $e');
     }
     try {
       HotelDayTicker.instance.dispose();
-    } catch (e) {
+    } catch (e, st) {
       debugPrint( 'Error disposing HotelDayTicker: $e');
     }
     try {
       AutoSyncEngine.disposeInstance();
-    } catch (e) {
+    } catch (e, st) {
       debugPrint( 'Error disposing GoogleDriveAutoSyncEngine: $e');
     }
     try {
       UnifiedSyncOrchestrator.disposeInstance();
-    } catch (e) {
+    } catch (e, st) {
       debugPrint( 'Error disposing UnifiedSyncOrchestrator: $e');
     }
     try {
       GoogleDriveUnifiedSyncCoordinator.disposeInstance();
-    } catch (e) {
+    } catch (e, st) {
       debugPrint( 'Error disposing GoogleDriveUnifiedSyncCoordinator: $e');
     }
     try {
       CentralSyncCoordinator.disposeInstance();
-    } catch (e) {
+    } catch (e, st) {
       debugPrint( 'Error disposing CentralSyncCoordinator: $e');
     }
     try {
       BackgroundSyncService.disposeInstance();
-    } catch (e) {
+    } catch (e, st) {
       debugPrint( 'Error disposing BackgroundSyncService: $e');
     }
     // ✅ تنظيف خدمات إضافية كانت تتسرب StreamController
     try {
       SyncConflictEventBus.instance.dispose();
-    } catch (e) {
+    } catch (e, st) {
       debugPrint( 'Error disposing SyncConflictEventBus: $e');
     }
     // ✅ Batch 3: تنظيف AutoBackupManager timers + SmartSyncManager timers
     try {
       AutoBackupManager.disposeInstance();
-    } catch (e) {
+    } catch (e, st) {
       debugPrint( 'Error disposing AutoBackupManager: $e');
     }
     // ✅ Batch 3: تنظيف SyncGuardian timer + StreamController
     try {
       await SyncGuardian.disposeInstance();
-    } catch (e) {
+    } catch (e, st) {
       debugPrint( 'Error disposing SyncGuardian: $e');
     }
     debugPrint('✅ All singleton services disposed');
@@ -1264,7 +1264,7 @@ void _unifiedCallbackDispatcher() {
     try {
       // SecondaryAppwriteConfig removed (Cloudflare migration)
       // AppwriteConfigManager removed
-    } catch (e) {
+    } catch (e, st) {
       developer.log('⚠️ [WorkManager] Init failed: $e', name: 'WorkManager');
     }
 
@@ -1298,7 +1298,7 @@ void _unifiedCallbackDispatcher() {
           );
           return await _executeLegacySyncTask(task, inputData);
       }
-    } catch (e) {
+    } catch (e, st) {
       developer.log(
         '❌ [WorkManager] Task $task failed',
         name: 'WorkManager',
@@ -1382,7 +1382,7 @@ Future<bool> _executeSyncCompletionTask(
     }
 
     return success;
-  } catch (e) {
+  } catch (e, st) {
     developer.log(
       '❌ [SyncContinuation] فشل',
       name: 'SyncContinuation',
@@ -1419,7 +1419,7 @@ Future<bool> _executeAutoSyncTask(
     await prefs.setBool('auto_sync_pending', !success);
 
     return success;
-  } catch (e) {
+  } catch (e, st) {
     developer.log(
       '❌ [AutoSyncTask] فشل',
       name: 'AutoSyncTask',
@@ -1440,7 +1440,7 @@ Future<bool> _executeBackupAfterInactivity(
       reason: 'workmanager_backup_inactivity',
     );
     return success;
-  } catch (e) {
+  } catch (e, st) {
     developer.log(
       '❌ [BackupInactivity] فشل',
       name: 'BackupInactivity',
@@ -1461,7 +1461,7 @@ Future<bool> _executeLegacySyncTask(
       reason: 'workmanager_legacy_$task',
     );
     return success;
-  } catch (e) {
+  } catch (e, st) {
     developer.log(
       '❌ [LegacySync] فشل ($task)',
       name: 'LegacySync',

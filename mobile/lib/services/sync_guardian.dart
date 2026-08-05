@@ -104,11 +104,11 @@ class SyncGuardian {
           await AutoSyncTask.scheduleImmediateSync();
         }
         _pendingChangesCount = 0;
-      } catch (e) {
+      } catch (e, st) {
         dwarn(() => 'فشل رفع التغييرات: $e');
         try {
           await AutoSyncTask.scheduleImmediateSync();
-        } catch (e) {
+        } catch (e, st) {
           AppLogger.warning(
             'فشل فحص حماية المزامنة',
             tag: 'SYNC_GUARD',
@@ -143,7 +143,7 @@ class SyncGuardian {
     Future<void>.delayed(SyncConstants.appForegroundDelay, () async {
       try {
         await _orchestrator!.onAppForeground();
-      } catch (e) {
+      } catch (e, st) {
         _log('⚠️ فشل سحب التغييرات: $e');
       }
     });
@@ -189,7 +189,7 @@ class SyncGuardian {
         } else {
           _emitHealth();
         }
-      } catch (e) {
+      } catch (e, st) {
         _log('⚠️ SyncGuardian pending monitor خطأ: $e');
         // لا rethrow — نمنع fatal crash
       }

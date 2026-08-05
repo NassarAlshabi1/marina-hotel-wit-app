@@ -54,7 +54,7 @@ class SqliteBackupRestore {
             await documentsTarget.create(recursive: true);
           }
           return documentsTarget;
-        } catch (e) {
+        } catch (e, st) {
           debugPrint(
             '⚠️ Failed to access default backup dir, falling back: $e',
           );
@@ -78,7 +78,7 @@ class SqliteBackupRestore {
         final downloadsDir = await getDownloadsDirectory();
         dir = downloadsDir ?? await getApplicationDocumentsDirectory();
       }
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('⚠️ Failed to resolve user dir, falling back to app docs: $e');
     }
 
@@ -125,7 +125,7 @@ class SqliteBackupRestore {
 
       debugPrint('✅ SQLite backup created at: $destPath');
       return destPath;
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('❌ Failed to backup database: $e\n$st');
       rethrow;
     }
@@ -147,7 +147,7 @@ class SqliteBackupRestore {
         await db.close();
       }
       debugPrint('✅ WAL checkpoint (TRUNCATE) completed before backup');
-    } catch (e) {
+    } catch (e, st) {
       // checkpoint فشل — لا نمنع النسخة الاحتياطية، لكن نسجّل التحذير
       debugPrint('⚠️ WAL checkpoint failed (proceeding with backup): $e');
     }
@@ -244,7 +244,7 @@ class SqliteBackupRestore {
           try {
             await sidecar.delete();
             debugPrint('🧹 حذف ملف $suffix القديم قبل إعادة الفتح');
-          } catch (e) {
+          } catch (e, st) {
             debugPrint(
               '⚠️ فشل حذف $suffix القديم: $e — قد يسبب مشاكل عند الفتح',
             );
@@ -260,7 +260,7 @@ class SqliteBackupRestore {
       }
 
       debugPrint('✅ SQLite database restored from: $sourcePath');
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('❌ Failed to restore database: $e\n$st');
       rethrow;
     }

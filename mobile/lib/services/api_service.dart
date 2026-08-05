@@ -42,7 +42,7 @@ class ApiService {
             try {
               final req = await _retryRequest(e.requestOptions);
               return handler.resolve(req);
-            } catch (e) {
+            } catch (e, st) {
               AppLogger.error(
                 'فشل إعادة محاولة الطلب',
                 tag: 'API',
@@ -118,7 +118,7 @@ class ApiService {
         return resData['success'] == true;
       }
       return false;
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('⚠️ Swallowed error in api_service.dart: ');
       return false;
     }

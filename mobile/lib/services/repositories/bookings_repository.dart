@@ -442,7 +442,7 @@ class BookingsRepository {
           nights: nights,
         ),
       );
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('⚠️ فشل إرسال إشعار الحجز الجديد: $e');
     }
   }
@@ -499,7 +499,7 @@ class BookingsRepository {
           ),
         );
       }
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('⚠️ فشل إرسال إشعار تحديث الحجز: $e');
     }
   }

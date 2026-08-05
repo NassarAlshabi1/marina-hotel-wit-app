@@ -87,7 +87,7 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
         return await db
             .into(table)
             .insert(comp, onConflict: DoUpdate((_) => comp, target: target));
-      } catch (e) {
+      } catch (e, st) {
         lastError = e;
         lastStack = st;
         if (_isUniqueConstraintError(e)) {
@@ -330,7 +330,7 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
         if (allUuids.isNotEmpty) {
           existingUuidToId = await _batchFindByLocalUuid(allUuids);
         }
-      } catch (e) {
+      } catch (e, st) {
         developer.log(
           'Batch UUID lookup failed for ${table.actualTableName}, '
           'falling back to per-row lookup: $e',
@@ -389,7 +389,7 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
 
         final comp = adapter.fromJson(jsonCopy, src: src, refs: refs);
         companions.add(comp);
-      } catch (e) {
+      } catch (e, st) {
         developer.log(
           'Pre-resolve failed for row in ${table.actualTableName}',
           error: e,
@@ -424,7 +424,7 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
           (b) => b.insertAll(table, chunk, mode: InsertMode.insertOrReplace),
         );
         inserted += chunk.length;
-      } catch (e) {
+      } catch (e, st) {
         // ✅ fallback: عند فشل chunk كامل، نتراجع للإدراج صف-بصف
         // للحفاظ على عزل الأخطاء (skip bad row, continue)
         developer.log(

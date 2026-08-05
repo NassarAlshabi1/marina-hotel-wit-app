@@ -88,7 +88,7 @@ class LocalBackupService {
         }
       }
       return true; // على iOS أو منصات أخرى
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('❌ خطأ في التحقق من الأذونات: $e');
       return false;
     }
@@ -122,7 +122,7 @@ class LocalBackupService {
       await prefs.setString(_prefsLocalBackupPathKey, _backupDirectory!.path);
 
       return _backupDirectory!;
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('❌ خطأ في إنشاء مجلد النسخ الاحتياطي: $e');
       rethrow;
     }
@@ -263,7 +263,7 @@ class LocalBackupService {
 
         try {
           await db.customSelect('PRAGMA wal_checkpoint(FULL)').get();
-        } catch (e) {
+        } catch (e, st) {
           AppLogger.error(
             'فشل تنفيذ WAL checkpoint',
             tag: 'BACKUP',
@@ -273,7 +273,7 @@ class LocalBackupService {
         }
         try {
           await db.customStatement('VACUUM');
-        } catch (e) {
+        } catch (e, st) {
           AppLogger.error(
             'فشل تنفيذ VACUUM',
             tag: 'BACKUP',
@@ -301,7 +301,7 @@ class LocalBackupService {
       throw UnsupportedError(
         'تنسيق النسخة الاحتياطية غير مدعوم: ${format.name}',
       );
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('❌ خطأ في إنشاء النسخة الاحتياطية المحلية: $e');
       rethrow;
     }
@@ -433,7 +433,7 @@ class LocalBackupService {
           backupFiles.add(
             LocalBackupFile.fromFile(file, metadata: metadata, format: format),
           );
-        } catch (e) {
+        } catch (e, st) {
           debugPrint('⚠️ خطأ في قراءة ملف النسخة الاحتياطية ${file.path}: $e');
           backupFiles.add(LocalBackupFile.fromFile(file, format: format));
         }
@@ -444,7 +444,7 @@ class LocalBackupService {
 
       debugPrint('✅ تم جلب ${backupFiles.length} نسخة احتياطية محلية');
       return backupFiles;
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('❌ خطأ في جلب قائمة النسخ الاحتياطية المحلية: $e');
       return [];
     }
@@ -472,7 +472,7 @@ class LocalBackupService {
       throw UnsupportedError(
         'تنسيق النسخة الاحتياطية غير مدعوم للاستعادة: $extension',
       );
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('❌ خطأ في استعادة البيانات من النسخة المحلية: $e');
       rethrow;
     }
@@ -771,7 +771,7 @@ class LocalBackupService {
             name: 'SyncSafety',
           );
         }
-      } catch (e) {
+      } catch (e, st) {
       debugPrint('⚠️ Swallowed error in local_backup_service.dart: ');}
     }
   }
@@ -821,7 +821,7 @@ class LocalBackupService {
         );
       }
       debugPrint('✅ تم التحقق من header SQLite (${bytes.length} بايت)');
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('❌ فشل التحقق من سلامة ملف SQLite: $e');
       rethrow;
     }
@@ -866,7 +866,7 @@ class LocalBackupService {
       );
 
       debugPrint('✅ تم مشاركة النسخة الاحتياطية: $fileName');
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('❌ خطأ في مشاركة النسخة الاحتياطية: $e');
       rethrow;
     }
@@ -963,10 +963,10 @@ class LocalBackupService {
           await metadataFile.writeAsString(jsonEncode(metadata.toJson()));
           debugPrint('✅ تم استيراد النسخة الاحتياطية (SQLite): $newFilePath');
           return newFilePath;
-        } catch (e) {
+        } catch (e, st) {
           try {
             await File(newFilePath).delete();
-          } catch (e) {
+          } catch (e, st) {
             // تجاهل مقصود — تنظيف أفضل جهد
             AppLogger.warning(
               'فشل حذف ملف مؤقت أثناء الاستعادة',
@@ -982,7 +982,7 @@ class LocalBackupService {
       }
 
       throw UnsupportedError('تنسيق الملف غير مدعوم للاستيراد: $extension');
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('❌ خطأ في استيراد النسخة الاحتياطية: $e');
       rethrow;
     }
@@ -1005,7 +1005,7 @@ class LocalBackupService {
         await metadataFile.delete();
         debugPrint('🧹 تم حذف ملف metadata المرافق: $metadataPath');
       }
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('❌ خطأ في حذف النسخة الاحتياطية: $e');
       rethrow;
     }
@@ -1061,7 +1061,7 @@ class LocalBackupService {
 
       debugPrint('✅ تم تصدير النسخة الاحتياطية إلى: $exportPath');
       return exportPath;
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('❌ خطأ في تصدير النسخة الاحتياطية: $e');
       rethrow;
     }
@@ -1132,7 +1132,7 @@ class LocalBackupService {
       }
 
       debugPrint('✅ تم تنظيف ${backupsToDelete.length} نسخة احتياطية قديمة');
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('❌ خطأ في تنظيف النسخ القديمة: $e');
     }
   }
@@ -1142,7 +1142,7 @@ class LocalBackupService {
     try {
       final backups = await listLocalBackups();
       return backups.fold<int>(0, (total, backup) => total + backup.sizeBytes);
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('❌ خطأ في حساب حجم النسخ: $e');
       return 0;
     }
@@ -1162,7 +1162,7 @@ class LocalBackupService {
         'total_size_bytes': totalSize,
         'total_size_mb': (totalSize / (1024 * 1024)).toStringAsFixed(2),
       };
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('❌ خطأ في الحصول على معلومات مجلد النسخ: $e');
       return {};
     }

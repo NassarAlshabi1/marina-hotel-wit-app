@@ -131,7 +131,7 @@ class LocalNotificationService {
 
       _isInitialized = true;
       debugPrint('✅ LocalNotificationService initialized');
-    } catch (e) {
+    } catch (e, st) {
       // لا نمنع التطبيق من العمل إذا فشلت تهيئة الإشعارات المحلية
       debugPrint('⚠️ LocalNotificationService init failed: $e\n$st');
     }
@@ -302,7 +302,7 @@ class LocalNotificationService {
 
       await _plugin.show(id, title, body, details, payload: payload);
       debugPrint('🔔 Local notification: $title — $body');
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('⚠️ Local notification show failed: $e');
     }
   }
@@ -311,7 +311,7 @@ class LocalNotificationService {
   Future<void> cancelAll() async {
     try {
       await _plugin.cancelAll();
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('⚠️ Swallowed error in local_notification_service.dart: ');}
   }
 

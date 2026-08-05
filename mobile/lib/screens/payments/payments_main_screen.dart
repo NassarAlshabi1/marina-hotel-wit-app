@@ -183,7 +183,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
       try {
         final date = DateTime.parse(p.paymentDate);
         return date.isAfter(startOfMonth);
-      } catch (e) {
+      } catch (e, st) {
         return false;
       }
     }).toList();
@@ -331,7 +331,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
         return DateTime.parse(
           b.paymentDate,
         ).compareTo(DateTime.parse(a.paymentDate));
-      } catch (e) {
+      } catch (e, st) {
       debugPrint('⚠️ Swallowed error in payments_main_screen.dart: ');
         return 0;
       }
