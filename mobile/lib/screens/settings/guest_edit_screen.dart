@@ -12,6 +12,7 @@ import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/booking_price_adjustment_service.dart';
+import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart' hide GuestInfo;
 import '../../services/repositories/payments_repository.dart';
 import '../../utils/hotel_time_engine.dart';
@@ -385,6 +386,26 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
               updatedAtIso: Value(nowIso),
             ),
           );
+
+      // ✅ تسجيل في outbox للمزامنة التلقائية مع Cloudflare D1
+      await OutboxDao(db).merge(
+        entity: 'cash_transactions',
+        op: 'create',
+        localUuid: localUuid,
+        clientTs: nowEpoch,
+        payload: {
+          'localUuid': localUuid,
+          'transactionType': 'room_transfer',
+          'amount': 0,
+          'transactionTime': nowIso,
+          'description': description,
+          'referenceType': 'booking',
+          'referenceId': bookingId,
+          'createdAt': nowEpoch,
+          'updatedAt': nowEpoch,
+          'lastModified': nowEpoch,
+        },
+      );
     } catch (_) {
       // سجل التدقيق غير حرج — لا نوقف العملية إذا فشل
     }

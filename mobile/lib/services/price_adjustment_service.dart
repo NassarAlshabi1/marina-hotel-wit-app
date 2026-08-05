@@ -224,11 +224,13 @@ class PriceAdjustmentService {
     required String performedBy,
   }) async {
     final now = DateTime.now();
+    final auditUuid = _uuid.v4();
+    final nowEpoch = Time.nowEpoch();
     await db
         .into(db.auditLogs)
         .insert(
           AuditLogsCompanion(
-            localUuid: Value(_uuid.v4()),
+            localUuid: Value(auditUuid),
             operationType: Value(action),
             entityType: const Value('booking_nights'),
             entityUuid: const Value(''),
@@ -237,12 +239,37 @@ class PriceAdjustmentService {
             performedBy: Value(performedBy),
             deviceId: const Value('app'),
             hotelDayKey: Value(HotelTimeEngine.getHotelDayKey(dateTime: now)),
-            timestamp: Value(Time.nowEpoch()),
+            timestamp: Value(nowEpoch),
             timestampIso: Value(now.toIso8601String()),
             isFinancial: const Value(true),
-            createdAt: Value(Time.nowEpoch()),
+            createdAt: Value(nowEpoch),
           ),
         );
+
+    // ✅ تسجيل في outbox للمزامنة التلقائية مع Cloudflare D1
+    try {
+      await OutboxDao(db).merge(
+        entity: 'audit_logs',
+        op: 'create',
+        localUuid: auditUuid,
+        clientTs: nowEpoch,
+        payload: {
+          'localUuid': auditUuid,
+          'operationType': action,
+          'entityType': 'booking_nights',
+          'entityUuid': '',
+          'newState': details,
+          'performedBy': performedBy,
+          'deviceId': 'app',
+          'hotelDayKey': HotelTimeEngine.getHotelDayKey(dateTime: now),
+          'timestamp': nowEpoch,
+          'isFinancial': true,
+          'createdAt': nowEpoch,
+        },
+      );
+    } catch (e) {
+      debugPrint('⚠️ Failed to merge audit_log to outbox: $e');
+    }
   }
 
   Future<List<PriceAdjustment>> getAdjustmentsForRoom(String roomUuid) async {
