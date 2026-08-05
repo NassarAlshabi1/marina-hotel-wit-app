@@ -12,6 +12,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../screens/settings/error_tracker_screen.dart' show logHttpError, logError, ErrorCategory;
 import '../utils/env.dart';
 import 'cloudflare_config.dart';
 import 'daos/outbox_dao.dart';
@@ -138,9 +139,23 @@ class CloudflareSyncManager {
         } else {
           _initError = 'Login failed: ${response.statusCode}';
           debugPrint('⚠️ Cloudflare login failed: ${response.body}');
+          // ✅ سجل في شاشة تتبع الأخطاء
+          logHttpError(
+            title: 'فشل تسجيل الدخول (Cloudflare)',
+            statusCode: response.statusCode,
+            responseBody: response.body,
+            source: 'sync:login',
+          );
           return;
         }
       } catch (e) {
+        // ✅ سجل في شاشة تتبع الأخطاء
+        logError(
+          title: 'استثناء أثناء تسجيل الدخول',
+          message: e.toString(),
+          category: ErrorCategory.auth,
+          source: 'sync:login',
+        );
         final errStr = e.toString();
         final isTransient = errStr.contains('Failed host lookup') ||
             errStr.contains('No address associated with hostname') ||
@@ -203,6 +218,13 @@ class CloudflareSyncManager {
       debugPrint('✅ Device registered: $_deviceId');
       return _deviceId!;
     }
+    // ✅ سجل في شاشة تتبع الأخطاء
+    logHttpError(
+      title: 'فشل تسجيل الجهاز',
+      statusCode: response.statusCode,
+      responseBody: response.body,
+      source: 'sync:device_register',
+    );
     throw Exception('Device registration failed: ${response.statusCode}');
   }
 
@@ -263,6 +285,20 @@ class CloudflareSyncManager {
       _statusController.add(SyncStatus.failed);
       errorMessage = e.toString();
       _lastError = errorMessage;
+      // ✅ سجل في شاشة تتبع الأخطاء (إذا لم يكن مسجلاً بالفعل)
+      // نتجنب التكرار: login/push/pull يسجلون بمفردهم،
+      // هذا للالتقاط أي استثناء آخر
+      if (!errorMessage.contains('Push failed') &&
+          !errorMessage.contains('Pull failed') &&
+          !errorMessage.contains('Login failed') &&
+          !errorMessage.contains('Device registration')) {
+        logError(
+          title: 'فشل المزامنة',
+          message: errorMessage,
+          category: ErrorCategory.sync,
+          source: 'sync:sync()',
+        );
+      }
     }
 
     return SyncResult(
@@ -343,6 +379,13 @@ class CloudflareSyncManager {
     ).timeout(const Duration(seconds: 30));
 
     if (response.statusCode != 200) {
+      // ✅ سجل في شاشة تتبع الأخطاء
+      logHttpError(
+        title: 'فشل رفع التغييرات (Push)',
+        statusCode: response.statusCode,
+        responseBody: response.body,
+        source: 'sync:push',
+      );
       throw Exception('Push failed: ${response.statusCode}');
     }
 
@@ -402,6 +445,13 @@ class CloudflareSyncManager {
       ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode != 200) {
+        // ✅ سجل في شاشة تتبع الأخطاء
+        logHttpError(
+          title: 'فشل سحب التغييرات (Pull)',
+          statusCode: response.statusCode,
+          responseBody: response.body,
+          source: 'sync:pull',
+        );
         throw Exception('Pull failed: ${response.statusCode}');
       }
 
