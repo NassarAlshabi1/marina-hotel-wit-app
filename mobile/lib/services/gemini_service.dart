@@ -8,6 +8,7 @@ import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
 import 'ai_settings_service.dart';
 import 'booking_derived_fields_service.dart';
+import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'price_adjustment_service.dart';
 
@@ -2072,6 +2073,22 @@ class GeminiService {
                   updatedAtIso: Value(now.toIso8601String()),
                 ),
               );
+          // ✅ تسجيل في outbox للمزامنة التلقائية مع Cloudflare D1
+          await OutboxDao(db).merge(
+            entity: 'expenses',
+            op: 'create',
+            localUuid: uuid,
+            clientTs: now.millisecondsSinceEpoch,
+            payload: {
+              'localUuid': uuid,
+              'expenseType': expenseType,
+              'description': desc,
+              'amount': amount,
+              'date': expenseDate,
+              'hotelDayKey': HotelTimeEngine.getHotelDayKey(),
+              'createdAt': now.millisecondsSinceEpoch,
+            },
+          );
           result = 'تم إضافة مصروف: $desc - ${amount.toStringAsFixed(0)} ريال';
 
         // ═══════════════════════════════════════════════════
@@ -2113,6 +2130,24 @@ class GeminiService {
                   updatedAtIso: Value(now.toIso8601String()),
                 ),
               );
+          // ✅ تسجيل في outbox للمزامنة التلقائية مع Cloudflare D1
+          await OutboxDao(db).merge(
+            entity: 'payments',
+            op: 'create',
+            localUuid: uuid,
+            clientTs: now.millisecondsSinceEpoch,
+            payload: {
+              'localUuid': uuid,
+              'bookingLocalId': activeBooking.id,
+              'roomNumber': roomNumber,
+              'amount': amount,
+              'paymentDate': now.toIso8601String().split('T')[0],
+              'paymentMethod': 'cash',
+              'revenueType': 'room_rent',
+              'notes': notes,
+              'createdAt': now.millisecondsSinceEpoch,
+            },
+          );
           result =
               'تم تسجيل دفعة ${amount.toStringAsFixed(0)} ريال للغرفة $roomNumber';
 
@@ -2347,6 +2382,39 @@ class GeminiService {
               lastModified: Value(now.millisecondsSinceEpoch),
               updatedAtIso: Value(now.toIso8601String()),
             ),
+          );
+
+          // ✅ تسجيل في outbox: الحجز + تحديث الغرفة للمزامنة التلقائية
+          await OutboxDao(db).merge(
+            entity: 'bookings',
+            op: 'create',
+            localUuid: uuid,
+            clientTs: now.millisecondsSinceEpoch,
+            payload: {
+              'localUuid': uuid,
+              'roomNumber': roomNumber,
+              'guestName': guestName,
+              'guestPhone': guestPhone,
+              'guestNationality': guestNationality,
+              'checkinDate': checkinDate,
+              'status': 'checked_in',
+              'expectedNights': expectedNights,
+              'discount': 0,
+              'hotelDayCheckin': checkinDate,
+              'createdAt': now.millisecondsSinceEpoch,
+            },
+          );
+          await OutboxDao(db).merge(
+            entity: 'rooms',
+            op: 'update',
+            localUuid: rooms.first.localUuid,
+            clientTs: now.millisecondsSinceEpoch,
+            payload: {
+              'roomNumber': roomNumber,
+              'status': 'occupied',
+              'price': roomPrice,
+              'lastModified': now.millisecondsSinceEpoch,
+            },
           );
 
           result =

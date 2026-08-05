@@ -20,35 +20,52 @@ void configurePerformance() {
   //  1. Image Cache — حد آمن للأجهزة الضعيفة
   // ═══════════════════════════════════════════════════════════════
   // الافتراضي: 1000 صورة / 100MB — كثير جداً لأجهزة 1-2GB RAM
-  // الحد الجديد: 200 صورة / 20MB — كافٍ لـ UI بدون OOM
-  PaintingBinding.instance.imageCache.maximumSize = 200;
+  // الحد الجديد: 100 صورة / 10MB — كافٍ لـ UI بدون OOM على 1GB RAM
+  PaintingBinding.instance.imageCache.maximumSize = 100;
   PaintingBinding.instance.imageCache.maximumSizeBytes =
-      20 * 1024 * 1024; // 20MB
+      10 * 1024 * 1024; // 10MB
 
   // ═══════════════════════════════════════════════════════════════
-  //  2. تخفيض viewport cache للـ ListView على الأجهزة الضعيفة
+  //  2. تقليل GC pressure — إخلاء image cache عند تحذير الذاكرة
   // ═══════════════════════════════════════════════════════════════
-  // cacheExtent الافتراضي: 250px — معقول، لكن نتحكم به عبر ScrollView
-  // لا نُغيّره هنا بل نُمرره في ListView.builder عبر addAutomaticKeepAlives
+  PaintingBinding.instance.imageCache.clear();
 
   // ═══════════════════════════════════════════════════════════════
-  //  3. Android: garbage collection أكثر عدوانية لتقليل الذاكرة
+  //  3. Android: تقليل استهلاك الذاكرة الإجمالي
   // ═══════════════════════════════════════════════════════════════
   if (Platform.isAndroid) {
-    // لا يوجد API مباشر، لكن تقليل image cache يُساعد
-    debugPrint('🚀 Performance: Android — image cache limited to 20MB');
+    debugPrint('🚀 Performance: Android — image cache limited to 10MB');
+    debugPrint('🚀 Performance: Low-end device optimizations active');
   }
 }
 
-/// تحديد ما إذا كان الجهاز ضعيفاً (يمكن توسيعه بـ device_info_plus)
+/// تحديد ما إذا كان الجهاز ضعيفاً
 /// للأجهزة بـ RAM < 3GB، نُطبّق تحسينات إضافية
 bool get isLowEndDevice {
-  // مؤقتاً: نفترض أن الجهاز ضعيف ونُطبّق التحسينات دائماً
-  // مستقبلاً: استخدم device_info_plus لقراءة RAM الفعلي
+  // نفترض أن الجهاز ضعيف ونُطبّق التحسينات دائماً
+  // هذا أكثر أماناً من افتراض العكس
   return true;
 }
 
 /// cacheExtent مُحسّن لـ ListView.builder
-/// الأجهزة الضعيفة: 200px (أقل = ذاككة أقل = scroll أقل سلاسة)
-/// الأجهزة القوية: 500px (أكثر = scroll أنعم = ذاكرة أكثر)
-double get optimizedCacheExtent => isLowEndDevice ? 200.0 : 500.0;
+/// الأجهزة الضعيفة: 100px (أقل = ذاكرة أقل)
+/// الأجهزة القوية: 500px (أكثر = scroll أنعم)
+double get optimizedCacheExtent => isLowEndDevice ? 100.0 : 500.0;
+
+/// الحد الأقصى للعناصر في ListView قبل التحميل الكسول
+int get maxEagerItems => isLowEndDevice ? 20 : 50;
+
+/// تأخير debounce للمزامنة التلقائية
+/// الأجهزة الضعيفة: 5 ثوانٍ (أقل ضغط على المعالج)
+/// الأجهزة القوية: 2 ثانية
+Duration get syncDebounceDuration =>
+    isLowEndDevice ? const Duration(seconds: 5) : const Duration(seconds: 2);
+
+/// هل نُفعّل PerformanceInspector في الـ UI؟
+/// فقط في debug mode — في production يُعطّل لتوفير الذاكرة
+bool get enablePerformanceInspector => false;
+
+/// الحد الأقصى لعدد StreamBuilders النشطة في نفس الوقت
+/// الأجهزة الضعيفة: 5 (يقلل إعادة البناء)
+/// الأجهزة القوية: 20
+int get maxActiveStreams => isLowEndDevice ? 5 : 20;
