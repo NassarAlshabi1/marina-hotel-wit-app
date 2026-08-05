@@ -675,8 +675,21 @@ class CloudflareSyncManager {
     _statusController.add(SyncStatus.idle);
   }
 
+  /// إعادة تعيين cursor — يُجبر الـ pull التالي على جلب كل البيانات (full sync).
+  /// يستخدم عند: تبديل الجهاز، استعادة backup، إصلاح تعارضات.
   void clearHistory() {
     _lastPullCursor = 0;
+    debugPrint('🔄 Sync cursor reset — next pull will be full sync');
+  }
+
+  /// مزامنة كاملة (full sync) — يعيد تعيين cursor ثم ينفذ sync.
+  /// يستخدم عند: تبديل الجهاز، استعادة backup، مشاكل في البيانات.
+  Future<SyncResult> fullSync() async {
+    clearHistory();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('cf_last_pull_cursor');
+    debugPrint('🔄 Full sync: cursor reset + preferences cleared');
+    return sync(push: true, pull: true);
   }
 
   // ─── Push all local data (stub) ─────────────────────────────
