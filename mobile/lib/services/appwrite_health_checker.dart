@@ -277,21 +277,10 @@ class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
 
   @override
   void dispose() {
-    // ✅ P1-9 FIX (2026-08-06 Audit): نحن singleton — لا نفعل شيئاً في dispose.
-    //
-    // سابقاً كان dispose() يستدعي stopPeriodicCheck() مما يُلغي الـ Timer
-    // عند إغلاق Riverpod provider (مثلاً عند تغيير الـ route). هذا يعني
-    // أن الفحص الدوري سيتوقف ولن يُعاد تشغيله تلقائياً.
-    //
-    // الإصلاح: عدم فعل أي شيء في dispose(). الـ Timer سيبقى يعمل طوال
-    // عمر التطبيق. عدم استدعاء super.dispose() يُبقي `mounted = true`،
-    // مما يسمح بتحديث state من الـ Timer بدون StateError.
-    //
-    // الـ Timer سيُلغى تلقائياً عند إغلاق التطبيق (الـ OS يُلغي كل الـ Timers).
-    // لمنع الـ Timer يدوياً، استدعِ stopPeriodicCheck() صراحةً.
-    //
-    // ملاحظة: تجاوز dispose() بدون super.dispose() قد يُسبب lint warning،
-    // لكنه متعمد وآمن في حالة singleton.
+    // Singleton: intentionally NOT calling super.dispose() so the
+    // app-lifetime Timer can keep updating state. Explicit teardown
+    // must go through stopPeriodicCheck() (call it on app shutdown).
+    // NOTE: verify a shutdown path calls stopPeriodicCheck().
   }
 }
 
