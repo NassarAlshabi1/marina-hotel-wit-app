@@ -486,11 +486,14 @@ class CloudflareSyncManager {
   Future<void> _applyChange(String entity, Map<String, dynamic> record) async {
     if (_db == null) return;
 
+    // ✅ Defensive: تحقق من أن السجل غير فارغ
+    if (record.isEmpty) return;
+
     final tableName = CloudflareConfig.tableNameFor(entity);
     if (tableName == null) return;
 
-    // ✅ تنظيف الحقول التقنية التي لا يجب تخزينها في SQLite
-    record.remove('_entity');
+    // ملاحظة: _entity يُزال في _pullChanges() قبل استدعاء هذه الدالة.
+    // لا حاجة لإزالته مرة أخرى هنا — Map.remove() على key غير موجود no-op.
 
     final localUuid = record['local_uuid'] as String?;
     if (localUuid == null) return;
