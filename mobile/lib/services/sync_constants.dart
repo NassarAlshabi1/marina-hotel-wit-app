@@ -26,6 +26,7 @@ class SyncConstants {
     'audit_logs',
     'payment_voids',
     'guest_infos',
+    'ancestor_cache', // ✅ Audit Fix (2026-08-06): كان مفقوداً — لا يُحذف في sync rollback
     'auto_fix_runs',
     'app_sessions',
     'outbox',

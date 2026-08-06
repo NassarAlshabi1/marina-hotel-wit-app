@@ -152,11 +152,20 @@ class SmartConflictResolver {
     ),
 
     'booking_notes': const EntityResolutionPolicy(
-      defaultRule: FieldResolutionRule(FieldStrategy.concat),
+      // ✅ Audit Fix (2026-08-06): defaultRule كان concat — الوحيد بين كل 21 كيان!
+      // concat كـ default خطير لأنه يطبّق على أي حقل غير مُدرج في rules:
+      //   - alertUntil (تاريخ) → concat يُنتج تاريخ فاسد
+      //   - bookingId (FK integer) → concat يُنتج رقم فاسد
+      // الإصلاح: newerWins كـ default (آمن لكل أنواع الحقول)، concat فقط لـ noteText.
+      defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
       rules: {
         'noteText': FieldResolutionRule(FieldStrategy.concat),
         'alertType': FieldResolutionRule(FieldStrategy.newerWins),
         'isActive': FieldResolutionRule(FieldStrategy.newerWins),
+        // ✅ Audit Fix: إضافة alertUntil (تاريخ) — كان يقع لـ concat default
+        'alertUntil': FieldResolutionRule(FieldStrategy.newerWins),
+        // ✅ Audit Fix: إضافة bookingId (FK) — كان يقع لـ concat default
+        'bookingId': FieldResolutionRule(FieldStrategy.newerWins),
       },
     ),
 
