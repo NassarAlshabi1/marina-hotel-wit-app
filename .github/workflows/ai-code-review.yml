@@ -1,0 +1,50 @@
+# ═══════════════════════════════════════════════════════════════
+#  AI Code Review — فحص الكود تلقائياً عند كل PR
+#  يستخدم Z AI API (GLM-4-Plus) لتحليل التغييرات واقتراح إصلاحات
+# ═══════════════════════════════════════════════════════════════
+
+name: AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'mobile/lib/**'
+      - 'mobile/test/**'
+      - 'worker/src/**'
+      - 'scripts/**'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  ai-review:
+    name: 🤖 AI Code Review
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: 📚 Checkout Code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # Full history for accurate diff
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: 🤖 Run AI Code Review
+        env:
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          node scripts/ai-review/ai-code-review.mjs \
+            --base origin/${{ github.base_ref }} \
+            --comment \
+            --format markdown \
+            --model glm-4-plus \
+            --max-files 15
