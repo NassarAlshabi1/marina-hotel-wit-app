@@ -712,6 +712,10 @@ class Outbox extends Table {
   IntColumn get clientTs => integer()();
   IntColumn get attempts => integer().withDefault(const Constant(0))();
   TextColumn get lastError => text().nullable()();
+  // ✅ P0-1 Audit Fix (2026-08-06): UNIQUE constraint على idempotencyKey
+  // سابقاً كان nullable بدون unique، مما يسمح بتكرار نفس العملية على الـ cloud
+  // عند retry بعد timeout. UNIQUE يمنع التكرار ويُطبَّق عبر partial unique index
+  // في migration 51 (WHERE idempotency_key IS NOT NULL).
   TextColumn get idempotencyKey => text().nullable()();
   TextColumn get processingStatus =>
       text().withDefault(const Constant('pending'))();
@@ -929,7 +933,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 50;
+  int get schemaVersion => 51;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2573,6 +2577,51 @@ class AppDatabase extends _$AppDatabase {
         }
         developer.log(
           'Migration 50: additional indexes created successfully',
+          name: 'db.migration',
+        );
+      }
+
+      // === Migration 51: Audit Fixes (2026-08-06) ===
+      // ✅ P0-1: UNIQUE index على outbox.idempotency_key (partial — WHERE NOT NULL)
+      // ✅ P0-2: تحديث ancestor_cache.capturedAt من ثواني لمللي ثانية (×1000)
+      if (from < 51) {
+        // P0-1: UNIQUE index يمنع تكرار نفس idempotency_key في outbox
+        try {
+          await m.database.customStatement(
+            'CREATE UNIQUE INDEX IF NOT EXISTS idx_outbox_idempotency_unique '
+            'ON outbox (idempotency_key) WHERE idempotency_key IS NOT NULL',
+          );
+          developer.log(
+            'Migration 51: created unique index on outbox.idempotency_key',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 51: idempotency unique index failed (may already exist): $e',
+            name: 'db.migration',
+          );
+        }
+
+        // P0-2: تحديث ancestor_cache.capturedAt من ثواني لمللي ثانية
+        // القيم القديمة (< 10^12) هي ثواني، نضربها في 1000 لتحويلها لمللي ثانية
+        try {
+          await m.database.customStatement(
+            'UPDATE ancestor_cache SET captured_at = captured_at * 1000 '
+            'WHERE captured_at < 1000000000000',
+          );
+          developer.log(
+            'Migration 51: converted ancestor_cache.captured_at to milliseconds',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 51: ancestor_cache timestamp conversion failed: $e',
+            name: 'db.migration',
+          );
+        }
+
+        developer.log(
+          'Migration 51: audit fixes applied (unique idempotency + timestamp units)',
           name: 'db.migration',
         );
       }

@@ -27,7 +27,10 @@ class AncestorCacheDao extends DatabaseAccessor<AppDatabase>
         entity: entity,
         localUuid: localUuid,
         dataJson: jsonEncode(data),
-        capturedAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        // ✅ P0-2 Audit Fix (2026-08-06): استخدام مللي ثانية (epoch ms)
+        // بدلاً من ثواني. توحيد مع باقي الجداول (Outbox.clientTs,
+        // SyncState.lastServerTs). Migration 51 يُحدّث القيم الموجودة.
+        capturedAt: DateTime.now().millisecondsSinceEpoch,
       ),
     );
   }
@@ -61,12 +64,13 @@ class AncestorCacheDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// تنظيف السجلات القديمة (أقدم من maxAgeDays)
+  ///
+  /// ✅ P0-2 Audit Fix: استخدام مللي ثانية بدلاً من ثواني.
   Future<int> cleanupOldEntries({int maxAgeDays = 30}) async {
     final cutoff =
         DateTime.now()
             .subtract(Duration(days: maxAgeDays))
-            .millisecondsSinceEpoch ~/
-        1000;
+            .millisecondsSinceEpoch;
     return (delete(
       ancestorCache,
     )..where((t) => t.capturedAt.isSmallerThanValue(cutoff))).go();

@@ -2048,6 +2048,9 @@ class AppwriteSyncManager {
               entityName,
               localUuid,
             );
+            // ✅ P0-5 Audit Fix: حفظ نسخة من البيانات البعيدة الأصلية
+            // قبل التعديل (remoteData سيُعدَّل in-place بعد الدمج).
+            final remoteDataOriginal = Map<String, dynamic>.from(remoteData);
             final resolution = SmartConflictResolver.resolve(
               entity: entityName,
               localData: localData,
@@ -2070,11 +2073,17 @@ class AppwriteSyncManager {
               // ⚠️ آمن: remoteData هو نسخة محلية Map.from(doc.data) وليس كائن Appwrite الأصلي.
               remoteData.clear();
               remoteData.addAll(resolution.mergedData);
-              // تخزين ancestor المدمج للمرات القادمة
+              // ✅ P0-5 Audit Fix (2026-08-06): حفظ البيانات البعيدة الأصلية كـ ancestor
+              // (وليس البيانات المدموجة). الـ ancestor يجب أن يكون "آخر نسخة مشتركة"
+              // بين الجهازين. البيانات المدموجة لم تُرفع للسحابة بعد، فلا يمكن اعتبارها
+              // "مشتركة". حفظ البيانات المدموجة كـ ancestor يكسر الدمج في التعارض
+              // التالي لأن الـ ancestor سيعكس التغييرات المحلية بدلاً من المشترك.
+              // ملاحظة: الـ ancestor الحقيقي سيُحدّث تلقائياً عند الـ push التالي
+              // (انظر _bumpVectorClockBeforePush + _occCheckAndMerge).
               await _ancestorCacheDao.saveAncestor(
                 entity: entityName,
                 localUuid: localUuid,
-                data: resolution.mergedData,
+                data: remoteDataOriginal,
               );
               return _RemoteNewerResult(
                 shouldApplyRemote: true,
@@ -3245,12 +3254,15 @@ class AppwriteSyncManager {
           '✅ OCC conflict resolved via 3-way merge: entity=$entity, uuid=$documentId',
           tag: 'OCC',
         );
-        // حفظ ancestor المدمج للمرات القادمة
+        // ✅ P0-5 Audit Fix (2026-08-06): حفظ البيانات البعيدة الأصلية كـ ancestor
+        // (وليس البيانات المدموجة). الـ ancestor يجب أن يكون آخر نسخة مشتركة
+        // من السحابة. البيانات المدموجة لم تُرفع للسحابة بعد، فلا يمكن اعتبارها
+        // "مشتركة".
         try {
           await _ancestorCacheDao.saveAncestor(
             entity: entity,
             localUuid: documentId,
-            data: resolution.mergedData,
+            data: remoteData,
           );
         } catch (_) {}
         return resolution.mergedData;

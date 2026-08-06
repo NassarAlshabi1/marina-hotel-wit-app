@@ -2,8 +2,8 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
 
+import '../utils/debug_log.dart';
 import '../utils/debug_logs.dart';
 import 'local_db.dart';
 
@@ -383,21 +383,27 @@ class SyncConflictResolver {
   }
 
   /// حذف التعارضات القديمة (أقدم من [maxAgeDays] يوماً)
+  ///
+  /// ✅ P0-3 Audit Fix (2026-08-06): استخدام `customUpdate` بدلاً من `customSelect`.
+  /// سابقاً، كان الكود يستخدم `customSelect('DELETE FROM ...')` — لكن `customSelect`
+  /// مُصمَّم لاستعلامات SELECT فقط. الـ DELETE على `customSelect` إما يرمي
+  /// استثناء أو يُرجع قائمة فارغة (حسب implementation الـ Drift).
+  /// الإصلاح: `customUpdate` يُرجع عدد الصفوف المُؤثَّرة.
   Future<int> cleanupOldConflicts({int maxAgeDays = 30}) async {
     final cutoff = DateTime.now()
         .subtract(Duration(days: maxAgeDays))
         .toUtc()
         .toIso8601String();
 
-    // استخدام استعلام مخصص لحذف التعارضات القديمة لتجنب تعقيد أنواع Drift
-    final deleteResult = await db
-        .customSelect(
-          'DELETE FROM sync_conflicts WHERE resolution != ? AND created_at < ?',
-          variables: [const Variable<String>(''), Variable<String>(cutoff)],
-        )
-        .get();
-
-    final resolvedConflicts = deleteResult.length;
+    // ✅ customUpdate يُرجع عدد الصفوف المُحذوفة
+    final resolvedConflicts = await db.customUpdate(
+      'DELETE FROM sync_conflicts WHERE resolution != ? AND created_at < ?',
+      updates: {db.syncConflicts},
+      variables: [
+        const Variable<String>(''),
+        Variable<String>(cutoff),
+      ],
+    );
 
     if (resolvedConflicts > 0) {
       _log('🧹 تم حذف $resolvedConflicts تعارض قديم (أقدم من $maxAgeDays يوم)');

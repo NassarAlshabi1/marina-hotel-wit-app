@@ -96,8 +96,17 @@ class ConflictDetector {
       );
     }
     if (!localDeleted && remoteDeleted) {
-      return const ConflictDetectionResult(
-        type: ConflictType.noConflictRemoteNewer,
+      // ✅ P0-4 Audit Fix (2026-08-06): تماثل سياسة الحذف.
+      // سابقاً، كان هذا يُرجع `noConflictRemoteNewer` (يُطبّق الحذف البعيد
+      // ويُفقد التحديث المحلي بصمت). هذا غير متماثل مع `deleteVsUpdate`
+      // (الذي يحمي الحذف المحلي).
+      // الإصلاح: تصنيف كـ `deleteVsUpdate` (معكوس) ليُعالجه SmartConflictResolver
+      // بقرار واعٍ بدلاً من تطبيق الحذف صامتاً. الـ resolver يقرر: الحذف يربح
+      // (لأن الـ delete أكثر حداثة عادةً) لكن مع تسجيل في audit trail.
+      return ConflictDetectionResult(
+        type: ConflictType.deleteVsUpdate,
+        localChangedFields: _findChangedFields(localData, commonAncestor),
+        remoteChangedFields: {'deletedAt'},
       );
     }
 
