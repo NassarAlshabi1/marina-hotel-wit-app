@@ -41,6 +41,7 @@ import 'services/appwrite_config_manager.dart';
 import 'services/appwrite_health_checker.dart';
 import 'services/appwrite_realtime_service.dart';
 import 'services/appwrite_realtime_sync.dart';
+import 'services/appwrite_service.dart';
 import 'services/appwrite_sync_manager.dart';
 import 'services/auto_backup_manager.dart';
 import 'services/auto_outbox_sync_watcher.dart';
@@ -155,9 +156,27 @@ Future<void> main() async {
   // تلقائياً (مع debounce 3 ثوانٍ) عند إضافة أي سجل جديد.
   // هذا يضمن أن أي عملية CRUD (إضافة/تعديل/حذف) في أي شاشة تُزامن
   // تلقائياً دون الحاجة لاستدعاء pushLocalChanges يدوياً في كل شاشة.
+  //
+  // ✅ P1-7 FIX (2026-08-06 Audit): إنشاء AppwriteSyncManager مبكراً
+  // قبل بدء الـ watcher. بدون هذا، AppwriteSyncManager.instance يُرجع
+  // null لأن factory constructor لم يُستدعى بعد (Riverpod lazy init)،
+  // مما يمنع رفع العمليات المعلّقة في outbox تلقائياً حتى أول
+  // استدعاء لـ ref.read(appwriteSyncManagerProvider) من الـ UI.
+  // الـ factory يستخدم `_instance ??= ...` لذا Riverpod provider
+  // سيعيد استخدام نفس الـ instance لاحقاً بدون تعارض.
+  AppwriteSyncManager(
+    appwriteService: AppwriteService(),
+    database: DatabaseManager.instance,
+  );
   AutoOutboxSyncWatcher.pushFunction = () async {
     final syncManager = AppwriteSyncManager.instance;
-    if (syncManager == null) return 0;
+    if (syncManager == null) {
+      dwarn(
+        () => 'AutoSync: AppwriteSyncManager null after eager init '
+            '(should not happen — investigate)',
+      );
+      return 0;
+    }
     final result = await syncManager.sync(pull: false);
     return result.recordsPushed;
   };

@@ -86,13 +86,21 @@
         <!-- ═══════════════════════════════════════════════════════════ -->
         <!--  PostHog Analytics — Auto-initialization on Android         -->
         <!-- ═══════════════════════════════════════════════════════════ -->
-        <!--  PostHog Cloud (US): https://us.posthog.com/project/529460  -->
-        <!--  Free tier: 1M events/month + 5K session replays/month      -->
+        <!--  ✅ P0-4 FIX (2026-08-06 Audit): استبدال hardcoded API key  -->
+        <!--  بـ manifest placeholder يُملأ من environment variable في   -->
+        <!--  وقت البناء عبر build.gradle. سابقاً كان المفتاح الإنتاجي  -->
+        <!--  مُكشوفاً في APK (أي مهاجم يفك الـ APK يحصل عليه).          -->
+        <!--                                                            -->
+        <!--  في build.gradle:                                          -->
+        <!--    manifestPlaceholders += [posthogToken: System.getenv(   -->
+        <!--      'POSTHOG_API_KEY') ?: '']                             -->
+        <!--                                                            -->
+        <!--  إذا كان posthogToken فارغاً، يُعطّل PostHog تلقائياً.      -->
         <!-- ═══════════════════════════════════════════════════════════ -->
-        <meta-data android:name="com.posthog.posthog.PROJECT_TOKEN" android:value="phc_AunnUfNB2zemediAycLLbFYEgqdtL9k7ej8PhYHwFL6q" />
+        <meta-data android:name="com.posthog.posthog.PROJECT_TOKEN" android:value="${posthogToken}" />
         <meta-data android:name="com.posthog.posthog.POSTHOG_HOST" android:value="https://us.i.posthog.com" />
         <meta-data android:name="com.posthog.posthog.TRACK_APPLICATION_LIFECYCLE_EVENTS" android:value="true" />
-        <meta-data android:name="com.posthog.posthog.DEBUG" android:value="true" />
+        <meta-data android:name="com.posthog.posthog.DEBUG" android:value="false" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

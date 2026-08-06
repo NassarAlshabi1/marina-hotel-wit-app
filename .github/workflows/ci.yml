@@ -43,7 +43,8 @@ jobs:
 
       - name: Dart Format
         run: dart format --set-exit-if-changed .
-        continue-on-error: true
+        # ✅ P0-6 FIX (2026-08-06 Audit): إزالة continue-on-error.
+        # الكود غير المُنسّق يجب أن يُكسر الـ build للحفاظ على جودة الكود.
 
       # ═══════════════════════════════════════════════════════════
       #  اختبارات
@@ -57,7 +58,8 @@ jobs:
       # ═══════════════════════════════════════════════════════════
       - name: Run tests
         run: flutter test --coverage --concurrency=2 --timeout=180s --exclude-tags integration,performance,slow --reporter compact
-        continue-on-error: true
+        # ✅ P0-6 FIX (2026-08-06 Audit): إزالة continue-on-error.
+        # فشل الاختبارات يجب أن يُكسر الـ build لمنع دفع كود مكسور للإنتاج.
 
       - name: Coverage summary
         if: always()

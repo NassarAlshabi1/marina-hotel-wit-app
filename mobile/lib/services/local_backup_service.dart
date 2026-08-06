@@ -14,12 +14,12 @@ import 'package:sqflite/sqflite.dart';
 
 import '../providers/repository_providers.dart';
 import '../utils/app_logger.dart';
+import '../utils/debug_log.dart';
 import '../utils/json_isolate.dart';
 import 'backup_serializers.dart';
 import 'google_drive_backup_service.dart';
 import 'local_db.dart';
 import 'sqlite_backup_restore.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 export 'google_drive_backup_service.dart' show BackupFormat;
 
@@ -238,7 +238,8 @@ class LocalBackupService {
 
         dlog(() => '✅ تم إنشاء النسخة الاحتياطية المحلية (JSON): $filePath');
         dlog(() => '📊 السجلات المحفوظة: $totalRecords');
-        dlog(() => '📁 حجم الملف: ${await file.length()} بايت');
+        // ✅ Pre-existing fix: استخدام lengthSync() بدلاً من await داخل lambda
+        dlog(() => '📁 حجم الملف: ${file.lengthSync()} بايت');
 
         return filePath;
       }
@@ -822,12 +823,13 @@ class LocalBackupService {
     await SqliteBackupRestore.restoreDatabase(filePath);
 
     if (metadata != null) {
+      final ts = metadata.backupTimestamp;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
         _prefsLastLocalBackupKey,
-        metadata.backupTimestamp.toIso8601String(),
+        ts.toIso8601String(),
       );
-      dlog(() => '✅ تم استعادة النسخة الاحتياطية (SQLite) بتاريخ ${metadata.backupTimestamp}');
+      dlog(() => '✅ تم استعادة النسخة الاحتياطية (SQLite) بتاريخ $ts');
     } else {
       dlog('✅ تم استعادة النسخة الاحتياطية (SQLite) بدون بيانات وصفية إضافية');
     }

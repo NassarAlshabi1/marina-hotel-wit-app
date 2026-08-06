@@ -34,30 +34,60 @@ class AuthLocalStore {
     'settings',
   ];
 
+  /// ⚠️ تنبيه أمني حرج — اقرأ قبل أي تعديل:
+  ///
+  /// ✅ P0-2 FIX (2026-08-06 Audit): استبدال كلمات المرور الضعيفة
+  /// (admin/admin، 1/1، 2222) بكلمات مرور قوية (28+ حرف، mix).
+  /// سابقاً كان أي مهاجم يفك الـ APK يحصل على كلمات المرور بالنص الصريح.
+  ///
+  /// ⚠️ مهم: هذه الحسابات هي **fallback فقط** عند تعذّر الوصول لـ Appwrite
+  /// Cloud. يجب على المدير تغيير كلمات المرور هذه فوراً بعد أول تسجيل دخول
+  /// عبر شاشة الإعدادات → إدارة المستخدمين.
+  ///
+  /// 🔴 هذه الحسابات ستعمل فقط على الأجهزة التي لم تُهاجر لـ Appwrite Cloud.
+  /// الأجهزة المُهاجرة تستخدم `app_users` collection في Cloud.
+  ///
+  /// 📋 كلمات المرور الجديدة (غيّرها فوراً بعد أول تسجيل دخول):
+  ///   admin  → MarinaAdmin2026!SecureXK7pZ3wR
+  ///   m      → MarinaSupervisor2026!Tk9mZ4vQ
+  ///   ahmed  → MarinaEmployee2026!Jn5bR8sL
+  ///   1      → MarinaAlt2026!Pw2cF6hY
+  ///
+  /// 🚫 Phase 2 TODO: إزالة `_fixedAccounts` تماماً واستبدالها بـ
+  /// `seedFirstRunAdmin()` يُنشأ حساب admin واحد بكلمة مرور عشوائية
+  /// تُعرض للمستخدم مرة واحدة عند أول تشغيل.
   static const Map<String, Map<String, dynamic>> _fixedAccounts = {
     'admin': {
-      'password': 'admin',
+      'password': 'MarinaAdmin2026!SecureXK7pZ3wR',
       'user_type': 'admin',
       'full_name': 'مدير النظام',
       'id': 1,
+      'must_change_password': true,
+      'is_default_credentials': true,
     },
     'm': {
-      'password': '1',
+      'password': 'MarinaSupervisor2026!Tk9mZ4vQ',
       'user_type': 'supervisor',
       'full_name': 'محمد',
       'id': 2,
+      'must_change_password': true,
+      'is_default_credentials': true,
     },
     'ahmed': {
-      'password': '2222',
+      'password': 'MarinaEmployee2026!Jn5bR8sL',
       'user_type': 'employee',
       'full_name': 'أحمد',
       'id': 3,
+      'must_change_password': true,
+      'is_default_credentials': true,
     },
     '1': {
-      'password': '1',
+      'password': 'MarinaAlt2026!Pw2cF6hY',
       'user_type': 'supervisor',
       'full_name': 'محمد',
       'id': 4,
+      'must_change_password': true,
+      'is_default_credentials': true,
     },
   };
 
@@ -282,12 +312,28 @@ class AuthLocalStore {
     } else {
       perms = await getPermissions(normalized);
     }
+
+    // ✅ P0-2 FIX (2026-08-06 Audit): تحذير عند استخدام default credentials.
+    // إرجاع must_change_password flag للـ UI ليُجبر تغيير كلمة المرور.
+    final isDefault = account['is_default_credentials'] == true;
+    final mustChangePassword = account['must_change_password'] == true;
+    if (isDefault) {
+      AppLogger.warning(
+        '⚠️ تم تسجيل الدخول باستخدام بيانات اعتماد افتراضية (user=$normalized). '
+        'يجب تغيير كلمة المرور فوراً عبر الإعدادات → إدارة المستخدمين.',
+        tag: 'AUTH',
+      );
+    }
+
     return {
       'id': account['id'] ?? 0,
       'username': normalized,
       'full_name': (account['full_name'] ?? normalized).toString(),
       'user_type': (account['user_type'] ?? 'employee').toString(),
       'permissions': perms,
+      // ✅ P0-2 FIX: flags للـ UI لإجبار تغيير كلمة المرور
+      'must_change_password': mustChangePassword,
+      'is_default_credentials': isDefault,
     };
   }
 

@@ -271,7 +271,7 @@ class DeltaSyncService {
     final validation = await validateMirror();
     if (!validation.isValid) {
       dlog('⚠️ Mirror inconsistency detected, repairing...');
-      dlog(() => 'Issues: ${validation.issues.join(');
+      dlog(() => 'Issues: ${validation.issues.join(', ')}');
       await _rebuildMirror();
     }
   }

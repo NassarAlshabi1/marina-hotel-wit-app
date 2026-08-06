@@ -98,7 +98,10 @@ jobs:
             --reporter compact \
             2>&1 | tee test_results.log
           exit ${PIPESTATUS[0]}
-        continue-on-error: true  # مؤقتاً حتى نُصلح الاختبارات المكسورة
+        # ✅ P0-6 FIX (2026-08-06 Audit): إزالة continue-on-error.
+        # سابقاً كان `continue-on-error: true` مما يجعل الاختبارات non-blocking
+        # ويسمح بدفع كود مكسور للإنتاج. الآن فشل الاختبارات سيُكسر الـ build.
+        # إذا فشلت اختبارات بسبب إصلاحات P0، أصلحها بدلاً من إعادة continue-on-error.
 
       - name: 🧪 Run all tests with coverage (Full)
         if: inputs.check_level == 'full'
@@ -110,7 +113,7 @@ jobs:
             --reporter compact \
             2>&1 | tee test_results.log
           exit ${PIPESTATUS[0]}
-        continue-on-error: true
+        # ✅ P0-6 FIX: إزالة continue-on-error (نفس السبب أعلاه).
 
       # ═══════════════════════════════════════════════════════════
       #  Performance Benchmarks (موازٍ)

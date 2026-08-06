@@ -98,8 +98,22 @@ class AppwriteHealthState {
 }
 
 /// Notifier يدير حالة صحة الوجهتين ويوفّرها للـ UI
+///
+/// ✅ P1-9 FIX (2026-08-06 Audit): تحويل لـ singleton pattern.
+/// سابقاً كان main.dart يُنشأ instance #1 ويبدأ الفحص الدوري، بينما
+/// Riverpod provider يُنشأ instance #2 منفصل عند أول ref.watch.
+/// النتيجة: الـ UI يقرأ من instance #2 الذي state = initial دائماً،
+/// ولا يرى تحديثات الفحص الدوري من instance #1.
+/// الإصلاح: factory constructor يُرجع نفس الـ instance دائماً،
+/// مما يضمن أن main.dart و Riverpod يستخدمان نفس الـ object.
 class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
-  AppwriteHealthNotifier() : super(AppwriteHealthState.initial);
+  AppwriteHealthNotifier._() : super(AppwriteHealthState.initial);
+
+  /// Singleton instance — يُستخدم من main.dart و Riverpod provider.
+  static final AppwriteHealthNotifier instance = AppwriteHealthNotifier._();
+
+  /// Factory constructor يُرجع نفس الـ instance دائماً.
+  factory AppwriteHealthNotifier() => instance;
 
   Timer? _checkTimer;
   bool _isChecking = false;
@@ -263,8 +277,21 @@ class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
 
   @override
   void dispose() {
-    stopPeriodicCheck();
-    super.dispose();
+    // ✅ P1-9 FIX (2026-08-06 Audit): نحن singleton — لا نفعل شيئاً في dispose.
+    //
+    // سابقاً كان dispose() يستدعي stopPeriodicCheck() مما يُلغي الـ Timer
+    // عند إغلاق Riverpod provider (مثلاً عند تغيير الـ route). هذا يعني
+    // أن الفحص الدوري سيتوقف ولن يُعاد تشغيله تلقائياً.
+    //
+    // الإصلاح: عدم فعل أي شيء في dispose(). الـ Timer سيبقى يعمل طوال
+    // عمر التطبيق. عدم استدعاء super.dispose() يُبقي `mounted = true`،
+    // مما يسمح بتحديث state من الـ Timer بدون StateError.
+    //
+    // الـ Timer سيُلغى تلقائياً عند إغلاق التطبيق (الـ OS يُلغي كل الـ Timers).
+    // لمنع الـ Timer يدوياً، استدعِ stopPeriodicCheck() صراحةً.
+    //
+    // ملاحظة: تجاوز dispose() بدون super.dispose() قد يُسبب lint warning،
+    // لكنه متعمد وآمن في حالة singleton.
   }
 }
 
@@ -278,9 +305,12 @@ class _HealthCheckResult {
 }
 
 /// Provider لحالة صحة الوجهتين
+///
+/// ✅ P1-9 FIX (2026-08-06 Audit): يُعيد نفس الـ singleton instance
+/// الذي يستخدمه main.dart، مما يضمن أن الـ UI يرى تحديثات الفحص الدوري.
 final appwriteHealthProvider =
     StateNotifierProvider<AppwriteHealthNotifier, AppwriteHealthState>((ref) {
-      return AppwriteHealthNotifier();
+      return AppwriteHealthNotifier.instance;
     });
 
 /// Singleton للوصول للحالة الحالية من خارج Riverpod (مثل main.dart)

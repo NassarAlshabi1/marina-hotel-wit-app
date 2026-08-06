@@ -148,7 +148,10 @@ jobs:
       - name: 🔄 Run Build Runner
         working-directory: ${{ env.WORKING_DIRECTORY }}
         run: dart run build_runner build
-        continue-on-error: true
+        # ✅ P0-6 FIX (2026-08-06 Audit): إزالة continue-on-error.
+        # build_runner يُولّد ملفات .g.dart و .freezed.dart الحرجة.
+        # فشله يعني أن الكود المُولّد قديم أو مفقود، مما يُسبب compile errors.
+        # يجب أن يُكسر الـ build عند الفشل.
 
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   # Job 2: Code Formatting & Static Analysis
@@ -289,7 +292,8 @@ jobs:
             --reporter compact \
             2>&1 | tee test_results.log
           exit ${PIPESTATUS[0]}
-        continue-on-error: true
+        # ✅ P0-6 FIX (2026-08-06 Audit): إزالة continue-on-error.
+        # فشل الاختبارات يجب أن يُكسر الـ build لمنع دفع كود مكسور للإنتاج.
         
       - name: 📊 Process Coverage Report
         if: always()

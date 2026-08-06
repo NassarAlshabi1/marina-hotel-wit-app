@@ -202,7 +202,8 @@ jobs:
             --reporter compact \
             2>&1 | tee test_results.log
           exit ${PIPESTATUS[0]}
-        continue-on-error: true
+        # ✅ P0-6 FIX (2026-08-06 Audit): إزالة continue-on-error.
+        # فشل الاختبارات يجب أن يُكسر الـ build.
 
       - name: 📈 Coverage Summary & Gate
         if: always() && inputs.min_coverage > 0

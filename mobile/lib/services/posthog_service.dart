@@ -65,11 +65,19 @@ class PostHogService {
   ///
   /// يجب استدعاؤها مرة واحدة في بداية التطبيق (main.dart).
   /// إذا لم يكن POSTHOG_API_KEY مُهيأ، تتجاهل الخدمة بصمت.
-  /// PostHog API Key — مُدمج من AndroidManifest meta-data
-  /// (يمكن تجاوزه عبر --dart-define=POSTHOG_API_KEY)
+  ///
+  /// ✅ P0-4 FIX (2026-08-06 Audit): إزالة hardcoded API key default.
+  /// سابقاً كان المفتاح الإنتاجي الفعلي مُدمج في الكود كـ defaultValue،
+  /// مما يُكسر الأمان — أي مهاجم يفك الـ APK يحصل على المفتاح.
+  /// الإصلاح: المفتاح يجب أن يأتي فقط من:
+  ///   1. --dart-define=POSTHOG_API_KEY=... في وقت البناء
+  ///   2. AndroidManifest meta-data (يُقرأ في initialize())
+  /// إذا لم يكن مُهيأ، PostHog يُعطّل بصمت.
+  ///
+  /// ⚠️ مهم: يجب تدوير المفتاح القديم (phc_Aunn...) في PostHog لأنه قد
+  /// يكون تسرب في إصدارات سابقة من التطبيق.
   static const String _defaultApiKey = String.fromEnvironment(
     'POSTHOG_API_KEY',
-    defaultValue: 'phc_AunnUfNB2zemediAycLLbFYEgqdtL9k7ej8PhYHwFL6q',
   );
 
   /// PostHog Host — ingestion endpoint للـ US Cloud

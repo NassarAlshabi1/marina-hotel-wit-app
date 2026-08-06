@@ -4,9 +4,9 @@ import 'package:flutter/foundation.dart';
 // في الـ class StreamToSignal. بدون alias، يُفسّر Dart `signal<T>(...)` كمرجع
 // للـ getter المحلي بدلاً من الدالة المستوردة من signals_flutter.
 import 'package:signals_flutter/signals_flutter.dart'
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
     as signals
     show Signal, signal;
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// ✅ تأخير إصدار بيانات الـ Stream حتى تهدأ التغييرات.
 Stream<T> debounceStream<T>(Stream<T> source, Duration duration) {

@@ -2465,108 +2465,116 @@ class AppDatabase extends _$AppDatabase {
           'Migration 47: added note, originalAmount, paymentUuid to payment_voids',
           name: 'db.migration',
         );
+      }
 
-        if (from < 48) {
-          // ✅ v2: إضافة SyncFields إلى audit_logs للتوافق مع مخطط Appwrite Cloud
-          // audit_logs لم يكن يمتلك حقول المزامنة الأساسية (serverId, updatedAt,
-          // lastModified, version, origin, vectorClock, إلخ)
-          // هذه الحقول ضرورية لتتبع مصدر وتوقيت كل سجل تدقيق عبر الأجهزة.
-          final auditLogColumns = <String, String>{
-            'server_id': 'INTEGER',
-            'updated_at': 'INTEGER',
-            'deleted_at': 'INTEGER',
-            'last_modified': 'INTEGER',
-            'created_at_iso': 'TEXT',
-            'updated_at_iso': 'TEXT',
-            'deleted_at_iso': 'TEXT',
-            'created_at_epoch': 'INTEGER NOT NULL DEFAULT 0',
-            'last_modified_epoch': 'INTEGER NOT NULL DEFAULT 0',
-            'version': 'INTEGER NOT NULL DEFAULT 1',
-            'origin': 'TEXT NOT NULL DEFAULT \'local\'',
-            'vector_clock': 'TEXT NOT NULL DEFAULT \'{}\'',
-            'idempotency_key': 'TEXT',
-          };
-          for (final column in auditLogColumns.entries) {
-            try {
-              await m.database.customStatement(
-                'ALTER TABLE audit_logs ADD COLUMN ${column.key} ${column.value}',
-              );
-              developer.log(
-                'Migration 48: added audit_logs.${column.key}',
-                name: 'db.migration',
-              );
-            } catch (e) {
-              // العمود موجود مسبقاً — ليس خطأ
-              developer.log(
-                'Migration 48: audit_logs.${column.key} already exists: $e',
-                name: 'db.migration',
-              );
-            }
+      // === Migration 48: SyncFields لـ audit_logs ===
+      // ✅ P0-5 FIX (2026-08-06 Audit): كان هذا الـ block متعشّشاً داخل
+      // `if (from < 47)` — أي مستخدم على v47 لن يدخل الـ block الأب إطلاقاً،
+      // وبالتالي لن تُضاف حقول المزامنة إلى audit_logs. النتيجة: فشل صامت
+      // في مزامنة audit_logs وتراكمها في outbox بحالة failed ثم dead.
+      // الإصلاح: إخراج الـ block إلى top-level في onUpgrade.
+      if (from < 48) {
+        // ✅ v2: إضافة SyncFields إلى audit_logs للتوافق مع مخطط Appwrite Cloud
+        // audit_logs لم يكن يمتلك حقول المزامنة الأساسية (serverId, updatedAt,
+        // lastModified, version, origin, vectorClock, إلخ)
+        // هذه الحقول ضرورية لتتبع مصدر وتوقيت كل سجل تدقيق عبر الأجهزة.
+        final auditLogColumns = <String, String>{
+          'server_id': 'INTEGER',
+          'updated_at': 'INTEGER',
+          'deleted_at': 'INTEGER',
+          'last_modified': 'INTEGER',
+          'created_at_iso': 'TEXT',
+          'updated_at_iso': 'TEXT',
+          'deleted_at_iso': 'TEXT',
+          'created_at_epoch': 'INTEGER NOT NULL DEFAULT 0',
+          'last_modified_epoch': 'INTEGER NOT NULL DEFAULT 0',
+          'version': 'INTEGER NOT NULL DEFAULT 1',
+          'origin': 'TEXT NOT NULL DEFAULT \'local\'',
+          'vector_clock': 'TEXT NOT NULL DEFAULT \'{}\'',
+          'idempotency_key': 'TEXT',
+        };
+        for (final column in auditLogColumns.entries) {
+          try {
+            await m.database.customStatement(
+              'ALTER TABLE audit_logs ADD COLUMN ${column.key} ${column.value}',
+            );
+            developer.log(
+              'Migration 48: added audit_logs.${column.key}',
+              name: 'db.migration',
+            );
+          } catch (e) {
+            // العمود موجود مسبقاً — ليس خطأ
+            developer.log(
+              'Migration 48: audit_logs.${column.key} already exists: $e',
+              name: 'db.migration',
+            );
           }
-          developer.log(
-            'Migration 48: added SyncFields columns to audit_logs',
-            name: 'db.migration',
-          );
         }
+        developer.log(
+          'Migration 48: added SyncFields columns to audit_logs',
+          name: 'db.migration',
+        );
+      }
 
-        // === Migration 49: Performance indexes for sorted queries ===
-        if (from < 49) {
-          const perfIndexes = [
-            'CREATE INDEX IF NOT EXISTS idx_bookings_checkin ON bookings (checkin_date)',
-            'CREATE INDEX IF NOT EXISTS idx_debts_payment_date ON debts (payment_date)',
-            'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_expense ON salary_withdrawals (expense_id)',
-            'CREATE INDEX IF NOT EXISTS idx_sync_log_created ON sync_log (created_at)',
-          ];
-          for (final sql in perfIndexes) {
-            try {
-              await m.database.customStatement(sql);
-              developer.log(
-                'Migration 49: created index: $sql',
-                name: 'db.migration',
-              );
-            } catch (e) {
-              developer.log(
-                'Migration 49: index already exists or failed: $e',
-                name: 'db.migration',
-              );
-            }
+      // === Migration 49: Performance indexes for sorted queries ===
+      // ✅ P0-5 FIX (2026-08-06 Audit): أُخرج من تعشّش Migration 47.
+      if (from < 49) {
+        const perfIndexes = [
+          'CREATE INDEX IF NOT EXISTS idx_bookings_checkin ON bookings (checkin_date)',
+          'CREATE INDEX IF NOT EXISTS idx_debts_payment_date ON debts (payment_date)',
+          'CREATE INDEX IF NOT EXISTS idx_salary_withdrawals_expense ON salary_withdrawals (expense_id)',
+          'CREATE INDEX IF NOT EXISTS idx_sync_log_created ON sync_log (created_at)',
+        ];
+        for (final sql in perfIndexes) {
+          try {
+            await m.database.customStatement(sql);
+            developer.log(
+              'Migration 49: created index: $sql',
+              name: 'db.migration',
+            );
+          } catch (e) {
+            developer.log(
+              'Migration 49: index already exists or failed: $e',
+              name: 'db.migration',
+            );
           }
-          developer.log(
-            'Migration 49: performance indexes created successfully',
-            name: 'db.migration',
-          );
         }
+        developer.log(
+          'Migration 49: performance indexes created successfully',
+          name: 'db.migration',
+        );
+      }
 
-        // === Migration 50: Additional indexes for frequently queried columns ===
-        if (from < 50) {
-          const additionalIndexes = [
-            'CREATE INDEX IF NOT EXISTS idx_booking_nights_booking ON booking_nights (booking_local_id)',
-            'CREATE INDEX IF NOT EXISTS idx_guest_infos_room ON guest_infos (room_number)',
-            'CREATE INDEX IF NOT EXISTS idx_sync_log_sync_id ON sync_log (sync_id)',
-            'CREATE INDEX IF NOT EXISTS idx_sync_log_device_id ON sync_log (device_id)',
-            'CREATE INDEX IF NOT EXISTS idx_sync_conflicts_table_uuid ON sync_conflicts (table_name, uuid)',
-            'CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON sync_queue (status)',
-            'CREATE INDEX IF NOT EXISTS idx_sync_queue_table ON sync_queue (table_name)',
-          ];
-          for (final sql in additionalIndexes) {
-            try {
-              await m.database.customStatement(sql);
-              developer.log(
-                'Migration 50: created index: $sql',
-                name: 'db.migration',
-              );
-            } catch (e) {
-              developer.log(
-                'Migration 50: index already exists or failed: $e',
-                name: 'db.migration',
-              );
-            }
+      // === Migration 50: Additional indexes for frequently queried columns ===
+      // ✅ P0-5 FIX (2026-08-06 Audit): أُخرج من تعشّش Migration 47.
+      if (from < 50) {
+        const additionalIndexes = [
+          'CREATE INDEX IF NOT EXISTS idx_booking_nights_booking ON booking_nights (booking_local_id)',
+          'CREATE INDEX IF NOT EXISTS idx_guest_infos_room ON guest_infos (room_number)',
+          'CREATE INDEX IF NOT EXISTS idx_sync_log_sync_id ON sync_log (sync_id)',
+          'CREATE INDEX IF NOT EXISTS idx_sync_log_device_id ON sync_log (device_id)',
+          'CREATE INDEX IF NOT EXISTS idx_sync_conflicts_table_uuid ON sync_conflicts (table_name, uuid)',
+          'CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON sync_queue (status)',
+          'CREATE INDEX IF NOT EXISTS idx_sync_queue_table ON sync_queue (table_name)',
+        ];
+        for (final sql in additionalIndexes) {
+          try {
+            await m.database.customStatement(sql);
+            developer.log(
+              'Migration 50: created index: $sql',
+              name: 'db.migration',
+            );
+          } catch (e) {
+            developer.log(
+              'Migration 50: index already exists or failed: $e',
+              name: 'db.migration',
+            );
           }
-          developer.log(
-            'Migration 50: additional indexes created successfully',
-            name: 'db.migration',
-          );
         }
+        developer.log(
+          'Migration 50: additional indexes created successfully',
+          name: 'db.migration',
+        );
       }
     },
   );

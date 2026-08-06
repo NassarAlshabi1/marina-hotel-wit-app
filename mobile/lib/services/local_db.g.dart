@@ -37454,10 +37454,7 @@ final class $$RoomsTableReferences
     _$AppDatabase db,
   ) => MultiTypedResultKey.fromTable(
     db.bookings,
-    aliasName: $_aliasNameGenerator(
-      db.rooms.roomNumber,
-      db.bookings.roomNumber,
-    ),
+    aliasName: 'rooms__room_number__bookings__room_number',
   );
 
   $$BookingsTableProcessedTableManager get bookingsRefs {
@@ -38212,9 +38209,8 @@ final class $$BookingsTableReferences
     extends BaseReferences<_$AppDatabase, $BookingsTable, Booking> {
   $$BookingsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $RoomsTable _roomNumberTable(_$AppDatabase db) => db.rooms.createAlias(
-    $_aliasNameGenerator(db.bookings.roomNumber, db.rooms.roomNumber),
-  );
+  static $RoomsTable _roomNumberTable(_$AppDatabase db) =>
+      db.rooms.createAlias('bookings__room_number__rooms__room_number');
 
   $$RoomsTableProcessedTableManager get roomNumber {
     final $_column = $_itemColumn<String>('room_number')!;
@@ -38233,7 +38229,7 @@ final class $$BookingsTableReferences
   static MultiTypedResultKey<$BookingNotesTable, List<BookingNote>>
   _bookingNotesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.bookingNotes,
-    aliasName: $_aliasNameGenerator(db.bookings.id, db.bookingNotes.bookingId),
+    aliasName: 'bookings__id__booking_notes__booking_id',
   );
 
   $$BookingNotesTableProcessedTableManager get bookingNotesRefs {
@@ -38252,7 +38248,7 @@ final class $$BookingsTableReferences
     _$AppDatabase db,
   ) => MultiTypedResultKey.fromTable(
     db.payments,
-    aliasName: $_aliasNameGenerator(db.bookings.id, db.payments.bookingLocalId),
+    aliasName: 'bookings__id__payments__booking_local_id',
   );
 
   $$PaymentsTableProcessedTableManager get paymentsRefs {
@@ -38271,7 +38267,7 @@ final class $$BookingsTableReferences
     _$AppDatabase db,
   ) => MultiTypedResultKey.fromTable(
     db.debts,
-    aliasName: $_aliasNameGenerator(db.bookings.id, db.debts.bookingLocalId),
+    aliasName: 'bookings__id__debts__booking_local_id',
   );
 
   $$DebtsTableProcessedTableManager get debtsRefs {
@@ -38289,10 +38285,7 @@ final class $$BookingsTableReferences
   static MultiTypedResultKey<$BookingNightsTable, List<BookingNight>>
   _bookingNightsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.bookingNights,
-    aliasName: $_aliasNameGenerator(
-      db.bookings.id,
-      db.bookingNights.bookingLocalId,
-    ),
+    aliasName: 'bookings__id__booking_nights__booking_local_id',
   );
 
   $$BookingNightsTableProcessedTableManager get bookingNightsRefs {
@@ -38311,14 +38304,13 @@ final class $$BookingsTableReferences
     $BookingPriceAdjustmentsTable,
     List<BookingPriceAdjustment>
   >
-  _bookingPriceAdjustmentsByUuidTable(_$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.bookingPriceAdjustments,
-        aliasName: $_aliasNameGenerator(
-          db.bookings.localUuid,
-          db.bookingPriceAdjustments.bookingLocalUuid,
-        ),
-      );
+  _bookingPriceAdjustmentsByUuidTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.bookingPriceAdjustments,
+    aliasName:
+        'bookings__local_uuid__booking_price_adjustments__booking_local_uuid',
+  );
 
   $$BookingPriceAdjustmentsTableProcessedTableManager
   get bookingPriceAdjustmentsByUuid {
@@ -38347,10 +38339,7 @@ final class $$BookingsTableReferences
   _bookingPriceAdjustmentsByIdTable(_$AppDatabase db) =>
       MultiTypedResultKey.fromTable(
         db.bookingPriceAdjustments,
-        aliasName: $_aliasNameGenerator(
-          db.bookings.id,
-          db.bookingPriceAdjustments.bookingLocalId,
-        ),
+        aliasName: 'bookings__id__booking_price_adjustments__booking_local_id',
       );
 
   $$BookingPriceAdjustmentsTableProcessedTableManager
@@ -39979,9 +39968,7 @@ final class $$BookingNotesTableReferences
   $$BookingNotesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static $BookingsTable _bookingIdTable(_$AppDatabase db) =>
-      db.bookings.createAlias(
-        $_aliasNameGenerator(db.bookingNotes.bookingId, db.bookings.id),
-      );
+      db.bookings.createAlias('booking_notes__booking_id__bookings__id');
 
   $$BookingsTableProcessedTableManager get bookingId {
     final $_column = $_itemColumn<int>('booking_id')!;
@@ -41211,10 +41198,7 @@ final class $$EmployeesTableReferences
   static MultiTypedResultKey<$SalaryCyclesTable, List<SalaryCycle>>
   _salaryCyclesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.salaryCycles,
-    aliasName: $_aliasNameGenerator(
-      db.employees.id,
-      db.salaryCycles.employeeId,
-    ),
+    aliasName: 'employees__id__salary_cycles__employee_id',
   );
 
   $$SalaryCyclesTableProcessedTableManager get salaryCyclesRefs {
@@ -41230,15 +41214,11 @@ final class $$EmployeesTableReferences
   }
 
   static MultiTypedResultKey<$SalaryWithdrawalsTable, List<SalaryWithdrawal>>
-  _salaryWithdrawalsRefsTable(
-    _$AppDatabase db,
-  ) => MultiTypedResultKey.fromTable(
-    db.salaryWithdrawals,
-    aliasName: $_aliasNameGenerator(
-      db.employees.id,
-      db.salaryWithdrawals.employeeId,
-    ),
-  );
+  _salaryWithdrawalsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.salaryWithdrawals,
+        aliasName: 'employees__id__salary_withdrawals__employee_id',
+      );
 
   $$SalaryWithdrawalsTableProcessedTableManager get salaryWithdrawalsRefs {
     final manager = $$SalaryWithdrawalsTableTableManager(
@@ -41258,15 +41238,11 @@ final class $$EmployeesTableReferences
     $SalaryCarryOverLogsTable,
     List<SalaryCarryOverLog>
   >
-  _salaryCarryOverLogsRefsTable(
-    _$AppDatabase db,
-  ) => MultiTypedResultKey.fromTable(
-    db.salaryCarryOverLogs,
-    aliasName: $_aliasNameGenerator(
-      db.employees.id,
-      db.salaryCarryOverLogs.employeeId,
-    ),
-  );
+  _salaryCarryOverLogsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.salaryCarryOverLogs,
+        aliasName: 'employees__id__salary_carry_over_logs__employee_id',
+      );
 
   $$SalaryCarryOverLogsTableProcessedTableManager get salaryCarryOverLogsRefs {
     final manager = $$SalaryCarryOverLogsTableTableManager(
@@ -42809,10 +42785,7 @@ final class $$CashTransactionsTableReferences
     _$AppDatabase db,
   ) => MultiTypedResultKey.fromTable(
     db.payments,
-    aliasName: $_aliasNameGenerator(
-      db.cashTransactions.id,
-      db.payments.cashTransactionLocalId,
-    ),
+    aliasName: 'cash_transactions__id__payments__cash_transaction_local_id',
   );
 
   $$PaymentsTableProcessedTableManager get paymentsRefs {
@@ -43542,9 +43515,7 @@ final class $$PaymentsTableReferences
   $$PaymentsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static $BookingsTable _bookingLocalIdTable(_$AppDatabase db) =>
-      db.bookings.createAlias(
-        $_aliasNameGenerator(db.payments.bookingLocalId, db.bookings.id),
-      );
+      db.bookings.createAlias('payments__booking_local_id__bookings__id');
 
   $$BookingsTableProcessedTableManager? get bookingLocalId {
     final $_column = $_itemColumn<int>('booking_local_id');
@@ -43563,10 +43534,7 @@ final class $$PaymentsTableReferences
   static $CashTransactionsTable _cashTransactionLocalIdTable(
     _$AppDatabase db,
   ) => db.cashTransactions.createAlias(
-    $_aliasNameGenerator(
-      db.payments.cashTransactionLocalId,
-      db.cashTransactions.id,
-    ),
+    'payments__cash_transaction_local_id__cash_transactions__id',
   );
 
   $$CashTransactionsTableProcessedTableManager? get cashTransactionLocalId {
@@ -44620,9 +44588,7 @@ final class $$DebtsTableReferences
   $$DebtsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static $BookingsTable _bookingLocalIdTable(_$AppDatabase db) =>
-      db.bookings.createAlias(
-        $_aliasNameGenerator(db.debts.bookingLocalId, db.bookings.id),
-      );
+      db.bookings.createAlias('debts__booking_local_id__bookings__id');
 
   $$BookingsTableProcessedTableManager? get bookingLocalId {
     final $_column = $_itemColumn<int>('booking_local_id');
@@ -45551,9 +45517,7 @@ final class $$BookingNightsTableReferences
   );
 
   static $BookingsTable _bookingLocalIdTable(_$AppDatabase db) =>
-      db.bookings.createAlias(
-        $_aliasNameGenerator(db.bookingNights.bookingLocalId, db.bookings.id),
-      );
+      db.bookings.createAlias('booking_nights__booking_local_id__bookings__id');
 
   $$BookingsTableProcessedTableManager get bookingLocalId {
     final $_column = $_itemColumn<int>('booking_local_id')!;
@@ -46973,15 +46937,11 @@ final class $$AutoFixRunsTableReferences
     $IntegrityViolationsTable,
     List<IntegrityViolation>
   >
-  _integrityViolationsRefsTable(
-    _$AppDatabase db,
-  ) => MultiTypedResultKey.fromTable(
-    db.integrityViolations,
-    aliasName: $_aliasNameGenerator(
-      db.autoFixRuns.id,
-      db.integrityViolations.runId,
-    ),
-  );
+  _integrityViolationsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.integrityViolations,
+        aliasName: 'auto_fix_runs__id__integrity_violations__run_id',
+      );
 
   $$IntegrityViolationsTableProcessedTableManager get integrityViolationsRefs {
     final manager = $$IntegrityViolationsTableTableManager(
@@ -47408,10 +47368,8 @@ final class $$IntegrityViolationsTableReferences
     super.$_typedResult,
   );
 
-  static $AutoFixRunsTable _runIdTable(_$AppDatabase db) =>
-      db.autoFixRuns.createAlias(
-        $_aliasNameGenerator(db.integrityViolations.runId, db.autoFixRuns.id),
-      );
+  static $AutoFixRunsTable _runIdTable(_$AppDatabase db) => db.autoFixRuns
+      .createAlias('integrity_violations__run_id__auto_fix_runs__id');
 
   $$AutoFixRunsTableProcessedTableManager get runId {
     final $_column = $_itemColumn<int>('run_id')!;
@@ -48113,9 +48071,7 @@ final class $$SalaryCyclesTableReferences
   $$SalaryCyclesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static $EmployeesTable _employeeIdTable(_$AppDatabase db) =>
-      db.employees.createAlias(
-        $_aliasNameGenerator(db.salaryCycles.employeeId, db.employees.id),
-      );
+      db.employees.createAlias('salary_cycles__employee_id__employees__id');
 
   $$EmployeesTableProcessedTableManager get employeeId {
     final $_column = $_itemColumn<int>('employee_id')!;
@@ -48134,10 +48090,7 @@ final class $$SalaryCyclesTableReferences
   static MultiTypedResultKey<$SalaryPaymentsTable, List<SalaryPayment>>
   _salaryPaymentsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.salaryPayments,
-    aliasName: $_aliasNameGenerator(
-      db.salaryCycles.id,
-      db.salaryPayments.cycleId,
-    ),
+    aliasName: 'salary_cycles__id__salary_payments__cycle_id',
   );
 
   $$SalaryPaymentsTableProcessedTableManager get salaryPaymentsRefs {
@@ -48929,10 +48882,8 @@ final class $$SalaryPaymentsTableReferences
     super.$_typedResult,
   );
 
-  static $SalaryCyclesTable _cycleIdTable(_$AppDatabase db) =>
-      db.salaryCycles.createAlias(
-        $_aliasNameGenerator(db.salaryPayments.cycleId, db.salaryCycles.id),
-      );
+  static $SalaryCyclesTable _cycleIdTable(_$AppDatabase db) => db.salaryCycles
+      .createAlias('salary_payments__cycle_id__salary_cycles__id');
 
   $$SalaryCyclesTableProcessedTableManager get cycleId {
     final $_column = $_itemColumn<int>('cycle_id')!;
@@ -50785,7 +50736,7 @@ final class $$SyncLogTableReferences
   static MultiTypedResultKey<$SyncConflictsTable, List<SyncConflictRow>>
   _syncConflictsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.syncConflicts,
-    aliasName: $_aliasNameGenerator(db.syncLog.id, db.syncConflicts.logId),
+    aliasName: 'sync_log__id__sync_conflicts__log_id',
   );
 
   $$SyncConflictsTableProcessedTableManager get syncConflictsRefs {
@@ -51180,9 +51131,8 @@ final class $$SyncConflictsTableReferences
     super.$_typedResult,
   );
 
-  static $SyncLogTable _logIdTable(_$AppDatabase db) => db.syncLog.createAlias(
-    $_aliasNameGenerator(db.syncConflicts.logId, db.syncLog.id),
-  );
+  static $SyncLogTable _logIdTable(_$AppDatabase db) =>
+      db.syncLog.createAlias('sync_conflicts__log_id__sync_log__id');
 
   $$SyncLogTableProcessedTableManager get logId {
     final $_column = $_itemColumn<int>('log_id')!;
@@ -52302,10 +52252,7 @@ final class $$BookingPriceAdjustmentsTableReferences
 
   static $BookingsTable _bookingLocalUuidTable(_$AppDatabase db) =>
       db.bookings.createAlias(
-        $_aliasNameGenerator(
-          db.bookingPriceAdjustments.bookingLocalUuid,
-          db.bookings.localUuid,
-        ),
+        'booking_price_adjustments__booking_local_uuid__bookings__local_uuid',
       );
 
   $$BookingsTableProcessedTableManager get bookingLocalUuid {
@@ -52322,13 +52269,8 @@ final class $$BookingPriceAdjustmentsTableReferences
     );
   }
 
-  static $BookingsTable _bookingLocalIdTable(_$AppDatabase db) =>
-      db.bookings.createAlias(
-        $_aliasNameGenerator(
-          db.bookingPriceAdjustments.bookingLocalId,
-          db.bookings.id,
-        ),
-      );
+  static $BookingsTable _bookingLocalIdTable(_$AppDatabase db) => db.bookings
+      .createAlias('booking_price_adjustments__booking_local_id__bookings__id');
 
   $$BookingsTableProcessedTableManager? get bookingLocalId {
     final $_column = $_itemColumn<int>('booking_local_id');
@@ -55285,10 +55227,8 @@ final class $$SalaryWithdrawalsTableReferences
     super.$_typedResult,
   );
 
-  static $EmployeesTable _employeeIdTable(_$AppDatabase db) =>
-      db.employees.createAlias(
-        $_aliasNameGenerator(db.salaryWithdrawals.employeeId, db.employees.id),
-      );
+  static $EmployeesTable _employeeIdTable(_$AppDatabase db) => db.employees
+      .createAlias('salary_withdrawals__employee_id__employees__id');
 
   $$EmployeesTableProcessedTableManager get employeeId {
     final $_column = $_itemColumn<int>('employee_id')!;
@@ -56018,13 +55958,8 @@ final class $$SalaryCarryOverLogsTableReferences
     super.$_typedResult,
   );
 
-  static $EmployeesTable _employeeIdTable(_$AppDatabase db) =>
-      db.employees.createAlias(
-        $_aliasNameGenerator(
-          db.salaryCarryOverLogs.employeeId,
-          db.employees.id,
-        ),
-      );
+  static $EmployeesTable _employeeIdTable(_$AppDatabase db) => db.employees
+      .createAlias('salary_carry_over_logs__employee_id__employees__id');
 
   $$EmployeesTableProcessedTableManager get employeeId {
     final $_column = $_itemColumn<int>('employee_id')!;
