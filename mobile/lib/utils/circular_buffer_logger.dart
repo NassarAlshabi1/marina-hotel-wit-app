@@ -26,14 +26,36 @@ class CircularBufferLogger {
   File? _logFile;
   bool _initialized = false;
 
+  /// ✅ OCR FIX (2026-08-06): علامة واضحة لإمكانية الكتابة على القرص.
+  /// سابقاً، الاعتماد على `null check` لـ `_logFile` كان يُسبب صمتاً عند الفشل.
+  /// الآن لدينا علامة صريحة + سبب الفشل مُسجّل في الـ buffer للـ debugging.
+  bool _diskWriteEnabled = false;
+  String? _initFailureReason;
+
   Future<void> initialize() async {
     if (_initialized) return;
     try {
       final dir = await getApplicationDocumentsDirectory();
       _logFile = File('${dir.path}/$_fileName');
       await _loadExistingLogs();
+      _diskWriteEnabled = true;
       _initialized = true;
-    } catch (_) {
+    } catch (e) {
+      // ✅ OCR FIX: تسجيل سبب الفشل في الـ in-memory buffer.
+      // هذا يضمن أن المطور يستطيع رؤية سبب فشل الـ persistence عند debugging
+      // عبر استدعاء `readLast(N)`.
+      _diskWriteEnabled = false;
+      _initFailureReason = e.toString();
+      _buffer.add(
+        _LogEntry(
+          level: LogLevel.warning,
+          message:
+              'CircularBufferLogger: disk persistence disabled. '
+              'Reason: $e. Logs will be in-memory only (lost on app exit).',
+          tag: 'LOGGER',
+          timestamp: DateTime.now().toIso8601String(),
+        ),
+      );
       _initialized = true;
     }
   }
@@ -49,8 +71,19 @@ class CircularBufferLogger {
         final json = jsonDecode(line) as Map<String, dynamic>;
         _buffer.add(_LogEntry.fromJson(json));
       }
-    } catch (_) {
-      // Corrupt log file — start fresh
+    } catch (e) {
+      // ✅ OCR FIX: تسجيل سبب فساد ملف الـ logs بدلاً من الصمت.
+      // ملف فاسد يعني أننا نبدأ من جديد، لكن المطور يجب أن يعرف.
+      _buffer.add(
+        _LogEntry(
+          level: LogLevel.warning,
+          message:
+              'CircularBufferLogger: existing log file corrupted, starting fresh. '
+              'Reason: $e',
+          tag: 'LOGGER',
+          timestamp: DateTime.now().toIso8601String(),
+        ),
+      );
     }
   }
 
@@ -90,7 +123,9 @@ class CircularBufferLogger {
   Timer? _flushTimer;
 
   Future<void> _persistEntry(_LogEntry entry) async {
-    if (_logFile == null) return;
+    // ✅ OCR FIX (2026-08-06): استخدام علامة _diskWriteEnabled بدلاً من
+    // null check على _logFile. هذا أوضح ويتوافق مع حالة الفشل المُسجّلة.
+    if (!_diskWriteEnabled || _logFile == null) return;
     _writeBuffer.add('${jsonEncode(entry.toJson())}\n');
 
     // ✅ Batch writes: flush every 5s or when buffer reaches 50 entries
@@ -104,7 +139,8 @@ class CircularBufferLogger {
   }
 
   void _flushBuffer() {
-    if (_writeBuffer.isEmpty || _logFile == null) return;
+    // ✅ OCR FIX: تحقق مزدوج (disk enabled + file not null)
+    if (_writeBuffer.isEmpty || !_diskWriteEnabled || _logFile == null) return;
     final batch = _writeBuffer.join();
     _writeBuffer.clear();
     _flushTimer?.cancel();
@@ -112,7 +148,22 @@ class CircularBufferLogger {
       _lock.synchronized(() async {
         try {
           await _logFile!.writeAsString(batch, mode: FileMode.append, flush: true);
-        } catch (_) {}
+        } catch (e) {
+          // ✅ OCR FIX: تسجيل فشل الكتابة في الـ buffer (مرة واحدة لتفادي
+          // recursive loop — لا نريد أن يفشل الـ log ويسبب log آخر يفشل...).
+          // نُعطّل الكتابة على القرص نهائياً بعد أول فشل (disk may be full/unmounted).
+          _diskWriteEnabled = false;
+          _buffer.add(
+            _LogEntry(
+              level: LogLevel.error,
+              message:
+                  'CircularBufferLogger: disk write failed, disabling persistence. '
+                  'Reason: $e',
+              tag: 'LOGGER',
+              timestamp: DateTime.now().toIso8601String(),
+            ),
+          );
+        }
       }),
     );
   }
@@ -126,14 +177,35 @@ class CircularBufferLogger {
     _buffer.clear();
     _writeBuffer.clear();
     _flushTimer?.cancel();
-    if (_logFile != null) {
+    if (_diskWriteEnabled && _logFile != null) {
       try {
         await _logFile!.writeAsString('', flush: true);
-      } catch (_) {}
+      } catch (e) {
+        // ✅ OCR FIX: تعطيل الـ persistence بدلاً من الصمت عند الفشل.
+        _diskWriteEnabled = false;
+        _buffer.add(
+          _LogEntry(
+            level: LogLevel.warning,
+            message:
+                'CircularBufferLogger: clear() failed, persistence disabled. '
+                'Reason: $e',
+            tag: 'LOGGER',
+            timestamp: DateTime.now().toIso8601String(),
+          ),
+        );
+      }
     }
   }
 
   int get bufferSize => _buffer.length;
+
+  /// ✅ OCR FIX (2026-08-06): getter للتحقق من حالة الـ persistence.
+  /// يُعيد true إذا كانت الكتابة على القرص مُفعّلة، false إذا تعطّلت.
+  /// مفيد للـ UI (مثلاً عرض banner "logs not persisted" في شاشة الإعدادات).
+  bool get isDiskPersistenceEnabled => _diskWriteEnabled;
+
+  /// ✅ OCR FIX: سبب تعطّل الـ persistence (إن وُجد)، null إذا كانت تعمل.
+  String? get persistenceFailureReason => _initFailureReason;
 }
 
 enum LogLevel { debug, info, warning, error }

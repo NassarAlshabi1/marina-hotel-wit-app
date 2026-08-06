@@ -119,6 +119,8 @@ void main() {
     test('يرفض String', () async {
       final prefs = await SharedPreferences.getInstance();
 
+      // ✅ OCR FIX (2026-08-06): غيّر الـ exception من UnsupportedError
+      // لـ ArgumentError (رسالة أوضح + مع اسم الـ parameter).
       expect(
         () => migrateAutoSyncPreference<String>(
           prefs: prefs,
@@ -127,13 +129,14 @@ void main() {
           defaultValue: 'hello',
           apply: (_) async {},
         ),
-        throwsA(isA<UnsupportedError>()),
+        throwsA(isA<ArgumentError>()),
       );
     });
 
     test('يرفض double', () async {
       final prefs = await SharedPreferences.getInstance();
 
+      // ✅ OCR FIX: نفس التغيير أعلاه.
       expect(
         () => migrateAutoSyncPreference<double>(
           prefs: prefs,
@@ -142,7 +145,7 @@ void main() {
           defaultValue: 1.5,
           apply: (_) async {},
         ),
-        throwsA(isA<UnsupportedError>()),
+        throwsA(isA<ArgumentError>()),
       );
     });
   });
