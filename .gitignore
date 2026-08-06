@@ -25,3 +25,11 @@ __pycache__/
 Keystore.txt
 *.keystore
 key.properties
+
+# Secrets protection (2026-08-06)
+*.env
+.env*
+!.env.example
+.secrets/
+*.secret
+*.api_key

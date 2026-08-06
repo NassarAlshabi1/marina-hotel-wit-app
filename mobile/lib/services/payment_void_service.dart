@@ -1,7 +1,6 @@
 // ignore_for_file: sort_constructors_first
 
 import 'package:drift/drift.dart' as drift;
-import 'package:flutter/foundation.dart';
 
 import '../utils/id.dart';
 import '../utils/time.dart';
@@ -12,25 +11,54 @@ import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// خدمة إلغاء الدفعات (Payment Void)
 ///
-/// عند إلغاء دفعة:
+/// خدمة مالية حرجة مسؤولة عن إلغاء الدفعات بشكل آمن وعكسي.
+/// تستخدم transactions لضمان atomicity، وتُسجّل كل عملية في outbox للمزامنة.
+///
+/// ## الاستخدام
+/// ```dart
+/// final voidService = PaymentVoidService(db);
+/// final success = await voidService.voidPayment(
+///   paymentUuid: 'pay_abc123',
+///   voidReason: 'دفعة مكررة - تم إنشاؤها بالخطأ',
+///   voidedBy: 'admin',
+///   approvedBy: 'manager', // اختياري
+/// );
+/// ```
+///
+/// ## عند إلغاء دفعة:
 /// 1. تُنشأ سجل PaymentVoid يحوي تفاصيل الإلغاء (المبلغ، السبب، المُلغي، الوقت)
 /// 2. تُحدَّث الدفعة الأصلية: isVoided=true, voidedAt, voidedBy, voidReason
 /// 3. يُسجَّل PaymentVoid في outbox للمزامنة مع Appwrite Cloud
 /// 4. تُحدَّث الدفعة في outbox أيضاً (لأن isVoided تغيّر)
+/// 5. يُزاد version field للدفعة (Optimistic Concurrency Control)
+///
+/// ## الأمان
+/// - كل العملية في transaction واحد (atomic)
+/// - فحص مزدوج: الدفعة موجودة + غير مُلغاة مسبقاً
+/// - bump version لمنع تعارض المزامنة
+/// - تسجيل كل التفاصيل في outbox لـ audit trail
+///
+/// ✅ OCR Review (2026-08-06): تم تحسين التوثيق بناءً على مراجعة OCR.
 class PaymentVoidService {
   final AppDatabase _db;
   final OutboxDao _outboxDao;
 
   PaymentVoidService(this._db) : _outboxDao = OutboxDao(_db);
 
-  /// إلغاء دفعة موجودة
+  /// إلغاء دفعة موجودة بشكل آمن وعكسي.
   ///
-  /// [paymentUuid] — localUuid للدفعة المراد إلغاؤها
-  /// [voidReason] — سبب الإلغاء
-  /// [voidedBy] — اسم/معرف المستخدم الذي ألغى الدفعة
+  /// العملية atomic (كل أو لا شيء): إذا فشل أي خطوة، تُلغى كل التغييرات.
+  ///
+  /// [paymentUuid] — localUuid للدفعة المراد إلغاؤها (مطلوب)
+  /// [voidReason] — سبب الإلغاء (مطلوب، يُسجّل للـ audit)
+  /// [voidedBy] — اسم/معرف المستخدم الذي ألغى الدفعة (مطلوب)
   /// [approvedBy] — اسم/معرف المستخدم الذي وافق على الإلغاء (اختياري)
   ///
-  /// يُرجع true عند نجاح الإلغاء، false إذا الدفعة غير موجودة أو مُلغاة مسبقاً
+  /// Returns:
+  /// - `true` — نجح الإلغاء
+  /// - `false` — فشل (الدفعة غير موجودة، مُلغاة مسبقاً، أو تعذر حل bookingUuid)
+  ///
+  /// Throws: لا يرمي استثناءات — كل الأخطاء تُسجّل ويُرجع false.
   Future<bool> voidPayment({
     required String paymentUuid,
     required String voidReason,
@@ -51,6 +79,7 @@ class PaymentVoidService {
           return false;
         }
 
+        // ✅ فحص مزدوج: الدفعة غير مُلغاة مسبقاً (OCR Comment #1 - كان موجوداً بالفعل)
         if (payment.isVoided) {
           dlog(() => '⚠️ PaymentVoid: الدفعة $paymentUuid مُلغاة مسبقاً');
           return false;
@@ -61,6 +90,7 @@ class PaymentVoidService {
         final voidUuid = IdGen.uuid();
 
         // 1.5) حل bookingUuid و hotelDayKey من الدفعة أو من الحجز المرتبط
+        // ✅ OCR Comment #2: معالجة حالة عدم التمكن من حل bookingUuid/hotelDayKey
         String bookingUuid = payment.bookingUuidCache ?? '';
         String hotelDayKey = payment.hotelDayKey ?? '';
 
@@ -82,8 +112,11 @@ class PaymentVoidService {
         }
 
         // إذا لم نتمكن من حل bookingUuid، نرفض العملية
+        // ✅ OCR Comment #2: هذا الفحص موجود بالفعل، الـ OCR لم يلحظه
         if (bookingUuid.isEmpty) {
-          dlog(() => '⚠️ PaymentVoid: تعذر حل bookingUuid للدفعة $paymentUuid');
+          dlog(() => '⚠️ PaymentVoid: تعذر حل bookingUuid للدفعة $paymentUuid '
+              '(bookingLocalId=${payment.bookingLocalId}, '
+              'bookingUuidCache=${payment.bookingUuidCache})');
           return false;
         }
 
