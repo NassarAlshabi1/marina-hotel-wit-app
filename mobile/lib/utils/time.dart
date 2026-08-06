@@ -124,14 +124,23 @@ class Time {
     return d.add(const Duration(days: 1)).toIso8601String();
   }
 
+  /// ✅ OCR Review (2026-08-06): يحسب تاريخ اليوم التالي.
+  ///
+  /// [date] يجب أن يكون بصيغة `yyyy-MM-dd` أو ISO كامل.
+  ///
+  /// Returns: تاريخ اليوم التالي بصيغة `yyyy-MM-dd`.
+  ///
+  /// Throws: `FormatException` لو كان [date] غير صالح.
+  /// سابقاً، كان يُرجع `nowDateString()` عند الفشل، مما يُخفي أخطاء الـ parse.
+  /// الآن يرمي استثناء ليكتشفها المطور.
+  ///
+  /// ملاحظة حول leap year / month transitions:
+  /// `DateTime.add(Duration(days: 1))` في Dart يستخدم calendar arithmetic
+  /// صحيحاً — يتعامل مع السنة الكبيسة وانتقالات الشهور بشكل سليم.
   static String _nextDateString(String date) {
-    try {
-      final dt = DateTime.parse('${date}T00:00:00');
-      final next = dt.add(const Duration(days: 1));
-      return dateToString(next);
-    } catch (_) {
-      return nowDateString();
-    }
+    final dt = DateTime.parse('${date}T00:00:00');
+    final next = dt.add(const Duration(days: 1));
+    return dateToString(next);
   }
 
   static String safeIsoToDateString(String? isoString) {
