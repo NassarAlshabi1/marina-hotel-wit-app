@@ -4,12 +4,19 @@
 // This ensures every CRUD operation that writes to the outbox also
 // triggers an immediate debounced push, without requiring each screen
 // to manually call pushLocalChanges().
+//
+// ✅ Code Review Fix (2026-08-06): توحيد مسار الـ sync.
+// سابقاً، كان SyncTriggerMixin يستدعي manager.pushLocalChanges() مباشرة،
+// بينما AutoOutboxSyncWatcher يستدعي manager.sync(pull: false) عبر _pushFn.
+// هذا يُسبب تكرار sync محتمل على الأجهزة الضعيفة (double network/CPU work).
+// الإصلاح: تحويل triggerSync() لاستخدام AutoOutboxSyncWatcher.pushNow()
+// الذي يستفيد من guard `_pushing` الموجود في الـ watcher، مما يمنع
+// أي تداخل بين المسارين. مسار واحد = sync واحد.
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
-
 import '../appwrite_sync_manager.dart';
+import '../auto_outbox_sync_watcher.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 mixin SyncTriggerMixin {
@@ -17,6 +24,12 @@ mixin SyncTriggerMixin {
   static const Duration _debounceDuration = Duration(seconds: 2);
 
   /// Triggers a debounced pushLocalChanges.
+  ///
+  /// ✅ Code Review Fix: بدلاً من استدعاء pushLocalChanges() مباشرة،
+  /// نُمرر عبر AutoOutboxSyncWatcher الذي:
+  ///   1. يستخدم guard `_pushing` لمنع التداخل
+  ///   2. يفحص حالة الاتصال (offline-aware)
+  ///   3. يتجنب التكرار مع pushes الناتجة عن watch outbox table
   void triggerSync() {
     _syncDebounceTimer?.cancel();
     _syncDebounceTimer = Timer(_debounceDuration, _doSync);
@@ -35,15 +48,35 @@ mixin SyncTriggerMixin {
         dlog('⚠️ triggerSync: no device ID, skipping');
         return;
       }
-      final manager = AppwriteSyncManager.instance;
-      if (manager == null) {
-        dlog('⚠️ triggerSync: sync manager not initialized');
+
+      // ✅ Code Review Fix: استخدام AutoOutboxSyncWatcher كمسار موحّد.
+      // pushNow() يُلغي الـ debounce timer ويستدعي _doPush() فوراً.
+      // _doPush() يفحص `_pushing` و `_isOnline`، فلو كان push جارٍ
+      // من watch outbox، يُتجاهل هذا الطلب بدلاً من إنشاء sync مكرر.
+      // ملاحظة: لو لم يكن AutoOutboxSyncWatcher قد بدأ بعد (نادر،
+      // لأن main.dart يبدأه مبكراً)، نعود لـ pushLocalChanges() المباشر.
+      if (!AutoOutboxSyncWatcher.instance.isRunning) {
+        // Fallback: watcher لم يبدأ بعد — استخدم المسار المباشر
+        final manager = AppwriteSyncManager.instance;
+        if (manager == null) {
+          dlog('⚠️ triggerSync: sync manager not initialized');
+          return;
+        }
+        unawaited(
+          manager.pushLocalChanges().catchError((Object e) {
+            dlog(() => '⚠️ Auto-sync push failed (direct): $e');
+            return 0;
+          }),
+        );
         return;
       }
+
+      // المسار الرئيسي: عبر watcher الموحّد
+      // pushNow() يُرجع Future<void> ويلتقط أخطاءه داخلياً في _doPush()،
+      // لكن نضيف catchError احتياطياً لأي خطأ غير متوقع.
       unawaited(
-        manager.pushLocalChanges().catchError((Object e) {
-          dlog(() => '⚠️ Auto-sync push failed: $e');
-          return 0;
+        AutoOutboxSyncWatcher.instance.pushNow().catchError((Object e) {
+          dlog(() => '⚠️ Auto-sync push failed (via watcher): $e');
         }),
       );
     } catch (e) {

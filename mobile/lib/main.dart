@@ -180,7 +180,11 @@ Future<void> main() async {
     final result = await syncManager.sync(pull: false);
     return result.recordsPushed;
   };
-  AutoOutboxSyncWatcher.instance.start(DatabaseManager.instance);
+  // ✅ Code Review Fix (2026-08-06): start() أصبحت async (تُنتظر connectivity
+  // check قبل تسجيل الـ listeners). نستخدم unawaited() لجعل النية واضحة:
+  // لا نريد تأخير تهيئة التطبيق بانتظار اكتمال start()، لكن الـ outbox
+  // entries تبقى في 'pending' حتى يكتمل الفحص (~50ms).
+  unawaited(AutoOutboxSyncWatcher.instance.start(DatabaseManager.instance));
 
   // ─── ربط Crashlytics + DiagnosticsLogger ───
   CrashlyticsService.instance.setupErrorHandlers(

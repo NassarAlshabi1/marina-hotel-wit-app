@@ -141,24 +141,43 @@ class CircularBufferLogger {
   void _flushBuffer() {
     // ✅ OCR FIX: تحقق مزدوج (disk enabled + file not null)
     if (_writeBuffer.isEmpty || !_diskWriteEnabled || _logFile == null) return;
-    final batch = _writeBuffer.join();
-    _writeBuffer.clear();
+    // ✅ Code Review Fix (2026-08-06): لا نُفرغ _writeBuffer قبل اكتمال الكتابة.
+    // سابقاً، _writeBuffer.clear() كان يُنفّذ قبل writeAsString async،
+    // فلو فشلت الكتابة (disk full/unmounted)، آخر ~50 log line تُفقد من القرص
+    // (تبقى في in-memory ring buffer فقط، وتُفقد عند إغلاق التطبيق).
+    // الإصلاح: نأخذ snapshot للـ batch، نُحاول الكتابة، وعند النجاح فقط
+    // نُزيل الـ entries المُكافئة من _writeBuffer.
+    final batchEntries = List<String>.from(_writeBuffer);
+    final batch = batchEntries.join();
     _flushTimer?.cancel();
     unawaited(
       _lock.synchronized(() async {
         try {
           await _logFile!.writeAsString(batch, mode: FileMode.append, flush: true);
+          // ✅ نجحت الكتابة — نُزيل فقط الـ entries التي كُتبت فعلاً.
+          // ملاحظة: قد تكون entries جديدة أُضيفت أثناء await، لذا نُزيل
+          // فقط بعدد الـ entries التي شملتها الـ batch.
+          final writtenCount = batchEntries.length;
+          if (_writeBuffer.length >= writtenCount) {
+            _writeBuffer.removeRange(0, writtenCount);
+          } else {
+            // نادر: تم مسح _writeBuffer يدوياً (clear()) أثناء await.
+            _writeBuffer.clear();
+          }
         } catch (e) {
           // ✅ OCR FIX: تسجيل فشل الكتابة في الـ buffer (مرة واحدة لتفادي
           // recursive loop — لا نريد أن يفشل الـ log ويسبب log آخر يفشل...).
           // نُعطّل الكتابة على القرص نهائياً بعد أول فشل (disk may be full/unmounted).
+          // ✅ Code Review Fix: لا نُفرغ _writeBuffer عند الفشل — الـ entries
+          // تبقى في الـ buffer لذا لو أُعيد تفعيل الـ persistence لاحقاً
+          // (مثلاً بعد mount القرص)، يمكن إعادة المحاولة.
           _diskWriteEnabled = false;
           _buffer.add(
             _LogEntry(
               level: LogLevel.error,
               message:
                   'CircularBufferLogger: disk write failed, disabling persistence. '
-                  'Reason: $e',
+                  'Reason: $e. ${batchEntries.length} entries retained in write buffer.',
               tag: 'LOGGER',
               timestamp: DateTime.now().toIso8601String(),
             ),

@@ -14,7 +14,6 @@ import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
 
 import 'local_db.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
@@ -40,14 +39,32 @@ class AutoOutboxSyncWatcher {
   }
 
   /// Starts watching the outbox + connectivity.
-  void start(AppDatabase db) {
+  ///
+  /// ✅ Code Review Fix (2026-08-06): تحويل لـ async + await connectivity check.
+  /// سابقاً، كان `checkConnectivity().then(...)` غير مُنتظر، فلو fire الـ outbox
+  /// listener قبل اكتمال الفحص (مثلاً على جهاز بطيء)، الـ first push كان
+  /// يُؤجّل لأن `_isOnline = false` افتراضياً. الآن نُنتظر الفحص قبل تسجيل
+  /// الـ listeners لضمان أن `_isOnline` صحيح عند أول outbox event.
+  ///
+  /// التوافق: main.dart يستدعي start() بشكل unawaited (لا ينتظر التهيئة)،
+  /// لكن هذا مقبول لأن الـ outbox entries تبقى في حالة 'pending' حتى
+  /// يكتمل الفحص (~50ms عادةً). لو فشل الفحص، نُعامل الحالة كـ offline
+  /// (آمن: لا push بدون تأكيد الاتصال).
+  Future<void> start(AppDatabase db) async {
     if (_started) return;
     _started = true;
 
-    // ✅ Seed initial connectivity state so pushes aren't deferred at launch
-    Connectivity().checkConnectivity().then((results) {
+    // ✅ Code Review Fix: نُنتظر الفحص قبل تسجيل الـ listeners.
+    // هذا يضمن أن `_isOnline` صحيح عند أول outbox event.
+    try {
+      final results = await Connectivity().checkConnectivity();
       _isOnline = results.any((r) => r != ConnectivityResult.none);
-    });
+    } catch (e) {
+      // فشل الفحص (نادر) — نُعامل كـ offline (آمن)
+      _isOnline = false;
+      dlog(() => '⚠️ AutoSync: initial connectivity check failed: $e '
+          '(treating as offline)');
+    }
 
     // 1. Watch connectivity — track online/offline state
     _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
@@ -64,6 +81,8 @@ class AutoOutboxSyncWatcher {
     });
 
     // 2. Watch outbox table for new pending entries
+    // ✅ الآن `_isOnline` صحيح، فلو كان هناك pending entries عند البدء
+    // و online، الـ first push سيحدث بشكل صحيح بعد الـ 3s debounce.
     _subscription = db
         .customSelect(
           'SELECT COUNT(*) AS cnt FROM outbox WHERE processing_status = ?',
@@ -78,7 +97,8 @@ class AutoOutboxSyncWatcher {
           }
         });
 
-    dlog('👁️ AutoOutboxSyncWatcher started (offline-aware)');
+    dlog('👁️ AutoOutboxSyncWatcher started (offline-aware, '
+        'initial online=$_isOnline)');
   }
 
   void _schedulePush() {
