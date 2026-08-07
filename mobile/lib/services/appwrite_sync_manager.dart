@@ -306,6 +306,11 @@ class AppwriteSyncManager {
     // قراءة الإعدادات المحفوظة (بدون تغييرها)
     _currentDeviceId = prefs.getString('appwrite_device_id');
     AppwriteSyncManager.updateStaticDeviceId(_currentDeviceId);
+    // ✅ propagate the real deviceId now that it is known
+    _pullService?.setAncestorCacheDao(
+      _ancestorCacheDao,
+      deviceId: _currentDeviceId,
+    );
 
     final lastSyncEpoch = prefs.getInt('appwrite_last_sync_time');
     _lastSyncTime = lastSyncEpoch != null
