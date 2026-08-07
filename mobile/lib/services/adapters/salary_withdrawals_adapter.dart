@@ -140,6 +140,11 @@ class SalaryWithdrawalsAdapter
           : _vInt(json, 'employeeId', src, altKey: 'employee_id'),
       amount: _vDouble(json, 'amount', src),
       withdrawDate: d.Value(wd),
+      // ✅ Audit Fix (2026-08-06): إضافة expenseId.
+      // سابقاً، expenseId لم يكن يُقرأ من JSON رغم وجوده في schema
+      // (local_db.dart:669). كان يُستخرج من reason بصيغة "exp_123"
+      // لكن لا يُعاد تعبئته في expenseId عند fromJson.
+      expenseId: _vInt(json, 'expenseId', src, altKey: 'expense_id'),
       reason: reasonVal != null ? d.Value(reasonVal) : const d.Value.absent(),
       hotelDayKey: _vStr(json, 'hotelDayKey', src, altKey: 'hotel_day_key'),
       withdrawalType: wt != null ? d.Value(wt) : const d.Value.absent(),

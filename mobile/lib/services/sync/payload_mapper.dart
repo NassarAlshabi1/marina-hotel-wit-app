@@ -848,11 +848,16 @@ class PayloadMapper {
       'employeeId': log.employeeId,
       'amount': log.amount,
       'reason': log.reason,
-
-      // تم الإصلاح ليتوافق مع v2 (ترحيل المتغيرات إذا تم تحديث Drift، وإلا تمرير القديمة مؤقتاً لتجنب الأخطاء)
-      // TODO: enable when Drift model has this field — 'fromCycleId': log.fromCycleId ?? log.previousCycleStart, // احتياطي إن لم يحدث الموديل
-      // TODO: enable when Drift model has this field — 'toCycleId': log.toCycleId ?? log.newCycleStart,         // احتياطي
-      // TODO: enable when Drift model has this field — 'carryDate': log.carryDate ?? log.carriedAt,             // احتياطي
+      // ✅ Audit Fix (2026-08-06): إضافة 5 حقول إلزامية مفقودة.
+      // سابقاً، هذه الحقول لم تكن مُرسلة → فقدان بيانات ترحيل الراتب
+      // على الأجهزة الأخرى. التعليقات TODO كانت تشير إلى حقول v2 مختلفة
+      // (fromCycleId, toCycleId, carryDate) لكن الحقول الفعلية في Drift
+      // هي previousCycleStart/End, newCycleStart/End, carriedAt.
+      'previousCycleStart': log.previousCycleStart,
+      'previousCycleEnd': log.previousCycleEnd,
+      'newCycleStart': log.newCycleStart,
+      'newCycleEnd': log.newCycleEnd,
+      'carriedAt': log.carriedAt,
     };
 
     // حقول v2 الجديدة

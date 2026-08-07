@@ -71,6 +71,11 @@ class SalaryCarryOverLogsAdapter
       carriedAt: d.Value(_asInt(json, 'carriedAt', src) ?? now),
       createdAt: d.Value(_asInt(json, 'createdAt', src) ?? now),
       updatedAt: d.Value(_asInt(json, 'updatedAt', src) ?? now),
+      // ✅ Audit Fix (2026-08-06): إضافة lastModified (NOT NULL) و serverId.
+      // سابقاً، lastModified لم يكن مُدرجاً في fromJson → INSERT FAIL
+      // لأن SyncFields يُعرّفه كـ integer() (NOT NULL بدون default).
+      lastModified: d.Value(_asInt(json, 'lastModified', src) ?? now),
+      serverId: _vInt(json, 'serverId', src, altKey: 'server_id'),
       deletedAt: _vInt(json, 'deletedAt', src),
       createdAtIso: _vStr(json, 'createdAtIso', src),
       updatedAtIso: _vStr(json, 'updatedAtIso', src),
@@ -113,6 +118,8 @@ class SalaryCarryOverLogsAdapter
       _k(src, 'reason', 'reason'): model.reason,
       _k(src, 'carriedAt', 'carried_at'): model.carriedAt,
       _k(src, 'createdAt', 'created_at'): model.createdAt,
+      _k(src, 'lastModified', 'last_modified'): model.lastModified,
+      _k(src, 'serverId', 'server_id'): model.serverId,
       _k(src, 'createdAtEpoch', 'created_at_epoch'): model.createdAtEpoch,
       _k(src, 'createdAtIso', 'created_at_iso'): model.createdAtIso,
       _k(src, 'updatedAt', 'updated_at'): model.updatedAt,
