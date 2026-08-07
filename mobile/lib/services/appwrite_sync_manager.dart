@@ -5886,8 +5886,16 @@ class AppwriteSyncManager {
   }
 
   Future<ShiftNote?> _getShiftNoteByLocalUuid(String uuid) {
+    // ✅ Audit Fix (2026-08-06): فلترة createdBy != 'blacklist'
+    // سابقاً، لم يكن هناك فلتر على createdBy. لو كان هناك سجل blacklist
+    // بنفس localUuid (نادر لكن ممكن)، كانت `_processShiftNoteEntry` تلتقطه
+    // وتدفعه لـ shift_notes collection بدلاً من blacklist collection.
+    // الآن نستبعد سجلات blacklist صراحةً.
     return (database.select(database.shiftNotes)
-          ..where((t) => t.localUuid.equals(uuid))
+          ..where(
+            (t) => t.localUuid.equals(uuid) &
+                t.createdBy.equals('user'),
+          )
           ..limit(1))
         .getSingleOrNull();
   }
@@ -6592,9 +6600,15 @@ class AppwriteSyncManager {
 
         // ✅ تخطي التحديث إذا كانت البيانات البعيدة مطابقة للمحلية
         final localUuid = (data['localUuid'] as String?) ?? '';
+        // ✅ Audit Fix (2026-08-06): فلترة createdBy='user' لاستبعاد سجلات blacklist.
+        // سابقاً، البحث كان بـ localUuid فقط. لو كان هناك سجل blacklist
+        // بنفس localUuid، كان يتم التقاء سجل خاطئ.
         final existing =
             await (database.select(database.shiftNotes)
-                  ..where((t) => t.localUuid.equals(localUuid))
+                  ..where(
+                    (t) => t.localUuid.equals(localUuid) &
+                        t.createdBy.equals('user'),
+                  )
                   ..limit(1))
                 .getSingleOrNull();
         if (!(await _isRemoteDataNewer(
