@@ -645,14 +645,14 @@ class PayloadMapper {
         : null;
 
     final data = <String, dynamic>{
-      // تم الإصلاح الجذري لمطابقة مخطط v2
-      'guestName': item.title,
-      'guestPhone': (extra['phone'] as String?) ?? '',
-      'guestIdNumber': (extra['nationalId'] as String?) ?? '',
+      'name': item.title,
+      'nationality': (extra['nationality'] as String?) ?? '',
+      'nationalId': (extra['nationalId'] as String?) ?? '',
+      'phone': (extra['phone'] as String?) ?? '',
       'reason': (extra['reason'] as String?) ?? '',
-      'isActive': (extra['active'] as bool?) ?? true,
-      'addedDate': createdAtIso,
-      'addedBy': (extra['reportedBy'] as String?) ?? 'police',
+      'notes': (extra['notes'] as String?) ?? '',
+      'active': (extra['active'] as bool?) ?? true,
+      'reportedBy': (extra['reportedBy'] as String?) ?? 'police',
 
       'localUuid': item.localUuid,
       // ✅ إصلاح: blacklist schema يُعرّف createdAt/updatedAt/deletedAt كـ string (ISO)
