@@ -567,7 +567,8 @@ class GuestInfos extends Table with SyncFields {
   TextColumn get issueDate => text().nullable()();
   TextColumn get issuePlace => text().nullable()();
   TextColumn get governorate => text().nullable()();
-  TextColumn get notes => text().nullable()();
+  TextColumn get notes => text().nullable();
+  TextColumn get guestPhone => text().nullable()();
 
   List<Index> get indexes => [
     Index(
