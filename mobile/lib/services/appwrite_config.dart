@@ -76,6 +76,10 @@ class AppwriteConfig {
   // جدول سحوبات الرواتب
   static const String salaryWithdrawalsCollectionId = 'salary_withdrawals';
 
+  // جدول سجلات ترحيل الرواتب
+  static const String salaryCarryOverLogsCollectionId =
+      'salary_carry_over_logs';
+
   // جدول إعدادات التطبيق (واتساب، وغيرها)
   static const String appSettingsCollectionId = 'app_settings';
 
@@ -97,7 +101,7 @@ class AppwriteConfig {
     'salary_cycles': salaryCyclesCollectionId,
     'salary_payments': salaryPaymentsCollectionId,
     'salary_withdrawals': salaryWithdrawalsCollectionId,
-    'salary_carry_over_logs': 'salary_carry_over_logs',
+    'salary_carry_over_logs': salaryCarryOverLogsCollectionId,
     'blacklist': blacklistCollectionId,
     'price_adjustments': priceAdjustmentsCollectionId,
     'booking_price_adjustments': bookingPriceAdjustmentsCollectionId,

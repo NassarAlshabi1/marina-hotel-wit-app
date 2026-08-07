@@ -3134,6 +3134,8 @@ class AppwriteSyncManager {
           return await _processPriceAdjustmentEntry(entry);
         case 'payment_voids':
           return await _processPaymentVoidEntry(entry);
+        case 'audit_logs':
+          return await _processAuditLogEntry(entry);
         default:
           _logger.warning(
             'Unknown outbox entity: ${entry.entity}',
@@ -6247,6 +6249,54 @@ class AppwriteSyncManager {
           ..where((t) => t.localUuid.equals(uuid))
           ..limit(1))
         .getSingleOrNull();
+  }
+
+  /// ✅ إصلاح (2026-08-07): معالج دفع سجلات التدقيق عبر الـ outbox.
+  /// كان audit_logs يُدرج في الـ outbox (مثلاً من hotel_day_key_fix_service)
+  /// لكن لا يوجد له case في switch → "Unknown outbox entity" → يبقى عالقاً
+  /// في الـ outbox ولا يُرفع أبداً. الآن يُرفع كبقية الكيانات.
+  Future<bool> _processAuditLogEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      await _deleteSilently(
+        () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.auditLogsCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+      return true;
+    }
+    final log =
+        await (database.select(database.auditLogs)
+              ..where((t) => t.localUuid.equals(entry.localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+    if (log == null) {
+      await _deleteSilently(
+        () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.auditLogsCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+      return true;
+    }
+    final payload = _adapterRegistry.auditLogs.toJsonForSource(
+      log,
+      src: Source.appwrite,
+    );
+    final occPayload = await _occPushCheck(
+      entity: 'audit_logs',
+      documentId: entry.localUuid,
+      localPayload: payload,
+    );
+    await appwriteService.upsertDocument(
+      collectionId: AppwriteConfig.auditLogsCollectionId,
+      documentId: entry.localUuid,
+      data: _filterPayload(
+        'audit_logs',
+        _addIdempotencyKey(occPayload, entry),
+      ),
+    );
+    return true;
   }
 
   Future<bool> _processEmployeeEntry(OutboxData entry) async {

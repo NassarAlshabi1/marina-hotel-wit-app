@@ -574,6 +574,18 @@ class AppwriteSchemaVerifier {
         {'key': 'notes', 'type': 'string'},
       ],
     },
+    'salary_carry_over_logs': {
+      'name': 'Salary Carry Over Logs',
+      'includeSyncFields': true,
+      'attributes': [
+        {'key': 'localUuid', 'type': 'string', 'size': 100, 'required': true},
+        {'key': 'employeeId', 'type': 'integer', 'required': true},
+        // ⚠️ amount على Appwrite Cloud هو integer (يُحوَّل تلقائياً عبر
+        // AppwriteSyncUtils.convertAmountTypesForAppwrite)
+        {'key': 'amount', 'type': 'integer', 'required': true},
+        {'key': 'reason', 'type': 'string', 'size': 500},
+      ],
+    },
   };
 
   static final _syncFields = [

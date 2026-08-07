@@ -228,6 +228,14 @@ class AppwriteFullPull {
         collectionId: AppwriteConfig.guestInfosCollectionId,
         repo: reg.guestInfos,
       ),
+      // 19. سجلات ترحيل الرواتب (تعتمد على الموظفين)
+      // ✅ إصلاح (2026-08-07): كان يُدفع (outbox/delta/secondary) لكنه لم يكن
+      // يُسحب أبداً → مزامنة أحادية الاتجاه وفقدان صامت للبيانات على أجهزة أخرى.
+      _PullEntity(
+        name: 'salary_carry_over_logs',
+        collectionId: AppwriteConfig.salaryCarryOverLogsCollectionId,
+        repo: reg.salaryCarryOverLogs,
+      ),
     ];
   }
 
