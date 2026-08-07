@@ -3,37 +3,234 @@ import 'dart:async';
 
 import 'package:appwrite/appwrite.dart';
 import 'package:drift/drift.dart' as drift;
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../appwrite_config.dart';
 import '../appwrite_logger.dart';
 import '../appwrite_service.dart';
+import '../daos/ancestor_cache_dao.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
+import '../vector_clock_service.dart';
+import 'smart_conflict_resolver.dart';
 
 /// خدمة سحب التغييرات من Appwrite Cloud إلى القاعدة المحلية
 ///
-/// نسخة مُنظَّفة (v2) — تحتوي فقط على الدوال المستخدمة فعليًا من AppwriteSyncManager.
-/// الدوال المُكررة (17 دالة _syncXxx + دوال المساعدة) محذوفة لأن AppwriteSyncManager
-/// يحتفظ بنسخه الخاصة الحية منها.
+/// ✅ Audit Fix (2026-08-06): تمت إضافة `checkAndResolveConflict` — منطق
+/// كشف وحل التعارضات الذي كان مُلصقاً في 17 موقعاً في AppwriteSyncManager.
+/// الآن SyncPullService هو المسؤول الوحيد عن:
+///   - بناء delta queries
+///   - إدارة pull timestamps
+///   - **كشف وحل التعارضات** (جديد)
 ///
-/// الدوال المُستخدمة (7):
-///   - buildDeltaQueries / bookingNightsDeltaQueries
-///   - isRemoteEpochMillis
-///   - getBookingNightsPullTs / updateBookingNightsPullTs
-///   - getLastPullTs / updateLastPullTs
+/// AppwriteSyncManager._isRemoteDataNewer يُفوّض الآن إلى
+/// `_pullService.checkAndResolveConflict(...)`.
 class SyncPullService {
   SyncPullService({
     required this.appwriteService,
     required this.database,
     required this.outboxDao,
     AppwriteLogger? logger,
-  }) : _logger = logger ?? AppwriteLogger();
+  }) : _logger = logger ?? AppwriteLogger(),
+       _ancestorCacheDao = null;
 
   final AppwriteService appwriteService;
   final AppDatabase database;
   final OutboxDao outboxDao;
   final AppwriteLogger _logger;
+
+  /// ✅ Audit Fix: AncestorCacheDao للوصول إلى الـ ancestor cache.
+  /// يُحقنlazy من AppwriteSyncManager عبر [setAncestorCacheDao].
+  AncestorCacheDao? _ancestorCacheDao;
+
+  /// ✅ Audit Fix: deviceId الحالي (لـ LWW tie-break).
+  String? _currentDeviceId;
+
+  /// ✅ Audit Fix: حقن AncestorCacheDao من AppwriteSyncManager.
+  /// هذا يسمح لـ SyncPullService بالوصول إلى الـ ancestor cache
+  /// بدون إنشاء instance منفصل (يضمن استخدام نفس الـ DAO).
+  void setAncestorCacheDao(AncestorCacheDao dao, {String? deviceId}) {
+    _ancestorCacheDao = dao;
+    _currentDeviceId = deviceId;
+  }
+
+  // ── Conflict Detection & Resolution ──────────────────────────────────
+
+  /// ✅ Audit Fix (2026-08-06): كشف وحل التعارضات.
+  ///
+  /// هذه الدالة هي القلب المنطقي للمزامنة — تحدد ما إذا كان يجب تطبيق
+  /// البيانات البعيدة، وتحل التعارضات المتزامنة عبر 3-way merge.
+  ///
+  /// المعاملات:
+  /// - [remoteData] — بيانات المستند البعيد (من Appwrite). **يُعدَّل in-place**
+  ///   عند الدمج (يُستبدل بالبيانات المدموجة).
+  /// - [localLastModified] — timestamp آخر تعديل محلي (epoch seconds).
+  /// - [localDeletedAt] — timestamp الحذف المحلي (null إذا غير محذوف).
+  /// - [remoteUpdatedAtSec] — `$updatedAt` من Appwrite (seconds).
+  /// - [localVectorClock] — VC المحلي (JSON string).
+  /// - [entityName] — اسم الكيان (لـ SmartConflictResolver policies).
+  /// - [localUuid] — UUID المحلي للسجل.
+  /// - [localData] — البيانات المحلية الكاملة (لـ 3-way merge).
+  ///
+  /// Returns: [RemoteCheckResult] مع `shouldApplyRemote` وبيانات الدمج.
+  Future<RemoteCheckResult> checkAndResolveConflict(
+    Map<String, dynamic> remoteData,
+    int? localLastModified, {
+    int? localDeletedAt,
+    int? remoteUpdatedAtSec,
+    String? localVectorClock,
+    String? entityName,
+    String? localUuid,
+    Map<String, dynamic>? localData,
+  }) async {
+    // 1) حماية الحذف المحلي (soft delete) — له أولوية أعلى
+    if (localDeletedAt != null) {
+      final remoteDeletedAt = _asIntNullable(remoteData['deletedAt']) ??
+          _asIntNullable(remoteData['deleted_at']);
+      if (remoteDeletedAt != null) {
+        return const RemoteCheckResult(shouldApplyRemote: true);
+      }
+      return const RemoteCheckResult(shouldApplyRemote: false);
+    }
+
+    // 2) السجل غير موجود محلياً → يجب إضافته
+    if (localLastModified == null) {
+      return const RemoteCheckResult(shouldApplyRemote: true);
+    }
+
+    // 3) استخراج timestamp البعيد
+    final remoteLastModified = _asIntNullable(remoteData['lastModified']) ??
+        _asIntNullable(remoteData['last_modified']) ??
+        _asIntNullable(remoteData['lastModifiedEpoch']);
+    final effectiveRemoteTs = remoteLastModified ?? remoteUpdatedAtSec;
+
+    if (effectiveRemoteTs == null) {
+      // لا timestamp متاح → تطبيق البعيد كحل آمن
+      _logger.debug(
+        'checkAndResolveConflict: no remote timestamp — applying remote. '
+        'uuid=$localUuid',
+        tag: 'SYNC',
+      );
+      return const RemoteCheckResult(shouldApplyRemote: true);
+    }
+
+    // 4) Vector Clock comparison
+    final remoteVcStr = (remoteData['vectorClock'] as String?) ??
+        (remoteData['vector_clock'] as String?) ??
+        '{}';
+
+    // إذا كانت كلتا الساعتين فارغتين → LWW
+    if ((localVectorClock == null ||
+            localVectorClock.isEmpty ||
+            localVectorClock == '{}') &&
+        (remoteVcStr.isEmpty || remoteVcStr == '{}')) {
+      final normalizedRemoteTs = effectiveRemoteTs > 10000000000
+          ? effectiveRemoteTs ~/ 1000
+          : effectiveRemoteTs;
+      final normalizedLocalTs = localLastModified > 10000000000
+          ? localLastModified ~/ 1000
+          : localLastModified;
+      return RemoteCheckResult(
+        shouldApplyRemote: normalizedRemoteTs > normalizedLocalTs,
+      );
+    }
+
+    final localVc = VectorClock.fromString(localVectorClock ?? '{}');
+    final remoteVc = VectorClock.fromString(remoteVcStr);
+
+    if (kDebugMode && (localVc.isEmpty || remoteVc.isEmpty)) {
+      _logger.info(
+        'VC empty: entity=$entityName, uuid=$localUuid, '
+        'localVc=${localVc.isEmpty ? "empty" : "non-empty"}, '
+        'remoteVc=${remoteVc.isEmpty ? "empty" : "non-empty"}',
+        tag: 'VC_HEALTH',
+      );
+    }
+
+    final comparison = VectorClockComparator.compare(localVc, remoteVc);
+
+    switch (comparison) {
+      case VectorClockComparison.equal:
+        return const RemoteCheckResult(shouldApplyRemote: false);
+
+      case VectorClockComparison.remoteNewer:
+        return const RemoteCheckResult(shouldApplyRemote: true);
+
+      case VectorClockComparison.localNewer:
+        return const RemoteCheckResult(shouldApplyRemote: false);
+
+      case VectorClockComparison.concurrent:
+        // ⚠️ تعارض متزامن!
+        _logger.warning(
+          '⚠️ CONCURRENT CONFLICT: entity=$entityName, uuid=$localUuid, '
+          'localVc=$localVectorClock, remoteVc=$remoteVcStr.',
+          tag: 'CONFLICT',
+        );
+
+        // محاولة الحل الذكي عبر SmartConflictResolver (3-way merge)
+        if (entityName != null &&
+            localUuid != null &&
+            localData != null &&
+            _ancestorCacheDao != null) {
+          try {
+            final ancestor = await _ancestorCacheDao!.getAncestor(
+              entityName,
+              localUuid,
+            );
+            final remoteDataOriginal = Map<String, dynamic>.from(remoteData);
+            final resolution = SmartConflictResolver.resolve(
+              entity: entityName,
+              localData: localData,
+              remoteData: remoteData,
+              commonAncestor: ancestor,
+            );
+
+            if (resolution.strategy ==
+                ResolutionStrategy.fieldLevelMerge) {
+              _logger.info(
+                '✅ 3-way merge resolved: entity=$entityName, uuid=$localUuid, '
+                'warnings=${resolution.warnings.length}',
+                tag: 'CONFLICT',
+              );
+              // كتابة البيانات المدمجة في remoteData in-place
+              remoteData.clear();
+              remoteData.addAll(resolution.mergedData);
+              // حفظ البيانات البعيدة الأصلية كـ ancestor
+              await _ancestorCacheDao!.saveAncestor(
+                entity: entityName,
+                localUuid: localUuid,
+                data: remoteDataOriginal,
+              );
+              return RemoteCheckResult(
+                shouldApplyRemote: true,
+                mergedData: resolution.mergedData,
+                pushedToRemote: resolution.pushedToRemote,
+              );
+            }
+          } catch (e) {
+            _logger.warning(
+              '⚠️ SmartConflictResolver failed, LWW fallback: $e',
+              tag: 'CONFLICT',
+            );
+          }
+        }
+
+        // LWW fallback + deviceId tie-break
+        final normalizedRemoteTs = effectiveRemoteTs > 10000000000
+            ? effectiveRemoteTs ~/ 1000
+            : effectiveRemoteTs;
+        final remoteDeviceId =
+            (remoteData['deviceId'] as String?) ?? '';
+        final localDeviceId = _currentDeviceId ?? '';
+        final shouldApply = normalizedRemoteTs > localLastModified ||
+            (normalizedRemoteTs == localLastModified &&
+                remoteDeviceId.compareTo(localDeviceId) < 0);
+        return RemoteCheckResult(shouldApplyRemote: shouldApply);
+    }
+  }
+
+  // ── Helper Methods ─────────────────────────────────────────────────────
 
   bool? _remoteEpochIsMillis;
 
@@ -213,4 +410,25 @@ class SyncPullService {
       _logger.warning('Failed to update lastPullTs: $e', tag: 'SYNC');
     }
   }
+}
+
+/// ✅ Audit Fix (2026-08-06): نتيجة فحص التعارض.
+///
+/// تُماثل `_RemoteNewerResult` في AppwriteSyncManager لكنها public
+/// لتسمح لـ SyncPullService بإرجاعها مباشرة.
+class RemoteCheckResult {
+  const RemoteCheckResult({
+    required this.shouldApplyRemote,
+    this.mergedData,
+    this.pushedToRemote = false,
+  });
+
+  /// هل يجب تطبيق البيانات البعيدة؟
+  final bool shouldApplyRemote;
+
+  /// البيانات المدموجة (فقط عند 3-way merge ناجح).
+  final Map<String, dynamic>? mergedData;
+
+  /// هل يجب رفع النتيجة للسحابة؟ (فقط عند 3-way merge مع pushedToRemote=true).
+  final bool pushedToRemote;
 }

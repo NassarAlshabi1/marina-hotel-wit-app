@@ -128,6 +128,12 @@ class AppwriteSyncManager {
       database: database,
       outboxDao: outboxDao,
     );
+    // ✅ Audit Fix (2026-08-06): حقن AncestorCacheDao + deviceId
+    // إلى SyncPullService لتمكين conflict detection.
+    _pullService!.setAncestorCacheDao(
+      _ancestorCacheDao,
+      deviceId: _currentDeviceId,
+    );
   }
   static AppwriteSyncManager? _instance;
 
@@ -1925,6 +1931,43 @@ class AppwriteSyncManager {
   /// ✅ إصلاح (2026-06-28 P0-3): تكامل SmartConflictResolver في فرع concurrent.
   /// النتيجة تحتوي على mergedData إذا تم الدمج التلقائي بنجاح.
   Future<_RemoteNewerResult> _isRemoteDataNewer(
+    Map<String, dynamic> remoteData,
+    int? localLastModified, {
+    int? localDeletedAt,
+    int? remoteUpdatedAtSec,
+    String? localVectorClock,
+    String? entityName,
+    String? localUuid,
+    Map<String, dynamic>? localData,
+  }) async {
+    // ✅ Audit Fix (2026-08-06): تفويض conflict detection إلى SyncPullService.
+    // سابقاً، كان المنطق مُلصقاً هنا (191 سطر) ومُكرراً عبر 17 موقعاً.
+    // الآن SyncPullService.checkAndResolveConflict() هو المسؤول الوحيد.
+    // نُحافظ على _isRemoteDataNewer كـ thin wrapper للتوافق مع الـ 17 call site.
+    final result = await _pullService!.checkAndResolveConflict(
+      remoteData,
+      localLastModified,
+      localDeletedAt: localDeletedAt,
+      remoteUpdatedAtSec: remoteUpdatedAtSec,
+      localVectorClock: localVectorClock,
+      entityName: entityName,
+      localUuid: localUuid,
+      localData: localData,
+    );
+    return _RemoteNewerResult(
+      shouldApplyRemote: result.shouldApplyRemote,
+      mergedData: result.mergedData,
+      pushedToRemote: result.pushedToRemote,
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ⚠️ الكود أدناه محفوظ للمرجعية لكن غير مستخدم — المنطق انتقل إلى
+  // SyncPullService.checkAndResolveConflict().
+  // ✅ Audit Fix (2026-08-06): تفويض كامل إلى SyncPullService.
+  // ═══════════════════════════════════════════════════════════════════════
+  // ignore: unused_element
+  Future<_RemoteNewerResult> _isRemoteDataNewerLegacy(
     Map<String, dynamic> remoteData,
     int? localLastModified, {
     int? localDeletedAt,

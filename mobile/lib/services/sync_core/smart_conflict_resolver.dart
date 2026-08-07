@@ -212,8 +212,15 @@ class SmartConflictResolver {
     'guest_infos': const EntityResolutionPolicy(
       defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
       rules: {
+        // ✅ Audit Fix (2026-08-06): إزالة قاعدة guestIdNumber الميتة.
+        // guestIdNumber لا يطابق أي حقل في جدول guest_infos — الحقل الفعلي
+        // هو idNumber (مع altKey id_number في الـ adapter). قاعدة guestIdNumber
+        // كانت تطابق لا شيء وتُهدر الذاكرة.
+        // إضافة قواعد صريحة للحقول المهمة:
         'idNumber': FieldResolutionRule(FieldStrategy.newerWins),
-        'guestIdNumber': FieldResolutionRule(FieldStrategy.newerWins),
+        'roomNumber': FieldResolutionRule(FieldStrategy.newerWins),
+        'guestName': FieldResolutionRule(FieldStrategy.newerWins),
+        'nationality': FieldResolutionRule(FieldStrategy.newerWins),
         'notes': FieldResolutionRule(FieldStrategy.concat),
       },
     ),
