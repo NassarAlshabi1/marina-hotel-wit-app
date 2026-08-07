@@ -41,6 +41,7 @@ import 'services/api_config_service.dart';
 import 'services/app_session_manager.dart';
 import 'services/auto_backup_manager.dart';
 import 'services/background_sync_service.dart';
+import 'services/blacklist_alert_service.dart';
 import 'services/battery_optimizer.dart';
 import 'services/central_sync_coordinator.dart';
 import 'services/cloudflare_migration_service.dart';
@@ -198,8 +199,22 @@ Future<void> main() async {
   // ✅ تهيئة المزامنة الثانوية (إذا كانت مُفعّلة من إعدادات سابقة)
   unawaited(_initializeSecondarySync());
 
+  // ✅ تهيئة خدمة تنبيهات القائمة السوداء
+  unawaited(_initializeBlacklistAlerts());
+
   // ✅ بدء فحص صحة الوجهتين بشكل دوري (Failover detection)
   _startHealthChecker();
+}
+
+/// تهيئة خدمة تنبيهات القائمة السوداء + فحص النزلاء الحاليين
+Future<void> _initializeBlacklistAlerts() async {
+  try {
+    final db = DatabaseManager.instance;
+    await BlacklistAlertService.instance.initialize(db);
+    debugPrint('✅ BlacklistAlertService initialized');
+  } catch (e) {
+    debugPrint('⚠️ BlacklistAlertService init failed: $e');
+  }
 }
 
 /// تهيئة آمنة لخدمة اختيارية — تلتقط الأخطاء وتسجّلها بدلاً من تعطيل التطبيق.

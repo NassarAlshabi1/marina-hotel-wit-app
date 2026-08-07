@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import '../auto_backup_manager.dart';
+import '../blacklist_alert_service.dart';
 import '../booking_derived_fields_service.dart';
 import '../crashlytics_service.dart';
 import '../daos/bookings_dao.dart';
@@ -106,6 +107,19 @@ class BookingsRepository {
       );
       // إشعارات فورية (fire-and-forget)
       unawaited(_notifyNewBooking(result));
+
+      // ✅ فحص القائمة السوداء عند تسجيل الدخول
+      if (status == 'checked_in') {
+        unawaited(
+          BlacklistAlertService.instance.checkGuest(
+            db: db,
+            guestName: guestName,
+            roomNumber: roomNumber,
+            bookingId: result,
+          ),
+        );
+      }
+
       return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(

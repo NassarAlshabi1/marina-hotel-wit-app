@@ -20,6 +20,7 @@ import '../services/sync_constants.dart';
 import '../utils/loading_snackbar.dart';
 import '../utils/performance_monitor.dart';
 import '../utils/status_utils.dart';
+import '../widgets/blacklist_alert_banner.dart';
 import '../widgets/dashboard_conflicts_badge.dart';
 import '../widgets/dashboard_sync_button.dart';
 import 'bookings/booking_edit.dart';
@@ -187,6 +188,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              // ✅ بانر تحذير القائمة السوداء
+              const BlacklistAlertBanner(),
               _buildHeader(),
               const SizedBox(height: 16),
               _buildStatisticsCards(),
