@@ -31,6 +31,7 @@ mixin SyncFields on Table {
   TextColumn get origin => text().withDefault(const Constant('local'))();
   TextColumn get vectorClock => text().withDefault(const Constant('{}'))();
   TextColumn get deviceId => text().withDefault(const Constant(''))();
+  IntColumn get syncTimestamp => integer().withDefault(const Constant(0))();
   // ✅ v2: مفتاح إزالة التكرار (idempotency) — يمنع تكرار العمليات عبر الأجهزة
   TextColumn get idempotencyKey => text().nullable()();
 }
@@ -2620,13 +2621,58 @@ class AppDatabase extends _$AppDatabase {
           );
         }
 
-        developer.log(
-          'Migration 51: audit fixes applied (unique idempotency + timestamp units)',
-          name: 'db.migration',
-        );
-      }
-    },
-  );
+developer.log(
+            'Migration 51: audit fixes applied (unique idempotency + timestamp units)',
+            name: 'db.migration',
+          );
+        }
+        // === Migration 52: Add sync_timestamp to all SyncFields tables ===
+        if (from < 52) {
+          const syncTimestampTables = [
+            'rooms',
+            'bookings',
+            'booking_notes',
+            'employees',
+            'expenses',
+            'cash_transactions',
+            'payments',
+            'debts',
+            'shift_notes',
+            'booking_nights',
+            'hotel_day_ledger',
+            'price_adjustments',
+            'booking_price_adjustments',
+            'payment_voids',
+            'guest_infos',
+            'salary_cycles',
+            'salary_payments',
+            'salary_withdrawals',
+            'salary_carry_over_logs',
+            'audit_logs',
+          ];
+          for (final table in syncTimestampTables) {
+            try {
+              await m.database.customStatement(
+                'ALTER TABLE $table ADD COLUMN sync_timestamp INTEGER DEFAULT 0',
+              );
+              developer.log(
+                'Migration 52: added sync_timestamp to $table',
+                name: 'db.migration',
+              );
+            } catch (e) {
+              developer.log(
+                'Migration 52: sync_timestamp already exists in $table: $e',
+                name: 'db.migration',
+              );
+            }
+          }
+          developer.log(
+            'Migration 52: added sync_timestamp to all sync tables',
+            name: 'db.migration',
+          );
+        }
+      },
+    );
 
   /// تجميع جميع الجداول المطلوب مزامنتها في خريطة JSON
   ///
