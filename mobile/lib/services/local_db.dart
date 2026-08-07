@@ -249,10 +249,10 @@ class Payments extends Table with SyncFields {
   TextColumn get bookingUuidCache => text().nullable()();
   RealColumn get discountAmount => real().nullable()();
   TextColumn get discountStartDate => text().nullable()();
-  BoolColumn get isVoided => boolean().withDefault(const Constant(false))();
-  IntColumn get voidedAt => integer().nullable()();
-  TextColumn get voidedBy => text().nullable()();
-  TextColumn get voidReason => text().nullable()();
+BoolColumn get isVoided => boolean().withDefault(const Constant(false))();
+  IntColumn get voidedAt => integer().nullable();
+  TextColumn get voidedBy => text().nullable();
+  TextColumn get voidReason => text().nullable();
   BoolColumn get isImmutable => boolean().withDefault(const Constant(false))();
 
   List<Index> get indexes => [
