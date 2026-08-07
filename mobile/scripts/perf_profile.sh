@@ -115,7 +115,7 @@ build_app() {
   # توليد drift/freezed files أولاً
   if [ -f "pubspec.yaml" ]; then
     echo -e "  ${BLUE}→ توليد build_runner files...${NC}"
-    dart run build_runner build --delete-conflicting-outputs 2>&1 | tail -5 || true
+    dart run build_runner build 2>&1 | tail -5 || true
   fi
 
   echo -e "  ${GREEN}✓ build_runner اكتمل${NC}"
