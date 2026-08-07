@@ -6083,8 +6083,9 @@ class AppwriteSyncManager {
         // معالجة الحذف الناعم
         final deletedAtVal = data['deletedAt'];
         int? deletedAtEpoch;
+        String? deletedAtStr; // ✅ Audit Fix: رفع لـ outer scope
         if (deletedAtVal != null) {
-          final deletedAtStr = deletedAtVal as String?;
+          deletedAtStr = deletedAtVal as String?;
           if (deletedAtStr != null && deletedAtStr.isNotEmpty) {
             try {
               deletedAtEpoch =
@@ -6146,12 +6147,43 @@ class AppwriteSyncManager {
           createdAtIso: drift.Value(createdAtIso),
           updatedAt: drift.Value(updatedAtEpoch),
           lastModified: drift.Value(lastModified),
+          // ✅ Audit Fix (2026-08-06): إضافة SyncFields المفقودة.
+          // سابقاً، هذه الحقول لم تكن تُكتب عند sync الـ blacklist.
+          // النتيجة: version=1 (default), vectorClock='{}' (default),
+          // origin='local' (default), deviceId='' (default).
+          // هذا يُسبب فشل كشف التعارضات في المزامنة اللاحقة لأن
+          // VectorClockComparator.compare يرى VC فارغة → LWW فقط
+          // (بدلاً من 3-way merge).
+          createdAtEpoch: drift.Value(createdAtEpoch),
+          lastModifiedEpoch: drift.Value(lastModified),
+          version: drift.Value(
+            (existingForCheck?.version ?? 0) + 1,
+          ),
+          origin: const drift.Value('server'),
+          vectorClock: drift.Value(
+            (data['vectorClock'] as String?) ??
+            (data['vector_clock'] as String?) ??
+            '{}',
+          ),
+          deviceId: drift.Value(
+            (data['deviceId'] as String?) ?? '',
+          ),
+          idempotencyKey: drift.Value(
+            (data['idempotencyKey'] as String?) ??
+            (data['idempotency_key'] as String?),
+          ),
           expiresAt: const drift.Value(null),
           isRead: const drift.Value(0),
           createdBy: const drift.Value('blacklist'),
           localUuid: drift.Value(localUuid),
           serverId: serverId != null
               ? drift.Value(serverId)
+              : const drift.Value(null),
+          deletedAt: deletedAtEpoch != null && deletedAtEpoch > 0
+              ? drift.Value(deletedAtEpoch)
+              : const drift.Value(null),
+          deletedAtIso: deletedAtEpoch != null && deletedAtEpoch > 0
+              ? drift.Value(deletedAtStr ?? '')
               : const drift.Value(null),
         );
 

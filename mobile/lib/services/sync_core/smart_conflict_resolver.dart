@@ -203,9 +203,17 @@ class SmartConflictResolver {
     'shift_notes': const EntityResolutionPolicy(
       defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
       rules: {
-        'noteText': FieldResolutionRule(FieldStrategy.concat),
+        // ✅ Audit Fix (2026-08-06): إزالة قاعدتين ميتتين.
+        // 'noteText' كان لا يطابق أي حقل — الحقل الفعلي هو 'content'
+        // 'isCompleted' كان لا يطابق أي حقل — الحقل الفعلي هو 'isRead'
+        // إضافة قواعد صريحة للحقول الفعلية:
+        'title': FieldResolutionRule(FieldStrategy.newerWins),
+        'content': FieldResolutionRule(FieldStrategy.concat),
         'priority': FieldResolutionRule(FieldStrategy.newerWins),
-        'isCompleted': FieldResolutionRule(FieldStrategy.newerWins),
+        'shiftType': FieldResolutionRule(FieldStrategy.newerWins),
+        'isRead': FieldResolutionRule(FieldStrategy.newerWins),
+        'expiresAt': FieldResolutionRule(FieldStrategy.newerWins),
+        'createdBy': FieldResolutionRule(FieldStrategy.newerWins),
       },
     ),
 
@@ -268,14 +276,22 @@ class SmartConflictResolver {
     ),
 
     'blacklist': const EntityResolutionPolicy(
+      // ✅ Audit Fix (2026-08-06): القواعد السابقة كانت تطابق مفاتيح JSON
+      // داخل حقل 'content' وليس أعمدة. لكن SmartConflictResolver يُطبّق
+      // القواعد على مستوى أعمدة الـ DB (عند الدمج في _autoMerge).
+      // البيانات الفعلية لـ blacklist تُخزّن كـ JSON في حقل 'content' لجدول
+      // shift_notes. هذا يعني أن القواعد الفردية للحقول لا تطابق أعمدة.
+      //
+      // الحل الصحيح: newerWins لكل شيء (لأن الـ JSON كامل يُعامَل كوحدة واحدة).
+      // لو احتاج مستخدم لتعديل حقل واحد في blacklist، فإن الكيان يُكتب كاملاً
+      // محلياً (مع version+1 و VC bump)، وnewerWins يضمن أن آخر تعديل يفوز.
+      //
+      // ملاحظة: 'name' و 'content' هما الأعمدة الفعلية في shift_notes table.
+      // 'name' = اسم الشخص، 'content' = JSON payload (nationality, phone, etc.)
       defaultRule: FieldResolutionRule(FieldStrategy.newerWins),
       rules: {
-        'reason': FieldResolutionRule(FieldStrategy.concat),
-        'notes': FieldResolutionRule(FieldStrategy.concat),
-        'isActive': FieldResolutionRule(FieldStrategy.newerWins),
-        'guestName': FieldResolutionRule(FieldStrategy.newerWins),
-        'guestPhone': FieldResolutionRule(FieldStrategy.newerWins),
-        'idNumber': FieldResolutionRule(FieldStrategy.newerWins),
+        'name': FieldResolutionRule(FieldStrategy.newerWins),
+        'content': FieldResolutionRule(FieldStrategy.newerWins),
       },
     ),
 
