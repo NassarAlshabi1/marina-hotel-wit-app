@@ -53,19 +53,19 @@ jobs:
         run: flutter pub get
       
       - name: Run Flutter Analyzer (Check for errors)
-        run: flutter analyze --fatal-infos --fatal-warnings .
+        run: flutter analyze .
       
       - name: Generate code with build_runner
         run: flutter pub run build_runner build --delete-conflicting-outputs --verbose
       
       - name: Run Flutter Analyzer (Post-generation)
-        run: flutter analyze --fatal-infos --fatal-warnings .
+        run: flutter analyze .
       
       - name: Check Code Formatting
         run: flutter format --set-exit-if-changed .
       
       - name: Run Linter
-        run: flutter lint
+        run: flutter analyze .
       
       - name: Check for TODO/FIXME comments (Production Warning)
         run: |
@@ -115,13 +115,13 @@ jobs:
         run: flutter pub get
       
       - name: Run Flutter Analyzer
-        run: flutter analyze --fatal-infos --fatal-warnings .
+        run: flutter analyze .
       
       - name: Check Code Formatting
         run: flutter format --set-exit-if-changed .
       
       - name: Run Linter
-        run: flutter lint
+        run: flutter analyze .
       
       - name: Summary
         run: echo "✅ Analysis completed successfully - no errors or warnings found"

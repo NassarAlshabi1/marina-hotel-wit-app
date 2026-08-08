@@ -70,8 +70,12 @@ class PaymentSummaryCard extends StatelessWidget {
     final progressPercentage = summary.paidPercentage / 100;
     final dateFmt = DateFormat('dd/MM/yyyy HH:mm', 'en');
     final checkinText = dateFmt.format(checkin);
-    final plannedText = plannedCheckout != null ? dateFmt.format(plannedCheckout!) : null;
-    final actualText = actualCheckout != null ? dateFmt.format(actualCheckout!) : null;
+    final plannedText = plannedCheckout != null
+        ? dateFmt.format(plannedCheckout!)
+        : null;
+    final actualText = actualCheckout != null
+        ? dateFmt.format(actualCheckout!)
+        : null;
     final hasPhone = guestPhone.isNotEmpty;
     final identityLine = booking.guestIdNumber.isEmpty
         ? booking.guestIdType
@@ -83,19 +87,35 @@ class PaymentSummaryCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            if (summary.isFullyPaid) Colors.green.shade50 else Colors.blue.shade50,
-            if (summary.isFullyPaid) Colors.green.shade100 else Colors.blue.shade100,
+            if (summary.isFullyPaid)
+              Colors.green.shade50
+            else
+              Colors.blue.shade50,
+            if (summary.isFullyPaid)
+              Colors.green.shade100
+            else
+              Colors.blue.shade100,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: summary.isFullyPaid ? Colors.green.shade200 : Colors.blue.shade200),
+        border: Border.all(
+          color: summary.isFullyPaid
+              ? Colors.green.shade200
+              : Colors.blue.shade200,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildGuestInfoRow(identityLine, hasPhone, checkinText, plannedText, actualText),
+          _buildGuestInfoRow(
+            identityLine,
+            hasPhone,
+            checkinText,
+            plannedText,
+            actualText,
+          ),
           const SizedBox(height: 8),
           _buildChipsRow(),
           const SizedBox(height: 1),
@@ -109,12 +129,17 @@ class PaymentSummaryCard extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: onAddBalancePayment,
                 icon: const Icon(Icons.account_balance_wallet, size: 12),
-                label: const Text('إضافة دفعة رصيد تراكمي', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 9)),
+                label: const Text(
+                  'إضافة دفعة رصيد تراكمي',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 9),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.indigo,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 3),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
             ),
@@ -137,7 +162,11 @@ class PaymentSummaryCard extends StatelessWidget {
           backgroundColor: Colors.blue,
           child: Text(
             booking.roomNumber,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
           ),
         ),
         const SizedBox(width: 12),
@@ -145,16 +174,38 @@ class PaymentSummaryCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(booking.guestName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+              Text(
+                booking.guestName,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               Text(
                 'غرفة ${booking.roomNumber}${hasPhone ? ' • $guestPhone' : ''}',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey,
+                ),
               ),
-              Text(identityLine, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-              Text('الجنسية: ${booking.guestNationality}', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-              Text('الوصول: $checkinText', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              Text(
+                identityLine,
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+              Text(
+                'الجنسية: ${booking.guestNationality}',
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+              Text(
+                'الوصول: $checkinText',
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              ),
               if (plannedText != null)
-                Text('المغادرة المخطط: $plannedText', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                Text(
+                  'المغادرة المخطط: $plannedText',
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
               Builder(
                 builder: (context) {
                   final balanceResult = StayBalanceCalculator.calculate(
@@ -162,10 +213,16 @@ class PaymentSummaryCard extends StatelessWidget {
                     roomRate: roomRate,
                     priceAdjustments: priceAdjustments,
                   );
-                  if (!balanceResult.hasPayments) return const SizedBox.shrink();
+                  if (!balanceResult.hasPayments) {
+                    return const SizedBox.shrink();
+                  }
                   final autoFmt = DateFormat('dd/MM/yyyy', 'en');
-                  final autoStr = autoFmt.format(balanceResult.autoCheckoutDate);
-                  final extra = balanceResult.isAutoExtended ? ' (+${balanceResult.extraNightsBeyondManual})' : '';
+                  final autoStr = autoFmt.format(
+                    balanceResult.autoCheckoutDate,
+                  );
+                  final extra = balanceResult.isAutoExtended
+                      ? ' (+${balanceResult.extraNightsBeyondManual})'
+                      : '';
                   return Text(
                     'المغادرة التلقائية: $autoStr (${balanceResult.totalPaidNights} ليلة مدفوعة)$extra',
                     style: const TextStyle(fontSize: 11, color: Colors.grey),
@@ -173,16 +230,23 @@ class PaymentSummaryCard extends StatelessWidget {
                 },
               ),
               if (actualText != null)
-                Text('المغادرة الفعلي: $actualText', style: const TextStyle(fontSize: 11, color: Colors.green)),
+                Text(
+                  'المغادرة الفعلي: $actualText',
+                  style: const TextStyle(fontSize: 11, color: Colors.green),
+                ),
             ],
           ),
         ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: summary.isFullyPaid ? Colors.green.withValues(alpha: 0.2) : Colors.orange.withValues(alpha: 0.2),
+            color: summary.isFullyPaid
+                ? Colors.green.withValues(alpha: 0.2)
+                : Colors.orange.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: summary.isFullyPaid ? Colors.green : Colors.orange),
+            border: Border.all(
+              color: summary.isFullyPaid ? Colors.green : Colors.orange,
+            ),
           ),
           child: Text(
             summary.isFullyPaid ? 'مكتمل الدفع' : 'دفع جزئي',
@@ -202,14 +266,20 @@ class PaymentSummaryCard extends StatelessWidget {
       spacing: 6,
       runSpacing: 6,
       children: [
-        _detailChip(icon: Icons.attach_money, label: 'سعر الليلة', value: currencyFmt.format(roomRate)),
+        _detailChip(
+          icon: Icons.attach_money,
+          label: 'سعر الليلة',
+          value: currencyFmt.format(roomRate),
+        ),
         _detailChip(
           icon: Icons.task_alt,
           label: 'الليالي الفعلية',
           value: actualNights.toString(),
           color: actualNights > expectedNights ? Colors.orange : Colors.green,
         ),
-        if (hasNotCheckedOut && nowIsAfterCutoff && actualNightsDynamic > expectedNights)
+        if (hasNotCheckedOut &&
+            nowIsAfterCutoff &&
+            actualNightsDynamic > expectedNights)
           _infoBadge(
             icon: Icons.schedule,
             text: '+${actualNightsDynamic - expectedNights} ليلة بعد 14:00',
@@ -264,7 +334,10 @@ class PaymentSummaryCard extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('تقدم الدفع', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 9)),
+            const Text(
+              'تقدم الدفع',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 9),
+            ),
             Text(
               '${summary.paidPercentage.toStringAsFixed(1)}%',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 9),
@@ -278,7 +351,9 @@ class PaymentSummaryCard extends StatelessWidget {
             value: progressPercentage,
             minHeight: 2,
             backgroundColor: Colors.grey.shade300,
-            valueColor: AlwaysStoppedAnimation<Color>(summary.isFullyPaid ? Colors.green : Colors.blue),
+            valueColor: AlwaysStoppedAnimation<Color>(
+              summary.isFullyPaid ? Colors.green : Colors.blue,
+            ),
           ),
         ),
       ],
@@ -288,18 +363,31 @@ class PaymentSummaryCard extends StatelessWidget {
   Widget _buildAmountChipsRow() {
     return Row(
       children: [
-        Expanded(child: _amountChip('الإجمالي', summary.totalAmount, Colors.blue)),
+        Expanded(
+          child: _amountChip('الإجمالي', summary.totalAmount, Colors.blue),
+        ),
         const SizedBox(width: 3),
-        Expanded(child: _amountChip('المدفوع', summary.paidAmount, Colors.green)),
+        Expanded(
+          child: _amountChip('المدفوع', summary.paidAmount, Colors.green),
+        ),
         const SizedBox(width: 3),
-        Expanded(child: _amountChip('المتبقي', summary.remainingAmount, Colors.red)),
+        Expanded(
+          child: _amountChip('المتبقي', summary.remainingAmount, Colors.red),
+        ),
         const SizedBox(width: 3),
-        Expanded(child: _amountChip('مدفوع اليوم', todayPaidAmount, Colors.indigo)),
+        Expanded(
+          child: _amountChip('مدفوع اليوم', todayPaidAmount, Colors.indigo),
+        ),
       ],
     );
   }
 
-  Widget _detailChip({required IconData icon, required String label, required String value, Color? color}) {
+  Widget _detailChip({
+    required IconData icon,
+    required String label,
+    required String value,
+    Color? color,
+  }) {
     final chipColor = color ?? Colors.blueGrey;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -315,11 +403,19 @@ class PaymentSummaryCard extends StatelessWidget {
           const SizedBox(width: 3),
           Text(
             '$label: ',
-            style: TextStyle(fontSize: 9, color: chipColor, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 9,
+              color: chipColor,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           Text(
             value,
-            style: TextStyle(fontSize: 9, color: chipColor, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 9,
+              color: chipColor,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
@@ -347,7 +443,11 @@ class PaymentSummaryCard extends StatelessWidget {
           const SizedBox(width: 3),
           Text(
             text,
-            style: TextStyle(fontSize: 9, color: textColor, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 9,
+              color: textColor,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
@@ -366,11 +466,19 @@ class PaymentSummaryCard extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(fontSize: 8, color: color, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 8,
+              color: color,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           Text(
             currencyFmt.format(amount),
-            style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 11,
+              color: color,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ],
       ),
