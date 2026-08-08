@@ -589,6 +589,7 @@ class AppwriteSchemaVerifier {
   };
 
   static final _syncFields = [
+    {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
     {'key': 'serverId', 'type': 'integer'},
     {'key': 'createdAt', 'type': 'integer', 'required': true},
     {'key': 'updatedAt', 'type': 'integer', 'required': true},
@@ -604,6 +605,7 @@ class AppwriteSchemaVerifier {
     {'key': 'version', 'type': 'integer', 'default': 1},
     {'key': 'origin', 'type': 'string', 'size': 20, 'default': 'local'},
     {'key': 'vectorClock', 'type': 'string', 'size': 500, 'default': '{}'},
+    {'key': 'idempotencyKey', 'type': 'string', 'size': 100},
   ];
 
   /// التحقق من جميع Collections والـ Attributes

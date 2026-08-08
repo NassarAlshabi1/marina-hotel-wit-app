@@ -31,6 +31,7 @@ mixin SyncFields on Table {
   TextColumn get origin => text().withDefault(const Constant('local'))();
   TextColumn get vectorClock => text().withDefault(const Constant('{}'))();
   TextColumn get deviceId => text().withDefault(const Constant(''))();
+  IntColumn get syncTimestamp => integer().withDefault(const Constant(0))();
   // ✅ v2: مفتاح إزالة التكرار (idempotency) — يمنع تكرار العمليات عبر الأجهزة
   TextColumn get idempotencyKey => text().nullable()();
 }
@@ -99,6 +100,8 @@ class Bookings extends Table with SyncFields {
   BoolColumn get isFullyPaid => boolean().withDefault(const Constant(false))();
   TextColumn get hotelDayCheckin => text().nullable()();
   TextColumn get hotelDayCheckout => text().nullable()();
+  IntColumn get financialFrozenAt => integer().nullable()();
+  TextColumn get financialHash => text().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -246,9 +249,11 @@ class Payments extends Table with SyncFields {
   TextColumn get bookingUuidCache => text().nullable()();
   RealColumn get discountAmount => real().nullable()();
   TextColumn get discountStartDate => text().nullable()();
-  BoolColumn get isVoided => boolean().withDefault(const Constant(false))();
-  IntColumn get voidedAt => integer().nullable()();
-  TextColumn get voidedBy => text().nullable()();
+BoolColumn get isVoided => boolean().withDefault(const Constant(false))();
+  IntColumn get voidedAt => integer().nullable();
+  TextColumn get voidedBy => text().nullable();
+  TextColumn get voidReason => text().nullable();
+  BoolColumn get isImmutable => boolean().withDefault(const Constant(false))();
 
   List<Index> get indexes => [
     Index(
@@ -303,6 +308,10 @@ class Debts extends Table with SyncFields {
       boolean().withDefault(const Constant(false))();
   BoolColumn get settlementConfirmed =>
       boolean().withDefault(const Constant(false))();
+  TextColumn get guestPhone => text().nullable()();
+  TextColumn get description => text().nullable()();
+  TextColumn get status => text().nullable()();
+  TextColumn get dueDate => text().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -427,7 +436,11 @@ class PriceAdjustments extends Table with SyncFields {
   TextColumn get reason => text().nullable()();
   TextColumn get effectiveDate => text()();
   TextColumn get appliedBy => text()();
-  TextColumn get hotelDayKey => text()();
+  TextColumn get hotelDayKey => text().nullable()();
+  TextColumn get adjustmentMode =>
+      text().withDefault(const Constant('per_night'))();
+  TextColumn get bookingUuid => text().nullable()();
+  IntColumn get appliedAt => integer().nullable()();
   BoolColumn get isReversed => boolean().withDefault(const Constant(false))();
   TextColumn get reversedAt => text().nullable()();
   TextColumn get reversedBy => text().nullable()();
@@ -455,9 +468,6 @@ class BookingPriceAdjustments extends Table with SyncFields {
   IntColumn get bookingLocalId =>
       integer().nullable().references(Bookings, #id)();
   TextColumn get roomNumber => text().withLength(min: 1, max: 20).nullable()();
-  IntColumn get adjustmentType => integer().withDefault(const Constant(0))();
-  TextColumn get adjustmentMode =>
-      text().withDefault(const Constant('per_night'))();
   RealColumn get amount => real().withDefault(const Constant(0.0))();
   TextColumn get effectiveHotelDay => text()();
   TextColumn get endHotelDay => text().nullable()();
@@ -465,7 +475,8 @@ class BookingPriceAdjustments extends Table with SyncFields {
   TextColumn get reason => text().nullable()();
   TextColumn get appliedBy => text().nullable()();
   TextColumn get cancelledAt => text().nullable()();
-  TextColumn get cancelledBy => text().nullable()();
+  TextColumn get cancelledBy => text().nullable();
+  TextColumn get bookingUuid => text().nullable();
 
   List<Index> get indexes => [
     Index(
@@ -556,7 +567,8 @@ class GuestInfos extends Table with SyncFields {
   TextColumn get issueDate => text().nullable()();
   TextColumn get issuePlace => text().nullable()();
   TextColumn get governorate => text().nullable()();
-  TextColumn get notes => text().nullable()();
+  TextColumn get notes => text().nullable();
+  TextColumn get guestPhone => text().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -693,6 +705,10 @@ class SalaryCarryOverLogs extends Table with SyncFields {
   TextColumn get newCycleEnd => text()();
   TextColumn get reason => text()();
   IntColumn get carriedAt => integer()();
+  TextColumn get fromCycleId => text().nullable()();
+  TextColumn get toCycleId => text().nullable()();
+  TextColumn get carryDate => text().nullable()();
+  TextColumn get performedBy => text().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -933,7 +949,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 51;
+  int get schemaVersion => 53;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2620,13 +2636,154 @@ class AppDatabase extends _$AppDatabase {
           );
         }
 
-        developer.log(
-          'Migration 51: audit fixes applied (unique idempotency + timestamp units)',
-          name: 'db.migration',
-        );
-      }
-    },
-  );
+developer.log(
+            'Migration 51: audit fixes applied (unique idempotency + timestamp units)',
+            name: 'db.migration',
+          );
+        }
+        // === Migration 52: Add sync_timestamp to all SyncFields tables ===
+        if (from < 52) {
+          const syncTimestampTables = [
+            'rooms',
+            'bookings',
+            'booking_notes',
+            'employees',
+            'expenses',
+            'cash_transactions',
+            'payments',
+            'debts',
+            'shift_notes',
+            'booking_nights',
+            'hotel_day_ledger',
+            'price_adjustments',
+            'booking_price_adjustments',
+            'payment_voids',
+            'guest_infos',
+            'salary_cycles',
+            'salary_payments',
+            'salary_withdrawals',
+            'salary_carry_over_logs',
+            'audit_logs',
+          ];
+          for (final table in syncTimestampTables) {
+            try {
+              await m.database.customStatement(
+                'ALTER TABLE $table ADD COLUMN sync_timestamp INTEGER DEFAULT 0',
+              );
+              developer.log(
+                'Migration 52: added sync_timestamp to $table',
+                name: 'db.migration',
+              );
+            } catch (e) {
+              developer.log(
+                'Migration 52: sync_timestamp already exists in $table: $e',
+                name: 'db.migration',
+              );
+            }
+          }
+          developer.log(
+            'Migration 52: added sync_timestamp to all sync tables',
+            name: 'db.migration',
+          );
+        }
+        // === Migration 53: Add missing Appwrite schema fields ===
+        if (from < 53) {
+          developer.log('Migration 53: adding missing Appwrite fields...', name: 'db.migration');
+
+          // bookings: financialFrozenAt, financialHash
+          try {
+            await m.database.customStatement(
+              "ALTER TABLE bookings ADD COLUMN financial_frozen_at INTEGER DEFAULT NULL",
+            );
+            await m.database.customStatement(
+              "ALTER TABLE bookings ADD COLUMN financial_hash TEXT DEFAULT NULL",
+            );
+            developer.log('Migration 53: added financial_frozen_at, financial_hash to bookings', name: 'db.migration');
+          } catch (e) {
+            developer.log('Migration 53: bookings fields may already exist: $e', name: 'db.migration');
+          }
+
+          // payments: voidReason, isImmutable
+          try {
+            await m.database.customStatement(
+              "ALTER TABLE payments ADD COLUMN void_reason TEXT DEFAULT NULL",
+            );
+            await m.database.customStatement(
+              "ALTER TABLE payments ADD COLUMN is_immutable INTEGER DEFAULT 0",
+            );
+            developer.log('Migration 53: added void_reason, is_immutable to payments', name: 'db.migration');
+          } catch (e) {
+            developer.log('Migration 53: payments fields may already exist: $e', name: 'db.migration');
+          }
+
+          // debts: guestPhone, description, status, dueDate
+          try {
+            await m.database.customStatement(
+              "ALTER TABLE debts ADD COLUMN guest_phone TEXT DEFAULT NULL",
+            );
+            await m.database.customStatement(
+              "ALTER TABLE debts ADD COLUMN description TEXT DEFAULT NULL",
+            );
+            await m.database.customStatement(
+              "ALTER TABLE debts ADD COLUMN status TEXT DEFAULT NULL",
+            );
+            await m.database.customStatement(
+              "ALTER TABLE debts ADD COLUMN due_date TEXT DEFAULT NULL",
+            );
+            developer.log('Migration 53: added guest_phone, description, status, due_date to debts', name: 'db.migration');
+          } catch (e) {
+            developer.log('Migration 53: debts fields may already exist: $e', name: 'db.migration');
+          }
+
+          // price_adjustments: adjustmentMode, bookingUuid, appliedAt
+          try {
+            await m.database.customStatement(
+              "ALTER TABLE price_adjustments ADD COLUMN adjustment_mode TEXT DEFAULT 'per_night'",
+            );
+            await m.database.customStatement(
+              "ALTER TABLE price_adjustments ADD COLUMN booking_uuid TEXT DEFAULT NULL",
+            );
+            await m.database.customStatement(
+              "ALTER TABLE price_adjustments ADD COLUMN applied_at INTEGER DEFAULT NULL",
+            );
+            developer.log('Migration 53: added adjustment_mode, booking_uuid, applied_at to price_adjustments', name: 'db.migration');
+          } catch (e) {
+            developer.log('Migration 53: price_adjustments fields may already exist: $e', name: 'db.migration');
+          }
+
+          // booking_price_adjustments: adjustmentMode
+          try {
+            await m.database.customStatement(
+              "ALTER TABLE booking_price_adjustments ADD COLUMN adjustment_mode TEXT DEFAULT 'per_night'",
+            );
+            developer.log('Migration 53: added adjustment_mode to booking_price_adjustments', name: 'db.migration');
+          } catch (e) {
+            developer.log('Migration 53: booking_price_adjustments adjustment_mode may already exist: $e', name: 'db.migration');
+          }
+
+          // salary_carry_over_logs: fromCycleId, toCycleId, carryDate, performedBy
+          try {
+            await m.database.customStatement(
+              "ALTER TABLE salary_carry_over_logs ADD COLUMN from_cycle_id TEXT DEFAULT NULL",
+            );
+            await m.database.customStatement(
+              "ALTER TABLE salary_carry_over_logs ADD COLUMN to_cycle_id TEXT DEFAULT NULL",
+            );
+            await m.database.customStatement(
+              "ALTER TABLE salary_carry_over_logs ADD COLUMN carry_date TEXT DEFAULT NULL",
+            );
+            await m.database.customStatement(
+              "ALTER TABLE salary_carry_over_logs ADD COLUMN performed_by TEXT DEFAULT NULL",
+            );
+            developer.log('Migration 53: added from_cycle_id, to_cycle_id, carry_date, performed_by to salary_carry_over_logs', name: 'db.migration');
+          } catch (e) {
+            developer.log('Migration 53: salary_carry_over_logs fields may already exist: $e', name: 'db.migration');
+          }
+
+          developer.log('Migration 53: all missing Appwrite schema fields added', name: 'db.migration');
+        }
+      },
+    );
 
   /// تجميع جميع الجداول المطلوب مزامنتها في خريطة JSON
   ///
