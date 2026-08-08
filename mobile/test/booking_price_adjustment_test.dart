@@ -14,7 +14,7 @@
 library marina_hotel_mobile.test.booking_price_adjustment_test;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNotNull;
 import 'package:drift/native.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/booking_price_adjustment_service.dart';
@@ -65,7 +65,7 @@ void main() {
         localUuid: Value(roomUuid),
         roomNumber: Value(roomNumber),
         type: const Value('standard'),
-        price: Value(roomPrice),
+        price: Value(roomPrice.toDouble()),
         status: const Value('occupied'),
         createdAt: Value(now),
         updatedAt: Value(now),

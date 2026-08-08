@@ -647,7 +647,7 @@ class BookingPriceAdjustmentService {
           }
         }
 
-        final type = AdjustmentType.fromValue(adj.adjustmentType);
+        final type = AdjustmentType.fromValue(adj.adjustmentType ?? 0);
         final double signedAmount = adj.amount;
         final double impact = type == AdjustmentType.discount
             ? -signedAmount * nightsAffected
