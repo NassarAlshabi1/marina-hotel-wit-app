@@ -132,7 +132,9 @@ class AppSessionManager {
       final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
       if (!appwriteEnabled) {
-        dlog('ℹ️ [AppOpen] Appwrite sync is disabled in settings. Skipping pull.');
+        dlog(
+          'ℹ️ [AppOpen] Appwrite sync is disabled in settings. Skipping pull.',
+        );
         return;
       }
 
@@ -154,7 +156,10 @@ class AppSessionManager {
         // التحقق مما إذا كان الفارق أقل من 60 دقيقة
         if (difference.inMinutes < 60) {
           final remainingMinutes = 60 - difference.inMinutes;
-          dlog(() => 'ℹ️ [AppOpen] Smart Sync: Skipping pull. Last pull was ${difference.inMinutes} mins ago. Next pull available in $remainingMinutes mins.');
+          dlog(
+            () =>
+                'ℹ️ [AppOpen] Smart Sync: Skipping pull. Last pull was ${difference.inMinutes} mins ago. Next pull available in $remainingMinutes mins.',
+          );
           return;
         }
       }
@@ -178,7 +183,10 @@ class AppSessionManager {
       // تحديث وقت آخر سحب ناجح
       await prefs.setInt(lastPullKey, nowMs);
 
-      dlog(() => '✅ [AppOpen] Smart pull completed: ${result.recordsPulled} records pulled.');
+      dlog(
+        () =>
+            '✅ [AppOpen] Smart pull completed: ${result.recordsPulled} records pulled.',
+      );
     } catch (e) {
       dlog(() => '❌ [AppOpen] Error during automatic Appwrite pull: $e');
     }

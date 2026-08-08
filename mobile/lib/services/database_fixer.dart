@@ -217,16 +217,22 @@ class DatabaseFixer {
                     employeeUuid: byUuid.localUuid,
                   );
                   relinked++;
-                  dlog(() => 'Re-linked orphan salary expense #$expenseId → '
-                    'employee #${byUuid.id} (uuid: $employeeUuid) '
-                    '+ lastModified updated for cloud sync');
+                  dlog(
+                    () =>
+                        'Re-linked orphan salary expense #$expenseId → '
+                        'employee #${byUuid.id} (uuid: $employeeUuid) '
+                        '+ lastModified updated for cloud sync',
+                  );
                   // تمت المعالجة — لا نمرّ عبر فرع التصفير.
                   continue;
                 } else {
                   // UUID موجود لكن الموظف لم يصل بعد — لا نُصفّر.
-                  dlog(() => '⚠️ Salary expense #$expenseId has employeeUuid '
-                    '$employeeUuid but employee not yet synced — '
-                    'left related_id=$relatedId intact (not zeroed).');
+                  dlog(
+                    () =>
+                        '⚠️ Salary expense #$expenseId has employeeUuid '
+                        '$employeeUuid but employee not yet synced — '
+                        'left related_id=$relatedId intact (not zeroed).',
+                  );
                   continue;
                 }
               } else {
@@ -291,19 +297,25 @@ class DatabaseFixer {
                       employeeUuid: byWithdrawal.localUuid,
                     );
                     relinked++;
-                    dlog(() => 'Re-linked orphan salary expense #$expenseId via '
-                      'salary_withdrawal → employee #${byWithdrawal.id} '
-                      '(uuid: ${byWithdrawal.localUuid}) '
-                      '+ lastModified updated for cloud sync');
+                    dlog(
+                      () =>
+                          'Re-linked orphan salary expense #$expenseId via '
+                          'salary_withdrawal → employee #${byWithdrawal.id} '
+                          '(uuid: ${byWithdrawal.localUuid}) '
+                          '+ lastModified updated for cloud sync',
+                    );
                     continue;
                   }
                 }
 
                 // فشل كل شيء: لا نُصفّر مصروف الراتب (تفادي فقدان الربط
                 // بصمت). نترك relatedId القديم ونُسجّل تحذيرًا.
-                dlog(() => '⚠️ Salary expense #$expenseId is orphan with empty '
-                  'employeeUuid and no salary_withdrawal — left '
-                  'related_id=$relatedId intact (not zeroed).');
+                dlog(
+                  () =>
+                      '⚠️ Salary expense #$expenseId is orphan with empty '
+                      'employeeUuid and no salary_withdrawal — left '
+                      'related_id=$relatedId intact (not zeroed).',
+                );
                 continue;
               }
             }
@@ -338,7 +350,10 @@ class DatabaseFixer {
         }
       }
 
-      dlog(() => 'Fixed $fixed orphan expenses; re-linked $relinked salary expenses via UUID');
+      dlog(
+        () =>
+            'Fixed $fixed orphan expenses; re-linked $relinked salary expenses via UUID',
+      );
     } catch (e) {
       dlog(() => 'Error fixing orphan expenses: $e');
     }

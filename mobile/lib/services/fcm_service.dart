@@ -55,7 +55,9 @@ class FcmService {
       // 3. الحصول على التوكن
       _currentToken = await _getToken();
       if (_currentToken != null) {
-        dlog(() => '✅ FCM token obtained: ${_currentToken!.substring(0, 20)}...');
+        dlog(
+          () => '✅ FCM token obtained: ${_currentToken!.substring(0, 20)}...',
+        );
 
         // 4. حفظ التوكن في SharedPreferences
         final prefs = await SharedPreferences.getInstance();
@@ -345,7 +347,9 @@ class FcmService {
       }
     } catch (e) {
       // آمن للفشل — نُسجّل تحذيراً فقط
-      dlog(() => '⚠️ Appwrite Messaging registration failed (FCM still works): $e');
+      dlog(
+        () => '⚠️ Appwrite Messaging registration failed (FCM still works): $e',
+      );
     }
   }
 

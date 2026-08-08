@@ -36,9 +36,9 @@ Future<T> migrateAutoSyncPreference<T>({
   if (T != int && T != bool) {
     throw ArgumentError(
       'Unsupported preference type: $T. '
-      'migrateAutoSyncPreference only supports int and bool. '
-      'For String or List<String>, use SharedPreferences directly '
-      '(getString/getStringList).',
+          'migrateAutoSyncPreference only supports int and bool. '
+          'For String or List<String>, use SharedPreferences directly '
+          '(getString/getStringList).',
       'T',
     );
   }

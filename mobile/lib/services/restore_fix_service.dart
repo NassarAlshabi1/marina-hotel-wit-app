@@ -124,7 +124,10 @@ class RestoreFixService {
     String prefix, {
     bool useTransaction = true,
   }) async {
-    dlog(() => '📸 إنشاء لقطة احتياطية أمان: ${prefix}_restore_snapshot_${Time.nowEpoch()}.json');
+    dlog(
+      () =>
+          '📸 إنشاء لقطة احتياطية أمان: ${prefix}_restore_snapshot_${Time.nowEpoch()}.json',
+    );
 
     Future<RestoreSnapshot> doCreate() async {
       final directory = await _resolveCacheDirectory();
@@ -732,7 +735,10 @@ class RestoreFixService {
       final room = context.roomsByNumber[booking.roomNumber];
 
       if (room == null) {
-        dlog(() => '⚠️ تحذير: الغرفة ${booking.roomNumber} غير موجودة للحجز #${booking.id}');
+        dlog(
+          () =>
+              '⚠️ تحذير: الغرفة ${booking.roomNumber} غير موجودة للحجز #${booking.id}',
+        );
         changes.add(
           'تحذير: حجز #${booking.id} مرتبط بغرفة غير موجودة (${booking.roomNumber})',
         );

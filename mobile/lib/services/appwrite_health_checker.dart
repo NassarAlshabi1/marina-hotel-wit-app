@@ -124,7 +124,10 @@ class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
     // فحص فوري عند البدء
     checkNow();
     _checkTimer = Timer.periodic(interval, (_) => checkNow());
-    dlog(() => '🏥 [HealthChecker] Started periodic check every ${interval.inSeconds}s');
+    dlog(
+      () =>
+          '🏥 [HealthChecker] Started periodic check every ${interval.inSeconds}s',
+    );
   }
 
   /// إيقاف الفحص الدوري
@@ -161,7 +164,9 @@ class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
       if (state.shouldFailover) {
         dlog('⚠️ [HealthChecker] FAILOVER ACTIVE — reading from Secondary');
       } else if (primaryResult.health == EndpointHealth.unreachable) {
-        dlog('⚠️ [HealthChecker] Primary unreachable but Secondary not available');
+        dlog(
+          '⚠️ [HealthChecker] Primary unreachable but Secondary not available',
+        );
       }
     } catch (e) {
       dlog(() => '❌ [HealthChecker] checkNow failed: $e');

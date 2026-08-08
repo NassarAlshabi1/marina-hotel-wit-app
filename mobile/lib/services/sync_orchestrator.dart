@@ -327,7 +327,10 @@ class SyncOrchestrator {
 
     _taskQueue.sort((a, b) => a.priority.index.compareTo(b.priority.index));
 
-    dlog(() => '📋 [Orchestrator] مهمة مجدولة: ${task.name} (${task.priority.name})');
+    dlog(
+      () =>
+          '📋 [Orchestrator] مهمة مجدولة: ${task.name} (${task.priority.name})',
+    );
 
     if (_state == OrchestratorState.idle) {
       unawaited(_processTasks());
@@ -374,7 +377,10 @@ class SyncOrchestrator {
           result.recordsProcessed,
           result.conflicts,
         );
-        dlog(() => '✅ [Orchestrator] ${task.name}: ${result.recordsProcessed} سجل في ${duration.inMilliseconds}ms');
+        dlog(
+          () =>
+              '✅ [Orchestrator] ${task.name}: ${result.recordsProcessed} سجل في ${duration.inMilliseconds}ms',
+        );
       } else {
         _metrics.recordFailure(duration);
         dlog(() => '❌ [Orchestrator] ${task.name}: ${result.error}');
@@ -428,7 +434,10 @@ class SyncOrchestrator {
           _taskQueue.add(task);
         } else {
           _taskQueue.removeAt(0);
-          dlog(() => '🗑️ [Orchestrator] تم حذف المهمة بعد ${task.attempts} محاولات: ${task.name}');
+          dlog(
+            () =>
+                '🗑️ [Orchestrator] تم حذف المهمة بعد ${task.attempts} محاولات: ${task.name}',
+          );
         }
       }
 

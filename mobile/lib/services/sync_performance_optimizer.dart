@@ -184,7 +184,10 @@ class SyncPerformanceOptimizer {
       final timeSinceLastSync = DateTime.now().difference(_lastSyncTime!);
 
       if (timeSinceLastSync < minInterval) {
-        dlog(() => '⏭️ تم تخطي المزامنة: لم تمر الفترة المطلوبة بعد (${timeSinceLastSync.inSeconds}/${minInterval.inSeconds} ثانية)');
+        dlog(
+          () =>
+              '⏭️ تم تخطي المزامنة: لم تمر الفترة المطلوبة بعد (${timeSinceLastSync.inSeconds}/${minInterval.inSeconds} ثانية)',
+        );
         return true;
       }
     }
@@ -201,7 +204,10 @@ class SyncPerformanceOptimizer {
         _syncAttempts = 0;
         return false;
       }
-      dlog(() => '⏭️ تم تخطي المزامنة: تم الوصول للحد الأقصى للمحاولات (cooldown $cooldownMinutes دقيقة)');
+      dlog(
+        () =>
+            '⏭️ تم تخطي المزامنة: تم الوصول للحد الأقصى للمحاولات (cooldown $cooldownMinutes دقيقة)',
+      );
       return true;
     }
 
@@ -265,7 +271,9 @@ class SyncPerformanceOptimizer {
       dlog('✅ تم تسجيل مزامنة ناجحة');
     } else {
       _syncAttempts++;
-      dlog(() => '❌ تم تسجيل محاولة مزامنة فاشلة (المحاولة رقم $_syncAttempts)');
+      dlog(
+        () => '❌ تم تسجيل محاولة مزامنة فاشلة (المحاولة رقم $_syncAttempts)',
+      );
     }
   }
 
@@ -397,7 +405,10 @@ class SyncPerformanceOptimizer {
         optimizedInterval += _syncAttempts * 30; // إضافة 30 ثانية لكل فشل
       }
 
-      dlog(() => '🔧 فترة محسنة: ${optimizedInterval}s (أساسية: ${baseInterval}s، فشل: $_syncAttempts)');
+      dlog(
+        () =>
+            '🔧 فترة محسنة: ${optimizedInterval}s (أساسية: ${baseInterval}s، فشل: $_syncAttempts)',
+      );
       return optimizedInterval;
     } catch (e) {
       dlog(() => '❌ خطأ في حساب الفترة المحسنة: $e');

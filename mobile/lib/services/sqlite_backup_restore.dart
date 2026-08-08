@@ -56,7 +56,9 @@ class SqliteBackupRestore {
           }
           return documentsTarget;
         } catch (e) {
-          dlog(() => '⚠️ Failed to access default backup dir, falling back: $e');
+          dlog(
+            () => '⚠️ Failed to access default backup dir, falling back: $e',
+          );
         }
         final fallbackDirs = await getExternalStorageDirectories(
           type: StorageDirectory.documents,
@@ -244,7 +246,9 @@ class SqliteBackupRestore {
             await sidecar.delete();
             dlog(() => '🧹 حذف ملف $suffix القديم قبل إعادة الفتح');
           } catch (e) {
-            dlog(() => '⚠️ فشل حذف $suffix القديم: $e — قد يسبب مشاكل عند الفتح');
+            dlog(
+              () => '⚠️ فشل حذف $suffix القديم: $e — قد يسبب مشاكل عند الفتح',
+            );
           }
         }
       }

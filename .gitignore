@@ -33,3 +33,9 @@ key.properties
 .secrets/
 *.secret
 *.api_key
+
+# Flutter SDK and downloaded archives (not part of repo)
+flutter/
+flutter344.tar
+flutter344.tar.xz
+.flutter-plugins-dependencies

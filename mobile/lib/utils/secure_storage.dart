@@ -36,11 +36,15 @@ class SecureStorage {
   ///
   /// SHA-256 يُنتج 32 بايت دائماً، وهو الطول المطلوب لـ AES-256.
   static final Key _aesKey = Key.fromUtf8(
-    base64.encode(sha256.convert(utf8.encode(_staticSecret)).bytes).substring(0, 32),
+    base64
+        .encode(sha256.convert(utf8.encode(_staticSecret)).bytes)
+        .substring(0, 32),
   );
 
   /// Encrypter singleton (AES-256-CBC).
-  static final Encrypter _encrypter = Encrypter(AES(_aesKey, mode: AESMode.cbc));
+  static final Encrypter _encrypter = Encrypter(
+    AES(_aesKey, mode: AESMode.cbc),
+  );
 
   /// يُولّد مفتاح تشفير (للتوافق مع الكود القديم).
   ///

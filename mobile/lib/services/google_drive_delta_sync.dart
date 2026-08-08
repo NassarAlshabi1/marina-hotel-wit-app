@@ -125,7 +125,9 @@ class GoogleDriveDeltaSync {
       await _deltaSyncService!.persistMirror(computation);
       await _updateLastPushTimestamp();
 
-      dlog(() => '✅ تم رفع ${computation.changes.length} تغيير إلى Google Drive');
+      dlog(
+        () => '✅ تم رفع ${computation.changes.length} تغيير إلى Google Drive',
+      );
 
       return DeltaSyncResult(
         success: true,

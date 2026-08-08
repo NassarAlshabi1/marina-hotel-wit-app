@@ -153,7 +153,11 @@ class CircularBufferLogger {
     unawaited(
       _lock.synchronized(() async {
         try {
-          await _logFile!.writeAsString(batch, mode: FileMode.append, flush: true);
+          await _logFile!.writeAsString(
+            batch,
+            mode: FileMode.append,
+            flush: true,
+          );
           // ✅ نجحت الكتابة — نُزيل فقط الـ entries التي كُتبت فعلاً.
           // ملاحظة: قد تكون entries جديدة أُضيفت أثناء await، لذا نُزيل
           // فقط بعدد الـ entries التي شملتها الـ batch.

@@ -45,8 +45,11 @@ class SyncGuard {
     // إذا مضت أكثر من 10 دقائق على "مزامنة نشطة"، فمن المحتمل أنها علقت
     // (deadlock أو crash) — اسمح بمزامنة جديدة كـ safety valve.
     if (elapsed > const Duration(minutes: 10)) {
-      dlog(() => '⚠️ SyncGuard: stale lock detected (label=$_activeSyncLabel, '
-        'elapsed=${elapsed.inSeconds}s) — allowing $label to proceed');
+      dlog(
+        () =>
+            '⚠️ SyncGuard: stale lock detected (label=$_activeSyncLabel, '
+            'elapsed=${elapsed.inSeconds}s) — allowing $label to proceed',
+      );
       return true;
     }
     return false;

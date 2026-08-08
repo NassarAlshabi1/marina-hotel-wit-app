@@ -134,7 +134,9 @@ class ScreenSyncController {
           return syncError.isRetryable;
         },
         fallback: () {
-          dlog(() => '⚠️ [$screenId] استخدام القيمة الاحتياطية بعد فشل المحاولات');
+          dlog(
+            () => '⚠️ [$screenId] استخدام القيمة الاحتياطية بعد فشل المحاولات',
+          );
           return false;
         },
         onRetry: (attempt, error) {
@@ -156,7 +158,9 @@ class ScreenSyncController {
 
         return true;
       } else {
-        dlog(() => '⚠️ [$screenId] فشل الرفع - سيتم المحاولة لاحقاً عبر Outbox');
+        dlog(
+          () => '⚠️ [$screenId] فشل الرفع - سيتم المحاولة لاحقاً عبر Outbox',
+        );
         return false;
       }
     } on CircuitBreakerOpenException catch (e) {
@@ -208,8 +212,11 @@ class ScreenSyncController {
       if (result) {
         dlog(() => '✅ [$screenId] تم الرفع للوجهة الثانوية بنجاح');
       } else {
-        dlog(() => '⚠️ [$screenId] الرفع للوجهة الثانوية لم يكتمل — '
-          'سيتم المحاولة لاحقاً عبر auto-sync');
+        dlog(
+          () =>
+              '⚠️ [$screenId] الرفع للوجهة الثانوية لم يكتمل — '
+              'سيتم المحاولة لاحقاً عبر auto-sync',
+        );
       }
     } catch (e) {
       // فشل Secondary ليس خطأ قاتلاً — Primary نجح بالفعل

@@ -331,7 +331,9 @@ class TelegramReportService {
         dlog(() => '⚠️ WhatsApp (CallMeBot): فشل الإرسال — $body');
         return false;
       }
-      dlog(() => '⚠️ WhatsApp (CallMeBot): HTTP ${response.statusCode} — $body');
+      dlog(
+        () => '⚠️ WhatsApp (CallMeBot): HTTP ${response.statusCode} — $body',
+      );
       return false;
     } catch (e) {
       dlog(() => '❌ WhatsApp (CallMeBot): خطأ — $e');

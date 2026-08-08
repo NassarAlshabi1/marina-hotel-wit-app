@@ -134,7 +134,9 @@ class OptimisticLockManager {
           ],
         );
       } catch (e) {
-        dlog(() => '⚠️ Version rollback failed after optimistic lock conflict: $e');
+        dlog(
+          () => '⚠️ Version rollback failed after optimistic lock conflict: $e',
+        );
       }
       rethrow;
     }

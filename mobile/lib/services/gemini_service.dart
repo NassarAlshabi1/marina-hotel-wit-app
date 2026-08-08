@@ -1556,7 +1556,9 @@ class GeminiService {
       final elapsed = DateTime.now().difference(_lastRequestTime!);
       if (elapsed < _minRequestInterval) {
         final waitTime = _minRequestInterval - elapsed;
-        dlog(() => '⏳ انتظار ${waitTime.inSeconds + 1} ثانية قبل الطلب التالي...');
+        dlog(
+          () => '⏳ انتظار ${waitTime.inSeconds + 1} ثانية قبل الطلب التالي...',
+        );
         await Future<void>.delayed(waitTime);
       }
     }
@@ -1705,7 +1707,10 @@ class GeminiService {
           milliseconds: delay.inMilliseconds + jitterMs,
         );
 
-        dlog(() => '⚠️ خطأ مؤقت — محاولة ${attempt + 1}/$_maxRetries، انتظار ${actualDelay.inSeconds} ثانية...');
+        dlog(
+          () =>
+              '⚠️ خطأ مؤقت — محاولة ${attempt + 1}/$_maxRetries، انتظار ${actualDelay.inSeconds} ثانية...',
+        );
 
         await Future<void>.delayed(actualDelay);
 

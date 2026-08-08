@@ -2657,154 +2657,196 @@ class AppDatabase extends _$AppDatabase {
           );
         }
 
-developer.log(
-            'Migration 51: audit fixes applied (unique idempotency + timestamp units)',
-            name: 'db.migration',
-          );
-        }
-        // === Migration 52: Add sync_timestamp to all SyncFields tables ===
-        if (from < 52) {
-          const syncTimestampTables = [
-            'rooms',
-            'bookings',
-            'booking_notes',
-            'employees',
-            'expenses',
-            'cash_transactions',
-            'payments',
-            'debts',
-            'shift_notes',
-            'booking_nights',
-            'hotel_day_ledger',
-            'price_adjustments',
-            'booking_price_adjustments',
-            'payment_voids',
-            'guest_infos',
-            'salary_cycles',
-            'salary_payments',
-            'salary_withdrawals',
-            'salary_carry_over_logs',
-            'audit_logs',
-          ];
-          for (final table in syncTimestampTables) {
-            try {
-              await m.database.customStatement(
-                'ALTER TABLE $table ADD COLUMN sync_timestamp INTEGER DEFAULT 0',
-              );
-              developer.log(
-                'Migration 52: added sync_timestamp to $table',
-                name: 'db.migration',
-              );
-            } catch (e) {
-              developer.log(
-                'Migration 52: sync_timestamp already exists in $table: $e',
-                name: 'db.migration',
-              );
-            }
+        developer.log(
+          'Migration 51: audit fixes applied (unique idempotency + timestamp units)',
+          name: 'db.migration',
+        );
+      }
+      // === Migration 52: Add sync_timestamp to all SyncFields tables ===
+      if (from < 52) {
+        const syncTimestampTables = [
+          'rooms',
+          'bookings',
+          'booking_notes',
+          'employees',
+          'expenses',
+          'cash_transactions',
+          'payments',
+          'debts',
+          'shift_notes',
+          'booking_nights',
+          'hotel_day_ledger',
+          'price_adjustments',
+          'booking_price_adjustments',
+          'payment_voids',
+          'guest_infos',
+          'salary_cycles',
+          'salary_payments',
+          'salary_withdrawals',
+          'salary_carry_over_logs',
+          'audit_logs',
+        ];
+        for (final table in syncTimestampTables) {
+          try {
+            await m.database.customStatement(
+              'ALTER TABLE $table ADD COLUMN sync_timestamp INTEGER DEFAULT 0',
+            );
+            developer.log(
+              'Migration 52: added sync_timestamp to $table',
+              name: 'db.migration',
+            );
+          } catch (e) {
+            developer.log(
+              'Migration 52: sync_timestamp already exists in $table: $e',
+              name: 'db.migration',
+            );
           }
+        }
+        developer.log(
+          'Migration 52: added sync_timestamp to all sync tables',
+          name: 'db.migration',
+        );
+      }
+      // === Migration 53: Add missing Appwrite schema fields ===
+      if (from < 53) {
+        developer.log(
+          'Migration 53: adding missing Appwrite fields...',
+          name: 'db.migration',
+        );
+
+        // bookings: financialFrozenAt, financialHash
+        try {
+          await m.database.customStatement(
+            "ALTER TABLE bookings ADD COLUMN financial_frozen_at INTEGER DEFAULT NULL",
+          );
+          await m.database.customStatement(
+            "ALTER TABLE bookings ADD COLUMN financial_hash TEXT DEFAULT NULL",
+          );
           developer.log(
-            'Migration 52: added sync_timestamp to all sync tables',
+            'Migration 53: added financial_frozen_at, financial_hash to bookings',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 53: bookings fields may already exist: $e',
             name: 'db.migration',
           );
         }
-        // === Migration 53: Add missing Appwrite schema fields ===
-        if (from < 53) {
-          developer.log('Migration 53: adding missing Appwrite fields...', name: 'db.migration');
 
-          // bookings: financialFrozenAt, financialHash
-          try {
-            await m.database.customStatement(
-              "ALTER TABLE bookings ADD COLUMN financial_frozen_at INTEGER DEFAULT NULL",
-            );
-            await m.database.customStatement(
-              "ALTER TABLE bookings ADD COLUMN financial_hash TEXT DEFAULT NULL",
-            );
-            developer.log('Migration 53: added financial_frozen_at, financial_hash to bookings', name: 'db.migration');
-          } catch (e) {
-            developer.log('Migration 53: bookings fields may already exist: $e', name: 'db.migration');
-          }
-
-          // payments: voidReason, isImmutable
-          try {
-            await m.database.customStatement(
-              "ALTER TABLE payments ADD COLUMN void_reason TEXT DEFAULT NULL",
-            );
-            await m.database.customStatement(
-              "ALTER TABLE payments ADD COLUMN is_immutable INTEGER DEFAULT 0",
-            );
-            developer.log('Migration 53: added void_reason, is_immutable to payments', name: 'db.migration');
-          } catch (e) {
-            developer.log('Migration 53: payments fields may already exist: $e', name: 'db.migration');
-          }
-
-          // debts: guestPhone, description, status, dueDate
-          try {
-            await m.database.customStatement(
-              "ALTER TABLE debts ADD COLUMN guest_phone TEXT DEFAULT NULL",
-            );
-            await m.database.customStatement(
-              "ALTER TABLE debts ADD COLUMN description TEXT DEFAULT NULL",
-            );
-            await m.database.customStatement(
-              "ALTER TABLE debts ADD COLUMN status TEXT DEFAULT NULL",
-            );
-            await m.database.customStatement(
-              "ALTER TABLE debts ADD COLUMN due_date TEXT DEFAULT NULL",
-            );
-            developer.log('Migration 53: added guest_phone, description, status, due_date to debts', name: 'db.migration');
-          } catch (e) {
-            developer.log('Migration 53: debts fields may already exist: $e', name: 'db.migration');
-          }
-
-          // price_adjustments: adjustmentMode, bookingUuid, appliedAt
-          try {
-            await m.database.customStatement(
-              "ALTER TABLE price_adjustments ADD COLUMN adjustment_mode TEXT DEFAULT 'per_night'",
-            );
-            await m.database.customStatement(
-              "ALTER TABLE price_adjustments ADD COLUMN booking_uuid TEXT DEFAULT NULL",
-            );
-            await m.database.customStatement(
-              "ALTER TABLE price_adjustments ADD COLUMN applied_at INTEGER DEFAULT NULL",
-            );
-            developer.log('Migration 53: added adjustment_mode, booking_uuid, applied_at to price_adjustments', name: 'db.migration');
-          } catch (e) {
-            developer.log('Migration 53: price_adjustments fields may already exist: $e', name: 'db.migration');
-          }
-
-          // booking_price_adjustments: adjustmentMode
-          try {
-            await m.database.customStatement(
-              "ALTER TABLE booking_price_adjustments ADD COLUMN adjustment_mode TEXT DEFAULT 'per_night'",
-            );
-            developer.log('Migration 53: added adjustment_mode to booking_price_adjustments', name: 'db.migration');
-          } catch (e) {
-            developer.log('Migration 53: booking_price_adjustments adjustment_mode may already exist: $e', name: 'db.migration');
-          }
-
-          // salary_carry_over_logs: fromCycleId, toCycleId, carryDate, performedBy
-          try {
-            await m.database.customStatement(
-              "ALTER TABLE salary_carry_over_logs ADD COLUMN from_cycle_id TEXT DEFAULT NULL",
-            );
-            await m.database.customStatement(
-              "ALTER TABLE salary_carry_over_logs ADD COLUMN to_cycle_id TEXT DEFAULT NULL",
-            );
-            await m.database.customStatement(
-              "ALTER TABLE salary_carry_over_logs ADD COLUMN carry_date TEXT DEFAULT NULL",
-            );
-            await m.database.customStatement(
-              "ALTER TABLE salary_carry_over_logs ADD COLUMN performed_by TEXT DEFAULT NULL",
-            );
-            developer.log('Migration 53: added from_cycle_id, to_cycle_id, carry_date, performed_by to salary_carry_over_logs', name: 'db.migration');
-          } catch (e) {
-            developer.log('Migration 53: salary_carry_over_logs fields may already exist: $e', name: 'db.migration');
-          }
-
-          developer.log('Migration 53: all missing Appwrite schema fields added', name: 'db.migration');
+        // payments: voidReason, isImmutable
+        try {
+          await m.database.customStatement(
+            "ALTER TABLE payments ADD COLUMN void_reason TEXT DEFAULT NULL",
+          );
+          await m.database.customStatement(
+            "ALTER TABLE payments ADD COLUMN is_immutable INTEGER DEFAULT 0",
+          );
+          developer.log(
+            'Migration 53: added void_reason, is_immutable to payments',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 53: payments fields may already exist: $e',
+            name: 'db.migration',
+          );
         }
-      },
-    );
+
+        // debts: guestPhone, description, status, dueDate
+        try {
+          await m.database.customStatement(
+            "ALTER TABLE debts ADD COLUMN guest_phone TEXT DEFAULT NULL",
+          );
+          await m.database.customStatement(
+            "ALTER TABLE debts ADD COLUMN description TEXT DEFAULT NULL",
+          );
+          await m.database.customStatement(
+            "ALTER TABLE debts ADD COLUMN status TEXT DEFAULT NULL",
+          );
+          await m.database.customStatement(
+            "ALTER TABLE debts ADD COLUMN due_date TEXT DEFAULT NULL",
+          );
+          developer.log(
+            'Migration 53: added guest_phone, description, status, due_date to debts',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 53: debts fields may already exist: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // price_adjustments: adjustmentMode, bookingUuid, appliedAt
+        try {
+          await m.database.customStatement(
+            "ALTER TABLE price_adjustments ADD COLUMN adjustment_mode TEXT DEFAULT 'per_night'",
+          );
+          await m.database.customStatement(
+            "ALTER TABLE price_adjustments ADD COLUMN booking_uuid TEXT DEFAULT NULL",
+          );
+          await m.database.customStatement(
+            "ALTER TABLE price_adjustments ADD COLUMN applied_at INTEGER DEFAULT NULL",
+          );
+          developer.log(
+            'Migration 53: added adjustment_mode, booking_uuid, applied_at to price_adjustments',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 53: price_adjustments fields may already exist: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // booking_price_adjustments: adjustmentMode
+        try {
+          await m.database.customStatement(
+            "ALTER TABLE booking_price_adjustments ADD COLUMN adjustment_mode TEXT DEFAULT 'per_night'",
+          );
+          developer.log(
+            'Migration 53: added adjustment_mode to booking_price_adjustments',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 53: booking_price_adjustments adjustment_mode may already exist: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // salary_carry_over_logs: fromCycleId, toCycleId, carryDate, performedBy
+        try {
+          await m.database.customStatement(
+            "ALTER TABLE salary_carry_over_logs ADD COLUMN from_cycle_id TEXT DEFAULT NULL",
+          );
+          await m.database.customStatement(
+            "ALTER TABLE salary_carry_over_logs ADD COLUMN to_cycle_id TEXT DEFAULT NULL",
+          );
+          await m.database.customStatement(
+            "ALTER TABLE salary_carry_over_logs ADD COLUMN carry_date TEXT DEFAULT NULL",
+          );
+          await m.database.customStatement(
+            "ALTER TABLE salary_carry_over_logs ADD COLUMN performed_by TEXT DEFAULT NULL",
+          );
+          developer.log(
+            'Migration 53: added from_cycle_id, to_cycle_id, carry_date, performed_by to salary_carry_over_logs',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 53: salary_carry_over_logs fields may already exist: $e',
+            name: 'db.migration',
+          );
+        }
+
+        developer.log(
+          'Migration 53: all missing Appwrite schema fields added',
+          name: 'db.migration',
+        );
+      }
+    },
+  );
 
   /// تجميع جميع الجداول المطلوب مزامنتها في خريطة JSON
   ///

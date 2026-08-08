@@ -25,14 +25,20 @@ void main() {
     });
 
     test('يُحوّل الحقول غير المعروفة باستخدام camelToSnake', () {
-      expect(FieldMapper.toPhpField('rooms', 'unknownFieldName'), 'unknown_field_name');
+      expect(
+        FieldMapper.toPhpField('rooms', 'unknownFieldName'),
+        'unknown_field_name',
+      );
       expect(FieldMapper.toPhpField('rooms', 'guestName'), 'guest_name');
     });
 
     test('يُحوّل حقول bookings', () {
       expect(FieldMapper.toPhpField('bookings', 'guestName'), 'guest_name');
       expect(FieldMapper.toPhpField('bookings', 'checkinDate'), 'checkin_date');
-      expect(FieldMapper.toPhpField('bookings', 'actualCheckout'), 'actual_checkout');
+      expect(
+        FieldMapper.toPhpField('bookings', 'actualCheckout'),
+        'actual_checkout',
+      );
     });
   });
 
@@ -44,7 +50,10 @@ void main() {
     });
 
     test('يُحوّل الحقول غير المعروفة باستخدام snakeToCamel', () {
-      expect(FieldMapper.toFlutterField('rooms', 'unknown_field_name'), 'unknownFieldName');
+      expect(
+        FieldMapper.toFlutterField('rooms', 'unknown_field_name'),
+        'unknownFieldName',
+      );
     });
   });
 
@@ -210,8 +219,11 @@ void main() {
       final php = FieldMapper.prepareForInsert('rooms', flutter);
 
       expect(php.containsKey('local_uuid'), isFalse);
-      expect(php.containsKey('id'), isFalse,
-          reason: 'includeId=false افتراضياً');
+      expect(
+        php.containsKey('id'),
+        isFalse,
+        reason: 'includeId=false افتراضياً',
+      );
       expect(php['room_number'], '101');
     });
 

@@ -90,7 +90,9 @@ class WhatsAppService {
         }
       }
 
-      dlog(() => 'WhatsApp send failed: ${response.statusCode} ${response.body}');
+      dlog(
+        () => 'WhatsApp send failed: ${response.statusCode} ${response.body}',
+      );
       return (success: false, quotaMessage: null);
     } catch (error, stackTrace) {
       dlog(() => 'WhatsApp send error: $error');
@@ -127,7 +129,10 @@ class WhatsAppService {
         return (success: true, quotaMessage: null);
       }
 
-      dlog(() => 'Custom WhatsApp API failed: ${response.statusCode} ${response.body}');
+      dlog(
+        () =>
+            'Custom WhatsApp API failed: ${response.statusCode} ${response.body}',
+      );
       return (success: false, quotaMessage: null);
     } catch (error, stackTrace) {
       dlog(() => 'Custom WhatsApp send error: $error');
@@ -200,7 +205,10 @@ class WhatsAppService {
       return message;
     }
 
-    dlog(() => 'WhatsApp message trimmed: ${message.characters.length} → $maxMessageLength chars');
+    dlog(
+      () =>
+          'WhatsApp message trimmed: ${message.characters.length} → $maxMessageLength chars',
+    );
 
     final lines = message.split('\n');
     String footer = '';

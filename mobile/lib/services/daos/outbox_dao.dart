@@ -1132,7 +1132,9 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         error: e,
         stackTrace: st,
       );
-      dlog(() => '⚠️ Vector clock bump failed for $entity (uuid=$localUuid): $e');
+      dlog(
+        () => '⚠️ Vector clock bump failed for $entity (uuid=$localUuid): $e',
+      );
 
       // إرسال إلى Crashlytics بدون انتظار (fire-and-forget)
       unawaited(

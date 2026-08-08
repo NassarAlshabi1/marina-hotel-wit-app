@@ -50,15 +50,19 @@ void main() {
       expect(q.first, contains('greaterThan'));
     });
 
-    test('تقدّم المؤشر لا يفقد السجلات: cutoff أقدم بـ 15s من lastPullTs', () async {
-      const lastPull = 2000000000; // ~2033
-      final q = await pull.buildDeltaQueries(lastPull);
-      // cutoff ISO لـ (2000000000 - 15) ثانية.
-      final expectedCutoffIso =
-          DateTime.fromMillisecondsSinceEpoch((lastPull - 15) * 1000, isUtc: true)
-              .toIso8601String();
-      expect(q.first, contains(expectedCutoffIso));
-    });
+    test(
+      'تقدّم المؤشر لا يفقد السجلات: cutoff أقدم بـ 15s من lastPullTs',
+      () async {
+        const lastPull = 2000000000; // ~2033
+        final q = await pull.buildDeltaQueries(lastPull);
+        // cutoff ISO لـ (2000000000 - 15) ثانية.
+        final expectedCutoffIso = DateTime.fromMillisecondsSinceEpoch(
+          (lastPull - 15) * 1000,
+          isUtc: true,
+        ).toIso8601String();
+        expect(q.first, contains(expectedCutoffIso));
+      },
+    );
 
     test('bookingNightsDeltaQueries يحاكي نفس منطق delta', () {
       final q = pull.bookingNightsDeltaQueries(

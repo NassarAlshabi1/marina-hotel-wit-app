@@ -185,8 +185,11 @@ class PerformanceMonitor {
       );
     }
 
-    dlog(() => '🚀 PerformanceMonitor بدأ التشغيل (FPS: ${_config.fpsWarningThreshold}Hz threshold, '
-      'memory: ${_config.memoryGrowthThresholdMB}MB threshold)');
+    dlog(
+      () =>
+          '🚀 PerformanceMonitor بدأ التشغيل (FPS: ${_config.fpsWarningThreshold}Hz threshold, '
+          'memory: ${_config.memoryGrowthThresholdMB}MB threshold)',
+    );
   }
 
   /// يُوقِف المراقبة ويُصدِر الموارد
@@ -574,14 +577,29 @@ class PerformanceMonitor {
     dlog('═══════════════════════════════════════════════════════════');
     dlog(() => '  Score:        ${report['score']}/100');
     dlog(() => '  FPS:          ${(report['fps'] as Map)['current']}');
-    dlog(() => '  Frame time:   ${(report['fps'] as Map)['averageFrameTimeMs']}ms avg');
-    dlog(() => '  Jank:         ${(report['fps'] as Map)['jankFrames']}/${(report['fps'] as Map)['totalFrames']} frames');
-    dlog(() => '  Memory:       ${(report['memory'] as Map)['currentMB']}MB current, '
-      '${(report['memory'] as Map)['peakMB']}MB peak');
-    dlog(() => '  Rebuilds:     ${(report['rebuilds'] as Map)['total']} total '
-      '(${(report['rebuilds'] as Map)['uniqueWidgets']} unique widgets)');
-    dlog(() => '  Warnings:     ${(report['warnings'] as Map)['critical']} critical, '
-      '${(report['warnings'] as Map)['warning']} warnings');
+    dlog(
+      () =>
+          '  Frame time:   ${(report['fps'] as Map)['averageFrameTimeMs']}ms avg',
+    );
+    dlog(
+      () =>
+          '  Jank:         ${(report['fps'] as Map)['jankFrames']}/${(report['fps'] as Map)['totalFrames']} frames',
+    );
+    dlog(
+      () =>
+          '  Memory:       ${(report['memory'] as Map)['currentMB']}MB current, '
+          '${(report['memory'] as Map)['peakMB']}MB peak',
+    );
+    dlog(
+      () =>
+          '  Rebuilds:     ${(report['rebuilds'] as Map)['total']} total '
+          '(${(report['rebuilds'] as Map)['uniqueWidgets']} unique widgets)',
+    );
+    dlog(
+      () =>
+          '  Warnings:     ${(report['warnings'] as Map)['critical']} critical, '
+          '${(report['warnings'] as Map)['warning']} warnings',
+    );
     dlog('═══════════════════════════════════════════════════════════');
     dlog('');
   }
@@ -704,7 +722,10 @@ class MemoryTracker {
     }
     dlog(() => '⚠️ MemoryTracker: ${_tracked.length} disposables غير مُغلقة:');
     for (final entry in _tracked.entries) {
-      dlog(() => '   • ${entry.key}: ${entry.value.difference(DateTime.now()).abs().inSeconds}s');
+      dlog(
+        () =>
+            '   • ${entry.key}: ${entry.value.difference(DateTime.now()).abs().inSeconds}s',
+      );
     }
   }
 }

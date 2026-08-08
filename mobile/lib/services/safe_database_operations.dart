@@ -137,7 +137,10 @@ class SafeDatabaseOperations {
           }
 
           if (!DatabaseManager.isInitialized) {
-            dlog(() => '⚠️ Database not initialized for $opName. Attempting to initialize...');
+            dlog(
+              () =>
+                  '⚠️ Database not initialized for $opName. Attempting to initialize...',
+            );
             try {
               // محاولة الحصول على instance لتهيئة قاعدة البيانات
               final _ = DatabaseManager.instance;
@@ -165,13 +168,18 @@ class SafeDatabaseOperations {
                   errorStr.contains('isolate channel') ||
                   errorStr.contains('Can\'t re-open a database') ||
                   errorStr.contains('DatabaseManager has been closed')) {
-                dlog(() => '⚠️ Database stream error: $error. Attempting to recover...');
+                dlog(
+                  () =>
+                      '⚠️ Database stream error: $error. Attempting to recover...',
+                );
 
                 subscription?.cancel();
 
                 // التحقق من حالة الاستعادة قبل المحاولة
                 if (DatabaseManager.isRestoring) {
-                  dlog('⏸️ Database is being restored, will retry after restore completes');
+                  dlog(
+                    '⏸️ Database is being restored, will retry after restore completes',
+                  );
                   Future<void>.delayed(const Duration(seconds: 1), () {
                     if (!isClosed && !DatabaseManager.isRestoring) {
                       setupStream();

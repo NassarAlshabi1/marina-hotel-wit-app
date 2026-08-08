@@ -114,9 +114,12 @@ class PaymentVoidService {
         // إذا لم نتمكن من حل bookingUuid، نرفض العملية
         // ✅ OCR Comment #2: هذا الفحص موجود بالفعل، الـ OCR لم يلحظه
         if (bookingUuid.isEmpty) {
-          dlog(() => '⚠️ PaymentVoid: تعذر حل bookingUuid للدفعة $paymentUuid '
-              '(bookingLocalId=${payment.bookingLocalId}, '
-              'bookingUuidCache=${payment.bookingUuidCache})');
+          dlog(
+            () =>
+                '⚠️ PaymentVoid: تعذر حل bookingUuid للدفعة $paymentUuid '
+                '(bookingLocalId=${payment.bookingLocalId}, '
+                'bookingUuidCache=${payment.bookingUuidCache})',
+          );
           return false;
         }
 

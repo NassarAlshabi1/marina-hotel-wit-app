@@ -502,7 +502,10 @@ class SyncMonitoringSystem {
       }
 
       if (removedCount > 0) {
-        dlog(() => '🗑️ SyncMonitoringSystem: تم حذف $removedCount سجل قديم (أقدم من $keepDays أيام)');
+        dlog(
+          () =>
+              '🗑️ SyncMonitoringSystem: تم حذف $removedCount سجل قديم (أقدم من $keepDays أيام)',
+        );
       }
     } catch (e) {
       dlog(() => '⚠️ SyncMonitoringSystem: فشل تنظيف السجلات القديمة: $e');

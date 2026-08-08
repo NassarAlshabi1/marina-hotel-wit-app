@@ -107,8 +107,11 @@ class SyncGate {
   bool tryEnter({required String operation, required String source}) {
     if (notifier.value.isBusy) {
       if (kDebugMode) {
-        dlog(() => '🚫 [SyncGate] rejected entry: already busy with '
-          '${notifier.value.operation} from ${notifier.value.source}');
+        dlog(
+          () =>
+              '🚫 [SyncGate] rejected entry: already busy with '
+              '${notifier.value.operation} from ${notifier.value.source}',
+        );
       }
       return false;
     }
@@ -132,8 +135,11 @@ class SyncGate {
     }
     if (kDebugMode) {
       final elapsed = notifier.value.elapsedMs;
-      dlog(() => '🔓 [SyncGate] exited: ${notifier.value.operation} from '
-        '${notifier.value.source} (took ${elapsed}ms)');
+      dlog(
+        () =>
+            '🔓 [SyncGate] exited: ${notifier.value.operation} from '
+            '${notifier.value.source} (took ${elapsed}ms)',
+      );
     }
     notifier.value = const SyncGateState();
   }

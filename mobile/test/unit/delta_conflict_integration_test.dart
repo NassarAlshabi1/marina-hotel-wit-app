@@ -64,32 +64,35 @@ void main() {
       expect(result.shouldApplyRemote, isTrue);
     });
 
-    test('VC متطابق لكن بيانات مختلفة → يُطبَّق البعيد (لا تخطّي صامت)', () async {
-      // السيناريو: جهاز يرفع نفس الحجز بقيم جديدة دون أن يزيد Appwrite الـ VC.
-      final result = await pull.checkAndResolveConflict(
-        {
-          'status': 'checked_out',
-          'actualCheckout': '2026-08-08',
-          'lastModified': 5000,
-          'deviceId': 'devB',
-          'vectorClock': '{"devA":1}',
-        },
-        5000,
-        remoteUpdatedAtSec: 6000,
-        localVectorClock: '{"devA":1}', // نفس الـ VC تماماً
-        entityName: 'bookings',
-        localUuid: 'u1',
-        localData: {
-          'status': 'active', // محلي مختلف!
-          'actualCheckout': '',
-          'lastModified': 5000,
-          'deviceId': 'devA',
-          'vectorClock': '{"devA":1}',
-        },
-      );
-      // قبل الإصلاح: equal → false (يُتخطّى الحجز). بعد الإصلاح: true.
-      expect(result.shouldApplyRemote, isTrue);
-    });
+    test(
+      'VC متطابق لكن بيانات مختلفة → يُطبَّق البعيد (لا تخطّي صامت)',
+      () async {
+        // السيناريو: جهاز يرفع نفس الحجز بقيم جديدة دون أن يزيد Appwrite الـ VC.
+        final result = await pull.checkAndResolveConflict(
+          {
+            'status': 'checked_out',
+            'actualCheckout': '2026-08-08',
+            'lastModified': 5000,
+            'deviceId': 'devB',
+            'vectorClock': '{"devA":1}',
+          },
+          5000,
+          remoteUpdatedAtSec: 6000,
+          localVectorClock: '{"devA":1}', // نفس الـ VC تماماً
+          entityName: 'bookings',
+          localUuid: 'u1',
+          localData: {
+            'status': 'active', // محلي مختلف!
+            'actualCheckout': '',
+            'lastModified': 5000,
+            'deviceId': 'devA',
+            'vectorClock': '{"devA":1}',
+          },
+        );
+        // قبل الإصلاح: equal → false (يُتخطّى الحجز). بعد الإصلاح: true.
+        expect(result.shouldApplyRemote, isTrue);
+      },
+    );
 
     test('محلي أحدث → لا يُطبَّع البعيد (يحمي التعديل المحلي)', () async {
       final result = await pull.checkAndResolveConflict(

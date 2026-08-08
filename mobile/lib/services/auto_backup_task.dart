@@ -262,7 +262,9 @@ void callbackDispatcher() {
             await driveBackupService.performAutoBackup();
             dlog('✅ تم النسخ الاحتياطي السحابي بنجاح');
           } else {
-            dlog('⚠️ تعذر تسجيل الدخول تلقائياً إلى Google Drive، تم تخطي النسخ السحابي');
+            dlog(
+              '⚠️ تعذر تسجيل الدخول تلقائياً إلى Google Drive، تم تخطي النسخ السحابي',
+            );
           }
         } catch (e) {
           dlog(() => '❌ خطأ في النسخ الاحتياطي السحابي: $e');

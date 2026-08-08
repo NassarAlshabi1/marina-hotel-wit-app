@@ -215,7 +215,10 @@ class WhatsAppNotificationService {
       final success = await _sendViaCallMeBot(buffer.toString().trimRight());
 
       if (success) {
-        dlog(() => '✅ WhatsApp: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}');
+        dlog(
+          () =>
+              '✅ WhatsApp: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}',
+        );
       }
 
       return success;
@@ -478,7 +481,10 @@ class WhatsAppNotificationService {
       if (success) {
         dlog(() => '✅ WhatsApp: تم إرسال تنبيه خطأ مزامنة — $operation');
       } else {
-        dlog(() => '⚠️ WhatsApp: فشل إرسال تنبيه المزامنة — ${response.statusCode}');
+        dlog(
+          () =>
+              '⚠️ WhatsApp: فشل إرسال تنبيه المزامنة — ${response.statusCode}',
+        );
       }
       return success;
     } catch (e) {

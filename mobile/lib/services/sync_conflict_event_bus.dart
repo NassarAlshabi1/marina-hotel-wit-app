@@ -66,7 +66,10 @@ class SyncConflictEventBus {
       _recentEvents.removeAt(0);
     }
     _controller.add(event);
-    dlog(() => '[ConflictBus] ${event.table}/${event.localUuid} → ${event.winnerSide}: ${event.reason}');
+    dlog(
+      () =>
+          '[ConflictBus] ${event.table}/${event.localUuid} → ${event.winnerSide}: ${event.reason}',
+    );
   }
 
   /// إرسال حدث تضارب مبسط

@@ -1017,7 +1017,10 @@ class _SecondaryAppwriteSettingsScreenState
                     final outboxDao = OutboxDao(db);
                     final count = await outboxDao
                         .markAllLocalAsUndeliveredToSecondary();
-                    dlog(() => '🔵 [Secondary] Marked $count records as undelivered to secondary');
+                    dlog(
+                      () =>
+                          '🔵 [Secondary] Marked $count records as undelivered to secondary',
+                    );
                     if (SecondaryAppwriteConfig.isPushEnabled) {
                       SecondarySyncManager.instance.startAutoSync();
                     }
@@ -1027,7 +1030,10 @@ class _SecondaryAppwriteSettingsScreenState
                     final outboxDao = OutboxDao(db);
                     final count = await outboxDao
                         .markAllLocalAsDeliveredToSecondary();
-                    dlog(() => '🔵 [Secondary] Marked $count records as delivered to secondary (disabled)');
+                    dlog(
+                      () =>
+                          '🔵 [Secondary] Marked $count records as delivered to secondary (disabled)',
+                    );
                     SecondarySyncManager.instance.stopAutoSync();
                   }
                   setState(() {});

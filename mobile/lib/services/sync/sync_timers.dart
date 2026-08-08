@@ -87,7 +87,9 @@ class SyncTimers {
         final resetCount = await outboxDao.retryFailedWithBackoff();
         if (resetCount == 0) return;
 
-        dlog(() => '🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $resetCount)');
+        dlog(
+          () => '🔄 إعادة محاولة العناصر الفاشلة في outbox (عدد: $resetCount)',
+        );
 
         final result = await onPushOnly();
         if (result) {

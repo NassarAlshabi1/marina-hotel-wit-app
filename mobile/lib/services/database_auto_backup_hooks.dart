@@ -108,7 +108,10 @@ class AutoBackupDatabaseHelper {
   // طرق مساعدة للحجوزات
   static Future<int> insertBooking(BookingsCompanion booking) async {
     final result = await _db.insertWithBackupTrigger(_db.bookings, booking);
-    dlog(() => '📝 تم إضافة حجز جديد (${booking.guestName.value}) - سيتم النسخ التلقائي');
+    dlog(
+      () =>
+          '📝 تم إضافة حجز جديد (${booking.guestName.value}) - سيتم النسخ التلقائي',
+    );
     return result;
   }
 
@@ -139,7 +142,10 @@ class AutoBackupDatabaseHelper {
   // طرق مساعدة للغرف
   static Future<int> insertRoom(RoomsCompanion room) async {
     final result = await _db.insertWithBackupTrigger(_db.rooms, room);
-    dlog(() => '🏠 تم إضافة غرفة جديدة (${room.roomNumber.value}) - سيتم النسخ التلقائي');
+    dlog(
+      () =>
+          '🏠 تم إضافة غرفة جديدة (${room.roomNumber.value}) - سيتم النسخ التلقائي',
+    );
     return result;
   }
 
@@ -158,7 +164,10 @@ class AutoBackupDatabaseHelper {
   // طرق مساعدة للمدفوعات
   static Future<int> insertPayment(PaymentsCompanion payment) async {
     final result = await _db.insertWithBackupTrigger(_db.payments, payment);
-    dlog(() => '💰 تم إضافة دفعة جديدة (${payment.amount.value}) - سيتم النسخ التلقائي');
+    dlog(
+      () =>
+          '💰 تم إضافة دفعة جديدة (${payment.amount.value}) - سيتم النسخ التلقائي',
+    );
     return result;
   }
 
@@ -177,7 +186,10 @@ class AutoBackupDatabaseHelper {
   // طرق مساعدة للمصروفات
   static Future<int> insertExpense(ExpensesCompanion expense) async {
     final result = await _db.insertWithBackupTrigger(_db.expenses, expense);
-    dlog(() => '🧾 تم إضافة مصروف جديد (${expense.amount.value}) - سيتم النسخ التلقائي');
+    dlog(
+      () =>
+          '🧾 تم إضافة مصروف جديد (${expense.amount.value}) - سيتم النسخ التلقائي',
+    );
     return result;
   }
 
@@ -201,14 +213,20 @@ class AutoBackupDatabaseHelper {
       _db.cashTransactions,
       transaction,
     );
-    dlog(() => '💳 تم إضافة معاملة نقدية (${transaction.amount.value}) - سيتم النسخ التلقائي');
+    dlog(
+      () =>
+          '💳 تم إضافة معاملة نقدية (${transaction.amount.value}) - سيتم النسخ التلقائي',
+    );
     return result;
   }
 
   // طرق مساعدة للموظفين
   static Future<int> insertEmployee(EmployeesCompanion employee) async {
     final result = await _db.insertWithBackupTrigger(_db.employees, employee);
-    dlog(() => '👤 تم إضافة موظف جديد (${employee.name.value}) - سيتم النسخ التلقائي');
+    dlog(
+      () =>
+          '👤 تم إضافة موظف جديد (${employee.name.value}) - سيتم النسخ التلقائي',
+    );
     return result;
   }
 
@@ -252,7 +270,10 @@ class AutoBackupDatabaseHelper {
   // طرق مساعدة للديون
   static Future<int> insertDebt(DebtsCompanion debt) async {
     final result = await _db.insertWithBackupTrigger(_db.debts, debt);
-    dlog(() => '💳 تم إضافة دين جديد (${debt.totalAmount.value}) - سيتم النسخ التلقائي');
+    dlog(
+      () =>
+          '💳 تم إضافة دين جديد (${debt.totalAmount.value}) - سيتم النسخ التلقائي',
+    );
     return result;
   }
 

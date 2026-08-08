@@ -110,7 +110,10 @@ class SecondarySyncManager {
         // لا rethrow — نمنع fatal crash
       }
     });
-    dlog(() => '🔵 [SecondarySync] Auto-sync started (every ${interval.inMinutes} min)');
+    dlog(
+      () =>
+          '🔵 [SecondarySync] Auto-sync started (every ${interval.inMinutes} min)',
+    );
   }
 
   /// إيقاف المزامنة التلقائية
@@ -126,7 +129,10 @@ class SecondarySyncManager {
     if (!_isSyncing || _syncStartedAt == null) return false;
     final elapsed = DateTime.now().difference(_syncStartedAt!);
     if (elapsed > _syncTimeout) {
-      dlog(() => '⚠️ [SecondarySync] stuck for ${elapsed.inMinutes} min — forcing reset');
+      dlog(
+        () =>
+            '⚠️ [SecondarySync] stuck for ${elapsed.inMinutes} min — forcing reset',
+      );
       _isSyncing = false;
       _syncStartedAt = null;
       return true;
@@ -214,10 +220,13 @@ class SecondarySyncManager {
         // هذا يمنع الحلقة المفرغة: 429 → circuit breaker → محاولة جديدة → 429.
         if (AppwriteNetworkHelper().isCircuitBreakerActive) {
           final remaining = AppwriteNetworkHelper().circuitBreakerRemaining;
-          dlog(() => '🔌 [SecondarySync] Network circuit breaker active '
-            '(remaining ${remaining?.inSeconds ?? 0}s) — '
-            'stopping sync to avoid rate limit loop. '
-            '$pushed pushed, $failed failed so far.');
+          dlog(
+            () =>
+                '🔌 [SecondarySync] Network circuit breaker active '
+                '(remaining ${remaining?.inSeconds ?? 0}s) — '
+                'stopping sync to avoid rate limit loop. '
+                '$pushed pushed, $failed failed so far.',
+          );
           break;
         }
 
@@ -371,9 +380,12 @@ class SecondarySyncManager {
     _consecutiveFailures++;
     if (_consecutiveFailures >= _circuitBreakerThreshold && !isCircuitOpen) {
       _circuitOpenUntil = DateTime.now().add(_circuitBreakerCooldown);
-      dlog(() => '🔴 [SecondarySync] circuit breaker OPENED for '
-        '${_circuitBreakerCooldown.inMinutes} min '
-        '($_consecutiveFailures consecutive failures)');
+      dlog(
+        () =>
+            '🔴 [SecondarySync] circuit breaker OPENED for '
+            '${_circuitBreakerCooldown.inMinutes} min '
+            '($_consecutiveFailures consecutive failures)',
+      );
     }
   }
 
@@ -512,7 +524,10 @@ class SecondarySyncManager {
       }
     } catch (e) {
       // في حالة الفشل، نستخدم الحمولة المخزنة كاحتياط
-      dlog(() => '⚠️ [SecondarySync] PayloadMapper failed for ${entry.entity}: $e — using stored payload');
+      dlog(
+        () =>
+            '⚠️ [SecondarySync] PayloadMapper failed for ${entry.entity}: $e — using stored payload',
+      );
       payload = _parsePayload(entry.payload);
       payload['localUuid'] = entry.localUuid;
       if (entry.idempotencyKey != null && entry.idempotencyKey!.isNotEmpty) {
@@ -545,7 +560,10 @@ class SecondarySyncManager {
     } on AppwriteException catch (e) {
       // ✅ P0-2: معالجة صحيحة للأخطاء الدائمة → setDead مباشرة
       if (_isPermanentError(e)) {
-        dlog(() => '❌ [SecondarySync] Permanent error for ${entry.entity}/${entry.localUuid}: ${e.code} ${e.message}');
+        dlog(
+          () =>
+              '❌ [SecondarySync] Permanent error for ${entry.entity}/${entry.localUuid}: ${e.code} ${e.message}',
+        );
         final db = DatabaseManager.instance;
         final outboxDao = OutboxDao(db);
         await outboxDao.setDead(

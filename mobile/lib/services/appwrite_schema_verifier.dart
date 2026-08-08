@@ -589,7 +589,13 @@ class AppwriteSchemaVerifier {
   };
 
   static final _syncFields = [
-    {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
+    {
+      'key': 'localUuid',
+      'type': 'string',
+      'size': 36,
+      'required': true,
+      'unique': true,
+    },
     {'key': 'serverId', 'type': 'integer'},
     {'key': 'createdAt', 'type': 'integer', 'required': true},
     {'key': 'updatedAt', 'type': 'integer', 'required': true},

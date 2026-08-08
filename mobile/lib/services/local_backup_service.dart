@@ -226,9 +226,12 @@ class LocalBackupService {
         final compressedBytes = GZipCodec().encode(jsonBytes);
         await file.writeAsBytes(compressedBytes);
 
-        dlog(() => '✅ نسخة محلية مضغوطة: '
-          '${(jsonBytes.length / 1024).toStringAsFixed(1)} KB → '
-          '${(compressedBytes.length / 1024).toStringAsFixed(1)} KB');
+        dlog(
+          () =>
+              '✅ نسخة محلية مضغوطة: '
+              '${(jsonBytes.length / 1024).toStringAsFixed(1)} KB → '
+              '${(compressedBytes.length / 1024).toStringAsFixed(1)} KB',
+        );
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(
@@ -293,7 +296,10 @@ class LocalBackupService {
           timestamp.toIso8601String(),
         );
 
-        dlog(() => '✅ تم إنشاء النسخة الاحتياطية المحلية (SQLite): $destinationPath');
+        dlog(
+          () =>
+              '✅ تم إنشاء النسخة الاحتياطية المحلية (SQLite): $destinationPath',
+        );
         return destinationPath;
       }
 
@@ -488,7 +494,10 @@ class LocalBackupService {
     List<int> decodedBytes;
     if (rawBytes.length >= 2 && rawBytes[0] == 0x1f && rawBytes[1] == 0x8b) {
       decodedBytes = gzip.decode(rawBytes);
-      dlog(() => '📦 فك ضغط gzip: ${(rawBytes.length / 1024).toStringAsFixed(1)} KB → ${(decodedBytes.length / 1024).toStringAsFixed(1)} KB');
+      dlog(
+        () =>
+            '📦 فك ضغط gzip: ${(rawBytes.length / 1024).toStringAsFixed(1)} KB → ${(decodedBytes.length / 1024).toStringAsFixed(1)} KB',
+      );
     } else {
       decodedBytes = rawBytes;
     }
@@ -567,7 +576,10 @@ class LocalBackupService {
           Future<void> Function(Map<String, dynamic> json) insert,
         ) async {
           if (!backupData.containsKey(key)) {
-            dlog(() => '⚠️ النسخة الاحتياطية لا تحتوي على الجدول "$key" — تم التخطي');
+            dlog(
+              () =>
+                  '⚠️ النسخة الاحتياطية لا تحتوي على الجدول "$key" — تم التخطي',
+            );
             return;
           }
           final list = backupData[key] as List<dynamic>;
@@ -745,8 +757,11 @@ class LocalBackupService {
         }
       }); // ✅ نهاية transaction — atomic: إما كل العمليات تنجح أو تفشل معاً
 
-      dlog(() => '✅ تم استعادة ${metadata.totalRecords} سجل بنجاح من نسخة JSON '
-        '(جميع الجداول الـ20) — atomic transaction');
+      dlog(
+        () =>
+            '✅ تم استعادة ${metadata.totalRecords} سجل بنجاح من نسخة JSON '
+            '(جميع الجداول الـ20) — atomic transaction',
+      );
     } finally {
       // إعادة تشغيل FOREIGN KEYS بعد الانتهاء من الاستعادة بالكامل
       await db.customStatement('PRAGMA foreign_keys = ON');

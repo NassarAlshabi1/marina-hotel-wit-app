@@ -60,31 +60,34 @@ void main() {
   });
 
   group('SmartConflictResolver newerWins tie-break (timestamp equality)', () {
-    test('تساوي timestamp → القرار حتمي عبر deviceId (لا يفوز البعيد تلقائياً)', () {
-      // local و remote بنفس lastModified تماماً.
-      final localData = {
-        'amount': 100,
-        'lastModified': 5000,
-        'deviceId': 'device-B',
-        'vectorClock': '{"device-B":1}',
-      };
-      final remoteData = {
-        'amount': 200,
-        'lastModified': 5000,
-        'deviceId': 'device-A',
-        'vectorClock': '{"device-A":1}',
-      };
-      // كلا الساعتين متساويتان → concurrent → merge على مستوى الحقل.
-      final result = SmartConflictResolver.resolve(
-        entity: 'payments',
-        localData: localData,
-        remoteData: remoteData,
-        commonAncestor: null,
-      );
-      expect(result.strategy, equals(ResolutionStrategy.fieldLevelMerge));
-      // deviceId أصغر أبجدياً (device-A) يربح عند التعادل → remote.
-      expect(result.mergedData['amount'], equals(200));
-    });
+    test(
+      'تساوي timestamp → القرار حتمي عبر deviceId (لا يفوز البعيد تلقائياً)',
+      () {
+        // local و remote بنفس lastModified تماماً.
+        final localData = {
+          'amount': 100,
+          'lastModified': 5000,
+          'deviceId': 'device-B',
+          'vectorClock': '{"device-B":1}',
+        };
+        final remoteData = {
+          'amount': 200,
+          'lastModified': 5000,
+          'deviceId': 'device-A',
+          'vectorClock': '{"device-A":1}',
+        };
+        // كلا الساعتين متساويتان → concurrent → merge على مستوى الحقل.
+        final result = SmartConflictResolver.resolve(
+          entity: 'payments',
+          localData: localData,
+          remoteData: remoteData,
+          commonAncestor: null,
+        );
+        expect(result.strategy, equals(ResolutionStrategy.fieldLevelMerge));
+        // deviceId أصغر أبجدياً (device-A) يربح عند التعادل → remote.
+        expect(result.mergedData['amount'], equals(200));
+      },
+    );
 
     test('تساوي timestamp ومحلي له deviceId أصغر → يحافظ على المحلي', () {
       final localData = {

@@ -172,7 +172,8 @@ Future<void> main() async {
     final syncManager = AppwriteSyncManager.instance;
     if (syncManager == null) {
       dwarn(
-        () => 'AutoSync: AppwriteSyncManager null after eager init '
+        () =>
+            'AutoSync: AppwriteSyncManager null after eager init '
             '(should not happen — investigate)',
       );
       return 0;

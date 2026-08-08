@@ -87,7 +87,8 @@ class SyncPullService {
   }) async {
     // 1) حماية الحذف المحلي (soft delete) — له أولوية أعلى
     if (localDeletedAt != null) {
-      final remoteDeletedAt = _asIntNullable(remoteData['deletedAt']) ??
+      final remoteDeletedAt =
+          _asIntNullable(remoteData['deletedAt']) ??
           _asIntNullable(remoteData['deleted_at']);
       if (remoteDeletedAt != null) {
         return const RemoteCheckResult(shouldApplyRemote: true);
@@ -101,7 +102,8 @@ class SyncPullService {
     }
 
     // 3) استخراج timestamp البعيد
-    final remoteLastModified = _asIntNullable(remoteData['lastModified']) ??
+    final remoteLastModified =
+        _asIntNullable(remoteData['lastModified']) ??
         _asIntNullable(remoteData['last_modified']) ??
         _asIntNullable(remoteData['lastModifiedEpoch']);
     final effectiveRemoteTs = remoteLastModified ?? remoteUpdatedAtSec;
@@ -117,7 +119,8 @@ class SyncPullService {
     }
 
     // 4) Vector Clock comparison
-    final remoteVcStr = (remoteData['vectorClock'] as String?) ??
+    final remoteVcStr =
+        (remoteData['vectorClock'] as String?) ??
         (remoteData['vector_clock'] as String?) ??
         '{}';
 
@@ -194,8 +197,7 @@ class SyncPullService {
               commonAncestor: ancestor,
             );
 
-            if (resolution.strategy ==
-                ResolutionStrategy.fieldLevelMerge) {
+            if (resolution.strategy == ResolutionStrategy.fieldLevelMerge) {
               _logger.info(
                 '✅ 3-way merge resolved: entity=$entityName, uuid=$localUuid, '
                 'warnings=${resolution.warnings.length}',
@@ -228,10 +230,10 @@ class SyncPullService {
         final normalizedRemoteTs = effectiveRemoteTs > 10000000000
             ? effectiveRemoteTs ~/ 1000
             : effectiveRemoteTs;
-        final remoteDeviceId =
-            (remoteData['deviceId'] as String?) ?? '';
+        final remoteDeviceId = (remoteData['deviceId'] as String?) ?? '';
         final localDeviceId = _currentDeviceId ?? '';
-        final shouldApply = normalizedRemoteTs > localLastModified ||
+        final shouldApply =
+            normalizedRemoteTs > localLastModified ||
             (normalizedRemoteTs == localLastModified &&
                 remoteDeviceId.compareTo(localDeviceId) < 0);
         return RemoteCheckResult(shouldApplyRemote: shouldApply);
@@ -266,12 +268,33 @@ class SyncPullService {
     Map<String, dynamic> b,
   ) {
     const skip = {
-      'lastModified', 'updatedAt', 'version', 'vectorClock', 'vector_clock',
-      'last_modified', 'last_modified_epoch', 'updated_at', 'createdAt',
-      'created_at', 'deletedAt', 'deleted_at', 'syncTimestamp', 'sync_origin',
-      'localUuid', 'serverId', 'id', 'idempotencyKey', 'lastModifiedEpoch',
-      'createdAtEpoch', 'createdAtIso', 'updatedAtIso', 'deletedAtIso',
-      '\$id', '\$createdAt', '\$updatedAt', '\$permissions',
+      'lastModified',
+      'updatedAt',
+      'version',
+      'vectorClock',
+      'vector_clock',
+      'last_modified',
+      'last_modified_epoch',
+      'updated_at',
+      'createdAt',
+      'created_at',
+      'deletedAt',
+      'deleted_at',
+      'syncTimestamp',
+      'sync_origin',
+      'localUuid',
+      'serverId',
+      'id',
+      'idempotencyKey',
+      'lastModifiedEpoch',
+      'createdAtEpoch',
+      'createdAtIso',
+      'updatedAtIso',
+      'deletedAtIso',
+      '\$id',
+      '\$createdAt',
+      '\$updatedAt',
+      '\$permissions',
     };
     final keys = <String>{...a.keys, ...b.keys}..removeWhere(skip.contains);
     const eq = DeepCollectionEquality();

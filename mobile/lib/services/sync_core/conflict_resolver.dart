@@ -133,7 +133,10 @@ class ConflictResolver {
       resolved[conflict.table]![conflict.uuid] = winner;
 
       final winnerType = winner == conflict.localData ? 'محلي' : 'بعيد';
-      dlog(() => '✅ ConflictResolver: حُل تضارب ${conflict.table}/${conflict.uuid} - الفائز: $winnerType');
+      dlog(
+        () =>
+            '✅ ConflictResolver: حُل تضارب ${conflict.table}/${conflict.uuid} - الفائز: $winnerType',
+      );
     }
 
     return resolved;

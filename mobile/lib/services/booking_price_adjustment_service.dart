@@ -407,7 +407,9 @@ class BookingPriceAdjustmentService {
       recordData: update.toColumns(false),
     );
 
-    dlog(() => '⏹️ تم إنهاء تعديل السعر: $adjustmentUuid (ساري حتى $effectiveEnd)');
+    dlog(
+      () => '⏹️ تم إنهاء تعديل السعر: $adjustmentUuid (ساري حتى $effectiveEnd)',
+    );
   }
 
   Future<List<BookingPriceAdjustment>> getActiveAdjustments(

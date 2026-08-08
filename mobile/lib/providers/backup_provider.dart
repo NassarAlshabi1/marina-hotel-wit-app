@@ -270,7 +270,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
             dlog(() => '⚠️ خطأ في إشعار مديري المزامنة: $e');
           }
         } else {
-          dlog('⏸️ Google Drive sync disabled - skipping sync manager notification at init');
+          dlog(
+            '⏸️ Google Drive sync disabled - skipping sync manager notification at init',
+          );
         }
 
         // جلب قائمة النسخ المتاحة في Google Drive (مع معالجة الأخطاء)
@@ -472,7 +474,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
             dlog(() => '⚠️ خطأ في إشعار مديري المزامنة: $e');
           }
         } else {
-          dlog('⏸️ Google Drive sync disabled - skipping sync manager notification after sign-in');
+          dlog(
+            '⏸️ Google Drive sync disabled - skipping sync manager notification after sign-in',
+          );
         }
 
         state = state.copyWith(
@@ -641,7 +645,10 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       if (!fixReport.success) {
         dlog(() => '⚠️ فشل الإصلاح التلقائي: ${fixReport.error}');
       } else {
-        dlog(() => '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة');
+        dlog(
+          () =>
+              '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة',
+        );
       }
 
       state = state.copyWith(
@@ -804,7 +811,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
             dlog(() => '⚠️ خطأ في إشعار مديري المزامنة: $e');
           }
         } else {
-          dlog('⏸️ Google Drive sync disabled - skipping sync manager notification on refresh');
+          dlog(
+            '⏸️ Google Drive sync disabled - skipping sync manager notification on refresh',
+          );
         }
 
         state = state.copyWith(
@@ -950,7 +959,10 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       if (!fixReport.success) {
         dlog(() => '⚠️ فشل الإصلاح التلقائي: ${fixReport.error}');
       } else {
-        dlog(() => '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة');
+        dlog(
+          () =>
+              '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة',
+        );
       }
 
       // مزامنة البيانات إلى السحابة إذا طُلب ذلك
@@ -1065,7 +1077,10 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
       if (!fixReport.success) {
         dlog(() => '⚠️ فشل الإصلاح التلقائي: ${fixReport.error}');
       } else {
-        dlog(() => '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة');
+        dlog(
+          () =>
+              '✅ اكتمل الإصلاح التلقائي: ${fixReport.bookingsFixed} حجز، ${fixReport.roomsUpdated} غرفة',
+        );
       }
 
       state = state.copyWith(

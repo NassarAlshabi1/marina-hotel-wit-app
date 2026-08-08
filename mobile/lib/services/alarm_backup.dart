@@ -231,7 +231,9 @@ class AlarmBackup {
           await reportService.sendDailyReport();
           dlog('✅ Telegram daily report sent from alarm');
         } else {
-          dlog('⚠️ Telegram report skipped: bot token or chat ID not configured');
+          dlog(
+            '⚠️ Telegram report skipped: bot token or chat ID not configured',
+          );
         }
       }
     } catch (e) {

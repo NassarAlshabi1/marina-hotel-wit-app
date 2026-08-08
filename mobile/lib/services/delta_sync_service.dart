@@ -78,7 +78,10 @@ class DeltaSyncService {
       final hasMirror = previousMirror.containsKey(config.entity);
       if (!hasMirror) {
         fallbackTables.add(config.entity);
-        dlog(() => '⚠️ تعذر إعادة بناء مرآة جدول ${config.entity}، سيتم الاعتماد على createdAt فقط');
+        dlog(
+          () =>
+              '⚠️ تعذر إعادة بناء مرآة جدول ${config.entity}، سيتم الاعتماد على createdAt فقط',
+        );
       }
 
       final rowDataList = <_EntityRowData>[];
@@ -302,7 +305,9 @@ class DeltaSyncService {
             [config.entity, uuid, rowHash, jsonEncode(sanitized), nowTs],
           );
         }
-        dlog(() => '✅ Rebuilt mirror for ${config.entity} (${rows.length} rows)');
+        dlog(
+          () => '✅ Rebuilt mirror for ${config.entity} (${rows.length} rows)',
+        );
       } catch (e) {
         dlog(() => '❌ Failed to rebuild mirror for ${config.entity}: $e');
       }

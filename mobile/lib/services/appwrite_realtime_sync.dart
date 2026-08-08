@@ -136,7 +136,10 @@ class AppwriteRealtimeSync {
   void _startPollingFallback() {
     if (_pollingTimer != null) return;
 
-    dlog(() => '📡 Realtime: started polling fallback (every ${_pollingInterval.inSeconds}s)');
+    dlog(
+      () =>
+          '📡 Realtime: started polling fallback (every ${_pollingInterval.inSeconds}s)',
+    );
 
     _pollingTimer = Timer.periodic(_pollingInterval, (_) {
       if (_intentionallyStopped) return;
@@ -211,7 +214,10 @@ class AppwriteRealtimeSync {
 
       // ✅ تحسين: زيادة عداد التغييرات
       pendingRemoteChangesCount.value++;
-      dlog(() => '📡 Realtime: pending changes count = ${pendingRemoteChangesCount.value}');
+      dlog(
+        () =>
+            '📡 Realtime: pending changes count = ${pendingRemoteChangesCount.value}',
+      );
     });
   }
 
@@ -249,7 +255,10 @@ class AppwriteRealtimeSync {
     // ✅ إصلاح P2-13: حد أقصى لمحاولات إعادة الاتصال لتجنب إهدار البطارية
     // بعد 6 محاولات (5s → 10s → 20s → 40s → 60s → 60s = ~3.5 min total)
     if (_reconnectAttempts > _maxReconnectAttempts) {
-      dlog(() => '📡 Realtime: max reconnect attempts ($_maxReconnectAttempts) reached — giving up');
+      dlog(
+        () =>
+            '📡 Realtime: max reconnect attempts ($_maxReconnectAttempts) reached — giving up',
+      );
       CrashlyticsService.instance.recordSyncError(
         operation: 'realtime_reconnect_giveup',
         error:

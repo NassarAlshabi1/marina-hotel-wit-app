@@ -140,8 +140,11 @@ class SyncMetrics {
     _addToHistory(session);
     _updateStats();
 
-    dlog(() => '✅ SyncMetrics: مزامنة ناجحة - ${session.duration.inSeconds}ث، '
-      'السجلات: $recordsSynced، التضارب: $conflictsResolved');
+    dlog(
+      () =>
+          '✅ SyncMetrics: مزامنة ناجحة - ${session.duration.inSeconds}ث، '
+          'السجلات: $recordsSynced، التضارب: $conflictsResolved',
+    );
   }
 
   /// تسجيل فشل المزامنة
@@ -159,7 +162,10 @@ class SyncMetrics {
     _addToHistory(session);
     _updateStats();
 
-    dlog(() => '❌ SyncMetrics: مزامنة فاشلة - ${session.duration.inSeconds}ث، الخطأ: $error');
+    dlog(
+      () =>
+          '❌ SyncMetrics: مزامنة فاشلة - ${session.duration.inSeconds}ث، الخطأ: $error',
+    );
   }
 
   /// إضافة إلى السجل

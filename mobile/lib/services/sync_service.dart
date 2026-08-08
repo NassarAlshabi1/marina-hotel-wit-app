@@ -130,7 +130,10 @@ class SyncService {
           if (index >= results.length) {
             allSucceeded = false;
             final missingChange = computation.changes[index];
-            dlog(() => '❌ Missing push result for ${missingChange.entity}/${missingChange.localUuid}');
+            dlog(
+              () =>
+                  '❌ Missing push result for ${missingChange.entity}/${missingChange.localUuid}',
+            );
             break;
           }
 
@@ -144,7 +147,10 @@ class SyncService {
             );
           } else {
             allSucceeded = false;
-            dlog(() => '❌ فشل إرسال ${change.entity}/${change.localUuid}: ${result['error']}');
+            dlog(
+              () =>
+                  '❌ فشل إرسال ${change.entity}/${change.localUuid}: ${result['error']}',
+            );
           }
         }
 
@@ -243,7 +249,10 @@ class SyncService {
         try {
           await _applyIncoming(entity, op, serverId, serverTs, item);
         } catch (e) {
-          dlog(() => '❌ Failed to apply incoming change for $entity with server_id $serverId: $e. Skipping item.');
+          dlog(
+            () =>
+                '❌ Failed to apply incoming change for $entity with server_id $serverId: $e. Skipping item.',
+          );
         }
       }
 

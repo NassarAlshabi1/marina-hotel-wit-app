@@ -80,7 +80,10 @@ class NightAuditService {
         final waReportEnabled = await TelegramConfig.isDailyReportEnabled();
         if (waEnabled && waReportEnabled) {
           whatsappSent = await _whatsappReport.sendReportNow();
-          dlog(() => '📱 [NightAudit] WhatsApp: ${whatsappSent ? "sent ✅" : "failed ❌"}');
+          dlog(
+            () =>
+                '📱 [NightAudit] WhatsApp: ${whatsappSent ? "sent ✅" : "failed ❌"}',
+          );
         } else {
           whatsappSkipped = true;
           dlog('📱 [NightAudit] WhatsApp: skipped (disabled)');
@@ -99,10 +102,15 @@ class NightAuditService {
         if (tgConfigured && tgEnabled && tgReportEnabled) {
           final tgService = tg.TelegramApiClient.instance;
           telegramSent = await tgService.sendToDefaultChat(text: message);
-          dlog(() => '✈️ [NightAudit] Telegram: ${telegramSent ? "sent ✅" : "failed ❌"}');
+          dlog(
+            () =>
+                '✈️ [NightAudit] Telegram: ${telegramSent ? "sent ✅" : "failed ❌"}',
+          );
         } else {
           telegramSkipped = true;
-          dlog('✈️ [NightAudit] Telegram: skipped (not configured or disabled)');
+          dlog(
+            '✈️ [NightAudit] Telegram: skipped (not configured or disabled)',
+          );
         }
       } catch (e) {
         dlog(() => '❌ [NightAudit] Telegram error: $e');

@@ -472,7 +472,10 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
                   ) &&
                   expense.amount.abs() == sw.amount.abs()) {
                 hasMatchingExpense = true;
-                dlog(() => '⚠️ تم ربط سحب راتب قديم (id=${sw.id}) بمصروف (id=${expense.id}) عبر المطابقة بالبيانات');
+                dlog(
+                  () =>
+                      '⚠️ تم ربط سحب راتب قديم (id=${sw.id}) بمصروف (id=${expense.id}) عبر المطابقة بالبيانات',
+                );
                 break;
               }
             }

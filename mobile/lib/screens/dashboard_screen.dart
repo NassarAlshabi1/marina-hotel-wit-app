@@ -80,9 +80,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       task: _autoPullFromAppwriteInner,
     );
     if (!executed) {
-      dlog(() => 'ℹ️ [AutoPull] skipped — SyncGate busy with '
-        '${SyncGate.instance.state.operation} from '
-        '${SyncGate.instance.state.source}');
+      dlog(
+        () =>
+            'ℹ️ [AutoPull] skipped — SyncGate busy with '
+            '${SyncGate.instance.state.operation} from '
+            '${SyncGate.instance.state.source}',
+      );
     }
   }
 

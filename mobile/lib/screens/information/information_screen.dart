@@ -763,7 +763,10 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       await Printing.sharePdf(bytes: pdfBytes, filename: filename);
     } catch (error, stackTrace) {
       // ✅ تشخيص مفصّل: نُسجّل الـ stackTrace في console + نُظهر رسالة واضحة للمستخدم.
-      dlog(() => '❌ فشل تصدير PDF لسجل المعلومية:\n  error: $error\n  stack: $stackTrace');
+      dlog(
+        () =>
+            '❌ فشل تصدير PDF لسجل المعلومية:\n  error: $error\n  stack: $stackTrace',
+      );
       _showSnack('فشل تصدير الملف: $error');
     } finally {
       if (mounted) {

@@ -62,8 +62,11 @@ class AutoOutboxSyncWatcher {
     } catch (e) {
       // فشل الفحص (نادر) — نُعامل كـ offline (آمن)
       _isOnline = false;
-      dlog(() => '⚠️ AutoSync: initial connectivity check failed: $e '
-          '(treating as offline)');
+      dlog(
+        () =>
+            '⚠️ AutoSync: initial connectivity check failed: $e '
+            '(treating as offline)',
+      );
     }
 
     // 1. Watch connectivity — track online/offline state
@@ -97,8 +100,10 @@ class AutoOutboxSyncWatcher {
           }
         });
 
-    dlog('👁️ AutoOutboxSyncWatcher started (offline-aware, '
-        'initial online=$_isOnline)');
+    dlog(
+      '👁️ AutoOutboxSyncWatcher started (offline-aware, '
+      'initial online=$_isOnline)',
+    );
   }
 
   void _schedulePush() {
@@ -127,7 +132,9 @@ class AutoOutboxSyncWatcher {
         dlog(() => '📤 AutoSync: pushed $result changes');
       }
     } catch (e) {
-      dlog(() => '⚠️ AutoSync push error: $e (will retry on next outbox change)');
+      dlog(
+        () => '⚠️ AutoSync push error: $e (will retry on next outbox change)',
+      );
     } finally {
       _pushing = false;
     }

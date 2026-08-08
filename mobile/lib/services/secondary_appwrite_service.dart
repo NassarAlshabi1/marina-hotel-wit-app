@@ -573,7 +573,9 @@ class SecondaryAppwriteService {
       final collectionId = AppwriteConfig.collectionIdFor(entity);
       if (collectionId == null) {
         // كيان بلا collectionId مُعرّف — لا يمكن رفعه؛ نتخطّاه صراحةً مع تنبيه.
-        dlog(() => '⚠️ [Secondary] تخطّي "$entity": لا يوجد collectionId مطابق');
+        dlog(
+          () => '⚠️ [Secondary] تخطّي "$entity": لا يوجد collectionId مطابق',
+        );
         continue;
       }
 

@@ -33,7 +33,9 @@ class RecalculateBookingNightsMigration {
 
     for (final booking in bookings) {
       try {
-        dlog(() => '   Processing ${booking.guestName} (${booking.roomNumber})...');
+        dlog(
+          () => '   Processing ${booking.guestName} (${booking.roomNumber})...',
+        );
 
         // إعادة حساب جميع الحقول المشتقة بناءً على التواريخ
         await derivedFieldsService.refreshForBooking(

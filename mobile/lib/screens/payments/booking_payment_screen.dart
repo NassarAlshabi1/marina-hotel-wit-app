@@ -2207,7 +2207,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           .watchByNumber(widget.booking.roomNumber)
           .first;
       if (room != null) {
-        dlog(() => '🏠 [EarlyCheckout] Updating room ${room.roomNumber} status to available');
+        dlog(
+          () =>
+              '🏠 [EarlyCheckout] Updating room ${room.roomNumber} status to available',
+        );
         await roomsRepo.update(room.id, status: 'شاغرة');
       }
 
@@ -2224,12 +2227,18 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             .read(appwriteSyncManagerProvider)
             .pushLocalChanges()
             .then((pushedCount) {
-              dlog(() => '📤 [EarlyCheckout] push-only to Appwrite Cloud: '
-                '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred (will retry via outbox)"}');
+              dlog(
+                () =>
+                    '📤 [EarlyCheckout] push-only to Appwrite Cloud: '
+                    '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred (will retry via outbox)"}',
+              );
             })
             .catchError((Object e) {
-              dlog(() => '⚠️ [EarlyCheckout] push to Appwrite Cloud failed: $e — '
-                'سيتم إعادة المحاولة تلقائياً عبر outbox');
+              dlog(
+                () =>
+                    '⚠️ [EarlyCheckout] push to Appwrite Cloud failed: $e — '
+                    'سيتم إعادة المحاولة تلقائياً عبر outbox',
+              );
             }),
       );
 
@@ -2380,8 +2389,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             .read(appwriteSyncManagerProvider)
             .pushLocalChanges()
             .then((pushedCount) {
-              dlog(() => '📤 [CreateDebt] push-only to Appwrite Cloud: '
-                '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred"}');
+              dlog(
+                () =>
+                    '📤 [CreateDebt] push-only to Appwrite Cloud: '
+                    '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred"}',
+              );
             })
             .catchError((Object e) {
               dlog(() => '⚠️ [CreateDebt] push failed: $e');
@@ -2574,8 +2586,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             .read(appwriteSyncManagerProvider)
             .pushLocalChanges()
             .then((pushedCount) {
-              dlog(() => '📤 [DiscountNights] push to Appwrite: '
-                '${pushedCount > 0 ? "success ($pushedCount)" : "deferred"}');
+              dlog(
+                () =>
+                    '📤 [DiscountNights] push to Appwrite: '
+                    '${pushedCount > 0 ? "success ($pushedCount)" : "deferred"}',
+              );
             })
             .catchError((Object e) {
               dlog(() => '⚠️ [DiscountNights] push failed: $e');
@@ -2644,7 +2659,10 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           .watchByNumber(widget.booking.roomNumber)
           .first;
       if (room != null) {
-        dlog(() => '🏠 [Checkout] Updating room ${room.roomNumber} status to available');
+        dlog(
+          () =>
+              '🏠 [Checkout] Updating room ${room.roomNumber} status to available',
+        );
         await roomsRepo.update(room.id, status: 'شاغرة');
       }
       // ✅ تسجيل تغيير المزامنة بعد تحرير الغرفة
@@ -2660,12 +2678,18 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             .read(appwriteSyncManagerProvider)
             .pushLocalChanges()
             .then((pushedCount) {
-              dlog(() => '📤 [Checkout] push-only to Appwrite Cloud: '
-                '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred (will retry via outbox)"}');
+              dlog(
+                () =>
+                    '📤 [Checkout] push-only to Appwrite Cloud: '
+                    '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred (will retry via outbox)"}',
+              );
             })
             .catchError((Object e) {
-              dlog(() => '⚠️ [Checkout] push to Appwrite Cloud failed: $e — '
-                'سيتم إعادة المحاولة تلقائياً عبر outbox');
+              dlog(
+                () =>
+                    '⚠️ [Checkout] push to Appwrite Cloud failed: $e — '
+                    'سيتم إعادة المحاولة تلقائياً عبر outbox',
+              );
             }),
       );
 

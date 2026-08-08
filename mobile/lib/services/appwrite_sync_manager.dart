@@ -5898,8 +5898,7 @@ class AppwriteSyncManager {
     // الآن نستبعد سجلات blacklist صراحةً.
     return (database.select(database.shiftNotes)
           ..where(
-            (t) => t.localUuid.equals(uuid) &
-                t.createdBy.equals('user'),
+            (t) => t.localUuid.equals(uuid) & t.createdBy.equals('user'),
           )
           ..limit(1))
         .getSingleOrNull();
@@ -6177,15 +6176,15 @@ class AppwriteSyncManager {
           origin: const drift.Value('server'),
           vectorClock: drift.Value(
             (data['vectorClock'] as String?) ??
-            (data['vector_clock'] as String?) ??
-            '{}',
+                (data['vector_clock'] as String?) ??
+                '{}',
           ),
           deviceId: drift.Value(
             (data['deviceId'] as String?) ?? '',
           ),
           idempotencyKey: drift.Value(
             (data['idempotencyKey'] as String?) ??
-            (data['idempotency_key'] as String?),
+                (data['idempotency_key'] as String?),
           ),
           expiresAt: const drift.Value(null),
           isRead: const drift.Value(0),
@@ -6611,7 +6610,8 @@ class AppwriteSyncManager {
         final existing =
             await (database.select(database.shiftNotes)
                   ..where(
-                    (t) => t.localUuid.equals(localUuid) &
+                    (t) =>
+                        t.localUuid.equals(localUuid) &
                         t.createdBy.equals('user'),
                   )
                   ..limit(1))

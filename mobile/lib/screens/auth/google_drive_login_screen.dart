@@ -42,7 +42,9 @@ class _GoogleDriveLoginScreenState
         try {
           await ref.read(autoBackupManagerProvider).setEnabled(true);
         } catch (e) {
-          dlog(() => '⚠️ Failed to enable auto backup after silent sign-in: $e');
+          dlog(
+            () => '⚠️ Failed to enable auto backup after silent sign-in: $e',
+          );
         }
       }
     } catch (_) {

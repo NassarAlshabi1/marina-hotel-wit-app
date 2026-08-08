@@ -67,10 +67,9 @@ class AncestorCacheDao extends DatabaseAccessor<AppDatabase>
   ///
   /// ✅ P0-2 Audit Fix: استخدام مللي ثانية بدلاً من ثواني.
   Future<int> cleanupOldEntries({int maxAgeDays = 30}) async {
-    final cutoff =
-        DateTime.now()
-            .subtract(Duration(days: maxAgeDays))
-            .millisecondsSinceEpoch;
+    final cutoff = DateTime.now()
+        .subtract(Duration(days: maxAgeDays))
+        .millisecondsSinceEpoch;
     return (delete(
       ancestorCache,
     )..where((t) => t.capturedAt.isSmallerThanValue(cutoff))).go();

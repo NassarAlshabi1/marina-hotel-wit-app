@@ -822,7 +822,9 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                                     revenueType: 'deposit',
                                   );
                                 } catch (e) {
-                                  dlog(() => '⚠️ خطأ في حفظ الدفعة المقدمة: $e');
+                                  dlog(
+                                    () => '⚠️ خطأ في حفظ الدفعة المقدمة: $e',
+                                  );
                                   if (mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(

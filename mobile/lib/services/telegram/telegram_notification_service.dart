@@ -127,7 +127,10 @@ class TelegramNotificationService {
       );
 
       if (success) {
-        dlog(() => '✅ Telegram: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}');
+        dlog(
+          () =>
+              '✅ Telegram: تم إرسال إشعار ${event.type.label} - غرفة ${event.roomNumber}',
+        );
       }
 
       return success;

@@ -99,7 +99,10 @@ class CircuitBreaker {
 
     if (_state == CircuitState.halfOpen) {
       _successCount++;
-      dlog(() => '✅ [CircuitBreaker] [$name] نجاح في halfOpen: $_successCount/${config.successThreshold}');
+      dlog(
+        () =>
+            '✅ [CircuitBreaker] [$name] نجاح في halfOpen: $_successCount/${config.successThreshold}',
+      );
 
       if (_successCount >= config.successThreshold) {
         _transitionTo(CircuitState.closed);
@@ -113,7 +116,10 @@ class CircuitBreaker {
     _lastFailureTime = DateTime.now();
     _successCount = 0;
 
-    dlog(() => '⚠️ [CircuitBreaker] [$name] فشل: $_failureCount/${config.failureThreshold}');
+    dlog(
+      () =>
+          '⚠️ [CircuitBreaker] [$name] فشل: $_failureCount/${config.failureThreshold}',
+    );
 
     if (_state == CircuitState.halfOpen) {
       _transitionTo(CircuitState.open);

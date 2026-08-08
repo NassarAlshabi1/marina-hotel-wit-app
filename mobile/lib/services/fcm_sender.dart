@@ -179,10 +179,15 @@ class FcmSender {
         final responseBody = jsonDecode(response.body) as Map<String, dynamic>;
         final success = responseBody['success'] as int? ?? 0;
         final failure = responseBody['failure'] as int? ?? 0;
-        dlog(() => '✅ FCM sent: $success success, $failure failure '
-          '(event=$eventTypeString, recipients=${tokens.length})');
+        dlog(
+          () =>
+              '✅ FCM sent: $success success, $failure failure '
+              '(event=$eventTypeString, recipients=${tokens.length})',
+        );
       } else {
-        dlog(() => '⚠️ FCM send failed: ${response.statusCode} - ${response.body}');
+        dlog(
+          () => '⚠️ FCM send failed: ${response.statusCode} - ${response.body}',
+        );
         unawaited(
           CrashlyticsService.instance.recordSyncError(
             operation: 'fcm_send',

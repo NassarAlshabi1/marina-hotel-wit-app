@@ -125,7 +125,10 @@ class RetryStrategy {
         }
 
         final delay = calculateDelay(attempt);
-        dlog(() => '⏳ [Retry] انتظار ${delay.inSeconds} ثانية قبل المحاولة التالية');
+        dlog(
+          () =>
+              '⏳ [Retry] انتظار ${delay.inSeconds} ثانية قبل المحاولة التالية',
+        );
 
         if (onRetry != null) {
           onRetry(attempt, error);
