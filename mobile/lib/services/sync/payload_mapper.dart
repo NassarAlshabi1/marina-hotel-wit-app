@@ -385,6 +385,7 @@ class PayloadMapper {
 
   /// يحوّل [BookingNote] محلي إلى payload لـ Appwrite.
   Map<String, dynamic> bookingNoteToRemote(BookingNote note) {
+    final now = Time.nowEpoch();
     final data = <String, dynamic>{
       'bookingId': note.bookingId,
       'noteText': note.noteText,
@@ -394,22 +395,29 @@ class PayloadMapper {
       'createdAt': note.createdAt,
       'updatedAt': note.updatedAt,
       'lastModified': note.lastModified,
+      'createdAtEpoch': note.createdAtEpoch,
+      'lastModifiedEpoch': note.lastModifiedEpoch,
       'version': note.version,
       'origin': note.origin,
       // ✅ إصلاح: إضافة vectorClock
       'vectorClock': note.vectorClock,
       'sync_origin': note.origin,
+      'syncTimestamp': now,
       'deviceId': note.deviceId,
     };
     putIfNotNull(data, 'serverId', note.serverId);
     putIfNotNull(data, 'deletedAt', note.deletedAt);
     putIfStringNotEmpty(data, 'alertUntil', note.alertUntil);
+    putIfStringNotEmpty(data, 'createdAtIso', note.createdAtIso);
+    putIfStringNotEmpty(data, 'updatedAtIso', note.updatedAtIso);
+    putIfStringNotEmpty(data, 'deletedAtIso', note.deletedAtIso);
     putIfStringNotEmpty(data, 'idempotencyKey', note.idempotencyKey);
     return data;
   }
 
   /// يحوّل [BookingNight] محلي إلى payload لـ Appwrite.
   Map<String, dynamic> bookingNightToRemote(BookingNight night) {
+    final now = Time.nowEpoch();
     final data = <String, dynamic>{
       // ✅ إصلاح: لا نرسل bookingLocalId للسيرفر (id محلي يختلف بين الأجهزة)
       // الربط يتم عبر resolveBooking في nights_adapter باستخدام bookingUuidCache
@@ -426,11 +434,14 @@ class PayloadMapper {
       'createdAt': night.createdAt,
       'updatedAt': night.updatedAt,
       'lastModified': night.lastModified,
+      'createdAtEpoch': night.createdAtEpoch,
+      'lastModifiedEpoch': night.lastModifiedEpoch,
       'version': night.version,
       'origin': night.origin,
       'vectorClock': night.vectorClock,
       'deviceId': night.deviceId,
       'sync_origin': night.origin,
+      'syncTimestamp': now,
     };
     putIfNotNull(data, 'serverId', night.serverId);
     putIfNotNull(data, 'deletedAt', night.deletedAt);
@@ -447,6 +458,9 @@ class PayloadMapper {
 
     putIfStringNotEmpty(data, 'bookingUuidCache', night.bookingUuidCache);
     putIfNotNull(data, 'serverBookingId', night.serverBookingId);
+    putIfStringNotEmpty(data, 'createdAtIso', night.createdAtIso);
+    putIfStringNotEmpty(data, 'updatedAtIso', night.updatedAtIso);
+    putIfStringNotEmpty(data, 'deletedAtIso', night.deletedAtIso);
     putIfStringNotEmpty(data, 'idempotencyKey', night.idempotencyKey);
 
     return data;
@@ -454,6 +468,7 @@ class PayloadMapper {
 
   /// يحوّل [CashTransaction] محلي إلى payload لـ Appwrite.
   Map<String, dynamic> cashTransactionToRemote(CashTransaction transaction) {
+    final now = Time.nowEpoch();
     final data = <String, dynamic>{
       'transactionType': transaction.transactionType,
       'amount': transaction.amount.round(), // Appwrite: integer
@@ -462,12 +477,15 @@ class PayloadMapper {
       'createdAt': transaction.createdAt,
       'updatedAt': transaction.updatedAt,
       'lastModified': transaction.lastModified,
+      'createdAtEpoch': transaction.createdAtEpoch,
+      'lastModifiedEpoch': transaction.lastModifiedEpoch,
       'version': transaction.version,
       'origin': transaction.origin,
       // ✅ إصلاح: إضافة vectorClock
       'vectorClock': transaction.vectorClock,
       'deviceId': transaction.deviceId,
       'sync_origin': transaction.origin,
+      'syncTimestamp': now,
     };
     putIfNotNull(data, 'registerId', transaction.registerId);
     putIfNotNull(data, 'referenceId', transaction.referenceId);
@@ -476,12 +494,16 @@ class PayloadMapper {
     putIfNotNull(data, 'deletedAt', transaction.deletedAt);
     putIfStringNotEmpty(data, 'referenceType', transaction.referenceType);
     putIfStringNotEmpty(data, 'description', transaction.description);
+    putIfStringNotEmpty(data, 'createdAtIso', transaction.createdAtIso);
+    putIfStringNotEmpty(data, 'updatedAtIso', transaction.updatedAtIso);
+    putIfStringNotEmpty(data, 'deletedAtIso', transaction.deletedAtIso);
     putIfStringNotEmpty(data, 'idempotencyKey', transaction.idempotencyKey);
     return data;
   }
 
   /// يحوّل [SalaryCycle] محلي إلى payload لـ Appwrite.
   Map<String, dynamic> salaryCycleToRemote(SalaryCycle cycle) {
+    final now = Time.nowEpoch();
     final data = <String, dynamic>{
       'employeeId': cycle.employeeId,
       'cycleKey': cycle.cycleKey,
@@ -493,22 +515,29 @@ class PayloadMapper {
       'createdAt': cycle.createdAt,
       'updatedAt': cycle.updatedAt,
       'lastModified': cycle.lastModified,
+      'createdAtEpoch': cycle.createdAtEpoch,
+      'lastModifiedEpoch': cycle.lastModifiedEpoch,
       'version': cycle.version,
       'origin': cycle.origin,
       'vectorClock': cycle.vectorClock,
       'deviceId': cycle.deviceId,
       'sync_origin': cycle.origin,
+      'syncTimestamp': now,
     };
     putIfNotNull(data, 'serverId', cycle.serverId);
     putIfNotNull(data, 'deletedAt', cycle.deletedAt);
     putIfStringNotEmpty(data, 'hotelDayStart', cycle.hotelDayStart);
     putIfStringNotEmpty(data, 'hotelDayEnd', cycle.hotelDayEnd);
+    putIfStringNotEmpty(data, 'createdAtIso', cycle.createdAtIso);
+    putIfStringNotEmpty(data, 'updatedAtIso', cycle.updatedAtIso);
+    putIfStringNotEmpty(data, 'deletedAtIso', cycle.deletedAtIso);
     putIfStringNotEmpty(data, 'idempotencyKey', cycle.idempotencyKey);
     return data;
   }
 
   /// يحوّل [SalaryPayment] محلي إلى payload لـ Appwrite.
   Map<String, dynamic> salaryPaymentToRemote(SalaryPayment payment) {
+    final now = Time.nowEpoch();
     final data = <String, dynamic>{
       'cycleId': payment.cycleId,
       'amount': payment.amount,
@@ -518,17 +547,23 @@ class PayloadMapper {
       'createdAt': payment.createdAt,
       'updatedAt': payment.updatedAt,
       'lastModified': payment.lastModified,
+      'createdAtEpoch': payment.createdAtEpoch,
+      'lastModifiedEpoch': payment.lastModifiedEpoch,
       'version': payment.version,
       'origin': payment.origin,
       // ✅ إصلاح: إضافة vectorClock
       'vectorClock': payment.vectorClock,
       'deviceId': payment.deviceId,
       'sync_origin': payment.origin,
+      'syncTimestamp': now,
     };
     putIfNotNull(data, 'serverId', payment.serverId);
     putIfNotNull(data, 'deletedAt', payment.deletedAt);
     putIfStringNotEmpty(data, 'hotelDayKey', payment.hotelDayKey);
     putIfStringNotEmpty(data, 'method', payment.method);
+    putIfStringNotEmpty(data, 'createdAtIso', payment.createdAtIso);
+    putIfStringNotEmpty(data, 'updatedAtIso', payment.updatedAtIso);
+    putIfStringNotEmpty(data, 'deletedAtIso', payment.deletedAtIso);
     putIfStringNotEmpty(data, 'idempotencyKey', payment.idempotencyKey);
     return data;
   }
