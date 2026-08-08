@@ -2815,7 +2815,45 @@ class AppDatabase extends _$AppDatabase {
           );
         }
 
-        // salary_carry_over_logs: fromCycleId, toCycleId, carryDate, performedBy
+        // booking_nights: bookingUuidCache, serverBookingId
+        try {
+          await m.database.customStatement(
+            "ALTER TABLE booking_nights ADD COLUMN booking_uuid_cache TEXT DEFAULT NULL",
+          );
+          await m.database.customStatement(
+            "ALTER TABLE booking_nights ADD COLUMN server_booking_id INTEGER DEFAULT NULL",
+          );
+          developer.log(
+            'Migration 53: added booking_uuid_cache, server_booking_id to booking_nights',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 53: booking_nights fields may already exist: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // booking_price_adjustments: adjustmentType, appliedAt
+        try {
+          await m.database.customStatement(
+            "ALTER TABLE booking_price_adjustments ADD COLUMN adjustment_type INTEGER DEFAULT NULL",
+          );
+          await m.database.customStatement(
+            "ALTER TABLE booking_price_adjustments ADD COLUMN applied_at INTEGER DEFAULT NULL",
+          );
+          developer.log(
+            'Migration 53: added adjustment_type, applied_at to booking_price_adjustments',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 53: booking_price_adjustments fields may already exist: $e',
+            name: 'db.migration',
+          );
+        }
+
+        // salary_carry_over_logs: fromCycleId, toCycleId, carryDate, performedBy, hotelDayKey
         try {
           await m.database.customStatement(
             "ALTER TABLE salary_carry_over_logs ADD COLUMN from_cycle_id TEXT DEFAULT NULL",
@@ -2829,8 +2867,11 @@ class AppDatabase extends _$AppDatabase {
           await m.database.customStatement(
             "ALTER TABLE salary_carry_over_logs ADD COLUMN performed_by TEXT DEFAULT NULL",
           );
+          await m.database.customStatement(
+            "ALTER TABLE salary_carry_over_logs ADD COLUMN hotel_day_key TEXT DEFAULT NULL",
+          );
           developer.log(
-            'Migration 53: added from_cycle_id, to_cycle_id, carry_date, performed_by to salary_carry_over_logs',
+            'Migration 53: added from_cycle_id, to_cycle_id, carry_date, performed_by, hotel_day_key to salary_carry_over_logs',
             name: 'db.migration',
           );
         } catch (e) {
