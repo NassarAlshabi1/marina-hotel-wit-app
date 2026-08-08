@@ -10,13 +10,6 @@
 #   flutter pub run build_runner clean
 
 # ============================================
-# GLOBAL BUILD OPTIONS
-# ============================================
-global_options:
-  # Enable for all builders globally (supported key)
-  auto_apply: all
-
-# ============================================
 # TARGETS CONFIGURATION
 # ============================================
 
