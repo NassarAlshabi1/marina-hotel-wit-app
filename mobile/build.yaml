@@ -22,9 +22,6 @@ global_options:
 
 targets:
   $default:
-    # Build Configuration (build_extensions is only valid inside a target)
-    build_extensions:
-      "^lib/{{path}}": "generated/{{path}}"
     # Builders Configuration
     builders:
       # ==========================================
