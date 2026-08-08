@@ -10,7 +10,7 @@ import 'package:marina_hotel_mobile/services/appwrite_service.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/sync_core/sync_pull_service.dart';
-import 'package:marina_hotel_mobile/test/helpers/test_database.dart';
+import '../helpers/test_database.dart';
 
 void main() {
   group('SyncPullService.checkAndResolveConflict (delta + conflict)', () {

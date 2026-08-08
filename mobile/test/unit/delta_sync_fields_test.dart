@@ -16,7 +16,7 @@ import 'package:marina_hotel_mobile/services/appwrite_service.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/sync_core/sync_pull_service.dart';
-import 'package:marina_hotel_mobile/test/helpers/test_database.dart';
+import '../helpers/test_database.dart';
 
 void main() {
   group('SyncPullService.buildDeltaQueries', () {
@@ -39,7 +39,7 @@ void main() {
       expect(q, isEmpty);
     });
 
-    test('lastPullTs > 0 → فلتر $updatedAt مع نافذة أمان 15s', () async {
+    test('lastPullTs > 0 → فلتر updatedAt مع نافذة أمان 15s', () async {
       // lastPullTs = 1000 ثانية، cutoff = 1000 - 15 = 985 ثانية.
       final q = await pull.buildDeltaQueries(1000);
       expect(q, hasLength(1));

@@ -178,6 +178,17 @@ class $RoomsTable extends Rooms with TableInfo<$RoomsTable, Room> {
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
+  );
+  @override
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
   );
@@ -317,6 +328,7 @@ class $RoomsTable extends Rooms with TableInfo<$RoomsTable, Room> {
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     roomNumber,
@@ -458,6 +470,15 @@ class $RoomsTable extends Rooms with TableInfo<$RoomsTable, Room> {
       context.handle(
         _deviceIdMeta,
         deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('sync_timestamp')) {
+      context.handle(
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
       );
     }
     if (data.containsKey('idempotency_key')) {
@@ -615,6 +636,10 @@ class $RoomsTable extends Rooms with TableInfo<$RoomsTable, Room> {
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
+      syncTimestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_timestamp'],
+      ),
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -684,6 +709,7 @@ class Room extends DataClass implements Insertable<Room> {
   final String origin;
   final String vectorClock;
   final String deviceId;
+  final int? syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final String roomNumber;
@@ -711,6 +737,7 @@ class Room extends DataClass implements Insertable<Room> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
+    this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.roomNumber,
@@ -751,6 +778,9 @@ class Room extends DataClass implements Insertable<Room> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || syncTimestamp != null) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    }
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -800,6 +830,9 @@ class Room extends DataClass implements Insertable<Room> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
+      syncTimestamp: syncTimestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -843,6 +876,7 @@ class Room extends DataClass implements Insertable<Room> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       roomNumber: serializer.fromJson<String>(json['roomNumber']),
@@ -881,6 +915,7 @@ class Room extends DataClass implements Insertable<Room> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
+      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'roomNumber': serializer.toJson<String>(roomNumber),
@@ -911,6 +946,7 @@ class Room extends DataClass implements Insertable<Room> {
     String? origin,
     String? vectorClock,
     String? deviceId,
+    Value<int?> syncTimestamp = const Value.absent(),
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? roomNumber,
@@ -938,6 +974,9 @@ class Room extends DataClass implements Insertable<Room> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
+    syncTimestamp: syncTimestamp.present
+        ? syncTimestamp.value
+        : this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -987,6 +1026,9 @@ class Room extends DataClass implements Insertable<Room> {
           ? data.vectorClock.value
           : this.vectorClock,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
       idempotencyKey: data.idempotencyKey.present
           ? data.idempotencyKey.value
           : this.idempotencyKey,
@@ -1031,6 +1073,7 @@ class Room extends DataClass implements Insertable<Room> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('roomNumber: $roomNumber, ')
@@ -1063,6 +1106,7 @@ class Room extends DataClass implements Insertable<Room> {
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     roomNumber,
@@ -1094,6 +1138,7 @@ class Room extends DataClass implements Insertable<Room> {
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
           other.deviceId == this.deviceId &&
+          other.syncTimestamp == this.syncTimestamp &&
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.roomNumber == this.roomNumber &&
@@ -1123,6 +1168,7 @@ class RoomsCompanion extends UpdateCompanion<Room> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
+  final Value<int?> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> roomNumber;
@@ -1150,6 +1196,7 @@ class RoomsCompanion extends UpdateCompanion<Room> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.roomNumber = const Value.absent(),
@@ -1178,6 +1225,7 @@ class RoomsCompanion extends UpdateCompanion<Room> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required String roomNumber,
@@ -1213,6 +1261,7 @@ class RoomsCompanion extends UpdateCompanion<Room> {
     Expression<String>? origin,
     Expression<String>? vectorClock,
     Expression<String>? deviceId,
+    Expression<int>? syncTimestamp,
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<String>? roomNumber,
@@ -1241,6 +1290,7 @@ class RoomsCompanion extends UpdateCompanion<Room> {
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
       if (deviceId != null) 'device_id': deviceId,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (roomNumber != null) 'room_number': roomNumber,
@@ -1274,6 +1324,7 @@ class RoomsCompanion extends UpdateCompanion<Room> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
+    Value<int?>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? roomNumber,
@@ -1302,6 +1353,7 @@ class RoomsCompanion extends UpdateCompanion<Room> {
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
       deviceId: deviceId ?? this.deviceId,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       roomNumber: roomNumber ?? this.roomNumber,
@@ -1364,6 +1416,9 @@ class RoomsCompanion extends UpdateCompanion<Room> {
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
     }
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
+    }
     if (idempotencyKey.present) {
       map['idempotency_key'] = Variable<String>(idempotencyKey.value);
     }
@@ -1422,6 +1477,7 @@ class RoomsCompanion extends UpdateCompanion<Room> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('roomNumber: $roomNumber, ')
@@ -1612,6 +1668,17 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
+  );
+  @override
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -2011,6 +2078,28 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _financialFrozenAtMeta = const VerificationMeta(
+    'financialFrozenAt',
+  );
+  @override
+  late final GeneratedColumn<int> financialFrozenAt = GeneratedColumn<int>(
+    'financial_frozen_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _financialHashMeta = const VerificationMeta(
+    'financialHash',
+  );
+  @override
+  late final GeneratedColumn<String> financialHash = GeneratedColumn<String>(
+    'financial_hash',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -2028,6 +2117,7 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     serverBookingId,
@@ -2062,6 +2152,8 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
     isFullyPaid,
     hotelDayCheckin,
     hotelDayCheckout,
+    financialFrozenAt,
+    financialHash,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2192,6 +2284,15 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
       context.handle(
         _deviceIdMeta,
         deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('sync_timestamp')) {
+      context.handle(
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
       );
     }
     if (data.containsKey('idempotency_key')) {
@@ -2482,6 +2583,24 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
         ),
       );
     }
+    if (data.containsKey('financial_frozen_at')) {
+      context.handle(
+        _financialFrozenAtMeta,
+        financialFrozenAt.isAcceptableOrUnknown(
+          data['financial_frozen_at']!,
+          _financialFrozenAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('financial_hash')) {
+      context.handle(
+        _financialHashMeta,
+        financialHash.isAcceptableOrUnknown(
+          data['financial_hash']!,
+          _financialHashMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2551,6 +2670,10 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
+      syncTimestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_timestamp'],
+      ),
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -2687,6 +2810,14 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
         DriftSqlType.string,
         data['${effectivePrefix}hotel_day_checkout'],
       ),
+      financialFrozenAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}financial_frozen_at'],
+      ),
+      financialHash: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}financial_hash'],
+      ),
     );
   }
 
@@ -2712,6 +2843,7 @@ class Booking extends DataClass implements Insertable<Booking> {
   final String origin;
   final String vectorClock;
   final String deviceId;
+  final int? syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final int? serverBookingId;
@@ -2746,6 +2878,8 @@ class Booking extends DataClass implements Insertable<Booking> {
   final bool isFullyPaid;
   final String? hotelDayCheckin;
   final String? hotelDayCheckout;
+  final int? financialFrozenAt;
+  final String? financialHash;
   const Booking({
     required this.localUuid,
     this.serverId,
@@ -2762,6 +2896,7 @@ class Booking extends DataClass implements Insertable<Booking> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
+    this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     this.serverBookingId,
@@ -2796,6 +2931,8 @@ class Booking extends DataClass implements Insertable<Booking> {
     required this.isFullyPaid,
     this.hotelDayCheckin,
     this.hotelDayCheckout,
+    this.financialFrozenAt,
+    this.financialHash,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2825,6 +2962,9 @@ class Booking extends DataClass implements Insertable<Booking> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || syncTimestamp != null) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    }
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -2887,6 +3027,12 @@ class Booking extends DataClass implements Insertable<Booking> {
     if (!nullToAbsent || hotelDayCheckout != null) {
       map['hotel_day_checkout'] = Variable<String>(hotelDayCheckout);
     }
+    if (!nullToAbsent || financialFrozenAt != null) {
+      map['financial_frozen_at'] = Variable<int>(financialFrozenAt);
+    }
+    if (!nullToAbsent || financialHash != null) {
+      map['financial_hash'] = Variable<String>(financialHash);
+    }
     return map;
   }
 
@@ -2917,6 +3063,9 @@ class Booking extends DataClass implements Insertable<Booking> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
+      syncTimestamp: syncTimestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -2979,6 +3128,12 @@ class Booking extends DataClass implements Insertable<Booking> {
       hotelDayCheckout: hotelDayCheckout == null && nullToAbsent
           ? const Value.absent()
           : Value(hotelDayCheckout),
+      financialFrozenAt: financialFrozenAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(financialFrozenAt),
+      financialHash: financialHash == null && nullToAbsent
+          ? const Value.absent()
+          : Value(financialHash),
     );
   }
 
@@ -3003,6 +3158,7 @@ class Booking extends DataClass implements Insertable<Booking> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       serverBookingId: serializer.fromJson<int?>(json['serverBookingId']),
@@ -3045,6 +3201,8 @@ class Booking extends DataClass implements Insertable<Booking> {
       isFullyPaid: serializer.fromJson<bool>(json['isFullyPaid']),
       hotelDayCheckin: serializer.fromJson<String?>(json['hotelDayCheckin']),
       hotelDayCheckout: serializer.fromJson<String?>(json['hotelDayCheckout']),
+      financialFrozenAt: serializer.fromJson<int?>(json['financialFrozenAt']),
+      financialHash: serializer.fromJson<String?>(json['financialHash']),
     );
   }
   @override
@@ -3066,6 +3224,7 @@ class Booking extends DataClass implements Insertable<Booking> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
+      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'serverBookingId': serializer.toJson<int?>(serverBookingId),
@@ -3102,6 +3261,8 @@ class Booking extends DataClass implements Insertable<Booking> {
       'isFullyPaid': serializer.toJson<bool>(isFullyPaid),
       'hotelDayCheckin': serializer.toJson<String?>(hotelDayCheckin),
       'hotelDayCheckout': serializer.toJson<String?>(hotelDayCheckout),
+      'financialFrozenAt': serializer.toJson<int?>(financialFrozenAt),
+      'financialHash': serializer.toJson<String?>(financialHash),
     };
   }
 
@@ -3121,6 +3282,7 @@ class Booking extends DataClass implements Insertable<Booking> {
     String? origin,
     String? vectorClock,
     String? deviceId,
+    Value<int?> syncTimestamp = const Value.absent(),
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     Value<int?> serverBookingId = const Value.absent(),
@@ -3155,6 +3317,8 @@ class Booking extends DataClass implements Insertable<Booking> {
     bool? isFullyPaid,
     Value<String?> hotelDayCheckin = const Value.absent(),
     Value<String?> hotelDayCheckout = const Value.absent(),
+    Value<int?> financialFrozenAt = const Value.absent(),
+    Value<String?> financialHash = const Value.absent(),
   }) => Booking(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -3171,6 +3335,9 @@ class Booking extends DataClass implements Insertable<Booking> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
+    syncTimestamp: syncTimestamp.present
+        ? syncTimestamp.value
+        : this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -3226,6 +3393,12 @@ class Booking extends DataClass implements Insertable<Booking> {
     hotelDayCheckout: hotelDayCheckout.present
         ? hotelDayCheckout.value
         : this.hotelDayCheckout,
+    financialFrozenAt: financialFrozenAt.present
+        ? financialFrozenAt.value
+        : this.financialFrozenAt,
+    financialHash: financialHash.present
+        ? financialHash.value
+        : this.financialHash,
   );
   Booking copyWithCompanion(BookingsCompanion data) {
     return Booking(
@@ -3258,6 +3431,9 @@ class Booking extends DataClass implements Insertable<Booking> {
           ? data.vectorClock.value
           : this.vectorClock,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
       idempotencyKey: data.idempotencyKey.present
           ? data.idempotencyKey.value
           : this.idempotencyKey,
@@ -3348,6 +3524,12 @@ class Booking extends DataClass implements Insertable<Booking> {
       hotelDayCheckout: data.hotelDayCheckout.present
           ? data.hotelDayCheckout.value
           : this.hotelDayCheckout,
+      financialFrozenAt: data.financialFrozenAt.present
+          ? data.financialFrozenAt.value
+          : this.financialFrozenAt,
+      financialHash: data.financialHash.present
+          ? data.financialHash.value
+          : this.financialHash,
     );
   }
 
@@ -3369,6 +3551,7 @@ class Booking extends DataClass implements Insertable<Booking> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('serverBookingId: $serverBookingId, ')
@@ -3402,7 +3585,9 @@ class Booking extends DataClass implements Insertable<Booking> {
           ..write('remainingBalanceCached: $remainingBalanceCached, ')
           ..write('isFullyPaid: $isFullyPaid, ')
           ..write('hotelDayCheckin: $hotelDayCheckin, ')
-          ..write('hotelDayCheckout: $hotelDayCheckout')
+          ..write('hotelDayCheckout: $hotelDayCheckout, ')
+          ..write('financialFrozenAt: $financialFrozenAt, ')
+          ..write('financialHash: $financialHash')
           ..write(')'))
         .toString();
   }
@@ -3424,6 +3609,7 @@ class Booking extends DataClass implements Insertable<Booking> {
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     serverBookingId,
@@ -3458,6 +3644,8 @@ class Booking extends DataClass implements Insertable<Booking> {
     isFullyPaid,
     hotelDayCheckin,
     hotelDayCheckout,
+    financialFrozenAt,
+    financialHash,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -3478,6 +3666,7 @@ class Booking extends DataClass implements Insertable<Booking> {
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
           other.deviceId == this.deviceId &&
+          other.syncTimestamp == this.syncTimestamp &&
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.serverBookingId == this.serverBookingId &&
@@ -3511,7 +3700,9 @@ class Booking extends DataClass implements Insertable<Booking> {
           other.remainingBalanceCached == this.remainingBalanceCached &&
           other.isFullyPaid == this.isFullyPaid &&
           other.hotelDayCheckin == this.hotelDayCheckin &&
-          other.hotelDayCheckout == this.hotelDayCheckout);
+          other.hotelDayCheckout == this.hotelDayCheckout &&
+          other.financialFrozenAt == this.financialFrozenAt &&
+          other.financialHash == this.financialHash);
 }
 
 class BookingsCompanion extends UpdateCompanion<Booking> {
@@ -3530,6 +3721,7 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
+  final Value<int?> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int?> serverBookingId;
@@ -3564,6 +3756,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
   final Value<bool> isFullyPaid;
   final Value<String?> hotelDayCheckin;
   final Value<String?> hotelDayCheckout;
+  final Value<int?> financialFrozenAt;
+  final Value<String?> financialHash;
   const BookingsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -3580,6 +3774,7 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.serverBookingId = const Value.absent(),
@@ -3614,6 +3809,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     this.isFullyPaid = const Value.absent(),
     this.hotelDayCheckin = const Value.absent(),
     this.hotelDayCheckout = const Value.absent(),
+    this.financialFrozenAt = const Value.absent(),
+    this.financialHash = const Value.absent(),
   });
   BookingsCompanion.insert({
     required String localUuid,
@@ -3631,6 +3828,7 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.serverBookingId = const Value.absent(),
@@ -3665,6 +3863,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     this.isFullyPaid = const Value.absent(),
     this.hotelDayCheckin = const Value.absent(),
     this.hotelDayCheckout = const Value.absent(),
+    this.financialFrozenAt = const Value.absent(),
+    this.financialHash = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -3691,6 +3891,7 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     Expression<String>? origin,
     Expression<String>? vectorClock,
     Expression<String>? deviceId,
+    Expression<int>? syncTimestamp,
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<int>? serverBookingId,
@@ -3725,6 +3926,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     Expression<bool>? isFullyPaid,
     Expression<String>? hotelDayCheckin,
     Expression<String>? hotelDayCheckout,
+    Expression<int>? financialFrozenAt,
+    Expression<String>? financialHash,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -3742,6 +3945,7 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
       if (deviceId != null) 'device_id': deviceId,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (serverBookingId != null) 'server_booking_id': serverBookingId,
@@ -3778,6 +3982,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
       if (isFullyPaid != null) 'is_fully_paid': isFullyPaid,
       if (hotelDayCheckin != null) 'hotel_day_checkin': hotelDayCheckin,
       if (hotelDayCheckout != null) 'hotel_day_checkout': hotelDayCheckout,
+      if (financialFrozenAt != null) 'financial_frozen_at': financialFrozenAt,
+      if (financialHash != null) 'financial_hash': financialHash,
     });
   }
 
@@ -3797,6 +4003,7 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
+    Value<int?>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int?>? serverBookingId,
@@ -3831,6 +4038,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     Value<bool>? isFullyPaid,
     Value<String?>? hotelDayCheckin,
     Value<String?>? hotelDayCheckout,
+    Value<int?>? financialFrozenAt,
+    Value<String?>? financialHash,
   }) {
     return BookingsCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -3848,6 +4057,7 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
       deviceId: deviceId ?? this.deviceId,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       serverBookingId: serverBookingId ?? this.serverBookingId,
@@ -3883,6 +4093,8 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
       isFullyPaid: isFullyPaid ?? this.isFullyPaid,
       hotelDayCheckin: hotelDayCheckin ?? this.hotelDayCheckin,
       hotelDayCheckout: hotelDayCheckout ?? this.hotelDayCheckout,
+      financialFrozenAt: financialFrozenAt ?? this.financialFrozenAt,
+      financialHash: financialHash ?? this.financialHash,
     );
   }
 
@@ -3933,6 +4145,9 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     }
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
     }
     if (idempotencyKey.present) {
       map['idempotency_key'] = Variable<String>(idempotencyKey.value);
@@ -4038,6 +4253,12 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     if (hotelDayCheckout.present) {
       map['hotel_day_checkout'] = Variable<String>(hotelDayCheckout.value);
     }
+    if (financialFrozenAt.present) {
+      map['financial_frozen_at'] = Variable<int>(financialFrozenAt.value);
+    }
+    if (financialHash.present) {
+      map['financial_hash'] = Variable<String>(financialHash.value);
+    }
     return map;
   }
 
@@ -4059,6 +4280,7 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('serverBookingId: $serverBookingId, ')
@@ -4092,7 +4314,9 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
           ..write('remainingBalanceCached: $remainingBalanceCached, ')
           ..write('isFullyPaid: $isFullyPaid, ')
           ..write('hotelDayCheckin: $hotelDayCheckin, ')
-          ..write('hotelDayCheckout: $hotelDayCheckout')
+          ..write('hotelDayCheckout: $hotelDayCheckout, ')
+          ..write('financialFrozenAt: $financialFrozenAt, ')
+          ..write('financialHash: $financialHash')
           ..write(')'))
         .toString();
   }
@@ -4274,6 +4498,17 @@ class $BookingNotesTable extends BookingNotes
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
+  );
+  @override
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
   );
@@ -4374,6 +4609,7 @@ class $BookingNotesTable extends BookingNotes
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     bookingId,
@@ -4513,6 +4749,15 @@ class $BookingNotesTable extends BookingNotes
         deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
       );
     }
+    if (data.containsKey('sync_timestamp')) {
+      context.handle(
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
+      );
+    }
     if (data.containsKey('idempotency_key')) {
       context.handle(
         _idempotencyKeyMeta,
@@ -4630,6 +4875,10 @@ class $BookingNotesTable extends BookingNotes
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
+      syncTimestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_timestamp'],
+      ),
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -4683,6 +4932,7 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
   final String origin;
   final String vectorClock;
   final String deviceId;
+  final int? syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final int bookingId;
@@ -4706,6 +4956,7 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
+    this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.bookingId,
@@ -4742,6 +4993,9 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || syncTimestamp != null) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    }
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -4783,6 +5037,9 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
+      syncTimestamp: syncTimestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -4818,6 +5075,7 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       bookingId: serializer.fromJson<int>(json['bookingId']),
@@ -4846,6 +5104,7 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
+      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'bookingId': serializer.toJson<int>(bookingId),
@@ -4872,6 +5131,7 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
     String? origin,
     String? vectorClock,
     String? deviceId,
+    Value<int?> syncTimestamp = const Value.absent(),
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     int? bookingId,
@@ -4895,6 +5155,9 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
+    syncTimestamp: syncTimestamp.present
+        ? syncTimestamp.value
+        : this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -4936,6 +5199,9 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
           ? data.vectorClock.value
           : this.vectorClock,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
       idempotencyKey: data.idempotencyKey.present
           ? data.idempotencyKey.value
           : this.idempotencyKey,
@@ -4968,6 +5234,7 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('bookingId: $bookingId, ')
@@ -4996,6 +5263,7 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     bookingId,
@@ -5023,6 +5291,7 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
           other.deviceId == this.deviceId &&
+          other.syncTimestamp == this.syncTimestamp &&
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.bookingId == this.bookingId &&
@@ -5048,6 +5317,7 @@ class BookingNotesCompanion extends UpdateCompanion<BookingNote> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
+  final Value<int?> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int> bookingId;
@@ -5071,6 +5341,7 @@ class BookingNotesCompanion extends UpdateCompanion<BookingNote> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.bookingId = const Value.absent(),
@@ -5095,6 +5366,7 @@ class BookingNotesCompanion extends UpdateCompanion<BookingNote> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required int bookingId,
@@ -5125,6 +5397,7 @@ class BookingNotesCompanion extends UpdateCompanion<BookingNote> {
     Expression<String>? origin,
     Expression<String>? vectorClock,
     Expression<String>? deviceId,
+    Expression<int>? syncTimestamp,
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<int>? bookingId,
@@ -5149,6 +5422,7 @@ class BookingNotesCompanion extends UpdateCompanion<BookingNote> {
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
       if (deviceId != null) 'device_id': deviceId,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (bookingId != null) 'booking_id': bookingId,
@@ -5175,6 +5449,7 @@ class BookingNotesCompanion extends UpdateCompanion<BookingNote> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
+    Value<int?>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int>? bookingId,
@@ -5199,6 +5474,7 @@ class BookingNotesCompanion extends UpdateCompanion<BookingNote> {
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
       deviceId: deviceId ?? this.deviceId,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       bookingId: bookingId ?? this.bookingId,
@@ -5257,6 +5533,9 @@ class BookingNotesCompanion extends UpdateCompanion<BookingNote> {
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
     }
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
+    }
     if (idempotencyKey.present) {
       map['idempotency_key'] = Variable<String>(idempotencyKey.value);
     }
@@ -5299,6 +5578,7 @@ class BookingNotesCompanion extends UpdateCompanion<BookingNote> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('bookingId: $bookingId, ')
@@ -5487,6 +5767,17 @@ class $ShiftNotesTable extends ShiftNotes
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
+  );
+  @override
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
   );
@@ -5605,6 +5896,7 @@ class $ShiftNotesTable extends ShiftNotes
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     title,
@@ -5746,6 +6038,15 @@ class $ShiftNotesTable extends ShiftNotes
         deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
       );
     }
+    if (data.containsKey('sync_timestamp')) {
+      context.handle(
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
+      );
+    }
     if (data.containsKey('idempotency_key')) {
       context.handle(
         _idempotencyKeyMeta,
@@ -5873,6 +6174,10 @@ class $ShiftNotesTable extends ShiftNotes
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
+      syncTimestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_timestamp'],
+      ),
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -5934,6 +6239,7 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
   final String origin;
   final String vectorClock;
   final String deviceId;
+  final int? syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final String title;
@@ -5959,6 +6265,7 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
+    this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.title,
@@ -5997,6 +6304,9 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || syncTimestamp != null) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    }
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -6040,6 +6350,9 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
+      syncTimestamp: syncTimestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -6077,6 +6390,7 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       title: serializer.fromJson<String>(json['title']),
@@ -6107,6 +6421,7 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
+      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'title': serializer.toJson<String>(title),
@@ -6135,6 +6450,7 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
     String? origin,
     String? vectorClock,
     String? deviceId,
+    Value<int?> syncTimestamp = const Value.absent(),
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? title,
@@ -6160,6 +6476,9 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
+    syncTimestamp: syncTimestamp.present
+        ? syncTimestamp.value
+        : this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -6203,6 +6522,9 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
           ? data.vectorClock.value
           : this.vectorClock,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
       idempotencyKey: data.idempotencyKey.present
           ? data.idempotencyKey.value
           : this.idempotencyKey,
@@ -6235,6 +6557,7 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('title: $title, ')
@@ -6265,6 +6588,7 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     title,
@@ -6294,6 +6618,7 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
           other.deviceId == this.deviceId &&
+          other.syncTimestamp == this.syncTimestamp &&
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.title == this.title &&
@@ -6321,6 +6646,7 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
+  final Value<int?> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> title;
@@ -6346,6 +6672,7 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.title = const Value.absent(),
@@ -6372,6 +6699,7 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required String title,
@@ -6403,6 +6731,7 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
     Expression<String>? origin,
     Expression<String>? vectorClock,
     Expression<String>? deviceId,
+    Expression<int>? syncTimestamp,
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<String>? title,
@@ -6429,6 +6758,7 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
       if (deviceId != null) 'device_id': deviceId,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (title != null) 'title': title,
@@ -6457,6 +6787,7 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
+    Value<int?>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? title,
@@ -6483,6 +6814,7 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
       deviceId: deviceId ?? this.deviceId,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       title: title ?? this.title,
@@ -6543,6 +6875,9 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
     }
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
+    }
     if (idempotencyKey.present) {
       map['idempotency_key'] = Variable<String>(idempotencyKey.value);
     }
@@ -6591,6 +6926,7 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('title: $title, ')
@@ -6781,6 +7117,17 @@ class $EmployeesTable extends Employees
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
+  );
+  @override
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
   );
@@ -6919,6 +7266,7 @@ class $EmployeesTable extends Employees
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     name,
@@ -7060,6 +7408,15 @@ class $EmployeesTable extends Employees
       context.handle(
         _deviceIdMeta,
         deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('sync_timestamp')) {
+      context.handle(
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
       );
     }
     if (data.containsKey('idempotency_key')) {
@@ -7215,6 +7572,10 @@ class $EmployeesTable extends Employees
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
+      syncTimestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_timestamp'],
+      ),
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -7284,6 +7645,7 @@ class Employee extends DataClass implements Insertable<Employee> {
   final String origin;
   final String vectorClock;
   final String deviceId;
+  final int? syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final String name;
@@ -7311,6 +7673,7 @@ class Employee extends DataClass implements Insertable<Employee> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
+    this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.name,
@@ -7351,6 +7714,9 @@ class Employee extends DataClass implements Insertable<Employee> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || syncTimestamp != null) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    }
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -7400,6 +7766,9 @@ class Employee extends DataClass implements Insertable<Employee> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
+      syncTimestamp: syncTimestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -7443,6 +7812,7 @@ class Employee extends DataClass implements Insertable<Employee> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
@@ -7477,6 +7847,7 @@ class Employee extends DataClass implements Insertable<Employee> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
+      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'name': serializer.toJson<String>(name),
@@ -7507,6 +7878,7 @@ class Employee extends DataClass implements Insertable<Employee> {
     String? origin,
     String? vectorClock,
     String? deviceId,
+    Value<int?> syncTimestamp = const Value.absent(),
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? name,
@@ -7534,6 +7906,9 @@ class Employee extends DataClass implements Insertable<Employee> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
+    syncTimestamp: syncTimestamp.present
+        ? syncTimestamp.value
+        : this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -7583,6 +7958,9 @@ class Employee extends DataClass implements Insertable<Employee> {
           ? data.vectorClock.value
           : this.vectorClock,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
       idempotencyKey: data.idempotencyKey.present
           ? data.idempotencyKey.value
           : this.idempotencyKey,
@@ -7625,6 +8003,7 @@ class Employee extends DataClass implements Insertable<Employee> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('name: $name, ')
@@ -7657,6 +8036,7 @@ class Employee extends DataClass implements Insertable<Employee> {
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     name,
@@ -7688,6 +8068,7 @@ class Employee extends DataClass implements Insertable<Employee> {
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
           other.deviceId == this.deviceId &&
+          other.syncTimestamp == this.syncTimestamp &&
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.name == this.name &&
@@ -7717,6 +8098,7 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
+  final Value<int?> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> name;
@@ -7744,6 +8126,7 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.name = const Value.absent(),
@@ -7772,6 +8155,7 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required String name,
@@ -7806,6 +8190,7 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
     Expression<String>? origin,
     Expression<String>? vectorClock,
     Expression<String>? deviceId,
+    Expression<int>? syncTimestamp,
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<String>? name,
@@ -7834,6 +8219,7 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
       if (deviceId != null) 'device_id': deviceId,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (name != null) 'name': name,
@@ -7864,6 +8250,7 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
+    Value<int?>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? name,
@@ -7892,6 +8279,7 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
       deviceId: deviceId ?? this.deviceId,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       name: name ?? this.name,
@@ -7954,6 +8342,9 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
     }
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
+    }
     if (idempotencyKey.present) {
       map['idempotency_key'] = Variable<String>(idempotencyKey.value);
     }
@@ -8008,6 +8399,7 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('name: $name, ')
@@ -8199,6 +8591,17 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
+  );
+  @override
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
   );
@@ -8361,6 +8764,7 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     expenseType,
@@ -8504,6 +8908,15 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
       context.handle(
         _deviceIdMeta,
         deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('sync_timestamp')) {
+      context.handle(
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
       );
     }
     if (data.containsKey('idempotency_key')) {
@@ -8685,6 +9098,10 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
+      syncTimestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_timestamp'],
+      ),
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -8762,6 +9179,7 @@ class Expense extends DataClass implements Insertable<Expense> {
   final String origin;
   final String vectorClock;
   final String deviceId;
+  final int? syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final String expenseType;
@@ -8791,6 +9209,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
+    this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.expenseType,
@@ -8833,6 +9252,9 @@ class Expense extends DataClass implements Insertable<Expense> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || syncTimestamp != null) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    }
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -8890,6 +9312,9 @@ class Expense extends DataClass implements Insertable<Expense> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
+      syncTimestamp: syncTimestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -8941,6 +9366,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       expenseType: serializer.fromJson<String>(json['expenseType']),
@@ -8975,6 +9401,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
+      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'expenseType': serializer.toJson<String>(expenseType),
@@ -9007,6 +9434,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     String? origin,
     String? vectorClock,
     String? deviceId,
+    Value<int?> syncTimestamp = const Value.absent(),
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? expenseType,
@@ -9036,6 +9464,9 @@ class Expense extends DataClass implements Insertable<Expense> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
+    syncTimestamp: syncTimestamp.present
+        ? syncTimestamp.value
+        : this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -9085,6 +9516,9 @@ class Expense extends DataClass implements Insertable<Expense> {
           ? data.vectorClock.value
           : this.vectorClock,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
       idempotencyKey: data.idempotencyKey.present
           ? data.idempotencyKey.value
           : this.idempotencyKey,
@@ -9137,6 +9571,7 @@ class Expense extends DataClass implements Insertable<Expense> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('expenseType: $expenseType, ')
@@ -9171,6 +9606,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     expenseType,
@@ -9204,6 +9640,7 @@ class Expense extends DataClass implements Insertable<Expense> {
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
           other.deviceId == this.deviceId &&
+          other.syncTimestamp == this.syncTimestamp &&
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.expenseType == this.expenseType &&
@@ -9235,6 +9672,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
+  final Value<int?> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> expenseType;
@@ -9264,6 +9702,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.expenseType = const Value.absent(),
@@ -9294,6 +9733,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required String expenseType,
@@ -9331,6 +9771,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Expression<String>? origin,
     Expression<String>? vectorClock,
     Expression<String>? deviceId,
+    Expression<int>? syncTimestamp,
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<String>? expenseType,
@@ -9361,6 +9802,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
       if (deviceId != null) 'device_id': deviceId,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (expenseType != null) 'expense_type': expenseType,
@@ -9393,6 +9835,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
+    Value<int?>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? expenseType,
@@ -9423,6 +9866,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
       deviceId: deviceId ?? this.deviceId,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       expenseType: expenseType ?? this.expenseType,
@@ -9487,6 +9931,9 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
     }
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
+    }
     if (idempotencyKey.present) {
       map['idempotency_key'] = Variable<String>(idempotencyKey.value);
     }
@@ -9547,6 +9994,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('expenseType: $expenseType, ')
@@ -9741,6 +10189,17 @@ class $CashTransactionsTable extends CashTransactions
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
+  );
+  @override
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
   );
@@ -9868,6 +10327,7 @@ class $CashTransactionsTable extends CashTransactions
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     registerId,
@@ -10008,6 +10468,15 @@ class $CashTransactionsTable extends CashTransactions
       context.handle(
         _deviceIdMeta,
         deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('sync_timestamp')) {
+      context.handle(
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
       );
     }
     if (data.containsKey('idempotency_key')) {
@@ -10160,6 +10629,10 @@ class $CashTransactionsTable extends CashTransactions
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
+      syncTimestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_timestamp'],
+      ),
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -10225,6 +10698,7 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
   final String origin;
   final String vectorClock;
   final String deviceId;
+  final int? syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final int? registerId;
@@ -10251,6 +10725,7 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
+    this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     this.registerId,
@@ -10290,6 +10765,9 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || syncTimestamp != null) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    }
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -10342,6 +10820,9 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
+      syncTimestamp: syncTimestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -10388,6 +10869,7 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       registerId: serializer.fromJson<int?>(json['registerId']),
@@ -10419,6 +10901,7 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
+      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'registerId': serializer.toJson<int?>(registerId),
@@ -10448,6 +10931,7 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
     String? origin,
     String? vectorClock,
     String? deviceId,
+    Value<int?> syncTimestamp = const Value.absent(),
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     Value<int?> registerId = const Value.absent(),
@@ -10474,6 +10958,9 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
+    syncTimestamp: syncTimestamp.present
+        ? syncTimestamp.value
+        : this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -10520,6 +11007,9 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
           ? data.vectorClock.value
           : this.vectorClock,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
       idempotencyKey: data.idempotencyKey.present
           ? data.idempotencyKey.value
           : this.idempotencyKey,
@@ -10565,6 +11055,7 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('registerId: $registerId, ')
@@ -10596,6 +11087,7 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     registerId,
@@ -10626,6 +11118,7 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
           other.deviceId == this.deviceId &&
+          other.syncTimestamp == this.syncTimestamp &&
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.registerId == this.registerId &&
@@ -10654,6 +11147,7 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
+  final Value<int?> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int?> registerId;
@@ -10680,6 +11174,7 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.registerId = const Value.absent(),
@@ -10707,6 +11202,7 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.registerId = const Value.absent(),
@@ -10740,6 +11236,7 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
     Expression<String>? origin,
     Expression<String>? vectorClock,
     Expression<String>? deviceId,
+    Expression<int>? syncTimestamp,
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<int>? registerId,
@@ -10767,6 +11264,7 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
       if (deviceId != null) 'device_id': deviceId,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (registerId != null) 'register_id': registerId,
@@ -10796,6 +11294,7 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
+    Value<int?>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int?>? registerId,
@@ -10823,6 +11322,7 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
       deviceId: deviceId ?? this.deviceId,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       registerId: registerId ?? this.registerId,
@@ -10884,6 +11384,9 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
     }
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
+    }
     if (idempotencyKey.present) {
       map['idempotency_key'] = Variable<String>(idempotencyKey.value);
     }
@@ -10935,6 +11438,7 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('registerId: $registerId, ')
@@ -11124,6 +11628,17 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
+  );
+  @override
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -11390,6 +11905,32 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _voidReasonMeta = const VerificationMeta(
+    'voidReason',
+  );
+  @override
+  late final GeneratedColumn<String> voidReason = GeneratedColumn<String>(
+    'void_reason',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isImmutableMeta = const VerificationMeta(
+    'isImmutable',
+  );
+  @override
+  late final GeneratedColumn<bool> isImmutable = GeneratedColumn<bool>(
+    'is_immutable',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_immutable" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -11407,6 +11948,7 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     serverPaymentId,
@@ -11430,6 +11972,8 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
     isVoided,
     voidedAt,
     voidedBy,
+    voidReason,
+    isImmutable,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -11560,6 +12104,15 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
       context.handle(
         _deviceIdMeta,
         deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('sync_timestamp')) {
+      context.handle(
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
       );
     }
     if (data.containsKey('idempotency_key')) {
@@ -11753,6 +12306,21 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         voidedBy.isAcceptableOrUnknown(data['voided_by']!, _voidedByMeta),
       );
     }
+    if (data.containsKey('void_reason')) {
+      context.handle(
+        _voidReasonMeta,
+        voidReason.isAcceptableOrUnknown(data['void_reason']!, _voidReasonMeta),
+      );
+    }
+    if (data.containsKey('is_immutable')) {
+      context.handle(
+        _isImmutableMeta,
+        isImmutable.isAcceptableOrUnknown(
+          data['is_immutable']!,
+          _isImmutableMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -11822,6 +12390,10 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
+      syncTimestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_timestamp'],
+      ),
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -11914,6 +12486,14 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         DriftSqlType.string,
         data['${effectivePrefix}voided_by'],
       ),
+      voidReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}void_reason'],
+      ),
+      isImmutable: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_immutable'],
+      )!,
     );
   }
 
@@ -11939,6 +12519,7 @@ class Payment extends DataClass implements Insertable<Payment> {
   final String origin;
   final String vectorClock;
   final String deviceId;
+  final int? syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final int? serverPaymentId;
@@ -11962,6 +12543,8 @@ class Payment extends DataClass implements Insertable<Payment> {
   final bool isVoided;
   final int? voidedAt;
   final String? voidedBy;
+  final String? voidReason;
+  final bool isImmutable;
   const Payment({
     required this.localUuid,
     this.serverId,
@@ -11978,6 +12561,7 @@ class Payment extends DataClass implements Insertable<Payment> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
+    this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     this.serverPaymentId,
@@ -12001,6 +12585,8 @@ class Payment extends DataClass implements Insertable<Payment> {
     required this.isVoided,
     this.voidedAt,
     this.voidedBy,
+    this.voidReason,
+    required this.isImmutable,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -12030,6 +12616,9 @@ class Payment extends DataClass implements Insertable<Payment> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || syncTimestamp != null) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    }
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -12087,6 +12676,10 @@ class Payment extends DataClass implements Insertable<Payment> {
     if (!nullToAbsent || voidedBy != null) {
       map['voided_by'] = Variable<String>(voidedBy);
     }
+    if (!nullToAbsent || voidReason != null) {
+      map['void_reason'] = Variable<String>(voidReason);
+    }
+    map['is_immutable'] = Variable<bool>(isImmutable);
     return map;
   }
 
@@ -12117,6 +12710,9 @@ class Payment extends DataClass implements Insertable<Payment> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
+      syncTimestamp: syncTimestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -12172,6 +12768,10 @@ class Payment extends DataClass implements Insertable<Payment> {
       voidedBy: voidedBy == null && nullToAbsent
           ? const Value.absent()
           : Value(voidedBy),
+      voidReason: voidReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(voidReason),
+      isImmutable: Value(isImmutable),
     );
   }
 
@@ -12196,6 +12796,7 @@ class Payment extends DataClass implements Insertable<Payment> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       serverPaymentId: serializer.fromJson<int?>(json['serverPaymentId']),
@@ -12225,6 +12826,8 @@ class Payment extends DataClass implements Insertable<Payment> {
       isVoided: serializer.fromJson<bool>(json['isVoided']),
       voidedAt: serializer.fromJson<int?>(json['voidedAt']),
       voidedBy: serializer.fromJson<String?>(json['voidedBy']),
+      voidReason: serializer.fromJson<String?>(json['voidReason']),
+      isImmutable: serializer.fromJson<bool>(json['isImmutable']),
     );
   }
   @override
@@ -12246,6 +12849,7 @@ class Payment extends DataClass implements Insertable<Payment> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
+      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'serverPaymentId': serializer.toJson<int?>(serverPaymentId),
@@ -12271,6 +12875,8 @@ class Payment extends DataClass implements Insertable<Payment> {
       'isVoided': serializer.toJson<bool>(isVoided),
       'voidedAt': serializer.toJson<int?>(voidedAt),
       'voidedBy': serializer.toJson<String?>(voidedBy),
+      'voidReason': serializer.toJson<String?>(voidReason),
+      'isImmutable': serializer.toJson<bool>(isImmutable),
     };
   }
 
@@ -12290,6 +12896,7 @@ class Payment extends DataClass implements Insertable<Payment> {
     String? origin,
     String? vectorClock,
     String? deviceId,
+    Value<int?> syncTimestamp = const Value.absent(),
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     Value<int?> serverPaymentId = const Value.absent(),
@@ -12313,6 +12920,8 @@ class Payment extends DataClass implements Insertable<Payment> {
     bool? isVoided,
     Value<int?> voidedAt = const Value.absent(),
     Value<String?> voidedBy = const Value.absent(),
+    Value<String?> voidReason = const Value.absent(),
+    bool? isImmutable,
   }) => Payment(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -12329,6 +12938,9 @@ class Payment extends DataClass implements Insertable<Payment> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
+    syncTimestamp: syncTimestamp.present
+        ? syncTimestamp.value
+        : this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -12374,6 +12986,8 @@ class Payment extends DataClass implements Insertable<Payment> {
     isVoided: isVoided ?? this.isVoided,
     voidedAt: voidedAt.present ? voidedAt.value : this.voidedAt,
     voidedBy: voidedBy.present ? voidedBy.value : this.voidedBy,
+    voidReason: voidReason.present ? voidReason.value : this.voidReason,
+    isImmutable: isImmutable ?? this.isImmutable,
   );
   Payment copyWithCompanion(PaymentsCompanion data) {
     return Payment(
@@ -12406,6 +13020,9 @@ class Payment extends DataClass implements Insertable<Payment> {
           ? data.vectorClock.value
           : this.vectorClock,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
       idempotencyKey: data.idempotencyKey.present
           ? data.idempotencyKey.value
           : this.idempotencyKey,
@@ -12463,6 +13080,12 @@ class Payment extends DataClass implements Insertable<Payment> {
       isVoided: data.isVoided.present ? data.isVoided.value : this.isVoided,
       voidedAt: data.voidedAt.present ? data.voidedAt.value : this.voidedAt,
       voidedBy: data.voidedBy.present ? data.voidedBy.value : this.voidedBy,
+      voidReason: data.voidReason.present
+          ? data.voidReason.value
+          : this.voidReason,
+      isImmutable: data.isImmutable.present
+          ? data.isImmutable.value
+          : this.isImmutable,
     );
   }
 
@@ -12484,6 +13107,7 @@ class Payment extends DataClass implements Insertable<Payment> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('serverPaymentId: $serverPaymentId, ')
@@ -12506,7 +13130,9 @@ class Payment extends DataClass implements Insertable<Payment> {
           ..write('discountStartDate: $discountStartDate, ')
           ..write('isVoided: $isVoided, ')
           ..write('voidedAt: $voidedAt, ')
-          ..write('voidedBy: $voidedBy')
+          ..write('voidedBy: $voidedBy, ')
+          ..write('voidReason: $voidReason, ')
+          ..write('isImmutable: $isImmutable')
           ..write(')'))
         .toString();
   }
@@ -12528,6 +13154,7 @@ class Payment extends DataClass implements Insertable<Payment> {
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     serverPaymentId,
@@ -12551,6 +13178,8 @@ class Payment extends DataClass implements Insertable<Payment> {
     isVoided,
     voidedAt,
     voidedBy,
+    voidReason,
+    isImmutable,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -12571,6 +13200,7 @@ class Payment extends DataClass implements Insertable<Payment> {
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
           other.deviceId == this.deviceId &&
+          other.syncTimestamp == this.syncTimestamp &&
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.serverPaymentId == this.serverPaymentId &&
@@ -12593,7 +13223,9 @@ class Payment extends DataClass implements Insertable<Payment> {
           other.discountStartDate == this.discountStartDate &&
           other.isVoided == this.isVoided &&
           other.voidedAt == this.voidedAt &&
-          other.voidedBy == this.voidedBy);
+          other.voidedBy == this.voidedBy &&
+          other.voidReason == this.voidReason &&
+          other.isImmutable == this.isImmutable);
 }
 
 class PaymentsCompanion extends UpdateCompanion<Payment> {
@@ -12612,6 +13244,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
+  final Value<int?> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int?> serverPaymentId;
@@ -12635,6 +13268,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
   final Value<bool> isVoided;
   final Value<int?> voidedAt;
   final Value<String?> voidedBy;
+  final Value<String?> voidReason;
+  final Value<bool> isImmutable;
   const PaymentsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -12651,6 +13286,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.serverPaymentId = const Value.absent(),
@@ -12674,6 +13310,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.isVoided = const Value.absent(),
     this.voidedAt = const Value.absent(),
     this.voidedBy = const Value.absent(),
+    this.voidReason = const Value.absent(),
+    this.isImmutable = const Value.absent(),
   });
   PaymentsCompanion.insert({
     required String localUuid,
@@ -12691,6 +13329,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.serverPaymentId = const Value.absent(),
@@ -12714,6 +13353,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.isVoided = const Value.absent(),
     this.voidedAt = const Value.absent(),
     this.voidedBy = const Value.absent(),
+    this.voidReason = const Value.absent(),
+    this.isImmutable = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -12738,6 +13379,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     Expression<String>? origin,
     Expression<String>? vectorClock,
     Expression<String>? deviceId,
+    Expression<int>? syncTimestamp,
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<int>? serverPaymentId,
@@ -12761,6 +13403,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     Expression<bool>? isVoided,
     Expression<int>? voidedAt,
     Expression<String>? voidedBy,
+    Expression<String>? voidReason,
+    Expression<bool>? isImmutable,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -12778,6 +13422,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
       if (deviceId != null) 'device_id': deviceId,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (serverPaymentId != null) 'server_payment_id': serverPaymentId,
@@ -12803,6 +13448,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       if (isVoided != null) 'is_voided': isVoided,
       if (voidedAt != null) 'voided_at': voidedAt,
       if (voidedBy != null) 'voided_by': voidedBy,
+      if (voidReason != null) 'void_reason': voidReason,
+      if (isImmutable != null) 'is_immutable': isImmutable,
     });
   }
 
@@ -12822,6 +13469,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
+    Value<int?>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int?>? serverPaymentId,
@@ -12845,6 +13493,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     Value<bool>? isVoided,
     Value<int?>? voidedAt,
     Value<String?>? voidedBy,
+    Value<String?>? voidReason,
+    Value<bool>? isImmutable,
   }) {
     return PaymentsCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -12862,6 +13512,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
       deviceId: deviceId ?? this.deviceId,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       serverPaymentId: serverPaymentId ?? this.serverPaymentId,
@@ -12887,6 +13538,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       isVoided: isVoided ?? this.isVoided,
       voidedAt: voidedAt ?? this.voidedAt,
       voidedBy: voidedBy ?? this.voidedBy,
+      voidReason: voidReason ?? this.voidReason,
+      isImmutable: isImmutable ?? this.isImmutable,
     );
   }
 
@@ -12937,6 +13590,9 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     }
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
     }
     if (idempotencyKey.present) {
       map['idempotency_key'] = Variable<String>(idempotencyKey.value);
@@ -13011,6 +13667,12 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     if (voidedBy.present) {
       map['voided_by'] = Variable<String>(voidedBy.value);
     }
+    if (voidReason.present) {
+      map['void_reason'] = Variable<String>(voidReason.value);
+    }
+    if (isImmutable.present) {
+      map['is_immutable'] = Variable<bool>(isImmutable.value);
+    }
     return map;
   }
 
@@ -13032,6 +13694,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('serverPaymentId: $serverPaymentId, ')
@@ -13054,7 +13717,9 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
           ..write('discountStartDate: $discountStartDate, ')
           ..write('isVoided: $isVoided, ')
           ..write('voidedAt: $voidedAt, ')
-          ..write('voidedBy: $voidedBy')
+          ..write('voidedBy: $voidedBy, ')
+          ..write('voidReason: $voidReason, ')
+          ..write('isImmutable: $isImmutable')
           ..write(')'))
         .toString();
   }
@@ -13234,6 +13899,17 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
+  );
+  @override
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -13477,6 +14153,48 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _guestPhoneMeta = const VerificationMeta(
+    'guestPhone',
+  );
+  @override
+  late final GeneratedColumn<String> guestPhone = GeneratedColumn<String>(
+    'guest_phone',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _dueDateMeta = const VerificationMeta(
+    'dueDate',
+  );
+  @override
+  late final GeneratedColumn<String> dueDate = GeneratedColumn<String>(
+    'due_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -13494,6 +14212,7 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     bookingLocalId,
@@ -13515,6 +14234,10 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     hotelDayClosed,
     isFromAutoFix,
     settlementConfirmed,
+    guestPhone,
+    description,
+    status,
+    dueDate,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -13645,6 +14368,15 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
       context.handle(
         _deviceIdMeta,
         deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('sync_timestamp')) {
+      context.handle(
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
       );
     }
     if (data.containsKey('idempotency_key')) {
@@ -13820,6 +14552,33 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
         ),
       );
     }
+    if (data.containsKey('guest_phone')) {
+      context.handle(
+        _guestPhoneMeta,
+        guestPhone.isAcceptableOrUnknown(data['guest_phone']!, _guestPhoneMeta),
+      );
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('due_date')) {
+      context.handle(
+        _dueDateMeta,
+        dueDate.isAcceptableOrUnknown(data['due_date']!, _dueDateMeta),
+      );
+    }
     return context;
   }
 
@@ -13889,6 +14648,10 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
+      syncTimestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_timestamp'],
+      ),
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -13973,6 +14736,22 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
         DriftSqlType.bool,
         data['${effectivePrefix}settlement_confirmed'],
       )!,
+      guestPhone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}guest_phone'],
+      ),
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      ),
+      dueDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}due_date'],
+      ),
     );
   }
 
@@ -13998,6 +14777,7 @@ class Debt extends DataClass implements Insertable<Debt> {
   final String origin;
   final String vectorClock;
   final String deviceId;
+  final int? syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final int? bookingLocalId;
@@ -14019,6 +14799,10 @@ class Debt extends DataClass implements Insertable<Debt> {
   final String? hotelDayClosed;
   final bool isFromAutoFix;
   final bool settlementConfirmed;
+  final String? guestPhone;
+  final String? description;
+  final String? status;
+  final String? dueDate;
   const Debt({
     required this.localUuid,
     this.serverId,
@@ -14035,6 +14819,7 @@ class Debt extends DataClass implements Insertable<Debt> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
+    this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     this.bookingLocalId,
@@ -14056,6 +14841,10 @@ class Debt extends DataClass implements Insertable<Debt> {
     this.hotelDayClosed,
     required this.isFromAutoFix,
     required this.settlementConfirmed,
+    this.guestPhone,
+    this.description,
+    this.status,
+    this.dueDate,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -14085,6 +14874,9 @@ class Debt extends DataClass implements Insertable<Debt> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || syncTimestamp != null) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    }
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -14122,6 +14914,18 @@ class Debt extends DataClass implements Insertable<Debt> {
     }
     map['is_from_auto_fix'] = Variable<bool>(isFromAutoFix);
     map['settlement_confirmed'] = Variable<bool>(settlementConfirmed);
+    if (!nullToAbsent || guestPhone != null) {
+      map['guest_phone'] = Variable<String>(guestPhone);
+    }
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    if (!nullToAbsent || status != null) {
+      map['status'] = Variable<String>(status);
+    }
+    if (!nullToAbsent || dueDate != null) {
+      map['due_date'] = Variable<String>(dueDate);
+    }
     return map;
   }
 
@@ -14152,6 +14956,9 @@ class Debt extends DataClass implements Insertable<Debt> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
+      syncTimestamp: syncTimestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -14187,6 +14994,18 @@ class Debt extends DataClass implements Insertable<Debt> {
           : Value(hotelDayClosed),
       isFromAutoFix: Value(isFromAutoFix),
       settlementConfirmed: Value(settlementConfirmed),
+      guestPhone: guestPhone == null && nullToAbsent
+          ? const Value.absent()
+          : Value(guestPhone),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      status: status == null && nullToAbsent
+          ? const Value.absent()
+          : Value(status),
+      dueDate: dueDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dueDate),
     );
   }
 
@@ -14211,6 +15030,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       bookingLocalId: serializer.fromJson<int?>(json['bookingLocalId']),
@@ -14234,6 +15054,10 @@ class Debt extends DataClass implements Insertable<Debt> {
       settlementConfirmed: serializer.fromJson<bool>(
         json['settlementConfirmed'],
       ),
+      guestPhone: serializer.fromJson<String?>(json['guestPhone']),
+      description: serializer.fromJson<String?>(json['description']),
+      status: serializer.fromJson<String?>(json['status']),
+      dueDate: serializer.fromJson<String?>(json['dueDate']),
     );
   }
   @override
@@ -14255,6 +15079,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
+      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'bookingLocalId': serializer.toJson<int?>(bookingLocalId),
@@ -14276,6 +15101,10 @@ class Debt extends DataClass implements Insertable<Debt> {
       'hotelDayClosed': serializer.toJson<String?>(hotelDayClosed),
       'isFromAutoFix': serializer.toJson<bool>(isFromAutoFix),
       'settlementConfirmed': serializer.toJson<bool>(settlementConfirmed),
+      'guestPhone': serializer.toJson<String?>(guestPhone),
+      'description': serializer.toJson<String?>(description),
+      'status': serializer.toJson<String?>(status),
+      'dueDate': serializer.toJson<String?>(dueDate),
     };
   }
 
@@ -14295,6 +15124,7 @@ class Debt extends DataClass implements Insertable<Debt> {
     String? origin,
     String? vectorClock,
     String? deviceId,
+    Value<int?> syncTimestamp = const Value.absent(),
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     Value<int?> bookingLocalId = const Value.absent(),
@@ -14316,6 +15146,10 @@ class Debt extends DataClass implements Insertable<Debt> {
     Value<String?> hotelDayClosed = const Value.absent(),
     bool? isFromAutoFix,
     bool? settlementConfirmed,
+    Value<String?> guestPhone = const Value.absent(),
+    Value<String?> description = const Value.absent(),
+    Value<String?> status = const Value.absent(),
+    Value<String?> dueDate = const Value.absent(),
   }) => Debt(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -14332,6 +15166,9 @@ class Debt extends DataClass implements Insertable<Debt> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
+    syncTimestamp: syncTimestamp.present
+        ? syncTimestamp.value
+        : this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -14361,6 +15198,10 @@ class Debt extends DataClass implements Insertable<Debt> {
         : this.hotelDayClosed,
     isFromAutoFix: isFromAutoFix ?? this.isFromAutoFix,
     settlementConfirmed: settlementConfirmed ?? this.settlementConfirmed,
+    guestPhone: guestPhone.present ? guestPhone.value : this.guestPhone,
+    description: description.present ? description.value : this.description,
+    status: status.present ? status.value : this.status,
+    dueDate: dueDate.present ? dueDate.value : this.dueDate,
   );
   Debt copyWithCompanion(DebtsCompanion data) {
     return Debt(
@@ -14393,6 +15234,9 @@ class Debt extends DataClass implements Insertable<Debt> {
           ? data.vectorClock.value
           : this.vectorClock,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
       idempotencyKey: data.idempotencyKey.present
           ? data.idempotencyKey.value
           : this.idempotencyKey,
@@ -14444,6 +15288,14 @@ class Debt extends DataClass implements Insertable<Debt> {
       settlementConfirmed: data.settlementConfirmed.present
           ? data.settlementConfirmed.value
           : this.settlementConfirmed,
+      guestPhone: data.guestPhone.present
+          ? data.guestPhone.value
+          : this.guestPhone,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      status: data.status.present ? data.status.value : this.status,
+      dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
     );
   }
 
@@ -14465,6 +15317,7 @@ class Debt extends DataClass implements Insertable<Debt> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('bookingLocalId: $bookingLocalId, ')
@@ -14485,7 +15338,11 @@ class Debt extends DataClass implements Insertable<Debt> {
           ..write('hotelDayOpened: $hotelDayOpened, ')
           ..write('hotelDayClosed: $hotelDayClosed, ')
           ..write('isFromAutoFix: $isFromAutoFix, ')
-          ..write('settlementConfirmed: $settlementConfirmed')
+          ..write('settlementConfirmed: $settlementConfirmed, ')
+          ..write('guestPhone: $guestPhone, ')
+          ..write('description: $description, ')
+          ..write('status: $status, ')
+          ..write('dueDate: $dueDate')
           ..write(')'))
         .toString();
   }
@@ -14507,6 +15364,7 @@ class Debt extends DataClass implements Insertable<Debt> {
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     bookingLocalId,
@@ -14528,6 +15386,10 @@ class Debt extends DataClass implements Insertable<Debt> {
     hotelDayClosed,
     isFromAutoFix,
     settlementConfirmed,
+    guestPhone,
+    description,
+    status,
+    dueDate,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -14548,6 +15410,7 @@ class Debt extends DataClass implements Insertable<Debt> {
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
           other.deviceId == this.deviceId &&
+          other.syncTimestamp == this.syncTimestamp &&
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.bookingLocalId == this.bookingLocalId &&
@@ -14568,7 +15431,11 @@ class Debt extends DataClass implements Insertable<Debt> {
           other.hotelDayOpened == this.hotelDayOpened &&
           other.hotelDayClosed == this.hotelDayClosed &&
           other.isFromAutoFix == this.isFromAutoFix &&
-          other.settlementConfirmed == this.settlementConfirmed);
+          other.settlementConfirmed == this.settlementConfirmed &&
+          other.guestPhone == this.guestPhone &&
+          other.description == this.description &&
+          other.status == this.status &&
+          other.dueDate == this.dueDate);
 }
 
 class DebtsCompanion extends UpdateCompanion<Debt> {
@@ -14587,6 +15454,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
+  final Value<int?> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int?> bookingLocalId;
@@ -14608,6 +15476,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
   final Value<String?> hotelDayClosed;
   final Value<bool> isFromAutoFix;
   final Value<bool> settlementConfirmed;
+  final Value<String?> guestPhone;
+  final Value<String?> description;
+  final Value<String?> status;
+  final Value<String?> dueDate;
   const DebtsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -14624,6 +15496,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.bookingLocalId = const Value.absent(),
@@ -14645,6 +15518,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.hotelDayClosed = const Value.absent(),
     this.isFromAutoFix = const Value.absent(),
     this.settlementConfirmed = const Value.absent(),
+    this.guestPhone = const Value.absent(),
+    this.description = const Value.absent(),
+    this.status = const Value.absent(),
+    this.dueDate = const Value.absent(),
   });
   DebtsCompanion.insert({
     required String localUuid,
@@ -14662,6 +15539,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.bookingLocalId = const Value.absent(),
@@ -14683,6 +15561,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.hotelDayClosed = const Value.absent(),
     this.isFromAutoFix = const Value.absent(),
     this.settlementConfirmed = const Value.absent(),
+    this.guestPhone = const Value.absent(),
+    this.description = const Value.absent(),
+    this.status = const Value.absent(),
+    this.dueDate = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -14710,6 +15592,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Expression<String>? origin,
     Expression<String>? vectorClock,
     Expression<String>? deviceId,
+    Expression<int>? syncTimestamp,
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<int>? bookingLocalId,
@@ -14731,6 +15614,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Expression<String>? hotelDayClosed,
     Expression<bool>? isFromAutoFix,
     Expression<bool>? settlementConfirmed,
+    Expression<String>? guestPhone,
+    Expression<String>? description,
+    Expression<String>? status,
+    Expression<String>? dueDate,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -14748,6 +15635,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
       if (deviceId != null) 'device_id': deviceId,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (bookingLocalId != null) 'booking_local_id': bookingLocalId,
@@ -14770,6 +15658,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       if (isFromAutoFix != null) 'is_from_auto_fix': isFromAutoFix,
       if (settlementConfirmed != null)
         'settlement_confirmed': settlementConfirmed,
+      if (guestPhone != null) 'guest_phone': guestPhone,
+      if (description != null) 'description': description,
+      if (status != null) 'status': status,
+      if (dueDate != null) 'due_date': dueDate,
     });
   }
 
@@ -14789,6 +15681,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
+    Value<int?>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int?>? bookingLocalId,
@@ -14810,6 +15703,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Value<String?>? hotelDayClosed,
     Value<bool>? isFromAutoFix,
     Value<bool>? settlementConfirmed,
+    Value<String?>? guestPhone,
+    Value<String?>? description,
+    Value<String?>? status,
+    Value<String?>? dueDate,
   }) {
     return DebtsCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -14827,6 +15724,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
       deviceId: deviceId ?? this.deviceId,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       bookingLocalId: bookingLocalId ?? this.bookingLocalId,
@@ -14848,6 +15746,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       hotelDayClosed: hotelDayClosed ?? this.hotelDayClosed,
       isFromAutoFix: isFromAutoFix ?? this.isFromAutoFix,
       settlementConfirmed: settlementConfirmed ?? this.settlementConfirmed,
+      guestPhone: guestPhone ?? this.guestPhone,
+      description: description ?? this.description,
+      status: status ?? this.status,
+      dueDate: dueDate ?? this.dueDate,
     );
   }
 
@@ -14898,6 +15800,9 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     }
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
     }
     if (idempotencyKey.present) {
       map['idempotency_key'] = Variable<String>(idempotencyKey.value);
@@ -14962,6 +15867,18 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     if (settlementConfirmed.present) {
       map['settlement_confirmed'] = Variable<bool>(settlementConfirmed.value);
     }
+    if (guestPhone.present) {
+      map['guest_phone'] = Variable<String>(guestPhone.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (dueDate.present) {
+      map['due_date'] = Variable<String>(dueDate.value);
+    }
     return map;
   }
 
@@ -14983,6 +15900,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('bookingLocalId: $bookingLocalId, ')
@@ -15003,7 +15921,11 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
           ..write('hotelDayOpened: $hotelDayOpened, ')
           ..write('hotelDayClosed: $hotelDayClosed, ')
           ..write('isFromAutoFix: $isFromAutoFix, ')
-          ..write('settlementConfirmed: $settlementConfirmed')
+          ..write('settlementConfirmed: $settlementConfirmed, ')
+          ..write('guestPhone: $guestPhone, ')
+          ..write('description: $description, ')
+          ..write('status: $status, ')
+          ..write('dueDate: $dueDate')
           ..write(')'))
         .toString();
   }
@@ -15185,6 +16107,17 @@ class $BookingNightsTable extends BookingNights
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
+  );
+  @override
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
   );
@@ -15352,6 +16285,28 @@ class $BookingNightsTable extends BookingNights
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _bookingUuidCacheMeta = const VerificationMeta(
+    'bookingUuidCache',
+  );
+  @override
+  late final GeneratedColumn<String> bookingUuidCache = GeneratedColumn<String>(
+    'booking_uuid_cache',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _serverBookingIdMeta = const VerificationMeta(
+    'serverBookingId',
+  );
+  @override
+  late final GeneratedColumn<int> serverBookingId = GeneratedColumn<int>(
+    'server_booking_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -15369,6 +16324,7 @@ class $BookingNightsTable extends BookingNights
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     bookingLocalId,
@@ -15383,6 +16339,8 @@ class $BookingNightsTable extends BookingNights
     finalRate,
     appliedAdjustmentUuid,
     appliedAdjustmentsJson,
+    bookingUuidCache,
+    serverBookingId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -15515,6 +16473,15 @@ class $BookingNightsTable extends BookingNights
         deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
       );
     }
+    if (data.containsKey('sync_timestamp')) {
+      context.handle(
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
+      );
+    }
     if (data.containsKey('idempotency_key')) {
       context.handle(
         _idempotencyKeyMeta,
@@ -15625,6 +16592,24 @@ class $BookingNightsTable extends BookingNights
         ),
       );
     }
+    if (data.containsKey('booking_uuid_cache')) {
+      context.handle(
+        _bookingUuidCacheMeta,
+        bookingUuidCache.isAcceptableOrUnknown(
+          data['booking_uuid_cache']!,
+          _bookingUuidCacheMeta,
+        ),
+      );
+    }
+    if (data.containsKey('server_booking_id')) {
+      context.handle(
+        _serverBookingIdMeta,
+        serverBookingId.isAcceptableOrUnknown(
+          data['server_booking_id']!,
+          _serverBookingIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -15698,6 +16683,10 @@ class $BookingNightsTable extends BookingNights
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
+      syncTimestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_timestamp'],
+      ),
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -15754,6 +16743,14 @@ class $BookingNightsTable extends BookingNights
         DriftSqlType.string,
         data['${effectivePrefix}applied_adjustments_json'],
       ),
+      bookingUuidCache: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}booking_uuid_cache'],
+      ),
+      serverBookingId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_booking_id'],
+      ),
     );
   }
 
@@ -15779,6 +16776,7 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
   final String origin;
   final String vectorClock;
   final String deviceId;
+  final int? syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final int bookingLocalId;
@@ -15793,6 +16791,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
   final double finalRate;
   final String? appliedAdjustmentUuid;
   final String? appliedAdjustmentsJson;
+  final String? bookingUuidCache;
+  final int? serverBookingId;
   const BookingNight({
     required this.localUuid,
     this.serverId,
@@ -15809,6 +16809,7 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
+    this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.bookingLocalId,
@@ -15823,6 +16824,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     required this.finalRate,
     this.appliedAdjustmentUuid,
     this.appliedAdjustmentsJson,
+    this.bookingUuidCache,
+    this.serverBookingId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -15852,6 +16855,9 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || syncTimestamp != null) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    }
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -15873,6 +16879,12 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       map['applied_adjustments_json'] = Variable<String>(
         appliedAdjustmentsJson,
       );
+    }
+    if (!nullToAbsent || bookingUuidCache != null) {
+      map['booking_uuid_cache'] = Variable<String>(bookingUuidCache);
+    }
+    if (!nullToAbsent || serverBookingId != null) {
+      map['server_booking_id'] = Variable<int>(serverBookingId);
     }
     return map;
   }
@@ -15904,6 +16916,9 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
+      syncTimestamp: syncTimestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -15924,6 +16939,12 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       appliedAdjustmentsJson: appliedAdjustmentsJson == null && nullToAbsent
           ? const Value.absent()
           : Value(appliedAdjustmentsJson),
+      bookingUuidCache: bookingUuidCache == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bookingUuidCache),
+      serverBookingId: serverBookingId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverBookingId),
     );
   }
 
@@ -15948,6 +16969,7 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       bookingLocalId: serializer.fromJson<int>(json['bookingLocalId']),
@@ -15968,6 +16990,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       appliedAdjustmentsJson: serializer.fromJson<String?>(
         json['appliedAdjustmentsJson'],
       ),
+      bookingUuidCache: serializer.fromJson<String?>(json['bookingUuidCache']),
+      serverBookingId: serializer.fromJson<int?>(json['serverBookingId']),
     );
   }
   @override
@@ -15989,6 +17013,7 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
+      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'bookingLocalId': serializer.toJson<int>(bookingLocalId),
@@ -16007,6 +17032,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       'appliedAdjustmentsJson': serializer.toJson<String?>(
         appliedAdjustmentsJson,
       ),
+      'bookingUuidCache': serializer.toJson<String?>(bookingUuidCache),
+      'serverBookingId': serializer.toJson<int?>(serverBookingId),
     };
   }
 
@@ -16026,6 +17053,7 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     String? origin,
     String? vectorClock,
     String? deviceId,
+    Value<int?> syncTimestamp = const Value.absent(),
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     int? bookingLocalId,
@@ -16040,6 +17068,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     double? finalRate,
     Value<String?> appliedAdjustmentUuid = const Value.absent(),
     Value<String?> appliedAdjustmentsJson = const Value.absent(),
+    Value<String?> bookingUuidCache = const Value.absent(),
+    Value<int?> serverBookingId = const Value.absent(),
   }) => BookingNight(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -16056,6 +17086,9 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
+    syncTimestamp: syncTimestamp.present
+        ? syncTimestamp.value
+        : this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -16076,6 +17109,12 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     appliedAdjustmentsJson: appliedAdjustmentsJson.present
         ? appliedAdjustmentsJson.value
         : this.appliedAdjustmentsJson,
+    bookingUuidCache: bookingUuidCache.present
+        ? bookingUuidCache.value
+        : this.bookingUuidCache,
+    serverBookingId: serverBookingId.present
+        ? serverBookingId.value
+        : this.serverBookingId,
   );
   BookingNight copyWithCompanion(BookingNightsCompanion data) {
     return BookingNight(
@@ -16108,6 +17147,9 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
           ? data.vectorClock.value
           : this.vectorClock,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
       idempotencyKey: data.idempotencyKey.present
           ? data.idempotencyKey.value
           : this.idempotencyKey,
@@ -16140,6 +17182,12 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       appliedAdjustmentsJson: data.appliedAdjustmentsJson.present
           ? data.appliedAdjustmentsJson.value
           : this.appliedAdjustmentsJson,
+      bookingUuidCache: data.bookingUuidCache.present
+          ? data.bookingUuidCache.value
+          : this.bookingUuidCache,
+      serverBookingId: data.serverBookingId.present
+          ? data.serverBookingId.value
+          : this.serverBookingId,
     );
   }
 
@@ -16161,6 +17209,7 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('bookingLocalId: $bookingLocalId, ')
@@ -16174,7 +17223,9 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
           ..write('adjustment: $adjustment, ')
           ..write('finalRate: $finalRate, ')
           ..write('appliedAdjustmentUuid: $appliedAdjustmentUuid, ')
-          ..write('appliedAdjustmentsJson: $appliedAdjustmentsJson')
+          ..write('appliedAdjustmentsJson: $appliedAdjustmentsJson, ')
+          ..write('bookingUuidCache: $bookingUuidCache, ')
+          ..write('serverBookingId: $serverBookingId')
           ..write(')'))
         .toString();
   }
@@ -16196,6 +17247,7 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     bookingLocalId,
@@ -16210,6 +17262,8 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     finalRate,
     appliedAdjustmentUuid,
     appliedAdjustmentsJson,
+    bookingUuidCache,
+    serverBookingId,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -16230,6 +17284,7 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
           other.deviceId == this.deviceId &&
+          other.syncTimestamp == this.syncTimestamp &&
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.bookingLocalId == this.bookingLocalId &&
@@ -16243,7 +17298,9 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
           other.adjustment == this.adjustment &&
           other.finalRate == this.finalRate &&
           other.appliedAdjustmentUuid == this.appliedAdjustmentUuid &&
-          other.appliedAdjustmentsJson == this.appliedAdjustmentsJson);
+          other.appliedAdjustmentsJson == this.appliedAdjustmentsJson &&
+          other.bookingUuidCache == this.bookingUuidCache &&
+          other.serverBookingId == this.serverBookingId);
 }
 
 class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
@@ -16262,6 +17319,7 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
+  final Value<int?> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int> bookingLocalId;
@@ -16276,6 +17334,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
   final Value<double> finalRate;
   final Value<String?> appliedAdjustmentUuid;
   final Value<String?> appliedAdjustmentsJson;
+  final Value<String?> bookingUuidCache;
+  final Value<int?> serverBookingId;
   const BookingNightsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -16292,6 +17352,7 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.bookingLocalId = const Value.absent(),
@@ -16306,6 +17367,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     this.finalRate = const Value.absent(),
     this.appliedAdjustmentUuid = const Value.absent(),
     this.appliedAdjustmentsJson = const Value.absent(),
+    this.bookingUuidCache = const Value.absent(),
+    this.serverBookingId = const Value.absent(),
   });
   BookingNightsCompanion.insert({
     required String localUuid,
@@ -16323,6 +17386,7 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required int bookingLocalId,
@@ -16337,6 +17401,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     this.finalRate = const Value.absent(),
     this.appliedAdjustmentUuid = const Value.absent(),
     this.appliedAdjustmentsJson = const Value.absent(),
+    this.bookingUuidCache = const Value.absent(),
+    this.serverBookingId = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -16361,6 +17427,7 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     Expression<String>? origin,
     Expression<String>? vectorClock,
     Expression<String>? deviceId,
+    Expression<int>? syncTimestamp,
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<int>? bookingLocalId,
@@ -16375,6 +17442,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     Expression<double>? finalRate,
     Expression<String>? appliedAdjustmentUuid,
     Expression<String>? appliedAdjustmentsJson,
+    Expression<String>? bookingUuidCache,
+    Expression<int>? serverBookingId,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -16392,6 +17461,7 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
       if (deviceId != null) 'device_id': deviceId,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (bookingLocalId != null) 'booking_local_id': bookingLocalId,
@@ -16409,6 +17479,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
         'applied_adjustment_uuid': appliedAdjustmentUuid,
       if (appliedAdjustmentsJson != null)
         'applied_adjustments_json': appliedAdjustmentsJson,
+      if (bookingUuidCache != null) 'booking_uuid_cache': bookingUuidCache,
+      if (serverBookingId != null) 'server_booking_id': serverBookingId,
     });
   }
 
@@ -16428,6 +17500,7 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
+    Value<int?>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int>? bookingLocalId,
@@ -16442,6 +17515,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     Value<double>? finalRate,
     Value<String?>? appliedAdjustmentUuid,
     Value<String?>? appliedAdjustmentsJson,
+    Value<String?>? bookingUuidCache,
+    Value<int?>? serverBookingId,
   }) {
     return BookingNightsCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -16459,6 +17534,7 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
       deviceId: deviceId ?? this.deviceId,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       bookingLocalId: bookingLocalId ?? this.bookingLocalId,
@@ -16475,6 +17551,8 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
           appliedAdjustmentUuid ?? this.appliedAdjustmentUuid,
       appliedAdjustmentsJson:
           appliedAdjustmentsJson ?? this.appliedAdjustmentsJson,
+      bookingUuidCache: bookingUuidCache ?? this.bookingUuidCache,
+      serverBookingId: serverBookingId ?? this.serverBookingId,
     );
   }
 
@@ -16526,6 +17604,9 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
     }
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
+    }
     if (idempotencyKey.present) {
       map['idempotency_key'] = Variable<String>(idempotencyKey.value);
     }
@@ -16574,6 +17655,12 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
         appliedAdjustmentsJson.value,
       );
     }
+    if (bookingUuidCache.present) {
+      map['booking_uuid_cache'] = Variable<String>(bookingUuidCache.value);
+    }
+    if (serverBookingId.present) {
+      map['server_booking_id'] = Variable<int>(serverBookingId.value);
+    }
     return map;
   }
 
@@ -16595,6 +17682,7 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('bookingLocalId: $bookingLocalId, ')
@@ -16608,7 +17696,9 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
           ..write('adjustment: $adjustment, ')
           ..write('finalRate: $finalRate, ')
           ..write('appliedAdjustmentUuid: $appliedAdjustmentUuid, ')
-          ..write('appliedAdjustmentsJson: $appliedAdjustmentsJson')
+          ..write('appliedAdjustmentsJson: $appliedAdjustmentsJson, ')
+          ..write('bookingUuidCache: $bookingUuidCache, ')
+          ..write('serverBookingId: $serverBookingId')
           ..write(')'))
         .toString();
   }
@@ -16790,6 +17880,17 @@ class $HotelDayLedgerTable extends HotelDayLedger
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
+  );
+  @override
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
   );
@@ -16948,6 +18049,7 @@ class $HotelDayLedgerTable extends HotelDayLedger
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     hotelDayKey,
@@ -17090,6 +18192,15 @@ class $HotelDayLedgerTable extends HotelDayLedger
       context.handle(
         _deviceIdMeta,
         deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('sync_timestamp')) {
+      context.handle(
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
       );
     }
     if (data.containsKey('idempotency_key')) {
@@ -17266,6 +18377,10 @@ class $HotelDayLedgerTable extends HotelDayLedger
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
+      syncTimestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_timestamp'],
+      ),
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -17340,6 +18455,7 @@ class HotelDayLedgerEntry extends DataClass
   final String origin;
   final String vectorClock;
   final String deviceId;
+  final int? syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final String hotelDayKey;
@@ -17368,6 +18484,7 @@ class HotelDayLedgerEntry extends DataClass
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
+    this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.hotelDayKey,
@@ -17409,6 +18526,9 @@ class HotelDayLedgerEntry extends DataClass
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || syncTimestamp != null) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    }
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -17453,6 +18573,9 @@ class HotelDayLedgerEntry extends DataClass
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
+      syncTimestamp: syncTimestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -17491,6 +18614,7 @@ class HotelDayLedgerEntry extends DataClass
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       hotelDayKey: serializer.fromJson<String>(json['hotelDayKey']),
@@ -17524,6 +18648,7 @@ class HotelDayLedgerEntry extends DataClass
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
+      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'hotelDayKey': serializer.toJson<String>(hotelDayKey),
@@ -17555,6 +18680,7 @@ class HotelDayLedgerEntry extends DataClass
     String? origin,
     String? vectorClock,
     String? deviceId,
+    Value<int?> syncTimestamp = const Value.absent(),
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? hotelDayKey,
@@ -17583,6 +18709,9 @@ class HotelDayLedgerEntry extends DataClass
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
+    syncTimestamp: syncTimestamp.present
+        ? syncTimestamp.value
+        : this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -17629,6 +18758,9 @@ class HotelDayLedgerEntry extends DataClass
           ? data.vectorClock.value
           : this.vectorClock,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
       idempotencyKey: data.idempotencyKey.present
           ? data.idempotencyKey.value
           : this.idempotencyKey,
@@ -17682,6 +18814,7 @@ class HotelDayLedgerEntry extends DataClass
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('hotelDayKey: $hotelDayKey, ')
@@ -17715,6 +18848,7 @@ class HotelDayLedgerEntry extends DataClass
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     hotelDayKey,
@@ -17747,6 +18881,7 @@ class HotelDayLedgerEntry extends DataClass
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
           other.deviceId == this.deviceId &&
+          other.syncTimestamp == this.syncTimestamp &&
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.hotelDayKey == this.hotelDayKey &&
@@ -17777,6 +18912,7 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
+  final Value<int?> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> hotelDayKey;
@@ -17805,6 +18941,7 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.hotelDayKey = const Value.absent(),
@@ -17834,6 +18971,7 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required String hotelDayKey,
@@ -17867,6 +19005,7 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
     Expression<String>? origin,
     Expression<String>? vectorClock,
     Expression<String>? deviceId,
+    Expression<int>? syncTimestamp,
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<String>? hotelDayKey,
@@ -17896,6 +19035,7 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
       if (deviceId != null) 'device_id': deviceId,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (hotelDayKey != null) 'hotel_day_key': hotelDayKey,
@@ -17927,6 +19067,7 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
+    Value<int?>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? hotelDayKey,
@@ -17956,6 +19097,7 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
       deviceId: deviceId ?? this.deviceId,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       hotelDayKey: hotelDayKey ?? this.hotelDayKey,
@@ -18019,6 +19161,9 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
     }
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
+    }
     if (idempotencyKey.present) {
       map['idempotency_key'] = Variable<String>(idempotencyKey.value);
     }
@@ -18076,6 +19221,7 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('hotelDayKey: $hotelDayKey, ')
@@ -20057,6 +21203,17 @@ class $SalaryCyclesTable extends SalaryCycles
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
+  );
+  @override
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
   );
@@ -20191,6 +21348,7 @@ class $SalaryCyclesTable extends SalaryCycles
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     employeeId,
@@ -20331,6 +21489,15 @@ class $SalaryCyclesTable extends SalaryCycles
       context.handle(
         _deviceIdMeta,
         deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('sync_timestamp')) {
+      context.handle(
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
       );
     }
     if (data.containsKey('idempotency_key')) {
@@ -20482,6 +21649,10 @@ class $SalaryCyclesTable extends SalaryCycles
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
+      syncTimestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_timestamp'],
+      ),
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -20547,6 +21718,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
   final String origin;
   final String vectorClock;
   final String deviceId;
+  final int? syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final int employeeId;
@@ -20573,6 +21745,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
+    this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.employeeId,
@@ -20612,6 +21785,9 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || syncTimestamp != null) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    }
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -20658,6 +21834,9 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
+      syncTimestamp: syncTimestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -20698,6 +21877,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       employeeId: serializer.fromJson<int>(json['employeeId']),
@@ -20729,6 +21909,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
+      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'employeeId': serializer.toJson<int>(employeeId),
@@ -20758,6 +21939,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
     String? origin,
     String? vectorClock,
     String? deviceId,
+    Value<int?> syncTimestamp = const Value.absent(),
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     int? employeeId,
@@ -20784,6 +21966,9 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
+    syncTimestamp: syncTimestamp.present
+        ? syncTimestamp.value
+        : this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -20830,6 +22015,9 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
           ? data.vectorClock.value
           : this.vectorClock,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
       idempotencyKey: data.idempotencyKey.present
           ? data.idempotencyKey.value
           : this.idempotencyKey,
@@ -20875,6 +22063,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('employeeId: $employeeId, ')
@@ -20906,6 +22095,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     employeeId,
@@ -20936,6 +22126,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
           other.deviceId == this.deviceId &&
+          other.syncTimestamp == this.syncTimestamp &&
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.employeeId == this.employeeId &&
@@ -20964,6 +22155,7 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
+  final Value<int?> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int> employeeId;
@@ -20990,6 +22182,7 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.employeeId = const Value.absent(),
@@ -21017,6 +22210,7 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required int employeeId,
@@ -21049,6 +22243,7 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
     Expression<String>? origin,
     Expression<String>? vectorClock,
     Expression<String>? deviceId,
+    Expression<int>? syncTimestamp,
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<int>? employeeId,
@@ -21076,6 +22271,7 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
       if (deviceId != null) 'device_id': deviceId,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (employeeId != null) 'employee_id': employeeId,
@@ -21105,6 +22301,7 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
+    Value<int?>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int>? employeeId,
@@ -21132,6 +22329,7 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
       deviceId: deviceId ?? this.deviceId,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       employeeId: employeeId ?? this.employeeId,
@@ -21193,6 +22391,9 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
     }
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
+    }
     if (idempotencyKey.present) {
       map['idempotency_key'] = Variable<String>(idempotencyKey.value);
     }
@@ -21244,6 +22445,7 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('employeeId: $employeeId, ')
@@ -21435,6 +22637,17 @@ class $SalaryPaymentsTable extends SalaryPayments
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
+  );
+  @override
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
   );
@@ -21546,6 +22759,7 @@ class $SalaryPaymentsTable extends SalaryPayments
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     cycleId,
@@ -21686,6 +22900,15 @@ class $SalaryPaymentsTable extends SalaryPayments
         deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
       );
     }
+    if (data.containsKey('sync_timestamp')) {
+      context.handle(
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
+      );
+    }
     if (data.containsKey('idempotency_key')) {
       context.handle(
         _idempotencyKeyMeta,
@@ -21816,6 +23039,10 @@ class $SalaryPaymentsTable extends SalaryPayments
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
+      syncTimestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_timestamp'],
+      ),
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -21873,6 +23100,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
   final String origin;
   final String vectorClock;
   final String deviceId;
+  final int? syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final int cycleId;
@@ -21897,6 +23125,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
+    this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.cycleId,
@@ -21934,6 +23163,9 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || syncTimestamp != null) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    }
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -21978,6 +23210,9 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
+      syncTimestamp: syncTimestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -22016,6 +23251,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       cycleId: serializer.fromJson<int>(json['cycleId']),
@@ -22045,6 +23281,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
+      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'cycleId': serializer.toJson<int>(cycleId),
@@ -22072,6 +23309,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     String? origin,
     String? vectorClock,
     String? deviceId,
+    Value<int?> syncTimestamp = const Value.absent(),
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     int? cycleId,
@@ -22096,6 +23334,9 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
+    syncTimestamp: syncTimestamp.present
+        ? syncTimestamp.value
+        : this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -22138,6 +23379,9 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
           ? data.vectorClock.value
           : this.vectorClock,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
       idempotencyKey: data.idempotencyKey.present
           ? data.idempotencyKey.value
           : this.idempotencyKey,
@@ -22175,6 +23419,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('cycleId: $cycleId, ')
@@ -22204,6 +23449,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     cycleId,
@@ -22232,6 +23478,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
           other.deviceId == this.deviceId &&
+          other.syncTimestamp == this.syncTimestamp &&
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.cycleId == this.cycleId &&
@@ -22258,6 +23505,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
+  final Value<int?> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int> cycleId;
@@ -22282,6 +23530,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.cycleId = const Value.absent(),
@@ -22307,6 +23556,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required int cycleId,
@@ -22337,6 +23587,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     Expression<String>? origin,
     Expression<String>? vectorClock,
     Expression<String>? deviceId,
+    Expression<int>? syncTimestamp,
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<int>? cycleId,
@@ -22362,6 +23613,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
       if (deviceId != null) 'device_id': deviceId,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (cycleId != null) 'cycle_id': cycleId,
@@ -22389,6 +23641,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
+    Value<int?>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int>? cycleId,
@@ -22414,6 +23667,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
       deviceId: deviceId ?? this.deviceId,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       cycleId: cycleId ?? this.cycleId,
@@ -22473,6 +23727,9 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
     }
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
+    }
     if (idempotencyKey.present) {
       map['idempotency_key'] = Variable<String>(idempotencyKey.value);
     }
@@ -22518,6 +23775,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('cycleId: $cycleId, ')
@@ -26325,6 +27583,17 @@ class $PriceAdjustmentsTable extends PriceAdjustments
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
+  );
+  @override
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
   );
@@ -26442,9 +27711,43 @@ class $PriceAdjustmentsTable extends PriceAdjustments
   late final GeneratedColumn<String> hotelDayKey = GeneratedColumn<String>(
     'hotel_day_key',
     aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _adjustmentModeMeta = const VerificationMeta(
+    'adjustmentMode',
+  );
+  @override
+  late final GeneratedColumn<String> adjustmentMode = GeneratedColumn<String>(
+    'adjustment_mode',
+    aliasedName,
     false,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('per_night'),
+  );
+  static const VerificationMeta _bookingUuidMeta = const VerificationMeta(
+    'bookingUuid',
+  );
+  @override
+  late final GeneratedColumn<String> bookingUuid = GeneratedColumn<String>(
+    'booking_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _appliedAtMeta = const VerificationMeta(
+    'appliedAt',
+  );
+  @override
+  late final GeneratedColumn<int> appliedAt = GeneratedColumn<int>(
+    'applied_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _isReversedMeta = const VerificationMeta(
     'isReversed',
@@ -26500,6 +27803,7 @@ class $PriceAdjustmentsTable extends PriceAdjustments
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     targetType,
@@ -26511,6 +27815,9 @@ class $PriceAdjustmentsTable extends PriceAdjustments
     effectiveDate,
     appliedBy,
     hotelDayKey,
+    adjustmentMode,
+    bookingUuid,
+    appliedAt,
     isReversed,
     reversedAt,
     reversedBy,
@@ -26646,6 +27953,15 @@ class $PriceAdjustmentsTable extends PriceAdjustments
         deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
       );
     }
+    if (data.containsKey('sync_timestamp')) {
+      context.handle(
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
+      );
+    }
     if (data.containsKey('idempotency_key')) {
       context.handle(
         _idempotencyKeyMeta,
@@ -26737,8 +28053,30 @@ class $PriceAdjustmentsTable extends PriceAdjustments
           _hotelDayKeyMeta,
         ),
       );
-    } else if (isInserting) {
-      context.missing(_hotelDayKeyMeta);
+    }
+    if (data.containsKey('adjustment_mode')) {
+      context.handle(
+        _adjustmentModeMeta,
+        adjustmentMode.isAcceptableOrUnknown(
+          data['adjustment_mode']!,
+          _adjustmentModeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('booking_uuid')) {
+      context.handle(
+        _bookingUuidMeta,
+        bookingUuid.isAcceptableOrUnknown(
+          data['booking_uuid']!,
+          _bookingUuidMeta,
+        ),
+      );
+    }
+    if (data.containsKey('applied_at')) {
+      context.handle(
+        _appliedAtMeta,
+        appliedAt.isAcceptableOrUnknown(data['applied_at']!, _appliedAtMeta),
+      );
     }
     if (data.containsKey('is_reversed')) {
       context.handle(
@@ -26827,6 +28165,10 @@ class $PriceAdjustmentsTable extends PriceAdjustments
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
+      syncTimestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_timestamp'],
+      ),
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -26870,7 +28212,19 @@ class $PriceAdjustmentsTable extends PriceAdjustments
       hotelDayKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}hotel_day_key'],
+      ),
+      adjustmentMode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}adjustment_mode'],
       )!,
+      bookingUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}booking_uuid'],
+      ),
+      appliedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}applied_at'],
+      ),
       isReversed: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_reversed'],
@@ -26908,6 +28262,7 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
   final String origin;
   final String vectorClock;
   final String deviceId;
+  final int? syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final String targetType;
@@ -26918,7 +28273,10 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
   final String? reason;
   final String effectiveDate;
   final String appliedBy;
-  final String hotelDayKey;
+  final String? hotelDayKey;
+  final String adjustmentMode;
+  final String? bookingUuid;
+  final int? appliedAt;
   final bool isReversed;
   final String? reversedAt;
   final String? reversedBy;
@@ -26938,6 +28296,7 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
+    this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.targetType,
@@ -26948,7 +28307,10 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
     this.reason,
     required this.effectiveDate,
     required this.appliedBy,
-    required this.hotelDayKey,
+    this.hotelDayKey,
+    required this.adjustmentMode,
+    this.bookingUuid,
+    this.appliedAt,
     required this.isReversed,
     this.reversedAt,
     this.reversedBy,
@@ -26981,6 +28343,9 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || syncTimestamp != null) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    }
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -26995,7 +28360,16 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
     }
     map['effective_date'] = Variable<String>(effectiveDate);
     map['applied_by'] = Variable<String>(appliedBy);
-    map['hotel_day_key'] = Variable<String>(hotelDayKey);
+    if (!nullToAbsent || hotelDayKey != null) {
+      map['hotel_day_key'] = Variable<String>(hotelDayKey);
+    }
+    map['adjustment_mode'] = Variable<String>(adjustmentMode);
+    if (!nullToAbsent || bookingUuid != null) {
+      map['booking_uuid'] = Variable<String>(bookingUuid);
+    }
+    if (!nullToAbsent || appliedAt != null) {
+      map['applied_at'] = Variable<int>(appliedAt);
+    }
     map['is_reversed'] = Variable<bool>(isReversed);
     if (!nullToAbsent || reversedAt != null) {
       map['reversed_at'] = Variable<String>(reversedAt);
@@ -27033,6 +28407,9 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
+      syncTimestamp: syncTimestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -27047,7 +28424,16 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
           : Value(reason),
       effectiveDate: Value(effectiveDate),
       appliedBy: Value(appliedBy),
-      hotelDayKey: Value(hotelDayKey),
+      hotelDayKey: hotelDayKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(hotelDayKey),
+      adjustmentMode: Value(adjustmentMode),
+      bookingUuid: bookingUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bookingUuid),
+      appliedAt: appliedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(appliedAt),
       isReversed: Value(isReversed),
       reversedAt: reversedAt == null && nullToAbsent
           ? const Value.absent()
@@ -27079,6 +28465,7 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       targetType: serializer.fromJson<String>(json['targetType']),
@@ -27089,7 +28476,10 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
       reason: serializer.fromJson<String?>(json['reason']),
       effectiveDate: serializer.fromJson<String>(json['effectiveDate']),
       appliedBy: serializer.fromJson<String>(json['appliedBy']),
-      hotelDayKey: serializer.fromJson<String>(json['hotelDayKey']),
+      hotelDayKey: serializer.fromJson<String?>(json['hotelDayKey']),
+      adjustmentMode: serializer.fromJson<String>(json['adjustmentMode']),
+      bookingUuid: serializer.fromJson<String?>(json['bookingUuid']),
+      appliedAt: serializer.fromJson<int?>(json['appliedAt']),
       isReversed: serializer.fromJson<bool>(json['isReversed']),
       reversedAt: serializer.fromJson<String?>(json['reversedAt']),
       reversedBy: serializer.fromJson<String?>(json['reversedBy']),
@@ -27114,6 +28504,7 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
+      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'targetType': serializer.toJson<String>(targetType),
@@ -27124,7 +28515,10 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
       'reason': serializer.toJson<String?>(reason),
       'effectiveDate': serializer.toJson<String>(effectiveDate),
       'appliedBy': serializer.toJson<String>(appliedBy),
-      'hotelDayKey': serializer.toJson<String>(hotelDayKey),
+      'hotelDayKey': serializer.toJson<String?>(hotelDayKey),
+      'adjustmentMode': serializer.toJson<String>(adjustmentMode),
+      'bookingUuid': serializer.toJson<String?>(bookingUuid),
+      'appliedAt': serializer.toJson<int?>(appliedAt),
       'isReversed': serializer.toJson<bool>(isReversed),
       'reversedAt': serializer.toJson<String?>(reversedAt),
       'reversedBy': serializer.toJson<String?>(reversedBy),
@@ -27147,6 +28541,7 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
     String? origin,
     String? vectorClock,
     String? deviceId,
+    Value<int?> syncTimestamp = const Value.absent(),
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? targetType,
@@ -27157,7 +28552,10 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
     Value<String?> reason = const Value.absent(),
     String? effectiveDate,
     String? appliedBy,
-    String? hotelDayKey,
+    Value<String?> hotelDayKey = const Value.absent(),
+    String? adjustmentMode,
+    Value<String?> bookingUuid = const Value.absent(),
+    Value<int?> appliedAt = const Value.absent(),
     bool? isReversed,
     Value<String?> reversedAt = const Value.absent(),
     Value<String?> reversedBy = const Value.absent(),
@@ -27177,6 +28575,9 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
+    syncTimestamp: syncTimestamp.present
+        ? syncTimestamp.value
+        : this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -27189,7 +28590,10 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
     reason: reason.present ? reason.value : this.reason,
     effectiveDate: effectiveDate ?? this.effectiveDate,
     appliedBy: appliedBy ?? this.appliedBy,
-    hotelDayKey: hotelDayKey ?? this.hotelDayKey,
+    hotelDayKey: hotelDayKey.present ? hotelDayKey.value : this.hotelDayKey,
+    adjustmentMode: adjustmentMode ?? this.adjustmentMode,
+    bookingUuid: bookingUuid.present ? bookingUuid.value : this.bookingUuid,
+    appliedAt: appliedAt.present ? appliedAt.value : this.appliedAt,
     isReversed: isReversed ?? this.isReversed,
     reversedAt: reversedAt.present ? reversedAt.value : this.reversedAt,
     reversedBy: reversedBy.present ? reversedBy.value : this.reversedBy,
@@ -27225,6 +28629,9 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
           ? data.vectorClock.value
           : this.vectorClock,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
       idempotencyKey: data.idempotencyKey.present
           ? data.idempotencyKey.value
           : this.idempotencyKey,
@@ -27250,6 +28657,13 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
       hotelDayKey: data.hotelDayKey.present
           ? data.hotelDayKey.value
           : this.hotelDayKey,
+      adjustmentMode: data.adjustmentMode.present
+          ? data.adjustmentMode.value
+          : this.adjustmentMode,
+      bookingUuid: data.bookingUuid.present
+          ? data.bookingUuid.value
+          : this.bookingUuid,
+      appliedAt: data.appliedAt.present ? data.appliedAt.value : this.appliedAt,
       isReversed: data.isReversed.present
           ? data.isReversed.value
           : this.isReversed,
@@ -27280,6 +28694,7 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('targetType: $targetType, ')
@@ -27291,6 +28706,9 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
           ..write('effectiveDate: $effectiveDate, ')
           ..write('appliedBy: $appliedBy, ')
           ..write('hotelDayKey: $hotelDayKey, ')
+          ..write('adjustmentMode: $adjustmentMode, ')
+          ..write('bookingUuid: $bookingUuid, ')
+          ..write('appliedAt: $appliedAt, ')
           ..write('isReversed: $isReversed, ')
           ..write('reversedAt: $reversedAt, ')
           ..write('reversedBy: $reversedBy')
@@ -27315,6 +28733,7 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     targetType,
@@ -27326,6 +28745,9 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
     effectiveDate,
     appliedBy,
     hotelDayKey,
+    adjustmentMode,
+    bookingUuid,
+    appliedAt,
     isReversed,
     reversedAt,
     reversedBy,
@@ -27349,6 +28771,7 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
           other.deviceId == this.deviceId &&
+          other.syncTimestamp == this.syncTimestamp &&
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.targetType == this.targetType &&
@@ -27360,6 +28783,9 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
           other.effectiveDate == this.effectiveDate &&
           other.appliedBy == this.appliedBy &&
           other.hotelDayKey == this.hotelDayKey &&
+          other.adjustmentMode == this.adjustmentMode &&
+          other.bookingUuid == this.bookingUuid &&
+          other.appliedAt == this.appliedAt &&
           other.isReversed == this.isReversed &&
           other.reversedAt == this.reversedAt &&
           other.reversedBy == this.reversedBy);
@@ -27381,6 +28807,7 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
+  final Value<int?> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> targetType;
@@ -27391,7 +28818,10 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
   final Value<String?> reason;
   final Value<String> effectiveDate;
   final Value<String> appliedBy;
-  final Value<String> hotelDayKey;
+  final Value<String?> hotelDayKey;
+  final Value<String> adjustmentMode;
+  final Value<String?> bookingUuid;
+  final Value<int?> appliedAt;
   final Value<bool> isReversed;
   final Value<String?> reversedAt;
   final Value<String?> reversedBy;
@@ -27411,6 +28841,7 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.targetType = const Value.absent(),
@@ -27422,6 +28853,9 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
     this.effectiveDate = const Value.absent(),
     this.appliedBy = const Value.absent(),
     this.hotelDayKey = const Value.absent(),
+    this.adjustmentMode = const Value.absent(),
+    this.bookingUuid = const Value.absent(),
+    this.appliedAt = const Value.absent(),
     this.isReversed = const Value.absent(),
     this.reversedAt = const Value.absent(),
     this.reversedBy = const Value.absent(),
@@ -27442,6 +28876,7 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required String targetType,
@@ -27452,7 +28887,10 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
     this.reason = const Value.absent(),
     required String effectiveDate,
     required String appliedBy,
-    required String hotelDayKey,
+    this.hotelDayKey = const Value.absent(),
+    this.adjustmentMode = const Value.absent(),
+    this.bookingUuid = const Value.absent(),
+    this.appliedAt = const Value.absent(),
     this.isReversed = const Value.absent(),
     this.reversedAt = const Value.absent(),
     this.reversedBy = const Value.absent(),
@@ -27466,8 +28904,7 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
        previousValue = Value(previousValue),
        newValue = Value(newValue),
        effectiveDate = Value(effectiveDate),
-       appliedBy = Value(appliedBy),
-       hotelDayKey = Value(hotelDayKey);
+       appliedBy = Value(appliedBy);
   static Insertable<PriceAdjustment> custom({
     Expression<String>? localUuid,
     Expression<int>? serverId,
@@ -27484,6 +28921,7 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
     Expression<String>? origin,
     Expression<String>? vectorClock,
     Expression<String>? deviceId,
+    Expression<int>? syncTimestamp,
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<String>? targetType,
@@ -27495,6 +28933,9 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
     Expression<String>? effectiveDate,
     Expression<String>? appliedBy,
     Expression<String>? hotelDayKey,
+    Expression<String>? adjustmentMode,
+    Expression<String>? bookingUuid,
+    Expression<int>? appliedAt,
     Expression<bool>? isReversed,
     Expression<String>? reversedAt,
     Expression<String>? reversedBy,
@@ -27515,6 +28956,7 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
       if (deviceId != null) 'device_id': deviceId,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (targetType != null) 'target_type': targetType,
@@ -27526,6 +28968,9 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
       if (effectiveDate != null) 'effective_date': effectiveDate,
       if (appliedBy != null) 'applied_by': appliedBy,
       if (hotelDayKey != null) 'hotel_day_key': hotelDayKey,
+      if (adjustmentMode != null) 'adjustment_mode': adjustmentMode,
+      if (bookingUuid != null) 'booking_uuid': bookingUuid,
+      if (appliedAt != null) 'applied_at': appliedAt,
       if (isReversed != null) 'is_reversed': isReversed,
       if (reversedAt != null) 'reversed_at': reversedAt,
       if (reversedBy != null) 'reversed_by': reversedBy,
@@ -27548,6 +28993,7 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
+    Value<int?>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? targetType,
@@ -27558,7 +29004,10 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
     Value<String?>? reason,
     Value<String>? effectiveDate,
     Value<String>? appliedBy,
-    Value<String>? hotelDayKey,
+    Value<String?>? hotelDayKey,
+    Value<String>? adjustmentMode,
+    Value<String?>? bookingUuid,
+    Value<int?>? appliedAt,
     Value<bool>? isReversed,
     Value<String?>? reversedAt,
     Value<String?>? reversedBy,
@@ -27579,6 +29028,7 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
       deviceId: deviceId ?? this.deviceId,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       targetType: targetType ?? this.targetType,
@@ -27590,6 +29040,9 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
       effectiveDate: effectiveDate ?? this.effectiveDate,
       appliedBy: appliedBy ?? this.appliedBy,
       hotelDayKey: hotelDayKey ?? this.hotelDayKey,
+      adjustmentMode: adjustmentMode ?? this.adjustmentMode,
+      bookingUuid: bookingUuid ?? this.bookingUuid,
+      appliedAt: appliedAt ?? this.appliedAt,
       isReversed: isReversed ?? this.isReversed,
       reversedAt: reversedAt ?? this.reversedAt,
       reversedBy: reversedBy ?? this.reversedBy,
@@ -27644,6 +29097,9 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
     }
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
+    }
     if (idempotencyKey.present) {
       map['idempotency_key'] = Variable<String>(idempotencyKey.value);
     }
@@ -27677,6 +29133,15 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
     if (hotelDayKey.present) {
       map['hotel_day_key'] = Variable<String>(hotelDayKey.value);
     }
+    if (adjustmentMode.present) {
+      map['adjustment_mode'] = Variable<String>(adjustmentMode.value);
+    }
+    if (bookingUuid.present) {
+      map['booking_uuid'] = Variable<String>(bookingUuid.value);
+    }
+    if (appliedAt.present) {
+      map['applied_at'] = Variable<int>(appliedAt.value);
+    }
     if (isReversed.present) {
       map['is_reversed'] = Variable<bool>(isReversed.value);
     }
@@ -27707,6 +29172,7 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('targetType: $targetType, ')
@@ -27718,6 +29184,9 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
           ..write('effectiveDate: $effectiveDate, ')
           ..write('appliedBy: $appliedBy, ')
           ..write('hotelDayKey: $hotelDayKey, ')
+          ..write('adjustmentMode: $adjustmentMode, ')
+          ..write('bookingUuid: $bookingUuid, ')
+          ..write('appliedAt: $appliedAt, ')
           ..write('isReversed: $isReversed, ')
           ..write('reversedAt: $reversedAt, ')
           ..write('reversedBy: $reversedBy')
@@ -27902,6 +29371,17 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
+  );
+  @override
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
   );
@@ -27968,30 +29448,6 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
     ),
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-  );
-  static const VerificationMeta _adjustmentTypeMeta = const VerificationMeta(
-    'adjustmentType',
-  );
-  @override
-  late final GeneratedColumn<int> adjustmentType = GeneratedColumn<int>(
-    'adjustment_type',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(0),
-  );
-  static const VerificationMeta _adjustmentModeMeta = const VerificationMeta(
-    'adjustmentMode',
-  );
-  @override
-  late final GeneratedColumn<String> adjustmentMode = GeneratedColumn<String>(
-    'adjustment_mode',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('per_night'),
   );
   static const VerificationMeta _amountMeta = const VerificationMeta('amount');
   @override
@@ -28083,6 +29539,50 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _bookingUuidMeta = const VerificationMeta(
+    'bookingUuid',
+  );
+  @override
+  late final GeneratedColumn<String> bookingUuid = GeneratedColumn<String>(
+    'booking_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _adjustmentTypeMeta = const VerificationMeta(
+    'adjustmentType',
+  );
+  @override
+  late final GeneratedColumn<int> adjustmentType = GeneratedColumn<int>(
+    'adjustment_type',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _adjustmentModeMeta = const VerificationMeta(
+    'adjustmentMode',
+  );
+  @override
+  late final GeneratedColumn<String> adjustmentMode = GeneratedColumn<String>(
+    'adjustment_mode',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _appliedAtMeta = const VerificationMeta(
+    'appliedAt',
+  );
+  @override
+  late final GeneratedColumn<int> appliedAt = GeneratedColumn<int>(
+    'applied_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -28100,13 +29600,12 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     bookingLocalUuid,
     bookingLocalId,
     roomNumber,
-    adjustmentType,
-    adjustmentMode,
     amount,
     effectiveHotelDay,
     endHotelDay,
@@ -28115,6 +29614,10 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
     appliedBy,
     cancelledAt,
     cancelledBy,
+    bookingUuid,
+    adjustmentType,
+    adjustmentMode,
+    appliedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -28247,6 +29750,15 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
         deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
       );
     }
+    if (data.containsKey('sync_timestamp')) {
+      context.handle(
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
+      );
+    }
     if (data.containsKey('idempotency_key')) {
       context.handle(
         _idempotencyKeyMeta,
@@ -28283,24 +29795,6 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
       context.handle(
         _roomNumberMeta,
         roomNumber.isAcceptableOrUnknown(data['room_number']!, _roomNumberMeta),
-      );
-    }
-    if (data.containsKey('adjustment_type')) {
-      context.handle(
-        _adjustmentTypeMeta,
-        adjustmentType.isAcceptableOrUnknown(
-          data['adjustment_type']!,
-          _adjustmentTypeMeta,
-        ),
-      );
-    }
-    if (data.containsKey('adjustment_mode')) {
-      context.handle(
-        _adjustmentModeMeta,
-        adjustmentMode.isAcceptableOrUnknown(
-          data['adjustment_mode']!,
-          _adjustmentModeMeta,
-        ),
       );
     }
     if (data.containsKey('amount')) {
@@ -28363,6 +29857,39 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
           data['cancelled_by']!,
           _cancelledByMeta,
         ),
+      );
+    }
+    if (data.containsKey('booking_uuid')) {
+      context.handle(
+        _bookingUuidMeta,
+        bookingUuid.isAcceptableOrUnknown(
+          data['booking_uuid']!,
+          _bookingUuidMeta,
+        ),
+      );
+    }
+    if (data.containsKey('adjustment_type')) {
+      context.handle(
+        _adjustmentTypeMeta,
+        adjustmentType.isAcceptableOrUnknown(
+          data['adjustment_type']!,
+          _adjustmentTypeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('adjustment_mode')) {
+      context.handle(
+        _adjustmentModeMeta,
+        adjustmentMode.isAcceptableOrUnknown(
+          data['adjustment_mode']!,
+          _adjustmentModeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('applied_at')) {
+      context.handle(
+        _appliedAtMeta,
+        appliedAt.isAcceptableOrUnknown(data['applied_at']!, _appliedAtMeta),
       );
     }
     return context;
@@ -28434,6 +29961,10 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
+      syncTimestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_timestamp'],
+      ),
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -28454,14 +29985,6 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
         DriftSqlType.string,
         data['${effectivePrefix}room_number'],
       ),
-      adjustmentType: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}adjustment_type'],
-      )!,
-      adjustmentMode: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}adjustment_mode'],
-      )!,
       amount: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}amount'],
@@ -28494,6 +30017,22 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
         DriftSqlType.string,
         data['${effectivePrefix}cancelled_by'],
       ),
+      bookingUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}booking_uuid'],
+      ),
+      adjustmentType: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}adjustment_type'],
+      ),
+      adjustmentMode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}adjustment_mode'],
+      ),
+      appliedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}applied_at'],
+      ),
     );
   }
 
@@ -28520,13 +30059,12 @@ class BookingPriceAdjustment extends DataClass
   final String origin;
   final String vectorClock;
   final String deviceId;
+  final int? syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final String bookingLocalUuid;
   final int? bookingLocalId;
   final String? roomNumber;
-  final int adjustmentType;
-  final String adjustmentMode;
   final double amount;
   final String effectiveHotelDay;
   final String? endHotelDay;
@@ -28535,6 +30073,10 @@ class BookingPriceAdjustment extends DataClass
   final String? appliedBy;
   final String? cancelledAt;
   final String? cancelledBy;
+  final String? bookingUuid;
+  final int? adjustmentType;
+  final String? adjustmentMode;
+  final int? appliedAt;
   const BookingPriceAdjustment({
     required this.localUuid,
     this.serverId,
@@ -28551,13 +30093,12 @@ class BookingPriceAdjustment extends DataClass
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
+    this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.bookingLocalUuid,
     this.bookingLocalId,
     this.roomNumber,
-    required this.adjustmentType,
-    required this.adjustmentMode,
     required this.amount,
     required this.effectiveHotelDay,
     this.endHotelDay,
@@ -28566,6 +30107,10 @@ class BookingPriceAdjustment extends DataClass
     this.appliedBy,
     this.cancelledAt,
     this.cancelledBy,
+    this.bookingUuid,
+    this.adjustmentType,
+    this.adjustmentMode,
+    this.appliedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -28595,6 +30140,9 @@ class BookingPriceAdjustment extends DataClass
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || syncTimestamp != null) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    }
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -28606,8 +30154,6 @@ class BookingPriceAdjustment extends DataClass
     if (!nullToAbsent || roomNumber != null) {
       map['room_number'] = Variable<String>(roomNumber);
     }
-    map['adjustment_type'] = Variable<int>(adjustmentType);
-    map['adjustment_mode'] = Variable<String>(adjustmentMode);
     map['amount'] = Variable<double>(amount);
     map['effective_hotel_day'] = Variable<String>(effectiveHotelDay);
     if (!nullToAbsent || endHotelDay != null) {
@@ -28625,6 +30171,18 @@ class BookingPriceAdjustment extends DataClass
     }
     if (!nullToAbsent || cancelledBy != null) {
       map['cancelled_by'] = Variable<String>(cancelledBy);
+    }
+    if (!nullToAbsent || bookingUuid != null) {
+      map['booking_uuid'] = Variable<String>(bookingUuid);
+    }
+    if (!nullToAbsent || adjustmentType != null) {
+      map['adjustment_type'] = Variable<int>(adjustmentType);
+    }
+    if (!nullToAbsent || adjustmentMode != null) {
+      map['adjustment_mode'] = Variable<String>(adjustmentMode);
+    }
+    if (!nullToAbsent || appliedAt != null) {
+      map['applied_at'] = Variable<int>(appliedAt);
     }
     return map;
   }
@@ -28656,6 +30214,9 @@ class BookingPriceAdjustment extends DataClass
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
+      syncTimestamp: syncTimestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -28667,8 +30228,6 @@ class BookingPriceAdjustment extends DataClass
       roomNumber: roomNumber == null && nullToAbsent
           ? const Value.absent()
           : Value(roomNumber),
-      adjustmentType: Value(adjustmentType),
-      adjustmentMode: Value(adjustmentMode),
       amount: Value(amount),
       effectiveHotelDay: Value(effectiveHotelDay),
       endHotelDay: endHotelDay == null && nullToAbsent
@@ -28687,6 +30246,18 @@ class BookingPriceAdjustment extends DataClass
       cancelledBy: cancelledBy == null && nullToAbsent
           ? const Value.absent()
           : Value(cancelledBy),
+      bookingUuid: bookingUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bookingUuid),
+      adjustmentType: adjustmentType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(adjustmentType),
+      adjustmentMode: adjustmentMode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(adjustmentMode),
+      appliedAt: appliedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(appliedAt),
     );
   }
 
@@ -28711,13 +30282,12 @@ class BookingPriceAdjustment extends DataClass
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       bookingLocalUuid: serializer.fromJson<String>(json['bookingLocalUuid']),
       bookingLocalId: serializer.fromJson<int?>(json['bookingLocalId']),
       roomNumber: serializer.fromJson<String?>(json['roomNumber']),
-      adjustmentType: serializer.fromJson<int>(json['adjustmentType']),
-      adjustmentMode: serializer.fromJson<String>(json['adjustmentMode']),
       amount: serializer.fromJson<double>(json['amount']),
       effectiveHotelDay: serializer.fromJson<String>(json['effectiveHotelDay']),
       endHotelDay: serializer.fromJson<String?>(json['endHotelDay']),
@@ -28726,6 +30296,10 @@ class BookingPriceAdjustment extends DataClass
       appliedBy: serializer.fromJson<String?>(json['appliedBy']),
       cancelledAt: serializer.fromJson<String?>(json['cancelledAt']),
       cancelledBy: serializer.fromJson<String?>(json['cancelledBy']),
+      bookingUuid: serializer.fromJson<String?>(json['bookingUuid']),
+      adjustmentType: serializer.fromJson<int?>(json['adjustmentType']),
+      adjustmentMode: serializer.fromJson<String?>(json['adjustmentMode']),
+      appliedAt: serializer.fromJson<int?>(json['appliedAt']),
     );
   }
   @override
@@ -28747,13 +30321,12 @@ class BookingPriceAdjustment extends DataClass
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
+      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'bookingLocalUuid': serializer.toJson<String>(bookingLocalUuid),
       'bookingLocalId': serializer.toJson<int?>(bookingLocalId),
       'roomNumber': serializer.toJson<String?>(roomNumber),
-      'adjustmentType': serializer.toJson<int>(adjustmentType),
-      'adjustmentMode': serializer.toJson<String>(adjustmentMode),
       'amount': serializer.toJson<double>(amount),
       'effectiveHotelDay': serializer.toJson<String>(effectiveHotelDay),
       'endHotelDay': serializer.toJson<String?>(endHotelDay),
@@ -28762,6 +30335,10 @@ class BookingPriceAdjustment extends DataClass
       'appliedBy': serializer.toJson<String?>(appliedBy),
       'cancelledAt': serializer.toJson<String?>(cancelledAt),
       'cancelledBy': serializer.toJson<String?>(cancelledBy),
+      'bookingUuid': serializer.toJson<String?>(bookingUuid),
+      'adjustmentType': serializer.toJson<int?>(adjustmentType),
+      'adjustmentMode': serializer.toJson<String?>(adjustmentMode),
+      'appliedAt': serializer.toJson<int?>(appliedAt),
     };
   }
 
@@ -28781,13 +30358,12 @@ class BookingPriceAdjustment extends DataClass
     String? origin,
     String? vectorClock,
     String? deviceId,
+    Value<int?> syncTimestamp = const Value.absent(),
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? bookingLocalUuid,
     Value<int?> bookingLocalId = const Value.absent(),
     Value<String?> roomNumber = const Value.absent(),
-    int? adjustmentType,
-    String? adjustmentMode,
     double? amount,
     String? effectiveHotelDay,
     Value<String?> endHotelDay = const Value.absent(),
@@ -28796,6 +30372,10 @@ class BookingPriceAdjustment extends DataClass
     Value<String?> appliedBy = const Value.absent(),
     Value<String?> cancelledAt = const Value.absent(),
     Value<String?> cancelledBy = const Value.absent(),
+    Value<String?> bookingUuid = const Value.absent(),
+    Value<int?> adjustmentType = const Value.absent(),
+    Value<String?> adjustmentMode = const Value.absent(),
+    Value<int?> appliedAt = const Value.absent(),
   }) => BookingPriceAdjustment(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -28812,6 +30392,9 @@ class BookingPriceAdjustment extends DataClass
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
+    syncTimestamp: syncTimestamp.present
+        ? syncTimestamp.value
+        : this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -28821,8 +30404,6 @@ class BookingPriceAdjustment extends DataClass
         ? bookingLocalId.value
         : this.bookingLocalId,
     roomNumber: roomNumber.present ? roomNumber.value : this.roomNumber,
-    adjustmentType: adjustmentType ?? this.adjustmentType,
-    adjustmentMode: adjustmentMode ?? this.adjustmentMode,
     amount: amount ?? this.amount,
     effectiveHotelDay: effectiveHotelDay ?? this.effectiveHotelDay,
     endHotelDay: endHotelDay.present ? endHotelDay.value : this.endHotelDay,
@@ -28831,6 +30412,14 @@ class BookingPriceAdjustment extends DataClass
     appliedBy: appliedBy.present ? appliedBy.value : this.appliedBy,
     cancelledAt: cancelledAt.present ? cancelledAt.value : this.cancelledAt,
     cancelledBy: cancelledBy.present ? cancelledBy.value : this.cancelledBy,
+    bookingUuid: bookingUuid.present ? bookingUuid.value : this.bookingUuid,
+    adjustmentType: adjustmentType.present
+        ? adjustmentType.value
+        : this.adjustmentType,
+    adjustmentMode: adjustmentMode.present
+        ? adjustmentMode.value
+        : this.adjustmentMode,
+    appliedAt: appliedAt.present ? appliedAt.value : this.appliedAt,
   );
   BookingPriceAdjustment copyWithCompanion(
     BookingPriceAdjustmentsCompanion data,
@@ -28865,6 +30454,9 @@ class BookingPriceAdjustment extends DataClass
           ? data.vectorClock.value
           : this.vectorClock,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
       idempotencyKey: data.idempotencyKey.present
           ? data.idempotencyKey.value
           : this.idempotencyKey,
@@ -28878,12 +30470,6 @@ class BookingPriceAdjustment extends DataClass
       roomNumber: data.roomNumber.present
           ? data.roomNumber.value
           : this.roomNumber,
-      adjustmentType: data.adjustmentType.present
-          ? data.adjustmentType.value
-          : this.adjustmentType,
-      adjustmentMode: data.adjustmentMode.present
-          ? data.adjustmentMode.value
-          : this.adjustmentMode,
       amount: data.amount.present ? data.amount.value : this.amount,
       effectiveHotelDay: data.effectiveHotelDay.present
           ? data.effectiveHotelDay.value
@@ -28900,6 +30486,16 @@ class BookingPriceAdjustment extends DataClass
       cancelledBy: data.cancelledBy.present
           ? data.cancelledBy.value
           : this.cancelledBy,
+      bookingUuid: data.bookingUuid.present
+          ? data.bookingUuid.value
+          : this.bookingUuid,
+      adjustmentType: data.adjustmentType.present
+          ? data.adjustmentType.value
+          : this.adjustmentType,
+      adjustmentMode: data.adjustmentMode.present
+          ? data.adjustmentMode.value
+          : this.adjustmentMode,
+      appliedAt: data.appliedAt.present ? data.appliedAt.value : this.appliedAt,
     );
   }
 
@@ -28921,13 +30517,12 @@ class BookingPriceAdjustment extends DataClass
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('bookingLocalUuid: $bookingLocalUuid, ')
           ..write('bookingLocalId: $bookingLocalId, ')
           ..write('roomNumber: $roomNumber, ')
-          ..write('adjustmentType: $adjustmentType, ')
-          ..write('adjustmentMode: $adjustmentMode, ')
           ..write('amount: $amount, ')
           ..write('effectiveHotelDay: $effectiveHotelDay, ')
           ..write('endHotelDay: $endHotelDay, ')
@@ -28935,7 +30530,11 @@ class BookingPriceAdjustment extends DataClass
           ..write('reason: $reason, ')
           ..write('appliedBy: $appliedBy, ')
           ..write('cancelledAt: $cancelledAt, ')
-          ..write('cancelledBy: $cancelledBy')
+          ..write('cancelledBy: $cancelledBy, ')
+          ..write('bookingUuid: $bookingUuid, ')
+          ..write('adjustmentType: $adjustmentType, ')
+          ..write('adjustmentMode: $adjustmentMode, ')
+          ..write('appliedAt: $appliedAt')
           ..write(')'))
         .toString();
   }
@@ -28957,13 +30556,12 @@ class BookingPriceAdjustment extends DataClass
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     bookingLocalUuid,
     bookingLocalId,
     roomNumber,
-    adjustmentType,
-    adjustmentMode,
     amount,
     effectiveHotelDay,
     endHotelDay,
@@ -28972,6 +30570,10 @@ class BookingPriceAdjustment extends DataClass
     appliedBy,
     cancelledAt,
     cancelledBy,
+    bookingUuid,
+    adjustmentType,
+    adjustmentMode,
+    appliedAt,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -28992,13 +30594,12 @@ class BookingPriceAdjustment extends DataClass
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
           other.deviceId == this.deviceId &&
+          other.syncTimestamp == this.syncTimestamp &&
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.bookingLocalUuid == this.bookingLocalUuid &&
           other.bookingLocalId == this.bookingLocalId &&
           other.roomNumber == this.roomNumber &&
-          other.adjustmentType == this.adjustmentType &&
-          other.adjustmentMode == this.adjustmentMode &&
           other.amount == this.amount &&
           other.effectiveHotelDay == this.effectiveHotelDay &&
           other.endHotelDay == this.endHotelDay &&
@@ -29006,7 +30607,11 @@ class BookingPriceAdjustment extends DataClass
           other.reason == this.reason &&
           other.appliedBy == this.appliedBy &&
           other.cancelledAt == this.cancelledAt &&
-          other.cancelledBy == this.cancelledBy);
+          other.cancelledBy == this.cancelledBy &&
+          other.bookingUuid == this.bookingUuid &&
+          other.adjustmentType == this.adjustmentType &&
+          other.adjustmentMode == this.adjustmentMode &&
+          other.appliedAt == this.appliedAt);
 }
 
 class BookingPriceAdjustmentsCompanion
@@ -29026,13 +30631,12 @@ class BookingPriceAdjustmentsCompanion
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
+  final Value<int?> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> bookingLocalUuid;
   final Value<int?> bookingLocalId;
   final Value<String?> roomNumber;
-  final Value<int> adjustmentType;
-  final Value<String> adjustmentMode;
   final Value<double> amount;
   final Value<String> effectiveHotelDay;
   final Value<String?> endHotelDay;
@@ -29041,6 +30645,10 @@ class BookingPriceAdjustmentsCompanion
   final Value<String?> appliedBy;
   final Value<String?> cancelledAt;
   final Value<String?> cancelledBy;
+  final Value<String?> bookingUuid;
+  final Value<int?> adjustmentType;
+  final Value<String?> adjustmentMode;
+  final Value<int?> appliedAt;
   const BookingPriceAdjustmentsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -29057,13 +30665,12 @@ class BookingPriceAdjustmentsCompanion
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.bookingLocalUuid = const Value.absent(),
     this.bookingLocalId = const Value.absent(),
     this.roomNumber = const Value.absent(),
-    this.adjustmentType = const Value.absent(),
-    this.adjustmentMode = const Value.absent(),
     this.amount = const Value.absent(),
     this.effectiveHotelDay = const Value.absent(),
     this.endHotelDay = const Value.absent(),
@@ -29072,6 +30679,10 @@ class BookingPriceAdjustmentsCompanion
     this.appliedBy = const Value.absent(),
     this.cancelledAt = const Value.absent(),
     this.cancelledBy = const Value.absent(),
+    this.bookingUuid = const Value.absent(),
+    this.adjustmentType = const Value.absent(),
+    this.adjustmentMode = const Value.absent(),
+    this.appliedAt = const Value.absent(),
   });
   BookingPriceAdjustmentsCompanion.insert({
     required String localUuid,
@@ -29089,13 +30700,12 @@ class BookingPriceAdjustmentsCompanion
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required String bookingLocalUuid,
     this.bookingLocalId = const Value.absent(),
     this.roomNumber = const Value.absent(),
-    this.adjustmentType = const Value.absent(),
-    this.adjustmentMode = const Value.absent(),
     this.amount = const Value.absent(),
     required String effectiveHotelDay,
     this.endHotelDay = const Value.absent(),
@@ -29104,6 +30714,10 @@ class BookingPriceAdjustmentsCompanion
     this.appliedBy = const Value.absent(),
     this.cancelledAt = const Value.absent(),
     this.cancelledBy = const Value.absent(),
+    this.bookingUuid = const Value.absent(),
+    this.adjustmentType = const Value.absent(),
+    this.adjustmentMode = const Value.absent(),
+    this.appliedAt = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -29126,13 +30740,12 @@ class BookingPriceAdjustmentsCompanion
     Expression<String>? origin,
     Expression<String>? vectorClock,
     Expression<String>? deviceId,
+    Expression<int>? syncTimestamp,
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<String>? bookingLocalUuid,
     Expression<int>? bookingLocalId,
     Expression<String>? roomNumber,
-    Expression<int>? adjustmentType,
-    Expression<String>? adjustmentMode,
     Expression<double>? amount,
     Expression<String>? effectiveHotelDay,
     Expression<String>? endHotelDay,
@@ -29141,6 +30754,10 @@ class BookingPriceAdjustmentsCompanion
     Expression<String>? appliedBy,
     Expression<String>? cancelledAt,
     Expression<String>? cancelledBy,
+    Expression<String>? bookingUuid,
+    Expression<int>? adjustmentType,
+    Expression<String>? adjustmentMode,
+    Expression<int>? appliedAt,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -29158,13 +30775,12 @@ class BookingPriceAdjustmentsCompanion
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
       if (deviceId != null) 'device_id': deviceId,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (bookingLocalUuid != null) 'booking_local_uuid': bookingLocalUuid,
       if (bookingLocalId != null) 'booking_local_id': bookingLocalId,
       if (roomNumber != null) 'room_number': roomNumber,
-      if (adjustmentType != null) 'adjustment_type': adjustmentType,
-      if (adjustmentMode != null) 'adjustment_mode': adjustmentMode,
       if (amount != null) 'amount': amount,
       if (effectiveHotelDay != null) 'effective_hotel_day': effectiveHotelDay,
       if (endHotelDay != null) 'end_hotel_day': endHotelDay,
@@ -29173,6 +30789,10 @@ class BookingPriceAdjustmentsCompanion
       if (appliedBy != null) 'applied_by': appliedBy,
       if (cancelledAt != null) 'cancelled_at': cancelledAt,
       if (cancelledBy != null) 'cancelled_by': cancelledBy,
+      if (bookingUuid != null) 'booking_uuid': bookingUuid,
+      if (adjustmentType != null) 'adjustment_type': adjustmentType,
+      if (adjustmentMode != null) 'adjustment_mode': adjustmentMode,
+      if (appliedAt != null) 'applied_at': appliedAt,
     });
   }
 
@@ -29192,13 +30812,12 @@ class BookingPriceAdjustmentsCompanion
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
+    Value<int?>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? bookingLocalUuid,
     Value<int?>? bookingLocalId,
     Value<String?>? roomNumber,
-    Value<int>? adjustmentType,
-    Value<String>? adjustmentMode,
     Value<double>? amount,
     Value<String>? effectiveHotelDay,
     Value<String?>? endHotelDay,
@@ -29207,6 +30826,10 @@ class BookingPriceAdjustmentsCompanion
     Value<String?>? appliedBy,
     Value<String?>? cancelledAt,
     Value<String?>? cancelledBy,
+    Value<String?>? bookingUuid,
+    Value<int?>? adjustmentType,
+    Value<String?>? adjustmentMode,
+    Value<int?>? appliedAt,
   }) {
     return BookingPriceAdjustmentsCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -29224,13 +30847,12 @@ class BookingPriceAdjustmentsCompanion
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
       deviceId: deviceId ?? this.deviceId,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       bookingLocalUuid: bookingLocalUuid ?? this.bookingLocalUuid,
       bookingLocalId: bookingLocalId ?? this.bookingLocalId,
       roomNumber: roomNumber ?? this.roomNumber,
-      adjustmentType: adjustmentType ?? this.adjustmentType,
-      adjustmentMode: adjustmentMode ?? this.adjustmentMode,
       amount: amount ?? this.amount,
       effectiveHotelDay: effectiveHotelDay ?? this.effectiveHotelDay,
       endHotelDay: endHotelDay ?? this.endHotelDay,
@@ -29239,6 +30861,10 @@ class BookingPriceAdjustmentsCompanion
       appliedBy: appliedBy ?? this.appliedBy,
       cancelledAt: cancelledAt ?? this.cancelledAt,
       cancelledBy: cancelledBy ?? this.cancelledBy,
+      bookingUuid: bookingUuid ?? this.bookingUuid,
+      adjustmentType: adjustmentType ?? this.adjustmentType,
+      adjustmentMode: adjustmentMode ?? this.adjustmentMode,
+      appliedAt: appliedAt ?? this.appliedAt,
     );
   }
 
@@ -29290,6 +30916,9 @@ class BookingPriceAdjustmentsCompanion
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
     }
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
+    }
     if (idempotencyKey.present) {
       map['idempotency_key'] = Variable<String>(idempotencyKey.value);
     }
@@ -29304,12 +30933,6 @@ class BookingPriceAdjustmentsCompanion
     }
     if (roomNumber.present) {
       map['room_number'] = Variable<String>(roomNumber.value);
-    }
-    if (adjustmentType.present) {
-      map['adjustment_type'] = Variable<int>(adjustmentType.value);
-    }
-    if (adjustmentMode.present) {
-      map['adjustment_mode'] = Variable<String>(adjustmentMode.value);
     }
     if (amount.present) {
       map['amount'] = Variable<double>(amount.value);
@@ -29335,6 +30958,18 @@ class BookingPriceAdjustmentsCompanion
     if (cancelledBy.present) {
       map['cancelled_by'] = Variable<String>(cancelledBy.value);
     }
+    if (bookingUuid.present) {
+      map['booking_uuid'] = Variable<String>(bookingUuid.value);
+    }
+    if (adjustmentType.present) {
+      map['adjustment_type'] = Variable<int>(adjustmentType.value);
+    }
+    if (adjustmentMode.present) {
+      map['adjustment_mode'] = Variable<String>(adjustmentMode.value);
+    }
+    if (appliedAt.present) {
+      map['applied_at'] = Variable<int>(appliedAt.value);
+    }
     return map;
   }
 
@@ -29356,13 +30991,12 @@ class BookingPriceAdjustmentsCompanion
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('bookingLocalUuid: $bookingLocalUuid, ')
           ..write('bookingLocalId: $bookingLocalId, ')
           ..write('roomNumber: $roomNumber, ')
-          ..write('adjustmentType: $adjustmentType, ')
-          ..write('adjustmentMode: $adjustmentMode, ')
           ..write('amount: $amount, ')
           ..write('effectiveHotelDay: $effectiveHotelDay, ')
           ..write('endHotelDay: $endHotelDay, ')
@@ -29370,7 +31004,11 @@ class BookingPriceAdjustmentsCompanion
           ..write('reason: $reason, ')
           ..write('appliedBy: $appliedBy, ')
           ..write('cancelledAt: $cancelledAt, ')
-          ..write('cancelledBy: $cancelledBy')
+          ..write('cancelledBy: $cancelledBy, ')
+          ..write('bookingUuid: $bookingUuid, ')
+          ..write('adjustmentType: $adjustmentType, ')
+          ..write('adjustmentMode: $adjustmentMode, ')
+          ..write('appliedAt: $appliedAt')
           ..write(')'))
         .toString();
   }
@@ -29551,6 +31189,17 @@ class $AuditLogsTable extends AuditLogs
     type: DriftSqlType.string,
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
+  );
+  @override
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -29751,6 +31400,7 @@ class $AuditLogsTable extends AuditLogs
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     operationType,
@@ -29897,6 +31547,15 @@ class $AuditLogsTable extends AuditLogs
       context.handle(
         _deviceIdMeta,
         deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('sync_timestamp')) {
+      context.handle(
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
       );
     }
     if (data.containsKey('idempotency_key')) {
@@ -30102,6 +31761,10 @@ class $AuditLogsTable extends AuditLogs
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
+      syncTimestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_timestamp'],
+      ),
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -30191,6 +31854,7 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
   final String origin;
   final String vectorClock;
   final String deviceId;
+  final int? syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final String operationType;
@@ -30223,6 +31887,7 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
+    this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.operationType,
@@ -30268,6 +31933,9 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || syncTimestamp != null) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    }
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -30328,6 +31996,9 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
+      syncTimestamp: syncTimestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -30382,6 +32053,7 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       operationType: serializer.fromJson<String>(json['operationType']),
@@ -30419,6 +32091,7 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
+      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'operationType': serializer.toJson<String>(operationType),
@@ -30454,6 +32127,7 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
     String? origin,
     String? vectorClock,
     String? deviceId,
+    Value<int?> syncTimestamp = const Value.absent(),
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? operationType,
@@ -30486,6 +32160,9 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
+    syncTimestamp: syncTimestamp.present
+        ? syncTimestamp.value
+        : this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -30540,6 +32217,9 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
           ? data.vectorClock.value
           : this.vectorClock,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
       idempotencyKey: data.idempotencyKey.present
           ? data.idempotencyKey.value
           : this.idempotencyKey,
@@ -30599,6 +32279,7 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('operationType: $operationType, ')
@@ -30636,6 +32317,7 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     operationType,
@@ -30672,6 +32354,7 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
           other.deviceId == this.deviceId &&
+          other.syncTimestamp == this.syncTimestamp &&
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.operationType == this.operationType &&
@@ -30706,6 +32389,7 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
+  final Value<int?> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> operationType;
@@ -30738,6 +32422,7 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.operationType = const Value.absent(),
@@ -30771,6 +32456,7 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required String operationType,
@@ -30814,6 +32500,7 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     Expression<String>? origin,
     Expression<String>? vectorClock,
     Expression<String>? deviceId,
+    Expression<int>? syncTimestamp,
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<String>? operationType,
@@ -30847,6 +32534,7 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
       if (deviceId != null) 'device_id': deviceId,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (operationType != null) 'operation_type': operationType,
@@ -30882,6 +32570,7 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
+    Value<int?>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? operationType,
@@ -30915,6 +32604,7 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
       deviceId: deviceId ?? this.deviceId,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       operationType: operationType ?? this.operationType,
@@ -30981,6 +32671,9 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     }
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
     }
     if (idempotencyKey.present) {
       map['idempotency_key'] = Variable<String>(idempotencyKey.value);
@@ -31051,6 +32744,7 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('operationType: $operationType, ')
@@ -31248,6 +32942,17 @@ class $PaymentVoidsTable extends PaymentVoids
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
+  );
+  @override
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
   );
@@ -31442,6 +33147,7 @@ class $PaymentVoidsTable extends PaymentVoids
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     originalPaymentUuid,
@@ -31588,6 +33294,15 @@ class $PaymentVoidsTable extends PaymentVoids
       context.handle(
         _deviceIdMeta,
         deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('sync_timestamp')) {
+      context.handle(
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
       );
     }
     if (data.containsKey('idempotency_key')) {
@@ -31800,6 +33515,10 @@ class $PaymentVoidsTable extends PaymentVoids
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
+      syncTimestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_timestamp'],
+      ),
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -31889,6 +33608,7 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
   final String origin;
   final String vectorClock;
   final String deviceId;
+  final int? syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final String originalPaymentUuid;
@@ -31921,6 +33641,7 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
+    this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.originalPaymentUuid,
@@ -31966,6 +33687,9 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || syncTimestamp != null) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    }
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -32024,6 +33748,9 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
+      syncTimestamp: syncTimestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -32074,6 +33801,7 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       originalPaymentUuid: serializer.fromJson<String>(
@@ -32115,6 +33843,7 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
+      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'originalPaymentUuid': serializer.toJson<String>(originalPaymentUuid),
@@ -32150,6 +33879,7 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     String? origin,
     String? vectorClock,
     String? deviceId,
+    Value<int?> syncTimestamp = const Value.absent(),
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? originalPaymentUuid,
@@ -32182,6 +33912,9 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
+    syncTimestamp: syncTimestamp.present
+        ? syncTimestamp.value
+        : this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -32236,6 +33969,9 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
           ? data.vectorClock.value
           : this.vectorClock,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
       idempotencyKey: data.idempotencyKey.present
           ? data.idempotencyKey.value
           : this.idempotencyKey,
@@ -32297,6 +34033,7 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('originalPaymentUuid: $originalPaymentUuid, ')
@@ -32334,6 +34071,7 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     originalPaymentUuid,
@@ -32370,6 +34108,7 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
           other.deviceId == this.deviceId &&
+          other.syncTimestamp == this.syncTimestamp &&
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.originalPaymentUuid == this.originalPaymentUuid &&
@@ -32404,6 +34143,7 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
+  final Value<int?> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> originalPaymentUuid;
@@ -32436,6 +34176,7 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.originalPaymentUuid = const Value.absent(),
@@ -32469,6 +34210,7 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required String originalPaymentUuid,
@@ -32514,6 +34256,7 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     Expression<String>? origin,
     Expression<String>? vectorClock,
     Expression<String>? deviceId,
+    Expression<int>? syncTimestamp,
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<String>? originalPaymentUuid,
@@ -32547,6 +34290,7 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
       if (deviceId != null) 'device_id': deviceId,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (originalPaymentUuid != null)
@@ -32584,6 +34328,7 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
+    Value<int?>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? originalPaymentUuid,
@@ -32617,6 +34362,7 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
       deviceId: deviceId ?? this.deviceId,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       originalPaymentUuid: originalPaymentUuid ?? this.originalPaymentUuid,
@@ -32683,6 +34429,9 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     }
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
     }
     if (idempotencyKey.present) {
       map['idempotency_key'] = Variable<String>(idempotencyKey.value);
@@ -32757,6 +34506,7 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('originalPaymentUuid: $originalPaymentUuid, ')
@@ -32954,6 +34704,17 @@ class $GuestInfosTable extends GuestInfos
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
+  );
+  @override
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
   );
@@ -33074,6 +34835,17 @@ class $GuestInfosTable extends GuestInfos
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _guestPhoneMeta = const VerificationMeta(
+    'guestPhone',
+  );
+  @override
+  late final GeneratedColumn<String> guestPhone = GeneratedColumn<String>(
+    'guest_phone',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -33091,6 +34863,7 @@ class $GuestInfosTable extends GuestInfos
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     roomNumber,
@@ -33102,6 +34875,7 @@ class $GuestInfosTable extends GuestInfos
     issuePlace,
     governorate,
     notes,
+    guestPhone,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -33234,6 +35008,15 @@ class $GuestInfosTable extends GuestInfos
         deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
       );
     }
+    if (data.containsKey('sync_timestamp')) {
+      context.handle(
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
+      );
+    }
     if (data.containsKey('idempotency_key')) {
       context.handle(
         _idempotencyKeyMeta,
@@ -33314,6 +35097,12 @@ class $GuestInfosTable extends GuestInfos
         notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
       );
     }
+    if (data.containsKey('guest_phone')) {
+      context.handle(
+        _guestPhoneMeta,
+        guestPhone.isAcceptableOrUnknown(data['guest_phone']!, _guestPhoneMeta),
+      );
+    }
     return context;
   }
 
@@ -33383,6 +35172,10 @@ class $GuestInfosTable extends GuestInfos
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
+      syncTimestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_timestamp'],
+      ),
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -33427,6 +35220,10 @@ class $GuestInfosTable extends GuestInfos
         DriftSqlType.string,
         data['${effectivePrefix}notes'],
       ),
+      guestPhone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}guest_phone'],
+      ),
     );
   }
 
@@ -33452,6 +35249,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
   final String origin;
   final String vectorClock;
   final String deviceId;
+  final int? syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final String roomNumber;
@@ -33463,6 +35261,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
   final String? issuePlace;
   final String? governorate;
   final String? notes;
+  final String? guestPhone;
   const GuestInfo({
     required this.localUuid,
     this.serverId,
@@ -33479,6 +35278,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
+    this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.roomNumber,
@@ -33490,6 +35290,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     this.issuePlace,
     this.governorate,
     this.notes,
+    this.guestPhone,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -33519,6 +35320,9 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || syncTimestamp != null) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    }
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -33539,6 +35343,9 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     }
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
+    }
+    if (!nullToAbsent || guestPhone != null) {
+      map['guest_phone'] = Variable<String>(guestPhone);
     }
     return map;
   }
@@ -33570,6 +35377,9 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
+      syncTimestamp: syncTimestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -33591,6 +35401,9 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       notes: notes == null && nullToAbsent
           ? const Value.absent()
           : Value(notes),
+      guestPhone: guestPhone == null && nullToAbsent
+          ? const Value.absent()
+          : Value(guestPhone),
     );
   }
 
@@ -33615,6 +35428,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       roomNumber: serializer.fromJson<String>(json['roomNumber']),
@@ -33626,6 +35440,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       issuePlace: serializer.fromJson<String?>(json['issuePlace']),
       governorate: serializer.fromJson<String?>(json['governorate']),
       notes: serializer.fromJson<String?>(json['notes']),
+      guestPhone: serializer.fromJson<String?>(json['guestPhone']),
     );
   }
   @override
@@ -33647,6 +35462,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
+      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'roomNumber': serializer.toJson<String>(roomNumber),
@@ -33658,6 +35474,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       'issuePlace': serializer.toJson<String?>(issuePlace),
       'governorate': serializer.toJson<String?>(governorate),
       'notes': serializer.toJson<String?>(notes),
+      'guestPhone': serializer.toJson<String?>(guestPhone),
     };
   }
 
@@ -33677,6 +35494,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     String? origin,
     String? vectorClock,
     String? deviceId,
+    Value<int?> syncTimestamp = const Value.absent(),
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? roomNumber,
@@ -33688,6 +35506,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     Value<String?> issuePlace = const Value.absent(),
     Value<String?> governorate = const Value.absent(),
     Value<String?> notes = const Value.absent(),
+    Value<String?> guestPhone = const Value.absent(),
   }) => GuestInfo(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -33704,6 +35523,9 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
+    syncTimestamp: syncTimestamp.present
+        ? syncTimestamp.value
+        : this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -33717,6 +35539,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     issuePlace: issuePlace.present ? issuePlace.value : this.issuePlace,
     governorate: governorate.present ? governorate.value : this.governorate,
     notes: notes.present ? notes.value : this.notes,
+    guestPhone: guestPhone.present ? guestPhone.value : this.guestPhone,
   );
   GuestInfo copyWithCompanion(GuestInfosCompanion data) {
     return GuestInfo(
@@ -33749,6 +35572,9 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
           ? data.vectorClock.value
           : this.vectorClock,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
       idempotencyKey: data.idempotencyKey.present
           ? data.idempotencyKey.value
           : this.idempotencyKey,
@@ -33770,6 +35596,9 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
           ? data.governorate.value
           : this.governorate,
       notes: data.notes.present ? data.notes.value : this.notes,
+      guestPhone: data.guestPhone.present
+          ? data.guestPhone.value
+          : this.guestPhone,
     );
   }
 
@@ -33791,6 +35620,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('roomNumber: $roomNumber, ')
@@ -33801,7 +35631,8 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
           ..write('issueDate: $issueDate, ')
           ..write('issuePlace: $issuePlace, ')
           ..write('governorate: $governorate, ')
-          ..write('notes: $notes')
+          ..write('notes: $notes, ')
+          ..write('guestPhone: $guestPhone')
           ..write(')'))
         .toString();
   }
@@ -33823,6 +35654,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     roomNumber,
@@ -33834,6 +35666,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     issuePlace,
     governorate,
     notes,
+    guestPhone,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -33854,6 +35687,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
           other.deviceId == this.deviceId &&
+          other.syncTimestamp == this.syncTimestamp &&
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.roomNumber == this.roomNumber &&
@@ -33864,7 +35698,8 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
           other.issueDate == this.issueDate &&
           other.issuePlace == this.issuePlace &&
           other.governorate == this.governorate &&
-          other.notes == this.notes);
+          other.notes == this.notes &&
+          other.guestPhone == this.guestPhone);
 }
 
 class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
@@ -33883,6 +35718,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
+  final Value<int?> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> roomNumber;
@@ -33894,6 +35730,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
   final Value<String?> issuePlace;
   final Value<String?> governorate;
   final Value<String?> notes;
+  final Value<String?> guestPhone;
   const GuestInfosCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -33910,6 +35747,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.roomNumber = const Value.absent(),
@@ -33921,6 +35759,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     this.issuePlace = const Value.absent(),
     this.governorate = const Value.absent(),
     this.notes = const Value.absent(),
+    this.guestPhone = const Value.absent(),
   });
   GuestInfosCompanion.insert({
     required String localUuid,
@@ -33938,6 +35777,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required String roomNumber,
@@ -33949,6 +35789,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     this.issuePlace = const Value.absent(),
     this.governorate = const Value.absent(),
     this.notes = const Value.absent(),
+    this.guestPhone = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -33973,6 +35814,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     Expression<String>? origin,
     Expression<String>? vectorClock,
     Expression<String>? deviceId,
+    Expression<int>? syncTimestamp,
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<String>? roomNumber,
@@ -33984,6 +35826,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     Expression<String>? issuePlace,
     Expression<String>? governorate,
     Expression<String>? notes,
+    Expression<String>? guestPhone,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -34001,6 +35844,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
       if (deviceId != null) 'device_id': deviceId,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (roomNumber != null) 'room_number': roomNumber,
@@ -34012,6 +35856,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
       if (issuePlace != null) 'issue_place': issuePlace,
       if (governorate != null) 'governorate': governorate,
       if (notes != null) 'notes': notes,
+      if (guestPhone != null) 'guest_phone': guestPhone,
     });
   }
 
@@ -34031,6 +35876,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
+    Value<int?>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? roomNumber,
@@ -34042,6 +35888,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     Value<String?>? issuePlace,
     Value<String?>? governorate,
     Value<String?>? notes,
+    Value<String?>? guestPhone,
   }) {
     return GuestInfosCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -34059,6 +35906,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
       deviceId: deviceId ?? this.deviceId,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       roomNumber: roomNumber ?? this.roomNumber,
@@ -34070,6 +35918,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
       issuePlace: issuePlace ?? this.issuePlace,
       governorate: governorate ?? this.governorate,
       notes: notes ?? this.notes,
+      guestPhone: guestPhone ?? this.guestPhone,
     );
   }
 
@@ -34121,6 +35970,9 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
     }
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
+    }
     if (idempotencyKey.present) {
       map['idempotency_key'] = Variable<String>(idempotencyKey.value);
     }
@@ -34154,6 +36006,9 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
+    if (guestPhone.present) {
+      map['guest_phone'] = Variable<String>(guestPhone.value);
+    }
     return map;
   }
 
@@ -34175,6 +36030,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('roomNumber: $roomNumber, ')
@@ -34185,7 +36041,8 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
           ..write('issueDate: $issueDate, ')
           ..write('issuePlace: $issuePlace, ')
           ..write('governorate: $governorate, ')
-          ..write('notes: $notes')
+          ..write('notes: $notes, ')
+          ..write('guestPhone: $guestPhone')
           ..write(')'))
         .toString();
   }
@@ -34367,6 +36224,17 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
+  );
+  @override
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
   );
@@ -34495,6 +36363,7 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     employeeId,
@@ -34635,6 +36504,15 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
       context.handle(
         _deviceIdMeta,
         deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('sync_timestamp')) {
+      context.handle(
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
       );
     }
     if (data.containsKey('idempotency_key')) {
@@ -34784,6 +36662,10 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
+      syncTimestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_timestamp'],
+      ),
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -34850,6 +36732,7 @@ class SalaryWithdrawal extends DataClass
   final String origin;
   final String vectorClock;
   final String deviceId;
+  final int? syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final int employeeId;
@@ -34876,6 +36759,7 @@ class SalaryWithdrawal extends DataClass
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
+    this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.employeeId,
@@ -34915,6 +36799,9 @@ class SalaryWithdrawal extends DataClass
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || syncTimestamp != null) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    }
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -34967,6 +36854,9 @@ class SalaryWithdrawal extends DataClass
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
+      syncTimestamp: syncTimestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -35013,6 +36903,7 @@ class SalaryWithdrawal extends DataClass
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       employeeId: serializer.fromJson<int>(json['employeeId']),
@@ -35044,6 +36935,7 @@ class SalaryWithdrawal extends DataClass
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
+      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'employeeId': serializer.toJson<int>(employeeId),
@@ -35073,6 +36965,7 @@ class SalaryWithdrawal extends DataClass
     String? origin,
     String? vectorClock,
     String? deviceId,
+    Value<int?> syncTimestamp = const Value.absent(),
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     int? employeeId,
@@ -35099,6 +36992,9 @@ class SalaryWithdrawal extends DataClass
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
+    syncTimestamp: syncTimestamp.present
+        ? syncTimestamp.value
+        : this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -35145,6 +37041,9 @@ class SalaryWithdrawal extends DataClass
           ? data.vectorClock.value
           : this.vectorClock,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
       idempotencyKey: data.idempotencyKey.present
           ? data.idempotencyKey.value
           : this.idempotencyKey,
@@ -35188,6 +37087,7 @@ class SalaryWithdrawal extends DataClass
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('employeeId: $employeeId, ')
@@ -35219,6 +37119,7 @@ class SalaryWithdrawal extends DataClass
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     employeeId,
@@ -35249,6 +37150,7 @@ class SalaryWithdrawal extends DataClass
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
           other.deviceId == this.deviceId &&
+          other.syncTimestamp == this.syncTimestamp &&
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.employeeId == this.employeeId &&
@@ -35277,6 +37179,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
+  final Value<int?> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int> employeeId;
@@ -35303,6 +37206,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.employeeId = const Value.absent(),
@@ -35330,6 +37234,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required int employeeId,
@@ -35363,6 +37268,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     Expression<String>? origin,
     Expression<String>? vectorClock,
     Expression<String>? deviceId,
+    Expression<int>? syncTimestamp,
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<int>? employeeId,
@@ -35390,6 +37296,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
       if (deviceId != null) 'device_id': deviceId,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (employeeId != null) 'employee_id': employeeId,
@@ -35419,6 +37326,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
+    Value<int?>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int>? employeeId,
@@ -35446,6 +37354,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
       deviceId: deviceId ?? this.deviceId,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       employeeId: employeeId ?? this.employeeId,
@@ -35507,6 +37416,9 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
     }
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
+    }
     if (idempotencyKey.present) {
       map['idempotency_key'] = Variable<String>(idempotencyKey.value);
     }
@@ -35558,6 +37470,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('employeeId: $employeeId, ')
@@ -35749,6 +37662,17 @@ class $SalaryCarryOverLogsTable extends SalaryCarryOverLogs
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
+  );
+  @override
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
   );
@@ -35860,6 +37784,61 @@ class $SalaryCarryOverLogsTable extends SalaryCarryOverLogs
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _fromCycleIdMeta = const VerificationMeta(
+    'fromCycleId',
+  );
+  @override
+  late final GeneratedColumn<String> fromCycleId = GeneratedColumn<String>(
+    'from_cycle_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _toCycleIdMeta = const VerificationMeta(
+    'toCycleId',
+  );
+  @override
+  late final GeneratedColumn<String> toCycleId = GeneratedColumn<String>(
+    'to_cycle_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _carryDateMeta = const VerificationMeta(
+    'carryDate',
+  );
+  @override
+  late final GeneratedColumn<String> carryDate = GeneratedColumn<String>(
+    'carry_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _performedByMeta = const VerificationMeta(
+    'performedBy',
+  );
+  @override
+  late final GeneratedColumn<String> performedBy = GeneratedColumn<String>(
+    'performed_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _hotelDayKeyMeta = const VerificationMeta(
+    'hotelDayKey',
+  );
+  @override
+  late final GeneratedColumn<String> hotelDayKey = GeneratedColumn<String>(
+    'hotel_day_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -35877,6 +37856,7 @@ class $SalaryCarryOverLogsTable extends SalaryCarryOverLogs
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     employeeId,
@@ -35887,6 +37867,11 @@ class $SalaryCarryOverLogsTable extends SalaryCarryOverLogs
     newCycleEnd,
     reason,
     carriedAt,
+    fromCycleId,
+    toCycleId,
+    carryDate,
+    performedBy,
+    hotelDayKey,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -36019,6 +38004,15 @@ class $SalaryCarryOverLogsTable extends SalaryCarryOverLogs
         deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
       );
     }
+    if (data.containsKey('sync_timestamp')) {
+      context.handle(
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
+      );
+    }
     if (data.containsKey('idempotency_key')) {
       context.handle(
         _idempotencyKeyMeta,
@@ -36107,6 +38101,45 @@ class $SalaryCarryOverLogsTable extends SalaryCarryOverLogs
     } else if (isInserting) {
       context.missing(_carriedAtMeta);
     }
+    if (data.containsKey('from_cycle_id')) {
+      context.handle(
+        _fromCycleIdMeta,
+        fromCycleId.isAcceptableOrUnknown(
+          data['from_cycle_id']!,
+          _fromCycleIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('to_cycle_id')) {
+      context.handle(
+        _toCycleIdMeta,
+        toCycleId.isAcceptableOrUnknown(data['to_cycle_id']!, _toCycleIdMeta),
+      );
+    }
+    if (data.containsKey('carry_date')) {
+      context.handle(
+        _carryDateMeta,
+        carryDate.isAcceptableOrUnknown(data['carry_date']!, _carryDateMeta),
+      );
+    }
+    if (data.containsKey('performed_by')) {
+      context.handle(
+        _performedByMeta,
+        performedBy.isAcceptableOrUnknown(
+          data['performed_by']!,
+          _performedByMeta,
+        ),
+      );
+    }
+    if (data.containsKey('hotel_day_key')) {
+      context.handle(
+        _hotelDayKeyMeta,
+        hotelDayKey.isAcceptableOrUnknown(
+          data['hotel_day_key']!,
+          _hotelDayKeyMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -36176,6 +38209,10 @@ class $SalaryCarryOverLogsTable extends SalaryCarryOverLogs
         DriftSqlType.string,
         data['${effectivePrefix}device_id'],
       )!,
+      syncTimestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_timestamp'],
+      ),
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -36216,6 +38253,26 @@ class $SalaryCarryOverLogsTable extends SalaryCarryOverLogs
         DriftSqlType.int,
         data['${effectivePrefix}carried_at'],
       )!,
+      fromCycleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}from_cycle_id'],
+      ),
+      toCycleId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}to_cycle_id'],
+      ),
+      carryDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}carry_date'],
+      ),
+      performedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}performed_by'],
+      ),
+      hotelDayKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}hotel_day_key'],
+      ),
     );
   }
 
@@ -36242,6 +38299,7 @@ class SalaryCarryOverLog extends DataClass
   final String origin;
   final String vectorClock;
   final String deviceId;
+  final int? syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final int employeeId;
@@ -36252,6 +38310,11 @@ class SalaryCarryOverLog extends DataClass
   final String newCycleEnd;
   final String reason;
   final int carriedAt;
+  final String? fromCycleId;
+  final String? toCycleId;
+  final String? carryDate;
+  final String? performedBy;
+  final String? hotelDayKey;
   const SalaryCarryOverLog({
     required this.localUuid,
     this.serverId,
@@ -36268,6 +38331,7 @@ class SalaryCarryOverLog extends DataClass
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
+    this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.employeeId,
@@ -36278,6 +38342,11 @@ class SalaryCarryOverLog extends DataClass
     required this.newCycleEnd,
     required this.reason,
     required this.carriedAt,
+    this.fromCycleId,
+    this.toCycleId,
+    this.carryDate,
+    this.performedBy,
+    this.hotelDayKey,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -36307,6 +38376,9 @@ class SalaryCarryOverLog extends DataClass
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
+    if (!nullToAbsent || syncTimestamp != null) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    }
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -36319,6 +38391,21 @@ class SalaryCarryOverLog extends DataClass
     map['new_cycle_end'] = Variable<String>(newCycleEnd);
     map['reason'] = Variable<String>(reason);
     map['carried_at'] = Variable<int>(carriedAt);
+    if (!nullToAbsent || fromCycleId != null) {
+      map['from_cycle_id'] = Variable<String>(fromCycleId);
+    }
+    if (!nullToAbsent || toCycleId != null) {
+      map['to_cycle_id'] = Variable<String>(toCycleId);
+    }
+    if (!nullToAbsent || carryDate != null) {
+      map['carry_date'] = Variable<String>(carryDate);
+    }
+    if (!nullToAbsent || performedBy != null) {
+      map['performed_by'] = Variable<String>(performedBy);
+    }
+    if (!nullToAbsent || hotelDayKey != null) {
+      map['hotel_day_key'] = Variable<String>(hotelDayKey);
+    }
     return map;
   }
 
@@ -36349,6 +38436,9 @@ class SalaryCarryOverLog extends DataClass
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
+      syncTimestamp: syncTimestamp == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -36361,6 +38451,21 @@ class SalaryCarryOverLog extends DataClass
       newCycleEnd: Value(newCycleEnd),
       reason: Value(reason),
       carriedAt: Value(carriedAt),
+      fromCycleId: fromCycleId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fromCycleId),
+      toCycleId: toCycleId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(toCycleId),
+      carryDate: carryDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(carryDate),
+      performedBy: performedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(performedBy),
+      hotelDayKey: hotelDayKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(hotelDayKey),
     );
   }
 
@@ -36385,6 +38490,7 @@ class SalaryCarryOverLog extends DataClass
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       employeeId: serializer.fromJson<int>(json['employeeId']),
@@ -36397,6 +38503,11 @@ class SalaryCarryOverLog extends DataClass
       newCycleEnd: serializer.fromJson<String>(json['newCycleEnd']),
       reason: serializer.fromJson<String>(json['reason']),
       carriedAt: serializer.fromJson<int>(json['carriedAt']),
+      fromCycleId: serializer.fromJson<String?>(json['fromCycleId']),
+      toCycleId: serializer.fromJson<String?>(json['toCycleId']),
+      carryDate: serializer.fromJson<String?>(json['carryDate']),
+      performedBy: serializer.fromJson<String?>(json['performedBy']),
+      hotelDayKey: serializer.fromJson<String?>(json['hotelDayKey']),
     );
   }
   @override
@@ -36418,6 +38529,7 @@ class SalaryCarryOverLog extends DataClass
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
+      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'employeeId': serializer.toJson<int>(employeeId),
@@ -36428,6 +38540,11 @@ class SalaryCarryOverLog extends DataClass
       'newCycleEnd': serializer.toJson<String>(newCycleEnd),
       'reason': serializer.toJson<String>(reason),
       'carriedAt': serializer.toJson<int>(carriedAt),
+      'fromCycleId': serializer.toJson<String?>(fromCycleId),
+      'toCycleId': serializer.toJson<String?>(toCycleId),
+      'carryDate': serializer.toJson<String?>(carryDate),
+      'performedBy': serializer.toJson<String?>(performedBy),
+      'hotelDayKey': serializer.toJson<String?>(hotelDayKey),
     };
   }
 
@@ -36447,6 +38564,7 @@ class SalaryCarryOverLog extends DataClass
     String? origin,
     String? vectorClock,
     String? deviceId,
+    Value<int?> syncTimestamp = const Value.absent(),
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     int? employeeId,
@@ -36457,6 +38575,11 @@ class SalaryCarryOverLog extends DataClass
     String? newCycleEnd,
     String? reason,
     int? carriedAt,
+    Value<String?> fromCycleId = const Value.absent(),
+    Value<String?> toCycleId = const Value.absent(),
+    Value<String?> carryDate = const Value.absent(),
+    Value<String?> performedBy = const Value.absent(),
+    Value<String?> hotelDayKey = const Value.absent(),
   }) => SalaryCarryOverLog(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -36473,6 +38596,9 @@ class SalaryCarryOverLog extends DataClass
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
+    syncTimestamp: syncTimestamp.present
+        ? syncTimestamp.value
+        : this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -36485,6 +38611,11 @@ class SalaryCarryOverLog extends DataClass
     newCycleEnd: newCycleEnd ?? this.newCycleEnd,
     reason: reason ?? this.reason,
     carriedAt: carriedAt ?? this.carriedAt,
+    fromCycleId: fromCycleId.present ? fromCycleId.value : this.fromCycleId,
+    toCycleId: toCycleId.present ? toCycleId.value : this.toCycleId,
+    carryDate: carryDate.present ? carryDate.value : this.carryDate,
+    performedBy: performedBy.present ? performedBy.value : this.performedBy,
+    hotelDayKey: hotelDayKey.present ? hotelDayKey.value : this.hotelDayKey,
   );
   SalaryCarryOverLog copyWithCompanion(SalaryCarryOverLogsCompanion data) {
     return SalaryCarryOverLog(
@@ -36517,6 +38648,9 @@ class SalaryCarryOverLog extends DataClass
           ? data.vectorClock.value
           : this.vectorClock,
       deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
       idempotencyKey: data.idempotencyKey.present
           ? data.idempotencyKey.value
           : this.idempotencyKey,
@@ -36539,6 +38673,17 @@ class SalaryCarryOverLog extends DataClass
           : this.newCycleEnd,
       reason: data.reason.present ? data.reason.value : this.reason,
       carriedAt: data.carriedAt.present ? data.carriedAt.value : this.carriedAt,
+      fromCycleId: data.fromCycleId.present
+          ? data.fromCycleId.value
+          : this.fromCycleId,
+      toCycleId: data.toCycleId.present ? data.toCycleId.value : this.toCycleId,
+      carryDate: data.carryDate.present ? data.carryDate.value : this.carryDate,
+      performedBy: data.performedBy.present
+          ? data.performedBy.value
+          : this.performedBy,
+      hotelDayKey: data.hotelDayKey.present
+          ? data.hotelDayKey.value
+          : this.hotelDayKey,
     );
   }
 
@@ -36560,6 +38705,7 @@ class SalaryCarryOverLog extends DataClass
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('employeeId: $employeeId, ')
@@ -36569,7 +38715,12 @@ class SalaryCarryOverLog extends DataClass
           ..write('newCycleStart: $newCycleStart, ')
           ..write('newCycleEnd: $newCycleEnd, ')
           ..write('reason: $reason, ')
-          ..write('carriedAt: $carriedAt')
+          ..write('carriedAt: $carriedAt, ')
+          ..write('fromCycleId: $fromCycleId, ')
+          ..write('toCycleId: $toCycleId, ')
+          ..write('carryDate: $carryDate, ')
+          ..write('performedBy: $performedBy, ')
+          ..write('hotelDayKey: $hotelDayKey')
           ..write(')'))
         .toString();
   }
@@ -36591,6 +38742,7 @@ class SalaryCarryOverLog extends DataClass
     origin,
     vectorClock,
     deviceId,
+    syncTimestamp,
     idempotencyKey,
     id,
     employeeId,
@@ -36601,6 +38753,11 @@ class SalaryCarryOverLog extends DataClass
     newCycleEnd,
     reason,
     carriedAt,
+    fromCycleId,
+    toCycleId,
+    carryDate,
+    performedBy,
+    hotelDayKey,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -36621,6 +38778,7 @@ class SalaryCarryOverLog extends DataClass
           other.origin == this.origin &&
           other.vectorClock == this.vectorClock &&
           other.deviceId == this.deviceId &&
+          other.syncTimestamp == this.syncTimestamp &&
           other.idempotencyKey == this.idempotencyKey &&
           other.id == this.id &&
           other.employeeId == this.employeeId &&
@@ -36630,7 +38788,12 @@ class SalaryCarryOverLog extends DataClass
           other.newCycleStart == this.newCycleStart &&
           other.newCycleEnd == this.newCycleEnd &&
           other.reason == this.reason &&
-          other.carriedAt == this.carriedAt);
+          other.carriedAt == this.carriedAt &&
+          other.fromCycleId == this.fromCycleId &&
+          other.toCycleId == this.toCycleId &&
+          other.carryDate == this.carryDate &&
+          other.performedBy == this.performedBy &&
+          other.hotelDayKey == this.hotelDayKey);
 }
 
 class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
@@ -36649,6 +38812,7 @@ class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
+  final Value<int?> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int> employeeId;
@@ -36659,6 +38823,11 @@ class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
   final Value<String> newCycleEnd;
   final Value<String> reason;
   final Value<int> carriedAt;
+  final Value<String?> fromCycleId;
+  final Value<String?> toCycleId;
+  final Value<String?> carryDate;
+  final Value<String?> performedBy;
+  final Value<String?> hotelDayKey;
   const SalaryCarryOverLogsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -36675,6 +38844,7 @@ class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     this.employeeId = const Value.absent(),
@@ -36685,6 +38855,11 @@ class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
     this.newCycleEnd = const Value.absent(),
     this.reason = const Value.absent(),
     this.carriedAt = const Value.absent(),
+    this.fromCycleId = const Value.absent(),
+    this.toCycleId = const Value.absent(),
+    this.carryDate = const Value.absent(),
+    this.performedBy = const Value.absent(),
+    this.hotelDayKey = const Value.absent(),
   });
   SalaryCarryOverLogsCompanion.insert({
     required String localUuid,
@@ -36702,6 +38877,7 @@ class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
     this.origin = const Value.absent(),
     this.vectorClock = const Value.absent(),
     this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
     this.idempotencyKey = const Value.absent(),
     this.id = const Value.absent(),
     required int employeeId,
@@ -36712,6 +38888,11 @@ class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
     required String newCycleEnd,
     required String reason,
     required int carriedAt,
+    this.fromCycleId = const Value.absent(),
+    this.toCycleId = const Value.absent(),
+    this.carryDate = const Value.absent(),
+    this.performedBy = const Value.absent(),
+    this.hotelDayKey = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -36740,6 +38921,7 @@ class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
     Expression<String>? origin,
     Expression<String>? vectorClock,
     Expression<String>? deviceId,
+    Expression<int>? syncTimestamp,
     Expression<String>? idempotencyKey,
     Expression<int>? id,
     Expression<int>? employeeId,
@@ -36750,6 +38932,11 @@ class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
     Expression<String>? newCycleEnd,
     Expression<String>? reason,
     Expression<int>? carriedAt,
+    Expression<String>? fromCycleId,
+    Expression<String>? toCycleId,
+    Expression<String>? carryDate,
+    Expression<String>? performedBy,
+    Expression<String>? hotelDayKey,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -36767,6 +38954,7 @@ class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
       if (origin != null) 'origin': origin,
       if (vectorClock != null) 'vector_clock': vectorClock,
       if (deviceId != null) 'device_id': deviceId,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
       if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
       if (id != null) 'id': id,
       if (employeeId != null) 'employee_id': employeeId,
@@ -36778,6 +38966,11 @@ class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
       if (newCycleEnd != null) 'new_cycle_end': newCycleEnd,
       if (reason != null) 'reason': reason,
       if (carriedAt != null) 'carried_at': carriedAt,
+      if (fromCycleId != null) 'from_cycle_id': fromCycleId,
+      if (toCycleId != null) 'to_cycle_id': toCycleId,
+      if (carryDate != null) 'carry_date': carryDate,
+      if (performedBy != null) 'performed_by': performedBy,
+      if (hotelDayKey != null) 'hotel_day_key': hotelDayKey,
     });
   }
 
@@ -36797,6 +38990,7 @@ class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
+    Value<int?>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int>? employeeId,
@@ -36807,6 +39001,11 @@ class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
     Value<String>? newCycleEnd,
     Value<String>? reason,
     Value<int>? carriedAt,
+    Value<String?>? fromCycleId,
+    Value<String?>? toCycleId,
+    Value<String?>? carryDate,
+    Value<String?>? performedBy,
+    Value<String?>? hotelDayKey,
   }) {
     return SalaryCarryOverLogsCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -36824,6 +39023,7 @@ class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
       origin: origin ?? this.origin,
       vectorClock: vectorClock ?? this.vectorClock,
       deviceId: deviceId ?? this.deviceId,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
       idempotencyKey: idempotencyKey ?? this.idempotencyKey,
       id: id ?? this.id,
       employeeId: employeeId ?? this.employeeId,
@@ -36834,6 +39034,11 @@ class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
       newCycleEnd: newCycleEnd ?? this.newCycleEnd,
       reason: reason ?? this.reason,
       carriedAt: carriedAt ?? this.carriedAt,
+      fromCycleId: fromCycleId ?? this.fromCycleId,
+      toCycleId: toCycleId ?? this.toCycleId,
+      carryDate: carryDate ?? this.carryDate,
+      performedBy: performedBy ?? this.performedBy,
+      hotelDayKey: hotelDayKey ?? this.hotelDayKey,
     );
   }
 
@@ -36885,6 +39090,9 @@ class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
     if (deviceId.present) {
       map['device_id'] = Variable<String>(deviceId.value);
     }
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
+    }
     if (idempotencyKey.present) {
       map['idempotency_key'] = Variable<String>(idempotencyKey.value);
     }
@@ -36915,6 +39123,21 @@ class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
     if (carriedAt.present) {
       map['carried_at'] = Variable<int>(carriedAt.value);
     }
+    if (fromCycleId.present) {
+      map['from_cycle_id'] = Variable<String>(fromCycleId.value);
+    }
+    if (toCycleId.present) {
+      map['to_cycle_id'] = Variable<String>(toCycleId.value);
+    }
+    if (carryDate.present) {
+      map['carry_date'] = Variable<String>(carryDate.value);
+    }
+    if (performedBy.present) {
+      map['performed_by'] = Variable<String>(performedBy.value);
+    }
+    if (hotelDayKey.present) {
+      map['hotel_day_key'] = Variable<String>(hotelDayKey.value);
+    }
     return map;
   }
 
@@ -36936,6 +39159,7 @@ class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
           ..write('origin: $origin, ')
           ..write('vectorClock: $vectorClock, ')
           ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
           ..write('idempotencyKey: $idempotencyKey, ')
           ..write('id: $id, ')
           ..write('employeeId: $employeeId, ')
@@ -36945,7 +39169,12 @@ class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
           ..write('newCycleStart: $newCycleStart, ')
           ..write('newCycleEnd: $newCycleEnd, ')
           ..write('reason: $reason, ')
-          ..write('carriedAt: $carriedAt')
+          ..write('carriedAt: $carriedAt, ')
+          ..write('fromCycleId: $fromCycleId, ')
+          ..write('toCycleId: $toCycleId, ')
+          ..write('carryDate: $carryDate, ')
+          ..write('performedBy: $performedBy, ')
+          ..write('hotelDayKey: $hotelDayKey')
           ..write(')'))
         .toString();
   }
@@ -37404,6 +39633,7 @@ typedef $$RoomsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required String roomNumber,
@@ -37433,6 +39663,7 @@ typedef $$RoomsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> roomNumber,
@@ -37551,6 +39782,11 @@ class $$RoomsTableFilterComposer extends Composer<_$AppDatabase, $RoomsTable> {
 
   ColumnFilters<String> get deviceId => $composableBuilder(
     column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -37719,6 +39955,11 @@ class $$RoomsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnOrderings(column),
@@ -37843,6 +40084,11 @@ class $$RoomsTableAnnotationComposer
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
 
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => column,
@@ -37957,6 +40203,7 @@ class $$RoomsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> roomNumber = const Value.absent(),
@@ -37984,6 +40231,7 @@ class $$RoomsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 roomNumber: roomNumber,
@@ -38013,6 +40261,7 @@ class $$RoomsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String roomNumber,
@@ -38040,6 +40289,7 @@ class $$RoomsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 roomNumber: roomNumber,
@@ -38117,6 +40367,7 @@ typedef $$BookingsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> serverBookingId,
@@ -38151,6 +40402,8 @@ typedef $$BookingsTableCreateCompanionBuilder =
       Value<bool> isFullyPaid,
       Value<String?> hotelDayCheckin,
       Value<String?> hotelDayCheckout,
+      Value<int?> financialFrozenAt,
+      Value<String?> financialHash,
     });
 typedef $$BookingsTableUpdateCompanionBuilder =
     BookingsCompanion Function({
@@ -38169,6 +40422,7 @@ typedef $$BookingsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> serverBookingId,
@@ -38203,6 +40457,8 @@ typedef $$BookingsTableUpdateCompanionBuilder =
       Value<bool> isFullyPaid,
       Value<String?> hotelDayCheckin,
       Value<String?> hotelDayCheckout,
+      Value<int?> financialFrozenAt,
+      Value<String?> financialHash,
     });
 
 final class $$BookingsTableReferences
@@ -38442,6 +40698,11 @@ class $$BookingsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnFilters(column),
@@ -38604,6 +40865,16 @@ class $$BookingsTableFilterComposer
 
   ColumnFilters<String> get hotelDayCheckout => $composableBuilder(
     column: $table.hotelDayCheckout,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get financialFrozenAt => $composableBuilder(
+    column: $table.financialFrozenAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get financialHash => $composableBuilder(
+    column: $table.financialHash,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -38867,6 +41138,11 @@ class $$BookingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnOrderings(column),
@@ -39032,6 +41308,16 @@ class $$BookingsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get financialFrozenAt => $composableBuilder(
+    column: $table.financialFrozenAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get financialHash => $composableBuilder(
+    column: $table.financialHash,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$RoomsTableOrderingComposer get roomNumber {
     final $$RoomsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -39123,6 +41409,11 @@ class $$BookingsTableAnnotationComposer
 
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
@@ -39274,6 +41565,16 @@ class $$BookingsTableAnnotationComposer
 
   GeneratedColumn<String> get hotelDayCheckout => $composableBuilder(
     column: $table.hotelDayCheckout,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get financialFrozenAt => $composableBuilder(
+    column: $table.financialFrozenAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get financialHash => $composableBuilder(
+    column: $table.financialHash,
     builder: (column) => column,
   );
 
@@ -39506,6 +41807,7 @@ class $$BookingsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> serverBookingId = const Value.absent(),
@@ -39540,6 +41842,8 @@ class $$BookingsTableTableManager
                 Value<bool> isFullyPaid = const Value.absent(),
                 Value<String?> hotelDayCheckin = const Value.absent(),
                 Value<String?> hotelDayCheckout = const Value.absent(),
+                Value<int?> financialFrozenAt = const Value.absent(),
+                Value<String?> financialHash = const Value.absent(),
               }) => BookingsCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -39556,6 +41860,7 @@ class $$BookingsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 serverBookingId: serverBookingId,
@@ -39590,6 +41895,8 @@ class $$BookingsTableTableManager
                 isFullyPaid: isFullyPaid,
                 hotelDayCheckin: hotelDayCheckin,
                 hotelDayCheckout: hotelDayCheckout,
+                financialFrozenAt: financialFrozenAt,
+                financialHash: financialHash,
               ),
           createCompanionCallback:
               ({
@@ -39608,6 +41915,7 @@ class $$BookingsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> serverBookingId = const Value.absent(),
@@ -39642,6 +41950,8 @@ class $$BookingsTableTableManager
                 Value<bool> isFullyPaid = const Value.absent(),
                 Value<String?> hotelDayCheckin = const Value.absent(),
                 Value<String?> hotelDayCheckout = const Value.absent(),
+                Value<int?> financialFrozenAt = const Value.absent(),
+                Value<String?> financialHash = const Value.absent(),
               }) => BookingsCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -39658,6 +41968,7 @@ class $$BookingsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 serverBookingId: serverBookingId,
@@ -39692,6 +42003,8 @@ class $$BookingsTableTableManager
                 isFullyPaid: isFullyPaid,
                 hotelDayCheckin: hotelDayCheckin,
                 hotelDayCheckout: hotelDayCheckout,
+                financialFrozenAt: financialFrozenAt,
+                financialHash: financialHash,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -39929,6 +42242,7 @@ typedef $$BookingNotesTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required int bookingId,
@@ -39954,6 +42268,7 @@ typedef $$BookingNotesTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int> bookingId,
@@ -40066,6 +42381,11 @@ class $$BookingNotesTableFilterComposer
 
   ColumnFilters<String> get deviceId => $composableBuilder(
     column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -40207,6 +42527,11 @@ class $$BookingNotesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnOrderings(column),
@@ -40329,6 +42654,11 @@ class $$BookingNotesTableAnnotationComposer
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
 
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => column,
@@ -40418,6 +42748,7 @@ class $$BookingNotesTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int> bookingId = const Value.absent(),
@@ -40441,6 +42772,7 @@ class $$BookingNotesTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 bookingId: bookingId,
@@ -40466,6 +42798,7 @@ class $$BookingNotesTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required int bookingId,
@@ -40489,6 +42822,7 @@ class $$BookingNotesTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 bookingId: bookingId,
@@ -40581,6 +42915,7 @@ typedef $$ShiftNotesTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required String title,
@@ -40608,6 +42943,7 @@ typedef $$ShiftNotesTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> title,
@@ -40700,6 +43036,11 @@ class $$ShiftNotesTableFilterComposer
 
   ColumnFilters<String> get deviceId => $composableBuilder(
     column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -40833,6 +43174,11 @@ class $$ShiftNotesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnOrderings(column),
@@ -40947,6 +43293,11 @@ class $$ShiftNotesTableAnnotationComposer
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
 
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => column,
@@ -41023,6 +43374,7 @@ class $$ShiftNotesTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> title = const Value.absent(),
@@ -41048,6 +43400,7 @@ class $$ShiftNotesTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 title: title,
@@ -41075,6 +43428,7 @@ class $$ShiftNotesTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String title,
@@ -41100,6 +43454,7 @@ class $$ShiftNotesTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 title: title,
@@ -41149,6 +43504,7 @@ typedef $$EmployeesTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required String name,
@@ -41178,6 +43534,7 @@ typedef $$EmployeesTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> name,
@@ -41340,6 +43697,11 @@ class $$EmployeesTableFilterComposer
 
   ColumnFilters<String> get deviceId => $composableBuilder(
     column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -41558,6 +43920,11 @@ class $$EmployeesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnOrderings(column),
@@ -41681,6 +44048,11 @@ class $$EmployeesTableAnnotationComposer
 
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
@@ -41850,6 +44222,7 @@ class $$EmployeesTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
@@ -41877,6 +44250,7 @@ class $$EmployeesTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 name: name,
@@ -41906,6 +44280,7 @@ class $$EmployeesTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String name,
@@ -41933,6 +44308,7 @@ class $$EmployeesTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 name: name,
@@ -42075,6 +44451,7 @@ typedef $$ExpensesTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required String expenseType,
@@ -42106,6 +44483,7 @@ typedef $$ExpensesTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> expenseType,
@@ -42202,6 +44580,11 @@ class $$ExpensesTableFilterComposer
 
   ColumnFilters<String> get deviceId => $composableBuilder(
     column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -42355,6 +44738,11 @@ class $$ExpensesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnOrderings(column),
@@ -42489,6 +44877,11 @@ class $$ExpensesTableAnnotationComposer
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
 
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => column,
@@ -42590,6 +44983,7 @@ class $$ExpensesTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> expenseType = const Value.absent(),
@@ -42619,6 +45013,7 @@ class $$ExpensesTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 expenseType: expenseType,
@@ -42650,6 +45045,7 @@ class $$ExpensesTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String expenseType,
@@ -42679,6 +45075,7 @@ class $$ExpensesTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 expenseType: expenseType,
@@ -42732,6 +45129,7 @@ typedef $$CashTransactionsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> registerId,
@@ -42760,6 +45158,7 @@ typedef $$CashTransactionsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> registerId,
@@ -42881,6 +45280,11 @@ class $$CashTransactionsTableFilterComposer
 
   ColumnFilters<String> get deviceId => $composableBuilder(
     column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -43044,6 +45448,11 @@ class $$CashTransactionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnOrderings(column),
@@ -43163,6 +45572,11 @@ class $$CashTransactionsTableAnnotationComposer
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
 
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => column,
@@ -43278,6 +45692,7 @@ class $$CashTransactionsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> registerId = const Value.absent(),
@@ -43304,6 +45719,7 @@ class $$CashTransactionsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 registerId: registerId,
@@ -43332,6 +45748,7 @@ class $$CashTransactionsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> registerId = const Value.absent(),
@@ -43358,6 +45775,7 @@ class $$CashTransactionsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 registerId: registerId,
@@ -43444,6 +45862,7 @@ typedef $$PaymentsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> serverPaymentId,
@@ -43467,6 +45886,8 @@ typedef $$PaymentsTableCreateCompanionBuilder =
       Value<bool> isVoided,
       Value<int?> voidedAt,
       Value<String?> voidedBy,
+      Value<String?> voidReason,
+      Value<bool> isImmutable,
     });
 typedef $$PaymentsTableUpdateCompanionBuilder =
     PaymentsCompanion Function({
@@ -43485,6 +45906,7 @@ typedef $$PaymentsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> serverPaymentId,
@@ -43508,6 +45930,8 @@ typedef $$PaymentsTableUpdateCompanionBuilder =
       Value<bool> isVoided,
       Value<int?> voidedAt,
       Value<String?> voidedBy,
+      Value<String?> voidReason,
+      Value<bool> isImmutable,
     });
 
 final class $$PaymentsTableReferences
@@ -43638,6 +46062,11 @@ class $$PaymentsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnFilters(column),
@@ -43740,6 +46169,16 @@ class $$PaymentsTableFilterComposer
 
   ColumnFilters<String> get voidedBy => $composableBuilder(
     column: $table.voidedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get voidReason => $composableBuilder(
+    column: $table.voidReason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isImmutable => $composableBuilder(
+    column: $table.isImmutable,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -43874,6 +46313,11 @@ class $$PaymentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnOrderings(column),
@@ -43976,6 +46420,16 @@ class $$PaymentsTableOrderingComposer
 
   ColumnOrderings<String> get voidedBy => $composableBuilder(
     column: $table.voidedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get voidReason => $composableBuilder(
+    column: $table.voidReason,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isImmutable => $composableBuilder(
+    column: $table.isImmutable,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -44094,6 +46548,11 @@ class $$PaymentsTableAnnotationComposer
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
 
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => column,
@@ -44186,6 +46645,16 @@ class $$PaymentsTableAnnotationComposer
 
   GeneratedColumn<String> get voidedBy =>
       $composableBuilder(column: $table.voidedBy, builder: (column) => column);
+
+  GeneratedColumn<String> get voidReason => $composableBuilder(
+    column: $table.voidReason,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isImmutable => $composableBuilder(
+    column: $table.isImmutable,
+    builder: (column) => column,
+  );
 
   $$BookingsTableAnnotationComposer get bookingLocalId {
     final $$BookingsTableAnnotationComposer composer = $composerBuilder(
@@ -44280,6 +46749,7 @@ class $$PaymentsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> serverPaymentId = const Value.absent(),
@@ -44303,6 +46773,8 @@ class $$PaymentsTableTableManager
                 Value<bool> isVoided = const Value.absent(),
                 Value<int?> voidedAt = const Value.absent(),
                 Value<String?> voidedBy = const Value.absent(),
+                Value<String?> voidReason = const Value.absent(),
+                Value<bool> isImmutable = const Value.absent(),
               }) => PaymentsCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -44319,6 +46791,7 @@ class $$PaymentsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 serverPaymentId: serverPaymentId,
@@ -44342,6 +46815,8 @@ class $$PaymentsTableTableManager
                 isVoided: isVoided,
                 voidedAt: voidedAt,
                 voidedBy: voidedBy,
+                voidReason: voidReason,
+                isImmutable: isImmutable,
               ),
           createCompanionCallback:
               ({
@@ -44360,6 +46835,7 @@ class $$PaymentsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> serverPaymentId = const Value.absent(),
@@ -44383,6 +46859,8 @@ class $$PaymentsTableTableManager
                 Value<bool> isVoided = const Value.absent(),
                 Value<int?> voidedAt = const Value.absent(),
                 Value<String?> voidedBy = const Value.absent(),
+                Value<String?> voidReason = const Value.absent(),
+                Value<bool> isImmutable = const Value.absent(),
               }) => PaymentsCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -44399,6 +46877,7 @@ class $$PaymentsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 serverPaymentId: serverPaymentId,
@@ -44422,6 +46901,8 @@ class $$PaymentsTableTableManager
                 isVoided: isVoided,
                 voidedAt: voidedAt,
                 voidedBy: voidedBy,
+                voidReason: voidReason,
+                isImmutable: isImmutable,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -44521,6 +47002,7 @@ typedef $$DebtsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> bookingLocalId,
@@ -44542,6 +47024,10 @@ typedef $$DebtsTableCreateCompanionBuilder =
       Value<String?> hotelDayClosed,
       Value<bool> isFromAutoFix,
       Value<bool> settlementConfirmed,
+      Value<String?> guestPhone,
+      Value<String?> description,
+      Value<String?> status,
+      Value<String?> dueDate,
     });
 typedef $$DebtsTableUpdateCompanionBuilder =
     DebtsCompanion Function({
@@ -44560,6 +47046,7 @@ typedef $$DebtsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> bookingLocalId,
@@ -44581,6 +47068,10 @@ typedef $$DebtsTableUpdateCompanionBuilder =
       Value<String?> hotelDayClosed,
       Value<bool> isFromAutoFix,
       Value<bool> settlementConfirmed,
+      Value<String?> guestPhone,
+      Value<String?> description,
+      Value<String?> status,
+      Value<String?> dueDate,
     });
 
 final class $$DebtsTableReferences
@@ -44688,6 +47179,11 @@ class $$DebtsTableFilterComposer extends Composer<_$AppDatabase, $DebtsTable> {
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnFilters(column),
@@ -44785,6 +47281,26 @@ class $$DebtsTableFilterComposer extends Composer<_$AppDatabase, $DebtsTable> {
 
   ColumnFilters<bool> get settlementConfirmed => $composableBuilder(
     column: $table.settlementConfirmed,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get guestPhone => $composableBuilder(
+    column: $table.guestPhone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dueDate => $composableBuilder(
+    column: $table.dueDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -44896,6 +47412,11 @@ class $$DebtsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnOrderings(column),
@@ -44996,6 +47517,26 @@ class $$DebtsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get guestPhone => $composableBuilder(
+    column: $table.guestPhone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dueDate => $composableBuilder(
+    column: $table.dueDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$BookingsTableOrderingComposer get bookingLocalId {
     final $$BookingsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -45088,6 +47629,11 @@ class $$DebtsTableAnnotationComposer
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
 
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => column,
@@ -45176,6 +47722,22 @@ class $$DebtsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get guestPhone => $composableBuilder(
+    column: $table.guestPhone,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get dueDate =>
+      $composableBuilder(column: $table.dueDate, builder: (column) => column);
+
   $$BookingsTableAnnotationComposer get bookingLocalId {
     final $$BookingsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -45243,6 +47805,7 @@ class $$DebtsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> bookingLocalId = const Value.absent(),
@@ -45264,6 +47827,10 @@ class $$DebtsTableTableManager
                 Value<String?> hotelDayClosed = const Value.absent(),
                 Value<bool> isFromAutoFix = const Value.absent(),
                 Value<bool> settlementConfirmed = const Value.absent(),
+                Value<String?> guestPhone = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<String?> status = const Value.absent(),
+                Value<String?> dueDate = const Value.absent(),
               }) => DebtsCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -45280,6 +47847,7 @@ class $$DebtsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 bookingLocalId: bookingLocalId,
@@ -45301,6 +47869,10 @@ class $$DebtsTableTableManager
                 hotelDayClosed: hotelDayClosed,
                 isFromAutoFix: isFromAutoFix,
                 settlementConfirmed: settlementConfirmed,
+                guestPhone: guestPhone,
+                description: description,
+                status: status,
+                dueDate: dueDate,
               ),
           createCompanionCallback:
               ({
@@ -45319,6 +47891,7 @@ class $$DebtsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> bookingLocalId = const Value.absent(),
@@ -45340,6 +47913,10 @@ class $$DebtsTableTableManager
                 Value<String?> hotelDayClosed = const Value.absent(),
                 Value<bool> isFromAutoFix = const Value.absent(),
                 Value<bool> settlementConfirmed = const Value.absent(),
+                Value<String?> guestPhone = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<String?> status = const Value.absent(),
+                Value<String?> dueDate = const Value.absent(),
               }) => DebtsCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -45356,6 +47933,7 @@ class $$DebtsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 bookingLocalId: bookingLocalId,
@@ -45377,6 +47955,10 @@ class $$DebtsTableTableManager
                 hotelDayClosed: hotelDayClosed,
                 isFromAutoFix: isFromAutoFix,
                 settlementConfirmed: settlementConfirmed,
+                guestPhone: guestPhone,
+                description: description,
+                status: status,
+                dueDate: dueDate,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -45460,6 +48042,7 @@ typedef $$BookingNightsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required int bookingLocalId,
@@ -45474,6 +48057,8 @@ typedef $$BookingNightsTableCreateCompanionBuilder =
       Value<double> finalRate,
       Value<String?> appliedAdjustmentUuid,
       Value<String?> appliedAdjustmentsJson,
+      Value<String?> bookingUuidCache,
+      Value<int?> serverBookingId,
     });
 typedef $$BookingNightsTableUpdateCompanionBuilder =
     BookingNightsCompanion Function({
@@ -45492,6 +48077,7 @@ typedef $$BookingNightsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int> bookingLocalId,
@@ -45506,6 +48092,8 @@ typedef $$BookingNightsTableUpdateCompanionBuilder =
       Value<double> finalRate,
       Value<String?> appliedAdjustmentUuid,
       Value<String?> appliedAdjustmentsJson,
+      Value<String?> bookingUuidCache,
+      Value<int?> serverBookingId,
     });
 
 final class $$BookingNightsTableReferences
@@ -45618,6 +48206,11 @@ class $$BookingNightsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnFilters(column),
@@ -45680,6 +48273,16 @@ class $$BookingNightsTableFilterComposer
 
   ColumnFilters<String> get appliedAdjustmentsJson => $composableBuilder(
     column: $table.appliedAdjustmentsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bookingUuidCache => $composableBuilder(
+    column: $table.bookingUuidCache,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverBookingId => $composableBuilder(
+    column: $table.serverBookingId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -45791,6 +48394,11 @@ class $$BookingNightsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnOrderings(column),
@@ -45853,6 +48461,16 @@ class $$BookingNightsTableOrderingComposer
 
   ColumnOrderings<String> get appliedAdjustmentsJson => $composableBuilder(
     column: $table.appliedAdjustmentsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bookingUuidCache => $composableBuilder(
+    column: $table.bookingUuidCache,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverBookingId => $composableBuilder(
+    column: $table.serverBookingId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -45948,6 +48566,11 @@ class $$BookingNightsTableAnnotationComposer
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
 
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => column,
@@ -46000,6 +48623,16 @@ class $$BookingNightsTableAnnotationComposer
 
   GeneratedColumn<String> get appliedAdjustmentsJson => $composableBuilder(
     column: $table.appliedAdjustmentsJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get bookingUuidCache => $composableBuilder(
+    column: $table.bookingUuidCache,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get serverBookingId => $composableBuilder(
+    column: $table.serverBookingId,
     builder: (column) => column,
   );
 
@@ -46070,6 +48703,7 @@ class $$BookingNightsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int> bookingLocalId = const Value.absent(),
@@ -46084,6 +48718,8 @@ class $$BookingNightsTableTableManager
                 Value<double> finalRate = const Value.absent(),
                 Value<String?> appliedAdjustmentUuid = const Value.absent(),
                 Value<String?> appliedAdjustmentsJson = const Value.absent(),
+                Value<String?> bookingUuidCache = const Value.absent(),
+                Value<int?> serverBookingId = const Value.absent(),
               }) => BookingNightsCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -46100,6 +48736,7 @@ class $$BookingNightsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 bookingLocalId: bookingLocalId,
@@ -46114,6 +48751,8 @@ class $$BookingNightsTableTableManager
                 finalRate: finalRate,
                 appliedAdjustmentUuid: appliedAdjustmentUuid,
                 appliedAdjustmentsJson: appliedAdjustmentsJson,
+                bookingUuidCache: bookingUuidCache,
+                serverBookingId: serverBookingId,
               ),
           createCompanionCallback:
               ({
@@ -46132,6 +48771,7 @@ class $$BookingNightsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required int bookingLocalId,
@@ -46146,6 +48786,8 @@ class $$BookingNightsTableTableManager
                 Value<double> finalRate = const Value.absent(),
                 Value<String?> appliedAdjustmentUuid = const Value.absent(),
                 Value<String?> appliedAdjustmentsJson = const Value.absent(),
+                Value<String?> bookingUuidCache = const Value.absent(),
+                Value<int?> serverBookingId = const Value.absent(),
               }) => BookingNightsCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -46162,6 +48804,7 @@ class $$BookingNightsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 bookingLocalId: bookingLocalId,
@@ -46176,6 +48819,8 @@ class $$BookingNightsTableTableManager
                 finalRate: finalRate,
                 appliedAdjustmentUuid: appliedAdjustmentUuid,
                 appliedAdjustmentsJson: appliedAdjustmentsJson,
+                bookingUuidCache: bookingUuidCache,
+                serverBookingId: serverBookingId,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -46261,6 +48906,7 @@ typedef $$HotelDayLedgerTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required String hotelDayKey,
@@ -46291,6 +48937,7 @@ typedef $$HotelDayLedgerTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> hotelDayKey,
@@ -46386,6 +49033,11 @@ class $$HotelDayLedgerTableFilterComposer
 
   ColumnFilters<String> get deviceId => $composableBuilder(
     column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -46534,6 +49186,11 @@ class $$HotelDayLedgerTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnOrderings(column),
@@ -46663,6 +49320,11 @@ class $$HotelDayLedgerTableAnnotationComposer
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
 
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => column,
@@ -46772,6 +49434,7 @@ class $$HotelDayLedgerTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> hotelDayKey = const Value.absent(),
@@ -46800,6 +49463,7 @@ class $$HotelDayLedgerTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 hotelDayKey: hotelDayKey,
@@ -46830,6 +49494,7 @@ class $$HotelDayLedgerTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String hotelDayKey,
@@ -46858,6 +49523,7 @@ class $$HotelDayLedgerTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 hotelDayKey: hotelDayKey,
@@ -48026,6 +50692,7 @@ typedef $$SalaryCyclesTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required int employeeId,
@@ -48054,6 +50721,7 @@ typedef $$SalaryCyclesTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int> employeeId,
@@ -48187,6 +50855,11 @@ class $$SalaryCyclesTableFilterComposer
 
   ColumnFilters<String> get deviceId => $composableBuilder(
     column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -48368,6 +51041,11 @@ class $$SalaryCyclesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnOrderings(column),
@@ -48505,6 +51183,11 @@ class $$SalaryCyclesTableAnnotationComposer
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
 
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => column,
@@ -48636,6 +51319,7 @@ class $$SalaryCyclesTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int> employeeId = const Value.absent(),
@@ -48662,6 +51346,7 @@ class $$SalaryCyclesTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 employeeId: employeeId,
@@ -48690,6 +51375,7 @@ class $$SalaryCyclesTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required int employeeId,
@@ -48716,6 +51402,7 @@ class $$SalaryCyclesTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 employeeId: employeeId,
@@ -48838,6 +51525,7 @@ typedef $$SalaryPaymentsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required int cycleId,
@@ -48864,6 +51552,7 @@ typedef $$SalaryPaymentsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int> cycleId,
@@ -48981,6 +51670,11 @@ class $$SalaryPaymentsTableFilterComposer
 
   ColumnFilters<String> get deviceId => $composableBuilder(
     column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -49127,6 +51821,11 @@ class $$SalaryPaymentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnOrderings(column),
@@ -49254,6 +51953,11 @@ class $$SalaryPaymentsTableAnnotationComposer
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
 
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => column,
@@ -49352,6 +52056,7 @@ class $$SalaryPaymentsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int> cycleId = const Value.absent(),
@@ -49376,6 +52081,7 @@ class $$SalaryPaymentsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 cycleId: cycleId,
@@ -49402,6 +52108,7 @@ class $$SalaryPaymentsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required int cycleId,
@@ -49426,6 +52133,7 @@ class $$SalaryPaymentsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 cycleId: cycleId,
@@ -51497,6 +54205,7 @@ typedef $$PriceAdjustmentsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required String targetType,
@@ -51507,7 +54216,10 @@ typedef $$PriceAdjustmentsTableCreateCompanionBuilder =
       Value<String?> reason,
       required String effectiveDate,
       required String appliedBy,
-      required String hotelDayKey,
+      Value<String?> hotelDayKey,
+      Value<String> adjustmentMode,
+      Value<String?> bookingUuid,
+      Value<int?> appliedAt,
       Value<bool> isReversed,
       Value<String?> reversedAt,
       Value<String?> reversedBy,
@@ -51529,6 +54241,7 @@ typedef $$PriceAdjustmentsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> targetType,
@@ -51539,7 +54252,10 @@ typedef $$PriceAdjustmentsTableUpdateCompanionBuilder =
       Value<String?> reason,
       Value<String> effectiveDate,
       Value<String> appliedBy,
-      Value<String> hotelDayKey,
+      Value<String?> hotelDayKey,
+      Value<String> adjustmentMode,
+      Value<String?> bookingUuid,
+      Value<int?> appliedAt,
       Value<bool> isReversed,
       Value<String?> reversedAt,
       Value<String?> reversedBy,
@@ -51629,6 +54345,11 @@ class $$PriceAdjustmentsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnFilters(column),
@@ -51681,6 +54402,21 @@ class $$PriceAdjustmentsTableFilterComposer
 
   ColumnFilters<String> get hotelDayKey => $composableBuilder(
     column: $table.hotelDayKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get adjustmentMode => $composableBuilder(
+    column: $table.adjustmentMode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bookingUuid => $composableBuilder(
+    column: $table.bookingUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get appliedAt => $composableBuilder(
+    column: $table.appliedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -51784,6 +54520,11 @@ class $$PriceAdjustmentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnOrderings(column),
@@ -51836,6 +54577,21 @@ class $$PriceAdjustmentsTableOrderingComposer
 
   ColumnOrderings<String> get hotelDayKey => $composableBuilder(
     column: $table.hotelDayKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get adjustmentMode => $composableBuilder(
+    column: $table.adjustmentMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bookingUuid => $composableBuilder(
+    column: $table.bookingUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get appliedAt => $composableBuilder(
+    column: $table.appliedAt,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -51923,6 +54679,11 @@ class $$PriceAdjustmentsTableAnnotationComposer
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
 
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => column,
@@ -51969,6 +54730,19 @@ class $$PriceAdjustmentsTableAnnotationComposer
     column: $table.hotelDayKey,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get adjustmentMode => $composableBuilder(
+    column: $table.adjustmentMode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get bookingUuid => $composableBuilder(
+    column: $table.bookingUuid,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get appliedAt =>
+      $composableBuilder(column: $table.appliedAt, builder: (column) => column);
 
   GeneratedColumn<bool> get isReversed => $composableBuilder(
     column: $table.isReversed,
@@ -52038,6 +54812,7 @@ class $$PriceAdjustmentsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> targetType = const Value.absent(),
@@ -52048,7 +54823,10 @@ class $$PriceAdjustmentsTableTableManager
                 Value<String?> reason = const Value.absent(),
                 Value<String> effectiveDate = const Value.absent(),
                 Value<String> appliedBy = const Value.absent(),
-                Value<String> hotelDayKey = const Value.absent(),
+                Value<String?> hotelDayKey = const Value.absent(),
+                Value<String> adjustmentMode = const Value.absent(),
+                Value<String?> bookingUuid = const Value.absent(),
+                Value<int?> appliedAt = const Value.absent(),
                 Value<bool> isReversed = const Value.absent(),
                 Value<String?> reversedAt = const Value.absent(),
                 Value<String?> reversedBy = const Value.absent(),
@@ -52068,6 +54846,7 @@ class $$PriceAdjustmentsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 targetType: targetType,
@@ -52079,6 +54858,9 @@ class $$PriceAdjustmentsTableTableManager
                 effectiveDate: effectiveDate,
                 appliedBy: appliedBy,
                 hotelDayKey: hotelDayKey,
+                adjustmentMode: adjustmentMode,
+                bookingUuid: bookingUuid,
+                appliedAt: appliedAt,
                 isReversed: isReversed,
                 reversedAt: reversedAt,
                 reversedBy: reversedBy,
@@ -52100,6 +54882,7 @@ class $$PriceAdjustmentsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String targetType,
@@ -52110,7 +54893,10 @@ class $$PriceAdjustmentsTableTableManager
                 Value<String?> reason = const Value.absent(),
                 required String effectiveDate,
                 required String appliedBy,
-                required String hotelDayKey,
+                Value<String?> hotelDayKey = const Value.absent(),
+                Value<String> adjustmentMode = const Value.absent(),
+                Value<String?> bookingUuid = const Value.absent(),
+                Value<int?> appliedAt = const Value.absent(),
                 Value<bool> isReversed = const Value.absent(),
                 Value<String?> reversedAt = const Value.absent(),
                 Value<String?> reversedBy = const Value.absent(),
@@ -52130,6 +54916,7 @@ class $$PriceAdjustmentsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 targetType: targetType,
@@ -52141,6 +54928,9 @@ class $$PriceAdjustmentsTableTableManager
                 effectiveDate: effectiveDate,
                 appliedBy: appliedBy,
                 hotelDayKey: hotelDayKey,
+                adjustmentMode: adjustmentMode,
+                bookingUuid: bookingUuid,
+                appliedAt: appliedAt,
                 isReversed: isReversed,
                 reversedAt: reversedAt,
                 reversedBy: reversedBy,
@@ -52187,13 +54977,12 @@ typedef $$BookingPriceAdjustmentsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required String bookingLocalUuid,
       Value<int?> bookingLocalId,
       Value<String?> roomNumber,
-      Value<int> adjustmentType,
-      Value<String> adjustmentMode,
       Value<double> amount,
       required String effectiveHotelDay,
       Value<String?> endHotelDay,
@@ -52202,6 +54991,10 @@ typedef $$BookingPriceAdjustmentsTableCreateCompanionBuilder =
       Value<String?> appliedBy,
       Value<String?> cancelledAt,
       Value<String?> cancelledBy,
+      Value<String?> bookingUuid,
+      Value<int?> adjustmentType,
+      Value<String?> adjustmentMode,
+      Value<int?> appliedAt,
     });
 typedef $$BookingPriceAdjustmentsTableUpdateCompanionBuilder =
     BookingPriceAdjustmentsCompanion Function({
@@ -52220,13 +55013,12 @@ typedef $$BookingPriceAdjustmentsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> bookingLocalUuid,
       Value<int?> bookingLocalId,
       Value<String?> roomNumber,
-      Value<int> adjustmentType,
-      Value<String> adjustmentMode,
       Value<double> amount,
       Value<String> effectiveHotelDay,
       Value<String?> endHotelDay,
@@ -52235,6 +55027,10 @@ typedef $$BookingPriceAdjustmentsTableUpdateCompanionBuilder =
       Value<String?> appliedBy,
       Value<String?> cancelledAt,
       Value<String?> cancelledBy,
+      Value<String?> bookingUuid,
+      Value<int?> adjustmentType,
+      Value<String?> adjustmentMode,
+      Value<int?> appliedAt,
     });
 
 final class $$BookingPriceAdjustmentsTableReferences
@@ -52371,6 +55167,11 @@ class $$BookingPriceAdjustmentsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnFilters(column),
@@ -52383,16 +55184,6 @@ class $$BookingPriceAdjustmentsTableFilterComposer
 
   ColumnFilters<String> get roomNumber => $composableBuilder(
     column: $table.roomNumber,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get adjustmentType => $composableBuilder(
-    column: $table.adjustmentType,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get adjustmentMode => $composableBuilder(
-    column: $table.adjustmentMode,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -52433,6 +55224,26 @@ class $$BookingPriceAdjustmentsTableFilterComposer
 
   ColumnFilters<String> get cancelledBy => $composableBuilder(
     column: $table.cancelledBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bookingUuid => $composableBuilder(
+    column: $table.bookingUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get adjustmentType => $composableBuilder(
+    column: $table.adjustmentType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get adjustmentMode => $composableBuilder(
+    column: $table.adjustmentMode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get appliedAt => $composableBuilder(
+    column: $table.appliedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -52567,6 +55378,11 @@ class $$BookingPriceAdjustmentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnOrderings(column),
@@ -52579,16 +55395,6 @@ class $$BookingPriceAdjustmentsTableOrderingComposer
 
   ColumnOrderings<String> get roomNumber => $composableBuilder(
     column: $table.roomNumber,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get adjustmentType => $composableBuilder(
-    column: $table.adjustmentType,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get adjustmentMode => $composableBuilder(
-    column: $table.adjustmentMode,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -52629,6 +55435,26 @@ class $$BookingPriceAdjustmentsTableOrderingComposer
 
   ColumnOrderings<String> get cancelledBy => $composableBuilder(
     column: $table.cancelledBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bookingUuid => $composableBuilder(
+    column: $table.bookingUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get adjustmentType => $composableBuilder(
+    column: $table.adjustmentType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get adjustmentMode => $composableBuilder(
+    column: $table.adjustmentMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get appliedAt => $composableBuilder(
+    column: $table.appliedAt,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -52747,6 +55573,11 @@ class $$BookingPriceAdjustmentsTableAnnotationComposer
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
 
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => column,
@@ -52757,16 +55588,6 @@ class $$BookingPriceAdjustmentsTableAnnotationComposer
 
   GeneratedColumn<String> get roomNumber => $composableBuilder(
     column: $table.roomNumber,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get adjustmentType => $composableBuilder(
-    column: $table.adjustmentType,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get adjustmentMode => $composableBuilder(
-    column: $table.adjustmentMode,
     builder: (column) => column,
   );
 
@@ -52801,6 +55622,24 @@ class $$BookingPriceAdjustmentsTableAnnotationComposer
     column: $table.cancelledBy,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get bookingUuid => $composableBuilder(
+    column: $table.bookingUuid,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get adjustmentType => $composableBuilder(
+    column: $table.adjustmentType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get adjustmentMode => $composableBuilder(
+    column: $table.adjustmentMode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get appliedAt =>
+      $composableBuilder(column: $table.appliedAt, builder: (column) => column);
 
   $$BookingsTableAnnotationComposer get bookingLocalUuid {
     final $$BookingsTableAnnotationComposer composer = $composerBuilder(
@@ -52903,13 +55742,12 @@ class $$BookingPriceAdjustmentsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> bookingLocalUuid = const Value.absent(),
                 Value<int?> bookingLocalId = const Value.absent(),
                 Value<String?> roomNumber = const Value.absent(),
-                Value<int> adjustmentType = const Value.absent(),
-                Value<String> adjustmentMode = const Value.absent(),
                 Value<double> amount = const Value.absent(),
                 Value<String> effectiveHotelDay = const Value.absent(),
                 Value<String?> endHotelDay = const Value.absent(),
@@ -52918,6 +55756,10 @@ class $$BookingPriceAdjustmentsTableTableManager
                 Value<String?> appliedBy = const Value.absent(),
                 Value<String?> cancelledAt = const Value.absent(),
                 Value<String?> cancelledBy = const Value.absent(),
+                Value<String?> bookingUuid = const Value.absent(),
+                Value<int?> adjustmentType = const Value.absent(),
+                Value<String?> adjustmentMode = const Value.absent(),
+                Value<int?> appliedAt = const Value.absent(),
               }) => BookingPriceAdjustmentsCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -52934,13 +55776,12 @@ class $$BookingPriceAdjustmentsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 bookingLocalUuid: bookingLocalUuid,
                 bookingLocalId: bookingLocalId,
                 roomNumber: roomNumber,
-                adjustmentType: adjustmentType,
-                adjustmentMode: adjustmentMode,
                 amount: amount,
                 effectiveHotelDay: effectiveHotelDay,
                 endHotelDay: endHotelDay,
@@ -52949,6 +55790,10 @@ class $$BookingPriceAdjustmentsTableTableManager
                 appliedBy: appliedBy,
                 cancelledAt: cancelledAt,
                 cancelledBy: cancelledBy,
+                bookingUuid: bookingUuid,
+                adjustmentType: adjustmentType,
+                adjustmentMode: adjustmentMode,
+                appliedAt: appliedAt,
               ),
           createCompanionCallback:
               ({
@@ -52967,13 +55812,12 @@ class $$BookingPriceAdjustmentsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String bookingLocalUuid,
                 Value<int?> bookingLocalId = const Value.absent(),
                 Value<String?> roomNumber = const Value.absent(),
-                Value<int> adjustmentType = const Value.absent(),
-                Value<String> adjustmentMode = const Value.absent(),
                 Value<double> amount = const Value.absent(),
                 required String effectiveHotelDay,
                 Value<String?> endHotelDay = const Value.absent(),
@@ -52982,6 +55826,10 @@ class $$BookingPriceAdjustmentsTableTableManager
                 Value<String?> appliedBy = const Value.absent(),
                 Value<String?> cancelledAt = const Value.absent(),
                 Value<String?> cancelledBy = const Value.absent(),
+                Value<String?> bookingUuid = const Value.absent(),
+                Value<int?> adjustmentType = const Value.absent(),
+                Value<String?> adjustmentMode = const Value.absent(),
+                Value<int?> appliedAt = const Value.absent(),
               }) => BookingPriceAdjustmentsCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -52998,13 +55846,12 @@ class $$BookingPriceAdjustmentsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 bookingLocalUuid: bookingLocalUuid,
                 bookingLocalId: bookingLocalId,
                 roomNumber: roomNumber,
-                adjustmentType: adjustmentType,
-                adjustmentMode: adjustmentMode,
                 amount: amount,
                 effectiveHotelDay: effectiveHotelDay,
                 endHotelDay: endHotelDay,
@@ -53013,6 +55860,10 @@ class $$BookingPriceAdjustmentsTableTableManager
                 appliedBy: appliedBy,
                 cancelledAt: cancelledAt,
                 cancelledBy: cancelledBy,
+                bookingUuid: bookingUuid,
+                adjustmentType: adjustmentType,
+                adjustmentMode: adjustmentMode,
+                appliedAt: appliedAt,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -53116,6 +55967,7 @@ typedef $$AuditLogsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required String operationType,
@@ -53150,6 +56002,7 @@ typedef $$AuditLogsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> operationType,
@@ -53249,6 +56102,11 @@ class $$AuditLogsTableFilterComposer
 
   ColumnFilters<String> get deviceId => $composableBuilder(
     column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -53417,6 +56275,11 @@ class $$AuditLogsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnOrderings(column),
@@ -53566,6 +56429,11 @@ class $$AuditLogsTableAnnotationComposer
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
 
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => column,
@@ -53680,6 +56548,7 @@ class $$AuditLogsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> operationType = const Value.absent(),
@@ -53712,6 +56581,7 @@ class $$AuditLogsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 operationType: operationType,
@@ -53746,6 +56616,7 @@ class $$AuditLogsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String operationType,
@@ -53778,6 +56649,7 @@ class $$AuditLogsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 operationType: operationType,
@@ -53834,6 +56706,7 @@ typedef $$PaymentVoidsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required String originalPaymentUuid,
@@ -53868,6 +56741,7 @@ typedef $$PaymentVoidsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> originalPaymentUuid,
@@ -53967,6 +56841,11 @@ class $$PaymentVoidsTableFilterComposer
 
   ColumnFilters<String> get deviceId => $composableBuilder(
     column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -54135,6 +57014,11 @@ class $$PaymentVoidsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnOrderings(column),
@@ -54284,6 +57168,11 @@ class $$PaymentVoidsTableAnnotationComposer
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
 
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => column,
@@ -54403,6 +57292,7 @@ class $$PaymentVoidsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> originalPaymentUuid = const Value.absent(),
@@ -54435,6 +57325,7 @@ class $$PaymentVoidsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 originalPaymentUuid: originalPaymentUuid,
@@ -54469,6 +57360,7 @@ class $$PaymentVoidsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String originalPaymentUuid,
@@ -54501,6 +57393,7 @@ class $$PaymentVoidsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 originalPaymentUuid: originalPaymentUuid,
@@ -54560,6 +57453,7 @@ typedef $$GuestInfosTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required String roomNumber,
@@ -54571,6 +57465,7 @@ typedef $$GuestInfosTableCreateCompanionBuilder =
       Value<String?> issuePlace,
       Value<String?> governorate,
       Value<String?> notes,
+      Value<String?> guestPhone,
     });
 typedef $$GuestInfosTableUpdateCompanionBuilder =
     GuestInfosCompanion Function({
@@ -54589,6 +57484,7 @@ typedef $$GuestInfosTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> roomNumber,
@@ -54600,6 +57496,7 @@ typedef $$GuestInfosTableUpdateCompanionBuilder =
       Value<String?> issuePlace,
       Value<String?> governorate,
       Value<String?> notes,
+      Value<String?> guestPhone,
     });
 
 class $$GuestInfosTableFilterComposer
@@ -54686,6 +57583,11 @@ class $$GuestInfosTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnFilters(column),
@@ -54738,6 +57640,11 @@ class $$GuestInfosTableFilterComposer
 
   ColumnFilters<String> get notes => $composableBuilder(
     column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get guestPhone => $composableBuilder(
+    column: $table.guestPhone,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -54826,6 +57733,11 @@ class $$GuestInfosTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnOrderings(column),
@@ -54878,6 +57790,11 @@ class $$GuestInfosTableOrderingComposer
 
   ColumnOrderings<String> get notes => $composableBuilder(
     column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get guestPhone => $composableBuilder(
+    column: $table.guestPhone,
     builder: (column) => ColumnOrderings(column),
   );
 }
@@ -54950,6 +57867,11 @@ class $$GuestInfosTableAnnotationComposer
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
 
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => column,
@@ -54992,6 +57914,11 @@ class $$GuestInfosTableAnnotationComposer
 
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<String> get guestPhone => $composableBuilder(
+    column: $table.guestPhone,
+    builder: (column) => column,
+  );
 }
 
 class $$GuestInfosTableTableManager
@@ -55040,6 +57967,7 @@ class $$GuestInfosTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> roomNumber = const Value.absent(),
@@ -55051,6 +57979,7 @@ class $$GuestInfosTableTableManager
                 Value<String?> issuePlace = const Value.absent(),
                 Value<String?> governorate = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
+                Value<String?> guestPhone = const Value.absent(),
               }) => GuestInfosCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -55067,6 +57996,7 @@ class $$GuestInfosTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 roomNumber: roomNumber,
@@ -55078,6 +58008,7 @@ class $$GuestInfosTableTableManager
                 issuePlace: issuePlace,
                 governorate: governorate,
                 notes: notes,
+                guestPhone: guestPhone,
               ),
           createCompanionCallback:
               ({
@@ -55096,6 +58027,7 @@ class $$GuestInfosTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String roomNumber,
@@ -55107,6 +58039,7 @@ class $$GuestInfosTableTableManager
                 Value<String?> issuePlace = const Value.absent(),
                 Value<String?> governorate = const Value.absent(),
                 Value<String?> notes = const Value.absent(),
+                Value<String?> guestPhone = const Value.absent(),
               }) => GuestInfosCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -55123,6 +58056,7 @@ class $$GuestInfosTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 roomNumber: roomNumber,
@@ -55134,6 +58068,7 @@ class $$GuestInfosTableTableManager
                 issuePlace: issuePlace,
                 governorate: governorate,
                 notes: notes,
+                guestPhone: guestPhone,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -55174,6 +58109,7 @@ typedef $$SalaryWithdrawalsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required int employeeId,
@@ -55202,6 +58138,7 @@ typedef $$SalaryWithdrawalsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int> employeeId,
@@ -55326,6 +58263,11 @@ class $$SalaryWithdrawalsTableFilterComposer
 
   ColumnFilters<String> get deviceId => $composableBuilder(
     column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -55482,6 +58424,11 @@ class $$SalaryWithdrawalsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnOrderings(column),
@@ -55619,6 +58566,11 @@ class $$SalaryWithdrawalsTableAnnotationComposer
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
 
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => column,
@@ -55728,6 +58680,7 @@ class $$SalaryWithdrawalsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int> employeeId = const Value.absent(),
@@ -55754,6 +58707,7 @@ class $$SalaryWithdrawalsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 employeeId: employeeId,
@@ -55782,6 +58736,7 @@ class $$SalaryWithdrawalsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required int employeeId,
@@ -55808,6 +58763,7 @@ class $$SalaryWithdrawalsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 employeeId: employeeId,
@@ -55905,6 +58861,7 @@ typedef $$SalaryCarryOverLogsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required int employeeId,
@@ -55915,6 +58872,11 @@ typedef $$SalaryCarryOverLogsTableCreateCompanionBuilder =
       required String newCycleEnd,
       required String reason,
       required int carriedAt,
+      Value<String?> fromCycleId,
+      Value<String?> toCycleId,
+      Value<String?> carryDate,
+      Value<String?> performedBy,
+      Value<String?> hotelDayKey,
     });
 typedef $$SalaryCarryOverLogsTableUpdateCompanionBuilder =
     SalaryCarryOverLogsCompanion Function({
@@ -55933,6 +58895,7 @@ typedef $$SalaryCarryOverLogsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
+      Value<int?> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int> employeeId,
@@ -55943,6 +58906,11 @@ typedef $$SalaryCarryOverLogsTableUpdateCompanionBuilder =
       Value<String> newCycleEnd,
       Value<String> reason,
       Value<int> carriedAt,
+      Value<String?> fromCycleId,
+      Value<String?> toCycleId,
+      Value<String?> carryDate,
+      Value<String?> performedBy,
+      Value<String?> hotelDayKey,
     });
 
 final class $$SalaryCarryOverLogsTableReferences
@@ -56060,6 +59028,11 @@ class $$SalaryCarryOverLogsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnFilters(column),
@@ -56102,6 +59075,31 @@ class $$SalaryCarryOverLogsTableFilterComposer
 
   ColumnFilters<int> get carriedAt => $composableBuilder(
     column: $table.carriedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fromCycleId => $composableBuilder(
+    column: $table.fromCycleId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get toCycleId => $composableBuilder(
+    column: $table.toCycleId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get carryDate => $composableBuilder(
+    column: $table.carryDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get performedBy => $composableBuilder(
+    column: $table.performedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get hotelDayKey => $composableBuilder(
+    column: $table.hotelDayKey,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -56213,6 +59211,11 @@ class $$SalaryCarryOverLogsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => ColumnOrderings(column),
@@ -56255,6 +59258,31 @@ class $$SalaryCarryOverLogsTableOrderingComposer
 
   ColumnOrderings<int> get carriedAt => $composableBuilder(
     column: $table.carriedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fromCycleId => $composableBuilder(
+    column: $table.fromCycleId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get toCycleId => $composableBuilder(
+    column: $table.toCycleId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get carryDate => $composableBuilder(
+    column: $table.carryDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get performedBy => $composableBuilder(
+    column: $table.performedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get hotelDayKey => $composableBuilder(
+    column: $table.hotelDayKey,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -56350,6 +59378,11 @@ class $$SalaryCarryOverLogsTableAnnotationComposer
   GeneratedColumn<String> get deviceId =>
       $composableBuilder(column: $table.deviceId, builder: (column) => column);
 
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get idempotencyKey => $composableBuilder(
     column: $table.idempotencyKey,
     builder: (column) => column,
@@ -56386,6 +59419,27 @@ class $$SalaryCarryOverLogsTableAnnotationComposer
 
   GeneratedColumn<int> get carriedAt =>
       $composableBuilder(column: $table.carriedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get fromCycleId => $composableBuilder(
+    column: $table.fromCycleId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get toCycleId =>
+      $composableBuilder(column: $table.toCycleId, builder: (column) => column);
+
+  GeneratedColumn<String> get carryDate =>
+      $composableBuilder(column: $table.carryDate, builder: (column) => column);
+
+  GeneratedColumn<String> get performedBy => $composableBuilder(
+    column: $table.performedBy,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get hotelDayKey => $composableBuilder(
+    column: $table.hotelDayKey,
+    builder: (column) => column,
+  );
 
   $$EmployeesTableAnnotationComposer get employeeId {
     final $$EmployeesTableAnnotationComposer composer = $composerBuilder(
@@ -56462,6 +59516,7 @@ class $$SalaryCarryOverLogsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int> employeeId = const Value.absent(),
@@ -56472,6 +59527,11 @@ class $$SalaryCarryOverLogsTableTableManager
                 Value<String> newCycleEnd = const Value.absent(),
                 Value<String> reason = const Value.absent(),
                 Value<int> carriedAt = const Value.absent(),
+                Value<String?> fromCycleId = const Value.absent(),
+                Value<String?> toCycleId = const Value.absent(),
+                Value<String?> carryDate = const Value.absent(),
+                Value<String?> performedBy = const Value.absent(),
+                Value<String?> hotelDayKey = const Value.absent(),
               }) => SalaryCarryOverLogsCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -56488,6 +59548,7 @@ class $$SalaryCarryOverLogsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 employeeId: employeeId,
@@ -56498,6 +59559,11 @@ class $$SalaryCarryOverLogsTableTableManager
                 newCycleEnd: newCycleEnd,
                 reason: reason,
                 carriedAt: carriedAt,
+                fromCycleId: fromCycleId,
+                toCycleId: toCycleId,
+                carryDate: carryDate,
+                performedBy: performedBy,
+                hotelDayKey: hotelDayKey,
               ),
           createCompanionCallback:
               ({
@@ -56516,6 +59582,7 @@ class $$SalaryCarryOverLogsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
+                Value<int?> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required int employeeId,
@@ -56526,6 +59593,11 @@ class $$SalaryCarryOverLogsTableTableManager
                 required String newCycleEnd,
                 required String reason,
                 required int carriedAt,
+                Value<String?> fromCycleId = const Value.absent(),
+                Value<String?> toCycleId = const Value.absent(),
+                Value<String?> carryDate = const Value.absent(),
+                Value<String?> performedBy = const Value.absent(),
+                Value<String?> hotelDayKey = const Value.absent(),
               }) => SalaryCarryOverLogsCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -56542,6 +59614,7 @@ class $$SalaryCarryOverLogsTableTableManager
                 origin: origin,
                 vectorClock: vectorClock,
                 deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
                 idempotencyKey: idempotencyKey,
                 id: id,
                 employeeId: employeeId,
@@ -56552,6 +59625,11 @@ class $$SalaryCarryOverLogsTableTableManager
                 newCycleEnd: newCycleEnd,
                 reason: reason,
                 carriedAt: carriedAt,
+                fromCycleId: fromCycleId,
+                toCycleId: toCycleId,
+                carryDate: carryDate,
+                performedBy: performedBy,
+                hotelDayKey: hotelDayKey,
               ),
           withReferenceMapper: (p0) => p0
               .map(

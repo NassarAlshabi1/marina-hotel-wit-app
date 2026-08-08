@@ -32,7 +32,7 @@ mixin SyncFields on Table {
   TextColumn get origin => text().withDefault(const Constant('local'))();
   TextColumn get vectorClock => text().withDefault(const Constant('{}'))();
   TextColumn get deviceId => text().withDefault(const Constant(''))();
-  IntColumn get syncTimestamp => integer().withDefault(const Constant(0))();
+  IntColumn get syncTimestamp => integer().nullable()();
   // ✅ v2: مفتاح إزالة التكرار (idempotency) — يمنع تكرار العمليات عبر الأجهزة
   TextColumn get idempotencyKey => text().nullable()();
 }
@@ -250,10 +250,10 @@ class Payments extends Table with SyncFields {
   TextColumn get bookingUuidCache => text().nullable()();
   RealColumn get discountAmount => real().nullable()();
   TextColumn get discountStartDate => text().nullable()();
-BoolColumn get isVoided => boolean().withDefault(const Constant(false))();
-  IntColumn get voidedAt => integer().nullable();
-  TextColumn get voidedBy => text().nullable();
-  TextColumn get voidReason => text().nullable();
+  BoolColumn get isVoided => boolean().withDefault(const Constant(false))();
+  IntColumn get voidedAt => integer().nullable()();
+  TextColumn get voidedBy => text().nullable()();
+  TextColumn get voidReason => text().nullable()();
   BoolColumn get isImmutable => boolean().withDefault(const Constant(false))();
 
   List<Index> get indexes => [
@@ -392,6 +392,9 @@ class BookingNights extends Table with SyncFields {
   RealColumn get finalRate => real().withDefault(const Constant(0.0))();
   TextColumn get appliedAdjustmentUuid => text().nullable()();
   TextColumn get appliedAdjustmentsJson => text().nullable()();
+  // ✅ حقول مضافة لمطابقة مخطط Appwrite
+  TextColumn get bookingUuidCache => text().nullable()();
+  IntColumn get serverBookingId => integer().nullable()();
 
   @override
   List<Set<Column>>? get uniqueKeys => [
@@ -476,8 +479,12 @@ class BookingPriceAdjustments extends Table with SyncFields {
   TextColumn get reason => text().nullable()();
   TextColumn get appliedBy => text().nullable()();
   TextColumn get cancelledAt => text().nullable()();
-  TextColumn get cancelledBy => text().nullable();
-  TextColumn get bookingUuid => text().nullable();
+  TextColumn get cancelledBy => text().nullable()();
+  TextColumn get bookingUuid => text().nullable()();
+  // ✅ حقول مضافة لمطابقة مخطط Appwrite (Migration 53 / payload_mapper)
+  IntColumn get adjustmentType => integer().nullable()();
+  TextColumn get adjustmentMode => text().nullable()();
+  IntColumn get appliedAt => integer().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -568,7 +575,7 @@ class GuestInfos extends Table with SyncFields {
   TextColumn get issueDate => text().nullable()();
   TextColumn get issuePlace => text().nullable()();
   TextColumn get governorate => text().nullable()();
-  TextColumn get notes => text().nullable();
+  TextColumn get notes => text().nullable()();
   TextColumn get guestPhone => text().nullable()();
 
   List<Index> get indexes => [
@@ -710,6 +717,8 @@ class SalaryCarryOverLogs extends Table with SyncFields {
   TextColumn get toCycleId => text().nullable()();
   TextColumn get carryDate => text().nullable()();
   TextColumn get performedBy => text().nullable()();
+  // ✅ حقل مضاف لمطابقة مخطط Appwrite
+  TextColumn get hotelDayKey => text().nullable()();
 
   List<Index> get indexes => [
     Index(
