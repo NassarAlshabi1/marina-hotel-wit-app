@@ -13,11 +13,7 @@
 # GLOBAL BUILD OPTIONS
 # ============================================
 global_options:
-  # Build Configuration
-  build_extensions:
-    "^lib/{{path}}": "generated/{{path}}"
-  
-  # Enable for all targets
+  # Enable for all builders globally (supported key)
   auto_apply: all
 
 # ============================================
@@ -26,6 +22,9 @@ global_options:
 
 targets:
   $default:
+    # Build Configuration (build_extensions is only valid inside a target)
+    build_extensions:
+      "^lib/{{path}}": "generated/{{path}}"
     # Builders Configuration
     builders:
       # ==========================================
