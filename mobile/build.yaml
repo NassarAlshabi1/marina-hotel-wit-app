@@ -18,3 +18,5 @@ targets:
         enabled: true
       mockito:
         enabled: true
+
+# CI-verified: build_runner parses and generates code successfully (Flutter 3.44.x).
