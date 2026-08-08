@@ -194,9 +194,17 @@ class Payments extends Table with SyncFields {
   TextColumn get bookingUuidCache => text().nullable()();
   RealColumn get discountAmount => real().nullable()();
   TextColumn get discountStartDate => text().nullable()();
+<<<<<<< ours
   BoolColumn get isVoided => boolean().withDefault(const Constant(false))();
   IntColumn get voidedAt => integer().nullable()();
   TextColumn get voidedBy => text().nullable()();
+=======
+BoolColumn get isVoided => boolean().withDefault(const Constant(false))();
+  IntColumn get voidedAt => integer().nullable();
+  TextColumn get voidedBy => text().nullable();
+  TextColumn get voidReason => text().nullable();
+  BoolColumn get isImmutable => boolean().withDefault(const Constant(false))();
+>>>>>>> theirs
 
   List<Index> get indexes => [
     Index('idx_payments_booking', 'CREATE INDEX idx_payments_booking ON payments (booking_local_id, hotel_day_key)'),

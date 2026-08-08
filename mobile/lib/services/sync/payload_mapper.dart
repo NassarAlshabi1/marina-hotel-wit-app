@@ -123,9 +123,8 @@ class PayloadMapper {
     putIfStringNotEmpty(data, 'vectorClock', booking.vectorClock);
     data['deviceId'] = booking.deviceId;
 
-    // حقول v2 الجديدة
-    // TODO: enable when Drift model has this field — putIfNotNull(data, 'financialFrozenAt', booking.financialFrozenAt);
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'financialHash', booking.financialHash);
+    putIfNotNull(data, 'financialFrozenAt', booking.financialFrozenAt);
+    putIfStringNotEmpty(data, 'financialHash', booking.financialHash);
     putIfStringNotEmpty(data, 'stayDurationIso', booking.stayDurationIso);
     putIfNotNull(data, 'lastNightEpoch', booking.lastNightEpoch);
     putIfNotNull(data, 'isOverdue', booking.isOverdue);
@@ -228,9 +227,8 @@ class PayloadMapper {
     putIfNotNull(data, 'voidedAt', payment.voidedAt);
     putIfStringNotEmpty(data, 'voidedBy', payment.voidedBy);
 
-    // حقول v2 الجديدة
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'voidReason', payment.voidReason);
-    // TODO: enable when Drift model has this field — putIfNotNull(data, 'isImmutable', payment.isImmutable);
+    putIfStringNotEmpty(data, 'voidReason', payment.voidReason);
+    putIfNotNull(data, 'isImmutable', payment.isImmutable);
     putIfStringNotEmpty(data, 'idempotencyKey', payment.idempotencyKey);
 
     putIfNotNull(data, 'createdAtEpoch', payment.createdAtEpoch);
@@ -282,10 +280,10 @@ class PayloadMapper {
 
     // حقول v2 الجديدة
     putIfStringNotEmpty(data, 'dateRecorded', debt.dateRecorded);
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'guestPhone', debt.guestPhone);
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'description', debt.description);
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'status', debt.status);
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'dueDate', debt.dueDate);
+    putIfStringNotEmpty(data, 'guestPhone', debt.guestPhone);
+    putIfStringNotEmpty(data, 'description', debt.description);
+    putIfStringNotEmpty(data, 'status', debt.status);
+    putIfStringNotEmpty(data, 'dueDate', debt.dueDate);
     putIfStringNotEmpty(data, 'idempotencyKey', debt.idempotencyKey);
 
     putIfNotNull(data, 'createdAtEpoch', debt.createdAtEpoch);
@@ -393,9 +391,8 @@ class PayloadMapper {
     putIfStringNotEmpty(data, 'appliedAdjustmentUuid', night.appliedAdjustmentUuid);
     putIfStringNotEmpty(data, 'appliedAdjustmentsJson', night.appliedAdjustmentsJson);
 
-    // حقول v2 الجديدة
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'bookingUuidCache', night.bookingUuidCache);
-    // TODO: enable when Drift model has this field — putIfNotNull(data, 'serverBookingId', night.serverBookingId);
+    putIfStringNotEmpty(data, 'bookingUuidCache', night.bookingUuidCache);
+    putIfNotNull(data, 'serverBookingId', night.serverBookingId);
     putIfStringNotEmpty(data, 'idempotencyKey', night.idempotencyKey);
 
     return data;
@@ -735,8 +732,8 @@ class PayloadMapper {
     };
 
     // حقول v2 الجديدة
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'bookingUuid', adj.bookingUuid);
-    // TODO: enable when Drift model has this field — putIfNotNull(data, 'appliedAt', adj.appliedAt);
+    putIfStringNotEmpty(data, 'bookingUuid', adj.bookingUuid);
+    putIfNotNull(data, 'appliedAt', adj.appliedAt);
     putIfStringNotEmpty(data, 'idempotencyKey', adj.idempotencyKey);
 
     putIfNotNull(data, 'serverId', adj.serverId);
@@ -776,15 +773,13 @@ class PayloadMapper {
       'amount': log.amount,
       'reason': log.reason,
 
-      // تم الإصلاح ليتوافق مع v2 (ترحيل المتغيرات إذا تم تحديث Drift، وإلا تمرير القديمة مؤقتاً لتجنب الأخطاء)
-      // TODO: enable when Drift model has this field — 'fromCycleId': log.fromCycleId ?? log.previousCycleStart, // احتياطي إن لم يحدث الموديل
-      // TODO: enable when Drift model has this field — 'toCycleId': log.toCycleId ?? log.newCycleStart,         // احتياطي
-      // TODO: enable when Drift model has this field — 'carryDate': log.carryDate ?? log.carriedAt,             // احتياطي
+      'fromCycleId': log.fromCycleId ?? log.previousCycleStart,
+      'toCycleId': log.toCycleId ?? log.newCycleStart,
+      'carryDate': log.carryDate ?? log.carriedAt,
     };
 
-    // حقول v2 الجديدة
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'hotelDayKey', log.hotelDayKey);
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'performedBy', log.performedBy);
+    putIfStringNotEmpty(data, 'hotelDayKey', log.hotelDayKey);
+    putIfStringNotEmpty(data, 'performedBy', log.performedBy);
     putIfStringNotEmpty(data, 'idempotencyKey', log.idempotencyKey);
 
     putIfNotNull(data, 'serverId', log.serverId);
