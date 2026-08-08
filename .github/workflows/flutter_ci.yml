@@ -151,7 +151,7 @@ jobs:
             ${{ inputs.format_directories }}
 
       - name: 🕵️ Analyze
-        run: flutter analyze ${{ inputs.analyze_directories }}
+        run: dart analyze ${{ inputs.analyze_directories }}
 
   # ═══════════════════════════════════════════════════════════════
   #  Job 2: Test + Coverage (Medium — ~5-8 minutes)
