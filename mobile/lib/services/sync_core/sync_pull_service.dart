@@ -2,6 +2,7 @@
 import 'dart:async';
 
 import 'package:appwrite/appwrite.dart';
+import 'package:collection/collection.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -152,6 +153,13 @@ class SyncPullService {
 
     switch (comparison) {
       case VectorClockComparison.equal:
+        // ✅ Fix (2026-08-08): لا نرفض السجل صامتاً عند تطابق الـ VC.
+        // Appwrite لا يزيد الـ vectorClock تلقائياً عند التخزين، لذا قد يتطابق
+        // VC رغم اختلاف البيانات الفعلية (مثل تغيّر status/actualCheckout).
+        // نتحقق من المحتوى الفعلي — إن اختلف → البعيد أحدث ويُطبَّق.
+        if (localData != null && !_contentEquals(localData, remoteData)) {
+          return const RemoteCheckResult(shouldApplyRemote: true);
+        }
         return const RemoteCheckResult(shouldApplyRemote: false);
 
       case VectorClockComparison.remoteNewer:
@@ -247,6 +255,30 @@ class SyncPullService {
       if (parsedDouble != null) return parsedDouble.toInt();
     }
     return null;
+  }
+
+  /// ✅ Fix (2026-08-08): يقارن محتوى البيانات الفعلي متجاهلاً الحقول الوصفية
+  /// (timestamps/version/vectorClock/ids). يُستخدم لمنع تخطّي سجل تغيّرت
+  /// بياناته رغم تطابق vectorClock — الحالة التي تحدث عندما يرفع نفس الجهاز
+  /// نفس السجل بقيم مختلفة دون أن يزيد Appwrite الـ VC تلقائياً.
+  static bool _contentEquals(
+    Map<String, dynamic> a,
+    Map<String, dynamic> b,
+  ) {
+    const skip = {
+      'lastModified', 'updatedAt', 'version', 'vectorClock', 'vector_clock',
+      'last_modified', 'last_modified_epoch', 'updated_at', 'createdAt',
+      'created_at', 'deletedAt', 'deleted_at', 'syncTimestamp', 'sync_origin',
+      'localUuid', 'serverId', 'id', 'idempotencyKey', 'lastModifiedEpoch',
+      'createdAtEpoch', 'createdAtIso', 'updatedAtIso', 'deletedAtIso',
+      '\$id', '\$createdAt', '\$updatedAt', '\$permissions',
+    };
+    final keys = <String>{...a.keys, ...b.keys}..removeWhere(skip.contains);
+    const eq = DeepCollectionEquality();
+    for (final k in keys) {
+      if (!eq.equals(a[k], b[k])) return false;
+    }
+    return true;
   }
 
   /// يحدد ما إذا كان الطابع الزمني البعيد مُعبَّرًا عنه بالميلي ثانية أم بالثواني.
