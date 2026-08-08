@@ -470,7 +470,20 @@ class SmartConflictResolver {
       case FieldStrategy.newerWins:
         final localTs = _extractTs(localData);
         final remoteTs = _extractTs(remoteData);
-        final remoteWins = remoteTs >= localTs;
+        // ✅ Audit Fix: عند تساوي الـ timestamp لا نترك البعيد يربح تلقائياً
+        // (`>=` كان يمسح التعديلات المحلية على الحقول المالية عند التعارض).
+        // نكسر التعادل بشكل حتمي ومتماثل عبر الأجهزة باستخدام deviceId
+        // (نفس منطق LWW في sync_pull_service).
+        bool remoteWins;
+        if (remoteTs > localTs) {
+          remoteWins = true;
+        } else if (remoteTs < localTs) {
+          remoteWins = false;
+        } else {
+          final remoteDev = (remoteData['deviceId'] as String?) ?? '';
+          final localDev = (localData['deviceId'] as String?) ?? '';
+          remoteWins = remoteDev.compareTo(localDev) < 0;
+        }
         return _FieldResolution(
           value: remoteWins ? remoteVal : localVal,
           warning: remoteWins

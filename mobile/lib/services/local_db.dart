@@ -10,6 +10,7 @@ import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:uuid/uuid.dart';
 
 import '../data/sync_models.dart' as sync_models;
+import '../utils/weak_device_optimizer.dart';
 
 part 'local_db.g.dart';
 
@@ -958,9 +959,20 @@ class AppDatabase extends _$AppDatabase {
       // تحسينات الأداء: WAL mode للقراءة والكتابة المتوازية
       await customStatement('PRAGMA journal_mode = WAL');
       await customStatement('PRAGMA synchronous = NORMAL');
-      await customStatement('PRAGMA cache_size = -8192');
-      await customStatement('PRAGMA temp_store = MEMORY');
-      await customStatement('PRAGMA mmap_size = 268435456');
+      // ✅ Low-RAM tuning (1GB devices): تقليل بصمة الذاكرة لمنع OOM-kill.
+      // القيم الافتراضية للأجهزة العادية؛ تُخفّض فقط على الأجهزة الضعيفة.
+      final weak = WeakDeviceOptimizer.instance.isWeakDevice;
+      await customStatement('PRAGMA busy_timeout = 5000');
+      if (weak) {
+        // 2MB page cache + 16MB mmap، temp يذهب للملف لا للذاكرة.
+        await customStatement('PRAGMA cache_size = -2048');
+        await customStatement('PRAGMA temp_store = FILE');
+        await customStatement('PRAGMA mmap_size = 16777216');
+      } else {
+        await customStatement('PRAGMA cache_size = -8192');
+        await customStatement('PRAGMA temp_store = MEMORY');
+        await customStatement('PRAGMA mmap_size = 268435456');
+      }
       // ✅ تم إزالة PRAGMA page_size = 4096 — لا يعمل بعد إنشاء قاعدة البيانات
       // page_size يجب تعيينه فقط عند إنشاء قاعدة بيانات جديدة، وبما أن
       // قاعدة البيانات موجودة مسبقاً بقيمة مختلفة (غالباً 1024) فهذا إهدار I/O
