@@ -888,7 +888,7 @@ class PayloadMapper {
       'carriedAt': log.carriedAt,
       'fromCycleId': log.fromCycleId ?? log.previousCycleStart,
       'toCycleId': log.toCycleId ?? log.newCycleStart,
-      'carryDate': log.carryDate ?? log.carriedAt,
+      'carryDate': log.carryDate,
     };
 
     putIfStringNotEmpty(data, 'hotelDayKey', log.hotelDayKey);
