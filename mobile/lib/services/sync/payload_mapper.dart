@@ -776,7 +776,7 @@ class PayloadMapper {
       'deviceId': withdrawal.deviceId,
       // تمت إزالة 'id'
       'employeeId': withdrawal.employeeId,
-      'amount': withdrawal.amount.round(),
+      'amount': withdrawal.amount,
       'withdrawDate': effectiveWithdrawDate,
       'withdrawalDate': effectiveWithdrawDate,
     };
