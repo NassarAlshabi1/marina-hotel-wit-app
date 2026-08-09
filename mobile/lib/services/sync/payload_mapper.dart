@@ -587,10 +587,12 @@ class PayloadMapper {
       'priority': note.priority,
       'shiftType': note.shiftType,
       'isRead': note.isRead == 1,
-      // ✅ إصلاح: shift_notes schema يُعرّف createdAt/updatedAt كـ string (ISO)
-      'createdAt': createdAtIso,
+      // ✅ إصلاح: shift_notes schema يُعرّف createdAt/updatedAt كـ integer (epoch milliseconds)
+      // وليس string (ISO). Appwrite الثانوي يطلبه كـ integer (valid 64-bit).
+      // تخزين محلياً كـ epoch seconds، نضرب في 1000 لتحويله لـ milliseconds
+      'createdAt': note.createdAt * 1000,
       'createdAtIso': createdAtIso,
-      'updatedAt': updatedAtIso,
+      'updatedAt': note.updatedAt * 1000,
       'updatedAtIso': updatedAtIso,
       'lastModified': note.lastModified,
       'createdBy': note.createdBy,
