@@ -159,15 +159,18 @@ class AppwriteSchemaVerifier {
           'required': true,
           'unique': true,
         },
-        {'key': 'name', 'type': 'string', 'size': 100, 'required': true},
+        {'key': 'name', 'type': 'string', 'size': 255, 'required': true},
         {'key': 'basicSalary', 'type': 'double', 'required': true},
         {'key': 'position', 'type': 'string', 'size': 50, 'default': 'موظف'},
         {'key': 'phone', 'type': 'string', 'size': 50, 'default': ''},
         {'key': 'hireDate', 'type': 'string', 'size': 50, 'default': ''},
-        {'key': 'status', 'type': 'string', 'size': 20, 'required': true},
+        {'key': 'status', 'type': 'string', 'size': 512, 'required': true},
         // ✅ حقول إنهاء الخدمة (Migration 39)
         {'key': 'terminationDate', 'type': 'string', 'size': 50},
-        {'key': 'terminationReason', 'type': 'string', 'size': 200},
+        {'key': 'terminationReason', 'type': 'string', 'size': 500},
+        // ✅ حقول إضافية
+        {'key': 'EmployeeID', 'type': 'string', 'size': 50},
+        {'key': 'salary', 'type': 'double'},
       ],
     },
     'expenses': {
