@@ -28,6 +28,29 @@ import 'package:marina_hotel_mobile/utils/debug_log.dart';
 class SyncGuard {
   SyncGuard._();
 
+  /// الإعدادات الحالية (الافتراضية)
+  /// يمكن تعديلها عبر Config أو ملف Olsen
+  static const _defaultLockTimeout = Duration(minutes: 10);
+  static const _defaultStaleLockTimeout = Duration(minutes: 10);
+  
+  /// يمكن تهيئة القيم الجديدة من أي مصدر (AppConfig.integrations)
+  static Duration _lockTimeout = _defaultLockTimeout;
+  static Duration _staleLockTimeout = _defaultStaleLockTimeout;
+  
+  /// ✅ الوقاية من lock studio: يمكن أن يتغير وقت الانتظار بناءً على حجم البيانات أو الحالة
+  /// تساعد على تجنب EtBa但在关键时刻的死锁问题。
+  static void configureTimeouts({
+    Duration? lockTimeout,
+    Duration? staleLockTimeout,
+  }) {
+    if (lockTimeout != null) {
+      _lockTimeout = lockTimeout;
+    }
+    if (staleLockTimeout != null) {
+      _staleLockTimeout = staleLockTimeout;
+    }
+  }
+
   /// وقت بدء آخر مزامنة نشطة عبر جميع الخدمات.
   static DateTime? _activeSyncStartedAt;
 
@@ -42,9 +65,9 @@ class SyncGuard {
   static bool canStart({required String label}) {
     if (_activeSyncStartedAt == null) return true;
     final elapsed = DateTime.now().difference(_activeSyncStartedAt!);
-    // إذا مضت أكثر من 10 دقائق على "مزامنة نشطة"، فمن المحتمل أنها علقت
+    // إذا مضت أكثر من [_staleLockTimeout] على "مزامنة نشطة"، من المحتمل أنها علقت
     // (deadlock أو crash) — اسمح بمزامنة جديدة كـ safety valve.
-    if (elapsed > const Duration(minutes: 10)) {
+    if (elapsed > _staleLockTimeout) {
       dlog(
         () =>
             '⚠️ SyncGuard: stale lock detected (label=$_activeSyncLabel, '
