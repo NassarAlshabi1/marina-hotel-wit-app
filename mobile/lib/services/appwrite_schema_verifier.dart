@@ -539,18 +539,17 @@ class AppwriteSchemaVerifier {
       'attributes': [
         {'key': 'localUuid', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'employeeId', 'type': 'integer', 'required': true},
-        // ⚠️ amount على Appwrite Cloud هو integer (وليس double)
-        // كود المزامنة يحول القيمة تلقائياً عبر AppwriteSyncUtils.convertAmountTypesForAppwrite
-        {'key': 'amount', 'type': 'integer', 'required': true},
-        // ✅ الحقول المحلية المتوافقة مع Adapter (2026-05-17)
-        {'key': 'withdrawDate', 'type': 'string', 'size': 50, 'required': true},
+        // ⚠️ amount على Appwrite Cloud هو double
+        {'key': 'amount', 'type': 'double', 'required': true},
+        // ✅ حقول المحلية المتوافقة مع Adapter (2026-05-17)
+        {'key': 'withdrawDate', 'type': 'string', 'size': 255, 'required': true},
         {'key': 'reason', 'type': 'string', 'size': 500},
         {'key': 'hotelDayKey', 'type': 'string', 'size': 50},
-        {'key': 'withdrawalType', 'type': 'string', 'size': 50},
+        {'key': 'withdrawalType', 'type': 'string', 'size': 30, 'default': 'withdrawal'},
         {'key': 'description', 'type': 'string', 'size': 500},
         // ✅ حقول employeeUuid لحل FK عبر الأجهزة
-        {'key': 'employeeUuid', 'type': 'string', 'size': 100},
-        // الحقول القديمة على Cloud (للتوافق العكسي)
+        {'key': 'employeeUuid', 'type': 'string', 'size': 36},
+        // الحقول القديمة على Cloud (للتوافق العكسي) - nullable
         {'key': 'action', 'type': 'string', 'size': 50},
         {'key': 'date', 'type': 'string', 'size': 50},
         {'key': 'note', 'type': 'string', 'size': 500},
