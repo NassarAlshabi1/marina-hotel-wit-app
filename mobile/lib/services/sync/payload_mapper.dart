@@ -886,13 +886,9 @@ class PayloadMapper {
       'newCycleStart': log.newCycleStart,
       'newCycleEnd': log.newCycleEnd,
       'carriedAt': log.carriedAt,
-      'fromCycleId': log.fromCycleId ?? log.previousCycleStart,
-      'toCycleId': log.toCycleId ?? log.newCycleStart,
       'carryDate': log.carryDate,
     };
 
-    putIfStringNotEmpty(data, 'hotelDayKey', log.hotelDayKey);
-    putIfStringNotEmpty(data, 'performedBy', log.performedBy);
     putIfStringNotEmpty(data, 'idempotencyKey', log.idempotencyKey);
 
     putIfNotNull(data, 'serverId', log.serverId);
