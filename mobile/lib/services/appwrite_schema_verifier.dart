@@ -29,9 +29,9 @@ class AppwriteSchemaVerifier {
           'required': true,
           'unique': true,
         },
-        {'key': 'type', 'type': 'string', 'size': 50, 'required': true},
+        {'key': 'type', 'type': 'string', 'size': 512, 'required': true},
         {'key': 'price', 'type': 'double', 'required': true},
-        {'key': 'status', 'type': 'string', 'size': 20, 'required': true},
+        {'key': 'status', 'type': 'string', 'size': 512, 'required': true},
         {'key': 'imageUrl', 'type': 'string', 'size': 500},
         {
           'key': 'cleaningStatus',
