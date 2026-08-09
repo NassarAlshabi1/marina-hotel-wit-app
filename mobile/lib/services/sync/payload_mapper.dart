@@ -582,14 +582,14 @@ class PayloadMapper {
         ).toIso8601String();
     final data = <String, dynamic>{
       'localUuid': note.localUuid,
-      'title': note.title,
+'title': note.title,
       'content': note.content,
       'priority': note.priority,
       'shiftType': note.shiftType,
       'isRead': note.isRead == 1,
       // ✅ إصلاح: shift_notes schema يُعرّف createdAt/updatedAt كـ integer (epoch milliseconds)
       // وليس string (ISO). Appwrite الثانوي يطلبه كـ integer (valid 64-bit).
-      // تخزين محلياً كـ epoch seconds، نضرب في 1000 لتحويله لـ milliseconds
+      // تخزين محلياً كـ epoch seconds، نضرب في 1000 لتحويه لـ milliseconds
       'createdAt': note.createdAt * 1000,
       'createdAtIso': createdAtIso,
       'updatedAt': note.updatedAt * 1000,
