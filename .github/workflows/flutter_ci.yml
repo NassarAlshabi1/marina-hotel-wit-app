@@ -142,7 +142,7 @@ jobs:
 
       - name: 🏗️ Run Build Runner
         if: inputs.run_build_runner == true
-        run: dart run build_runner build
+        run: dart run build_runner build --delete-conflicting-outputs
 
       - name: ✨ Check Formatting
         run: |
