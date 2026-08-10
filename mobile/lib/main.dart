@@ -116,17 +116,19 @@ Future<void> main() async {
   // بقية الخدمات (RemoteConfigService، ApiConfigService، DiagnosticsLogger).
   // SecondaryAppwriteConfig removed (Cloudflare migration)
 
-  // ─── Parallel initialization of optional services ───
-  // بعد اكتمال SecondaryAppwriteConfig (إلزامية)، نشغّل بقية الخدمات optional
-  // بالتوازي عبر Future.wait لتسريع إقلاع التطبيق. كل خدمة معزولة في try-catch
-  // محلياً لضمان استمرار التطبيق حتى لو فشلت إحداها.
+  // ─── Parallel initialization of CRITICAL-ONLY services ───
+  // على الأجهزة الضعيفة (1GB RAM)، نُهيّئ فقط Crashlytics + DiagnosticsLogger
+  // قبل runApp. باقي الخدمات (RemoteConfig, PostHog, ApiConfig) تُهيّأ بعد أول frame.
   await Future.wait<void>([
     _safeInit('CrashlyticsService', CrashlyticsService.instance.initialize),
-    _safeInit('RemoteConfigService', RemoteConfigService.instance.initialize),
     _safeInit('DiagnosticsLogger', DiagnosticsLogger.instance.initialize),
-    _safeInit('ApiConfigService', ApiConfigService.instance.initialize),
-    _safeInit('PostHogService', PostHogService.instance.initialize),
   ]);
+
+  // ─── Deferred initialization (بعد runApp، non-blocking) ───
+  // هذه الخدمات لا تؤثر على UI الأولي — يمكن تأجيلها بأمان
+  unawaited(_safeInit('RemoteConfigService', RemoteConfigService.instance.initialize));
+  unawaited(_safeInit('ApiConfigService', ApiConfigService.instance.initialize));
+  unawaited(_safeInit('PostHogService', PostHogService.instance.initialize));
 
   // تهيئة نظام الإنذارات المجدولة (نسخ احتياطي + تقارير Telegram)
   // ✅ catchError بدلاً من unawaited المُجرّد — لو فشل initAlarmSystem، نسجّل
@@ -196,14 +198,12 @@ Future<void> main() async {
 
   unawaited(_initializeFullyAutomatedSyncSystem());
 
-  // ✅ تهيئة المزامنة الثانوية (إذا كانت مُفعّلة من إعدادات سابقة)
+  // ✅ Secondary sync + blacklist alerts — deferred (non-blocking)
   unawaited(_initializeSecondarySync());
-
-  // ✅ تهيئة خدمة تنبيهات القائمة السوداء
   unawaited(_initializeBlacklistAlerts());
 
-  // ✅ بدء فحص صحة الوجهتين بشكل دوري (Failover detection)
-  _startHealthChecker();
+  // ✅ Health checker — deferred 10s to reduce startup CPU pressure
+  Timer(const Duration(seconds: 10), _startHealthChecker);
 }
 
 /// تهيئة خدمة تنبيهات القائمة السوداء + فحص النزلاء الحاليين
@@ -261,9 +261,7 @@ Future<void> _initializeSecondarySync() async {
 }
 
 Future<void> _initializeFullyAutomatedSyncSystem() async {
-  debugPrint('═══════════════════════════════════════════════════════');
-  debugPrint('🚀 Initializing Fully Automated Sync System');
-  debugPrint('═══════════════════════════════════════════════════════');
+  debugPrint('🚀 Initializing Sync System (deferred)');
 
   try {
     final prefs = await SharedPreferences.getInstance();
@@ -274,160 +272,104 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
       await prefs.setBool('appwrite_sync_enabled', true);
     }
 
-    debugPrint('📦 Initializing Cloudflare Config...');
-    debugPrint('✅ Cloudflare Config loaded');
-
-    debugPrint('📝 Initializing Google Drive Logger...');
-    final driveLogger = GoogleDriveLogger();
-    await driveLogger.initialize(minLevel: LogLevel.debug);
-    debugPrint('✅ Logger initialized');
-
-    debugPrint('🔐 Initializing Google Drive Backup Service...');
-    final backupService = GoogleDriveBackupService();
-
-    try {
-      // محاولة استعادة الجلسة بشكل صامت
-      final account = await backupService.attemptSilentSignIn();
-      if (account != null) {
-        debugPrint('✅ تم استعادة جلسة Google Drive: ${account.email}');
-      } else {
-        debugPrint('ℹ️ لا توجد جلسة محفوظة - المستخدم يحتاج لتسجيل دخول يدوي');
-      }
-    } catch (e) {
-      debugPrint( 'فشلت استعادة الجلسة: $e');
-    }
-
-    debugPrint('🔧 [3/7] Initializing Database...');
+    // ✅ Database first (critical for everything)
     final database = DatabaseManager.instance;
-    debugPrint('✅ Database ready');
 
-    debugPrint('🎯 [4/7] Initializing Unified Sync Orchestrator...');
+    // ✅ Unified Sync Orchestrator (Cloudflare push/pull)
     final unifiedOrchestrator = UnifiedSyncOrchestrator.instance;
     await unifiedOrchestrator.initialize(database: database);
-    debugPrint('✅ Unified Sync Orchestrator ready');
 
-    debugPrint('🎯 [5/7] Initializing Unified Sync Coordinator...');
-    final coordinator = GoogleDriveUnifiedSyncCoordinator.instance;
-    await coordinator.initialize(
-      backupService: backupService,
-      database: DatabaseManager.instance,
-      logger: driveLogger,
-    );
-    debugPrint('✅ Coordinator initialized');
+    // ✅ Google Drive — LAZY: only if user has previously signed in
+    final driveEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+    if (driveEnabled) {
+      debugPrint('📝 Initializing Google Drive (enabled in settings)...');
+      final driveLogger = GoogleDriveLogger();
+      await driveLogger.initialize(minLevel: LogLevel.debug);
 
-    debugPrint('🤝 [6/7] Initializing Conflict Resolver...');
-    final conflictResolver = GoogleDriveConflictResolver.instance;
-    conflictResolver.initialize(driveLogger);
+      final backupService = GoogleDriveBackupService();
+      try {
+        final account = await backupService.attemptSilentSignIn();
+        if (account != null) {
+          debugPrint('✅ Google Drive session restored');
+          final coordinator = GoogleDriveUnifiedSyncCoordinator.instance;
+          await coordinator.initialize(
+            backupService: backupService,
+            database: database,
+            logger: driveLogger,
+          );
+          final conflictResolver = GoogleDriveConflictResolver.instance;
+          conflictResolver.initialize(driveLogger);
+          await conflictResolver.setStrategy(ConflictResolutionStrategy.newerWins);
+          await conflictResolver.setConflictThreshold(30);
 
-    await conflictResolver.setStrategy(ConflictResolutionStrategy.newerWins);
-    await conflictResolver.setConflictThreshold(30);
-    debugPrint('✅ Conflict Resolver initialized (strategy: newerWins)');
+          // SmartSync + AutoSyncEngine only if Drive is active
+          final smartSync = SmartSyncManager.instance;
+          await smartSync.initialize(backupService);
+          await unifiedOrchestrator.initialize(
+            smart: smartSync,
+            driveCoordinator: coordinator,
+            database: database,
+          );
 
-    debugPrint('🧠 [7/8] Initializing SmartSyncManager...');
-    final smartSync = SmartSyncManager.instance;
-    await smartSync.initialize(backupService);
-    await unifiedOrchestrator.initialize(
-      smart: smartSync,
-      driveCoordinator: coordinator,
-      database: DatabaseManager.instance,
-    );
-    debugPrint('✅ SmartSyncManager initialized');
+          // SyncGuardian (non-fatal)
+          try {
+            await SyncGuardian.instance.initialize(database: database);
+          } catch (e) {
+            debugPrint('SyncGuardian init (non-fatal): $e');
+          }
 
-    // ✅ تفعيل SyncGuardian — الحارس الذي يدير المزامنة الخلفية وإعادة التشغيل
-    debugPrint('🛡️ [7.5/8] Initializing SyncGuardian...');
+          // WorkManager (non-fatal)
+          try {
+            await Workmanager().initialize(_unifiedCallbackDispatcher);
+            await SyncContinuationService.initialize(debug: kDebugMode);
+            await SyncContinuationService.schedulePeriodicCheck();
+          } catch (e) {
+            debugPrint('WorkManager init (non-fatal): $e');
+          }
+
+          // AutoSyncEngine
+          final autoSyncEngine = AutoSyncEngine.instance;
+          await autoSyncEngine.initialize(
+            backupService: backupService,
+            database: database,
+            logger: driveLogger,
+          );
+          await _configureAutoSyncEngine(autoSyncEngine);
+
+          final driveSyncEnabled = prefs.getBool('google_drive_sync_enabled') ?? false;
+          if (backupService.isSignedIn && driveSyncEnabled) {
+            await autoSyncEngine.start();
+            await autoSyncEngine.onSignInChanged(true);
+            await smartSync.onGoogleDriveSignInChanged(true);
+          }
+
+          await SyncQueueService.instance.initialize();
+          _startEngineMonitoring(autoSyncEngine);
+          DatabaseSyncCoordinator.initialize();
+          DatabaseSyncCoordinator.registerStopCallback(() async {
+            autoSyncEngine.stop();
+          });
+        } else {
+          debugPrint('ℹ️ No Google Drive session — skipping Drive sync init');
+        }
+      } catch (e) {
+        debugPrint('Google Drive init (non-fatal): $e');
+      }
+    } else {
+      debugPrint('ℹ️ Google Drive sync disabled — skipping all Drive init');
+    }
+
+    // ✅ SyncGuardian + Database callbacks — always (Cloudflare sync needs these)
     try {
       await SyncGuardian.instance.initialize(database: database);
-      debugPrint('✅ SyncGuardian initialized');
     } catch (e) {
-      debugPrint( 'SyncGuardian init failed (non-fatal): $e');
+      debugPrint('SyncGuardian init (non-fatal): $e');
     }
-
-    // ✅ تهيئة WorkManager + SyncContinuationService
-    // ضروري لـ:
-    //   - AutoSyncTask (Google Drive background sync)
-    //   - SyncContinuationService (إكمال المزامنة عند الخروج من الشاشة)
-    //   - AppSessionManager (backupAfterInactivity)
-    // بدون هذا، registerOneOffTask/registerPeriodicTask تفشل بصمت!
-    debugPrint('⚙️ [7.6/8] Initializing WorkManager + SyncContinuationService...');
-    try {
-      await Workmanager().initialize(_unifiedCallbackDispatcher);
-      await SyncContinuationService.initialize(debug: kDebugMode);
-      // تسجيل فحص دوري للمزامنات المعلّقة (كل 15 دقيقة)
-      await SyncContinuationService.schedulePeriodicCheck();
-      debugPrint('✅ WorkManager + SyncContinuationService initialized');
-    } catch (e) {
-      debugPrint( 'WorkManager init failed (non-fatal): $e');
-    }
-
-    debugPrint('🤖 [8/8] Initializing & Starting Auto Sync Engine...');
-    final autoSyncEngine = AutoSyncEngine.instance;
-
-    await autoSyncEngine.initialize(
-      backupService: backupService,
-      database: DatabaseManager.instance,
-      logger: driveLogger,
-    );
-
-    await _configureAutoSyncEngine(autoSyncEngine);
-
-    // تفعيل المزامنة التلقائية عند فتح التطبيق (فقط إذا كان المستخدم قد فعّلها)
-    final driveSyncEnabled =
-        prefs.getBool('google_drive_sync_enabled') ?? false;
-    if (backupService.isSignedIn && driveSyncEnabled) {
-      debugPrint('🔔 إشعار أنظمة المزامنة بتسجيل الدخول...');
-      await autoSyncEngine.start();
-      await autoSyncEngine.onSignInChanged(true);
-      await smartSync.onGoogleDriveSignInChanged(true);
-      debugPrint('✅ تم إشعار جميع أنظمة المزامنة وبدء المراقبة');
-    } else {
-      debugPrint(
-        'ℹ️ المستخدم لم يسجل دخول Google Drive بعد - لن تبدأ المزامنة التلقائية',
-      );
-    }
-
-    await SyncQueueService.instance.initialize();
-
-    _startEngineMonitoring(autoSyncEngine);
-
-    debugPrint('✅ Auto Sync Engine started');
-
-    debugPrint('🔗 Registering Database Sync Callbacks...');
     DatabaseSyncCoordinator.initialize();
 
-    // Register stop callbacks
-    DatabaseSyncCoordinator.registerStopCallback(() async {
-      autoSyncEngine.stop();
-    });
-    DatabaseSyncCoordinator.registerStopCallback(() async {
-      await SyncGuardian.instance.stop();
-    });
-
-    // Register restart callbacks
-    DatabaseSyncCoordinator.registerRestartCallback(() async {
-      await autoSyncEngine.restart();
-    });
-    DatabaseSyncCoordinator.registerRestartCallback(() async {
-      await SyncGuardian.instance.restart();
-    });
-
-    debugPrint('✅ Sync callbacks registered');
-
-    debugPrint('═══════════════════════════════════════════════════════');
-    debugPrint('✅ Fully Automated Sync System Ready!');
-    debugPrint('═══════════════════════════════════════════════════════');
-    debugPrint('📡 Network monitoring: ACTIVE');
-    debugPrint('🔄 Lifecycle monitoring: ACTIVE');
-    debugPrint('💾 Data stream listening: ACTIVE');
-    debugPrint('❤️ Health checks: ACTIVE (every 5 minutes)');
-    debugPrint('🔁 Auto-retry: ACTIVE (exponential backoff)');
-    debugPrint('═══════════════════════════════════════════════════════');
-  } catch (e, stackTrace) {
-    debugPrint('═══════════════════════════════════════════════════════');
-    derr('CRITICAL ERROR in Sync System Initialization');
-    debugPrint('═══════════════════════════════════════════════════════');
-    derr(() => 'Error: $e');
-    derr(() => 'Stack trace: $stackTrace');
-    debugPrint('═══════════════════════════════════════════════════════');
+    debugPrint('✅ Sync system initialized');
+  } catch (e) {
+    debugPrint('❌ Sync system init failed: $e');
   }
 }
 

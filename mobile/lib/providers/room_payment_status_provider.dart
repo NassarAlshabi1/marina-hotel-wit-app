@@ -160,14 +160,13 @@ final roomsWithPaymentStatusProvider =
         computeAndEmit();
       });
 
-      // تحديث الوقت كل دقيقة لإعادة حساب حالة التأخر
-      // ✅ نُعيد الحساب فقط خلال نافذة التأخر (23:00-05:00)
-      // خارج النافذة نحدّث الوقت فقط بدون إعادة حساب مكلفة
+      // تحديث الوقت كل 5 دقائق (بدلاً من دقيقة) لتقليل CPU على الأجهزة الضعيفة
+      // ✅ نُعيد الحساب فقط خلال نافذة التأخر (22:00-05:00)
       // تنبيه: تغييرات البيانات (غرف/حجوزات) تُعيد الحساب دائماً بغض النظر عن الوقت
-      final timer = Timer.periodic(const Duration(minutes: 1), (_) {
+      final timer = Timer.periodic(const Duration(minutes: 5), (_) {
         lastTime = DateTime.now();
         final hour = lastTime.hour;
-        if (hour >= 23 || hour < 5) {
+        if (hour >= 22 || hour < 5) {
           computeAndEmit();
         }
       });

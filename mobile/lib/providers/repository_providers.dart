@@ -209,7 +209,7 @@ final availableRoomsProvider = StreamProvider.autoDispose(
 final bookingsListProvider = StreamProvider.autoDispose<List<Booking>>(
   (ref) => debounceStream(
     ref.watch(bookingsRepoProvider).watch(),
-    const Duration(milliseconds: 150),
+    const Duration(milliseconds: 300),
   ),
 );
 final activeNotesProvider = FutureProvider.autoDispose(

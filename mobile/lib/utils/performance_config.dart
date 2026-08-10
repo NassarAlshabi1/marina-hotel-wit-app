@@ -13,59 +13,61 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/painting.dart';
+import 'package:flutter/services.dart' show SystemChannels;
 
 /// تهيئة تحسينات الأداء — تُستدعى في بداية main() قبل runApp
 void configurePerformance() {
   // ═══════════════════════════════════════════════════════════════
-  //  1. Image Cache — حد آمن للأجهزة الضعيفة
+  //  1. Image Cache — حد آمن جداً للأجهزة الضعيفة (1GB RAM)
   // ═══════════════════════════════════════════════════════════════
-  // الافتراضي: 1000 صورة / 100MB — كثير جداً لأجهزة 1-2GB RAM
-  // الحد الجديد: 100 صورة / 10MB — كافٍ لـ UI بدون OOM على 1GB RAM
-  PaintingBinding.instance.imageCache.maximumSize = 100;
+  PaintingBinding.instance.imageCache.maximumSize = 50;
   PaintingBinding.instance.imageCache.maximumSizeBytes =
-      10 * 1024 * 1024; // 10MB
+      5 * 1024 * 1024; // 5MB only
 
   // ═══════════════════════════════════════════════════════════════
-  //  2. تقليل GC pressure — إخلاء image cache عند تحذير الذاكرة
+  //  2. Memory pressure handler — إخلاء الكاش عند ضغط الذاكرة
   // ═══════════════════════════════════════════════════════════════
-  PaintingBinding.instance.imageCache.clear();
+  SystemChannels.system.setMethodCallHandler((call) async {
+    if (call.method == 'SystemChannels.system/memoryPressure') {
+      PaintingBinding.instance.imageCache.clear();
+      debugPrint('🧹 Memory pressure: cleared image cache');
+    }
+    return null;
+  });
 
-  // ═══════════════════════════════════════════════════════════════
-  //  3. Android: تقليل استهلاك الذاكرة الإجمالي
-  // ═══════════════════════════════════════════════════════════════
   if (Platform.isAndroid) {
-    debugPrint('🚀 Performance: Android — image cache limited to 10MB');
-    debugPrint('🚀 Performance: Low-end device optimizations active');
+    debugPrint('🚀 Performance: Low-end device optimizations active (5MB cache)');
   }
 }
 
 /// تحديد ما إذا كان الجهاز ضعيفاً
-/// للأجهزة بـ RAM < 3GB، نُطبّق تحسينات إضافية
-bool get isLowEndDevice {
-  // نفترض أن الجهاز ضعيف ونُطبّق التحسينات دائماً
-  // هذا أكثر أماناً من افتراض العكس
-  return true;
-}
+bool get isLowEndDevice => true;
 
 /// cacheExtent مُحسّن لـ ListView.builder
-/// الأجهزة الضعيفة: 100px (أقل = ذاكرة أقل)
-/// الأجهزة القوية: 500px (أكثر = scroll أنعم)
 double get optimizedCacheExtent => isLowEndDevice ? 100.0 : 500.0;
 
 /// الحد الأقصى للعناصر في ListView قبل التحميل الكسول
-int get maxEagerItems => isLowEndDevice ? 20 : 50;
+int get maxEagerItems => isLowEndDevice ? 15 : 50;
 
 /// تأخير debounce للمزامنة التلقائية
-/// الأجهزة الضعيفة: 5 ثوانٍ (أقل ضغط على المعالج)
-/// الأجهزة القوية: 2 ثانية
 Duration get syncDebounceDuration =>
     isLowEndDevice ? const Duration(seconds: 5) : const Duration(seconds: 2);
 
 /// هل نُفعّل PerformanceInspector في الـ UI؟
-/// فقط في debug mode — في production يُعطّل لتوفير الذاكرة
 bool get enablePerformanceInspector => false;
 
-/// الحد الأقصى لعدد StreamBuilders النشطة في نفس الوقت
-/// الأجهزة الضعيفة: 5 (يقلل إعادة البناء)
-/// الأجهزة القوية: 20
+/// الحد الأقصى لعدد StreamBuilders النشطة
 int get maxActiveStreams => isLowEndDevice ? 5 : 20;
+
+/// batch size للمزامنة على الأجهزة الضعيفة
+int get syncBatchSize => isLowEndDevice ? 15 : 25;
+
+/// عدد الطلبات المتوازية في migration
+int get migrationParallelCount => isLowEndDevice ? 3 : 5;
+
+/// تأخير بين مجموعات migration
+Duration get migrationGroupDelay =>
+    isLowEndDevice ? const Duration(milliseconds: 800) : const Duration(milliseconds: 500);
+
+/// تعطيل flutter_animate على الأجهزة الضعيفة
+bool get enableAnimations => !isLowEndDevice;
