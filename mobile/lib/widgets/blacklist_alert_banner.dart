@@ -79,10 +79,10 @@ class _BlacklistBannerState extends ConsumerState<_BlacklistBanner> {
                 children: [
                   // أيقونة نبض
                   Icon(
-                    Icons.warning_rounded,
-                    color: Colors.yellow.shade300,
-                    size: 28,
-                  )
+                        Icons.warning_rounded,
+                        color: Colors.yellow.shade300,
+                        size: 28,
+                      )
                       .animate(onPlay: (c) => c.repeat())
                       .shimmer(duration: 1200.ms, color: Colors.yellow.withValues(alpha: 0.5)),
                   const SizedBox(width: 12),
@@ -125,7 +125,7 @@ class _BlacklistBannerState extends ConsumerState<_BlacklistBanner> {
           if (_expanded)
             Container(
               decoration: BoxDecoration(
-                color: Colors.red.shade950.withValues(alpha: 0.5),
+                color: Colors.red.shade900.withValues(alpha: 0.5),
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(10),
                   bottomRight: Radius.circular(10),
@@ -145,10 +145,7 @@ class _BlacklistBannerState extends ConsumerState<_BlacklistBanner> {
             ),
         ],
       ),
-    )
-        .animate()
-        .slideY(begin: -1, duration: 400.ms, curve: Curves.easeOut)
-        .fadeIn(duration: 300.ms);
+    ).animate().slideY(begin: -1, duration: 400.ms, curve: Curves.easeOut).fadeIn(duration: 300.ms);
   }
 }
 
@@ -228,8 +225,7 @@ class _AlertCard extends StatelessWidget {
               value: alert.reasonText,
               valueColor: Colors.yellow.shade200,
             ),
-            if (alert.blacklistEntry.notes != null &&
-                alert.blacklistEntry.notes!.isNotEmpty)
+            if (alert.blacklistEntry.notes != null && alert.blacklistEntry.notes!.isNotEmpty)
               _InfoRow(
                 icon: Icons.note,
                 label: 'ملاحظات',

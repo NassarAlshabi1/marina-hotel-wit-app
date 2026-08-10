@@ -8,6 +8,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -118,11 +119,13 @@ class BlacklistAlertService {
   /// فحص كل النزلاء الحاليين (عند تشغيل التطبيق)
   Future<void> _scanCurrentGuests(AppDatabase db) async {
     try {
-      final activeBookings = await db.customSelect(
-        'SELECT id, guest_name, room_number FROM bookings '
-        'WHERE status = ? AND deleted_at IS NULL AND actual_checkout IS NULL',
-        variables: [Variable<String>('checked_in')],
-      ).get();
+      final activeBookings = await db
+          .customSelect(
+            'SELECT id, guest_name, room_number FROM bookings '
+            'WHERE status = ? AND deleted_at IS NULL AND actual_checkout IS NULL',
+            variables: [Variable<String>('checked_in')],
+          )
+          .get();
 
       final repo = BlacklistRepository(db);
       var newAlerts = 0;
@@ -137,13 +140,15 @@ class BlacklistAlertService {
 
         final match = await repo.findBlacklistMatch(guestName);
         if (match != null && match.active) {
-          _activeAlerts.add(BlacklistAlert(
-            guestName: guestName,
-            roomNumber: roomNumber,
-            bookingId: bookingId,
-            blacklistEntry: match,
-            detectedAt: DateTime.now(),
-          ));
+          _activeAlerts.add(
+            BlacklistAlert(
+              guestName: guestName,
+              roomNumber: roomNumber,
+              bookingId: bookingId,
+              blacklistEntry: match,
+              detectedAt: DateTime.now(),
+            ),
+          );
           newAlerts++;
         }
       }
@@ -188,10 +193,12 @@ class BlacklistAlertService {
         final bookingId = json['bookingId'] as int;
 
         // تحقق من أن النزيل لا يزال مسجلاً
-        final booking = await db.customSelect(
-          'SELECT id FROM bookings WHERE id = ? AND status = ? AND deleted_at IS NULL',
-          variables: [Variable<int>(bookingId), Variable<String>('checked_in')],
-        ).getSingleOrNull();
+        final booking = await db
+            .customSelect(
+              'SELECT id FROM bookings WHERE id = ? AND status = ? AND deleted_at IS NULL',
+              variables: [Variable<int>(bookingId), Variable<String>('checked_in')],
+            )
+            .getSingleOrNull();
 
         if (booking == null) continue; // النزيل غادر — تخطى
 
