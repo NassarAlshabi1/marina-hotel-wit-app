@@ -14,42 +14,32 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/painting.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import 'package:marina_hotel_mobile/utils/weak_device_optimizer.dart';
 
 /// تهيئة تحسينات الأداء — تُستدعى في بداية main() قبل runApp
 void configurePerformance() {
-  // ═══════════════════════════════════════════════════════════════
-  //  1. Image Cache — حد آمن للأجهزة الضعيفة
-  // ═══════════════════════════════════════════════════════════════
-  // الافتراضي: 1000 صورة / 100MB — كثير جداً لأجهزة 1-2GB RAM
-  // الحد الجديد: 200 صورة / 20MB — كافٍ لـ UI بدون OOM
-  PaintingBinding.instance.imageCache.maximumSize = 200;
+  // ✅ Performance Fix (2026-08-10): استخدام WeakDeviceOptimizer الفعلي
+  // بدلاً من قيم ثابتة. الآن image cache يُضبط حسب قوة الجهاز:
+  // - أجهزة ضعيفة (level 2): 50 صورة / 5MB
+  // - أجهزة متوسطة (level 1): 100 صورة / 10MB
+  // - أجهزة قوية (level 0): 200 صورة / 20MB
+  final optimizer = WeakDeviceOptimizer.instance;
+  PaintingBinding.instance.imageCache.maximumSize = optimizer.maxImageCacheSize;
   PaintingBinding.instance.imageCache.maximumSizeBytes =
-      20 * 1024 * 1024; // 20MB
+      optimizer.maxImageCacheBytes;
 
-  // ═══════════════════════════════════════════════════════════════
-  //  2. تخفيض viewport cache للـ ListView على الأجهزة الضعيفة
-  // ═══════════════════════════════════════════════════════════════
-  // cacheExtent الافتراضي: 250px — معقول، لكن نتحكم به عبر ScrollView
-  // لا نُغيّره هنا بل نُمرره في ListView.builder عبر addAutomaticKeepAlives
-
-  // ═══════════════════════════════════════════════════════════════
-  //  3. Android: garbage collection أكثر عدوانية لتقليل الذاكرة
-  // ═══════════════════════════════════════════════════════════════
   if (Platform.isAndroid) {
-    // لا يوجد API مباشر، لكن تقليل image cache يُساعد
-    dlog('🚀 Performance: Android — image cache limited to 20MB');
+    dlog(
+      () => '🚀 Performance: Android — image cache limited to '
+          '${optimizer.maxImageCacheSize} entries / '
+          '${optimizer.maxImageCacheBytes ~/ (1024 * 1024)}MB',
+    );
   }
 }
 
-/// تحديد ما إذا كان الجهاز ضعيفاً (يمكن توسيعه بـ device_info_plus)
-/// للأجهزة بـ RAM < 3GB، نُطبّق تحسينات إضافية
-bool get isLowEndDevice {
-  // مؤقتاً: نفترض أن الجهاز ضعيف ونُطبّق التحسينات دائماً
-  // مستقبلاً: استخدم device_info_plus لقراءة RAM الفعلي
-  return true;
-}
+/// ✅ Performance Fix: استخدام WeakDeviceOptimizer بدلاً من true ثابت
+bool get isLowEndDevice => WeakDeviceOptimizer.instance.isWeakDevice;
 
 /// cacheExtent مُحسّن لـ ListView.builder
-/// الأجهزة الضعيفة: 200px (أقل = ذاككة أقل = scroll أقل سلاسة)
-/// الأجهزة القوية: 500px (أكثر = scroll أنعم = ذاكرة أكثر)
-double get optimizedCacheExtent => isLowEndDevice ? 200.0 : 500.0;
+double get optimizedCacheExtent =>
+    isLowEndDevice ? 200.0 : 500.0;

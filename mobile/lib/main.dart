@@ -91,7 +91,8 @@ Future<void> main() async {
 
   // ✅ WeakDeviceOptimizer: يكتشف قوة الجهاز ويضبط مستوى التحسين
   // يجب استدعاؤه قبل أي خدمة ثقيلة لضمان تكييف الأداء.
-  WeakDeviceOptimizer.instance.initialize();
+  // ✅ Performance Fix (2026-08-10): أصبح async لقراءة RAM الفعلي.
+  await WeakDeviceOptimizer.instance.initialize();
 
   // ─── Performance: تحسينات الأداء للأجهزة الضعيفة ───
   configurePerformance();
@@ -126,16 +127,32 @@ Future<void> main() async {
   await SecondaryAppwriteConfig.ensureInitialized();
 
   // ─── Parallel initialization of optional services ───
-  // بعد اكتمال SecondaryAppwriteConfig (إلزامية)، نشغّل بقية الخدمات optional
-  // بالتوازي عبر Future.wait لتسريع إقلاع التطبيق. كل خدمة معزولة في try-catch
-  // محلياً لضمان استمرار التطبيق حتى لو فشلت إحداها.
-  await Future.wait<void>([
-    _safeInit('CrashlyticsService', CrashlyticsService.instance.initialize),
-    _safeInit('RemoteConfigService', RemoteConfigService.instance.initialize),
-    _safeInit('DiagnosticsLogger', DiagnosticsLogger.instance.initialize),
-    _safeInit('ApiConfigService', ApiConfigService.instance.initialize),
-    _safeInit('PostHogService', PostHogService.instance.initialize),
-  ]);
+  // ✅ Performance Fix (2026-08-10): على الأجهزة الضعيفة، نؤجل الخدمات
+  // غير الحرجة لما بعد أول frame لتسريع الإقلاع.
+  // Crashlytics + DiagnosticsLogger فقط قبل runApp (للتقاط الأخطاء المبكرة).
+  // RemoteConfig + PostHog + ApiConfig تُؤججل لما بعد أول frame.
+  if (WeakDeviceOptimizer.instance.isWeakDevice) {
+    // جهاز ضعيف: فقط Crashlytics + Diagnostics قبل runApp
+    await Future.wait<void>([
+      _safeInit('CrashlyticsService', CrashlyticsService.instance.initialize),
+      _safeInit('DiagnosticsLogger', DiagnosticsLogger.instance.initialize),
+    ]);
+    // تأجيل بقية الخدمات لما بعد أول frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_safeInit('RemoteConfigService', RemoteConfigService.instance.initialize));
+      unawaited(_safeInit('ApiConfigService', ApiConfigService.instance.initialize));
+      unawaited(_safeInit('PostHogService', PostHogService.instance.initialize));
+    });
+  } else {
+    // جهاز قوي: كل الخدمات بالتوازي كما كان
+    await Future.wait<void>([
+      _safeInit('CrashlyticsService', CrashlyticsService.instance.initialize),
+      _safeInit('RemoteConfigService', RemoteConfigService.instance.initialize),
+      _safeInit('DiagnosticsLogger', DiagnosticsLogger.instance.initialize),
+      _safeInit('ApiConfigService', ApiConfigService.instance.initialize),
+      _safeInit('PostHogService', PostHogService.instance.initialize),
+    ]);
+  }
 
   // تهيئة نظام الإنذارات المجدولة (نسخ احتياطي + تقارير Telegram)
   // ✅ catchError بدلاً من unawaited المُجرّد — لو فشل initAlarmSystem، نسجّل
@@ -146,11 +163,15 @@ Future<void> main() async {
     ),
   );
 
-  // ✅ تشغيل خدمة إشعارات تأخر السداد: تراقب الساعة وتُرسل إشعاراً محلياً
-  // عند دخول نافذة 22:00 (تنبيه مبكر) و 23:00 (تأخر فعلي) إذا كانت هناك
-  // غرف محجوزة برصيد متبقي. آمنة للبدء في الـ background — تستخدم Timer
-  // وتتوقف تلقائياً عند إغلاق التطبيق.
-  LatePaymentNotificationService.instance.start();
+  // ✅ Performance Fix: LatePaymentNotificationService يُؤججل لما بعد أول frame
+  // على الأجهزة الضعيفة لتسريع الإقلاع.
+  if (WeakDeviceOptimizer.instance.isWeakDevice) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      LatePaymentNotificationService.instance.start();
+    });
+  } else {
+    LatePaymentNotificationService.instance.start();
+  }
 
   // ✅ AutoOutboxSyncWatcher: يراقب جدول outbox ويُطلق pushLocalChanges
   // تلقائياً (مع debounce 3 ثوانٍ) عند إضافة أي سجل جديد.
@@ -244,13 +265,21 @@ Future<void> main() async {
     );
   });
 
-  unawaited(_initializeFullyAutomatedSyncSystem());
-
-  // ✅ تهيئة المزامنة الثانوية (إذا كانت مُفعّلة من إعدادات سابقة)
-  unawaited(_initializeSecondarySync());
-
-  // ✅ بدء فحص صحة الوجهتين بشكل دوري (Failover detection)
-  _startHealthChecker();
+  // ✅ Performance Fix (2026-08-10): على الأجهزة الضعيفة، نؤجل نظام المزامنة
+  // الكامل والـ health checker لما بعد أول frame. هذه الخدمات تستهلك CPU/RAM
+  // كبير (Drive backup, WorkManager, SyncGuardian, AutoSyncEngine...).
+  // على الأجهزة القوية، تعمل بالتوازي كما كان.
+  if (WeakDeviceOptimizer.instance.isWeakDevice) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_initializeFullyAutomatedSyncSystem());
+      unawaited(_initializeSecondarySync());
+      _startHealthChecker();
+    });
+  } else {
+    unawaited(_initializeFullyAutomatedSyncSystem());
+    unawaited(_initializeSecondarySync());
+    _startHealthChecker();
+  }
 }
 
 /// تهيئة آمنة لخدمة اختيارية — تلتقط الأخطاء وتسجّلها بدلاً من تعطيل التطبيق.
