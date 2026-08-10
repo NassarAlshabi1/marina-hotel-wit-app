@@ -577,33 +577,8 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         }
       }
 
-      // ✅ رفع إلى Appwrite الثانوي (إذا مُفعّل)
-      // يستخدم نفس outbox الرئيسي — لا يسبب فقدان بيانات أو تكرار.
-      // السجل يُحذف من outbox فقط بعد نجاح كلا الوجهتين.
-      if (SecondaryAppwriteConfig.isEnabled &&
-          SecondaryAppwriteConfig.isPushEnabled) {
-        try {
-          final secondaryResult = await SecondarySyncManager.instance
-              .pushLocalChanges();
-          results['Appwrite الثانوي'] = {
-            'success': secondaryResult,
-            'pushed': _pendingChangesCount,
-          };
-          if (secondaryResult) {
-            ref
-                .read(secondarySyncProvider.notifier)
-                .updateLastSync(DateTime.now());
-          }
-          dlog(() => '🔵 [Dashboard] Secondary sync push: $secondaryResult');
-        } catch (e) {
-          results['Appwrite الثانوي'] = {
-            'success': false,
-            'pushed': 0,
-            'error': e.toString(),
-          };
-          dlog(() => '❌ خطأ في رفع التغييرات إلى Appwrite الثانوي: $e');
-        }
-      }
+      // ✅ Sync Simplification (2026-08-10): Secondary sync مُعطّل بالكامل.
+      // Appwrite primary هو authority الوحيد. لا حاجة لرفع للثانوي.
 
       await _loadPendingChangesCount();
 

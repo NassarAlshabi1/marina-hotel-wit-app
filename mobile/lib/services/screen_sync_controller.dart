@@ -200,28 +200,11 @@ class ScreenSyncController {
   /// حتى تنجح محاولة Secondary التالية (auto-sync timer أو مزامنة يدوية).
   Future<void> _pushToSecondary() async {
     try {
-      if (!SecondaryAppwriteConfig.isEnabled) {
-        return; // Secondary معطّل — لا شيء لنفعله
-      }
-      if (!SecondaryAppwriteConfig.isPushEnabled) {
-        return; // الرفع للثانوي معطّل
-      }
-
-      dlog(() => '🔵 [$screenId] بدء الرفع للوجهة الثانوية...');
-      final result = await SecondarySyncManager.instance.pushLocalChanges();
-      if (result) {
-        dlog(() => '✅ [$screenId] تم الرفع للوجهة الثانوية بنجاح');
-      } else {
-        dlog(
-          () =>
-              '⚠️ [$screenId] الرفع للوجهة الثانوية لم يكتمل — '
-              'سيتم المحاولة لاحقاً عبر auto-sync',
-        );
-      }
+      // ✅ Sync Simplification (2026-08-10): Secondary sync مُعطّل بالكامل.
+      // لا حاجة لرفع للوجهة الثانوية. العودة مباشرة.
+      return;
     } catch (e) {
-      // فشل Secondary ليس خطأ قاتلاً — Primary نجح بالفعل
-      // السجلات تبقى في outbox حتى تنجح محاولة Secondary التالية
-      dlog(() => '⚠️ [$screenId] خطأ في الرفع للثانوي (غير حرج): $e');
+      dlog(() => '⚠️ [$screenId] خطأ غير متوقع: $e');
     }
   }
 

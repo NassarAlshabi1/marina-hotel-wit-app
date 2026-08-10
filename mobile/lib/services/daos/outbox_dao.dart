@@ -225,14 +225,10 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     // لكن عندما Secondary + Push مُفعّلان، يجب أن تكون false ليتمكن Secondary
     // من معالجة السجل قبل حذفه. بدون هذا، Primary يحذف السجل (كلاهما true)
     // قبل أن يراه Secondary → فقدان بيانات.
-    bool deliveredToSecondary = true;
-    try {
-      deliveredToSecondary =
-          !SecondaryAppwriteConfig.isEnabled ||
-          !SecondaryAppwriteConfig.isPushEnabled;
-    } catch (_) {
-      // إذا فشل الوصول للإعدادات (SharedPreferences غير مهيأ)، نستخدم true (آمن)
-    }
+    // ✅ Sync Simplification (2026-08-10): Secondary sync مُعطّل بالكامل.
+    // delivered_to_secondary=true دائماً لأن لا وجهة ثانوية بعد الآن.
+    // هذا يضمن أن السجل يُحذف فور تسليمه للرئيسي فقط.
+    const deliveredToSecondary = true;
 
     return transaction(() async {
       // ✅ P0-VC fix: زيادة Vector Clock عند كل كتابة محلية (لا عند الدفع فقط)
@@ -1046,12 +1042,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final payloadJson = jsonEncode(payload);
     final idempKey = '$entity:$op:$localUuid:$clientTs';
 
-    bool deliveredToSecondary = true;
-    try {
-      deliveredToSecondary =
-          !SecondaryAppwriteConfig.isEnabled ||
-          !SecondaryAppwriteConfig.isPushEnabled;
-    } catch (_) {}
+    // ✅ Sync Simplification: Secondary sync disabled — always true
+    const deliveredToSecondary = true;
 
     if (source == 'local' && op != 'delete') {
       await _bumpVectorClockForLocalWrite(entity, localUuid);

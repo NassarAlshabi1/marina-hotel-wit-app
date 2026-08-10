@@ -269,15 +269,18 @@ Future<void> main() async {
   // الكامل والـ health checker لما بعد أول frame. هذه الخدمات تستهلك CPU/RAM
   // كبير (Drive backup, WorkManager, SyncGuardian, AutoSyncEngine...).
   // على الأجهزة القوية، تعمل بالتوازي كما كان.
+  // ✅ Sync Simplification (2026-08-10): Secondary sync مُعطّل بالكامل.
+  // Appwrite primary هو authority الوحيد للمزامنة. إزالة هذا المسار
+  // يبسط المعمارية ويمنع التداخل والـ race conditions.
+  // تم الاحتفاظ بـ SecondaryAppwriteConfig.ensureInitialized() لأنها
+  // تُهيّئ SharedPreferences المطلوبة لباقي الخدمات.
   if (WeakDeviceOptimizer.instance.isWeakDevice) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_initializeFullyAutomatedSyncSystem());
-      unawaited(_initializeSecondarySync());
       _startHealthChecker();
     });
   } else {
     unawaited(_initializeFullyAutomatedSyncSystem());
-    unawaited(_initializeSecondarySync());
     _startHealthChecker();
   }
 }
@@ -314,21 +317,13 @@ void _startHealthChecker() {
   }
 }
 
-/// تهيئة المزامنة الثانوية عند بدء التطبيق.
-/// إذا كان Secondary مُفعّلاً من قبل المستخدم، نبدأ المزامنة التلقائية.
+/// ✅ Sync Simplification (2026-08-10): _initializeSecondarySync مُعطّلة.
+/// Secondary sync لم يعد يُستخدم. Appwrite primary هو authority الوحيد.
+/// الدالة محفوظة للتوافق الرجعي لكن لا تُستدعى من main().
+// ignore: unused_element
 Future<void> _initializeSecondarySync() async {
-  try {
-    await SecondaryAppwriteConfig.ensureInitialized();
-    if (SecondaryAppwriteConfig.isEnabled &&
-        SecondaryAppwriteConfig.isConfigured) {
-      SecondarySyncManager.instance.startAutoSync();
-      dlog('🔵 [Main] Secondary sync auto-started');
-    } else {
-      dlog('🔵 [Main] Secondary sync disabled or not configured');
-    }
-  } catch (e) {
-    dwarn(() => '[Main] Secondary sync init failed: $e');
-  }
+  // Secondary sync مُعطّل بالكامل. لا تنفّذ أي شيء.
+  dlog('🔵 [Main] Secondary sync disabled — Appwrite primary is sole authority');
 }
 
 Future<void> _initializeFullyAutomatedSyncSystem() async {
