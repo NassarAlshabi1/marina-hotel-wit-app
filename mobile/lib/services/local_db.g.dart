@@ -23909,6 +23909,76 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _primaryProcessingStatusMeta =
+      const VerificationMeta('primaryProcessingStatus');
+  @override
+  late final GeneratedColumn<String> primaryProcessingStatus =
+      GeneratedColumn<String>(
+        'primary_processing_status',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('pending'),
+      );
+  static const VerificationMeta _primaryAttemptsMeta = const VerificationMeta(
+    'primaryAttempts',
+  );
+  @override
+  late final GeneratedColumn<int> primaryAttempts = GeneratedColumn<int>(
+    'primary_attempts',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _primaryLastErrorMeta = const VerificationMeta(
+    'primaryLastError',
+  );
+  @override
+  late final GeneratedColumn<String> primaryLastError = GeneratedColumn<String>(
+    'primary_last_error',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _secondaryProcessingStatusMeta =
+      const VerificationMeta('secondaryProcessingStatus');
+  @override
+  late final GeneratedColumn<String> secondaryProcessingStatus =
+      GeneratedColumn<String>(
+        'secondary_processing_status',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('pending'),
+      );
+  static const VerificationMeta _secondaryAttemptsMeta = const VerificationMeta(
+    'secondaryAttempts',
+  );
+  @override
+  late final GeneratedColumn<int> secondaryAttempts = GeneratedColumn<int>(
+    'secondary_attempts',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _secondaryLastErrorMeta =
+      const VerificationMeta('secondaryLastError');
+  @override
+  late final GeneratedColumn<String> secondaryLastError =
+      GeneratedColumn<String>(
+        'secondary_last_error',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -23927,6 +23997,12 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
     source,
     deliveredToPrimary,
     deliveredToSecondary,
+    primaryProcessingStatus,
+    primaryAttempts,
+    primaryLastError,
+    secondaryProcessingStatus,
+    secondaryAttempts,
+    secondaryLastError,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -24058,6 +24134,60 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
         ),
       );
     }
+    if (data.containsKey('primary_processing_status')) {
+      context.handle(
+        _primaryProcessingStatusMeta,
+        primaryProcessingStatus.isAcceptableOrUnknown(
+          data['primary_processing_status']!,
+          _primaryProcessingStatusMeta,
+        ),
+      );
+    }
+    if (data.containsKey('primary_attempts')) {
+      context.handle(
+        _primaryAttemptsMeta,
+        primaryAttempts.isAcceptableOrUnknown(
+          data['primary_attempts']!,
+          _primaryAttemptsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('primary_last_error')) {
+      context.handle(
+        _primaryLastErrorMeta,
+        primaryLastError.isAcceptableOrUnknown(
+          data['primary_last_error']!,
+          _primaryLastErrorMeta,
+        ),
+      );
+    }
+    if (data.containsKey('secondary_processing_status')) {
+      context.handle(
+        _secondaryProcessingStatusMeta,
+        secondaryProcessingStatus.isAcceptableOrUnknown(
+          data['secondary_processing_status']!,
+          _secondaryProcessingStatusMeta,
+        ),
+      );
+    }
+    if (data.containsKey('secondary_attempts')) {
+      context.handle(
+        _secondaryAttemptsMeta,
+        secondaryAttempts.isAcceptableOrUnknown(
+          data['secondary_attempts']!,
+          _secondaryAttemptsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('secondary_last_error')) {
+      context.handle(
+        _secondaryLastErrorMeta,
+        secondaryLastError.isAcceptableOrUnknown(
+          data['secondary_last_error']!,
+          _secondaryLastErrorMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -24131,6 +24261,30 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
         DriftSqlType.bool,
         data['${effectivePrefix}delivered_to_secondary'],
       )!,
+      primaryProcessingStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}primary_processing_status'],
+      )!,
+      primaryAttempts: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}primary_attempts'],
+      )!,
+      primaryLastError: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}primary_last_error'],
+      ),
+      secondaryProcessingStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}secondary_processing_status'],
+      )!,
+      secondaryAttempts: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}secondary_attempts'],
+      )!,
+      secondaryLastError: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}secondary_last_error'],
+      ),
     );
   }
 
@@ -24172,6 +24326,18 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
   ///     عندما Secondary غير مُفعّل — فقط SecondarySyncManager يضبطها على false)
   final bool deliveredToPrimary;
   final bool deliveredToSecondary;
+
+  /// ✅ Sync Safety Fix (2026-08-10): فصل processing state لكل وجهة.
+  /// سابقاً، processingStatus و attempts و lastError كانت مشتركة بين
+  /// Primary و Secondary. هذا يعني أن فشل Secondary في معالجة سجل
+  /// يمنع Primary من معالجته (لأن processingStatus قد تكون 'failed').
+  /// الآن: كل وجهة لها حالة منفصلة.
+  final String primaryProcessingStatus;
+  final int primaryAttempts;
+  final String? primaryLastError;
+  final String secondaryProcessingStatus;
+  final int secondaryAttempts;
+  final String? secondaryLastError;
   const OutboxData({
     required this.id,
     required this.entity,
@@ -24189,6 +24355,12 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     required this.source,
     required this.deliveredToPrimary,
     required this.deliveredToSecondary,
+    required this.primaryProcessingStatus,
+    required this.primaryAttempts,
+    this.primaryLastError,
+    required this.secondaryProcessingStatus,
+    required this.secondaryAttempts,
+    this.secondaryLastError,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -24219,6 +24391,20 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     map['source'] = Variable<String>(source);
     map['delivered_to_primary'] = Variable<bool>(deliveredToPrimary);
     map['delivered_to_secondary'] = Variable<bool>(deliveredToSecondary);
+    map['primary_processing_status'] = Variable<String>(
+      primaryProcessingStatus,
+    );
+    map['primary_attempts'] = Variable<int>(primaryAttempts);
+    if (!nullToAbsent || primaryLastError != null) {
+      map['primary_last_error'] = Variable<String>(primaryLastError);
+    }
+    map['secondary_processing_status'] = Variable<String>(
+      secondaryProcessingStatus,
+    );
+    map['secondary_attempts'] = Variable<int>(secondaryAttempts);
+    if (!nullToAbsent || secondaryLastError != null) {
+      map['secondary_last_error'] = Variable<String>(secondaryLastError);
+    }
     return map;
   }
 
@@ -24250,6 +24436,16 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       source: Value(source),
       deliveredToPrimary: Value(deliveredToPrimary),
       deliveredToSecondary: Value(deliveredToSecondary),
+      primaryProcessingStatus: Value(primaryProcessingStatus),
+      primaryAttempts: Value(primaryAttempts),
+      primaryLastError: primaryLastError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(primaryLastError),
+      secondaryProcessingStatus: Value(secondaryProcessingStatus),
+      secondaryAttempts: Value(secondaryAttempts),
+      secondaryLastError: secondaryLastError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(secondaryLastError),
     );
   }
 
@@ -24279,6 +24475,18 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       deliveredToSecondary: serializer.fromJson<bool>(
         json['deliveredToSecondary'],
       ),
+      primaryProcessingStatus: serializer.fromJson<String>(
+        json['primaryProcessingStatus'],
+      ),
+      primaryAttempts: serializer.fromJson<int>(json['primaryAttempts']),
+      primaryLastError: serializer.fromJson<String?>(json['primaryLastError']),
+      secondaryProcessingStatus: serializer.fromJson<String>(
+        json['secondaryProcessingStatus'],
+      ),
+      secondaryAttempts: serializer.fromJson<int>(json['secondaryAttempts']),
+      secondaryLastError: serializer.fromJson<String?>(
+        json['secondaryLastError'],
+      ),
     );
   }
   @override
@@ -24301,6 +24509,16 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       'source': serializer.toJson<String>(source),
       'deliveredToPrimary': serializer.toJson<bool>(deliveredToPrimary),
       'deliveredToSecondary': serializer.toJson<bool>(deliveredToSecondary),
+      'primaryProcessingStatus': serializer.toJson<String>(
+        primaryProcessingStatus,
+      ),
+      'primaryAttempts': serializer.toJson<int>(primaryAttempts),
+      'primaryLastError': serializer.toJson<String?>(primaryLastError),
+      'secondaryProcessingStatus': serializer.toJson<String>(
+        secondaryProcessingStatus,
+      ),
+      'secondaryAttempts': serializer.toJson<int>(secondaryAttempts),
+      'secondaryLastError': serializer.toJson<String?>(secondaryLastError),
     };
   }
 
@@ -24321,6 +24539,12 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     String? source,
     bool? deliveredToPrimary,
     bool? deliveredToSecondary,
+    String? primaryProcessingStatus,
+    int? primaryAttempts,
+    Value<String?> primaryLastError = const Value.absent(),
+    String? secondaryProcessingStatus,
+    int? secondaryAttempts,
+    Value<String?> secondaryLastError = const Value.absent(),
   }) => OutboxData(
     id: id ?? this.id,
     entity: entity ?? this.entity,
@@ -24344,6 +24568,18 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     source: source ?? this.source,
     deliveredToPrimary: deliveredToPrimary ?? this.deliveredToPrimary,
     deliveredToSecondary: deliveredToSecondary ?? this.deliveredToSecondary,
+    primaryProcessingStatus:
+        primaryProcessingStatus ?? this.primaryProcessingStatus,
+    primaryAttempts: primaryAttempts ?? this.primaryAttempts,
+    primaryLastError: primaryLastError.present
+        ? primaryLastError.value
+        : this.primaryLastError,
+    secondaryProcessingStatus:
+        secondaryProcessingStatus ?? this.secondaryProcessingStatus,
+    secondaryAttempts: secondaryAttempts ?? this.secondaryAttempts,
+    secondaryLastError: secondaryLastError.present
+        ? secondaryLastError.value
+        : this.secondaryLastError,
   );
   OutboxData copyWithCompanion(OutboxCompanion data) {
     return OutboxData(
@@ -24375,6 +24611,24 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       deliveredToSecondary: data.deliveredToSecondary.present
           ? data.deliveredToSecondary.value
           : this.deliveredToSecondary,
+      primaryProcessingStatus: data.primaryProcessingStatus.present
+          ? data.primaryProcessingStatus.value
+          : this.primaryProcessingStatus,
+      primaryAttempts: data.primaryAttempts.present
+          ? data.primaryAttempts.value
+          : this.primaryAttempts,
+      primaryLastError: data.primaryLastError.present
+          ? data.primaryLastError.value
+          : this.primaryLastError,
+      secondaryProcessingStatus: data.secondaryProcessingStatus.present
+          ? data.secondaryProcessingStatus.value
+          : this.secondaryProcessingStatus,
+      secondaryAttempts: data.secondaryAttempts.present
+          ? data.secondaryAttempts.value
+          : this.secondaryAttempts,
+      secondaryLastError: data.secondaryLastError.present
+          ? data.secondaryLastError.value
+          : this.secondaryLastError,
     );
   }
 
@@ -24396,13 +24650,19 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
           ..write('processingWorker: $processingWorker, ')
           ..write('source: $source, ')
           ..write('deliveredToPrimary: $deliveredToPrimary, ')
-          ..write('deliveredToSecondary: $deliveredToSecondary')
+          ..write('deliveredToSecondary: $deliveredToSecondary, ')
+          ..write('primaryProcessingStatus: $primaryProcessingStatus, ')
+          ..write('primaryAttempts: $primaryAttempts, ')
+          ..write('primaryLastError: $primaryLastError, ')
+          ..write('secondaryProcessingStatus: $secondaryProcessingStatus, ')
+          ..write('secondaryAttempts: $secondaryAttempts, ')
+          ..write('secondaryLastError: $secondaryLastError')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     entity,
     op,
@@ -24419,7 +24679,13 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     source,
     deliveredToPrimary,
     deliveredToSecondary,
-  );
+    primaryProcessingStatus,
+    primaryAttempts,
+    primaryLastError,
+    secondaryProcessingStatus,
+    secondaryAttempts,
+    secondaryLastError,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -24439,7 +24705,13 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
           other.processingWorker == this.processingWorker &&
           other.source == this.source &&
           other.deliveredToPrimary == this.deliveredToPrimary &&
-          other.deliveredToSecondary == this.deliveredToSecondary);
+          other.deliveredToSecondary == this.deliveredToSecondary &&
+          other.primaryProcessingStatus == this.primaryProcessingStatus &&
+          other.primaryAttempts == this.primaryAttempts &&
+          other.primaryLastError == this.primaryLastError &&
+          other.secondaryProcessingStatus == this.secondaryProcessingStatus &&
+          other.secondaryAttempts == this.secondaryAttempts &&
+          other.secondaryLastError == this.secondaryLastError);
 }
 
 class OutboxCompanion extends UpdateCompanion<OutboxData> {
@@ -24459,6 +24731,12 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
   final Value<String> source;
   final Value<bool> deliveredToPrimary;
   final Value<bool> deliveredToSecondary;
+  final Value<String> primaryProcessingStatus;
+  final Value<int> primaryAttempts;
+  final Value<String?> primaryLastError;
+  final Value<String> secondaryProcessingStatus;
+  final Value<int> secondaryAttempts;
+  final Value<String?> secondaryLastError;
   const OutboxCompanion({
     this.id = const Value.absent(),
     this.entity = const Value.absent(),
@@ -24476,6 +24754,12 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     this.source = const Value.absent(),
     this.deliveredToPrimary = const Value.absent(),
     this.deliveredToSecondary = const Value.absent(),
+    this.primaryProcessingStatus = const Value.absent(),
+    this.primaryAttempts = const Value.absent(),
+    this.primaryLastError = const Value.absent(),
+    this.secondaryProcessingStatus = const Value.absent(),
+    this.secondaryAttempts = const Value.absent(),
+    this.secondaryLastError = const Value.absent(),
   });
   OutboxCompanion.insert({
     this.id = const Value.absent(),
@@ -24494,6 +24778,12 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     this.source = const Value.absent(),
     this.deliveredToPrimary = const Value.absent(),
     this.deliveredToSecondary = const Value.absent(),
+    this.primaryProcessingStatus = const Value.absent(),
+    this.primaryAttempts = const Value.absent(),
+    this.primaryLastError = const Value.absent(),
+    this.secondaryProcessingStatus = const Value.absent(),
+    this.secondaryAttempts = const Value.absent(),
+    this.secondaryLastError = const Value.absent(),
   }) : entity = Value(entity),
        op = Value(op),
        localUuid = Value(localUuid),
@@ -24516,6 +24806,12 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     Expression<String>? source,
     Expression<bool>? deliveredToPrimary,
     Expression<bool>? deliveredToSecondary,
+    Expression<String>? primaryProcessingStatus,
+    Expression<int>? primaryAttempts,
+    Expression<String>? primaryLastError,
+    Expression<String>? secondaryProcessingStatus,
+    Expression<int>? secondaryAttempts,
+    Expression<String>? secondaryLastError,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -24537,6 +24833,15 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
         'delivered_to_primary': deliveredToPrimary,
       if (deliveredToSecondary != null)
         'delivered_to_secondary': deliveredToSecondary,
+      if (primaryProcessingStatus != null)
+        'primary_processing_status': primaryProcessingStatus,
+      if (primaryAttempts != null) 'primary_attempts': primaryAttempts,
+      if (primaryLastError != null) 'primary_last_error': primaryLastError,
+      if (secondaryProcessingStatus != null)
+        'secondary_processing_status': secondaryProcessingStatus,
+      if (secondaryAttempts != null) 'secondary_attempts': secondaryAttempts,
+      if (secondaryLastError != null)
+        'secondary_last_error': secondaryLastError,
     });
   }
 
@@ -24557,6 +24862,12 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     Value<String>? source,
     Value<bool>? deliveredToPrimary,
     Value<bool>? deliveredToSecondary,
+    Value<String>? primaryProcessingStatus,
+    Value<int>? primaryAttempts,
+    Value<String?>? primaryLastError,
+    Value<String>? secondaryProcessingStatus,
+    Value<int>? secondaryAttempts,
+    Value<String?>? secondaryLastError,
   }) {
     return OutboxCompanion(
       id: id ?? this.id,
@@ -24575,6 +24886,14 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
       source: source ?? this.source,
       deliveredToPrimary: deliveredToPrimary ?? this.deliveredToPrimary,
       deliveredToSecondary: deliveredToSecondary ?? this.deliveredToSecondary,
+      primaryProcessingStatus:
+          primaryProcessingStatus ?? this.primaryProcessingStatus,
+      primaryAttempts: primaryAttempts ?? this.primaryAttempts,
+      primaryLastError: primaryLastError ?? this.primaryLastError,
+      secondaryProcessingStatus:
+          secondaryProcessingStatus ?? this.secondaryProcessingStatus,
+      secondaryAttempts: secondaryAttempts ?? this.secondaryAttempts,
+      secondaryLastError: secondaryLastError ?? this.secondaryLastError,
     );
   }
 
@@ -24631,6 +24950,28 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
         deliveredToSecondary.value,
       );
     }
+    if (primaryProcessingStatus.present) {
+      map['primary_processing_status'] = Variable<String>(
+        primaryProcessingStatus.value,
+      );
+    }
+    if (primaryAttempts.present) {
+      map['primary_attempts'] = Variable<int>(primaryAttempts.value);
+    }
+    if (primaryLastError.present) {
+      map['primary_last_error'] = Variable<String>(primaryLastError.value);
+    }
+    if (secondaryProcessingStatus.present) {
+      map['secondary_processing_status'] = Variable<String>(
+        secondaryProcessingStatus.value,
+      );
+    }
+    if (secondaryAttempts.present) {
+      map['secondary_attempts'] = Variable<int>(secondaryAttempts.value);
+    }
+    if (secondaryLastError.present) {
+      map['secondary_last_error'] = Variable<String>(secondaryLastError.value);
+    }
     return map;
   }
 
@@ -24652,7 +24993,13 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
           ..write('processingWorker: $processingWorker, ')
           ..write('source: $source, ')
           ..write('deliveredToPrimary: $deliveredToPrimary, ')
-          ..write('deliveredToSecondary: $deliveredToSecondary')
+          ..write('deliveredToSecondary: $deliveredToSecondary, ')
+          ..write('primaryProcessingStatus: $primaryProcessingStatus, ')
+          ..write('primaryAttempts: $primaryAttempts, ')
+          ..write('primaryLastError: $primaryLastError, ')
+          ..write('secondaryProcessingStatus: $secondaryProcessingStatus, ')
+          ..write('secondaryAttempts: $secondaryAttempts, ')
+          ..write('secondaryLastError: $secondaryLastError')
           ..write(')'))
         .toString();
   }
@@ -52129,6 +52476,12 @@ typedef $$OutboxTableCreateCompanionBuilder =
       Value<String> source,
       Value<bool> deliveredToPrimary,
       Value<bool> deliveredToSecondary,
+      Value<String> primaryProcessingStatus,
+      Value<int> primaryAttempts,
+      Value<String?> primaryLastError,
+      Value<String> secondaryProcessingStatus,
+      Value<int> secondaryAttempts,
+      Value<String?> secondaryLastError,
     });
 typedef $$OutboxTableUpdateCompanionBuilder =
     OutboxCompanion Function({
@@ -52148,6 +52501,12 @@ typedef $$OutboxTableUpdateCompanionBuilder =
       Value<String> source,
       Value<bool> deliveredToPrimary,
       Value<bool> deliveredToSecondary,
+      Value<String> primaryProcessingStatus,
+      Value<int> primaryAttempts,
+      Value<String?> primaryLastError,
+      Value<String> secondaryProcessingStatus,
+      Value<int> secondaryAttempts,
+      Value<String?> secondaryLastError,
     });
 
 class $$OutboxTableFilterComposer
@@ -52236,6 +52595,36 @@ class $$OutboxTableFilterComposer
 
   ColumnFilters<bool> get deliveredToSecondary => $composableBuilder(
     column: $table.deliveredToSecondary,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get primaryProcessingStatus => $composableBuilder(
+    column: $table.primaryProcessingStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get primaryAttempts => $composableBuilder(
+    column: $table.primaryAttempts,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get primaryLastError => $composableBuilder(
+    column: $table.primaryLastError,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get secondaryProcessingStatus => $composableBuilder(
+    column: $table.secondaryProcessingStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get secondaryAttempts => $composableBuilder(
+    column: $table.secondaryAttempts,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get secondaryLastError => $composableBuilder(
+    column: $table.secondaryLastError,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -52328,6 +52717,36 @@ class $$OutboxTableOrderingComposer
     column: $table.deliveredToSecondary,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get primaryProcessingStatus => $composableBuilder(
+    column: $table.primaryProcessingStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get primaryAttempts => $composableBuilder(
+    column: $table.primaryAttempts,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get primaryLastError => $composableBuilder(
+    column: $table.primaryLastError,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get secondaryProcessingStatus => $composableBuilder(
+    column: $table.secondaryProcessingStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get secondaryAttempts => $composableBuilder(
+    column: $table.secondaryAttempts,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get secondaryLastError => $composableBuilder(
+    column: $table.secondaryLastError,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$OutboxTableAnnotationComposer
@@ -52398,6 +52817,36 @@ class $$OutboxTableAnnotationComposer
     column: $table.deliveredToSecondary,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get primaryProcessingStatus => $composableBuilder(
+    column: $table.primaryProcessingStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get primaryAttempts => $composableBuilder(
+    column: $table.primaryAttempts,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get primaryLastError => $composableBuilder(
+    column: $table.primaryLastError,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get secondaryProcessingStatus => $composableBuilder(
+    column: $table.secondaryProcessingStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get secondaryAttempts => $composableBuilder(
+    column: $table.secondaryAttempts,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get secondaryLastError => $composableBuilder(
+    column: $table.secondaryLastError,
+    builder: (column) => column,
+  );
 }
 
 class $$OutboxTableTableManager
@@ -52444,6 +52893,12 @@ class $$OutboxTableTableManager
                 Value<String> source = const Value.absent(),
                 Value<bool> deliveredToPrimary = const Value.absent(),
                 Value<bool> deliveredToSecondary = const Value.absent(),
+                Value<String> primaryProcessingStatus = const Value.absent(),
+                Value<int> primaryAttempts = const Value.absent(),
+                Value<String?> primaryLastError = const Value.absent(),
+                Value<String> secondaryProcessingStatus = const Value.absent(),
+                Value<int> secondaryAttempts = const Value.absent(),
+                Value<String?> secondaryLastError = const Value.absent(),
               }) => OutboxCompanion(
                 id: id,
                 entity: entity,
@@ -52461,6 +52916,12 @@ class $$OutboxTableTableManager
                 source: source,
                 deliveredToPrimary: deliveredToPrimary,
                 deliveredToSecondary: deliveredToSecondary,
+                primaryProcessingStatus: primaryProcessingStatus,
+                primaryAttempts: primaryAttempts,
+                primaryLastError: primaryLastError,
+                secondaryProcessingStatus: secondaryProcessingStatus,
+                secondaryAttempts: secondaryAttempts,
+                secondaryLastError: secondaryLastError,
               ),
           createCompanionCallback:
               ({
@@ -52480,6 +52941,12 @@ class $$OutboxTableTableManager
                 Value<String> source = const Value.absent(),
                 Value<bool> deliveredToPrimary = const Value.absent(),
                 Value<bool> deliveredToSecondary = const Value.absent(),
+                Value<String> primaryProcessingStatus = const Value.absent(),
+                Value<int> primaryAttempts = const Value.absent(),
+                Value<String?> primaryLastError = const Value.absent(),
+                Value<String> secondaryProcessingStatus = const Value.absent(),
+                Value<int> secondaryAttempts = const Value.absent(),
+                Value<String?> secondaryLastError = const Value.absent(),
               }) => OutboxCompanion.insert(
                 id: id,
                 entity: entity,
@@ -52497,6 +52964,12 @@ class $$OutboxTableTableManager
                 source: source,
                 deliveredToPrimary: deliveredToPrimary,
                 deliveredToSecondary: deliveredToSecondary,
+                primaryProcessingStatus: primaryProcessingStatus,
+                primaryAttempts: primaryAttempts,
+                primaryLastError: primaryLastError,
+                secondaryProcessingStatus: secondaryProcessingStatus,
+                secondaryAttempts: secondaryAttempts,
+                secondaryLastError: secondaryLastError,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

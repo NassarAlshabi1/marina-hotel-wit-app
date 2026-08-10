@@ -1055,10 +1055,19 @@ class AppwriteSyncManager {
                     useCache: false,
                   );
                   final synced = await _syncBookingNights(bookingNights);
-                  // ✅ إصلاح جوهري: تحديث lastPullTs الخاص بـ booking_nights من
-                  // أقصى $updatedAt (سلطة الخادم) بدل Time.nowEpoch().
-                  // fallback إلى Time.nowEpoch() إذا لم تُعالَج مستندات.
-                  final nightsNewTs = _maxUpdatedAtInPull ?? Time.nowEpoch();
+                  // ✅ Sync Safety Fix (2026-08-10): تتبّع max($updatedAt) الخاص
+                  // بـ booking_nights فقط، وليس من المتغير العام _maxUpdatedAtInPull
+                  // الذي يُحدَّث من كل الكيانات. سابقاً، كان booking_nights checkpoint
+                  // يتحرك بناءً على max($updatedAt) من كيانات أخرى (مثل rooms) —
+                  // هذا قد يتسبب في تخطي سجلات booking_nights المستقبلية.
+                  int? nightsMaxTs;
+                  for (final doc in bookingNights) {
+                    final ts = _extractUpdatedAtSec(doc);
+                    if (ts != null && (nightsMaxTs == null || ts > nightsMaxTs)) {
+                      nightsMaxTs = ts;
+                    }
+                  }
+                  final nightsNewTs = nightsMaxTs ?? Time.nowEpoch();
                   await _updateBookingNightsPullTs(nightsNewTs);
                   _logger.debug('Synced $synced booking nights', tag: 'SYNC');
                   return synced;
@@ -3257,11 +3266,6 @@ class AppwriteSyncManager {
   }) async {
     try {
       // 1) قراءة المستند البعيد
-      // ✅ إصلاح #2-D: كتم 404 المتوقع. في فحص OCC، 404 يعني أن المستند
-      // جديد (لم يُرفع بعد) — وهو سلوك متوقع تماماً وليس خطأ. قبل هذا
-      // الإصلاح، كان 404 يُسجَّل كـ ERROR في getRow/withTimeout رغم أن
-      // _occCheckAndMerge يلتقطه ويعالجه بشكل صحيح (يعيد localPayload
-      // للمتابعة إلى create). كتم الخطأ هنا يُخفضه إلى debug.
       final remoteDoc = await appwriteService.getDocument(
         collectionId: collectionId,
         documentId: documentId,
@@ -3304,10 +3308,6 @@ class AppwriteSyncManager {
           '✅ OCC conflict resolved via 3-way merge: entity=$entity, uuid=$documentId',
           tag: 'OCC',
         );
-        // ✅ P0-5 Audit Fix (2026-08-06): حفظ البيانات البعيدة الأصلية كـ ancestor
-        // (وليس البيانات المدموجة). الـ ancestor يجب أن يكون آخر نسخة مشتركة
-        // من السحابة. البيانات المدموجة لم تُرفع للسحابة بعد، فلا يمكن اعتبارها
-        // "مشتركة".
         try {
           await _ancestorCacheDao.saveAncestor(
             entity: entity,
@@ -3324,9 +3324,30 @@ class AppwriteSyncManager {
         tag: 'OCC',
       );
       return localPayload;
+    } on AppwriteException catch (e) {
+      // ✅ Sync Safety Fix (2026-08-10): تفريق صريح بين 404 وفشل شبكة.
+      // 404 يعني أن المستند غير موجود → جديد → لا تعارض ممكن → متابعة الدفع.
+      // أي خطأ آخر (شبكة، timeout، 500) → لا نعرف حالة الخادم →
+      // نُعيد localPayload لكن نُسجل تحذيراً لأن قد يكون هناك تعارض غير مكتشف.
+      if (e.code == 404) {
+        // مستند جديد — سلوك متوقع
+        return localPayload;
+      }
+      // فشل شبكة/قراءة — لا نعرف حالة الخادم الحقيقية
+      _logger.warning(
+        '⚠️ OCC check failed (network/error): entity=$entity, uuid=$documentId, '
+        'code=${e.code}, message=${e.message} — proceeding with local payload '
+        '(potential undetected conflict)',
+        tag: 'OCC',
+      );
+      return localPayload;
     } catch (e) {
-      // إذا فشل قراءة المستند البعيد (404 أو شبكة)، نتابع الدفع العادي
-      // 404 يعني أنه جديد → لا تعارض ممكن
+      // أخطاء غير AppwriteException (Dart exceptions)
+      _logger.warning(
+        '⚠️ OCC check failed (unexpected): entity=$entity, uuid=$documentId, '
+        'error=$e — proceeding with local payload',
+        tag: 'OCC',
+      );
       return localPayload;
     }
   }

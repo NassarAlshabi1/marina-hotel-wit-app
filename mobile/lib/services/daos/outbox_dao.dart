@@ -407,6 +407,13 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
                 source: row.read<String>('source'),
                 deliveredToPrimary: row.read<bool>('delivered_to_primary'),
                 deliveredToSecondary: row.read<bool>('delivered_to_secondary'),
+                // ✅ Migration 55: قراءة حقول الفصل الجديدة (مع fallback)
+                primaryProcessingStatus: row.read<String?>('primary_processing_status') ?? 'pending',
+                primaryAttempts: row.read<int?>('primary_attempts') ?? 0,
+                primaryLastError: row.read<String?>('primary_last_error'),
+                secondaryProcessingStatus: row.read<String?>('secondary_processing_status') ?? 'pending',
+                secondaryAttempts: row.read<int?>('secondary_attempts') ?? 0,
+                secondaryLastError: row.read<String?>('secondary_last_error'),
               ),
             )
             .get();

@@ -768,6 +768,24 @@ class Outbox extends Table {
   BoolColumn get deliveredToSecondary =>
       boolean().withDefault(const Constant(true))();
 
+  /// ✅ Sync Safety Fix (2026-08-10): فصل processing state لكل وجهة.
+  /// سابقاً، processingStatus و attempts و lastError كانت مشتركة بين
+  /// Primary و Secondary. هذا يعني أن فشل Secondary في معالجة سجل
+  /// يمنع Primary من معالجته (لأن processingStatus قد تكون 'failed').
+  /// الآن: كل وجهة لها حالة منفصلة.
+  TextColumn get primaryProcessingStatus =>
+      text().withDefault(const Constant('pending'))();
+  IntColumn get primaryAttempts =>
+      integer().withDefault(const Constant(0))();
+  TextColumn get primaryLastError =>
+      text().nullable()();
+  TextColumn get secondaryProcessingStatus =>
+      text().withDefault(const Constant('pending'))();
+  IntColumn get secondaryAttempts =>
+      integer().withDefault(const Constant(0))();
+  TextColumn get secondaryLastError =>
+      text().nullable()();
+
   List<Index> get indexes => [
     Index(
       'idx_outbox_status',
@@ -959,7 +977,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 54;
+  int get schemaVersion => 55;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2933,6 +2951,55 @@ class AppDatabase extends _$AppDatabase {
           'Migration 54: sync_timestamp backfilled to 0 for all SyncFields tables',
           name: 'db.migration',
         );
+      }
+
+      // === Migration 55: Separate primary/secondary processing state ===
+      // ✅ Sync Safety Fix (2026-08-10): فصل حالة المعالجة لكل وجهة.
+      // سابقاً، processingStatus و attempts و lastError كانت مشتركة —
+      // فشل Secondary يمنع Primary من المعالجة.
+      if (from < 55) {
+        const newColumns = <String, String>{
+          'primary_processing_status': "TEXT DEFAULT 'pending'",
+          'primary_attempts': 'INTEGER DEFAULT 0',
+          'primary_last_error': 'TEXT',
+          'secondary_processing_status': "TEXT DEFAULT 'pending'",
+          'secondary_attempts': 'INTEGER DEFAULT 0',
+          'secondary_last_error': 'TEXT',
+        };
+        for (final entry in newColumns.entries) {
+          try {
+            await m.database.customStatement(
+              'ALTER TABLE outbox ADD COLUMN ${entry.key} ${entry.value}',
+            );
+            developer.log(
+              'Migration 55: added outbox.${entry.key}',
+              name: 'db.migration',
+            );
+          } catch (e) {
+            developer.log(
+              'Migration 55: outbox.${entry.key} may already exist: $e',
+              name: 'db.migration',
+            );
+          }
+        }
+        // Backfill: نسخ الحالة المشتركة الحالية إلى primary columns
+        try {
+          await m.database.customStatement(
+            "UPDATE outbox SET primary_processing_status = processing_status, "
+            "primary_attempts = attempts, primary_last_error = last_error, "
+            "secondary_processing_status = processing_status, "
+            "secondary_attempts = attempts, secondary_last_error = last_error",
+          );
+          developer.log(
+            'Migration 55: backfilled primary/secondary state from shared columns',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 55: backfill failed: $e',
+            name: 'db.migration',
+          );
+        }
       }
     },
   );
