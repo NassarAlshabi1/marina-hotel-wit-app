@@ -8,6 +8,9 @@ import '../services/daos/debts_dao.dart';
 import '../services/daos/employees_dao.dart';
 import '../services/daos/expenses_dao.dart';
 import '../services/daos/outbox_dao.dart';
+// ✅ P2 Performance Fix (2026-08-10): استيراد WeakDeviceOptimizer
+// لاستخدام maxListItemsBeforePagination في تقييد القوائم على الأجهزة الضعيفة.
+import '../utils/weak_device_optimizer.dart';
 import '../services/daos/payments_dao.dart';
 import '../services/diagnostics/diagnostics_logger.dart';
 import '../services/local_db.dart';
@@ -208,7 +211,10 @@ final availableRoomsProvider = StreamProvider.autoDispose(
 
 final bookingsListProvider = StreamProvider.autoDispose<List<Booking>>(
   (ref) => debounceStream(
-    ref.watch(bookingsRepoProvider).watch(),
+    // ✅ P2 Performance Fix (2026-08-10): تقييد عدد الحجوزات على الأجهزة الضعيفة.
+    // نستخدم BookingsDao مباشرة لتطبيق LIMIT في SQL.
+    BookingsDao(ref.watch(databaseProvider), ref.watch(outboxDaoProvider))
+        .watchList(limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination),
     const Duration(milliseconds: 150),
   ),
 );
@@ -255,7 +261,9 @@ final guestInfoListProvider = StreamProvider.autoDispose(
 
 final expensesListProvider = StreamProvider.autoDispose(
   (ref) => debounceStream(
-    ref.watch(expensesRepoProvider).watchAll(),
+    // ✅ P2 Performance Fix: LIMIT في SQL على الأجهزة الضعيفة.
+    ExpensesDao(ref.watch(databaseProvider), ref.watch(outboxDaoProvider))
+        .watchList(limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination),
     const Duration(milliseconds: 150),
   ),
 );
@@ -329,7 +337,9 @@ final bookingPaidAmountProvider = StreamProvider.family
 
 final debtsListProvider = StreamProvider.autoDispose(
   (ref) => debounceStream(
-    ref.watch(debtsRepoProvider).watchAll(),
+    // ✅ P2 Performance Fix: LIMIT في SQL على الأجهزة الضعيفة.
+    DebtsDao(ref.watch(databaseProvider), ref.watch(outboxDaoProvider))
+        .watchList(limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination),
     const Duration(milliseconds: 150),
   ),
 );
