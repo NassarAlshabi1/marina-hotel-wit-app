@@ -551,28 +551,34 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   }
 
   // ════════════════════════════════════════════════════════════════════
-  // ✅ تتبع التسليم لكل وجهة (Dual-Delivery Tracking)
+  // ✅ تتبع التسليم لكل وجهة (Dual-Delivery Tracking) — SIMPLIFIED
   // ════════════════════════════════════════════════════════════════════
   //
-  // بدلاً من حذف السجل بعد نجاح الرفع للرئيسي فقط، نستخدم علامتين
-  // منفصلتين:
+  // ⚠️ Sync Simplification (2026-08-10): Secondary sync معطّل بالكامل.
+  // delivered_to_secondary=true دائماً (يُضبط في schema default + في merge).
+  // لذلك:
+  //   - markDeliveredToPrimary → يحذف السجل فوراً (لأن secondary=true دائماً)
+  //   - markDeliveredToSecondary → no-op (السجل يُحذف تلقائياً عند primary)
+  //   - countPendingForSecondary → يُرجع 0 دائماً
+  //   - markAllLocalAsUndeliveredToSecondary → no-op (لا فائدة)
   //
-  //   - delivered_to_primary: هل تم تسليم السجل لـ Appwrite الرئيسي؟
-  //   - delivered_to_secondary: هل تم تسليم السجل لـ Appwrite الثانوي؟
-  //
-  // السجل يُحذف فقط بعد نجاح كلا الوجهتين. هذا يمنع فقدان البيانات
-  // عند فشل إحدى الوجهتين، ويمنع تكرار العمليات بسبب سباق البيانات.
+  // السجلات تُحذف الآن بمجرد تسليمها للرئيسي فقط، مما يبسط المنطق ويمنع
+  // تراكم سجلات منتهية الصلاحية.
 
   /// يضع علامة "تم التسليم للرئيسي" على السجل.
-  /// إذا كان السجل قد سُلّم للثانوي أيضاً، يتم حذفه تلقائياً.
+  /// ⚠️ Sync Simplification: بما أن secondary=true دائماً، هذا يُلغي السجل
+  /// (direct delete) بدلاً من تحديث العلامة فقط.
   Future<void> markDeliveredToPrimary(int id) async {
     await _markDelivered(id, toPrimary: true);
   }
 
   /// يضع علامة "تم التسليم للثانوي" على السجل.
-  /// إذا كان السجل قد سُلّم للرئيسي أيضاً، يتم حذفه تلقائياً.
+  /// ⚠️ no-op — Secondary sync معطّل، delivered_to_secondary=true دائماً.
+  /// السجل يُحذف تلقائياً عند تسليمه للرئيسي.
   Future<void> markDeliveredToSecondary(int id) async {
-    await _markDelivered(id, toPrimary: false);
+    // لا شيء — لا وجهة ثانوية لتسليمها. الـ markDeliveredToPrimary
+    // يحذف السجل بمجرد نجاح تسليمه للرئيسي.
+    return;
   }
 
   /// المنطق الموحد لـ markDelivered:
@@ -643,28 +649,19 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   }
 
   /// عدد السجلات غير المُسلّمة للثانوي
+  /// ⚠️ Sync Simplification (2026-08-10): دائماً 0 — لا وجهة ثانوية.
   Future<int> countPendingForSecondary() async {
-    final result = await customSelect(
-      "SELECT COUNT(*) AS cnt FROM outbox WHERE delivered_to_secondary = 0 AND source = 'local'",
-      readsFrom: {outbox},
-    ).getSingle();
-    return result.read<int>('cnt');
+    return 0;
   }
 
   /// يضع علامة "غير مُسلّم للثانوي" على جميع السجلات المحلية القادمة.
-  /// تُستدعى عند تفعيل Secondary لأول مرة — نريد إرسال كل السجلات القادمة.
+  /// ⚠️ Sync Simplification (2026-08-10): no-op — لا وجهة ثانوية لتسليمها.
+  /// محفوظ للتوافق الرجعي مع شاشة الإعدادات (لا تزال تستدعيها).
   Future<int> markAllLocalAsUndeliveredToSecondary() async {
-    final count =
-        await (update(
-          outbox,
-        )..where((t) => t.source.equals('local'))).write(
-          const OutboxCompanion(deliveredToSecondary: Value(false)),
-        );
-    // ✅ إصلاح P1-2 (2026-06-28): تنظيف السجلات المُكتملة لكلا الوجهتين
-    // بعد تحديث العلم، قد تكون هناك سجلات بـ delivered_to_primary=true
-    // و delivered_to_secondary=true الآن — يجب حذفها لمنع التراكم.
-    await _cleanupFullyDeliveredRecords();
-    return count;
+    // لا شيء — delivered_to_secondary=true دائماً في الـ schema default.
+    // إعادة ضبطها لـ false ستسبب تراكم سجلات لن تُحذف أبداً (لأن لا secondary
+    // سيعالجها).
+    return 0;
   }
 
   /// يضع علامة "مُسلّم للثانوي" على جميع السجلات المحلية.

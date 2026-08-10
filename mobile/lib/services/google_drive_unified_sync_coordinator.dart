@@ -454,14 +454,14 @@ class GoogleDriveUnifiedSyncCoordinator {
       if (_pullEnabled) {
         // ✅ إصلاح P2-10: حارس مشترك لمنع تداخل المزامنة مع SmartSyncManager
         // أو AppwriteSyncManager. إذا كانت مزامنة أخرى نشطة، نتخطى هذه الدورة.
-        if (!SyncGuard.canStart(label: 'gd_unified_pull')) {
+        // ✅ Sync Safety Fix (2026-08-10): استخدام tryAcquire الذري.
+        if (!SyncGuard.tryAcquire(label: 'gd_unified_pull')) {
           _log(
             '⏸️ Periodic pull skipped — another sync active (${SyncGuard.activeLabel})',
           );
           return;
         }
         _log('🔄 Periodic pull check triggered');
-        SyncGuard.markStarted(label: 'gd_unified_pull');
         // ✅ إصلاح جذري: catch + finally — سابقاً try/finally فقط بدون catch.
         try {
           await performSync(

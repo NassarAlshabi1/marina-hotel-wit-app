@@ -32,6 +32,19 @@ import 'package:marina_hotel_mobile/utils/debug_log.dart';
 ///
 /// **السجل يُحذف فقط بعد نجاح كلا الوجهتين** (أو تعطيل Secondary).
 ///
+/// ⚠️ **Sync Simplification (2026-08-10) — DEPRECATED / DISABLED**.
+/// Secondary sync معطّل بالكامل عبر [`kSecondarySyncDisabled`] = true.
+/// Appwrite primary هو authority الوحيد. جميع الطرق العامة تُرجع no-op
+/// فوراً دون تنفيذ أي عمل. الكود محفوظ للتوافق الرجعي مع شاشة الإعدادات
+/// (`SecondaryAppwriteSettingsScreen`) ومزوّد Riverpod
+/// (`secondarySyncManagerProvider`). إزالة الملف كلياً تتطلب refactor
+/// شامل للشاشة + المزوّد — يمكن تأجيله بأمان دون التأثير على السلامة.
+///
+/// عندما تُستدعى `startAutoSync()` أو `sync()` بعد التعطيل:
+/// - تُسجّل رسالة تشخيصية واحدة فقط (لمنع تكرار السجل)
+/// - تُرجع فوراً دون جدولة Timer أو تنفيذ loop
+/// - لا تغيّر أي حالة داخلية
+///
 /// ## إصلاحات Secondary Audit (2026-07-03)
 ///
 /// - **P0-1**: حلقة لا نهائية — تتبّع المُعالَج + استبعاد الفاشل + backoff
@@ -49,6 +62,25 @@ class SecondarySyncManager {
 
   // ignore: prefer_constructors_over_static_methods
   static SecondarySyncManager get instance => SecondarySyncManager();
+
+  /// ⚠️ **Sync Simplification (2026-08-10)** — معطّل بالكامل.
+  /// عند true، جميع الطرق العامة تُرجع no-op فوراً. Appwrite primary هو
+  /// authority الوحيد. الكود محفوظ للتوافق الرجعي مع شاشة الإعدادات.
+  static const bool kSecondarySyncDisabled = true;
+
+  /// ✅ لتتبّع ما إذا تم تسجيل رسالة "disabled" لتجنب تكرارها في السجل
+  /// على كل استدعاء (قد تكون مزعجة عند استدعاء startAutoSync كل بضع دقائق).
+  bool _disabledNoticeLogged = false;
+
+  void _logDisabledNotice(String methodName) {
+    if (!_disabledNoticeLogged) {
+      dlog(
+        '🔵 [SecondarySync] DISABLED — $methodName is no-op. '
+        'Appwrite primary is the sole authority. (notice logged once)',
+      );
+      _disabledNoticeLogged = true;
+    }
+  }
 
   Timer? _syncTimer;
   bool _isSyncing = false;
@@ -76,7 +108,10 @@ class SecondarySyncManager {
 
   DateTime? get lastSync => _lastSync;
   bool get isSyncing => _isSyncing;
-  bool get isAutoSyncEnabled => _syncTimer != null;
+  /// ⚠️ عند التعطيل، دائماً false — حتى لا تعرض شاشة الإعدادات أن auto-sync
+  /// يعمل بينما هو في الواقع no-op.
+  bool get isAutoSyncEnabled =>
+      !kSecondarySyncDisabled && _syncTimer != null;
 
   /// ✅ P1-5: هل الـ circuit breaker مفتوح حالياً؟
   bool get isCircuitOpen =>
@@ -89,7 +124,13 @@ class SecondarySyncManager {
   ///
   /// تعمل فقط إذا كان Secondary مُفعّلاً والرفع (Push) مُفعّلاً.
   /// إذا كان Push معطّلاً، لا فائدة من الجدولة لأن sync() سيرفض العملية.
+  ///
+  /// ⚠️ **معطّل بالكامل (2026-08-10)** — no-op. انظر [kSecondarySyncDisabled].
   void startAutoSync({Duration interval = const Duration(minutes: 15)}) {
+    if (kSecondarySyncDisabled) {
+      _logDisabledNotice('startAutoSync');
+      return;
+    }
     if (!SecondaryAppwriteConfig.isEnabled) {
       dlog('🔵 [SecondarySync] Disabled - enable first');
       return;
@@ -117,9 +158,17 @@ class SecondarySyncManager {
   }
 
   /// إيقاف المزامنة التلقائية
+  ///
+  /// ⚠️ **معطّل بالكامل (2026-08-10)** — يُلغي أي Timer معلّق فقط (للأمان).
   void stopAutoSync() {
+    // ✅ نُلغي أي Timer معلّق حتى لو كان kSecondarySyncDisabled=true
+    // (لحالة الترقية من نسخة قديمة كان فيها Timer فعّال)
     _syncTimer?.cancel();
     _syncTimer = null;
+    if (kSecondarySyncDisabled) {
+      // لا نسجّل رسالة لتفادي التكرار — stopAutoSync يُستدعى كثيراً
+      return;
+    }
     dlog('🔵 [SecondarySync] Auto-sync stopped');
   }
 
@@ -152,6 +201,15 @@ class SecondarySyncManager {
   ///
   /// ✅ P1-6: timeout + استرداد لـ _isSyncing.
   Future<SecondarySyncResult> sync() async {
+    // ✅ Sync Simplification (2026-08-10): no-op كامل.
+    if (kSecondarySyncDisabled) {
+      _logDisabledNotice('sync');
+      return SecondarySyncResult(
+        success: false,
+        message: 'المزامنة الثانوية معطّلة — Appwrite primary هو authority الوحيد',
+      );
+    }
+
     // ✅ P1-6: استرداد الجمود قبل فحص _isSyncing
     _isStuck();
 
@@ -393,6 +451,11 @@ class SecondarySyncManager {
   ///
   /// ✅ P2 fix: ترجع `true` إذا نجحت (حتى لو 0 معلّق)، `false` فقط عند الفشل.
   Future<bool> pushLocalChanges() async {
+    // ✅ Sync Simplification (2026-08-10): no-op — لا تغييرات تُرفع للثانوي.
+    if (kSecondarySyncDisabled) {
+      _logDisabledNotice('pushLocalChanges');
+      return false;
+    }
     final result = await sync();
     // قبل الإصلاح: `result.pushed > 0` — يعطي false إذا كان 0 معلّق
     // (حتى لو كانت sync ناجحة بلا أخطاء)، مما يُظهر اللوحة كـ"فشل".
@@ -404,7 +467,13 @@ class SecondarySyncManager {
   ///
   /// السحب من Secondary يحتاج منطقاً معقداً للتعارض مع Primary (أيهما أحدث؟).
   /// يُنصح باستخدام Secondary للقراءة فقط عند فشل Primary (Failover).
+  ///
+  /// ⚠️ **معطّل بالكامل (2026-08-10)** — no-op. انظر [kSecondarySyncDisabled].
   Future<bool> pullRemoteChanges() async {
+    if (kSecondarySyncDisabled) {
+      _logDisabledNotice('pullRemoteChanges');
+      return false;
+    }
     if (!SecondaryAppwriteConfig.isPullEnabled) {
       dlog('🔵 [SecondarySync] Pull disabled');
       return false;
@@ -487,6 +556,17 @@ class SecondarySyncManager {
             source: row.read<String>('source'),
             deliveredToPrimary: row.read<bool>('delivered_to_primary'),
             deliveredToSecondary: row.read<bool>('delivered_to_secondary'),
+            // ✅ Migration 55: قراءة حقول الفصل الجديدة (مع fallback)
+            primaryProcessingStatus:
+                row.read<String?>('primary_processing_status') ??
+                'pending',
+            primaryAttempts: row.read<int?>('primary_attempts') ?? 0,
+            primaryLastError: row.read<String?>('primary_last_error'),
+            secondaryProcessingStatus:
+                row.read<String?>('secondary_processing_status') ??
+                'pending',
+            secondaryAttempts: row.read<int?>('secondary_attempts') ?? 0,
+            secondaryLastError: row.read<String?>('secondary_last_error'),
           ),
         )
         .get();

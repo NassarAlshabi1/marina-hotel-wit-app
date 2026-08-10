@@ -17,12 +17,30 @@ class AncestorCacheDao extends DatabaseAccessor<AppDatabase>
   AncestorCacheDao(super.db);
 
   /// حفظ نسخة من السجل كما جاءت من السحابة آخر مرة
+  ///
+  /// ✅ Sync Safety Fix (2026-08-10): استخدام `insertOnConflictUpdate` كان
+  /// يفشل عند وجود UNIQUE constraint على (entity, local_uuid) لأن Drift
+  /// يُولّد `ON CONFLICT (id)` (primary key) بدلاً من `ON CONFLICT (entity,
+  /// local_uuid)`. بما أن `id` autoIncrement، لا يحدث تعارض على `id`،
+  /// لكن UNIQUE constraint على (entity, local_uuid) يفشل بصمت ويُحوّل
+  /// المسار إلى LWW fallback في checkAndResolveConflict.
+  ///
+  /// الحل: حذف السجل الموجود يدوياً قبل الإدراج. هذا أبسط وأكثر موثوقية
+  /// من الاعتماد على `insertOnConflictUpdate` الذي لا يستهدف unique keys
+  /// بشكل صحيح في جميع إصدارات Drift.
   Future<void> saveAncestor({
     required String entity,
     required String localUuid,
     required Map<String, dynamic> data,
   }) async {
-    await into(ancestorCache).insertOnConflictUpdate(
+    // حذف السجل الموجود (إن وُجد) قبل الإدراج لتفادي UNIQUE constraint
+    await (delete(ancestorCache)..where(
+          (t) =>
+              t.entity.equals(entity) & t.localUuid.equals(localUuid),
+        ))
+        .go();
+
+    await into(ancestorCache).insert(
       AncestorCacheCompanion.insert(
         entity: entity,
         localUuid: localUuid,

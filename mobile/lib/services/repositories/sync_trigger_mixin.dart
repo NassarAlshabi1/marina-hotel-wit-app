@@ -49,11 +49,11 @@ mixin SyncTriggerMixin {
 
       // ✅ P2-1 FIX: احجز القفل التنافي فوراً قبل أي عمل asynchronous
       // يمنع الـ Race Condition بين الـ Watcher والـ Manual Trigger
-      if (!SyncGuard.canStart(label: 'sync_trigger_manual')) {
+      // ✅ Sync Safety Fix (2026-08-10): استخدام tryAcquire الذري.
+      if (!SyncGuard.tryAcquire(label: 'sync_trigger_manual')) {
         dlog('⏸️ Trigger sync skipped — another sync is active (${SyncGuard.activeLabel})');
         return;
       }
-      SyncGuard.markStarted(label: 'sync_trigger_manual');
 
       // ✅ المسار الرئيسي: عبر watcher الموحّد
       if (!AutoOutboxSyncWatcher.instance.isRunning) {

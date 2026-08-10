@@ -508,14 +508,15 @@ class AppwriteSyncManager {
       // ✅ إصلاح P2-10: حارس مشترك لمنع تداخل المزامنة مع SmartSyncManager
       // أو GoogleDriveUnifiedSyncCoordinator. إذا كانت مزامنة أخرى نشطة،
       // نتخطى هذه الدورة لتجنب تضارب عمليات SQLite و API calls.
-      if (!SyncGuard.canStart(label: 'appwrite_sync')) {
+      // ✅ Sync Safety Fix (2026-08-10): استخدام tryAcquire الذري بدلاً من
+      // canStart + markStarted المنفصلتين (TOCTOU race).
+      if (!SyncGuard.tryAcquire(label: 'appwrite_sync')) {
         _logger.info(
           'Auto sync skipped — another sync active (${SyncGuard.activeLabel})',
           tag: 'SYNC',
         );
         return;
       }
-      SyncGuard.markStarted(label: 'appwrite_sync');
       // ✅ إصلاح جذري: catch + finally — سابقاً كان try/finally فقط بدون catch،
       // فأي استثناء من sync() (مثل Connection reset قبل الـ try الداخلي)
       // كان يصبح unhandled async error → Crashlytics Fatal.
@@ -1968,10 +1969,81 @@ class AppwriteSyncManager {
       localUuid: localUuid,
       localData: localData,
     );
+
+    // ✅ Sync Safety Fix (2026-08-10): End-to-end conflict resolution.
+    // عندما يُنتج SmartConflictResolver بيانات مدمجة (3-way merge) ويضع
+    // علامة pushedToRemote=true، يجب رفع النتيجة للسحابة. سابقاً، كانت
+    // البيانات المدمجة تُكتب محلياً فقط عبر adapter.upsertFromJson، بينما
+    // تظل السحابة تحمل النسخة القديمة المتعارضة. الحل: إضافة outbox entry
+    // ليتم رفعه في دورة push التالية.
+    //
+    // هذا إصلاح حرج لمنع silent data divergence: بدون هذا، كل جهاز يرى
+    // نسخة محلية مدموجة لكن السحابة تحتفظ بالنسخة القديمة، فتبقى الأجهزة
+    // الأخرى ترى التعارض إلى ما لا نهاية.
+    if (result.pushedToRemote &&
+        result.mergedData != null &&
+        entityName != null &&
+        localUuid != null) {
+      try {
+        await _enqueueMergedForCloudPush(
+          entity: entityName,
+          localUuid: localUuid,
+          mergedData: result.mergedData!,
+          serverId: _asIntSafe(result.mergedData!, 'id'),
+        );
+      } catch (e, st) {
+        // لا نُفشل المزامنة بأكملها بسبب فشل enqueue — السجل المدمج محلياً
+        // صحيح، وستلتقطه دورة push اللاحقة عبر local watcher عند أول تعديل.
+        _logger.warning(
+          '⚠️ Failed to enqueue merged data for cloud push: '
+          'entity=$entityName, uuid=$localUuid, error=$e',
+          tag: 'CONFLICT',
+          error: e,
+          stackTrace: st,
+        );
+      }
+    }
+
     return _RemoteNewerResult(
       shouldApplyRemote: result.shouldApplyRemote,
       mergedData: result.mergedData,
       pushedToRemote: result.pushedToRemote,
+    );
+  }
+
+  /// ✅ Sync Safety Fix (2026-08-10): End-to-end conflict resolution helper.
+  ///
+  /// يضع البيانات المدمجة (3-way merge result) في outbox ليتم رفعها للسحابة
+  /// في دورة push التالية. يستخدم source='local' ليتم التقاطها بواسطة
+  /// takeBatch(sources: ['local']) التي يستدعيها _pushAllEntities.
+  ///
+  /// **سلوك coalescing**: outboxDao.merge() يبحث عن سجل موجود لنفس
+  /// (entity, localUuid) ويحدّث payload. هذا سلوك صحيح لأن:
+  /// 1. إذا كان هناك تعديل محلي معلّق للمستخدم، البيانات المدمجة تشمل تعديله
+  ///    (لأن localData ضُمَّنت في 3-way merge) → استبدال payload آمن.
+  /// 2. إذا كان هناك إدخال outbox سابق للكيان نفسه، استبداله بالإصدار المدمج
+  ///    يمنع إرسال نسخة قديمة بعدها.
+  /// 3. دمج إدخال 'delete' موجود لا يُبدّل إلى 'update' (حماية P0-3).
+  Future<void> _enqueueMergedForCloudPush({
+    required String entity,
+    required String localUuid,
+    required Map<String, dynamic> mergedData,
+    int? serverId,
+  }) async {
+    final clientTs = Time.nowEpoch();
+    await outboxDao.merge(
+      entity: entity,
+      op: 'update',
+      localUuid: localUuid,
+      payload: mergedData,
+      clientTs: clientTs,
+      serverId: serverId,
+      source: 'local',
+    );
+    _logger.info(
+      '📤 Enqueued 3-way merge result for cloud push: '
+      'entity=$entity, uuid=$localUuid',
+      tag: 'CONFLICT',
     );
   }
 

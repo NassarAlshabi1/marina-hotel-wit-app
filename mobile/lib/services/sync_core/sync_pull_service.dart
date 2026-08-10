@@ -203,9 +203,18 @@ class SyncPullService {
                 'warnings=${resolution.warnings.length}',
                 tag: 'CONFLICT',
               );
-              // كتابة البيانات المدمجة في remoteData in-place
+              // كتابة البيانات المدمجة في remoteData in-place.
+              // ✅ Sync Safety Fix (2026-08-10): استخدم iterative put بدل
+              // addAll لتفادي type mismatch عند runtime. مشكلة addAll: إذا
+              // كان remoteData من literal `{'k': 'v'}` يصبح runtime type
+              // هو `_Map<String, Object>`، بينما mergedData قد يكون
+              // `Map<String, dynamic>` → addAll يرمي type error ويُحوِّل
+              // المسار لـ LWW fallback (فقدان النتيجة المدمجة).
+              // الـ iterative put يتجاوز variance rules في Dart.
               remoteData.clear();
-              remoteData.addAll(resolution.mergedData);
+              for (final entry in resolution.mergedData.entries) {
+                remoteData[entry.key] = entry.value;
+              }
               // حفظ البيانات البعيدة الأصلية كـ ancestor
               await _ancestorCacheDao!.saveAncestor(
                 entity: entityName,

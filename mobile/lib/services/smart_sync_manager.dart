@@ -170,12 +170,11 @@ class SmartSyncManager {
     // متتاليتين بدون أي await بينهما. سابقاً كان هناك await points
     // (shouldSkipSync, isLimitExceeded) بين canStart و markStarted، مما
     // يسمح لخدمة أخرى بالدخول في الفجوة وبدء مزامنة متزامنة.
-    if (!SyncGuard.canStart(label: 'smart_sync')) {
+    // ✅ Sync Safety Fix (2026-08-10): استخدام tryAcquire الذري.
+    if (!SyncGuard.tryAcquire(label: 'smart_sync')) {
       _log('⏸️ تم تخطي المزامنة — خدمة أخرى نشطة (${SyncGuard.activeLabel})');
       return;
     }
-    // ✅ احجز الـ lock فوراً قبل أي await
-    SyncGuard.markStarted(label: 'smart_sync');
 
     try {
       // تحقق من قيود الأداء (بعد حجز الـ lock)
