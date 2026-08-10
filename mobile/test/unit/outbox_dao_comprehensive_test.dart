@@ -227,6 +227,8 @@ void main() {
         );
         // delivered_to_secondary افتراضياً true (لأن SecondaryAppwriteConfig غير مُهيّأ)
         // delivered_to_primary = false (افتراضي)
+        // ✅ Sync Safety Fix: set to processing before markDelivered
+        await (db.customStatement('UPDATE outbox SET processing_status = ? WHERE id = ?', ['processing', id]));
         await outboxDao.markDeliveredToPrimary(id);
         // منذ delivered_to_secondary = true و delivered_to_primary = true → يحذف
         final after = await (db.select(db.outbox)).get();
@@ -250,6 +252,8 @@ void main() {
           'UPDATE outbox SET delivered_to_secondary = 0 WHERE id = ?',
           [id],
         );
+        // ✅ Sync Safety Fix: set to processing before markDelivered
+        await (db.customStatement('UPDATE outbox SET processing_status = ? WHERE id = ?', ['processing', id]));
         await outboxDao.markDeliveredToPrimary(id);
         final updated = await (db.select(
           db.outbox,
@@ -281,6 +285,8 @@ void main() {
           [id],
         );
         // سلّم للرئيسي أولاً
+        // ✅ Sync Safety Fix: set to processing before markDelivered
+        await (db.customStatement('UPDATE outbox SET processing_status = ? WHERE id = ?', ['processing', id]));
         await outboxDao.markDeliveredToPrimary(id);
         expect(
           await (db.select(db.outbox)).get(),
@@ -288,6 +294,8 @@ void main() {
           reason: 'لم يُسلّم للثانوي بعد',
         );
         // ثم سلّم للثانوي — يجب حذف السجل
+        // ✅ Sync Safety Fix: set to processing before markDelivered
+        await (db.customStatement('UPDATE outbox SET processing_status = ? WHERE id = ?', ['processing', id]));
         await outboxDao.markDeliveredToSecondary(id);
         expect(
           await (db.select(db.outbox)).get(),
@@ -322,6 +330,8 @@ void main() {
 
         // 3) markCompleted + markDeliveredToPrimary
         await outboxDao.markCompleted([id]);
+        // ✅ Sync Safety Fix: set to processing before markDelivered
+        await (db.customStatement('UPDATE outbox SET processing_status = ? WHERE id = ?', ['processing', id]));
         await outboxDao.markDeliveredToPrimary(id);
         expect(
           await outboxDao.countPendingPushable(),
@@ -330,6 +340,8 @@ void main() {
         );
 
         // 4) markDeliveredToSecondary — يحذف السجل
+        // ✅ Sync Safety Fix: set to processing before markDelivered
+        await (db.customStatement('UPDATE outbox SET processing_status = ? WHERE id = ?', ['processing', id]));
         await outboxDao.markDeliveredToSecondary(id);
         expect(
           await (db.select(db.outbox)).get(),

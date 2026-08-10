@@ -66,7 +66,6 @@ class SyncGuard {
     if (_activeSyncStartedAt == null) return true;
     final elapsed = DateTime.now().difference(_activeSyncStartedAt!);
     // إذا مضت أكثر من [_staleLockTimeout] على "مزامنة نشطة"، من المحتمل أنها علقت
-    // (deadlock أو crash) — اسمح بمزامنة جديدة كـ safety valve.
     if (elapsed > _staleLockTimeout) {
       dlog(
         () =>
@@ -76,6 +75,15 @@ class SyncGuard {
       return true;
     }
     return false;
+  }
+
+  /// ✅ Sync Safety Fix (2026-08-10): atomic try-acquire.
+  /// يدمج canStart + markStarted في عملية واحدة ذرية لمنع TOCTOU race.
+  /// يُرجع true إذا تم اكتساب القفل، false إذا كانت مزامنة أخرى نشطة.
+  static bool tryAcquire({required String label}) {
+    if (!canStart(label: label)) return false;
+    markStarted(label: label);
+    return true;
   }
 
   /// سجّل بدء مزامنة. يجب استدعاؤها فوراً بعد [canStart] تُعيد true.

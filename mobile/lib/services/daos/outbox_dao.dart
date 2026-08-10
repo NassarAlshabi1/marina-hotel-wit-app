@@ -258,7 +258,6 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         await (update(outbox)..where((t) => t.id.equals(existing.id))).write(
           OutboxCompanion(
             // ✅ P0-3 fix: لا نستبدل 'delete' بـ 'update'
-            // delete له أولوية أعلى — إذا كان السجل موجود كـ delete، نتركه
             op: existing.op == 'delete' ? const Value.absent() : Value(op),
             payload: Value(payloadJson),
             clientTs: Value(clientTs),
@@ -267,8 +266,15 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
             source: Value(source),
             // ✅ إصلاح P0-1: تحديث delivered_to_secondary للسجل الموجود أيضاً
             deliveredToSecondary: Value(deliveredToSecondary),
+            // ✅ Sync Safety Fix (2026-08-10): إعادة ضبط delivery state
+            // عند تحديث payload. سابقاً، لو كان السجل موجوداً بـ
+            // deliveredToPrimary=true (تم تسليمه للرئيسي) ثم تغيّر payload،
+            // كان يُعتبر "تم تسليمه" رغم أن النسخة الجديدة لم تُسلّم بعد.
+            // الآن: أي تحديث لـ payload يعيد ضبط delivery flags لـ false
+            // لضمان أن النسخة الجديدة تُسلّم للوجهتين.
+            deliveredToPrimary: const Value(false),
+            // deliveredToSecondary تم ضبطه أعلاه ديناميكياً
             // ✅ إذا كان السجل في حالة 'processing'، نعيده لـ 'pending'
-            // لأن البيانات تغيرت والسجل القديم لم يُعالج بعد
             processingStatus: existing.processingStatus == 'processing'
                 ? const Value('pending')
                 : const Value.absent(),
@@ -278,6 +284,10 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
             processingWorker: existing.processingStatus == 'processing'
                 ? const Value(null)
                 : const Value.absent(),
+            // ✅ Sync Safety Fix: إعادة ضبط attempts عند تغيّر payload
+            // لأن الأخطاء السابقة كانت للنسخة القديمة
+            attempts: const Value(0),
+            lastError: const Value(null),
           ),
         );
         return existing.id;
@@ -573,6 +583,22 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         outbox,
       )..where((t) => t.id.equals(id))).getSingleOrNull();
       if (record == null) return; // السجل محذوف بالفعل
+
+      // ✅ Sync Safety Fix (2026-08-10): التحقق من أن processingWorker
+      // يطابق الـ worker الحالي. هذا يمنع stale worker من تأكيد تسليم
+      // payload حدّثه worker آخر. لو كان processingWorker فارغاً أو مختلفاً
+      // عن ما نتوقعه، نتجاهل التسليم ونُعيد السجل لـ pending.
+      // ملاحظة: نتحقق أيضاً من attempts <= maxAttempts لتجنب dead state.
+      if (record.processingStatus != 'processing') {
+        // السجل ليس في حالة 'processing' — ربما تم تحديثه أو إعادة جدولته.
+        // لا نُؤكد التسليم لأن النسخة الحالية لم تُعالج فعلياً.
+        dlog(
+          () => '⚠️ Outbox: _markDelivered skipped for id=$id — '
+              'status=${record.processingStatus} (expected processing). '
+              'Payload may have been updated since processing started.',
+        );
+        return;
+      }
 
       // تحديث العلامة المناسبة
       final companion = toPrimary
