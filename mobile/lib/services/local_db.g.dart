@@ -185,9 +185,10 @@ class $RoomsTable extends Rooms with TableInfo<$RoomsTable, Room> {
   late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
     'sync_timestamp',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -639,7 +640,7 @@ class $RoomsTable extends Rooms with TableInfo<$RoomsTable, Room> {
       syncTimestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sync_timestamp'],
-      ),
+      )!,
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -709,7 +710,7 @@ class Room extends DataClass implements Insertable<Room> {
   final String origin;
   final String vectorClock;
   final String deviceId;
-  final int? syncTimestamp;
+  final int syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final String roomNumber;
@@ -737,7 +738,7 @@ class Room extends DataClass implements Insertable<Room> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
-    this.syncTimestamp,
+    required this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.roomNumber,
@@ -778,9 +779,7 @@ class Room extends DataClass implements Insertable<Room> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
-    if (!nullToAbsent || syncTimestamp != null) {
-      map['sync_timestamp'] = Variable<int>(syncTimestamp);
-    }
+    map['sync_timestamp'] = Variable<int>(syncTimestamp);
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -830,9 +829,7 @@ class Room extends DataClass implements Insertable<Room> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
-      syncTimestamp: syncTimestamp == null && nullToAbsent
-          ? const Value.absent()
-          : Value(syncTimestamp),
+      syncTimestamp: Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -876,7 +873,7 @@ class Room extends DataClass implements Insertable<Room> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
-      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
+      syncTimestamp: serializer.fromJson<int>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       roomNumber: serializer.fromJson<String>(json['roomNumber']),
@@ -915,7 +912,7 @@ class Room extends DataClass implements Insertable<Room> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
-      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
+      'syncTimestamp': serializer.toJson<int>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'roomNumber': serializer.toJson<String>(roomNumber),
@@ -946,7 +943,7 @@ class Room extends DataClass implements Insertable<Room> {
     String? origin,
     String? vectorClock,
     String? deviceId,
-    Value<int?> syncTimestamp = const Value.absent(),
+    int? syncTimestamp,
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? roomNumber,
@@ -974,9 +971,7 @@ class Room extends DataClass implements Insertable<Room> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
-    syncTimestamp: syncTimestamp.present
-        ? syncTimestamp.value
-        : this.syncTimestamp,
+    syncTimestamp: syncTimestamp ?? this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -1168,7 +1163,7 @@ class RoomsCompanion extends UpdateCompanion<Room> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
-  final Value<int?> syncTimestamp;
+  final Value<int> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> roomNumber;
@@ -1324,7 +1319,7 @@ class RoomsCompanion extends UpdateCompanion<Room> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
-    Value<int?>? syncTimestamp,
+    Value<int>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? roomNumber,
@@ -1676,9 +1671,10 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
   late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
     'sync_timestamp',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -2673,7 +2669,7 @@ class $BookingsTable extends Bookings with TableInfo<$BookingsTable, Booking> {
       syncTimestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sync_timestamp'],
-      ),
+      )!,
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -2843,7 +2839,7 @@ class Booking extends DataClass implements Insertable<Booking> {
   final String origin;
   final String vectorClock;
   final String deviceId;
-  final int? syncTimestamp;
+  final int syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final int? serverBookingId;
@@ -2896,7 +2892,7 @@ class Booking extends DataClass implements Insertable<Booking> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
-    this.syncTimestamp,
+    required this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     this.serverBookingId,
@@ -2962,9 +2958,7 @@ class Booking extends DataClass implements Insertable<Booking> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
-    if (!nullToAbsent || syncTimestamp != null) {
-      map['sync_timestamp'] = Variable<int>(syncTimestamp);
-    }
+    map['sync_timestamp'] = Variable<int>(syncTimestamp);
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -3063,9 +3057,7 @@ class Booking extends DataClass implements Insertable<Booking> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
-      syncTimestamp: syncTimestamp == null && nullToAbsent
-          ? const Value.absent()
-          : Value(syncTimestamp),
+      syncTimestamp: Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -3158,7 +3150,7 @@ class Booking extends DataClass implements Insertable<Booking> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
-      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
+      syncTimestamp: serializer.fromJson<int>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       serverBookingId: serializer.fromJson<int?>(json['serverBookingId']),
@@ -3224,7 +3216,7 @@ class Booking extends DataClass implements Insertable<Booking> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
-      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
+      'syncTimestamp': serializer.toJson<int>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'serverBookingId': serializer.toJson<int?>(serverBookingId),
@@ -3282,7 +3274,7 @@ class Booking extends DataClass implements Insertable<Booking> {
     String? origin,
     String? vectorClock,
     String? deviceId,
-    Value<int?> syncTimestamp = const Value.absent(),
+    int? syncTimestamp,
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     Value<int?> serverBookingId = const Value.absent(),
@@ -3335,9 +3327,7 @@ class Booking extends DataClass implements Insertable<Booking> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
-    syncTimestamp: syncTimestamp.present
-        ? syncTimestamp.value
-        : this.syncTimestamp,
+    syncTimestamp: syncTimestamp ?? this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -3721,7 +3711,7 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
-  final Value<int?> syncTimestamp;
+  final Value<int> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int?> serverBookingId;
@@ -4003,7 +3993,7 @@ class BookingsCompanion extends UpdateCompanion<Booking> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
-    Value<int?>? syncTimestamp,
+    Value<int>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int?>? serverBookingId,
@@ -4505,9 +4495,10 @@ class $BookingNotesTable extends BookingNotes
   late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
     'sync_timestamp',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -4878,7 +4869,7 @@ class $BookingNotesTable extends BookingNotes
       syncTimestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sync_timestamp'],
-      ),
+      )!,
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -4932,7 +4923,7 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
   final String origin;
   final String vectorClock;
   final String deviceId;
-  final int? syncTimestamp;
+  final int syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final int bookingId;
@@ -4956,7 +4947,7 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
-    this.syncTimestamp,
+    required this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.bookingId,
@@ -4993,9 +4984,7 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
-    if (!nullToAbsent || syncTimestamp != null) {
-      map['sync_timestamp'] = Variable<int>(syncTimestamp);
-    }
+    map['sync_timestamp'] = Variable<int>(syncTimestamp);
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -5037,9 +5026,7 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
-      syncTimestamp: syncTimestamp == null && nullToAbsent
-          ? const Value.absent()
-          : Value(syncTimestamp),
+      syncTimestamp: Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -5075,7 +5062,7 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
-      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
+      syncTimestamp: serializer.fromJson<int>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       bookingId: serializer.fromJson<int>(json['bookingId']),
@@ -5104,7 +5091,7 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
-      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
+      'syncTimestamp': serializer.toJson<int>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'bookingId': serializer.toJson<int>(bookingId),
@@ -5131,7 +5118,7 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
     String? origin,
     String? vectorClock,
     String? deviceId,
-    Value<int?> syncTimestamp = const Value.absent(),
+    int? syncTimestamp,
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     int? bookingId,
@@ -5155,9 +5142,7 @@ class BookingNote extends DataClass implements Insertable<BookingNote> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
-    syncTimestamp: syncTimestamp.present
-        ? syncTimestamp.value
-        : this.syncTimestamp,
+    syncTimestamp: syncTimestamp ?? this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -5317,7 +5302,7 @@ class BookingNotesCompanion extends UpdateCompanion<BookingNote> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
-  final Value<int?> syncTimestamp;
+  final Value<int> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int> bookingId;
@@ -5449,7 +5434,7 @@ class BookingNotesCompanion extends UpdateCompanion<BookingNote> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
-    Value<int?>? syncTimestamp,
+    Value<int>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int>? bookingId,
@@ -5774,9 +5759,10 @@ class $ShiftNotesTable extends ShiftNotes
   late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
     'sync_timestamp',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -6177,7 +6163,7 @@ class $ShiftNotesTable extends ShiftNotes
       syncTimestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sync_timestamp'],
-      ),
+      )!,
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -6239,7 +6225,7 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
   final String origin;
   final String vectorClock;
   final String deviceId;
-  final int? syncTimestamp;
+  final int syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final String title;
@@ -6265,7 +6251,7 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
-    this.syncTimestamp,
+    required this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.title,
@@ -6304,9 +6290,7 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
-    if (!nullToAbsent || syncTimestamp != null) {
-      map['sync_timestamp'] = Variable<int>(syncTimestamp);
-    }
+    map['sync_timestamp'] = Variable<int>(syncTimestamp);
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -6350,9 +6334,7 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
-      syncTimestamp: syncTimestamp == null && nullToAbsent
-          ? const Value.absent()
-          : Value(syncTimestamp),
+      syncTimestamp: Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -6390,7 +6372,7 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
-      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
+      syncTimestamp: serializer.fromJson<int>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       title: serializer.fromJson<String>(json['title']),
@@ -6421,7 +6403,7 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
-      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
+      'syncTimestamp': serializer.toJson<int>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'title': serializer.toJson<String>(title),
@@ -6450,7 +6432,7 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
     String? origin,
     String? vectorClock,
     String? deviceId,
-    Value<int?> syncTimestamp = const Value.absent(),
+    int? syncTimestamp,
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? title,
@@ -6476,9 +6458,7 @@ class ShiftNote extends DataClass implements Insertable<ShiftNote> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
-    syncTimestamp: syncTimestamp.present
-        ? syncTimestamp.value
-        : this.syncTimestamp,
+    syncTimestamp: syncTimestamp ?? this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -6646,7 +6626,7 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
-  final Value<int?> syncTimestamp;
+  final Value<int> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> title;
@@ -6787,7 +6767,7 @@ class ShiftNotesCompanion extends UpdateCompanion<ShiftNote> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
-    Value<int?>? syncTimestamp,
+    Value<int>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? title,
@@ -7124,9 +7104,10 @@ class $EmployeesTable extends Employees
   late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
     'sync_timestamp',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -7575,7 +7556,7 @@ class $EmployeesTable extends Employees
       syncTimestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sync_timestamp'],
-      ),
+      )!,
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -7645,7 +7626,7 @@ class Employee extends DataClass implements Insertable<Employee> {
   final String origin;
   final String vectorClock;
   final String deviceId;
-  final int? syncTimestamp;
+  final int syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final String name;
@@ -7673,7 +7654,7 @@ class Employee extends DataClass implements Insertable<Employee> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
-    this.syncTimestamp,
+    required this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.name,
@@ -7714,9 +7695,7 @@ class Employee extends DataClass implements Insertable<Employee> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
-    if (!nullToAbsent || syncTimestamp != null) {
-      map['sync_timestamp'] = Variable<int>(syncTimestamp);
-    }
+    map['sync_timestamp'] = Variable<int>(syncTimestamp);
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -7766,9 +7745,7 @@ class Employee extends DataClass implements Insertable<Employee> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
-      syncTimestamp: syncTimestamp == null && nullToAbsent
-          ? const Value.absent()
-          : Value(syncTimestamp),
+      syncTimestamp: Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -7812,7 +7789,7 @@ class Employee extends DataClass implements Insertable<Employee> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
-      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
+      syncTimestamp: serializer.fromJson<int>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
@@ -7847,7 +7824,7 @@ class Employee extends DataClass implements Insertable<Employee> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
-      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
+      'syncTimestamp': serializer.toJson<int>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'name': serializer.toJson<String>(name),
@@ -7878,7 +7855,7 @@ class Employee extends DataClass implements Insertable<Employee> {
     String? origin,
     String? vectorClock,
     String? deviceId,
-    Value<int?> syncTimestamp = const Value.absent(),
+    int? syncTimestamp,
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? name,
@@ -7906,9 +7883,7 @@ class Employee extends DataClass implements Insertable<Employee> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
-    syncTimestamp: syncTimestamp.present
-        ? syncTimestamp.value
-        : this.syncTimestamp,
+    syncTimestamp: syncTimestamp ?? this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -8098,7 +8073,7 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
-  final Value<int?> syncTimestamp;
+  final Value<int> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> name;
@@ -8250,7 +8225,7 @@ class EmployeesCompanion extends UpdateCompanion<Employee> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
-    Value<int?>? syncTimestamp,
+    Value<int>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? name,
@@ -8598,9 +8573,10 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
   late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
     'sync_timestamp',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -9101,7 +9077,7 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
       syncTimestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sync_timestamp'],
-      ),
+      )!,
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -9179,7 +9155,7 @@ class Expense extends DataClass implements Insertable<Expense> {
   final String origin;
   final String vectorClock;
   final String deviceId;
-  final int? syncTimestamp;
+  final int syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final String expenseType;
@@ -9209,7 +9185,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
-    this.syncTimestamp,
+    required this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.expenseType,
@@ -9252,9 +9228,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
-    if (!nullToAbsent || syncTimestamp != null) {
-      map['sync_timestamp'] = Variable<int>(syncTimestamp);
-    }
+    map['sync_timestamp'] = Variable<int>(syncTimestamp);
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -9312,9 +9286,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
-      syncTimestamp: syncTimestamp == null && nullToAbsent
-          ? const Value.absent()
-          : Value(syncTimestamp),
+      syncTimestamp: Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -9366,7 +9338,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
-      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
+      syncTimestamp: serializer.fromJson<int>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       expenseType: serializer.fromJson<String>(json['expenseType']),
@@ -9401,7 +9373,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
-      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
+      'syncTimestamp': serializer.toJson<int>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'expenseType': serializer.toJson<String>(expenseType),
@@ -9434,7 +9406,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     String? origin,
     String? vectorClock,
     String? deviceId,
-    Value<int?> syncTimestamp = const Value.absent(),
+    int? syncTimestamp,
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? expenseType,
@@ -9464,9 +9436,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
-    syncTimestamp: syncTimestamp.present
-        ? syncTimestamp.value
-        : this.syncTimestamp,
+    syncTimestamp: syncTimestamp ?? this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -9672,7 +9642,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
-  final Value<int?> syncTimestamp;
+  final Value<int> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> expenseType;
@@ -9835,7 +9805,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
-    Value<int?>? syncTimestamp,
+    Value<int>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? expenseType,
@@ -10196,9 +10166,10 @@ class $CashTransactionsTable extends CashTransactions
   late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
     'sync_timestamp',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -10632,7 +10603,7 @@ class $CashTransactionsTable extends CashTransactions
       syncTimestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sync_timestamp'],
-      ),
+      )!,
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -10698,7 +10669,7 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
   final String origin;
   final String vectorClock;
   final String deviceId;
-  final int? syncTimestamp;
+  final int syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final int? registerId;
@@ -10725,7 +10696,7 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
-    this.syncTimestamp,
+    required this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     this.registerId,
@@ -10765,9 +10736,7 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
-    if (!nullToAbsent || syncTimestamp != null) {
-      map['sync_timestamp'] = Variable<int>(syncTimestamp);
-    }
+    map['sync_timestamp'] = Variable<int>(syncTimestamp);
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -10820,9 +10789,7 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
-      syncTimestamp: syncTimestamp == null && nullToAbsent
-          ? const Value.absent()
-          : Value(syncTimestamp),
+      syncTimestamp: Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -10869,7 +10836,7 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
-      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
+      syncTimestamp: serializer.fromJson<int>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       registerId: serializer.fromJson<int?>(json['registerId']),
@@ -10901,7 +10868,7 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
-      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
+      'syncTimestamp': serializer.toJson<int>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'registerId': serializer.toJson<int?>(registerId),
@@ -10931,7 +10898,7 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
     String? origin,
     String? vectorClock,
     String? deviceId,
-    Value<int?> syncTimestamp = const Value.absent(),
+    int? syncTimestamp,
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     Value<int?> registerId = const Value.absent(),
@@ -10958,9 +10925,7 @@ class CashTransaction extends DataClass implements Insertable<CashTransaction> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
-    syncTimestamp: syncTimestamp.present
-        ? syncTimestamp.value
-        : this.syncTimestamp,
+    syncTimestamp: syncTimestamp ?? this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -11147,7 +11112,7 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
-  final Value<int?> syncTimestamp;
+  final Value<int> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int?> registerId;
@@ -11294,7 +11259,7 @@ class CashTransactionsCompanion extends UpdateCompanion<CashTransaction> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
-    Value<int?>? syncTimestamp,
+    Value<int>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int?>? registerId,
@@ -11636,9 +11601,10 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
   late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
     'sync_timestamp',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -12393,7 +12359,7 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
       syncTimestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sync_timestamp'],
-      ),
+      )!,
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -12519,7 +12485,7 @@ class Payment extends DataClass implements Insertable<Payment> {
   final String origin;
   final String vectorClock;
   final String deviceId;
-  final int? syncTimestamp;
+  final int syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final int? serverPaymentId;
@@ -12561,7 +12527,7 @@ class Payment extends DataClass implements Insertable<Payment> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
-    this.syncTimestamp,
+    required this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     this.serverPaymentId,
@@ -12616,9 +12582,7 @@ class Payment extends DataClass implements Insertable<Payment> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
-    if (!nullToAbsent || syncTimestamp != null) {
-      map['sync_timestamp'] = Variable<int>(syncTimestamp);
-    }
+    map['sync_timestamp'] = Variable<int>(syncTimestamp);
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -12710,9 +12674,7 @@ class Payment extends DataClass implements Insertable<Payment> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
-      syncTimestamp: syncTimestamp == null && nullToAbsent
-          ? const Value.absent()
-          : Value(syncTimestamp),
+      syncTimestamp: Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -12796,7 +12758,7 @@ class Payment extends DataClass implements Insertable<Payment> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
-      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
+      syncTimestamp: serializer.fromJson<int>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       serverPaymentId: serializer.fromJson<int?>(json['serverPaymentId']),
@@ -12849,7 +12811,7 @@ class Payment extends DataClass implements Insertable<Payment> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
-      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
+      'syncTimestamp': serializer.toJson<int>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'serverPaymentId': serializer.toJson<int?>(serverPaymentId),
@@ -12896,7 +12858,7 @@ class Payment extends DataClass implements Insertable<Payment> {
     String? origin,
     String? vectorClock,
     String? deviceId,
-    Value<int?> syncTimestamp = const Value.absent(),
+    int? syncTimestamp,
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     Value<int?> serverPaymentId = const Value.absent(),
@@ -12938,9 +12900,7 @@ class Payment extends DataClass implements Insertable<Payment> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
-    syncTimestamp: syncTimestamp.present
-        ? syncTimestamp.value
-        : this.syncTimestamp,
+    syncTimestamp: syncTimestamp ?? this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -13244,7 +13204,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
-  final Value<int?> syncTimestamp;
+  final Value<int> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int?> serverPaymentId;
@@ -13469,7 +13429,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
-    Value<int?>? syncTimestamp,
+    Value<int>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int?>? serverPaymentId,
@@ -13907,9 +13867,10 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
   late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
     'sync_timestamp',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -14651,7 +14612,7 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
       syncTimestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sync_timestamp'],
-      ),
+      )!,
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -14777,7 +14738,7 @@ class Debt extends DataClass implements Insertable<Debt> {
   final String origin;
   final String vectorClock;
   final String deviceId;
-  final int? syncTimestamp;
+  final int syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final int? bookingLocalId;
@@ -14819,7 +14780,7 @@ class Debt extends DataClass implements Insertable<Debt> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
-    this.syncTimestamp,
+    required this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     this.bookingLocalId,
@@ -14874,9 +14835,7 @@ class Debt extends DataClass implements Insertable<Debt> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
-    if (!nullToAbsent || syncTimestamp != null) {
-      map['sync_timestamp'] = Variable<int>(syncTimestamp);
-    }
+    map['sync_timestamp'] = Variable<int>(syncTimestamp);
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -14956,9 +14915,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
-      syncTimestamp: syncTimestamp == null && nullToAbsent
-          ? const Value.absent()
-          : Value(syncTimestamp),
+      syncTimestamp: Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -15030,7 +14987,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
-      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
+      syncTimestamp: serializer.fromJson<int>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       bookingLocalId: serializer.fromJson<int?>(json['bookingLocalId']),
@@ -15079,7 +15036,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
-      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
+      'syncTimestamp': serializer.toJson<int>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'bookingLocalId': serializer.toJson<int?>(bookingLocalId),
@@ -15124,7 +15081,7 @@ class Debt extends DataClass implements Insertable<Debt> {
     String? origin,
     String? vectorClock,
     String? deviceId,
-    Value<int?> syncTimestamp = const Value.absent(),
+    int? syncTimestamp,
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     Value<int?> bookingLocalId = const Value.absent(),
@@ -15166,9 +15123,7 @@ class Debt extends DataClass implements Insertable<Debt> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
-    syncTimestamp: syncTimestamp.present
-        ? syncTimestamp.value
-        : this.syncTimestamp,
+    syncTimestamp: syncTimestamp ?? this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -15454,7 +15409,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
-  final Value<int?> syncTimestamp;
+  final Value<int> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int?> bookingLocalId;
@@ -15681,7 +15636,7 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
-    Value<int?>? syncTimestamp,
+    Value<int>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int?>? bookingLocalId,
@@ -16114,9 +16069,10 @@ class $BookingNightsTable extends BookingNights
   late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
     'sync_timestamp',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -16686,7 +16642,7 @@ class $BookingNightsTable extends BookingNights
       syncTimestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sync_timestamp'],
-      ),
+      )!,
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -16776,7 +16732,7 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
   final String origin;
   final String vectorClock;
   final String deviceId;
-  final int? syncTimestamp;
+  final int syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final int bookingLocalId;
@@ -16809,7 +16765,7 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
-    this.syncTimestamp,
+    required this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.bookingLocalId,
@@ -16855,9 +16811,7 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
-    if (!nullToAbsent || syncTimestamp != null) {
-      map['sync_timestamp'] = Variable<int>(syncTimestamp);
-    }
+    map['sync_timestamp'] = Variable<int>(syncTimestamp);
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -16916,9 +16870,7 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
-      syncTimestamp: syncTimestamp == null && nullToAbsent
-          ? const Value.absent()
-          : Value(syncTimestamp),
+      syncTimestamp: Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -16969,7 +16921,7 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
-      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
+      syncTimestamp: serializer.fromJson<int>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       bookingLocalId: serializer.fromJson<int>(json['bookingLocalId']),
@@ -17013,7 +16965,7 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
-      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
+      'syncTimestamp': serializer.toJson<int>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'bookingLocalId': serializer.toJson<int>(bookingLocalId),
@@ -17053,7 +17005,7 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     String? origin,
     String? vectorClock,
     String? deviceId,
-    Value<int?> syncTimestamp = const Value.absent(),
+    int? syncTimestamp,
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     int? bookingLocalId,
@@ -17086,9 +17038,7 @@ class BookingNight extends DataClass implements Insertable<BookingNight> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
-    syncTimestamp: syncTimestamp.present
-        ? syncTimestamp.value
-        : this.syncTimestamp,
+    syncTimestamp: syncTimestamp ?? this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -17319,7 +17269,7 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
-  final Value<int?> syncTimestamp;
+  final Value<int> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int> bookingLocalId;
@@ -17500,7 +17450,7 @@ class BookingNightsCompanion extends UpdateCompanion<BookingNight> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
-    Value<int?>? syncTimestamp,
+    Value<int>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int>? bookingLocalId,
@@ -17887,9 +17837,10 @@ class $HotelDayLedgerTable extends HotelDayLedger
   late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
     'sync_timestamp',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -18380,7 +18331,7 @@ class $HotelDayLedgerTable extends HotelDayLedger
       syncTimestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sync_timestamp'],
-      ),
+      )!,
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -18455,7 +18406,7 @@ class HotelDayLedgerEntry extends DataClass
   final String origin;
   final String vectorClock;
   final String deviceId;
-  final int? syncTimestamp;
+  final int syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final String hotelDayKey;
@@ -18484,7 +18435,7 @@ class HotelDayLedgerEntry extends DataClass
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
-    this.syncTimestamp,
+    required this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.hotelDayKey,
@@ -18526,9 +18477,7 @@ class HotelDayLedgerEntry extends DataClass
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
-    if (!nullToAbsent || syncTimestamp != null) {
-      map['sync_timestamp'] = Variable<int>(syncTimestamp);
-    }
+    map['sync_timestamp'] = Variable<int>(syncTimestamp);
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -18573,9 +18522,7 @@ class HotelDayLedgerEntry extends DataClass
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
-      syncTimestamp: syncTimestamp == null && nullToAbsent
-          ? const Value.absent()
-          : Value(syncTimestamp),
+      syncTimestamp: Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -18614,7 +18561,7 @@ class HotelDayLedgerEntry extends DataClass
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
-      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
+      syncTimestamp: serializer.fromJson<int>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       hotelDayKey: serializer.fromJson<String>(json['hotelDayKey']),
@@ -18648,7 +18595,7 @@ class HotelDayLedgerEntry extends DataClass
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
-      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
+      'syncTimestamp': serializer.toJson<int>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'hotelDayKey': serializer.toJson<String>(hotelDayKey),
@@ -18680,7 +18627,7 @@ class HotelDayLedgerEntry extends DataClass
     String? origin,
     String? vectorClock,
     String? deviceId,
-    Value<int?> syncTimestamp = const Value.absent(),
+    int? syncTimestamp,
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? hotelDayKey,
@@ -18709,9 +18656,7 @@ class HotelDayLedgerEntry extends DataClass
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
-    syncTimestamp: syncTimestamp.present
-        ? syncTimestamp.value
-        : this.syncTimestamp,
+    syncTimestamp: syncTimestamp ?? this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -18912,7 +18857,7 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
-  final Value<int?> syncTimestamp;
+  final Value<int> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> hotelDayKey;
@@ -19067,7 +19012,7 @@ class HotelDayLedgerCompanion extends UpdateCompanion<HotelDayLedgerEntry> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
-    Value<int?>? syncTimestamp,
+    Value<int>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? hotelDayKey,
@@ -21210,9 +21155,10 @@ class $SalaryCyclesTable extends SalaryCycles
   late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
     'sync_timestamp',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -21652,7 +21598,7 @@ class $SalaryCyclesTable extends SalaryCycles
       syncTimestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sync_timestamp'],
-      ),
+      )!,
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -21718,7 +21664,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
   final String origin;
   final String vectorClock;
   final String deviceId;
-  final int? syncTimestamp;
+  final int syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final int employeeId;
@@ -21745,7 +21691,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
-    this.syncTimestamp,
+    required this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.employeeId,
@@ -21785,9 +21731,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
-    if (!nullToAbsent || syncTimestamp != null) {
-      map['sync_timestamp'] = Variable<int>(syncTimestamp);
-    }
+    map['sync_timestamp'] = Variable<int>(syncTimestamp);
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -21834,9 +21778,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
-      syncTimestamp: syncTimestamp == null && nullToAbsent
-          ? const Value.absent()
-          : Value(syncTimestamp),
+      syncTimestamp: Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -21877,7 +21819,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
-      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
+      syncTimestamp: serializer.fromJson<int>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       employeeId: serializer.fromJson<int>(json['employeeId']),
@@ -21909,7 +21851,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
-      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
+      'syncTimestamp': serializer.toJson<int>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'employeeId': serializer.toJson<int>(employeeId),
@@ -21939,7 +21881,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
     String? origin,
     String? vectorClock,
     String? deviceId,
-    Value<int?> syncTimestamp = const Value.absent(),
+    int? syncTimestamp,
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     int? employeeId,
@@ -21966,9 +21908,7 @@ class SalaryCycle extends DataClass implements Insertable<SalaryCycle> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
-    syncTimestamp: syncTimestamp.present
-        ? syncTimestamp.value
-        : this.syncTimestamp,
+    syncTimestamp: syncTimestamp ?? this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -22155,7 +22095,7 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
-  final Value<int?> syncTimestamp;
+  final Value<int> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int> employeeId;
@@ -22301,7 +22241,7 @@ class SalaryCyclesCompanion extends UpdateCompanion<SalaryCycle> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
-    Value<int?>? syncTimestamp,
+    Value<int>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int>? employeeId,
@@ -22644,9 +22584,10 @@ class $SalaryPaymentsTable extends SalaryPayments
   late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
     'sync_timestamp',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -23042,7 +22983,7 @@ class $SalaryPaymentsTable extends SalaryPayments
       syncTimestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sync_timestamp'],
-      ),
+      )!,
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -23100,7 +23041,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
   final String origin;
   final String vectorClock;
   final String deviceId;
-  final int? syncTimestamp;
+  final int syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final int cycleId;
@@ -23125,7 +23066,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
-    this.syncTimestamp,
+    required this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.cycleId,
@@ -23163,9 +23104,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
-    if (!nullToAbsent || syncTimestamp != null) {
-      map['sync_timestamp'] = Variable<int>(syncTimestamp);
-    }
+    map['sync_timestamp'] = Variable<int>(syncTimestamp);
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -23210,9 +23149,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
-      syncTimestamp: syncTimestamp == null && nullToAbsent
-          ? const Value.absent()
-          : Value(syncTimestamp),
+      syncTimestamp: Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -23251,7 +23188,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
-      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
+      syncTimestamp: serializer.fromJson<int>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       cycleId: serializer.fromJson<int>(json['cycleId']),
@@ -23281,7 +23218,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
-      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
+      'syncTimestamp': serializer.toJson<int>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'cycleId': serializer.toJson<int>(cycleId),
@@ -23309,7 +23246,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     String? origin,
     String? vectorClock,
     String? deviceId,
-    Value<int?> syncTimestamp = const Value.absent(),
+    int? syncTimestamp,
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     int? cycleId,
@@ -23334,9 +23271,7 @@ class SalaryPayment extends DataClass implements Insertable<SalaryPayment> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
-    syncTimestamp: syncTimestamp.present
-        ? syncTimestamp.value
-        : this.syncTimestamp,
+    syncTimestamp: syncTimestamp ?? this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -23505,7 +23440,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
-  final Value<int?> syncTimestamp;
+  final Value<int> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int> cycleId;
@@ -23641,7 +23576,7 @@ class SalaryPaymentsCompanion extends UpdateCompanion<SalaryPayment> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
-    Value<int?>? syncTimestamp,
+    Value<int>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int>? cycleId,
@@ -27590,9 +27525,10 @@ class $PriceAdjustmentsTable extends PriceAdjustments
   late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
     'sync_timestamp',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -28168,7 +28104,7 @@ class $PriceAdjustmentsTable extends PriceAdjustments
       syncTimestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sync_timestamp'],
-      ),
+      )!,
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -28262,7 +28198,7 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
   final String origin;
   final String vectorClock;
   final String deviceId;
-  final int? syncTimestamp;
+  final int syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final String targetType;
@@ -28296,7 +28232,7 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
-    this.syncTimestamp,
+    required this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.targetType,
@@ -28343,9 +28279,7 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
-    if (!nullToAbsent || syncTimestamp != null) {
-      map['sync_timestamp'] = Variable<int>(syncTimestamp);
-    }
+    map['sync_timestamp'] = Variable<int>(syncTimestamp);
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -28407,9 +28341,7 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
-      syncTimestamp: syncTimestamp == null && nullToAbsent
-          ? const Value.absent()
-          : Value(syncTimestamp),
+      syncTimestamp: Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -28465,7 +28397,7 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
-      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
+      syncTimestamp: serializer.fromJson<int>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       targetType: serializer.fromJson<String>(json['targetType']),
@@ -28504,7 +28436,7 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
-      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
+      'syncTimestamp': serializer.toJson<int>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'targetType': serializer.toJson<String>(targetType),
@@ -28541,7 +28473,7 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
     String? origin,
     String? vectorClock,
     String? deviceId,
-    Value<int?> syncTimestamp = const Value.absent(),
+    int? syncTimestamp,
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? targetType,
@@ -28575,9 +28507,7 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
-    syncTimestamp: syncTimestamp.present
-        ? syncTimestamp.value
-        : this.syncTimestamp,
+    syncTimestamp: syncTimestamp ?? this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -28807,7 +28737,7 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
-  final Value<int?> syncTimestamp;
+  final Value<int> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> targetType;
@@ -28993,7 +28923,7 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
-    Value<int?>? syncTimestamp,
+    Value<int>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? targetType,
@@ -29378,9 +29308,10 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
   late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
     'sync_timestamp',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -29964,7 +29895,7 @@ class $BookingPriceAdjustmentsTable extends BookingPriceAdjustments
       syncTimestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sync_timestamp'],
-      ),
+      )!,
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -30059,7 +29990,7 @@ class BookingPriceAdjustment extends DataClass
   final String origin;
   final String vectorClock;
   final String deviceId;
-  final int? syncTimestamp;
+  final int syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final String bookingLocalUuid;
@@ -30093,7 +30024,7 @@ class BookingPriceAdjustment extends DataClass
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
-    this.syncTimestamp,
+    required this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.bookingLocalUuid,
@@ -30140,9 +30071,7 @@ class BookingPriceAdjustment extends DataClass
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
-    if (!nullToAbsent || syncTimestamp != null) {
-      map['sync_timestamp'] = Variable<int>(syncTimestamp);
-    }
+    map['sync_timestamp'] = Variable<int>(syncTimestamp);
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -30214,9 +30143,7 @@ class BookingPriceAdjustment extends DataClass
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
-      syncTimestamp: syncTimestamp == null && nullToAbsent
-          ? const Value.absent()
-          : Value(syncTimestamp),
+      syncTimestamp: Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -30282,7 +30209,7 @@ class BookingPriceAdjustment extends DataClass
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
-      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
+      syncTimestamp: serializer.fromJson<int>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       bookingLocalUuid: serializer.fromJson<String>(json['bookingLocalUuid']),
@@ -30321,7 +30248,7 @@ class BookingPriceAdjustment extends DataClass
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
-      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
+      'syncTimestamp': serializer.toJson<int>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'bookingLocalUuid': serializer.toJson<String>(bookingLocalUuid),
@@ -30358,7 +30285,7 @@ class BookingPriceAdjustment extends DataClass
     String? origin,
     String? vectorClock,
     String? deviceId,
-    Value<int?> syncTimestamp = const Value.absent(),
+    int? syncTimestamp,
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? bookingLocalUuid,
@@ -30392,9 +30319,7 @@ class BookingPriceAdjustment extends DataClass
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
-    syncTimestamp: syncTimestamp.present
-        ? syncTimestamp.value
-        : this.syncTimestamp,
+    syncTimestamp: syncTimestamp ?? this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -30631,7 +30556,7 @@ class BookingPriceAdjustmentsCompanion
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
-  final Value<int?> syncTimestamp;
+  final Value<int> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> bookingLocalUuid;
@@ -30812,7 +30737,7 @@ class BookingPriceAdjustmentsCompanion
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
-    Value<int?>? syncTimestamp,
+    Value<int>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? bookingLocalUuid,
@@ -31197,9 +31122,10 @@ class $AuditLogsTable extends AuditLogs
   late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
     'sync_timestamp',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -31764,7 +31690,7 @@ class $AuditLogsTable extends AuditLogs
       syncTimestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sync_timestamp'],
-      ),
+      )!,
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -31854,7 +31780,7 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
   final String origin;
   final String vectorClock;
   final String deviceId;
-  final int? syncTimestamp;
+  final int syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final String operationType;
@@ -31887,7 +31813,7 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
-    this.syncTimestamp,
+    required this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.operationType,
@@ -31933,9 +31859,7 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
-    if (!nullToAbsent || syncTimestamp != null) {
-      map['sync_timestamp'] = Variable<int>(syncTimestamp);
-    }
+    map['sync_timestamp'] = Variable<int>(syncTimestamp);
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -31996,9 +31920,7 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
-      syncTimestamp: syncTimestamp == null && nullToAbsent
-          ? const Value.absent()
-          : Value(syncTimestamp),
+      syncTimestamp: Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -32053,7 +31975,7 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
-      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
+      syncTimestamp: serializer.fromJson<int>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       operationType: serializer.fromJson<String>(json['operationType']),
@@ -32091,7 +32013,7 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
-      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
+      'syncTimestamp': serializer.toJson<int>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'operationType': serializer.toJson<String>(operationType),
@@ -32127,7 +32049,7 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
     String? origin,
     String? vectorClock,
     String? deviceId,
-    Value<int?> syncTimestamp = const Value.absent(),
+    int? syncTimestamp,
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? operationType,
@@ -32160,9 +32082,7 @@ class AuditLog extends DataClass implements Insertable<AuditLog> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
-    syncTimestamp: syncTimestamp.present
-        ? syncTimestamp.value
-        : this.syncTimestamp,
+    syncTimestamp: syncTimestamp ?? this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -32389,7 +32309,7 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
-  final Value<int?> syncTimestamp;
+  final Value<int> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> operationType;
@@ -32570,7 +32490,7 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLog> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
-    Value<int?>? syncTimestamp,
+    Value<int>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? operationType,
@@ -32949,9 +32869,10 @@ class $PaymentVoidsTable extends PaymentVoids
   late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
     'sync_timestamp',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -33518,7 +33439,7 @@ class $PaymentVoidsTable extends PaymentVoids
       syncTimestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sync_timestamp'],
-      ),
+      )!,
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -33608,7 +33529,7 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
   final String origin;
   final String vectorClock;
   final String deviceId;
-  final int? syncTimestamp;
+  final int syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final String originalPaymentUuid;
@@ -33641,7 +33562,7 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
-    this.syncTimestamp,
+    required this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.originalPaymentUuid,
@@ -33687,9 +33608,7 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
-    if (!nullToAbsent || syncTimestamp != null) {
-      map['sync_timestamp'] = Variable<int>(syncTimestamp);
-    }
+    map['sync_timestamp'] = Variable<int>(syncTimestamp);
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -33748,9 +33667,7 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
-      syncTimestamp: syncTimestamp == null && nullToAbsent
-          ? const Value.absent()
-          : Value(syncTimestamp),
+      syncTimestamp: Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -33801,7 +33718,7 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
-      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
+      syncTimestamp: serializer.fromJson<int>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       originalPaymentUuid: serializer.fromJson<String>(
@@ -33843,7 +33760,7 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
-      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
+      'syncTimestamp': serializer.toJson<int>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'originalPaymentUuid': serializer.toJson<String>(originalPaymentUuid),
@@ -33879,7 +33796,7 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     String? origin,
     String? vectorClock,
     String? deviceId,
-    Value<int?> syncTimestamp = const Value.absent(),
+    int? syncTimestamp,
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? originalPaymentUuid,
@@ -33912,9 +33829,7 @@ class PaymentVoid extends DataClass implements Insertable<PaymentVoid> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
-    syncTimestamp: syncTimestamp.present
-        ? syncTimestamp.value
-        : this.syncTimestamp,
+    syncTimestamp: syncTimestamp ?? this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -34143,7 +34058,7 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
-  final Value<int?> syncTimestamp;
+  final Value<int> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> originalPaymentUuid;
@@ -34328,7 +34243,7 @@ class PaymentVoidsCompanion extends UpdateCompanion<PaymentVoid> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
-    Value<int?>? syncTimestamp,
+    Value<int>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? originalPaymentUuid,
@@ -34711,9 +34626,10 @@ class $GuestInfosTable extends GuestInfos
   late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
     'sync_timestamp',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -35175,7 +35091,7 @@ class $GuestInfosTable extends GuestInfos
       syncTimestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sync_timestamp'],
-      ),
+      )!,
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -35249,7 +35165,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
   final String origin;
   final String vectorClock;
   final String deviceId;
-  final int? syncTimestamp;
+  final int syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final String roomNumber;
@@ -35278,7 +35194,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
-    this.syncTimestamp,
+    required this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.roomNumber,
@@ -35320,9 +35236,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
-    if (!nullToAbsent || syncTimestamp != null) {
-      map['sync_timestamp'] = Variable<int>(syncTimestamp);
-    }
+    map['sync_timestamp'] = Variable<int>(syncTimestamp);
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -35377,9 +35291,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
-      syncTimestamp: syncTimestamp == null && nullToAbsent
-          ? const Value.absent()
-          : Value(syncTimestamp),
+      syncTimestamp: Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -35428,7 +35340,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
-      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
+      syncTimestamp: serializer.fromJson<int>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       roomNumber: serializer.fromJson<String>(json['roomNumber']),
@@ -35462,7 +35374,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
-      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
+      'syncTimestamp': serializer.toJson<int>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'roomNumber': serializer.toJson<String>(roomNumber),
@@ -35494,7 +35406,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     String? origin,
     String? vectorClock,
     String? deviceId,
-    Value<int?> syncTimestamp = const Value.absent(),
+    int? syncTimestamp,
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     String? roomNumber,
@@ -35523,9 +35435,7 @@ class GuestInfo extends DataClass implements Insertable<GuestInfo> {
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
-    syncTimestamp: syncTimestamp.present
-        ? syncTimestamp.value
-        : this.syncTimestamp,
+    syncTimestamp: syncTimestamp ?? this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -35718,7 +35628,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
-  final Value<int?> syncTimestamp;
+  final Value<int> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<String> roomNumber;
@@ -35876,7 +35786,7 @@ class GuestInfosCompanion extends UpdateCompanion<GuestInfo> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
-    Value<int?>? syncTimestamp,
+    Value<int>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<String>? roomNumber,
@@ -36231,9 +36141,10 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
   late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
     'sync_timestamp',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -36665,7 +36576,7 @@ class $SalaryWithdrawalsTable extends SalaryWithdrawals
       syncTimestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sync_timestamp'],
-      ),
+      )!,
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -36732,7 +36643,7 @@ class SalaryWithdrawal extends DataClass
   final String origin;
   final String vectorClock;
   final String deviceId;
-  final int? syncTimestamp;
+  final int syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final int employeeId;
@@ -36759,7 +36670,7 @@ class SalaryWithdrawal extends DataClass
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
-    this.syncTimestamp,
+    required this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.employeeId,
@@ -36799,9 +36710,7 @@ class SalaryWithdrawal extends DataClass
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
-    if (!nullToAbsent || syncTimestamp != null) {
-      map['sync_timestamp'] = Variable<int>(syncTimestamp);
-    }
+    map['sync_timestamp'] = Variable<int>(syncTimestamp);
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -36854,9 +36763,7 @@ class SalaryWithdrawal extends DataClass
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
-      syncTimestamp: syncTimestamp == null && nullToAbsent
-          ? const Value.absent()
-          : Value(syncTimestamp),
+      syncTimestamp: Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -36903,7 +36810,7 @@ class SalaryWithdrawal extends DataClass
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
-      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
+      syncTimestamp: serializer.fromJson<int>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       employeeId: serializer.fromJson<int>(json['employeeId']),
@@ -36935,7 +36842,7 @@ class SalaryWithdrawal extends DataClass
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
-      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
+      'syncTimestamp': serializer.toJson<int>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'employeeId': serializer.toJson<int>(employeeId),
@@ -36965,7 +36872,7 @@ class SalaryWithdrawal extends DataClass
     String? origin,
     String? vectorClock,
     String? deviceId,
-    Value<int?> syncTimestamp = const Value.absent(),
+    int? syncTimestamp,
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     int? employeeId,
@@ -36992,9 +36899,7 @@ class SalaryWithdrawal extends DataClass
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
-    syncTimestamp: syncTimestamp.present
-        ? syncTimestamp.value
-        : this.syncTimestamp,
+    syncTimestamp: syncTimestamp ?? this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -37179,7 +37084,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
-  final Value<int?> syncTimestamp;
+  final Value<int> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int> employeeId;
@@ -37326,7 +37231,7 @@ class SalaryWithdrawalsCompanion extends UpdateCompanion<SalaryWithdrawal> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
-    Value<int?>? syncTimestamp,
+    Value<int>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int>? employeeId,
@@ -37669,9 +37574,10 @@ class $SalaryCarryOverLogsTable extends SalaryCarryOverLogs
   late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
     'sync_timestamp',
     aliasedName,
-    true,
+    false,
     type: DriftSqlType.int,
     requiredDuringInsert: false,
+    defaultValue: const Constant(0),
   );
   static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
     'idempotencyKey',
@@ -38212,7 +38118,7 @@ class $SalaryCarryOverLogsTable extends SalaryCarryOverLogs
       syncTimestamp: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sync_timestamp'],
-      ),
+      )!,
       idempotencyKey: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}idempotency_key'],
@@ -38299,7 +38205,7 @@ class SalaryCarryOverLog extends DataClass
   final String origin;
   final String vectorClock;
   final String deviceId;
-  final int? syncTimestamp;
+  final int syncTimestamp;
   final String? idempotencyKey;
   final int id;
   final int employeeId;
@@ -38331,7 +38237,7 @@ class SalaryCarryOverLog extends DataClass
     required this.origin,
     required this.vectorClock,
     required this.deviceId,
-    this.syncTimestamp,
+    required this.syncTimestamp,
     this.idempotencyKey,
     required this.id,
     required this.employeeId,
@@ -38376,9 +38282,7 @@ class SalaryCarryOverLog extends DataClass
     map['origin'] = Variable<String>(origin);
     map['vector_clock'] = Variable<String>(vectorClock);
     map['device_id'] = Variable<String>(deviceId);
-    if (!nullToAbsent || syncTimestamp != null) {
-      map['sync_timestamp'] = Variable<int>(syncTimestamp);
-    }
+    map['sync_timestamp'] = Variable<int>(syncTimestamp);
     if (!nullToAbsent || idempotencyKey != null) {
       map['idempotency_key'] = Variable<String>(idempotencyKey);
     }
@@ -38436,9 +38340,7 @@ class SalaryCarryOverLog extends DataClass
       origin: Value(origin),
       vectorClock: Value(vectorClock),
       deviceId: Value(deviceId),
-      syncTimestamp: syncTimestamp == null && nullToAbsent
-          ? const Value.absent()
-          : Value(syncTimestamp),
+      syncTimestamp: Value(syncTimestamp),
       idempotencyKey: idempotencyKey == null && nullToAbsent
           ? const Value.absent()
           : Value(idempotencyKey),
@@ -38490,7 +38392,7 @@ class SalaryCarryOverLog extends DataClass
       origin: serializer.fromJson<String>(json['origin']),
       vectorClock: serializer.fromJson<String>(json['vectorClock']),
       deviceId: serializer.fromJson<String>(json['deviceId']),
-      syncTimestamp: serializer.fromJson<int?>(json['syncTimestamp']),
+      syncTimestamp: serializer.fromJson<int>(json['syncTimestamp']),
       idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
       id: serializer.fromJson<int>(json['id']),
       employeeId: serializer.fromJson<int>(json['employeeId']),
@@ -38529,7 +38431,7 @@ class SalaryCarryOverLog extends DataClass
       'origin': serializer.toJson<String>(origin),
       'vectorClock': serializer.toJson<String>(vectorClock),
       'deviceId': serializer.toJson<String>(deviceId),
-      'syncTimestamp': serializer.toJson<int?>(syncTimestamp),
+      'syncTimestamp': serializer.toJson<int>(syncTimestamp),
       'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
       'id': serializer.toJson<int>(id),
       'employeeId': serializer.toJson<int>(employeeId),
@@ -38564,7 +38466,7 @@ class SalaryCarryOverLog extends DataClass
     String? origin,
     String? vectorClock,
     String? deviceId,
-    Value<int?> syncTimestamp = const Value.absent(),
+    int? syncTimestamp,
     Value<String?> idempotencyKey = const Value.absent(),
     int? id,
     int? employeeId,
@@ -38596,9 +38498,7 @@ class SalaryCarryOverLog extends DataClass
     origin: origin ?? this.origin,
     vectorClock: vectorClock ?? this.vectorClock,
     deviceId: deviceId ?? this.deviceId,
-    syncTimestamp: syncTimestamp.present
-        ? syncTimestamp.value
-        : this.syncTimestamp,
+    syncTimestamp: syncTimestamp ?? this.syncTimestamp,
     idempotencyKey: idempotencyKey.present
         ? idempotencyKey.value
         : this.idempotencyKey,
@@ -38812,7 +38712,7 @@ class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
   final Value<String> origin;
   final Value<String> vectorClock;
   final Value<String> deviceId;
-  final Value<int?> syncTimestamp;
+  final Value<int> syncTimestamp;
   final Value<String?> idempotencyKey;
   final Value<int> id;
   final Value<int> employeeId;
@@ -38990,7 +38890,7 @@ class SalaryCarryOverLogsCompanion extends UpdateCompanion<SalaryCarryOverLog> {
     Value<String>? origin,
     Value<String>? vectorClock,
     Value<String>? deviceId,
-    Value<int?>? syncTimestamp,
+    Value<int>? syncTimestamp,
     Value<String?>? idempotencyKey,
     Value<int>? id,
     Value<int>? employeeId,
@@ -39633,7 +39533,7 @@ typedef $$RoomsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required String roomNumber,
@@ -39663,7 +39563,7 @@ typedef $$RoomsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> roomNumber,
@@ -40203,7 +40103,7 @@ class $$RoomsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> roomNumber = const Value.absent(),
@@ -40261,7 +40161,7 @@ class $$RoomsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String roomNumber,
@@ -40367,7 +40267,7 @@ typedef $$BookingsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> serverBookingId,
@@ -40422,7 +40322,7 @@ typedef $$BookingsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> serverBookingId,
@@ -41807,7 +41707,7 @@ class $$BookingsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> serverBookingId = const Value.absent(),
@@ -41915,7 +41815,7 @@ class $$BookingsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> serverBookingId = const Value.absent(),
@@ -42242,7 +42142,7 @@ typedef $$BookingNotesTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required int bookingId,
@@ -42268,7 +42168,7 @@ typedef $$BookingNotesTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int> bookingId,
@@ -42748,7 +42648,7 @@ class $$BookingNotesTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int> bookingId = const Value.absent(),
@@ -42798,7 +42698,7 @@ class $$BookingNotesTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required int bookingId,
@@ -42915,7 +42815,7 @@ typedef $$ShiftNotesTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required String title,
@@ -42943,7 +42843,7 @@ typedef $$ShiftNotesTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> title,
@@ -43374,7 +43274,7 @@ class $$ShiftNotesTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> title = const Value.absent(),
@@ -43428,7 +43328,7 @@ class $$ShiftNotesTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String title,
@@ -43504,7 +43404,7 @@ typedef $$EmployeesTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required String name,
@@ -43534,7 +43434,7 @@ typedef $$EmployeesTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> name,
@@ -44222,7 +44122,7 @@ class $$EmployeesTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
@@ -44280,7 +44180,7 @@ class $$EmployeesTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String name,
@@ -44451,7 +44351,7 @@ typedef $$ExpensesTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required String expenseType,
@@ -44483,7 +44383,7 @@ typedef $$ExpensesTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> expenseType,
@@ -44983,7 +44883,7 @@ class $$ExpensesTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> expenseType = const Value.absent(),
@@ -45045,7 +44945,7 @@ class $$ExpensesTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String expenseType,
@@ -45129,7 +45029,7 @@ typedef $$CashTransactionsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> registerId,
@@ -45158,7 +45058,7 @@ typedef $$CashTransactionsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> registerId,
@@ -45692,7 +45592,7 @@ class $$CashTransactionsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> registerId = const Value.absent(),
@@ -45748,7 +45648,7 @@ class $$CashTransactionsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> registerId = const Value.absent(),
@@ -45862,7 +45762,7 @@ typedef $$PaymentsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> serverPaymentId,
@@ -45906,7 +45806,7 @@ typedef $$PaymentsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> serverPaymentId,
@@ -46749,7 +46649,7 @@ class $$PaymentsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> serverPaymentId = const Value.absent(),
@@ -46835,7 +46735,7 @@ class $$PaymentsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> serverPaymentId = const Value.absent(),
@@ -47002,7 +46902,7 @@ typedef $$DebtsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> bookingLocalId,
@@ -47046,7 +46946,7 @@ typedef $$DebtsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int?> bookingLocalId,
@@ -47805,7 +47705,7 @@ class $$DebtsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> bookingLocalId = const Value.absent(),
@@ -47891,7 +47791,7 @@ class $$DebtsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int?> bookingLocalId = const Value.absent(),
@@ -48042,7 +47942,7 @@ typedef $$BookingNightsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required int bookingLocalId,
@@ -48077,7 +47977,7 @@ typedef $$BookingNightsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int> bookingLocalId,
@@ -48703,7 +48603,7 @@ class $$BookingNightsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int> bookingLocalId = const Value.absent(),
@@ -48771,7 +48671,7 @@ class $$BookingNightsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required int bookingLocalId,
@@ -48906,7 +48806,7 @@ typedef $$HotelDayLedgerTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required String hotelDayKey,
@@ -48937,7 +48837,7 @@ typedef $$HotelDayLedgerTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> hotelDayKey,
@@ -49434,7 +49334,7 @@ class $$HotelDayLedgerTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> hotelDayKey = const Value.absent(),
@@ -49494,7 +49394,7 @@ class $$HotelDayLedgerTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String hotelDayKey,
@@ -50692,7 +50592,7 @@ typedef $$SalaryCyclesTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required int employeeId,
@@ -50721,7 +50621,7 @@ typedef $$SalaryCyclesTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int> employeeId,
@@ -51319,7 +51219,7 @@ class $$SalaryCyclesTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int> employeeId = const Value.absent(),
@@ -51375,7 +51275,7 @@ class $$SalaryCyclesTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required int employeeId,
@@ -51525,7 +51425,7 @@ typedef $$SalaryPaymentsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required int cycleId,
@@ -51552,7 +51452,7 @@ typedef $$SalaryPaymentsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int> cycleId,
@@ -52056,7 +51956,7 @@ class $$SalaryPaymentsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int> cycleId = const Value.absent(),
@@ -52108,7 +52008,7 @@ class $$SalaryPaymentsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required int cycleId,
@@ -54205,7 +54105,7 @@ typedef $$PriceAdjustmentsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required String targetType,
@@ -54241,7 +54141,7 @@ typedef $$PriceAdjustmentsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> targetType,
@@ -54812,7 +54712,7 @@ class $$PriceAdjustmentsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> targetType = const Value.absent(),
@@ -54882,7 +54782,7 @@ class $$PriceAdjustmentsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String targetType,
@@ -54977,7 +54877,7 @@ typedef $$BookingPriceAdjustmentsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required String bookingLocalUuid,
@@ -55013,7 +54913,7 @@ typedef $$BookingPriceAdjustmentsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> bookingLocalUuid,
@@ -55742,7 +55642,7 @@ class $$BookingPriceAdjustmentsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> bookingLocalUuid = const Value.absent(),
@@ -55812,7 +55712,7 @@ class $$BookingPriceAdjustmentsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String bookingLocalUuid,
@@ -55967,7 +55867,7 @@ typedef $$AuditLogsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required String operationType,
@@ -56002,7 +55902,7 @@ typedef $$AuditLogsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> operationType,
@@ -56548,7 +56448,7 @@ class $$AuditLogsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> operationType = const Value.absent(),
@@ -56616,7 +56516,7 @@ class $$AuditLogsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String operationType,
@@ -56706,7 +56606,7 @@ typedef $$PaymentVoidsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required String originalPaymentUuid,
@@ -56741,7 +56641,7 @@ typedef $$PaymentVoidsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> originalPaymentUuid,
@@ -57292,7 +57192,7 @@ class $$PaymentVoidsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> originalPaymentUuid = const Value.absent(),
@@ -57360,7 +57260,7 @@ class $$PaymentVoidsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String originalPaymentUuid,
@@ -57453,7 +57353,7 @@ typedef $$GuestInfosTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required String roomNumber,
@@ -57484,7 +57384,7 @@ typedef $$GuestInfosTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<String> roomNumber,
@@ -57967,7 +57867,7 @@ class $$GuestInfosTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<String> roomNumber = const Value.absent(),
@@ -58027,7 +57927,7 @@ class $$GuestInfosTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required String roomNumber,
@@ -58109,7 +58009,7 @@ typedef $$SalaryWithdrawalsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required int employeeId,
@@ -58138,7 +58038,7 @@ typedef $$SalaryWithdrawalsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int> employeeId,
@@ -58680,7 +58580,7 @@ class $$SalaryWithdrawalsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int> employeeId = const Value.absent(),
@@ -58736,7 +58636,7 @@ class $$SalaryWithdrawalsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required int employeeId,
@@ -58861,7 +58761,7 @@ typedef $$SalaryCarryOverLogsTableCreateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       required int employeeId,
@@ -58895,7 +58795,7 @@ typedef $$SalaryCarryOverLogsTableUpdateCompanionBuilder =
       Value<String> origin,
       Value<String> vectorClock,
       Value<String> deviceId,
-      Value<int?> syncTimestamp,
+      Value<int> syncTimestamp,
       Value<String?> idempotencyKey,
       Value<int> id,
       Value<int> employeeId,
@@ -59516,7 +59416,7 @@ class $$SalaryCarryOverLogsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 Value<int> employeeId = const Value.absent(),
@@ -59582,7 +59482,7 @@ class $$SalaryCarryOverLogsTableTableManager
                 Value<String> origin = const Value.absent(),
                 Value<String> vectorClock = const Value.absent(),
                 Value<String> deviceId = const Value.absent(),
-                Value<int?> syncTimestamp = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
                 Value<String?> idempotencyKey = const Value.absent(),
                 Value<int> id = const Value.absent(),
                 required int employeeId,

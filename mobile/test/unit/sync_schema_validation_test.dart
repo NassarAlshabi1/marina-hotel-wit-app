@@ -249,19 +249,22 @@ void main() {
     });
   });
 
-  group('فجوات معروفة بين Drift Schema و AppwriteSchemaVerifier', () {
+  group('syncTimestamp non-nullable (Migration 54 fix)', () {
     test(
-      '⚠️ syncTimestamp موجود في _syncFields (AppwriteSchemaVerifier) لكنه غائب عن Drift SyncFields mixin',
+      'sync_timestamp موجود في كل جداول SyncFields مع DEFAULT 0',
       () {
-        // هذه فجوة معروفة: AppwriteSchemaVerifier يتوقع syncTimestamp
-        // لكن Drift Schema لا يملك هذا العمود حالياً.
-        // هذا اختبار معلوماتي فقط — لا يفشل.
+        // ✅ Migration 54 (2026-08-06): syncTimestamp أصبح non-nullable
+        // مع DEFAULT 0. هذا الاختبار يتحقق من أن العمود موجود وصحيح.
         final tableInfo = pragmaTableInfo['rooms'];
         final colByName = {for (final c in tableInfo!) c['name'] as String: c};
-        if (colByName.containsKey('sync_timestamp')) {
-          // syncTimestamp موجود — تمت إضافته لاحقاً
-        }
-        // إذا لم يكن موجوداً، هذه فجوة معروفة
+        final col = colByName['sync_timestamp'];
+        expect(col, isNotNull, reason: 'sync_timestamp غير موجود في rooms');
+        expect(col!['notnull'], 1, reason: 'sync_timestamp يجب أن يكون NOT NULL');
+        expect(
+          col['dflt_value'],
+          '0',
+          reason: 'sync_timestamp يجب أن يكون DEFAULT 0',
+        );
       },
     );
   });

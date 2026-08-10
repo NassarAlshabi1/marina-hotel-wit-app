@@ -296,6 +296,7 @@ extension RoomAppwriteExtension on Room {
           doc.data['deviceId'] as String? ??
           doc.data['device_id'] as String? ??
           '',
+      syncTimestamp: now,
     );
   }
 

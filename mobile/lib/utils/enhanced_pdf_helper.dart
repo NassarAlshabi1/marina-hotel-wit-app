@@ -147,6 +147,7 @@ class EnhancedPdfHelper {
             discountType: 'per_night',
             vectorClock: '{}',
             deviceId: '',
+            syncTimestamp: nowMillis,
           );
         },
       );

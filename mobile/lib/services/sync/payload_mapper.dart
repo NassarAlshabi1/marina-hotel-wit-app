@@ -150,7 +150,7 @@ class PayloadMapper {
     putIfNotNull(data, 'createdAtEpoch', booking.createdAtEpoch);
     putIfNotNull(data, 'lastModifiedEpoch', booking.lastModifiedEpoch);
     putIfStringNotEmpty(data, 'sync_origin', booking.origin);
-    putIfNotNull(data, 'syncTimestamp', booking.lastModified);
+    data['syncTimestamp'] = booking.lastModified;
 
     return AppwriteSyncUtils.sanitizePayload(
       'bookings',
@@ -271,7 +271,7 @@ class PayloadMapper {
     data['deviceId'] = payment.deviceId;
     putIfStringNotEmpty(data, 'createdAtIso', payment.createdAtIso);
     putIfStringNotEmpty(data, 'updatedAtIso', payment.updatedAtIso);
-    putIfNotNull(data, 'syncTimestamp', payment.lastModified);
+    data['syncTimestamp'] = payment.lastModified;
     putIfStringNotEmpty(data, 'sync_origin', payment.origin);
 
     return AppwriteSyncUtils.sanitizePayload(
@@ -326,7 +326,7 @@ class PayloadMapper {
 
     putIfNotNull(data, 'createdAtEpoch', debt.createdAtEpoch);
     putIfNotNull(data, 'lastModifiedEpoch', debt.lastModifiedEpoch);
-    putIfNotNull(data, 'syncTimestamp', debt.lastModified);
+    data['syncTimestamp'] = debt.lastModified;
     putIfStringNotEmpty(data, 'sync_origin', debt.origin);
 
     return AppwriteSyncUtils.sanitizePayload(

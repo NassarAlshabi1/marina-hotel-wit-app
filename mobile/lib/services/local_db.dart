@@ -32,7 +32,7 @@ mixin SyncFields on Table {
   TextColumn get origin => text().withDefault(const Constant('local'))();
   TextColumn get vectorClock => text().withDefault(const Constant('{}'))();
   TextColumn get deviceId => text().withDefault(const Constant(''))();
-  IntColumn get syncTimestamp => integer().nullable()();
+  IntColumn get syncTimestamp => integer().withDefault(const Constant(0))();
   // ✅ v2: مفتاح إزالة التكرار (idempotency) — يمنع تكرار العمليات عبر الأجهزة
   TextColumn get idempotencyKey => text().nullable()();
 }
@@ -959,7 +959,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 53;
+  int get schemaVersion => 54;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2883,6 +2883,54 @@ class AppDatabase extends _$AppDatabase {
 
         developer.log(
           'Migration 53: all missing Appwrite schema fields added',
+          name: 'db.migration',
+        );
+      }
+
+      // === Migration 54: syncTimestamp non-nullable DEFAULT 0 ===
+      // ✅ syncTimestamp كان nullable في SyncFields. تم تغييره إلى
+      // integer().withDefault(const Constant(0))() في الـ schema.
+      // SQLite لا يدعم ALTER COLUMN لتغيير nullable → NOT NULL مباشرة.
+      // الحل: backfill كل القيم NULL إلى 0. الأعمدة الموجودة فعلاً تحمل
+      // DEFAULT 0 (من Migration 52)، لكن القيم NULL المُدرجة يدوياً
+      // تحتاج backfill. بعد ذلك، Drift يتعامل مع INSERT الجديد كـ NOT NULL.
+      if (from < 54) {
+        const syncTimestampTables = [
+          'rooms',
+          'bookings',
+          'booking_notes',
+          'employees',
+          'expenses',
+          'cash_transactions',
+          'payments',
+          'debts',
+          'shift_notes',
+          'booking_nights',
+          'hotel_day_ledger',
+          'price_adjustments',
+          'booking_price_adjustments',
+          'payment_voids',
+          'guest_infos',
+          'salary_cycles',
+          'salary_payments',
+          'salary_withdrawals',
+          'salary_carry_over_logs',
+          'audit_logs',
+        ];
+        for (final table in syncTimestampTables) {
+          try {
+            await m.database.customStatement(
+              'UPDATE $table SET sync_timestamp = 0 WHERE sync_timestamp IS NULL',
+            );
+          } catch (e) {
+            developer.log(
+              'Migration 54: $table sync_timestamp backfill skipped: $e',
+              name: 'db.migration',
+            );
+          }
+        }
+        developer.log(
+          'Migration 54: sync_timestamp backfilled to 0 for all SyncFields tables',
           name: 'db.migration',
         );
       }
