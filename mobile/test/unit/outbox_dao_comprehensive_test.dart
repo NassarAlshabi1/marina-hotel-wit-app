@@ -7,6 +7,7 @@
 
 // ignore_for_file: lines_longer_than_80_chars, avoid_redundant_argument_values, unused_local_variable, unnecessary_parenthesis
 
+import 'package:drift/drift.dart' as drift;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
@@ -677,18 +678,69 @@ void main() {
     );
 
     test(
-      'cleanupForMissingEntities يحذف سجلات pending/failed للكيانات غير الموجودة',
+      '✅ Wave4: cleanupForMissingEntities يحذف فقط سجلات completed (لا pending/failed)',
       () async {
-        final id = await outboxDao.merge(
+        // ✅ Sync Safety Wave 4 (2026-08-12): cleanupForMissingEntities الآن
+        // تحذف فقط السجلات 'completed' — تحمي التغييرات المعلقة من الفقدان.
+        // السيناريو الخطير: المستخدم يعدّل غرفة → outbox `create` pending
+        // → المستخدم يحذف الغرفة فعلياً → الكيان غير موجود.
+        // قبل الإصلاح: الكود يحذف العنصر → فقدان صامت.
+        // بعد الإصلاح: العنصر يُترك ليُعاد في دورة push القادمة.
+
+        // 1. سجل pending — يجب أن يُترك (لا حذف)
+        final idPending = await outboxDao.merge(
           entity: 'rooms',
           op: 'create',
-          localUuid: 'missing',
+          localUuid: 'missing-pending',
           payload: {},
           clientTs: 100,
           source: 'local',
         );
-        final cleaned = await outboxDao.cleanupForMissingEntities(['missing']);
-        expect(cleaned, 1);
+        // 2. سجل failed — يجب أن يُترك
+        final idFailed = await outboxDao.merge(
+          entity: 'rooms',
+          op: 'update',
+          localUuid: 'missing-failed',
+          payload: {},
+          clientTs: 200,
+          source: 'local',
+        );
+        // تحويل لـ 'failed'
+        await (db.update(db.outbox)..where((t) => t.id.equals(idFailed)))
+            .write(OutboxCompanion(processingStatus: const drift.Value('failed')));
+        // 3. سجل completed — يجب أن يُحذف
+        final idCompleted = await outboxDao.merge(
+          entity: 'rooms',
+          op: 'delete',
+          localUuid: 'missing-completed',
+          payload: {},
+          clientTs: 300,
+          source: 'local',
+        );
+        // تحويل لـ 'completed'
+        await (db.update(db.outbox)..where((t) => t.id.equals(idCompleted)))
+            .write(OutboxCompanion(processingStatus: const drift.Value('completed')));
+
+        // تنفيذ cleanup
+        final cleaned = await outboxDao.cleanupForMissingEntities([
+          'missing-pending',
+          'missing-failed',
+          'missing-completed',
+        ]);
+
+        // فقط 1 يجب أن يُحذف (الـ completed)
+        expect(
+          cleaned,
+          1,
+          reason: 'فقط سجل completed يجب أن يُحذف — pending/failed تُترك للأمان',
+        );
+        // تحقق أن pending و failed ما زالا موجودين
+        final remaining = await (db.select(db.outbox)).get();
+        expect(remaining.length, 2);
+        final remainingUuids = remaining.map((r) => r.localUuid).toSet();
+        expect(remainingUuids.contains('missing-pending'), isTrue);
+        expect(remainingUuids.contains('missing-failed'), isTrue);
+        expect(remainingUuids.contains('missing-completed'), isFalse);
       },
     );
 

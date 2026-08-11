@@ -976,10 +976,22 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     return rows;
   }
 
-  /// ✅ إصلاح: حذف سجلات Outbox للكيانات غير الموجودة محلياً (hard-delete)
-  /// عندما يُحذف كيان تماماً من قاعدة البيانات المحلية، سجلات outbox
-  /// الخاصة به ستبقى للأبد إذا فشل رفعها سابقاً.
-  /// [missingLocalUuids] — قائمة localUuid التي لا وجود لها محلياً
+  /// ✅ Sync Safety Wave 4 (2026-08-12): حذف سجلات Outbox للكيانات غير
+  /// الموجودة محلياً (hard-delete) — مع حماية ضد فقدان التغييرات المعلقة.
+  ///
+  /// **الإصلاح الرئيسي**: قبل هذا، كانت الدالة تحذف أي سجل `pending`/`failed`
+  /// للكيان المفقود — هذا فقدان صامت للتغييرات المحلية المعلقة. مثلاً:
+  /// - المستخدم يعدّل غرفة → outbox `update` pending
+  /// - المستخدم يحذف الغرفة فعلياً (hard delete) → `_cleanupOutboxForDeletedEntities`
+  ///   يضيف UUID لـ `missingUuids`
+  /// - الدالة تحذف العنصر قبل الرفع → التغيير الأصلي للغرفة ضاع للأبد.
+  ///
+  /// **المنطق الجديد**: فقط نحذف السجلات `completed` (التي تم رفعها فعلاً).
+  /// السجلات `pending`/`failed` تُترك لتُعاد في دورة push القادمة (حتى لو
+  /// فشل الرفع، سيُكشف الكيان المفقود عندئذ ويتم معالجته بشكل صريح).
+  ///
+  /// **الاستدعاء من `_cleanupOutboxForDeletedEntities`** يضمن أن هذه الدالة
+  /// تُستدعى فقط مع UUIDs التي تحقق شروط الأمان (op='delete' أو 'completed').
   Future<int> cleanupForMissingEntities(List<String> missingLocalUuids) async {
     if (missingLocalUuids.isEmpty) return 0;
     const batchSize = 500;
@@ -989,13 +1001,15 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
           ? missingLocalUuids.length
           : i + batchSize;
       final chunk = missingLocalUuids.sublist(i, end);
+      // ✅ Sync Safety Wave 4: فقط نحذف السجلات 'completed'.
+      // السجلات 'pending'/'failed' تُترك لتُعاد في دورة push القادمة.
       totalRemoved +=
           await (delete(
                 outbox,
               )..where(
                 (t) =>
                     t.localUuid.isIn(chunk) &
-                    t.processingStatus.isIn(['pending', 'failed']),
+                    t.processingStatus.equals('completed'),
               ))
               .go();
     }

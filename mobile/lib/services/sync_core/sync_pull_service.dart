@@ -96,6 +96,26 @@ class SyncPullService {
       return const RemoteCheckResult(shouldApplyRemote: false);
     }
 
+    // ✅ Sync Safety Wave 4 (2026-08-12): Durable tombstone from remote.
+    //
+    // إذا كان البعيد يحتوي على `deletedAt` (tombstone) والمحلي غير محذوف،
+    // يجب تطبيق الـ tombstone دائماً (تجاوز فحص الـ VC وtimestamp).
+    //
+    // السبب: جهاز-A حذف softly ورفع tombstone. جهاز-B لديه السجل نشطاً
+    // محلياً ولا يعرف بالحذف. عند سحب الـ tombstone، يجب أن يُطبَّق لتوصيل
+    // الحذف إلى جهاز-B. بدون هذا التجاوز، قد يفوز المحلي في مقارنة VC
+    // (لأن جهاز-B قد يكون لديه VC أحدث من تعديل صغير) → السجل يبقى نشطاً
+    // على جهاز-B رغم حذفه على الجهاز-A → resurrection.
+    if (localDeletedAt == null) {
+      final remoteDeletedAt =
+          _asIntNullable(remoteData['deletedAt']) ??
+          _asIntNullable(remoteData['deleted_at']);
+      if (remoteDeletedAt != null && remoteDeletedAt > 0) {
+        // ✅ تطبيق الـ tombstone دائماً (تجاوز VC وtimestamp)
+        return const RemoteCheckResult(shouldApplyRemote: true);
+      }
+    }
+
     // 2) السجل غير موجود محلياً → يجب إضافته
     if (localLastModified == null) {
       return const RemoteCheckResult(shouldApplyRemote: true);

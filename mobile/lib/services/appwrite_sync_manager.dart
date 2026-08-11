@@ -3440,12 +3440,45 @@ class AppwriteSyncManager {
 
   Future<bool> _processRoomEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(() => appwriteService.deleteRoom(entry.localUuid));
+      // ✅ Sync Safety Wave 4 (2026-08-12): Durable tombstone بدلاً من hard delete.
+      // قبل هذا، كان الكود يدعو `deleteRoom` التي تُنفذ hard delete على Appwrite.
+      // هذا يعني أن الأجهزة الأخرى لن تكتشف الحذف عبر pull (المستند اختفى) →
+      // resurrection على الأجهزة offline.
+      //
+      // الآن: نُنفّذ upsert مع `deletedAt = now` كـ durable tombstone. الأجهزة
+      // الأخرى تسحب هذا الـ tombstone عبر delta sync وتطبّق الحذف محلياً.
+      //
+      // Fallback: إذا فشل upsert (مثلاً collection لا يدعم tombstone)، نُحاول
+      // hard delete كحل أخير.
+      try {
+        await _pushTombstone(
+          entity: 'rooms',
+          localUuid: entry.localUuid,
+          entry: entry,
+        );
+      } catch (e) {
+        // ✅ Fallback: hard delete كحل أخير (غير آمن للأجهزة offline)
+        _logger.warning(
+          '⚠️ Tombstone push failed for room ${entry.localUuid}, falling back to hard delete: $e',
+          tag: 'SYNC',
+        );
+        await _deleteSilently(() => appwriteService.deleteRoom(entry.localUuid));
+      }
       return true;
     }
     final room = await _getRoomByLocalUuid(entry.localUuid);
     if (room == null) {
-      await _deleteSilently(() => appwriteService.deleteRoom(entry.localUuid));
+      // ✅ الكيان محذوف محلياً فعلياً — لكن نُنفّذ tombstone على الخادم
+      // بدلاً من hard delete (لتمكين الأجهزة الأخرى من اكتشاف الحذف).
+      try {
+        await _pushTombstone(
+          entity: 'rooms',
+          localUuid: entry.localUuid,
+          entry: entry,
+        );
+      } catch (_) {
+        await _deleteSilently(() => appwriteService.deleteRoom(entry.localUuid));
+      }
       return true;
     }
     final payload = _roomToRemote(room);
@@ -3797,6 +3830,95 @@ class AppwriteSyncManager {
         _logger.debug('Delete target not found: $message', tag: 'SYNC');
         return;
       }
+      rethrow;
+    }
+  }
+
+  /// ✅ Sync Safety Wave 4 (2026-08-12): Upsert tombstone بدلاً من hard delete.
+  ///
+  /// **المشكلة**: `op='delete'` يدعو `deleteRoom/deleteBooking/...` التي تُنفذ
+  /// hard delete على Appwrite. هذا يعني أن الأجهزة الأخرى لن تكتشف الحذف عبر
+  /// pull (المستند اختفى من السحابة) → resurrection على الأجهزة offline.
+  ///
+  /// **الحل**: بدلاً من hard delete، نُنفّذ upsert مع `deletedAt = now` كـ
+  /// durable tombstone. الأجهزة الأخرى تسحب هذا الـ tombstone عبر delta sync
+  /// وتطبّق الحذف محلياً عبر `localDeletedAt` → soft delete محلي.
+  ///
+  /// **الـ payload الأساسي**: نُرسل فقط الحقول الضرورية:
+  /// - `localUuid` (المعرّف)
+  /// - `deletedAt = now` (إشارة الحذف)
+  /// - `deletedAtIso = iso` (نسخة ISO)
+  /// - `lastModified = now` (لتفعيل update detection)
+  /// - `vectorClock` (إذا متوفر من الـ entry payload)
+  ///
+  /// **Fallback**: إذا فشل upsert (مثلاً collection لا يدعم tombstone)، نُحاول
+  /// hard delete كحل أخير — لكن نسجّل تحذيراً لأن هذا يكسر durable tombstone.
+  ///
+  /// **ملاحظة**: هذا التغيير يحوّل push-side deletes من hard delete إلى tombstone.
+  /// الأجهزة الأخرى ستكتشف الحذف عبر delta sync ($updatedAt للـ tombstone أحدث
+  /// من lastPullTs). للأمان، نُحتفظ بالـ tombstone على الخادم لمدة 30 يوم
+  /// (إعدادته عبر cleanup مع `cleanupOldEntries`).
+  Future<void> _pushTombstone({
+    required String entity,
+    required String localUuid,
+    required OutboxData entry,
+  }) async {
+    final collectionId = _entityToCollectionId(entity);
+    if (collectionId == null) {
+      // كيان غير معروف — لا يمكننا upsert، نُحاول hard delete
+      _logger.warning(
+        '⚠️ Cannot push tombstone for unknown entity=$entity — falling back to hard delete (no tombstone propagation)',
+        tag: 'SYNC',
+      );
+      throw StateError('Unknown entity: $entity');
+    }
+
+    final nowSec = Time.nowEpoch();
+    final nowIso = DateTime.fromMillisecondsSinceEpoch(
+      nowSec * 1000,
+      isUtc: true,
+    ).toIso8601String();
+
+    // بناء tombstone payload
+    final tombstone = <String, dynamic>{
+      'localUuid': localUuid,
+      'deletedAt': nowSec,
+      'deletedAtIso': nowIso,
+      'lastModified': nowSec,
+      'lastModifiedEpoch': nowSec,
+    };
+
+    // نُحاول الحفاظ على vectorClock من الـ entry الأصلي إذا وُجد
+    if (entry.payload.isNotEmpty) {
+      try {
+        final payloadMap = jsonDecode(entry.payload) as Map<String, dynamic>;
+        final vc = payloadMap['vectorClock'];
+        if (vc != null) {
+          tombstone['vectorClock'] = vc;
+        }
+      } catch (_) {
+        // تجاهل أخطاء decode — الـ payload قد لا يكون JSON صالح
+      }
+    }
+
+    // ✅ محاولة upsert tombstone أولاً
+    try {
+      await appwriteService.upsertDocument(
+        collectionId: collectionId,
+        documentId: localUuid,
+        data: tombstone,
+      );
+      _logger.info(
+        '🪦 Pushed tombstone for $entity/$localUuid (durable delete)',
+        tag: 'SYNC',
+      );
+    } catch (e) {
+      // إذا فشل upsert، نُحاول hard delete كحل أخير
+      _logger.warning(
+        '⚠️ Tombstone upsert failed for $entity/$localUuid: $e — falling back to hard delete (offline devices may resurrect)',
+        tag: 'SYNC',
+      );
+      // hard delete fallback — نترك المتصل يقرر كيفية التعامل مع الخطأ
       rethrow;
     }
   }
@@ -4308,8 +4430,22 @@ class AppwriteSyncManager {
             entry.localUuid,
           );
           if (localData == null) {
-            // لا يوجد سجل محلي — ربما تم حذفه نهائياً، نحذف outbox entry
-            uuidsToRemove.add(entry.localUuid);
+            // ✅ Sync Safety Wave 4 (2026-08-12): الكيان غير موجود محلياً.
+            // قبل هذا، كان الكود يحذف العنصر مباشرة — هذا خطير:
+            // - المستخدم ينشئ غرفة → outbox `create` pending
+            // - المستخدم يحذف الغرفة فعلياً → السجل غير موجود
+            // - الكود يحذف العنصر قبل الرفع → فقدان صامت.
+            //
+            // المنطق الجديد: نحذف فقط بعد التأكد من وصول التغيير إلى الخادم
+            // عبر `_isEntryDeliveredToServer`. في أي حالة أخرى (غير موجود على
+            // الخادم، أو أقدم، أو فشل شبكة) نُبقي العنصر.
+            //
+            // استثناء آمن: إذا كان op='delete'، فالكيان غير موجود متوقع
+            // (الحذف المحلي يُحذف الكيان)، ولا حاجة للتأكد — لكن يجب أن نتحقق
+            // أن الحذف وصل للخادم فعلاً (لمنع resurrection على الأجهزة الأخرى).
+            if (await _isEntryDeliveredToServer(entity, entry)) {
+              uuidsToRemove.add(entry.localUuid);
+            }
             continue;
           }
 
@@ -4417,11 +4553,32 @@ class AppwriteSyncManager {
     }
   }
 
-  /// ✅ تنظيف سجلات Outbox للكيانات المحذوفة (soft-delete أو hard-delete)
-  /// 1. يجمع localUuid لجميع عناصر outbox الحالية
-  /// 2. يتحقق من وجودها محلياً ومن حالة الحذف
-  /// 3. يزيل سجلات outbox المُكتملة للكيانات المحذوفة softly
-  /// 4. يزيل سجلات outbox المعلقة/الفاشلة للكيانات المحذوفة نهائياً
+  /// ✅ Sync Safety Wave 4 (2026-08-12): تنظيف سجلات Outbox للكيانات
+  /// المحذوفة (soft-delete أو hard-delete) — مع تمييز صريح بين ثلاث حالات.
+  ///
+  /// **الحالات الثلاث**:
+  /// 1. **موجود ونشط** (`deletedAt == null` من استعلام الكيان يُرجع `0`):
+  ///    لا نحذف anything — العنصر قد يكون تغييراً معلقاً صالحاً.
+  /// 2. **موجود ومحذوف tombstone** (`deletedAt != null && deletedAt > 0`):
+  ///    - إذا كان `op='delete'` و`processingStatus='completed'`: حذف آمن
+  ///      (الحذف رُفع للسحابة بنجاح).
+  ///    - إذا كان `op='delete'` و`processingStatus` في ['pending','failed']:
+  ///      **لا نحذف** — يجب رفع الحذف أولاً (durable tombstone). الأجهزة
+  ///      offline الأخرى قد لا تعرف عن الحذف، وإذا حذفنا العنصر قبل الرفع
+  ///      → resurrection على الأجهزة الأخرى.
+  ///    - إذا كان `op='update'` و`processingStatus='completed'`: حذف آمن
+  ///      (التغيير رُفع، ثم حُذف الكيان لاحقاً، الحذف سيُرفع في دورة قادمة).
+  /// 3. **غير موجود فعلاً** (`_getLocalEntityDeletedAt` يُرجع `null`):
+  ///    الكيان محذوف hard-delete من قاعدة البيانات المحلية. هذا قد يعني:
+  ///    - حذف منتبه (وليس tombstone) — لكن في هذه الحالة، يجب أن يكون هناك
+  ///      outbox entry بـ `op='delete'` لنفس الكيان تم إنشاؤه قبل الحذف.
+  ///    - إذا كان العنصر `op='delete'` و`'completed'` → حذف آمن.
+  ///    - **في أي حالة أخرى**: لا نحذف. قد يكون العنصر يمثل آخر دليل على
+  ///      وجود الكيان، وحذفه يفقد الأجهزة الأخرى فرصة معرفة الحذف.
+  ///      الأمان يقتضي الإبقاء (سيُعاد رفعه في دورة push لاحقة).
+  ///
+  /// ⚠️ **الإصلاح الرئيسي**: قبل هذا، كان الكود يحذف أي عنصر `pending`/`failed`
+  /// للكيان "المفقود" — هذا فقدان صامت للتغييرات المحلية المعلقة.
   Future<int> _cleanupOutboxForDeletedEntities() async {
     int totalRemoved = 0;
 
@@ -4439,7 +4596,7 @@ class AppwriteSyncManager {
       if (entries.isEmpty) return 0;
 
       final softDeletedUuids = <String, int?>{};
-      final missingUuids = <String>[];
+      final safeToDeleteHardMissing = <String>[];
 
       for (final entry in entries) {
         final deletedAt = await _getLocalEntityDeletedAt(
@@ -4447,14 +4604,32 @@ class AppwriteSyncManager {
           entry.localUuid,
         );
         if (deletedAt == null) {
-          // الكيان غير موجود محلياً (hard-delete)
-          if (entry.processingStatus != 'completed') {
-            missingUuids.add(entry.localUuid);
+          // الحالة 3: غير موجود فعلاً (hard-delete).
+          // ✅ Sync Safety Wave 4: فقط نحذف إذا كان العنصر op='delete'
+          // و'completed' — أي أن الحذف رُفع للسحابة بنجاح.
+          // في أي حالة أخرى، نُبقي العنصر لأنه قد يكون آخر دليل على الحذف.
+          if (entry.op == 'delete' && entry.processingStatus == 'completed') {
+            safeToDeleteHardMissing.add(entry.localUuid);
+          } else if (entry.op != 'delete' &&
+              entry.processingStatus == 'completed') {
+            // op='update'/'create' مكتمل → التغيير رُفع، ثم حُذف الكيان
+            // لاحقاً. حذف آمن (لكن قد يكون هناك entry delete أيضاً يجب أن
+            // يُعالج — هذا الكيان سيتم حذفه في دورة push لاحقة).
+            safeToDeleteHardMissing.add(entry.localUuid);
           }
+          // ⚠️ عناصر pending/failed للكيان المفقود: لا نحذف. قد تكون آخر
+          // دليل على وجود الكيان (Hard delete resurrection prevention).
         } else if (deletedAt > 0) {
-          // الكيان محذوف softly — نظّف سجل outbox المُكتمل فقط
-          softDeletedUuids[entry.localUuid] = deletedAt;
+          // الحالة 2: موجود ومحذوف tombstone.
+          // فقط نُنظّف إذا كان op='delete' أو إذا كان 'completed' (التغيير رُفع).
+          if (entry.op == 'delete' || entry.processingStatus == 'completed') {
+            softDeletedUuids[entry.localUuid] = deletedAt;
+          }
+          // عناصر pending/failed بـ op='update'/'create' للكيان المحذوف softly:
+          // لا نحذف — يجب أن يُعاد تقييمها (قد تتحول لـ op='delete' يدوياً
+          // أو يُعاد إحياء الكيان).
         }
+        // الحالة 1: موجود ونشط (deletedAt == 0): لا نفعل anything.
       }
 
       // تنظيف سجلات outbox المُكتملة للكيانات المحذوفة softly
@@ -4464,9 +4639,11 @@ class AppwriteSyncManager {
         );
       }
 
-      // تنظيف سجلات outbox المعلقة/الفاشلة للكيانات غير الموجودة
-      if (missingUuids.isNotEmpty) {
-        totalRemoved += await outboxDao.cleanupForMissingEntities(missingUuids);
+      // تنظيف سجلات outbox المُكتملة للكيانات غير الموجودة (آمنة فقط)
+      if (safeToDeleteHardMissing.isNotEmpty) {
+        totalRemoved += await outboxDao.cleanupForMissingEntities(
+          safeToDeleteHardMissing,
+        );
       }
     } catch (e) {
       _logger.warning('فشل تنظيف outbox للكيانات المحذوفة: $e', tag: 'SYNC');
