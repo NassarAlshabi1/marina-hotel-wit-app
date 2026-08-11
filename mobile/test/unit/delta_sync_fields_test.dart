@@ -40,6 +40,10 @@ void main() {
     });
 
     test('lastPullTs > 0 → فلتر updatedAt مع نافذة أمان 15s', () async {
+      // ✅ Sync Safety Wave 2 (2026-08-12): full_sync_complete يجب أن = 1
+      // قبل السماح بـ delta queries. نضبطه يدوياً هنا للاختبار.
+      await pull.markFullSyncComplete();
+
       // lastPullTs = 1000 ثانية، cutoff = 1000 - 15 = 985 ثانية.
       final q = await pull.buildDeltaQueries(1000);
       expect(q, hasLength(1));
@@ -53,6 +57,9 @@ void main() {
     test(
       'تقدّم المؤشر لا يفقد السجلات: cutoff أقدم بـ 15s من lastPullTs',
       () async {
+        // ✅ Sync Safety Wave 2 (2026-08-12): full_sync_complete يجب أن = 1
+        await pull.markFullSyncComplete();
+
         const lastPull = 2000000000; // ~2033
         final q = await pull.buildDeltaQueries(lastPull);
         // cutoff ISO لـ (2000000000 - 15) ثانية.
@@ -61,6 +68,20 @@ void main() {
           isUtc: true,
         ).toIso8601String();
         expect(q.first, contains(expectedCutoffIso));
+      },
+    );
+
+    test(
+      '✅ Wave2: buildDeltaQueries تُرجع [] عندما full_sync_complete = 0',
+      () async {
+        // لا نستدعي markFullSyncComplete — full_sync_complete = 0 افتراضياً
+        final q = await pull.buildDeltaQueries(1000);
+        expect(
+          q,
+          isEmpty,
+          reason: 'عندما full_sync_complete = 0، يجب إجبار full fetch '
+              'حتى لو lastPullTs > 0',
+        );
       },
     );
 

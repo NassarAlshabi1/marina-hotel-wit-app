@@ -973,6 +973,47 @@ class _SecondaryAppwriteSettingsScreenState
         body: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // ✅ Sync Simplification (2026-08-10): لافتة تحذيرية تفيد أن
+            // Secondary sync معطّل بالكامل. Appwrite primary هو authority الوحيد.
+            // الشاشة محفوظة للتوافق الرجعي فقط (للاطلاع على الإعدادات السابقة).
+            Card(
+              color: Colors.orange.shade50,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.warning, color: Colors.orange.shade700),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text(
+                            'المزامنة الثانوية معطّلة',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            '⚠️ Secondary sync مُعطّل بالكامل في هذه النسخة. '
+                            'Appwrite الأساسي هو المصدر الوحيد للبيانات. '
+                            'الإعدادات أدناه محفوظة للتوافق الرجعي فقط — '
+                            'لن يتم إرسال أي بيانات للوجهة الثانوية.',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
             _InfoCard(
               icon: Icons.cloud_sync,
               color: Colors.blue,

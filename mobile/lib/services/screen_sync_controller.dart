@@ -4,7 +4,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 
 import 'secondary_appwrite_config.dart';
-import 'secondary_sync_manager.dart';
+// ✅ Sync Simplification (2026-08-10): secondary_sync_manager.dart معطّل
+// بالكامل. لا حاجة لاستيراده هنا.
 import 'smart_sync_manager.dart';
 import 'sync_core/circuit_breaker.dart';
 import 'sync_core/retry_strategy.dart';

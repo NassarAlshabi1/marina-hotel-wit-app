@@ -12,7 +12,8 @@ import '../services/appwrite_health_checker.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/daos/sync_log_dao.dart';
 import '../services/secondary_appwrite_config.dart';
-import '../services/secondary_sync_manager.dart';
+// ✅ Sync Simplification (2026-08-10): secondary_sync_manager.dart معطّل
+// بالكامل. لا حاجة لاستيراده هنا.
 import '../services/sync/sync_gate.dart';
 import '../utils/loading_snackbar.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';

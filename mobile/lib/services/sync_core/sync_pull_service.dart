@@ -384,6 +384,25 @@ class SyncPullService {
   static const int _safetyWindowSeconds = 15;
 
   Future<List<String>> buildDeltaQueries(int lastPullTs) async {
+    // ✅ Sync Safety Wave 2 (2026-08-12): Full Sync Bootstrap Guard.
+    //
+    // قبل هذا الإصلاح، كان الاعتماد فقط على `lastPullTs <= 0` لتحديد
+    // "full sync mode". لكن هذا يعني أن أي lastPullTs > 0 (حتى لو كان
+    // من دورة فاشلة جزئياً) يسمح بـ delta sync — مما قد يفقد سجلات
+    // لم تُسحب بعد.
+    //
+    // الآن: نتحقق من `full_sync_complete` flag أولاً. إذا كان false
+    // (الجهاز لم يكمل أول full sync بنجاح)، نُرجع قائمة فارغة (full fetch)
+    // بغض النظر عن `lastPullTs`.
+    //
+    // **الأداء**: هذه القراءة من SQLite سريعة جداً (single row by PK)
+    // وتحدث مرة واحدة في بداية كل دورة سحب (لا تؤثر على الأداء).
+    final isFullSyncDone = await isFullSyncComplete();
+    if (!isFullSyncDone) {
+      // الجهاز في مرحلة bootstrap — نُجبر full fetch
+      return [];
+    }
+
     if (lastPullTs <= 0) {
       return [];
     }
@@ -470,8 +489,87 @@ class SyncPullService {
               lastPullTs: drift.Value(ts),
             ),
           );
+      _logger.debug('📍 Updated lastPullTs to $ts', tag: 'SYNC');
     } catch (e) {
       _logger.warning('Failed to update lastPullTs: $e', tag: 'SYNC');
+    }
+  }
+
+  // ── Full Sync Bootstrap Flag ──────────────────────────────────────────
+
+  /// ✅ Sync Safety Wave 2 (2026-08-12): هل اكتملت أول full sync؟
+  ///
+  /// القيمة الافتراضية: 0 (false) — الجهاز لم يكمل بعد أول full sync.
+  /// تُضبط على 1 (true) فقط بعد نجاح دورة سحب كاملة بدون فشل أي collection.
+  ///
+  /// **الاستخدام**: تستخدم `buildDeltaQueries` هذا الـ flag لتحديد ما إذا كان
+  /// يجب السماح بـ delta sync. إذا كان `full_sync_complete = 0`، فإن
+  /// `buildDeltaQueries` تُرجع قائمة فارغة (full fetch) بغض النظر عن
+  /// `lastPullTs`، لضمان عدم تحول الجهاز لـ delta mode قبل اكتمال
+  /// جميع الكولكشنات.
+  ///
+  /// **متى تُستدعى**: في بداية كل دورة سحب لتحديد الوضع (full vs delta).
+  Future<bool> isFullSyncComplete() async {
+    try {
+      final state = await (database.select(
+        database.syncState,
+      )..where((t) => t.id.equals(1))).getSingleOrNull();
+      final flag = state?.fullSyncComplete ?? 0;
+      return flag == 1;
+    } catch (_) {
+      // في حالة الخطأ، نُرجع false (تحفظياً) — نُجبر full sync
+      _logger.warning(
+        'Failed to read fullSyncComplete flag — assuming false (full sync required)',
+        tag: 'SYNC',
+      );
+      return false;
+    }
+  }
+
+  /// ✅ Sync Safety Wave 2 (2026-08-12): ضبط full_sync_complete = 1.
+  ///
+  /// تُستدعى فقط بعد التحقق من أن `failedCollections.isEmpty` في دورة سحب
+  /// كاملة. هذا يضمن أن الجهاز لا يدخل delta mode قبل أن يكتمل سحب
+  /// كل الكولكشنات بنجاح.
+  Future<void> markFullSyncComplete() async {
+    try {
+      await database
+          .into(database.syncState)
+          .insertOnConflictUpdate(
+            SyncStateCompanion(
+              id: const drift.Value(1),
+              fullSyncComplete: const drift.Value(1),
+            ),
+          );
+      _logger.info(
+        '✅ Full sync marked complete — delta sync enabled',
+        tag: 'SYNC',
+      );
+    } catch (e) {
+      _logger.warning('Failed to mark full sync complete: $e', tag: 'SYNC');
+    }
+  }
+
+  /// ✅ Sync Safety Wave 2 (2026-08-12): إعادة ضبط full_sync_complete = 0.
+  ///
+  /// تُستدعى عند الحاجة لإعادة full sync (مثلاً: تسجيل خروج + دخول بمستخدم
+  /// جديد، استعادة نسخة احتياطية، أو اكتشاف عدم تطابق الـ schema).
+  Future<void> resetFullSyncComplete() async {
+    try {
+      await database
+          .into(database.syncState)
+          .insertOnConflictUpdate(
+            SyncStateCompanion(
+              id: const drift.Value(1),
+              fullSyncComplete: const drift.Value(0),
+            ),
+          );
+      _logger.info(
+        '🔄 Full sync flag reset — full sync required next cycle',
+        tag: 'SYNC',
+      );
+    } catch (e) {
+      _logger.warning('Failed to reset full sync flag: $e', tag: 'SYNC');
     }
   }
 }

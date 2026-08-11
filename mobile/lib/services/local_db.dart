@@ -830,6 +830,34 @@ class SyncState extends Table {
   IntColumn get lastPushTs => integer().withDefault(const Constant(0))();
   IntColumn get isSyncing => integer().withDefault(const Constant(0))();
   IntColumn get version => integer().withDefault(const Constant(1))();
+
+  /// ✅ Sync Safety Wave 2 (2026-08-12): Full Sync Bootstrap Flag.
+  ///
+  /// `full_sync_complete = 0` (default): الجهاز في مرحلة bootstrap — يجب
+  /// القيام بـ full sync كامل. لا يُسمح بالتحول لـ delta sync حتى تكتمل
+  /// كل الكولكشنات بنجاح في دورة واحدة.
+  ///
+  /// `full_sync_complete = 1`: اكتملت أول full sync بنجاح — يمكن استخدام
+  /// delta sync بشكل آمن (لن نفقد سجلات لم تُسحب بعد).
+  ///
+  /// **المشكلة التي يحلها**: قبل هذا الـ flag، كان النظام يعتمد فقط على
+  /// `lastPullTs == 0` لتحديد "full sync mode". لكن هذا يعني:
+  /// 1. إذا نجحت أول دورة full sync جزئياً (مثلاً 18 من 19 collection)،
+  ///    `failedCollections.isEmpty` يمنع تحديث `lastPullTs`، فالدورة التالية
+  ///    تعيد full sync — هذا جيد.
+  /// 2. لكن إذا نجحت كل الكولكشنات ظاهرياً (لا exception) لكن بعض السجلات
+  ///    لم تُعالج داخل `_syncXxx` (مثلاً skip بسبب تعارض غير متوقع)،
+  ///    `lastPullTs` يُحدَّث والجهاز يتحول لـ delta mode — فقدان صامت.
+  ///
+  /// مع هذا الـ flag، حتى لو نُجح الـ full sync ظاهرياً، نضبط الـ flag
+  /// فقط بعد التحقق من أن كل كولكشن عاد بنتيجة متوقعة (records > 0 أو
+  /// دورة فارغة معروفة). حتى ذلك الحين، الـ delta queries تُرجع قائمة
+  /// فارغة (full fetch) لضمان عدم فقدان أي سجل.
+  ///
+  /// Migration 56 يضيف هذا العمود مع DEFAULT 0.
+  IntColumn get fullSyncComplete =>
+      integer().withDefault(const Constant(0))();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -977,7 +1005,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 55;
+  int get schemaVersion => 56;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -2997,6 +3025,36 @@ class AppDatabase extends _$AppDatabase {
         } catch (e) {
           developer.log(
             'Migration 55: backfill failed: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+
+      // === Migration 56: Full Sync Bootstrap Flag ===
+      // ✅ Sync Safety Wave 2 (2026-08-12): إضافة عمود `full_sync_complete`
+      // إلى جدول sync_state. القيمة الافتراضية 0 (false) تعني أن الجهاز
+      // لم يكمل بعد أول full sync بنجاح، فيجب البقاء في وضع "full fetch"
+      // بدلاً من delta sync.
+      //
+      // هذا يمنع سيناريو خطير: إذا نجحت أول دورة full sync ظاهرياً
+      // (لا exception) لكن بعض السجلات لم تُعالج داخل `_syncXxx`، فإن
+      // `lastPullTs` يُحدَّث والجهاز يتحول لـ delta mode — مما يعني أن
+      // السجلات غير المُعالَجة لن تُسحب أبداً (لأن delta filter يستثنيها).
+      //
+      // مع هذا الـ flag، يتم ضبطه على 1 فقط بعد التحقق من اكتمال كل
+      // الكولكشنات بنجاح في دورة واحدة (failedCollections.isEmpty).
+      if (from < 56) {
+        try {
+          await m.database.customStatement(
+            'ALTER TABLE sync_state ADD COLUMN full_sync_complete INTEGER NOT NULL DEFAULT 0',
+          );
+          developer.log(
+            'Migration 56: added sync_state.full_sync_complete column',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 56: sync_state.full_sync_complete may already exist: $e',
             name: 'db.migration',
           );
         }

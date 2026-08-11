@@ -1423,9 +1423,23 @@ class AppwriteSyncManager {
                     tag: 'SYNC',
                   );
                 }
+                // ✅ Sync Safety Wave 2 (2026-08-12): Full Sync Bootstrap Flag.
+                //
+                // عند نجاح دورة سحب كاملة (لا فشل في أي collection)، نضع
+                // علامة `full_sync_complete = 1`. هذا يسمح لـ `buildDeltaQueries`
+                // بإرجاع delta queries في الدورات التالية بدلاً من full fetch.
+                //
+                // **بدون هذا**: حتى لو نجحت أول دورة full sync، يبقى الجهاز
+                // في وضع full fetch إلى الأبد لأن `buildDeltaQueries` يتحقق
+                // من `full_sync_complete` أولاً.
+                //
+                // **ملاحظة**: حتى لو كانت هذه دورة delta sync (وليست أول
+                // full sync)، استدعاء `markFullSyncComplete()` آمن — الـ flag
+                // يُضبط على 1 فقط مرة واحدة، والاستدعاءات اللاحقة idempotent.
+                await _pullService?.markFullSyncComplete();
               } else {
                 _logger.warning(
-                  '⚠️ ${failedCollections.length} collections فشل سحبها: ${failedCollections.join(", ")} — لن يتم تحديث lastPullTs',
+                  '⚠️ ${failedCollections.length} collections فشل سحبها: ${failedCollections.join(", ")} — لن يتم تحديث lastPullTs ولا full_sync_complete',
                   tag: 'SYNC',
                 );
               }

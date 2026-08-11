@@ -65,7 +65,9 @@ import 'services/logging/log_models.dart';
 import 'services/posthog_service.dart';
 import 'services/remote_config_service.dart';
 import 'services/secondary_appwrite_config.dart';
-import 'services/secondary_sync_manager.dart';
+// ✅ Sync Simplification (2026-08-10): secondary_sync_manager.dart معطّل
+// بالكامل. لا حاجة لاستيراده في main.dart — الشاشة تستخدمه مباشرة عبر
+// SecondarySyncManager.instance الذي يُرجع no-op.
 import 'services/seed.dart';
 import 'services/smart_sync_manager.dart';
 import 'services/sync_conflict_event_bus.dart';

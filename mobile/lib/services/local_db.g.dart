@@ -25081,6 +25081,17 @@ class $SyncStateTable extends SyncState
     requiredDuringInsert: false,
     defaultValue: const Constant(1),
   );
+  static const VerificationMeta _fullSyncCompleteMeta =
+      const VerificationMeta('fullSyncComplete');
+  @override
+  late final GeneratedColumn<int> fullSyncComplete = GeneratedColumn<int>(
+    'full_sync_complete',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -25089,6 +25100,7 @@ class $SyncStateTable extends SyncState
     lastPushTs,
     isSyncing,
     version,
+    fullSyncComplete,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -25144,6 +25156,15 @@ class $SyncStateTable extends SyncState
         version.isAcceptableOrUnknown(data['version']!, _versionMeta),
       );
     }
+    if (data.containsKey('full_sync_complete')) {
+      context.handle(
+        _fullSyncCompleteMeta,
+        fullSyncComplete.isAcceptableOrUnknown(
+          data['full_sync_complete']!,
+          _fullSyncCompleteMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -25177,6 +25198,10 @@ class $SyncStateTable extends SyncState
         DriftSqlType.int,
         data['${effectivePrefix}version'],
       )!,
+      fullSyncComplete: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}full_sync_complete'],
+      )!,
     );
   }
 
@@ -25193,6 +25218,7 @@ class SyncStateData extends DataClass implements Insertable<SyncStateData> {
   final int lastPushTs;
   final int isSyncing;
   final int version;
+  final int fullSyncComplete;
   const SyncStateData({
     required this.id,
     required this.lastServerTs,
@@ -25200,6 +25226,7 @@ class SyncStateData extends DataClass implements Insertable<SyncStateData> {
     required this.lastPushTs,
     required this.isSyncing,
     required this.version,
+    required this.fullSyncComplete,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -25210,6 +25237,7 @@ class SyncStateData extends DataClass implements Insertable<SyncStateData> {
     map['last_push_ts'] = Variable<int>(lastPushTs);
     map['is_syncing'] = Variable<int>(isSyncing);
     map['version'] = Variable<int>(version);
+    map['full_sync_complete'] = Variable<int>(fullSyncComplete);
     return map;
   }
 
@@ -25221,6 +25249,7 @@ class SyncStateData extends DataClass implements Insertable<SyncStateData> {
       lastPushTs: Value(lastPushTs),
       isSyncing: Value(isSyncing),
       version: Value(version),
+      fullSyncComplete: Value(fullSyncComplete),
     );
   }
 
@@ -25236,6 +25265,8 @@ class SyncStateData extends DataClass implements Insertable<SyncStateData> {
       lastPushTs: serializer.fromJson<int>(json['lastPushTs']),
       isSyncing: serializer.fromJson<int>(json['isSyncing']),
       version: serializer.fromJson<int>(json['version']),
+      fullSyncComplete:
+          serializer.fromJson<int>(json['fullSyncComplete']),
     );
   }
   @override
@@ -25248,6 +25279,7 @@ class SyncStateData extends DataClass implements Insertable<SyncStateData> {
       'lastPushTs': serializer.toJson<int>(lastPushTs),
       'isSyncing': serializer.toJson<int>(isSyncing),
       'version': serializer.toJson<int>(version),
+      'fullSyncComplete': serializer.toJson<int>(fullSyncComplete),
     };
   }
 
@@ -25258,6 +25290,7 @@ class SyncStateData extends DataClass implements Insertable<SyncStateData> {
     int? lastPushTs,
     int? isSyncing,
     int? version,
+    int? fullSyncComplete,
   }) => SyncStateData(
     id: id ?? this.id,
     lastServerTs: lastServerTs ?? this.lastServerTs,
@@ -25265,6 +25298,7 @@ class SyncStateData extends DataClass implements Insertable<SyncStateData> {
     lastPushTs: lastPushTs ?? this.lastPushTs,
     isSyncing: isSyncing ?? this.isSyncing,
     version: version ?? this.version,
+    fullSyncComplete: fullSyncComplete ?? this.fullSyncComplete,
   );
   SyncStateData copyWithCompanion(SyncStateCompanion data) {
     return SyncStateData(
@@ -25280,6 +25314,9 @@ class SyncStateData extends DataClass implements Insertable<SyncStateData> {
           : this.lastPushTs,
       isSyncing: data.isSyncing.present ? data.isSyncing.value : this.isSyncing,
       version: data.version.present ? data.version.value : this.version,
+      fullSyncComplete: data.fullSyncComplete.present
+          ? data.fullSyncComplete.value
+          : this.fullSyncComplete,
     );
   }
 
@@ -25291,14 +25328,22 @@ class SyncStateData extends DataClass implements Insertable<SyncStateData> {
           ..write('lastPullTs: $lastPullTs, ')
           ..write('lastPushTs: $lastPushTs, ')
           ..write('isSyncing: $isSyncing, ')
-          ..write('version: $version')
+          ..write('version: $version, ')
+          ..write('fullSyncComplete: $fullSyncComplete')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, lastServerTs, lastPullTs, lastPushTs, isSyncing, version);
+  int get hashCode => Object.hash(
+    id,
+    lastServerTs,
+    lastPullTs,
+    lastPushTs,
+    isSyncing,
+    version,
+    fullSyncComplete,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -25308,7 +25353,8 @@ class SyncStateData extends DataClass implements Insertable<SyncStateData> {
           other.lastPullTs == this.lastPullTs &&
           other.lastPushTs == this.lastPushTs &&
           other.isSyncing == this.isSyncing &&
-          other.version == this.version);
+          other.version == this.version &&
+          other.fullSyncComplete == this.fullSyncComplete);
 }
 
 class SyncStateCompanion extends UpdateCompanion<SyncStateData> {
@@ -25318,6 +25364,7 @@ class SyncStateCompanion extends UpdateCompanion<SyncStateData> {
   final Value<int> lastPushTs;
   final Value<int> isSyncing;
   final Value<int> version;
+  final Value<int> fullSyncComplete;
   const SyncStateCompanion({
     this.id = const Value.absent(),
     this.lastServerTs = const Value.absent(),
@@ -25325,6 +25372,7 @@ class SyncStateCompanion extends UpdateCompanion<SyncStateData> {
     this.lastPushTs = const Value.absent(),
     this.isSyncing = const Value.absent(),
     this.version = const Value.absent(),
+    this.fullSyncComplete = const Value.absent(),
   });
   SyncStateCompanion.insert({
     this.id = const Value.absent(),
@@ -25333,6 +25381,7 @@ class SyncStateCompanion extends UpdateCompanion<SyncStateData> {
     this.lastPushTs = const Value.absent(),
     this.isSyncing = const Value.absent(),
     this.version = const Value.absent(),
+    this.fullSyncComplete = const Value.absent(),
   });
   static Insertable<SyncStateData> custom({
     Expression<int>? id,
@@ -25341,6 +25390,7 @@ class SyncStateCompanion extends UpdateCompanion<SyncStateData> {
     Expression<int>? lastPushTs,
     Expression<int>? isSyncing,
     Expression<int>? version,
+    Expression<int>? fullSyncComplete,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -25349,6 +25399,7 @@ class SyncStateCompanion extends UpdateCompanion<SyncStateData> {
       if (lastPushTs != null) 'last_push_ts': lastPushTs,
       if (isSyncing != null) 'is_syncing': isSyncing,
       if (version != null) 'version': version,
+      if (fullSyncComplete != null) 'full_sync_complete': fullSyncComplete,
     });
   }
 
@@ -25359,6 +25410,7 @@ class SyncStateCompanion extends UpdateCompanion<SyncStateData> {
     Value<int>? lastPushTs,
     Value<int>? isSyncing,
     Value<int>? version,
+    Value<int>? fullSyncComplete,
   }) {
     return SyncStateCompanion(
       id: id ?? this.id,
@@ -25367,6 +25419,7 @@ class SyncStateCompanion extends UpdateCompanion<SyncStateData> {
       lastPushTs: lastPushTs ?? this.lastPushTs,
       isSyncing: isSyncing ?? this.isSyncing,
       version: version ?? this.version,
+      fullSyncComplete: fullSyncComplete ?? this.fullSyncComplete,
     );
   }
 
@@ -25391,6 +25444,9 @@ class SyncStateCompanion extends UpdateCompanion<SyncStateData> {
     if (version.present) {
       map['version'] = Variable<int>(version.value);
     }
+    if (fullSyncComplete.present) {
+      map['full_sync_complete'] = Variable<int>(fullSyncComplete.value);
+    }
     return map;
   }
 
@@ -25402,7 +25458,8 @@ class SyncStateCompanion extends UpdateCompanion<SyncStateData> {
           ..write('lastPullTs: $lastPullTs, ')
           ..write('lastPushTs: $lastPushTs, ')
           ..write('isSyncing: $isSyncing, ')
-          ..write('version: $version')
+          ..write('version: $version, ')
+          ..write('fullSyncComplete: $fullSyncComplete')
           ..write(')'))
         .toString();
   }
