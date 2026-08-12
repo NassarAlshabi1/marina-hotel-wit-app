@@ -124,10 +124,9 @@ class AutoOutboxSyncWatcher {
       return;
     }
 
-    // ✅ P2-10 FIX: احصل على القفل التنافي قبل البدء
-    // يمنع التداخل مع SyncTriggerMixin أو مزامينات أخرى
-    // ✅ Sync Safety Fix (2026-08-10): استخدام tryAcquire الذري.
-    if (!SyncGuard.tryAcquire(label: 'auto_outbox_push')) {
+    // ✅ Wave 5: ownership-safe tryAcquire (with token).
+    final token = SyncGuard.tryAcquire(label: 'auto_outbox_push');
+    if (token == null) {
       dlog(
         '⏸️ AutoSync skipped — another sync active (${SyncGuard.activeLabel})',
       );
@@ -148,16 +147,16 @@ class AutoOutboxSyncWatcher {
       );
     } finally {
       _pushing = false;
-      SyncGuard.markFinished();
+      SyncGuard.release(token);
     }
   }
 
   /// Manually triggers a push (e.g., from a sync button).
 Future<void> pushNow() async {
     _debounceTimer?.cancel();
-    // ✅ P2-10 FIX: تأكد من أن القفل التنافي مُكتوب قبل البدء
-    // يمنع Concordant pushes من sync() أو 외부 вызовы
-    if (!SyncGuard.tryAcquire(label: 'auto_outbox_push')) {
+    // ✅ Wave 5: ownership-safe tryAcquire (with token).
+    final token = SyncGuard.tryAcquire(label: 'auto_outbox_push');
+    if (token == null) {
       dlog(
         '⏸️ Push skipped — another sync active (${SyncGuard.activeLabel})',
       );
@@ -167,7 +166,7 @@ Future<void> pushNow() async {
     try {
       await _doPush();
     } finally {
-      SyncGuard.markFinished();
+      SyncGuard.release(token);
     }
   }
 

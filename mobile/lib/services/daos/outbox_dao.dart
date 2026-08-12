@@ -284,6 +284,13 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
             // لأن الأخطاء السابقة كانت للنسخة القديمة
             attempts: const Value(0),
             lastError: const Value(null),
+            // ✅ Wave 5 (2026-08-12): زيادة payload_version لمنع stale ack.
+            // أي worker قديم كان قد التقط النسخة القديمة (بـ payload_version=N)
+            // لن يستطيع تأكيد التسليم بعد التحديث (لأن payload_version=N+1 الآن).
+            // التحقق يتم في `_markDelivered` و `setError` و `setDead`.
+            payloadVersion: Value((existing.payloadVersion) + 1),
+            // مسح processing_payload_version لأن السجل لم يعد قيد المعالجة
+            processingPayloadVersion: const Value(null),
           ),
         );
         return existing.id;
@@ -378,7 +385,9 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
     final claimed =
         await customSelect(
-              'UPDATE outbox SET processing_status = ?, processing_started_at = ?, processing_worker = ? '
+              // ✅ Wave 5: SET processing_payload_version = payload_version عند الالتقاط.
+              // يُستخدم لاحقاً للتحقق أن العامل الذي يؤكد التسليم هو نفسه الذي التقطه.
+              'UPDATE outbox SET processing_status = ?, processing_started_at = ?, processing_worker = ?, processing_payload_version = payload_version '
               'WHERE id IN ('
               '  SELECT id FROM outbox WHERE processing_status = ?$primaryCondition$sourceCondition ORDER BY $priorityCase ASC, client_ts ASC LIMIT ? '
               ') RETURNING *',
@@ -410,6 +419,9 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
                 secondaryProcessingStatus: row.read<String?>('secondary_processing_status') ?? 'pending',
                 secondaryAttempts: row.read<int?>('secondary_attempts') ?? 0,
                 secondaryLastError: row.read<String?>('secondary_last_error'),
+                // ✅ Wave 5: قراءة حقول الـ generation
+                payloadVersion: row.read<int?>('payload_version') ?? 1,
+                processingPayloadVersion: row.read<int?>('processing_payload_version'),
               ),
             )
             .get();
@@ -582,9 +594,10 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   }
 
   /// المنطق الموحد لـ markDelivered:
-  /// 1) نضع علامة التسليم المناسبة
-  /// 2) نُعيد الحالة إلى pending (ليتمكن الـ sync الآخر من معالجتها)
-  /// 3) إذا كانت كلتا العلامتين true، نحذف السجل
+  /// 1) نتحقق من payload_version (Wave 5: ownership-aware ack)
+  /// 2) نضع علامة التسليم المناسبة
+  /// 3) نُعيد الحالة إلى pending (ليتمكن الـ sync الآخر من معالجتها)
+  /// 4) إذا كانت كلتا العلامتين true، نحذف السجل
   Future<void> _markDelivered(int id, {required bool toPrimary}) async {
     await transaction(() async {
       // قراءة الحالة الحالية
@@ -609,6 +622,39 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         return;
       }
 
+      // ✅ Wave 5 (2026-08-12): التحقق من payload_version (ownership-aware ack).
+      //
+      // إذا تغيرت `payloadVersion` منذ الالتقاط (record.processingPayloadVersion)
+      // هذا يعني أن `merge()` أخرى حدّثت payload أثناء عمل worker قديم.
+      // في هذه الحالة، التأكيد يُرفض ويُعاد السجل لـ pending ليُعالج من جديد
+      // بنسخة payload الحالية.
+      //
+      // السباق الذي يمنعه:
+      // 1. worker-A يلتقط السجل (payloadVersion=5, processingPayloadVersion=5)
+      // 2. أثناء المعالجة، payload يُحدَّث (payloadVersion=6)
+      // 3. worker-A يحاول تأكيد التسليم
+      // 4. الكود يرى 5 != 6 → يرفض التأكيد ويُعيد السجل لـ pending
+      if (record.processingPayloadVersion != null &&
+          record.processingPayloadVersion != record.payloadVersion) {
+        dlog(
+          () => '⚠️ Outbox: _markDelivered STALE ACK REJECTED for id=$id — '
+              'processingPayloadVersion=${record.processingPayloadVersion} '
+              '!= current payloadVersion=${record.payloadVersion}. '
+              'Payload was updated during processing. '
+              'Re-queueing for re-processing.',
+        );
+        // إعادة السجل لـ pending ليُعاد معالجته بنسخة payload الحالية
+        await (update(outbox)..where((t) => t.id.equals(id))).write(
+          const OutboxCompanion(
+            processingStatus: Value('pending'),
+            processingStartedAt: Value(null),
+            processingWorker: Value(null),
+            processingPayloadVersion: Value(null),
+          ),
+        );
+        return;
+      }
+
       // تحديث العلامة المناسبة
       final companion = toPrimary
           ? const OutboxCompanion(
@@ -616,12 +662,14 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
               processingStatus: Value('pending'),
               processingStartedAt: Value(null),
               processingWorker: Value(null),
+              processingPayloadVersion: Value(null),
             )
           : const OutboxCompanion(
               deliveredToSecondary: Value(true),
               processingStatus: Value('pending'),
               processingStartedAt: Value(null),
               processingWorker: Value(null),
+              processingPayloadVersion: Value(null),
             );
 
       await (update(outbox)..where((t) => t.id.equals(id))).write(companion);

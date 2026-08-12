@@ -449,13 +449,15 @@ void main() {
     );
 
     test(
-      '18. schemaVersion = 56 (لتفعيل Migration 56)',
+      '18. schemaVersion >= 56 (لتفعيل Migration 56 و 57)',
       () {
         expect(
           db.schemaVersion,
-          56,
-          reason: 'schemaVersion يجب أن يكون 56 لتفعيل Migration 56 '
-              '(إضافة عمود full_sync_complete)',
+          greaterThanOrEqualTo(56),
+          reason: 'schemaVersion يجب أن يكون >= 56 لتفعيل Migration 56 '
+              '(إضافة عمود full_sync_complete) و Migration 57 '
+              '(إضافة payload_version و processing_payload_version). '
+              'القيمة الحالية: ${db.schemaVersion}',
         );
       },
     );

@@ -786,6 +786,33 @@ class Outbox extends Table {
   TextColumn get secondaryLastError =>
       text().nullable()();
 
+  /// ✅ Wave 5 (2026-08-12): Generation field لمنع stale acknowledgements.
+  ///
+  /// يُزداد بمقدار 1 كل مرة يتم فيها تحديث payload أو op أو clientTs في
+  /// `merge()`. عند الالتقاط (claim)، يتم تخزين قيمة `payloadVersion` في
+  /// `processingPayloadVersion`. عند التأكيد (markDelivered/setError/etc.)
+  /// يتحقق الكود أن `processingPayloadVersion == payloadVersion` الحالية.
+  ///
+  /// إذا تغيرت `payloadVersion` أثناء المعالجة (لأن `merge` أخرى حدّثت
+  /// payload أثناء عمل worker قديم)، يرفض الكود التأكيد ويُعيد السجل
+  /// لـ pending ليُعالج من جديد.
+  ///
+  /// **مثال على السباق الذي يمنعه**:
+  /// 1. worker-A يلتقط السجل (payloadVersion=5, processingPayloadVersion=5)
+  /// 2. أثناء معالجة worker-A، payload يُحدَّث (payloadVersion=6)
+  /// 3. worker-A يحاول تأكيد التسليم
+  /// 4. الكود يرى processingPayloadVersion=5 != payloadVersion=6
+  /// 5. التأكيد يُرفض، السجل يُعاد لـ pending، worker-A يُعاد رفعه
+  ///
+  /// القيمة الافتراضية: 1 (للسجلات الجديدة)
+  IntColumn get payloadVersion =>
+      integer().withDefault(const Constant(1))();
+
+  /// ✅ Wave 5: قيمة `payloadVersion` عند الالتقاط (claim).
+  /// تُستخدم للتحقق من أن العامل الذي يؤكد التسليم هو نفس العامل الذي التقطه.
+  IntColumn get processingPayloadVersion =>
+      integer().nullable()();
+
   List<Index> get indexes => [
     Index(
       'idx_outbox_status',
@@ -1005,7 +1032,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 56;
+  int get schemaVersion => 57;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -3055,6 +3082,55 @@ class AppDatabase extends _$AppDatabase {
         } catch (e) {
           developer.log(
             'Migration 56: sync_state.full_sync_complete may already exist: $e',
+            name: 'db.migration',
+          );
+        }
+      }
+
+      // === Migration 57: Outbox payload_version + processing_payload_version ===
+      // ✅ Sync Safety Wave 5 (2026-08-12): Generation field لمنع stale ack.
+      //
+      // `payload_version`:
+      //   - يُزداد بمقدار 1 عند كل `merge()` تحدّث payload/op/clientTs
+      //   - يبدأ من 1 للسجلات الجديدة
+      //   - القيمة الافتراضية 1 (DEFAULT 1)
+      //
+      // `processing_payload_version`:
+      //   - قيمة `payload_version` عند الالتقاط (claim)
+      //   - nullable (NULL للسجلات غير المُلتقَطة)
+      //   - تُستخدم للتحقق أن العامل الذي يؤكد التسليم هو نفسه الذي التقطه
+      //
+      // السباق الذي يمنعه:
+      // 1. worker-A يلتقط السجل (payload_version=5, processing_payload_version=5)
+      // 2. أثناء المعالجة، payload يُحدَّث (payload_version=6)
+      // 3. worker-A يحاول تأكيد التسليم
+      // 4. الكود يرى 5 != 6 → يرفض التأكيد ويُعيد السجل لـ pending
+      if (from < 57) {
+        try {
+          await m.database.customStatement(
+            'ALTER TABLE outbox ADD COLUMN payload_version INTEGER NOT NULL DEFAULT 1',
+          );
+          developer.log(
+            'Migration 57: added outbox.payload_version column',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 57: outbox.payload_version may already exist: $e',
+            name: 'db.migration',
+          );
+        }
+        try {
+          await m.database.customStatement(
+            'ALTER TABLE outbox ADD COLUMN processing_payload_version INTEGER',
+          );
+          developer.log(
+            'Migration 57: added outbox.processing_payload_version column',
+            name: 'db.migration',
+          );
+        } catch (e) {
+          developer.log(
+            'Migration 57: outbox.processing_payload_version may already exist: $e',
             name: 'db.migration',
           );
         }

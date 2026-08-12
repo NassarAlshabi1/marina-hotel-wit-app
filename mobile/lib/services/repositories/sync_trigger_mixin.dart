@@ -47,10 +47,10 @@ mixin SyncTriggerMixin {
         return;
       }
 
-      // ✅ P2-1 FIX: احجز القفل التنافي فوراً قبل أي عمل asynchronous
-      // يمنع الـ Race Condition بين الـ Watcher والـ Manual Trigger
-      // ✅ Sync Safety Fix (2026-08-10): استخدام tryAcquire الذري.
-      if (!SyncGuard.tryAcquire(label: 'sync_trigger_manual')) {
+      // ✅ Wave 5: ownership-safe tryAcquire (with token).
+      // فقط الـ token الصحيح يستطيع فك القفل في finally/catch.
+      final token = SyncGuard.tryAcquire(label: 'sync_trigger_manual');
+      if (token == null) {
         dlog('⏸️ Trigger sync skipped — another sync is active (${SyncGuard.activeLabel})');
         return;
       }
@@ -61,13 +61,13 @@ mixin SyncTriggerMixin {
         final manager = AppwriteSyncManager.instance;
         if (manager == null) {
           dlog('⚠️ triggerSync: sync manager not initialized');
-          SyncGuard.markFinished();
+          SyncGuard.release(token);
           return;
         }
         unawaited(
           manager.pushLocalChanges().catchError((Object e) {
             dlog(() => '⚠️ Auto-sync push failed (direct): $e');
-            SyncGuard.markFinished();
+            SyncGuard.release(token);
           }),
         );
         return;
@@ -77,7 +77,7 @@ mixin SyncTriggerMixin {
       unawaited(
         AutoOutboxSyncWatcher.instance.pushNow().catchError((Object e) {
           dlog(() => '⚠️ Auto-sync push failed (via watcher): $e');
-          SyncGuard.markFinished();
+          SyncGuard.release(token);
         }),
       );
     } catch (e) {

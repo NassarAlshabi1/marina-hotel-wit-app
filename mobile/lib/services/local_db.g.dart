@@ -23979,6 +23979,28 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _payloadVersionMeta =
+      const VerificationMeta('payloadVersion');
+  @override
+  late final GeneratedColumn<int> payloadVersion = GeneratedColumn<int>(
+    'payload_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _processingPayloadVersionMeta =
+      const VerificationMeta('processingPayloadVersion');
+  @override
+  late final GeneratedColumn<int> processingPayloadVersion =
+      GeneratedColumn<int>(
+        'processing_payload_version',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -24003,6 +24025,8 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
     secondaryProcessingStatus,
     secondaryAttempts,
     secondaryLastError,
+    payloadVersion,
+    processingPayloadVersion,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -24188,6 +24212,24 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
         ),
       );
     }
+    if (data.containsKey('payload_version')) {
+      context.handle(
+        _payloadVersionMeta,
+        payloadVersion.isAcceptableOrUnknown(
+          data['payload_version']!,
+          _payloadVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('processing_payload_version')) {
+      context.handle(
+        _processingPayloadVersionMeta,
+        processingPayloadVersion.isAcceptableOrUnknown(
+          data['processing_payload_version']!,
+          _processingPayloadVersionMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -24285,6 +24327,14 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
         DriftSqlType.string,
         data['${effectivePrefix}secondary_last_error'],
       ),
+      payloadVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}payload_version'],
+      )!,
+      processingPayloadVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}processing_payload_version'],
+      ),
     );
   }
 
@@ -24338,6 +24388,11 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
   final String secondaryProcessingStatus;
   final int secondaryAttempts;
   final String? secondaryLastError;
+
+  /// ✅ Wave 5 (2026-08-12): Generation field لمنع stale acknowledgements.
+  final int payloadVersion;
+  final int? processingPayloadVersion;
+
   const OutboxData({
     required this.id,
     required this.entity,
@@ -24361,6 +24416,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     required this.secondaryProcessingStatus,
     required this.secondaryAttempts,
     this.secondaryLastError,
+    required this.payloadVersion,
+    this.processingPayloadVersion,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -24405,6 +24462,10 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     if (!nullToAbsent || secondaryLastError != null) {
       map['secondary_last_error'] = Variable<String>(secondaryLastError);
     }
+    map['payload_version'] = Variable<int>(payloadVersion);
+    if (!nullToAbsent || processingPayloadVersion != null) {
+      map['processing_payload_version'] = Variable<int>(processingPayloadVersion);
+    }
     return map;
   }
 
@@ -24446,6 +24507,10 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       secondaryLastError: secondaryLastError == null && nullToAbsent
           ? const Value.absent()
           : Value(secondaryLastError),
+      payloadVersion: Value(payloadVersion),
+      processingPayloadVersion: processingPayloadVersion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(processingPayloadVersion),
     );
   }
 
@@ -24487,6 +24552,10 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       secondaryLastError: serializer.fromJson<String?>(
         json['secondaryLastError'],
       ),
+      payloadVersion: serializer.fromJson<int>(json['payloadVersion']),
+      processingPayloadVersion: serializer.fromJson<int?>(
+        json['processingPayloadVersion'],
+      ),
     );
   }
   @override
@@ -24519,6 +24588,10 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       ),
       'secondaryAttempts': serializer.toJson<int>(secondaryAttempts),
       'secondaryLastError': serializer.toJson<String?>(secondaryLastError),
+      'payloadVersion': serializer.toJson<int>(payloadVersion),
+      'processingPayloadVersion': serializer.toJson<int?>(
+        processingPayloadVersion,
+      ),
     };
   }
 
@@ -24545,6 +24618,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     String? secondaryProcessingStatus,
     int? secondaryAttempts,
     Value<String?> secondaryLastError = const Value.absent(),
+    int? payloadVersion,
+    Value<int?> processingPayloadVersion = const Value.absent(),
   }) => OutboxData(
     id: id ?? this.id,
     entity: entity ?? this.entity,
@@ -24580,6 +24655,10 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     secondaryLastError: secondaryLastError.present
         ? secondaryLastError.value
         : this.secondaryLastError,
+    payloadVersion: payloadVersion ?? this.payloadVersion,
+    processingPayloadVersion: processingPayloadVersion.present
+        ? processingPayloadVersion.value
+        : this.processingPayloadVersion,
   );
   OutboxData copyWithCompanion(OutboxCompanion data) {
     return OutboxData(
@@ -24629,6 +24708,12 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       secondaryLastError: data.secondaryLastError.present
           ? data.secondaryLastError.value
           : this.secondaryLastError,
+      payloadVersion: data.payloadVersion.present
+          ? data.payloadVersion.value
+          : this.payloadVersion,
+      processingPayloadVersion: data.processingPayloadVersion.present
+          ? data.processingPayloadVersion.value
+          : this.processingPayloadVersion,
     );
   }
 
@@ -24656,7 +24741,9 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
           ..write('primaryLastError: $primaryLastError, ')
           ..write('secondaryProcessingStatus: $secondaryProcessingStatus, ')
           ..write('secondaryAttempts: $secondaryAttempts, ')
-          ..write('secondaryLastError: $secondaryLastError')
+          ..write('secondaryLastError: $secondaryLastError, ')
+          ..write('payloadVersion: $payloadVersion, ')
+          ..write('processingPayloadVersion: $processingPayloadVersion')
           ..write(')'))
         .toString();
   }
@@ -24711,7 +24798,9 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
           other.primaryLastError == this.primaryLastError &&
           other.secondaryProcessingStatus == this.secondaryProcessingStatus &&
           other.secondaryAttempts == this.secondaryAttempts &&
-          other.secondaryLastError == this.secondaryLastError);
+          other.secondaryLastError == this.secondaryLastError &&
+          other.payloadVersion == this.payloadVersion &&
+          other.processingPayloadVersion == this.processingPayloadVersion);
 }
 
 class OutboxCompanion extends UpdateCompanion<OutboxData> {
@@ -24737,6 +24826,8 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
   final Value<String> secondaryProcessingStatus;
   final Value<int> secondaryAttempts;
   final Value<String?> secondaryLastError;
+  final Value<int> payloadVersion;
+  final Value<int?> processingPayloadVersion;
   const OutboxCompanion({
     this.id = const Value.absent(),
     this.entity = const Value.absent(),
@@ -24760,6 +24851,8 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     this.secondaryProcessingStatus = const Value.absent(),
     this.secondaryAttempts = const Value.absent(),
     this.secondaryLastError = const Value.absent(),
+    this.payloadVersion = const Value.absent(),
+    this.processingPayloadVersion = const Value.absent(),
   });
   OutboxCompanion.insert({
     this.id = const Value.absent(),
@@ -24784,6 +24877,8 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     this.secondaryProcessingStatus = const Value.absent(),
     this.secondaryAttempts = const Value.absent(),
     this.secondaryLastError = const Value.absent(),
+    this.payloadVersion = const Value.absent(),
+    this.processingPayloadVersion = const Value.absent(),
   }) : entity = Value(entity),
        op = Value(op),
        localUuid = Value(localUuid),
@@ -24812,6 +24907,8 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     Expression<String>? secondaryProcessingStatus,
     Expression<int>? secondaryAttempts,
     Expression<String>? secondaryLastError,
+    Expression<int>? payloadVersion,
+    Expression<int>? processingPayloadVersion,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -24842,6 +24939,9 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
       if (secondaryAttempts != null) 'secondary_attempts': secondaryAttempts,
       if (secondaryLastError != null)
         'secondary_last_error': secondaryLastError,
+      if (payloadVersion != null) 'payload_version': payloadVersion,
+      if (processingPayloadVersion != null)
+        'processing_payload_version': processingPayloadVersion,
     });
   }
 
@@ -24868,6 +24968,8 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     Value<String>? secondaryProcessingStatus,
     Value<int>? secondaryAttempts,
     Value<String?>? secondaryLastError,
+    Value<int>? payloadVersion,
+    Value<int?>? processingPayloadVersion,
   }) {
     return OutboxCompanion(
       id: id ?? this.id,
@@ -24894,6 +24996,8 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
           secondaryProcessingStatus ?? this.secondaryProcessingStatus,
       secondaryAttempts: secondaryAttempts ?? this.secondaryAttempts,
       secondaryLastError: secondaryLastError ?? this.secondaryLastError,
+      payloadVersion: payloadVersion ?? this.payloadVersion,
+      processingPayloadVersion: processingPayloadVersion ?? this.processingPayloadVersion,
     );
   }
 
@@ -24972,6 +25076,12 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     if (secondaryLastError.present) {
       map['secondary_last_error'] = Variable<String>(secondaryLastError.value);
     }
+    if (payloadVersion.present) {
+      map['payload_version'] = Variable<int>(payloadVersion.value);
+    }
+    if (processingPayloadVersion.present) {
+      map['processing_payload_version'] = Variable<int>(processingPayloadVersion.value);
+    }
     return map;
   }
 
@@ -24999,7 +25109,9 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
           ..write('primaryLastError: $primaryLastError, ')
           ..write('secondaryProcessingStatus: $secondaryProcessingStatus, ')
           ..write('secondaryAttempts: $secondaryAttempts, ')
-          ..write('secondaryLastError: $secondaryLastError')
+          ..write('secondaryLastError: $secondaryLastError, ')
+          ..write('payloadVersion: $payloadVersion, ')
+          ..write('processingPayloadVersion: $processingPayloadVersion')
           ..write(')'))
         .toString();
   }

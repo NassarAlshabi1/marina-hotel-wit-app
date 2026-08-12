@@ -170,8 +170,9 @@ class SmartSyncManager {
     // متتاليتين بدون أي await بينهما. سابقاً كان هناك await points
     // (shouldSkipSync, isLimitExceeded) بين canStart و markStarted، مما
     // يسمح لخدمة أخرى بالدخول في الفجوة وبدء مزامنة متزامنة.
-    // ✅ Sync Safety Fix (2026-08-10): استخدام tryAcquire الذري.
-    if (!SyncGuard.tryAcquire(label: 'smart_sync')) {
+    // ✅ Wave 5: ownership-safe tryAcquire (with token).
+    final token = SyncGuard.tryAcquire(label: 'smart_sync');
+    if (token == null) {
       _log('⏸️ تم تخطي المزامنة — خدمة أخرى نشطة (${SyncGuard.activeLabel})');
       return;
     }
@@ -201,7 +202,7 @@ class SmartSyncManager {
       _log('⚠️ فشل فحص المزامنة المُحسَّن: $e');
       // لا rethrow
     } finally {
-      SyncGuard.markFinished();
+      SyncGuard.release(token);
     }
   }
 

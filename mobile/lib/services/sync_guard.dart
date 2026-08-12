@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
+/// ✅ Wave 5 (2026-08-12): SyncGuard — ownership-aware lock mechanism.
+///
 /// حارس مشترك لمنع تداخل عمليات المزامنة عبر الخدمات المختلفة.
 ///
 /// ✅ إصلاح P2-10: بدلاً من دمج 8 Timer.periodic مختلفة (التي تشغّلها
@@ -8,37 +10,37 @@ import 'package:marina_hotel_mobile/utils/debug_log.dart';
 /// في موجد موحد واحد — وهو refactor معماري كبير ومخاطر عالية — نضيف هذا
 /// الحارس الخفيف كطبقة throttle عبرية.
 ///
-/// كل خدمة تستدعي [canStart] قبل بدء عملها الدوري. إذا كانت مزامنة أخرى
-/// قيد التشغيل، تتخطى الخدمة هذه الدورة وتنتظر الدورة التالية. هذا يقلّل
-/// بشكل كبير من تضارب العمليات واستهلاك البطارية دون الحاجة إلى إعادة
-/// تصميم بنية المزامنة بالكامل.
+/// ✅ Wave 5 (2026-08-12): ownership-safe release.
+/// كل عملية تحصل على `SyncLockToken` فريدة عند `tryAcquire`. لا يمكن
+/// `release(token)` فك القفل إلا بنفس الـ token (أو عند expiry/stale).
+/// هذا يمنع:
+/// - **stale release**: عملية قديمة تفك lock تم اكتسابه بعملية أحدث
+/// - **cross-release**: عملية تفك lock عملية أخرى
+/// - **double-acquire misuse**: اكتساب جديد قبل تحرير القديم بدون تسجيل
 ///
-/// الاستخدام:
+/// الاستخدام (الجديد):
 /// ```dart
-/// _syncCheckTimer = Timer.periodic(Duration(minutes: 2), (_) async {
-///   if (!SyncGuard.canStart(label: 'smart_sync')) return;
-///   SyncGuard.markStarted();
-///   try {
-///     await _performSync();
-///   } finally {
-///     SyncGuard.markFinished();
-///   }
-/// });
+/// final token = SyncGuard.tryAcquire(label: 'smart_sync');
+/// if (token == null) return; // acquire failed
+/// try {
+///   await _performSync();
+/// } finally {
+///   SyncGuard.release(token);
+/// }
 /// ```
+///
+/// التوافق الرجعي: `tryAcquire` القديم الذي يُرجع bool ما زال يعمل، لكن
+/// لا يوفر ownership safety. يُنصح بالمهاجرة للـ token API.
 class SyncGuard {
   SyncGuard._();
 
   /// الإعدادات الحالية (الافتراضية)
-  /// يمكن تعديلها عبر Config أو ملف Olsen
   static const _defaultLockTimeout = Duration(minutes: 10);
   static const _defaultStaleLockTimeout = Duration(minutes: 10);
-  
-  /// يمكن تهيئة القيم الجديدة من أي مصدر (AppConfig.integrations)
+
   static Duration _lockTimeout = _defaultLockTimeout;
   static Duration _staleLockTimeout = _defaultStaleLockTimeout;
-  
-  /// ✅ الوقاية من lock studio: يمكن أن يتغير وقت الانتظار بناءً على حجم البيانات أو الحالة
-  /// تساعد على تجنب EtBa但在关键时刻的死锁问题。
+
   static void configureTimeouts({
     Duration? lockTimeout,
     Duration? staleLockTimeout,
@@ -57,52 +59,54 @@ class SyncGuard {
   /// اسم الخدمة التي تُنفّذ المزامنة الحالية (للتشخيص).
   static String? _activeSyncLabel;
 
+  /// ✅ Wave 5: ownership token — معرّف فريد لكل عملية اكتسبت القفل.
+  /// يُستخدم للتحقق من أن `release()` يُستدعى من نفس العملية.
+  static int _activeSyncToken = 0;
+
+  /// مولّد token متزايد لضمان الفريدة.
+  static int _tokenCounter = 0;
+
   /// تحقق ما إذا كان يمكن بدء مزامنة جديدة الآن.
   ///
-  /// [label] معرّف الخدمة التي تستدعي هذا التحقق (للتشخيص والتسجيل).
-  /// يُعيد `true` إذا لم تكن هناك مزامنة نشطة، أو `false` إذا كانت
-  /// مزامنة أخرى قيد التشغيل.
-  ///
-  /// ⚠️ **محفوظة للتوافق الرجعي** — يُنصح باستخدام [tryAcquire] بدلاً منها.
-  /// `canStart` + `markStarted` منفصلتان يسمحان بـ TOCTOU race: موضوعان
-  /// يستدعيان `canStart` في وقت واحد قد يرى كل منهما true، ثم يستدعيان
-  /// `markStarted` فيتداخلان. [tryAcquire] يدمج العمليتين ذريياً.
+  /// ⚠️ **محفوظة للتوافق الرجعي** — يُنصح باستخدام [tryAcquire] (الذي
+  /// يُرجع token) بدلاً منها.
   static bool canStart({required String label}) {
     if (_activeSyncStartedAt == null) return true;
     final elapsed = DateTime.now().difference(_activeSyncStartedAt!);
-    // إذا مضت أكثر من [_staleLockTimeout] على "مزامنة نشطة"، من المحتمل أنها علقت
     if (elapsed > _staleLockTimeout) {
       dlog(
         () =>
             '⚠️ SyncGuard: stale lock detected (label=$_activeSyncLabel, '
             'elapsed=${elapsed.inSeconds}s) — allowing $label to proceed',
       );
-      // ✅ Sync Safety Fix (2026-08-10): مسح الـ stale lock فوراً لمنع
-      // موضوع آخر من رؤية الـ stale lock واعتباره نشطاً. بدون هذا،
-      // موضوعان قد يرى كل منهما الـ stale lock ويسمح لكليهما بالبدء.
+      // ✅ Sync Safety Fix: مسح الـ stale lock فوراً
       _activeSyncStartedAt = null;
       _activeSyncLabel = null;
+      _activeSyncToken = 0;
       return true;
     }
     return false;
   }
 
-  /// ✅ Sync Safety Fix (2026-08-10): atomic try-acquire.
-  /// يدمج canStart + markStarted في عملية واحدة ذرية لمنع TOCTOU race.
-  /// يُرجع true إذا تم اكتساب القفل، false إذا كانت مزامنة أخرى نشطة.
+  /// ✅ Wave 5 (2026-08-12): atomic try-acquire مع ownership token.
   ///
-  /// **استخدام**: استبدل `if (!SyncGuard.canStart(label: X)) return;`
-  /// + `SyncGuard.markStarted(label: X);` بـ
-  /// `if (!SyncGuard.tryAcquire(label: X)) return;`.
+  /// يدمج canStart + markStarted في عملية واحدة ذرية. يُرجع `SyncLockToken`
+  /// فريد إذا تم اكتساب القفل، أو `null` إذا كانت مزامنة أخرى نشطة.
   ///
-  /// **Note**: Dart single-threaded event loop يجعل هذه الذرية فعلياً
-  /// (لا يوجد preemption بين الـ check والـ set). لكن `tryAcquire` ما زال
-  /// أفضل لأنه:
-  /// 1. يقلل الـ boilerplate (سطر واحد بدل سطرين)
-  /// 2. يمنع الأخطاء البشرية (نسيان markStarted بعد canStart)
-  /// 3. يضمن أن الـ markStarted يحدث فوراً بعد الـ check بدون أي async gap
-  /// 4. يسمح بإضافة diagnostic logging في مكان واحد
-  static bool tryAcquire({required String label}) {
+  /// **الاستخدام**:
+  /// ```dart
+  /// final token = SyncGuard.tryAcquire(label: 'appwrite_sync');
+  /// if (token == null) return;
+  /// try {
+  ///   await sync();
+  /// } finally {
+  ///   SyncGuard.release(token);
+  /// }
+  /// ```
+  ///
+  /// **ownership safety**: فقط `release(token)` بنفس الـ token يفك القفل.
+  /// هذا يمنع stale release و cross-release (انظر [release]).
+  static SyncLockToken? tryAcquire({required String label}) {
     if (!canStart(label: label)) {
       dlog(
         () =>
@@ -110,23 +114,86 @@ class SyncGuard {
             'active="$_activeSyncLabel" '
             '(elapsed=${(_activeSyncStartedAt != null) ? DateTime.now().difference(_activeSyncStartedAt!).inSeconds : 0}s)',
       );
-      return false;
+      return null;
     }
-    markStarted(label: label);
+    _tokenCounter += 1;
+    _activeSyncToken = _tokenCounter;
+    _activeSyncStartedAt = DateTime.now();
+    _activeSyncLabel = label;
     dlog(
-      () => '🔒 SyncGuard: tryAcquire GRANTED for "$label"',
+      () => '🔒 SyncGuard: tryAcquire GRANTED for "$label" (token=#$_activeSyncToken)',
     );
-    return true;
+    return SyncLockToken._(_activeSyncToken, label);
+  }
+
+  /// ✅ Wave 5: تحرير القفل بـ ownership verification.
+  ///
+  /// فقط الـ token الصحيح (الذي اكتسب القفل) يستطيع فكه. هذا يمنع:
+  /// - **stale release**: عملية قديمة تحاول فك lock اكتسبته عملية أحدث.
+  ///   مثلاً: sync-A اكتسب القفل، ثم sync-B اكتسب القفل بعد stale timeout،
+  ///   ثم sync-A يحاول فك القفل — يجب أن يُرفض.
+  /// - **cross-release**: عملية تُفك lock عملية أخرى عن طريق الخطأ.
+  ///
+  /// **استثناء**: إذا القفل أصبح stale (تجاوز [_staleLockTimeout])، فإن
+  /// أي token يُفك القفل بأمان (لأن الـ lock معتبر منتهي الصلاحية).
+  ///
+  /// **الاستخدام**:
+  /// ```dart
+  /// final token = SyncGuard.tryAcquire(label: 'sync');
+  /// if (token == null) return;
+  /// try {
+  ///   await work();
+  /// } finally {
+  ///   SyncGuard.release(token); // ownership-safe
+  /// }
+  /// ```
+  static void release(SyncLockToken token) {
+    if (_activeSyncStartedAt == null) {
+      // لا يوجد lock نشط — تسجيل فقط (لا يمكن release ما لا يملك)
+      dlog(
+        () => '⚠️ SyncGuard: release(token=#${token._value}) called but no active sync '
+            '(label="${token._label}")',
+      );
+      return;
+    }
+
+    final isOwner = token._value == _activeSyncToken && token._value > 0;
+    final elapsed = DateTime.now().difference(_activeSyncStartedAt!);
+    final isStale = elapsed > _staleLockTimeout;
+
+    if (!isOwner && !isStale) {
+      // ✅ ownership violation — عملية تحاول فك lock لا تملكه
+      dlog(
+        () => '⚠️ SyncGuard: release REJECTED for token=#${token._value} '
+            '(label="${token._label}") — current owner is token=#$_activeSyncToken '
+            '(label="$_activeSyncLabel"). This is a stale/cross release attempt.',
+      );
+      return;
+    }
+
+    if (!isOwner && isStale) {
+      // stale release — مسموح ولكن نسجل تحذيراً
+      dlog(
+        () => '⚠️ SyncGuard: stale release accepted for token=#${token._value} '
+            '(label="${token._label}") — lock was stale (elapsed=${elapsed.inSeconds}s, '
+            'current_owner=#$_activeSyncToken/$_activeSyncLabel)',
+      );
+    } else {
+      dlog(
+        () => '🔒 SyncGuard: release OK for token=#${token._value} '
+            '(label="${token._label}", elapsed=${elapsed.inSeconds}s)',
+      );
+    }
+    _activeSyncStartedAt = null;
+    _activeSyncLabel = null;
+    _activeSyncToken = 0;
   }
 
   /// سجّل بدء مزامنة. يجب استدعاؤها فوراً بعد [canStart] تُعيد true.
   ///
-  /// ⚠️ يُفضّل استخدام [tryAcquire] بدلاً من `canStart + markStarted`.
+  /// ⚠️ يُفضّل استخدام [tryAcquire] (الذي يُرجع token) بدلاً من `canStart + markStarted`.
+  /// `markStarted` لا يوفر ownership safety.
   static void markStarted({required String label}) {
-    // ✅ Sync Safety Fix (2026-08-10): كشف double-acquire.
-    // إذا كانت هناك مزامنة نشطة ولم تنتهِ صلاحيتها (stale)، هذا يشير إلى
-    // bug في caller (نسيان markFinished في finally block). نسجّل تحذيراً
-    // صريحاً ونُلغي الـ lock القديم (لأن caller الجديد سيتولى المسؤولية).
     if (_activeSyncStartedAt != null) {
       final elapsed = DateTime.now().difference(_activeSyncStartedAt!);
       if (elapsed <= _staleLockTimeout) {
@@ -139,15 +206,16 @@ class SyncGuard {
         );
       }
     }
+    _tokenCounter += 1;
+    _activeSyncToken = _tokenCounter;
     _activeSyncStartedAt = DateTime.now();
     _activeSyncLabel = label;
   }
 
   /// سجّل انتهاء المزامنة. يجب استدعاؤها في `finally` block دائماً.
   ///
-  /// ✅ Sync Safety Fix (2026-08-10): تُسجّل رسالة تشخيصية للكشف عن
-  /// finally blocks المفقودة. إذا لم تكن هناك مزامنة نشطة، هذا يشير إلى
-  /// bug (markFinished استُدعيت بدون markStarted مقابلة).
+  /// ⚠️ **محفوظة للتوافق الرجعي** — لا توفر ownership safety.
+  /// يُنصح باستخدام [release] مع token بدلاً منها.
   static void markFinished() {
     if (_activeSyncStartedAt == null) {
       dlog(
@@ -163,6 +231,7 @@ class SyncGuard {
     );
     _activeSyncStartedAt = null;
     _activeSyncLabel = null;
+    _activeSyncToken = 0;
   }
 
   /// حالة التشخيص — هل توجد مزامنة نشطة الآن؟
@@ -170,4 +239,22 @@ class SyncGuard {
 
   /// معرّف الخدمة النشطة حالياً (للتشخيص فقط).
   static String? get activeLabel => _activeSyncLabel;
+}
+
+/// ✅ Wave 5 (2026-08-12): SyncLockToken — ownership token لـ SyncGuard.
+///
+/// يُرجع من `SyncGuard.tryAcquire()` ويُستخدم في `SyncGuard.release(token)`
+/// للتحقق من أن الـ release من نفس العملية التي اكتسبت القفل.
+///
+/// الـ token غير قابل للتزوير (private constructor) ويحتوي على:
+/// - `_value`: معرّف فريد متزايد
+/// - `_label`: اسم الخدمة التي اكتسبت القفل (للتشخيص)
+class SyncLockToken {
+  final int _value;
+  final String _label;
+
+  SyncLockToken._(this._value, this._label);
+
+  @override
+  String toString() => 'SyncLockToken(#$_value, $_label)';
 }

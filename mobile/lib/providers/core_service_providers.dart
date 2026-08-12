@@ -19,7 +19,7 @@ import '../services/screen_sync_controller.dart';
 import '../services/secondary_appwrite_config.dart';
 import '../services/secondary_appwrite_service.dart';
 import '../services/secondary_backup_service.dart';
-import '../services/secondary_sync_manager.dart';
+// ✅ Wave 5 (2026-08-12): secondary_sync_manager.dart أُزيل بالكامل.
 import '../services/stay_balance_calculator.dart';
 import '../services/sync_guardian.dart';
 import '../services/sync_performance_settings.dart';
@@ -99,9 +99,10 @@ final secondaryAppwriteConfigProvider = Provider<SecondaryAppwriteConfig>((
   return SecondaryAppwriteConfig();
 });
 
-final secondarySyncManagerProvider = Provider<SecondarySyncManager>((ref) {
-  return SecondarySyncManager.instance;
-});
+// ✅ Wave 5 (2026-08-12): secondarySyncManagerProvider أُزيل بالكامل.
+// SecondarySyncManager لم يعد موجوداً — Appwrite primary هو authority الوحيد.
+// secondaryAppwriteService و secondaryBackupService ما زالا موجودتين لأن
+// AppwriteHealthChecker يستخدمهما لفحص الـ failover (مسار قراءة فقط).
 
 final secondaryAppwriteServiceProvider = Provider<SecondaryAppwriteService>((
   ref,

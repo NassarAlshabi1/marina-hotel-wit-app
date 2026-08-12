@@ -452,10 +452,9 @@ class GoogleDriveUnifiedSyncCoordinator {
   Future<void> _handlePeriodicPull() async {
     if (!_isSyncing && (_backupService?.isSignedIn ?? false)) {
       if (_pullEnabled) {
-        // ✅ إصلاح P2-10: حارس مشترك لمنع تداخل المزامنة مع SmartSyncManager
-        // أو AppwriteSyncManager. إذا كانت مزامنة أخرى نشطة، نتخطى هذه الدورة.
-        // ✅ Sync Safety Fix (2026-08-10): استخدام tryAcquire الذري.
-        if (!SyncGuard.tryAcquire(label: 'gd_unified_pull')) {
+        // ✅ Wave 5: ownership-safe tryAcquire (with token).
+        final token = SyncGuard.tryAcquire(label: 'gd_unified_pull');
+        if (token == null) {
           _log(
             '⏸️ Periodic pull skipped — another sync active (${SyncGuard.activeLabel})',
           );
@@ -472,7 +471,7 @@ class GoogleDriveUnifiedSyncCoordinator {
           _log('❌ Periodic pull error: $e');
           // لا rethrow — نمنع fatal crash من Timer callback
         } finally {
-          SyncGuard.markFinished();
+          SyncGuard.release(token);
         }
       }
     }

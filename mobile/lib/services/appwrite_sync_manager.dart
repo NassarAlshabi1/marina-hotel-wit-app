@@ -505,12 +505,10 @@ class AppwriteSyncManager {
   }) {
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(interval, (timer) async {
-      // ✅ إصلاح P2-10: حارس مشترك لمنع تداخل المزامنة مع SmartSyncManager
-      // أو GoogleDriveUnifiedSyncCoordinator. إذا كانت مزامنة أخرى نشطة،
-      // نتخطى هذه الدورة لتجنب تضارب عمليات SQLite و API calls.
-      // ✅ Sync Safety Fix (2026-08-10): استخدام tryAcquire الذري بدلاً من
-      // canStart + markStarted المنفصلتين (TOCTOU race).
-      if (!SyncGuard.tryAcquire(label: 'appwrite_sync')) {
+      // ✅ Wave 5: ownership-safe tryAcquire (with token).
+      // فقط الـ token الصحيح يستطيع فك القفل في finally.
+      final token = SyncGuard.tryAcquire(label: 'appwrite_sync');
+      if (token == null) {
         _logger.info(
           'Auto sync skipped — another sync active (${SyncGuard.activeLabel})',
           tag: 'SYNC',
@@ -531,7 +529,7 @@ class AppwriteSyncManager {
         );
         // لا rethrow — نمنع fatal crash
       } finally {
-        SyncGuard.markFinished();
+        SyncGuard.release(token);
       }
     });
     _logger.info(
@@ -3516,17 +3514,21 @@ class AppwriteSyncManager {
 
   Future<bool> _processBookingEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(
-        () => appwriteService.deleteBooking(entry.localUuid),
+      // ✅ Wave 5 (2026-08-12): durable tombstone بدلاً من hard delete.
+      return _handleDeleteOp(
+        entity: 'bookings',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteBooking(entry.localUuid),
       );
-      return true;
     }
     final booking = await _getBookingByLocalUuid(entry.localUuid);
     if (booking == null) {
-      await _deleteSilently(
-        () => appwriteService.deleteBooking(entry.localUuid),
+      // ✅ الكيان محذوف محلياً — ارفع tombstone بدلاً من hard delete.
+      return _handleDeleteOp(
+        entity: 'bookings',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteBooking(entry.localUuid),
       );
-      return true;
     }
     final payload = _bookingToRemote(booking);
 
@@ -3657,17 +3659,20 @@ class AppwriteSyncManager {
 
   Future<bool> _processExpenseEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(
-        () => appwriteService.deleteExpense(entry.localUuid),
+      // ✅ Wave 5: durable tombstone
+      return _handleDeleteOp(
+        entity: 'expenses',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteExpense(entry.localUuid),
       );
-      return true;
     }
     final expense = await _getExpenseByLocalUuid(entry.localUuid);
     if (expense == null) {
-      await _deleteSilently(
-        () => appwriteService.deleteExpense(entry.localUuid),
+      return _handleDeleteOp(
+        entity: 'expenses',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteExpense(entry.localUuid),
       );
-      return true;
     }
     final payload = _expenseToRemote(expense);
     // ✅ إضافة employeeUuid لمصروفات الرواتب لربط الموظف عبر الأجهزة
@@ -3718,17 +3723,20 @@ class AppwriteSyncManager {
 
   Future<bool> _processPaymentEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(
-        () => appwriteService.deletePayment(entry.localUuid),
+      // ✅ Wave 5: durable tombstone
+      return _handleDeleteOp(
+        entity: 'payments',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deletePayment(entry.localUuid),
       );
-      return true;
     }
     final payment = await _getPaymentByLocalUuid(entry.localUuid);
     if (payment == null) {
-      await _deleteSilently(
-        () => appwriteService.deletePayment(entry.localUuid),
+      return _handleDeleteOp(
+        entity: 'payments',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deletePayment(entry.localUuid),
       );
-      return true;
     }
     final payload = _paymentToRemote(payment);
     // ✅ P0-5: OCC check — فحص النسخة البعيدة قبل الدفع
@@ -3767,13 +3775,20 @@ class AppwriteSyncManager {
 
   Future<bool> _processDebtEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(() => appwriteService.deleteDebt(entry.localUuid));
-      return true;
+      // ✅ Wave 5: durable tombstone
+      return _handleDeleteOp(
+        entity: 'debts',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteDebt(entry.localUuid),
+      );
     }
     final debt = await _getDebtByLocalUuid(entry.localUuid);
     if (debt == null) {
-      await _deleteSilently(() => appwriteService.deleteDebt(entry.localUuid));
-      return true;
+      return _handleDeleteOp(
+        entity: 'debts',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteDebt(entry.localUuid),
+      );
     }
     final payload = _debtToRemote(debt);
     // ✅ P0-5: OCC check — فحص النسخة البعيدة قبل الدفع
@@ -3834,7 +3849,8 @@ class AppwriteSyncManager {
     }
   }
 
-  /// ✅ Sync Safety Wave 4 (2026-08-12): Upsert tombstone بدلاً من hard delete.
+  /// ✅ Sync Safety Wave 4 (2026-08-12) / Wave 5 (2026-08-12): Upsert tombstone
+  /// بدلاً من hard delete — مُعمّم على جميع الكيانات المتزامنة.
   ///
   /// **المشكلة**: `op='delete'` يدعو `deleteRoom/deleteBooking/...` التي تُنفذ
   /// hard delete على Appwrite. هذا يعني أن الأجهزة الأخرى لن تكتشف الحذف عبر
@@ -3852,16 +3868,17 @@ class AppwriteSyncManager {
   /// - `vectorClock` (إذا متوفر من الـ entry payload)
   ///
   /// **Fallback**: إذا فشل upsert (مثلاً collection لا يدعم tombstone)، نُحاول
-  /// hard delete كحل أخير — لكن نسجّل تحذيراً لأن هذا يكسر durable tombstone.
+  /// hard delete عبر [hardDeleteFallback] كحل أخير — لكن نسجّل تحذيراً لأن هذا
+  /// يكسر durable tombstone.
   ///
-  /// **ملاحظة**: هذا التغيير يحوّل push-side deletes من hard delete إلى tombstone.
-  /// الأجهزة الأخرى ستكتشف الحذف عبر delta sync ($updatedAt للـ tombstone أحدث
-  /// من lastPullTs). للأمان، نُحتفظ بالـ tombstone على الخادم لمدة 30 يوم
-  /// (إعدادته عبر cleanup مع `cleanupOldEntries`).
+  /// **Wave 5 تعميم**: تُستدعى من جميع `_process*Entry` methods لكل الكيانات
+  /// المتزامنة (bookings, payments, employees, booking_nights, etc.) بدلاً من
+  /// `_deleteSilently` المباشر.
   Future<void> _pushTombstone({
     required String entity,
     required String localUuid,
     required OutboxData entry,
+    Future<void> Function()? hardDeleteFallback,
   }) async {
     final collectionId = _entityToCollectionId(entity);
     if (collectionId == null) {
@@ -3870,7 +3887,10 @@ class AppwriteSyncManager {
         '⚠️ Cannot push tombstone for unknown entity=$entity — falling back to hard delete (no tombstone propagation)',
         tag: 'SYNC',
       );
-      throw StateError('Unknown entity: $entity');
+      if (hardDeleteFallback != null) {
+        await _deleteSilently(hardDeleteFallback);
+      }
+      return;
     }
 
     final nowSec = Time.nowEpoch();
@@ -3918,9 +3938,34 @@ class AppwriteSyncManager {
         '⚠️ Tombstone upsert failed for $entity/$localUuid: $e — falling back to hard delete (offline devices may resurrect)',
         tag: 'SYNC',
       );
-      // hard delete fallback — نترك المتصل يقرر كيفية التعامل مع الخطأ
-      rethrow;
+      if (hardDeleteFallback != null) {
+        await _deleteSilently(hardDeleteFallback);
+      } else {
+        rethrow;
+      }
     }
+  }
+
+  /// ✅ Wave 5 (2026-08-12): Helper مركزي لمعالجة `op='delete'` لكل الكيانات.
+  ///
+  /// يُستدعى من كل `_process*Entry` methods. يُغلف منطق:
+  /// 1. محاولة `_pushTombstone` أولاً (durable delete)
+  /// 2. fallback لـ hard delete إذا فشل upsert
+  ///
+  /// هذا يضمن أن جميع الكيانات تستخدم نفس مسار الـ tombstone بدلاً من تكرار
+  /// المنطق في كل `_process*Entry`.
+  Future<bool> _handleDeleteOp({
+    required String entity,
+    required OutboxData entry,
+    required Future<void> Function() hardDeleteFallback,
+  }) async {
+    await _pushTombstone(
+      entity: entity,
+      localUuid: entry.localUuid,
+      entry: entry,
+      hardDeleteFallback: hardDeleteFallback,
+    );
+    return true;
   }
 
   Future<Room?> _getRoomByLocalUuid(String localUuid) {
@@ -4017,17 +4062,20 @@ class AppwriteSyncManager {
 
   Future<bool> _processGuestInfoEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(
-        () => appwriteService.deleteGuestInfo(entry.localUuid),
+      // ✅ Wave 5: durable tombstone
+      return _handleDeleteOp(
+        entity: 'guest_infos',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteGuestInfo(entry.localUuid),
       );
-      return true;
     }
     final info = await _getGuestInfoByLocalUuid(entry.localUuid);
     if (info == null) {
-      await _deleteSilently(
-        () => appwriteService.deleteGuestInfo(entry.localUuid),
+      return _handleDeleteOp(
+        entity: 'guest_infos',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteGuestInfo(entry.localUuid),
       );
-      return true;
     }
     final payload = _payloadMapper.guestInfoToRemote(info);
     final occPayload = await _occPushCheck(
@@ -4217,17 +4265,20 @@ class AppwriteSyncManager {
 
   Future<bool> _processSalaryWithdrawalEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(
-        () => appwriteService.deleteSalaryWithdrawal(entry.localUuid),
+      // ✅ Wave 5: durable tombstone
+      return _handleDeleteOp(
+        entity: 'salary_withdrawals',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteSalaryWithdrawal(entry.localUuid),
       );
-      return true;
     }
     final withdrawal = await _getSalaryWithdrawalByLocalUuid(entry.localUuid);
     if (withdrawal == null) {
-      await _deleteSilently(
-        () => appwriteService.deleteSalaryWithdrawal(entry.localUuid),
+      return _handleDeleteOp(
+        entity: 'salary_withdrawals',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteSalaryWithdrawal(entry.localUuid),
       );
-      return true;
     }
 
     // ✅ إصلاح FK constraint: التأكد أن الموظف موجود على Appwrite قبل الدفع
@@ -6073,17 +6124,20 @@ class AppwriteSyncManager {
 
   Future<bool> _processSalaryPaymentEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(
-        () => appwriteService.deleteSalaryPayment(entry.localUuid),
+      // ✅ Wave 5: durable tombstone
+      return _handleDeleteOp(
+        entity: 'salary_payments',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteSalaryPayment(entry.localUuid),
       );
-      return true;
     }
     final item = await _getSalaryPaymentByLocalUuid(entry.localUuid);
     if (item == null) {
-      await _deleteSilently(
-        () => appwriteService.deleteSalaryPayment(entry.localUuid),
+      return _handleDeleteOp(
+        entity: 'salary_payments',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteSalaryPayment(entry.localUuid),
       );
-      return true;
     }
     final payload = _payloadMapper.salaryPaymentToRemote(item);
     final occPayload = await _occPushCheck(
@@ -6107,17 +6161,20 @@ class AppwriteSyncManager {
 
   Future<bool> _processCashTransactionEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(
-        () => appwriteService.deleteCashTransaction(entry.localUuid),
+      // ✅ Wave 5: durable tombstone
+      return _handleDeleteOp(
+        entity: 'cash_transactions',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteCashTransaction(entry.localUuid),
       );
-      return true;
     }
     final item = await _getCashTransactionByLocalUuid(entry.localUuid);
     if (item == null) {
-      await _deleteSilently(
-        () => appwriteService.deleteCashTransaction(entry.localUuid),
+      return _handleDeleteOp(
+        entity: 'cash_transactions',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteCashTransaction(entry.localUuid),
       );
-      return true;
     }
 
     final payload = _payloadMapper.cashTransactionToRemote(item);
@@ -6147,17 +6204,20 @@ class AppwriteSyncManager {
 
   Future<bool> _processShiftNoteEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(
-        () => appwriteService.deleteShiftNote(entry.localUuid),
+      // ✅ Wave 5: durable tombstone
+      return _handleDeleteOp(
+        entity: 'shift_notes',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteShiftNote(entry.localUuid),
       );
-      return true;
     }
     final item = await _getShiftNoteByLocalUuid(entry.localUuid);
     if (item == null) {
-      await _deleteSilently(
-        () => appwriteService.deleteShiftNote(entry.localUuid),
+      return _handleDeleteOp(
+        entity: 'shift_notes',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteShiftNote(entry.localUuid),
       );
-      return true;
     }
 
     final payload = _payloadMapper.shiftNoteToRemote(item);
@@ -6193,13 +6253,15 @@ class AppwriteSyncManager {
   /// ✅ رفع سجل ترحيل الراتب إلى Appwrite
   Future<bool> _processSalaryCarryOverLogEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(
-        () => appwriteService.deleteDocument(
+      // ✅ Wave 5: durable tombstone
+      return _handleDeleteOp(
+        entity: 'salary_carry_over_logs',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteDocument(
           collectionId: 'salary_carry_over_logs',
           documentId: entry.localUuid,
         ),
       );
-      return true;
     }
     final log =
         await (database.select(database.salaryCarryOverLogs)
@@ -6207,13 +6269,14 @@ class AppwriteSyncManager {
               ..limit(1))
             .getSingleOrNull();
     if (log == null) {
-      await _deleteSilently(
-        () => appwriteService.deleteDocument(
+      return _handleDeleteOp(
+        entity: 'salary_carry_over_logs',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteDocument(
           collectionId: 'salary_carry_over_logs',
           documentId: entry.localUuid,
         ),
       );
-      return true;
     }
     final payload = _payloadMapper.salaryCarryOverLogToRemote(log);
     final occPayload = await _occPushCheck(
@@ -6234,17 +6297,20 @@ class AppwriteSyncManager {
 
   Future<bool> _processBlacklistEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(
-        () => appwriteService.deleteBlacklist(entry.localUuid),
+      // ✅ Wave 5: durable tombstone
+      return _handleDeleteOp(
+        entity: 'blacklist',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteBlacklist(entry.localUuid),
       );
-      return true;
     }
-    final item = await _getBlacklistShiftNoteByLocalUuid(entry.localUuid);
+    final item = await _getShiftNoteByLocalUuid(entry.localUuid);
     if (item == null) {
-      await _deleteSilently(
-        () => appwriteService.deleteBlacklist(entry.localUuid),
+      return _handleDeleteOp(
+        entity: 'blacklist',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteBlacklist(entry.localUuid),
       );
-      return true;
     }
 
     final payload = _blacklistToRemote(item);
@@ -6273,13 +6339,15 @@ class AppwriteSyncManager {
 
   Future<bool> _processPriceAdjustmentEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(
-        () => appwriteService.deleteDocument(
+      // ✅ Wave 5: durable tombstone
+      return _handleDeleteOp(
+        entity: 'price_adjustments',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteDocument(
           collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
           documentId: entry.localUuid,
         ),
       );
-      return true;
     }
 
     // جلب السجل المحلي للحصول على البيانات الكاملة
@@ -6290,14 +6358,15 @@ class AppwriteSyncManager {
             .getSingleOrNull();
 
     if (localRow == null) {
-      // السجل غير موجود محلياً — نحذف من Appwrite أيضاً
-      await _deleteSilently(
-        () => appwriteService.deleteDocument(
+      // السجل غير موجود محلياً — ارفع tombstone
+      return _handleDeleteOp(
+        entity: 'price_adjustments',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteDocument(
           collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
           documentId: entry.localUuid,
         ),
       );
-      return true;
     }
 
     final payload = _priceAdjustmentToRemote(localRow);
@@ -6505,23 +6574,26 @@ class AppwriteSyncManager {
   /// ✅ معالجة سجل إلغاء دفع (PaymentVoid) من الـ outbox
   Future<bool> _processPaymentVoidEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(
-        () => appwriteService.deleteDocument(
+      // ✅ Wave 5: durable tombstone
+      return _handleDeleteOp(
+        entity: 'payment_voids',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteDocument(
           collectionId: AppwriteConfig.paymentVoidsCollectionId,
           documentId: entry.localUuid,
         ),
       );
-      return true;
     }
     final voidRecord = await _getPaymentVoidByLocalUuid(entry.localUuid);
     if (voidRecord == null) {
-      await _deleteSilently(
-        () => appwriteService.deleteDocument(
+      return _handleDeleteOp(
+        entity: 'payment_voids',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteDocument(
           collectionId: AppwriteConfig.paymentVoidsCollectionId,
           documentId: entry.localUuid,
         ),
       );
-      return true;
     }
     final payload = _payloadMapper.paymentVoidToRemote(voidRecord);
     final occPayload = await _occPushCheck(
@@ -6553,13 +6625,15 @@ class AppwriteSyncManager {
   /// في الـ outbox ولا يُرفع أبداً. الآن يُرفع كبقية الكيانات.
   Future<bool> _processAuditLogEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(
-        () => appwriteService.deleteDocument(
+      // ✅ Wave 5: durable tombstone
+      return _handleDeleteOp(
+        entity: 'audit_logs',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteDocument(
           collectionId: AppwriteConfig.auditLogsCollectionId,
           documentId: entry.localUuid,
         ),
       );
-      return true;
     }
     final log =
         await (database.select(database.auditLogs)
@@ -6567,13 +6641,14 @@ class AppwriteSyncManager {
               ..limit(1))
             .getSingleOrNull();
     if (log == null) {
-      await _deleteSilently(
-        () => appwriteService.deleteDocument(
+      return _handleDeleteOp(
+        entity: 'audit_logs',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteDocument(
           collectionId: AppwriteConfig.auditLogsCollectionId,
           documentId: entry.localUuid,
         ),
       );
-      return true;
     }
     final payload = _adapterRegistry.auditLogs.toJsonForSource(
       log,
@@ -6629,18 +6704,22 @@ class AppwriteSyncManager {
         }
         return true;
       }
-      // الموظف غير موجود محلياً إطلاقاً — حذف فعلي من Appwrite
-      await _deleteSilently(
-        () => appwriteService.deleteEmployee(entry.localUuid),
+      // الموظف غير موجود محلياً إطلاقاً — ارفع tombstone بدلاً من hard delete
+      // ✅ Wave 5: durable tombstone (بدلاً من deleteEmployee المباشر)
+      return _handleDeleteOp(
+        entity: 'employees',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteEmployee(entry.localUuid),
       );
-      return true;
     }
     final item = await _getEmployeeByLocalUuid(entry.localUuid);
     if (item == null) {
-      await _deleteSilently(
-        () => appwriteService.deleteEmployee(entry.localUuid),
+      // ✅ Wave 5: durable tombstone
+      return _handleDeleteOp(
+        entity: 'employees',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteEmployee(entry.localUuid),
       );
-      return true;
     }
     final payload = _payloadMapper.employeeToRemote(item);
     final occPayload = await _occPushCheck(
@@ -6683,17 +6762,20 @@ class AppwriteSyncManager {
 
   Future<bool> _processBookingNoteEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(
-        () => appwriteService.deleteBookingNote(entry.localUuid),
+      // ✅ Wave 5: durable tombstone
+      return _handleDeleteOp(
+        entity: 'booking_notes',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteBookingNote(entry.localUuid),
       );
-      return true;
     }
     final item = await _getBookingNoteByLocalUuid(entry.localUuid);
     if (item == null) {
-      await _deleteSilently(
-        () => appwriteService.deleteBookingNote(entry.localUuid),
+      return _handleDeleteOp(
+        entity: 'booking_notes',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteBookingNote(entry.localUuid),
       );
-      return true;
     }
     final payload = _payloadMapper.bookingNoteToRemote(item);
     final occPayload = await _occPushCheck(
@@ -6717,17 +6799,20 @@ class AppwriteSyncManager {
 
   Future<bool> _processBookingNightEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(
-        () => appwriteService.deleteBookingNight(entry.localUuid),
+      // ✅ Wave 5: durable tombstone
+      return _handleDeleteOp(
+        entity: 'booking_nights',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteBookingNight(entry.localUuid),
       );
-      return true;
     }
     final item = await _getBookingNightByLocalUuid(entry.localUuid);
     if (item == null) {
-      await _deleteSilently(
-        () => appwriteService.deleteBookingNight(entry.localUuid),
+      return _handleDeleteOp(
+        entity: 'booking_nights',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteBookingNight(entry.localUuid),
       );
-      return true;
     }
     final payload = _payloadMapper.bookingNightToRemote(item);
     final occPayload = await _occPushCheck(
@@ -6751,17 +6836,20 @@ class AppwriteSyncManager {
 
   Future<bool> _processSalaryCycleEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(
-        () => appwriteService.deleteSalaryCycle(entry.localUuid),
+      // ✅ Wave 5: durable tombstone
+      return _handleDeleteOp(
+        entity: 'salary_cycles',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteSalaryCycle(entry.localUuid),
       );
-      return true;
     }
     final item = await _getSalaryCycleByLocalUuid(entry.localUuid);
     if (item == null) {
-      await _deleteSilently(
-        () => appwriteService.deleteSalaryCycle(entry.localUuid),
+      return _handleDeleteOp(
+        entity: 'salary_cycles',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteSalaryCycle(entry.localUuid),
       );
-      return true;
     }
     final payload = _payloadMapper.salaryCycleToRemote(item);
     final employee =
@@ -6794,23 +6882,26 @@ class AppwriteSyncManager {
 
   Future<bool> _processBookingPriceAdjustmentEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
-      await _deleteSilently(
-        () => appwriteService.deleteDocument(
+      // ✅ Wave 5: durable tombstone
+      return _handleDeleteOp(
+        entity: 'booking_price_adjustments',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteDocument(
           collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
           documentId: entry.localUuid,
         ),
       );
-      return true;
     }
     final item = await _getBookingPriceAdjustmentByLocalUuid(entry.localUuid);
     if (item == null) {
-      await _deleteSilently(
-        () => appwriteService.deleteDocument(
+      return _handleDeleteOp(
+        entity: 'booking_price_adjustments',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteDocument(
           collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
           documentId: entry.localUuid,
         ),
       );
-      return true;
     }
     final payload = _payloadMapper.bookingPriceAdjustmentToRemote(item);
     final occPayload = await _occPushCheck(
