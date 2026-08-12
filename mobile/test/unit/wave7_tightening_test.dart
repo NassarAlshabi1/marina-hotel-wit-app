@@ -52,8 +52,11 @@ void main() {
 
       // Simulate sync failure — clearPending called
       service.clearPending();
-      expect(service.pendingCount, 0,
-          reason: 'clearPending should remove ALL pending changes');
+      expect(
+        service.pendingCount,
+        0,
+        reason: 'clearPending should remove ALL pending changes',
+      );
     });
 
     test('1b. After clearPending, flush shows nothing', () async {
@@ -66,8 +69,11 @@ void main() {
       );
       service.clearPending();
       await service.flushPendingNotifications();
-      expect(service.pendingCount, 0,
-          reason: 'After clearPending + flush, no pending should remain');
+      expect(
+        service.pendingCount,
+        0,
+        reason: 'After clearPending + flush, no pending should remain',
+      );
     });
   });
 
@@ -103,24 +109,27 @@ void main() {
       expect(service.pendingCount, 0);
     });
 
-    test('2b. Same entity multiple times — only counted once in entity set', () async {
-      await service.onRemoteRecordApplied(
-        entity: 'rooms',
-        localUuid: 'room-ent-2a',
-        remoteDeviceId: 'device-A',
-        currentDeviceId: 'device-B',
-        lastModified: 1700000000,
-      );
-      await service.onRemoteRecordApplied(
-        entity: 'rooms',
-        localUuid: 'room-ent-2b',
-        remoteDeviceId: 'device-A',
-        currentDeviceId: 'device-B',
-        lastModified: 1700000001,
-      );
-      // 2 changes but only 1 entity type
-      expect(service.pendingCount, 2);
-    });
+    test(
+      '2b. Same entity multiple times — only counted once in entity set',
+      () async {
+        await service.onRemoteRecordApplied(
+          entity: 'rooms',
+          localUuid: 'room-ent-2a',
+          remoteDeviceId: 'device-A',
+          currentDeviceId: 'device-B',
+          lastModified: 1700000000,
+        );
+        await service.onRemoteRecordApplied(
+          entity: 'rooms',
+          localUuid: 'room-ent-2b',
+          remoteDeviceId: 'device-A',
+          currentDeviceId: 'device-B',
+          lastModified: 1700000001,
+        );
+        // 2 changes but only 1 entity type
+        expect(service.pendingCount, 2);
+      },
+    );
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -164,8 +173,11 @@ void main() {
         currentDeviceId: 'device-B',
         lastModified: 1700000000,
       );
-      expect(service.pendingCount, 0,
-          reason: 'First entry should still be dedup\'d after restart');
+      expect(
+        service.pendingCount,
+        0,
+        reason: 'First entry should still be dedup\'d after restart',
+      );
     });
 
     test('3b. New change (different lastModified) is NOT dedup\'d', () async {
@@ -187,8 +199,11 @@ void main() {
         currentDeviceId: 'device-B',
         lastModified: 1700000001, // Different timestamp
       );
-      expect(service.pendingCount, 1,
-          reason: 'New lastModified = new change = NOT dedup\'d');
+      expect(
+        service.pendingCount,
+        1,
+        reason: 'New lastModified = new change = NOT dedup\'d',
+      );
     });
   });
 
@@ -196,32 +211,38 @@ void main() {
   // 4. Partial failure — some collections fail, others succeed
   // ═══════════════════════════════════════════════════════════════════════
   group('4. Partial failure simulation', () {
-    test('4a. Some records applied before failure → flush shows applied ones', () async {
-      // Simulate: rooms sync succeeds (2 records applied)
-      await service.onRemoteRecordApplied(
-        entity: 'rooms',
-        localUuid: 'room-partial-1',
-        remoteDeviceId: 'device-A',
-        currentDeviceId: 'device-B',
-        lastModified: 1700000000,
-      );
-      await service.onRemoteRecordApplied(
-        entity: 'rooms',
-        localUuid: 'room-partial-2',
-        remoteDeviceId: 'device-A',
-        currentDeviceId: 'device-B',
-        lastModified: 1700000001,
-      );
+    test(
+      '4a. Some records applied before failure → flush shows applied ones',
+      () async {
+        // Simulate: rooms sync succeeds (2 records applied)
+        await service.onRemoteRecordApplied(
+          entity: 'rooms',
+          localUuid: 'room-partial-1',
+          remoteDeviceId: 'device-A',
+          currentDeviceId: 'device-B',
+          lastModified: 1700000000,
+        );
+        await service.onRemoteRecordApplied(
+          entity: 'rooms',
+          localUuid: 'room-partial-2',
+          remoteDeviceId: 'device-A',
+          currentDeviceId: 'device-B',
+          lastModified: 1700000001,
+        );
 
-      // Simulate: bookings sync fails (no hooks called)
-      // (In real code, the exception is caught per-collection, failedCollections.add('bookings'))
+        // Simulate: bookings sync fails (no hooks called)
+        // (In real code, the exception is caught per-collection, failedCollections.add('bookings'))
 
-      // Flush should still show notification for the 2 rooms that were applied
-      expect(service.pendingCount, 2);
-      await service.flushPendingNotifications();
-      expect(service.pendingCount, 0,
-          reason: 'Flush should clear pending after showing notification');
-    });
+        // Flush should still show notification for the 2 rooms that were applied
+        expect(service.pendingCount, 2);
+        await service.flushPendingNotifications();
+        expect(
+          service.pendingCount,
+          0,
+          reason: 'Flush should clear pending after showing notification',
+        );
+      },
+    );
 
     test('4b. All collections fail → no pending, no notification', () async {
       // Simulate: all sync methods fail before any upsertFromJson
@@ -237,34 +258,37 @@ void main() {
   // 5. Multiple entities from different devices
   // ═══════════════════════════════════════════════════════════════════════
   group('5. Multiple devices and entities', () {
-    test('5a. Changes from 2 devices, 3 entities → single batched notification', () async {
-      await service.onRemoteRecordApplied(
-        entity: 'bookings',
-        localUuid: 'booking-multi-1',
-        remoteDeviceId: 'device-A',
-        currentDeviceId: 'device-B',
-        lastModified: 1700000000,
-      );
-      await service.onRemoteRecordApplied(
-        entity: 'payments',
-        localUuid: 'pay-multi-1',
-        remoteDeviceId: 'device-A',
-        currentDeviceId: 'device-B',
-        lastModified: 1700000001,
-      );
-      await service.onRemoteRecordApplied(
-        entity: 'debts',
-        localUuid: 'debt-multi-1',
-        remoteDeviceId: 'device-C',
-        currentDeviceId: 'device-B',
-        lastModified: 1700000002,
-      );
+    test(
+      '5a. Changes from 2 devices, 3 entities → single batched notification',
+      () async {
+        await service.onRemoteRecordApplied(
+          entity: 'bookings',
+          localUuid: 'booking-multi-1',
+          remoteDeviceId: 'device-A',
+          currentDeviceId: 'device-B',
+          lastModified: 1700000000,
+        );
+        await service.onRemoteRecordApplied(
+          entity: 'payments',
+          localUuid: 'pay-multi-1',
+          remoteDeviceId: 'device-A',
+          currentDeviceId: 'device-B',
+          lastModified: 1700000001,
+        );
+        await service.onRemoteRecordApplied(
+          entity: 'debts',
+          localUuid: 'debt-multi-1',
+          remoteDeviceId: 'device-C',
+          currentDeviceId: 'device-B',
+          lastModified: 1700000002,
+        );
 
-      expect(service.pendingCount, 3);
-      // Flush should show ONE notification with 3 changes from 2 devices
-      await service.flushPendingNotifications();
-      expect(service.pendingCount, 0);
-    });
+        expect(service.pendingCount, 3);
+        // Flush should show ONE notification with 3 changes from 2 devices
+        await service.flushPendingNotifications();
+        expect(service.pendingCount, 0);
+      },
+    );
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -279,8 +303,11 @@ void main() {
         currentDeviceId: 'device-B',
         lastModified: 1700000000,
       );
-      expect(service.pendingCount, 0,
-          reason: 'Empty remoteDeviceId → can\'t determine source → skip');
+      expect(
+        service.pendingCount,
+        0,
+        reason: 'Empty remoteDeviceId → can\'t determine source → skip',
+      );
     });
 
     test('6b. Null currentDeviceId → still collect (can\'t compare)', () async {
@@ -291,21 +318,30 @@ void main() {
         currentDeviceId: null,
         lastModified: 1700000000,
       );
-      expect(service.pendingCount, 1,
-          reason: 'Null currentDeviceId → can\'t compare → collect to be safe');
+      expect(
+        service.pendingCount,
+        1,
+        reason: 'Null currentDeviceId → can\'t compare → collect to be safe',
+      );
     });
 
-    test('6c. Empty currentDeviceId → still collect (can\'t compare)', () async {
-      await service.onRemoteRecordApplied(
-        entity: 'rooms',
-        localUuid: 'room-empty-current',
-        remoteDeviceId: 'device-A',
-        currentDeviceId: '',
-        lastModified: 1700000000,
-      );
-      expect(service.pendingCount, 1,
-          reason: 'Empty currentDeviceId → can\'t compare → collect to be safe');
-    });
+    test(
+      '6c. Empty currentDeviceId → still collect (can\'t compare)',
+      () async {
+        await service.onRemoteRecordApplied(
+          entity: 'rooms',
+          localUuid: 'room-empty-current',
+          remoteDeviceId: 'device-A',
+          currentDeviceId: '',
+          lastModified: 1700000000,
+        );
+        expect(
+          service.pendingCount,
+          1,
+          reason: 'Empty currentDeviceId → can\'t compare → collect to be safe',
+        );
+      },
+    );
 
     test('6d. Same deviceId → skip (self-change)', () async {
       await service.onRemoteRecordApplied(
@@ -315,8 +351,11 @@ void main() {
         currentDeviceId: 'device-B',
         lastModified: 1700000000,
       );
-      expect(service.pendingCount, 0,
-          reason: 'Same deviceId → self-change → skip');
+      expect(
+        service.pendingCount,
+        0,
+        reason: 'Same deviceId → self-change → skip',
+      );
     });
 
     test('6e. Different deviceId → collect (remote change)', () async {
@@ -327,8 +366,11 @@ void main() {
         currentDeviceId: 'device-B',
         lastModified: 1700000000,
       );
-      expect(service.pendingCount, 1,
-          reason: 'Different deviceId → remote change → collect');
+      expect(
+        service.pendingCount,
+        1,
+        reason: 'Different deviceId → remote change → collect',
+      );
     });
   });
 
@@ -358,8 +400,11 @@ void main() {
         currentDeviceId: 'device-B',
         lastModified: 1700000000,
       );
-      expect(service.pendingCount, 0,
-          reason: 'Persistent dedup should prevent re-notification');
+      expect(
+        service.pendingCount,
+        0,
+        reason: 'Persistent dedup should prevent re-notification',
+      );
     });
   });
 }

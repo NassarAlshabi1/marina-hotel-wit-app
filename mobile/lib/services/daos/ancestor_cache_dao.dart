@@ -35,8 +35,7 @@ class AncestorCacheDao extends DatabaseAccessor<AppDatabase>
   }) async {
     // حذف السجل الموجود (إن وُجد) قبل الإدراج لتفادي UNIQUE constraint
     await (delete(ancestorCache)..where(
-          (t) =>
-              t.entity.equals(entity) & t.localUuid.equals(localUuid),
+          (t) => t.entity.equals(entity) & t.localUuid.equals(localUuid),
         ))
         .go();
 

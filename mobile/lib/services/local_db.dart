@@ -788,16 +788,12 @@ class Outbox extends Table {
   /// الآن: كل وجهة لها حالة منفصلة.
   TextColumn get primaryProcessingStatus =>
       text().withDefault(const Constant('pending'))();
-  IntColumn get primaryAttempts =>
-      integer().withDefault(const Constant(0))();
-  TextColumn get primaryLastError =>
-      text().nullable()();
+  IntColumn get primaryAttempts => integer().withDefault(const Constant(0))();
+  TextColumn get primaryLastError => text().nullable()();
   TextColumn get secondaryProcessingStatus =>
       text().withDefault(const Constant('pending'))();
-  IntColumn get secondaryAttempts =>
-      integer().withDefault(const Constant(0))();
-  TextColumn get secondaryLastError =>
-      text().nullable()();
+  IntColumn get secondaryAttempts => integer().withDefault(const Constant(0))();
+  TextColumn get secondaryLastError => text().nullable()();
 
   /// ✅ Wave 5 (2026-08-12): Generation field لمنع stale acknowledgements.
   ///
@@ -818,13 +814,11 @@ class Outbox extends Table {
   /// 5. التأكيد يُرفض، السجل يُعاد لـ pending، worker-A يُعاد رفعه
   ///
   /// القيمة الافتراضية: 1 (للسجلات الجديدة)
-  IntColumn get payloadVersion =>
-      integer().withDefault(const Constant(1))();
+  IntColumn get payloadVersion => integer().withDefault(const Constant(1))();
 
   /// ✅ Wave 5: قيمة `payloadVersion` عند الالتقاط (claim).
   /// تُستخدم للتحقق من أن العامل الذي يؤكد التسليم هو نفس العامل الذي التقطه.
-  IntColumn get processingPayloadVersion =>
-      integer().nullable()();
+  IntColumn get processingPayloadVersion => integer().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -895,8 +889,7 @@ class SyncState extends Table {
   /// فارغة (full fetch) لضمان عدم فقدان أي سجل.
   ///
   /// Migration 56 يضيف هذا العمود مع DEFAULT 0.
-  IntColumn get fullSyncComplete =>
-      integer().withDefault(const Constant(0))();
+  IntColumn get fullSyncComplete => integer().withDefault(const Constant(0))();
 
   @override
   Set<Column> get primaryKey => {id};

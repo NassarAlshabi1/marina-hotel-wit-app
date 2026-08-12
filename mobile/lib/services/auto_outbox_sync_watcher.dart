@@ -152,7 +152,7 @@ class AutoOutboxSyncWatcher {
   }
 
   /// Manually triggers a push (e.g., from a sync button).
-Future<void> pushNow() async {
+  Future<void> pushNow() async {
     _debounceTimer?.cancel();
     // ✅ Wave 5: ownership-safe tryAcquire (with token).
     final token = SyncGuard.tryAcquire(label: 'auto_outbox_push');

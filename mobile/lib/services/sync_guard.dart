@@ -121,7 +121,8 @@ class SyncGuard {
     _activeSyncStartedAt = DateTime.now();
     _activeSyncLabel = label;
     dlog(
-      () => '🔒 SyncGuard: tryAcquire GRANTED for "$label" (token=#$_activeSyncToken)',
+      () =>
+          '🔒 SyncGuard: tryAcquire GRANTED for "$label" (token=#$_activeSyncToken)',
     );
     return SyncLockToken._(_activeSyncToken, label);
   }
@@ -151,7 +152,8 @@ class SyncGuard {
     if (_activeSyncStartedAt == null) {
       // لا يوجد lock نشط — تسجيل فقط (لا يمكن release ما لا يملك)
       dlog(
-        () => '⚠️ SyncGuard: release(token=#${token._value}) called but no active sync '
+        () =>
+            '⚠️ SyncGuard: release(token=#${token._value}) called but no active sync '
             '(label="${token._label}")',
       );
       return;
@@ -164,7 +166,8 @@ class SyncGuard {
     if (!isOwner && !isStale) {
       // ✅ ownership violation — عملية تحاول فك lock لا تملكه
       dlog(
-        () => '⚠️ SyncGuard: release REJECTED for token=#${token._value} '
+        () =>
+            '⚠️ SyncGuard: release REJECTED for token=#${token._value} '
             '(label="${token._label}") — current owner is token=#$_activeSyncToken '
             '(label="$_activeSyncLabel"). This is a stale/cross release attempt.',
       );
@@ -174,13 +177,15 @@ class SyncGuard {
     if (!isOwner && isStale) {
       // stale release — مسموح ولكن نسجل تحذيراً
       dlog(
-        () => '⚠️ SyncGuard: stale release accepted for token=#${token._value} '
+        () =>
+            '⚠️ SyncGuard: stale release accepted for token=#${token._value} '
             '(label="${token._label}") — lock was stale (elapsed=${elapsed.inSeconds}s, '
             'current_owner=#$_activeSyncToken/$_activeSyncLabel)',
       );
     } else {
       dlog(
-        () => '🔒 SyncGuard: release OK for token=#${token._value} '
+        () =>
+            '🔒 SyncGuard: release OK for token=#${token._value} '
             '(label="${token._label}", elapsed=${elapsed.inSeconds}s)',
       );
     }
@@ -219,14 +224,16 @@ class SyncGuard {
   static void markFinished() {
     if (_activeSyncStartedAt == null) {
       dlog(
-        () => '⚠️ SyncGuard: markFinished() called but no active sync! '
+        () =>
+            '⚠️ SyncGuard: markFinished() called but no active sync! '
             'This indicates a missing or duplicate markStarted() call.',
       );
       return;
     }
     final elapsed = DateTime.now().difference(_activeSyncStartedAt!);
     dlog(
-      () => '🔒 SyncGuard: markFinished() — label="$_activeSyncLabel" '
+      () =>
+          '🔒 SyncGuard: markFinished() — label="$_activeSyncLabel" '
           '(elapsed=${elapsed.inSeconds}s)',
     );
     _activeSyncStartedAt = null;

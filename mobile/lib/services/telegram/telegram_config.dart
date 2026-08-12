@@ -166,7 +166,10 @@ class TelegramConfig {
       final prefs = await SharedPreferences.getInstance();
       if (prefs.containsKey(_botTokenKey)) {
         await prefs.remove(_botTokenKey);
-        dlog(() => '🧹 Old token removed from SharedPreferences (security cleanup)');
+        dlog(
+          () =>
+              '🧹 Old token removed from SharedPreferences (security cleanup)',
+        );
       }
     } catch (e) {
       dlog(() => '⚠️ Failed to remove legacy token from SharedPreferences: $e');

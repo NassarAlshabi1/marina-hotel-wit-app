@@ -141,9 +141,18 @@ Future<void> main() async {
     ]);
     // تأجيل بقية الخدمات لما بعد أول frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_safeInit('RemoteConfigService', RemoteConfigService.instance.initialize));
-      unawaited(_safeInit('ApiConfigService', ApiConfigService.instance.initialize));
-      unawaited(_safeInit('PostHogService', PostHogService.instance.initialize));
+      unawaited(
+        _safeInit(
+          'RemoteConfigService',
+          RemoteConfigService.instance.initialize,
+        ),
+      );
+      unawaited(
+        _safeInit('ApiConfigService', ApiConfigService.instance.initialize),
+      );
+      unawaited(
+        _safeInit('PostHogService', PostHogService.instance.initialize),
+      );
     });
   } else {
     // جهاز قوي: كل الخدمات بالتوازي كما كان
@@ -325,7 +334,9 @@ void _startHealthChecker() {
 // ignore: unused_element
 Future<void> _initializeSecondarySync() async {
   // Secondary sync مُعطّل بالكامل. لا تنفّذ أي شيء.
-  dlog('🔵 [Main] Secondary sync disabled — Appwrite primary is sole authority');
+  dlog(
+    '🔵 [Main] Secondary sync disabled — Appwrite primary is sole authority',
+  );
 }
 
 Future<void> _initializeFullyAutomatedSyncSystem() async {

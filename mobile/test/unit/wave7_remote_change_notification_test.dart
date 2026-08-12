@@ -33,17 +33,23 @@ void main() {
   // 1. Remote change from another device → notification triggered
   // ═══════════════════════════════════════════════════════════════════════
   group('1. Remote change from another device', () {
-    test('1a. onRemoteRecordApplied collects change from different device', () async {
-      await service.onRemoteRecordApplied(
-        entity: 'rooms',
-        localUuid: 'room-uuid-1',
-        remoteDeviceId: 'device-A',
-        currentDeviceId: 'device-B',
-        lastModified: 1700000000,
-      );
-      expect(service.pendingCount, 1,
-          reason: 'Change from another device should be collected');
-    });
+    test(
+      '1a. onRemoteRecordApplied collects change from different device',
+      () async {
+        await service.onRemoteRecordApplied(
+          entity: 'rooms',
+          localUuid: 'room-uuid-1',
+          remoteDeviceId: 'device-A',
+          currentDeviceId: 'device-B',
+          lastModified: 1700000000,
+        );
+        expect(
+          service.pendingCount,
+          1,
+          reason: 'Change from another device should be collected',
+        );
+      },
+    );
 
     test('1b. flushPendingNotifications shows notification', () async {
       await service.onRemoteRecordApplied(
@@ -54,8 +60,11 @@ void main() {
         lastModified: 1700000001,
       );
       await service.flushPendingNotifications();
-      expect(service.pendingCount, 0,
-          reason: 'Pending should be cleared after flush');
+      expect(
+        service.pendingCount,
+        0,
+        reason: 'Pending should be cleared after flush',
+      );
     });
   });
 
@@ -71,21 +80,30 @@ void main() {
         currentDeviceId: 'device-B',
         lastModified: 1700000002,
       );
-      expect(service.pendingCount, 0,
-          reason: 'Change from same device should NOT be collected');
+      expect(
+        service.pendingCount,
+        0,
+        reason: 'Change from same device should NOT be collected',
+      );
     });
 
-    test('2b. Null currentDeviceId → collected (can\'t determine source)', () async {
-      await service.onRemoteRecordApplied(
-        entity: 'rooms',
-        localUuid: 'room-uuid-4',
-        remoteDeviceId: 'device-A',
-        currentDeviceId: null,
-        lastModified: 1700000003,
-      );
-      expect(service.pendingCount, 1,
-          reason: 'If currentDeviceId is null, we can\'t compare — collect');
-    });
+    test(
+      '2b. Null currentDeviceId → collected (can\'t determine source)',
+      () async {
+        await service.onRemoteRecordApplied(
+          entity: 'rooms',
+          localUuid: 'room-uuid-4',
+          remoteDeviceId: 'device-A',
+          currentDeviceId: null,
+          lastModified: 1700000003,
+        );
+        expect(
+          service.pendingCount,
+          1,
+          reason: 'If currentDeviceId is null, we can\'t compare — collect',
+        );
+      },
+    );
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -215,8 +233,12 @@ void main() {
       );
 
       // Should be dedup'd by persistent storage (SharedPreferences)
-      expect(service.pendingCount, 0,
-          reason: 'Same change after restart should NOT be collected (persistent dedup)');
+      expect(
+        service.pendingCount,
+        0,
+        reason:
+            'Same change after restart should NOT be collected (persistent dedup)',
+      );
     });
   });
 
@@ -232,8 +254,11 @@ void main() {
         currentDeviceId: 'device-B',
         lastModified: 1700000000,
       );
-      expect(service.pendingCount, 0,
-          reason: 'Empty deviceId → can\'t determine source → skip');
+      expect(
+        service.pendingCount,
+        0,
+        reason: 'Empty deviceId → can\'t determine source → skip',
+      );
     });
 
     test('6b. Null lastModified → still collected', () async {
@@ -244,8 +269,11 @@ void main() {
         currentDeviceId: 'device-B',
         lastModified: null,
       );
-      expect(service.pendingCount, 1,
-          reason: 'Null lastModified should still be collected');
+      expect(
+        service.pendingCount,
+        1,
+        reason: 'Null lastModified should still be collected',
+      );
     });
 
     test('6c. clearPending removes all pending', () async {

@@ -96,8 +96,11 @@ void main() {
       () async {
         final debt = await _insertDebt(db, amount: null);
         final payload = payloadMapper.debtToRemote(debt);
-        expect(payload.containsKey('amount'), isFalse,
-            reason: 'amount null يجب ألا يُرسل في الـ payload');
+        expect(
+          payload.containsKey('amount'),
+          isFalse,
+          reason: 'amount null يجب ألا يُرسل في الـ payload',
+        );
       },
     );
 
@@ -152,9 +155,9 @@ void main() {
         );
         await db.into(db.debts).insert(companion);
 
-        final saved = await (db.select(db.debts)
-              ..where((t) => t.localUuid.equals('debt-1')))
-            .getSingle();
+        final saved = await (db.select(
+          db.debts,
+        )..where((t) => t.localUuid.equals('debt-1'))).getSingle();
         expect(saved.bookingUuidCache, 'booking-uuid-789');
       },
     );
@@ -177,9 +180,9 @@ void main() {
         );
         await db.into(db.debts).insert(companion);
 
-        final saved = await (db.select(db.debts)
-              ..where((t) => t.localUuid.equals('debt-2')))
-            .getSingle();
+        final saved = await (db.select(
+          db.debts,
+        )..where((t) => t.localUuid.equals('debt-2'))).getSingle();
         expect(saved.debtorName, 'Mohammed Saleh');
       },
     );
@@ -202,9 +205,9 @@ void main() {
         );
         await db.into(db.debts).insert(companion);
 
-        final saved = await (db.select(db.debts)
-              ..where((t) => t.localUuid.equals('debt-3')))
-            .getSingle();
+        final saved = await (db.select(
+          db.debts,
+        )..where((t) => t.localUuid.equals('debt-3'))).getSingle();
         expect(saved.amount, 2500.75);
       },
     );
@@ -227,9 +230,9 @@ void main() {
         );
         await db.into(db.debts).insert(companion);
 
-        final saved = await (db.select(db.debts)
-              ..where((t) => t.localUuid.equals('debt-4')))
-            .getSingle();
+        final saved = await (db.select(
+          db.debts,
+        )..where((t) => t.localUuid.equals('debt-4'))).getSingle();
         expect(saved.date, '2026-08-12');
       },
     );
@@ -256,9 +259,9 @@ void main() {
         );
         await db.into(db.debts).insert(companion);
 
-        final saved = await (db.select(db.debts)
-              ..where((t) => t.localUuid.equals('debt-5')))
-            .getSingle();
+        final saved = await (db.select(
+          db.debts,
+        )..where((t) => t.localUuid.equals('debt-5'))).getSingle();
         expect(saved.bookingUuidCache, 'booking-snake');
         expect(saved.debtorName, 'Snake Debtor');
         expect(saved.amount, 300.0);
@@ -284,9 +287,9 @@ void main() {
         );
         await db.into(db.debts).insert(companion);
 
-        final saved = await (db.select(db.debts)
-              ..where((t) => t.localUuid.equals('debt-6')))
-            .getSingle();
+        final saved = await (db.select(
+          db.debts,
+        )..where((t) => t.localUuid.equals('debt-6'))).getSingle();
         expect(saved.bookingUuidCache, isNull);
         expect(saved.debtorName, isNull);
         expect(saved.amount, isNull);
@@ -300,38 +303,54 @@ void main() {
   // ═══════════════════════════════════════════════════════════════════════
   group('Migration 58: أعمدة debts الجديدة', () {
     test('3a. عمود booking_uuid_cache موجود في debts', () async {
-      final result = await db.customSelect(
-        'PRAGMA table_info(debts)',
-        readsFrom: {db.debts},
-      ).get();
-      final columnNames = result.map((row) => row.read<String>('name')).toList();
+      final result = await db
+          .customSelect(
+            'PRAGMA table_info(debts)',
+            readsFrom: {db.debts},
+          )
+          .get();
+      final columnNames = result
+          .map((row) => row.read<String>('name'))
+          .toList();
       expect(columnNames, contains('booking_uuid_cache'));
     });
 
     test('3b. عمود debtor_name موجود في debts', () async {
-      final result = await db.customSelect(
-        'PRAGMA table_info(debts)',
-        readsFrom: {db.debts},
-      ).get();
-      final columnNames = result.map((row) => row.read<String>('name')).toList();
+      final result = await db
+          .customSelect(
+            'PRAGMA table_info(debts)',
+            readsFrom: {db.debts},
+          )
+          .get();
+      final columnNames = result
+          .map((row) => row.read<String>('name'))
+          .toList();
       expect(columnNames, contains('debtor_name'));
     });
 
     test('3c. عمود amount موجود في debts', () async {
-      final result = await db.customSelect(
-        'PRAGMA table_info(debts)',
-        readsFrom: {db.debts},
-      ).get();
-      final columnNames = result.map((row) => row.read<String>('name')).toList();
+      final result = await db
+          .customSelect(
+            'PRAGMA table_info(debts)',
+            readsFrom: {db.debts},
+          )
+          .get();
+      final columnNames = result
+          .map((row) => row.read<String>('name'))
+          .toList();
       expect(columnNames, contains('amount'));
     });
 
     test('3d. عمود date موجود في debts', () async {
-      final result = await db.customSelect(
-        'PRAGMA table_info(debts)',
-        readsFrom: {db.debts},
-      ).get();
-      final columnNames = result.map((row) => row.read<String>('name')).toList();
+      final result = await db
+          .customSelect(
+            'PRAGMA table_info(debts)',
+            readsFrom: {db.debts},
+          )
+          .get();
+      final columnNames = result
+          .map((row) => row.read<String>('name'))
+          .toList();
       expect(columnNames, contains('date'));
     });
 
@@ -358,8 +377,11 @@ void main() {
         );
         expect(filtered.containsKey('bookingUuidCache'), isTrue);
         expect(filtered['bookingUuidCache'], 'booking-1');
-        expect(filtered.containsKey('unknownField'), isFalse,
-            reason: 'الحقول غير المدرجة يجب أن تُزال');
+        expect(
+          filtered.containsKey('unknownField'),
+          isFalse,
+          reason: 'الحقول غير المدرجة يجب أن تُزال',
+        );
       },
     );
 
@@ -478,9 +500,9 @@ void main() {
         await db.into(db.debts).insertOnConflictUpdate(companion);
 
         // 4. التحقق أن القيم محفوظة بعد round-trip
-        final saved = await (db.select(db.debts)
-              ..where((t) => t.localUuid.equals(debt.localUuid)))
-            .getSingle();
+        final saved = await (db.select(
+          db.debts,
+        )..where((t) => t.localUuid.equals(debt.localUuid))).getSingle();
         expect(saved.bookingUuidCache, 'rt-1');
         expect(saved.debtorName, 'RT Debtor');
         expect(saved.amount, 500.0);
@@ -543,29 +565,34 @@ Future<Debt> _insertDebt(
 }) async {
   final uuid = 'debt-${DateTime.now().microsecondsSinceEpoch}';
   final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-  await db.into(db.debts).insert(
-    DebtsCompanion.insert(
-      localUuid: uuid,
-      guestName: 'Test Guest',
-      checkinDate: '2026-08-01',
-      totalAmount: 1000.0,
-      paidAmount: 500.0,
-      paymentDate: '2026-08-10',
-      isSettled: 0,
-      createdAt: now,
-      updatedAt: now,
-      lastModified: now,
-      // ✅ حقول Wave 6 الجديدة
-      bookingUuidCache: bookingUuidCache != null
-          ? drift.Value(bookingUuidCache)
-          : const drift.Value.absent(),
-      debtorName: debtorName != null
-          ? drift.Value(debtorName)
-          : const drift.Value.absent(),
-      amount: amount != null ? drift.Value(amount) : const drift.Value.absent(),
-      date: date != null ? drift.Value(date) : const drift.Value.absent(),
-    ),
-  );
-  return (db.select(db.debts)..where((t) => t.localUuid.equals(uuid)))
-      .getSingle();
+  await db
+      .into(db.debts)
+      .insert(
+        DebtsCompanion.insert(
+          localUuid: uuid,
+          guestName: 'Test Guest',
+          checkinDate: '2026-08-01',
+          totalAmount: 1000.0,
+          paidAmount: 500.0,
+          paymentDate: '2026-08-10',
+          isSettled: 0,
+          createdAt: now,
+          updatedAt: now,
+          lastModified: now,
+          // ✅ حقول Wave 6 الجديدة
+          bookingUuidCache: bookingUuidCache != null
+              ? drift.Value(bookingUuidCache)
+              : const drift.Value.absent(),
+          debtorName: debtorName != null
+              ? drift.Value(debtorName)
+              : const drift.Value.absent(),
+          amount: amount != null
+              ? drift.Value(amount)
+              : const drift.Value.absent(),
+          date: date != null ? drift.Value(date) : const drift.Value.absent(),
+        ),
+      );
+  return (db.select(
+    db.debts,
+  )..where((t) => t.localUuid.equals(uuid))).getSingle();
 }

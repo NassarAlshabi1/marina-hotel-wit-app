@@ -259,7 +259,11 @@ void main() {
         final colByName = {for (final c in tableInfo!) c['name'] as String: c};
         final col = colByName['sync_timestamp'];
         expect(col, isNotNull, reason: 'sync_timestamp غير موجود في rooms');
-        expect(col!['notnull'], 1, reason: 'sync_timestamp يجب أن يكون NOT NULL');
+        expect(
+          col!['notnull'],
+          1,
+          reason: 'sync_timestamp يجب أن يكون NOT NULL',
+        );
         expect(
           col['dflt_value'],
           '0',

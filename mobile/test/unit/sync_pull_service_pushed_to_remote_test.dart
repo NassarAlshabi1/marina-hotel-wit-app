@@ -156,7 +156,8 @@ void main() {
         expect(
           result.pushedToRemote,
           isFalse,
-          reason: 'LWW fallback لا يضع pushedToRemote=true '
+          reason:
+              'LWW fallback لا يضع pushedToRemote=true '
               '(البيانات المحلية أحدث)',
         );
       },
@@ -324,7 +325,8 @@ void main() {
         expect(
           result.shouldApplyRemote,
           isTrue,
-          reason: 'VC متطابق لكن المحتوى مختلف → البعيد أحدث (appwrite لم '
+          reason:
+              'VC متطابق لكن المحتوى مختلف → البعيد أحدث (appwrite لم '
               'يزد الـ VC تلقائياً)',
         );
       },

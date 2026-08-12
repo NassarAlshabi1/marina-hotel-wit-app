@@ -121,8 +121,11 @@ void main() {
           localUuid: 'room-tomb-1',
         );
 
-        expect(result.shouldApplyRemote, isTrue,
-            reason: 'تطبيق tombstone من remote على السجل النشط محلياً');
+        expect(
+          result.shouldApplyRemote,
+          isTrue,
+          reason: 'تطبيق tombstone من remote على السجل النشط محلياً',
+        );
       },
     );
 
@@ -147,8 +150,11 @@ void main() {
           localUuid: 'room-tomb-2',
         );
 
-        expect(result.shouldApplyRemote, isFalse,
-            reason: 'لا نُحيي السجل المحذوف محلياً');
+        expect(
+          result.shouldApplyRemote,
+          isFalse,
+          reason: 'لا نُحيي السجل المحذوف محلياً',
+        );
       },
     );
 
@@ -172,8 +178,11 @@ void main() {
           localUuid: 'room-tomb-3',
         );
 
-        expect(result.shouldApplyRemote, isTrue,
-            reason: 'كلاهما محذوف → تطبيق remote للتحديث');
+        expect(
+          result.shouldApplyRemote,
+          isTrue,
+          reason: 'كلاهما محذوف → تطبيق remote للتحديث',
+        );
       },
     );
   });
@@ -191,7 +200,11 @@ void main() {
       '3a. tryAcquire يُرجع token (ليس bool) عند النجاح',
       () {
         final token = SyncGuard.tryAcquire(label: 'test_a');
-        expect(token, isNotNull, reason: 'tryAcquire يجب أن يُرجع token عند النجاح');
+        expect(
+          token,
+          isNotNull,
+          reason: 'tryAcquire يجب أن يُرجع token عند النجاح',
+        );
         expect(SyncGuard.isActive, isTrue);
         expect(SyncGuard.activeLabel, 'test_a');
       },
@@ -213,10 +226,18 @@ void main() {
       '3c. release بـ token صحيح يفك القفل',
       () {
         final token = SyncGuard.tryAcquire(label: 'test_c');
-        expect(token, isNotNull, reason: 'tryAcquire يجب أن يُرجع token عند النجاح');
+        expect(
+          token,
+          isNotNull,
+          reason: 'tryAcquire يجب أن يُرجع token عند النجاح',
+        );
         expect(SyncGuard.isActive, isTrue);
         SyncGuard.release(token!);
-        expect(SyncGuard.isActive, isFalse, reason: 'release بـ token صحيح يفك القفل');
+        expect(
+          SyncGuard.isActive,
+          isFalse,
+          reason: 'release بـ token صحيح يفك القفل',
+        );
       },
     );
 
@@ -297,10 +318,14 @@ void main() {
           source: 'local',
         );
         // قراءة payload_version الأولي
-        var record = await (db.select(db.outbox)
-              ..where((t) => t.id.equals(id)))
-            .getSingle();
-        expect(record.payloadVersion, 1, reason: 'payload_version الافتراضي = 1');
+        var record = await (db.select(
+          db.outbox,
+        )..where((t) => t.id.equals(id))).getSingle();
+        expect(
+          record.payloadVersion,
+          1,
+          reason: 'payload_version الافتراضي = 1',
+        );
 
         // تحديث payload
         await outboxDao.merge(
@@ -311,10 +336,14 @@ void main() {
           clientTs: 2000,
           source: 'local',
         );
-        record = await (db.select(db.outbox)
-              ..where((t) => t.id.equals(id)))
-            .getSingle();
-        expect(record.payloadVersion, 2, reason: 'payload_version يجب أن يزيد إلى 2');
+        record = await (db.select(
+          db.outbox,
+        )..where((t) => t.id.equals(id))).getSingle();
+        expect(
+          record.payloadVersion,
+          2,
+          reason: 'payload_version يجب أن يزيد إلى 2',
+        );
       },
     );
 
@@ -339,7 +368,8 @@ void main() {
         expect(
           batch.first.processingPayloadVersion,
           batch.first.payloadVersion,
-          reason: 'processing_payload_version يجب أن يساوي payload_version عند الالتقاط',
+          reason:
+              'processing_payload_version يجب أن يساوي payload_version عند الالتقاط',
         );
         expect(batch.first.processingPayloadVersion, 1);
       },
@@ -388,9 +418,9 @@ void main() {
         );
 
         // تحقق أن payloadVersion زاد
-        var record = await (db.select(db.outbox)
-              ..where((t) => t.id.equals(id)))
-            .getSingle();
+        var record = await (db.select(
+          db.outbox,
+        )..where((t) => t.id.equals(id))).getSingle();
         expect(record.payloadVersion, 2);
         // ✅ merge يُعيد processing_status لـ pending ويمسح processing_payload_version
         expect(record.processingStatus, 'pending');
@@ -400,9 +430,9 @@ void main() {
         await outboxDao.markDeliveredToPrimary(id);
 
         // 4. التأكيد يُرفض (status != 'processing')
-        record = await (db.select(db.outbox)
-              ..where((t) => t.id.equals(id)))
-            .getSingle();
+        record = await (db.select(
+          db.outbox,
+        )..where((t) => t.id.equals(id))).getSingle();
         expect(
           record.processingStatus,
           'pending',
@@ -445,9 +475,9 @@ void main() {
         await outboxDao.markDeliveredToPrimary(id);
 
         // السجل يجب أن يُحذف (لأن secondary=true دائماً)
-        final record = await (db.select(db.outbox)
-              ..where((t) => t.id.equals(id)))
-            .getSingleOrNull();
+        final record = await (db.select(
+          db.outbox,
+        )..where((t) => t.id.equals(id))).getSingleOrNull();
         expect(
           record,
           isNull,
@@ -473,7 +503,9 @@ void main() {
           source: 'local',
         );
 
-        final cleaned = await outboxDao.cleanupForMissingEntities(['missing-pending']);
+        final cleaned = await outboxDao.cleanupForMissingEntities([
+          'missing-pending',
+        ]);
         expect(cleaned, 0, reason: 'عنصر pending يجب أن يُترك للأمان');
 
         final remaining = await (db.select(db.outbox)).get();
@@ -493,10 +525,13 @@ void main() {
           clientTs: 100,
           source: 'local',
         );
-        await (db.update(db.outbox)..where((t) => t.id.equals(id)))
-            .write(OutboxCompanion(processingStatus: const drift.Value('failed')));
+        await (db.update(db.outbox)..where((t) => t.id.equals(id))).write(
+          OutboxCompanion(processingStatus: const drift.Value('failed')),
+        );
 
-        final cleaned = await outboxDao.cleanupForMissingEntities(['missing-failed']);
+        final cleaned = await outboxDao.cleanupForMissingEntities([
+          'missing-failed',
+        ]);
         expect(cleaned, 0, reason: 'عنصر failed يجب أن يُترك للأمان');
 
         final remaining = await (db.select(db.outbox)).get();
@@ -515,10 +550,13 @@ void main() {
           clientTs: 100,
           source: 'local',
         );
-        await (db.update(db.outbox)..where((t) => t.id.equals(id)))
-            .write(OutboxCompanion(processingStatus: const drift.Value('completed')));
+        await (db.update(db.outbox)..where((t) => t.id.equals(id))).write(
+          OutboxCompanion(processingStatus: const drift.Value('completed')),
+        );
 
-        final cleaned = await outboxDao.cleanupForMissingEntities(['missing-completed']);
+        final cleaned = await outboxDao.cleanupForMissingEntities([
+          'missing-completed',
+        ]);
         expect(cleaned, 1, reason: 'عنصر completed يجب أن يُحذف بأمان');
       },
     );
@@ -552,10 +590,14 @@ void main() {
           source: 'local',
         );
 
-        final record = await (db.select(db.outbox)
-              ..where((t) => t.id.equals(id)))
-            .getSingle();
-        expect(record.op, 'delete', reason: 'op=delete يجب أن لا يُستبدل بـ update');
+        final record = await (db.select(
+          db.outbox,
+        )..where((t) => t.id.equals(id))).getSingle();
+        expect(
+          record.op,
+          'delete',
+          reason: 'op=delete يجب أن لا يُستبدل بـ update',
+        );
       },
     );
 
@@ -588,9 +630,9 @@ void main() {
           source: 'local',
         );
 
-        final record = await (db.select(db.outbox)
-              ..where((t) => t.id.equals(id)))
-            .getSingle();
+        final record = await (db.select(
+          db.outbox,
+        )..where((t) => t.id.equals(id))).getSingle();
         expect(
           record.deliveredToPrimary,
           isFalse,

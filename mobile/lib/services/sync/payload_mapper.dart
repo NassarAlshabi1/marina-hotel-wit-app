@@ -583,7 +583,7 @@ class PayloadMapper {
     return data;
   }
 
-/// يحوّل [ShiftNote] محلي إلى payload لـ Appwrite.
+  /// يحوّل [ShiftNote] محلي إلى payload لـ Appwrite.
   Map<String, dynamic> shiftNoteToRemote(ShiftNote note) {
     final createdDate = DateTime.fromMillisecondsSinceEpoch(
       note.createdAt * 1000,

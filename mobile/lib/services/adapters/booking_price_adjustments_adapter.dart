@@ -135,7 +135,8 @@ class BookingPriceAdjustmentsAdapter
         'effectiveHotelDay',
         src,
         altKey: 'effective_hotel_day',
-        fallback: _asString(json, 'hotelDayKey', src) ??
+        fallback:
+            _asString(json, 'hotelDayKey', src) ??
             _asString(json, 'appliedDate', src) ??
             '',
       ),

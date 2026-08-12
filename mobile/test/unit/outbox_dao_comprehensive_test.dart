@@ -229,7 +229,10 @@ void main() {
         // delivered_to_secondary افتراضياً true (لأن SecondaryAppwriteConfig غير مُهيّأ)
         // delivered_to_primary = false (افتراضي)
         // ✅ Sync Safety Fix: set to processing before markDelivered
-        await (db.customStatement('UPDATE outbox SET processing_status = ? WHERE id = ?', ['processing', id]));
+        await (db.customStatement(
+          'UPDATE outbox SET processing_status = ? WHERE id = ?',
+          ['processing', id],
+        ));
         await outboxDao.markDeliveredToPrimary(id);
         // منذ delivered_to_secondary = true و delivered_to_primary = true → يحذف
         final after = await (db.select(db.outbox)).get();
@@ -254,7 +257,10 @@ void main() {
           [id],
         );
         // ✅ Sync Safety Fix: set to processing before markDelivered
-        await (db.customStatement('UPDATE outbox SET processing_status = ? WHERE id = ?', ['processing', id]));
+        await (db.customStatement(
+          'UPDATE outbox SET processing_status = ? WHERE id = ?',
+          ['processing', id],
+        ));
         await outboxDao.markDeliveredToPrimary(id);
         final updated = await (db.select(
           db.outbox,
@@ -706,8 +712,9 @@ void main() {
           source: 'local',
         );
         // تحويل لـ 'failed'
-        await (db.update(db.outbox)..where((t) => t.id.equals(idFailed)))
-            .write(OutboxCompanion(processingStatus: const drift.Value('failed')));
+        await (db.update(db.outbox)..where((t) => t.id.equals(idFailed))).write(
+          OutboxCompanion(processingStatus: const drift.Value('failed')),
+        );
         // 3. سجل completed — يجب أن يُحذف
         final idCompleted = await outboxDao.merge(
           entity: 'rooms',
@@ -718,8 +725,11 @@ void main() {
           source: 'local',
         );
         // تحويل لـ 'completed'
-        await (db.update(db.outbox)..where((t) => t.id.equals(idCompleted)))
-            .write(OutboxCompanion(processingStatus: const drift.Value('completed')));
+        await (db.update(
+          db.outbox,
+        )..where((t) => t.id.equals(idCompleted))).write(
+          OutboxCompanion(processingStatus: const drift.Value('completed')),
+        );
 
         // تنفيذ cleanup
         final cleaned = await outboxDao.cleanupForMissingEntities([
@@ -732,7 +742,8 @@ void main() {
         expect(
           cleaned,
           1,
-          reason: 'فقط سجل completed يجب أن يُحذف — pending/failed تُترك للأمان',
+          reason:
+              'فقط سجل completed يجب أن يُحذف — pending/failed تُترك للأمان',
         );
         // تحقق أن pending و failed ما زالا موجودين
         final remaining = await (db.select(db.outbox)).get();

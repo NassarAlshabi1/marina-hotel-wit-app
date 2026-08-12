@@ -213,8 +213,12 @@ final bookingsListProvider = StreamProvider.autoDispose<List<Booking>>(
   (ref) => debounceStream(
     // ✅ P2 Performance Fix (2026-08-10): تقييد عدد الحجوزات على الأجهزة الضعيفة.
     // نستخدم BookingsDao مباشرة لتطبيق LIMIT في SQL.
-    BookingsDao(ref.watch(databaseProvider), ref.watch(outboxDaoProvider))
-        .watchList(limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination),
+    BookingsDao(
+      ref.watch(databaseProvider),
+      ref.watch(outboxDaoProvider),
+    ).watchList(
+      limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
+    ),
     const Duration(milliseconds: 150),
   ),
 );
@@ -262,8 +266,12 @@ final guestInfoListProvider = StreamProvider.autoDispose(
 final expensesListProvider = StreamProvider.autoDispose(
   (ref) => debounceStream(
     // ✅ P2 Performance Fix: LIMIT في SQL على الأجهزة الضعيفة.
-    ExpensesDao(ref.watch(databaseProvider), ref.watch(outboxDaoProvider))
-        .watchList(limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination),
+    ExpensesDao(
+      ref.watch(databaseProvider),
+      ref.watch(outboxDaoProvider),
+    ).watchList(
+      limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
+    ),
     const Duration(milliseconds: 150),
   ),
 );
@@ -338,8 +346,12 @@ final bookingPaidAmountProvider = StreamProvider.family
 final debtsListProvider = StreamProvider.autoDispose(
   (ref) => debounceStream(
     // ✅ P2 Performance Fix: LIMIT في SQL على الأجهزة الضعيفة.
-    DebtsDao(ref.watch(databaseProvider), ref.watch(outboxDaoProvider))
-        .watchList(limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination),
+    DebtsDao(
+      ref.watch(databaseProvider),
+      ref.watch(outboxDaoProvider),
+    ).watchList(
+      limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
+    ),
     const Duration(milliseconds: 150),
   ),
 );

@@ -56,7 +56,8 @@ void main() {
         expect(
           isComplete,
           isFalse,
-          reason: 'يجب أن يكون full_sync_complete = 0 (false) افتراضياً '
+          reason:
+              'يجب أن يكون full_sync_complete = 0 (false) افتراضياً '
               'على قاعدة بيانات جديدة — الجهاز في مرحلة bootstrap',
         );
       },
@@ -71,7 +72,8 @@ void main() {
         expect(
           deltaQueries,
           isEmpty,
-          reason: 'عندما full_sync_complete = 0، يجب إجبار full fetch '
+          reason:
+              'عندما full_sync_complete = 0، يجب إجبار full fetch '
               'بغض النظر عن lastPullTs — لمنع تحول الجهاز لـ delta mode '
               'قبل اكتمال أول full sync',
         );
@@ -123,7 +125,8 @@ void main() {
         expect(
           deltaQueries,
           isNotEmpty,
-          reason: 'بعد اكتمال full sync، يجب إرجاع delta queries للسماح بـ '
+          reason:
+              'بعد اكتمال full sync، يجب إرجاع delta queries للسماح بـ '
               'delta sync',
         );
         expect(
@@ -212,7 +215,8 @@ void main() {
         expect(
           nextDeltaQueries,
           isNotEmpty,
-          reason: 'بعد أول دورة full sync ناجحة، الدورة التالية يجب أن تستخدم '
+          reason:
+              'بعد أول دورة full sync ناجحة، الدورة التالية يجب أن تستخدم '
               'delta queries — الجهاز أصبح delta-ready',
         );
       },
@@ -302,7 +306,8 @@ void main() {
         expect(
           afterFailureTs,
           initialTs,
-          reason: 'عند فشل أي collection، يجب ألا يتحرك lastPullTs — '
+          reason:
+              'عند فشل أي collection، يجب ألا يتحرك lastPullTs — '
               'سيسمح ذلك بإعادة سحب الكولكشن الفاشل في الدورة التالية',
         );
       },
@@ -401,16 +406,21 @@ void main() {
       '16. عمود full_sync_complete موجود في جدول sync_state',
       () async {
         // ✅ التحقق من أن العمود موجود بعد تشغيل Migration 56
-        final result = await db.customSelect(
-          'PRAGMA table_info(sync_state)',
-          readsFrom: {db.syncState},
-        ).get();
+        final result = await db
+            .customSelect(
+              'PRAGMA table_info(sync_state)',
+              readsFrom: {db.syncState},
+            )
+            .get();
 
-        final columnNames = result.map((row) => row.read<String>('name')).toList();
+        final columnNames = result
+            .map((row) => row.read<String>('name'))
+            .toList();
         expect(
           columnNames,
           contains('full_sync_complete'),
-          reason: 'عمود full_sync_complete يجب أن يكون موجوداً في جدول '
+          reason:
+              'عمود full_sync_complete يجب أن يكون موجوداً في جدول '
               'sync_state بعد Migration 56',
         );
       },
@@ -424,10 +434,12 @@ void main() {
         // (هذا ما يضمنه DEFAULT 0 في ALTER TABLE)
 
         // تحقق عبر PRAGMA table_info
-        final result = await db.customSelect(
-          'PRAGMA table_info(sync_state)',
-          readsFrom: {db.syncState},
-        ).get();
+        final result = await db
+            .customSelect(
+              'PRAGMA table_info(sync_state)',
+              readsFrom: {db.syncState},
+            )
+            .get();
 
         for (final row in result) {
           if (row.read<String>('name') == 'full_sync_complete') {
@@ -454,7 +466,8 @@ void main() {
         expect(
           db.schemaVersion,
           greaterThanOrEqualTo(56),
-          reason: 'schemaVersion يجب أن يكون >= 56 لتفعيل Migration 56 '
+          reason:
+              'schemaVersion يجب أن يكون >= 56 لتفعيل Migration 56 '
               '(إضافة عمود full_sync_complete) و Migration 57 '
               '(إضافة payload_version و processing_payload_version). '
               'القيمة الحالية: ${db.schemaVersion}',
@@ -491,7 +504,10 @@ void main() {
         }
         expect(await pullService.isFullSyncComplete(), isFalse);
         expect(await pullService.getLastPullTs(), 0);
-        expect(await pullService.buildDeltaQueries(0), isEmpty); // ما زال full sync
+        expect(
+          await pullService.buildDeltaQueries(0),
+          isEmpty,
+        ); // ما زال full sync
 
         // 3. دورة 2: نجاح كامل
         const failedCollectionsCycle2 = <String>[];

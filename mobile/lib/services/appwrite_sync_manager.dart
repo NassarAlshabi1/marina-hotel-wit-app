@@ -1063,7 +1063,8 @@ class AppwriteSyncManager {
                   int? nightsMaxTs;
                   for (final doc in bookingNights) {
                     final ts = _extractUpdatedAtSec(doc);
-                    if (ts != null && (nightsMaxTs == null || ts > nightsMaxTs)) {
+                    if (ts != null &&
+                        (nightsMaxTs == null || ts > nightsMaxTs)) {
                       nightsMaxTs = ts;
                     }
                   }
@@ -2939,15 +2940,15 @@ class AppwriteSyncManager {
             data,
             src: Source.appwrite,
           );
-        // ✅ Wave 7: notify remote change from another device
-        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
-          entity: 'payments',
-          localUuid: (data['localUuid'] as String?) ?? '',
-          remoteDeviceId: (data['deviceId'] as String?) ?? '',
-          currentDeviceId: _currentDeviceId,
-          lastModified: _asIntNullable(data['lastModified']),
-        );
-        processed++;
+          // ✅ Wave 7: notify remote change from another device
+          await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+            entity: 'payments',
+            localUuid: (data['localUuid'] as String?) ?? '',
+            remoteDeviceId: (data['deviceId'] as String?) ?? '',
+            currentDeviceId: _currentDeviceId,
+            lastModified: _asIntNullable(data['lastModified']),
+          );
+          processed++;
         } catch (e) {
           _logger.warning(
             'Failed to sync deferred payment ${doc.$id} after retry: $e',
@@ -3044,15 +3045,15 @@ class AppwriteSyncManager {
             data,
             src: Source.appwrite,
           );
-        // ✅ Wave 7: notify remote change from another device
-        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
-          entity: 'debts',
-          localUuid: (data['localUuid'] as String?) ?? '',
-          remoteDeviceId: (data['deviceId'] as String?) ?? '',
-          currentDeviceId: _currentDeviceId,
-          lastModified: _asIntNullable(data['lastModified']),
-        );
-        processed++;
+          // ✅ Wave 7: notify remote change from another device
+          await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+            entity: 'debts',
+            localUuid: (data['localUuid'] as String?) ?? '',
+            remoteDeviceId: (data['deviceId'] as String?) ?? '',
+            currentDeviceId: _currentDeviceId,
+            lastModified: _asIntNullable(data['lastModified']),
+          );
+          processed++;
         } catch (e) {
           _logger.warning(
             'Failed to sync deferred debt ${doc.$id} after retry: $e',
@@ -3583,7 +3584,9 @@ class AppwriteSyncManager {
           '⚠️ Tombstone push failed for room ${entry.localUuid}, falling back to hard delete: $e',
           tag: 'SYNC',
         );
-        await _deleteSilently(() => appwriteService.deleteRoom(entry.localUuid));
+        await _deleteSilently(
+          () => appwriteService.deleteRoom(entry.localUuid),
+        );
       }
       return true;
     }
@@ -3598,7 +3601,9 @@ class AppwriteSyncManager {
           entry: entry,
         );
       } catch (_) {
-        await _deleteSilently(() => appwriteService.deleteRoom(entry.localUuid));
+        await _deleteSilently(
+          () => appwriteService.deleteRoom(entry.localUuid),
+        );
       }
       return true;
     }
@@ -3641,7 +3646,8 @@ class AppwriteSyncManager {
       return _handleDeleteOp(
         entity: 'bookings',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteBooking(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteBooking(entry.localUuid),
       );
     }
     final booking = await _getBookingByLocalUuid(entry.localUuid);
@@ -3650,7 +3656,8 @@ class AppwriteSyncManager {
       return _handleDeleteOp(
         entity: 'bookings',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteBooking(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteBooking(entry.localUuid),
       );
     }
     final payload = _bookingToRemote(booking);
@@ -3786,7 +3793,8 @@ class AppwriteSyncManager {
       return _handleDeleteOp(
         entity: 'expenses',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteExpense(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteExpense(entry.localUuid),
       );
     }
     final expense = await _getExpenseByLocalUuid(entry.localUuid);
@@ -3794,7 +3802,8 @@ class AppwriteSyncManager {
       return _handleDeleteOp(
         entity: 'expenses',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteExpense(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteExpense(entry.localUuid),
       );
     }
     final payload = _expenseToRemote(expense);
@@ -3850,7 +3859,8 @@ class AppwriteSyncManager {
       return _handleDeleteOp(
         entity: 'payments',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deletePayment(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deletePayment(entry.localUuid),
       );
     }
     final payment = await _getPaymentByLocalUuid(entry.localUuid);
@@ -3858,7 +3868,8 @@ class AppwriteSyncManager {
       return _handleDeleteOp(
         entity: 'payments',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deletePayment(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deletePayment(entry.localUuid),
       );
     }
     final payload = _paymentToRemote(payment);
@@ -4197,7 +4208,8 @@ class AppwriteSyncManager {
       return _handleDeleteOp(
         entity: 'guest_infos',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteGuestInfo(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteGuestInfo(entry.localUuid),
       );
     }
     final info = await _getGuestInfoByLocalUuid(entry.localUuid);
@@ -4205,7 +4217,8 @@ class AppwriteSyncManager {
       return _handleDeleteOp(
         entity: 'guest_infos',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteGuestInfo(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteGuestInfo(entry.localUuid),
       );
     }
     final payload = _payloadMapper.guestInfoToRemote(info);
@@ -4331,7 +4344,7 @@ class AppwriteSyncManager {
           }
         }
 
-                // ✅ Wave 7 tighten: notify remote change from another device
+        // ✅ Wave 7 tighten: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
           entity: 'salary_withdrawals',
           localUuid: (data['localUuid'] as String?) ?? '',
@@ -4339,7 +4352,7 @@ class AppwriteSyncManager {
           currentDeviceId: _currentDeviceId,
           lastModified: _asIntNullable(data['lastModified']),
         );
-processed++;
+        processed++;
       } on SqliteException catch (e) {
         if (e.resultCode == 787) {
           // FK constraint failed - تأجيل السجل لإعادة المحاولة لاحقاً
@@ -4389,15 +4402,15 @@ processed++;
               );
             }
           }
-                  // ✅ Wave 7 tighten: notify remote change from another device
-        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
-          entity: 'salary_withdrawals',
-          localUuid: (data['localUuid'] as String?) ?? '',
-          remoteDeviceId: (data['deviceId'] as String?) ?? '',
-          currentDeviceId: _currentDeviceId,
-          lastModified: _asIntNullable(data['lastModified']),
-        );
-processed++;
+          // ✅ Wave 7 tighten: notify remote change from another device
+          await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+            entity: 'salary_withdrawals',
+            localUuid: (data['localUuid'] as String?) ?? '',
+            remoteDeviceId: (data['deviceId'] as String?) ?? '',
+            currentDeviceId: _currentDeviceId,
+            lastModified: _asIntNullable(data['lastModified']),
+          );
+          processed++;
         } catch (e) {
           _logger.warning(
             '⏭️ فشل نهائي لـ salary_withdrawal (يتيم): الموظف ${data['employeeId'] ?? data['employee_id']} غير موجود - $e',
@@ -4416,7 +4429,8 @@ processed++;
       return _handleDeleteOp(
         entity: 'salary_withdrawals',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteSalaryWithdrawal(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteSalaryWithdrawal(entry.localUuid),
       );
     }
     final withdrawal = await _getSalaryWithdrawalByLocalUuid(entry.localUuid);
@@ -4424,7 +4438,8 @@ processed++;
       return _handleDeleteOp(
         entity: 'salary_withdrawals',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteSalaryWithdrawal(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteSalaryWithdrawal(entry.localUuid),
       );
     }
 
@@ -6275,7 +6290,8 @@ processed++;
       return _handleDeleteOp(
         entity: 'salary_payments',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteSalaryPayment(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteSalaryPayment(entry.localUuid),
       );
     }
     final item = await _getSalaryPaymentByLocalUuid(entry.localUuid);
@@ -6283,7 +6299,8 @@ processed++;
       return _handleDeleteOp(
         entity: 'salary_payments',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteSalaryPayment(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteSalaryPayment(entry.localUuid),
       );
     }
     final payload = _payloadMapper.salaryPaymentToRemote(item);
@@ -6312,7 +6329,8 @@ processed++;
       return _handleDeleteOp(
         entity: 'cash_transactions',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteCashTransaction(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteCashTransaction(entry.localUuid),
       );
     }
     final item = await _getCashTransactionByLocalUuid(entry.localUuid);
@@ -6320,7 +6338,8 @@ processed++;
       return _handleDeleteOp(
         entity: 'cash_transactions',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteCashTransaction(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteCashTransaction(entry.localUuid),
       );
     }
 
@@ -6355,7 +6374,8 @@ processed++;
       return _handleDeleteOp(
         entity: 'shift_notes',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteShiftNote(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteShiftNote(entry.localUuid),
       );
     }
     final item = await _getShiftNoteByLocalUuid(entry.localUuid);
@@ -6363,7 +6383,8 @@ processed++;
       return _handleDeleteOp(
         entity: 'shift_notes',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteShiftNote(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteShiftNote(entry.localUuid),
       );
     }
 
@@ -6448,7 +6469,8 @@ processed++;
       return _handleDeleteOp(
         entity: 'blacklist',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteBlacklist(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteBlacklist(entry.localUuid),
       );
     }
     final item = await _getShiftNoteByLocalUuid(entry.localUuid);
@@ -6456,7 +6478,8 @@ processed++;
       return _handleDeleteOp(
         entity: 'blacklist',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteBlacklist(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteBlacklist(entry.localUuid),
       );
     }
 
@@ -6856,7 +6879,8 @@ processed++;
       return _handleDeleteOp(
         entity: 'employees',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteEmployee(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteEmployee(entry.localUuid),
       );
     }
     final item = await _getEmployeeByLocalUuid(entry.localUuid);
@@ -6865,7 +6889,8 @@ processed++;
       return _handleDeleteOp(
         entity: 'employees',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteEmployee(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteEmployee(entry.localUuid),
       );
     }
     final payload = _payloadMapper.employeeToRemote(item);
@@ -6913,7 +6938,8 @@ processed++;
       return _handleDeleteOp(
         entity: 'booking_notes',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteBookingNote(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteBookingNote(entry.localUuid),
       );
     }
     final item = await _getBookingNoteByLocalUuid(entry.localUuid);
@@ -6921,7 +6947,8 @@ processed++;
       return _handleDeleteOp(
         entity: 'booking_notes',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteBookingNote(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteBookingNote(entry.localUuid),
       );
     }
     final payload = _payloadMapper.bookingNoteToRemote(item);
@@ -6950,7 +6977,8 @@ processed++;
       return _handleDeleteOp(
         entity: 'booking_nights',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteBookingNight(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteBookingNight(entry.localUuid),
       );
     }
     final item = await _getBookingNightByLocalUuid(entry.localUuid);
@@ -6958,7 +6986,8 @@ processed++;
       return _handleDeleteOp(
         entity: 'booking_nights',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteBookingNight(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteBookingNight(entry.localUuid),
       );
     }
     final payload = _payloadMapper.bookingNightToRemote(item);
@@ -6987,7 +7016,8 @@ processed++;
       return _handleDeleteOp(
         entity: 'salary_cycles',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteSalaryCycle(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteSalaryCycle(entry.localUuid),
       );
     }
     final item = await _getSalaryCycleByLocalUuid(entry.localUuid);
@@ -6995,7 +7025,8 @@ processed++;
       return _handleDeleteOp(
         entity: 'salary_cycles',
         entry: entry,
-        hardDeleteFallback: () => appwriteService.deleteSalaryCycle(entry.localUuid),
+        hardDeleteFallback: () =>
+            appwriteService.deleteSalaryCycle(entry.localUuid),
       );
     }
     final payload = _payloadMapper.salaryCycleToRemote(item);
@@ -7309,15 +7340,15 @@ processed++;
             data,
             src: Source.appwrite,
           );
-        // ✅ Wave 7 tighten: notify remote change from another device
-        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
-          entity: 'booking_nights',
-          localUuid: (data['localUuid'] as String?) ?? '',
-          remoteDeviceId: (data['deviceId'] as String?) ?? '',
-          currentDeviceId: _currentDeviceId,
-          lastModified: _asIntNullable(data['lastModified']),
-        );
-        processed++;
+          // ✅ Wave 7 tighten: notify remote change from another device
+          await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+            entity: 'booking_nights',
+            localUuid: (data['localUuid'] as String?) ?? '',
+            remoteDeviceId: (data['deviceId'] as String?) ?? '',
+            currentDeviceId: _currentDeviceId,
+            lastModified: _asIntNullable(data['lastModified']),
+          );
+          processed++;
         } catch (e) {
           _logger.warning(
             'Failed to sync deferred booking night ${doc.$id} after retry: $e',
@@ -7510,15 +7541,15 @@ processed++;
             data,
             src: Source.appwrite,
           );
-        // ✅ Wave 7: notify remote change from another device
-        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
-          entity: 'salary_cycles',
-          localUuid: (data['localUuid'] as String?) ?? '',
-          remoteDeviceId: (data['deviceId'] as String?) ?? '',
-          currentDeviceId: _currentDeviceId,
-          lastModified: _asIntNullable(data['lastModified']),
-        );
-        processed++;
+          // ✅ Wave 7: notify remote change from another device
+          await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+            entity: 'salary_cycles',
+            localUuid: (data['localUuid'] as String?) ?? '',
+            remoteDeviceId: (data['deviceId'] as String?) ?? '',
+            currentDeviceId: _currentDeviceId,
+            lastModified: _asIntNullable(data['lastModified']),
+          );
+          processed++;
         } catch (e) {
           _logger.warning(
             '⏭️ فشل نهائي لـ salary_cycle (يتيم): $e',
@@ -7617,15 +7648,15 @@ processed++;
             data,
             src: Source.appwrite,
           );
-        // ✅ Wave 7: notify remote change from another device
-        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
-          entity: 'salary_payments',
-          localUuid: (data['localUuid'] as String?) ?? '',
-          remoteDeviceId: (data['deviceId'] as String?) ?? '',
-          currentDeviceId: _currentDeviceId,
-          lastModified: _asIntNullable(data['lastModified']),
-        );
-        processed++;
+          // ✅ Wave 7: notify remote change from another device
+          await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+            entity: 'salary_payments',
+            localUuid: (data['localUuid'] as String?) ?? '',
+            remoteDeviceId: (data['deviceId'] as String?) ?? '',
+            currentDeviceId: _currentDeviceId,
+            lastModified: _asIntNullable(data['lastModified']),
+          );
+          processed++;
         } catch (e) {
           _logger.warning(
             '⏭️ فشل نهائي لـ salary_payment (يتيم): $e',
@@ -7690,7 +7721,7 @@ processed++;
           }
         }
 
-                // ✅ Wave 7 tighten: notify remote change from another device
+        // ✅ Wave 7 tighten: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
           entity: 'booking_price_adjustments',
           localUuid: (data['localUuid'] as String?) ?? '',
@@ -7698,7 +7729,7 @@ processed++;
           currentDeviceId: _currentDeviceId,
           lastModified: _asIntNullable(data['lastModified']),
         );
-processed++;
+        processed++;
       } catch (e) {
         // ✅ تأجيل تعديل السعر فقط إذا كان الخطأ FOREIGN KEY أو NOT NULL constraint
         // لا نشمل 'constraint failed' عام لأنه يطابق UNIQUE أيضاً
@@ -7747,15 +7778,15 @@ processed++;
             }
           }
 
-                  // ✅ Wave 7 tighten: notify remote change from another device
-        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
-          entity: 'booking_price_adjustments',
-          localUuid: (data['localUuid'] as String?) ?? '',
-          remoteDeviceId: (data['deviceId'] as String?) ?? '',
-          currentDeviceId: _currentDeviceId,
-          lastModified: _asIntNullable(data['lastModified']),
-        );
-processed++;
+          // ✅ Wave 7 tighten: notify remote change from another device
+          await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+            entity: 'booking_price_adjustments',
+            localUuid: (data['localUuid'] as String?) ?? '',
+            remoteDeviceId: (data['deviceId'] as String?) ?? '',
+            currentDeviceId: _currentDeviceId,
+            lastModified: _asIntNullable(data['lastModified']),
+          );
+          processed++;
         } catch (e) {
           _logger.warning(
             'Failed to sync deferred booking price adjustment ${doc.$id} after retry: $e',
@@ -7852,7 +7883,7 @@ processed++;
           }
         }
 
-                // ✅ Wave 7 tighten: notify remote change from another device
+        // ✅ Wave 7 tighten: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
           entity: 'price_adjustments',
           localUuid: (data['localUuid'] as String?) ?? '',
@@ -7860,7 +7891,7 @@ processed++;
           currentDeviceId: _currentDeviceId,
           lastModified: _asIntNullable(data['lastModified']),
         );
-processed++;
+        processed++;
       } catch (e) {
         _logger.warning(
           'Failed to sync price adjustment ${doc.$id}: $e',

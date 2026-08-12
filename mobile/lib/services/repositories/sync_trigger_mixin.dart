@@ -51,7 +51,9 @@ mixin SyncTriggerMixin {
       // فقط الـ token الصحيح يستطيع فك القفل في finally/catch.
       final token = SyncGuard.tryAcquire(label: 'sync_trigger_manual');
       if (token == null) {
-        dlog('⏸️ Trigger sync skipped — another sync is active (${SyncGuard.activeLabel})');
+        dlog(
+          '⏸️ Trigger sync skipped — another sync is active (${SyncGuard.activeLabel})',
+        );
         return;
       }
 

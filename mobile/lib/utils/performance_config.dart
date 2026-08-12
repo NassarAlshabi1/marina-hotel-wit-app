@@ -30,7 +30,8 @@ void configurePerformance() {
 
   if (Platform.isAndroid) {
     dlog(
-      () => '🚀 Performance: Android — image cache limited to '
+      () =>
+          '🚀 Performance: Android — image cache limited to '
           '${optimizer.maxImageCacheSize} entries / '
           '${optimizer.maxImageCacheBytes ~/ (1024 * 1024)}MB',
     );
@@ -41,5 +42,4 @@ void configurePerformance() {
 bool get isLowEndDevice => WeakDeviceOptimizer.instance.isWeakDevice;
 
 /// cacheExtent مُحسّن لـ ListView.builder
-double get optimizedCacheExtent =>
-    isLowEndDevice ? 200.0 : 500.0;
+double get optimizedCacheExtent => isLowEndDevice ? 200.0 : 500.0;

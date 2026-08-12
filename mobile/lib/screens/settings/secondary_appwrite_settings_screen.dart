@@ -52,8 +52,8 @@ class _SecondaryAppwriteSettingsScreenState
                   child: Text(
                     'المزامنة الثانوية معطّلة',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],

@@ -14156,19 +14156,20 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _bookingUuidCacheMeta =
-      const VerificationMeta('bookingUuidCache');
+  static const VerificationMeta _bookingUuidCacheMeta = const VerificationMeta(
+    'bookingUuidCache',
+  );
   @override
-  late final GeneratedColumn<String> bookingUuidCache =
-      GeneratedColumn<String>(
-        'booking_uuid_cache',
-        aliasedName,
-        true,
-        type: DriftSqlType.string,
-        requiredDuringInsert: false,
-      );
-  static const VerificationMeta _debtorNameMeta =
-      const VerificationMeta('debtorName');
+  late final GeneratedColumn<String> bookingUuidCache = GeneratedColumn<String>(
+    'booking_uuid_cache',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _debtorNameMeta = const VerificationMeta(
+    'debtorName',
+  );
   @override
   late final GeneratedColumn<String> debtorName = GeneratedColumn<String>(
     'debtor_name',
@@ -15081,9 +15082,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       amount: amount == null && nullToAbsent
           ? const Value.absent()
           : Value(amount),
-      date: date == null && nullToAbsent
-          ? const Value.absent()
-          : Value(date),
+      date: date == null && nullToAbsent ? const Value.absent() : Value(date),
     );
   }
 
@@ -15295,9 +15294,7 @@ class Debt extends DataClass implements Insertable<Debt> {
     bookingUuidCache: bookingUuidCache.present
         ? bookingUuidCache.value
         : this.bookingUuidCache,
-    debtorName: debtorName.present
-        ? debtorName.value
-        : this.debtorName,
+    debtorName: debtorName.present ? debtorName.value : this.debtorName,
     amount: amount.present ? amount.value : this.amount,
     date: date.present ? date.value : this.date,
   );
@@ -24186,8 +24183,9 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
-  static const VerificationMeta _payloadVersionMeta =
-      const VerificationMeta('payloadVersion');
+  static const VerificationMeta _payloadVersionMeta = const VerificationMeta(
+    'payloadVersion',
+  );
   @override
   late final GeneratedColumn<int> payloadVersion = GeneratedColumn<int>(
     'payload_version',
@@ -24671,7 +24669,9 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     }
     map['payload_version'] = Variable<int>(payloadVersion);
     if (!nullToAbsent || processingPayloadVersion != null) {
-      map['processing_payload_version'] = Variable<int>(processingPayloadVersion);
+      map['processing_payload_version'] = Variable<int>(
+        processingPayloadVersion,
+      );
     }
     return map;
   }
@@ -25204,7 +25204,8 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
       secondaryAttempts: secondaryAttempts ?? this.secondaryAttempts,
       secondaryLastError: secondaryLastError ?? this.secondaryLastError,
       payloadVersion: payloadVersion ?? this.payloadVersion,
-      processingPayloadVersion: processingPayloadVersion ?? this.processingPayloadVersion,
+      processingPayloadVersion:
+          processingPayloadVersion ?? this.processingPayloadVersion,
     );
   }
 
@@ -25287,7 +25288,9 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
       map['payload_version'] = Variable<int>(payloadVersion.value);
     }
     if (processingPayloadVersion.present) {
-      map['processing_payload_version'] = Variable<int>(processingPayloadVersion.value);
+      map['processing_payload_version'] = Variable<int>(
+        processingPayloadVersion.value,
+      );
     }
     return map;
   }
@@ -25400,8 +25403,9 @@ class $SyncStateTable extends SyncState
     requiredDuringInsert: false,
     defaultValue: const Constant(1),
   );
-  static const VerificationMeta _fullSyncCompleteMeta =
-      const VerificationMeta('fullSyncComplete');
+  static const VerificationMeta _fullSyncCompleteMeta = const VerificationMeta(
+    'fullSyncComplete',
+  );
   @override
   late final GeneratedColumn<int> fullSyncComplete = GeneratedColumn<int>(
     'full_sync_complete',
@@ -25584,8 +25588,7 @@ class SyncStateData extends DataClass implements Insertable<SyncStateData> {
       lastPushTs: serializer.fromJson<int>(json['lastPushTs']),
       isSyncing: serializer.fromJson<int>(json['isSyncing']),
       version: serializer.fromJson<int>(json['version']),
-      fullSyncComplete:
-          serializer.fromJson<int>(json['fullSyncComplete']),
+      fullSyncComplete: serializer.fromJson<int>(json['fullSyncComplete']),
     );
   }
   @override

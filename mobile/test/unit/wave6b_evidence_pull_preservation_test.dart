@@ -60,11 +60,14 @@ void main() {
       final comp = adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.debts).insertOnConflictUpdate(comp);
 
-      final saved = await (db.select(db.debts)
-            ..where((t) => t.localUuid.equals('debt-test-1')))
-          .getSingle();
-      expect(saved.bookingUuidCache, 'booking-uuid-abc-123',
-          reason: 'bookingUuidCache must be preserved from pull');
+      final saved = await (db.select(
+        db.debts,
+      )..where((t) => t.localUuid.equals('debt-test-1'))).getSingle();
+      expect(
+        saved.bookingUuidCache,
+        'booking-uuid-abc-123',
+        reason: 'bookingUuidCache must be preserved from pull',
+      );
     });
 
     test('amount survives pull → local DB', () async {
@@ -81,11 +84,14 @@ void main() {
       final comp = adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.debts).insertOnConflictUpdate(comp);
 
-      final saved = await (db.select(db.debts)
-            ..where((t) => t.localUuid.equals('debt-test-2')))
-          .getSingle();
-      expect(saved.amount, 2500.75,
-          reason: 'amount must be preserved from pull');
+      final saved = await (db.select(
+        db.debts,
+      )..where((t) => t.localUuid.equals('debt-test-2'))).getSingle();
+      expect(
+        saved.amount,
+        2500.75,
+        reason: 'amount must be preserved from pull',
+      );
     });
 
     test('date survives pull → local DB', () async {
@@ -102,11 +108,14 @@ void main() {
       final comp = adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.debts).insertOnConflictUpdate(comp);
 
-      final saved = await (db.select(db.debts)
-            ..where((t) => t.localUuid.equals('debt-test-3')))
-          .getSingle();
-      expect(saved.date, '2026-08-12',
-          reason: 'date must be preserved from pull');
+      final saved = await (db.select(
+        db.debts,
+      )..where((t) => t.localUuid.equals('debt-test-3'))).getSingle();
+      expect(
+        saved.date,
+        '2026-08-12',
+        reason: 'date must be preserved from pull',
+      );
     });
 
     test('debtorName survives pull → local DB', () async {
@@ -123,11 +132,14 @@ void main() {
       final comp = adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.debts).insertOnConflictUpdate(comp);
 
-      final saved = await (db.select(db.debts)
-            ..where((t) => t.localUuid.equals('debt-test-4')))
-          .getSingle();
-      expect(saved.debtorName, 'Ahmed Saleh',
-          reason: 'debtorName must be preserved from pull');
+      final saved = await (db.select(
+        db.debts,
+      )..where((t) => t.localUuid.equals('debt-test-4'))).getSingle();
+      expect(
+        saved.debtorName,
+        'Ahmed Saleh',
+        reason: 'debtorName must be preserved from pull',
+      );
     });
 
     test('dueDate survives pull → local DB', () async {
@@ -144,11 +156,14 @@ void main() {
       final comp = adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.debts).insertOnConflictUpdate(comp);
 
-      final saved = await (db.select(db.debts)
-            ..where((t) => t.localUuid.equals('debt-test-5')))
-          .getSingle();
-      expect(saved.dueDate, '2026-09-01',
-          reason: 'dueDate must be preserved from pull');
+      final saved = await (db.select(
+        db.debts,
+      )..where((t) => t.localUuid.equals('debt-test-5'))).getSingle();
+      expect(
+        saved.dueDate,
+        '2026-09-01',
+        reason: 'dueDate must be preserved from pull',
+      );
     });
 
     test('status survives pull → local DB', () async {
@@ -165,11 +180,14 @@ void main() {
       final comp = adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.debts).insertOnConflictUpdate(comp);
 
-      final saved = await (db.select(db.debts)
-            ..where((t) => t.localUuid.equals('debt-test-6')))
-          .getSingle();
-      expect(saved.status, 'settled',
-          reason: 'status must be preserved from pull');
+      final saved = await (db.select(
+        db.debts,
+      )..where((t) => t.localUuid.equals('debt-test-6'))).getSingle();
+      expect(
+        saved.status,
+        'settled',
+        reason: 'status must be preserved from pull',
+      );
     });
   });
 
@@ -196,11 +214,14 @@ void main() {
       final comp = adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.payments).insertOnConflictUpdate(comp);
 
-      final saved = await (db.select(db.payments)
-            ..where((t) => t.localUuid.equals('pay-test-1')))
-          .getSingle();
-      expect(saved.voidReason, 'Customer cancelled',
-          reason: 'voidReason must be preserved from pull');
+      final saved = await (db.select(
+        db.payments,
+      )..where((t) => t.localUuid.equals('pay-test-1'))).getSingle();
+      expect(
+        saved.voidReason,
+        'Customer cancelled',
+        reason: 'voidReason must be preserved from pull',
+      );
     });
 
     test('isImmutable survives pull → local DB', () async {
@@ -219,11 +240,14 @@ void main() {
       final comp = adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.payments).insertOnConflictUpdate(comp);
 
-      final saved = await (db.select(db.payments)
-            ..where((t) => t.localUuid.equals('pay-test-2')))
-          .getSingle();
-      expect(saved.isImmutable, true,
-          reason: 'isImmutable must be preserved from pull');
+      final saved = await (db.select(
+        db.payments,
+      )..where((t) => t.localUuid.equals('pay-test-2'))).getSingle();
+      expect(
+        saved.isImmutable,
+        true,
+        reason: 'isImmutable must be preserved from pull',
+      );
     });
   });
 
@@ -234,18 +258,20 @@ void main() {
     test('financialFrozenAt survives pull → local DB', () async {
       final adapter = BookingsAdapter(resolver);
       // Insert a room first
-      await db.into(db.rooms).insert(
-        RoomsCompanion.insert(
-          localUuid: 'room-1',
-          roomNumber: '101',
-          type: 'standard',
-          price: 100.0,
-          status: 'available',
-          createdAt: 0,
-          updatedAt: 0,
-          lastModified: 0,
-        ),
-      );
+      await db
+          .into(db.rooms)
+          .insert(
+            RoomsCompanion.insert(
+              localUuid: 'room-1',
+              roomNumber: '101',
+              type: 'standard',
+              price: 100.0,
+              status: 'available',
+              createdAt: 0,
+              updatedAt: 0,
+              lastModified: 0,
+            ),
+          );
 
       final json = {
         'localUuid': 'booking-fin-1',
@@ -263,27 +289,32 @@ void main() {
       final comp = adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.bookings).insertOnConflictUpdate(comp);
 
-      final saved = await (db.select(db.bookings)
-            ..where((t) => t.localUuid.equals('booking-fin-1')))
-          .getSingle();
-      expect(saved.financialFrozenAt, 1700000000,
-          reason: 'financialFrozenAt must be preserved from pull');
+      final saved = await (db.select(
+        db.bookings,
+      )..where((t) => t.localUuid.equals('booking-fin-1'))).getSingle();
+      expect(
+        saved.financialFrozenAt,
+        1700000000,
+        reason: 'financialFrozenAt must be preserved from pull',
+      );
     });
 
     test('financialHash survives pull → local DB', () async {
       final adapter = BookingsAdapter(resolver);
-      await db.into(db.rooms).insert(
-        RoomsCompanion.insert(
-          localUuid: 'room-2',
-          roomNumber: '102',
-          type: 'standard',
-          price: 100.0,
-          status: 'available',
-          createdAt: 0,
-          updatedAt: 0,
-          lastModified: 0,
-        ),
-      );
+      await db
+          .into(db.rooms)
+          .insert(
+            RoomsCompanion.insert(
+              localUuid: 'room-2',
+              roomNumber: '102',
+              type: 'standard',
+              price: 100.0,
+              status: 'available',
+              createdAt: 0,
+              updatedAt: 0,
+              lastModified: 0,
+            ),
+          );
 
       final json = {
         'localUuid': 'booking-fin-2',
@@ -301,11 +332,14 @@ void main() {
       final comp = adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.bookings).insertOnConflictUpdate(comp);
 
-      final saved = await (db.select(db.bookings)
-            ..where((t) => t.localUuid.equals('booking-fin-2')))
-          .getSingle();
-      expect(saved.financialHash, 'sha256:def456',
-          reason: 'financialHash must be preserved from pull');
+      final saved = await (db.select(
+        db.bookings,
+      )..where((t) => t.localUuid.equals('booking-fin-2'))).getSingle();
+      expect(
+        saved.financialHash,
+        'sha256:def456',
+        reason: 'financialHash must be preserved from pull',
+      );
     });
   });
 
@@ -315,21 +349,23 @@ void main() {
   group('booking_price_adjustments pull preserves 4 fields', () {
     test('appliedAt survives pull → local DB', () async {
       final adapter = BookingPriceAdjustmentsAdapter(resolver);
-      await db.into(db.bookings).insert(
-        BookingsCompanion.insert(
-          localUuid: 'booking-bpa-1',
-          guestPhone: '',
-          guestNationality: '',
-          roomNumber: '101',
-          guestName: 'Test',
-          checkinDate: '2026-08-01',
-          checkoutDate: const drift.Value('2026-08-05'),
-          status: 'checked_in',
-          createdAt: 0,
-          updatedAt: 0,
-          lastModified: 0,
-        ),
-      );
+      await db
+          .into(db.bookings)
+          .insert(
+            BookingsCompanion.insert(
+              localUuid: 'booking-bpa-1',
+              guestPhone: '',
+              guestNationality: '',
+              roomNumber: '101',
+              guestName: 'Test',
+              checkinDate: '2026-08-01',
+              checkoutDate: const drift.Value('2026-08-05'),
+              status: 'checked_in',
+              createdAt: 0,
+              updatedAt: 0,
+              lastModified: 0,
+            ),
+          );
 
       final json = {
         'localUuid': 'bpa-test-1',
@@ -349,30 +385,35 @@ void main() {
       final comp = adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.bookingPriceAdjustments).insertOnConflictUpdate(comp);
 
-      final saved = await (db.select(db.bookingPriceAdjustments)
-            ..where((t) => t.localUuid.equals('bpa-test-1')))
-          .getSingle();
-      expect(saved.appliedAt, 1700000000,
-          reason: 'appliedAt must be preserved from pull');
+      final saved = await (db.select(
+        db.bookingPriceAdjustments,
+      )..where((t) => t.localUuid.equals('bpa-test-1'))).getSingle();
+      expect(
+        saved.appliedAt,
+        1700000000,
+        reason: 'appliedAt must be preserved from pull',
+      );
     });
 
     test('bookingUuid survives pull → local DB', () async {
       final adapter = BookingPriceAdjustmentsAdapter(resolver);
-      await db.into(db.bookings).insert(
-        BookingsCompanion.insert(
-          localUuid: 'booking-bpa-2',
-          guestPhone: '',
-          guestNationality: '',
-          roomNumber: '102',
-          guestName: 'Test',
-          checkinDate: '2026-08-01',
-          checkoutDate: const drift.Value('2026-08-05'),
-          status: 'checked_in',
-          createdAt: 0,
-          updatedAt: 0,
-          lastModified: 0,
-        ),
-      );
+      await db
+          .into(db.bookings)
+          .insert(
+            BookingsCompanion.insert(
+              localUuid: 'booking-bpa-2',
+              guestPhone: '',
+              guestNationality: '',
+              roomNumber: '102',
+              guestName: 'Test',
+              checkinDate: '2026-08-01',
+              checkoutDate: const drift.Value('2026-08-05'),
+              status: 'checked_in',
+              createdAt: 0,
+              updatedAt: 0,
+              lastModified: 0,
+            ),
+          );
 
       final json = {
         'localUuid': 'bpa-test-2',
@@ -390,30 +431,35 @@ void main() {
       final comp = adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.bookingPriceAdjustments).insertOnConflictUpdate(comp);
 
-      final saved = await (db.select(db.bookingPriceAdjustments)
-            ..where((t) => t.localUuid.equals('bpa-test-2')))
-          .getSingle();
-      expect(saved.bookingUuid, 'booking-bpa-2',
-          reason: 'bookingUuid must be preserved from pull');
+      final saved = await (db.select(
+        db.bookingPriceAdjustments,
+      )..where((t) => t.localUuid.equals('bpa-test-2'))).getSingle();
+      expect(
+        saved.bookingUuid,
+        'booking-bpa-2',
+        reason: 'bookingUuid must be preserved from pull',
+      );
     });
 
     test('hotelDayKey is used as fallback for effectiveHotelDay', () async {
       final adapter = BookingPriceAdjustmentsAdapter(resolver);
-      await db.into(db.bookings).insert(
-        BookingsCompanion.insert(
-          localUuid: 'booking-bpa-3',
-          guestPhone: '',
-          guestNationality: '',
-          roomNumber: '103',
-          guestName: 'Test',
-          checkinDate: '2026-08-01',
-          checkoutDate: const drift.Value('2026-08-05'),
-          status: 'checked_in',
-          createdAt: 0,
-          updatedAt: 0,
-          lastModified: 0,
-        ),
-      );
+      await db
+          .into(db.bookings)
+          .insert(
+            BookingsCompanion.insert(
+              localUuid: 'booking-bpa-3',
+              guestPhone: '',
+              guestNationality: '',
+              roomNumber: '103',
+              guestName: 'Test',
+              checkinDate: '2026-08-01',
+              checkoutDate: const drift.Value('2026-08-05'),
+              status: 'checked_in',
+              createdAt: 0,
+              updatedAt: 0,
+              lastModified: 0,
+            ),
+          );
 
       // Send hotelDayKey WITHOUT effectiveHotelDay — adapter should use it as fallback
       final json = {
@@ -432,11 +478,14 @@ void main() {
       final comp = adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.bookingPriceAdjustments).insertOnConflictUpdate(comp);
 
-      final saved = await (db.select(db.bookingPriceAdjustments)
-            ..where((t) => t.localUuid.equals('bpa-test-3')))
-          .getSingle();
-      expect(saved.effectiveHotelDay, '2026-08-15',
-          reason: 'hotelDayKey must be used as fallback for effectiveHotelDay');
+      final saved = await (db.select(
+        db.bookingPriceAdjustments,
+      )..where((t) => t.localUuid.equals('bpa-test-3'))).getSingle();
+      expect(
+        saved.effectiveHotelDay,
+        '2026-08-15',
+        reason: 'hotelDayKey must be used as fallback for effectiveHotelDay',
+      );
     });
   });
 
@@ -462,11 +511,14 @@ void main() {
       final comp = adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.priceAdjustments).insertOnConflictUpdate(comp);
 
-      final saved = await (db.select(db.priceAdjustments)
-            ..where((t) => t.localUuid.equals('pa-test-1')))
-          .getSingle();
-      expect(saved.adjustmentMode, 'flat',
-          reason: 'adjustmentMode must be preserved from pull');
+      final saved = await (db.select(
+        db.priceAdjustments,
+      )..where((t) => t.localUuid.equals('pa-test-1'))).getSingle();
+      expect(
+        saved.adjustmentMode,
+        'flat',
+        reason: 'adjustmentMode must be preserved from pull',
+      );
     });
 
     test('previousValue preserves decimal precision (no truncation)', () async {
@@ -486,13 +538,19 @@ void main() {
       final comp = adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.priceAdjustments).insertOnConflictUpdate(comp);
 
-      final saved = await (db.select(db.priceAdjustments)
-            ..where((t) => t.localUuid.equals('pa-test-2')))
-          .getSingle();
-      expect(saved.previousValue, 1500.75,
-          reason: 'previousValue must preserve decimals — no truncation to int');
-      expect(saved.newValue, 2500.50,
-          reason: 'newValue must preserve decimals — no truncation to int');
+      final saved = await (db.select(
+        db.priceAdjustments,
+      )..where((t) => t.localUuid.equals('pa-test-2'))).getSingle();
+      expect(
+        saved.previousValue,
+        1500.75,
+        reason: 'previousValue must preserve decimals — no truncation to int',
+      );
+      expect(
+        saved.newValue,
+        2500.50,
+        reason: 'newValue must preserve decimals — no truncation to int',
+      );
     });
 
     test('previousValue preserves integer as double', () async {
@@ -512,11 +570,14 @@ void main() {
       final comp = adapter.fromJson(json, src: Source.appwrite, refs: refs);
       await db.into(db.priceAdjustments).insertOnConflictUpdate(comp);
 
-      final saved = await (db.select(db.priceAdjustments)
-            ..where((t) => t.localUuid.equals('pa-test-3')))
-          .getSingle();
-      expect(saved.previousValue, 100.0,
-          reason: 'int from Cloud must be stored as double without truncation');
+      final saved = await (db.select(
+        db.priceAdjustments,
+      )..where((t) => t.localUuid.equals('pa-test-3'))).getSingle();
+      expect(
+        saved.previousValue,
+        100.0,
+        reason: 'int from Cloud must be stored as double without truncation',
+      );
     });
   });
 

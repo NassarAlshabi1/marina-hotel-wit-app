@@ -41,19 +41,22 @@ class WeakDeviceOptimizer {
     if (_isWeakDevice) {
       _optimizationLevel = 2;
       dlog(
-        () => '⚠️ Weak device: $_processorCount cores, '
+        () =>
+            '⚠️ Weak device: $_processorCount cores, '
             '$_memoryMB MB RAM → optimization level 2',
       );
     } else if (_processorCount < 6 || _memoryMB < 4096) {
       _optimizationLevel = 1;
       dlog(
-        () => 'ℹ️ Mid-range device: $_processorCount cores, '
+        () =>
+            'ℹ️ Mid-range device: $_processorCount cores, '
             '$_memoryMB MB RAM → optimization level 1',
       );
     } else {
       _optimizationLevel = 0;
       dlog(
-        () => '✅ High-end device: $_processorCount cores, '
+        () =>
+            '✅ High-end device: $_processorCount cores, '
             '$_memoryMB MB RAM → optimization level 0',
       );
     }

@@ -122,7 +122,8 @@ class RemoteChangeNotificationService {
     }
 
     // ✅ Dedup: check if we already notified about this exact change
-    final fingerprint = '$entity:$localUuid:$remoteDeviceId:${lastModified ?? 0}';
+    final fingerprint =
+        '$entity:$localUuid:$remoteDeviceId:${lastModified ?? 0}';
 
     // Check session dedup first (fast path)
     if (_sessionNotified.contains(fingerprint)) {
@@ -217,12 +218,17 @@ class RemoteChangeNotificationService {
         body: body,
         payload: 'remote_sync_completed',
       );
-      dlog(() => '🔔 RemoteChangeNotification: showed notification — '
-          '$totalChanges changes from $deviceCount device(s)');
+      dlog(
+        () =>
+            '🔔 RemoteChangeNotification: showed notification — '
+            '$totalChanges changes from $deviceCount device(s)',
+      );
     } catch (e) {
       // Non-critical — notification is best-effort. The data was already
       // applied locally; the notification is just a UX enhancement.
-      dlog(() => '⚠️ RemoteChangeNotification: failed to show notification: $e');
+      dlog(
+        () => '⚠️ RemoteChangeNotification: failed to show notification: $e',
+      );
     }
   }
 
@@ -258,7 +264,10 @@ class RemoteChangeNotificationService {
   /// ✅ Wave 7 tighten: Update the dedup timestamp index.
   /// Stores a JSON map of `fingerprint → epoch_ms` in SharedPreferences.
   /// Used by `_cleanupOldDedupKeys` to evict oldest entries (true LRU).
-  Future<void> _updateDedupIndex(SharedPreferences prefs, String fingerprint) async {
+  Future<void> _updateDedupIndex(
+    SharedPreferences prefs,
+    String fingerprint,
+  ) async {
     try {
       final indexJson = prefs.getString(_dedupIndexKey) ?? '{}';
       final index = Map<String, dynamic>.from(
@@ -309,7 +318,10 @@ class RemoteChangeNotificationService {
       await prefs.setString(_dedupIndexKey, jsonEncode(index));
 
       if (removed > 0) {
-        dlog(() => '🧹 RemoteChangeNotification: LRU cleanup removed $removed oldest dedup keys');
+        dlog(
+          () =>
+              '🧹 RemoteChangeNotification: LRU cleanup removed $removed oldest dedup keys',
+        );
       }
     } catch (e) {
       // Non-critical — don't fail the notification

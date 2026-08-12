@@ -560,10 +560,20 @@ class AppwriteSchemaVerifier {
         // ⚠️ amount على Appwrite Cloud هو double
         {'key': 'amount', 'type': 'double', 'required': true},
         // ✅ حقول المحلية المتوافقة مع Adapter (2026-05-17)
-        {'key': 'withdrawDate', 'type': 'string', 'size': 255, 'required': true},
+        {
+          'key': 'withdrawDate',
+          'type': 'string',
+          'size': 255,
+          'required': true,
+        },
         {'key': 'reason', 'type': 'string', 'size': 500},
         {'key': 'hotelDayKey', 'type': 'string', 'size': 50},
-        {'key': 'withdrawalType', 'type': 'string', 'size': 30, 'default': 'withdrawal'},
+        {
+          'key': 'withdrawalType',
+          'type': 'string',
+          'size': 30,
+          'default': 'withdrawal',
+        },
         {'key': 'description', 'type': 'string', 'size': 500},
         // ✅ حقول employeeUuid لحل FK عبر الأجهزة
         {'key': 'employeeUuid', 'type': 'string', 'size': 36},
@@ -607,7 +617,13 @@ class AppwriteSchemaVerifier {
       'name': 'App Users',
       'includeSyncFields': true,
       'attributes': [
-        {'key': 'localUuid', 'type': 'string', 'size': 36, 'required': true, 'unique': true},
+        {
+          'key': 'localUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true,
+          'unique': true,
+        },
         {'key': 'userId', 'type': 'string', 'size': 100},
         {'key': 'username', 'type': 'string', 'size': 100, 'required': true},
         {'key': 'displayName', 'type': 'string', 'size': 100},

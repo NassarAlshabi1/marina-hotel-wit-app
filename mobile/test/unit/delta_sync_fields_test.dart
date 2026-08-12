@@ -79,7 +79,8 @@ void main() {
         expect(
           q,
           isEmpty,
-          reason: 'عندما full_sync_complete = 0، يجب إجبار full fetch '
+          reason:
+              'عندما full_sync_complete = 0، يجب إجبار full fetch '
               'حتى لو lastPullTs > 0',
         );
       },

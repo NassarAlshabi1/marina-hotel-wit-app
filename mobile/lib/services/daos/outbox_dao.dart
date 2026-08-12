@@ -413,15 +413,20 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
                 deliveredToPrimary: row.read<bool>('delivered_to_primary'),
                 deliveredToSecondary: row.read<bool>('delivered_to_secondary'),
                 // ✅ Migration 55: قراءة حقول الفصل الجديدة (مع fallback)
-                primaryProcessingStatus: row.read<String?>('primary_processing_status') ?? 'pending',
+                primaryProcessingStatus:
+                    row.read<String?>('primary_processing_status') ?? 'pending',
                 primaryAttempts: row.read<int?>('primary_attempts') ?? 0,
                 primaryLastError: row.read<String?>('primary_last_error'),
-                secondaryProcessingStatus: row.read<String?>('secondary_processing_status') ?? 'pending',
+                secondaryProcessingStatus:
+                    row.read<String?>('secondary_processing_status') ??
+                    'pending',
                 secondaryAttempts: row.read<int?>('secondary_attempts') ?? 0,
                 secondaryLastError: row.read<String?>('secondary_last_error'),
                 // ✅ Wave 5: قراءة حقول الـ generation
                 payloadVersion: row.read<int?>('payload_version') ?? 1,
-                processingPayloadVersion: row.read<int?>('processing_payload_version'),
+                processingPayloadVersion: row.read<int?>(
+                  'processing_payload_version',
+                ),
               ),
             )
             .get();
@@ -615,7 +620,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         // السجل ليس في حالة 'processing' — ربما تم تحديثه أو إعادة جدولته.
         // لا نُؤكد التسليم لأن النسخة الحالية لم تُعالج فعلياً.
         dlog(
-          () => '⚠️ Outbox: _markDelivered skipped for id=$id — '
+          () =>
+              '⚠️ Outbox: _markDelivered skipped for id=$id — '
               'status=${record.processingStatus} (expected processing). '
               'Payload may have been updated since processing started.',
         );
@@ -637,7 +643,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       if (record.processingPayloadVersion != null &&
           record.processingPayloadVersion != record.payloadVersion) {
         dlog(
-          () => '⚠️ Outbox: _markDelivered STALE ACK REJECTED for id=$id — '
+          () =>
+              '⚠️ Outbox: _markDelivered STALE ACK REJECTED for id=$id — '
               'processingPayloadVersion=${record.processingPayloadVersion} '
               '!= current payloadVersion=${record.payloadVersion}. '
               'Payload was updated during processing. '

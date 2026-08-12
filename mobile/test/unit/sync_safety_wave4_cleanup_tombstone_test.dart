@@ -74,8 +74,9 @@ void main() {
           clientTs: 200,
           source: 'local',
         );
-        await (db.update(db.outbox)..where((t) => t.id.equals(idFailed)))
-            .write(OutboxCompanion(processingStatus: const drift.Value('failed')));
+        await (db.update(db.outbox)..where((t) => t.id.equals(idFailed))).write(
+          OutboxCompanion(processingStatus: const drift.Value('failed')),
+        );
 
         // 3. سجل completed — يجب أن يُحذف
         final idCompleted = await outboxDao.merge(
@@ -86,8 +87,11 @@ void main() {
           clientTs: 300,
           source: 'local',
         );
-        await (db.update(db.outbox)..where((t) => t.id.equals(idCompleted)))
-            .write(OutboxCompanion(processingStatus: const drift.Value('completed')));
+        await (db.update(
+          db.outbox,
+        )..where((t) => t.id.equals(idCompleted))).write(
+          OutboxCompanion(processingStatus: const drift.Value('completed')),
+        );
 
         // تنفيذ cleanup
         final cleaned = await outboxDao.cleanupForMissingEntities([
@@ -113,7 +117,9 @@ void main() {
         source: 'local',
       );
 
-      final cleaned = await outboxDao.cleanupForMissingEntities(['test-pending']);
+      final cleaned = await outboxDao.cleanupForMissingEntities([
+        'test-pending',
+      ]);
       expect(cleaned, 0, reason: 'عنصر pending يجب أن يُترك للأمان');
 
       final remaining = await (db.select(db.outbox)).get();
@@ -131,10 +137,13 @@ void main() {
         clientTs: 100,
         source: 'local',
       );
-      await (db.update(db.outbox)..where((t) => t.id.equals(id)))
-          .write(OutboxCompanion(processingStatus: const drift.Value('failed')));
+      await (db.update(db.outbox)..where((t) => t.id.equals(id))).write(
+        OutboxCompanion(processingStatus: const drift.Value('failed')),
+      );
 
-      final cleaned = await outboxDao.cleanupForMissingEntities(['test-failed']);
+      final cleaned = await outboxDao.cleanupForMissingEntities([
+        'test-failed',
+      ]);
       expect(cleaned, 0, reason: 'عنصر failed يجب أن يُترك للأمان');
 
       final remaining = await (db.select(db.outbox)).get();
@@ -150,10 +159,13 @@ void main() {
         clientTs: 100,
         source: 'local',
       );
-      await (db.update(db.outbox)..where((t) => t.id.equals(id)))
-          .write(OutboxCompanion(processingStatus: const drift.Value('completed')));
+      await (db.update(db.outbox)..where((t) => t.id.equals(id))).write(
+        OutboxCompanion(processingStatus: const drift.Value('completed')),
+      );
 
-      final cleaned = await outboxDao.cleanupForMissingEntities(['test-completed']);
+      final cleaned = await outboxDao.cleanupForMissingEntities([
+        'test-completed',
+      ]);
       expect(cleaned, 1, reason: 'عنصر completed يجب أن يُحذف بأمان');
 
       final remaining = await (db.select(db.outbox)).get();
@@ -178,8 +190,9 @@ void main() {
           clientTs: i,
           source: 'local',
         );
-        await (db.update(db.outbox)..where((t) => t.id.equals(id)))
-            .write(OutboxCompanion(processingStatus: const drift.Value('completed')));
+        await (db.update(db.outbox)..where((t) => t.id.equals(id))).write(
+          OutboxCompanion(processingStatus: const drift.Value('completed')),
+        );
         uuids.add(uuid);
       }
 
@@ -208,8 +221,11 @@ void main() {
         clientTs: 100,
         source: 'local',
       );
-      await (db.update(db.outbox)..where((t) => t.id.equals(idCompleted)))
-          .write(OutboxCompanion(processingStatus: const drift.Value('completed')));
+      await (db.update(
+        db.outbox,
+      )..where((t) => t.id.equals(idCompleted))).write(
+        OutboxCompanion(processingStatus: const drift.Value('completed')),
+      );
 
       final idPending = await outboxDao.merge(
         entity: 'rooms',
@@ -268,9 +284,9 @@ void main() {
         );
 
         // تحقق من الحالة قبل التحديث
-        var record = await (db.select(db.outbox)
-              ..where((t) => t.id.equals(id)))
-            .getSingle();
+        var record = await (db.select(
+          db.outbox,
+        )..where((t) => t.id.equals(id))).getSingle();
         expect(record.deliveredToPrimary, isTrue);
         expect(record.payload, contains('v1'));
 
@@ -285,10 +301,14 @@ void main() {
         );
 
         // تحقق من الحالة بعد التحديث
-        record = await (db.select(db.outbox)
-              ..where((t) => t.id.equals(id)))
-            .getSingle();
-        expect(record.deliveredToPrimary, isFalse, reason: 'يجب إعادة ضبطه لـ false');
+        record = await (db.select(
+          db.outbox,
+        )..where((t) => t.id.equals(id))).getSingle();
+        expect(
+          record.deliveredToPrimary,
+          isFalse,
+          reason: 'يجب إعادة ضبطه لـ false',
+        );
         expect(record.payload, contains('v2'));
         expect(record.attempts, 0, reason: 'attempts يجب أن يُعاد ضبطها');
       },
@@ -330,9 +350,9 @@ void main() {
       );
 
       // الحالة الآن 'pending' (أعيدت من قبل merge)
-      final record = await (db.select(db.outbox)
-            ..where((t) => t.id.equals(id)))
-          .getSingle();
+      final record = await (db.select(
+        db.outbox,
+      )..where((t) => t.id.equals(id))).getSingle();
       expect(record.processingStatus, 'pending');
       expect(record.processingWorker, isNull);
 
@@ -340,11 +360,15 @@ void main() {
       await outboxDao.markDeliveredToPrimary(id);
 
       // السجل يجب أن يبقى موجوداً (لم يُحذف)
-      final after = await (db.select(db.outbox)
-            ..where((t) => t.id.equals(id)))
-          .getSingleOrNull();
+      final after = await (db.select(
+        db.outbox,
+      )..where((t) => t.id.equals(id))).getSingleOrNull();
       expect(after, isNotNull, reason: 'السجل يجب أن يبقى — لم يُؤكد تسليمه');
-      expect(after!.deliveredToPrimary, isFalse, reason: 'payload v2 لم تُسلّم');
+      expect(
+        after!.deliveredToPrimary,
+        isFalse,
+        reason: 'payload v2 لم تُسلّم',
+      );
     });
   });
 
@@ -386,8 +410,11 @@ void main() {
           localUuid: 'deleted-room-1',
         );
 
-        expect(result.shouldApplyRemote, isFalse,
-            reason: 'لا نُحيي السجل المحذوف محلياً');
+        expect(
+          result.shouldApplyRemote,
+          isFalse,
+          reason: 'لا نُحيي السجل المحذوف محلياً',
+        );
       },
     );
 
@@ -412,8 +439,11 @@ void main() {
           localUuid: 'deleted-room-2',
         );
 
-        expect(result.shouldApplyRemote, isTrue,
-            reason: 'كلاهما محذوف → تطبيق remote للتحديث');
+        expect(
+          result.shouldApplyRemote,
+          isTrue,
+          reason: 'كلاهما محذوف → تطبيق remote للتحديث',
+        );
       },
     );
 
@@ -436,8 +466,11 @@ void main() {
         localUuid: 'active-room',
       );
 
-      expect(result.shouldApplyRemote, isTrue,
-          reason: 'تطبيق tombstone من remote على السجل النشط محلياً');
+      expect(
+        result.shouldApplyRemote,
+        isTrue,
+        reason: 'تطبيق tombstone من remote على السجل النشط محلياً',
+      );
     });
   });
 }

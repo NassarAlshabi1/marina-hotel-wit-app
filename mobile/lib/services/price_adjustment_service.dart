@@ -49,7 +49,9 @@ class PriceAdjustmentService {
       targetType: const Value('room'),
       targetUuid: Value(room.localUuid),
       adjustmentType: const Value('price_change'),
-      previousValue: Value(oldPrice), // ✅ Wave 6b: double (no .round() truncation)
+      previousValue: Value(
+        oldPrice,
+      ), // ✅ Wave 6b: double (no .round() truncation)
       newValue: Value(newPrice), // ✅ Wave 6b: double (no .round() truncation)
       reason: Value(reason),
       effectiveDate: Value(effectiveDate.toIso8601String()),
