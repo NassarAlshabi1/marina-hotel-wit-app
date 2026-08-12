@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -18,6 +19,11 @@ class SyncNotificationManager {
 
   Future<void> _initLocalNotifications() async {
     if (_isInitialized) {
+      return;
+    }
+    if (kIsWeb || kDebugMode) {
+      // Skip initialization in test/web environments
+      _isInitialized = true;
       return;
     }
 

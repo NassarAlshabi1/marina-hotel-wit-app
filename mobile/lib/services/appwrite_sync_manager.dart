@@ -42,6 +42,7 @@ import 'secondary_appwrite_config.dart';
 import 'sync_constants.dart';
 import 'sync_guard.dart';
 import 'sync_performance_optimizer.dart';
+import 'remote_change_notification_service.dart'; // ✅ Wave 7
 import 'sync/payload_mapper.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_core/sync_error_service.dart';
@@ -1581,6 +1582,23 @@ class AppwriteSyncManager {
           _lastSyncTime = endTime;
           await _saveSettings();
 
+          // ✅ Wave 7 (2026-08-12): Flush pending remote change notifications.
+          // After all sync phases complete successfully, show a single local
+          // notification if any records from other devices were applied.
+          // The notification is batched (not per-record) and dedup'd
+          // (persistent via SharedPreferences). See RemoteChangeNotificationService.
+          if (pull && recordsPulled > 0) {
+            try {
+              await RemoteChangeNotificationService.instance
+                  .flushPendingNotifications();
+            } catch (e) {
+              _logger.warning(
+                '⚠️ Failed to flush remote change notifications: $e',
+                tag: 'SYNC',
+              );
+            }
+          }
+
           // ✅ إصلاح لمرة واحدة بعد اكتمال السحب: استعادة روابط مصروفات الرواتب
           // اليتيمة عبر salary_withdrawals. يعمل مرة واحدة فقط (SharedPreferences
           // flag) ويُنتظر حتى يكتمل سحب الموظفين. التحديثات تُضاف للـ outbox
@@ -2695,6 +2713,14 @@ class AppwriteSyncManager {
           data,
           src: Source.appwrite,
         );
+        // ✅ Wave 7: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'employees',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync employee ${doc.$id}: $e', tag: 'SYNC');
@@ -2751,6 +2777,14 @@ class AppwriteSyncManager {
         await _adapterRegistry.expenses.upsertFromJson(
           data,
           src: Source.appwrite,
+        );
+        // ✅ Wave 7: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'expenses',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
         );
         processed++;
       } catch (e) {
@@ -2829,6 +2863,14 @@ class AppwriteSyncManager {
           data,
           src: Source.appwrite,
         );
+        // ✅ Wave 7: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'payments',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
         processed++;
       } catch (e) {
         // ✅ تأجيل الدفعة فقط إذا كان الخطأ FOREIGN KEY أو NOT NULL constraint
@@ -2863,7 +2905,15 @@ class AppwriteSyncManager {
             data,
             src: Source.appwrite,
           );
-          processed++;
+        // ✅ Wave 7: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'payments',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
+        processed++;
         } catch (e) {
           _logger.warning(
             'Failed to sync deferred payment ${doc.$id} after retry: $e',
@@ -2960,7 +3010,15 @@ class AppwriteSyncManager {
             data,
             src: Source.appwrite,
           );
-          processed++;
+        // ✅ Wave 7: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'debts',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
+        processed++;
         } catch (e) {
           _logger.warning(
             'Failed to sync deferred debt ${doc.$id} after retry: $e',
@@ -4079,6 +4137,14 @@ class AppwriteSyncManager {
         await _adapterRegistry.guestInfos.upsertFromJson(
           data,
           src: Source.appwrite,
+        );
+        // ✅ Wave 7: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'guest_infos',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
         );
         processed++;
       } catch (e) {
@@ -7040,6 +7106,14 @@ class AppwriteSyncManager {
           data,
           src: Source.appwrite,
         );
+        // ✅ Wave 7: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'shift_notes',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
         processed++;
       } catch (e) {
         _logger.warning(
@@ -7083,6 +7157,14 @@ class AppwriteSyncManager {
         await _adapterRegistry.bookingNotes.upsertFromJson(
           data,
           src: Source.appwrite,
+        );
+        // ✅ Wave 7: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'booking_notes',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
         );
         processed++;
       } catch (e) {
@@ -7215,6 +7297,14 @@ class AppwriteSyncManager {
           data,
           src: Source.appwrite,
         );
+        // ✅ Wave 7: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'cash_transactions',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
         processed++;
       } catch (e) {
         _logger.warning(
@@ -7310,6 +7400,14 @@ class AppwriteSyncManager {
           data,
           src: Source.appwrite,
         );
+        // ✅ Wave 7: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'salary_cycles',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
         processed++;
       } on SqliteException catch (e) {
         if (e.resultCode == 787) {
@@ -7346,7 +7444,15 @@ class AppwriteSyncManager {
             data,
             src: Source.appwrite,
           );
-          processed++;
+        // ✅ Wave 7: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'salary_cycles',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
+        processed++;
         } catch (e) {
           _logger.warning(
             '⏭️ فشل نهائي لـ salary_cycle (يتيم): $e',
@@ -7401,6 +7507,14 @@ class AppwriteSyncManager {
           data,
           src: Source.appwrite,
         );
+        // ✅ Wave 7: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'salary_payments',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
         processed++;
       } on SqliteException catch (e) {
         if (e.resultCode == 787) {
@@ -7437,7 +7551,15 @@ class AppwriteSyncManager {
             data,
             src: Source.appwrite,
           );
-          processed++;
+        // ✅ Wave 7: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'salary_payments',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
+        processed++;
         } catch (e) {
           _logger.warning(
             '⏭️ فشل نهائي لـ salary_payment (يتيم): $e',
@@ -7693,6 +7815,14 @@ class AppwriteSyncManager {
         await _adapterRegistry.auditLogs.upsertFromJson(
           data,
           src: Source.appwrite,
+        );
+        // ✅ Wave 7: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'audit_logs',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
         );
         processed++;
       } catch (e) {
@@ -7975,6 +8105,14 @@ class AppwriteSyncManager {
           data,
           src: Source.appwrite,
         );
+        // ✅ Wave 7: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'payment_voids',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
         processed++;
       } catch (e) {
         _logger.warning(
@@ -8020,6 +8158,14 @@ class AppwriteSyncManager {
         await _adapterRegistry.salaryCarryOverLogs.upsertFromJson(
           data,
           src: Source.appwrite,
+        );
+        // ✅ Wave 7: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'salary_carry_over_logs',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
         );
         processed++;
       } catch (e) {
