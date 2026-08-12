@@ -34,6 +34,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import 'remote_change_notifier.dart';
+
 /// قنوات الإشعارات المحلية — كل نوع حدث له قناة مستقلة.
 ///
 /// على Android 8+، يتحكم المستخدم بكل قناة على حدة من إعدادات النظام
@@ -88,13 +90,11 @@ class _Channels {
 class LocalNotificationService {
   factory LocalNotificationService() => _instance;
   LocalNotificationService._internal();
-  static final LocalNotificationService _instance =
-      LocalNotificationService._internal();
+  static final LocalNotificationService _instance = LocalNotificationService._internal();
 
   static LocalNotificationService get instance => _instance;
 
-  final FlutterLocalNotificationsPlugin _plugin =
-      FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
 
   bool _isInitialized = false;
 
@@ -141,10 +141,7 @@ class LocalNotificationService {
   /// إنشاء قنوات الإشعارات على Android.
   /// على iOS لا توجد قنوات — يتم تجاهل الاستدعاء تلقائياً.
   Future<void> _createChannels() async {
-    final android = _plugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
+    final android = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     if (android == null) return;
     for (final channel in _Channels.all) {
       await android.createNotificationChannel(channel);
@@ -152,13 +149,19 @@ class LocalNotificationService {
   }
 
   /// معالج الضغط على الإشعار.
-  /// حالياً يسجّل الحدث فقط — يمكن توسيعه لاحقاً للتنقل إلى الشاشة المناسبة.
+  ///
+  /// ✅ RemoteChangeNotifier: إذا كان payload يبدأ بـ 'remote_change:'،
+  /// نُفوّض المعالجة لـ RemoteChangeNotifier.handleNotificationTap.
   void _onNotificationTapped(NotificationResponse response) {
     debugPrint(
       '🔔 Local notification tapped: id=${response.id} '
       'payload=${response.payload}',
     );
-    // TODO: عند الحاجة، أضف منطق التنقل لشاشة محددة بناءً على payload.
+    final payload = response.payload;
+    if (payload != null && payload.startsWith('remote_change:')) {
+      RemoteChangeNotifier.handleNotificationTap(payload);
+      return;
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -205,14 +208,12 @@ class LocalNotificationService {
     String? guestName,
   }) async {
     final methodStr = (method != null && method.isNotEmpty) ? ' | $method' : '';
-    final guestStr =
-        (guestName != null && guestName.isNotEmpty) ? ' — $guestName' : '';
+    final guestStr = (guestName != null && guestName.isNotEmpty) ? ' — $guestName' : '';
     await _show(
       id: _nextPaymentId++,
       channel: _Channels.payments,
       title: '💰 دفعة جديدة',
-      body:
-          'غرفة $roomNumber$guestStr | ${amount.toStringAsFixed(0)} ريال$methodStr',
+      body: 'غرفة $roomNumber$guestStr | ${amount.toStringAsFixed(0)} ريال$methodStr',
       payload: 'payment_added:$roomNumber',
     );
   }
@@ -281,6 +282,12 @@ class LocalNotificationService {
     required String body,
     String? payload,
   }) async {
+    // ✅ Testing hook: التقط الإشعار بدل عرضه فعلياً.
+    if (_testingCapture != null) {
+      _testingCapture!(title, body, payload);
+      return;
+    }
+
     if (!_isInitialized) {
       // محاولة تهيئة تلقائية إذا لم تُهيّأ بعد — للحفاظ على الأمان
       await initialize();
@@ -308,12 +315,26 @@ class LocalNotificationService {
     }
   }
 
+  // ─── Testing helpers ────────────────────────────────────────
+
+  /// ✅ Testing hook: يلتقط الإشعارات بدل عرضها.
+  void Function(String title, String body, String? payload)? _testingCapture;
+
+  /// ✅ تفعيل capture mode للاختبارات.
+  @visibleForTesting
+  void setTestingCapture(
+    void Function(String title, String body, String? payload)? capture,
+  ) {
+    _testingCapture = capture;
+  }
+
   /// إلغاء كل الإشعارات النشطة (يُستخدم عند تسجيل الخروج مثلاً).
   Future<void> cancelAll() async {
     try {
       await _plugin.cancelAll();
     } catch (e) {
-      debugPrint('⚠️ Swallowed error in local_notification_service.dart: ');}
+      debugPrint('⚠️ Swallowed error in local_notification_service.dart: ');
+    }
   }
 
   /// هل تمت التهيئة؟

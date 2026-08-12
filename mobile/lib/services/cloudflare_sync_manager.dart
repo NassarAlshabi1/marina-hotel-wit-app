@@ -17,6 +17,7 @@ import '../utils/env.dart';
 import 'cloudflare_config.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
+import 'remote_change_notifier.dart';
 import 'resilient_http_client.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_enums.dart';
@@ -142,6 +143,10 @@ class CloudflareSyncManager {
       await prefs.setString('cf_device_id', _deviceId!);
     }
     setStaticDeviceId(_deviceId!);
+
+    // ✅ RemoteChangeNotifier: اضبط معرّف جهازنا الحالي لتمييز تغييراتنا
+    // عن تغييرات الأجهزة الأخرى.
+    RemoteChangeNotifier.instance.setMyDeviceId(_deviceId!);
 
     // ✅ P0-B: استعادة علامة "full sync مكتملة" من الجلسة السابقة
     _fullSyncCompleted = prefs.getBool(_kFullSyncCompletedKey) ?? false;
@@ -788,6 +793,15 @@ class CloudflareSyncManager {
           [deletedAt, remoteUpdatedAt, remoteUpdatedAt, localId],
         );
         debugPrint('  🗑️ $entity/$localUuid: soft delete applied');
+
+        // ✅ RemoteChangeNotifier: إشعار بعد apply ناجح
+        unawaited(
+          RemoteChangeNotifier.instance.onRemoteChangeApplied(
+            entity: entity,
+            record: record,
+            op: 'delete',
+          ),
+        );
         return;
       }
 
@@ -848,6 +862,15 @@ class CloudflareSyncManager {
             debugPrint('  ⚠️ Failed to queue merged conflict result: $e');
           }
         }
+
+        // ✅ RemoteChangeNotifier: إشعار بعد apply ناجح (merged conflict)
+        unawaited(
+          RemoteChangeNotifier.instance.onRemoteChangeApplied(
+            entity: entity,
+            record: record,
+            op: 'update',
+          ),
+        );
         return;
       }
 
@@ -859,6 +882,15 @@ class CloudflareSyncManager {
       await _db!.customStatement(
         'UPDATE $tableName SET $setClauses WHERE id = ?',
         [...values, localId],
+      );
+
+      // ✅ RemoteChangeNotifier: إشعار بعد apply ناجح (sequential update)
+      unawaited(
+        RemoteChangeNotifier.instance.onRemoteChangeApplied(
+          entity: entity,
+          record: record,
+          op: 'update',
+        ),
       );
     } else {
       // ✅ سجل جديد — أدخله
@@ -872,6 +904,24 @@ class CloudflareSyncManager {
         'INSERT OR IGNORE INTO $tableName ($columns) VALUES ($placeholders)',
         values,
       );
+
+      // ✅ RemoteChangeNotifier: إشعار بعد apply ناجح
+      // (نتحقق من التأثير الفعلي عبر SELECT — INSERT OR IGNORE قد تجاهله)
+      final inserted = await _db!
+          .customSelect(
+            'SELECT 1 FROM $tableName WHERE local_uuid = ? AND updated_at = ?',
+            variables: [Variable<String>(localUuid), Variable<int>(remoteUpdatedAt)],
+          )
+          .getSingleOrNull();
+      if (inserted != null) {
+        unawaited(
+          RemoteChangeNotifier.instance.onRemoteChangeApplied(
+            entity: entity,
+            record: record,
+            op: 'create',
+          ),
+        );
+      }
     }
   }
 
