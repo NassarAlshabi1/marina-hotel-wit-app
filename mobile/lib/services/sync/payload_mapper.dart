@@ -324,6 +324,21 @@ class PayloadMapper {
     putIfStringNotEmpty(data, 'dueDate', debt.dueDate);
     putIfStringNotEmpty(data, 'idempotencyKey', debt.idempotencyKey);
 
+    // ✅ Wave 6 (2026-08-12): حقول إضافية مطلوبة من Appwrite Cloud لـ debts.
+    // موجودة في schemaAttributeTypes و filterPayload لكنها كانت مفقودة من الـ push.
+    // انظر appwrite_sync_utils.dart:362-411 (whitelist) و
+    // appwrite_schema_verifier.dart:301-304 (Cloud schema).
+    // bookingUuidCache: يُرسل دائماً للسماح للترابط بين الأجهزة (لا يعتمد على bookingLocalId الذي يختلف بين الأجهزة)
+    putIfStringNotEmpty(data, 'bookingUuidCache', debt.bookingUuidCache);
+    // debtorName: قد يختلف عن guestName في حالات الديون غير المرتبطة بنزلاء
+    putIfStringNotEmpty(data, 'debtorName', debt.debtorName);
+    // amount: مبلغ الدين (قد يختلف عن totalAmount في حالات الديون الجزئية)
+    if (debt.amount != null) {
+      data['amount'] = debt.amount;
+    }
+    // date: تاريخ الدين (مستقل عن checkinDate/checkoutDate/paymentDate)
+    putIfStringNotEmpty(data, 'date', debt.date);
+
     putIfNotNull(data, 'createdAtEpoch', debt.createdAtEpoch);
     putIfNotNull(data, 'lastModifiedEpoch', debt.lastModifiedEpoch);
     data['syncTimestamp'] = debt.lastModified;

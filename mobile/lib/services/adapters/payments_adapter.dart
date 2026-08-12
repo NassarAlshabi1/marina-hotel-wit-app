@@ -192,6 +192,14 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       isVoided: _vBool(json, 'isVoided', src, fallback: false),
       voidedAt: _vInt(json, 'voidedAt', src),
       voidedBy: _vStr(json, 'voidedBy', src),
+      // ✅ Wave 6b (2026-08-12): voidReason و isImmutable كانا موجودين في
+      // Cloud schema و filterPayload و Drift table لكنهما لم يُقرآ من adapter.
+      // بدون هذا الإصلاح، الدفعات الملغاة تفقد سبب الإلغاء عند السحب،
+      // والدفعات المثبتة مالياً يمكن تعديلها عن طريق الخطأ.
+      // انظر appwrite_schema_verifier.dart:264-265 (Cloud) و
+      // local_db.dart:256-257 (Drift columns).
+      voidReason: _vStr(json, 'voidReason', src, altKey: 'void_reason'),
+      isImmutable: _vBool(json, 'isImmutable', src, fallback: false),
     );
   }
 

@@ -238,6 +238,24 @@ class BookingsAdapter extends EntityAdapter<Booking, BookingsCompanion> {
         altKey: 'idempotency_key',
       ),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
+      // ✅ Wave 6b (2026-08-12): financialFrozenAt و financialHash كانا موجودين
+      // في Cloud schema و filterPayload و Drift table لكنهما لم يُقرآ من adapter.
+      // بدون هذا الإصلاح، حالة التجميد المالي تُفقد عند السحب من جهاز آخر،
+      // مما قد يسمح بتعديل حجز مجمّد مالياً.
+      // انظر appwrite_schema_verifier.dart:340-341 (Cloud) و
+      // local_db.dart:104-105 (Drift columns).
+      financialFrozenAt: _vInt(
+        json,
+        'financialFrozenAt',
+        src,
+        altKey: 'financial_frozen_at',
+      ),
+      financialHash: _vStr(
+        json,
+        'financialHash',
+        src,
+        altKey: 'financial_hash',
+      ),
     );
   }
 

@@ -125,12 +125,19 @@ class BookingPriceAdjustmentsAdapter
       // ✅ amount أُضيف إلى Appwrite Cloud (2026-05-15) كـ integer
       // نقرأه كـ double للمحلي (integer على Cloud → double محلياً)
       amount: _vDouble(json, 'amount', src),
+      // ✅ Wave 6b (2026-08-12): hotelDayKey و appliedDate على Cloud هما نفس
+      // effectiveHotelDay محلياً (انظر toJson السطر 206-207). سابقاً، fromJson
+      // لم يقرأهما كـ fallback — فإذا أرسل Cloud hotelDayKey بدل effectiveHotelDay
+      // (وهو ما يحدث فعلياً)، تُفقد القيمة ويُحفظ effectiveHotelDay كـ ''.
+      // الآن: نقرأ effectiveHotelDay أولاً، ثم hotelDayKey، ثم appliedDate.
       effectiveHotelDay: _vStr(
         json,
         'effectiveHotelDay',
         src,
         altKey: 'effective_hotel_day',
-        fallback: '',
+        fallback: _asString(json, 'hotelDayKey', src) ??
+            _asString(json, 'appliedDate', src) ??
+            '',
       ),
       endHotelDay: _vStr(json, 'endHotelDay', src, altKey: 'end_hotel_day'),
       isActive: _vBool(
@@ -179,6 +186,13 @@ class BookingPriceAdjustmentsAdapter
         altKey: 'idempotency_key',
       ),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
+      // ✅ Wave 6b (2026-08-12): appliedAt و bookingUuid كانا موجودين في
+      // filterPayload و Drift table لكنهما لم يُقرآ من adapter during pull.
+      // appliedAt: timestamp متى طُبّق التعديل (مستقل عن createdAt)
+      // bookingUuid: UUID للحجز (يُستخدم للربط بدل bookingLocalId الذي يختلف بين الأجهزة)
+      // انظر local_db.dart: booking_price_adjustments columns (appliedAt, bookingUuid).
+      appliedAt: _vInt(json, 'appliedAt', src, altKey: 'applied_at'),
+      bookingUuid: _vStr(json, 'bookingUuid', src, altKey: 'booking_uuid'),
     );
   }
 

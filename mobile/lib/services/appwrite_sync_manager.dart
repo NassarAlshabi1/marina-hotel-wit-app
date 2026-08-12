@@ -1375,6 +1375,37 @@ class AppwriteSyncManager {
                 );
               }
 
+              // ✅ Wave 6b (2026-08-12): إضافة salary_carry_over_logs لمسار السحب.
+              // سابقاً كان موجوداً في مسار الدفع فقط (_processSalaryCarryOverLogEntry)
+              // لكنه لم يكن يُسحب من Appwrite أبداً — فجوة معمارية مؤكدة.
+              // انظر: لا يوجد _syncSalaryCarryOverLogs ولا listSalaryCarryOverLogs.
+              try {
+                recordsPulled += await _timePhase(
+                  'syncSalaryCarryOverLogs',
+                  () async {
+                    final docs = await appwriteService.listDocuments(
+                      collectionId: 'salary_carry_over_logs',
+                      queries: deltaQ,
+                    );
+                    final synced = await _syncSalaryCarryOverLogs(docs);
+                    _logger.debug(
+                      'Synced $synced salary carry over logs',
+                      tag: 'SYNC',
+                    );
+                    return synced;
+                  },
+                  phaseMs,
+                );
+              } catch (e, st) {
+                failedCollections.add('salary_carry_over_logs');
+                _logger.error(
+                  '❌ فشل سحب salary_carry_over_logs',
+                  error: e,
+                  stackTrace: st,
+                  tag: 'SYNC',
+                );
+              }
+
               // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
 
               // مزامنة إعدادات الواتساب (app_settings) — غير حرجة، لا تمنع Delta Sync
@@ -7948,6 +7979,52 @@ class AppwriteSyncManager {
       } catch (e) {
         _logger.warning(
           'Failed to sync payment void ${doc.$id}: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+    return processed;
+  }
+
+  /// ✅ Wave 6b (2026-08-12): سحب سجلات ترحيل الراتب من Appwrite.
+  /// سابقاً كان هذا الكيان موجوداً في مسار الدفع فقط (push) لكنه لم يكن
+  /// يُسحب من Appwrite أبداً — فجوة معمارية مؤكدة. الآن يُسحب ضمن
+  /// الدورة العادية عبر deltaQ (نفس نمط payment_voids و audit_logs).
+  Future<int> _syncSalaryCarryOverLogs(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+
+        final localUuid = (data['localUuid'] as String?) ?? '';
+        final existing =
+            await (database.select(database.salaryCarryOverLogs)
+                  ..where((t) => t.localUuid.equals(localUuid))
+                  ..limit(1))
+                .getSingleOrNull();
+        if (!(await _isRemoteDataNewer(
+          data,
+          existing?.lastModified,
+          localDeletedAt: existing?.deletedAt,
+          remoteUpdatedAtSec: _extractUpdatedAtSec(doc),
+          localVectorClock: existing?.vectorClock,
+          entityName: 'salary_carry_over_logs',
+          localUuid: localUuid,
+          localData: existing?.toJson(),
+        )).shouldApplyRemote) {
+          continue;
+        }
+
+        await _adapterRegistry.salaryCarryOverLogs.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
+        processed++;
+      } catch (e) {
+        _logger.warning(
+          'Failed to sync salary carry over log ${doc.$id}: $e',
           tag: 'SYNC',
         );
       }

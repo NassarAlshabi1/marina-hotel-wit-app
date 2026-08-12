@@ -314,6 +314,16 @@ class Debts extends Table with SyncFields {
   TextColumn get status => text().nullable()();
   TextColumn get dueDate => text().nullable()();
 
+  /// ✅ Wave 6 (2026-08-12): حقول إضافية مطلوبة من Appwrite Cloud.
+  /// موجودة في schemaAttributeTypes و filterPayload لـ debts لكنها
+  /// كانت مفقودة من الـ Drift table — مما يمنع الـ push و pull.
+  /// انظر appwrite_sync_utils.dart:362-411 (whitelist) و
+  /// appwrite_schema_verifier.dart:301-304 (Cloud schema).
+  TextColumn get bookingUuidCache => text().nullable()();
+  TextColumn get debtorName => text().nullable()();
+  RealColumn get amount => real().nullable()();
+  TextColumn get date => text().nullable()();
+
   List<Index> get indexes => [
     Index(
       'idx_debts_status',
@@ -435,8 +445,11 @@ class PriceAdjustments extends Table with SyncFields {
   TextColumn get targetType => text()();
   TextColumn get targetUuid => text()();
   TextColumn get adjustmentType => text()();
-  IntColumn get previousValue => integer()();
-  IntColumn get newValue => integer()();
+  // ✅ Wave 6b (2026-08-12): changed from IntColumn → RealColumn
+  // Cloud schema defines these as 'double' (انظر appwrite_schema_verifier.dart).
+  // سابقاً كانت IntColumn مما يسبب truncation للقيم الكسرية مثل 1500.75 → 1500.
+  RealColumn get previousValue => real()();
+  RealColumn get newValue => real()();
   TextColumn get reason => text().nullable()();
   TextColumn get effectiveDate => text()();
   TextColumn get appliedBy => text()();
@@ -1032,7 +1045,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 57;
+  int get schemaVersion => 58;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -3133,6 +3146,48 @@ class AppDatabase extends _$AppDatabase {
             'Migration 57: outbox.processing_payload_version may already exist: $e',
             name: 'db.migration',
           );
+        }
+      }
+
+      // === Migration 58: debts — bookingUuidCache, debtorName, amount, date ===
+      // ✅ Sync Safety Wave 6 (2026-08-12): إضافة 4 حقول مطلوبة من Appwrite Cloud
+      // لجدول debts لكنها كانت مفقودة من الـ Drift table.
+      //
+      // المشكلة التي تم إصلاحها:
+      // - Appwrite Cloud يخزّن هذه الحقول (انظر appwrite_schema_verifier.dart:301-304)
+      // - filterPayload يسمح بها (انظر appwrite_sync_utils.dart:362-411)
+      // - لكن Drift table لم يكن لديها كأعمدة — فلا يمكن قراءتها أو كتابتها
+      // - debtToRemote لم يرسلها، DebtsAdapter.fromJson لم يقرأها
+      //
+      // الحقول:
+      // - bookingUuidCache: معرّف UUID للحجز المرتبط (للربط بين الأجهزة بدل bookingLocalId)
+      // - debtorName: اسم المدين (قد يختلف عن guestName في حالات معينة)
+      // - amount: مبلغ الدين (قد يختلف عن totalAmount في بعض الحالات)
+      // - date: تاريخ الدين (مستقل عن checkinDate/checkoutDate/paymentDate)
+      //
+      // جميع الحقول nullable — لا تتطلب backfill.
+      if (from < 58) {
+        const newColumns = <String, String>{
+          'booking_uuid_cache': 'TEXT',
+          'debtor_name': 'TEXT',
+          'amount': 'REAL',
+          'date': 'TEXT',
+        };
+        for (final entry in newColumns.entries) {
+          try {
+            await m.database.customStatement(
+              'ALTER TABLE debts ADD COLUMN ${entry.key} ${entry.value}',
+            );
+            developer.log(
+              'Migration 58: added debts.${entry.key}',
+              name: 'db.migration',
+            );
+          } catch (e) {
+            developer.log(
+              'Migration 58: debts.${entry.key} may already exist: $e',
+              name: 'db.migration',
+            );
+          }
         }
       }
     },

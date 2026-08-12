@@ -188,6 +188,31 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
         altKey: 'idempotency_key',
       ),
       deviceId: _vStr(json, 'deviceId', src, altKey: 'device_id', fallback: ''),
+      // ✅ Wave 6 (2026-08-12): حفظ الحقول الإضافية المطلوبة من Appwrite Cloud.
+      // موجودة في schemaAttributeTypes و filterPayload لكنها كانت مفقودة من الـ pull.
+      // bookingUuidCache: يُحفظ في النموذج للوصول السريع (إضافة لحفظه في ResolveResult
+      // الذي يُستخدم لحل bookingLocalId).
+      bookingUuidCache: _vStr(
+        json,
+        'bookingUuidCache',
+        src,
+        altKey: 'booking_uuid_cache',
+      ),
+      debtorName: _vStr(
+        json,
+        'debtorName',
+        src,
+        altKey: 'debtor_name',
+      ),
+      amount: _vDouble(json, 'amount', src),
+      date: _vStr(json, 'date', src),
+      // ✅ Wave 6b (2026-08-12): dueDate و status كانا موجودين في Cloud schema
+      // و filterPayload و Drift table لكنهما لم يُقرآ من adapter أبداً — فجوة في السحب.
+      // انظر appwrite_schema_verifier.dart:299-300 (Cloud) و
+      // appwrite_sync_utils.dart:381,401 (whitelist) و
+      // local_db.dart:314-315 (Drift columns).
+      dueDate: _vStr(json, 'dueDate', src, altKey: 'due_date'),
+      status: _vStr(json, 'status', src),
     );
   }
 
@@ -236,6 +261,11 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
       _k(src, 'vectorClock', 'vector_clock'): model.vectorClock,
       'idempotencyKey': model.idempotencyKey,
       'deviceId': model.deviceId,
+      // ✅ Wave 6 (2026-08-12): حقول إضافية لـ Drive sync (نفس حقول Appwrite Cloud).
+      _k(src, 'bookingUuidCache', 'booking_uuid_cache'): model.bookingUuidCache,
+      _k(src, 'debtorName', 'debtor_name'): model.debtorName,
+      _k(src, 'amount', 'amount'): model.amount,
+      _k(src, 'date', 'date'): model.date,
     };
   }
 }

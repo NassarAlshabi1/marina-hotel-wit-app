@@ -14156,6 +14156,45 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _bookingUuidCacheMeta =
+      const VerificationMeta('bookingUuidCache');
+  @override
+  late final GeneratedColumn<String> bookingUuidCache =
+      GeneratedColumn<String>(
+        'booking_uuid_cache',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _debtorNameMeta =
+      const VerificationMeta('debtorName');
+  @override
+  late final GeneratedColumn<String> debtorName = GeneratedColumn<String>(
+    'debtor_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+    'amount',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<String> date = GeneratedColumn<String>(
+    'date',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -14199,6 +14238,10 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     description,
     status,
     dueDate,
+    bookingUuidCache,
+    debtorName,
+    amount,
+    date,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -14540,6 +14583,36 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
         dueDate.isAcceptableOrUnknown(data['due_date']!, _dueDateMeta),
       );
     }
+    if (data.containsKey('booking_uuid_cache')) {
+      context.handle(
+        _bookingUuidCacheMeta,
+        bookingUuidCache.isAcceptableOrUnknown(
+          data['booking_uuid_cache']!,
+          _bookingUuidCacheMeta,
+        ),
+      );
+    }
+    if (data.containsKey('debtor_name')) {
+      context.handle(
+        _debtorNameMeta,
+        debtorName.isAcceptableOrUnknown(
+          data['debtor_name']!,
+          _debtorNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+        _dateMeta,
+        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+      );
+    }
     return context;
   }
 
@@ -14713,6 +14786,22 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
         DriftSqlType.string,
         data['${effectivePrefix}due_date'],
       ),
+      bookingUuidCache: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}booking_uuid_cache'],
+      ),
+      debtorName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}debtor_name'],
+      ),
+      amount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}amount'],
+      ),
+      date: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}date'],
+      ),
     );
   }
 
@@ -14764,6 +14853,10 @@ class Debt extends DataClass implements Insertable<Debt> {
   final String? description;
   final String? status;
   final String? dueDate;
+  final String? bookingUuidCache;
+  final String? debtorName;
+  final double? amount;
+  final String? date;
   const Debt({
     required this.localUuid,
     this.serverId,
@@ -14806,6 +14899,10 @@ class Debt extends DataClass implements Insertable<Debt> {
     this.description,
     this.status,
     this.dueDate,
+    this.bookingUuidCache,
+    this.debtorName,
+    this.amount,
+    this.date,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -14885,6 +14982,18 @@ class Debt extends DataClass implements Insertable<Debt> {
     if (!nullToAbsent || dueDate != null) {
       map['due_date'] = Variable<String>(dueDate);
     }
+    if (!nullToAbsent || bookingUuidCache != null) {
+      map['booking_uuid_cache'] = Variable<String>(bookingUuidCache);
+    }
+    if (!nullToAbsent || debtorName != null) {
+      map['debtor_name'] = Variable<String>(debtorName);
+    }
+    if (!nullToAbsent || amount != null) {
+      map['amount'] = Variable<double>(amount);
+    }
+    if (!nullToAbsent || date != null) {
+      map['date'] = Variable<String>(date);
+    }
     return map;
   }
 
@@ -14963,6 +15072,18 @@ class Debt extends DataClass implements Insertable<Debt> {
       dueDate: dueDate == null && nullToAbsent
           ? const Value.absent()
           : Value(dueDate),
+      bookingUuidCache: bookingUuidCache == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bookingUuidCache),
+      debtorName: debtorName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(debtorName),
+      amount: amount == null && nullToAbsent
+          ? const Value.absent()
+          : Value(amount),
+      date: date == null && nullToAbsent
+          ? const Value.absent()
+          : Value(date),
     );
   }
 
@@ -15015,6 +15136,12 @@ class Debt extends DataClass implements Insertable<Debt> {
       description: serializer.fromJson<String?>(json['description']),
       status: serializer.fromJson<String?>(json['status']),
       dueDate: serializer.fromJson<String?>(json['dueDate']),
+      bookingUuidCache: serializer.fromJson<String?>(
+        json['bookingUuidCache'],
+      ),
+      debtorName: serializer.fromJson<String?>(json['debtorName']),
+      amount: serializer.fromJson<double?>(json['amount']),
+      date: serializer.fromJson<String?>(json['date']),
     );
   }
   @override
@@ -15062,6 +15189,10 @@ class Debt extends DataClass implements Insertable<Debt> {
       'description': serializer.toJson<String?>(description),
       'status': serializer.toJson<String?>(status),
       'dueDate': serializer.toJson<String?>(dueDate),
+      'bookingUuidCache': serializer.toJson<String?>(bookingUuidCache),
+      'debtorName': serializer.toJson<String?>(debtorName),
+      'amount': serializer.toJson<double?>(amount),
+      'date': serializer.toJson<String?>(date),
     };
   }
 
@@ -15107,6 +15238,10 @@ class Debt extends DataClass implements Insertable<Debt> {
     Value<String?> description = const Value.absent(),
     Value<String?> status = const Value.absent(),
     Value<String?> dueDate = const Value.absent(),
+    Value<String?> bookingUuidCache = const Value.absent(),
+    Value<String?> debtorName = const Value.absent(),
+    Value<double?> amount = const Value.absent(),
+    Value<String?> date = const Value.absent(),
   }) => Debt(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -15157,6 +15292,14 @@ class Debt extends DataClass implements Insertable<Debt> {
     description: description.present ? description.value : this.description,
     status: status.present ? status.value : this.status,
     dueDate: dueDate.present ? dueDate.value : this.dueDate,
+    bookingUuidCache: bookingUuidCache.present
+        ? bookingUuidCache.value
+        : this.bookingUuidCache,
+    debtorName: debtorName.present
+        ? debtorName.value
+        : this.debtorName,
+    amount: amount.present ? amount.value : this.amount,
+    date: date.present ? date.value : this.date,
   );
   Debt copyWithCompanion(DebtsCompanion data) {
     return Debt(
@@ -15251,6 +15394,14 @@ class Debt extends DataClass implements Insertable<Debt> {
           : this.description,
       status: data.status.present ? data.status.value : this.status,
       dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
+      bookingUuidCache: data.bookingUuidCache.present
+          ? data.bookingUuidCache.value
+          : this.bookingUuidCache,
+      debtorName: data.debtorName.present
+          ? data.debtorName.value
+          : this.debtorName,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      date: data.date.present ? data.date.value : this.date,
     );
   }
 
@@ -15297,7 +15448,11 @@ class Debt extends DataClass implements Insertable<Debt> {
           ..write('guestPhone: $guestPhone, ')
           ..write('description: $description, ')
           ..write('status: $status, ')
-          ..write('dueDate: $dueDate')
+          ..write('dueDate: $dueDate, ')
+          ..write('bookingUuidCache: $bookingUuidCache, ')
+          ..write('debtorName: $debtorName, ')
+          ..write('amount: $amount, ')
+          ..write('date: $date')
           ..write(')'))
         .toString();
   }
@@ -15345,6 +15500,10 @@ class Debt extends DataClass implements Insertable<Debt> {
     description,
     status,
     dueDate,
+    bookingUuidCache,
+    debtorName,
+    amount,
+    date,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -15390,7 +15549,11 @@ class Debt extends DataClass implements Insertable<Debt> {
           other.guestPhone == this.guestPhone &&
           other.description == this.description &&
           other.status == this.status &&
-          other.dueDate == this.dueDate);
+          other.dueDate == this.dueDate &&
+          other.bookingUuidCache == this.bookingUuidCache &&
+          other.debtorName == this.debtorName &&
+          other.amount == this.amount &&
+          other.date == this.date);
 }
 
 class DebtsCompanion extends UpdateCompanion<Debt> {
@@ -15435,6 +15598,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
   final Value<String?> description;
   final Value<String?> status;
   final Value<String?> dueDate;
+  final Value<String?> bookingUuidCache;
+  final Value<String?> debtorName;
+  final Value<double?> amount;
+  final Value<String?> date;
   const DebtsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -15477,6 +15644,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.description = const Value.absent(),
     this.status = const Value.absent(),
     this.dueDate = const Value.absent(),
+    this.bookingUuidCache = const Value.absent(),
+    this.debtorName = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.date = const Value.absent(),
   });
   DebtsCompanion.insert({
     required String localUuid,
@@ -15520,6 +15691,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     this.description = const Value.absent(),
     this.status = const Value.absent(),
     this.dueDate = const Value.absent(),
+    this.bookingUuidCache = const Value.absent(),
+    this.debtorName = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.date = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -15573,6 +15748,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Expression<String>? description,
     Expression<String>? status,
     Expression<String>? dueDate,
+    Expression<String>? bookingUuidCache,
+    Expression<String>? debtorName,
+    Expression<double>? amount,
+    Expression<String>? date,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -15617,6 +15796,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       if (description != null) 'description': description,
       if (status != null) 'status': status,
       if (dueDate != null) 'due_date': dueDate,
+      if (bookingUuidCache != null) 'booking_uuid_cache': bookingUuidCache,
+      if (debtorName != null) 'debtor_name': debtorName,
+      if (amount != null) 'amount': amount,
+      if (date != null) 'date': date,
     });
   }
 
@@ -15662,6 +15845,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     Value<String?>? description,
     Value<String?>? status,
     Value<String?>? dueDate,
+    Value<String?>? bookingUuidCache,
+    Value<String?>? debtorName,
+    Value<double?>? amount,
+    Value<String?>? date,
   }) {
     return DebtsCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -15705,6 +15892,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
       description: description ?? this.description,
       status: status ?? this.status,
       dueDate: dueDate ?? this.dueDate,
+      bookingUuidCache: bookingUuidCache ?? this.bookingUuidCache,
+      debtorName: debtorName ?? this.debtorName,
+      amount: amount ?? this.amount,
+      date: date ?? this.date,
     );
   }
 
@@ -15834,6 +16025,18 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
     if (dueDate.present) {
       map['due_date'] = Variable<String>(dueDate.value);
     }
+    if (bookingUuidCache.present) {
+      map['booking_uuid_cache'] = Variable<String>(bookingUuidCache.value);
+    }
+    if (debtorName.present) {
+      map['debtor_name'] = Variable<String>(debtorName.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<String>(date.value);
+    }
     return map;
   }
 
@@ -15881,6 +16084,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
           ..write('description: $description, ')
           ..write('status: $status, ')
           ..write('dueDate: $dueDate')
+          ..write('bookingUuidCache: $bookingUuidCache')
+          ..write('debtorName: $debtorName')
+          ..write('amount: $amount')
+          ..write('date: $date')
           ..write(')'))
         .toString();
   }
@@ -28107,22 +28314,22 @@ class $PriceAdjustmentsTable extends PriceAdjustments
     'previousValue',
   );
   @override
-  late final GeneratedColumn<int> previousValue = GeneratedColumn<int>(
+  late final GeneratedColumn<double> previousValue = GeneratedColumn<double>(
     'previous_value',
     aliasedName,
     false,
-    type: DriftSqlType.int,
+    type: DriftSqlType.double,
     requiredDuringInsert: true,
   );
   static const VerificationMeta _newValueMeta = const VerificationMeta(
     'newValue',
   );
   @override
-  late final GeneratedColumn<int> newValue = GeneratedColumn<int>(
+  late final GeneratedColumn<double> newValue = GeneratedColumn<double>(
     'new_value',
     aliasedName,
     false,
-    type: DriftSqlType.int,
+    type: DriftSqlType.double,
     requiredDuringInsert: true,
   );
   static const VerificationMeta _reasonMeta = const VerificationMeta('reason');
@@ -28642,11 +28849,11 @@ class $PriceAdjustmentsTable extends PriceAdjustments
         data['${effectivePrefix}adjustment_type'],
       )!,
       previousValue: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
+        DriftSqlType.double,
         data['${effectivePrefix}previous_value'],
       )!,
       newValue: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
+        DriftSqlType.double,
         data['${effectivePrefix}new_value'],
       )!,
       reason: attachedDatabase.typeMapping.read(
@@ -28720,8 +28927,8 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
   final String targetType;
   final String targetUuid;
   final String adjustmentType;
-  final int previousValue;
-  final int newValue;
+  final double previousValue;
+  final double newValue;
   final String? reason;
   final String effectiveDate;
   final String appliedBy;
@@ -28803,8 +29010,8 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
     map['target_type'] = Variable<String>(targetType);
     map['target_uuid'] = Variable<String>(targetUuid);
     map['adjustment_type'] = Variable<String>(adjustmentType);
-    map['previous_value'] = Variable<int>(previousValue);
-    map['new_value'] = Variable<int>(newValue);
+    map['previous_value'] = Variable<double>(previousValue);
+    map['new_value'] = Variable<double>(newValue);
     if (!nullToAbsent || reason != null) {
       map['reason'] = Variable<String>(reason);
     }
@@ -28919,8 +29126,8 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
       targetType: serializer.fromJson<String>(json['targetType']),
       targetUuid: serializer.fromJson<String>(json['targetUuid']),
       adjustmentType: serializer.fromJson<String>(json['adjustmentType']),
-      previousValue: serializer.fromJson<int>(json['previousValue']),
-      newValue: serializer.fromJson<int>(json['newValue']),
+      previousValue: serializer.fromJson<double>(json['previousValue']),
+      newValue: serializer.fromJson<double>(json['newValue']),
       reason: serializer.fromJson<String?>(json['reason']),
       effectiveDate: serializer.fromJson<String>(json['effectiveDate']),
       appliedBy: serializer.fromJson<String>(json['appliedBy']),
@@ -28958,8 +29165,8 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
       'targetType': serializer.toJson<String>(targetType),
       'targetUuid': serializer.toJson<String>(targetUuid),
       'adjustmentType': serializer.toJson<String>(adjustmentType),
-      'previousValue': serializer.toJson<int>(previousValue),
-      'newValue': serializer.toJson<int>(newValue),
+      'previousValue': serializer.toJson<double>(previousValue),
+      'newValue': serializer.toJson<double>(newValue),
       'reason': serializer.toJson<String?>(reason),
       'effectiveDate': serializer.toJson<String>(effectiveDate),
       'appliedBy': serializer.toJson<String>(appliedBy),
@@ -28995,8 +29202,8 @@ class PriceAdjustment extends DataClass implements Insertable<PriceAdjustment> {
     String? targetType,
     String? targetUuid,
     String? adjustmentType,
-    int? previousValue,
-    int? newValue,
+    double? previousValue,
+    double? newValue,
     Value<String?> reason = const Value.absent(),
     String? effectiveDate,
     String? appliedBy,
@@ -29259,8 +29466,8 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
   final Value<String> targetType;
   final Value<String> targetUuid;
   final Value<String> adjustmentType;
-  final Value<int> previousValue;
-  final Value<int> newValue;
+  final Value<double> previousValue;
+  final Value<double> newValue;
   final Value<String?> reason;
   final Value<String> effectiveDate;
   final Value<String> appliedBy;
@@ -29328,8 +29535,8 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
     required String targetType,
     required String targetUuid,
     required String adjustmentType,
-    required int previousValue,
-    required int newValue,
+    required double previousValue,
+    required double newValue,
     this.reason = const Value.absent(),
     required String effectiveDate,
     required String appliedBy,
@@ -29373,8 +29580,8 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
     Expression<String>? targetType,
     Expression<String>? targetUuid,
     Expression<String>? adjustmentType,
-    Expression<int>? previousValue,
-    Expression<int>? newValue,
+    Expression<double>? previousValue,
+    Expression<double>? newValue,
     Expression<String>? reason,
     Expression<String>? effectiveDate,
     Expression<String>? appliedBy,
@@ -29445,8 +29652,8 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
     Value<String>? targetType,
     Value<String>? targetUuid,
     Value<String>? adjustmentType,
-    Value<int>? previousValue,
-    Value<int>? newValue,
+    Value<double>? previousValue,
+    Value<double>? newValue,
     Value<String?>? reason,
     Value<String>? effectiveDate,
     Value<String>? appliedBy,
@@ -29562,10 +29769,10 @@ class PriceAdjustmentsCompanion extends UpdateCompanion<PriceAdjustment> {
       map['adjustment_type'] = Variable<String>(adjustmentType.value);
     }
     if (previousValue.present) {
-      map['previous_value'] = Variable<int>(previousValue.value);
+      map['previous_value'] = Variable<double>(previousValue.value);
     }
     if (newValue.present) {
-      map['new_value'] = Variable<int>(newValue.value);
+      map['new_value'] = Variable<double>(newValue.value);
     }
     if (reason.present) {
       map['reason'] = Variable<String>(reason.value);
@@ -54753,8 +54960,8 @@ typedef $$PriceAdjustmentsTableCreateCompanionBuilder =
       required String targetType,
       required String targetUuid,
       required String adjustmentType,
-      required int previousValue,
-      required int newValue,
+      required double previousValue,
+      required double newValue,
       Value<String?> reason,
       required String effectiveDate,
       required String appliedBy,
@@ -54789,8 +54996,8 @@ typedef $$PriceAdjustmentsTableUpdateCompanionBuilder =
       Value<String> targetType,
       Value<String> targetUuid,
       Value<String> adjustmentType,
-      Value<int> previousValue,
-      Value<int> newValue,
+      Value<double> previousValue,
+      Value<double> newValue,
       Value<String?> reason,
       Value<String> effectiveDate,
       Value<String> appliedBy,
@@ -54917,12 +55124,12 @@ class $$PriceAdjustmentsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get previousValue => $composableBuilder(
+  ColumnFilters<double> get previousValue => $composableBuilder(
     column: $table.previousValue,
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<int> get newValue => $composableBuilder(
+  ColumnFilters<double> get newValue => $composableBuilder(
     column: $table.newValue,
     builder: (column) => ColumnFilters(column),
   );
@@ -55092,12 +55299,12 @@ class $$PriceAdjustmentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get previousValue => $composableBuilder(
+  ColumnOrderings<double> get previousValue => $composableBuilder(
     column: $table.previousValue,
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<int> get newValue => $composableBuilder(
+  ColumnOrderings<double> get newValue => $composableBuilder(
     column: $table.newValue,
     builder: (column) => ColumnOrderings(column),
   );
@@ -55249,12 +55456,12 @@ class $$PriceAdjustmentsTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get previousValue => $composableBuilder(
+  GeneratedColumn<double> get previousValue => $composableBuilder(
     column: $table.previousValue,
     builder: (column) => column,
   );
 
-  GeneratedColumn<int> get newValue =>
+  GeneratedColumn<double> get newValue =>
       $composableBuilder(column: $table.newValue, builder: (column) => column);
 
   GeneratedColumn<String> get reason =>
@@ -55360,8 +55567,8 @@ class $$PriceAdjustmentsTableTableManager
                 Value<String> targetType = const Value.absent(),
                 Value<String> targetUuid = const Value.absent(),
                 Value<String> adjustmentType = const Value.absent(),
-                Value<int> previousValue = const Value.absent(),
-                Value<int> newValue = const Value.absent(),
+                Value<double> previousValue = const Value.absent(),
+                Value<double> newValue = const Value.absent(),
                 Value<String?> reason = const Value.absent(),
                 Value<String> effectiveDate = const Value.absent(),
                 Value<String> appliedBy = const Value.absent(),
@@ -55430,8 +55637,8 @@ class $$PriceAdjustmentsTableTableManager
                 required String targetType,
                 required String targetUuid,
                 required String adjustmentType,
-                required int previousValue,
-                required int newValue,
+                required double previousValue,
+                required double newValue,
                 Value<String?> reason = const Value.absent(),
                 required String effectiveDate,
                 required String appliedBy,
