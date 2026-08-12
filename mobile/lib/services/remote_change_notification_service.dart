@@ -69,12 +69,22 @@ class RemoteChangeNotificationService {
   /// Dedup key prefix in SharedPreferences.
   static const String _dedupKeyPrefix = 'remote_notif_dedup_';
 
+  /// ✅ Wave 7 tighten: Timestamp index key — tracks when each dedup key
+  /// was created, so we can evict oldest entries (LRU) instead of arbitrary
+  /// ones. SharedPreferences doesn't support ordering, so we maintain a
+  /// separate index: `remote_notif_dedup_index` → JSON map of
+  /// `fingerprint → timestamp`.
+  static const String _dedupIndexKey = 'remote_notif_dedup_index';
+
   /// Max dedup keys to keep (cleanup old entries).
   static const int _maxDedupKeys = 500;
 
   /// Pending changes collected during a sync cycle.
   /// Key: deviceId, Value: count of changes from that device.
   final Map<String, int> _pendingChanges = {};
+
+  /// ✅ Wave 7 tighten: Track entities for richer notification body.
+  final Set<String> _pendingEntities = {};
 
   /// Set of dedup fingerprints already notified in this session.
   final Set<String> _sessionNotified = {};
@@ -133,7 +143,10 @@ class RemoteChangeNotificationService {
       await prefs.setBool(dedupKey, true);
       _sessionNotified.add(fingerprint);
 
-      // ✅ Cleanup: if we have too many dedup keys, remove old ones
+      // ✅ Wave 7 tighten: Update timestamp index for LRU eviction.
+      await _updateDedupIndex(prefs, fingerprint);
+
+      // ✅ Cleanup: if we have too many dedup keys, remove oldest ones
       await _cleanupOldDedupKeys(prefs);
     } catch (e) {
       dlog(() => '⚠️ RemoteChangeNotification: dedup check failed: $e');
@@ -143,6 +156,7 @@ class RemoteChangeNotificationService {
     // ✅ Batch: collect change, don't show immediately
     _pendingChanges[remoteDeviceId] =
         (_pendingChanges[remoteDeviceId] ?? 0) + 1;
+    _pendingEntities.add(entity);
   }
 
   /// Flush pending notifications — called after all sync phases complete.
@@ -181,8 +195,18 @@ class RemoteChangeNotificationService {
       body = 'تمت مزامنة $totalChanges تغيير إجمالي';
     }
 
+    // ✅ Wave 7 tighten: Add entity breakdown to body for operational usefulness.
+    if (_pendingEntities.isNotEmpty) {
+      final entityList = _pendingEntities.take(5).join('، ');
+      final extra = _pendingEntities.length > 5
+          ? ' +${_pendingEntities.length - 5}'
+          : '';
+      body += '\nالكيانات: $entityList$extra';
+    }
+
     // Clear pending AFTER building the message (prevents re-entry issues)
     _pendingChanges.clear();
+    _pendingEntities.clear();
 
     // ✅ Show notification via existing SyncNotificationManager
     // Note: SyncNotificationManager.instance may throw MissingPluginException
@@ -205,6 +229,7 @@ class RemoteChangeNotificationService {
   /// Clear all pending changes (e.g., when sync fails).
   void clearPending() {
     _pendingChanges.clear();
+    _pendingEntities.clear();
   }
 
   /// Clear session dedup cache (for testing).
@@ -230,21 +255,62 @@ class RemoteChangeNotificationService {
     }
   }
 
-  /// Cleanup old dedup keys to prevent unbounded growth.
+  /// ✅ Wave 7 tighten: Update the dedup timestamp index.
+  /// Stores a JSON map of `fingerprint → epoch_ms` in SharedPreferences.
+  /// Used by `_cleanupOldDedupKeys` to evict oldest entries (true LRU).
+  Future<void> _updateDedupIndex(SharedPreferences prefs, String fingerprint) async {
+    try {
+      final indexJson = prefs.getString(_dedupIndexKey) ?? '{}';
+      final index = Map<String, dynamic>.from(
+        jsonDecode(indexJson) as Map<String, dynamic>,
+      );
+      index[fingerprint] = DateTime.now().millisecondsSinceEpoch;
+      await prefs.setString(_dedupIndexKey, jsonEncode(index));
+    } catch (e) {
+      // Non-critical — dedup still works without the index
+    }
+  }
+
+  /// ✅ Wave 7 tighten: Cleanup old dedup keys using timestamp-based LRU eviction.
+  /// Reads the dedup index, sorts by timestamp, and removes the oldest entries
+  /// when the count exceeds `_maxDedupKeys`. This is a true LRU — not arbitrary.
   Future<void> _cleanupOldDedupKeys(SharedPreferences prefs) async {
     try {
-      final keys = prefs.getKeys().where((k) => k.startsWith(_dedupKeyPrefix)).toList();
-      if (keys.length <= _maxDedupKeys) {
+      // Read the timestamp index
+      final indexJson = prefs.getString(_dedupIndexKey) ?? '{}';
+      final index = Map<String, dynamic>.from(
+        jsonDecode(indexJson) as Map<String, dynamic>,
+      );
+
+      if (index.length <= _maxDedupKeys) {
         return; // Under limit — no cleanup needed
       }
 
-      // Remove oldest keys (by insertion order — SharedPreferences doesn't
-      // support ordering, so we just remove excess keys)
-      final excess = keys.length - _maxDedupKeys;
-      for (var i = 0; i < excess; i++) {
-        await prefs.remove(keys[i]);
+      // Sort fingerprints by timestamp (oldest first)
+      final sortedEntries = index.entries.toList()
+        ..sort((a, b) {
+          final tsA = (a.value as num?)?.toInt() ?? 0;
+          final tsB = (b.value as num?)?.toInt() ?? 0;
+          return tsA.compareTo(tsB);
+        });
+
+      // Remove oldest entries until we're under the limit
+      final excess = index.length - _maxDedupKeys;
+      var removed = 0;
+      for (var i = 0; i < excess && i < sortedEntries.length; i++) {
+        final fingerprint = sortedEntries[i].key;
+        final dedupKey = '$_dedupKeyPrefix$fingerprint';
+        await prefs.remove(dedupKey);
+        index.remove(fingerprint);
+        removed++;
       }
-      dlog(() => '🧹 RemoteChangeNotification: cleaned up $excess old dedup keys');
+
+      // Save updated index
+      await prefs.setString(_dedupIndexKey, jsonEncode(index));
+
+      if (removed > 0) {
+        dlog(() => '🧹 RemoteChangeNotification: LRU cleanup removed $removed oldest dedup keys');
+      }
     } catch (e) {
       // Non-critical — don't fail the notification
     }

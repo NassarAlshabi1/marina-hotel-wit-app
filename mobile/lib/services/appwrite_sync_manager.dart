@@ -1626,6 +1626,12 @@ class AppwriteSyncManager {
           errorMessage = e.toString();
           finalStatus = SyncStatus.failed;
 
+          // ✅ Wave 7 tighten: clear pending notifications on sync failure.
+          // If sync fails mid-way, some records may have been applied (and
+          // hooks called), but we don't want to show a misleading notification
+          // for a partially-failed sync cycle. Clear and move on.
+          RemoteChangeNotificationService.instance.clearPending();
+
           // ✅ جديد: تحديد ما إذا كان الفشل بسبب rate limit (429) — في هذه الحالة
           // لا نحاول كتابة سجل "sync_failed" على Appwrite لأن ذلك قد يُسبب 429
           // إضافي. نكتفي بالتسجيل المحلي.
@@ -2446,6 +2452,14 @@ class AppwriteSyncManager {
         }
 
         await _adapterRegistry.rooms.upsertFromJson(data, src: Source.appwrite);
+        // ✅ Wave 7 tighten: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'rooms',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
         processed++;
       } catch (e) {
         _logger.warning('Failed to sync room ${doc.$id}: $e', tag: 'SYNC');
@@ -2591,6 +2605,15 @@ class AppwriteSyncManager {
             }
           }
         }
+
+        // ✅ Wave 7 tighten: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'bookings',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
 
         processed++;
       } catch (e) {
@@ -4297,7 +4320,15 @@ class AppwriteSyncManager {
           }
         }
 
-        processed++;
+                // ✅ Wave 7 tighten: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'salary_withdrawals',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
+processed++;
       } on SqliteException catch (e) {
         if (e.resultCode == 787) {
           // FK constraint failed - تأجيل السجل لإعادة المحاولة لاحقاً
@@ -4347,7 +4378,15 @@ class AppwriteSyncManager {
               );
             }
           }
-          processed++;
+                  // ✅ Wave 7 tighten: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'salary_withdrawals',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
+processed++;
         } catch (e) {
           _logger.warning(
             '⏭️ فشل نهائي لـ salary_withdrawal (يتيم): الموظف ${data['employeeId'] ?? data['employee_id']} غير موجود - $e',
@@ -7213,6 +7252,14 @@ class AppwriteSyncManager {
           data,
           src: Source.appwrite,
         );
+        // ✅ Wave 7 tighten: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'booking_nights',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
         processed++;
       } catch (e) {
         // ✅ تأجيل الليالي فقط إذا كان الخطأ FOREIGN KEY أو NOT NULL constraint
@@ -7251,7 +7298,15 @@ class AppwriteSyncManager {
             data,
             src: Source.appwrite,
           );
-          processed++;
+        // ✅ Wave 7 tighten: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'booking_nights',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
+        processed++;
         } catch (e) {
           _logger.warning(
             'Failed to sync deferred booking night ${doc.$id} after retry: $e',
@@ -7624,7 +7679,15 @@ class AppwriteSyncManager {
           }
         }
 
-        processed++;
+                // ✅ Wave 7 tighten: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'booking_price_adjustments',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
+processed++;
       } catch (e) {
         // ✅ تأجيل تعديل السعر فقط إذا كان الخطأ FOREIGN KEY أو NOT NULL constraint
         // لا نشمل 'constraint failed' عام لأنه يطابق UNIQUE أيضاً
@@ -7673,7 +7736,15 @@ class AppwriteSyncManager {
             }
           }
 
-          processed++;
+                  // ✅ Wave 7 tighten: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'booking_price_adjustments',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
+processed++;
         } catch (e) {
           _logger.warning(
             'Failed to sync deferred booking price adjustment ${doc.$id} after retry: $e',
@@ -7770,7 +7841,15 @@ class AppwriteSyncManager {
           }
         }
 
-        processed++;
+                // ✅ Wave 7 tighten: notify remote change from another device
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'price_adjustments',
+          localUuid: (data['localUuid'] as String?) ?? '',
+          remoteDeviceId: (data['deviceId'] as String?) ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
+processed++;
       } catch (e) {
         _logger.warning(
           'Failed to sync price adjustment ${doc.$id}: $e',
