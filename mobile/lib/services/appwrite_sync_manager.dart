@@ -1583,10 +1583,21 @@ class AppwriteSyncManager {
           await _saveSettings();
 
           // ✅ Wave 7 (2026-08-12): Flush pending remote change notifications.
-          // After all sync phases complete successfully, show a single local
-          // notification if any records from other devices were applied.
-          // The notification is batched (not per-record) and dedup'd
-          // (persistent via SharedPreferences). See RemoteChangeNotificationService.
+          // After all sync phases complete, show a single local notification
+          // if any records from other devices were applied.
+          //
+          // ✅ Wave 7 tighten: This is called EVEN when failedCollections.isNotEmpty.
+          // Reason: failedCollections means some collections threw exceptions
+          // (e.g., network error on listBookings). But the collections that
+          // DID succeed had their records applied and hooks called.
+          // We should still notify about the records that were successfully
+          // applied — the user deserves to know that data changed, even if
+          // some collections failed.
+          //
+          // The only case where we DON'T flush is when sync() throws an
+          // exception (caught by the outer catch block at line 1625), which
+          // calls clearPending() to prevent misleading notifications from a
+          // partially-failed sync cycle.
           if (pull && recordsPulled > 0) {
             try {
               await RemoteChangeNotificationService.instance
