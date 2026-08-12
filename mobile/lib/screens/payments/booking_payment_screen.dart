@@ -2690,6 +2690,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                     '⚠️ [Checkout] push to Appwrite Cloud failed: $e — '
                     'سيتم إعادة المحاولة تلقائياً عبر outbox',
               );
+              // ✅ Fix: لا نُفشل المغادرة بسبب فشل push — البيانات المحلية
+              // صحيحة، والـ outbox سيُعيد الرفع تلقائياً.
             }),
       );
 
