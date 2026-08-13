@@ -1635,7 +1635,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         if (needsExtension) {
           await bookingsRepo.update(
             widget.booking.id,
-            checkoutDate: _formatDateTime(newCheckout!),
+            checkoutDate: _formatDateTime(newCheckout ?? DateTime.now()),
             expectedNights: newExpectedNights,
             notes: widget.booking.notes != null
                 ? '${widget.booking.notes}\nتمديد تلقائي: $extraNights ${extraNights == 1 ? 'ليلة' : 'ليالي'}'
