@@ -264,27 +264,20 @@ class LocalBackupService {
         final dbPath = await _getDatabaseFilePath();
         final destinationPath = '${backupDir.path}/$baseName.sqlite';
 
-        try {
-          await db.customSelect('PRAGMA wal_checkpoint(FULL)').get();
-        } catch (e, st) {
-          AppLogger.error(
-            'فشل تنفيذ WAL checkpoint',
-            tag: 'BACKUP',
-            error: e,
-            stackTrace: st,
-          );
-        }
-        try {
-          await db.customStatement('VACUUM');
-        } catch (e, st) {
-          AppLogger.error(
-            'فشل تنفيذ VACUUM',
-            tag: 'BACKUP',
-            error: e,
-            stackTrace: st,
+        // يجب أن تكون النسخة متسقة قبل نسخ ملف .sqlite. لا نستمر عند
+        // فشل checkpoint لأن ذلك قد ينتج نسخة تخلو من معاملات موجودة في WAL.
+        final checkpoint = await db
+            .customSelect('PRAGMA wal_checkpoint(TRUNCATE)')
+            .getSingle();
+        final checkpointBusy = checkpoint.data['busy'];
+        if (checkpointBusy is num && checkpointBusy != 0) {
+          throw StateError(
+            'لا يمكن إنشاء نسخة SQLite متسقة أثناء وجود قارئ نشط لملف WAL',
           );
         }
 
+        // VACUUM ليس شرطًا للسلامة ويستهلك I/O وذاكرة كبيرة، خصوصًا على
+        // الأجهزة الضعيفة؛ لذلك لا نجريه ضمن مسار النسخ الاحتياطي.
         await File(dbPath).copy(destinationPath);
         final metadataFile = File(_metadataFilePath(destinationPath));
         await metadataFile.writeAsString(jsonEncode(metadata.toJson()));
@@ -839,10 +832,7 @@ class LocalBackupService {
     if (metadata != null) {
       final ts = metadata.backupTimestamp;
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        _prefsLastLocalBackupKey,
-        ts.toIso8601String(),
-      );
+      await prefs.setString(_prefsLastLocalBackupKey, ts.toIso8601String());
       dlog(() => '✅ تم استعادة النسخة الاحتياطية (SQLite) بتاريخ $ts');
     } else {
       dlog('✅ تم استعادة النسخة الاحتياطية (SQLite) بدون بيانات وصفية إضافية');

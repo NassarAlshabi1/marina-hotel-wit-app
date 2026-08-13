@@ -153,9 +153,29 @@ class SqliteBackupRestore {
     }
   }
 
-  /// Restore the on-device database from a provided .db file path.
+  static Future<void> _verifyBackupIntegrity(File backupFile) async {
+    sqflite.Database? backupDb;
+    try {
+      backupDb = await sqflite.openDatabase(
+        backupFile.path,
+        readOnly: true,
+        singleInstance: false,
+      );
+      final result = await backupDb.rawQuery('PRAGMA integrity_check');
+      final integrity = result.isEmpty ? null : result.first.values.first;
+      if (integrity != 'ok') {
+        throw StateError(
+          'SQLite integrity_check failed for ${backupFile.path}: $integrity',
+        );
+      }
+    } finally {
+      await backupDb?.close();
+    }
+  }
+
+  /// Restore the on-device database from a provided SQLite backup path.
   ///
-  /// - Ensures the file exists and has a .db extension.
+  /// - Ensures the file exists and has a .db or .sqlite extension.
   /// - Closes the current Drift database before replacing the file to avoid locks.
   /// - Copies the file to the default database path and reopens the database.
   /// - Optionally accepts a `reopenCallback` for custom reinitialization flows.
@@ -167,14 +187,19 @@ class SqliteBackupRestore {
       if (sourcePath.isEmpty) {
         throw ArgumentError('sourcePath must not be empty');
       }
-      if (!sourcePath.endsWith('.db')) {
-        throw ArgumentError('Selected file must be a .db database file');
+      final extension = p.extension(sourcePath).toLowerCase();
+      if (extension != '.db' && extension != '.sqlite') {
+        throw ArgumentError('Selected file must be a .db or .sqlite database');
       }
 
       final srcFile = File(sourcePath);
       if (!srcFile.existsSync()) {
         throw Exception('Backup file not found: $sourcePath');
       }
+
+      // لا نلمس قاعدة البيانات الحالية قبل التأكد من قابلية فتح النسخة
+      // ومن اجتياز SQLite integrity_check.
+      await _verifyBackupIntegrity(srcFile);
 
       final dstPath = await _resolveDefaultDbPath();
       final dstFile = File(dstPath);
