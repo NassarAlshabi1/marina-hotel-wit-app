@@ -1,6 +1,10 @@
 class Time {
   static const int earlyCheckinGraceHour = 8;
 
+  /// حد اليوم الفندقي الموحد: يبدأ اليوم الجديد عند 14:01 بالضبط.
+  static const int hotelDayBoundaryHour = 14;
+  static const int hotelDayBoundaryMinute = 1;
+
   static int nowEpoch() => DateTime.now().millisecondsSinceEpoch ~/ 1000;
   static String nowIso() => DateTime.now().toIso8601String();
   static String nowDateString() {
@@ -14,8 +18,8 @@ class Time {
 
   static String hotelDayKey({
     DateTime? now,
-    int cutoffHour = 14,
-    int cutoffMinute = 0,
+    int cutoffHour = hotelDayBoundaryHour,
+    int cutoffMinute = hotelDayBoundaryMinute,
   }) {
     final base = now ?? DateTime.now();
     final shifted = base.subtract(
@@ -26,8 +30,8 @@ class Time {
 
   static String hotelDayKeyFromIso(
     String? isoString, {
-    int cutoffHour = 14,
-    int cutoffMinute = 0,
+    int cutoffHour = hotelDayBoundaryHour,
+    int cutoffMinute = hotelDayBoundaryMinute,
   }) {
     if (isoString == null || isoString.trim().isEmpty) {
       return hotelDayKey(cutoffHour: cutoffHour, cutoffMinute: cutoffMinute);
@@ -47,8 +51,8 @@ class Time {
 
   static DateTime hotelDayStart(
     DateTime value, {
-    int cutoffHour = 14,
-    int cutoffMinute = 0,
+    int cutoffHour = hotelDayBoundaryHour,
+    int cutoffMinute = hotelDayBoundaryMinute,
   }) {
     final start = DateTime(
       value.year,
@@ -72,19 +76,11 @@ class Time {
 
   static DateTime hotelDayStartForNewBooking(
     DateTime checkin, {
-    int cutoffHour = 14,
-    int cutoffMinute = 0,
+    int cutoffHour = hotelDayBoundaryHour,
+    int cutoffMinute = hotelDayBoundaryMinute,
   }) {
-    if (checkin.hour < cutoffHour ||
-        (checkin.hour == cutoffHour && checkin.minute < cutoffMinute)) {
-      return DateTime(
-        checkin.year,
-        checkin.month,
-        checkin.day,
-        cutoffHour,
-        cutoffMinute,
-      );
-    }
+    // الحجز قبل 14:01 ينتمي إلى اليوم الفندقي السابق؛ يعيد hotelDayStart
+    // بداية ذلك اليوم بدلاً من إعادة وقت قطع مستقبلي في اليوم التقويمي نفسه.
     return hotelDayStart(
       checkin,
       cutoffHour: cutoffHour,
@@ -94,8 +90,8 @@ class Time {
 
   static String hotelDayStartIso(
     String hotelDay, {
-    int cutoffHour = 14,
-    int cutoffMinute = 0,
+    int cutoffHour = hotelDayBoundaryHour,
+    int cutoffMinute = hotelDayBoundaryMinute,
   }) {
     final h = cutoffHour.toString().padLeft(2, '0');
     final m = cutoffMinute.toString().padLeft(2, '0');
@@ -107,8 +103,8 @@ class Time {
   /// `14:-1:59` عندما cutoffMinute = 0، لأن `padLeft` لا يعالج القيم السالبة.
   static String hotelDayEndIso(
     String hotelDay, {
-    int cutoffHour = 14,
-    int cutoffMinute = 0,
+    int cutoffHour = hotelDayBoundaryHour,
+    int cutoffMinute = hotelDayBoundaryMinute,
   }) {
     final next = _nextDateString(hotelDay);
     return hotelDayStartIso(
@@ -167,8 +163,8 @@ class Time {
   static int nightsWithCutoff(
     DateTime checkin, {
     DateTime? checkout,
-    int cutoffHour = 14,
-    int cutoffMinute = 0,
+    int cutoffHour = hotelDayBoundaryHour,
+    int cutoffMinute = hotelDayBoundaryMinute,
   }) {
     final end = checkout ?? DateTime.now();
 
@@ -196,14 +192,10 @@ class Time {
 
     const int secondsInDay = 24 * 3600;
 
-    // عدد الليالي هو ناتج قسمة الثواني الكلية على ثواني اليوم الواحد + 1
-    // إذا كان الوقت بالضبط 14:00 (أي مضاعفات 24 ساعة)، لا يتم احتساب يوم جديد
-    int nights = (totalSeconds ~/ secondsInDay) + 1;
-
-    if (totalSeconds > 0 && totalSeconds % secondsInDay == 0) {
-      nights -= 1;
-    }
-
+    // عدد الليالي هو ناتج قسمة الثواني الكلية على ثواني اليوم الواحد + 1.
+    // لا نخصم عند مضاعف 24 ساعة: الوصول إلى حد 14:01 بالضبط يبدأ
+    // يوماً فندقياً جديداً ويجب أن يضيف ليلة كاملة.
+    final nights = (totalSeconds ~/ secondsInDay) + 1;
     return nights > 0 ? nights : 1;
   }
 }

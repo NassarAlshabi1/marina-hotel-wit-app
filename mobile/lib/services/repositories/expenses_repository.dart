@@ -68,11 +68,13 @@ class ExpensesRepository {
   }) async {
     try {
       final normalizedDate = Time.safeIsoToDateString(date);
-      // ✅ إصلاح: استخدام hotelDayKey الممرّر إن وُجد، وإلا حسابه
-      // - للمصروفات الجديدة: يُمرّر HotelTimeEngine.getHotelDayKey() (اليوم الفندقي الحالي)
-      // - للمصروفات القديمة / الاستيراد: يُحسب من التاريخ التقويمي
-      final effectiveHotelDayKey =
-          hotelDayKey ?? _hotelDayKeyFromCalendarDate(normalizedDate);
+      // التاريخ الذي يحمل وقتاً يحدد يومه الفندقي الحقيقي. أما التاريخ
+      // التقويمي فقط فهو اختيار مستخدم لليوم نفسه ويعامل عند 14:01.
+      final effectiveHotelDayKey = hotelDayKey ??
+          _hotelDayKeyForExpenseDate(
+            sourceDate: date,
+            calendarDate: normalizedDate,
+          );
       final result = await dao.insertOne(
         ExpensesCompanion(
           expenseType: d.Value(expenseType),
@@ -131,8 +133,10 @@ class ExpensesRepository {
   }) async {
     try {
       final normalizedDate = Time.safeIsoToDateString(date);
-      // ✅ إصلاح: استخدام _hotelDayKeyFromCalendarDate لضمان الاتساق مع create/update
-      final hotelDayKey = _hotelDayKeyFromCalendarDate(normalizedDate);
+      final hotelDayKey = _hotelDayKeyForExpenseDate(
+        sourceDate: date,
+        calendarDate: normalizedDate,
+      );
       final result = await dao.insertOne(
         ExpensesCompanion(
           expenseType: d.Value(expenseType),
@@ -199,11 +203,16 @@ class ExpensesRepository {
           date: normalizedDate != null
               ? d.Value(normalizedDate)
               : const d.Value.absent(),
-          // ✅ إصلاح: استخدام hotelDayKey الممرّر إن وُجد، وإلا حسابه من التاريخ
+          // يحترم وقت العملية إن زوّد المصدر سلسلة ISO كاملة.
           hotelDayKey: hotelDayKey != null
               ? d.Value(hotelDayKey)
               : date != null
-              ? d.Value(_hotelDayKeyFromCalendarDate(normalizedDate!))
+              ? d.Value(
+                  _hotelDayKeyForExpenseDate(
+                    sourceDate: date,
+                    calendarDate: normalizedDate!,
+                  ),
+                )
               : const d.Value.absent(),
           // ✅ التوصية 1: employeeUuid — فارغ = مسح، null = لا تغيير.
           employeeUuid: employeeUuid == null
@@ -342,11 +351,10 @@ class ExpensesRepository {
     final allExpenses = await dao.list(includeDeleted: true);
     final toFix = <({int id, String localUuid, String correctKey})>[];
     for (final expense in allExpenses) {
-      if (expense.hotelDayKey == null || expense.hotelDayKey!.isEmpty) {
-        continue;
-      }
       final correctKey = _hotelDayKeyFromCalendarDate(expense.date);
-      if (expense.hotelDayKey != correctKey) {
+      if (expense.hotelDayKey == null ||
+          expense.hotelDayKey!.isEmpty ||
+          expense.hotelDayKey != correctKey) {
         toFix.add((
           id: expense.id,
           localUuid: expense.localUuid,
@@ -381,6 +389,20 @@ class ExpensesRepository {
     });
 
     return toFix.length;
+  }
+
+  /// يشتق مفتاح اليوم الفندقي من وقت العملية متى كان متاحاً.
+  static String _hotelDayKeyForExpenseDate({
+    required String sourceDate,
+    required String calendarDate,
+  }) {
+    final source = sourceDate.trim();
+    final hasTime = source.contains('T') ||
+        RegExp(r'^\d{4}-\d{2}-\d{2}\s+\d').hasMatch(source);
+    if (hasTime) {
+      return HotelTimeEngine.getHotelDayKeyFromIso(source);
+    }
+    return _hotelDayKeyFromCalendarDate(calendarDate);
   }
 
   /// حساب مفتاح اليوم الفندقي من تاريخ تقويمي (بدون وقت)

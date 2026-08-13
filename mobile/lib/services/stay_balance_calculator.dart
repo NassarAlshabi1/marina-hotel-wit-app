@@ -1,3 +1,4 @@
+import '../utils/hotel_time_engine.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
 
@@ -244,16 +245,15 @@ class StayBalanceCalculator {
       manualCheckout,
     );
 
-    // ─── حساب بداية يوم الفندق الأول (قاعدة 14:00) ───
-    DateTime firstHotelDay = DateTime(
-      checkin.year,
-      checkin.month,
-      checkin.day,
-      14,
+    // ─── حساب بداية يوم الفندق الأول (قاعدة 14:01) ───
+    final hotelDay = HotelTimeEngine.getHotelDay(checkin);
+    final firstHotelDay = DateTime(
+      hotelDay.year,
+      hotelDay.month,
+      hotelDay.day,
+      HotelTimeEngine.boundaryHour,
+      HotelTimeEngine.boundaryMinute,
     );
-    if (checkin.isBefore(firstHotelDay)) {
-      firstHotelDay = firstHotelDay.subtract(const Duration(days: 1));
-    }
 
     // ─── محاكاة يوم بيوم لحساب الليالي المغطاة ───
     final coveredDates = <DateTime>[];

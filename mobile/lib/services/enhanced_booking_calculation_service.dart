@@ -687,15 +687,17 @@ class EnhancedBookingCalculationService {
   List<_NightSegment> _buildNightSegments(
     DateTime checkin,
     DateTime checkout, {
-    int cutoffHour = 14,
+    int cutoffHour = Time.hotelDayBoundaryHour,
+    int cutoffMinute = Time.hotelDayBoundaryMinute,
   }) {
     final segments = <_NightSegment>[];
 
-    // استخدام المنطق الموحد لحساب عدد الليالي بناءً على الساعة 14:00
+    // استخدام حد اليوم الفندقي الموحد 14:01.
     final int totalNights = Time.nightsWithCutoff(
       checkin,
       checkout: checkout,
       cutoffHour: cutoffHour,
+      cutoffMinute: cutoffMinute,
     );
 
     // حساب بداية "يوم الفندق" لعملية تسجيل الدخول
@@ -704,6 +706,7 @@ class EnhancedBookingCalculationService {
       checkin.month,
       checkin.day,
       cutoffHour,
+      cutoffMinute,
     );
     if (checkin.isBefore(startOfCheckinHotelDay)) {
       startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(

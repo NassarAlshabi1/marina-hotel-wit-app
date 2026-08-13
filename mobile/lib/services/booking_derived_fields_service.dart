@@ -2,11 +2,11 @@ import 'package:drift/drift.dart' as d;
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/daos/bookings_dao.dart';
+import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
 import 'enhanced_booking_calculation_service.dart';
 import 'local_db.dart';
-import 'remote_config_service.dart';
 
 class BookingDerivedFieldsService {
   BookingDerivedFieldsService(this.db, [OutboxDao? outboxDao])
@@ -162,9 +162,8 @@ class BookingDerivedFieldsService {
     await db.transaction(() async {
       for (final booking in active) {
         try {
-          final cutoffHour = RemoteConfigService.instance.checkoutHour;
           if (StatusUtils.isBookingProvisional(booking) &&
-              moment.hour >= cutoffHour) {
+              HotelTimeEngine.isAfterCutoff(moment)) {
             await _promoteProvisionalBooking(booking.id);
             promoted++;
           }
@@ -285,32 +284,22 @@ class BookingDerivedFieldsService {
   // ignore: unused_element
   List<_NightSegment> _buildNightSegments(
     DateTime checkin,
-    DateTime checkout, {
-    int? cutoffHour,
-  }) {
-    final int resolvedCutoffHour =
-        cutoffHour ?? RemoteConfigService.instance.checkoutHour;
+    DateTime checkout,
+  ) {
     final segments = <_NightSegment>[];
-
-    // استخدام المنطق الموحد لحساب عدد الليالي بناءً على الساعة 14:00
-    final int totalNights = Time.nightsWithCutoff(
+    final totalNights = HotelTimeEngine.calculateDays(
       checkin,
-      checkout: checkout,
-      cutoffHour: resolvedCutoffHour,
+      checkOut: checkout,
     );
 
-    // حساب بداية "يوم الفندق" لعملية تسجيل الدخول
-    DateTime startOfCheckinHotelDay = DateTime(
-      checkin.year,
-      checkin.month,
-      checkin.day,
-      resolvedCutoffHour,
+    final hotelDay = HotelTimeEngine.getHotelDay(checkin);
+    final startOfCheckinHotelDay = DateTime(
+      hotelDay.year,
+      hotelDay.month,
+      hotelDay.day,
+      HotelTimeEngine.boundaryHour,
+      HotelTimeEngine.boundaryMinute,
     );
-    if (checkin.isBefore(startOfCheckinHotelDay)) {
-      startOfCheckinHotelDay = startOfCheckinHotelDay.subtract(
-        const Duration(days: 1),
-      );
-    }
 
     for (int i = 0; i < totalNights; i++) {
       final dayDate = startOfCheckinHotelDay.add(Duration(days: i));
