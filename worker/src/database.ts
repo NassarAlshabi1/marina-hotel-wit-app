@@ -8,7 +8,8 @@ import type { D1Database } from '@cloudflare/workers-types';
 // ─── Types ────────────────────────────────────────────────────
 
 export interface SyncRecord {
-  id: string;
+  id?: string;
+  local_uuid: string;
   server_id?: string | null;
   created_at: number;
   updated_at: number;
@@ -92,7 +93,12 @@ export function getTableName(entity: string): string {
 // ─── Database wrapper ─────────────────────────────────────────
 
 export class Database {
-  constructor(private db: D1Database) {}
+  constructor(private readonly db: D1Database) {}
+
+  /** Raw D1 access for narrowly scoped infrastructure queries. */
+  get raw(): D1Database {
+    return this.db;
+  }
 
   // ─── Delta Pull ────────────────────────────────────────────
 
@@ -289,7 +295,7 @@ export class Database {
     const conflict = this.detectConflict(existing.vector_clock || '{}', vectorClock);
     if (conflict === 'concurrent') {
       // Save conflict
-      await this.saveConflict(entity, recordId, existing, data, existing.vector_clock, vectorClock);
+      await this.saveConflict(entity, recordId, existing, data, existing.vector_clock ?? '{}', vectorClock);
 
       // LWW resolution: compare timestamps
       const incomingTimestamp = (data.updated_at as number) || Math.floor(Date.now() / 1000);

@@ -203,11 +203,11 @@ export class SyncLockDO {
   async handleLockStatus(): Promise<Response> {
     // List all active locks
     const locks: Array<{ key: string; deviceId: string; expiresAt: number }> = [];
-    const iter = this.state.storage.list<{ deviceId: string; expiresAt: number }>({
+    const entries = await this.state.storage.list<{ deviceId: string; expiresAt: number }>({
       prefix: 'lock:',
     });
 
-    for await (const [key, value] of iter) {
+    for (const [key, value] of entries) {
       if (value.expiresAt > Date.now()) {
         locks.push({ key, deviceId: value.deviceId, expiresAt: value.expiresAt });
       } else {
@@ -236,9 +236,9 @@ export class SyncLockDO {
 
   async handleGetCursors(): Promise<Response> {
     const cursors: Record<string, number> = {};
-    const iter = this.state.storage.list<number>({ prefix: 'cursor:' });
+    const entries = await this.state.storage.list<number>({ prefix: 'cursor:' });
 
-    for await (const [key, value] of iter) {
+    for (const [key, value] of entries) {
       const deviceId = key.replace('cursor:', '');
       cursors[deviceId] = value;
     }
@@ -274,6 +274,7 @@ export class SyncLockDO {
       JSON.stringify({
         type: 'presence',
         entity,
+        entityId: '',
         deviceId: 'server',
         timestamp: Date.now(),
         data: { message: 'Connected', activeConnections: this.sessions.size },
@@ -285,6 +286,7 @@ export class SyncLockDO {
       {
         type: 'presence',
         entity,
+        entityId: '',
         deviceId,
         timestamp: Date.now(),
         data: { action: 'join', activeConnections: this.sessions.size },
@@ -309,6 +311,7 @@ export class SyncLockDO {
       this.broadcast({
         type: 'presence',
         entity,
+        entityId: '',
         deviceId,
         timestamp: Date.now(),
         data: { action: 'leave', activeConnections: this.sessions.size },

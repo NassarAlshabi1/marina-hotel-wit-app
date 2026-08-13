@@ -38,7 +38,7 @@ async function checkRateLimit(
   try {
     // Use D1 for rate limiting (no daily write limit, unlike KV)
     // INSERT OR REPLACE atomically increments the counter
-    const result = await db.db.prepare(
+    const result = await db.raw.prepare(
       'INSERT INTO rate_limits (client_id, window_start, count) VALUES (?, ?, 1) ' +
       'ON CONFLICT (client_id, window_start) DO UPDATE SET count = count + 1 ' +
       'RETURNING count'
@@ -51,7 +51,7 @@ async function checkRateLimit(
     // Clean up old windows periodically (1% chance per request)
     if (Math.random() < 0.01) {
       const cutoff = now - (window * 1000 * 2); // keep last 2 windows
-      await db.db.prepare('DELETE FROM rate_limits WHERE window_start < ?')
+      await db.raw.prepare('DELETE FROM rate_limits WHERE window_start < ?')
         .bind(cutoff).run();
     }
 
@@ -277,10 +277,10 @@ export default {
             'debts', 'booking_nights', 'salary_withdrawals', 'guest_infos',
             'booking_price_adjustments', 'devices', 'users', 'rate_limits'];
           for (const t of tables) {
-            const r = await db.db.prepare(`SELECT COUNT(*) as c FROM ${t}`).first<{ c: number }>();
+            const r = await db.raw.prepare(`SELECT COUNT(*) as c FROM ${t}`).first<{ c: number }>();
             tableCounts[t] = r?.c ?? 0;
           }
-          const rlResult = await db.db.prepare(
+          const rlResult = await db.raw.prepare(
             'SELECT COUNT(*) as c FROM rate_limits'
           ).first<{ c: number }>();
           logRequest(method, path, 200, Date.now() - startTime, clientIp);

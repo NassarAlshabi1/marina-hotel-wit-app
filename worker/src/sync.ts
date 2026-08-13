@@ -34,6 +34,15 @@ function validatePushOperation(op: PushOperation): string | null {
   return null;
 }
 
+
+function requireEntityId(data: Record<string, unknown>): string {
+  const value = data.local_uuid ?? data.id ?? data.server_id;
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error('Record is missing local_uuid, id, or server_id');
+  }
+  return value;
+}
+
 // ─── Pull Handler (Delta Sync) ────────────────────────────────
 
 export async function handlePull(
@@ -139,34 +148,36 @@ export async function handlePush(
         }
 
         // ─── Execute operation ─────────────────────────────────
-        let record: SyncRecord | { deleted: boolean };
+        let entityId: string;
 
         switch (op.operation) {
-          case 'create':
-            record = await db.createRecord(op.entity, op.data, ctx.deviceId);
+          case 'create': {
+            const record = await db.createRecord(op.entity, op.data, ctx.deviceId);
+            entityId = record.local_uuid;
             break;
-          case 'update':
-            record = await db.updateRecord(
+          }
+          case 'update': {
+            const recordId = requireEntityId(op.data);
+            const record = await db.updateRecord(
               op.entity,
-              (op.data.local_uuid as string) || (op.data.id as string),
+              recordId,
               op.data,
               op.vectorClock,
               ctx.deviceId
             );
+            entityId = record.local_uuid;
             break;
-          case 'delete':
-            record = await db.deleteRecord(
-              op.entity,
-              (op.data.local_uuid as string) || (op.data.id as string),
-              ctx.deviceId
-            );
+          }
+          case 'delete': {
+            entityId = requireEntityId(op.data);
+            await db.deleteRecord(op.entity, entityId, ctx.deviceId);
             break;
+          }
           default:
             throw new Error(`Unknown operation: ${op.operation}`);
         }
 
         // ─── Save idempotency ──────────────────────────────────
-        const entityId = (record as SyncRecord).local_uuid || (op.data.local_uuid as string) || (op.data.id as string) || 'unknown';
         const responsePayload = { entity: op.entity, entityId, operation: op.operation };
         await db.saveIdempotency(op.idempotencyKey, op.entity, op.operation, entityId, responsePayload);
 
