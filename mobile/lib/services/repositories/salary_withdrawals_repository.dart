@@ -46,34 +46,59 @@ class SalaryWithdrawalsRepository {
   }) async {
     final now = Time.nowEpoch();
     final uuid = IdGen.uuid();
-    final companion = SalaryWithdrawalsCompanion(
-      localUuid: d.Value(uuid),
-      serverId: const d.Value(null),
-      employeeId: d.Value(employeeId),
-      amount: d.Value(amount),
-      withdrawDate: d.Value(date),
-      reason: d.Value(reason),
-      hotelDayKey: d.Value(hotelDayKey ?? _computeHotelDayKey(date)),
-      withdrawalType: d.Value(withdrawalType),
-      description: d.Value(description),
-      createdAt: d.Value(now),
-      updatedAt: d.Value(now),
-      deletedAt: const d.Value(null),
-      lastModified: d.Value(now),
-      createdAtEpoch: d.Value(now),
-      lastModifiedEpoch: d.Value(now),
-      version: const d.Value(1),
-      origin: d.Value(originIsServer ? 'server' : 'local'),
-      vectorClock: const d.Value('{}'),
-    );
-    final id = await _db.into(_db.salaryWithdrawals).insert(companion);
 
-    // ✅ كتابة expense_id في العمود الخام (إذا كان expenseId > 0)
-    if (expenseId > 0) {
-      await _setExpenseIdRaw(id, expenseId);
-    }
+    return db.transaction(() async {
+      final companion = SalaryWithdrawalsCompanion(
+        localUuid: d.Value(uuid),
+        serverId: const d.Value(null),
+        employeeId: d.Value(employeeId),
+        amount: d.Value(amount),
+        withdrawDate: d.Value(date),
+        reason: d.Value(reason),
+        hotelDayKey: d.Value(hotelDayKey ?? _computeHotelDayKey(date)),
+        withdrawalType: d.Value(withdrawalType),
+        description: d.Value(description),
+        createdAt: d.Value(now),
+        updatedAt: d.Value(now),
+        deletedAt: const d.Value(null),
+        lastModified: d.Value(now),
+        createdAtEpoch: d.Value(now),
+        lastModifiedEpoch: d.Value(now),
+        version: const d.Value(1),
+        origin: d.Value(originIsServer ? 'server' : 'local'),
+        vectorClock: const d.Value('{}'),
+      );
+      final id = await _db.into(_db.salaryWithdrawals).insert(companion);
 
-    // إشعارات فورية (fire-and-forget)
+      if (expenseId > 0) {
+        await _setExpenseIdRaw(id, expenseId);
+      }
+
+      if (!originIsServer) {
+        final payload = <String, dynamic>{
+          'employeeId': employeeId,
+          'amount': amount,
+          'withdrawDate': date,
+          'reason': reason,
+          'hotelDayKey': hotelDayKey ?? _computeHotelDayKey(date),
+          'withdrawalType': withdrawalType,
+          'description': description,
+        };
+        if (expenseId > 0) {
+          payload['expenseId'] = expenseId;
+        }
+        await _outboxDao.merge(
+          entity: 'salary_withdrawals',
+          op: 'create',
+          localUuid: uuid,
+          payload: payload,
+          clientTs: now,
+        );
+      }
+
+      return id;
+    });
+
     unawaited(
       WhatsAppNotificationService.instance.notifyNewExpense(
         category: 'سحب راتب',
@@ -88,31 +113,6 @@ class SalaryWithdrawalsRepository {
         description: reason,
       ),
     );
-
-    if (!originIsServer) {
-      final payload = <String, dynamic>{
-        'employeeId': employeeId,
-        'amount': amount,
-        'withdrawDate': date,
-        'reason': reason,
-        'hotelDayKey': hotelDayKey ?? _computeHotelDayKey(date),
-        'withdrawalType': withdrawalType,
-        'description': description,
-      };
-      // ✅ إضافة expenseId للحمولة لمزامنته مع Appwrite
-      if (expenseId > 0) {
-        payload['expenseId'] = expenseId;
-      }
-      await _outboxDao.merge(
-        entity: 'salary_withdrawals',
-        op: 'create',
-        localUuid: uuid,
-        payload: payload,
-        clientTs: now,
-      );
-    }
-
-    return id;
   }
 
   /// حفظ أو تحديث سجل سحب راتب مرتبط بمصروف (UPSERT via expense_id)

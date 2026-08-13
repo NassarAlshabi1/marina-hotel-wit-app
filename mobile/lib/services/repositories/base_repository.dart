@@ -126,14 +126,12 @@ class BaseRepository<D extends DataClass, C extends UpdateCompanion<D>> {
     // هذه النقطة لا يمكن الوصول إليها نظرياً لأنه:
     // 1. إذا نجحت إحدى المحاولات → نعود مبكراً من الحلقة
     // 2. إذا فشلت جميع المحاولات → lastError != null ونرمي أعلاه
-    // لكن كحماية إضافية، نستخدم insertOnConflictUpdate
-    // مع تحذير واضح عن المخاطر
-    developer.log(
-      'WARNING: Falling back to insertOnConflictUpdate for ${table.actualTableName} — '
-      'this may overwrite an unrelated local record with the same primary key!',
-      name: 'BaseRepository',
+    // كحماية إضافية: نرمي خطأ بدلاً من_insertOnConflictUpdate_ الصامت
+    // الذي قد يكتب فوق سجل محلي مختلف لنفس المفتاح الرئيسي.
+    throw StateError(
+      'upsertFromJson exhausted all conflict targets for ${table.actualTableName} — '
+      'refusing silent overwrite via insertOnConflictUpdate',
     );
-    return db.into(table).insertOnConflictUpdate(comp);
   }
 
   Map<String, dynamic> toJsonForSource(D row, {required Source src}) {

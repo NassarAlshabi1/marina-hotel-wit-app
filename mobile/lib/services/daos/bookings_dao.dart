@@ -233,10 +233,16 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       }
       await (update(bookings)..where((t) => t.id.equals(id))).write(
         BookingsCompanion(
+          deletedAt: const d.Value.absent(),
           updatedAt: Value(Time.nowEpoch()),
           lastModified: Value(Time.nowEpoch()),
           version: Value(existing.version + 1),
         ),
+      );
+      await _mergeOutbox(
+        op: 'update',
+        localUuid: existing.localUuid,
+        clientTs: Time.nowEpoch(),
       );
       return 1;
     });
@@ -364,7 +370,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// الحصول على bookingWithNights (للنسخ الاحتياطي/المزامنة)
-  Future<Map<String, dynamic>?> _payloadForLocalUuid(String localUuid) async {
+  Future<Map<String, dynamic>?> payloadForLocalUuid(String localUuid) async {
     final row =
         await (select(bookings)
               ..where((t) => t.localUuid.equals(localUuid))
@@ -382,7 +388,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     required int clientTs,
     int? serverId,
   }) async {
-    final payload = await _payloadForLocalUuid(localUuid);
+    final payload = await payloadForLocalUuid(localUuid);
     if (payload == null) {
       return;
     }

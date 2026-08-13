@@ -340,25 +340,47 @@ class ExpensesRepository {
   /// يُستدعى مرة واحدة عند تشغيل التطبيق لتصحيح البيانات التاريخية.
   Future<int> backfillHotelDayKeys() async {
     final allExpenses = await dao.list(includeDeleted: true);
-    int fixed = 0;
+    final toFix = <({int id, String localUuid, String correctKey})>[];
     for (final expense in allExpenses) {
       if (expense.hotelDayKey == null || expense.hotelDayKey!.isEmpty) {
         continue;
       }
-      // ✅ إصلاح: استخدام _hotelDayKeyFromCalendarDate بدلاً من getHotelDayKeyFromIso
-      // لأن حقل date يخزن تاريخاً تقويمياً بدون وقت (yyyy-MM-dd)
-      // وتمريره مباشرة لـ getHotelDayKeyFromIso يُنتج اليوم الفندقي السابق خطأً
       final correctKey = _hotelDayKeyFromCalendarDate(expense.date);
       if (expense.hotelDayKey != correctKey) {
-        await (db.update(
-          db.expenses,
-        )..where((t) => t.id.equals(expense.id))).write(
-          ExpensesCompanion(hotelDayKey: d.Value(correctKey)),
-        );
-        fixed++;
+        toFix.add((
+          id: expense.id,
+          localUuid: expense.localUuid,
+          correctKey: correctKey,
+        ));
       }
     }
-    return fixed;
+    if (toFix.isEmpty) return 0;
+
+    await db.transaction(() async {
+      for (final item in toFix) {
+        await (db.update(
+          db.expenses,
+        )..where((t) => t.id.equals(item.id))).write(
+          ExpensesCompanion(hotelDayKey: d.Value(item.correctKey)),
+        );
+      }
+
+      await outbox.mergeBatch(
+        toFix
+            .map(
+              (item) => <String, dynamic>{
+                'entity': 'expenses',
+                'op': 'update',
+                'localUuid': item.localUuid,
+                'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+                'clientTs': Time.nowEpoch(),
+              },
+            )
+            .toList(),
+      );
+    });
+
+    return toFix.length;
   }
 
   /// حساب مفتاح اليوم الفندقي من تاريخ تقويمي (بدون وقت)

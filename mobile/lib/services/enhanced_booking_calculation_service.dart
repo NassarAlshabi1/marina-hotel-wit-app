@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:drift/drift.dart' as d;
 
 import '../models/financial_models.dart';
+import 'daos/outbox_dao.dart';
+import 'daos/bookings_dao.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
@@ -33,9 +35,11 @@ class BookingCalculationResult {
 }
 
 class EnhancedBookingCalculationService {
-  EnhancedBookingCalculationService(this.db);
+  EnhancedBookingCalculationService(this.db, [OutboxDao? outboxDao])
+      : _outboxDao = outboxDao ?? OutboxDao(db);
 
   final AppDatabase db;
+  final OutboxDao _outboxDao;
 
   Future<BookingCalculationResult> calculateForBooking(
     Booking booking, {
@@ -152,6 +156,21 @@ class EnhancedBookingCalculationService {
         updatedAtIso: d.Value(stampIso),
       ),
     );
+
+    final updatedBooking = await (db.select(db.bookings)..where((b) => b.id.equals(booking.id))).getSingleOrNull();
+    if (updatedBooking != null) {
+      final bookingsDao = BookingsDao(db, _outboxDao);
+      final payload = await bookingsDao.payloadForLocalUuid(updatedBooking.localUuid);
+      if (payload != null) {
+        await _outboxDao.merge(
+          entity: 'bookings',
+          op: 'update',
+          localUuid: updatedBooking.localUuid,
+          payload: payload,
+          clientTs: stamp,
+        );
+      }
+    }
   }
 
   Future<List<NightlyBreakdown>> _buildNightlyBreakdown(
@@ -505,11 +524,32 @@ class EnhancedBookingCalculationService {
     }
 
     if (inTransaction) {
-      // Already inside a transaction — just perform the writes directly.
       await doWrite();
+      final bookingsDao = BookingsDao(db, _outboxDao);
+      final payload = await bookingsDao.payloadForLocalUuid(booking.localUuid);
+      if (payload != null) {
+        await _outboxDao.merge(
+          entity: 'bookings',
+          op: 'update',
+          localUuid: booking.localUuid,
+          payload: payload,
+          clientTs: stamp,
+        );
+      }
     } else {
       await db.transaction(() async {
         await doWrite();
+        final bookingsDao = BookingsDao(db, _outboxDao);
+        final payload = await bookingsDao.payloadForLocalUuid(booking.localUuid);
+        if (payload != null) {
+          await _outboxDao.merge(
+            entity: 'bookings',
+            op: 'update',
+            localUuid: booking.localUuid,
+            payload: payload,
+            clientTs: stamp,
+          );
+        }
       });
     }
   }

@@ -1,17 +1,20 @@
 import 'package:drift/drift.dart' as d;
 import 'package:flutter/foundation.dart';
-
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../services/daos/outbox_dao.dart';
+import '../services/daos/bookings_dao.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
 import 'enhanced_booking_calculation_service.dart';
 import 'local_db.dart';
 import 'remote_config_service.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class BookingDerivedFieldsService {
-  BookingDerivedFieldsService(this.db);
+  BookingDerivedFieldsService(this.db, [OutboxDao? outboxDao])
+      : _outboxDao = outboxDao ?? OutboxDao(db);
 
   final AppDatabase db;
+  final OutboxDao _outboxDao;
 
   Future<void> refreshForBookingId(
     int bookingId, {
@@ -123,6 +126,21 @@ class BookingDerivedFieldsService {
         updatedAtIso: d.Value(stampIso),
       ),
     );
+
+    final updated = await (db.select(db.bookings)..where((b) => b.id.equals(booking.id))).getSingleOrNull();
+    if (updated != null) {
+      final bookingsDao = BookingsDao(db, _outboxDao);
+      final payload = await bookingsDao.payloadForLocalUuid(updated.localUuid);
+      if (payload != null) {
+        await _outboxDao.merge(
+          entity: 'bookings',
+          op: 'update',
+          localUuid: updated.localUuid,
+          payload: payload,
+          clientTs: stamp,
+        );
+      }
+    }
   }
 
   Future<int> refreshAllActiveBookings({DateTime? now}) async {
@@ -173,10 +191,26 @@ class BookingDerivedFieldsService {
   }
 
   Future<void> _promoteProvisionalBooking(int bookingId) async {
-    await (db.update(
-      db.bookings,
-    )..where((b) => b.id.equals(bookingId))).write(
+    final booking = await (db.select(db.bookings)..where((b) => b.id.equals(bookingId))).getSingleOrNull();
+    if (booking == null) return;
+
+    await (db.update(db.bookings)..where((b) => b.id.equals(bookingId))).write(
       const BookingsCompanion(status: d.Value('محجوزة')),
+    );
+
+    final updated = await (db.select(db.bookings)..where((b) => b.id.equals(bookingId))).getSingleOrNull();
+    if (updated == null) return;
+
+    final bookingsDao = BookingsDao(db, _outboxDao);
+    final payload = await bookingsDao.payloadForLocalUuid(updated.localUuid);
+    if (payload == null) return;
+
+    await _outboxDao.merge(
+      entity: 'bookings',
+      op: 'update',
+      localUuid: updated.localUuid,
+      payload: payload,
+      clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
     );
   }
 
