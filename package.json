@@ -10,10 +10,14 @@
     "install:playwright": "npx playwright install --with-deps",
     "appwrite:setup": "node scripts/appwrite/unified_appwrite_setup.js",
     "appwrite:verify": "node scripts/appwrite/unified_appwrite_setup.js --verify",
-    "appwrite:create": "node scripts/appwrite/create_appwrite_collections.js",
-    "appwrite:indexes": "node scripts/appwrite/create_unique_indexes.js",
-    "appwrite:mobile-indexes": "node scripts/appwrite/create_mobile_indexes.js",
-    "appwrite:sync-logs": "node scripts/appwrite/ensure_sync_logs_action.js",
+    "appwrite:check": "node scripts/appwrite/test_unified_schema.js",
+    "appwrite:make-optional": "node scripts/appwrite/unified_appwrite_setup.js --make-optional",
+    "appwrite:repair-types": "node scripts/appwrite/unified_appwrite_setup.js --fix-types --confirm",
+    "appwrite:prune": "node scripts/appwrite/unified_appwrite_setup.js --prune --confirm",
+    "appwrite:create": "npm run appwrite:setup",
+    "appwrite:indexes": "npm run appwrite:setup",
+    "appwrite:mobile-indexes": "npm run appwrite:setup",
+    "appwrite:sync-logs": "npm run appwrite:setup",
     "appwrite:list": "node scripts/appwrite/list_appwrite_collections.js"
   },
   "devDependencies": {

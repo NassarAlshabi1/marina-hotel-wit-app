@@ -51,13 +51,16 @@
 
 'use strict';
 
-const {
-  Client,
-  Databases,
-  Permission,
-  Role,
-  IndexType,
-} = require('node-appwrite');
+let Client;
+let Databases;
+let Permission;
+let Role;
+let IndexType;
+
+function loadAppwriteSdk() {
+  if (Client) return;
+  ({ Client, Databases, Permission, Role, IndexType } = require('node-appwrite'));
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1) الإعدادات — كلها قابلة للتجاوز عبر البيئة (هذا ما يجعل السكربت "موحّداً")
@@ -91,6 +94,7 @@ const ONLY = ONLY_ARG
 let databases = null;
 
 function initClient() {
+  loadAppwriteSdk();
   if (!API_KEY) {
     console.error('❌ متغيّر البيئة APPWRITE_API_KEY مطلوب.');
     console.error('   مثال: APPWRITE_API_KEY=xxxx node scripts/appwrite/unified_appwrite_setup.js');
@@ -353,6 +357,11 @@ const SCHEMA = {
     newCycleEnd: 'string',
     reason: 'string',
     carriedAt: 'integer',
+    fromCycleId: 'string',
+    toCycleId: 'string',
+    carryDate: 'string',
+    performedBy: 'string',
+    hotelDayKey: 'string',
   }),
 
   shift_notes: withSync({
@@ -536,6 +545,156 @@ const SCHEMA = {
     username: 'string',
     version: 'integer',
   },
+
+  // تسجيل الأجهزة مطلوب لتوجيه إشعارات FCM وتتبع مصدر التغيير بين الأجهزة.
+  devices: withSync({
+    appVersion: 'string',
+    deviceModel: 'string',
+    deviceName: 'string',
+    deviceType: 'string',
+    fcmToken: 'string',
+    isActive: 'boolean',
+    lastActive: 'integer',
+    lastSeen: 'integer',
+    osVersion: 'string',
+    platform: 'string',
+    status: 'string',
+  }),
+
+  // سجل عمليات push/pull؛ حقوله اختيارية لأن أنواع عمليات المزامنة تختلف.
+  sync_logs: withSync({
+    action: 'string',
+    changesDownloaded: 'integer',
+    changesUploaded: 'integer',
+    checksumMatched: 'boolean',
+    collection: 'string',
+    conflicts: 'integer',
+    details: 'string',
+    direction: 'string',
+    documentId: 'string',
+    durationMs: 'integer',
+    endTime: 'integer',
+    errorMessage: 'string',
+    errors: 'string',
+    metadata: 'string',
+    operation: 'string',
+    operations: 'string',
+    records: 'integer',
+    recordsPulled: 'integer',
+    recordsPushed: 'integer',
+    startTime: 'integer',
+    status: 'string',
+    syncId: 'string',
+    syncType: 'string',
+    timestamp: 'integer',
+    timestampIso: 'string',
+  }),
+};
+
+// فهارس الاستعلامات التشغيلية. تُضاف الفهارس القياسية (UUID، timestamps)
+// آلياً أدناه، وهذه الخريطة تضيف فهارس الأعمال فقط. لا يُنشأ فهرس إلا بعد
+// التحقق من وجود جميع حقوله في SCHEMA، ولذلك تبقى آمنة عند تشغيل --only.
+const COLLECTION_INDEXES = {
+  rooms: [
+    { key: 'idx_room_status', type: 'key', attributes: ['roomNumber', 'status'] },
+    { key: 'idx_room_maintenance', type: 'key', attributes: ['requiresMaintenance'] },
+  ],
+  bookings: [
+    { key: 'idx_room_status', type: 'key', attributes: ['roomNumber', 'status'] },
+    { key: 'idx_status_hotel_day', type: 'key', attributes: ['status', 'hotelDayCheckin'] },
+    { key: 'idx_guest_phone', type: 'key', attributes: ['guestPhone'] },
+    { key: 'idx_checkin_date', type: 'key', attributes: ['checkinDate'] },
+  ],
+  payments: [
+    { key: 'idx_hotel_day_type', type: 'key', attributes: ['hotelDayKey', 'revenueType'] },
+    { key: 'idx_booking_uuid', type: 'key', attributes: ['bookingUuidCache'] },
+    { key: 'idx_payment_date', type: 'key', attributes: ['paymentDate'] },
+  ],
+  expenses: [
+    { key: 'idx_hotel_day_type', type: 'key', attributes: ['hotelDayKey', 'expenseType'] },
+    { key: 'idx_expense_date', type: 'key', attributes: ['date'] },
+  ],
+  debts: [
+    { key: 'idx_guest_name', type: 'key', attributes: ['guestName'] },
+    { key: 'idx_booking_uuid', type: 'key', attributes: ['bookingUuidCache'] },
+    { key: 'idx_debt_status', type: 'key', attributes: ['isSettled', 'status'] },
+  ],
+  employees: [
+    { key: 'idx_employee_name', type: 'key', attributes: ['name'] },
+    { key: 'idx_employee_status', type: 'key', attributes: ['status'] },
+  ],
+  booking_notes: [
+    { key: 'idx_booking_uuid', type: 'key', attributes: ['bookingUuidCache'] },
+    { key: 'idx_note_active', type: 'key', attributes: ['isActive'] },
+  ],
+  booking_nights: [
+    { key: 'idx_booking_uuid', type: 'key', attributes: ['bookingUuidCache'] },
+    { key: 'idx_hotel_day', type: 'key', attributes: ['hotelDayKey'] },
+  ],
+  cash_transactions: [
+    { key: 'idx_transaction_type', type: 'key', attributes: ['transactionType'] },
+    { key: 'idx_transaction_time', type: 'key', attributes: ['transactionTime'] },
+  ],
+  salary_cycles: [
+    { key: 'idx_employee_id', type: 'key', attributes: ['employeeId'] },
+    { key: 'idx_cycle_key', type: 'key', attributes: ['cycleKey'] },
+  ],
+  salary_payments: [
+    { key: 'idx_cycle_id', type: 'key', attributes: ['cycleId'] },
+    { key: 'idx_hotel_day', type: 'key', attributes: ['hotelDayKey'] },
+  ],
+  salary_withdrawals: [
+    { key: 'idx_employee_id', type: 'key', attributes: ['employeeId'] },
+    { key: 'idx_withdraw_date', type: 'key', attributes: ['withdrawDate'] },
+  ],
+  salary_carry_over_logs: [
+    { key: 'idx_employee_id', type: 'key', attributes: ['employeeId'] },
+    { key: 'idx_carry_date', type: 'key', attributes: ['carryDate'] },
+  ],
+  shift_notes: [
+    { key: 'idx_priority', type: 'key', attributes: ['priority'] },
+    { key: 'idx_shift_date', type: 'key', attributes: ['shiftDate'] },
+  ],
+  price_adjustments: [
+    { key: 'idx_target', type: 'key', attributes: ['targetType', 'targetUuid'] },
+    { key: 'idx_hotel_day', type: 'key', attributes: ['hotelDayKey'] },
+  ],
+  booking_price_adjustments: [
+    { key: 'idx_booking_active', type: 'key', attributes: ['bookingLocalUuid', 'isActive'] },
+    { key: 'idx_effective_end_day', type: 'key', attributes: ['effectiveHotelDay', 'endHotelDay'] },
+  ],
+  audit_logs: [
+    { key: 'idx_entity', type: 'key', attributes: ['entityType', 'entityUuid'] },
+    { key: 'idx_hotel_day', type: 'key', attributes: ['hotelDayKey'] },
+    { key: 'idx_financial_day', type: 'key', attributes: ['isFinancial', 'hotelDayKey'] },
+    { key: 'idx_timestamp', type: 'key', attributes: ['timestamp'] },
+  ],
+  payment_voids: [
+    { key: 'idx_original_payment', type: 'unique', attributes: ['originalPaymentUuid'] },
+    { key: 'idx_booking', type: 'key', attributes: ['bookingUuid'] },
+    { key: 'idx_hotel_day', type: 'key', attributes: ['hotelDayKey'] },
+  ],
+  guest_infos: [
+    { key: 'idx_room_number', type: 'key', attributes: ['roomNumber'] },
+    { key: 'idx_id_number', type: 'key', attributes: ['idNumber'] },
+    { key: 'idx_guest_name', type: 'key', attributes: ['guestName'] },
+  ],
+  blacklist: [
+    { key: 'idx_blacklist_name', type: 'key', attributes: ['name'] },
+    { key: 'idx_blacklist_phone', type: 'key', attributes: ['phone'] },
+    { key: 'idx_blacklist_active', type: 'key', attributes: ['active'] },
+  ],
+  devices: [
+    { key: 'idx_device_id', type: 'key', attributes: ['deviceId'] },
+    { key: 'idx_device_active', type: 'key', attributes: ['isActive', 'lastSeen'] },
+  ],
+  sync_logs: [
+    { key: 'idx_sync_id', type: 'key', attributes: ['syncId'] },
+    { key: 'idx_sync_status', type: 'key', attributes: ['status', 'startTime'] },
+  ],
+  app_users: [
+    { key: 'idx_username', type: 'unique', attributes: ['username'] },
+  ],
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -918,6 +1077,22 @@ async function ensureStandardIndexes(collectionId, fields) {
   }
 }
 
+async function ensureBusinessIndexes(collectionId, fields) {
+  const indexes = COLLECTION_INDEXES[collectionId] || [];
+  for (const index of indexes) {
+    const missing = index.attributes.filter(
+      (field) => !Object.prototype.hasOwnProperty.call(fields, field),
+    );
+    if (missing.length) {
+      const message = `${collectionId}.${index.key}: fields missing from SCHEMA (${missing.join(', ')})`;
+      console.error(`   ❌ ${message}`);
+      stats.errors.push(message);
+      continue;
+    }
+    await ensureIndex(collectionId, index.key, index.type, index.attributes);
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 5) وضع الفحص (--verify): مقارنة المخطط الفعلي بالمطلوب
 // ─────────────────────────────────────────────────────────────────────────────
@@ -925,6 +1100,7 @@ async function verify(targetCollections) {
   let missingCollections = 0;
   let missingAttributes = 0;
   let typeMismatches = 0;
+  let missingIndexes = 0;
 
   for (const collectionId of targetCollections) {
     const wanted = SCHEMA[collectionId];
@@ -954,8 +1130,26 @@ async function verify(targetCollections) {
       }
     }
 
-    if (missing.length === 0 && mismatches.length === 0) {
-      console.log(`✅ ${collectionId}: كل الحقول موجودة وبأنواع متطابقة (${Object.keys(wanted).length})`);
+    const expectedIndexes = [
+      ...(Object.prototype.hasOwnProperty.call(wanted, 'localUuid')
+        ? ['idx_local_uuid']
+        : []),
+      ...(Object.prototype.hasOwnProperty.call(wanted, 'lastModified')
+        ? ['idx_last_modified']
+        : []),
+      ...(Object.prototype.hasOwnProperty.call(wanted, 'syncTimestamp')
+        ? ['idx_sync_ts']
+        : []),
+      ...(Object.prototype.hasOwnProperty.call(wanted, 'deletedAt')
+        ? ['idx_deleted_at']
+        : []),
+      ...(COLLECTION_INDEXES[collectionId] || []).map((index) => index.key),
+    ];
+    const actualIndexKeys = new Set((actual.indexes || []).map((index) => index.key));
+    const missingIndexKeys = expectedIndexes.filter((key) => !actualIndexKeys.has(key));
+
+    if (missing.length === 0 && mismatches.length === 0 && missingIndexKeys.length === 0) {
+      console.log(`✅ ${collectionId}: الحقول والفهارس مطابقة (${Object.keys(wanted).length} حقل، ${expectedIndexes.length} فهرس)`);
     } else {
       if (missing.length > 0) {
         console.log(`⚠️  ${collectionId}: ناقص ${missing.length} حقل → ${missing.join(', ')}`);
@@ -965,17 +1159,21 @@ async function verify(targetCollections) {
         console.log(`❌ ${collectionId}: ${mismatches.length} عدم تطابق نوع → ${mismatches.join(' | ')}`);
         typeMismatches += mismatches.length;
       }
+      if (missingIndexKeys.length > 0) {
+        console.log(`⚠️  ${collectionId}: ناقص ${missingIndexKeys.length} فهرس → ${missingIndexKeys.join(', ')}`);
+        missingIndexes += missingIndexKeys.length;
+      }
     }
   }
 
   console.log('\n══════════════════════════════════════════');
   console.log(
     `ملخّص الفحص: مجموعات مفقودة=${missingCollections}, ` +
-      `حقول مفقودة=${missingAttributes}, عدم تطابق الأنواع=${typeMismatches}`,
+      `حقول مفقودة=${missingAttributes}, عدم تطابق الأنواع=${typeMismatches}, فهارس مفقودة=${missingIndexes}`,
   );
   console.log('══════════════════════════════════════════');
   process.exit(
-    missingCollections + missingAttributes + typeMismatches > 0 ? 2 : 0,
+    missingCollections + missingAttributes + typeMismatches + missingIndexes > 0 ? 2 : 0,
   );
 }
 
@@ -1141,6 +1339,7 @@ async function main() {
     const ready = await waitForAttributes(collectionId, Object.keys(fields).length);
     if (ready) {
       await ensureStandardIndexes(collectionId, fields);
+      await ensureBusinessIndexes(collectionId, fields);
     } else {
       console.log(`   ⏭️  تخطّي إنشاء الفهارس لـ ${collectionId} — الحقول لم تصبح جاهزة في المهلة`);
       stats.errors.push(`${collectionId}.indexes: skipped (attribute wait timeout)`);
@@ -1174,7 +1373,13 @@ async function main() {
 }
 
 // يُصدَّر المخطط للاختبار/الفحص البرمجي دون تشغيل الإعداد.
-module.exports = { SCHEMA, SYNC, stringSize, permissionsFor };
+module.exports = {
+  SCHEMA,
+  SYNC,
+  COLLECTION_INDEXES,
+  stringSize,
+  permissionsFor,
+};
 
 // شغّل فقط عند الاستدعاء المباشر (وليس عند require).
 if (require.main === module) {
