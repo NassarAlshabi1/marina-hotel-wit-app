@@ -93,12 +93,12 @@ jobs:
           cache: gradle
 
       # ─────────────────────────────────────────────────────────────────────
-      #  5. تثبيت Flutter 3.44.4 (مطابق للإصدار المُستخدم محلياً)
+      #  5. تثبيت Flutter 3.44.9 المطابق لإصدار المشروع المحلي وCI الأساسي
       # ─────────────────────────────────────────────────────────────────────
       - name: 🐦 Set up Flutter
         uses: subosito/flutter-action@v2.23.0
         with:
-          flutter-version: '3.44.4'
+          flutter-version: '3.44.9'
           channel: stable
           cache: true
           cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
@@ -134,9 +134,10 @@ jobs:
         run: dart pub global activate patrol_cli 4.5.1
 
       - name: 🩺 Patrol doctor
+        # فحص مانع: لا ينبغي إخفاء نقص Android SDK أو adb في بيئة المحاكي.
         run: |
           export PATH="$HOME/.pub-cache/bin:$PATH"
-          patrol doctor || true
+          PATROL_ANALYTICS_ENABLED=false patrol doctor
 
       # ─────────────────────────────────────────────────────────────────────
       #  8. تثبيت dependencies
@@ -180,7 +181,7 @@ jobs:
             # android-emulator-runner passes the script to /usr/bin/sh -c.
             # We use a single-line command with && so cd persists to patrol test.
             # Note: patrol test doesn't have --retry (only --web-retries for web).
-            cd "${{ github.workspace }}/mobile" && export PATH="$HOME/.pub-cache/bin:$PATH" && patrol test --target integration_test/ --exclude-tags skip-ci --verbose
+            cd "${{ github.workspace }}/mobile" && export PATH="$HOME/.pub-cache/bin:$PATH" && PATROL_ANALYTICS_ENABLED=false patrol test --target integration_test/ --exclude-tags skip-ci --verbose
 
       # ─────────────────────────────────────────────────────────────────────
       #  12. رفع تقارير الاختبار كـ artifact (في حال الفشل)
@@ -243,7 +244,7 @@ jobs:
       - name: 🐦 Set up Flutter
         uses: subosito/flutter-action@v2.23.0
         with:
-          flutter-version: '3.44.4'
+          flutter-version: '3.44.9'
           channel: stable
           cache: true
           cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
