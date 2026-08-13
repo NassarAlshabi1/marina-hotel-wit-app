@@ -560,7 +560,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                   onPressed: _isSaving
                       ? null
                       : () async {
-                          if (!_formKey.currentState!.validate()) {
+                          if (_formKey.currentState == null || !_formKey.currentState!.validate()) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text(
