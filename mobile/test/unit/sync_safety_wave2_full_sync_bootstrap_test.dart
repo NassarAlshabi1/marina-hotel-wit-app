@@ -202,7 +202,7 @@ void main() {
         //    - نسحب كل الكولكشنات بدون فشل
         //    - نحدّث lastPullTs
         //    - نضبط full_sync_complete = 1
-        final newPullTs = 1700000000;
+        const newPullTs = 1700000000;
         await pullService.updateLastPullTs(newPullTs);
         await pullService.markFullSyncComplete();
 

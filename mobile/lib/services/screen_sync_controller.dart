@@ -1,9 +1,7 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart';
 
-import 'secondary_appwrite_config.dart';
 // ✅ Sync Simplification (2026-08-10): secondary_sync_manager.dart معطّل
 // بالكامل. لا حاجة لاستيراده هنا.
 import 'smart_sync_manager.dart';

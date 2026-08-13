@@ -23,7 +23,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show File, Platform, ProcessInfo;
 
-import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb, debugPrint;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show FrameTiming, SchedulerBinding;
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
@@ -710,9 +710,8 @@ class MemoryTracker {
   }
 
   /// يُعيد الـ disposables غير المُغلقة (potential leaks)
-  Map<String, Duration> get undisposed => _tracked.map(
-    (id, time) => MapEntry(id, DateTime.now().difference(time)),
-  );
+  Map<String, Duration> get undisposed =>
+      _tracked.map((id, time) => MapEntry(id, DateTime.now().difference(time)));
 
   /// يطبع تقرير الـ leaks
   void printLeaks() {

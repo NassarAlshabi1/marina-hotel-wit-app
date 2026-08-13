@@ -178,7 +178,7 @@ void main() {
 
     test('snapshot rollback restores data on failure', () async {
       final now = Time.nowEpoch();
-      final originalStatus = 'شاغرة';
+      const originalStatus = 'شاغرة';
       await database
           .into(database.rooms)
           .insert(
@@ -187,7 +187,7 @@ void main() {
               roomNumber: const Value('201'),
               type: const Value('double'),
               price: const Value(250.0),
-              status: Value(originalStatus),
+              status: const Value(originalStatus),
               createdAt: Value(now),
               updatedAt: Value(now),
               lastModified: Value(now),

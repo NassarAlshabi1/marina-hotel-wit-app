@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 
 import '../appwrite_logger.dart';
 import '../daos/outbox_dao.dart';

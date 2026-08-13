@@ -1,5 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:async';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../utils/env.dart';
@@ -84,10 +85,7 @@ class TelegramConfig {
 
       if (legacyToken != null && legacyToken.isNotEmpty) {
         // 3. ترحيل الـ token إلى SecureStorage
-        await _secureStorage.write(
-          key: _botTokenSecureKey,
-          value: legacyToken,
-        );
+        await _secureStorage.write(key: _botTokenSecureKey, value: legacyToken);
         // 4. حذف الـ token من SharedPreferences
         await prefs.remove(_botTokenKey);
       }
@@ -116,7 +114,7 @@ class TelegramConfig {
       final token = await _fetchTokenFromServer();
       if (token != null && token.isNotEmpty) {
         await setBotToken(token);
-        _saveTokenExpiry();
+        unawaited(_saveTokenExpiry());
       }
     }
   }
@@ -185,7 +183,7 @@ class TelegramConfig {
       await prefs.remove(_botTokenKey);
     }
     // ✅ تخصيص صلاحية التوكن (مثال: 90 يوم)
-    _saveTokenExpiry();
+    unawaited(_saveTokenExpiry());
   }
 
   /// ✅ P0-7: تسجيل تاريخ انتهاء صلاحية التوكن

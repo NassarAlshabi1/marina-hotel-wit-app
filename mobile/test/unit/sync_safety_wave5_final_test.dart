@@ -526,7 +526,7 @@ void main() {
           source: 'local',
         );
         await (db.update(db.outbox)..where((t) => t.id.equals(id))).write(
-          OutboxCompanion(processingStatus: const drift.Value('failed')),
+          const OutboxCompanion(processingStatus: drift.Value('failed')),
         );
 
         final cleaned = await outboxDao.cleanupForMissingEntities([
@@ -551,7 +551,7 @@ void main() {
           source: 'local',
         );
         await (db.update(db.outbox)..where((t) => t.id.equals(id))).write(
-          OutboxCompanion(processingStatus: const drift.Value('completed')),
+          const OutboxCompanion(processingStatus: drift.Value('completed')),
         );
 
         final cleaned = await outboxDao.cleanupForMissingEntities([

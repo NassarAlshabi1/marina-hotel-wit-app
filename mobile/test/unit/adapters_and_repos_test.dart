@@ -34,9 +34,9 @@ void main() {
           EmployeesCompanion(
             localUuid: d.Value(uuid),
             name: d.Value(name),
-            position: d.Value('موظف'),
-            status: d.Value('active'),
-            basicSalary: d.Value(5000.0),
+            position: const d.Value('موظف'),
+            status: const d.Value('active'),
+            basicSalary: const d.Value(5000.0),
             createdAt: const d.Value(0),
             updatedAt: const d.Value(0),
             lastModified: const d.Value(0),

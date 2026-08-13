@@ -46,12 +46,12 @@ Future<AppDatabase> _seedFullDatabase() async {
 
   // غرفة
   await roomsDao.insertOne(
-    RoomsCompanion(
-      roomNumber: const d.Value('101'),
-      type: const d.Value('عادية'),
-      price: const d.Value(150.0),
-      status: const d.Value('محجوزة'),
-      localUuid: const d.Value('room-101-uuid'),
+    const RoomsCompanion(
+      roomNumber: d.Value('101'),
+      type: d.Value('عادية'),
+      price: d.Value(150.0),
+      status: d.Value('محجوزة'),
+      localUuid: d.Value('room-101-uuid'),
     ),
   );
 
@@ -173,7 +173,7 @@ void main() {
       expect(room, isNotNull);
       await roomsDao.updateById(
         room!.id,
-        RoomsCompanion(status: const d.Value('شاغرة')),
+        const RoomsCompanion(status: d.Value('شاغرة')),
       );
 
       // 5) التحقق النهائي
@@ -318,9 +318,9 @@ void main() {
       // 2) تعديل
       await expensesDao.updateById(
         expenseId,
-        ExpensesCompanion(
-          description: const d.Value('مصروف مُعدّل'),
-          amount: const d.Value(200.0),
+        const ExpensesCompanion(
+          description: d.Value('مصروف مُعدّل'),
+          amount: d.Value(200.0),
         ),
       );
       final afterUpdate = await outboxDao.countPendingPushable();

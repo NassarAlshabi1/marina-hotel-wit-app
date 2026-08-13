@@ -125,7 +125,7 @@ void main() {
 
     group('Financial Accuracy', () {
       test('integer amounts prevent rounding bugs', () {
-        final amount = 50000;
+        const amount = 50000;
         expect(amount, isA<int>());
         expect(amount ~/ 1000, equals(50));
       });

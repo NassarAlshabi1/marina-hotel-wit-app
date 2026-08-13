@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../adapters/adapter_registry.dart';
@@ -11,7 +10,6 @@ import '../appwrite_logger.dart';
 import '../appwrite_sync_manager.dart';
 import '../crashlytics_service.dart';
 import '../local_db.dart';
-import '../secondary_appwrite_config.dart';
 import '../vector_clock_service.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
@@ -261,7 +259,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
             serverId: Value(serverId),
             source: Value(source),
             // ✅ إصلاح P0-1: تحديث delivered_to_secondary للسجل الموجود أيضاً
-            deliveredToSecondary: Value(deliveredToSecondary),
+            deliveredToSecondary: const Value(deliveredToSecondary),
             // ✅ Sync Safety Fix (2026-08-10): إعادة ضبط delivery state
             // عند تحديث payload. سابقاً، لو كان السجل موجوداً بـ
             // deliveredToPrimary=true (تم تسليمه للرئيسي) ثم تغيّر payload،
@@ -307,7 +305,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
           idempotencyKey: Value(idempKey),
           source: Value(source),
           // ✅ إصلاح P0-1: ضبط delivered_to_secondary ديناميكياً
-          deliveredToSecondary: Value(deliveredToSecondary),
+          deliveredToSecondary: const Value(deliveredToSecondary),
         ),
       );
     });
@@ -1135,7 +1133,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
           idempotencyKey: Value(idempKey),
           serverId: Value(serverId),
           source: Value(source),
-          deliveredToSecondary: Value(deliveredToSecondary),
+          deliveredToSecondary: const Value(deliveredToSecondary),
           processingStatus: existing.processingStatus == 'processing'
               ? const Value('pending')
               : const Value.absent(),
@@ -1160,7 +1158,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         clientTs: clientTs,
         idempotencyKey: Value(idempKey),
         source: Value(source),
-        deliveredToSecondary: Value(deliveredToSecondary),
+        deliveredToSecondary: const Value(deliveredToSecondary),
       ),
     );
   }

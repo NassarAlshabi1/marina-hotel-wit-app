@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'smart_sync_manager.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';

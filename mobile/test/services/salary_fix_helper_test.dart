@@ -435,21 +435,21 @@ void main() {
       final expenseId = await db
           .into(db.expenses)
           .insert(
-            ExpensesCompanion(
-              expenseType: const d.Value('employee'),
-              relatedId: const d.Value(999),
-              description: const d.Value('مصروف موظف قديم'),
-              amount: const d.Value(1000),
-              date: const d.Value('2026-06-01'),
-              localUuid: const d.Value('exp-employee-001'),
-              createdAt: const d.Value(1000),
-              updatedAt: const d.Value(1000),
-              lastModified: const d.Value(1000),
-              createdAtEpoch: const d.Value(1000),
-              lastModifiedEpoch: const d.Value(1000),
-              version: const d.Value(1),
-              origin: const d.Value('local'),
-              vectorClock: const d.Value('{}'),
+            const ExpensesCompanion(
+              expenseType: d.Value('employee'),
+              relatedId: d.Value(999),
+              description: d.Value('مصروف موظف قديم'),
+              amount: d.Value(1000),
+              date: d.Value('2026-06-01'),
+              localUuid: d.Value('exp-employee-001'),
+              createdAt: d.Value(1000),
+              updatedAt: d.Value(1000),
+              lastModified: d.Value(1000),
+              createdAtEpoch: d.Value(1000),
+              lastModifiedEpoch: d.Value(1000),
+              version: d.Value(1),
+              origin: d.Value('local'),
+              vectorClock: d.Value('{}'),
             ),
           );
 
@@ -474,20 +474,20 @@ void main() {
       final emp2Id = await db
           .into(db.employees)
           .insert(
-            EmployeesCompanion(
-              name: const d.Value('موظف 2'),
-              basicSalary: const d.Value(60000),
-              position: const d.Value('موظف'),
-              status: const d.Value('active'),
-              localUuid: const d.Value('emp-2'),
-              createdAt: const d.Value(1000),
-              updatedAt: const d.Value(1000),
-              lastModified: const d.Value(1000),
-              createdAtEpoch: const d.Value(1000),
-              lastModifiedEpoch: const d.Value(1000),
-              version: const d.Value(1),
-              origin: const d.Value('local'),
-              vectorClock: const d.Value('{}'),
+            const EmployeesCompanion(
+              name: d.Value('موظف 2'),
+              basicSalary: d.Value(60000),
+              position: d.Value('موظف'),
+              status: d.Value('active'),
+              localUuid: d.Value('emp-2'),
+              createdAt: d.Value(1000),
+              updatedAt: d.Value(1000),
+              lastModified: d.Value(1000),
+              createdAtEpoch: d.Value(1000),
+              lastModifiedEpoch: d.Value(1000),
+              version: d.Value(1),
+              origin: d.Value('local'),
+              vectorClock: d.Value('{}'),
             ),
           );
 
@@ -504,22 +504,22 @@ void main() {
       final exp2 = await db
           .into(db.expenses)
           .insert(
-            ExpensesCompanion(
-              expenseType: const d.Value('خصم راتب'),
-              relatedId: const d.Value(999),
-              description: const d.Value('خصم قديم'),
-              amount: const d.Value(2000),
-              date: const d.Value('2026-06-02'),
-              localUuid: const d.Value('exp-int-2'),
-              employeeUuid: const d.Value('emp-2'),
-              createdAt: const d.Value(1000),
-              updatedAt: const d.Value(1000),
-              lastModified: const d.Value(1000),
-              createdAtEpoch: const d.Value(1000),
-              lastModifiedEpoch: const d.Value(1000),
-              version: const d.Value(1),
-              origin: const d.Value('local'),
-              vectorClock: const d.Value('{}'),
+            const ExpensesCompanion(
+              expenseType: d.Value('خصم راتب'),
+              relatedId: d.Value(999),
+              description: d.Value('خصم قديم'),
+              amount: d.Value(2000),
+              date: d.Value('2026-06-02'),
+              localUuid: d.Value('exp-int-2'),
+              employeeUuid: d.Value('emp-2'),
+              createdAt: d.Value(1000),
+              updatedAt: d.Value(1000),
+              lastModified: d.Value(1000),
+              createdAtEpoch: d.Value(1000),
+              lastModifiedEpoch: d.Value(1000),
+              version: d.Value(1),
+              origin: d.Value('local'),
+              vectorClock: d.Value('{}'),
             ),
           );
 

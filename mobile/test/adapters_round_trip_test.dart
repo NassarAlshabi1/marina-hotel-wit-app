@@ -58,21 +58,21 @@ void main() {
     await db
         .into(db.rooms)
         .insert(
-          RoomsCompanion(
-            localUuid: const d.Value('r-101'),
-            roomNumber: const d.Value('101'),
-            type: const d.Value('single'),
-            price: const d.Value(100.0),
-            status: const d.Value('available'),
-            cleaningStatus: const d.Value('clean'),
-            createdAt: const d.Value(0),
-            updatedAt: const d.Value(0),
-            lastModified: const d.Value(0),
-            createdAtEpoch: const d.Value(0),
-            lastModifiedEpoch: const d.Value(0),
-            version: const d.Value(1),
-            origin: const d.Value('local'),
-            vectorClock: const d.Value('{}'),
+          const RoomsCompanion(
+            localUuid: d.Value('r-101'),
+            roomNumber: d.Value('101'),
+            type: d.Value('single'),
+            price: d.Value(100.0),
+            status: d.Value('available'),
+            cleaningStatus: d.Value('clean'),
+            createdAt: d.Value(0),
+            updatedAt: d.Value(0),
+            lastModified: d.Value(0),
+            createdAtEpoch: d.Value(0),
+            lastModifiedEpoch: d.Value(0),
+            version: d.Value(1),
+            origin: d.Value('local'),
+            vectorClock: d.Value('{}'),
           ),
         );
 

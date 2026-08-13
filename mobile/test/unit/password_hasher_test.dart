@@ -43,7 +43,7 @@ void main() {
 
     group('verify()', () {
       test('verifies correct password against its hash', () {
-        final password = 'mySecretPassword123';
+        const password = 'mySecretPassword123';
         final hashed = PasswordHasher.hash(password);
         expect(PasswordHasher.verify(password, hashed), isTrue);
       });
@@ -63,7 +63,7 @@ void main() {
       });
 
       test('handles different iterations in stored hash', () {
-        final password = 'testPassword';
+        const password = 'testPassword';
         final hashed = PasswordHasher.hash(password, iterations: 50000);
         expect(PasswordHasher.verify(password, hashed), isTrue);
       });
@@ -84,9 +84,9 @@ void main() {
       });
 
       test('rejects corrupted base64 in hash', () {
-        final password = 'testPassword';
+        const password = 'testPassword';
         // Build a hash with invalid base64
-        final corrupted = 'pbkdf2_sha256\$100000\$!!!invalidbase64!!!\$abc';
+        const corrupted = 'pbkdf2_sha256\$100000\$!!!invalidbase64!!!\$abc';
         expect(PasswordHasher.verify(password, corrupted), isFalse);
       });
     });
@@ -141,7 +141,7 @@ void main() {
     group('Timing attack resistance', () {
       test('constant-time comparison rejects different-length hashes', () {
         // محاولة مع hash صحيح البادئة لكن خاطئ الطول
-        final password = 'test';
+        const password = 'test';
         final realHash = PasswordHasher.hash(password);
         final parts = realHash.split(r'$');
         // قصّ الـ hash الناتج ليكون أقصر

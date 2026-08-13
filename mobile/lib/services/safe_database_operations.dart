@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 
 import 'database_health_checker.dart';
 import 'local_db.dart';

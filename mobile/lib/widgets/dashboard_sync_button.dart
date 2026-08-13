@@ -10,7 +10,6 @@ import '../providers/repository_providers.dart';
 import '../services/appwrite_health_checker.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/daos/sync_log_dao.dart';
-import '../services/secondary_appwrite_config.dart';
 // ✅ Wave 5 (2026-08-12): secondary_sync_provider.dart و secondary_sync_manager.dart
 // أُزيلا بالكامل — Appwrite primary هو authority الوحيد.
 import '../services/sync/sync_gate.dart';

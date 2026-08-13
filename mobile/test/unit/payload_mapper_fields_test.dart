@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/sync/payload_mapper.dart';
 
-BookingNote _note() => BookingNote(
+BookingNote _note() => const BookingNote(
   localUuid: 'u1',
   createdAt: 1,
   updatedAt: 1,
@@ -27,7 +27,7 @@ BookingNote _note() => BookingNote(
   isActive: 1,
 );
 
-BookingNight _night() => BookingNight(
+BookingNight _night() => const BookingNight(
   localUuid: 'u2',
   createdAt: 1,
   updatedAt: 1,
@@ -51,7 +51,7 @@ BookingNight _night() => BookingNight(
   finalRate: 0,
 );
 
-CashTransaction _tx() => CashTransaction(
+CashTransaction _tx() => const CashTransaction(
   localUuid: 'u3',
   createdAt: 1,
   updatedAt: 1,
@@ -68,7 +68,7 @@ CashTransaction _tx() => CashTransaction(
   transactionTime: '2026-01-01',
 );
 
-SalaryCycle _cycle() => SalaryCycle(
+SalaryCycle _cycle() => const SalaryCycle(
   localUuid: 'u4',
   createdAt: 1,
   updatedAt: 1,
@@ -88,7 +88,7 @@ SalaryCycle _cycle() => SalaryCycle(
   status: 'draft',
 );
 
-SalaryPayment _payment() => SalaryPayment(
+SalaryPayment _payment() => const SalaryPayment(
   localUuid: 'u5',
   createdAt: 1,
   updatedAt: 1,

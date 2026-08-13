@@ -2,7 +2,6 @@
 
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart' as d;
@@ -1067,7 +1066,7 @@ void main() {
   group('WAL mode integrity (production-critical)', () {
     /// Helper: ينشئ قاعدة بيانات SQLite حقيقية على القرص في وضع WAL
     /// ويدخل بيانات فيها. يُعيد المسار + عدد السجلات المدخلة.
-    Future<String> _createWalDatabase(
+    Future<String> createWalDatabase(
       String path, {
       required int rowCount,
     }) async {
@@ -1095,7 +1094,7 @@ void main() {
       () async {
         // 1. إنشاء DB في وضع WAL مع بيانات
         final dbPath = p.join(tempDir.path, 'wal_test.db');
-        await _createWalDatabase(dbPath, rowCount: 50);
+        await createWalDatabase(dbPath, rowCount: 50);
 
         // 2. فتح DB مرة أخرى وإضافة بيانات إضافية WITHOUT checkpoint
         final database = await openDatabase(dbPath, version: 1);

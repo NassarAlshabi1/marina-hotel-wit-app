@@ -176,7 +176,7 @@ void main() {
           // critical fields no longer escalate to manual. Instead they resolve
           // via LWW (Last Write Wins) inside fieldLevelMerge.
           // The remote has lastModified=2000 > local=1000, so remote value wins.
-          expect(result.mergedData?['amount'], equals(200.0));
+          expect(result.mergedData['amount'], equals(200.0));
           expect(result.warnings, isNotEmpty);
         },
       );
@@ -392,7 +392,7 @@ void main() {
         // After commit fffa6a37, 'price' on rooms uses LWW instead of manual escalation.
         // Remote (lastModified=2000) is newer than local (lastModified=1000),
         // so the remote price (200.0) should win.
-        expect(result.mergedData?['price'], equals(200.0));
+        expect(result.mergedData['price'], equals(200.0));
       });
 
       test('payments: amount resolves via LWW (not manual)', () {
@@ -418,7 +418,7 @@ void main() {
         // After commit fffa6a37, 'amount' on payments uses LWW instead of manual escalation.
         // Remote (lastModified=2000) is newer than local (lastModified=1000),
         // so the remote amount (200.0) should win.
-        expect(result.mergedData?['amount'], equals(200.0));
+        expect(result.mergedData['amount'], equals(200.0));
       });
 
       test('debts: all fields resolve via LWW (not manual)', () {
@@ -444,7 +444,7 @@ void main() {
         // After commit fffa6a37, 'totalAmount' on debts uses LWW instead of manual escalation.
         // Remote (lastModified=2000) is newer than local (lastModified=1000),
         // so the remote totalAmount (200.0) should win.
-        expect(result.mergedData?['totalAmount'], equals(200.0));
+        expect(result.mergedData['totalAmount'], equals(200.0));
       });
 
       test('unknown entity uses default policy (newerWins)', () {

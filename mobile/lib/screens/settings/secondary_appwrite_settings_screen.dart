@@ -74,10 +74,10 @@ class _SecondaryAppwriteSettingsScreenState
                   children: [
                     Icon(Icons.warning, color: Colors.orange.shade700),
                     const SizedBox(width: 12),
-                    Expanded(
+                    const Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
+                        children: [
                           Text(
                             'لماذا تم التعطيل؟',
                             style: TextStyle(
@@ -104,12 +104,12 @@ class _SecondaryAppwriteSettingsScreenState
               ),
             ),
             const SizedBox(height: 16),
-            Card(
+            const Card(
               child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
                       'ما الذي تغيّر؟',
                       style: TextStyle(fontWeight: FontWeight.bold),

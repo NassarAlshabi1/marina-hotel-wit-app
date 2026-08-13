@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import '../lib/utils/time.dart';
-import '../lib/utils/currency_formatter.dart';
+import 'package:marina_hotel_mobile/utils/time.dart';
+import 'package:marina_hotel_mobile/utils/currency_formatter.dart';
 
 void main() {
   group('Time - Hotel Day Calculations', () {
@@ -155,7 +155,7 @@ void main() {
       const discount = 1000.0;
       const discountType = 'total';
 
-      final totalNightAmount = baseRate * nights;
+      const totalNightAmount = baseRate * nights;
       double totalDue = totalNightAmount;
       if (discount > 0 && discountType == 'total') {
         totalDue = (totalNightAmount - discount).clamp(0.0, totalNightAmount);
@@ -194,8 +194,8 @@ void main() {
       const totalDue = 10000.0;
       const totalPaid = 12000.0;
 
-      final remainingRaw = totalDue - totalPaid;
-      final remaining = remainingRaw < 0 ? 0.0 : remainingRaw;
+      const remainingRaw = totalDue - totalPaid;
+      const remaining = remainingRaw < 0 ? 0.0 : remainingRaw;
 
       expect(remaining, 0.0);
     });

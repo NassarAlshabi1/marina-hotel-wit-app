@@ -24,12 +24,12 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('إخفاء عنصر الغرف بدون صلاحية rooms', (tester) async {
-    final user = AuthUser(
+    const user = AuthUser(
       id: 2,
       username: 'm',
       fullName: 'محمد',
       userType: 'supervisor',
-      permissions: const ['dashboard'],
+      permissions: ['dashboard'],
     );
 
     await tester.pumpWidget(
@@ -37,7 +37,7 @@ void main() {
         overrides: [
           authProvider.overrideWith(
             (ref) => FakeAuthNotifier(
-              AuthState(isAuthenticated: true, currentUser: user),
+              const AuthState(isAuthenticated: true, currentUser: user),
             ),
           ),
         ],

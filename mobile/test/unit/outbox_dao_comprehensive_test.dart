@@ -713,7 +713,7 @@ void main() {
         );
         // تحويل لـ 'failed'
         await (db.update(db.outbox)..where((t) => t.id.equals(idFailed))).write(
-          OutboxCompanion(processingStatus: const drift.Value('failed')),
+          const OutboxCompanion(processingStatus: drift.Value('failed')),
         );
         // 3. سجل completed — يجب أن يُحذف
         final idCompleted = await outboxDao.merge(
@@ -728,7 +728,7 @@ void main() {
         await (db.update(
           db.outbox,
         )..where((t) => t.id.equals(idCompleted))).write(
-          OutboxCompanion(processingStatus: const drift.Value('completed')),
+          const OutboxCompanion(processingStatus: drift.Value('completed')),
         );
 
         // تنفيذ cleanup

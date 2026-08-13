@@ -49,7 +49,7 @@ void main() {
 
   /// Helper: يُنشئ غرفة + حجز + N ليلة بتواريخ ديناميكية تبدأ من اليوم-9.
   Future<({Booking booking, String roomUuid, String bookingUuid})>
-  _seedBookingWithNights({
+  seedBookingWithNights({
     required String roomNumber,
     required String roomUuid,
     required String bookingUuid,
@@ -134,7 +134,7 @@ void main() {
 
   group('السيناريو 1: تخفيض مؤقت بأثر رجعي (preview + apply)', () {
     test('معاينة تخفيض 1000 ر.ي على 4 ليالي', () async {
-      final seed = await _seedBookingWithNights(
+      final seed = await seedBookingWithNights(
         roomNumber: '101',
         roomUuid: IdGen.uuid(),
         bookingUuid: IdGen.uuid(),
@@ -162,7 +162,7 @@ void main() {
     });
 
     test('تطبيق تخفيض 1000 ر.ي على 4 ليالي يُنشئ سجل تعديل نشط', () async {
-      final seed = await _seedBookingWithNights(
+      final seed = await seedBookingWithNights(
         roomNumber: '102',
         roomUuid: IdGen.uuid(),
         bookingUuid: IdGen.uuid(),
@@ -212,7 +212,7 @@ void main() {
     test(
       'تطبيق surcharge 3000 ر.ي يُسجَّل في تقرير الإيرادات الإضافية',
       () async {
-        final seed = await _seedBookingWithNights(
+        final seed = await seedBookingWithNights(
           roomNumber: '103',
           roomUuid: IdGen.uuid(),
           bookingUuid: IdGen.uuid(),
@@ -246,7 +246,7 @@ void main() {
 
   group('السيناريو 3: إلغاء تخفيض (cancelAdjustment)', () {
     test('إلغاء تخفيض مستقبلي يُعطّله بالكامل (isActive=false)', () async {
-      final seed = await _seedBookingWithNights(
+      final seed = await seedBookingWithNights(
         roomNumber: '104',
         roomUuid: IdGen.uuid(),
         bookingUuid: IdGen.uuid(),
@@ -298,7 +298,7 @@ void main() {
     });
 
     test('إلغاء تخفيض سابق يقتصر على الليالي السابقة فقط', () async {
-      final seed = await _seedBookingWithNights(
+      final seed = await seedBookingWithNights(
         roomNumber: '105',
         roomUuid: IdGen.uuid(),
         bookingUuid: IdGen.uuid(),
@@ -343,7 +343,7 @@ void main() {
     'السيناريو 4: تقرير الإيرادات المفقودة (generateLostRevenueReport)',
     () {
       test('تقرير دقيق لتخفيض 5000 على 5 ليالي', () async {
-        final seed = await _seedBookingWithNights(
+        final seed = await seedBookingWithNights(
           roomNumber: '106',
           roomUuid: IdGen.uuid(),
           bookingUuid: IdGen.uuid(),
@@ -380,7 +380,7 @@ void main() {
       });
 
       test('تقرير مع فلترة تاريخ', () async {
-        final seed = await _seedBookingWithNights(
+        final seed = await seedBookingWithNights(
           roomNumber: '107',
           roomUuid: IdGen.uuid(),
           bookingUuid: IdGen.uuid(),
@@ -427,7 +427,7 @@ void main() {
     test(
       'transferAdjustmentsToRoom يُحدّث roomNumber لجميع التعديلات النشطة',
       () async {
-        final seed = await _seedBookingWithNights(
+        final seed = await seedBookingWithNights(
           roomNumber: '108',
           roomUuid: IdGen.uuid(),
           bookingUuid: IdGen.uuid(),
@@ -476,7 +476,7 @@ void main() {
 
   group('Integer Amount Tests', () {
     test('جميع المبالغ أعداد صحيحة بدون كسور', () async {
-      final seed = await _seedBookingWithNights(
+      final seed = await seedBookingWithNights(
         roomNumber: '109',
         roomUuid: IdGen.uuid(),
         bookingUuid: IdGen.uuid(),
@@ -503,7 +503,7 @@ void main() {
   group('getLongStayBookingsWithoutSurcharge', () {
     test('يكتشف الحجوزات طويلة الأمد بدون surcharge', () async {
       // حجز طويل جداً (35 يوم) بدون surcharge
-      final seed = await _seedBookingWithNights(
+      final seed = await seedBookingWithNights(
         roomNumber: '110',
         roomUuid: IdGen.uuid(),
         bookingUuid: IdGen.uuid(),
@@ -523,7 +523,7 @@ void main() {
     });
 
     test('لا يُرجع الحجوزات التي تحتوي surcharge نشط', () async {
-      final seed = await _seedBookingWithNights(
+      final seed = await seedBookingWithNights(
         roomNumber: '111',
         roomUuid: IdGen.uuid(),
         bookingUuid: IdGen.uuid(),
@@ -558,7 +558,7 @@ void main() {
 
   group('watchActiveAdjustments', () {
     test('يبث التعديلات النشطة لحجز محدد', () async {
-      final seed = await _seedBookingWithNights(
+      final seed = await seedBookingWithNights(
         roomNumber: '112',
         roomUuid: IdGen.uuid(),
         bookingUuid: IdGen.uuid(),

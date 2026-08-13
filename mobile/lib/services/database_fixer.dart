@@ -1,5 +1,4 @@
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
 import '../utils/expense_reason_matcher.dart';
 import 'local_db.dart';
 import 'repositories/expenses_repository.dart';

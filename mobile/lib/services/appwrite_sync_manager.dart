@@ -993,10 +993,7 @@ class AppwriteSyncManager {
                   'syncCashTransactions',
                   () async {
                     final cashTransactions = await appwriteService
-                        .listCashTransactions(
-                          queries: deltaQ,
-                          useCache: false,
-                        );
+                        .listCashTransactions(queries: deltaQ, useCache: false);
                     final synced = await _syncCashTransactions(
                       cashTransactions,
                     );
@@ -4397,10 +4394,7 @@ class AppwriteSyncManager {
       for (final data in deferred) {
         try {
           final deferredInsertedId = await _adapterRegistry.salaryWithdrawals
-              .upsertFromJson(
-                data,
-                src: Source.appwrite,
-              );
+              .upsertFromJson(data, src: Source.appwrite);
           // ✅ كتابة expense_id في العمود الخام
           final deferredExpenseId = _asIntSafe(data, 'expenseId');
           if (deferredExpenseId != null && deferredExpenseId > 0) {
@@ -4480,13 +4474,9 @@ class AppwriteSyncManager {
         // upsertEmployee نجح (لم يرمِ استثناء)، المستند موجود بالتأكيد.
         // إزالة getDocument تُوفر API call واحد لكل push موظف.
         // للتراجع: أعد استدعاء getDocument قبل database.update.
-        await (database.update(
-          database.employees,
-        )..where((e) => e.id.equals(employee.id))).write(
-          EmployeesCompanion(
-            serverId: drift.Value(employee.id),
-          ),
-        );
+        await (database.update(database.employees)
+              ..where((e) => e.id.equals(employee.id)))
+            .write(EmployeesCompanion(serverId: drift.Value(employee.id)));
       } catch (e) {
         _logger.warning(
           '⚠️ فشل رفع الموظف ${employee.id} — سيتم تأجيل سحب الراتب: $e',
@@ -4809,9 +4799,7 @@ class AppwriteSyncManager {
     try {
       // جلب جميع عناصر outbox غير المُعالجة حالياً
       final entries =
-          await (database.select(
-                database.outbox,
-              )..where(
+          await (database.select(database.outbox)..where(
                 (t) =>
                     t.processingStatus.isIn(['pending', 'failed', 'completed']),
               ))
@@ -5096,10 +5084,7 @@ class AppwriteSyncManager {
 
       await database.customStatement(
         'UPDATE $tableName SET vector_clock = ? WHERE local_uuid = ?',
-        [
-          newVcStr,
-          localUuid,
-        ],
+        [newVcStr, localUuid],
       );
 
       _logger.debug(
@@ -6420,9 +6405,7 @@ class AppwriteSyncManager {
     // وتدفعه لـ shift_notes collection بدلاً من blacklist collection.
     // الآن نستبعد سجلات blacklist صراحةً.
     return (database.select(database.shiftNotes)
-          ..where(
-            (t) => t.localUuid.equals(uuid) & t.createdBy.equals('user'),
-          )
+          ..where((t) => t.localUuid.equals(uuid) & t.createdBy.equals('user'))
           ..limit(1))
         .getSingleOrNull();
   }
@@ -6505,15 +6488,6 @@ class AppwriteSyncManager {
       _filterPayload('blacklist', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
-  }
-
-  Future<ShiftNote?> _getBlacklistShiftNoteByLocalUuid(String uuid) {
-    return (database.select(database.shiftNotes)
-          ..where(
-            (t) => t.localUuid.equals(uuid) & t.createdBy.equals('blacklist'),
-          )
-          ..limit(1))
-        .getSingleOrNull();
   }
 
   // ─── PriceAdjustments ─────────────────────────────────────────────────
@@ -6704,18 +6678,14 @@ class AppwriteSyncManager {
           // (بدلاً من 3-way merge).
           createdAtEpoch: drift.Value(createdAtEpoch),
           lastModifiedEpoch: drift.Value(lastModified),
-          version: drift.Value(
-            (existingForCheck?.version ?? 0) + 1,
-          ),
+          version: drift.Value((existingForCheck?.version ?? 0) + 1),
           origin: const drift.Value('server'),
           vectorClock: drift.Value(
             (data['vectorClock'] as String?) ??
                 (data['vector_clock'] as String?) ??
                 '{}',
           ),
-          deviceId: drift.Value(
-            (data['deviceId'] as String?) ?? '',
-          ),
+          deviceId: drift.Value((data['deviceId'] as String?) ?? ''),
           idempotencyKey: drift.Value(
             (data['idempotencyKey'] as String?) ??
                 (data['idempotency_key'] as String?),
@@ -6843,10 +6813,7 @@ class AppwriteSyncManager {
     await appwriteService.upsertDocument(
       collectionId: AppwriteConfig.auditLogsCollectionId,
       documentId: entry.localUuid,
-      data: _filterPayload(
-        'audit_logs',
-        _addIdempotencyKey(occPayload, entry),
-      ),
+      data: _filterPayload('audit_logs', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
   }
@@ -8394,9 +8361,7 @@ class AppwriteSyncManager {
               // دين يشير لحجز غير موجود - إزالة FK فقط (لأن bookingLocalId nullable)
               await database.customStatement(
                 'UPDATE debts SET booking_local_id = NULL WHERE rowid = ?',
-                [
-                  int.tryParse(rowId),
-                ],
+                [int.tryParse(rowId)],
               );
               _logger.info(
                 '🧹 تم إزالة ربط الدين اليتيم بالحجز (rowid=$rowId)',
@@ -8437,17 +8402,13 @@ class AppwriteSyncManager {
             try {
               final nowEpoch = DateTime.now().millisecondsSinceEpoch ~/ 1000;
               if (table == 'payments') {
-                await (database.update(
-                  database.payments,
-                )..where((t) => t.id.equals(rowId as int))).write(
-                  PaymentsCompanion(deletedAt: drift.Value(nowEpoch)),
-                );
+                await (database.update(database.payments)
+                      ..where((t) => t.id.equals(rowId as int)))
+                    .write(PaymentsCompanion(deletedAt: drift.Value(nowEpoch)));
               } else if (table == 'debts') {
-                await (database.update(
-                  database.debts,
-                )..where((t) => t.id.equals(rowId as int))).write(
-                  DebtsCompanion(deletedAt: drift.Value(nowEpoch)),
-                );
+                await (database.update(database.debts)
+                      ..where((t) => t.id.equals(rowId as int)))
+                    .write(DebtsCompanion(deletedAt: drift.Value(nowEpoch)));
               } else if (table == 'booking_nights') {
                 await (database.update(
                   database.bookingNights,
@@ -8716,11 +8677,9 @@ class AppwriteSyncManager {
 
         if (employee != null) {
           // ✅ وجدنا الموظف — أعد الربط.
-          await (database.update(
-            database.expenses,
-          )..where((t) => t.id.equals(expenseId))).write(
-            ExpensesCompanion(relatedId: drift.Value(employee.id)),
-          );
+          await (database.update(database.expenses)
+                ..where((t) => t.id.equals(expenseId)))
+              .write(ExpensesCompanion(relatedId: drift.Value(employee.id)));
           relinked++;
           _logger.debug(
             '  ✅ Expense #$expenseId → employee #${employee.id} '

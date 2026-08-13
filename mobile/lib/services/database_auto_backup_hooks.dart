@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
 
 import 'auto_backup_manager.dart';
 import 'local_db.dart';

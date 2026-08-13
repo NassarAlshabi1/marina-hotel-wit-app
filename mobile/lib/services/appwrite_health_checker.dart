@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:appwrite/appwrite.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'appwrite_config.dart';
 import 'appwrite_config_manager.dart';
@@ -282,10 +281,8 @@ class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
 
   @override
   void dispose() {
-    // Singleton: intentionally NOT calling super.dispose() so the
-    // app-lifetime Timer can keep updating state. Explicit teardown
-    // must go through stopPeriodicCheck() (call it on app shutdown).
-    // NOTE: verify a shutdown path calls stopPeriodicCheck().
+    stopPeriodicCheck();
+    super.dispose();
   }
 }
 

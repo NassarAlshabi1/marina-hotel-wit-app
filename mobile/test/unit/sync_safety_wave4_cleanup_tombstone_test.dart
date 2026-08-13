@@ -75,7 +75,7 @@ void main() {
           source: 'local',
         );
         await (db.update(db.outbox)..where((t) => t.id.equals(idFailed))).write(
-          OutboxCompanion(processingStatus: const drift.Value('failed')),
+          const OutboxCompanion(processingStatus: drift.Value('failed')),
         );
 
         // 3. سجل completed — يجب أن يُحذف
@@ -90,7 +90,7 @@ void main() {
         await (db.update(
           db.outbox,
         )..where((t) => t.id.equals(idCompleted))).write(
-          OutboxCompanion(processingStatus: const drift.Value('completed')),
+          const OutboxCompanion(processingStatus: drift.Value('completed')),
         );
 
         // تنفيذ cleanup
@@ -138,7 +138,7 @@ void main() {
         source: 'local',
       );
       await (db.update(db.outbox)..where((t) => t.id.equals(id))).write(
-        OutboxCompanion(processingStatus: const drift.Value('failed')),
+        const OutboxCompanion(processingStatus: drift.Value('failed')),
       );
 
       final cleaned = await outboxDao.cleanupForMissingEntities([
@@ -160,7 +160,7 @@ void main() {
         source: 'local',
       );
       await (db.update(db.outbox)..where((t) => t.id.equals(id))).write(
-        OutboxCompanion(processingStatus: const drift.Value('completed')),
+        const OutboxCompanion(processingStatus: drift.Value('completed')),
       );
 
       final cleaned = await outboxDao.cleanupForMissingEntities([
@@ -191,7 +191,7 @@ void main() {
           source: 'local',
         );
         await (db.update(db.outbox)..where((t) => t.id.equals(id))).write(
-          OutboxCompanion(processingStatus: const drift.Value('completed')),
+          const OutboxCompanion(processingStatus: drift.Value('completed')),
         );
         uuids.add(uuid);
       }
@@ -224,7 +224,7 @@ void main() {
       await (db.update(
         db.outbox,
       )..where((t) => t.id.equals(idCompleted))).write(
-        OutboxCompanion(processingStatus: const drift.Value('completed')),
+        const OutboxCompanion(processingStatus: drift.Value('completed')),
       );
 
       final idPending = await outboxDao.merge(

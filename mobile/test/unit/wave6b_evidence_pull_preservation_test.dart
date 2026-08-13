@@ -21,7 +21,6 @@ import 'package:marina_hotel_mobile/services/adapters/bookings_adapter.dart';
 import 'package:marina_hotel_mobile/services/adapters/booking_price_adjustments_adapter.dart';
 import 'package:marina_hotel_mobile/services/adapters/price_adjustments_adapter.dart';
 import 'package:marina_hotel_mobile/services/adapters/id_resolver.dart';
-import 'package:marina_hotel_mobile/services/adapters/resolve_result.dart';
 import 'package:marina_hotel_mobile/services/adapters/source.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 

@@ -208,7 +208,7 @@ void main() {
     });
 
     test('اختبار checkout = null (يستخدم الوقت الحالي)', () {
-      final checkin = DateTime.now().subtract(Duration(days: 2));
+      final checkin = DateTime.now().subtract(const Duration(days: 2));
 
       final nights = Time.nightsWithCutoff(checkin);
 

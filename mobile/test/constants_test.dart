@@ -53,7 +53,7 @@ void main() {
     });
 
     test('all تحتوي على جميع المفاتيح', () {
-      final all = SystemSettingKeys.all;
+      const all = SystemSettingKeys.all;
       expect(all.length, 7);
       expect(all, contains(SystemSettingKeys.autoBackupEnabled));
       expect(all, contains(SystemSettingKeys.autoBackupTime));
@@ -65,7 +65,7 @@ void main() {
     });
 
     test('all لا تحتوي على تكرارات', () {
-      final all = SystemSettingKeys.all;
+      const all = SystemSettingKeys.all;
       final unique = all.toSet();
       expect(unique.length, all.length);
     });

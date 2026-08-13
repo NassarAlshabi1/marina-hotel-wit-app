@@ -556,9 +556,9 @@ class SyncPullService {
       await database
           .into(database.syncState)
           .insertOnConflictUpdate(
-            SyncStateCompanion(
-              id: const drift.Value(1),
-              fullSyncComplete: const drift.Value(1),
+            const SyncStateCompanion(
+              id: drift.Value(1),
+              fullSyncComplete: drift.Value(1),
             ),
           );
       _logger.info(
@@ -579,9 +579,9 @@ class SyncPullService {
       await database
           .into(database.syncState)
           .insertOnConflictUpdate(
-            SyncStateCompanion(
-              id: const drift.Value(1),
-              fullSyncComplete: const drift.Value(0),
+            const SyncStateCompanion(
+              id: drift.Value(1),
+              fullSyncComplete: drift.Value(0),
             ),
           );
       _logger.info(

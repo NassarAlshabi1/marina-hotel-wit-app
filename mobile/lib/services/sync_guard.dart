@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// ✅ Wave 5 (2026-08-12): SyncGuard — ownership-aware lock mechanism.
@@ -35,21 +34,19 @@ class SyncGuard {
   SyncGuard._();
 
   /// الإعدادات الحالية (الافتراضية)
-  static const _defaultLockTimeout = Duration(minutes: 10);
   static const _defaultStaleLockTimeout = Duration(minutes: 10);
 
-  static Duration _lockTimeout = _defaultLockTimeout;
   static Duration _staleLockTimeout = _defaultStaleLockTimeout;
 
   static void configureTimeouts({
     Duration? lockTimeout,
     Duration? staleLockTimeout,
   }) {
-    if (lockTimeout != null) {
-      _lockTimeout = lockTimeout;
-    }
-    if (staleLockTimeout != null) {
-      _staleLockTimeout = staleLockTimeout;
+    // lockTimeout هو الاسم التاريخي لنفس مهلة الكشف عن القفل المنتهي.
+    // نبقيه للتوافق مع الاستدعاءات القديمة، وتعطى القيمة الجديدة أولوية.
+    final timeout = staleLockTimeout ?? lockTimeout;
+    if (timeout != null) {
+      _staleLockTimeout = timeout;
     }
   }
 

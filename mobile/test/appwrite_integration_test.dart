@@ -14,7 +14,7 @@ const String devKey = String.fromEnvironment(
 
 void main() {
   final bool hasDevKey = devKey.isNotEmpty;
-  final String skipReason =
+  const String skipReason =
       'APPWRITE_DEV_KEY not provided; skipping integration test.';
 
   test(

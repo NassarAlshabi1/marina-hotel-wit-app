@@ -55,7 +55,7 @@ void main() {
       final stopwatch = Stopwatch()..start();
 
       // محاكاة معالجة الدفعة - تحويل كل entry إلى JSON وتجميعها
-      final batchSize = 20;
+      const batchSize = 20;
       var processed = 0;
       for (var i = 0; i < entries.length; i += batchSize) {
         final batch = entries.skip(i).take(batchSize).toList();
@@ -561,7 +561,7 @@ void main() {
 
       final file = File('${dir.path}/sync_perf_report.json');
       await file.writeAsString(
-        '${JsonEncoder.withIndent('  ').convert(report)}\n',
+        '${const JsonEncoder.withIndent('  ').convert(report)}\n',
       );
 
       expect(await file.exists(), true);

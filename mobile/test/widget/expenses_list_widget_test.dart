@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart' as d;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -138,7 +137,7 @@ void main() {
         _buildTestWidget(
           overrides: [
             databaseProvider.overrideWithValue(db),
-            employeesListProvider.overrideWith((ref) => Stream.empty()),
+            employeesListProvider.overrideWith((ref) => const Stream.empty()),
             customListNamesProvider(
               kListKeyExpenseType,
             ).overrideWith((ref) async => ['اخرى']),

@@ -1,6 +1,5 @@
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
-import 'package:flutter/foundation.dart';
 
 import 'adapters/id_resolver.dart';
 import 'appwrite_cache_manager.dart';

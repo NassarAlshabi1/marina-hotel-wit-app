@@ -3,7 +3,6 @@ import 'dart:math';
 
 import 'package:drift/drift.dart' hide Column;
 import 'package:firebase_ai/firebase_ai.dart';
-import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../utils/hotel_time_engine.dart';

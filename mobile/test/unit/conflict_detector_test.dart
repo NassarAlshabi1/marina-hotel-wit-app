@@ -285,7 +285,7 @@ void main() {
       test(
         'needsManualResolution is true for concurrentSameFields with critical field',
         () {
-          final result = ConflictDetectionResult(
+          const result = ConflictDetectionResult(
             type: ConflictType.concurrentSameFields,
             conflictingFields: {'amount'},
           );
@@ -296,7 +296,7 @@ void main() {
       test(
         'needsManualResolution is false for concurrentSameFields without critical field',
         () {
-          final result = ConflictDetectionResult(
+          const result = ConflictDetectionResult(
             type: ConflictType.concurrentSameFields,
             conflictingFields: {'notes'},
           );
@@ -305,7 +305,7 @@ void main() {
       );
 
       test('canAutoResolve is true for concurrentDifferentFields', () {
-        final result = ConflictDetectionResult(
+        const result = ConflictDetectionResult(
           type: ConflictType.concurrentDifferentFields,
         );
         expect(result.canAutoResolve, isTrue);

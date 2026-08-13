@@ -5,7 +5,6 @@
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 
 import '../utils/circular_buffer_logger.dart';
 import '../utils/weak_device_optimizer.dart';

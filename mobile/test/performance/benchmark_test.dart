@@ -377,10 +377,10 @@ void main() {
             body: SafeArea(
               child: Column(
                 children: [
-                  Row(
+                  const Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('لوحة التحكم', style: TextStyle(fontSize: 28)),
+                      Text('لوحة التحكم', style: TextStyle(fontSize: 28)),
                       Icon(Icons.sync, color: Colors.blue),
                     ],
                   ),
@@ -394,7 +394,7 @@ void main() {
                             padding: const EdgeInsets.all(12),
                             child: Column(
                               children: [
-                                Icon(Icons.hotel, color: Colors.blue),
+                                const Icon(Icons.hotel, color: Colors.blue),
                                 const SizedBox(height: 4),
                                 Text('${i + 1}0'),
                                 Text(
@@ -457,7 +457,7 @@ void main() {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
+                        color: Colors.green.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: const Text(
@@ -551,7 +551,7 @@ void main() {
       stopwatch.stop();
 
       final avgUpdateTime = stopwatch.elapsedMicroseconds ~/ 10;
-      debugPrint('✓ Average state update time: ${avgUpdateTime}µs');
+      debugPrint('✓ Average state update time: $avgUpdateTimeµs');
 
       expect(
         avgUpdateTime,
@@ -605,10 +605,10 @@ void main() {
         500,
         (i) => {
           'id': i,
-          'uuid': 'uuid-${i}',
-          'name': 'Booking #${i}',
+          'uuid': 'uuid-$i',
+          'name': 'Booking #$i',
           'roomNumber': '${100 + (i % 20)}',
-          'guestName': 'Guest ${i}',
+          'guestName': 'Guest $i',
           'checkinDate': '2026-07-${(i % 30) + 1}',
           'status': i % 3 == 0 ? 'نشط' : (i % 3 == 1 ? 'منتهي' : 'ملغي'),
           'amount': (i * 150.5).toStringAsFixed(2),

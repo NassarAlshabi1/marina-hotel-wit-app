@@ -70,6 +70,7 @@ mixin SyncTriggerMixin {
           manager.pushLocalChanges().catchError((Object e) {
             dlog(() => '⚠️ Auto-sync push failed (direct): $e');
             SyncGuard.release(token);
+            return 0;
           }),
         );
         return;

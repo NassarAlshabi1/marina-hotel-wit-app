@@ -57,8 +57,8 @@ void main() {
       '25. تعارض متزامن مع 3-way merge ناجح → pushedToRemote=true',
       () async {
         // ✅ إعداد: سجل محلي بنسخة متجهية + ancestor مشترك
-        final localUuid = 'booking-001';
-        final entity = 'bookings';
+        const localUuid = 'booking-001';
+        const entity = 'bookings';
 
         // ancestor مشترك (النسخة الأصلية قبل التشعّب)
         final ancestor = {
@@ -128,7 +128,7 @@ void main() {
     test(
       '26. تعارض متزامن بدون localData → fallback LWW → pushedToRemote=false',
       () async {
-        final localUuid = 'booking-002';
+        const localUuid = 'booking-002';
 
         // بعيد مختلف (concurrent) — لكن لا نمرّر localData
         // → SmartConflictResolver لا يُستدعى (يتطلب localData)
@@ -164,7 +164,7 @@ void main() {
     );
 
     test('27. remote newer (no conflict) → pushedToRemote=false', () async {
-      final localUuid = 'booking-003';
+      const localUuid = 'booking-003';
       final remoteData = {
         'localUuid': localUuid,
         'status': 'checked_in',
@@ -199,7 +199,7 @@ void main() {
     test(
       '28. local newer (no conflict) → shouldApplyRemote=false',
       () async {
-        final localUuid = 'booking-004';
+        const localUuid = 'booking-004';
         final remoteData = {
           'localUuid': localUuid,
           'status': 'confirmed',
@@ -235,7 +235,7 @@ void main() {
     test(
       '29. soft delete محلي محمي — shouldApplyRemote=false',
       () async {
-        final localUuid = 'booking-005';
+        const localUuid = 'booking-005';
         final remoteData = {
           'localUuid': localUuid,
           'status': 'confirmed',
@@ -266,7 +266,7 @@ void main() {
     test(
       '30. سجل جديد محلياً (آخر تعديل null) → shouldApplyRemote=true',
       () async {
-        final localUuid = 'booking-006';
+        const localUuid = 'booking-006';
         final remoteData = {
           'localUuid': localUuid,
           'status': 'confirmed',
@@ -300,7 +300,7 @@ void main() {
     test(
       '31. VCs متساوية مع محتوى مختلف → shouldApplyRemote=true (apply remote)',
       () async {
-        final localUuid = 'booking-007';
+        const localUuid = 'booking-007';
 
         final result = await pullService.checkAndResolveConflict(
           {
@@ -333,7 +333,7 @@ void main() {
     );
 
     test('32. VCs متساوية مع محتوى متطابق → shouldApplyRemote=false', () async {
-      final localUuid = 'booking-008';
+      const localUuid = 'booking-008';
 
       final result = await pullService.checkAndResolveConflict(
         {

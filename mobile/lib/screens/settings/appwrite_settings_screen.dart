@@ -18,7 +18,6 @@ import 'appwrite_connection_settings_screen.dart';
 import 'appwrite_logs_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
 import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class AppwriteSettingsScreen extends ConsumerStatefulWidget {
   const AppwriteSettingsScreen({super.key});
