@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 
 import '../../utils/id.dart';
+import '../../utils/sql_date_range.dart';
 import '../../utils/time.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
@@ -145,13 +146,15 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     if (!includeVoided) {
       q.where((t) => t.isVoided.equals(false));
     }
-    // حالة 1: hotelDayKey يطابق اليوم
-    q.where(
-      (t) =>
-          t.hotelDayKey.equals(hotelDayKey) |
-          // حالة 2: hotelDayKey فارغ وتاريخ الدفعة ضمن نطاق اليوم
-          (t.hotelDayKey.isNull() & t.paymentDate.like('$hotelDayKey%')),
-    );
+    final range = SqlDateRange.forDay(hotelDayKey);
+    q.where((t) {
+      final legacyDateMatch = range == null
+          ? t.paymentDate.like('$hotelDayKey%')
+          : (t.paymentDate.isBiggerOrEqualValue(range.start) &
+                t.paymentDate.isSmallerThanValue(range.endExclusive));
+      return t.hotelDayKey.equals(hotelDayKey) |
+          (t.hotelDayKey.isNull() & legacyDateMatch);
+    });
     return q.watch();
   }
 
@@ -168,7 +171,13 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
     if (!includeVoided) {
       q.where((t) => t.isVoided.equals(false));
     }
-    q.where((t) => t.paymentDate.like('$date%'));
+    final range = SqlDateRange.forDay(date);
+    q.where(
+      (t) => range == null
+          ? t.paymentDate.like('$date%')
+          : (t.paymentDate.isBiggerOrEqualValue(range.start) &
+                t.paymentDate.isSmallerThanValue(range.endExclusive)),
+    );
     return q.get();
   }
 
@@ -212,12 +221,17 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       );
     }
     if (toHotelDay != null) {
+      final endRange = SqlDateRange.forDay(toHotelDay);
       q.where(
         (t) =>
             (t.hotelDayKey.isNotNull() &
                 t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
             (t.hotelDayKey.isNull() &
-                t.paymentDate.isSmallerOrEqualValue(toHotelDay)),
+                (endRange == null
+                    ? t.paymentDate.isSmallerOrEqualValue(toHotelDay)
+                    : t.paymentDate.isSmallerThanValue(
+                        endRange.endExclusive,
+                      ))),
       );
     }
     if (roomNumber != null && roomNumber.isNotEmpty) {
@@ -246,12 +260,15 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.isVoided.equals(false));
     }
 
-    final byKey = payments.hotelDayKey.equals(hotelDayKey);
-    final byDateFallback =
-        payments.hotelDayKey.isNull() &
-        payments.paymentDate.like('$hotelDayKey%');
-
-    q.where((t) => byKey | byDateFallback);
+    final range = SqlDateRange.forDay(hotelDayKey);
+    q.where((t) {
+      final legacyDateMatch = range == null
+          ? t.paymentDate.like('$hotelDayKey%')
+          : (t.paymentDate.isBiggerOrEqualValue(range.start) &
+                t.paymentDate.isSmallerThanValue(range.endExclusive));
+      return t.hotelDayKey.equals(hotelDayKey) |
+          (t.hotelDayKey.isNull() & legacyDateMatch);
+    });
 
     if (revenueType != null && revenueType.isNotEmpty) {
       q.where((t) => t.revenueType.equals(revenueType));

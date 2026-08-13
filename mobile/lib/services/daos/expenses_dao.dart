@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 
 import '../../utils/id.dart';
+import '../../utils/sql_date_range.dart';
 import '../../utils/time.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
@@ -121,26 +122,26 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     }
 
     if (fromHotelDay != null) {
-      // hotelDayKey >= fromHotelDay، مع fallback لحقل date عند كون hotelDayKey فارغاً
-      // ✅ إضافة LIKE prefix fallback: بعض السجلات القديمة تحتوي على وقت في date
-      // (مثل "2026-05-19 14:30") مما يجعل المقارنة النصية دقيقة
+      // قيم ISO الزمنية ترتب زمنياً كنص، لذلك شرط النطاق يستوعب أيضاً
+      // الصفوف القديمة ذات الساعة مثل "2026-05-19 14:30" بلا LIKE إضافي.
       q.where(
         (t) =>
             (t.hotelDayKey.isNotNull() &
                 t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
             (t.hotelDayKey.isNull() &
-                t.date.isBiggerOrEqualValue(fromHotelDay)) |
-            (t.hotelDayKey.isNull() & t.date.like('$fromHotelDay%')),
+                t.date.isBiggerOrEqualValue(fromHotelDay)),
       );
     }
     if (toHotelDay != null) {
+      final endRange = SqlDateRange.forDay(toHotelDay);
       q.where(
         (t) =>
             (t.hotelDayKey.isNotNull() &
                 t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
             (t.hotelDayKey.isNull() &
-                t.date.isSmallerOrEqualValue(toHotelDay)) |
-            (t.hotelDayKey.isNull() & t.date.like('$toHotelDay%')),
+                (endRange == null
+                    ? t.date.isSmallerOrEqualValue(toHotelDay)
+                    : t.date.isSmallerThanValue(endRange.endExclusive))),
       );
     }
     if (expenseType != null && expenseType.isNotEmpty) {
@@ -197,11 +198,15 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     final q = select(expenses);
     q.where((t) => t.deletedAt.isNull());
 
-    final byKey = expenses.hotelDayKey.equals(hotelDayKey);
-    final byDateFallback =
-        expenses.hotelDayKey.isNull() & expenses.date.like('$hotelDayKey%');
-
-    q.where((t) => byKey | byDateFallback);
+    final range = SqlDateRange.forDay(hotelDayKey);
+    q.where((t) {
+      final legacyDateMatch = range == null
+          ? t.date.like('$hotelDayKey%')
+          : (t.date.isBiggerOrEqualValue(range.start) &
+                t.date.isSmallerThanValue(range.endExclusive));
+      return t.hotelDayKey.equals(hotelDayKey) |
+          (t.hotelDayKey.isNull() & legacyDateMatch);
+    });
     return q.watch();
   }
 
@@ -214,7 +219,13 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
     }
-    q.where((t) => t.date.like('$date%'));
+    final range = SqlDateRange.forDay(date);
+    q.where(
+      (t) => range == null
+          ? t.date.like('$date%')
+          : (t.date.isBiggerOrEqualValue(range.start) &
+                t.date.isSmallerThanValue(range.endExclusive)),
+    );
     return q.get();
   }
 
@@ -227,11 +238,15 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.deletedAt.isNull());
     }
 
-    final byKey = expenses.hotelDayKey.equals(hotelDayKey);
-    final byDateFallback =
-        expenses.hotelDayKey.isNull() & expenses.date.like('$hotelDayKey%');
-
-    q.where((t) => byKey | byDateFallback);
+    final range = SqlDateRange.forDay(hotelDayKey);
+    q.where((t) {
+      final legacyDateMatch = range == null
+          ? t.date.like('$hotelDayKey%')
+          : (t.date.isBiggerOrEqualValue(range.start) &
+                t.date.isSmallerThanValue(range.endExclusive));
+      return t.hotelDayKey.equals(hotelDayKey) |
+          (t.hotelDayKey.isNull() & legacyDateMatch);
+    });
     return q.get();
   }
 

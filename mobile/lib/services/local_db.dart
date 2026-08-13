@@ -200,6 +200,14 @@ class Expenses extends Table with SyncFields {
       'idx_expenses_date',
       'CREATE INDEX idx_expenses_date ON expenses (date)',
     ),
+    Index(
+      'idx_expenses_active_hotel_day',
+      'CREATE INDEX idx_expenses_active_hotel_day ON expenses (hotel_day_key, expense_type, date) WHERE deleted_at IS NULL',
+    ),
+    Index(
+      'idx_expenses_legacy_active_date',
+      'CREATE INDEX idx_expenses_legacy_active_date ON expenses (date) WHERE hotel_day_key IS NULL AND deleted_at IS NULL',
+    ),
   ];
 }
 
@@ -280,6 +288,14 @@ class Payments extends Table with SyncFields {
     Index(
       'idx_payments_method',
       'CREATE INDEX idx_payments_method ON payments (payment_method)',
+    ),
+    Index(
+      'idx_payments_active_hotel_day',
+      'CREATE INDEX idx_payments_active_hotel_day ON payments (hotel_day_key, revenue_type, payment_date) WHERE deleted_at IS NULL AND is_voided = 0',
+    ),
+    Index(
+      'idx_payments_legacy_active_date',
+      'CREATE INDEX idx_payments_legacy_active_date ON payments (payment_date) WHERE hotel_day_key IS NULL AND deleted_at IS NULL AND is_voided = 0',
     ),
   ];
 }
@@ -1038,7 +1054,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 58;
+  int get schemaVersion => 59;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -3140,6 +3156,32 @@ class AppDatabase extends _$AppDatabase {
             name: 'db.migration',
           );
         }
+      }
+
+      // === Migration 59: hot financial-report indexes ===
+      // فهارس جزئية تقلل الحجم وكلفة الكتابة، وتستهدف فقط الصفوف النشطة
+      // التي تقرؤها تقارير اليوم الفندقي ومسارات fallback للبيانات القديمة.
+      if (from < 59) {
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_payments_active_hotel_day '
+          'ON payments (hotel_day_key, revenue_type, payment_date) '
+          'WHERE deleted_at IS NULL AND is_voided = 0',
+        );
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_payments_legacy_active_date '
+          'ON payments (payment_date) WHERE hotel_day_key IS NULL '
+          'AND deleted_at IS NULL AND is_voided = 0',
+        );
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_expenses_active_hotel_day '
+          'ON expenses (hotel_day_key, expense_type, date) '
+          'WHERE deleted_at IS NULL',
+        );
+        await m.database.customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_expenses_legacy_active_date '
+          'ON expenses (date) WHERE hotel_day_key IS NULL '
+          'AND deleted_at IS NULL',
+        );
       }
 
       // === Migration 58: debts — bookingUuidCache, debtorName, amount, date ===
