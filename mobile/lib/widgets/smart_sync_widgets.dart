@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/backup_provider.dart';
 import '../providers/smart_sync_provider.dart';
-import '../screens/settings/smart_sync_settings_screen.dart';
+import '../screens/settings/sync/unified_sync_settings_screen.dart';
 
 /// Widget لعرض حالة المزامنة في الوقت الفعلي
 class SmartSyncStatusWidget extends ConsumerWidget {
@@ -71,10 +71,7 @@ class SmartSyncStatusWidget extends ConsumerWidget {
 
 /// Widget لإشعارات المزامنة التفاعلية
 class SmartSyncNotificationListener extends ConsumerStatefulWidget {
-  const SmartSyncNotificationListener({
-    required this.child,
-    super.key,
-  });
+  const SmartSyncNotificationListener({required this.child, super.key});
   final Widget child;
 
   @override
@@ -250,11 +247,9 @@ class _SmartSyncDashboardCardState
           margin: EdgeInsets.zero,
           child: InkWell(
             onTap: () {
-              Navigator.of(
-                context,
-              ).push<void>(
+              Navigator.of(context).push<void>(
                 MaterialPageRoute<void>(
-                  builder: (_) => const SmartSyncSettingsScreen(),
+                  builder: (_) => const UnifiedSyncSettingsScreen(),
                 ),
               );
             },

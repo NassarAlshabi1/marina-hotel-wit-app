@@ -17,6 +17,7 @@ import '../../services/appwrite_models.dart';
 import 'appwrite_connection_settings_screen.dart';
 import 'appwrite_logs_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
+import 'sync/unified_sync_settings_screen.dart';
 import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
 
 class AppwriteSettingsScreen extends ConsumerStatefulWidget {
@@ -29,9 +30,6 @@ class AppwriteSettingsScreen extends ConsumerStatefulWidget {
 
 class _AppwriteSettingsScreenState
     extends ConsumerState<AppwriteSettingsScreen> {
-  bool _syncEnabled = false;
-  int _syncInterval = 15;
-  bool _autoSyncOnConnect = true;
   bool _cacheEnabled = true;
   int _cacheTTLHours = 6;
   int _cacheMaxSizeMB = 20;
@@ -50,10 +48,6 @@ class _AppwriteSettingsScreenState
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
-      _syncInterval = prefs.getInt('appwrite_sync_interval') ?? 15;
-      _autoSyncOnConnect =
-          prefs.getBool('appwrite_auto_sync_on_connect') ?? true;
       _cacheEnabled = prefs.getBool('appwrite_cache_enabled') ?? true;
       _cacheTTLHours = prefs.getInt('appwrite_cache_ttl') ?? 6;
       _cacheMaxSizeMB = prefs.getInt('appwrite_cache_max_size') ?? 20;
@@ -63,25 +57,14 @@ class _AppwriteSettingsScreenState
     });
   }
 
-  Future<void> _saveSettings() async {
+  Future<void> _saveLocalSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('appwrite_sync_enabled', _syncEnabled);
-    await prefs.setInt('appwrite_sync_interval', _syncInterval);
-    await prefs.setBool('appwrite_auto_sync_on_connect', _autoSyncOnConnect);
     await prefs.setBool('appwrite_cache_enabled', _cacheEnabled);
     await prefs.setInt('appwrite_cache_ttl', _cacheTTLHours);
     await prefs.setInt('appwrite_cache_max_size', _cacheMaxSizeMB);
     await prefs.setString('appwrite_log_level', _logLevel);
     await prefs.setBool('appwrite_log_console', _logConsole);
     await prefs.setBool('appwrite_log_file', _logFile);
-
-    // تحديث مدير المزامنة بالإعدادات الجديدة
-    final syncManager = ref.read(ap.appwriteSyncManagerProvider);
-    if (_syncEnabled) {
-      syncManager.startAutoSync(interval: Duration(minutes: _syncInterval));
-    } else {
-      syncManager.stopAutoSync();
-    }
   }
 
   Future<void> _copyToClipboard(String text) async {
@@ -303,102 +286,26 @@ class _AppwriteSettingsScreenState
                 Icon(Icons.sync, color: Colors.cyan, size: 24),
                 SizedBox(width: 8),
                 Text(
-                  'إعدادات المزامنة',
+                  'المزامنة بين الأجهزة',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
-            const Divider(height: 24),
-
-            // تفعيل المزامنة
-            _buildSettingSwitch(
-              title: 'تفعيل المزامنة التلقائية',
-              subtitle: _syncEnabled
-                  ? 'يتم المزامنة تلقائياً في الخلفية'
-                  : 'المزامنة التلقائية معطّلة (يدوي فقط)',
-              value: _syncEnabled,
-              onChanged: (value) async {
-                setState(() => _syncEnabled = value);
-                await _saveSettings();
-
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        value
-                            ? 'تم تفعيل المزامنة التلقائية'
-                            : 'تم إيقاف المزامنة التلقائية',
-                      ),
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                }
-              },
+            const SizedBox(height: 8),
+            const Text(
+              'تُدار الفترة والتشغيل التلقائي والشبكة والبطارية من شاشة المزامنة الموحدة.',
+              style: TextStyle(color: Colors.grey),
             ),
-
-            // فترة المزامنة
-            if (_syncEnabled)
-              ListTile(
-                title: const Text('فترة المزامنة الدورية'),
-                subtitle: Text('كل $_syncInterval دقيقة'),
-                trailing: DropdownButton<int>(
-                  value: _syncInterval,
-                  items: [5, 10, 15, 30, 60].map((int value) {
-                    return DropdownMenuItem<int>(
-                      value: value,
-                      child: Text('$value دقيقة'),
-                    );
-                  }).toList(),
-                  onChanged: (value) async {
-                    if (value != null) {
-                      setState(() => _syncInterval = value);
-                      await _saveSettings();
-                    }
-                  },
-                ),
-              ),
-
-            // مزامنة عند الاتصال
-            _buildSettingSwitch(
-              title: 'مزامنة عند الاتصال التلقائي',
-              subtitle: _autoSyncOnConnect
-                  ? 'مزامنة البيانات فور اتصال التطبيق'
-                  : 'انتظار المزامنة الدورية أو اليدوية',
-              value: _autoSyncOnConnect,
-              onChanged: (value) async {
-                setState(() => _autoSyncOnConnect = value);
-                await _saveSettings();
-              },
-            ),
-
             const Divider(height: 24),
-
-            // إحصائيات المزامنة
             statsAsync.when(
               data: (stats) => _buildSyncStats(context, stats),
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'خطأ: $e',
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => _copyToClipboard('خطأ: $e'),
-                    icon: const Icon(Icons.copy, size: 16),
-                    tooltip: 'نسخ الخطأ',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                ],
+              error: (e, _) => Text(
+                'تعذر تحميل الإحصاءات: $e',
+                style: const TextStyle(color: Colors.red),
               ),
             ),
-
             const SizedBox(height: 12),
-
-            // أزرار المزامنة
             Row(
               children: [
                 Expanded(
@@ -411,19 +318,30 @@ class _AppwriteSettingsScreenState
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.push<void>(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (context) => const AppwriteSyncStatsScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.analytics),
-                    label: const Text('التفاصيل'),
+                    onPressed: () => Navigator.push<void>(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => const UnifiedSyncSettingsScreen(),
+                      ),
+                    ),
+                    icon: const Icon(Icons.tune),
+                    label: const Text('إعدادات المزامنة'),
                   ),
                 ),
               ],
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => Navigator.push<void>(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => const AppwriteSyncStatsScreen(),
+                  ),
+                ),
+                icon: const Icon(Icons.analytics),
+                label: const Text('عرض التفاصيل'),
+              ),
             ),
           ],
         ),
@@ -533,7 +451,7 @@ class _AppwriteSettingsScreenState
               value: _cacheEnabled,
               onChanged: (value) {
                 setState(() => _cacheEnabled = value);
-                _saveSettings();
+                _saveLocalSettings();
                 ref.read(ap.appwriteCacheManagerProvider).setEnabled(value);
               },
             ),
@@ -553,7 +471,7 @@ class _AppwriteSettingsScreenState
                 onChanged: (value) {
                   if (value != null) {
                     setState(() => _cacheTTLHours = value);
-                    _saveSettings();
+                    _saveLocalSettings();
                     ref
                         .read(ap.appwriteCacheManagerProvider)
                         .setDefaultTTL(Duration(hours: value));
@@ -577,7 +495,7 @@ class _AppwriteSettingsScreenState
                 onChanged: (value) {
                   if (value != null) {
                     setState(() => _cacheMaxSizeMB = value);
-                    _saveSettings();
+                    _saveLocalSettings();
                     ref
                         .read(ap.appwriteCacheManagerProvider)
                         .setMaxSizeMB(value);
@@ -675,7 +593,7 @@ class _AppwriteSettingsScreenState
                 onChanged: (value) {
                   if (value != null) {
                     setState(() => _logLevel = value);
-                    _saveSettings();
+                    _saveLocalSettings();
                   }
                 },
               ),
@@ -688,7 +606,7 @@ class _AppwriteSettingsScreenState
               value: _logConsole,
               onChanged: (value) {
                 setState(() => _logConsole = value);
-                _saveSettings();
+                _saveLocalSettings();
               },
             ),
 
@@ -699,7 +617,7 @@ class _AppwriteSettingsScreenState
               value: _logFile,
               onChanged: (value) {
                 setState(() => _logFile = value);
-                _saveSettings();
+                _saveLocalSettings();
               },
             ),
 
@@ -1503,9 +1421,7 @@ class _AppwriteSettingsScreenState
         return;
       }
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل إنشاء النسخة الاحتياطية: $e'),
           backgroundColor: Colors.red,
@@ -1558,9 +1474,7 @@ class _AppwriteSettingsScreenState
       final manager = ref.read(ap.appwriteSyncManagerProvider);
       await manager.pushAllLocalData();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('تم رفع البيانات بنجاح'),
             backgroundColor: Colors.green,
@@ -1635,9 +1549,7 @@ class _AppwriteSettingsScreenState
       final manager = ref.read(ap.appwriteSyncManagerProvider);
       await manager.pullAllRemoteData();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('تم سحب البيانات بنجاح'),
             backgroundColor: Colors.green,

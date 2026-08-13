@@ -14,17 +14,16 @@ import '../security/blacklist_screen.dart';
 import 'active_bookings_reminder_screen.dart';
 import 'appwrite_settings_screen.dart';
 import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
-import 'data_protection_screen.dart';
-import 'google_drive_backup_screen.dart';
 import 'late_payment_whatsapp_screen.dart';
 import 'remote_config_settings_screen.dart';
-import 'secondary_appwrite_settings_screen.dart';
 import 'settings_custom_lists.dart';
 import 'settings_employees.dart';
 import 'settings_guests.dart';
 import 'settings_maintenance.dart';
 import 'settings_users.dart';
+import 'sync/unified_sync_settings_screen.dart';
 import 'sync_health/sync_health_screen.dart';
+import 'telegram_settings_screen.dart';
 import 'whatsapp_daily_report_screen.dart';
 import 'whatsapp_settings_screen.dart';
 
@@ -98,7 +97,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ),
                           const SizedBox(height: 20),
                           _buildSectionTitle(
-                            'واتساب والإشعارات',
+                            'الإشعارات والتقارير',
                             Icons.notifications,
                           ),
                           _buildSettingsGrid(
@@ -217,20 +216,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       case 'sync':
         return [
           _SettingsItem(
-            title: 'Google Drive',
-            subtitle: 'النسخ الاحتياطي والمزامنة والسجلات',
-            icon: Icons.cloud,
+            title: 'المزامنة بين الأجهزة',
+            subtitle: 'التحكم في مزامنة Appwrite والأداء والشبكة',
+            icon: Icons.sync,
             color: Colors.blue,
             onTap: () => Navigator.push<void>(
               context,
               MaterialPageRoute<void>(
-                builder: (context) => const GoogleDriveBackupScreen(),
+                builder: (context) => const UnifiedSyncSettingsScreen(),
               ),
             ),
           ),
           _SettingsItem(
             title: 'Appwrite',
-            subtitle: 'المزامنة السحابية',
+            subtitle: 'الاتصال السحابي والأجهزة والسجلات والتخزين المؤقت',
             icon: Icons.cloud_sync,
             color: Colors.pink,
             onTap: () => Navigator.push<void>(
@@ -240,23 +239,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
           ),
-          // ✅ جديد: Appwrite الثانوي (نسخة احتياطية)
-          _SettingsItem(
-            title: 'Appwrite الثانوي',
-            subtitle: 'نسخة احتياطية للوجهة الثانوية',
-            icon: Icons.cloud_queue,
-            color: Colors.deepPurple,
-            onTap: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(
-                builder: (context) => const SecondaryAppwriteSettingsScreen(),
-              ),
-            ),
-          ),
-          // ✅ جديد: زر حالة المزامنة
           _SettingsItem(
             title: 'حالة المزامنة',
-            subtitle: 'مراقبة صحة النظام',
+            subtitle: 'مراقبة صحة النظام والعمليات المعلقة',
             icon: Icons.health_and_safety,
             color: Colors.green,
             onTap: () => Navigator.push<void>(
@@ -267,8 +252,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           _SettingsItem(
-            title: 'النسخ الاحتياطي',
-            subtitle: 'محلي · Google Drive · Appwrite',
+            title: 'النسخ الاحتياطي والاستعادة',
+            subtitle: 'نسخ محلية آمنة ومزامنة Appwrite',
             icon: Icons.backup,
             color: Colors.deepOrange,
             onTap: () => Navigator.push<void>(
@@ -276,18 +261,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               MaterialPageRoute<void>(
                 builder: (context) =>
                     const backup_v2.ComprehensiveBackupScreen(),
-              ),
-            ),
-          ),
-          _SettingsItem(
-            title: 'حماية البيانات',
-            subtitle: 'إعدادات المزامنة (Push/Pull)',
-            icon: Icons.security,
-            color: Colors.teal,
-            onTap: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(
-                builder: (context) => const DataProtectionScreen(),
               ),
             ),
           ),
@@ -327,8 +300,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           _SettingsItem(
-            title: 'رسالة الواتساب',
-            subtitle: 'تخصيص نص رسالة الدفع',
+            title: 'ربط وقوالب WhatsApp',
+            subtitle: 'إعداد الاتصال وتخصيص نص رسالة الدفع',
             icon: Icons.message,
             color: Colors.green,
             onTap: () => Navigator.push<void>(
@@ -339,14 +312,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           _SettingsItem(
-            title: 'واتساب',
-            subtitle: 'الإشعارات الفورية والتقارير اليومية',
+            title: 'إشعارات وتقارير WhatsApp',
+            subtitle: 'تفعيل الأحداث الفورية والملخص اليومي',
             icon: Icons.chat,
             color: const Color(0xFF25D366),
             onTap: () => Navigator.push<void>(
               context,
               MaterialPageRoute<void>(
                 builder: (context) => const WhatsAppDailyReportScreen(),
+              ),
+            ),
+          ),
+          _SettingsItem(
+            title: 'Telegram',
+            subtitle: 'إعداد البوت وإشعارات الأحداث والتقرير اليومي',
+            icon: Icons.send,
+            color: Colors.lightBlue,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => const TelegramSettingsScreen(),
               ),
             ),
           ),
