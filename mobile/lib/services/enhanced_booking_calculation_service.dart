@@ -36,7 +36,7 @@ class BookingCalculationResult {
 
 class EnhancedBookingCalculationService {
   EnhancedBookingCalculationService(this.db, [OutboxDao? outboxDao])
-      : _outboxDao = outboxDao ?? OutboxDao(db);
+    : _outboxDao = outboxDao ?? OutboxDao(db);
 
   final AppDatabase db;
   final OutboxDao _outboxDao;
@@ -157,10 +157,14 @@ class EnhancedBookingCalculationService {
       ),
     );
 
-    final updatedBooking = await (db.select(db.bookings)..where((b) => b.id.equals(booking.id))).getSingleOrNull();
+    final updatedBooking = await (db.select(
+      db.bookings,
+    )..where((b) => b.id.equals(booking.id))).getSingleOrNull();
     if (updatedBooking != null) {
       final bookingsDao = BookingsDao(db, _outboxDao);
-      final payload = await bookingsDao.payloadForLocalUuid(updatedBooking.localUuid);
+      final payload = await bookingsDao.payloadForLocalUuid(
+        updatedBooking.localUuid,
+      );
       if (payload != null) {
         await _outboxDao.merge(
           entity: 'bookings',
@@ -540,7 +544,9 @@ class EnhancedBookingCalculationService {
       await db.transaction(() async {
         await doWrite();
         final bookingsDao = BookingsDao(db, _outboxDao);
-        final payload = await bookingsDao.payloadForLocalUuid(booking.localUuid);
+        final payload = await bookingsDao.payloadForLocalUuid(
+          booking.localUuid,
+        );
         if (payload != null) {
           await _outboxDao.merge(
             entity: 'bookings',

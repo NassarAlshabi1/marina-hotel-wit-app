@@ -70,7 +70,8 @@ class ExpensesRepository {
       final normalizedDate = Time.safeIsoToDateString(date);
       // التاريخ الذي يحمل وقتاً يحدد يومه الفندقي الحقيقي. أما التاريخ
       // التقويمي فقط فهو اختيار مستخدم لليوم نفسه ويعامل عند 14:01.
-      final effectiveHotelDayKey = hotelDayKey ??
+      final effectiveHotelDayKey =
+          hotelDayKey ??
           _hotelDayKeyForExpenseDate(
             sourceDate: date,
             calendarDate: normalizedDate,
@@ -366,11 +367,8 @@ class ExpensesRepository {
 
     await db.transaction(() async {
       for (final item in toFix) {
-        await (db.update(
-          db.expenses,
-        )..where((t) => t.id.equals(item.id))).write(
-          ExpensesCompanion(hotelDayKey: d.Value(item.correctKey)),
-        );
+        await (db.update(db.expenses)..where((t) => t.id.equals(item.id)))
+            .write(ExpensesCompanion(hotelDayKey: d.Value(item.correctKey)));
       }
 
       await outbox.mergeBatch(
@@ -397,7 +395,8 @@ class ExpensesRepository {
     required String calendarDate,
   }) {
     final source = sourceDate.trim();
-    final hasTime = source.contains('T') ||
+    final hasTime =
+        source.contains('T') ||
         RegExp(r'^\d{4}-\d{2}-\d{2}\s+\d').hasMatch(source);
     if (hasTime) {
       return HotelTimeEngine.getHotelDayKeyFromIso(source);

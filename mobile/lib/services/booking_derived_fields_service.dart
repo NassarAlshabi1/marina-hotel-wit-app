@@ -10,7 +10,7 @@ import 'local_db.dart';
 
 class BookingDerivedFieldsService {
   BookingDerivedFieldsService(this.db, [OutboxDao? outboxDao])
-      : _outboxDao = outboxDao ?? OutboxDao(db);
+    : _outboxDao = outboxDao ?? OutboxDao(db);
 
   final AppDatabase db;
   final OutboxDao _outboxDao;
@@ -126,7 +126,9 @@ class BookingDerivedFieldsService {
       ),
     );
 
-    final updated = await (db.select(db.bookings)..where((b) => b.id.equals(booking.id))).getSingleOrNull();
+    final updated = await (db.select(
+      db.bookings,
+    )..where((b) => b.id.equals(booking.id))).getSingleOrNull();
     if (updated != null) {
       final bookingsDao = BookingsDao(db, _outboxDao);
       final payload = await bookingsDao.payloadForLocalUuid(updated.localUuid);
@@ -189,14 +191,18 @@ class BookingDerivedFieldsService {
   }
 
   Future<void> _promoteProvisionalBooking(int bookingId) async {
-    final booking = await (db.select(db.bookings)..where((b) => b.id.equals(bookingId))).getSingleOrNull();
+    final booking = await (db.select(
+      db.bookings,
+    )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
     if (booking == null) return;
 
     await (db.update(db.bookings)..where((b) => b.id.equals(bookingId))).write(
       const BookingsCompanion(status: d.Value('محجوزة')),
     );
 
-    final updated = await (db.select(db.bookings)..where((b) => b.id.equals(bookingId))).getSingleOrNull();
+    final updated = await (db.select(
+      db.bookings,
+    )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
     if (updated == null) return;
 
     final bookingsDao = BookingsDao(db, _outboxDao);
@@ -282,10 +288,7 @@ class BookingDerivedFieldsService {
   }
 
   // ignore: unused_element
-  List<_NightSegment> _buildNightSegments(
-    DateTime checkin,
-    DateTime checkout,
-  ) {
+  List<_NightSegment> _buildNightSegments(DateTime checkin, DateTime checkout) {
     final segments = <_NightSegment>[];
     final totalNights = HotelTimeEngine.calculateDays(
       checkin,

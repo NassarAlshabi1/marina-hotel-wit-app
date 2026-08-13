@@ -31,10 +31,7 @@ void main() {
         1,
       );
       expect(
-        Time.nightsWithCutoff(
-          checkin,
-          checkout: DateTime(2026, 8, 13, 14, 1),
-        ),
+        Time.nightsWithCutoff(checkin, checkout: DateTime(2026, 8, 13, 14, 1)),
         2,
       );
     });

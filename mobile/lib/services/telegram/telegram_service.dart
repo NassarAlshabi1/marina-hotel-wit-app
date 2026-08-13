@@ -12,6 +12,9 @@ class TelegramApiClient {
   // ignore: prefer_constructors_over_static_methods
   static TelegramApiClient get instance => _instance ??= TelegramApiClient._();
 
+  static const _requestTimeout = Duration(seconds: 15);
+  static const _maxMessageLength = 4096;
+
   final http.Client _client = http.Client();
 
   /// تحرير موارد HTTP client
@@ -46,27 +49,36 @@ class TelegramApiClient {
   }) async {
     try {
       await _updateToken();
+      final normalizedChatId = chatId.trim();
+      if (_cachedToken.trim().isEmpty || normalizedChatId.isEmpty) {
+        dlog('⚠️ Telegram: بيانات الاتصال غير مكتملة');
+        return false;
+      }
 
-      final response = await _client.post(
-        Uri.parse(_apiUrl('sendMessage')),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'chat_id': chatId,
-          'text': text,
-          'parse_mode': parseMode,
-          'disable_web_page_preview': disableWebPagePreview,
-        }),
-      );
+      // Telegram يقبل حتى 4096 حرفاً. الرسائل الوصفية قد تأتي من إدخال المستخدم.
+      final safeText = text.length <= _maxMessageLength
+          ? text
+          : '${text.substring(0, _maxMessageLength - 1)}…';
+      final response = await _client
+          .post(
+            Uri.parse(_apiUrl('sendMessage')),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'chat_id': normalizedChatId,
+              'text': safeText,
+              'parse_mode': parseMode,
+              'disable_web_page_preview': disableWebPagePreview,
+            }),
+          )
+          .timeout(_requestTimeout);
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
-
       if (data['ok'] == true) {
         dlog('✅ Telegram: تم إرسال الرسالة بنجاح');
         return true;
-      } else {
-        dlog(() => '⚠️ Telegram: فشل الإرسال: ${data['description']}');
-        return false;
       }
+      dlog(() => '⚠️ Telegram: فشل الإرسال: ${data['description']}');
+      return false;
     } catch (e) {
       dlog(() => '❌ Telegram خطأ: $e');
       return false;
@@ -112,7 +124,10 @@ class TelegramApiClient {
     try {
       await _updateToken();
 
-      final response = await _client.get(Uri.parse(_apiUrl('getMe')));
+      if (_cachedToken.trim().isEmpty) return false;
+      final response = await _client
+          .get(Uri.parse(_apiUrl('getMe')))
+          .timeout(_requestTimeout);
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       return data['ok'] == true;
