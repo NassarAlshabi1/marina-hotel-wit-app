@@ -20,6 +20,7 @@ import '../utils/id.dart';
 import '../utils/secure_storage.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
+import '../utils/weak_device_optimizer.dart';
 import 'adapters/adapter_registry.dart';
 import 'adapters/id_resolver.dart';
 import 'adapters/salary_withdrawals_adapter.dart';
@@ -3157,8 +3158,15 @@ class AppwriteSyncManager {
     const int maxIterations = 500;
     int iterations = 0;
     final constrainedNetwork = _isConstrainedNetwork(connectivity);
-    final minBatchSize = constrainedNetwork ? 5 : 10;
-    final maxBatchSize = constrainedNetwork ? 25 : 100;
+    final networkMinBatchSize = constrainedNetwork ? 5 : 10;
+    final networkMaxBatchSize = constrainedNetwork ? 25 : 100;
+    final lowRamBatchCap = WeakDeviceOptimizer.instance.isWeakDevice
+        ? WeakDeviceOptimizer.instance.syncBatchSize
+        : networkMaxBatchSize;
+    final maxBatchSize = lowRamBatchCap
+        .clamp(networkMinBatchSize, networkMaxBatchSize)
+        .toInt();
+    final minBatchSize = networkMinBatchSize.clamp(1, maxBatchSize).toInt();
     final entryTimeout = Duration(seconds: constrainedNetwork ? 12 : 25);
 
     // ✅ تطبيق batchSize من SyncPerformanceOptimizer كنقطة بدء

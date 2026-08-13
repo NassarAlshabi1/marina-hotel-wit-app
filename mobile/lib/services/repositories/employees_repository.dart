@@ -17,8 +17,11 @@ class EmployeesRepository {
   final OutboxDao outbox;
   final EmployeesDao dao;
 
-  Stream<List<Employee>> watchAll({String? search}) =>
-      dao.watchList(search: search);
+  Stream<List<Employee>> watchAll({
+    String? search,
+    int? limit,
+    int offset = 0,
+  }) => dao.watchList(search: search, limit: limit, offset: offset);
   Stream<Employee?> watchOne(int id) => dao.watchById(id);
 
   String _normalizeStatus(String status) =>

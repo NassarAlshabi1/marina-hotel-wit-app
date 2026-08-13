@@ -233,7 +233,7 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
       }
       await (update(bookings)..where((t) => t.id.equals(id))).write(
         BookingsCompanion(
-          deletedAt: const d.Value.absent(),
+          deletedAt: const Value.absent(),
           updatedAt: Value(Time.nowEpoch()),
           lastModified: Value(Time.nowEpoch()),
           version: Value(existing.version + 1),

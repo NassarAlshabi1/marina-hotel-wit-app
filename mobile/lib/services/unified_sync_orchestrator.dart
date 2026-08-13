@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/sync_models.dart' as models;
 import '../utils/debug_log.dart';
+import '../utils/weak_device_optimizer.dart';
 import 'analytics_service.dart';
 import 'appwrite_service.dart';
 import 'appwrite_sync_manager.dart' show AppwriteSyncManager, SyncStatus;
@@ -389,6 +390,13 @@ class UnifiedSyncOrchestrator {
   }
 
   Future<void> _snapshotIfNeeded({bool force = false}) async {
+    // الـ snapshot التلقائي يقرأ جداول كاملة ويبني عدة نسخ JSON في الذاكرة.
+    // على جهاز 1GB نحتفظ بالمزامنة التفاضلية ونؤجل الـ snapshot إلى طلب يدوي.
+    if (!force && WeakDeviceOptimizer.instance.isWeakDevice) {
+      dlog('🧠 Low-RAM policy: skipped automatic full snapshot');
+      return;
+    }
+
     final now = DateTime.now();
     if (!force && _state.lastSnapshotAt != null) {
       final diff = now.difference(_state.lastSnapshotAt!);

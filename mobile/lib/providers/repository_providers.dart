@@ -193,14 +193,22 @@ final whatsappServiceProvider = Provider<WhatsAppService>((ref) {
 
 final roomsListProvider = StreamProvider.autoDispose<List<Room>>(
   (ref) => debounceStream(
-    ref.watch(roomsRepoProvider).watchAll(),
+    ref
+        .watch(roomsRepoProvider)
+        .watchAll(
+          limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
+        ),
     const Duration(milliseconds: 150),
   ),
 );
 final availableRoomsProvider = StreamProvider.autoDispose(
   (ref) =>
       debounceStream(
-        ref.watch(roomsRepoProvider).watchAll(),
+        ref
+            .watch(roomsRepoProvider)
+            .watchAll(
+              limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
+            ),
         const Duration(milliseconds: 150),
       ).map(
         (rooms) => rooms
@@ -251,14 +259,22 @@ final highPrioritySimpleNotesProvider = FutureProvider.autoDispose(
 
 final employeesListProvider = StreamProvider.autoDispose<List<Employee>>(
   (ref) => debounceStream(
-    ref.watch(employeesRepoProvider).watchAll(),
+    ref
+        .watch(employeesRepoProvider)
+        .watchAll(
+          limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
+        ),
     const Duration(milliseconds: 150),
   ),
 );
 
 final guestInfoListProvider = StreamProvider.autoDispose(
   (ref) => debounceStream(
-    ref.watch(guestInfoRepoProvider).watchAll(),
+    ref
+        .watch(guestInfoRepoProvider)
+        .watchAll(
+          limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
+        ),
     const Duration(milliseconds: 150),
   ),
 );
@@ -277,12 +293,20 @@ final expensesListProvider = StreamProvider.autoDispose(
 );
 
 final salaryWithdrawalsListProvider = FutureProvider.autoDispose((ref) {
-  return ref.watch(salaryWithdrawalsRepoProvider).listAll();
+  return ref
+      .watch(salaryWithdrawalsRepoProvider)
+      .listActive(
+        limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
+      );
 });
 
 final cashTransactionsListProvider = StreamProvider.autoDispose(
   (ref) => debounceStream(
-    ref.watch(cashRepoProvider).watchAll(),
+    ref
+        .watch(cashRepoProvider)
+        .watchAll(
+          limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
+        ),
     const Duration(milliseconds: 150),
   ),
 );

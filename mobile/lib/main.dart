@@ -6,6 +6,7 @@ import 'dart:ui' show DartPluginRegistrant;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:flutter/material.dart';
+import 'package:flutter/painting.dart' show PaintingBinding;
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,6 +38,7 @@ import 'screens/settings/settings_screen.dart';
 import 'services/alarm_backup.dart';
 import 'services/api_config_service.dart';
 import 'services/app_session_manager.dart';
+import 'services/appwrite_cache_manager.dart';
 import 'services/appwrite_config_manager.dart';
 import 'services/appwrite_health_checker.dart';
 import 'services/appwrite_realtime_service.dart';
@@ -1042,6 +1044,20 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       dwarn(() => 'Error disposing SyncGuardian: $e');
     }
     dlog('✅ All singleton services disposed');
+  }
+
+  @override
+  void didHaveMemoryPressure() {
+    super.didHaveMemoryPressure();
+
+    // Android قد يرسل هذه الإشارة قبل قتل العملية. امسح البيانات التي يمكن
+    // إعادة تحميلها بدل المخاطرة بفقدان تغييرات المستخدم أو إيقاف التطبيق.
+    final imageCache = PaintingBinding.instance.imageCache;
+    imageCache.clear();
+    imageCache.clearLiveImages();
+    AppwriteCacheManager.instance.handleMemoryPressure();
+
+    dlog('🧹 Memory pressure: cleared image and Appwrite caches');
   }
 
   @override

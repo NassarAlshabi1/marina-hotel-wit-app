@@ -47,7 +47,7 @@ class SalaryWithdrawalsRepository {
     final now = Time.nowEpoch();
     final uuid = IdGen.uuid();
 
-    return db.transaction(() async {
+    final id = await _db.transaction(() async {
       final companion = SalaryWithdrawalsCompanion(
         localUuid: d.Value(uuid),
         serverId: const d.Value(null),
@@ -99,20 +99,26 @@ class SalaryWithdrawalsRepository {
       return id;
     });
 
-    unawaited(
-      WhatsAppNotificationService.instance.notifyNewExpense(
-        category: 'سحب راتب',
-        amount: amount,
-        description: reason,
-      ),
-    );
-    unawaited(
-      TelegramNotificationService.instance.notifyNewExpense(
-        category: 'سحب راتب',
-        amount: amount,
-        description: reason,
-      ),
-    );
+    // الإشعارات لا تدخل في المعاملة حتى لا تطيل قفل SQLite أو تُرسل قبل
+    // نجاح حفظ السجل وoutbox. لا نرسلها للبيانات المسحوبة من الخادم.
+    if (!originIsServer) {
+      unawaited(
+        WhatsAppNotificationService.instance.notifyNewExpense(
+          category: 'سحب راتب',
+          amount: amount,
+          description: reason,
+        ),
+      );
+      unawaited(
+        TelegramNotificationService.instance.notifyNewExpense(
+          category: 'سحب راتب',
+          amount: amount,
+          description: reason,
+        ),
+      );
+    }
+
+    return id;
   }
 
   /// حفظ أو تحديث سجل سحب راتب مرتبط بمصروف (UPSERT via expense_id)
@@ -446,11 +452,24 @@ class SalaryWithdrawalsRepository {
         .get();
   }
 
-  /// جلب السحوبات النشطة (غير المحذوفة)
-  Future<List<SalaryWithdrawal>> listActive() async {
-    return (_db.select(
-      _db.salaryWithdrawals,
-    )..where((t) => t.deletedAt.isNull())).get();
+  /// جلب السحوبات النشطة (غير المحذوفة) مع حد اختياري للقوائم منخفضة الذاكرة.
+  Future<List<SalaryWithdrawal>> listActive({
+    int? limit,
+    int offset = 0,
+  }) async {
+    final query = _db.select(_db.salaryWithdrawals)
+      ..where((t) => t.deletedAt.isNull())
+      ..orderBy([
+        (t) => d.OrderingTerm(
+          expression: t.withdrawDate,
+          mode: d.OrderingMode.desc,
+        ),
+        (t) => d.OrderingTerm(expression: t.id, mode: d.OrderingMode.desc),
+      ]);
+    if (limit != null) {
+      query.limit(limit, offset: offset);
+    }
+    return query.get();
   }
 
   /// حساب مفتاح اليوم الفندقي من تاريخ السحب

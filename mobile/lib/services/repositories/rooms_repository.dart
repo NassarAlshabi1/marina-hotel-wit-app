@@ -18,8 +18,11 @@ class RoomsRepository {
   late final OutboxDao outbox;
   late final RoomsDao dao;
 
-  Stream<List<Room>> watchAll({String? search}) =>
-      dao.watchList(search: search);
+  Stream<List<Room>> watchAll({
+    String? search,
+    int? limit,
+    int offset = 0,
+  }) => dao.watchList(search: search, limit: limit, offset: offset);
   Stream<Room?> watchRoom(String roomNumber) => dao.watchByNumber(roomNumber);
   Stream<Room?> watchByNumber(String roomNumber) =>
       dao.watchByNumber(roomNumber);
