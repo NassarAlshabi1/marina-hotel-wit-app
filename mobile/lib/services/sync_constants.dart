@@ -76,7 +76,13 @@ class SyncConstants {
   static const int autoSyncIntervalDefaultMinutes = 15;
   static const int autoSyncIntervalMinMinutes = 1;
   static const int autoSyncIntervalMaxMinutes = 120;
-  static const Duration outboxDebounceWindow = Duration(seconds: 10);
+
+  /// مهلة تجميع الكتابات المحلية قبل دفعها إلى Appwrite.
+  ///
+  /// يُعاد تشغيل هذه المهلة عند كل إنشاء أو تعديل أو حذف مسجّل في Outbox؛
+  /// لذلك تُرفع الدفعة بعد 3 ثوانٍ من **آخر** تغيير، لا بعد كل نقرة. هذا
+  /// يحقق مزامنة شبه فورية من دون طلبات شبكة متتابعة على الأجهزة الضعيفة.
+  static const Duration outboxDebounceWindow = Duration(seconds: 3);
   static const Duration guardianOutboxDebounce = Duration(seconds: 30);
   static const Duration guardianLocalChangeDebounce = Duration(seconds: 5);
   static const Duration shortPollingDelay = Duration(milliseconds: 500);

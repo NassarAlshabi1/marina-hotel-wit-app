@@ -17,6 +17,7 @@ import 'package:drift/drift.dart';
 
 import 'local_db.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import 'sync_constants.dart';
 import 'sync_guard.dart';
 
 class AutoOutboxSyncWatcher {
@@ -109,7 +110,7 @@ class AutoOutboxSyncWatcher {
 
   void _schedulePush() {
     _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(seconds: 3), _doPush);
+    _debounceTimer = Timer(SyncConstants.outboxDebounceWindow, _doPush);
   }
 
   Future<void> _doPush() async {
@@ -157,9 +158,7 @@ class AutoOutboxSyncWatcher {
     // ✅ Wave 5: ownership-safe tryAcquire (with token).
     final token = SyncGuard.tryAcquire(label: 'auto_outbox_push');
     if (token == null) {
-      dlog(
-        '⏸️ Push skipped — another sync active (${SyncGuard.activeLabel})',
-      );
+      dlog('⏸️ Push skipped — another sync active (${SyncGuard.activeLabel})');
       return;
     }
 
