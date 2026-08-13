@@ -38,9 +38,19 @@ import 'package:marina_hotel_mobile/utils/debug_log.dart';
 class BookingPaymentScreen extends ConsumerStatefulWidget {
   const BookingPaymentScreen({
     required this.booking,
+    this.refreshDerivedFieldsOnInit = true,
+    this.listenToHotelDayTicker = true,
     super.key,
   });
   final db.Booking booking;
+
+  /// يظل مفعّلاً في الإنتاج؛ يُعطّل فقط في اختبارات بناء الواجهة المعزولة
+  /// حتى لا يقيس الـ benchmark كتابة قاعدة البيانات أو تفعيل المزامنة.
+  final bool refreshDerivedFieldsOnInit;
+
+  /// يبقى الاشتراك مفعلاً في التطبيق؛ يوقف في benchmark الواجهة المعزول
+  /// لأن مؤقت اليوم الفندقي العام لا يقيس بناء شاشة الدفع.
+  final bool listenToHotelDayTicker;
 
   @override
   ConsumerState<BookingPaymentScreen> createState() =>
@@ -159,8 +169,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     _phoneController = TextEditingController(text: widget.booking.guestPhone);
     _currentGuestPhone = widget.booking.guestPhone;
     _checkForDebts();
-    _refreshBookingNights();
-    _startHotelDayAutoRefresh();
+    if (widget.refreshDerivedFieldsOnInit) {
+      unawaited(_refreshBookingNights());
+    }
+    if (widget.listenToHotelDayTicker) {
+      _startHotelDayAutoRefresh();
+    }
   }
 
   /// بدء الاستماع للتيار العالمي لبداية اليوم الفندقي الجديد
@@ -213,7 +227,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       discountStartDate.year,
       discountStartDate.month,
       discountStartDate.day,
-      14,
+      HotelTimeEngine.boundaryHour,
+      HotelTimeEngine.boundaryMinute,
     );
     final effectiveStart = discountDayStart.isAfter(checkin)
         ? discountDayStart
@@ -1071,9 +1086,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         message: message.toString(),
       );
       if (result.quotaMessage != null && mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result.quotaMessage!),
             backgroundColor: Colors.orange,
@@ -1393,9 +1406,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         message: message,
       );
       if (result.quotaMessage != null && mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result.quotaMessage!),
             backgroundColor: Colors.orange,
@@ -1731,9 +1742,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('تعذّر تسجيل الدفعة: $e'),
             backgroundColor: Colors.red,
@@ -1966,9 +1975,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         : null;
 
     if (plannedCheckout == null || !now.isBefore(plannedCheckout)) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
             'لا يوجد مغادرة مبكرة — الحجز انتهى أو لا يوجد تاريخ مغادرة مخطط',
@@ -2301,9 +2308,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         message: message,
       );
       if (result.quotaMessage != null && mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result.quotaMessage!),
             backgroundColor: Colors.orange,
@@ -2421,9 +2426,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     } catch (e) {
       dlog(() => '❌ خطأ في إنشاء الدين: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل إنشاء الدين: $e'),
           backgroundColor: Colors.red,
@@ -2448,9 +2451,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final currentUser = ref.read(authProvider).currentUser;
     if (currentUser == null || !currentUser.isAdmin) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('⚠️ صلاحية الخصم متاحة للمدير فقط'),
           backgroundColor: Colors.red,
@@ -2545,9 +2546,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final amount = double.tryParse(amountStr) ?? 0;
     if (amount <= 0) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('⚠️ المبلغ غير صالح'),
           backgroundColor: Colors.red,
@@ -2610,9 +2609,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     } catch (e) {
       dlog(() => '❌ خطأ في تطبيق الخصم: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل تطبيق الخصم: $e'),
           backgroundColor: Colors.red,
@@ -2928,9 +2925,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   void _sendAccountStatement(BookingPaymentSummary summary) {
     if (_currentGuestPhone.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('لا يوجد رقم هاتف للعميل'),
           backgroundColor: Colors.red,
@@ -3497,9 +3492,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     } catch (e) {
       if (mounted) loading.close();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في إنشاء PDF: $e'),
           backgroundColor: Colors.red,
@@ -3777,9 +3770,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
       if (mounted) {
         if (result.quotaMessage != null) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(result.quotaMessage!),
               backgroundColor: Colors.orange,
@@ -3793,9 +3784,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ),
           );
         } else {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('فشل في إرسال تذكير الدفع'),
               backgroundColor: Colors.red,
@@ -3805,9 +3794,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('خطأ في إرسال التذكير: $e'),
             backgroundColor: Colors.red,
@@ -4040,9 +4027,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         message: message,
       );
       if (result.quotaMessage != null && mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result.quotaMessage!),
             backgroundColor: Colors.orange,

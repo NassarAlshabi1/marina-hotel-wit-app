@@ -39,6 +39,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:marina_hotel_mobile/providers/core_providers.dart';
 import 'package:marina_hotel_mobile/providers/repository_providers.dart';
@@ -50,6 +51,7 @@ import 'package:marina_hotel_mobile/screens/employees/employees_list.dart';
 import 'package:marina_hotel_mobile/screens/payments/booking_payment_screen.dart';
 import 'package:marina_hotel_mobile/screens/rooms/rooms_list.dart';
 import 'package:marina_hotel_mobile/services/daos/bookings_dao.dart';
+import 'package:marina_hotel_mobile/services/fcm_sender.dart';
 import 'package:marina_hotel_mobile/services/daos/debts_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/employees_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/expenses_dao.dart';
@@ -279,9 +281,11 @@ Future<ScreenMetrics> _measureScreen(
     metrics.buildMs = buildStopwatch.elapsedMilliseconds;
 
     final settleStopwatch = Stopwatch()..start();
-    // نستخدم pump عدة مرات بدل pumpAndSettle لتجنب hang على animations مستمرة
-    // أو tickers معلّقة. كل pump يُقدم إطار واحد.
-    for (var i = 0; i < settleTimeoutSec * 60; i++) {
+    // عينة محدودة من الإطارات كافية لاستقرار streams المباشرة في benchmark.
+    // محاكاة عدة ثوانٍ كاملة (60 إطاراً لكل ثانية) تجعل الشاشات الثقيلة مثل
+    // الدفع تقضي دقائق في الـ pump رغم أن الهدف هو قياس البناء لا محاكاة جلسة.
+    const settleFrames = 30;
+    for (var i = 0; i < settleFrames; i++) {
       await tester.pump(const Duration(milliseconds: 16));
     }
     settleStopwatch.stop();
@@ -323,12 +327,20 @@ void main() {
   // وغيرها عبر DateFormat('yyyy-MM-dd HH:mm', 'en')).
   // بدون هذا، يرمي LocaleDataException عند بناء الشاشة.
   setUpAll(() async {
+    FcmSender.setNotificationsDisabledForTesting(true);
     await initializeDateFormatting();
+  });
+
+  tearDownAll(() {
+    FcmSender.setNotificationsDisabledForTesting(false);
   });
 
   late AppDatabase db;
 
   setUp(() async {
+    // Dashboard يبدأ auto-pull بعد أول frame. في Benchmark واجهة معزول يجب
+    // قياس البناء المحلي لا فتح HTTP أو ترك مؤقتات Appwrite معلقة.
+    SharedPreferences.setMockInitialValues({'appwrite_sync_enabled': false});
     db = await _seedFullDatabase();
   });
 
@@ -395,12 +407,30 @@ void main() {
       final bookingsDao = BookingsDao(db, OutboxDao(db));
       final bookings = await bookingsDao.list();
       final booking = bookings.first;
+      final room = (await RoomsDao(db, OutboxDao(db)).list()).first;
 
       final metrics = await _measureScreen(
         tester,
         'BookingPaymentScreen',
         db,
-        BookingPaymentScreen(booking: booking),
+        BookingPaymentScreen(
+          booking: booking,
+          refreshDerivedFieldsOnInit: false,
+          listenToHotelDayTicker: false,
+        ),
+        extraOverrides: [
+          liveBookingProvider.overrideWith((ref, _) => Stream.value(booking)),
+          liveRoomByNumberProvider.overrideWith((ref, _) => Stream.value(room)),
+          bookingPriceAdjustmentsProvider.overrideWith(
+            (ref, _) => Stream.value(const <BookingPriceAdjustment>[]),
+          ),
+          bookingNightsProvider.overrideWith(
+            (ref, _) => Stream.value(const <BookingNight>[]),
+          ),
+          bookingPaymentsDirectProvider.overrideWith(
+            (ref, _) => Stream.value(const <Payment>[]),
+          ),
+        ],
         settleTimeoutSec: 5,
       );
       allMetrics.add(metrics);

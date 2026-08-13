@@ -24,6 +24,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:appwrite/appwrite.dart' show Query;
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -53,6 +54,14 @@ class FcmSender {
   factory FcmSender() => _instance;
   FcmSender._internal();
   static final FcmSender _instance = FcmSender._internal();
+
+  static bool _notificationsDisabledForTesting = false;
+
+  /// يعطّل الإرسال في اختبارات الواجهة المعزولة فقط؛ لا يغير الإنتاج.
+  @visibleForTesting
+  static void setNotificationsDisabledForTesting(bool disabled) {
+    _notificationsDisabledForTesting = disabled;
+  }
 
   static const _fcmEndpoint = 'https://fcm.googleapis.com/fcm/send';
 
@@ -127,6 +136,10 @@ class FcmSender {
     required String body,
     required Map<String, String> data,
   }) async {
+    // الـ Benchmarks تزرع صفوفاً محلية كثيرة؛ لا ينبغي أن تقيس مهام إعلام
+    // جانبية أو تترك مئات microtasks غير مرتبطة ببناء الواجهة.
+    if (_notificationsDisabledForTesting) return;
+
     // ✅ no-op آمن إذا لم يُكوّن FCM
     if (!Env.isFcmSendConfigured) {
       dlog('ℹ️ FCM sender: skipped (FCM_SERVER_KEY not configured)');

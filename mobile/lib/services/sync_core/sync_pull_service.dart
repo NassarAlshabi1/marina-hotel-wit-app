@@ -172,6 +172,26 @@ class SyncPullService {
       );
     }
 
+    // سجلات Appwrite القديمة قد تفتقد vectorClock. في هذه الحالة لا يمكن
+    // إثبات السببية من VC أحادي الطرف، لذا نعود إلى LWW بدلاً من اعتبار
+    // الساعة المحلية غير الفارغة أحدث دائماً وإسقاط تحديث بعيد أحدث.
+    if (localVc.isEmpty || remoteVc.isEmpty) {
+      final normalizedRemoteTs = effectiveRemoteTs > 10000000000
+          ? effectiveRemoteTs ~/ 1000
+          : effectiveRemoteTs;
+      final normalizedLocalTs = localLastModified > 10000000000
+          ? localLastModified ~/ 1000
+          : localLastModified;
+      final remoteDeviceId = (remoteData['deviceId'] as String?) ?? '';
+      final localDeviceId = _currentDeviceId ?? '';
+      return RemoteCheckResult(
+        shouldApplyRemote:
+            normalizedRemoteTs > normalizedLocalTs ||
+            (normalizedRemoteTs == normalizedLocalTs &&
+                remoteDeviceId.compareTo(localDeviceId) < 0),
+      );
+    }
+
     final comparison = VectorClockComparator.compare(localVc, remoteVc);
 
     switch (comparison) {
@@ -292,10 +312,7 @@ class SyncPullService {
   /// (timestamps/version/vectorClock/ids). يُستخدم لمنع تخطّي سجل تغيّرت
   /// بياناته رغم تطابق vectorClock — الحالة التي تحدث عندما يرفع نفس الجهاز
   /// نفس السجل بقيم مختلفة دون أن يزيد Appwrite الـ VC تلقائياً.
-  static bool _contentEquals(
-    Map<String, dynamic> a,
-    Map<String, dynamic> b,
-  ) {
+  static bool _contentEquals(Map<String, dynamic> a, Map<String, dynamic> b) {
     const skip = {
       'lastModified',
       'updatedAt',

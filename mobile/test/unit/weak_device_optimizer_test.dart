@@ -9,13 +9,13 @@ import 'package:marina_hotel_mobile/utils/weak_device_optimizer.dart';
 
 void main() {
   group('WeakDeviceOptimizer classification', () {
-    test('ذاكرة 1GB → جهاز ضعيف (optimizationLevel=2)', () {
+    test('ذاكرة 1GB → جهاز حرج (optimizationLevel=3)', () {
       WeakDeviceOptimizer.instance.initialize(
         processorCount: 4,
         memoryMB: 1024,
       );
       expect(WeakDeviceOptimizer.instance.isWeakDevice, isTrue);
-      expect(WeakDeviceOptimizer.instance.optimizationLevel, equals(2));
+      expect(WeakDeviceOptimizer.instance.optimizationLevel, equals(3));
     });
 
     test('ذاكرة 2GB مع 2 أنوية → جهاز ضعيف', () {
