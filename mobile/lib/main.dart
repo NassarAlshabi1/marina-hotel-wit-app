@@ -86,6 +86,7 @@ import 'utils/env.dart';
 import 'utils/hotel_day_ticker.dart';
 import 'utils/id.dart';
 import 'utils/performance_config.dart';
+import 'utils/performance_monitor.dart';
 import 'utils/theme.dart';
 import 'utils/weak_device_optimizer.dart';
 
@@ -250,6 +251,10 @@ Future<void> main() async {
       DeviceOrientation.portraitDown,
     ]),
   );
+
+  // مراقب التطوير يجمع FrameTiming واتجاه الذاكرة لاختبارات الأداء.
+  // start() نفسه محمي بـ kDebugMode، لذا لا ينشئ listener أو timer في APK.
+  PerformanceMonitor.instance.start();
 
   dlog(() => 'BASE_API_URL=${Env.baseApiUrl}');
   runZonedGuarded(() => runApp(const ProviderScope(child: App())), (
