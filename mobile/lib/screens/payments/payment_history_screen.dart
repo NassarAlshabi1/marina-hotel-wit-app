@@ -52,9 +52,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                   ? _buildPaymentsList(paymentsRepo.watchAll())
                   : StreamBuilder<Booking?>(
                       stream:
-                          (database.select(
-                                database.bookings,
-                              )..where(
+                          (database.select(database.bookings)..where(
                                 (t) => t.localUuid.equals(widget.bookingId!),
                               ))
                               .watchSingleOrNull(),

@@ -601,14 +601,11 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
 
   /// ✅ تعديل حجز فردي — يفتح BookingEditScreen مع `existing: booking`
   Future<void> _editBooking(BuildContext context, Booking booking) async {
-    final result =
-        await Navigator.of(
-          context,
-        ).push<bool>(
-          MaterialPageRoute<bool>(
-            builder: (_) => BookingEditScreen(existing: booking),
-          ),
-        );
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => BookingEditScreen(existing: booking),
+      ),
+    );
     if ((result ?? false) && mounted) {
       ref.invalidate(bookingsListProvider);
       ScaffoldMessenger.of(
@@ -708,9 +705,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حذف الحجز: $e'),
           backgroundColor: Colors.red,
@@ -1082,9 +1077,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('تعذر تعديل تاريخ الدخول: $e'),
             backgroundColor: Colors.red,
@@ -1129,14 +1122,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   Future<void> _editGuest(BuildContext context, GuestInfo guest) async {
-    final result =
-        await Navigator.of(
-          context,
-        ).push<bool>(
-          MaterialPageRoute<bool>(
-            builder: (_) => GuestEditScreen(guest: guest),
-          ),
-        );
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(builder: (_) => GuestEditScreen(guest: guest)),
+    );
     if ((result ?? false) && mounted) {
       ScaffoldMessenger.of(
         context,
@@ -1264,9 +1252,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
             'تم حذف الضيف وجميع البيانات المرتبطة مع checkout للحجوزات النشطة',

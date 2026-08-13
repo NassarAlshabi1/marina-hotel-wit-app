@@ -329,9 +329,7 @@ class _AutoSyncEngineMonitorScreenState
               child: ElevatedButton.icon(
                 onPressed: () async {
                   await ref.read(autoSyncEngineProvider).resetFailedAttempts();
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('✅ تم إعادة تعيين المحاولات')),
                   );
                 },
@@ -911,9 +909,7 @@ class _AutoSyncEngineMonitorScreenState
                           Navigator.pop(context);
                         }
                         if (mounted) {
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(
+                          ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
                                 '✅ تم تعيين Debounce إلى $value ثانية',
@@ -966,9 +962,7 @@ class _AutoSyncEngineMonitorScreenState
                           Navigator.pop(context);
                         }
                         if (mounted) {
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(
+                          ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
                                 '✅ تم تعيين Pull Interval إلى $value دقيقة',

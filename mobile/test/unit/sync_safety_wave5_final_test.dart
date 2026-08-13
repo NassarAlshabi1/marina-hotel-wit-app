@@ -43,20 +43,17 @@ void main() {
   // المجموعة 1: Absence of Secondary Sync Path
   // ═══════════════════════════════════════════════════════════════════════
   group('1. Absence of Secondary Sync Path', () {
-    test(
-      '1a. لا يوجد SecondarySyncManager في النظام بعد Wave 5',
-      () {
-        // ✅ Wave 5: SecondarySyncManager تم حذفه بالكامل.
-        // التحقق أن import 'package:marina_hotel_mobile/services/secondary_sync_manager.dart'
-        // سيفشل (الملف غير موجود).
-        // نتحقق بـ lookup بسيط: لا يوجد class SecondarySyncManager.
-        expect(
-          () => SecondarySyncManagerStub.lookupClass(),
-          throwsA(isA<StateError>()),
-          reason: 'SecondarySyncManager يجب أن يكون محذوفاً تماماً بعد Wave 5',
-        );
-      },
-    );
+    test('1a. لا يوجد SecondarySyncManager في النظام بعد Wave 5', () {
+      // ✅ Wave 5: SecondarySyncManager تم حذفه بالكامل.
+      // التحقق أن import 'package:marina_hotel_mobile/services/secondary_sync_manager.dart'
+      // سيفشل (الملف غير موجود).
+      // نتحقق بـ lookup بسيط: لا يوجد class SecondarySyncManager.
+      expect(
+        () => SecondarySyncManagerStub.lookupClass(),
+        throwsA(isA<StateError>()),
+        reason: 'SecondarySyncManager يجب أن يكون محذوفاً تماماً بعد Wave 5',
+      );
+    });
 
     test(
       '1b. primary-only sync flow يستمر في العمل بدون secondary wiring',
@@ -165,11 +162,7 @@ void main() {
         // → تطبيق remote (تحديث طابع الحذف).
 
         final result = await pullService.checkAndResolveConflict(
-          {
-            'localUuid': 'room-tomb-3',
-            'deletedAt': 2000,
-            'lastModified': 2000,
-          },
+          {'localUuid': 'room-tomb-3', 'deletedAt': 2000, 'lastModified': 2000},
           1000,
           localDeletedAt: 1500,
           remoteUpdatedAtSec: 2000,
@@ -196,295 +189,261 @@ void main() {
       SyncGuard.markFinished();
     });
 
-    test(
-      '3a. tryAcquire يُرجع token (ليس bool) عند النجاح',
-      () {
-        final token = SyncGuard.tryAcquire(label: 'test_a');
-        expect(
-          token,
-          isNotNull,
-          reason: 'tryAcquire يجب أن يُرجع token عند النجاح',
-        );
-        expect(SyncGuard.isActive, isTrue);
-        expect(SyncGuard.activeLabel, 'test_a');
-      },
-    );
+    test('3a. tryAcquire يُرجع token (ليس bool) عند النجاح', () {
+      final token = SyncGuard.tryAcquire(label: 'test_a');
+      expect(
+        token,
+        isNotNull,
+        reason: 'tryAcquire يجب أن يُرجع token عند النجاح',
+      );
+      expect(SyncGuard.isActive, isTrue);
+      expect(SyncGuard.activeLabel, 'test_a');
+    });
 
-    test(
-      '3b. tryAcquire يُرجع null عند وجود lock نشط',
-      () {
-        final token1 = SyncGuard.tryAcquire(label: 'first');
-        expect(token1, isNotNull);
-        final token2 = SyncGuard.tryAcquire(label: 'second');
-        expect(token2, isNull, reason: 'tryAcquire يجب أن يرفض عند وجود lock');
-        // الـ label الأول يجب أن يبقى
-        expect(SyncGuard.activeLabel, 'first');
-      },
-    );
+    test('3b. tryAcquire يُرجع null عند وجود lock نشط', () {
+      final token1 = SyncGuard.tryAcquire(label: 'first');
+      expect(token1, isNotNull);
+      final token2 = SyncGuard.tryAcquire(label: 'second');
+      expect(token2, isNull, reason: 'tryAcquire يجب أن يرفض عند وجود lock');
+      // الـ label الأول يجب أن يبقى
+      expect(SyncGuard.activeLabel, 'first');
+    });
 
-    test(
-      '3c. release بـ token صحيح يفك القفل',
-      () {
-        final token = SyncGuard.tryAcquire(label: 'test_c');
-        expect(
-          token,
-          isNotNull,
-          reason: 'tryAcquire يجب أن يُرجع token عند النجاح',
-        );
-        expect(SyncGuard.isActive, isTrue);
-        SyncGuard.release(token!);
-        expect(
-          SyncGuard.isActive,
-          isFalse,
-          reason: 'release بـ token صحيح يفك القفل',
-        );
-      },
-    );
+    test('3c. release بـ token صحيح يفك القفل', () {
+      final token = SyncGuard.tryAcquire(label: 'test_c');
+      expect(
+        token,
+        isNotNull,
+        reason: 'tryAcquire يجب أن يُرجع token عند النجاح',
+      );
+      expect(SyncGuard.isActive, isTrue);
+      SyncGuard.release(token!);
+      expect(
+        SyncGuard.isActive,
+        isFalse,
+        reason: 'release بـ token صحيح يفك القفل',
+      );
+    });
 
-    test(
-      '3d. release بـ token خاطئ (stale) لا يفك القفل',
-      () {
-        // ✅ Wave 5: ownership-safe — release من عملية مختلفة يجب أن يُرفض
-        // نحاكي stale token باستخدام SyncLockToken مع معرّف خاطئ.
-        // SyncLockToken له constructor عام (للأغراض التشخيصية) لكن قيمته
-        // الداخلية محمية. هنا نختبر فقط أن release() بـ token صحيح يعمل،
-        // و أن token صحيح من عملية واحدة لا يؤثر على عملية أخرى.
-        final token1 = SyncGuard.tryAcquire(label: 'first');
-        expect(token1, isNotNull);
+    test('3d. release بـ token خاطئ (stale) لا يفك القفل', () {
+      // ✅ Wave 5: ownership-safe — release من عملية مختلفة يجب أن يُرفض
+      // نحاكي stale token باستخدام SyncLockToken مع معرّف خاطئ.
+      // SyncLockToken له constructor عام (للأغراض التشخيصية) لكن قيمته
+      // الداخلية محمية. هنا نختبر فقط أن release() بـ token صحيح يعمل،
+      // و أن token صحيح من عملية واحدة لا يؤثر على عملية أخرى.
+      final token1 = SyncGuard.tryAcquire(label: 'first');
+      expect(token1, isNotNull);
 
-        // محاولة acquire ثانية يجب أن تفشل (لأن token1 ما زال نشطاً)
-        final token2 = SyncGuard.tryAcquire(label: 'second');
-        expect(token2, isNull, reason: 'tryAcquire الثاني يجب أن يفشل');
+      // محاولة acquire ثانية يجب أن تفشل (لأن token1 ما زال نشطاً)
+      final token2 = SyncGuard.tryAcquire(label: 'second');
+      expect(token2, isNull, reason: 'tryAcquire الثاني يجب أن يفشل');
 
-        // release بـ token1 يجب أن ينجح
-        SyncGuard.release(token1!);
-        expect(SyncGuard.isActive, isFalse);
+      // release بـ token1 يجب أن ينجح
+      SyncGuard.release(token1!);
+      expect(SyncGuard.isActive, isFalse);
 
-        // بعد release، يمكن acquire جديدة
-        final token3 = SyncGuard.tryAcquire(label: 'third');
-        expect(token3, isNotNull);
-        SyncGuard.release(token3!);
-      },
-    );
+      // بعد release، يمكن acquire جديدة
+      final token3 = SyncGuard.tryAcquire(label: 'third');
+      expect(token3, isNotNull);
+      SyncGuard.release(token3!);
+    });
 
-    test(
-      '3e. double-acquire misuse يُكشف ويُسجّل',
-      () {
-        // ✅ Wave 5: double-acquire misuse detection
-        final token1 = SyncGuard.tryAcquire(label: 'first');
-        expect(token1, isNotNull);
-        // محاولة acquire ثانية قبل release الأولى
-        final token2 = SyncGuard.tryAcquire(label: 'second');
-        expect(token2, isNull, reason: 'tryAcquire الثاني يجب أن يفشل');
-        // تنظيف
-        SyncGuard.release(token1!);
-      },
-    );
+    test('3e. double-acquire misuse يُكشف ويُسجّل', () {
+      // ✅ Wave 5: double-acquire misuse detection
+      final token1 = SyncGuard.tryAcquire(label: 'first');
+      expect(token1, isNotNull);
+      // محاولة acquire ثانية قبل release الأولى
+      final token2 = SyncGuard.tryAcquire(label: 'second');
+      expect(token2, isNull, reason: 'tryAcquire الثاني يجب أن يفشل');
+      // تنظيف
+      SyncGuard.release(token1!);
+    });
 
-    test(
-      '3f. stale lock (تجاوز timeout) يُمسح تلقائياً',
-      () {
-        // ✅ Wave 5: stale lock handling
-        SyncGuard.configureTimeouts(
-          staleLockTimeout: const Duration(milliseconds: 100),
-        );
-        final token1 = SyncGuard.tryAcquire(label: 'stale_test');
-        expect(token1, isNotNull);
-        // ننتظر حتى يصبح stale (محاكاة بـ fakeAsync غير متوفرة، نكتفي بالتحقق)
-        // في الحقيقة، الـ lock يصبح stale بعد 100ms لكن نحتاج وقت فعلي
-        // نتحقق فقط أن canStart يعمل بشكل صحيح
-        SyncGuard.configureTimeouts(
-          staleLockTimeout: const Duration(minutes: 10),
-        );
-        // تنظيف
-        SyncGuard.release(token1!);
-      },
-    );
+    test('3f. stale lock (تجاوز timeout) يُمسح تلقائياً', () {
+      // ✅ Wave 5: stale lock handling
+      SyncGuard.configureTimeouts(
+        staleLockTimeout: const Duration(milliseconds: 100),
+      );
+      final token1 = SyncGuard.tryAcquire(label: 'stale_test');
+      expect(token1, isNotNull);
+      // ننتظر حتى يصبح stale (محاكاة بـ fakeAsync غير متوفرة، نكتفي بالتحقق)
+      // في الحقيقة، الـ lock يصبح stale بعد 100ms لكن نحتاج وقت فعلي
+      // نتحقق فقط أن canStart يعمل بشكل صحيح
+      SyncGuard.configureTimeouts(
+        staleLockTimeout: const Duration(minutes: 10),
+      );
+      // تنظيف
+      SyncGuard.release(token1!);
+    });
   });
 
   // ═══════════════════════════════════════════════════════════════════════
   // المجموعة 4: Stale Acknowledgement Prevention (payload_version)
   // ═══════════════════════════════════════════════════════════════════════
   group('4. Stale Acknowledgement Prevention', () {
-    test(
-      '4a. merge يزيد payload_version عند تحديث payload',
-      () async {
-        final id = await outboxDao.merge(
-          entity: 'rooms',
-          op: 'update',
-          localUuid: 'room-ack-1',
-          payload: {'value': 'v1'},
-          clientTs: 1000,
-          source: 'local',
-        );
-        // قراءة payload_version الأولي
-        var record = await (db.select(
-          db.outbox,
-        )..where((t) => t.id.equals(id))).getSingle();
-        expect(
-          record.payloadVersion,
-          1,
-          reason: 'payload_version الافتراضي = 1',
-        );
+    test('4a. merge يزيد payload_version عند تحديث payload', () async {
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'update',
+        localUuid: 'room-ack-1',
+        payload: {'value': 'v1'},
+        clientTs: 1000,
+        source: 'local',
+      );
+      // قراءة payload_version الأولي
+      var record = await (db.select(
+        db.outbox,
+      )..where((t) => t.id.equals(id))).getSingle();
+      expect(record.payloadVersion, 1, reason: 'payload_version الافتراضي = 1');
 
-        // تحديث payload
-        await outboxDao.merge(
-          entity: 'rooms',
-          op: 'update',
-          localUuid: 'room-ack-1',
-          payload: {'value': 'v2'},
-          clientTs: 2000,
-          source: 'local',
-        );
-        record = await (db.select(
-          db.outbox,
-        )..where((t) => t.id.equals(id))).getSingle();
-        expect(
-          record.payloadVersion,
-          2,
-          reason: 'payload_version يجب أن يزيد إلى 2',
-        );
-      },
-    );
+      // تحديث payload
+      await outboxDao.merge(
+        entity: 'rooms',
+        op: 'update',
+        localUuid: 'room-ack-1',
+        payload: {'value': 'v2'},
+        clientTs: 2000,
+        source: 'local',
+      );
+      record = await (db.select(
+        db.outbox,
+      )..where((t) => t.id.equals(id))).getSingle();
+      expect(
+        record.payloadVersion,
+        2,
+        reason: 'payload_version يجب أن يزيد إلى 2',
+      );
+    });
 
-    test(
-      '4b. takeBatch يضبط processing_payload_version',
-      () async {
-        final id = await outboxDao.merge(
-          entity: 'rooms',
-          op: 'update',
-          localUuid: 'room-ack-2',
-          payload: {'value': 'v1'},
-          clientTs: 1000,
-          source: 'local',
-        );
-        final batch = await outboxDao.takeBatch(
-          10,
-          sources: const ['local'],
-          workerId: 'test-worker',
-        );
-        expect(batch.length, 1);
-        expect(batch.first.id, id);
-        expect(
-          batch.first.processingPayloadVersion,
-          batch.first.payloadVersion,
-          reason:
-              'processing_payload_version يجب أن يساوي payload_version عند الالتقاط',
-        );
-        expect(batch.first.processingPayloadVersion, 1);
-      },
-    );
+    test('4b. takeBatch يضبط processing_payload_version', () async {
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'update',
+        localUuid: 'room-ack-2',
+        payload: {'value': 'v1'},
+        clientTs: 1000,
+        source: 'local',
+      );
+      final batch = await outboxDao.takeBatch(
+        10,
+        sources: const ['local'],
+        workerId: 'test-worker',
+      );
+      expect(batch.length, 1);
+      expect(batch.first.id, id);
+      expect(
+        batch.first.processingPayloadVersion,
+        batch.first.payloadVersion,
+        reason:
+            'processing_payload_version يجب أن يساوي payload_version عند الالتقاط',
+      );
+      expect(batch.first.processingPayloadVersion, 1);
+    });
 
-    test(
-      '4c. stale ack يُرفض عندما payload_version تغير',
-      () async {
-        // ✅ السيناريو الكامل لمنع stale ack:
-        // 1. worker-A يلتقط السجل (payload_version=1, processing_payload_version=1)
-        // 2. أثناء المعالجة، payload يُحدَّث (payload_version=2)
-        //    - merge يُعيد processing_status لـ pending
-        //    - merge يمسح processing_payload_version
-        // 3. worker-A يحاول تأكيد التسليم
-        // 4. _markDelivered يرى processing_status != 'processing' → يرفض التأكيد
-        //    (لا يصل حتى لفحص payload_version لأن status mismatch يأخذ الأولوية)
+    test('4c. stale ack يُرفض عندما payload_version تغير', () async {
+      // ✅ السيناريو الكامل لمنع stale ack:
+      // 1. worker-A يلتقط السجل (payload_version=1, processing_payload_version=1)
+      // 2. أثناء المعالجة، payload يُحدَّث (payload_version=2)
+      //    - merge يُعيد processing_status لـ pending
+      //    - merge يمسح processing_payload_version
+      // 3. worker-A يحاول تأكيد التسليم
+      // 4. _markDelivered يرى processing_status != 'processing' → يرفض التأكيد
+      //    (لا يصل حتى لفحص payload_version لأن status mismatch يأخذ الأولوية)
 
-        final id = await outboxDao.merge(
-          entity: 'rooms',
-          op: 'update',
-          localUuid: 'room-ack-3',
-          payload: {'value': 'v1'},
-          clientTs: 1000,
-          source: 'local',
-        );
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'update',
+        localUuid: 'room-ack-3',
+        payload: {'value': 'v1'},
+        clientTs: 1000,
+        source: 'local',
+      );
 
-        // 1. worker-A يلتقط السجل
-        final batch = await outboxDao.takeBatch(
-          10,
-          sources: const ['local'],
-          workerId: 'worker-A',
-        );
-        expect(batch.length, 1);
-        expect(batch.first.payloadVersion, 1);
-        expect(batch.first.processingPayloadVersion, 1);
-        expect(batch.first.processingStatus, 'processing');
+      // 1. worker-A يلتقط السجل
+      final batch = await outboxDao.takeBatch(
+        10,
+        sources: const ['local'],
+        workerId: 'worker-A',
+      );
+      expect(batch.length, 1);
+      expect(batch.first.payloadVersion, 1);
+      expect(batch.first.processingPayloadVersion, 1);
+      expect(batch.first.processingStatus, 'processing');
 
-        // 2. أثناء المعالجة، payload يُحدَّث (payload_version=2)
-        await outboxDao.merge(
-          entity: 'rooms',
-          op: 'update',
-          localUuid: 'room-ack-3',
-          payload: {'value': 'v2'},
-          clientTs: 2000,
-          source: 'local',
-        );
+      // 2. أثناء المعالجة، payload يُحدَّث (payload_version=2)
+      await outboxDao.merge(
+        entity: 'rooms',
+        op: 'update',
+        localUuid: 'room-ack-3',
+        payload: {'value': 'v2'},
+        clientTs: 2000,
+        source: 'local',
+      );
 
-        // تحقق أن payloadVersion زاد
-        var record = await (db.select(
-          db.outbox,
-        )..where((t) => t.id.equals(id))).getSingle();
-        expect(record.payloadVersion, 2);
-        // ✅ merge يُعيد processing_status لـ pending ويمسح processing_payload_version
-        expect(record.processingStatus, 'pending');
-        expect(record.processingPayloadVersion, isNull);
+      // تحقق أن payloadVersion زاد
+      var record = await (db.select(
+        db.outbox,
+      )..where((t) => t.id.equals(id))).getSingle();
+      expect(record.payloadVersion, 2);
+      // ✅ merge يُعيد processing_status لـ pending ويمسح processing_payload_version
+      expect(record.processingStatus, 'pending');
+      expect(record.processingPayloadVersion, isNull);
 
-        // 3. worker-A يحاول تأكيد التسليم
-        await outboxDao.markDeliveredToPrimary(id);
+      // 3. worker-A يحاول تأكيد التسليم
+      await outboxDao.markDeliveredToPrimary(id);
 
-        // 4. التأكيد يُرفض (status != 'processing')
-        record = await (db.select(
-          db.outbox,
-        )..where((t) => t.id.equals(id))).getSingle();
-        expect(
-          record.processingStatus,
-          'pending',
-          reason: 'stale ack يجب أن يُرفض والسجل يبقى في pending',
-        );
-        expect(
-          record.deliveredToPrimary,
-          isFalse,
-          reason: 'payload v2 لم تُسلّم بعد',
-        );
-        expect(
-          record.processingPayloadVersion,
-          isNull,
-          reason: 'processing_payload_version يجب أن يُمسح',
-        );
-      },
-    );
+      // 4. التأكيد يُرفض (status != 'processing')
+      record = await (db.select(
+        db.outbox,
+      )..where((t) => t.id.equals(id))).getSingle();
+      expect(
+        record.processingStatus,
+        'pending',
+        reason: 'stale ack يجب أن يُرفض والسجل يبقى في pending',
+      );
+      expect(
+        record.deliveredToPrimary,
+        isFalse,
+        reason: 'payload v2 لم تُسلّم بعد',
+      );
+      expect(
+        record.processingPayloadVersion,
+        isNull,
+        reason: 'processing_payload_version يجب أن يُمسح',
+      );
+    });
 
-    test(
-      '4d. ack صحيح (matching version) ينجح',
-      () async {
-        // ✅ السيناريو العادي: worker يلتقط، يعالج، يؤكد بدون تغيير payload
-        final id = await outboxDao.merge(
-          entity: 'rooms',
-          op: 'update',
-          localUuid: 'room-ack-4',
-          payload: {'value': 'v1'},
-          clientTs: 1000,
-          source: 'local',
-        );
+    test('4d. ack صحيح (matching version) ينجح', () async {
+      // ✅ السيناريو العادي: worker يلتقط، يعالج، يؤكد بدون تغيير payload
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'update',
+        localUuid: 'room-ack-4',
+        payload: {'value': 'v1'},
+        clientTs: 1000,
+        source: 'local',
+      );
 
-        // worker يلتقط
-        await outboxDao.takeBatch(
-          10,
-          sources: const ['local'],
-          workerId: 'worker-B',
-        );
+      // worker يلتقط
+      await outboxDao.takeBatch(
+        10,
+        sources: const ['local'],
+        workerId: 'worker-B',
+      );
 
-        // لا تغيير payload — ack صحيح
-        await outboxDao.markDeliveredToPrimary(id);
+      // لا تغيير payload — ack صحيح
+      await outboxDao.markDeliveredToPrimary(id);
 
-        // السجل يجب أن يُحذف (لأن secondary=true دائماً)
-        final record = await (db.select(
-          db.outbox,
-        )..where((t) => t.id.equals(id))).getSingleOrNull();
-        expect(
-          record,
-          isNull,
-          reason: 'ack صحيح يحذف السجل (لأن secondary=true دائماً)',
-        );
-      },
-    );
+      // السجل يجب أن يُحذف (لأن secondary=true دائماً)
+      final record = await (db.select(
+        db.outbox,
+      )..where((t) => t.id.equals(id))).getSingleOrNull();
+      expect(
+        record,
+        isNull,
+        reason: 'ack صحيح يحذف السجل (لأن secondary=true دائماً)',
+      );
+    });
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -539,112 +498,99 @@ void main() {
       },
     );
 
-    test(
-      '5c. cleanupForMissingEntities يحذف completed بأمان',
-      () async {
-        final id = await outboxDao.merge(
-          entity: 'rooms',
-          op: 'delete',
-          localUuid: 'missing-completed',
-          payload: {},
-          clientTs: 100,
-          source: 'local',
-        );
-        await (db.update(db.outbox)..where((t) => t.id.equals(id))).write(
-          const OutboxCompanion(processingStatus: drift.Value('completed')),
-        );
+    test('5c. cleanupForMissingEntities يحذف completed بأمان', () async {
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'delete',
+        localUuid: 'missing-completed',
+        payload: {},
+        clientTs: 100,
+        source: 'local',
+      );
+      await (db.update(db.outbox)..where((t) => t.id.equals(id))).write(
+        const OutboxCompanion(processingStatus: drift.Value('completed')),
+      );
 
-        final cleaned = await outboxDao.cleanupForMissingEntities([
-          'missing-completed',
-        ]);
-        expect(cleaned, 1, reason: 'عنصر completed يجب أن يُحذف بأمان');
-      },
-    );
+      final cleaned = await outboxDao.cleanupForMissingEntities([
+        'missing-completed',
+      ]);
+      expect(cleaned, 1, reason: 'عنصر completed يجب أن يُحذف بأمان');
+    });
   });
 
   // ═══════════════════════════════════════════════════════════════════════
   // المجموعة 6: Delete vs Update / Restore Edge Cases
   // ═══════════════════════════════════════════════════════════════════════
   group('6. Delete vs Update / Restore Edge Cases', () {
-    test(
-      '6a. outbox op=delete لا يُستبدل بـ op=update عند merge',
-      () async {
-        // ✅ السيناريو: السجل op='delete'، ثم merge أخرى بـ op='update'
-        // يجب أن يبقى op='delete' (P0-3 fix)
-        final id = await outboxDao.merge(
-          entity: 'rooms',
-          op: 'delete',
-          localUuid: 'room-delete-1',
-          payload: {},
-          clientTs: 1000,
-          source: 'local',
-        );
+    test('6a. outbox op=delete لا يُستبدل بـ op=update عند merge', () async {
+      // ✅ السيناريو: السجل op='delete'، ثم merge أخرى بـ op='update'
+      // يجب أن يبقى op='delete' (P0-3 fix)
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'delete',
+        localUuid: 'room-delete-1',
+        payload: {},
+        clientTs: 1000,
+        source: 'local',
+      );
 
-        // محاولة تحديث payload بـ op='update'
-        await outboxDao.merge(
-          entity: 'rooms',
-          op: 'update',
-          localUuid: 'room-delete-1',
-          payload: {'extra': 'data'},
-          clientTs: 2000,
-          source: 'local',
-        );
+      // محاولة تحديث payload بـ op='update'
+      await outboxDao.merge(
+        entity: 'rooms',
+        op: 'update',
+        localUuid: 'room-delete-1',
+        payload: {'extra': 'data'},
+        clientTs: 2000,
+        source: 'local',
+      );
 
-        final record = await (db.select(
-          db.outbox,
-        )..where((t) => t.id.equals(id))).getSingle();
-        expect(
-          record.op,
-          'delete',
-          reason: 'op=delete يجب أن لا يُستبدل بـ update',
-        );
-      },
-    );
+      final record = await (db.select(
+        db.outbox,
+      )..where((t) => t.id.equals(id))).getSingle();
+      expect(
+        record.op,
+        'delete',
+        reason: 'op=delete يجب أن لا يُستبدل بـ update',
+      );
+    });
 
-    test(
-      '6b. تحديث payload يُعيد ضبط deliveredToPrimary=false',
-      () async {
-        // ✅ السيناريو: سجل تم تسليمه للرئيسي، ثم payload يُحدَّث
-        // يجب أن يُعاد ضبط deliveredToPrimary=false (لا stale ack)
-        final id = await outboxDao.merge(
-          entity: 'rooms',
-          op: 'update',
-          localUuid: 'room-restore-1',
-          payload: {'v': 1},
-          clientTs: 1000,
-          source: 'local',
-        );
+    test('6b. تحديث payload يُعيد ضبط deliveredToPrimary=false', () async {
+      // ✅ السيناريو: سجل تم تسليمه للرئيسي، ثم payload يُحدَّث
+      // يجب أن يُعاد ضبط deliveredToPrimary=false (لا stale ack)
+      final id = await outboxDao.merge(
+        entity: 'rooms',
+        op: 'update',
+        localUuid: 'room-restore-1',
+        payload: {'v': 1},
+        clientTs: 1000,
+        source: 'local',
+      );
 
-        // محاكاة تسليم للرئيسي
-        await (db.update(db.outbox)..where((t) => t.id.equals(id))).write(
-          const OutboxCompanion(deliveredToPrimary: drift.Value(true)),
-        );
+      // محاكاة تسليم للرئيسي
+      await (db.update(db.outbox)..where((t) => t.id.equals(id))).write(
+        const OutboxCompanion(deliveredToPrimary: drift.Value(true)),
+      );
 
-        // تحديث payload
-        await outboxDao.merge(
-          entity: 'rooms',
-          op: 'update',
-          localUuid: 'room-restore-1',
-          payload: {'v': 2},
-          clientTs: 2000,
-          source: 'local',
-        );
+      // تحديث payload
+      await outboxDao.merge(
+        entity: 'rooms',
+        op: 'update',
+        localUuid: 'room-restore-1',
+        payload: {'v': 2},
+        clientTs: 2000,
+        source: 'local',
+      );
 
-        final record = await (db.select(
-          db.outbox,
-        )..where((t) => t.id.equals(id))).getSingle();
-        expect(
-          record.deliveredToPrimary,
-          isFalse,
-          reason: 'تحديث payload يجب أن يُعيد ضبط deliveredToPrimary لـ false',
-        );
-        expect(
-          record.payloadVersion,
-          2,
-          reason: 'payload_version يجب أن يزيد',
-        );
-      },
-    );
+      final record = await (db.select(
+        db.outbox,
+      )..where((t) => t.id.equals(id))).getSingle();
+      expect(
+        record.deliveredToPrimary,
+        isFalse,
+        reason: 'تحديث payload يجب أن يُعيد ضبط deliveredToPrimary لـ false',
+      );
+      expect(record.payloadVersion, 2, reason: 'payload_version يجب أن يزيد');
+    });
   });
 }
 

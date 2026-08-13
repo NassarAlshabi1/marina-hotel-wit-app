@@ -370,9 +370,8 @@ class PaymentsRepository {
       if (payment.bookingLocalId != null) {
         try {
           final booking =
-              await (db.select(
-                    db.bookings,
-                  )..where((b) => b.id.equals(payment.bookingLocalId!)))
+              await (db.select(db.bookings)
+                    ..where((b) => b.id.equals(payment.bookingLocalId!)))
                   .getSingleOrNull();
           if (booking != null) {
             roomNumber = booking.roomNumber;

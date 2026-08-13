@@ -96,10 +96,7 @@ void main() {
     });
 
     test('bookingNightsDeltaQueries(lastPullTs=0) → سحب كامل', () {
-      final q = pull.bookingNightsDeltaQueries(
-        0,
-        remoteEpochIsMillis: false,
-      );
+      final q = pull.bookingNightsDeltaQueries(0, remoteEpochIsMillis: false);
       expect(q, isEmpty);
     });
   });

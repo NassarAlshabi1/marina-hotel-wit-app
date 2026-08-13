@@ -46,9 +46,7 @@ class _SyncPerformanceSettingsScreenState
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تطبيق ملف التعريف: $e'),
           backgroundColor: Colors.red,

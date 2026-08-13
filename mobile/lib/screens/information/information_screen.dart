@@ -496,9 +496,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حفظ السجل: $e'),
           backgroundColor: Colors.red.shade900,
@@ -540,9 +538,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حذف السجل: $e'),
           backgroundColor: Colors.red.shade900,

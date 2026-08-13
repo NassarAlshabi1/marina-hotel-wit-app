@@ -865,17 +865,9 @@ void main() {
           source: 'restore',
         );
         final changed = await outboxDao.markAllLocalAsUndeliveredToSecondary();
-        expect(
-          changed,
-          0,
-          reason: 'no-op يجب أن يُرجع 0 — لا تغيير',
-        );
+        expect(changed, 0, reason: 'no-op يجب أن يُرجع 0 — لا تغيير');
         final pending = await outboxDao.countPendingForSecondary();
-        expect(
-          pending,
-          0,
-          reason: 'لا سجلات معلّقة للثانوي (secondary معطّل)',
-        );
+        expect(pending, 0, reason: 'لا سجلات معلّقة للثانوي (secondary معطّل)');
         // تحقق أن الـ flags لم تتغير
         final records = await (db.select(db.outbox)).get();
         for (final r in records) {

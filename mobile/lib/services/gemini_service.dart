@@ -2120,9 +2120,7 @@ class GeminiService {
             )..where((d) => d.id.equals(debtId))).getSingleOrNull();
           } else {
             final debts =
-                await (db.select(
-                      db.debts,
-                    )..where(
+                await (db.select(db.debts)..where(
                       (d) =>
                           d.isSettled.equals(0) &
                           d.guestName.contains(guestName),

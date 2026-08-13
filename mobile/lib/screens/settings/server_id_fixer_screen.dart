@@ -124,9 +124,7 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
       ref.invalidate(roomsListProvider);
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('✅ تم تحديث $_updatedCount غرفة بنجاح'),
             backgroundColor: Colors.green,

@@ -720,12 +720,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   /// يضع علامة "مُسلّم للثانوي" على جميع السجلات المحلية.
   /// تُستدعى عند تعطيل Secondary — لا نريد إرسال أي شيء للثانوي.
   Future<int> markAllLocalAsDeliveredToSecondary() async {
-    final count =
-        await (update(
-          outbox,
-        )..where((t) => t.source.equals('local'))).write(
-          const OutboxCompanion(deliveredToSecondary: Value(true)),
-        );
+    final count = await (update(outbox)..where((t) => t.source.equals('local')))
+        .write(const OutboxCompanion(deliveredToSecondary: Value(true)));
     // ✅ إصلاح P1-2 (2026-06-28): تنظيف السجلات المُكتملة لكلا الوجهتين
     await _cleanupFullyDeliveredRecords();
     return count;
@@ -779,9 +775,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
     // عناصر قليلة المحاولات → retry فوراً
     final lowAttempts =
-        await (update(
-              outbox,
-            )..where(
+        await (update(outbox)..where(
               (t) =>
                   t.processingStatus.equals('failed') &
                   t.attempts.isSmallerOrEqualValue(maxAttempts),
@@ -847,9 +841,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final cutoff =
         (DateTime.now().millisecondsSinceEpoch ~/ 1000) - olderThan.inSeconds;
     final rows =
-        await (delete(
-              outbox,
-            )..where(
+        await (delete(outbox)..where(
               (t) =>
                   t.processingStatus.equals('completed') &
                   t.clientTs.isSmallerOrEqualValue(cutoff),
@@ -892,9 +884,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       final chunk = uuids.sublist(i, end);
       if (entity != null) {
         totalRemoved +=
-            await (delete(
-                  outbox,
-                )..where(
+            await (delete(outbox)..where(
                   (t) =>
                       t.localUuid.isIn(chunk) &
                       t.entity.equals(entity) &
@@ -903,9 +893,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
                 .go();
       } else {
         totalRemoved +=
-            await (delete(
-                  outbox,
-                )..where(
+            await (delete(outbox)..where(
                   (t) =>
                       t.localUuid.isIn(chunk) & t.source.isIn(effectiveSources),
                 ))
@@ -1018,9 +1006,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final uuids = entityDeletedAtMap.keys.toList();
     // حذف سجلات outbox المُكتملة للكيانات المحذوفة
     final rows =
-        await (delete(
-              outbox,
-            )..where(
+        await (delete(outbox)..where(
               (t) =>
                   t.localUuid.isIn(uuids) &
                   t.processingStatus.equals('completed'),
@@ -1057,9 +1043,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       // ✅ Sync Safety Wave 4: فقط نحذف السجلات 'completed'.
       // السجلات 'pending'/'failed' تُترك لتُعاد في دورة push القادمة.
       totalRemoved +=
-          await (delete(
-                outbox,
-              )..where(
+          await (delete(outbox)..where(
                 (t) =>
                     t.localUuid.isIn(chunk) &
                     t.processingStatus.equals('completed'),
@@ -1206,10 +1190,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
       await attachedDatabase.customStatement(
         'UPDATE $tableName SET vector_clock = ? WHERE local_uuid = ?',
-        [
-          vc.toString(),
-          localUuid,
-        ],
+        [vc.toString(), localUuid],
       );
     } catch (e, st) {
       // ✅ تحسين: تسجيل الخطأ بدلاً من التجاهل الصامت

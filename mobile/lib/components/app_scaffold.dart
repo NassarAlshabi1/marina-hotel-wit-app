@@ -152,10 +152,7 @@ class AppScaffold extends ConsumerWidget {
           ],
         ),
         body: SafeArea(
-          child: PerformanceInspector(
-            name: title,
-            child: body,
-          ),
+          child: PerformanceInspector(name: title, child: body),
         ),
         floatingActionButton: fab,
       ),

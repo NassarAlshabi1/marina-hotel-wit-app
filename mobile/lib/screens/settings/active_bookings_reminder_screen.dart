@@ -164,9 +164,7 @@ class _ActiveBookingsReminderScreenState
       message: message,
     );
     if (result.quotaMessage != null && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result.quotaMessage!),
           backgroundColor: Colors.orange,
@@ -179,9 +177,7 @@ class _ActiveBookingsReminderScreenState
   /// إرسال تذكير لجميع الحجوزات المحددة
   Future<void> _sendBulkReminders(List<Booking> bookings) async {
     if (bookings.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('لم تختر أي حجز لإرسال التذكير'),
           backgroundColor: Colors.orange,
@@ -1179,9 +1175,7 @@ class _ActiveBookingsReminderScreenState
   /// تأكيد الإرسال المجمّع
   Future<void> _showBulkSendConfirmation(BuildContext context) async {
     if (_selectedIds.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('اختر حجزاً واحداً على الأقل'),
           backgroundColor: Colors.orange,

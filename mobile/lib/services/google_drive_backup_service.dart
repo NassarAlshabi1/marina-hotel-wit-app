@@ -2287,9 +2287,7 @@ class GoogleDriveBackupService {
             uuid.isNotEmpty &&
             bookingByUuid.containsKey(uuid)) {
           final correctBookingId = bookingByUuid[uuid]!;
-          await (db.update(
-            db.payments,
-          )..where((t) => t.id.equals(p.id))).write(
+          await (db.update(db.payments)..where((t) => t.id.equals(p.id))).write(
             PaymentsCompanion(bookingLocalId: Value(correctBookingId)),
           );
           relinked++;
@@ -2333,9 +2331,7 @@ class GoogleDriveBackupService {
               )
               .firstOrNull;
           if (matchingBooking != null) {
-            await (db.update(
-              db.debts,
-            )..where((t) => t.id.equals(d.id))).write(
+            await (db.update(db.debts)..where((t) => t.id.equals(d.id))).write(
               DebtsCompanion(bookingLocalId: Value(matchingBooking.id)),
             );
             relinked++;

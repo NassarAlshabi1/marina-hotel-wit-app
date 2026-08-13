@@ -23,10 +23,7 @@ class SalaryWithdrawalsAdapter
     try {
       await db.customStatement(
         'UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?',
-        [
-          expenseId,
-          salaryWithdrawalId,
-        ],
+        [expenseId, salaryWithdrawalId],
       );
     } catch (_) {
       // العمود قد لا يكون موجوداً

@@ -229,9 +229,7 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
             (t.hotelDayKey.isNull() &
                 (endRange == null
                     ? t.paymentDate.isSmallerOrEqualValue(toHotelDay)
-                    : t.paymentDate.isSmallerThanValue(
-                        endRange.endExclusive,
-                      ))),
+                    : t.paymentDate.isSmallerThanValue(endRange.endExclusive))),
       );
     }
     if (roomNumber != null && roomNumber.isNotEmpty) {
@@ -324,9 +322,8 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
       if (comp.bookingLocalId.present && comp.bookingLocalId.value != null) {
         try {
           final booking =
-              await (db.select(
-                    db.bookings,
-                  )..where((b) => b.id.equals(comp.bookingLocalId.value!)))
+              await (db.select(db.bookings)
+                    ..where((b) => b.id.equals(comp.bookingLocalId.value!)))
                   .getSingleOrNull();
           roomNumber = booking?.roomNumber;
         } catch (_) {

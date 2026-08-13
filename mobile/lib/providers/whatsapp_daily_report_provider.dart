@@ -268,9 +268,7 @@ final whatsappDailyReportProvider =
     StateNotifierProvider<
       WhatsAppDailyReportNotifier,
       WhatsAppDailyReportState
-    >(
-      (ref) => WhatsAppDailyReportNotifier(),
-    );
+    >((ref) => WhatsAppDailyReportNotifier());
 
 /// Provider للوصول إلى خدمة التقارير
 final whatsappDailyReportServiceProvider = Provider<TelegramReportService>(

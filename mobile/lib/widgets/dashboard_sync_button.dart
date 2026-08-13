@@ -234,9 +234,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       if (!appwriteConnected) {
         _isPulling = false;
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('لا يوجد اتصال بـ Appwrite'),
               backgroundColor: Colors.red,

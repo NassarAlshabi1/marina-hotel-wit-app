@@ -214,16 +214,16 @@ class BlacklistRepository {
       payload['active'] = active;
       final now = Time.nowEpoch();
       final updated =
-          await (db.update(
-            db.shiftNotes,
-          )..where((t) => t.id.equals(id) & t.version.equals(row.version))).write(
-            ShiftNotesCompanion(
-              content: d.Value(jsonEncode(payload)),
-              updatedAt: d.Value(now),
-              lastModified: d.Value(now),
-              version: d.Value(row.version + 1),
-            ),
-          );
+          await (db.update(db.shiftNotes)
+                ..where((t) => t.id.equals(id) & t.version.equals(row.version)))
+              .write(
+                ShiftNotesCompanion(
+                  content: d.Value(jsonEncode(payload)),
+                  updatedAt: d.Value(now),
+                  lastModified: d.Value(now),
+                  version: d.Value(row.version + 1),
+                ),
+              );
 
       if (updated > 0) {
         await _outboxDao.merge(
@@ -260,32 +260,32 @@ class BlacklistRepository {
       final oldPayload = jsonDecode(row.content) as Map<String, dynamic>;
       final now = Time.nowEpoch();
       final updated =
-          await (db.update(
-            db.shiftNotes,
-          )..where((t) => t.id.equals(id) & t.version.equals(row.version))).write(
-            ShiftNotesCompanion(
-              title: d.Value(name.trim()),
-              content: d.Value(
-                jsonEncode(
-                  _toPayload(
-                    nationality: nationality?.trim(),
-                    nationalId: nationalId?.trim(),
-                    phone: phone?.trim(),
-                    reason: reason?.trim(),
-                    notes: notes?.trim(),
-                    reportedBy:
-                        reportedBy ??
-                        (oldPayload['reportedBy'] as String?) ??
-                        'police',
-                    active: (oldPayload['active'] as bool?) ?? true,
+          await (db.update(db.shiftNotes)
+                ..where((t) => t.id.equals(id) & t.version.equals(row.version)))
+              .write(
+                ShiftNotesCompanion(
+                  title: d.Value(name.trim()),
+                  content: d.Value(
+                    jsonEncode(
+                      _toPayload(
+                        nationality: nationality?.trim(),
+                        nationalId: nationalId?.trim(),
+                        phone: phone?.trim(),
+                        reason: reason?.trim(),
+                        notes: notes?.trim(),
+                        reportedBy:
+                            reportedBy ??
+                            (oldPayload['reportedBy'] as String?) ??
+                            'police',
+                        active: (oldPayload['active'] as bool?) ?? true,
+                      ),
+                    ),
                   ),
+                  updatedAt: d.Value(now),
+                  lastModified: d.Value(now),
+                  version: d.Value(row.version + 1),
                 ),
-              ),
-              updatedAt: d.Value(now),
-              lastModified: d.Value(now),
-              version: d.Value(row.version + 1),
-            ),
-          );
+              );
 
       if (updated > 0) {
         await _outboxDao.merge(
@@ -362,9 +362,7 @@ class BlacklistRepository {
   /// ✅ إصلاح: استبعاد المحذوفة ناعماً
   Future<BlacklistEntry?> findBlacklistMatch(String name) async {
     final rows =
-        await (db.select(
-              db.shiftNotes,
-            )..where(
+        await (db.select(db.shiftNotes)..where(
               (t) => t.createdBy.equals(_createdByTag) & t.deletedAt.isNull(),
             ))
             .get();

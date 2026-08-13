@@ -357,11 +357,7 @@ class PaymentCard extends StatelessWidget {
 
 /// Widget لعرض شارة حالة الدفعة
 class PaymentStatusBadge extends StatelessWidget {
-  const PaymentStatusBadge({
-    required this.status,
-    super.key,
-    this.fontSize,
-  });
+  const PaymentStatusBadge({required this.status, super.key, this.fontSize});
   final PaymentStatus status;
   final double? fontSize;
 

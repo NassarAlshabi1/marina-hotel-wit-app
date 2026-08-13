@@ -22,10 +22,7 @@ class SalaryWithdrawalsRepository {
     try {
       await _db.customStatement(
         'UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?',
-        [
-          expenseId,
-          salaryWithdrawalId,
-        ],
+        [expenseId, salaryWithdrawalId],
       );
     } catch (_) {
       // العمود قد لا يكون موجوداً في الإصدارات القديمة — نتخطى بصمت
@@ -163,9 +160,7 @@ class SalaryWithdrawalsRepository {
     // الطريقة 2: بحث عبر reason (الطريقة القديمة)
     if (matched == null) {
       final existing =
-          await (_db.select(
-                _db.salaryWithdrawals,
-              )..where(
+          await (_db.select(_db.salaryWithdrawals)..where(
                 (t) => t.reason.like('%exp_$expenseId%') & t.deletedAt.isNull(),
               ))
               .get();
@@ -184,9 +179,7 @@ class SalaryWithdrawalsRepository {
       final matchedId = matched.id; // ✅ متغير محلي non-null
       // البحث عن سجلات أخرى بنفس expense_id أو exp_XX
       final allExisting =
-          await (_db.select(
-                _db.salaryWithdrawals,
-              )..where(
+          await (_db.select(_db.salaryWithdrawals)..where(
                 (t) => t.deletedAt.isNull() & t.id.equals(matchedId).not(),
               ))
               .get();
@@ -389,9 +382,7 @@ class SalaryWithdrawalsRepository {
     // الطريقة 2: بحث عبر reason (الطريقة القديمة) إذا لم نجد عبر expense_id
     if (toDelete.isEmpty) {
       final candidates =
-          await (_db.select(
-                _db.salaryWithdrawals,
-              )..where(
+          await (_db.select(_db.salaryWithdrawals)..where(
                 (t) => t.reason.like('%exp_$expenseId%') & t.deletedAt.isNull(),
               ))
               .get();

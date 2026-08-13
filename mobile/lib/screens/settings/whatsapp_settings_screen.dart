@@ -107,9 +107,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
       return;
     }
     setState(() => _isSaving = false);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('تم حفظ إعدادات API بنجاح'),
         backgroundColor: Colors.green,
@@ -141,9 +139,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
       );
       return;
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('تم حفظ إعدادات الرسالة بنجاح'),
         backgroundColor: Colors.green,

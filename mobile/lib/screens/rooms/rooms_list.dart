@@ -672,9 +672,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حفظ الغرفة: $e'),
           backgroundColor: Colors.red.shade900,

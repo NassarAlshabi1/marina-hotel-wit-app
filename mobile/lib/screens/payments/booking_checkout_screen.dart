@@ -211,15 +211,9 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                       Text('رقم الغرفة: ${widget.booking.roomNumber}'),
                       Text('نوع الهوية: ${widget.booking.guestIdType}'),
                       if (widget.booking.guestIdNumber.isNotEmpty)
-                        Text(
-                          'رقم الهوية: ${widget.booking.guestIdNumber}',
-                        ),
-                      Text(
-                        'الجنسية: ${widget.booking.guestNationality}',
-                      ),
-                      Text(
-                        'تاريخ الدخول: ${widget.booking.checkinDate}',
-                      ),
+                        Text('رقم الهوية: ${widget.booking.guestIdNumber}'),
+                      Text('الجنسية: ${widget.booking.guestNationality}'),
+                      Text('تاريخ الدخول: ${widget.booking.checkinDate}'),
                       if (widget.booking.checkoutDate != null)
                         Text(
                           'تاريخ المغادرة المخطط: ${widget.booking.checkoutDate}',

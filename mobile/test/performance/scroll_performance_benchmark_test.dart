@@ -104,10 +104,7 @@ void main() {
       final scrollStopwatch = Stopwatch()..start();
       var frameCount = 0;
       for (var i = 0; i < 10; i++) {
-        await tester.drag(
-          find.byType(ListView),
-          const Offset(0, -500),
-        );
+        await tester.drag(find.byType(ListView), const Offset(0, -500));
         await tester.pump(const Duration(milliseconds: 100));
         frameCount++;
       }
@@ -142,9 +139,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: ListView(
-              children: items100.map(_buildListItem).toList(),
-            ),
+            body: ListView(children: items100.map(_buildListItem).toList()),
           ),
         ),
       );
@@ -153,10 +148,7 @@ void main() {
       final scrollStopwatch = Stopwatch()..start();
       var frameCount = 0;
       for (var i = 0; i < 10; i++) {
-        await tester.drag(
-          find.byType(ListView),
-          const Offset(0, -500),
-        );
+        await tester.drag(find.byType(ListView), const Offset(0, -500));
         await tester.pump(const Duration(milliseconds: 100));
         frameCount++;
       }
@@ -208,9 +200,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: ListView(
-              children: items200.map(_buildListItem).toList(),
-            ),
+            body: ListView(children: items200.map(_buildListItem).toList()),
           ),
         ),
       );

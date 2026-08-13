@@ -414,9 +414,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
       await appwriteSyncManager.pushLocalChanges();
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('✅ تم رفع التغييرات'),
             backgroundColor: Colors.green,
@@ -461,9 +459,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
       await appwriteSyncManager.sync(push: false);
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('✅ تم تحديث البيانات'),
             backgroundColor: Colors.green,

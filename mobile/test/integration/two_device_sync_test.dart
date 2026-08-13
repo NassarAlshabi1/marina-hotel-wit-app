@@ -321,10 +321,7 @@ void main() {
         entity: 'bookings',
         op: 'create',
         localUuid: bkgUuid,
-        payload: {
-          'roomNumber': '102',
-          'guestName': 'ضيف A',
-        },
+        payload: {'roomNumber': '102', 'guestName': 'ضيف A'},
         clientTs: _epoch(),
         source: 'local',
       );
@@ -641,10 +638,7 @@ void main() {
         entity: 'bookings',
         op: 'create',
         localUuid: bkgUuid,
-        payload: {
-          'roomNumber': '701',
-          'guestName': 'ضيف كامل',
-        },
+        payload: {'roomNumber': '701', 'guestName': 'ضيف كامل'},
         clientTs: _epoch(),
         source: 'local',
       );
@@ -715,9 +709,7 @@ void main() {
         entity: 'rooms',
         op: 'delete',
         localUuid: roomUuid,
-        payload: {
-          'roomNumber': '801',
-        },
+        payload: {'roomNumber': '801'},
         clientTs: _epoch() + 100,
         source: 'local',
       );

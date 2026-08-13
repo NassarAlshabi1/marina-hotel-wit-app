@@ -198,12 +198,7 @@ class DebtsAdapter extends EntityAdapter<Debt, DebtsCompanion> {
         src,
         altKey: 'booking_uuid_cache',
       ),
-      debtorName: _vStr(
-        json,
-        'debtorName',
-        src,
-        altKey: 'debtor_name',
-      ),
+      debtorName: _vStr(json, 'debtorName', src, altKey: 'debtor_name'),
       amount: _vDouble(json, 'amount', src),
       date: _vStr(json, 'date', src),
       // ✅ Wave 6b (2026-08-12): dueDate و status كانا موجودين في Cloud schema

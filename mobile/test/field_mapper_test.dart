@@ -88,9 +88,7 @@ void main() {
 
     test('يُحوّل DateTime إلى ISO string', () {
       final dt = DateTime(2026, 8, 6, 14, 30);
-      final flutter = <String, dynamic>{
-        'createdAt': dt,
-      };
+      final flutter = <String, dynamic>{'createdAt': dt};
 
       final php = FieldMapper.toPhpMap('rooms', flutter);
 
@@ -116,10 +114,7 @@ void main() {
 
     test('يُحوّل Map بشكل متكرر', () {
       final flutter = <String, dynamic>{
-        'meta': {
-          'isActive': true,
-          'count': 5,
-        },
+        'meta': {'isActive': true, 'count': 5},
       };
 
       final php = FieldMapper.toPhpMap('rooms', flutter);
@@ -131,9 +126,7 @@ void main() {
     });
 
     test('null يبقى null', () {
-      final flutter = <String, dynamic>{
-        'notes': null,
-      };
+      final flutter = <String, dynamic>{'notes': null};
 
       final php = FieldMapper.toPhpMap('rooms', flutter);
 
@@ -157,9 +150,7 @@ void main() {
     });
 
     test('يُحوّل string تاريخ إلى DateTime', () {
-      final php = <String, dynamic>{
-        'created_at': '2026-08-06 14:30:00',
-      };
+      final php = <String, dynamic>{'created_at': '2026-08-06 14:30:00'};
 
       final flutter = FieldMapper.toFlutterMap('rooms', php);
 
@@ -167,10 +158,7 @@ void main() {
     });
 
     test('يحافظ على int 0/1 كما هو (لا يحوّله إلى bool)', () {
-      final php = <String, dynamic>{
-        'is_active': 1,
-        'is_disabled': 0,
-      };
+      final php = <String, dynamic>{'is_active': 1, 'is_disabled': 0};
 
       final flutter = FieldMapper.toFlutterMap('rooms', php);
 
@@ -228,10 +216,7 @@ void main() {
     });
 
     test('يُبقي id عند includeId=true', () {
-      final flutter = <String, dynamic>{
-        'localUuid': 'abc-123',
-        'serverId': 5,
-      };
+      final flutter = <String, dynamic>{'localUuid': 'abc-123', 'serverId': 5};
 
       final php = FieldMapper.prepareForInsert(
         'rooms',
@@ -262,9 +247,7 @@ void main() {
     });
 
     test('يُحدّث updated_at بتاريخ اليوم', () {
-      final flutter = <String, dynamic>{
-        'roomNumber': '101',
-      };
+      final flutter = <String, dynamic>{'roomNumber': '101'};
 
       final php = FieldMapper.prepareForUpdate('rooms', flutter);
 

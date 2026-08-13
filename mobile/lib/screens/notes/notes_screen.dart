@@ -274,9 +274,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
         if (!mounted) {
           return;
         }
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل حذف الملاحظة: $e'),
             backgroundColor: Colors.red.shade900,
@@ -398,9 +396,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حفظ الملاحظة: $e'),
           backgroundColor: Colors.red.shade900,

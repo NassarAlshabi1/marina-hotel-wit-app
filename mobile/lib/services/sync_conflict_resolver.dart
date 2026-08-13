@@ -373,11 +373,8 @@ class SyncConflictResolver {
               ? 'تم اختيار البيانات البعيدة يدوياً'
               : 'تم الاحتفاظ بالبيانات المحلية يدوياً');
 
-    await (db.update(
-      db.syncConflicts,
-    )..where((t) => t.id.equals(conflictId))).write(
-      SyncConflictsCompanion(resolution: Value(resolution)),
-    );
+    await (db.update(db.syncConflicts)..where((t) => t.id.equals(conflictId)))
+        .write(SyncConflictsCompanion(resolution: Value(resolution)));
 
     _log('✅ تم حل التعارض #$conflictId يدوياً: $note');
   }
@@ -399,10 +396,7 @@ class SyncConflictResolver {
     final resolvedConflicts = await db.customUpdate(
       'DELETE FROM sync_conflicts WHERE resolution != ? AND created_at < ?',
       updates: {db.syncConflicts},
-      variables: [
-        const Variable<String>(''),
-        Variable<String>(cutoff),
-      ],
+      variables: [const Variable<String>(''), Variable<String>(cutoff)],
     );
 
     if (resolvedConflicts > 0) {

@@ -851,9 +851,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حذف المصروف: $e'),
           backgroundColor: Colors.red.shade900,
@@ -934,10 +932,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         builder: (ctx) => StatefulBuilder(
           builder: (ctx, setState) {
             final dropdownTextColor = Theme.of(ctx).textTheme.bodyMedium?.color;
-            final dropdownTextStyle =
-                Theme.of(
-                  ctx,
-                ).textTheme.bodyMedium?.copyWith(
+            final dropdownTextStyle = Theme.of(ctx).textTheme.bodyMedium
+                ?.copyWith(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
                   color: dropdownTextColor,
@@ -1286,9 +1282,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
         if (!mounted) {
           return;
         }
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل حفظ المصروف: $e'),
             backgroundColor: Colors.red.shade900,

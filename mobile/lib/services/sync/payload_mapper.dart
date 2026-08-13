@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-
 import '../../utils/time.dart';
 import '../appwrite_config.dart';
 import '../appwrite_sync_utils.dart';

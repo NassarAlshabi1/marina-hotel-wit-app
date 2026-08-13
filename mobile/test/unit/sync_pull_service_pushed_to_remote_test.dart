@@ -196,72 +196,66 @@ void main() {
       expect(result.mergedData, isNull);
     });
 
-    test(
-      '28. local newer (no conflict) → shouldApplyRemote=false',
-      () async {
-        const localUuid = 'booking-004';
-        final remoteData = {
+    test('28. local newer (no conflict) → shouldApplyRemote=false', () async {
+      const localUuid = 'booking-004';
+      final remoteData = {
+        'localUuid': localUuid,
+        'status': 'confirmed',
+        'lastModified': 1000,
+        'vectorClock': '{"device-A": 1, "device-B": 1}',
+      };
+
+      final result = await pullService.checkAndResolveConflict(
+        remoteData,
+        3000, // local newer
+        remoteUpdatedAtSec: 1000,
+        localVectorClock: '{"device-A": 3, "device-B": 1}',
+        entityName: 'bookings',
+        localUuid: localUuid,
+        localData: {
           'localUuid': localUuid,
-          'status': 'confirmed',
-          'lastModified': 1000,
-          'vectorClock': '{"device-A": 1, "device-B": 1}',
-        };
+          'status': 'checked_in',
+          'lastModified': 3000,
+          'vectorClock': '{"device-A": 3, "device-B": 1}',
+        },
+      );
 
-        final result = await pullService.checkAndResolveConflict(
-          remoteData,
-          3000, // local newer
-          remoteUpdatedAtSec: 1000,
-          localVectorClock: '{"device-A": 3, "device-B": 1}',
-          entityName: 'bookings',
-          localUuid: localUuid,
-          localData: {
-            'localUuid': localUuid,
-            'status': 'checked_in',
-            'lastModified': 3000,
-            'vectorClock': '{"device-A": 3, "device-B": 1}',
-          },
-        );
+      expect(
+        result.shouldApplyRemote,
+        isFalse,
+        reason: 'المحلي أحدث — لا نطبّق البعيد',
+      );
+      expect(result.pushedToRemote, isFalse);
+      expect(result.mergedData, isNull);
+    });
 
-        expect(
-          result.shouldApplyRemote,
-          isFalse,
-          reason: 'المحلي أحدث — لا نطبّق البعيد',
-        );
-        expect(result.pushedToRemote, isFalse);
-        expect(result.mergedData, isNull);
-      },
-    );
+    test('29. soft delete محلي محمي — shouldApplyRemote=false', () async {
+      const localUuid = 'booking-005';
+      final remoteData = {
+        'localUuid': localUuid,
+        'status': 'confirmed',
+        'lastModified': 2000,
+        // لا deletedAt في البعيد → السجل ما زال حياً في السحابة
+      };
 
-    test(
-      '29. soft delete محلي محمي — shouldApplyRemote=false',
-      () async {
-        const localUuid = 'booking-005';
-        final remoteData = {
-          'localUuid': localUuid,
-          'status': 'confirmed',
-          'lastModified': 2000,
-          // لا deletedAt في البعيد → السجل ما زال حياً في السحابة
-        };
+      final result = await pullService.checkAndResolveConflict(
+        remoteData,
+        1000,
+        localDeletedAt: 2000, // محذوف محلياً
+        remoteUpdatedAtSec: 2000,
+        localVectorClock: '{"device-A": 2}',
+        entityName: 'bookings',
+        localUuid: localUuid,
+        localData: null,
+      );
 
-        final result = await pullService.checkAndResolveConflict(
-          remoteData,
-          1000,
-          localDeletedAt: 2000, // محذوف محلياً
-          remoteUpdatedAtSec: 2000,
-          localVectorClock: '{"device-A": 2}',
-          entityName: 'bookings',
-          localUuid: localUuid,
-          localData: null,
-        );
-
-        expect(
-          result.shouldApplyRemote,
-          isFalse,
-          reason: 'soft delete المحلي محمي — لا نُحيي السجل من السحابة',
-        );
-        expect(result.pushedToRemote, isFalse);
-      },
-    );
+      expect(
+        result.shouldApplyRemote,
+        isFalse,
+        reason: 'soft delete المحلي محمي — لا نُحيي السجل من السحابة',
+      );
+      expect(result.pushedToRemote, isFalse);
+    });
 
     test(
       '30. سجل جديد محلياً (آخر تعديل null) → shouldApplyRemote=true',

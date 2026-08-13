@@ -177,16 +177,10 @@ class PostHogService {
     if (!isEnabled) return;
 
     try {
-      await Posthog().capture(
-        eventName: eventName,
-        properties: properties,
-      );
+      await Posthog().capture(eventName: eventName, properties: properties);
     } catch (e) {
       // تجاهل أخطاء التحليلات بصمت
-      developer.log(
-        'PostHog track error: $e',
-        name: 'PostHogService',
-      );
+      developer.log('PostHog track error: $e', name: 'PostHogService');
     }
   }
 
@@ -205,10 +199,7 @@ class PostHogService {
     if (!isEnabled) return;
 
     try {
-      await Posthog().screen(
-        screenName: screenName,
-        properties: properties,
-      );
+      await Posthog().screen(screenName: screenName, properties: properties);
     } catch (e) {
       // تجاهل بصمت
     }
@@ -235,10 +226,7 @@ class PostHogService {
     if (!isEnabled) return;
 
     try {
-      await Posthog().identify(
-        userId: userId,
-        userProperties: properties,
-      );
+      await Posthog().identify(userId: userId, userProperties: properties);
     } catch (e) {
       // تجاهل بصمت
     }
@@ -406,10 +394,7 @@ class PostHogService {
   }) async {
     await track(
       'sync_failed',
-      properties: {
-        'error': error,
-        'operation': operation,
-      },
+      properties: {'error': error, 'operation': operation},
     );
   }
 
@@ -421,11 +406,7 @@ class PostHogService {
   }) async {
     await track(
       'backup_created',
-      properties: {
-        'type': type,
-        'sizeBytes': sizeBytes,
-        'success': success,
-      },
+      properties: {'type': type, 'sizeBytes': sizeBytes, 'success': success},
     );
   }
 
@@ -434,13 +415,7 @@ class PostHogService {
     required String userId,
     required String role,
   }) async {
-    await track(
-      'user_login',
-      properties: {
-        'userId': userId,
-        'role': role,
-      },
-    );
+    await track('user_login', properties: {'userId': userId, 'role': role});
     await identify(
       userId,
       properties: {

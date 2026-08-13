@@ -104,12 +104,7 @@ class PriceAdjustmentsAdapter
         src,
         altKey: 'previous_value',
       ),
-      newValue: _vDouble(
-        json,
-        'newValue',
-        src,
-        altKey: 'new_value',
-      ),
+      newValue: _vDouble(json, 'newValue', src, altKey: 'new_value'),
       reason: _vStr(json, 'reason', src),
       effectiveDate: _vStr(
         json,

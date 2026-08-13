@@ -125,9 +125,7 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
                 await dao.clearStale();
                 ref.invalidate(syncStatsProvider);
                 if (context.mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text(
                         'تفريغ ذكي: تم تهيئة المحاولات وحذف العناصر القديمة',

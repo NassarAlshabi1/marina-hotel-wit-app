@@ -35,9 +35,7 @@ class _SecondaryAppwriteSettingsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('وجهة Appwrite الثانوية'),
-      ),
+      appBar: AppBar(title: const Text('وجهة Appwrite الثانوية')),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(

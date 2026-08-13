@@ -428,9 +428,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('تمت المزامنة بنجاح'),
           backgroundColor: Colors.green,
@@ -440,9 +438,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشلت المزامنة: $e'),
           backgroundColor: Colors.red,
@@ -670,9 +666,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                 if (!mounted) {
                   return;
                 }
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(
+                ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('خطأ: $e'),
                     backgroundColor: Colors.red,

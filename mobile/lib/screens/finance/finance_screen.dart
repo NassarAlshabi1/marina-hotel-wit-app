@@ -998,9 +998,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('يرجى إدخال مبلغ صحيح'),
           backgroundColor: Colors.red,
@@ -1062,9 +1060,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     } catch (e) {
       if (mounted) {
         Navigator.pop(dialogContext);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل تسجيل الدفعة: $e'),
             backgroundColor: Colors.red,

@@ -430,9 +430,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                   }
                 } catch (e) {
                   if (context.mounted) {
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(
+                    ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('فشل إنهاء الخدمة: $e'),
                         backgroundColor: Colors.red,

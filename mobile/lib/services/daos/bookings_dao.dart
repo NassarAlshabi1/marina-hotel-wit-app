@@ -273,11 +273,8 @@ class BookingsDao extends DatabaseAccessor<AppDatabase>
     String localUuid,
     int serverBookingId,
   ) async {
-    return (update(
-      bookings,
-    )..where((t) => t.localUuid.equals(localUuid))).write(
-      BookingsCompanion(serverBookingId: Value(serverBookingId)),
-    );
+    return (update(bookings)..where((t) => t.localUuid.equals(localUuid)))
+        .write(BookingsCompanion(serverBookingId: Value(serverBookingId)));
   }
 
   /// عدد الحجوزات حسب الحالة

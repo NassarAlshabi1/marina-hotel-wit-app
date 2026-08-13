@@ -358,9 +358,7 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                                 );
                             if (mounted) {
                               Navigator.pop(dialogContext);
-                              ScaffoldMessenger.of(
-                                context,
-                              ).showSnackBar(
+                              ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text('تم إضافة المستخدم بنجاح'),
                                 ),
@@ -711,9 +709,7 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                         if (mounted && success) {
                           Navigator.pop(dialogContext);
                           widget.onDeleted?.call();
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(
+                          ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
                                 'تم حذف المستخدم ${widget.username}',

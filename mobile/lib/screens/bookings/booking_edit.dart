@@ -192,9 +192,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
     final status = await Permission.contacts.request();
     if (!status.isGranted) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('يرجى منح صلاحية الوصول لجهات الاتصال')),
         );
       }
@@ -560,7 +558,8 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                   onPressed: _isSaving
                       ? null
                       : () async {
-                          if (_formKey.currentState == null || !_formKey.currentState!.validate()) {
+                          if (_formKey.currentState == null ||
+                              !_formKey.currentState!.validate()) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text(

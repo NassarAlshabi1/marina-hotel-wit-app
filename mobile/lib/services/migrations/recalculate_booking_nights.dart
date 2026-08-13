@@ -1,4 +1,3 @@
-
 import '../booking_derived_fields_service.dart';
 import '../local_db.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';

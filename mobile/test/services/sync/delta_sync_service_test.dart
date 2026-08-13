@@ -109,10 +109,7 @@ void main() {
       await db
           .into(db.syncState)
           .insertOnConflictUpdate(
-            SyncStateCompanion(
-              id: const Value(1),
-              lastPushTs: Value(nowSec),
-            ),
+            SyncStateCompanion(id: const Value(1), lastPushTs: Value(nowSec)),
           );
 
       // Second sync — no changes since mirror was persisted AND
@@ -131,10 +128,7 @@ void main() {
       await db
           .into(db.syncState)
           .insertOnConflictUpdate(
-            SyncStateCompanion(
-              id: const Value(1),
-              lastPushTs: Value(pushTs),
-            ),
+            SyncStateCompanion(id: const Value(1), lastPushTs: Value(pushTs)),
           );
 
       // Update the row's lastModified to be after the previous sync.
@@ -165,10 +159,7 @@ void main() {
       await db
           .into(db.syncState)
           .insertOnConflictUpdate(
-            SyncStateCompanion(
-              id: const Value(1),
-              lastPushTs: Value(pushTs),
-            ),
+            SyncStateCompanion(id: const Value(1), lastPushTs: Value(pushTs)),
           );
 
       // Soft-delete the row (set deletedAt to a future timestamp).

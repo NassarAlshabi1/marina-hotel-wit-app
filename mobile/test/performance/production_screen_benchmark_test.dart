@@ -270,9 +270,7 @@ void main() {
             ),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: Center(child: Text('اختبار')),
-            ),
+            home: Scaffold(body: Center(child: Text('اختبار'))),
           ),
         ),
       );

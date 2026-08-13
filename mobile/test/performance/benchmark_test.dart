@@ -162,18 +162,15 @@ void main() {
   group('⚡ Operation Latency', () {
     test('Dashboard stats query يُسجَّل عبر PerformanceMonitor', () async {
       final result = await PerformanceMonitor.instance
-          .measure<Map<String, int>>(
-            'dashboard_stats_query',
-            () async {
-              await Future<void>.delayed(const Duration(milliseconds: 10));
-              return {
-                'totalRooms': 30,
-                'occupied': 18,
-                'available': 12,
-                'maintenance': 0,
-              };
-            },
-          );
+          .measure<Map<String, int>>('dashboard_stats_query', () async {
+            await Future<void>.delayed(const Duration(milliseconds: 10));
+            return {
+              'totalRooms': 30,
+              'occupied': 18,
+              'available': 12,
+              'maintenance': 0,
+            };
+          });
 
       final traces =
           PerformanceMonitor.instance.exportReport()['traces']

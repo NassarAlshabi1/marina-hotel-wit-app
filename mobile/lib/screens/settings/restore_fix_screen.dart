@@ -419,9 +419,7 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
 
     try {
       // إظهار رسالة بدء التشغيل
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('🔄 بدء عملية الإصلاح التلقائي...'),
           duration: Duration(seconds: 2),
@@ -450,9 +448,7 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
           ),
         );
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('❌ فشل الإصلاح: ${report.error}'),
             backgroundColor: Colors.red,
@@ -461,9 +457,7 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ غير متوقع: $e'),
           backgroundColor: Colors.red,
@@ -497,9 +491,7 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
         text: 'سجلات الإصلاح التلقائي للنسخة الاحتياطية',
       );
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('✅ تم تصدير السجلات بنجاح'),
           backgroundColor: Colors.green,
@@ -507,9 +499,7 @@ class _RestoreFixScreenState extends ConsumerState<RestoreFixScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في التصدير: $e'),
           backgroundColor: Colors.red,

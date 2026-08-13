@@ -775,14 +775,11 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
   }
 
   Future<void> _createDebtFromBooking() async {
-    final result =
-        await Navigator.of(
-          context,
-        ).push<bool>(
-          MaterialPageRoute<bool>(
-            builder: (context) => const CreateDebtFromBookingScreen(),
-          ),
-        );
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (context) => const CreateDebtFromBookingScreen(),
+      ),
+    );
 
     // إذا تم إنشاء دين بنجاح، قم بتحديث البيانات
     if (result ?? false) {
@@ -835,9 +832,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
         if (!mounted) {
           return;
         }
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل تسجيل السداد: $e'),
             backgroundColor: Colors.red.shade900,
@@ -1133,9 +1128,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     final amount = double.tryParse(amountStr) ?? 0;
     if (amount <= 0) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('⚠️ المبلغ غير صالح'),
           backgroundColor: Colors.red,
@@ -1197,9 +1190,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل تسجيل الدفعة: $e'),
           backgroundColor: Colors.red,
@@ -1457,9 +1448,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                   onPressed: () {
                     final guestName = guestNameCtrl.text.trim();
                     if (guestName.isEmpty) {
-                      ScaffoldMessenger.of(
-                        dialogContext,
-                      ).showSnackBar(
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
                         const SnackBar(content: Text('يرجى إدخال اسم النزيل')),
                       );
                       return;
@@ -1467,9 +1456,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                     final totalAmount =
                         CurrencyFormatter.parseAmount(totalCtrl.text) ?? 0;
                     if (totalAmount <= 0) {
-                      ScaffoldMessenger.of(
-                        dialogContext,
-                      ).showSnackBar(
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
                         const SnackBar(
                           content: Text(
                             'يجب إدخال مبلغ الدين الكلي أكبر من صفر',
@@ -1562,9 +1549,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       unawaited(ref.read(appwriteSyncManagerProvider).pushLocalChanges());
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               existing == null
@@ -1608,9 +1593,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
 
     if (phone.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('لا يوجد رقم هاتف لهذا النزيل'),
             backgroundColor: Colors.orange,
@@ -1623,9 +1606,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
     final cleanedPhone = _cleanAndFormatPhone(phone);
     if (cleanedPhone.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('رقم الهاتف غير صالح'),
             backgroundColor: Colors.orange,
@@ -1682,9 +1663,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       if (mounted) {
         setState(() => _isSendingWhatsApp = false);
         if (result.quotaMessage != null) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(result.quotaMessage!),
               backgroundColor: Colors.orange,
@@ -1755,9 +1734,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حذف الدين: $e'),
           backgroundColor: Colors.red.shade900,

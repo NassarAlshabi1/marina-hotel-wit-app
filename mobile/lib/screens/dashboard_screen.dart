@@ -779,9 +779,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('خطأ في تحديث الحالة: $e'),
             backgroundColor: Colors.red,
@@ -821,9 +819,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _navigateToNewBooking(BuildContext context, String roomNumber) {
-    Navigator.of(
-      context,
-    ).push<void>(
+    Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
       ),
@@ -854,9 +850,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
       if (context.mounted) {
         unawaited(
-          Navigator.of(
-            context,
-          ).push<void>(
+          Navigator.of(context).push<void>(
             MaterialPageRoute<void>(
               builder: (context) =>
                   BookingPaymentScreen(booking: activeBooking),

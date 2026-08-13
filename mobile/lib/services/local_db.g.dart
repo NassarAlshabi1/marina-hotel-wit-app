@@ -14596,10 +14596,7 @@ class $DebtsTable extends Debts with TableInfo<$DebtsTable, Debt> {
     if (data.containsKey('debtor_name')) {
       context.handle(
         _debtorNameMeta,
-        debtorName.isAcceptableOrUnknown(
-          data['debtor_name']!,
-          _debtorNameMeta,
-        ),
+        debtorName.isAcceptableOrUnknown(data['debtor_name']!, _debtorNameMeta),
       );
     }
     if (data.containsKey('amount')) {
@@ -15135,9 +15132,7 @@ class Debt extends DataClass implements Insertable<Debt> {
       description: serializer.fromJson<String?>(json['description']),
       status: serializer.fromJson<String?>(json['status']),
       dueDate: serializer.fromJson<String?>(json['dueDate']),
-      bookingUuidCache: serializer.fromJson<String?>(
-        json['bookingUuidCache'],
-      ),
+      bookingUuidCache: serializer.fromJson<String?>(json['bookingUuidCache']),
       debtorName: serializer.fromJson<String?>(json['debtorName']),
       amount: serializer.fromJson<double?>(json['amount']),
       date: serializer.fromJson<String?>(json['date']),

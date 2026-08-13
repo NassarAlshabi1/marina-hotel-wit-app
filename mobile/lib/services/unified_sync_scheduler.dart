@@ -5,7 +5,6 @@
 
 import 'dart:async';
 
-
 import '../utils/circular_buffer_logger.dart';
 import '../utils/weak_device_optimizer.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';

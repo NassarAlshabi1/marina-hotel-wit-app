@@ -278,11 +278,7 @@ class AppwriteSchemaVerifier {
         {'key': 'debtReason', 'type': 'string', 'size': 200, 'default': ''},
         {'key': 'totalAmount', 'type': 'double', 'required': true},
         {'key': 'paidAmount', 'type': 'double', 'required': true},
-        {
-          'key': 'remainingAmount',
-          'type': 'double',
-          'default': 0,
-        },
+        {'key': 'remainingAmount', 'type': 'double', 'default': 0},
         {'key': 'paymentDate', 'type': 'string', 'size': 50},
         {'key': 'isSettled', 'type': 'boolean', 'default': false},
         {'key': 'pledge', 'type': 'string', 'size': 200},

@@ -57,10 +57,7 @@ Future<pw.Document> _buildPdf({
         decoration: const pw.BoxDecoration(
           border: pw.Border(bottom: pw.BorderSide(width: 1)),
         ),
-        child: pw.Text(
-          title,
-          style: pw.TextStyle(font: bold, fontSize: 18),
-        ),
+        child: pw.Text(title, style: pw.TextStyle(font: bold, fontSize: 18)),
       ),
       footer: (context) => pw.Container(
         alignment: pw.Alignment.center,

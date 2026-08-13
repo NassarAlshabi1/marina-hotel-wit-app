@@ -31,9 +31,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
 
   // جلب الملاحظات عالية الأولوية (غير المحذوفة، غير القائمة السوداء)
   Future<List<ShiftNote>> getHighPriorityNotes() =>
-      (select(
-            shiftNotes,
-          )..where(
+      (select(shiftNotes)..where(
             (t) =>
                 t.priority.equals('high') &
                 t.deletedAt.isNull() &
@@ -132,9 +130,7 @@ class ShiftNotesDao extends DatabaseAccessor<AppDatabase>
 
       // ✅ OCC: فحص version في WHERE لمنع lost update
       final rows =
-          await (update(
-                shiftNotes,
-              )..where(
+          await (update(shiftNotes)..where(
                 (t) => t.id.equals(id) & t.version.equals(existing.version),
               ))
               .write(companion);

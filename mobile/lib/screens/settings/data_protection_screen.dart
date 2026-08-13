@@ -102,9 +102,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حفظ الإعدادات: $e'),
           backgroundColor: Colors.red,
@@ -126,9 +124,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             enabled ? 'تم تفعيل النسخ التلقائي' : 'تم إيقاف النسخ التلقائي',
@@ -139,9 +135,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل تغيير الحالة: $e'),
           backgroundColor: Colors.red,
@@ -168,9 +162,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('فشل التنظيف: $e'), backgroundColor: Colors.red),
       );
     } finally {
@@ -197,9 +189,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         return;
       }
       setState(() => _scheduledEnabled = enabled);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             enabled ? 'تم تفعيل النسخ المجدول' : 'تم إيقاف النسخ المجدول',
@@ -210,9 +200,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تعذر تحديث الجدولة: $e'),
           backgroundColor: Colors.red,
@@ -246,9 +234,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تم تحديث وقت النسخ إلى ${picked.format(context)}'),
         ),
@@ -286,9 +272,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في تغيير حالة مزامنة Google Drive: $e'),
           backgroundColor: Colors.red,
@@ -323,9 +307,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في تغيير إعداد بدء التشغيل: $e'),
           backgroundColor: Colors.red,
@@ -340,9 +322,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
 
   Future<void> _toggleGoogleDrivePushEnabled(bool enabled) async {
     if (!_googleDriveSyncEnabled) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('فعّل مزامنة Google Drive أولاً'),
           backgroundColor: Colors.orange,
@@ -357,9 +337,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
         return;
       }
       setState(() => _googleDrivePushEnabled = enabled);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             enabled ? 'تم تفعيل الرفع إلى Google Drive' : 'تم إيقاف الرفع',
@@ -370,9 +348,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في تغيير إعداد الرفع: $e'),
           backgroundColor: Colors.red,
@@ -393,9 +369,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(enabled ? 'تم تفعيل المزامنة' : 'تم إيقاف المزامنة'),
         ),
@@ -404,9 +378,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في تغيير حالة المزامنة: $e'),
           backgroundColor: Colors.red,
@@ -434,9 +406,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تعذر تعديل الفترة: $e'),
           backgroundColor: Colors.red,
@@ -464,9 +434,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تعذر تحديث الاستراتيجية: $e'),
           backgroundColor: Colors.red,
@@ -494,9 +462,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشلت المزامنة اليدوية: $e'),
           backgroundColor: Colors.red,

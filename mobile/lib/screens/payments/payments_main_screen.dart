@@ -835,9 +835,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   ) async {
     final parsedAmount = CurrencyFormatter.parseAmount(amountText);
     if (parsedAmount == null || parsedAmount <= 0) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('يرجى إدخال مبلغ صحيح'),
           backgroundColor: Colors.red,
@@ -898,9 +896,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
       if (mounted && dialogContext.mounted) {
         Navigator.pop(dialogContext);
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل تسجيل الدفعة: $e'),
             backgroundColor: Colors.red,

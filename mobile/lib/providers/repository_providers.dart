@@ -424,10 +424,7 @@ final liveRoomByNumberProvider = StreamProvider.autoDispose
 
 /// تعديلات الأسعار النشطة لحجز محدد (بديل StreamBuilder<List<BookingPriceAdjustment>>).
 final bookingPriceAdjustmentsProvider = StreamProvider.autoDispose
-    .family<List<BookingPriceAdjustment>, int>((
-      ref,
-      bookingId,
-    ) {
+    .family<List<BookingPriceAdjustment>, int>((ref, bookingId) {
       final db = ref.watch(databaseProvider);
       return (db.select(db.bookingPriceAdjustments)
             ..where((a) => a.bookingLocalId.equals(bookingId))

@@ -51,9 +51,7 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
                 final deleted = await _conflictManager
                     .deleteResolvedConflicts();
                 if (mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('تم حذف $deleted تعارضاً محلولاً')),
                   );
                 }

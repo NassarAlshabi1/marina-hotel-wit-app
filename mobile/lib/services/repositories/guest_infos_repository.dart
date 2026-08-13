@@ -16,10 +16,8 @@ class GuestInfosRepository {
     final query = _db.select(_db.guestInfos)
       ..where((t) => t.deletedAt.isNull())
       ..orderBy([
-        (t) => d.OrderingTerm(
-          expression: t.updatedAt,
-          mode: d.OrderingMode.desc,
-        ),
+        (t) =>
+            d.OrderingTerm(expression: t.updatedAt, mode: d.OrderingMode.desc),
         (t) => d.OrderingTerm(expression: t.id, mode: d.OrderingMode.desc),
       ]);
     if (limit != null) {
@@ -33,10 +31,8 @@ class GuestInfosRepository {
     final query = _db.select(_db.guestInfos)
       ..where((t) => t.deletedAt.isNull())
       ..orderBy([
-        (t) => d.OrderingTerm(
-          expression: t.updatedAt,
-          mode: d.OrderingMode.desc,
-        ),
+        (t) =>
+            d.OrderingTerm(expression: t.updatedAt, mode: d.OrderingMode.desc),
         (t) => d.OrderingTerm(expression: t.id, mode: d.OrderingMode.desc),
       ]);
     if (limit != null) {

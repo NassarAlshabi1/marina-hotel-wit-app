@@ -95,18 +95,15 @@ void main() {
   // المجموعة 2: Mark / Reset Full Sync Complete
   // ═══════════════════════════════════════════════════════════════════════
   group('markFullSyncComplete / resetFullSyncComplete', () {
-    test(
-      '4. markFullSyncComplete يضبط full_sync_complete = 1',
-      () async {
-        await pullService.markFullSyncComplete();
-        final isComplete = await pullService.isFullSyncComplete();
-        expect(
-          isComplete,
-          isTrue,
-          reason: 'بعد markFullSyncComplete، يجب أن يكون flag = 1',
-        );
-      },
-    );
+    test('4. markFullSyncComplete يضبط full_sync_complete = 1', () async {
+      await pullService.markFullSyncComplete();
+      final isComplete = await pullService.isFullSyncComplete();
+      expect(
+        isComplete,
+        isTrue,
+        reason: 'بعد markFullSyncComplete، يجب أن يكون flag = 1',
+      );
+    });
 
     test(
       '5. buildDeltaQueries تُرجع delta queries بعد markFullSyncComplete',
@@ -137,53 +134,44 @@ void main() {
       },
     );
 
-    test(
-      '6. resetFullSyncComplete يضبط full_sync_complete = 0',
-      () async {
-        // نضبط flag = 1 أولاً
-        await pullService.markFullSyncComplete();
-        expect(await pullService.isFullSyncComplete(), isTrue);
+    test('6. resetFullSyncComplete يضبط full_sync_complete = 0', () async {
+      // نضبط flag = 1 أولاً
+      await pullService.markFullSyncComplete();
+      expect(await pullService.isFullSyncComplete(), isTrue);
 
-        // نعيد ضبطه إلى 0
-        await pullService.resetFullSyncComplete();
-        expect(
-          await pullService.isFullSyncComplete(),
-          isFalse,
-          reason: 'بعد resetFullSyncComplete، يجب أن يكون flag = 0',
-        );
+      // نعيد ضبطه إلى 0
+      await pullService.resetFullSyncComplete();
+      expect(
+        await pullService.isFullSyncComplete(),
+        isFalse,
+        reason: 'بعد resetFullSyncComplete، يجب أن يكون flag = 0',
+      );
 
-        // يجب أن نعود لوضع full fetch
-        expect(await pullService.buildDeltaQueries(1700000000), isEmpty);
-      },
-    );
+      // يجب أن نعود لوضع full fetch
+      expect(await pullService.buildDeltaQueries(1700000000), isEmpty);
+    });
 
-    test(
-      '7. استدعاء markFullSyncComplete عدة مرات آمن (idempotent)',
-      () async {
-        // الاستدعاء الأول
-        await pullService.markFullSyncComplete();
-        expect(await pullService.isFullSyncComplete(), isTrue);
+    test('7. استدعاء markFullSyncComplete عدة مرات آمن (idempotent)', () async {
+      // الاستدعاء الأول
+      await pullService.markFullSyncComplete();
+      expect(await pullService.isFullSyncComplete(), isTrue);
 
-        // الاستدعاء الثاني — يجب أن يبقى true دون أخطاء
-        await pullService.markFullSyncComplete();
-        expect(await pullService.isFullSyncComplete(), isTrue);
+      // الاستدعاء الثاني — يجب أن يبقى true دون أخطاء
+      await pullService.markFullSyncComplete();
+      expect(await pullService.isFullSyncComplete(), isTrue);
 
-        // الاستدعاء الثالث
-        await pullService.markFullSyncComplete();
-        expect(await pullService.isFullSyncComplete(), isTrue);
-      },
-    );
+      // الاستدعاء الثالث
+      await pullService.markFullSyncComplete();
+      expect(await pullService.isFullSyncComplete(), isTrue);
+    });
 
-    test(
-      '8. resetFullSyncComplete عدة مرات آمن (idempotent)',
-      () async {
-        await pullService.resetFullSyncComplete();
-        expect(await pullService.isFullSyncComplete(), isFalse);
+    test('8. resetFullSyncComplete عدة مرات آمن (idempotent)', () async {
+      await pullService.resetFullSyncComplete();
+      expect(await pullService.isFullSyncComplete(), isFalse);
 
-        await pullService.resetFullSyncComplete();
-        expect(await pullService.isFullSyncComplete(), isFalse);
-      },
-    );
+      await pullService.resetFullSyncComplete();
+      expect(await pullService.isFullSyncComplete(), isFalse);
+    });
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -281,199 +269,178 @@ void main() {
   // المجموعة 4: Checkpoint Safety — Partial Pull Failure
   // ═══════════════════════════════════════════════════════════════════════
   group('Checkpoint Safety — Partial Pull Failure', () {
-    test(
-      '12. لا يتحرك lastPullTs عند فشل أي collection (محاكاة)',
-      () async {
-        // ✅ محاكاة منطق AppwriteSyncManager:
-        // if (failedCollections.isEmpty) {
-        //   await _updateLastPullTs(newPullTs);
-        //   await _pullService?.markFullSyncComplete();
-        // }
+    test('12. لا يتحرك lastPullTs عند فشل أي collection (محاكاة)', () async {
+      // ✅ محاكاة منطق AppwriteSyncManager:
+      // if (failedCollections.isEmpty) {
+      //   await _updateLastPullTs(newPullTs);
+      //   await _pullService?.markFullSyncComplete();
+      // }
 
-        // 1. قراءة lastPullTs الأولي
-        final initialTs = await pullService.getLastPullTs();
-        expect(initialTs, 0);
+      // 1. قراءة lastPullTs الأولي
+      final initialTs = await pullService.getLastPullTs();
+      expect(initialTs, 0);
 
-        // 2. محاكاة دورة سحب فاشلة (collection واحد على الأقل فشل)
-        final failedCollections = ['rooms']; // فشل واحد فقط
-        if (failedCollections.isEmpty) {
-          await pullService.updateLastPullTs(1700000000);
-          await pullService.markFullSyncComplete();
-        }
-
-        // 3. التحقق: lastPullTs لم يتحرك
-        final afterFailureTs = await pullService.getLastPullTs();
-        expect(
-          afterFailureTs,
-          initialTs,
-          reason:
-              'عند فشل أي collection، يجب ألا يتحرك lastPullTs — '
-              'سيسمح ذلك بإعادة سحب الكولكشن الفاشل في الدورة التالية',
-        );
-      },
-    );
-
-    test(
-      '13. يتحرك lastPullTs عند نجاح كل الكولكشنات',
-      () async {
-        // 1. الحالة الأولية
-        expect(await pullService.getLastPullTs(), 0);
-
-        // 2. محاكاة دورة سحب ناجحة بالكامل
-        final failedCollections = <String>[];
-        if (failedCollections.isEmpty) {
-          await pullService.updateLastPullTs(1700000000);
-          await pullService.markFullSyncComplete();
-        }
-
-        // 3. التحقق: lastPullTs تحرك
-        expect(await pullService.getLastPullTs(), 1700000000);
-        expect(await pullService.isFullSyncComplete(), isTrue);
-      },
-    );
-
-    test(
-      '14. retry loop: فشل → نجاح → checkpoint يتحرك',
-      () async {
-        // ✅ السيناريو: محاكاة حلقة retry:
-        // - دورة 1: فشل (لا تحديث checkpoint)
-        // - دورة 2: فشل (لا تحديث checkpoint)
-        // - دورة 3: نجاح (تحديث checkpoint + markFullSyncComplete)
-
-        // دورة 1: فشل
-        var failedCollections = ['rooms'];
-        if (failedCollections.isEmpty) {
-          await pullService.updateLastPullTs(100);
-          await pullService.markFullSyncComplete();
-        }
-        expect(await pullService.getLastPullTs(), 0);
-        expect(await pullService.isFullSyncComplete(), isFalse);
-
-        // دورة 2: فشل
-        failedCollections = ['bookings'];
-        if (failedCollections.isEmpty) {
-          await pullService.updateLastPullTs(200);
-          await pullService.markFullSyncComplete();
-        }
-        expect(await pullService.getLastPullTs(), 0);
-        expect(await pullService.isFullSyncComplete(), isFalse);
-
-        // دورة 3: نجاح
-        failedCollections = [];
-        if (failedCollections.isEmpty) {
-          await pullService.updateLastPullTs(300);
-          await pullService.markFullSyncComplete();
-        }
-        expect(await pullService.getLastPullTs(), 300);
-        expect(await pullService.isFullSyncComplete(), isTrue);
-
-        // الدورة التالية يجب أن تستخدم delta queries
-        expect(await pullService.buildDeltaQueries(300), isNotEmpty);
-      },
-    );
-
-    test(
-      '15. lastPullTs لا يتحرك للوراء (monotonic checkpoint)',
-      () async {
-        // ✅ ضمان أن checkpoint لا يتراجع
-        // محاكاة: لدينا lastPullTs = 1000، ثم نحاول تحديثه لـ 500
-        // (في الواقع، appwrite_sync_manager يستخدم max($updatedAt)
-        //  وليس Time.nowEpoch()، لذا هذا السيناريو نادر)
-
-        // 1. ضبط lastPullTs = 1000 + full_sync_complete = 1
-        await pullService.updateLastPullTs(1000);
+      // 2. محاكاة دورة سحب فاشلة (collection واحد على الأقل فشل)
+      final failedCollections = ['rooms']; // فشل واحد فقط
+      if (failedCollections.isEmpty) {
+        await pullService.updateLastPullTs(1700000000);
         await pullService.markFullSyncComplete();
-        expect(await pullService.getLastPullTs(), 1000);
+      }
 
-        // 2. محاولة تحديث لقيمة أقل
-        await pullService.updateLastPullTs(500);
+      // 3. التحقق: lastPullTs لم يتحرك
+      final afterFailureTs = await pullService.getLastPullTs();
+      expect(
+        afterFailureTs,
+        initialTs,
+        reason:
+            'عند فشل أي collection، يجب ألا يتحرك lastPullTs — '
+            'سيسمح ذلك بإعادة سحب الكولكشن الفاشل في الدورة التالية',
+      );
+    });
 
-        // 3. lastPullTs يجب أن يكون 500 (آخر قيمة كُتبت)
-        //    لكن appwrite_sync_manager يستخدم max($updatedAt) لذا هذا
-        //    السلوك مقبول — السجل القديم لن يُسحب مرة أخرى لأن delta filter
-        //    سيستثنيه.
-        //    ملاحظة: هذا السلوك يعتمد على caller لتمرير الـ max($updatedAt).
-        expect(await pullService.getLastPullTs(), 500);
-      },
-    );
+    test('13. يتحرك lastPullTs عند نجاح كل الكولكشنات', () async {
+      // 1. الحالة الأولية
+      expect(await pullService.getLastPullTs(), 0);
+
+      // 2. محاكاة دورة سحب ناجحة بالكامل
+      final failedCollections = <String>[];
+      if (failedCollections.isEmpty) {
+        await pullService.updateLastPullTs(1700000000);
+        await pullService.markFullSyncComplete();
+      }
+
+      // 3. التحقق: lastPullTs تحرك
+      expect(await pullService.getLastPullTs(), 1700000000);
+      expect(await pullService.isFullSyncComplete(), isTrue);
+    });
+
+    test('14. retry loop: فشل → نجاح → checkpoint يتحرك', () async {
+      // ✅ السيناريو: محاكاة حلقة retry:
+      // - دورة 1: فشل (لا تحديث checkpoint)
+      // - دورة 2: فشل (لا تحديث checkpoint)
+      // - دورة 3: نجاح (تحديث checkpoint + markFullSyncComplete)
+
+      // دورة 1: فشل
+      var failedCollections = ['rooms'];
+      if (failedCollections.isEmpty) {
+        await pullService.updateLastPullTs(100);
+        await pullService.markFullSyncComplete();
+      }
+      expect(await pullService.getLastPullTs(), 0);
+      expect(await pullService.isFullSyncComplete(), isFalse);
+
+      // دورة 2: فشل
+      failedCollections = ['bookings'];
+      if (failedCollections.isEmpty) {
+        await pullService.updateLastPullTs(200);
+        await pullService.markFullSyncComplete();
+      }
+      expect(await pullService.getLastPullTs(), 0);
+      expect(await pullService.isFullSyncComplete(), isFalse);
+
+      // دورة 3: نجاح
+      failedCollections = [];
+      if (failedCollections.isEmpty) {
+        await pullService.updateLastPullTs(300);
+        await pullService.markFullSyncComplete();
+      }
+      expect(await pullService.getLastPullTs(), 300);
+      expect(await pullService.isFullSyncComplete(), isTrue);
+
+      // الدورة التالية يجب أن تستخدم delta queries
+      expect(await pullService.buildDeltaQueries(300), isNotEmpty);
+    });
+
+    test('15. lastPullTs لا يتحرك للوراء (monotonic checkpoint)', () async {
+      // ✅ ضمان أن checkpoint لا يتراجع
+      // محاكاة: لدينا lastPullTs = 1000، ثم نحاول تحديثه لـ 500
+      // (في الواقع، appwrite_sync_manager يستخدم max($updatedAt)
+      //  وليس Time.nowEpoch()، لذا هذا السيناريو نادر)
+
+      // 1. ضبط lastPullTs = 1000 + full_sync_complete = 1
+      await pullService.updateLastPullTs(1000);
+      await pullService.markFullSyncComplete();
+      expect(await pullService.getLastPullTs(), 1000);
+
+      // 2. محاولة تحديث لقيمة أقل
+      await pullService.updateLastPullTs(500);
+
+      // 3. lastPullTs يجب أن يكون 500 (آخر قيمة كُتبت)
+      //    لكن appwrite_sync_manager يستخدم max($updatedAt) لذا هذا
+      //    السلوك مقبول — السجل القديم لن يُسحب مرة أخرى لأن delta filter
+      //    سيستثنيه.
+      //    ملاحظة: هذا السلوك يعتمد على caller لتمرير الـ max($updatedAt).
+      expect(await pullService.getLastPullTs(), 500);
+    });
   });
 
   // ═══════════════════════════════════════════════════════════════════════
   // المجموعة 5: Schema Validation — Migration 56
   // ═══════════════════════════════════════════════════════════════════════
   group('Schema Validation — Migration 56 (full_sync_complete column)', () {
-    test(
-      '16. عمود full_sync_complete موجود في جدول sync_state',
-      () async {
-        // ✅ التحقق من أن العمود موجود بعد تشغيل Migration 56
-        final result = await db
-            .customSelect(
-              'PRAGMA table_info(sync_state)',
-              readsFrom: {db.syncState},
-            )
-            .get();
+    test('16. عمود full_sync_complete موجود في جدول sync_state', () async {
+      // ✅ التحقق من أن العمود موجود بعد تشغيل Migration 56
+      final result = await db
+          .customSelect(
+            'PRAGMA table_info(sync_state)',
+            readsFrom: {db.syncState},
+          )
+          .get();
 
-        final columnNames = result
-            .map((row) => row.read<String>('name'))
-            .toList();
-        expect(
-          columnNames,
-          contains('full_sync_complete'),
-          reason:
-              'عمود full_sync_complete يجب أن يكون موجوداً في جدول '
-              'sync_state بعد Migration 56',
-        );
-      },
-    );
+      final columnNames = result
+          .map((row) => row.read<String>('name'))
+          .toList();
+      expect(
+        columnNames,
+        contains('full_sync_complete'),
+        reason:
+            'عمود full_sync_complete يجب أن يكون موجوداً في جدول '
+            'sync_state بعد Migration 56',
+      );
+    });
 
-    test(
-      '17. default value لـ full_sync_complete = 0',
-      () async {
-        // ✅ التحقق من القيمة الافتراضية
-        // عند إنشاء صف جديد بدون تحديد full_sync_complete، يجب أن تكون 0
-        // (هذا ما يضمنه DEFAULT 0 في ALTER TABLE)
+    test('17. default value لـ full_sync_complete = 0', () async {
+      // ✅ التحقق من القيمة الافتراضية
+      // عند إنشاء صف جديد بدون تحديد full_sync_complete، يجب أن تكون 0
+      // (هذا ما يضمنه DEFAULT 0 في ALTER TABLE)
 
-        // تحقق عبر PRAGMA table_info
-        final result = await db
-            .customSelect(
-              'PRAGMA table_info(sync_state)',
-              readsFrom: {db.syncState},
-            )
-            .get();
+      // تحقق عبر PRAGMA table_info
+      final result = await db
+          .customSelect(
+            'PRAGMA table_info(sync_state)',
+            readsFrom: {db.syncState},
+          )
+          .get();
 
-        for (final row in result) {
-          if (row.read<String>('name') == 'full_sync_complete') {
-            final dfltValue = row.read<String?>('dflt_value');
-            expect(
-              dfltValue,
-              isNotNull,
-              reason: 'full_sync_complete يجب أن يكون له default value',
-            );
-            // القيمة الافتراضية يجب أن تكون 0
-            expect(
-              int.tryParse(dfltValue!) ?? -1,
-              0,
-              reason: 'default value يجب أن تكون 0',
-            );
-          }
+      for (final row in result) {
+        if (row.read<String>('name') == 'full_sync_complete') {
+          final dfltValue = row.read<String?>('dflt_value');
+          expect(
+            dfltValue,
+            isNotNull,
+            reason: 'full_sync_complete يجب أن يكون له default value',
+          );
+          // القيمة الافتراضية يجب أن تكون 0
+          expect(
+            int.tryParse(dfltValue!) ?? -1,
+            0,
+            reason: 'default value يجب أن تكون 0',
+          );
         }
-      },
-    );
+      }
+    });
 
-    test(
-      '18. schemaVersion >= 56 (لتفعيل Migration 56 و 57)',
-      () {
-        expect(
-          db.schemaVersion,
-          greaterThanOrEqualTo(56),
-          reason:
-              'schemaVersion يجب أن يكون >= 56 لتفعيل Migration 56 '
-              '(إضافة عمود full_sync_complete) و Migration 57 '
-              '(إضافة payload_version و processing_payload_version). '
-              'القيمة الحالية: ${db.schemaVersion}',
-        );
-      },
-    );
+    test('18. schemaVersion >= 56 (لتفعيل Migration 56 و 57)', () {
+      expect(
+        db.schemaVersion,
+        greaterThanOrEqualTo(56),
+        reason:
+            'schemaVersion يجب أن يكون >= 56 لتفعيل Migration 56 '
+            '(إضافة عمود full_sync_complete) و Migration 57 '
+            '(إضافة payload_version و processing_payload_version). '
+            'القيمة الحالية: ${db.schemaVersion}',
+      );
+    });
   });
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -521,35 +488,29 @@ void main() {
         // 4. دورة 3: يجب أن تستخدم delta sync الآن
         final deltaQueries = await pullService.buildDeltaQueries(2000);
         expect(deltaQueries, isNotEmpty);
-        expect(
-          deltaQueries.first.toString(),
-          contains(r'$updatedAt'),
-        );
+        expect(deltaQueries.first.toString(), contains(r'$updatedAt'));
       },
     );
 
-    test(
-      '20. سيناريو: استعادة نسخة احتياطية → إعادة full sync',
-      () async {
-        // ✅ السيناريو: المستخدم استعاد نسخةة احتياطية، نريد إعادة full sync
+    test('20. سيناريو: استعادة نسخة احتياطية → إعادة full sync', () async {
+      // ✅ السيناريو: المستخدم استعاد نسخةة احتياطية، نريد إعادة full sync
 
-        // 1. الحالة الأولية: full sync مكتمل
-        await pullService.updateLastPullTs(1700000000);
-        await pullService.markFullSyncComplete();
-        expect(await pullService.isFullSyncComplete(), isTrue);
-        expect(await pullService.buildDeltaQueries(1700000000), isNotEmpty);
+      // 1. الحالة الأولية: full sync مكتمل
+      await pullService.updateLastPullTs(1700000000);
+      await pullService.markFullSyncComplete();
+      expect(await pullService.isFullSyncComplete(), isTrue);
+      expect(await pullService.buildDeltaQueries(1700000000), isNotEmpty);
 
-        // 2. استعادة نسخة احتياطية → إعادة ضبط full_sync_complete
-        await pullService.resetFullSyncComplete();
-        expect(await pullService.isFullSyncComplete(), isFalse);
+      // 2. استعادة نسخة احتياطية → إعادة ضبط full_sync_complete
+      await pullService.resetFullSyncComplete();
+      expect(await pullService.isFullSyncComplete(), isFalse);
 
-        // 3. الدورة التالية يجب أن تستخدم full fetch (وليست delta)
-        expect(await pullService.buildDeltaQueries(1700000000), isEmpty);
+      // 3. الدورة التالية يجب أن تستخدم full fetch (وليست delta)
+      expect(await pullService.buildDeltaQueries(1700000000), isEmpty);
 
-        // 4. بعد نجاح دورة كاملة، نعود لـ delta mode
-        await pullService.markFullSyncComplete();
-        expect(await pullService.buildDeltaQueries(1700000000), isNotEmpty);
-      },
-    );
+      // 4. بعد نجاح دورة كاملة، نعود لـ delta mode
+      await pullService.markFullSyncComplete();
+      expect(await pullService.buildDeltaQueries(1700000000), isNotEmpty);
+    });
   });
 }

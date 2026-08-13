@@ -1,6 +1,5 @@
 import 'dart:async';
 
-
 import '../appwrite_logger.dart';
 import '../daos/outbox_dao.dart';
 import '../sync_constants.dart';

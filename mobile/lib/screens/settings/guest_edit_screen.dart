@@ -18,10 +18,7 @@ import '../../utils/status_utils.dart';
 import 'guest_info.dart';
 
 class GuestEditScreen extends ConsumerStatefulWidget {
-  const GuestEditScreen({
-    required this.guest,
-    super.key,
-  });
+  const GuestEditScreen({required this.guest, super.key});
 
   final GuestInfo guest;
 
@@ -280,9 +277,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('تعذر حفظ التغييرات: $error'),
             backgroundColor: Colors.red,
@@ -1434,9 +1429,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تم إنهاء $type بنجاح'),
           backgroundColor: Colors.green,

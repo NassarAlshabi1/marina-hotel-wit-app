@@ -416,10 +416,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     final interval = WeakDeviceOptimizer.instance.isWeakDevice
         ? const Duration(minutes: 15)
         : const Duration(minutes: 5);
-    _healthCheckTimer = Timer.periodic(
-      interval,
-      (_) => _performHealthCheck(),
-    );
+    _healthCheckTimer = Timer.periodic(interval, (_) => _performHealthCheck());
     _log('❤️ Health check interval: ${interval.inMinutes} minutes');
   }
 

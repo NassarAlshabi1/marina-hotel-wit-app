@@ -146,9 +146,7 @@ final syncPerformanceSettingsProvider = Provider<SyncPerformanceSettings>((
 });
 
 final whatsappServiceProvider = Provider<WhatsAppService>((ref) {
-  return WhatsAppService(
-    apiType: WhatsAppApiType.greenapi,
-  );
+  return WhatsAppService(apiType: WhatsAppApiType.greenapi);
 });
 
 final whatsappSettingsSyncProvider = Provider<WhatsAppSettingsSync>((ref) {

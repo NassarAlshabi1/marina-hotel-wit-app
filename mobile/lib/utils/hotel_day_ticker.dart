@@ -103,9 +103,7 @@ class HotelDayTicker {
     );
 
     // إذا كنا خلال ساعة بعد 14:01 اليوم، نُصدر tick فوري
-    final oneHourAfterStart = todayHotelDayStart.add(
-      const Duration(hours: 1),
-    );
+    final oneHourAfterStart = todayHotelDayStart.add(const Duration(hours: 1));
     if (now.isAfter(todayHotelDayStart) && now.isBefore(oneHourAfterStart)) {
       // استخدام scheduleMicrotask لتجنب استدعاء listeners متزامن أثناء init
       scheduleMicrotask(() {

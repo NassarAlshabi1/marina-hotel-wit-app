@@ -592,9 +592,7 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
 
     await Clipboard.setData(ClipboardData(text: buffer.toString()));
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تم نسخ ${_currentLogs.length} سجل إلى الحافظة'),
         ),

@@ -514,9 +514,7 @@ void main() {
       );
 
       final longStays = await adjustmentService
-          .getLongStayBookingsWithoutSurcharge(
-            minimumNights: 30,
-          );
+          .getLongStayBookingsWithoutSurcharge(minimumNights: 30);
 
       expect(longStays.length, greaterThanOrEqualTo(1));
       expect(longStays.any((b) => b.id == seed.booking.id), isTrue);
@@ -544,9 +542,7 @@ void main() {
       );
 
       final longStays = await adjustmentService
-          .getLongStayBookingsWithoutSurcharge(
-            minimumNights: 30,
-          );
+          .getLongStayBookingsWithoutSurcharge(minimumNights: 30);
 
       expect(
         longStays.any((b) => b.id == seed.booking.id),
@@ -568,9 +564,7 @@ void main() {
         roomPrice: 10000,
       );
 
-      final stream = adjustmentService.watchActiveAdjustments(
-        seed.bookingUuid,
-      );
+      final stream = adjustmentService.watchActiveAdjustments(seed.bookingUuid);
 
       // لا توجد تعديلات في البداية
       var firstEmission = await stream.first;

@@ -212,9 +212,7 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
   }
 
   void _navigateToBooking(BuildContext context, String roomNumber) {
-    Navigator.of(
-      context,
-    ).push<void>(
+    Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
       ),
@@ -249,9 +247,7 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
       }
 
       unawaited(
-        Navigator.of(
-          context,
-        ).push<void>(
+        Navigator.of(context).push<void>(
           MaterialPageRoute<void>(
             builder: (_) => BookingPaymentScreen(booking: activeBooking),
           ),

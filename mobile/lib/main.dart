@@ -1121,9 +1121,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         ),
       );
       // إصلاح: استخدام Future.microtask لالتقاط الاستثناءات المتزامنة أيضاً
-      Future.microtask(
-        AppSessionManager.onAppCloseOrBackground,
-      ).catchError(
+      Future.microtask(AppSessionManager.onAppCloseOrBackground).catchError(
         (Object e, StackTrace s) =>
             derr(() => 'Error in onAppCloseOrBackground: $e\n$s'),
       );

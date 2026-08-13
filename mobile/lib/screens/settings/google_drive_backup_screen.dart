@@ -634,9 +634,7 @@ class _GoogleDriveBackupContentState
       await service.restoreDbBackup(fileId);
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('✅ تم استعادة نسخة .db بنجاح'),
             backgroundColor: Colors.green,
