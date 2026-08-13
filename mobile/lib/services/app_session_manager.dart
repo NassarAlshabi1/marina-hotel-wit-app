@@ -129,10 +129,11 @@ class AppSessionManager {
       dlog('🔄 [AppOpen] Checking for automatic Appwrite pull...');
       final prefs = await SharedPreferences.getInstance();
       final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+      final syncOnStartup = prefs.getBool('appwrite_sync_on_startup') ?? true;
 
-      if (!appwriteEnabled) {
+      if (!appwriteEnabled || !syncOnStartup) {
         dlog(
-          'ℹ️ [AppOpen] Appwrite sync is disabled in settings. Skipping pull.',
+          'ℹ️ [AppOpen] Appwrite sync on startup is disabled in settings. Skipping pull.',
         );
         return;
       }

@@ -235,6 +235,18 @@ class AppwriteSyncManager {
       // ─── مؤقت إعادة محاولة العناصر الفاشلة كل 5 دقائق ───
       _startFailedRetryTimer();
 
+      final prefs = await SharedPreferences.getInstance();
+      final syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+      final autoSyncEnabled =
+          prefs.getBool('appwrite_auto_sync_enabled') ?? true;
+      if (syncEnabled && autoSyncEnabled) {
+        startAutoSync(
+          interval: Duration(
+            minutes: prefs.getInt('appwrite_sync_interval_minutes') ?? 15,
+          ),
+        );
+      }
+
       // رفع البيانات الحالية مرة واحدة (للبيانات التي أُنشئت قبل تفعيل Outbox)
       unawaited(_runInitialSeedIfNeeded());
 
@@ -258,6 +270,14 @@ class AppwriteSyncManager {
   Future<void> _runInitialSeedIfNeeded() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) {
+        _logger.info(
+          'Initial seed skipped — Appwrite sync is disabled',
+          tag: 'SYNC',
+        );
+        return;
+      }
+
       final done = prefs.getBool('appwrite_initial_seed_done') ?? false;
       if (done) return;
 
@@ -516,6 +536,27 @@ class AppwriteSyncManager {
         return;
       }
       try {
+        final prefs = await SharedPreferences.getInstance();
+        final syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+        final autoSyncEnabled =
+            prefs.getBool('appwrite_auto_sync_enabled') ?? true;
+        if (!syncEnabled || !autoSyncEnabled) {
+          stopAutoSync();
+          return;
+        }
+
+        final wifiOnly = prefs.getBool('appwrite_wifi_only_sync') ?? false;
+        if (wifiOnly) {
+          final connectivity = await Connectivity().checkConnectivity();
+          if (!connectivity.contains(ConnectivityResult.wifi)) {
+            _logger.info(
+              'Auto sync skipped — WiFi-only mode is active',
+              tag: 'SYNC',
+            );
+            return;
+          }
+        }
+
         final pendingCount = await outboxDao.countUndeliveredToPrimary();
         if (pendingCount > 0) {
           _logger.info(
@@ -688,6 +729,19 @@ class AppwriteSyncManager {
   ///
   /// الدالة لا ترمي عادةً استثناءات، وتعيد SyncResult مع status/errorMessage.
   Future<SyncResult> sync({bool push = true, bool pull = true}) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) {
+      _logger.info(
+        'Sync skipped — Appwrite sync is disabled in settings',
+        tag: 'SYNC',
+      );
+      return SyncResult(
+        status: SyncStatus.idle,
+        timestamp: DateTime.now(),
+        duration: Duration.zero,
+      );
+    }
+
     if (_currentStatus == SyncStatus.syncing) {
       _logger.warning('Sync already in progress', tag: 'SYNC');
       return SyncResult(

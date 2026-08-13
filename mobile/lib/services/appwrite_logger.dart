@@ -54,6 +54,42 @@ class AppwriteLogger {
     }
   }
 
+  /// يحذف ملفات سجل Appwrite الأقدم من مدة الاحتفاظ المطلوبة.
+  ///
+  /// أسماء الملفات تتبع الصيغة `appwrite_yyyy-MM-dd.log`، لذا لا يحذف هذا
+  /// الإجراء أي ملف آخر في مجلد المستندات.
+  Future<void> pruneLogs({required int retentionDays}) async {
+    if (retentionDays < 1) {
+      throw ArgumentError.value(
+        retentionDays,
+        'retentionDays',
+        'must be at least one day',
+      );
+    }
+
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final logsDir = Directory('${directory.path}/appwrite_logs');
+      if (!await logsDir.exists()) return;
+
+      final cutoff = DateTime.now().subtract(Duration(days: retentionDays));
+      final namePattern = RegExp(r'^appwrite_(\d{4}-\d{2}-\d{2})\.log$');
+      await for (final entity in logsDir.list()) {
+        if (entity is! File) continue;
+        final match = namePattern.firstMatch(entity.uri.pathSegments.last);
+        if (match == null) continue;
+
+        final date = DateTime.tryParse(match.group(1)!);
+        if (date != null && date.isBefore(cutoff)) {
+          await entity.delete();
+        }
+      }
+    } catch (e) {
+      dlog(() => 'Error pruning Appwrite logs: $e');
+      rethrow;
+    }
+  }
+
   /// تسجيل رسالة
   void log(
     String message, {
