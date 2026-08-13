@@ -272,6 +272,8 @@ jobs:
         
       - name: 🧪 Run Unit Tests with Coverage
         working-directory: ${{ env.WORKING_DIRECTORY }}
+        # ✅ تستبعد الاختبارات الحتمية الأداء والتكامل والشبكة البطيئة.
+        #    اختبارات التكامل تحتاج بيئة Appwrite مهيأة، وتُنفّذ في وظيفة منفصلة.
         # ✅ FIX: --exclude-tags performance لاستبعاد اختبارات الأداء
         #    (test/performance/*) التي:
         #      - تحتاج Appwrite + path_provider حقيقيين (تفشل في CI)
@@ -287,7 +289,7 @@ jobs:
             --coverage \
             --concurrency=2 \
             --timeout=180s \
-            --exclude-tags performance,slow \
+            --exclude-tags performance,slow,integration \
             --test-randomize-ordering-seed random \
             --reporter compact \
             2>&1 | tee test_results.log
