@@ -420,6 +420,17 @@ class SyncPullService {
   /// إذا كان lastPullTs <= 0 → يُعيد قائمة فارغة (سحب كامل).
   static const int _safetyWindowSeconds = 15;
 
+  /// استعلام السحب الكامل للكيانات المتزامنة.
+  ///
+  /// لا تُعاد مستندات الـ tombstone (`deletedAt > 0`) إلى هاتف جديد أو
+  /// بعد إعادة السحب الكامل. هذا يمنع إدخال سجل محذوف محلياً ثم ظهوره من
+  /// جديد في الواجهة. نسمح كذلك بالقيمة القديمة `deletedAt = 0` لأنها تعني
+  /// سجلاً نشطاً في الإصدارات السابقة. الحذف الناعم يبقى محفوظاً في Appwrite
+  /// كسجل تاريخي، لكنه ليس جزءاً من بيانات التشغيل النشطة.
+  static List<String> buildFullSyncQueries() => [
+    Query.or([Query.isNull('deletedAt'), Query.equal('deletedAt', 0)]),
+  ];
+
   Future<List<String>> buildDeltaQueries(int lastPullTs) async {
     // ✅ Sync Safety Wave 2 (2026-08-12): Full Sync Bootstrap Guard.
     //

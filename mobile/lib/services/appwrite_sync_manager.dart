@@ -954,6 +954,11 @@ class AppwriteSyncManager {
                   await (_pullService?.buildDeltaQueries(lastPullTs) ??
                       <String>[]);
               final isDelta = deltaQ.isNotEmpty;
+              // السحب الكامل لا ينزّل سجلات tombstone إلى الهاتف. يظل السحب
+              // التزايدي دون هذا القيد لمعالجة حذف السجل الموجود محلياً.
+              final pullQueries = isDelta
+                  ? deltaQ
+                  : SyncPullService.buildFullSyncQueries();
               if (isDelta) {
                 _logger.info(
                   '🔄 Delta Sync: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(lastPullTs * 1000).toIso8601String()}',
@@ -977,7 +982,7 @@ class AppwriteSyncManager {
               try {
                 recordsPulled += await _timePhase('syncRooms', () async {
                   final rooms = await appwriteService.listRooms(
-                    queries: deltaQ,
+                    queries: pullQueries,
                     useCache: false,
                   );
                   final roomsSynced = await _syncRooms(rooms);
@@ -1003,7 +1008,7 @@ class AppwriteSyncManager {
               try {
                 recordsPulled += await _timePhase('syncEmployees', () async {
                   final employees = await appwriteService.listEmployees(
-                    queries: deltaQ,
+                    queries: pullQueries,
                     useCache: false,
                   );
                   // ✅ التوصية 5: لف _syncEmployees بطبقة إعادة محاولة لتحصين
@@ -1051,7 +1056,7 @@ class AppwriteSyncManager {
               try {
                 recordsPulled += await _timePhase('syncBookings', () async {
                   final bookings = await appwriteService.listBookings(
-                    queries: deltaQ,
+                    queries: pullQueries,
                     useCache: false,
                   );
                   final bookingsSynced = await _syncBookings(bookings);
@@ -1080,7 +1085,10 @@ class AppwriteSyncManager {
                   'syncCashTransactions',
                   () async {
                     final cashTransactions = await appwriteService
-                        .listCashTransactions(queries: deltaQ, useCache: false);
+                        .listCashTransactions(
+                          queries: pullQueries,
+                          useCache: false,
+                        );
                     final synced = await _syncCashTransactions(
                       cashTransactions,
                     );
@@ -1105,7 +1113,7 @@ class AppwriteSyncManager {
               try {
                 recordsPulled += await _timePhase('syncExpenses', () async {
                   final expenses = await appwriteService.listExpenses(
-                    queries: deltaQ,
+                    queries: pullQueries,
                     useCache: false,
                   );
                   final expensesSynced = await _syncExpenses(expenses);
@@ -1132,6 +1140,12 @@ class AppwriteSyncManager {
                     nightsPullTs,
                     remoteEpochIsMillis: remoteEpochIsMillis,
                   );
+                  // إذا كانت الدورة الحالية سحباً كاملاً، لا نستثني
+                  // booking_nights من سياسة استبعاد tombstones حتى لو كان
+                  // لها checkpoint خاص قديم.
+                  final effectiveNightsPullQueries = !isDelta
+                      ? SyncPullService.buildFullSyncQueries()
+                      : nightsDeltaQ;
                   if (nightsDeltaQ.isNotEmpty) {
                     _logger.info(
                       '🔄 booking_nights Delta: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(nightsPullTs * 1000).toIso8601String()}',
@@ -1139,7 +1153,7 @@ class AppwriteSyncManager {
                     );
                   }
                   final bookingNights = await appwriteService.listBookingNights(
-                    queries: nightsDeltaQ,
+                    queries: effectiveNightsPullQueries,
                     useCache: false,
                   );
                   final synced = await _syncBookingNights(bookingNights);
@@ -1174,7 +1188,7 @@ class AppwriteSyncManager {
               try {
                 recordsPulled += await _timePhase('syncBookingNotes', () async {
                   final bookingNotes = await appwriteService.listBookingNotes(
-                    queries: deltaQ,
+                    queries: pullQueries,
                     useCache: false,
                   );
                   final synced = await _syncBookingNotes(bookingNotes);
@@ -1194,7 +1208,7 @@ class AppwriteSyncManager {
               try {
                 recordsPulled += await _timePhase('syncPayments', () async {
                   final payments = await appwriteService.listPayments(
-                    queries: deltaQ,
+                    queries: pullQueries,
                     useCache: false,
                   );
                   final paymentsSynced = await _syncPayments(payments);
@@ -1214,7 +1228,7 @@ class AppwriteSyncManager {
               try {
                 recordsPulled += await _timePhase('syncDebts', () async {
                   final debts = await appwriteService.listDebts(
-                    queries: deltaQ,
+                    queries: pullQueries,
                     useCache: false,
                   );
                   final debtsSynced = await _syncDebts(debts);
@@ -1234,7 +1248,7 @@ class AppwriteSyncManager {
               try {
                 recordsPulled += await _timePhase('syncSalaryCycles', () async {
                   final salaryCycles = await appwriteService.listSalaryCycles(
-                    queries: deltaQ,
+                    queries: pullQueries,
                     useCache: false,
                   );
                   final synced = await _syncSalaryCycles(salaryCycles);
@@ -1256,7 +1270,10 @@ class AppwriteSyncManager {
                   'syncSalaryPayments',
                   () async {
                     final salaryPayments = await appwriteService
-                        .listSalaryPayments(queries: deltaQ, useCache: false);
+                        .listSalaryPayments(
+                          queries: pullQueries,
+                          useCache: false,
+                        );
                     final synced = await _syncSalaryPayments(salaryPayments);
                     _logger.debug(
                       'Synced $synced salary_payments',
@@ -1282,7 +1299,7 @@ class AppwriteSyncManager {
                   () async {
                     final salaryWithdrawals = await appwriteService
                         .listSalaryWithdrawals(
-                          queries: deltaQ,
+                          queries: pullQueries,
                           useCache: false,
                         );
                     final synced = await _syncSalaryWithdrawals(
@@ -1309,7 +1326,7 @@ class AppwriteSyncManager {
               try {
                 recordsPulled += await _timePhase('syncGuestInfos', () async {
                   final guestInfos = await appwriteService.listGuestInfos(
-                    queries: deltaQ,
+                    queries: pullQueries,
                     useCache: false,
                   );
                   final synced = await _syncGuestInfos(guestInfos);
@@ -1333,7 +1350,7 @@ class AppwriteSyncManager {
                     final adjustments = await appwriteService.listDocuments(
                       collectionId:
                           AppwriteConfig.bookingPriceAdjustmentsCollectionId,
-                      queries: deltaQ,
+                      queries: pullQueries,
                     );
                     final adjustmentsSynced =
                         await _syncBookingPriceAdjustments(adjustments);
@@ -1358,7 +1375,7 @@ class AppwriteSyncManager {
               try {
                 recordsPulled += await _timePhase('syncShiftNotes', () async {
                   final shiftNotes = await appwriteService.listShiftNotes(
-                    queries: deltaQ,
+                    queries: pullQueries,
                     useCache: false,
                   );
                   final synced = await _syncShiftNotes(shiftNotes);
@@ -1378,7 +1395,7 @@ class AppwriteSyncManager {
               try {
                 recordsPulled += await _timePhase('syncBlacklist', () async {
                   final blacklistDocs = await appwriteService.listBlacklist(
-                    queries: deltaQ,
+                    queries: pullQueries,
                     useCache: false,
                   );
                   final synced = await _syncBlacklist(blacklistDocs);
@@ -1404,7 +1421,7 @@ class AppwriteSyncManager {
                   () async {
                     final docs = await appwriteService.listDocuments(
                       collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
-                      queries: deltaQ,
+                      queries: pullQueries,
                     );
                     final synced = await _syncPriceAdjustments(docs);
                     _logger.debug(
@@ -1429,7 +1446,7 @@ class AppwriteSyncManager {
                 recordsPulled += await _timePhase('syncAuditLogs', () async {
                   final docs = await appwriteService.listDocuments(
                     collectionId: AppwriteConfig.auditLogsCollectionId,
-                    queries: deltaQ,
+                    queries: pullQueries,
                   );
                   final synced = await _syncAuditLogs(docs);
                   _logger.debug('Synced $synced audit logs', tag: 'SYNC');
@@ -1449,7 +1466,7 @@ class AppwriteSyncManager {
                 recordsPulled += await _timePhase('syncPaymentVoids', () async {
                   final docs = await appwriteService.listDocuments(
                     collectionId: AppwriteConfig.paymentVoidsCollectionId,
-                    queries: deltaQ,
+                    queries: pullQueries,
                   );
                   final synced = await _syncPaymentVoids(docs);
                   _logger.debug('Synced $synced payment voids', tag: 'SYNC');
@@ -1475,7 +1492,7 @@ class AppwriteSyncManager {
                   () async {
                     final docs = await appwriteService.listDocuments(
                       collectionId: 'salary_carry_over_logs',
-                      queries: deltaQ,
+                      queries: pullQueries,
                     );
                     final synced = await _syncSalaryCarryOverLogs(docs);
                     _logger.debug(
@@ -1506,7 +1523,7 @@ class AppwriteSyncManager {
                     () async {
                       final docs = await appwriteService.listDocuments(
                         collectionId: 'app_settings',
-                        queries: deltaQ,
+                        queries: pullQueries,
                       );
                       final synced = await _syncAppSettings(docs);
                       _logger.debug('Synced $synced app_settings', tag: 'SYNC');
@@ -5464,6 +5481,12 @@ class AppwriteSyncManager {
         final List<String> deltaQ =
             await (_pullService?.buildDeltaQueries(lastPullTs) ?? <String>[]);
         final isDelta = deltaQ.isNotEmpty;
+        // في السحب الكامل فقط نستبعد tombstones من الخادم قبل تنزيلها.
+        // السحب التزايدي يبقى دون هذا الفلتر لكي تتمكن الأجهزة الموجودة من
+        // معالجة حذف سجل محلي قائم عبر مسار tombstone المخصص.
+        final pullQueries = isDelta
+            ? deltaQ
+            : SyncPullService.buildFullSyncQueries();
         if (isDelta) {
           _logger.info(
             '🔄 Delta Sync: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(lastPullTs * 1000).toIso8601String()}',
@@ -5480,7 +5503,7 @@ class AppwriteSyncManager {
           // مزامنة كل كولكشن بشكل مستقل — فشل واحد لا يوقف الباقي
           try {
             final rooms = await appwriteService.listRooms(
-              queries: deltaQ,
+              queries: pullQueries,
               useCache: false,
             );
             recordsPulled += await _syncRooms(rooms);
@@ -5495,7 +5518,7 @@ class AppwriteSyncManager {
 
           try {
             final bookings = await appwriteService.listBookings(
-              queries: deltaQ,
+              queries: pullQueries,
               useCache: false,
             );
             recordsPulled += await _syncBookings(bookings);
@@ -5510,7 +5533,7 @@ class AppwriteSyncManager {
 
           try {
             final employees = await appwriteService.listEmployees(
-              queries: deltaQ,
+              queries: pullQueries,
               useCache: false,
             );
             // ✅ التوصية 5: تحصين أسبقية الموظفين عبر إعادة المحاولة.
@@ -5540,7 +5563,7 @@ class AppwriteSyncManager {
 
           try {
             final expenses = await appwriteService.listExpenses(
-              queries: deltaQ,
+              queries: pullQueries,
               useCache: false,
             );
             recordsPulled += await _syncExpenses(expenses);
@@ -5555,7 +5578,7 @@ class AppwriteSyncManager {
 
           try {
             final payments = await appwriteService.listPayments(
-              queries: deltaQ,
+              queries: pullQueries,
               useCache: false,
             );
             recordsPulled += await _syncPayments(payments);
@@ -5570,7 +5593,7 @@ class AppwriteSyncManager {
 
           try {
             final debts = await appwriteService.listDebts(
-              queries: deltaQ,
+              queries: pullQueries,
               useCache: false,
             );
             recordsPulled += await _syncDebts(debts);
@@ -5585,7 +5608,7 @@ class AppwriteSyncManager {
 
           try {
             final guestInfos = await appwriteService.listGuestInfos(
-              queries: deltaQ,
+              queries: pullQueries,
               useCache: false,
             );
             recordsPulled += await _syncGuestInfos(guestInfos);
@@ -5600,7 +5623,7 @@ class AppwriteSyncManager {
 
           try {
             final salaryWithdrawals = await appwriteService
-                .listSalaryWithdrawals(queries: deltaQ, useCache: false);
+                .listSalaryWithdrawals(queries: pullQueries, useCache: false);
             recordsPulled += await _syncSalaryWithdrawals(salaryWithdrawals);
           } catch (e, st) {
             _logger.error(
@@ -5614,7 +5637,7 @@ class AppwriteSyncManager {
           try {
             final bookingPriceAdjustments = await appwriteService.listDocuments(
               collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
-              queries: deltaQ,
+              queries: pullQueries,
             );
             recordsPulled += await _syncBookingPriceAdjustments(
               bookingPriceAdjustments,
@@ -5630,7 +5653,7 @@ class AppwriteSyncManager {
 
           try {
             final shiftNotes = await appwriteService.listShiftNotes(
-              queries: deltaQ,
+              queries: pullQueries,
               useCache: false,
             );
             recordsPulled += await _syncShiftNotes(shiftNotes);
@@ -5645,7 +5668,7 @@ class AppwriteSyncManager {
 
           try {
             final blacklistDocs = await appwriteService.listBlacklist(
-              queries: deltaQ,
+              queries: pullQueries,
               useCache: false,
             );
             recordsPulled += await _syncBlacklist(blacklistDocs);
@@ -5660,7 +5683,7 @@ class AppwriteSyncManager {
 
           try {
             final bookingNotes = await appwriteService.listBookingNotes(
-              queries: deltaQ,
+              queries: pullQueries,
               useCache: false,
             );
             recordsPulled += await _syncBookingNotes(bookingNotes);
@@ -5688,6 +5711,12 @@ class AppwriteSyncManager {
             // السحب التزايدي اللاحق يجلب التغييرات الجديدة فقط.
             const int kInitialBookingNightsLimit = 1000;
             final bool isInitialPull = nightsPullTs == 0;
+            // نطبق نفس سياسة السحب الكامل على booking_nights: لا ننزّل
+            // tombstones إلى قاعدة البيانات المحلية عند التهيئة الأولى أو
+            // عندما تكون دورة السحب العامة نفسها كاملة.
+            final effectiveNightsPullQueries = (!isDelta || isInitialPull)
+                ? SyncPullService.buildFullSyncQueries()
+                : nightsDeltaQ;
             if (isInitialPull) {
               _logger.info(
                 '📥 السحب الأولي لـ booking_nights — تحديد $kInitialBookingNightsLimit سجل كحد أقصى',
@@ -5695,7 +5724,7 @@ class AppwriteSyncManager {
               );
             }
             final bookingNights = await appwriteService.listBookingNights(
-              queries: nightsDeltaQ,
+              queries: effectiveNightsPullQueries,
               useCache: false,
               maxRecords: isInitialPull ? kInitialBookingNightsLimit : null,
             );
@@ -5717,7 +5746,7 @@ class AppwriteSyncManager {
 
           try {
             final cashTransactions = await appwriteService.listCashTransactions(
-              queries: deltaQ,
+              queries: pullQueries,
               useCache: false,
             );
             recordsPulled += await _syncCashTransactions(cashTransactions);
@@ -5732,7 +5761,7 @@ class AppwriteSyncManager {
 
           try {
             final salaryCycles = await appwriteService.listSalaryCycles(
-              queries: deltaQ,
+              queries: pullQueries,
               useCache: false,
             );
             recordsPulled += await _syncSalaryCycles(salaryCycles);
@@ -5747,7 +5776,7 @@ class AppwriteSyncManager {
 
           try {
             final salaryPayments = await appwriteService.listSalaryPayments(
-              queries: deltaQ,
+              queries: pullQueries,
               useCache: false,
             );
             recordsPulled += await _syncSalaryPayments(salaryPayments);
@@ -5763,7 +5792,7 @@ class AppwriteSyncManager {
           try {
             final priceAdjustments = await appwriteService.listDocuments(
               collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
-              queries: deltaQ,
+              queries: pullQueries,
             );
             recordsPulled += await _syncPriceAdjustments(priceAdjustments);
           } catch (e, st) {
@@ -5778,7 +5807,7 @@ class AppwriteSyncManager {
           try {
             final auditLogs = await appwriteService.listDocuments(
               collectionId: AppwriteConfig.auditLogsCollectionId,
-              queries: deltaQ,
+              queries: pullQueries,
             );
             recordsPulled += await _syncAuditLogs(auditLogs);
           } catch (e, st) {
@@ -5793,7 +5822,7 @@ class AppwriteSyncManager {
           try {
             final paymentVoids = await appwriteService.listDocuments(
               collectionId: AppwriteConfig.paymentVoidsCollectionId,
-              queries: deltaQ,
+              queries: pullQueries,
             );
             recordsPulled += await _syncPaymentVoids(paymentVoids);
           } catch (e, st) {

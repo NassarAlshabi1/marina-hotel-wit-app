@@ -158,6 +158,10 @@ class PaymentVoidService {
             isVoided: const drift.Value(true),
             voidedAt: drift.Value(nowEpoch),
             voidedBy: drift.Value(voidedBy),
+            voidReason: drift.Value(voidReason),
+            // تصبح الدفعة الملغاة غير قابلة للتعديل محلياً، ويُرفع ذلك
+            // مع سجل payment_voids ليبقى السلوك متطابقاً على كل جهاز.
+            isImmutable: const drift.Value(true),
             updatedAt: drift.Value(nowEpoch),
             lastModified: drift.Value(nowEpoch),
             version: drift.Value(payment.version + 1),

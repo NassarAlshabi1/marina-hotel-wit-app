@@ -1619,8 +1619,9 @@ class AppwriteSyncUtils {
   static Map<String, dynamic> normalizeVectorClockInPayload(
     Map<String, dynamic> payload,
   ) {
-    if (!payload.containsKey('vectorClock'))
+    if (!payload.containsKey('vectorClock')) {
       return Map<String, dynamic>.from(payload);
+    }
     final normalized = Map<String, dynamic>.from(payload);
     normalized['vectorClock'] = normalizeVectorClock(normalized['vectorClock']);
     return normalized;
