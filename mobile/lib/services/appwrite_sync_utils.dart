@@ -1,4 +1,5 @@
 import '../utils/hotel_date_helper.dart';
+import 'dart:convert';
 
 /// فئة أدوات موحدة لمعالجة البيانات قبل إرسالها أو بعد سحبها من Appwrite
 class AppwriteSyncUtils {
@@ -1644,6 +1645,9 @@ class AppwriteSyncUtils {
         }
         return false;
       case 'string':
+        // Appwrite string attributes لا تقبل Map/List مباشرة. الساعات المتجهة
+        // والحقول JSON قد تصل كمركبات بعد دمج OCC، فتُسلسل بدلاً من Map.toString().
+        if (value is Map || value is Iterable) return jsonEncode(value);
         return value.toString();
       default:
         return value;

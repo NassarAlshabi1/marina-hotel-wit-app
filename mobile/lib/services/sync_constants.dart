@@ -65,6 +65,10 @@ class SyncConstants {
 
   static const Duration defaultAutoSyncInterval = Duration(minutes: 15);
 
+  /// إعدادات التطبيق محلية فقط حالياً ولا تدخل في دورة Appwrite.
+  /// عند الحاجة إلى مزامنتها مستقبلاً، تُفعّل بعد توحيد مخططها واختبارات الترحيل.
+  static const bool appSettingsSyncEnabled = false;
+
   /// مفتاح SharedPreferences لفاصل المزامنة التلقائية (بالدقائق).
   /// يُسمح للمستخدم بتغييره من شاشة الإعدادات دون إعادة بناء التطبيق.
   /// القيم المقترحة:

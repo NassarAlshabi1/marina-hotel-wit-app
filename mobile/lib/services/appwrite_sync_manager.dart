@@ -911,24 +911,28 @@ class AppwriteSyncManager {
               phaseMs,
             );
 
-            // رفع إعدادات الواتساب إلى Appwrite (يدفع من SharedPreferences → السحابة)
-            try {
-              recordsPushed += await _timePhase('pushAppSettings', () async {
-                final pushed = await _pushAppSettingsToCloud();
-                if (pushed) {
-                  _logger.debug(
-                    'WhatsApp settings pushed to cloud',
-                    tag: 'SYNC',
-                  );
-                  return 1;
-                }
-                return 0;
-              }, phaseMs);
-            } catch (e, st) {
-              _logger.error(
-                '❌ فشل رفع app_settings',
-                error: e,
-                stackTrace: st,
+            // إعدادات التطبيق محلية حالياً؛ لا نسمح لها بحجب أو تلويث دورة Outbox.
+            if (SyncConstants.appSettingsSyncEnabled) {
+              try {
+                recordsPushed += await _timePhase('pushAppSettings', () async {
+                  final pushed = await _pushAppSettingsToCloud();
+                  if (pushed) {
+                    _logger.debug('App settings pushed to cloud', tag: 'SYNC');
+                    return 1;
+                  }
+                  return 0;
+                }, phaseMs);
+              } catch (e, st) {
+                _logger.error(
+                  '❌ فشل رفع app_settings',
+                  error: e,
+                  stackTrace: st,
+                  tag: 'SYNC',
+                );
+              }
+            } else {
+              _logger.debug(
+                'تخطي رفع app_settings — المزامنة معطلة',
                 tag: 'SYNC',
               );
             }
@@ -1494,31 +1498,31 @@ class AppwriteSyncManager {
 
               // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
 
-              // مزامنة إعدادات الواتساب (app_settings) — غير حرجة، لا تمنع Delta Sync
-              // ✅ Forensic audit fix (2026-07-22):
-              // كان الكود السابق يستخدم queries: <String>[] (full scan) مع تعليق
-              // "app_settings لا يحتوي على حقل lastModified". لكن deltaQ يستخدم
-              // Query.greaterThan(r'$updatedAt', cutoffIso) — و $updatedAt هو
-              // **حقل نظام** (system field) في Appwrite موجود على كل المستندات
-              // تلقائياً، وليس حقلاً مخصصاً في الـ schema. المطور خلط بين
-              // lastModified (حقل مخصص) و $updatedAt (حقل نظام).
-              // الآن نستخدم deltaQ — إذا فشل (غير متوقع)، catch block يتعامل معه.
-              try {
-                recordsPulled += await _timePhase('syncAppSettings', () async {
-                  final docs = await appwriteService.listDocuments(
-                    collectionId: 'app_settings',
-                    queries:
-                        deltaQ, // ✅ delta filter يعمل لأن $updatedAt حقل نظام
+              // إعدادات التطبيق محلية حالياً؛ لا تُضم إلى Delta Sync.
+              if (SyncConstants.appSettingsSyncEnabled) {
+                try {
+                  recordsPulled += await _timePhase(
+                    'syncAppSettings',
+                    () async {
+                      final docs = await appwriteService.listDocuments(
+                        collectionId: 'app_settings',
+                        queries: deltaQ,
+                      );
+                      final synced = await _syncAppSettings(docs);
+                      _logger.debug('Synced $synced app_settings', tag: 'SYNC');
+                      return synced;
+                    },
+                    phaseMs,
                   );
-                  final synced = await _syncAppSettings(docs);
-                  _logger.debug('Synced $synced app_settings', tag: 'SYNC');
-                  return synced;
-                }, phaseMs);
-              } catch (e) {
-                // ⚠️ app_settings غير حرجة — لا تمنع تحديث lastPullTs
-                // إعدادات واتساب ليست بيانات فندقية أساسية
-                _logger.warning(
-                  '⚠️ فشل سحب app_settings (غير حرج — لن يؤثر على Delta Sync): $e',
+                } catch (e) {
+                  _logger.warning(
+                    '⚠️ فشل سحب app_settings (غير حرج — لن يؤثر على Delta Sync): $e',
+                    tag: 'SYNC',
+                  );
+                }
+              } else {
+                _logger.debug(
+                  'تخطي سحب app_settings — المزامنة معطلة',
                   tag: 'SYNC',
                 );
               }

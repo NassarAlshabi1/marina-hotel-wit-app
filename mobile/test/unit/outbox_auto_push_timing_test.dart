@@ -16,5 +16,9 @@ void main() {
         lessThan(SyncConstants.defaultAutoSyncInterval),
       );
     });
+
+    test('تبقى إعدادات التطبيق محلية ولا تدخل في Appwrite حالياً', () {
+      expect(SyncConstants.appSettingsSyncEnabled, isFalse);
+    });
   });
 }
