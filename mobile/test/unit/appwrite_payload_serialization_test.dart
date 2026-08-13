@@ -32,5 +32,32 @@ void main() {
       );
       expect(payload['vectorClock'], '{"device-a":3}');
     });
+
+    test('يستبدل vectorClock التالف بساعة فارغة آمنة', () {
+      expect(AppwriteSyncUtils.normalizeVectorClock('device-a:3'), '{}');
+      expect(
+        AppwriteSyncUtils.normalizeVectorClock(<String>['not-a-clock']),
+        '{}',
+      );
+    });
+
+    test('لا يرسل vectorClock أطول من حد Appwrite', () {
+      final oversized = <String, int>{
+        for (var index = 0; index < 180; index++)
+          'device-${index.toString().padLeft(3, '0')}-aaaaaaaa': index,
+      };
+
+      expect(AppwriteSyncUtils.normalizeVectorClock(oversized), '{}');
+    });
+
+    test('يحمي مسار النقل الأخير الحمولة غير المصفاة', () {
+      final payload = AppwriteSyncUtils.normalizeVectorClockInPayload({
+        'vectorClock': <String, dynamic>{'device-a': '5'},
+        'status': 'محجوزة',
+      });
+
+      expect(payload['status'], 'محجوزة');
+      expect(jsonDecode(payload['vectorClock'] as String), {'device-a': 5});
+    });
   });
 }

@@ -1577,6 +1577,55 @@ class AppwriteSyncUtils {
     },
   };
 
+  /// يضمن تمثيل vectorClock كسلسلة JSON صالحة ضمن حد Appwrite (1000 حرف).
+  ///
+  /// قد تصل القيمة كـ Map بعد دمج التعارضات، أو كنص تالف من سجل قديم. لا
+  /// يجوز أن تمنع بيانات الفندق الأساسية من الرفع بسبب بيانات وصفية تالفة؛
+  /// لذلك نُعيد ساعة فارغة آمنة في الحالات غير الصالحة أو الطويلة جداً.
+  static String normalizeVectorClock(dynamic value) {
+    dynamic decoded;
+    if (value is String) {
+      final trimmed = value.trim();
+      if (trimmed.isEmpty || trimmed == '{}') return '{}';
+      try {
+        decoded = jsonDecode(trimmed);
+      } catch (_) {
+        return '{}';
+      }
+    } else if (value is Map) {
+      decoded = value;
+    } else {
+      return '{}';
+    }
+
+    if (decoded is! Map) return '{}';
+
+    final normalized = <String, int>{};
+    decoded.forEach((key, rawCounter) {
+      final deviceId = key.toString().trim();
+      final counter = rawCounter is num
+          ? rawCounter.toInt()
+          : int.tryParse(rawCounter.toString());
+      if (deviceId.isNotEmpty && counter != null && counter >= 0) {
+        normalized[deviceId] = counter;
+      }
+    });
+
+    final serialized = jsonEncode(normalized);
+    return serialized.length <= 1000 ? serialized : '{}';
+  }
+
+  /// دفاع أخير للحمولات التي لا تمر عبر PayloadMapper.
+  static Map<String, dynamic> normalizeVectorClockInPayload(
+    Map<String, dynamic> payload,
+  ) {
+    if (!payload.containsKey('vectorClock'))
+      return Map<String, dynamic>.from(payload);
+    final normalized = Map<String, dynamic>.from(payload);
+    normalized['vectorClock'] = normalizeVectorClock(normalized['vectorClock']);
+    return normalized;
+  }
+
   /// تصفية الحمولة — إبقاء فقط الحقول الموجودة في مخطط Appwrite الفعلي
   /// ⚠️ هذا يمنع خطأ "Unknown attribute" نهائياً
   /// إذا لم يكن المجموعة معروفة، يتم إرجاع الحمولة كما هي (بدون تصفية)
@@ -1598,8 +1647,9 @@ class AppwriteSyncUtils {
       return result;
     }
 
+    final normalizedPayload = normalizeVectorClockInPayload(payload);
     final result = <String, dynamic>{};
-    for (final entry in payload.entries) {
+    for (final entry in normalizedPayload.entries) {
       final fieldSchema = schema[entry.key];
       if (fieldSchema != null) {
         result[entry.key] = _coerceToType(entry.value, fieldSchema);

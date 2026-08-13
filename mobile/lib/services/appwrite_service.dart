@@ -9,6 +9,7 @@ import 'appwrite_error_handler.dart';
 import 'appwrite_health_checker.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_network_helper.dart';
+import 'appwrite_sync_utils.dart';
 import 'secondary_appwrite_config.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
@@ -481,7 +482,8 @@ class AppwriteService {
     required String documentId,
     required Map<String, dynamic> data,
   }) async {
-    var workingData = Map<String, dynamic>.from(data);
+    // حماية نقل أخيرة: لا نسمح لساعة متجهة مركبة أو تالفة بأن تصل إلى SDK.
+    var workingData = AppwriteSyncUtils.normalizeVectorClockInPayload(data);
     // ✅ سياسة "المستند بشرطات": نطبّع المعرّف إلى الصيغة القانونية (بشرطات)
     //    عبر IdResolver.normalizeUuid قبل أي عملية، فلا نكتب مستنداً بلا شرطات.
     final canonicalId = IdResolver.normalizeUuid(documentId);
