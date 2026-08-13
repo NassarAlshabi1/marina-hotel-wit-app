@@ -9,6 +9,9 @@
 
 // ignore_for_file: lines_longer_than_80_chars, avoid_redundant_argument_values, prefer_const_declarations
 
+@Tags(['integration'])
+library marina_hotel_mobile.test.integration_two_device_sync_test;
+
 import 'dart:convert';
 
 import 'package:drift/drift.dart' as d;

@@ -13,6 +13,7 @@
 
 // ignore_for_file: lines_longer_than_80_chars
 
+@Tags(['integration'])
 library marina_hotel_mobile.test.integration_critical_flows_test;
 
 import 'package:drift/drift.dart' as d;

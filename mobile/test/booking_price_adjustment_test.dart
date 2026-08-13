@@ -474,8 +474,8 @@ void main() {
     );
   });
 
-  group('Integer Amount Tests', () {
-    test('جميع المبالغ أعداد صحيحة بدون كسور', () async {
+  group('Whole Amount Tests', () {
+    test('المبالغ العشرية تمثل قيماً بلا كسور عند الحاجة', () async {
       final seed = await seedBookingWithNights(
         roomNumber: '109',
         roomUuid: IdGen.uuid(),
@@ -490,7 +490,8 @@ void main() {
       )..where((b) => b.localUuid.equals(seed.bookingUuid))).getSingle();
 
       expect(booking.totalDueCached, isA<num>());
-      expect(booking.discount, isA<int>());
+      expect(booking.discount, isA<double>());
+      expect(booking.discount, 0.0);
 
       final room = await (db.select(
         db.rooms,

@@ -21,13 +21,13 @@ import 'package:marina_hotel_mobile/services/price_adjustment_service.dart';
 import 'package:marina_hotel_mobile/utils/time.dart';
 
 /// Helper: ينشئ تاريخاً ديناميكياً مع إزاحة بعدد أيام محدد من اليوم.
-DateTime _dayFromNow(int days, {int hour = 15}) {
+DateTime _dayFromNow(int days, {int hour = 15, int minute = 0}) {
   final now = DateTime.now();
-  return DateTime(now.year, now.month, now.day + days, hour);
+  return DateTime(now.year, now.month, now.day + days, hour, minute);
 }
 
 /// Helper: يحوّل DateTime إلى مفتاح يوم فندقي (YYYY-MM-DD).
-String _hotelDayKey(DateTime dt) => Time.dateToString(dt);
+String _hotelDayKey(DateTime dt) => Time.hotelDayKey(now: dt);
 
 /// Helper: ينشئ تاريخ ISO مع فاصل مسافة بدلاً من T (متوافق مع التطبيق).
 String _isoSpace(DateTime dt) => dt.toIso8601String().replaceFirst('T', ' ');
@@ -98,9 +98,9 @@ void main() {
                 localUuid: Value('night-preview-$i-uuid'),
                 bookingLocalId: Value(bookingId),
                 hotelDayKey: Value(nightKey),
-                nightStart: Value('${nightKey}T14:00:00'),
+                nightStart: Value('${nightKey}T14:01:00'),
                 nightEnd: Value(
-                  '${_hotelDayKey(nightDate.add(const Duration(days: 1)))}T14:00:00',
+                  '${_hotelDayKey(nightDate.add(const Duration(days: 1)))}T14:01:00',
                 ),
                 nightlyRate: const Value(10000.0),
                 baseRate: const Value(10000.0),
@@ -114,8 +114,8 @@ void main() {
             );
       }
 
-      // تاريخ بداية التغيير: today-4 عند الساعة 14:00 (بداية يوم الفندق)
-      final effectiveFrom = _dayFromNow(-4, hour: 14);
+      // تاريخ بداية التغيير: today-4 عند الساعة 14:01 (بداية يوم الفندق)
+      final effectiveFrom = _dayFromNow(-4, hour: 14, minute: 1);
 
       final preview = await service.previewPriceChange(
         roomNumber: '101',
@@ -185,9 +185,9 @@ void main() {
                 localUuid: Value('night-discount-preview-$i-uuid'),
                 bookingLocalId: Value(bookingId),
                 hotelDayKey: Value(nightKey),
-                nightStart: Value('${nightKey}T14:00:00'),
+                nightStart: Value('${nightKey}T14:01:00'),
                 nightEnd: Value(
-                  '${_hotelDayKey(nightDate.add(const Duration(days: 1)))}T14:00:00',
+                  '${_hotelDayKey(nightDate.add(const Duration(days: 1)))}T14:01:00',
                 ),
                 nightlyRate: const Value(8000.0),
                 baseRate: const Value(10000.0),
@@ -202,7 +202,7 @@ void main() {
       }
 
       // المعاينة: رفع السعر إلى 12000، الخصم 2000 → السعر الجديد 10000
-      final effectiveFrom = _dayFromNow(-2, hour: 14);
+      final effectiveFrom = _dayFromNow(-2, hour: 14, minute: 1);
       final preview = await service.previewPriceChange(
         roomNumber: '102',
         newPrice: 12000.0,
@@ -269,9 +269,9 @@ void main() {
                 localUuid: Value('night-apply-$i-uuid'),
                 bookingLocalId: Value(bookingId),
                 hotelDayKey: Value(nightKey),
-                nightStart: Value('${nightKey}T14:00:00'),
+                nightStart: Value('${nightKey}T14:01:00'),
                 nightEnd: Value(
-                  '${_hotelDayKey(nightDate.add(const Duration(days: 1)))}T14:00:00',
+                  '${_hotelDayKey(nightDate.add(const Duration(days: 1)))}T14:01:00',
                 ),
                 nightlyRate: const Value(10000.0),
                 baseRate: const Value(10000.0),
@@ -285,7 +285,7 @@ void main() {
             );
       }
 
-      final effectiveFrom = _dayFromNow(-4, hour: 14);
+      final effectiveFrom = _dayFromNow(-4, hour: 14, minute: 1);
 
       final result = await service.applyRoomPriceChange(
         roomNumber: '201',
@@ -327,10 +327,11 @@ void main() {
       expect(adjustments.first.newValue, 12000.0);
       expect(adjustments.first.reason, 'رفع السعر الموسمي');
 
-      // التحقق من وجود audit logs (واحد لكل ليلة متأثرة)
+      // سجل تدقيق مالي واحد مجمّع لكل حجز متأثر، ويتضمن عدد الليالي.
       final auditLogs = await db.select(db.auditLogs).get();
-      expect(auditLogs.length, 5);
+      expect(auditLogs.length, 1);
       expect(auditLogs.first.isFinancial, true);
+      expect(auditLogs.first.newState, contains('5 ليلة'));
     });
 
     test('الحجوزات المغلقة (status=مغادر) لا تتأثر بتغيير السعر', () async {
@@ -388,7 +389,7 @@ void main() {
                 bookingLocalId: Value(bookingId),
                 hotelDayKey: Value(nightKey),
                 nightlyRate: const Value(10000.0),
-                nightStart: Value('${nightKey}T14:00:00'),
+                nightStart: Value('${nightKey}T14:01:00'),
                 nightEnd: Value('${nextNightKey}T12:00:00'),
                 baseRate: const Value(10000.0),
                 adjustment: const Value(0.0),
@@ -406,7 +407,7 @@ void main() {
         oldPrice: 10000.0,
         newPrice: 15000.0,
         appliedBy: 'admin',
-        effectiveFrom: _dayFromNow(-3, hour: 14),
+        effectiveFrom: _dayFromNow(-3, hour: 14, minute: 1),
       );
 
       expect(result.success, true);
@@ -473,7 +474,7 @@ void main() {
           newPrice: 11000.0,
           appliedBy: 'admin',
           reason: 'تعديل 1',
-          effectiveFrom: _dayFromNow(-5, hour: 14),
+          effectiveFrom: _dayFromNow(-5, hour: 14, minute: 1),
         );
 
         await service.applyRoomPriceChange(
@@ -482,7 +483,7 @@ void main() {
           newPrice: 12000.0,
           appliedBy: 'admin',
           reason: 'تعديل 2',
-          effectiveFrom: _dayFromNow(0, hour: 14),
+          effectiveFrom: _dayFromNow(0, hour: 14, minute: 1),
         );
 
         // الاستعلام عن نطاق يشمل اليوم فقط

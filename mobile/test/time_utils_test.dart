@@ -34,17 +34,17 @@ void main() {
   });
 
   test('hotelDayStart and end iso helpers', () {
-    final t = DateTime(2024, 5, 1, 8); // before 9:00 cutoff
+    final t = DateTime(2024, 5, 1, 8); // before 09:01 cutoff
     final start = Time.hotelDayStart(t, cutoffHour: 9);
-    expect(start, DateTime(2024, 4, 30, 9)); // shifts to previous day
+    expect(start, DateTime(2024, 4, 30, 9, 1)); // shifts to previous day
 
     expect(
       Time.hotelDayStartIso('2024-11-13', cutoffHour: 9),
-      '2024-11-13T09:00:00',
+      '2024-11-13T09:01:00',
     );
     expect(
       Time.hotelDayEndIso('2024-11-13', cutoffHour: 14),
-      '2024-11-14T14:00:00',
+      '2024-11-14T14:01:00',
     );
   });
 

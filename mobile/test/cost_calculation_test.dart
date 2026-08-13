@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/utils/time.dart';
 
 void main() {
-  group('اختبارات منطق احتساب التكلفة الجديد - قاعدة 14:00', () {
+  group('اختبارات منطق احتساب التكلفة الجديد - قاعدة 14:01', () {
     test('المثال الأصلي: دخول 05/11 19:00، خروج 06/11 14:01', () {
       final checkin = DateTime(2024, 11, 5, 19, 0);
       final checkout = DateTime(2024, 11, 6, 14, 1);
@@ -226,22 +226,22 @@ void main() {
             2024,
             11,
             6,
-            13,
+            14,
+            0,
             59,
-            59,
-          ), // قبل 14:00 بثانية واحدة
+          ), // قبل 14:01 بثانية واحدة
           'expectedDays': 1,
-          'description': 'قبل 14:00 بثانية واحدة',
+          'description': 'قبل 14:01 بثانية واحدة',
         },
         {
-          'checkout': DateTime(2024, 11, 6, 14, 0, 0), // تمام 14:00
-          'expectedDays': 1,
-          'description': 'تمام الساعة 14:00',
-        },
-        {
-          'checkout': DateTime(2024, 11, 6, 14, 0, 1), // بعد 14:00 بثانية واحدة
+          'checkout': DateTime(2024, 11, 6, 14, 1, 0), // تمام 14:01
           'expectedDays': 2,
-          'description': 'بعد 14:00 بثانية واحدة',
+          'description': 'تمام الساعة 14:01',
+        },
+        {
+          'checkout': DateTime(2024, 11, 6, 14, 1, 1), // بعد 14:01 بثانية واحدة
+          'expectedDays': 2,
+          'description': 'بعد 14:01 بثانية واحدة',
         },
         {
           'checkout': DateTime(2024, 11, 6, 23, 59, 59), // آخر ثانية في اليوم

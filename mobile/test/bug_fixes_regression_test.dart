@@ -4,22 +4,22 @@ import 'package:marina_hotel_mobile/utils/currency_formatter.dart';
 
 void main() {
   group('Time - Hotel Day Calculations', () {
-    test('hotelDayStart returns correct boundary for before 14:00', () {
-      final before14 = DateTime(2026, 1, 15, 10, 0, 0);
-      final result = Time.hotelDayStart(before14);
-      expect(result, DateTime(2026, 1, 14, 14, 0, 0));
+    test('hotelDayStart returns correct boundary for before 14:01', () {
+      final beforeBoundary = DateTime(2026, 1, 15, 10, 0, 0);
+      final result = Time.hotelDayStart(beforeBoundary);
+      expect(result, DateTime(2026, 1, 14, 14, 1, 0));
     });
 
-    test('hotelDayStart returns correct boundary for after 14:00', () {
-      final after14 = DateTime(2026, 1, 15, 16, 0, 0);
-      final result = Time.hotelDayStart(after14);
-      expect(result, DateTime(2026, 1, 15, 14, 0, 0));
+    test('hotelDayStart returns correct boundary for after 14:01', () {
+      final afterBoundary = DateTime(2026, 1, 15, 16, 0, 0);
+      final result = Time.hotelDayStart(afterBoundary);
+      expect(result, DateTime(2026, 1, 15, 14, 1, 0));
     });
 
-    test('hotelDayStart returns correct boundary for exactly 14:00', () {
+    test('hotelDayStart keeps exactly 14:00 in the previous hotel day', () {
       final exact14 = DateTime(2026, 1, 15, 14, 0, 0);
       final result = Time.hotelDayStart(exact14);
-      expect(result, DateTime(2026, 1, 15, 14, 0, 0));
+      expect(result, DateTime(2026, 1, 14, 14, 1, 0));
     });
 
     test('hotelDayKey returns correct date string for before 14:00', () {
@@ -86,21 +86,23 @@ void main() {
   });
 
   group('Discount Calculations - Hotel Day Based', () {
-    test('discount start date should use hotel day 14:00 boundary', () {
+    test('discount start date should use hotel day 14:01 boundary', () {
       final discountStartDate = DateTime(2026, 1, 15, 0, 0, 0);
       final hotelDayStart = DateTime(
         discountStartDate.year,
         discountStartDate.month,
         discountStartDate.day,
         14,
+        1,
       );
       expect(hotelDayStart.hour, 14);
+      expect(hotelDayStart.minute, 1);
     });
 
     test('segment at midnight should be counted as previous hotel day', () {
       final segmentStart = DateTime(2026, 1, 16, 2, 0, 0);
       final hotelDay = Time.hotelDayStart(segmentStart);
-      expect(hotelDay, DateTime(2026, 1, 15, 14, 0, 0));
+      expect(hotelDay, DateTime(2026, 1, 15, 14, 1, 0));
     });
 
     test(

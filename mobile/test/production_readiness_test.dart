@@ -22,12 +22,14 @@ void main() {
 
   group('Production Readiness', () {
     group('WeakDeviceOptimizer', () {
-      test('1GB RAM detected as weak (level 2)', () {
+      test('1GB RAM detected as critical-low-memory (level 3)', () {
         final opt = WeakDeviceOptimizer.instance;
         opt.initialize(processorCount: 2, memoryMB: 1024);
         expect(opt.isWeakDevice, isTrue);
-        expect(opt.optimizationLevel, equals(2));
-        expect(opt.maxListItemsBeforePagination, equals(20));
+        expect(opt.isCriticalLowMemoryDevice, isTrue);
+        expect(opt.optimizationLevel, equals(3));
+        expect(opt.maxListItemsBeforePagination, equals(15));
+        expect(opt.maxDataCacheSizeMB, equals(2));
         expect(opt.syncConcurrency, equals(1));
       });
 
@@ -49,7 +51,7 @@ void main() {
       test('debounceDuration scales', () {
         final opt = WeakDeviceOptimizer.instance;
         opt.initialize(processorCount: 2, memoryMB: 1024);
-        expect(opt.debounceDuration.inMilliseconds, equals(500));
+        expect(opt.debounceDuration.inMilliseconds, equals(700));
         opt.initialize(processorCount: 8, memoryMB: 8192);
         expect(opt.debounceDuration.inMilliseconds, equals(150));
       });

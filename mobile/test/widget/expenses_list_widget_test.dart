@@ -34,6 +34,7 @@ Employee _testEmployee({
     createdAt: 0,
     updatedAt: 0,
     lastModified: 0,
+    syncTimestamp: 0,
     createdAtEpoch: 0,
     lastModifiedEpoch: 0,
     version: 1,

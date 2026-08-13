@@ -229,7 +229,7 @@ class FieldMapper {
     final result = <String, dynamic>{};
     for (final entry in flutterMap.entries) {
       final phpKey = toPhpField(entity, entry.key);
-      result[phpKey] = _convertValueToPhp(entry.value);
+      result[phpKey] = _convertValueToPhp(entry.value, entity: entity);
     }
     return result;
   }
@@ -242,7 +242,7 @@ class FieldMapper {
     final result = <String, dynamic>{};
     for (final entry in phpMap.entries) {
       final flutterKey = toFlutterField(entity, entry.key);
-      result[flutterKey] = _convertValueToFlutter(entry.value);
+      result[flutterKey] = _convertValueToFlutter(entry.value, entity: entity);
     }
     return result;
   }
@@ -263,7 +263,7 @@ class FieldMapper {
         .toList();
   }
 
-  static dynamic _convertValueToPhp(dynamic value) {
+  static dynamic _convertValueToPhp(dynamic value, {required String entity}) {
     if (value == null) {
       return null;
     }
@@ -274,15 +274,31 @@ class FieldMapper {
       return value.toIso8601String();
     }
     if (value is List) {
-      return value.map(_convertValueToPhp).toList();
+      return value
+          .map((item) => _convertValueToPhp(item, entity: entity))
+          .toList();
     }
     if (value is Map) {
-      return value.map((k, v) => MapEntry(k, _convertValueToPhp(v)));
+      return Map<dynamic, dynamic>.fromEntries(
+        value.entries.map((entry) {
+          final rawKey = entry.key;
+          final convertedKey = rawKey is String
+              ? toPhpField(entity, rawKey)
+              : rawKey;
+          return MapEntry(
+            convertedKey,
+            _convertValueToPhp(entry.value, entity: entity),
+          );
+        }),
+      );
     }
     return value;
   }
 
-  static dynamic _convertValueToFlutter(dynamic value) {
+  static dynamic _convertValueToFlutter(
+    dynamic value, {
+    required String entity,
+  }) {
     if (value == null) {
       return null;
     }
@@ -300,10 +316,23 @@ class FieldMapper {
       }
     }
     if (value is List) {
-      return value.map(_convertValueToFlutter).toList();
+      return value
+          .map((item) => _convertValueToFlutter(item, entity: entity))
+          .toList();
     }
     if (value is Map) {
-      return value.map((k, v) => MapEntry(k, _convertValueToFlutter(v)));
+      return Map<dynamic, dynamic>.fromEntries(
+        value.entries.map((entry) {
+          final rawKey = entry.key;
+          final convertedKey = rawKey is String
+              ? toFlutterField(entity, rawKey)
+              : rawKey;
+          return MapEntry(
+            convertedKey,
+            _convertValueToFlutter(entry.value, entity: entity),
+          );
+        }),
+      );
     }
     return value;
   }

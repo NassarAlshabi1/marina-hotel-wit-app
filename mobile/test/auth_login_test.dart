@@ -28,13 +28,17 @@ void main() {
     await SecondaryAppwriteConfig.ensureInitialized();
   });
 
-  test('نجاح تسجيل الدخول للمسؤول admin/admin', () async {
-    final notifier = AuthNotifier();
-    await notifier.login('admin', 'admin');
-    expect(notifier.state.isAuthenticated, true);
-    expect(notifier.state.currentUser?.username, 'admin');
-    expect(notifier.state.currentUser?.permissions.contains('all'), true);
-  });
+  test(
+    'نجاح تسجيل الدخول للمسؤول admin/admin دون انتظار الشبكة',
+    () async {
+      final notifier = AuthNotifier();
+      await notifier.login('admin', 'admin');
+      expect(notifier.state.isAuthenticated, true);
+      expect(notifier.state.currentUser?.username, 'admin');
+      expect(notifier.state.currentUser?.permissions.contains('all'), true);
+    },
+    timeout: const Timeout(Duration(seconds: 5)),
+  );
 
   test('فشل تسجيل الدخول لبيانات خاطئة', () async {
     final notifier = AuthNotifier();

@@ -1,4 +1,8 @@
+@Tags(['integration'])
+library marina_hotel_mobile.test.delete_404_handling_test;
+
 import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/appwrite_service.dart';
 import 'package:marina_hotel_mobile/services/appwrite_config.dart';

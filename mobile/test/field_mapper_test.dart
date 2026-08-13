@@ -154,7 +154,7 @@ void main() {
 
       final flutter = FieldMapper.toFlutterMap('rooms', php);
 
-      expect(flutter['created_at'], isA<DateTime>());
+      expect(flutter['createdAt'], isA<DateTime>());
     });
 
     test('يحافظ على int 0/1 كما هو (لا يحوّله إلى bool)', () {
@@ -163,8 +163,8 @@ void main() {
       final flutter = FieldMapper.toFlutterMap('rooms', php);
 
       // حسب التصميم: int 0/1 يبقى int (يُحوَّل في طبقة أعلى)
-      expect(flutter['is_active'], 1);
-      expect(flutter['is_disabled'], 0);
+      expect(flutter['isActive'], 1);
+      expect(flutter['isDisabled'], 0);
     });
   });
 

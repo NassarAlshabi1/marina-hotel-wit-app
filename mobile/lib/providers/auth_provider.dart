@@ -123,6 +123,24 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _sessionCheckTimer = null;
   }
 
+  /// يبدأ فحص الجلسة فقط للحسابات المخزنة في Appwrite.
+  ///
+  /// الحسابات المحلية الثابتة، ومنها `admin`، لا تحتاج اتصالاً بالشبكة للتحقق
+  /// من جلساتها. تجاوز التحميل السحابي هنا يبقي تسجيل الدخول فورياً ويمنع
+  /// انتظار مهلة الشبكة على الأجهزة الضعيفة أو في الاختبارات غير المتصلة.
+  Future<void> _startCloudSessionCheckIfNeeded(AuthUser user) async {
+    if (_store.isFixedAccount(user.username)) return;
+
+    try {
+      final accounts = await _store.loadCloudAccounts();
+      if (accounts.containsKey(user.username)) {
+        _startSessionCheck();
+      }
+    } catch (e) {
+      dlog(() => r'Error loading cloud accounts: $e');
+    }
+  }
+
   Future<void> _checkSession() async {
     if (!state.isAuthenticated || state.currentUser == null) {
       return;
@@ -189,15 +207,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       authType: authType,
     );
 
-    // بدء فحص الجلسة للمستخدمين السحابيين
-    try {
-      final accounts = await _store.loadCloudAccounts();
-      if (accounts.containsKey(user.username)) {
-        _startSessionCheck();
-      }
-    } catch (e) {
-      dlog(() => r'Error loading cloud accounts: $e');
-    }
+    // يبدأ للمستخدمين السحابيين فقط؛ الحسابات المحلية لا تتصل بالشبكة.
+    await _startCloudSessionCheckIfNeeded(user);
   }
 
   Future<void> login(
@@ -227,15 +238,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       rememberMe: rememberMe,
     );
 
-    // بدء فحص الجلسة للمستخدمين السحابيين
-    try {
-      final accounts = await _store.loadCloudAccounts();
-      if (accounts.containsKey(user.username)) {
-        _startSessionCheck();
-      }
-    } catch (e) {
-      dlog(() => r'Error loading cloud accounts: $e');
-    }
+    // يبدأ للمستخدمين السحابيين فقط؛ الحسابات المحلية لا تتصل بالشبكة.
+    await _startCloudSessionCheckIfNeeded(user);
   }
 
   Future<void> logout() async {

@@ -39,21 +39,27 @@ void main() {
     });
 
     group('hotelDayKey', () {
-      test('قبل الساعة 14:00 يجب إرجاع اليوم السابق', () {
+      test('قبل الساعة 14:01 يجب إرجاع اليوم السابق', () {
         final morning = DateTime(2024, 1, 15, 10, 0);
         final key = Time.hotelDayKey(now: morning, cutoffHour: 14);
         expect(key, '2024-01-14');
       });
 
-      test('بعد الساعة 14:00 يجب إرجاع اليوم الحالي', () {
+      test('بعد الساعة 14:01 يجب إرجاع اليوم الحالي', () {
         final evening = DateTime(2024, 1, 15, 16, 0);
         final key = Time.hotelDayKey(now: evening, cutoffHour: 14);
         expect(key, '2024-01-15');
       });
 
-      test('في تمام الساعة 14:00 يجب إرجاع اليوم الحالي', () {
-        final cutoff = DateTime(2024, 1, 15, 14, 0);
-        final key = Time.hotelDayKey(now: cutoff, cutoffHour: 14);
+      test('في تمام الساعة 14:00 يبقى ضمن اليوم السابق', () {
+        final beforeBoundary = DateTime(2024, 1, 15, 14, 0);
+        final key = Time.hotelDayKey(now: beforeBoundary);
+        expect(key, '2024-01-14');
+      });
+
+      test('في تمام الساعة 14:01 يبدأ اليوم الفندقي الحالي', () {
+        final boundary = DateTime(2024, 1, 15, 14, 1);
+        final key = Time.hotelDayKey(now: boundary);
         expect(key, '2024-01-15');
       });
 
@@ -74,6 +80,7 @@ void main() {
         expect(start.month, 1);
         expect(start.day, 15);
         expect(start.hour, 14);
+        expect(start.minute, 1);
       });
 
       test('يجب إرجاع بداية اليوم السابق للوقت قبل القطع', () {
@@ -81,20 +88,21 @@ void main() {
         final start = Time.hotelDayStart(morning, cutoffHour: 14);
         expect(start.day, 14);
         expect(start.hour, 14);
+        expect(start.minute, 1);
       });
     });
 
     group('hotelDayStartIso', () {
       test('يجب إرجاع تاريخ ISO لبداية يوم الفندق', () {
         final iso = Time.hotelDayStartIso('2024-08-08', cutoffHour: 14);
-        expect(iso, '2024-08-08T14:00:00');
+        expect(iso, '2024-08-08T14:01:00');
       });
     });
 
     group('hotelDayEndIso', () {
       test('يجب إرجاع تاريخ ISO لنهاية يوم الفندق', () {
         final iso = Time.hotelDayEndIso('2024-08-08', cutoffHour: 14);
-        expect(iso, '2024-08-09T14:00:00');
+        expect(iso, '2024-08-09T14:01:00');
       });
     });
 
