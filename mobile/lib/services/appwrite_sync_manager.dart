@@ -506,8 +506,6 @@ class AppwriteSyncManager {
   }) {
     _syncTimer?.cancel();
     _syncTimer = Timer.periodic(interval, (timer) async {
-      // ✅ Wave 5: ownership-safe tryAcquire (with token).
-      // فقط الـ token الصحيح يستطيع فك القفل في finally.
       final token = SyncGuard.tryAcquire(label: 'appwrite_sync');
       if (token == null) {
         _logger.info(
@@ -516,11 +514,17 @@ class AppwriteSyncManager {
         );
         return;
       }
-      // ✅ إصلاح جذري: catch + finally — سابقاً كان try/finally فقط بدون catch،
-      // فأي استثناء من sync() (مثل Connection reset قبل الـ try الداخلي)
-      // كان يصبح unhandled async error → Crashlytics Fatal.
       try {
-        await sync();
+        final pendingCount = await outboxDao.countUndeliveredToPrimary();
+        if (pendingCount > 0) {
+          _logger.info(
+            'Auto sync: skipping pull — $pendingCount undelivered outbox entries',
+            tag: 'SYNC',
+          );
+          await sync(push: true, pull: false);
+        } else {
+          await sync();
+        }
       } catch (e, st) {
         _logger.error(
           '❌ Auto sync Timer: استثناء غير متوقع',
@@ -528,7 +532,6 @@ class AppwriteSyncManager {
           stackTrace: st,
           tag: 'SYNC',
         );
-        // لا rethrow — نمنع fatal crash
       } finally {
         SyncGuard.release(token);
       }
