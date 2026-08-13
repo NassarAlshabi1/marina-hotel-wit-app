@@ -45,6 +45,7 @@ import 'sync_guard.dart';
 import 'sync_performance_optimizer.dart';
 import 'remote_change_notification_service.dart'; // ✅ Wave 7
 import 'sync/payload_mapper.dart';
+import 'sync/outbox_pull_policy.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_core/sync_error_service.dart';
 import 'sync_core/sync_metrics.dart';
@@ -740,6 +741,34 @@ class AppwriteSyncManager {
         timestamp: DateTime.now(),
         duration: Duration.zero,
       );
+    }
+
+    // سياسة Offline-first: لا نسمح بالسحب فوق تغييرات محلية لم تصل
+    // بعد إلى Appwrite. عند sync كامل نتابع بالرفع فقط؛ وعند طلب pull
+    // صريح نرفضه ونبقي Outbox هو مصدر الحقيقة إلى أن يفرغ.
+    if (pull) {
+      final pendingLocalChanges = await outboxDao.countUndeliveredToPrimary();
+      if (!OutboxPullPolicy.canPull(
+        undeliveredOutboxCount: pendingLocalChanges,
+      )) {
+        final message = OutboxPullPolicy.blockedMessage(
+          undeliveredOutboxCount: pendingLocalChanges,
+        );
+        _logger.info(
+          'Pull blocked — $pendingLocalChanges undelivered local Outbox entries',
+          tag: 'SYNC',
+        );
+        if (push) {
+          pull = false;
+        } else {
+          return SyncResult(
+            status: SyncStatus.idle,
+            errorMessage: message,
+            timestamp: DateTime.now(),
+            duration: Duration.zero,
+          );
+        }
+      }
     }
 
     if (_currentStatus == SyncStatus.syncing) {
@@ -5397,6 +5426,17 @@ class AppwriteSyncManager {
   /// Guarded by [SyncLocks.appwriteSyncLock] to prevent concurrent pulls.
   /// All collection syncs are wrapped in a single database transaction for atomicity.
   Future<bool> pullRemoteChanges() async {
+    final pendingLocalChanges = await outboxDao.countUndeliveredToPrimary();
+    if (!OutboxPullPolicy.canPull(
+      undeliveredOutboxCount: pendingLocalChanges,
+    )) {
+      _logger.info(
+        'Direct pull blocked — $pendingLocalChanges undelivered local Outbox entries',
+        tag: 'SYNC',
+      );
+      return false;
+    }
+
     return SyncLocks.appwriteSyncLock.synchronized(() async {
       if (_currentStatus == SyncStatus.syncing) {
         _logger.warning('⏸️ تخطي السحب - المزامنة جارية', tag: 'SYNC');

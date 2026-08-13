@@ -165,40 +165,25 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       return;
     }
 
-    // ✅ P2-4 fix: تحذير قبل السحب عند وجود تغييرات محلية غير مرفوعة
+    // سياسة Offline-first: السحب اليدوي غير متاح ما دامت تغييرات محلية
+    // غير مُسلّمة موجودة في Outbox. يُرفع المستخدم التغييرات أولاً ثم يعيد
+    // طلب السحب بعد تأكيد تفريغ الصف؛ لا يوجد خيار «سحب فقط» لتجنب دهسها.
     if (_pendingChangesCount > 0) {
       if (!mounted) return;
-      final shouldContinue = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('⚠️ تغييرات محلية غير مرفوعة'),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
           content: Text(
-            'لديك $_pendingChangesCount تغييراً محلياً لم يُرفع بعد.\n\n'
-            'سحب البيانات قبل رفع تغييراتك قد يدهس تعديلاتك المحلية.\n\n'
-            'هل تريد الرفع أولاً ثم السحب؟',
+            '⬆️ يجب رفع $_pendingChangesCount تغييراً محلياً قبل سحب البيانات',
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('سحب فقط'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('رفع ثم سحب'),
-            ),
-          ],
+          backgroundColor: Colors.orange,
+          action: SnackBarAction(
+            label: 'رفع الآن',
+            textColor: Colors.white,
+            onPressed: () => _pushChanges(context),
+          ),
         ),
       );
-      // null = المستخدم أغلق الحوار؛ true = رفع ثم سحب؛ false = سحب فقط
-      if (shouldContinue == null) {
-        return;
-      }
-      if (shouldContinue) {
-        // رفع ثم سحب — نخرج مؤقتاً من البوّابة الحالية لأن _pushChanges
-        // سيحاول دخولها بنفسه. البوّابة تُحرَّر هنا ويُعاد دخولها في الـ push.
-        if (!mounted) return;
-        await _pushChanges(context);
-      }
+      return;
     }
 
     _isPulling = true;
@@ -819,10 +804,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     int pendingCount,
     bool gateBusy,
   ) {
-    // زر السحب متاح دائماً طالما Appwrite مفعّل وليس جاري مزامنة محلياً،
-    // والبوّابة العامة ليست مشغولة بعملية من أي مصدر آخر.
+    // سياسة Offline-first: لا نسمح بالسحب اليدوي قبل تسليم كل تغييرات
+    // Outbox المحلية إلى Appwrite. يبقى زر الرفع متاحاً لتفريغ الصف أولاً.
     final bool pullEnabled =
-        _appwriteEnabled && !_isPulling && !_isPushing && !gateBusy;
+        _appwriteEnabled &&
+        pendingCount == 0 &&
+        !_isPulling &&
+        !_isPushing &&
+        !gateBusy;
 
     Color buttonColor;
     IconData buttonIcon;
@@ -843,8 +832,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
 
     return Tooltip(
-      message: hasRemoteChanges
-          ? 'يوجد $pendingCount تحديث من السيرفر — اضغط للسحب'
+      message: pendingCount > 0
+          ? 'السحب معطّل حتى رفع $pendingCount تغييراً محلياً'
+          : hasRemoteChanges
+          ? 'يوجد تحديث من السيرفر — اضغط للسحب'
           : 'اضغط لسحب التغييرات من السيرفر',
       child: Stack(
         clipBehavior: Clip.none,
