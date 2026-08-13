@@ -359,6 +359,19 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     await AppwriteConfigManager.init();
     dlog('✅ Appwrite Config loaded');
 
+    final driveSyncEnabled =
+        prefs.getBool('google_drive_sync_enabled') ?? false;
+    if (!driveSyncEnabled) {
+      // لا يوجد سبب لإنشاء logger أو محاولة sign-in أو إعداد coordinator
+      // ومؤقتاته عندما لا يستخدم العميل Google Drive. مزامنة Appwrite تبدأ
+      // من AppState ولا تعتمد على هذا المكدس.
+      dlog(
+        '⏸️ Google Drive sync disabled — skipped Drive backup, '
+        'AutoSyncEngine, WorkManager, and sync guardians bootstrap',
+      );
+      return;
+    }
+
     dlog('📝 Initializing Google Drive Logger...');
     final driveLogger = GoogleDriveLogger();
     await driveLogger.initialize(minLevel: LogLevel.debug);
@@ -452,10 +465,8 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 
     await _configureAutoSyncEngine(autoSyncEngine);
 
-    // تفعيل المزامنة التلقائية عند فتح التطبيق (فقط إذا كان المستخدم قد فعّلها)
-    final driveSyncEnabled =
-        prefs.getBool('google_drive_sync_enabled') ?? false;
-    if (backupService.isSignedIn && driveSyncEnabled) {
+    // تفعيل المزامنة التلقائية عند فتح التطبيق بعد اجتياز feature gate أعلاه.
+    if (backupService.isSignedIn) {
       dlog('🔔 إشعار أنظمة المزامنة بتسجيل الدخول...');
       await autoSyncEngine.start();
       await autoSyncEngine.onSignInChanged(true);
@@ -631,8 +642,12 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         }
         AppSessionManager.configure(
           database: database,
-          deviceIdResolver: () async =>
-              GoogleDriveUnifiedSyncCoordinator.instance.deviceId,
+          // معرّف Appwrite لا يعتمد على Google Drive؛ يُحفظ عند تسجيل الجهاز
+          // ويظل متاحًا حتى عندما تكون خدمات Drive غير مهيأة.
+          deviceIdResolver: () async {
+            final prefs = await SharedPreferences.getInstance();
+            return prefs.getString('appwrite_device_id');
+          },
           syncManager: ref.read(appwrite.appwriteSyncManagerProvider),
         );
         await Seeder(database).seedIfEmpty();
@@ -742,11 +757,12 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           dwarn(() => 'Initial sync on app start failed: $e');
         }
 
-        var deviceId = GoogleDriveUnifiedSyncCoordinator.instance.deviceId;
-        deviceId ??= syncManager.currentDeviceId;
+        var deviceId = syncManager.currentDeviceId;
         if (deviceId == null) {
           final prefs = await SharedPreferences.getInstance();
-          deviceId = prefs.getString('appwrite_realtime_device_id');
+          deviceId =
+              prefs.getString('appwrite_device_id') ??
+              prefs.getString('appwrite_realtime_device_id');
           if (deviceId == null) {
             deviceId = IdGen.uuid();
             await prefs.setString('appwrite_realtime_device_id', deviceId);
