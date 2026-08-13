@@ -499,6 +499,13 @@ export class Database {
       .first<{ id: string; password_hash: string; role: string }>();
   }
 
+  async countActiveUsers(): Promise<number> {
+    const row = await this.db
+      .prepare('SELECT COUNT(*) AS count FROM users WHERE deleted_at IS NULL')
+      .first<{ count: number | string }>();
+    return Number(row?.count ?? 0);
+  }
+
   async createUser(username: string, passwordHash: string, role: string): Promise<string> {
     const id = crypto.randomUUID();
     const now = Math.floor(Date.now() / 1000);

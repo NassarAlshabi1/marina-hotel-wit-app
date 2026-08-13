@@ -181,22 +181,45 @@ export default {
     if (path === '/api/auth/register' && method === 'POST') {
       const db = new Database(env.DB);
       try {
-        const body = await request.json() as { username: string; password: string; role?: string };
-
-        if (!body.username || !body.password) {
-          return json({ error: 'Username and password required' }, 400, env);
+        // Bootstrap is allowed only while the database has no active users.
+        // After that, only an authenticated admin may create another account.
+        const activeUsers = await db.countActiveUsers();
+        if (activeUsers > 0) {
+          const authResult = await authMiddleware(request, { JWT_SECRET: env.JWT_SECRET, DB: env.DB });
+          if (!authResult.authenticated) {
+            return json({ error: 'Admin authentication required' }, 401, env);
+          }
+          if (authResult.context?.role !== 'admin') {
+            return json({ error: 'Admin role required' }, 403, env);
+          }
         }
 
-        const hash = await hashPassword(body.password);
-        const userId = await db.createUser(body.username, hash, body.role || 'admin');
+        const body = await request.json() as { username?: string; password?: string; role?: string };
+        const username = body.username?.trim();
+        const password = body.password;
+        const role = body.role || 'staff';
+
+        if (!username || !password) {
+          return json({ error: 'Username and password required' }, 400, env);
+        }
+        if (!['admin', 'manager', 'staff'].includes(role)) {
+          return json({ error: 'Invalid role' }, 400, env);
+        }
+
+        const hash = await hashPassword(password);
+        const userId = await db.createUser(username, hash, role);
 
         const token = await signToken(
-          { sub: userId, username: body.username, role: body.role || 'admin' },
+          { sub: userId, username, role },
           env.JWT_SECRET,
           parseInt(env.JWT_EXPIRY_HOURS, 10) || 24
         );
 
-        return json({ token, user: { id: userId, username: body.username, role: body.role || 'admin' } }, 201, env);
+        return json(
+          { token, user: { id: userId, username, role } },
+          201,
+          env,
+        );
       } catch (err) {
         return json({ error: 'Registration failed', detail: String(err) }, 500, env);
       }
