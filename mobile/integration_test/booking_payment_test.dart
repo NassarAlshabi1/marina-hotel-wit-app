@@ -38,6 +38,8 @@ void main() {
       origin: 'local',
       vectorClock: 'device1:1',
       deviceId: 'test-device',
+      // حقل إلزامي من SyncFields؛ يجب أن يطابق شكل البيانات المنتجة.
+      syncTimestamp: now,
       idempotencyKey: null,
       id: 1,
       serverBookingId: null,
