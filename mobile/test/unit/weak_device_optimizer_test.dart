@@ -35,10 +35,15 @@ void main() {
       expect(WeakDeviceOptimizer.instance.optimizationLevel, equals(0));
     });
 
-    test('القيم الافتراضية آمنة عند عدم التهيئة (isWeakDevice=false)', () {
-      // يضمن أن local_db يعمل بـ PRAGMA الافتراضية في الاختبارات/السياقات غير المهيأة.
-      final fresh = WeakDeviceOptimizer.instance;
-      expect(fresh.isWeakDevice, isFalse);
+    test('ملف جهاز عادي لا يفعّل قيود الأجهزة الضعيفة', () async {
+      // WeakDeviceOptimizer هو singleton؛ لذلك لا نفترض حالة افتراضية بعد
+      // اختبارات سابقة. نهيئ ملفاً عادياً صراحةً كي يكون الاختبار حتمياً في CI.
+      await WeakDeviceOptimizer.instance.initialize(
+        processorCount: 8,
+        memoryMB: 4096,
+      );
+      expect(WeakDeviceOptimizer.instance.isWeakDevice, isFalse);
+      expect(WeakDeviceOptimizer.instance.optimizationLevel, equals(0));
     });
   });
 }

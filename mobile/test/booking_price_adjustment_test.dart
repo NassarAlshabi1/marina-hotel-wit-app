@@ -8,7 +8,8 @@
 //    4. تقرير الإيرادات المفقودة (generateLostRevenueReport)
 //    5. نقل التعديلات لغرفة جديدة (transferAdjustmentsToRoom)
 //
-//  جميع التواريخ مبنية على DateTime.now() لضمان استقرار الاختبارات في CI.
+//  جميع التواريخ مبنية على اليوم الفندقي الفعلي لضمان استقرار الاختبارات في CI
+//  قبل وبعد حد اليوم الفندقي عند 14:01.
 // ============================================================================
 
 library marina_hotel_mobile.test.booking_price_adjustment_test;
@@ -25,10 +26,16 @@ AppDatabase _createTestDb() {
   return AppDatabase.forTesting(NativeDatabase.memory());
 }
 
-/// Helper: ينشئ تاريخاً ديناميكياً مع إزاحة بعدد أيام محدد من اليوم.
+/// Helper: ينشئ تاريخاً مع إزاحة من اليوم الفندقي الحالي، وليس من منتصف
+/// الليل المدني. وضع الساعة بعد 14:01 يجعل تحويله إلى hotelDayKey حتمياً.
 DateTime _dayFromNow(int days, {int hour = 15}) {
-  final now = DateTime.now();
-  return DateTime(now.year, now.month, now.day + days, hour);
+  final currentHotelDay = DateTime.parse(Time.hotelDayKey());
+  return DateTime(
+    currentHotelDay.year,
+    currentHotelDay.month,
+    currentHotelDay.day + days,
+    hour,
+  );
 }
 
 /// Helper: يحوّل DateTime إلى مفتاح يوم فندقي (YYYY-MM-DD).
@@ -401,7 +408,7 @@ void main() {
         );
 
         // تقرير لنطاق يشمل اليوم
-        final todayKey = _hotelDayKey(DateTime.now());
+        final todayKey = Time.hotelDayKey();
         final tomorrowKey = _hotelDayKey(_dayFromNow(1));
         final report = await adjustmentService.generateLostRevenueReport(
           fromHotelDay: todayKey,

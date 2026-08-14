@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../models/shift_note_adapter.dart';
 import '../../providers/repository_providers.dart';
+import '../../utils/performance_config.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// شاشة الملاحظات البسيطة
@@ -152,11 +154,13 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
       onRefresh: _refreshData,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
+        // لا تنشئ عناصر بعيدة عن الشاشة على أجهزة 1GB.
+        scrollCacheExtent: ScrollCacheExtent.pixels(optimizedCacheExtent),
+        // ListView.builder يضيف RepaintBoundary افتراضياً؛ لا نضيف طبقة ثانية
+        // لكل بطاقة حتى لا تتضخم طبقات الرسم والذاكرة.
+        addAutomaticKeepAlives: false,
         itemCount: notes.length,
-        itemBuilder: (context, index) {
-          final note = notes[index];
-          return RepaintBoundary(child: _buildNoteCard(note));
-        },
+        itemBuilder: (context, index) => _buildNoteCard(notes[index]),
       ),
     );
   }
