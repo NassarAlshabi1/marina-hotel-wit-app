@@ -104,6 +104,7 @@ class EnhancedBookingCalculationService {
     bool forceRebuild = true,
     List<NightlyBreakdown>? breakdown,
     bool inTransaction = false,
+    bool enqueueOutbox = true,
   }) async {
     final context = _resolveDateRange(booking, now ?? DateTime.now());
     final resolvedBreakdown =
@@ -113,6 +114,7 @@ class EnhancedBookingCalculationService {
       breakdown: resolvedBreakdown,
       forceRebuild: forceRebuild,
       inTransaction: inTransaction,
+      enqueueOutbox: enqueueOutbox,
     );
   }
 
@@ -433,6 +435,7 @@ class EnhancedBookingCalculationService {
     required List<NightlyBreakdown> breakdown,
     required bool forceRebuild,
     bool inTransaction = false,
+    bool enqueueOutbox = true,
   }) async {
     final nowUtc = DateTime.now().toUtc();
     final stamp = nowUtc.millisecondsSinceEpoch ~/ 1000;
@@ -527,8 +530,10 @@ class EnhancedBookingCalculationService {
       });
     }
 
-    if (inTransaction) {
-      await doWrite();
+    Future<void> mergeBookingOutbox() async {
+      if (!enqueueOutbox) {
+        return;
+      }
       final bookingsDao = BookingsDao(db, _outboxDao);
       final payload = await bookingsDao.payloadForLocalUuid(booking.localUuid);
       if (payload != null) {
@@ -540,22 +545,15 @@ class EnhancedBookingCalculationService {
           clientTs: stamp,
         );
       }
+    }
+
+    if (inTransaction) {
+      await doWrite();
+      await mergeBookingOutbox();
     } else {
       await db.transaction(() async {
         await doWrite();
-        final bookingsDao = BookingsDao(db, _outboxDao);
-        final payload = await bookingsDao.payloadForLocalUuid(
-          booking.localUuid,
-        );
-        if (payload != null) {
-          await _outboxDao.merge(
-            entity: 'bookings',
-            op: 'update',
-            localUuid: booking.localUuid,
-            payload: payload,
-            clientTs: stamp,
-          );
-        }
+        await mergeBookingOutbox();
       });
     }
   }

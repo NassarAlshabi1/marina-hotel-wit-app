@@ -23,7 +23,7 @@ import 'package:marina_hotel_mobile/services/salary_fix_helper.dart';
 /// 4. مصروف غير راتب يتيم → يجب تصفيره (سلوك 'employee'/'booking' القديم)
 /// 5. SharedPreferences flag يمنع التكرار
 /// 6. التأجيل عندما لا يوجد موظفون
-/// 7. تحديث lastModified + updatedAt + outbox merge بعد الإصلاح
+/// 7. إصلاح السجل المسحوب من دون تغيير lastModified/version أو إنشاء Outbox
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -199,15 +199,19 @@ void main() {
       );
       expect(
         fixed.lastModified,
-        greaterThan(1000),
-        reason: 'lastModified يجب أن يُحدّث',
+        1000,
+        reason: 'الإصلاح المشتق من السحب يجب أن يحافظ على lastModified البعيد',
       );
       expect(
         fixed.updatedAt,
         greaterThan(1000),
         reason: 'updatedAt يجب أن يُحدّث',
       );
-      expect(fixed.version, 2, reason: 'version يجب أن يُزاد');
+      expect(
+        fixed.version,
+        1,
+        reason: 'الإصلاح المشتق من السحب يحافظ على الإصدار البعيد',
+      );
     });
 
     test(
@@ -304,11 +308,11 @@ void main() {
   });
 
   // ═══════════════════════════════════════════════════════════════════════
-  // 4. outbox merge (للرفع التلقائي)
+  // 4. لا Outbox من إصلاح السجلات المسحوبة
   // ═══════════════════════════════════════════════════════════════════════
 
-  group('SalaryFixHelper — outbox merge للرفع', () {
-    test('يُضيف الإصلاح للـ outbox للرفع للسحاب', () async {
+  group('SalaryFixHelper — صيانة ما بعد السحب', () {
+    test('لا يضيف الإصلاح للـ Outbox', () async {
       final empId = await createEmployee(localUuid: 'emp-outbox-test');
       final expenseId = await createOrphanSalaryExpense(
         expenseType: 'سحب من الراتب',
@@ -330,9 +334,9 @@ void main() {
       final helper = SalaryFixHelper(db);
       await helper.fixOrphanSalaryExpensesForTest();
 
-      // تحقق: outbox يحتوي على عملية update للمصروف
+      // تحقق: الصيانة الناتجة عن السحب لا تتحول إلى عملية رفع.
       final count = await outboxCountForExpense('exp-outbox-test-001');
-      expect(count, greaterThan(0), reason: 'يجب إضافة عملية للـ outbox للرفع');
+      expect(count, 0, reason: 'لا يجب إضافة تغيير Appwrite المشتق إلى Outbox');
     });
   });
 

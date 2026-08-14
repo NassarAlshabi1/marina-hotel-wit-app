@@ -183,6 +183,7 @@ class ExpensesRepository {
     // - مرّر سلسلة فارغة '' لمسح employeeUuid (عند التحويل من راتب إلى غير راتب).
     // - مرّر null لترك القيمة الحالية دون تغيير (سلوك التوافق للخلف).
     String? employeeUuid,
+    bool originIsServer = false,
   }) async {
     try {
       final normalizedDate = date != null
@@ -222,6 +223,7 @@ class ExpensesRepository {
               ? const d.Value(null)
               : d.Value(employeeUuid),
         ),
+        originIsServer: originIsServer,
       );
       if (result > 0) {
         unawaited(

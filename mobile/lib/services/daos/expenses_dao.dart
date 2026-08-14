@@ -326,13 +326,17 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       }
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified = originIsServer && data.lastModified.present
-          ? data.lastModified
+      final effectiveLastModified = originIsServer
+          ? (data.lastModified.present
+                ? data.lastModified
+                : Value(existing.lastModified))
           : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
-        version: Value(existing.version + 1),
+        version: Value(
+          originIsServer ? existing.version : existing.version + 1,
+        ),
       );
       final rows = await (update(
         expenses,
@@ -362,13 +366,17 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       }
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified = originIsServer && data.lastModified.present
-          ? data.lastModified
+      final effectiveLastModified = originIsServer
+          ? (data.lastModified.present
+                ? data.lastModified
+                : Value(existing.lastModified))
           : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
-        version: Value(existing.version + 1),
+        version: Value(
+          originIsServer ? existing.version : existing.version + 1,
+        ),
       );
       final rows = await (update(
         expenses,
@@ -404,13 +412,17 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       }
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified = originIsServer && data.lastModified.present
-          ? data.lastModified
+      final effectiveLastModified = originIsServer
+          ? (data.lastModified.present
+                ? data.lastModified
+                : Value(existing.lastModified))
           : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
-        version: Value(existing.version + 1),
+        version: Value(
+          originIsServer ? existing.version : existing.version + 1,
+        ),
       );
       final rows = await (update(
         expenses,

@@ -319,7 +319,10 @@ class BookingsRepository {
   /// لذلك هذه الدالة تقوم بـ:
   /// 1. إلغاء أي سجلات legacy_discount يتيمة (عند عدم وجود تخفيض)
   /// 2. عدم إنشاء سجلات جديدة (كانت ميتة ولا فائدة منها)
-  Future<void> syncLegacyDiscountToAdjustments(int bookingId) async {
+  Future<void> syncLegacyDiscountToAdjustments(
+    int bookingId, {
+    bool enqueueOutbox = true,
+  }) async {
     final booking = await (db.select(
       db.bookings,
     )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
@@ -330,7 +333,10 @@ class BookingsRepository {
     final discount = booking.discount;
     if (discount <= 0 || booking.discountType == 'total') {
       // لا يوجد تخفيض — ألغِ أي سجلات يتيمة
-      await _cancelLegacyDiscountAdjustments(bookingId);
+      await _cancelLegacyDiscountAdjustments(
+        bookingId,
+        enqueueOutbox: enqueueOutbox,
+      );
       return;
     }
 
@@ -338,12 +344,18 @@ class BookingsRepository {
     // 1. EnhancedBookingCalculationService يستبعدها دائماً
     // 2. التخفيض يُطبق مباشرة عبر booking.discount في المسار القديم
     // فقط تأكد من تنظيف أي سجلات يتيمة بمبلغ مختلف
-    await _cancelLegacyDiscountAdjustments(bookingId);
+    await _cancelLegacyDiscountAdjustments(
+      bookingId,
+      enqueueOutbox: enqueueOutbox,
+    );
   }
 
   /// إلغاء جميع سجلات legacy_discount النشطة لحجز معين.
   /// تُستدعى عندما يُزال التخفيض من الحجز (discount <= 0) لمنع سجلات يتيمة.
-  Future<void> _cancelLegacyDiscountAdjustments(int bookingId) async {
+  Future<void> _cancelLegacyDiscountAdjustments(
+    int bookingId, {
+    bool enqueueOutbox = true,
+  }) async {
     final now = Time.nowEpoch();
     final nowIso = DateTime.now().toUtc().toIso8601String();
 
@@ -375,10 +387,9 @@ class BookingsRepository {
           ),
         );
 
-    // ─── إنشاء outbox entries لمزامنة التعديلات المُلغاة ───
-    // ✅ تحسين أداء: استبدال N × merge() بـ mergeBatch() — معاملة واحدة بدل N
-    // بدون هذا، إلغاء legacy_discount لن يُزامن إلى الأجهزة الأخرى
-    if (orphans.isNotEmpty) {
+    // لا تُرحّل صيانة السجلات المسحوبة من Appwrite إلى Outbox. أمّا صيانة
+    // التعديل المحلي فتحتفظ بالسلوك الحالي وتُرفع تلقائياً.
+    if (enqueueOutbox) {
       final outboxDao = OutboxDao(db);
       await outboxDao.mergeBatch(
         orphans

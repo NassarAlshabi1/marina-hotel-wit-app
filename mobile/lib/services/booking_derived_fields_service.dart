@@ -19,6 +19,7 @@ class BookingDerivedFieldsService {
     int bookingId, {
     DateTime? now,
     bool forceRebuild = false,
+    bool enqueueOutbox = true,
   }) async {
     final booking =
         await (db.select(db.bookings)
@@ -29,7 +30,12 @@ class BookingDerivedFieldsService {
       return;
     }
 
-    await refreshForBooking(booking, now: now, forceRebuild: forceRebuild);
+    await refreshForBooking(
+      booking,
+      now: now,
+      forceRebuild: forceRebuild,
+      enqueueOutbox: enqueueOutbox,
+    );
   }
 
   /// Refresh derived fields for a single booking (opens its own transaction).
@@ -39,12 +45,14 @@ class BookingDerivedFieldsService {
     Booking booking, {
     DateTime? now,
     bool forceRebuild = false,
+    bool enqueueOutbox = true,
   }) async {
     await db.transaction(() async {
       await _refreshForBookingInTransaction(
         booking,
         now: now,
         forceRebuild: forceRebuild,
+        enqueueOutbox: enqueueOutbox,
       );
     });
   }
@@ -56,6 +64,7 @@ class BookingDerivedFieldsService {
     Booking booking, {
     DateTime? now,
     bool forceRebuild = false,
+    bool enqueueOutbox = true,
   }) async {
     final moment = now ?? DateTime.now();
     final calcService = EnhancedBookingCalculationService(db);
@@ -70,6 +79,7 @@ class BookingDerivedFieldsService {
       forceRebuild: forceRebuild,
       breakdown: calculation.breakdown,
       inTransaction: true, // we are already inside a transaction
+      enqueueOutbox: enqueueOutbox,
     );
 
     final plannedCheckout = _parseDateTime(booking.checkoutDate);
@@ -125,6 +135,12 @@ class BookingDerivedFieldsService {
         updatedAtIso: d.Value(stampIso),
       ),
     );
+
+    // الحقول المشتقة تُعاد حسابها أثناء السحب أيضاً. لا يجوز أن تتحول
+    // كتابة بيانات Appwrite إلى تعديل مستخدم محلي قابل للرفع.
+    if (!enqueueOutbox) {
+      return;
+    }
 
     final updated = await (db.select(
       db.bookings,

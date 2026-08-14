@@ -2660,8 +2660,11 @@ class AppwriteSyncManager {
             );
           }
 
-          // 2. Convert legacy discount to adjustments
-          await _bookingsRepository.syncLegacyDiscountToAdjustments(booking.id);
+          // 2. صيانة التخفيضات القديمة الناتجة من السحب؛ لا تتحول إلى Outbox.
+          await _bookingsRepository.syncLegacyDiscountToAdjustments(
+            booking.id,
+            enqueueOutbox: false,
+          );
 
           // ✅ 3. Recalculate derived fields — فقط للحجوزات النشطة أو غير المكتملة.
           //
@@ -2686,6 +2689,7 @@ class AppwriteSyncManager {
           if (!isCompletedBooking) {
             await _bookingsRepository.derivedFields.refreshForBookingId(
               booking.id,
+              enqueueOutbox: false,
             );
           } else {
             _logger.debug(
