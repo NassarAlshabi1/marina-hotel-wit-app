@@ -68,8 +68,12 @@ class AppwriteCacheManager {
 
   final LinkedHashMap<String, CacheEntry<dynamic>> _cache =
       LinkedHashMap<String, CacheEntry<dynamic>>();
+  final Map<String, Future<dynamic>> _inFlightRequests =
+      <String, Future<dynamic>>{};
   Timer? _cleanupTimer;
 
+  // يمنع طلب قديم بدأ قبل clear()/ضغط الذاكرة من إعادة ملء Cache بعد التفريغ.
+  int _generation = 0;
   int _hits = 0;
   int _misses = 0;
   int _currentSizeBytes = 0;
@@ -101,6 +105,49 @@ class AppwriteCacheManager {
   /// تعيين مدة الصلاحية الافتراضية.
   void setDefaultTTL(Duration ttl) {
     _defaultTTL = ttl;
+  }
+
+  /// يعيد قيمة cache أو يشارك طلباً جارياً لنفس المفتاح.
+  ///
+  /// يمنع ذلك تكرار استدعاءات Appwrite ونسخ الاستجابة نفسها في الذاكرة عندما
+  /// تطلب عدة Widgets أو Providers قائمة البيانات ذاتها في اللحظة نفسها.
+  Future<T> getOrLoad<T>(
+    String key,
+    Future<T> Function() loader, {
+    Duration? ttl,
+  }) {
+    if (!_enabled) {
+      return Future<T>.sync(loader);
+    }
+
+    final cached = get<T>(key);
+    if (cached != null) {
+      return Future<T>.value(cached);
+    }
+
+    final inFlight = _inFlightRequests[key];
+    if (inFlight != null) {
+      return inFlight as Future<T>;
+    }
+
+    final generationAtStart = _generation;
+    late final Future<T> request;
+    request = Future<T>.sync(loader)
+        .then((value) {
+          // لا تعِد إدخال نتيجة بدأت قبل تفريغ cache بسبب ضغط الذاكرة أو
+          // انتقال التطبيق للخلفية.
+          if (_enabled && generationAtStart == _generation) {
+            set(key, value, ttl: ttl);
+          }
+          return value;
+        })
+        .whenComplete(() {
+          // لا نعيد Future المحذوف من callback؛ إعادته ستنشئ دورة انتظار
+          // مع الطلب ذاته وتمنع اكتماله.
+          _inFlightRequests.remove(key);
+        });
+    _inFlightRequests[key] = request;
+    return request;
   }
 
   /// حفظ بيانات في الذاكرة المؤقتة.
@@ -170,6 +217,7 @@ class AppwriteCacheManager {
 
   /// مسح جميع العناصر.
   void clear() {
+    _generation++;
     _cache.clear();
     _currentSizeBytes = 0;
     _hits = 0;
@@ -199,6 +247,22 @@ class AppwriteCacheManager {
       _removeEntry(key);
     }
     return keysToRemove.length;
+  }
+
+  /// يقلص cache عند وضع التطبيق في الخلفية بدلاً من مسحه كاملاً.
+  /// يحتفظ بربع الحد الأقصى فقط لتسريع العودة القصيرة للواجهة على الأجهزة
+  /// الضعيفة، ويترك قاعدة Drift وOutbox دون أي تغيير.
+  int trimForBackground() {
+    final targetEntries = (_maxEntries / 4).ceil().clamp(1, _maxEntries);
+    final targetBytes = (_maxSizeBytes / 4).ceil().clamp(1, _maxSizeBytes);
+    var removed = clearExpired();
+
+    while ((_cache.length > targetEntries || _currentSizeBytes > targetBytes) &&
+        _cache.isNotEmpty) {
+      _removeEntry(_cache.keys.first);
+      removed++;
+    }
+    return removed;
   }
 
   /// يخفض cache فورًا عند إشارة ضغط ذاكرة من النظام.

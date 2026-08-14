@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/appwrite_cache_manager.dart';
 import 'package:marina_hotel_mobile/utils/weak_device_optimizer.dart';
@@ -64,6 +66,50 @@ void main() {
       cache.handleMemoryPressure();
 
       expect(cache.getStatistics().totalEntries, 0);
+    });
+
+    test('يشارك الطلب الجاري لنفس المفتاح ولا ينفذ loader مرتين', () async {
+      final gate = Completer<String>();
+      var calls = 0;
+
+      Future<String> loader() {
+        calls++;
+        return gate.future;
+      }
+
+      final first = cache.getOrLoad<String>('rooms', loader);
+      final second = cache.getOrLoad<String>('rooms', loader);
+
+      expect(calls, 1);
+      gate.complete('loaded');
+      expect(await first, 'loaded');
+      expect(await second, 'loaded');
+      expect(cache.get<String>('rooms'), 'loaded');
+    });
+
+    test('لا يعيد الطلب القديم ملء Cache بعد ضغط الذاكرة', () async {
+      final gate = Completer<String>();
+      final pending = cache.getOrLoad<String>('stale', () => gate.future);
+
+      cache.handleMemoryPressure();
+      gate.complete('old response');
+      await pending;
+
+      expect(cache.get<String>('stale'), isNull);
+    });
+
+    test('يقلص Cache إلى ربع الحد عند دخول التطبيق للخلفية', () {
+      cache.setMaxEntries(8);
+      for (var i = 0; i < 8; i++) {
+        cache.set<String>('key_$i', 'value_$i');
+      }
+
+      final removed = cache.trimForBackground();
+
+      expect(removed, 6);
+      expect(cache.getStatistics().totalEntries, 2);
+      expect(cache.get<String>('key_6'), 'value_6');
+      expect(cache.get<String>('key_7'), 'value_7');
     });
   });
 }

@@ -443,10 +443,25 @@ class AppwriteService {
     bool useCache = true,
   }) async {
     await _ensureInitialized();
-    return _listAllDocumentsInternal(
-      collectionId: collectionId,
-      queries: queries ?? [],
-      useCache: useCache,
+    final effectiveQueries = queries ?? const <String>[];
+    if (!useCache) {
+      return _listAllDocumentsInternal(
+        collectionId: collectionId,
+        queries: effectiveQueries,
+        useCache: false,
+      );
+    }
+
+    final cacheKey = '${collectionId}_${effectiveQueries.join('_')}_all';
+    return _cache.getOrLoad<List<models.Document>>(
+      cacheKey,
+      () => _listAllDocumentsInternal(
+        collectionId: collectionId,
+        queries: effectiveQueries,
+        // getOrLoad هو المالك الوحيد لقراءة/كتابة Cache في هذا المسار،
+        // لذلك لا نخزن الاستجابة مرتين ولا نكرر الطلب الجاري.
+        useCache: false,
+      ),
     );
   }
 

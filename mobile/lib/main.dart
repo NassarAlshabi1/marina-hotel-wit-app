@@ -1114,6 +1114,12 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
+      // على أجهزة 1GB نحتفظ بجزء صغير فقط من الاستجابات القابلة لإعادة الجلب.
+      // لا يؤثر ذلك في Drift أو Outbox أو عمليات الرفع التي تُستكمل بالخلفية.
+      if (WeakDeviceOptimizer.instance.isWeakDevice) {
+        final removed = AppwriteCacheManager.instance.trimForBackground();
+        dlog(() => '🧹 Background cache trim: removed $removed entries');
+      }
       dlog('📱 التطبيق في الخلفية...');
       // مزامنة فورية عند الخروج لضمان عدم ضياع البيانات
       unawaited(_pushPendingChangesOnPause());

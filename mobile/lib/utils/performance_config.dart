@@ -20,6 +20,19 @@ void configurePerformance() {
   final dataCache = AppwriteCacheManager.instance;
   dataCache.setMaxEntries(optimizer.maxCacheEntries);
   dataCache.setMaxSizeMB(optimizer.maxDataCacheSizeMB);
+  // الاستجابات البعيدة قصيرة العمر على الأجهزة الضعيفة؛ المصدر الدائم
+  // للبيانات غير المتصلة هو Drift وليس Cache الذاكرة.
+  dataCache.setDefaultTTL(
+    optimizer.isWeakDevice
+        ? const Duration(minutes: 2)
+        : const Duration(minutes: 5),
+  );
+  // يزيل النتائج منتهية الصلاحية حتى إن لم يُعاد فتح الشاشة نفسها.
+  dataCache.startCleanup(
+    interval: optimizer.isWeakDevice
+        ? const Duration(minutes: 5)
+        : const Duration(minutes: 15),
+  );
 
   if (Platform.isAndroid) {
     dlog(
