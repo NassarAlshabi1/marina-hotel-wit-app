@@ -1378,7 +1378,9 @@ class AppwriteSyncUtils {
     'shift_notes': {
       'localUuid': 'string',
       'serverId': 'integer',
-      'createdAt': 'string',
+      // يجب أن يطابق مخطط Appwrite الموحد: epoch seconds في integer.
+      // القيمة النصية كانت تُرسل بسبب هذا التعريف وتسبب document_invalid_structure.
+      'createdAt': 'integer',
       'updatedAt': 'integer',
       'deletedAt': 'integer',
       'lastModified': 'integer',

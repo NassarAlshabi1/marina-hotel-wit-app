@@ -50,6 +50,21 @@ void main() {
       expect(AppwriteSyncUtils.normalizeVectorClock(oversized), '{}');
     });
 
+    test('يُرسل createdAt في shift_notes كعدد صحيح مطابق للمخطط', () {
+      const epoch = 1723603472;
+      final payload =
+          AppwriteSyncUtils.filterPayloadForCollection('shift_notes', {
+            'localUuid': '11111111-1111-1111-1111-111111111111',
+            'createdAt': '$epoch',
+            'createdAtIso': '2026-08-14T04:44:32.000Z',
+            'updatedAt': epoch,
+          });
+
+      expect(payload['createdAt'], epoch);
+      expect(payload['createdAt'], isA<int>());
+      expect(payload['createdAtIso'], isA<String>());
+    });
+
     test('يحمي مسار النقل الأخير الحمولة غير المصفاة', () {
       final payload = AppwriteSyncUtils.normalizeVectorClockInPayload({
         'vectorClock': <String, dynamic>{'device-a': '5'},
