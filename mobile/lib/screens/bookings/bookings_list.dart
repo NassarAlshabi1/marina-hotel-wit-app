@@ -11,6 +11,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/analytics_service.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
+import '../../utils/performance_config.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import '../payments/booking_payment_screen.dart';
@@ -139,6 +140,9 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(minWidth: 1100),
                         child: ListView.builder(
+                          scrollCacheExtent: optimizedScrollCacheExtent,
+                          addAutomaticKeepAlives: false,
+                          addRepaintBoundaries: false,
                           shrinkWrap: true,
                           itemCount: filtered.length + 1,
                           itemBuilder: (context, index) {
@@ -207,6 +211,9 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
 
                   return ListView.separated(
                     physics: const AlwaysScrollableScrollPhysics(),
+                    scrollCacheExtent: optimizedScrollCacheExtent,
+                    addAutomaticKeepAlives: false,
+                    addRepaintBoundaries: false,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 12,

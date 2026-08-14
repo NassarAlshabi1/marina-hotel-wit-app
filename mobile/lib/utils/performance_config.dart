@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/painting.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 
 import '../services/appwrite_cache_manager.dart';
 import 'debug_log.dart';
@@ -49,5 +50,11 @@ void configurePerformance() {
 /// هل الجهاز ضمن ملف الأداء منخفض الموارد.
 bool get isLowEndDevice => WeakDeviceOptimizer.instance.isWeakDevice;
 
-/// `cacheExtent` منخفض للحد من إنشاء widgets خارج حدود العرض.
+/// مجال صغير لإنشاء العناصر خارج مجال العرض على الأجهزة الضعيفة.
+/// القوائم تستخدمه بدلاً من Flutter الافتراضي لتفادي prefetch مفرط للـ Widgets.
 double get optimizedCacheExtent => isLowEndDevice ? 160.0 : 500.0;
+
+/// واجهة Flutter الحديثة لمجال إنشاء العناصر خارج الشاشة.
+/// تُستخدم في ListView.builder وCustomScrollView بدلاً من cacheExtent المهجور.
+ScrollCacheExtent get optimizedScrollCacheExtent =>
+    ScrollCacheExtent.pixels(optimizedCacheExtent);

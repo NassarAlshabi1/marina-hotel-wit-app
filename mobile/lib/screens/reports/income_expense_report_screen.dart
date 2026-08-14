@@ -23,6 +23,7 @@ import '../../services/daos/outbox_dao.dart';
 import '../../services/daos/payments_dao.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
+import '../../utils/performance_config.dart';
 import '../../utils/status_utils.dart';
 import '../../widgets/report_date_filter.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
@@ -2541,8 +2542,9 @@ class _IncomeExpenseReportScreenState
     }
 
     return ListView.builder(
-      // ignore: deprecated_member_use
-      cacheExtent: 500,
+      // حد مركزي يمنع بناء بطاقات تقرير إضافية على أجهزة 1GB.
+      scrollCacheExtent: optimizedScrollCacheExtent,
+      addAutomaticKeepAlives: false,
       itemCount: combined.length,
       itemBuilder: (context, index) {
         final entry = combined[index];
@@ -2553,56 +2555,54 @@ class _IncomeExpenseReportScreenState
             ? Icons.arrow_downward
             : (entry.isSalary ? Icons.people : Icons.arrow_upward);
 
-        return RepaintBoundary(
-          child: Card(
-            elevation: 0.5,
-            margin: const EdgeInsets.symmetric(vertical: 2),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+        return Card(
+          elevation: 0.5,
+          margin: const EdgeInsets.symmetric(vertical: 2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: ListTile(
+            dense: true,
+            leading: CircleAvatar(
+              backgroundColor: color.withValues(alpha: 0.1),
+              radius: 14,
+              child: Icon(icon, color: color, size: 14),
             ),
-            child: ListTile(
-              dense: true,
-              leading: CircleAvatar(
-                backgroundColor: color.withValues(alpha: 0.1),
-                radius: 14,
-                child: Icon(icon, color: color, size: 14),
-              ),
-              title: Text(
-                entry.description,
-                style: const TextStyle(fontSize: 11),
-              ),
-              subtitle: Row(
-                children: [
-                  Text(
-                    _dateFormat.format(entry.date),
-                    style: const TextStyle(fontSize: 9),
-                  ),
-                  const SizedBox(width: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 1,
-                    ),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      entry.isIncome
-                          ? 'دخل'
-                          : (entry.isSalary ? 'راتب' : 'مصروف'),
-                      style: TextStyle(fontSize: 8, color: color),
-                    ),
-                  ),
-                ],
-              ),
-              trailing: Text(
-                '${entry.isIncome ? '+' : '-'}${_currencyFormat.format(entry.amount)}',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                  fontSize: 11,
+            title: Text(
+              entry.description,
+              style: const TextStyle(fontSize: 11),
+            ),
+            subtitle: Row(
+              children: [
+                Text(
+                  _dateFormat.format(entry.date),
+                  style: const TextStyle(fontSize: 9),
                 ),
+                const SizedBox(width: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 1,
+                  ),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    entry.isIncome
+                        ? 'دخل'
+                        : (entry.isSalary ? 'راتب' : 'مصروف'),
+                    style: TextStyle(fontSize: 8, color: color),
+                  ),
+                ),
+              ],
+            ),
+            trailing: Text(
+              '${entry.isIncome ? '+' : '-'}${_currencyFormat.format(entry.amount)}',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: color,
+                fontSize: 11,
               ),
             ),
           ),

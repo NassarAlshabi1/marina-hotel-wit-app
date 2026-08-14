@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
@@ -155,7 +154,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         // لا تنشئ عناصر بعيدة عن الشاشة على أجهزة 1GB.
-        scrollCacheExtent: ScrollCacheExtent.pixels(optimizedCacheExtent),
+        scrollCacheExtent: optimizedScrollCacheExtent,
         // ListView.builder يضيف RepaintBoundary افتراضياً؛ لا نضيف طبقة ثانية
         // لكل بطاقة حتى لا تتضخم طبقات الرسم والذاكرة.
         addAutomaticKeepAlives: false,

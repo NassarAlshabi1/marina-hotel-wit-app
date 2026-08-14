@@ -8,6 +8,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/performance_config.dart';
 import '../../utils/time.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
@@ -214,6 +215,9 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                 onRefresh: () => ref.read(syncServiceProvider).runSync(),
                 child: ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
+                  scrollCacheExtent: optimizedScrollCacheExtent,
+                  addAutomaticKeepAlives: false,
+                  addRepaintBoundaries: false,
                   itemCount: payments.length,
                   itemBuilder: (context, index) {
                     final payment = payments[index];
