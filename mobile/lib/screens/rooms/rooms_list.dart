@@ -16,6 +16,7 @@ import '../../utils/currency_formatter.dart';
 import '../../utils/performance_config.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/theme.dart';
+import '../../utils/english_digits_input_formatter.dart';
 
 class RoomsListScreen extends ConsumerStatefulWidget {
   const RoomsListScreen({super.key});
@@ -544,6 +545,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                       ),
                     ),
                     keyboardType: TextInputType.number,
+                    inputFormatters: const [englishIntegerInputFormatter],
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
                         return 'أدخل السعر';

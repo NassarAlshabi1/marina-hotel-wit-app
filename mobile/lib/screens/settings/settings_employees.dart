@@ -14,6 +14,7 @@ import '../../utils/currency_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
 import '../employees/salary_entitlements_screen.dart';
+import '../../utils/english_digits_input_formatter.dart';
 
 class SettingsEmployeesScreen extends ConsumerWidget {
   const SettingsEmployeesScreen({super.key});
@@ -586,6 +587,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
+                  inputFormatters: const [englishIntegerInputFormatter],
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -595,6 +597,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.phone,
+                  inputFormatters: const [englishIntegerInputFormatter],
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -1362,6 +1365,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
+                  inputFormatters: const [englishIntegerInputFormatter],
                 ),
                 const SizedBox(height: 12),
 

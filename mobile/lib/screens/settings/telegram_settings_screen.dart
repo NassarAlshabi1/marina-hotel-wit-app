@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../providers/telegram_provider.dart';
+import '../../utils/english_digits_input_formatter.dart';
 
 /// شاشة إعدادات Telegram Bot
 /// تتيح للمستخدم إعداد Telegram للإشعارات والتقارير اليومية
@@ -280,6 +281,7 @@ class _TelegramSettingsScreenState
                 isDense: true,
               ),
               keyboardType: TextInputType.number,
+              inputFormatters: const [englishIntegerInputFormatter],
             ),
 
             // مؤشر حالة الاتصال

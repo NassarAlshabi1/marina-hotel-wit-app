@@ -4,6 +4,7 @@ import '../../utils/hotel_time_engine.dart';
 import '../local_db.dart';
 import 'telegram_config.dart';
 import 'telegram_service.dart';
+import 'package:marina_hotel_mobile/utils/currency_formatter.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// بيانات التقرير اليومي المرسلة إلى Telegram.
@@ -242,9 +243,15 @@ SELECT
       ..writeln('└ نشطة حالياً: ${data.activeBookings}')
       ..writeln()
       ..writeln('💰 <b>ملخص مالي</b>')
-      ..writeln('┌ الإيرادات: \$${data.todayRevenue.toStringAsFixed(2)}')
-      ..writeln('├ المصروفات: \$${data.todayExpenses.toStringAsFixed(2)}')
-      ..writeln('└ صافي الربح: \$${data.netProfit.toStringAsFixed(2)}')
+      ..writeln(
+        '┌ الإيرادات: \$${CurrencyFormatter.formatAmount(data.todayRevenue)}',
+      )
+      ..writeln(
+        '├ المصروفات: \$${CurrencyFormatter.formatAmount(data.todayExpenses)}',
+      )
+      ..writeln(
+        '└ صافي الربح: \$${CurrencyFormatter.formatAmount(data.netProfit)}',
+      )
       ..writeln()
       ..writeln('💳 الديون غير المسددة: ${data.unsettledDebts}');
 

@@ -2,7 +2,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
@@ -18,6 +17,7 @@ import '../../utils/stream_helpers.dart';
 import '../../utils/time.dart';
 import '../payments/booking_checkout_screen.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../../utils/english_digits_input_formatter.dart';
 
 class FinanceScreen extends ConsumerStatefulWidget {
   const FinanceScreen({super.key});
@@ -920,9 +920,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                         border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'^\d+')),
-                      ],
+                      inputFormatters: const [englishIntegerInputFormatter],
                     ),
                     const SizedBox(height: 12),
                     if (selectedMethod == PaymentMethod.transfer ||

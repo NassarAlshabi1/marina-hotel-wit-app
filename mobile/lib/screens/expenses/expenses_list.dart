@@ -16,6 +16,7 @@ import '../../services/salary_entitlement_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../../utils/english_digits_input_formatter.dart';
 
 class ExpensesListScreen extends ConsumerStatefulWidget {
   const ExpensesListScreen({super.key});
@@ -1029,6 +1030,7 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     TextField(
                       controller: amount,
                       keyboardType: TextInputType.number,
+                      inputFormatters: const [englishIntegerInputFormatter],
                       decoration: InputDecoration(
                         labelText: 'المبلغ',
                         filled: true,

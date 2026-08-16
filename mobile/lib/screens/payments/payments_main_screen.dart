@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
@@ -19,6 +18,7 @@ import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import 'booking_checkout_screen.dart';
 import 'payment_history_screen.dart';
+import '../../utils/english_digits_input_formatter.dart';
 
 class PaymentsMainScreen extends ConsumerStatefulWidget {
   const PaymentsMainScreen({super.key});
@@ -750,9 +750,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                           border: OutlineInputBorder(),
                         ),
                         keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'^\d+')),
-                        ],
+                        inputFormatters: const [englishIntegerInputFormatter],
                       ),
                       const SizedBox(height: 12),
 

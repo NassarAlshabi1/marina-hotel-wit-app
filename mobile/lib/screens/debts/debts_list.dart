@@ -15,6 +15,7 @@ import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/time.dart';
 import 'create_debt_from_booking.dart';
+import '../../utils/english_digits_input_formatter.dart';
 
 class DebtsListScreen extends ConsumerStatefulWidget {
   const DebtsListScreen({super.key});
@@ -1034,6 +1035,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
+                      inputFormatters: const [englishIntegerInputFormatter],
                       decoration: const InputDecoration(
                         hintText: '0',
                         suffixText: 'ريال',
@@ -1359,6 +1361,9 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                                 // suffixText: 'ر.س',
                               ),
                               keyboardType: TextInputType.number,
+                              inputFormatters: const [
+                                englishIntegerInputFormatter,
+                              ],
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -1374,6 +1379,9 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
                                 // suffixText: 'ر.س',
                               ),
                               keyboardType: TextInputType.number,
+                              inputFormatters: const [
+                                englishIntegerInputFormatter,
+                              ],
                             ),
                           ),
                         ],

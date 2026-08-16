@@ -9,6 +9,7 @@ import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/english_digits_input_formatter.dart';
 
 class CreateDebtFromBookingScreen extends ConsumerStatefulWidget {
   const CreateDebtFromBookingScreen({super.key});
@@ -384,6 +385,7 @@ class _CreateDebtFromBookingScreenState
     return TextFormField(
       controller: _amountController,
       keyboardType: TextInputType.number,
+      inputFormatters: const [englishIntegerInputFormatter],
       style: _fieldStyle,
       decoration: const InputDecoration(
         labelText: 'مبلغ الدين',

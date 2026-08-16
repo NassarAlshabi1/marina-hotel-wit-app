@@ -16,6 +16,7 @@ import '../../utils/hotel_time_engine.dart';
 import '../../utils/id.dart';
 import '../../utils/status_utils.dart';
 import 'guest_info.dart';
+import '../../utils/english_digits_input_formatter.dart';
 
 class GuestEditScreen extends ConsumerStatefulWidget {
   const GuestEditScreen({required this.guest, super.key});
@@ -44,7 +45,6 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
   final Map<int, AdjustmentMode> _adjustmentModeSelections = {};
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final _idNumberFormatter = FilteringTextInputFormatter.allow(RegExp('[0-9]'));
 
   bool _saving = false;
   bool _hasUnsavedChanges = false;
@@ -634,6 +634,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           label: 'رقم الهاتف (اختياري)',
                           icon: Icons.phone,
                           keyboardType: TextInputType.phone,
+                          inputFormatters: const [englishIntegerInputFormatter],
                         ),
                         const SizedBox(height: 12),
                         _buildTextField(
@@ -702,7 +703,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                             border: OutlineInputBorder(),
                           ),
                           keyboardType: TextInputType.number,
-                          inputFormatters: [_idNumberFormatter],
+                          inputFormatters: const [englishIntegerInputFormatter],
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
                               return null;
@@ -820,11 +821,18 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     required String label,
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
+      inputFormatters:
+          inputFormatters ??
+          ((keyboardType == TextInputType.phone ||
+                  keyboardType == TextInputType.number)
+              ? const [englishIntegerInputFormatter]
+              : null),
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
@@ -1253,10 +1261,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           TextFormField(
                             controller: discountController,
                             keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                RegExp('[0-9٠-٩.,،]'),
-                              ),
+                            inputFormatters: const [
+                              englishIntegerInputFormatter,
                             ],
                             decoration: const InputDecoration(
                               labelText: 'المبلغ',

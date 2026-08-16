@@ -11,6 +11,7 @@ import '../../services/alarm_backup.dart';
 import '../../services/smart_sync_manager.dart';
 import '../../utils/performance_monitor.dart';
 import 'appwrite_settings_screen.dart';
+import '../../utils/english_digits_input_formatter.dart';
 
 class DataProtectionScreen extends ConsumerStatefulWidget {
   const DataProtectionScreen({super.key});
@@ -1244,6 +1245,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
               TextFormField(
                 controller: _maxBackupsController,
                 keyboardType: TextInputType.number,
+                inputFormatters: const [englishIntegerInputFormatter],
                 decoration: const InputDecoration(
                   labelText: 'عدد النسخ القصوى',
                   suffixIcon: Icon(Icons.numbers),
@@ -1254,6 +1256,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
               TextFormField(
                 controller: _retentionDaysController,
                 keyboardType: TextInputType.number,
+                inputFormatters: const [englishIntegerInputFormatter],
                 decoration: const InputDecoration(
                   labelText: 'فترة الاحتفاظ بالأيام',
                   suffixIcon: Icon(Icons.calendar_today),

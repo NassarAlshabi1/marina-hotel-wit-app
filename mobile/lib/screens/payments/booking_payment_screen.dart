@@ -7,7 +7,6 @@ import 'dart:ui' as ui;
 
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
@@ -34,6 +33,7 @@ import 'payment_history_screen.dart';
 import 'widgets/actions_tab.dart';
 import 'widgets/payment_summary_card.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../../utils/english_digits_input_formatter.dart';
 
 class BookingPaymentScreen extends ConsumerStatefulWidget {
   const BookingPaymentScreen({
@@ -709,6 +709,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           child: TextFormField(
             controller: _phoneController,
             keyboardType: TextInputType.phone,
+            inputFormatters: const [englishIntegerInputFormatter],
             decoration: const InputDecoration(
               labelText: 'رقم هاتف النزيل',
               border: OutlineInputBorder(),
@@ -964,9 +965,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d+')),
-                    ],
+                    inputFormatters: const [englishIntegerInputFormatter],
                   ),
 
                   const SizedBox(height: 12),
@@ -981,7 +980,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                       ),
                       keyboardType: TextInputType.number,
                       maxLength: 4,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      inputFormatters: const [englishIntegerInputFormatter],
                     ),
                     const SizedBox(height: 12),
                   ],
@@ -2506,6 +2505,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
+                  inputFormatters: const [englishIntegerInputFormatter],
                   decoration: const InputDecoration(
                     hintText: '0',
                     suffixText: 'ريال',
@@ -3854,6 +3854,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 TextField(
                   controller: nightsController,
                   keyboardType: TextInputType.number,
+                  inputFormatters: const [englishIntegerInputFormatter],
                   decoration: const InputDecoration(
                     labelText: 'عدد الليالي الإضافية',
                     border: OutlineInputBorder(),

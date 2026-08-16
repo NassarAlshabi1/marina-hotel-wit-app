@@ -8,6 +8,7 @@ import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/repositories/blacklist_repository.dart';
 import '../../services/sync_service.dart';
+import '../../utils/english_digits_input_formatter.dart';
 
 class BlacklistScreen extends ConsumerStatefulWidget {
   const BlacklistScreen({super.key});
@@ -591,6 +592,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.phone,
+                  inputFormatters: const [englishIntegerInputFormatter],
                 ),
                 const SizedBox(height: 12),
                 TextFormField(

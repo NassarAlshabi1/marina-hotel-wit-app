@@ -1,5 +1,6 @@
 import 'telegram_config.dart';
 import 'telegram_service.dart';
+import 'package:marina_hotel_mobile/utils/currency_formatter.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// أنواع أحداث الفندق
@@ -113,7 +114,7 @@ class TelegramNotificationService {
 
       if (event.amount != null && event.amount! > 0) {
         buffer.writeln(
-          '💵 المبلغ: <b>\$${event.amount!.toStringAsFixed(2)}</b>',
+          '💵 المبلغ: <b>\$${CurrencyFormatter.formatAmount(event.amount!)}</b>',
         );
       }
 
@@ -176,7 +177,9 @@ class TelegramNotificationService {
       details.writeln('🌙 الليالي: $nights');
     }
     if (totalDue != null) {
-      details.writeln('💰 الإجمالي: \$${totalDue.toStringAsFixed(2)}');
+      details.writeln(
+        '💰 الإجمالي: \$${CurrencyFormatter.formatAmount(totalDue)}',
+      );
     }
 
     return sendEventNotification(
@@ -228,10 +231,14 @@ class TelegramNotificationService {
       details.writeln('🌙 الليالي الفعلية: $actualNights');
     }
     if (totalPaid != null) {
-      details.writeln('💰 المدفوع: \$${totalPaid.toStringAsFixed(2)}');
+      details.writeln(
+        '💰 المدفوع: \$${CurrencyFormatter.formatAmount(totalPaid)}',
+      );
     }
     if (remaining != null && remaining > 0) {
-      details.writeln('⚠️ المتبقي: \$${remaining.toStringAsFixed(2)}');
+      details.writeln(
+        '⚠️ المتبقي: \$${CurrencyFormatter.formatAmount(remaining)}',
+      );
     }
 
     return sendEventNotification(
@@ -257,7 +264,9 @@ class TelegramNotificationService {
     details.writeln('💳 طريقة الدفع: $paymentMethod');
     if (remaining != null) {
       if (remaining > 0) {
-        details.writeln('⚠️ المتبقي: \$${remaining.toStringAsFixed(2)}');
+        details.writeln(
+          '⚠️ المتبقي: \$${CurrencyFormatter.formatAmount(remaining)}',
+        );
       } else {
         details.writeln('✅ مسدد بالكامل');
       }
@@ -323,7 +332,9 @@ class TelegramNotificationService {
       details.writeln('➕ ليالي إضافية: $extraNights');
     }
     if (extraCharge != null) {
-      details.writeln('💵 تكلفة إضافية: \$${extraCharge.toStringAsFixed(2)}');
+      details.writeln(
+        '💵 تكلفة إضافية: \$${CurrencyFormatter.formatAmount(extraCharge)}',
+      );
     }
 
     return sendEventNotification(

@@ -68,10 +68,10 @@ void main() {
       expect(CurrencyFormatter.formatAmount(5000.0), '5,000');
     });
 
-    test('formatAmount shows decimals when explicitly requested', () {
+    test('formatAmount never shows decimals even when legacy flag is used', () {
       expect(
         CurrencyFormatter.formatAmount(1999.99, showDecimals: true),
-        '1,999.99',
+        '1,999',
       );
     });
 

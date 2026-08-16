@@ -14,6 +14,7 @@ import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/stream_helpers.dart';
 import '../../utils/theme.dart';
+import '../../utils/english_digits_input_formatter.dart';
 
 class EmployeesListScreen extends ConsumerStatefulWidget {
   const EmployeesListScreen({super.key});
@@ -725,6 +726,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
+                    inputFormatters: const [englishIntegerInputFormatter],
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
                         return 'أدخل الراتب';
@@ -750,6 +752,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                       ),
                     ),
                     keyboardType: TextInputType.phone,
+                    inputFormatters: const [englishIntegerInputFormatter],
                   ),
                   const SizedBox(height: 16),
 

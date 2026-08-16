@@ -2,7 +2,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -18,6 +17,7 @@ import '../../services/screen_sync_controller.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../../utils/english_digits_input_formatter.dart';
 
 class BookingEditScreen extends ConsumerStatefulWidget {
   const BookingEditScreen({super.key, this.existing, this.initialRoomNumber});
@@ -41,7 +41,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
   final _guestNationality = TextEditingController(text: 'يمني');
   final _guestAddress = TextEditingController();
   final _guestIdNumber = TextEditingController();
-  final _idNumberFormatter = FilteringTextInputFormatter.allow(RegExp('[0-9]'));
   final _guestIdIssueDate = TextEditingController();
   final _guestIdIssuePlace = TextEditingController();
   final _roomNumber = TextEditingController();
@@ -285,6 +284,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           ),
                         ),
                         keyboardType: TextInputType.phone,
+                        inputFormatters: const [englishIntegerInputFormatter],
                       ),
                       const SizedBox(height: 6),
                       DropdownButtonFormField<String>(
@@ -309,7 +309,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                           labelText: 'رقم الهوية *',
                         ),
                         keyboardType: TextInputType.number,
-                        inputFormatters: [_idNumberFormatter],
+                        inputFormatters: const [englishIntegerInputFormatter],
                         validator: _req,
                       ),
                       const SizedBox(height: 6),
@@ -485,6 +485,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
                         TextFormField(
                           controller: _advancePayment,
                           keyboardType: TextInputType.number,
+                          inputFormatters: const [englishIntegerInputFormatter],
                           decoration: const InputDecoration(
                             labelText: 'مبلغ الدفعة المقدمة *',
                             helperText: 'أدخل المبلغ المستلم من النزيل',
