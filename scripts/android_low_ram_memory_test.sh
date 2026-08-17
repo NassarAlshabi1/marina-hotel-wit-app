@@ -123,5 +123,3 @@ if (( peak_pss > MAX_PSS_KB )); then
 fi
 
 echo "LOW_RAM_RESULT status=PASS peak_pss_kb=$peak_pss limit_kb=$MAX_PSS_KB"
-USAGE
-chmod +x /home/ubuntu/marina-hotel-wit-app/scripts/android_low_ram_memory_test.sh
