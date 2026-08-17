@@ -74,10 +74,7 @@ jobs:
             cd "$GITHUB_WORKSPACE"
             mkdir -p mobile/build/low-ram-performance
             chmod +x scripts/android_low_ram_memory_test.sh
-            MAX_PSS_KB=393216 scripts/android_low_ram_memory_test.sh \
-              --package com.aden.marina \
-              --apk mobile/build/app/outputs/flutter-apk/app-debug.apk \
-              --output mobile/build/low-ram-performance
+            MAX_PSS_KB=393216 scripts/android_low_ram_memory_test.sh --package com.aden.marina --apk mobile/build/app/outputs/flutter-apk/app-debug.apk --output mobile/build/low-ram-performance
 
       - name: Publish low-RAM summary
         if: always()
