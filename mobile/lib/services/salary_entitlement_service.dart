@@ -3,6 +3,7 @@ import 'package:drift/drift.dart' as d;
 import '../utils/id.dart';
 import '../utils/status_utils.dart';
 import '../utils/time.dart';
+import 'crashlytics_service.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'salary_cycle_calculator.dart';
@@ -236,6 +237,8 @@ class SalaryEntitlementService {
 
   /// حساب الدورة الشهرية الحالية للموظف
   Future<MonthlySalaryCycle> calculateCurrentCycle(Employee employee) async {
+    await _ensureAutomaticCarryOver(employee);
+
     final now = DateTime.now();
     final hireDate = _parseDate(employee.hireDate) ?? now;
 
@@ -274,6 +277,8 @@ class SalaryEntitlementService {
 
   /// حساب كل الدورات الشهرية للموظف
   Future<List<MonthlySalaryCycle>> calculateAllCycles(Employee employee) async {
+    await _ensureAutomaticCarryOver(employee);
+
     final now = DateTime.now();
     final hireDate = _parseDate(employee.hireDate) ?? now;
 
@@ -329,6 +334,23 @@ class SalaryEntitlementService {
     return cycles.reversed.toList();
   }
 
+  /// تشغيل الترحيل كجزء من قراءة الدورة دون أن يفشل عرض الشاشة إذا تعذر
+  /// التسجيل مؤقتاً. الفشل يُسجل وتبقى عملية الحساب قابلة لإعادة المحاولة.
+  Future<void> _ensureAutomaticCarryOver(Employee employee) async {
+    try {
+      await processAutoCarryOver(employee);
+    } catch (e, stack) {
+      dlog(() => '⚠️ تعذر الترحيل التلقائي مؤقتاً: $e');
+      await CrashlyticsService.instance.recordScreenError(
+        screen: 'SalaryEntitlementService',
+        action: 'processAutoCarryOver',
+        error: e,
+        stackTrace: stack,
+        severity: CrashlyticsSeverity.warning,
+      );
+    }
+  }
+
   /// الترحيل التلقائي — ينشئ سجل عند تجاوز الراتب
   Future<void> processAutoCarryOver(Employee employee) async {
     final now = DateTime.now();
@@ -348,14 +370,6 @@ class SalaryEntitlementService {
     );
     if (carriedOver <= 0) return;
 
-    // منع التكرار
-    final existing = await _checkExistingCarryOver(
-      employee.id,
-      previousCycleStart,
-      currentCycleStart,
-    );
-    if (existing) return;
-
     final currentCycleEnd = _getCycleEnd(currentCycleStart);
     final reason =
         'تم ترحيل مبلغ ${carriedOver.toStringAsFixed(0)} ريال '
@@ -365,27 +379,37 @@ class SalaryEntitlementService {
 
     final nowEpoch = Time.nowEpoch();
     final carryLogUuid = IdGen.uuid();
-    await _db
-        .into(_db.salaryCarryOverLogs)
-        .insert(
-          SalaryCarryOverLogsCompanion.insert(
-            employeeId: employee.id,
-            amount: carriedOver,
-            previousCycleStart: _formatDate(previousCycleStart),
-            previousCycleEnd: _formatDate(previousCycleEnd),
-            newCycleStart: _formatDate(currentCycleStart),
-            newCycleEnd: _formatDate(currentCycleEnd),
-            reason: reason,
-            carriedAt: nowEpoch,
-            localUuid: carryLogUuid,
-            createdAt: nowEpoch,
-            updatedAt: nowEpoch,
-            lastModified: nowEpoch,
-          ),
-        );
 
-    // ✅ تسجيل في outbox للمزامنة مع Appwrite Cloud
-    try {
+    // SQLite transaction serializes competing calls from repeated screen opens
+    // or two local triggers. The duplicate check and insert must be atomic.
+    await _db.transaction(() async {
+      final existing = await _checkExistingCarryOver(
+        employee.id,
+        previousCycleStart,
+        currentCycleStart,
+      );
+      if (existing) return;
+
+      await _db
+          .into(_db.salaryCarryOverLogs)
+          .insert(
+            SalaryCarryOverLogsCompanion.insert(
+              employeeId: employee.id,
+              amount: carriedOver,
+              previousCycleStart: _formatDate(previousCycleStart),
+              previousCycleEnd: _formatDate(previousCycleEnd),
+              newCycleStart: _formatDate(currentCycleStart),
+              newCycleEnd: _formatDate(currentCycleEnd),
+              reason: reason,
+              carriedAt: nowEpoch,
+              localUuid: carryLogUuid,
+              createdAt: nowEpoch,
+              updatedAt: nowEpoch,
+              lastModified: nowEpoch,
+            ),
+          );
+
+      // Keep the database write and its sync intent in one transaction.
       await OutboxDao(_db).merge(
         entity: 'salary_carry_over_logs',
         op: 'create',
@@ -402,9 +426,7 @@ class SalaryEntitlementService {
           'carriedAt': nowEpoch,
         },
       );
-    } catch (e) {
-      dlog(() => '⚠️ فشل تسجيل salary_carry_over_log في outbox: $e');
-    }
+    });
 
     dlog(() => '📝 ترحيل تلقائي: $carriedOver للموظف ${employee.name}');
   }

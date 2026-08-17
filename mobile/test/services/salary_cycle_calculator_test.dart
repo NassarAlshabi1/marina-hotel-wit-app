@@ -57,6 +57,78 @@ void main() {
       expect(result.hasExceeded, isTrue);
     });
 
+    test('لا ينشئ ترحيلاً عند تجاوز صفر بالضبط', () {
+      final result = SalaryCycleCalculator.calculate(
+        const SalaryCycleInput(
+          basicSalary: 50000,
+          withdrawals: 30000,
+          advances: 15000,
+          deductions: 5000,
+        ),
+      );
+
+      expect(result.remainingBalance, 0);
+      expect(result.carryOverToNext, 0);
+      expect(result.hasExceeded, isFalse);
+      expect(result.isFullySettled, isTrue);
+    });
+
+    test('يحسب تجاوز وحدة مالية واحدة بدقة', () {
+      final result = SalaryCycleCalculator.calculate(
+        const SalaryCycleInput(basicSalary: 50000, withdrawals: 50001),
+      );
+
+      expect(result.remainingBalance, 0);
+      expect(result.carryOverToNext, 1);
+    });
+
+    test('يستهلك الترحيل السابق قبل إنشاء ترحيل جديد', () {
+      final result = SalaryCycleCalculator.calculate(
+        const SalaryCycleInput(
+          basicSalary: 50000,
+          withdrawals: 45000,
+          carriedOverFromPrevious: 5000,
+        ),
+      );
+
+      expect(result.totalBeforeCarryOver, 50000);
+      expect(result.remainingBalance, 0);
+      expect(result.carryOverToNext, 0);
+    });
+
+    test('يدعم ترحيلاً متسلسلاً من شهر إلى الشهر التالي', () {
+      final firstMonth = SalaryCycleCalculator.calculate(
+        const SalaryCycleInput(basicSalary: 50000, withdrawals: 60000),
+      );
+      final secondMonth = SalaryCycleCalculator.calculate(
+        SalaryCycleInput(
+          basicSalary: 50000,
+          withdrawals: 55000,
+          carriedOverFromPrevious: firstMonth.carryOverToNext,
+        ),
+      );
+
+      expect(firstMonth.carryOverToNext, 10000);
+      expect(secondMonth.totalBeforeCarryOver, 65000);
+      expect(secondMonth.carryOverToNext, 15000);
+      expect(secondMonth.remainingBalance, 0);
+    });
+
+    test('لا يجعل الأقساط المسددة الترحيل أكبر أو صافي المستحق سالباً', () {
+      final result = SalaryCycleCalculator.calculate(
+        const SalaryCycleInput(
+          basicSalary: 50000,
+          advances: 20000,
+          installmentsPaid: 20000,
+          withdrawals: 50000,
+        ),
+      );
+
+      expect(result.remainingBalance, 0);
+      expect(result.carryOverToNext, 20000);
+      expect(result.advanceBalance, 0);
+    });
+
     test('يقرب البيانات القديمة ذات الكسور مرة واحدة إلى أعداد صحيحة', () {
       final result = SalaryCycleCalculator.calculate(
         const SalaryCycleInput(
