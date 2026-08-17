@@ -212,7 +212,12 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
       return guest.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           guest.phone.contains(_searchQuery) ||
           guest.email.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          guest.nationality.toLowerCase().contains(_searchQuery.toLowerCase());
+          guest.nationality.toLowerCase().contains(
+            _searchQuery.toLowerCase(),
+          ) ||
+          guest.bookings.any(
+            (booking) => booking.roomNumber.contains(_searchQuery),
+          );
     }).toList();
   }
 
@@ -254,6 +259,14 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
     final latestBooking = guest.bookings.isNotEmpty
         ? guest.bookings.first
         : null;
+    final activeRoomNumbers =
+        guest.bookings
+            .where((booking) => StatusUtils.isActiveBooking(booking.status))
+            .map((booking) => booking.roomNumber.trim())
+            .where((roomNumber) => roomNumber.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -272,7 +285,9 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                       ? Colors.green
                       : Colors.blueGrey,
                   child: Text(
-                    latestBooking != null ? latestBooking.roomNumber : '—',
+                    activeRoomNumbers.length > 1
+                        ? '${activeRoomNumbers.length}'
+                        : (activeRoomNumbers.firstOrNull ?? '—'),
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -354,6 +369,11 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
             ),
 
             const SizedBox(height: 8),
+
+            if (activeRoomNumbers.isNotEmpty) ...[
+              _buildActiveRoomNumbers(activeRoomNumbers),
+              const SizedBox(height: 8),
+            ],
 
             if (latestBooking != null) ...[
               _buildPricePreview(latestBooking, roomPrices),
@@ -465,6 +485,43 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildActiveRoomNumbers(List<String> roomNumbers) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(top: 4),
+          child: Icon(Icons.hotel, size: 14, color: Colors.teal),
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: roomNumbers.map((roomNumber) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.teal.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.teal.shade200),
+                ),
+                child: Text(
+                  'غرفة $roomNumber',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.teal.shade800,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
     );
   }
 
