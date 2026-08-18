@@ -82,6 +82,34 @@ class SyncResult {
   bool get hasConflicts => conflicts > 0;
 }
 
+/// أخطاء الشبكة المتوقعة التي لا تمثل عطلاً في التطبيق.
+///
+/// تشمل انقطاع الإنترنت، فشل DNS، انتهاء المهلة، وإعادة ضبط الاتصال.
+/// هذه الأخطاء يجب أن تبقي Outbox في حالته المعلقة وتُعاد محاولتها لاحقاً،
+/// ولا ينبغي تسجيلها كـ Fatal في Crashlytics أو إرسال تنبيه إداري لكل جهاز.
+bool _isTransientNetworkSyncError(Object error) {
+  if (error is SocketException || error is TimeoutException) {
+    return true;
+  }
+
+  final message = error.toString().toLowerCase();
+  const networkMarkers = <String>[
+    'no internet connection',
+    'failed host lookup',
+    'socketexception',
+    'connection reset',
+    'connection refused',
+    'connection aborted',
+    'network is unreachable',
+    'network unreachable',
+    'timed out',
+    'timeout',
+    'unable to resolve host',
+    'dns',
+  ];
+  return networkMarkers.any(message.contains);
+}
+
 /// ✅ نتيجة فحص _isRemoteDataNewer (2026-06-28 P0-3)
 /// قد تحتوي على بيانات مدمجة إذا تم حل التعارض المتزامن تلقائياً.
 class _RemoteNewerResult {
@@ -1666,23 +1694,34 @@ class AppwriteSyncManager {
           syncLogVersion += 1;
 
           if (hasSyncLog) {
-            await appwriteService.updateDocument(
-              collectionId: AppwriteConfig.syncLogsCollectionId,
-              documentId: syncLogId,
-              data: {
-                'endTime': endEpoch,
-                'status': SyncLogStatus.completed.value,
-                'action': 'sync_complete',
-                'details':
-                    '{"recordsPushed":$recordsPushed,"recordsPulled":$recordsPulled,"conflicts":$conflicts}',
-                'updatedAt': endEpoch,
-                'lastModified': endEpoch,
-                'timestamp': endEpoch,
-                'version': syncLogVersion,
-                'localUuid': syncLogLocalUuid,
-                'origin': 'mobile',
-              },
-            );
+            // سجل التشخيص السحابي غير حرج؛ فشل تحديثه لا يعني فشل المزامنة
+            // التي انتهت فعلياً، ولا يجب أن يحوّل انقطاع DNS إلى Fatal.
+            try {
+              await appwriteService.updateDocument(
+                collectionId: AppwriteConfig.syncLogsCollectionId,
+                documentId: syncLogId,
+                data: {
+                  'endTime': endEpoch,
+                  'status': SyncLogStatus.completed.value,
+                  'action': 'sync_complete',
+                  'details':
+                      '{"recordsPushed":$recordsPushed,"recordsPulled":$recordsPulled,"conflicts":$conflicts}',
+                  'updatedAt': endEpoch,
+                  'lastModified': endEpoch,
+                  'timestamp': endEpoch,
+                  'version': syncLogVersion,
+                  'localUuid': syncLogLocalUuid,
+                  'origin': 'mobile',
+                },
+              );
+            } catch (logError, logStackTrace) {
+              _logger.warning(
+                'تعذر تحديث sync_logs بعد نجاح المزامنة؛ تم تجاهل الخطأ غير الحرج',
+                error: logError,
+                stackTrace: logStackTrace,
+                tag: 'SYNC',
+              );
+            }
           }
 
           _lastSyncTime = endTime;
@@ -1757,11 +1796,15 @@ class AppwriteSyncManager {
               (e.code == 429 ||
                   (e.type ?? '').toLowerCase().contains('rate_limit') ||
                   (e.message ?? '').toLowerCase().contains('rate_limit'));
+          final isTransientNetworkFailure = _isTransientNetworkSyncError(e);
 
-          if (isRateLimitFailure) {
+          if (isRateLimitFailure || isTransientNetworkFailure) {
             _logger.warning(
-              '🔌 Sync failed due to rate limit (429) — '
-              'deferring sync log write. Will retry on next sync.',
+              isRateLimitFailure
+                  ? '🔌 Sync failed due to rate limit (429) — '
+                        'deferring sync log write. Will retry on next sync.'
+                  : '📴 Sync paused بسبب انقطاع الشبكة — '
+                        'سيُعاد رفع Outbox تلقائياً عند عودة الاتصال.',
               tag: 'SYNC',
             );
           } else if (hasSyncLog) {
@@ -1816,10 +1859,10 @@ class AppwriteSyncManager {
             tag: 'SYNC',
           );
 
-          // ✅ جديد: تخطّي إشعارات Crashlytics/WhatsApp/Telegram لأخطاء 429
-          // العابرة — هذه ليست أخطاءً حرجة تستدعي تنبيه الإدارة، بل ضغط مؤقت
-          // على rate limit سيُحل تلقائياً عبر circuit breaker + backoff.
-          if (!isRateLimitFailure) {
+          // ✅ تخطي Crashlytics/WhatsApp/Telegram لأخطاء 429 والشبكة العابرة.
+          // هذه حالات تشغيل متوقعة وسيعيد AutoOutboxSyncWatcher المحاولة لاحقاً؛
+          // تسجيلها كـ Fatal يخلق Crashlytics مضللاً ويزعج الإدارة.
+          if (!isRateLimitFailure && !isTransientNetworkFailure) {
             // Crashlytics + WhatsApp alert على فشل المزامنة الرئيسي
             await CrashlyticsService.instance.recordFatalSyncError(
               operation: 'sync',
@@ -1846,7 +1889,7 @@ class AppwriteSyncManager {
               recordsPushed: recordsPushed,
               recordsPulled: recordsPulled,
             );
-          } // end if (!isRateLimitFailure)
+          } // end if (!isRateLimitFailure && !isTransientNetworkFailure)
         } finally {
           // ✅ إصلاح حرج (audit agent-6): ضمان إعادة ضبط _currentStatus دائماً
           // حتى لو فشل معالج الأخطاء نفسه (مثل CrashlyticsService أو
