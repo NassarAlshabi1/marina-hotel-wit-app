@@ -1,4 +1,6 @@
 import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
+import 'dart:io' show Platform;
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,6 +20,10 @@ class AlarmBackup {
 
   /// استدعِ هذه في main() قبل runApp
   static Future<void> initAlarmSystem() async {
+    if (!Platform.isAndroid) {
+      dlog('ℹ️ Alarm system skipped on ${Platform.operatingSystem}');
+      return;
+    }
     await AndroidAlarmManager.initialize();
     // تهيئة الإشعارات
     const androidSettings = AndroidInitializationSettings(
@@ -52,6 +58,7 @@ class AlarmBackup {
   }
 
   static Future<void> scheduleDailyAlarm(int hour, int minute) async {
+    if (!Platform.isAndroid) return;
     final now = DateTime.now();
     var scheduled = DateTime(now.year, now.month, now.day, hour, minute);
     if (scheduled.isBefore(now)) {
@@ -74,6 +81,7 @@ class AlarmBackup {
 
   /// لإلغاء وإعادة جدولة — استخدمها عند تغيير الوقت
   static Future<void> rescheduleDaily(int hour, int minute) async {
+    if (!Platform.isAndroid) return;
     await AndroidAlarmManager.cancel(alarmId);
     await Future<void>.delayed(const Duration(milliseconds: 300));
     await scheduleDailyAlarm(hour, minute);
@@ -152,6 +160,7 @@ class AlarmBackup {
 
   /// إلغاء الإنذار
   static Future<void> cancelAlarm() async {
+    if (!Platform.isAndroid) return;
     await AndroidAlarmManager.cancel(alarmId);
     dlog('🚫 Alarm cancelled');
   }
@@ -179,6 +188,7 @@ class AlarmBackup {
 
   /// جدولة إنذار يومي لإرسال تقرير Telegram
   static Future<void> scheduleTelegramReportAlarm(int hour, int minute) async {
+    if (!Platform.isAndroid) return;
     final now = DateTime.now();
     var scheduled = DateTime(now.year, now.month, now.day, hour, minute);
     if (scheduled.isBefore(now)) {
@@ -200,6 +210,7 @@ class AlarmBackup {
 
   /// إعادة جدولة تقرير Telegram
   static Future<void> rescheduleTelegramReport(int hour, int minute) async {
+    if (!Platform.isAndroid) return;
     await AndroidAlarmManager.cancel(telegramReportAlarmId);
     await Future<void>.delayed(const Duration(milliseconds: 300));
     await scheduleTelegramReportAlarm(hour, minute);
@@ -208,6 +219,7 @@ class AlarmBackup {
 
   /// إلغاء إنذار تقرير Telegram
   static Future<void> cancelTelegramReportAlarm() async {
+    if (!Platform.isAndroid) return;
     await AndroidAlarmManager.cancel(telegramReportAlarmId);
     dlog('🚫 Telegram report alarm cancelled');
   }

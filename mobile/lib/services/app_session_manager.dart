@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:math';
 
 import 'package:drift/drift.dart' show Value;
@@ -99,6 +100,7 @@ class AppSessionManager {
 
   /// تهيئة النسخ الاحتياطي عند تجاوز الحد التراكمي (15 دقيقة).
   static Future<void> _scheduleBackupIfNeeded() async {
+    if (!Platform.isAndroid && !Platform.isIOS) return;
     if (_accumulatedSeconds >= _backupThresholdSeconds) {
       await Workmanager().registerOneOffTask(
         'backupAfterInactivity',
