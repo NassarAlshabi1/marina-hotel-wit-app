@@ -511,6 +511,64 @@ class AuthLocalStore {
     }
   }
 
+  /// تحديث حساب محلي مخصص.
+  Future<bool> updateLocalUser({
+    required String username,
+    String? newPassword,
+    String? newFullName,
+    String? newUserType,
+    List<String>? newPermissions,
+  }) async {
+    final accounts = await _loadCustomAccounts();
+    final raw = accounts[username];
+    if (raw is! Map) return false;
+
+    final account = Map<String, dynamic>.from(raw);
+    if (newPassword != null && newPassword.isNotEmpty) {
+      account['password'] = PasswordHasher.hash(newPassword);
+    }
+    if (newFullName != null) account['full_name'] = newFullName;
+    if (newUserType != null) account['user_type'] = newUserType;
+    accounts[username] = account;
+    await _saveCustomAccounts(accounts);
+    if (newPermissions != null) {
+      await setPermissions(username, newPermissions);
+    }
+    return true;
+  }
+
+  /// حذف حساب محلي مخصص.
+  Future<bool> deleteLocalUser(String username) async {
+    if (_fixedAccounts.containsKey(username)) return false;
+    final accounts = await _loadCustomAccounts();
+    if (!accounts.containsKey(username)) return false;
+    accounts.remove(username);
+    await _saveCustomAccounts(accounts);
+
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kPermissionsMap);
+    if (raw != null) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) {
+          final permissions = decoded.map(
+            (key, value) => MapEntry(key.toString(), value),
+          );
+          permissions.remove(username);
+          await prefs.setString(_kPermissionsMap, jsonEncode(permissions));
+        }
+      } catch (e, st) {
+        AppLogger.warning(
+          'تعذر تنظيف صلاحيات المستخدم المحلي المحذوف $username',
+          tag: 'AUTH',
+          error: e,
+          stackTrace: st,
+        );
+      }
+    }
+    return true;
+  }
+
   /// تحديث بيانات مستخدم سحابي (اسم، كلمة مرور، صلاحيات) + زيادة credentials_version
   /// يعيد true إذا نجح → يجب قطع الجلسة على الأجهزة الأخرى
   Future<bool> updateCloudUser({
@@ -622,7 +680,6 @@ class AuthLocalStore {
     try {
       final prefs = await SharedPreferences.getInstance();
       final storedVersion = prefs.getInt(_kCredVersion);
-      if (storedVersion == null) return true; // مستخدم محلي، لا تحقق
 
       final currentUser = await loadCurrentUser();
       if (currentUser == null) return true;
@@ -633,20 +690,39 @@ class AuthLocalStore {
 
       final appwrite = AppwriteService();
       await appwrite.initialize();
-      final cloudAccounts = await loadCloudAccounts();
-      final cloudAccount = cloudAccounts[username];
-      if (cloudAccount == null) return true; // ليس مستخدم سحابي
+      // نستخدم طلباً واحداً يعيد الحسابات النشطة وغير النشطة معاً؛ لأن
+      // loadCloudAccounts() يستبعد active=false ولا يمكنه التمييز بين حساب
+      // معطّل وحساب محذوف أو فشل شبكة.
+      final docs = await appwrite.listDocuments(
+        collectionId: 'app_users',
+        useCache: false,
+      );
+      Map<String, dynamic>? cloudData;
+      for (final doc in docs) {
+        if ((doc.data['username']?.toString() ?? '') == username) {
+          cloudData = doc.data;
+          break;
+        }
+      }
 
-      // ✅ Forensic audit fix (2026-07-22):
-      // كان الكود السابق يستدعي listDocuments('app_users') مرة ثانية (السطر 552)
-      // للبحث عن credentials_version — لكن loadCloudAccounts() أعلاه (السطر 547)
-      // سبق وجلب نفس البيانات وخزّنها في cloudAccount['credentials_version']
-      // (انظر auth_local_store.dart:146). هذا الاستدعاء المكرر يستهلك
-      // listDocuments API call إضافي بلا داعٍ في كل فحص جلسة (كل 30 ثانية).
-      //
-      /// للتراجع: أعد استدعاء listDocuments('app_users') بدل استخدام cloudAccount.
+      // غياب المستند يعني أن الحساب حُذف أو لم يعد حساباً سحابياً. بما أن
+      // هذا الفحص داخل try، فإن فشل الشبكة يبقى في catch ويُبقي الجلسة مؤقتاً.
+      if (cloudData == null || cloudData['active'] == false) {
+        AppLogger.warning(
+          'Session invalid for $username: account deleted or inactive',
+          tag: 'AUTH',
+        );
+        return false;
+      }
+
       final cloudVersion =
-          (cloudAccount['credentials_version'] as num?)?.toInt() ?? 0;
+          (cloudData['credentials_version'] as num?)?.toInt() ?? 0;
+      if (storedVersion == null) {
+        // جلسة قديمة من إصدار لا يحفظ النسخة: نثبت النسخة الحالية بعد
+        // التحقق من أن الحساب موجود ونشط، بدلاً من تجاوز الإلغاء تماماً.
+        await saveCredentialsVersion(cloudVersion);
+        return true;
+      }
       if (cloudVersion != storedVersion) {
         AppLogger.warning(
           'Session invalid for $username: local=$storedVersion, cloud=$cloudVersion',
@@ -698,12 +774,13 @@ class AuthLocalStore {
     // حسابات سحابية من Appwrite (app_users)
     try {
       final cloudAccounts = await loadCloudAccounts();
-      final localUsernames = result
-          .map((a) => a['username'].toString())
-          .toSet();
-      cloudAccounts.forEach((username, data) {
-        // تجنب التكرار مع الحسابات المحلية
-        if (!localUsernames.contains(username)) {
+      for (final entry in cloudAccounts.entries) {
+        final username = entry.key;
+        final data = entry.value;
+        final existingIndex = result.indexWhere(
+          (account) => account['username'].toString() == username,
+        );
+        if (existingIndex == -1) {
           result.add({
             'username': username,
             'full_name': data['full_name'] ?? username,
@@ -713,8 +790,20 @@ class AuthLocalStore {
             'is_cloud': true,
             'doc_id': data['doc_id'],
           });
+        } else if (result[existingIndex]['is_fixed'] != true) {
+          // الحساب أُنشئ محلياً ثم رُفع إلى Appwrite؛ نحتفظ ببطاقة واحدة
+          // ونضيف doc_id حتى تستخدم الشاشة مسار التعديل السحابي الصحيح.
+          result[existingIndex] = {
+            ...result[existingIndex],
+            'full_name':
+                data['full_name'] ?? result[existingIndex]['full_name'],
+            'user_type':
+                data['user_type'] ?? result[existingIndex]['user_type'],
+            'is_cloud': true,
+            'doc_id': data['doc_id'],
+          };
         }
-      });
+      }
     } catch (e, st) {
       // فشل سحب السحابي — لا مشكلة، نعرض المحلي فقط
       AppLogger.warning(
@@ -842,7 +931,7 @@ class AuthLocalStore {
     }
   }
 
-  Future<void> setPermissions(String username, List<String> permissions) async {
+  Future<bool> setPermissions(String username, List<String> permissions) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_kPermissionsMap);
     Map<String, dynamic> map = {};
@@ -861,33 +950,67 @@ class AuthLocalStore {
         );
       }
     }
-    map[username] = permissions;
+    final previous = map.containsKey(username) ? map[username] : null;
+    final nextPermissions = username == 'admin' ? <String>['all'] : permissions;
+    map[username] = nextPermissions;
     await prefs.setString(_kPermissionsMap, jsonEncode(map));
-    if (username == 'admin') {
-      map[username] = ['all'];
-    }
 
-    // تحديث الصلاحيات في السحابة أيضاً
-    await _updateCloudPermissions(username, permissions);
+    // تحديث الصلاحيات في السحابة أيضاً. إذا فشل، نعيد القيمة المحلية السابقة
+    // حتى لا تعرض الواجهة صلاحيات لم تصل فعلياً إلى Appwrite.
+    final cloudUpdated = await _updateCloudPermissions(
+      username,
+      nextPermissions,
+    );
+    if (cloudUpdated) return true;
+
+    if (previous == null) {
+      map.remove(username);
+    } else {
+      map[username] = previous;
+    }
+    await prefs.setString(_kPermissionsMap, jsonEncode(map));
+    return false;
   }
 
   /// تحديث صلاحيات مستخدم سحابي في Appwrite
-  Future<void> _updateCloudPermissions(
+  Future<bool> _updateCloudPermissions(
     String username,
     List<String> permissions,
   ) async {
     try {
       final appwrite = AppwriteService();
       await appwrite.initialize();
-      final cloudAccounts = await loadCloudAccounts();
-      final cloudAccount = cloudAccounts[username];
-      if (cloudAccount == null) return;
-      final docId = cloudAccount['doc_id'] as String?;
-      if (docId == null) return;
+      final docs = await appwrite.listDocuments(
+        collectionId: 'app_users',
+        useCache: false,
+      );
+      Map<String, dynamic>? cloudData;
+      String? docId;
+      for (final doc in docs) {
+        if ((doc.data['username']?.toString() ?? '') == username) {
+          cloudData = doc.data;
+          docId = doc.$id;
+          break;
+        }
+      }
+      // لا يوجد مستند سحابي: الحساب محلي، لذلك يكفي الحفظ المحلي.
+      if (cloudData == null) return true;
+      if (docId == null || docId.isEmpty) return false;
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final credentialsVersion =
+          (cloudData['credentials_version'] as num?)?.toInt() ?? 0;
+      final version = (cloudData['version'] as num?)?.toInt() ?? 0;
+      final data = <String, dynamic>{
+        'permissions': jsonEncode(permissions),
+        'credentials_version': credentialsVersion + 1,
+        'updatedAt': now,
+        'lastModified': now,
+        'version': version + 1,
+      };
       await appwrite.updateDocument(
         collectionId: 'app_users',
         documentId: docId,
-        data: {'permissions': jsonEncode(permissions)},
+        data: data,
       );
       AppLogger.debug(
         'Permissions updated for $username in cloud',
@@ -895,13 +1018,15 @@ class AuthLocalStore {
       );
 
       // ✅ مزامنة Secondary Appwrite: تحديث الصلاحيات في الوجهة الثانوية
-      await _updateSecondary(docId, {'permissions': jsonEncode(permissions)});
+      await _updateSecondary(docId, data);
+      return true;
     } catch (e) {
       AppLogger.warning(
         'Failed to update cloud permissions for $username',
         tag: 'AUTH',
         error: e,
       );
+      return false;
     }
   }
 

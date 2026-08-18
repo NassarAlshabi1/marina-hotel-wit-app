@@ -167,6 +167,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     super.dispose();
   }
 
+  void _requireAdmin() {
+    if (!state.isAuthenticated || !(state.currentUser?.isAdmin ?? false)) {
+      throw StateError('هذه العملية مخصصة للمسؤول فقط');
+    }
+  }
+
   Future<void> restoreSession() async {
     state = state.copyWith(isRestoring: true);
 
@@ -248,11 +254,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = const AuthState(isAuthenticated: false);
   }
 
-  Future<void> updateUserPermissions(
+  Future<bool> updateUserPermissions(
     String username,
     List<String> permissions,
   ) async {
-    await _store.setPermissions(username, permissions);
+    _requireAdmin();
+    final updatedCloud = await _store.setPermissions(username, permissions);
     if (state.currentUser != null && state.currentUser!.username == username) {
       final updated = state.currentUser!.copyWith(
         permissions: username == 'admin' ? ['all'] : permissions,
@@ -260,6 +267,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await _store.saveCurrentUser(updated.toJson());
       state = state.copyWith(currentUser: updated);
     }
+    return updatedCloud;
   }
 
   Future<void> addUser({
@@ -269,6 +277,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String userType,
     required List<String> permissions,
   }) async {
+    _requireAdmin();
     await _store.addUser(
       username: username,
       password: password,
@@ -288,6 +297,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     List<String>? newPermissions,
     bool? active,
   }) async {
+    _requireAdmin();
     return _store.updateCloudUser(
       username: username,
       docId: docId,
@@ -299,8 +309,39 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
   }
 
+  /// تحديث حساب محلي مخصص
+  Future<bool> updateLocalUser({
+    required String username,
+    String? newPassword,
+    String? newFullName,
+    String? newUserType,
+    List<String>? newPermissions,
+  }) async {
+    _requireAdmin();
+    return _store.updateLocalUser(
+      username: username,
+      newPassword: newPassword,
+      newFullName: newFullName,
+      newUserType: newUserType,
+      newPermissions: newPermissions,
+    );
+  }
+
+  /// حذف مستخدم محلي مخصص
+  Future<bool> deleteLocalUser({required String username}) async {
+    _requireAdmin();
+    return _store.deleteLocalUser(username);
+  }
+
   /// حذف مستخدم سحابي
-  Future<bool> deleteCloudUser({required String docId}) async {
+  Future<bool> deleteCloudUser({
+    required String docId,
+    String? username,
+  }) async {
+    _requireAdmin();
+    if (username != null && username == state.currentUser?.username) {
+      throw StateError('لا يمكن حذف الحساب المستخدم حالياً');
+    }
     return _store.deleteCloudUser(docId: docId);
   }
 }
