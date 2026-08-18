@@ -431,15 +431,12 @@ jobs:
             echo "⚠️ No performance tests found in test/performance/"
             echo "Creating sample benchmark..."
             mkdir -p test/performance
-            cat > test/performance/sample_benchmark.dart << 'EOF'
-            import 'package:flutter_test/flutter_test.dart';
-            
-            void main() {
-              testWidgets('Sample Performance Test', (WidgetTester tester) async {
-                // Add your performance tests here
-              });
-            }
-            EOF
+            printf '%s\n' \
+              "import 'package:flutter_test/flutter_test.dart';" \
+              '' \
+              'void main() {' \
+              "  testWidgets('Sample Performance Test', (WidgetTester tester) async {});" \
+              '}' > test/performance/sample_benchmark.dart
             flutter test test/performance/ \
               --concurrency=1 \
               --timeout=60s \
@@ -478,7 +475,8 @@ jobs:
         if: always() && inputs.upload_reports == true
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: benchmarks-${{ github.ref_name }}-${{ github.run_id }}
+          # github.ref_name can contain '/', which is invalid in artifact names.
+          name: benchmarks-${{ github.run_id }}
           path: ${{ env.WORKING_DIRECTORY }}/build/performance/
           retention-days: 30
           if-no-files-found: ignore
@@ -696,7 +694,8 @@ jobs:
         if: always() && inputs.upload_reports == true
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: quality-reports-${{ github.ref_name }}-${{ github.run_id }}
+          # github.ref_name can contain '/', which is invalid in artifact names.
+          name: quality-reports-${{ github.run_id }}
           path: ${{ env.WORKING_DIRECTORY }}/reports/
           retention-days: 14
           if-no-files-found: ignore
