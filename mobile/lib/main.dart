@@ -245,12 +245,14 @@ Future<void> main() async {
     },
   );
 
-  unawaited(
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-    ]),
-  );
+  if (Platform.isAndroid || Platform.isIOS) {
+    unawaited(
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+        DeviceOrientation.portraitDown,
+      ]),
+    );
+  }
 
   // مراقب التطوير يجمع FrameTiming واتجاه الذاكرة لاختبارات الأداء.
   // start() نفسه محمي بـ kDebugMode، لذا لا ينشئ listener أو timer في APK.
