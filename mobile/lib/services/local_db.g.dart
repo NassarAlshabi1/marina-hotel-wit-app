@@ -14851,6 +14851,12 @@ class Debt extends DataClass implements Insertable<Debt> {
   final String? description;
   final String? status;
   final String? dueDate;
+
+  /// ✅ Wave 6 (2026-08-12): حقول إضافية مطلوبة من Appwrite Cloud.
+  /// موجودة في schemaAttributeTypes و filterPayload لـ debts لكنها
+  /// كانت مفقودة من الـ Drift table — مما يمنع الـ push و pull.
+  /// انظر appwrite_sync_utils.dart:362-411 (whitelist) و
+  /// appwrite_schema_verifier.dart:301-304 (Cloud schema).
   final String? bookingUuidCache;
   final String? debtorName;
   final double? amount;
@@ -16075,10 +16081,10 @@ class DebtsCompanion extends UpdateCompanion<Debt> {
           ..write('guestPhone: $guestPhone, ')
           ..write('description: $description, ')
           ..write('status: $status, ')
-          ..write('dueDate: $dueDate')
-          ..write('bookingUuidCache: $bookingUuidCache')
-          ..write('debtorName: $debtorName')
-          ..write('amount: $amount')
+          ..write('dueDate: $dueDate, ')
+          ..write('bookingUuidCache: $bookingUuidCache, ')
+          ..write('debtorName: $debtorName, ')
+          ..write('amount: $amount, ')
           ..write('date: $date')
           ..write(')'))
         .toString();
@@ -24590,9 +24596,29 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
   final String? secondaryLastError;
 
   /// ✅ Wave 5 (2026-08-12): Generation field لمنع stale acknowledgements.
+  ///
+  /// يُزداد بمقدار 1 كل مرة يتم فيها تحديث payload أو op أو clientTs في
+  /// `merge()`. عند الالتقاط (claim)، يتم تخزين قيمة `payloadVersion` في
+  /// `processingPayloadVersion`. عند التأكيد (markDelivered/setError/etc.)
+  /// يتحقق الكود أن `processingPayloadVersion == payloadVersion` الحالية.
+  ///
+  /// إذا تغيرت `payloadVersion` أثناء المعالجة (لأن `merge` أخرى حدّثت
+  /// payload أثناء عمل worker قديم)، يرفض الكود التأكيد ويُعيد السجل
+  /// لـ pending ليُعالج من جديد.
+  ///
+  /// **مثال على السباق الذي يمنعه**:
+  /// 1. worker-A يلتقط السجل (payloadVersion=5, processingPayloadVersion=5)
+  /// 2. أثناء معالجة worker-A، payload يُحدَّث (payloadVersion=6)
+  /// 3. worker-A يحاول تأكيد التسليم
+  /// 4. الكود يرى processingPayloadVersion=5 != payloadVersion=6
+  /// 5. التأكيد يُرفض، السجل يُعاد لـ pending، worker-A يُعاد رفعه
+  ///
+  /// القيمة الافتراضية: 1 (للسجلات الجديدة)
   final int payloadVersion;
-  final int? processingPayloadVersion;
 
+  /// ✅ Wave 5: قيمة `payloadVersion` عند الالتقاط (claim).
+  /// تُستخدم للتحقق من أن العامل الذي يؤكد التسليم هو نفس العامل الذي التقطه.
+  final int? processingPayloadVersion;
   const OutboxData({
     required this.id,
     required this.entity,
@@ -24974,6 +25000,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     secondaryProcessingStatus,
     secondaryAttempts,
     secondaryLastError,
+    payloadVersion,
+    processingPayloadVersion,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -25536,6 +25564,31 @@ class SyncStateData extends DataClass implements Insertable<SyncStateData> {
   final int lastPushTs;
   final int isSyncing;
   final int version;
+
+  /// ✅ Sync Safety Wave 2 (2026-08-12): Full Sync Bootstrap Flag.
+  ///
+  /// `full_sync_complete = 0` (default): الجهاز في مرحلة bootstrap — يجب
+  /// القيام بـ full sync كامل. لا يُسمح بالتحول لـ delta sync حتى تكتمل
+  /// كل الكولكشنات بنجاح في دورة واحدة.
+  ///
+  /// `full_sync_complete = 1`: اكتملت أول full sync بنجاح — يمكن استخدام
+  /// delta sync بشكل آمن (لن نفقد سجلات لم تُسحب بعد).
+  ///
+  /// **المشكلة التي يحلها**: قبل هذا الـ flag، كان النظام يعتمد فقط على
+  /// `lastPullTs == 0` لتحديد "full sync mode". لكن هذا يعني:
+  /// 1. إذا نجحت أول دورة full sync جزئياً (مثلاً 18 من 19 collection)،
+  ///    `failedCollections.isEmpty` يمنع تحديث `lastPullTs`، فالدورة التالية
+  ///    تعيد full sync — هذا جيد.
+  /// 2. لكن إذا نجحت كل الكولكشنات ظاهرياً (لا exception) لكن بعض السجلات
+  ///    لم تُعالج داخل `_syncXxx` (مثلاً skip بسبب تعارض غير متوقع)،
+  ///    `lastPullTs` يُحدَّث والجهاز يتحول لـ delta mode — فقدان صامت.
+  ///
+  /// مع هذا الـ flag، حتى لو نُجح الـ full sync ظاهرياً، نضبط الـ flag
+  /// فقط بعد التحقق من أن كل كولكشن عاد بنتيجة متوقعة (records > 0 أو
+  /// دورة فارغة معروفة). حتى ذلك الحين، الـ delta queries تُرجع قائمة
+  /// فارغة (full fetch) لضمان عدم فقدان أي سجل.
+  ///
+  /// Migration 56 يضيف هذا العمود مع DEFAULT 0.
   final int fullSyncComplete;
   const SyncStateData({
     required this.id,
@@ -47649,6 +47702,10 @@ typedef $$DebtsTableCreateCompanionBuilder =
       Value<String?> description,
       Value<String?> status,
       Value<String?> dueDate,
+      Value<String?> bookingUuidCache,
+      Value<String?> debtorName,
+      Value<double?> amount,
+      Value<String?> date,
     });
 typedef $$DebtsTableUpdateCompanionBuilder =
     DebtsCompanion Function({
@@ -47693,6 +47750,10 @@ typedef $$DebtsTableUpdateCompanionBuilder =
       Value<String?> description,
       Value<String?> status,
       Value<String?> dueDate,
+      Value<String?> bookingUuidCache,
+      Value<String?> debtorName,
+      Value<double?> amount,
+      Value<String?> date,
     });
 
 final class $$DebtsTableReferences
@@ -47922,6 +47983,26 @@ class $$DebtsTableFilterComposer extends Composer<_$AppDatabase, $DebtsTable> {
 
   ColumnFilters<String> get dueDate => $composableBuilder(
     column: $table.dueDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bookingUuidCache => $composableBuilder(
+    column: $table.bookingUuidCache,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get debtorName => $composableBuilder(
+    column: $table.debtorName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get date => $composableBuilder(
+    column: $table.date,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -48158,6 +48239,26 @@ class $$DebtsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get bookingUuidCache => $composableBuilder(
+    column: $table.bookingUuidCache,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get debtorName => $composableBuilder(
+    column: $table.debtorName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$BookingsTableOrderingComposer get bookingLocalId {
     final $$BookingsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -48359,6 +48460,22 @@ class $$DebtsTableAnnotationComposer
   GeneratedColumn<String> get dueDate =>
       $composableBuilder(column: $table.dueDate, builder: (column) => column);
 
+  GeneratedColumn<String> get bookingUuidCache => $composableBuilder(
+    column: $table.bookingUuidCache,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get debtorName => $composableBuilder(
+    column: $table.debtorName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
   $$BookingsTableAnnotationComposer get bookingLocalId {
     final $$BookingsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -48452,6 +48569,10 @@ class $$DebtsTableTableManager
                 Value<String?> description = const Value.absent(),
                 Value<String?> status = const Value.absent(),
                 Value<String?> dueDate = const Value.absent(),
+                Value<String?> bookingUuidCache = const Value.absent(),
+                Value<String?> debtorName = const Value.absent(),
+                Value<double?> amount = const Value.absent(),
+                Value<String?> date = const Value.absent(),
               }) => DebtsCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -48494,6 +48615,10 @@ class $$DebtsTableTableManager
                 description: description,
                 status: status,
                 dueDate: dueDate,
+                bookingUuidCache: bookingUuidCache,
+                debtorName: debtorName,
+                amount: amount,
+                date: date,
               ),
           createCompanionCallback:
               ({
@@ -48538,6 +48663,10 @@ class $$DebtsTableTableManager
                 Value<String?> description = const Value.absent(),
                 Value<String?> status = const Value.absent(),
                 Value<String?> dueDate = const Value.absent(),
+                Value<String?> bookingUuidCache = const Value.absent(),
+                Value<String?> debtorName = const Value.absent(),
+                Value<double?> amount = const Value.absent(),
+                Value<String?> date = const Value.absent(),
               }) => DebtsCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -48580,6 +48709,10 @@ class $$DebtsTableTableManager
                 description: description,
                 status: status,
                 dueDate: dueDate,
+                bookingUuidCache: bookingUuidCache,
+                debtorName: debtorName,
+                amount: amount,
+                date: date,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -52856,6 +52989,8 @@ typedef $$OutboxTableCreateCompanionBuilder =
       Value<String> secondaryProcessingStatus,
       Value<int> secondaryAttempts,
       Value<String?> secondaryLastError,
+      Value<int> payloadVersion,
+      Value<int?> processingPayloadVersion,
     });
 typedef $$OutboxTableUpdateCompanionBuilder =
     OutboxCompanion Function({
@@ -52881,6 +53016,8 @@ typedef $$OutboxTableUpdateCompanionBuilder =
       Value<String> secondaryProcessingStatus,
       Value<int> secondaryAttempts,
       Value<String?> secondaryLastError,
+      Value<int> payloadVersion,
+      Value<int?> processingPayloadVersion,
     });
 
 class $$OutboxTableFilterComposer
@@ -52999,6 +53136,16 @@ class $$OutboxTableFilterComposer
 
   ColumnFilters<String> get secondaryLastError => $composableBuilder(
     column: $table.secondaryLastError,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get payloadVersion => $composableBuilder(
+    column: $table.payloadVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get processingPayloadVersion => $composableBuilder(
+    column: $table.processingPayloadVersion,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -53121,6 +53268,16 @@ class $$OutboxTableOrderingComposer
     column: $table.secondaryLastError,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get payloadVersion => $composableBuilder(
+    column: $table.payloadVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get processingPayloadVersion => $composableBuilder(
+    column: $table.processingPayloadVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$OutboxTableAnnotationComposer
@@ -53221,6 +53378,16 @@ class $$OutboxTableAnnotationComposer
     column: $table.secondaryLastError,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get payloadVersion => $composableBuilder(
+    column: $table.payloadVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get processingPayloadVersion => $composableBuilder(
+    column: $table.processingPayloadVersion,
+    builder: (column) => column,
+  );
 }
 
 class $$OutboxTableTableManager
@@ -53273,6 +53440,8 @@ class $$OutboxTableTableManager
                 Value<String> secondaryProcessingStatus = const Value.absent(),
                 Value<int> secondaryAttempts = const Value.absent(),
                 Value<String?> secondaryLastError = const Value.absent(),
+                Value<int> payloadVersion = const Value.absent(),
+                Value<int?> processingPayloadVersion = const Value.absent(),
               }) => OutboxCompanion(
                 id: id,
                 entity: entity,
@@ -53296,6 +53465,8 @@ class $$OutboxTableTableManager
                 secondaryProcessingStatus: secondaryProcessingStatus,
                 secondaryAttempts: secondaryAttempts,
                 secondaryLastError: secondaryLastError,
+                payloadVersion: payloadVersion,
+                processingPayloadVersion: processingPayloadVersion,
               ),
           createCompanionCallback:
               ({
@@ -53321,6 +53492,8 @@ class $$OutboxTableTableManager
                 Value<String> secondaryProcessingStatus = const Value.absent(),
                 Value<int> secondaryAttempts = const Value.absent(),
                 Value<String?> secondaryLastError = const Value.absent(),
+                Value<int> payloadVersion = const Value.absent(),
+                Value<int?> processingPayloadVersion = const Value.absent(),
               }) => OutboxCompanion.insert(
                 id: id,
                 entity: entity,
@@ -53344,6 +53517,8 @@ class $$OutboxTableTableManager
                 secondaryProcessingStatus: secondaryProcessingStatus,
                 secondaryAttempts: secondaryAttempts,
                 secondaryLastError: secondaryLastError,
+                payloadVersion: payloadVersion,
+                processingPayloadVersion: processingPayloadVersion,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
@@ -53375,6 +53550,7 @@ typedef $$SyncStateTableCreateCompanionBuilder =
       Value<int> lastPushTs,
       Value<int> isSyncing,
       Value<int> version,
+      Value<int> fullSyncComplete,
     });
 typedef $$SyncStateTableUpdateCompanionBuilder =
     SyncStateCompanion Function({
@@ -53384,6 +53560,7 @@ typedef $$SyncStateTableUpdateCompanionBuilder =
       Value<int> lastPushTs,
       Value<int> isSyncing,
       Value<int> version,
+      Value<int> fullSyncComplete,
     });
 
 class $$SyncStateTableFilterComposer
@@ -53422,6 +53599,11 @@ class $$SyncStateTableFilterComposer
 
   ColumnFilters<int> get version => $composableBuilder(
     column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get fullSyncComplete => $composableBuilder(
+    column: $table.fullSyncComplete,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -53464,6 +53646,11 @@ class $$SyncStateTableOrderingComposer
     column: $table.version,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get fullSyncComplete => $composableBuilder(
+    column: $table.fullSyncComplete,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SyncStateTableAnnotationComposer
@@ -53498,6 +53685,11 @@ class $$SyncStateTableAnnotationComposer
 
   GeneratedColumn<int> get version =>
       $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<int> get fullSyncComplete => $composableBuilder(
+    column: $table.fullSyncComplete,
+    builder: (column) => column,
+  );
 }
 
 class $$SyncStateTableTableManager
@@ -53537,6 +53729,7 @@ class $$SyncStateTableTableManager
                 Value<int> lastPushTs = const Value.absent(),
                 Value<int> isSyncing = const Value.absent(),
                 Value<int> version = const Value.absent(),
+                Value<int> fullSyncComplete = const Value.absent(),
               }) => SyncStateCompanion(
                 id: id,
                 lastServerTs: lastServerTs,
@@ -53544,6 +53737,7 @@ class $$SyncStateTableTableManager
                 lastPushTs: lastPushTs,
                 isSyncing: isSyncing,
                 version: version,
+                fullSyncComplete: fullSyncComplete,
               ),
           createCompanionCallback:
               ({
@@ -53553,6 +53747,7 @@ class $$SyncStateTableTableManager
                 Value<int> lastPushTs = const Value.absent(),
                 Value<int> isSyncing = const Value.absent(),
                 Value<int> version = const Value.absent(),
+                Value<int> fullSyncComplete = const Value.absent(),
               }) => SyncStateCompanion.insert(
                 id: id,
                 lastServerTs: lastServerTs,
@@ -53560,6 +53755,7 @@ class $$SyncStateTableTableManager
                 lastPushTs: lastPushTs,
                 isSyncing: isSyncing,
                 version: version,
+                fullSyncComplete: fullSyncComplete,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

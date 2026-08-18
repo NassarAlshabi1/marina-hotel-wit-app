@@ -125,6 +125,10 @@ class Bookings extends Table with SyncFields {
       'idx_bookings_checkin',
       'CREATE INDEX idx_bookings_checkin ON bookings (checkin_date)',
     ),
+    Index(
+      'idx_bookings_active_checkin',
+      'CREATE INDEX idx_bookings_active_checkin ON bookings (checkin_date DESC) WHERE deleted_at IS NULL',
+    ),
   ];
 }
 
@@ -207,6 +211,10 @@ class Expenses extends Table with SyncFields {
     Index(
       'idx_expenses_legacy_active_date',
       'CREATE INDEX idx_expenses_legacy_active_date ON expenses (date) WHERE hotel_day_key IS NULL AND deleted_at IS NULL',
+    ),
+    Index(
+      'idx_expenses_active_date',
+      'CREATE INDEX idx_expenses_active_date ON expenses (date DESC) WHERE deleted_at IS NULL',
     ),
   ];
 }
@@ -296,6 +304,10 @@ class Payments extends Table with SyncFields {
     Index(
       'idx_payments_legacy_active_date',
       'CREATE INDEX idx_payments_legacy_active_date ON payments (payment_date) WHERE hotel_day_key IS NULL AND deleted_at IS NULL AND is_voided = 0',
+    ),
+    Index(
+      'idx_payments_active_report_date',
+      'CREATE INDEX idx_payments_active_report_date ON payments (payment_date DESC) WHERE deleted_at IS NULL AND is_voided = 0 AND is_pending_balance = 0',
     ),
   ];
 }
@@ -870,6 +882,10 @@ class Outbox extends Table {
       'idx_outbox_delivery_secondary',
       'CREATE INDEX idx_outbox_delivery_secondary ON outbox (delivered_to_secondary, processing_status)',
     ),
+    Index(
+      'idx_outbox_pending_primary_source_ts',
+      "CREATE INDEX idx_outbox_pending_primary_source_ts ON outbox (source, client_ts) WHERE processing_status = 'pending' AND delivered_to_primary = 0",
+    ),
   ];
 }
 
@@ -1054,7 +1070,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 59;
+  int get schemaVersion => 60;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -3223,6 +3239,30 @@ class AppDatabase extends _$AppDatabase {
               name: 'db.migration',
             );
           }
+        }
+      }
+
+      // === Migration 60: measured low-end query indexes ===
+      // These indexes were selected from EXPLAIN QUERY PLAN measurements for
+      // the active list/report and pending Outbox queries. Keep this migration
+      // after 58 because the historical migration order is not chronological.
+      if (from < 60) {
+        const indexes = [
+          'CREATE INDEX IF NOT EXISTS idx_bookings_active_checkin '
+              'ON bookings (checkin_date DESC) WHERE deleted_at IS NULL',
+          'CREATE INDEX IF NOT EXISTS idx_payments_active_report_date '
+              'ON payments (payment_date DESC) '
+              'WHERE deleted_at IS NULL AND is_voided = 0 '
+              'AND is_pending_balance = 0',
+          'CREATE INDEX IF NOT EXISTS idx_expenses_active_date '
+              'ON expenses (date DESC) WHERE deleted_at IS NULL',
+          "CREATE INDEX IF NOT EXISTS idx_outbox_pending_primary_source_ts "
+              "ON outbox (source, client_ts) "
+              "WHERE processing_status = 'pending' "
+              'AND delivered_to_primary = 0',
+        ];
+        for (final sql in indexes) {
+          await m.database.customStatement(sql);
         }
       }
     },
