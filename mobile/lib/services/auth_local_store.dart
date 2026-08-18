@@ -1,8 +1,10 @@
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/app_logger.dart';
+import '../utils/id.dart';
 import 'appwrite_service.dart';
 import 'password_hasher.dart';
 import 'secondary_appwrite_config.dart';
@@ -12,6 +14,17 @@ import 'package:marina_hotel_mobile/utils/debug_log.dart';
 enum AuthType { local }
 
 class AuthLocalStore {
+  String _cloudDocumentId(String username) {
+    final legacyId = 'user_$username';
+    final validLegacy =
+        legacyId.length <= 36 &&
+        RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(legacyId);
+    if (validLegacy) return legacyId;
+
+    final digest = sha256.convert(utf8.encode(username)).toString();
+    return 'user_${digest.substring(0, 31)}';
+  }
+
   static const _kCurrentUser = 'current_user';
   static const _kPermissionsMap = 'user_permissions';
   static const _kCustomAccounts = 'custom_accounts';
@@ -338,9 +351,14 @@ class AuthLocalStore {
     try {
       final appwrite = AppwriteService();
       await appwrite.initialize();
-      final docId = 'user_$username';
+      final docId = _cloudDocumentId(username);
+      final localUuid = IdGen.uuid();
       final hashedPassword = PasswordHasher.hash(password);
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final deviceId = await _getDeviceId() ?? '';
+      final vectorClock = deviceId.isEmpty
+          ? '{}'
+          : jsonEncode(<String, int>{deviceId: 1});
 
       await appwrite.upsertDocument(
         collectionId: 'app_users',
@@ -351,6 +369,7 @@ class AuthLocalStore {
           'password': hashedPassword,
           'full_name': fullName,
           'user_type': userType,
+          'userType': userType,
           'permissions': jsonEncode(permissions),
           'active': true,
           'last_login': 0,
@@ -358,13 +377,15 @@ class AuthLocalStore {
           'role': userType,
 
           // حقول المزامنة الأساسية فقط (7)
-          'localUuid': docId,
+          'localUuid': localUuid,
           'createdAt': now,
           'updatedAt': now,
           'lastModified': now,
+          'lastModifiedEpoch': now,
+          'syncTimestamp': now,
           'version': 1,
-          'vectorClock': '{}',
-          'deviceId': await _getDeviceId() ?? '',
+          'vectorClock': vectorClock,
+          'deviceId': deviceId,
         },
       );
       AppLogger.debug(
@@ -378,18 +399,21 @@ class AuthLocalStore {
         'password': hashedPassword,
         'full_name': fullName,
         'user_type': userType,
+        'userType': userType,
         'permissions': jsonEncode(permissions),
         'active': true,
         'last_login': 0,
         'credentials_version': 1,
         'role': userType,
-        'localUuid': docId,
+        'localUuid': localUuid,
         'createdAt': now,
         'updatedAt': now,
         'lastModified': now,
+        'lastModifiedEpoch': now,
+        'syncTimestamp': now,
         'version': 1,
-        'vectorClock': '{}',
-        'deviceId': await _getDeviceId() ?? '',
+        'vectorClock': vectorClock,
+        'deviceId': deviceId,
       });
     } catch (e) {
       AppLogger.warning(
@@ -613,6 +637,8 @@ class AuthLocalStore {
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       data['updatedAt'] = now;
       data['lastModified'] = now;
+      data['lastModifiedEpoch'] = now;
+      data['syncTimestamp'] = now;
       data['version'] = (currentDoc.data['version'] as int? ?? 1) + 1;
 
       await appwrite.updateDocument(
@@ -1005,6 +1031,8 @@ class AuthLocalStore {
         'credentials_version': credentialsVersion + 1,
         'updatedAt': now,
         'lastModified': now,
+        'lastModifiedEpoch': now,
+        'syncTimestamp': now,
         'version': version + 1,
       };
       await appwrite.updateDocument(
