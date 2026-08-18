@@ -77,6 +77,12 @@ class AppwriteMessagingService {
   bool _isInitialized = false;
   StreamSubscription<dynamic>? _realtimeSubscription;
 
+  // FCM هو مسار التسليم الفعلي المهيأ للتطبيق. إبقاء Realtime على قناة
+  // `messages` يسبب إشعاراً مزدوجاً، وقد يلتقط رسائل Targets أخرى من نفس
+  // مشروع Appwrite قبل تطبيق فلتر مستلم موثوق. يبقى المسار متاحاً كخيار
+  // داخلي لاحقاً، لكنه معطّل افتراضياً لتجنب الإشعارات الكاذبة.
+  static const bool _useRealtimeNotificationFallback = false;
+
   static const AndroidNotificationChannel _messagingChannel =
       AndroidNotificationChannel(
         'marina_messaging_channel',
@@ -196,8 +202,11 @@ class AppwriteMessagingService {
         }
       }
 
-      // بدء الاستماع للإشعارات عبر Realtime
-      _subscribeToRealtime();
+      // لا نشغّل مستمع Realtime هنا؛ FcmService يستمع إلى FCM ويعرض
+      // الإشعار ويطلق السحب مرة واحدة. هذا يمنع الإشعار/السحب المزدوج.
+      if (_useRealtimeNotificationFallback) {
+        _subscribeToRealtime();
+      }
 
       return deviceId;
     } catch (e, st) {
