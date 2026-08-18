@@ -30,11 +30,13 @@ on:
     branches: [main, marina, refactor/performance-fixes-v2]
     paths:
       - 'mobile/**'
+      - 'scripts/windows_low_end_sqlite_stress.ps1'
       - '.github/workflows/flutter-windows-release.yml'
   pull_request:
     branches: [main]
     paths:
       - 'mobile/**'
+      - 'scripts/windows_low_end_sqlite_stress.ps1'
       - '.github/workflows/flutter-windows-release.yml'
   workflow_dispatch:
 
@@ -72,6 +74,19 @@ jobs:
 
       - name: 🧪 Run focused tests
         run: flutter test test/auth_login_test.dart
+
+      - name: 🧠 SQLite low-end stress with 25% CPU cap
+        shell: pwsh
+        run: .\\..\\scripts\\windows_low_end_sqlite_stress.ps1
+
+      - name: 📤 Upload SQLite stress log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-sqlite-low-end-stress
+          path: mobile/sqlite-low-end-stress-windows.log
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: 🔨 Build Windows Release
         run: flutter build windows --release
