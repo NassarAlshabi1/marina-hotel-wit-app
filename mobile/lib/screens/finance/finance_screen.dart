@@ -794,7 +794,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                         color: Colors.grey.shade600,
                       ),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 6),
                     Text(
                       booking.guestNationality,
                       style: TextStyle(
@@ -888,7 +888,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                         return ChoiceChip(
                           avatar: Icon(
                             method.icon,
-                            size: 14,
+                            size: 16,
                             color: isSelected ? Colors.white : method.color,
                           ),
                           label: Text(
