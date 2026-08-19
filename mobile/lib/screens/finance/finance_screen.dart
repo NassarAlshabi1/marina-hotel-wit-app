@@ -295,10 +295,10 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
   // ─── بطاقة الصندوق: الايراد / المصروفات / المتبقي ───
   Widget _buildCashDeskCard(double income, double expenses, double balance) {
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
@@ -313,33 +313,33 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(5),
                 decoration: BoxDecoration(
                   color: Colors.indigo.shade50,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(7),
                 ),
                 child: Icon(
                   Icons.account_balance_wallet,
-                  size: 16,
+                  size: 14,
                   color: Colors.indigo.shade700,
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 5),
               const Text(
                 'حالة الصندوق',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           Row(
             children: [
               // الايراد
               Expanded(
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    vertical: 8,
-                    horizontal: 6,
+                    vertical: 6,
+                    horizontal: 4,
                   ),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -347,7 +347,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                     ),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.green.shade200),
                   ),
                   child: Column(
@@ -355,13 +355,13 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                       Icon(
                         Icons.trending_up,
                         color: Colors.green.shade700,
-                        size: 16,
+                        size: 14,
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 1),
                       Text(
                         CurrencyFormatter.formatAmount(income),
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.bold,
                           color: Colors.green.shade800,
                         ),
@@ -372,7 +372,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                       Text(
                         'الايراد',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 9,
                           color: Colors.green.shade600,
                           fontWeight: FontWeight.w600,
                         ),
@@ -381,13 +381,13 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                   ),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
               // المصروفات
               Expanded(
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    vertical: 8,
-                    horizontal: 6,
+                    vertical: 6,
+                    horizontal: 4,
                   ),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -395,7 +395,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                     ),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.red.shade200),
                   ),
                   child: Column(
@@ -403,13 +403,13 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                       Icon(
                         Icons.trending_down,
                         color: Colors.red.shade700,
-                        size: 16,
+                        size: 14,
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 1),
                       Text(
                         CurrencyFormatter.formatAmount(expenses),
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.bold,
                           color: Colors.red.shade800,
                         ),
@@ -420,7 +420,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                       Text(
                         'المصروفات',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 9,
                           color: Colors.red.shade600,
                           fontWeight: FontWeight.w600,
                         ),
@@ -429,13 +429,13 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                   ),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
               // المتبقي
               Expanded(
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    vertical: 8,
-                    horizontal: 6,
+                    vertical: 6,
+                    horizontal: 4,
                   ),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -445,7 +445,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                     ),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: balance >= 0
                           ? Colors.indigo.shade200
@@ -459,13 +459,13 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                         color: balance >= 0
                             ? Colors.indigo.shade700
                             : Colors.orange.shade700,
-                        size: 16,
+                        size: 14,
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 1),
                       Text(
                         CurrencyFormatter.formatAmount(balance.abs()),
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.bold,
                           color: balance >= 0
                               ? Colors.indigo.shade800
@@ -478,7 +478,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                       Text(
                         balance >= 0 ? 'المتبقي' : 'عجز',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 9,
                           fontWeight: FontWeight.w600,
                           color: balance >= 0
                               ? Colors.indigo.shade600
@@ -794,7 +794,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                         color: Colors.grey.shade600,
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 4),
                     Text(
                       booking.guestNationality,
                       style: TextStyle(
@@ -888,7 +888,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
                         return ChoiceChip(
                           avatar: Icon(
                             method.icon,
-                            size: 16,
+                            size: 14,
                             color: isSelected ? Colors.white : method.color,
                           ),
                           label: Text(
