@@ -520,6 +520,8 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                         value: 'room',
                         child: Text(
                           'إيراد غرفة',
+                          // ctx ينشئه showDialog داخل builder المتزامن.
+                          // ignore: use_build_context_synchronously
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             // سياق ctx ينشئه showDialog داخل builder المتزامن.
@@ -641,7 +643,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
           // ✅ مزامنة فورية بعد الحفظ
           unawaited(syncNow());
 
-          // ignore: use_build_context_synchronously
+          if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Text('تم إضافة الدفعة بنجاح'),
@@ -656,7 +658,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
             ),
           );
         } catch (e) {
-          // ignore: use_build_context_synchronously
+          if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
           );
@@ -728,31 +730,26 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
         // ✅ مزامنة فورية بعد الحفظ
         unawaited(syncNow());
 
-        if (mounted) {
-          // ignore: use_build_context_synchronously
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('تم إتمام الحجز بنجاح'),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 5),
-              action: SnackBarAction(
-                label: 'إغلاق',
-                textColor: Colors.white,
-                onPressed: () =>
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar(),
-              ),
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('تم إتمام الحجز بنجاح'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'إغلاق',
+              textColor: Colors.white,
+              onPressed: () =>
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar(),
             ),
-          );
-          // ignore: use_build_context_synchronously
-          Navigator.of(context).pop();
-        }
+          ),
+        );
+        Navigator.of(context).pop();
       } catch (e) {
-        if (mounted) {
-          // ignore: use_build_context_synchronously
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
-          );
-        }
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('حدث خطأ: $e'), backgroundColor: Colors.red),
+        );
       } finally {
         if (mounted) {
           setState(() => _isProcessing = false);
