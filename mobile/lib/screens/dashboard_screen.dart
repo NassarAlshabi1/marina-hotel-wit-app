@@ -21,6 +21,7 @@ import '../widgets/dashboard_sync_button.dart';
 import 'bookings/booking_edit.dart';
 import 'payments/booking_payment_screen.dart';
 import 'reports/expenses_report_screen.dart';
+import 'finance/finance_screen.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 const List<String> _dashboardRoomNumbers = [
@@ -333,6 +334,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   currencyFmt.format(total),
                   Icons.payments_rounded,
                   Colors.green,
+                  onTap: () => Navigator.push<void>(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => const FinanceScreen(),
+                    ),
+                  ),
                 ),
               );
             },
