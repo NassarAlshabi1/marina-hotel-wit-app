@@ -22,7 +22,6 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@daytonaio/sdk": "^0.200.1",
     "node-appwrite": "^20.3.0"
   },
   "overrides": {
