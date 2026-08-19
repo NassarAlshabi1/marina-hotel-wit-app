@@ -50,16 +50,29 @@ import 'package:marina_hotel_mobile/screens/debts/debts_list.dart';
 import 'package:marina_hotel_mobile/screens/employees/employees_list.dart';
 import 'package:marina_hotel_mobile/screens/payments/booking_payment_screen.dart';
 import 'package:marina_hotel_mobile/screens/rooms/rooms_list.dart';
+import 'package:marina_hotel_mobile/services/adapters/adapter_registry.dart';
 import 'package:marina_hotel_mobile/services/daos/bookings_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/debts_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/employees_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/expenses_dao.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
+import 'package:marina_hotel_mobile/services/repositories/debts_repository.dart';
 import 'package:marina_hotel_mobile/services/daos/rooms_dao.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:marina_hotel_mobile/services/sync_service.dart';
+import 'package:marina_hotel_mobile/utils/hotel_day_ticker.dart';
 
 /// بيانات شاشة + مقاييسها (تُملأ بعد كل test).
+class _TestDebtsRepository extends DebtsRepository {
+  _TestDebtsRepository(super.db);
+
+  @override
+  Future<List<Debt>> listByBookingLocalId(
+    int bookingLocalId, {
+    bool includeDeleted = false,
+  }) async => <Debt>[];
+}
+
 class ScreenMetrics {
   ScreenMetrics(this.screenName);
   final String screenName;
@@ -89,12 +102,14 @@ Future<AppDatabase> _seedFullDatabase({
   int debtsCount = 10,
 }) async {
   final db = AppDatabase.forTesting(NativeDatabase.memory());
-  final outboxDao = OutboxDao(db);
+  AdapterRegistry.initialize(db);
+  final adapters = AdapterRegistry.testing(db);
+  final outboxDao = OutboxDao(db, adapters);
   final roomsDao = RoomsDao(db, outboxDao);
-  final bookingsDao = BookingsDao(db, outboxDao);
-  final employeesDao = EmployeesDao(db, outboxDao);
-  final expensesDao = ExpensesDao(db, outboxDao);
-  final debtsDao = DebtsDao(db, outboxDao);
+  final bookingsDao = BookingsDao(db, outboxDao, adapters);
+  final employeesDao = EmployeesDao(db, outboxDao, adapters);
+  final expensesDao = ExpensesDao(db, outboxDao, adapters);
+  final debtsDao = DebtsDao(db, outboxDao, adapters);
 
   // 1) غرف
   for (var i = 0; i < roomsCount; i++) {
@@ -106,6 +121,7 @@ Future<AppDatabase> _seedFullDatabase({
         status: i % 3 == 0 ? const d.Value('شاغرة') : const d.Value('محجوزة'),
         localUuid: d.Value('room-uuid-$i'),
       ),
+      originIsServer: true,
     );
   }
 
@@ -121,6 +137,7 @@ Future<AppDatabase> _seedFullDatabase({
         status: const d.Value('active'),
         localUuid: d.Value('emp-uuid-$i'),
       ),
+      originIsServer: true,
     );
   }
 
@@ -137,6 +154,7 @@ Future<AppDatabase> _seedFullDatabase({
         status: const d.Value('نشط'),
         localUuid: d.Value('booking-uuid-$i'),
       ),
+      originIsServer: true,
     );
   }
 
@@ -151,6 +169,7 @@ Future<AppDatabase> _seedFullDatabase({
         hotelDayKey: const d.Value('2026-07-20'),
         localUuid: d.Value('expense-uuid-$i'),
       ),
+      originIsServer: true,
     );
   }
 
@@ -170,6 +189,7 @@ Future<AppDatabase> _seedFullDatabase({
         isSettled: const d.Value(0),
         localUuid: d.Value('debt-uuid-$i'),
       ),
+      originIsServer: true,
     );
   }
 
@@ -187,6 +207,7 @@ Widget _buildTestWidget({
   required Widget child,
   List<Override> extraOverrides = const [],
 }) {
+  AdapterRegistry.initialize(db);
   return ProviderScope(
     overrides: [
       databaseProvider.overrideWithValue(db),
@@ -206,6 +227,7 @@ Widget _buildTestWidget({
       expensesListProvider.overrideWith((ref) => Stream.value(const <Expense>[])),
       // ✅ appVersionProvider يستدعي PackageInfo.fromPlatform (يفشل في test):
       appVersionProvider.overrideWith((ref) async => '1.0.0+1'),
+      debtsRepoProvider.overrideWith((ref) => _TestDebtsRepository(db)),
       ...extraOverrides,
     ],
     child: MaterialApp(home: child),
@@ -227,6 +249,8 @@ Widget _buildTestWidget({
 /// - إضافياً: ننتظر real-time عبر tester.runAsync لتنفيذ أي timers متبقية
 ///   من debounceStream.
 Future<void> _cleanupPendingTimers(WidgetTester tester) async {
+  // يجب إيقاف المؤقت العالمي قبل أن يجري flutter_test فحص timers المعلّقة.
+  HotelDayTicker.instance.dispose();
   // runAsync يُشغّل الكود في real async zone حيث Future.delayed و Timer
   // الحقيقيان يُنفّذان (وليس fake_async).
   await tester.runAsync(() async {
@@ -326,6 +350,7 @@ void main() {
   });
 
   tearDown(() async {
+    HotelDayTicker.instance.dispose();
     await db.close();
   });
 
@@ -377,16 +402,23 @@ void main() {
   group('💳 BookingPaymentScreen', () {
     testWidgets('البناء + الاستقرار خلال < 5 ثواني', (tester) async {
       // نحتاج booking حقيقي من الـ DB
-      final bookingsDao = BookingsDao(db, OutboxDao(db));
+      final adapters = AdapterRegistry.testing(db);
+      final bookingsDao = BookingsDao(db, OutboxDao(db, adapters), adapters);
       final bookings = await bookingsDao.list();
       final booking = bookings.first;
-
       final metrics = await _measureScreen(
         tester,
         'BookingPaymentScreen',
         db,
         BookingPaymentScreen(booking: booking),
         settleTimeoutSec: 5,
+        extraOverrides: [
+          liveBookingProvider(booking.id).overrideWith((ref) => Stream.value(booking)),
+          liveRoomByNumberProvider(booking.roomNumber).overrideWith((ref) => Stream.value(null)),
+          bookingPriceAdjustmentsProvider(booking.id).overrideWith((ref) => Stream.value(const [])),
+          bookingNightsProvider(booking.id).overrideWith((ref) => Stream.value(const [])),
+          bookingPaymentsDirectProvider(booking.id).overrideWith((ref) => Stream.value(const [])),
+        ],
       );
       allMetrics.add(metrics);
       debugPrint('✓ $metrics');

@@ -7,6 +7,7 @@ import 'package:marina_hotel_mobile/providers/auth_provider.dart';
 import 'package:marina_hotel_mobile/providers/repository_providers.dart';
 import 'package:marina_hotel_mobile/providers/room_payment_status_provider.dart';
 import 'package:marina_hotel_mobile/screens/finance/finance_screen.dart';
+import 'package:marina_hotel_mobile/services/adapters/adapter_registry.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart' as db;
 import 'package:marina_hotel_mobile/services/repositories/bookings_repository.dart';
 import 'package:marina_hotel_mobile/services/repositories/payments_repository.dart';
@@ -54,6 +55,7 @@ void main() {
     tester,
   ) async {
     final database = db.AppDatabase.forTesting(NativeDatabase.memory());
+    AdapterRegistry.initialize(database);
 
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox.shrink());
