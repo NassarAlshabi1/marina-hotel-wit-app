@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../services/auth_local_store.dart';
+import '../../utils/performance_config.dart';
 import '../../utils/performance_monitor.dart';
 import '../../utils/theme.dart';
 
@@ -58,6 +59,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 420),
                 child: Card(
+                  elevation: isLowEndDevice ? 0 : null,
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Form(

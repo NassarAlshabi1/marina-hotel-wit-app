@@ -7,6 +7,7 @@ import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/repository_providers.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/performance_config.dart';
 import '../../utils/stream_helpers.dart';
 
 class PaymentsListScreen extends ConsumerStatefulWidget {
@@ -385,13 +386,15 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
           end: Alignment.centerLeft,
         ),
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFFB74D).withValues(alpha: 0.3),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: isLowEndDevice
+            ? const []
+            : [
+                BoxShadow(
+                  color: const Color(0xFFFFB74D).withValues(alpha: 0.3),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,

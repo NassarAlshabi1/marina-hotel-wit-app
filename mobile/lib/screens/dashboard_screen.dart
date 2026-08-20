@@ -14,6 +14,7 @@ import '../services/local_db.dart';
 import '../services/sync/sync_gate.dart';
 import '../services/sync_constants.dart';
 import '../utils/loading_snackbar.dart';
+import '../utils/performance_config.dart';
 import '../utils/performance_monitor.dart';
 import '../utils/status_utils.dart';
 import '../widgets/dashboard_conflicts_badge.dart';
@@ -397,13 +398,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0D000000),
-              blurRadius: 4,
-              offset: Offset(0, 2),
-            ),
-          ],
+          boxShadow: isLowEndDevice
+              ? const []
+              : const [
+                  BoxShadow(
+                    color: Color(0x0D000000),
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
