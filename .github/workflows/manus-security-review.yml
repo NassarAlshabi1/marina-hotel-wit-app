@@ -1,0 +1,109 @@
+name: Manus Security Review
+
+on:
+  pull_request_target:
+    branches:
+      - A
+      - marina
+      - refactor/clean-v2
+      - refactor/performance-fixes-v2
+    paths:
+      - '**.dart'
+      - '**.php'
+      - '**.js'
+      - '**.ts'
+      - '**.yml'
+      - '**.yaml'
+      - 'mobile/pubspec.yaml'
+      - 'mobile/pubspec.lock'
+      - 'scripts/**'
+      - '.github/workflows/manus-security-review.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: manus-security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  manus-review:
+    name: Manus AI Security Review
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      MANUS_API_KEY: ${{ secrets.MANUS_API_KEY }}
+    steps:
+      - name: Checkout trusted base revision
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+
+      - name: Resolve trusted review range
+        id: range
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          DISPATCH_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -n "${PR_NUMBER:-}" ]; then
+            git fetch --no-tags origin "refs/pull/${PR_NUMBER}/head:refs/remotes/origin/pr-head"
+            base="${PR_BASE_SHA}"
+            head="$(git rev-parse refs/remotes/origin/pr-head)"
+          else
+            base="$(git rev-parse HEAD^1)"
+            head="${DISPATCH_SHA}"
+          fi
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "head=$head" >> "$GITHUB_OUTPUT"
+
+      - name: Build redacted review diff
+        env:
+          BASE_SHA: ${{ steps.range.outputs.base }}
+          HEAD_SHA: ${{ steps.range.outputs.head }}
+        run: |
+          set -euo pipefail
+          git diff --no-ext-diff --unified=80 "$BASE_SHA" "$HEAD_SHA" -- \
+            '*.dart' '*.php' '*.js' '*.ts' '*.yml' '*.yaml' \
+            ':!mobile/docs/**' ':!node_modules/**' \
+            > manus-review.diff
+          wc -c manus-review.diff
+
+      - name: Explain missing Manus secret
+        if: env.MANUS_API_KEY == ''
+        run: |
+          {
+            echo '## Manus Security Review'
+            echo ''
+            echo '> Skipped because the repository secret `MANUS_API_KEY` is not configured.'
+            echo '> Add it under Settings → Secrets and variables → Actions to enable this advisory review.'
+            echo '> CodeQL, Semgrep, Trivy, and the other repository security scanners remain authoritative.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run Manus security review
+        if: env.MANUS_API_KEY != ''
+        env:
+          MANUS_SECURITY_BLOCKING: 'false'
+          REVIEW_SHA: ${{ steps.range.outputs.head }}
+        run: |
+          set -euo pipefail
+          python3 scripts/manus_security_review.py \
+            --diff-file manus-review.diff \
+            --sha "$REVIEW_SHA" \
+            --json-output manus-security-report.json \
+            --markdown-output manus-security-report.md
+          cat manus-security-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Manus review report
+        if: always() && hashFiles('manus-security-report.*') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: manus-security-review-${{ github.run_id }}
+          path: |
+            manus-security-report.json
+            manus-security-report.md
+          retention-days: 14
