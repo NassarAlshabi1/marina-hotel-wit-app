@@ -65,7 +65,7 @@ jobs:
       MANUS_API_KEY: ${{ secrets.MANUS_API_KEY }}
     steps:
       - name: Checkout trusted base revision
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.base.sha || github.sha }}
@@ -132,7 +132,7 @@ jobs:
 
       - name: Upload Manus review report
         if: always() && hashFiles('manus-security-report.*') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: manus-security-review-${{ github.run_id }}
           path: |
