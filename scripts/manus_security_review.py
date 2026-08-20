@@ -155,11 +155,28 @@ def create_and_poll(api_key: str, prompt: str) -> dict[str, Any]:
     if not isinstance(task_id, str) or not task_id:
         raise RuntimeError("Manus task.create response did not contain task_id")
 
+    not_found_attempts = 0
     for _ in range(MAX_POLLS):
         query = urllib.parse.urlencode(
             {"task_id": task_id, "order": "asc", "limit": "100", "verbose": "false"}
         )
-        messages = request_json("GET", f"{API_BASE}/v2/task.listMessages?{query}", api_key)
+        try:
+            messages = request_json("GET", f"{API_BASE}/v2/task.listMessages?{query}", api_key)
+            not_found_attempts = 0
+        except RuntimeError as error:
+            # Manus creates tasks asynchronously. A first listMessages call can
+            # briefly return 404 before the task is visible to the same key.
+            message = str(error).lower()
+            if "http 404" not in message or "task not found" not in message:
+                raise
+            not_found_attempts += 1
+            if not_found_attempts > 12:
+                raise RuntimeError(
+                    "Manus task remained unavailable after 12 retries; "
+                    "verify the API key belongs to the same Manus account and has task access."
+                ) from error
+            time.sleep(min(2 ** min(not_found_attempts, 5), 30))
+            continue
         events = messages.get("data") or messages.get("messages") or []
         if not isinstance(events, list):
             raise RuntimeError("Manus task.listMessages returned an invalid event list")
