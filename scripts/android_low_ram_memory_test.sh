@@ -9,6 +9,7 @@ ADB_BIN="${ADB:-adb}"
 CYCLES="${LOW_RAM_CYCLES:-5}"
 SWIPES="${LOW_RAM_SWIPES:-8}"
 ACTION_SCRIPT="${LOW_RAM_ACTION_SCRIPT:-}"
+PERF_REPORT_REMOTE_PATH="${LOW_RAM_PERF_REPORT_REMOTE_PATH:-files/marina_performance_report.json}"
 
 usage() {
   cat <<'USAGE'
@@ -22,6 +23,7 @@ Options:
   --cycles <count>        Cold-start/action cycles after first launch (default: 5)
   --swipes <count>        Fallback swipes per cycle (default: 8)
   --action-script <path>  Optional executable: script adb package cycle
+  --perf-report-path <p>  run-as path for profile PerformanceMonitor JSON
 USAGE
 }
 
@@ -34,6 +36,7 @@ while [[ $# -gt 0 ]]; do
     --cycles) CYCLES="$2"; shift 2 ;;
     --swipes) SWIPES="$2"; shift 2 ;;
     --action-script) ACTION_SCRIPT="$2"; shift 2 ;;
+    --perf-report-path) PERF_REPORT_REMOTE_PATH="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -105,10 +108,14 @@ wait_for_process() {
 measure() {
   local label="$1"
   local cycle="$2"
-  local timestamp raw total_pss private_other unknown java_heap native_heap graphics total_rss swap_pss activities views webviews
+  local timestamp raw perf_raw total_pss private_other unknown java_heap native_heap graphics total_rss swap_pss activities views webviews
   timestamp="$(now_ms)"
   raw="$raw_dir/${timestamp}_${label}.txt"
+  perf_raw="$raw_dir/${timestamp}_${label}_performance.json"
   "$ADB_BIN" shell dumpsys meminfo -d "$PACKAGE" > "$raw"
+  if ! "$ADB_BIN" shell run-as "$PACKAGE" cat "$PERF_REPORT_REMOTE_PATH" > "$perf_raw" 2>/dev/null; then
+    rm -f "$perf_raw"
+  fi
 
   total_pss=$(awk '/TOTAL PSS:/ {gsub(",", "", $3); print $3; exit}' "$raw")
   private_other=$(awk '/^[[:space:]]*Private Other:/ {gsub(",", "", $3); print $3; exit}' "$raw")
@@ -199,6 +206,7 @@ max_pss_kb=$MAX_PSS_KB
 cycles=$CYCLES
 swipes_per_cycle=$SWIPES
 action_script=${ACTION_SCRIPT:-none}
+perf_report_remote_path=$PERF_REPORT_REMOTE_PATH
 cold_start_before=not_measurable_process_absent
 first_measured_pss_kb=$first_pss
 peak_pss_kb=$peak_pss

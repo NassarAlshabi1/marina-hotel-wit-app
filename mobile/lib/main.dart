@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart' as sqflite_ffi;
 import 'package:workmanager/workmanager.dart';
@@ -255,8 +256,13 @@ Future<void> main() async {
   }
 
   // مراقب التطوير يجمع FrameTiming واتجاه الذاكرة لاختبارات الأداء.
-  // start() نفسه محمي بـ kDebugMode، لذا لا ينشئ listener أو timer في APK.
-  PerformanceMonitor.instance.start();
+  // profileInstrumentationEnabled لا يُفعّل إلا عبر dart-define في اختبار profile.
+  PerformanceMonitor.instance.start(
+    forceInProfile: profileInstrumentationEnabled,
+  );
+  if (profileInstrumentationEnabled) {
+    unawaited(_startProfilePerformanceReportWriter());
+  }
 
   dlog(() => 'BASE_API_URL=${Env.baseApiUrl}');
   runZonedGuarded(() => runApp(const ProviderScope(child: App())), (
@@ -301,6 +307,25 @@ Future<void> main() async {
   } else {
     unawaited(_initializeFullyAutomatedSyncSystem());
     _startHealthChecker();
+  }
+}
+
+Timer? _profilePerformanceReportTimer;
+
+Future<void> _startProfilePerformanceReportWriter() async {
+  try {
+    final directory = await getApplicationSupportDirectory();
+    final reportPath = '${directory.path}/marina_performance_report.json';
+    final monitor = PerformanceMonitor.instance;
+    await monitor.saveReportToFile(reportPath);
+    _profilePerformanceReportTimer?.cancel();
+    _profilePerformanceReportTimer = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => unawaited(monitor.saveReportToFile(reportPath)),
+    );
+    dlog(() => 'Profile performance report: $reportPath');
+  } catch (e) {
+    dwarn(() => 'Profile performance report writer failed: $e');
   }
 }
 

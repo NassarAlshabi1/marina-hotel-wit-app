@@ -212,3 +212,22 @@ MAX_PSS_KB=393216 LOW_RAM_CYCLES=5 LOW_RAM_SWIPES=8 \
 ينتج الاختبار `memory_metrics.csv` و`summary.txt` و`lifecycle.log` ولقطات `dumpsys meminfo -d` الخام داخل مجلد `raw/`. يستخدم action script عناصر UI النصية عبر `uiautomator` لفتح مدفوعات اليوم والمصروفات ومحاولة فتح غرف Dashboard ثم العودة. إذا ظهرت شاشة تسجيل الدخول دون جلسة اختبار، يسجل السكربت `navigation_skipped:login_screen_no_credentials` ولا يخترع بيانات اعتماد أو يعتبر التنقل ناجحاً.
 
 يُشغّل workflow `Android 1GB Low-RAM Performance` خمس دورات cold-start/action، ويرفع جميع اللقطات الخام كـ artifact حتى يمكن تحليل `Private Other` و`Unknown` بعد كل دورة بدلاً من الاكتفاء بملخص PSS.
+
+
+## CRUD + sync stress harness
+
+يختبر `mobile/test/performance/crud_sync_memory_stress_test.dart` خمس دورات باستخدام `BookingsRepository` و`PaymentsRepository` الحقيقيين: إنشاء حجز ودفعة، تحديثهما، حذف الدفعة، تسجيل المغادرة، حذف الحجز، ثم أخذ دفعة Outbox وإقرارها. يطبع كل قياس بصيغة `CRUD_SYNC_STRESS` متضمنة الزمن وRSS وعدد عناصر Outbox.
+
+```bash
+cd mobile
+flutter test test/performance/crud_sync_memory_stress_test.dart --reporter expanded
+```
+
+لتشغيل Appwrite push/pull الحقيقي بدلاً من اختبار Outbox المحلي فقط، يجب تشغيله صراحةً مع إعدادات Appwrite صالحة:
+
+```bash
+flutter test test/performance/crud_sync_memory_stress_test.dart \
+  --dart-define=RUN_APPWRITE_SYNC_STRESS=true
+```
+
+يبني workflow Low-RAM التطبيق مع `MARINA_ENABLE_PERF_PROFILE=true`. عند تفعيل هذا العلم يجمع `PerformanceMonitor` FrameTiming وrebuilds وRSS داخل profile APK فقط، ويحفظ التقرير في `marina_performance_report.json`. يلتقط سكربت Android التقرير مع كل نقطة PSS، ثم يحوله `scripts/analyze_profile_performance.py` إلى `frame_metrics.csv` و`frame_summary.txt`.

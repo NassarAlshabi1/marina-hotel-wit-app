@@ -28,6 +28,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show FrameTiming, SchedulerBinding;
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
+const bool profileInstrumentationEnabled = bool.fromEnvironment(
+  'MARINA_ENABLE_PERF_PROFILE',
+  defaultValue: false,
+);
+
 /// نوع التحذير الأدائي
 enum PerfWarningType {
   lowFps,
@@ -159,9 +164,11 @@ class PerformanceMonitor {
   //  التشغيل
   // ═══════════════════════════════════════════════════════════════════
 
-  /// يبدأ المراقبة — يُستدعى مرة واحدة في main() قبل runApp
-  void start({PerfConfig? config}) {
-    if (!kDebugMode) {
+  /// يبدأ المراقبة — يُستدعى مرة واحدة في main() قبل runApp.
+  /// `forceInProfile` مخصص لاختبارات profile المعزولة فقط عبر dart-define؛
+  /// لا يُستخدم في builds الإنتاج العادية.
+  void start({PerfConfig? config, bool forceInProfile = false}) {
+    if (!kDebugMode && !forceInProfile) {
       dlog('PerformanceMonitor: معطَّل في release mode');
       return;
     }
@@ -657,7 +664,7 @@ class PerformanceInspector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (kDebugMode) {
+    if (kDebugMode || profileInstrumentationEnabled) {
       PerformanceMonitor.instance.recordRebuild(name);
       onRebuild?.call(PerformanceMonitor.instance.rebuildCounts[name] ?? 1);
     }
