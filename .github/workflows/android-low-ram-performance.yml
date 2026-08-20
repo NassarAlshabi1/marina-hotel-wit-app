@@ -73,8 +73,8 @@ jobs:
             cd "$ANDROID_SDK_ROOT/.." >/dev/null 2>&1 || true
             cd "$GITHUB_WORKSPACE"
             mkdir -p mobile/build/low-ram-performance
-            chmod +x scripts/android_low_ram_memory_test.sh
-            MAX_PSS_KB=393216 scripts/android_low_ram_memory_test.sh --package com.aden.marina --apk mobile/build/app/outputs/flutter-apk/app-profile.apk --output mobile/build/low-ram-performance
+            chmod +x scripts/android_low_ram_memory_test.sh scripts/android_low_ram_navigation_actions.sh
+            LOW_RAM_ACTION_LOG="$GITHUB_WORKSPACE/mobile/build/low-ram-performance/navigation_actions.log" MAX_PSS_KB=393216 LOW_RAM_CYCLES=5 LOW_RAM_SWIPES=8 scripts/android_low_ram_memory_test.sh --package com.aden.marina --apk mobile/build/app/outputs/flutter-apk/app-profile.apk --cycles 5 --swipes 8 --action-script scripts/android_low_ram_navigation_actions.sh --output mobile/build/low-ram-performance
 
       - name: Publish low-RAM summary
         if: always()
@@ -84,6 +84,8 @@ jobs:
             echo '```text' >> "$GITHUB_STEP_SUMMARY"
             cat build/low-ram-performance/summary.txt >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo '' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Detailed dumpsys meminfo snapshots and lifecycle.log are included in the artifact.' >> "$GITHUB_STEP_SUMMARY"
           else
             echo 'The emulator measurement did not produce a summary.' >> "$GITHUB_STEP_SUMMARY"
           fi
