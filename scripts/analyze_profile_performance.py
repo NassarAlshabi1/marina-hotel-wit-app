@@ -45,6 +45,10 @@ def main() -> int:
         "frame_delta",
         "jank_delta",
         "average_frame_time_ms",
+        "average_build_time_ms",
+        "average_raster_time_ms",
+        "max_build_time_ms",
+        "max_raster_time_ms",
         "current_fps",
         "peak_memory_mb",
         "total_rebuilds",
@@ -67,6 +71,9 @@ def main() -> int:
         rebuilds = report.get("rebuilds") or {}
         total_frames = int(number(fps.get("totalFrames")))
         jank_frames = int(number(fps.get("jankFrames")))
+        restarted = total_frames < previous_frames or jank_frames < previous_jank
+        frame_delta = total_frames if restarted else max(0, total_frames - previous_frames)
+        jank_delta = jank_frames if restarted else max(0, jank_frames - previous_jank)
         rows.append(
             {
                 "label": label,
@@ -74,9 +81,13 @@ def main() -> int:
                 "report_timestamp": report.get("timestamp", ""),
                 "total_frames": total_frames,
                 "jank_frames": jank_frames,
-                "frame_delta": max(0, total_frames - previous_frames),
-                "jank_delta": max(0, jank_frames - previous_jank),
+                "frame_delta": frame_delta,
+                "jank_delta": jank_delta,
                 "average_frame_time_ms": f"{number(fps.get('averageFrameTimeMs')):.2f}",
+                "average_build_time_ms": f"{number(fps.get('averageBuildTimeMs')):.2f}",
+                "average_raster_time_ms": f"{number(fps.get('averageRasterTimeMs')):.2f}",
+                "max_build_time_ms": f"{number(fps.get('maxBuildTimeMs')):.2f}",
+                "max_raster_time_ms": f"{number(fps.get('maxRasterTimeMs')):.2f}",
                 "current_fps": f"{number(fps.get('current')):.2f}",
                 "peak_memory_mb": f"{number(memory.get('peakMB')):.2f}",
                 "total_rebuilds": int(number(rebuilds.get("total"))),
@@ -103,6 +114,8 @@ def main() -> int:
     frame_deltas = [int(row["frame_delta"]) for row in rows]
     jank_deltas = [int(row["jank_delta"]) for row in rows]
     frame_times = [float(row["average_frame_time_ms"]) for row in rows]
+    build_times = [float(row["average_build_time_ms"]) for row in rows]
+    raster_times = [float(row["average_raster_time_ms"]) for row in rows]
     fps_values = [float(row["current_fps"]) for row in rows if float(row["current_fps"]) > 0]
     max_jank = max(jank_deltas, default=0)
     total_frame_delta = sum(frame_deltas)
@@ -117,6 +130,8 @@ def main() -> int:
         f"jank_ratio={jank_ratio:.4f}\n"
         f"max_jank_delta_per_snapshot={max_jank}\n"
         f"average_frame_time_ms={sum(frame_times) / len(frame_times):.2f}\n"
+        f"average_build_time_ms={sum(build_times) / len(build_times):.2f}\n"
+        f"average_raster_time_ms={sum(raster_times) / len(raster_times):.2f}\n"
         f"minimum_reported_fps={min(fps_values, default=0):.2f}\n"
     )
     output_summary.write_text(summary, encoding="utf-8")
