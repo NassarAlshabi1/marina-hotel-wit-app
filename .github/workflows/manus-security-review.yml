@@ -38,6 +38,15 @@ on:
       - 'scripts/**'
       - '.github/workflows/manus-security-review.yml'
   workflow_dispatch:
+    inputs:
+      base_sha:
+        description: 'Optional base commit SHA for a manual review range'
+        required: false
+        type: string
+      head_sha:
+        description: 'Optional head commit SHA for a manual review range'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -66,16 +75,20 @@ jobs:
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          DISPATCH_SHA: ${{ github.sha }}
+          DISPATCH_BASE_SHA: ${{ inputs.base_sha || '' }}
+          DISPATCH_HEAD_SHA: ${{ inputs.head_sha || github.sha }}
         run: |
           set -euo pipefail
           if [ -n "${PR_NUMBER:-}" ]; then
             git fetch --no-tags origin "refs/pull/${PR_NUMBER}/head:refs/remotes/origin/pr-head"
             base="${PR_BASE_SHA}"
             head="$(git rev-parse refs/remotes/origin/pr-head)"
+          elif [ -n "${DISPATCH_BASE_SHA:-}" ]; then
+            base="${DISPATCH_BASE_SHA}"
+            head="${DISPATCH_HEAD_SHA}"
           else
             base="$(git rev-parse HEAD^1)"
-            head="${DISPATCH_SHA}"
+            head="${DISPATCH_HEAD_SHA}"
           fi
           echo "base=$base" >> "$GITHUB_OUTPUT"
           echo "head=$head" >> "$GITHUB_OUTPUT"
