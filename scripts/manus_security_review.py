@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -21,6 +22,7 @@ from typing import Any
 API_BASE = os.environ.get("MANUS_API_BASE", "https://api.manus.ai").rstrip("/")
 POLL_SECONDS = 5
 MAX_POLLS = 240
+MAX_DIFF_CHUNK_CHARS = 12_000
 
 SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -196,6 +198,83 @@ def create_and_poll(api_key: str, prompt: str) -> dict[str, Any]:
     raise TimeoutError("Manus security review exceeded the polling timeout")
 
 
+def split_diff(diff: str, max_chars: int = MAX_DIFF_CHUNK_CHARS) -> list[str]:
+    """Split a unified diff into reviewable chunks below Manus' token limit."""
+    sections = re.split(r"(?=^diff --git )", diff, flags=re.MULTILINE)
+    sections = [section for section in sections if section.strip()]
+    chunks: list[str] = []
+    current = ""
+    for section in sections:
+        if len(section) <= max_chars:
+            if current and len(current) + len(section) > max_chars:
+                chunks.append(current)
+                current = ""
+            current += section
+            continue
+        if current:
+            chunks.append(current)
+            current = ""
+        # A single file diff can itself exceed the limit; split on lines while
+        # preserving the section content rather than silently dropping it.
+        lines = section.splitlines(keepends=True)
+        part = ""
+        for line in lines:
+            if part and len(part) + len(line) > max_chars:
+                chunks.append(part)
+                part = ""
+            part += line
+        if part:
+            chunks.append(part)
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+def review_chunk_prompt(sha: str, chunk: str, index: int, total: int) -> str:
+    return f"""You are Manus performing security code review chunk {index} of {total} for a Flutter/Dart hotel-management application.
+Review only vulnerabilities introduced by the supplied unified-diff chunk. Do not treat style, complexity, duplication, or ordinary test changes as security findings.
+Do not invent missing context. A finding must include concrete evidence from an added or modified line in this chunk and a practical remediation.
+Prioritize credential exposure, injection, insecure transport, authorization/authentication bypass, unsafe deserialization, path traversal, command execution, sensitive-data leakage, and workflow supply-chain risks.
+Return the required structured result even when there are no findings. The final review is advisory; do not mark ordinary quality issues as vulnerabilities.
+The reviewed commit SHA is: {sha}
+
+Unified diff chunk (credentials are redacted before transmission):
+--- BEGIN DIFF CHUNK ---
+{chunk}
+--- END DIFF CHUNK ---
+"""
+
+
+def merge_reports(reports: list[dict[str, Any]], sha: str, total_chunks: int) -> dict[str, Any]:
+    severity_rank = {"none": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
+    findings: list[dict[str, Any]] = []
+    seen: set[tuple[str, int, str]] = set()
+    for report in reports:
+        for finding in report.get("findings", []):
+            if not isinstance(finding, dict):
+                continue
+            key = (str(finding.get("file", "")), int(finding.get("line", 0)), str(finding.get("title", "")))
+            if key not in seen:
+                seen.add(key)
+                findings.append(finding)
+    overall = "none"
+    for finding in findings:
+        level = str(finding.get("severity", "low"))
+        if severity_rank.get(level, 0) > severity_rank[overall]:
+            overall = level
+    if findings:
+        summary = f"Manus reviewed {total_chunks} diff chunks and returned {len(findings)} finding(s)."
+    else:
+        summary = f"Manus reviewed {total_chunks} diff chunks and identified no concrete security vulnerabilities."
+    return {
+        "summary": summary,
+        "overall_severity": overall,
+        "findings": findings,
+        "reviewed_sha": sha,
+        "limitations": f"The review was split into {total_chunks} chunks because Manus API limits message content size. Findings are advisory and limited to the supplied diff.",
+    }
+
+
 def write_markdown(report: dict[str, Any], path: Path) -> None:
     lines = [
         "# Manus Security Review",
@@ -260,20 +339,12 @@ def main() -> int:
     if len(diff.encode("utf-8")) > 1_500_000:
         raise RuntimeError("Redacted diff exceeds the configured 1.5 MB review limit")
 
-    prompt = f"""You are Manus performing a security review of a pull-request diff for a Flutter/Dart hotel-management application.
-Review only vulnerabilities introduced by the diff. Do not treat style, complexity, duplication, or ordinary test changes as security findings.
-Do not invent missing context. A finding must include concrete evidence from an added or modified line and a practical remediation.
-Prioritize credential exposure, injection, insecure transport, authorization/authentication bypass, unsafe deserialization, path traversal, command execution, sensitive-data leakage, and workflow supply-chain risks.
-Return the required structured result even when there are no findings. Treat findings as blocking only when severity is high or critical AND confidence is high.
-The reviewed commit SHA is: {args.sha}
-
-Unified diff (credentials are redacted before transmission):
---- BEGIN DIFF ---
-{diff}
---- END DIFF ---
-"""
-    report = create_and_poll(api_key, prompt)
-    report["reviewed_sha"] = args.sha
+    chunks = split_diff(diff)
+    reports: list[dict[str, Any]] = []
+    for index, chunk in enumerate(chunks, 1):
+        prompt = review_chunk_prompt(args.sha, chunk, index, len(chunks))
+        reports.append(create_and_poll(api_key, prompt))
+    report = merge_reports(reports, args.sha, len(chunks))
     args.json_output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     write_markdown(report, args.markdown_output)
     print(json.dumps(report, ensure_ascii=False))
