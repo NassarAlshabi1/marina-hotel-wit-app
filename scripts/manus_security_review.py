@@ -244,7 +244,18 @@ def main() -> int:
 
     diff = redact_diff(args.diff_file.read_text(encoding="utf-8", errors="replace"))
     if not diff.strip():
-        print("No reviewable diff found; Manus review was skipped.")
+        report = {
+            "summary": "No reviewable source or workflow diff was found for this commit.",
+            "overall_severity": "none",
+            "findings": [],
+            "reviewed_sha": args.sha,
+            "limitations": "The configured review scope excludes documentation-only and Python-only changes.",
+        }
+        args.json_output.write_text(
+            json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        write_markdown(report, args.markdown_output)
+        print("No reviewable diff found; an empty Manus report was generated.")
         return 0
     if len(diff.encode("utf-8")) > 1_500_000:
         raise RuntimeError("Redacted diff exceeds the configured 1.5 MB review limit")
