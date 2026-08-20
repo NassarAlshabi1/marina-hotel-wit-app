@@ -1,11 +1,30 @@
 name: Manus Security Review
 
 on:
+  # This target-based trigger is safe for external PRs because the workflow
+  # executes only trusted base-branch code. It becomes active after the file
+  # exists in the base branch.
   pull_request_target:
     branches:
       - A
       - marina
       - refactor/clean-v2
+      - refactor/performance-fixes-v2
+    paths:
+      - '**.dart'
+      - '**.php'
+      - '**.js'
+      - '**.ts'
+      - '**.yml'
+      - '**.yaml'
+      - 'mobile/pubspec.yaml'
+      - 'mobile/pubspec.lock'
+      - 'scripts/**'
+      - '.github/workflows/manus-security-review.yml'
+  # The current branch is trusted and needs an immediate self-test before the
+  # workflow is merged into the base branch, where pull_request_target applies.
+  push:
+    branches:
       - refactor/performance-fixes-v2
     paths:
       - '**.dart'
