@@ -207,10 +207,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
   }
 
+  /// يحدّث الحقول المشتقة للعرض فقط؛ فتح الشاشة ليس تغييراً من المستخدم.
+  /// لذلك لا ينبغي أن ينشئ Outbox أو يغيّر قائمة التغييرات المحلية.
   Future<void> _refreshBookingNights() async {
     final db = ref.read(databaseProvider);
     final derivedService = BookingDerivedFieldsService(db);
-    await derivedService.refreshForBookingId(widget.booking.id);
+    await derivedService.refreshForBookingId(
+      widget.booking.id,
+      enqueueOutbox: false,
+    );
   }
 
   DateTime? _parseDateTime(String? value) => DateParser.parse(value);
@@ -1427,7 +1432,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final dbInstance = ref.read(databaseProvider);
     final derivedService = BookingDerivedFieldsService(dbInstance);
 
-    await derivedService.refreshForBookingId(widget.booking.id);
+    // الحساب التمهيدي للعرض/التحقق لا يمثل عملية حفظ؛ لا تنشئ Outbox هنا.
+    await derivedService.refreshForBookingId(
+      widget.booking.id,
+      enqueueOutbox: false,
+    );
 
     final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
     final double roomRate = room?.price ?? 0;
