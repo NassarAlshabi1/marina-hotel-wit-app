@@ -128,12 +128,6 @@ class _UnifiedSyncSettingsScreenState
     }
   }
 
-  void _showNotAvailable(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$feature غير متاح للتعديل من هذه الشاشة بعد')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
@@ -163,11 +157,6 @@ class _UnifiedSyncSettingsScreenState
 
           // Appwrite Sync
           _buildAppwriteSyncSection(),
-
-          const SizedBox(height: UIConstants.spacingLG),
-
-          // إعدادات متقدمة
-          _buildAdvancedSection(),
         ],
       ),
     );
@@ -337,14 +326,6 @@ class _UnifiedSyncSettingsScreenState
                   ),
             secondary: const Icon(Icons.wifi),
           ),
-          const Divider(height: 1),
-          ListTile(
-            title: const Text('الحد اليومي للبيانات'),
-            subtitle: const Text('50 ميجابايت'),
-            leading: const Icon(Icons.data_usage),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _showNotAvailable('تحديد الحد اليومي للبيانات'),
-          ),
         ],
       ),
     );
@@ -391,22 +372,6 @@ class _UnifiedSyncSettingsScreenState
                         : 'تم إيقاف المزامنة الذكية',
                   ),
             secondary: const Icon(Icons.smart_toy),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            title: const Text('حل التعارضات'),
-            subtitle: const Text('الأحدث يفوز'),
-            leading: const Icon(Icons.merge),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _showNotAvailable('اختيار سياسة حل التعارضات'),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            title: const Text('أولوية الجهاز'),
-            subtitle: const Text('عادية'),
-            leading: const Icon(Icons.device_hub),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _showNotAvailable('اختيار أولوية الجهاز'),
           ),
         ],
       ),
@@ -473,68 +438,6 @@ class _UnifiedSyncSettingsScreenState
                     applyToService: _applyRealtimeSync,
                   ),
             secondary: const Icon(Icons.flash_on),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            title: const Text('جداول المزامنة'),
-            subtitle: const Text('اختر الجداول للمزامنة'),
-            leading: const Icon(Icons.table_chart),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _showNotAvailable('اختيار جداول المزامنة'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAdvancedSection() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(UIConstants.spacingMD),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.settings_suggest,
-                  color: Colors.grey.shade700,
-                  size: UIConstants.iconSizeMD,
-                ),
-                const SizedBox(width: UIConstants.spacingSM),
-                const Text(
-                  'إعدادات متقدمة',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            title: const Text('مسح ذاكرة التخزين المؤقت'),
-            subtitle: const Text('حذف البيانات المخزنة مؤقتاً'),
-            leading: const Icon(Icons.cleaning_services),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _showNotAvailable('مسح ذاكرة التخزين المؤقت'),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            title: const Text('إعادة تعيين المزامنة'),
-            subtitle: const Text('إعادة تهيئة نظام المزامنة'),
-            leading: const Icon(Icons.restore, color: Colors.orange),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _showNotAvailable('إعادة تعيين المزامنة'),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            title: const Text('عرض السجلات'),
-            subtitle: const Text('سجلات المزامنة والأخطاء'),
-            leading: const Icon(Icons.description),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () => _showNotAvailable('عرض سجلات المزامنة'),
           ),
         ],
       ),
