@@ -1,6 +1,6 @@
 // lib/services/remote_config_service.dart
 // خدمة Firebase Remote Config — تحكم عن بُعد في إعدادات التطبيق
-// 20 مفتاح تحكم يغطي: الإشعارات، المواعيد، الحجوزات، الحسابات، النسخ الاحتياطي، الأداء
+// 19 مفتاح تحكم يغطي: الإشعارات، المواعيد، الحجوزات، الحسابات، النسخ الاحتياطي، الأداء
 
 import 'dart:async';
 import 'dart:developer' as developer;
@@ -67,19 +67,23 @@ class RemoteConfigService {
       // تعيين القيم الافتراضية
       await _remoteConfig!.setDefaults(_defaults);
 
-      _isFirebaseConnected = true;
+      // تعيين القيم الافتراضية محلياً لا يثبت وجود اتصال بالسيرفر.
+      // لا نرفع الحالة إلى متصل إلا بعد نجاح fetchAndActivate فعلياً.
+      _isFirebaseConnected = false;
 
       // جلب القيم فوراً (مع إنتاجية)
       try {
         final status = await _remoteConfig!.fetchAndActivate();
         _lastFetchStatus = status.toString();
         _lastFetchTime = DateTime.now();
+        _isFirebaseConnected = true;
         developer.log('Remote Config activated: $status', name: 'RemoteConfig');
       } catch (e) {
         developer.log(
           'Remote Config fetch failed (using defaults): $e',
           name: 'RemoteConfig',
         );
+        _isFirebaseConnected = false;
         _lastFetchStatus = 'fetch_failed';
       }
 
@@ -122,9 +126,11 @@ class RemoteConfigService {
       final status = await _remoteConfig!.fetchAndActivate();
       _lastFetchStatus = status.toString();
       _lastFetchTime = DateTime.now();
+      _isFirebaseConnected = true;
       developer.log('Remote Config force fetch: $status', name: 'RemoteConfig');
       return status;
     } catch (e) {
+      _isFirebaseConnected = false;
       _lastFetchStatus = 'error: $e';
       developer.log(
         'Remote Config force fetch error: $e',

@@ -39,15 +39,12 @@ void main() {
   ) async {
     await pumpAtSize(tester, const Size(360, 800));
 
-    expect(find.text('الوصول السريع'), findsOneWidget);
+    expect(find.text('الوصول السريع'), findsNothing);
     expect(find.text('إدارة البيانات'), findsOneWidget);
     expect(find.text('المزامنة والنسخ الاحتياطي'), findsOneWidget);
     expect(find.text('الإشعارات والتقارير'), findsOneWidget);
     expect(find.text('التطبيق والخدمات'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-
-    await tester.tap(find.text('إدارة البيانات'));
-    await tester.pumpAndSettle();
+    expect(find.text('إدارة الموظفين'), findsOneWidget);
     expect(find.text('إدارة الضيوف'), findsOneWidget);
     expect(find.text('القائمة السوداء'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -60,16 +57,29 @@ void main() {
       const Size(1920, 1080),
     ]) {
       await pumpAtSize(tester, size);
-      expect(find.text('الوصول السريع'), findsOneWidget, reason: 'size=$size');
-      expect(tester.takeException(), isNull, reason: 'size=$size');
-
-      final syncSection = find.byType(ExpansionTile).at(1);
-      await tester.ensureVisible(syncSection);
-      await tester.pumpAndSettle();
-      await tester.tap(syncSection);
-      await tester.pumpAndSettle();
-      expect(find.text('النسخ الاحتياطي والاستعادة'), findsOneWidget);
-      expect(find.text('Appwrite'), findsOneWidget);
+      expect(find.text('الوصول السريع'), findsNothing, reason: 'size=$size');
+      expect(find.text('إدارة البيانات'), findsOneWidget, reason: 'size=$size');
+      expect(
+        find.text('المزامنة والنسخ الاحتياطي'),
+        findsOneWidget,
+        reason: 'size=$size',
+      );
+      expect(
+        find.text('الإشعارات والتقارير'),
+        findsOneWidget,
+        reason: 'size=$size',
+      );
+      expect(
+        find.text('التطبيق والخدمات'),
+        findsOneWidget,
+        reason: 'size=$size',
+      );
+      expect(
+        find.text('النسخ الاحتياطي والاستعادة'),
+        findsOneWidget,
+        reason: 'size=$size',
+      );
+      expect(find.text('Appwrite'), findsOneWidget, reason: 'size=$size');
       expect(tester.takeException(), isNull, reason: 'size=$size');
     }
   });

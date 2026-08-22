@@ -67,15 +67,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             usersCountAsync,
           ),
 
-          // ✅ Progressive disclosure: العناصر الأساسية ظاهرة، والبقية داخل
-          // أقسام قابلة للطي مع بقاء كل الخيارات قابلة للوصول.
+          // ✅ العرض السابق: الأقسام ظاهرة دائماً بدون طيّ.
+          // يحافظ ذلك على قابلية اكتشاف كل الوظائف مع إبقاء التمرير واحداً.
           Expanded(
             child: CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(
                   child: RepaintBoundary(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 20),
+                      padding: const EdgeInsets.all(16),
                       child: _buildSettingsContent(context),
                     ),
                   ),
@@ -90,61 +90,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Widget _buildSettingsContent(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('الوصول السريع', Icons.bolt),
-        _buildSettingsGrid(context, _getSectionItems(context, 'primary')),
-        const SizedBox(height: 8),
-        _buildCollapsibleSection(
-          context,
-          title: 'إدارة البيانات',
-          icon: Icons.manage_accounts,
-          items: _getSectionItems(context, 'data'),
-        ),
-        _buildCollapsibleSection(
-          context,
-          title: 'المزامنة والنسخ الاحتياطي',
-          icon: Icons.sync,
-          items: _getSectionItems(context, 'sync'),
-        ),
-        _buildCollapsibleSection(
-          context,
-          title: 'الإشعارات والتقارير',
-          icon: Icons.notifications,
-          items: _getSectionItems(context, 'whatsapp'),
-        ),
-        _buildCollapsibleSection(
-          context,
-          title: 'التطبيق والخدمات',
-          icon: Icons.apps,
-          items: _getSectionItems(context, 'app'),
-        ),
+        _buildSectionTitle('إدارة البيانات', Icons.manage_accounts),
+        _buildSettingsGrid(context, _getSectionItems(context, 'data')),
+        const SizedBox(height: 20),
+        _buildSectionTitle('المزامنة والنسخ الاحتياطي', Icons.sync),
+        _buildSettingsGrid(context, _getSectionItems(context, 'sync')),
+        const SizedBox(height: 20),
+        _buildSectionTitle('الإشعارات والتقارير', Icons.notifications),
+        _buildSettingsGrid(context, _getSectionItems(context, 'whatsapp')),
+        const SizedBox(height: 20),
+        _buildSectionTitle('التطبيق والخدمات', Icons.apps),
+        _buildSettingsGrid(context, _getSectionItems(context, 'app')),
       ],
-    );
-  }
-
-  Widget _buildCollapsibleSection(
-    BuildContext context, {
-    required String title,
-    required IconData icon,
-    required List<_SettingsItem> items,
-  }) {
-    return Card(
-      margin: const EdgeInsets.only(top: 8),
-      elevation: 1,
-      clipBehavior: Clip.antiAlias,
-      child: ExpansionTile(
-        initiallyExpanded: false,
-        tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
-        leading: Icon(icon, color: Theme.of(context).colorScheme.primary),
-        title: Text(
-          title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        subtitle: Text('${items.length} خيارات'),
-        children: [_buildSettingsGrid(context, items)],
-      ),
     );
   }
 
@@ -153,7 +112,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   // ignore: unused_element
   List<_SettingsItem> _getAllSettingsItems(BuildContext context) {
     return [
-      ..._getSectionItems(context, 'primary'),
       ..._getSectionItems(context, 'data'),
       ..._getSectionItems(context, 'sync'),
       ..._getSectionItems(context, 'whatsapp'),
@@ -163,7 +121,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   List<_SettingsItem> _getSectionItems(BuildContext context, String section) {
     switch (section) {
-      case 'primary':
+      case 'data':
         return [
           _SettingsItem(
             title: 'إدارة الموظفين',
@@ -189,35 +147,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
           ),
-          _SettingsItem(
-            title: 'المزامنة بين الأجهزة',
-            subtitle: 'التحكم في مزامنة Appwrite والأداء والشبكة',
-            icon: Icons.sync,
-            color: Colors.blue,
-            onTap: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(
-                builder: (context) => const UnifiedSyncSettingsScreen(),
-              ),
-            ),
-          ),
-          _SettingsItem(
-            title: 'النسخ الاحتياطي والاستعادة',
-            subtitle: 'نسخ محلية آمنة ومزامنة Appwrite',
-            icon: Icons.backup,
-            color: Colors.deepOrange,
-            onTap: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(
-                builder: (context) =>
-                    const backup_v2.ComprehensiveBackupScreen(),
-              ),
-            ),
-          ),
-        ];
-
-      case 'data':
-        return [
           _SettingsItem(
             title: 'إدارة الضيوف',
             subtitle: 'عرض تاريخ وإحصائيات الضيوف',
@@ -270,6 +199,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       case 'sync':
         return [
+          _SettingsItem(
+            title: 'المزامنة بين الأجهزة',
+            subtitle: 'التحكم في مزامنة Appwrite والأداء والشبكة',
+            icon: Icons.sync,
+            color: Colors.blue,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => const UnifiedSyncSettingsScreen(),
+              ),
+            ),
+          ),
+          _SettingsItem(
+            title: 'النسخ الاحتياطي والاستعادة',
+            subtitle: 'نسخ محلية آمنة ومزامنة Appwrite',
+            icon: Icons.backup,
+            color: Colors.deepOrange,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) =>
+                    const backup_v2.ComprehensiveBackupScreen(),
+              ),
+            ),
+          ),
           _SettingsItem(
             title: 'Appwrite',
             subtitle: 'الاتصال السحابي والأجهزة والسجلات والتخزين المؤقت',
@@ -538,12 +492,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           Icon(icon, color: Colors.blue, size: 24),
           const SizedBox(width: 8),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue,
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue,
+              ),
             ),
           ),
         ],
