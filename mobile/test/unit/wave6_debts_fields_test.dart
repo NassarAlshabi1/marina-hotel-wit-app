@@ -298,8 +298,8 @@ void main() {
       expect(columnNames, contains('date'));
     });
 
-    test('3e. أحدث schemaVersion = 60', () {
-      expect(db.schemaVersion, 60);
+    test('3e. أحدث schemaVersion = 61', () {
+      expect(db.schemaVersion, 61);
     });
   });
 
