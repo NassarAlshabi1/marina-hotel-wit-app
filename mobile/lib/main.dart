@@ -388,7 +388,24 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 
     dlog('📦 Initializing Appwrite Config Manager...');
     await AppwriteConfigManager.init();
+    await AppwriteService().initialize();
     dlog('✅ Appwrite Config loaded');
+
+    // ─── Firebase Cloud Messaging ───
+    // FCM للاستقبال وتسجيل device token فقط. لا نضع Server Key داخل APK؛
+    // الإرسال الجماعي يجب أن يتم من backend/Appwrite Function بصلاحيات خادمية.
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+      final syncManager = AppwriteSyncManager.instance;
+      if (syncManager != null) {
+        FcmService.injectDependencies(
+          syncManager: syncManager,
+          realtimeSync: AppwriteRealtimeSync(),
+        );
+      }
+      await _safeInit('FcmService', FcmService().initialize);
+    } else {
+      dlog('ℹ️ FCM skipped on ${Platform.operatingSystem}');
+    }
 
     final driveSyncEnabled =
         prefs.getBool('google_drive_sync_enabled') ?? false;
