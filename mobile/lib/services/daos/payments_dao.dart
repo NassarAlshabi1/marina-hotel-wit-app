@@ -482,6 +482,9 @@ class PaymentsDao extends DatabaseAccessor<AppDatabase>
             lastModified: Value(payment.lastModified),
             version: Value(payment.version),
             origin: Value(payment.origin),
+            receivedByUserId: Value(payment.receivedByUserId),
+            receivedByName: Value(payment.receivedByName),
+            receivedSessionUuid: Value(payment.receivedSessionUuid),
           ),
         );
       }

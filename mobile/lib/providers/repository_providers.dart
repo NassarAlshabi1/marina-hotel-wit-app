@@ -1,8 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/adapters/adapter_registry.dart';
 import '../services/auth_local_store.dart';
+import 'auth_provider.dart';
 import '../services/daos/bookings_dao.dart';
 import '../services/daos/debts_dao.dart';
 import '../services/daos/employees_dao.dart';
@@ -23,6 +26,7 @@ import '../services/repositories/expenses_repository.dart';
 import '../services/repositories/guest_infos_repository.dart';
 import '../services/repositories/notes_repository.dart';
 import '../services/repositories/payments_repository.dart';
+import '../services/payment_session_context.dart';
 import '../services/repositories/rooms_repository.dart';
 import '../services/repositories/salary_withdrawals_repository.dart';
 import '../services/repositories/shift_notes_repository.dart';
@@ -317,6 +321,27 @@ final usersCountProvider = FutureProvider.autoDispose<int>((ref) async {
   return store.getUsersCount();
 });
 
+/// يبث مفتاح اليوم الفندقي عند عبور وقت بداية اليوم الفندقي.
+/// يستخدم فقط لإعادة بناء مؤشرات Dashboard التي تعتمد على اليوم الحالي.
+final hotelDayTickerProvider = StreamProvider<String>((ref) {
+  final controller = StreamController<String>.broadcast();
+  var lastEmitted = HotelTimeEngine.getHotelDayKey();
+  final timer = Timer.periodic(const Duration(seconds: 30), (_) {
+    final current = HotelTimeEngine.getHotelDayKey();
+    if (current != lastEmitted) {
+      lastEmitted = current;
+      controller.add(current);
+    }
+  });
+
+  ref.onDispose(() {
+    timer.cancel();
+    controller.close();
+  });
+
+  return controller.stream;
+});
+
 // Daily Statistics Providers — تحديث فوري عبر Stream من قاعدة البيانات
 final todayPaymentsProvider = StreamProvider.autoDispose<double>((ref) {
   final paymentsRepo = ref.watch(paymentsRepoProvider);
@@ -324,6 +349,23 @@ final todayPaymentsProvider = StreamProvider.autoDispose<double>((ref) {
   final hotelDay = HotelTimeEngine.getHotelDayKey();
   // الفلتر على مستوى قاعدة البيانات بدلاً من تحميل كل المدفوعات
   return paymentsRepo.watchTotalByHotelDayKey(hotelDay);
+});
+
+/// إجمالي ما استلمه المستخدم الحالي منذ بداية جلسة تسجيل الدخول
+/// ضمن اليوم الفندقي الحالي. السجلات القديمة التي لا تحمل session UUID
+/// لا تُنسب للمستخدم بأثر رجعي.
+final currentUserSessionPaymentsProvider = StreamProvider.autoDispose<double>((
+  ref,
+) {
+  ref.watch(authProvider.select((state) => state.currentUser?.id));
+  // إعادة بناء الاستعلام عند انتقال الفندق إلى يوم جديد.
+  ref.watch(hotelDayTickerProvider);
+  final paymentsRepo = ref.watch(paymentsRepoProvider);
+  final hotelDay = HotelTimeEngine.getHotelDayKey();
+  if (!PaymentSessionContext.isActive) {
+    return Stream<double>.value(0);
+  }
+  return paymentsRepo.watchTotalByCurrentPaymentSession(hotelDay);
 });
 
 final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {

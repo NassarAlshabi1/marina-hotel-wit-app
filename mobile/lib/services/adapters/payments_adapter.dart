@@ -199,6 +199,24 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       // local_db.dart:256-257 (Drift columns).
       voidReason: _vStr(json, 'voidReason', src, altKey: 'void_reason'),
       isImmutable: _vBool(json, 'isImmutable', src, fallback: false),
+      receivedByUserId: _vInt(
+        json,
+        'receivedByUserId',
+        src,
+        altKey: 'received_by_user_id',
+      ),
+      receivedByName: _vStr(
+        json,
+        'receivedByName',
+        src,
+        altKey: 'received_by_name',
+      ),
+      receivedSessionUuid: _vStr(
+        json,
+        'receivedSessionUuid',
+        src,
+        altKey: 'received_session_uuid',
+      ),
     );
   }
 
@@ -249,6 +267,13 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       _k(src, 'isVoided', 'is_voided'): model.isVoided,
       _k(src, 'voidedAt', 'voided_at'): model.voidedAt,
       _k(src, 'voidedBy', 'voided_by'): model.voidedBy,
+      _k(src, 'voidReason', 'void_reason'): model.voidReason,
+      _k(src, 'isImmutable', 'is_immutable'): model.isImmutable,
+      _k(src, 'receivedByUserId', 'received_by_user_id'):
+          model.receivedByUserId,
+      _k(src, 'receivedByName', 'received_by_name'): model.receivedByName,
+      _k(src, 'receivedSessionUuid', 'received_session_uuid'):
+          model.receivedSessionUuid,
     };
   }
 }

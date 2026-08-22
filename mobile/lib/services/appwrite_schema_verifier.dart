@@ -263,6 +263,9 @@ class AppwriteSchemaVerifier {
         {'key': 'voidedBy', 'type': 'string', 'size': 100},
         {'key': 'voidReason', 'type': 'string', 'size': 500},
         {'key': 'isImmutable', 'type': 'boolean', 'default': false},
+        {'key': 'receivedByUserId', 'type': 'integer'},
+        {'key': 'receivedByName', 'type': 'string', 'size': 200},
+        {'key': 'receivedSessionUuid', 'type': 'string', 'size': 36},
       ],
     },
     'debts': {

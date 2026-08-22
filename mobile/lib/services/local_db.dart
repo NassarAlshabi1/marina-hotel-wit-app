@@ -271,6 +271,11 @@ class Payments extends Table with SyncFields {
   TextColumn get voidedBy => text().nullable()();
   TextColumn get voidReason => text().nullable()();
   BoolColumn get isImmutable => boolean().withDefault(const Constant(false))();
+  // هوية الموظف وجلسة تسجيل الدخول التي استلمت الدفعة.
+  // Nullable للتوافق مع السجلات القديمة قبل تفعيل الخيار A.
+  IntColumn get receivedByUserId => integer().nullable()();
+  TextColumn get receivedByName => text().nullable()();
+  TextColumn get receivedSessionUuid => text().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -308,6 +313,10 @@ class Payments extends Table with SyncFields {
     Index(
       'idx_payments_active_report_date',
       'CREATE INDEX idx_payments_active_report_date ON payments (payment_date DESC) WHERE deleted_at IS NULL AND is_voided = 0 AND is_pending_balance = 0',
+    ),
+    Index(
+      'idx_payments_active_receiver_session',
+      'CREATE INDEX idx_payments_active_receiver_session ON payments (received_by_user_id, received_session_uuid, hotel_day_key) WHERE deleted_at IS NULL AND is_voided = 0 AND is_pending_balance = 0',
     ),
   ];
 }
@@ -1070,7 +1079,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 60;
+  int get schemaVersion => 61;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1099,6 +1108,11 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('PRAGMA wal_autocheckpoint = 1000');
     },
     onUpgrade: (m, from, to) async {
+      if (from < 61) {
+        await m.addColumn(payments, payments.receivedByUserId);
+        await m.addColumn(payments, payments.receivedByName);
+        await m.addColumn(payments, payments.receivedSessionUuid);
+      }
       if (from < 2) {
         await m.addColumn(bookings, bookings.guestIdType);
         await m.addColumn(bookings, bookings.guestIdNumber);

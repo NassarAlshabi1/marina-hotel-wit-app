@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auth_local_store.dart' show AuthLocalStore, AuthType;
+import '../services/payment_session_context.dart';
 import '../utils/app_logger.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
@@ -152,6 +153,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         tag: 'AUTH',
       );
       await _store.clearSession();
+      PaymentSessionContext.clear();
       _stopSessionCheck();
       state = const AuthState(
         isAuthenticated: false,
@@ -178,12 +180,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     final rememberMe = await _store.getRememberMe();
     if (!rememberMe) {
+      PaymentSessionContext.clear();
       state = const AuthState(isAuthenticated: false);
       return;
     }
 
     final json = await _store.loadCurrentUser();
     if (json == null) {
+      PaymentSessionContext.clear();
       state = const AuthState(isAuthenticated: false);
       return;
     }
@@ -196,6 +200,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final valid = await _store.checkSessionValidity();
       if (!valid) {
         await _store.clearSession();
+        PaymentSessionContext.clear();
         state = const AuthState(
           isAuthenticated: false,
           error:
@@ -212,6 +217,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       rememberMe: rememberMe,
       authType: authType,
     );
+    PaymentSessionContext.start(userId: user.id, userName: user.name);
 
     // يبدأ للمستخدمين السحابيين فقط؛ الحسابات المحلية لا تتصل بالشبكة.
     await _startCloudSessionCheckIfNeeded(user);
@@ -222,6 +228,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String password, {
     bool rememberMe = false,
   }) async {
+    PaymentSessionContext.clear();
     state = state.copyWith();
 
     final data = await _store.validateCredentials(username, password);
@@ -243,6 +250,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       currentUser: user,
       rememberMe: rememberMe,
     );
+    PaymentSessionContext.start(userId: user.id, userName: user.name);
 
     // يبدأ للمستخدمين السحابيين فقط؛ الحسابات المحلية لا تتصل بالشبكة.
     await _startCloudSessionCheckIfNeeded(user);
@@ -250,6 +258,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     _stopSessionCheck();
+    PaymentSessionContext.clear();
     await _store.clearSession();
     state = const AuthState(isAuthenticated: false);
   }
