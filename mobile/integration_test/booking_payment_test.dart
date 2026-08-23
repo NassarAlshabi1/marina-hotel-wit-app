@@ -13,12 +13,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:patrol/patrol.dart';
 
 import 'package:marina_hotel_mobile/screens/payments/booking_payment_screen.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart' as db;
 
 void main() {
+  setUpAll(() async {
+    // PaymentSummaryCard uses DateFormat during build. Patrol runs in a
+    // fresh process where intl locale data is not initialized automatically.
+    await initializeDateFormatting();
+  });
+
   // إنشاء حجز وهمي للاختبار
   db.Booking createMockBooking() {
     final now = DateTime.now().millisecondsSinceEpoch;

@@ -215,9 +215,10 @@ jobs:
         with:
           name: patrol-test-results-${{ matrix.test-file }}-api-${{ matrix.api-level }}
           path: |
-            mobile/build/
-            mobile/.dart_tool/
-            mobile/patrol_test/
+            mobile/build/patrol-diagnostics/
+            mobile/build/app/outputs/androidTest-results/connected/debug/**/*.xml
+            mobile/build/app/reports/androidTests/connected/debug/**/*.xml
+            mobile/patrol_test/test_bundle.dart
           retention-days: 7
           if-no-files-found: ignore
 
