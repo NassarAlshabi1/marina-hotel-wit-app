@@ -128,10 +128,10 @@ jobs:
           "$SDKMANAGER" --version
 
       # ─────────────────────────────────────────────────────────────────────
-      #  7. تثبيت patrol_cli
+      #  7. تثبيت patrol_cli المتوافق مع patrol runtime 4.7.1
       # ─────────────────────────────────────────────────────────────────────
       - name: 🔧 Install patrol_cli
-        run: dart pub global activate patrol_cli 4.7.0
+        run: dart pub global activate patrol_cli 4.6.1
 
       - name: 🩺 Patrol doctor
         # فحص مانع: لا ينبغي إخفاء نقص Android SDK أو adb في بيئة المحاكي.
@@ -234,7 +234,7 @@ jobs:
           echo "- **Architecture:** ${{ matrix.arch }}" >> $GITHUB_STEP_SUMMARY
           echo "- **AVD cached:** ${{ steps.avd-cache.outputs.cache-hit == 'true' }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Test file:** ${{ matrix.test-file }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Patrol CLI:** 4.7.0" >> $GITHUB_STEP_SUMMARY
+          echo "- **Patrol CLI:** 4.6.1 (compatible with runtime 4.7.1)" >> $GITHUB_STEP_SUMMARY
           echo "- **Patrol runtime:** 4.7.1" >> $GITHUB_STEP_SUMMARY
 
       - name: ❌ Report failure
