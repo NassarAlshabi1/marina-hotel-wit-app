@@ -39,7 +39,7 @@ jobs:
     steps:
       # ─── جلب الكود ───────────────────────────────────────
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       # ─── إعداد Java 17 ───────────────────────────────────
       - name: Set up Java 17

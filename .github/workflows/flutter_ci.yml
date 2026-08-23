@@ -266,7 +266,7 @@ jobs:
 
       - name: 📦 Upload Coverage
         if: always() && inputs.min_coverage > 0
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ github.ref_name }}-${{ github.run_id }}
           path: ${{ inputs.working_directory }}/coverage/
@@ -331,7 +331,7 @@ jobs:
 
       - name: 📤 Upload Benchmark Results
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: benchmarks-${{ github.ref_name }}-${{ github.run_id }}
           path: ${{ inputs.working_directory }}/build/performance/

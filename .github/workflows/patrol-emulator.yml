@@ -70,7 +70,7 @@ jobs:
       #  1. Checkout الكود
       # ─────────────────────────────────────────────────────────────────────
       - name: 📥 Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       # ─────────────────────────────────────────────────────────────────────
       #  2. تفعيل KVM — ضروري لـ hardware acceleration
@@ -154,7 +154,7 @@ jobs:
       #  10. AVD cache — يُسرِّع الـ runs القادمة بشكل كبير
       # ─────────────────────────────────────────────────────────────────────
       - name: 💾 AVD cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: avd-cache
         with:
           path: |
@@ -187,7 +187,7 @@ jobs:
       # ─────────────────────────────────────────────────────────────────────
       - name: 📊 Upload test results on failure
         if: failure()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: patrol-test-results-api-${{ matrix.api-level }}
           path: |
@@ -238,7 +238,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: 🐦 Set up Flutter
         uses: subosito/flutter-action@v2.23.0

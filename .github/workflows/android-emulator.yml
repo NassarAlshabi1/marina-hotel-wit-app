@@ -62,7 +62,7 @@ jobs:
       #  1. Checkout الكود
       # ─────────────────────────────────────────────────────────────────────
       - name: 📥 Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       # ─────────────────────────────────────────────────────────────────────
       #  2. تفعيل KVM — ضروري لـ hardware acceleration
@@ -114,7 +114,7 @@ jobs:
       #     المرات التالية: يستخدم snapshot جاهز (~30 ثانية فقط)
       # ─────────────────────────────────────────────────────────────────────
       - name: 💾 AVD cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: avd-cache
         with:
           path: |
@@ -172,7 +172,7 @@ jobs:
 
       - name: 📤 Upload Benchmark Results
         if: always()
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-results-api-${{ matrix.api-level }}
           path: mobile/build/performance/
@@ -184,7 +184,7 @@ jobs:
       # ─────────────────────────────────────────────────────────────────────
       - name: 📊 Upload test results on failure
         if: failure()
-        uses: actions/upload-artifact@v4.6.2  # Node 24 — تجنُّب deprecation warning
+        uses: actions/upload-artifact@v7  # Node 24 — تجنُّب deprecation warning
         with:
           name: integration-test-results-api-${{ matrix.api-level }}
           path: |
@@ -232,7 +232,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: 🐦 Set up Flutter
         uses: subosito/flutter-action@v2.23.0
