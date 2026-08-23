@@ -193,16 +193,16 @@ jobs:
         working-directory: mobile
         run: |
           mkdir -p build/patrol-diagnostics
-          adb logcat -d -b all -v threadtime -t 3000 \
+          timeout 30s adb logcat -d -b all -v threadtime -t 1000 \
             | grep -E 'com\\.aden\\.marina|AndroidRuntime|ActivityTaskManager|FATAL EXCEPTION' \
             > build/patrol-diagnostics/logcat-filtered.txt || true
-          adb shell dumpsys activity activities \
+          timeout 30s adb shell dumpsys activity activities \
             > build/patrol-diagnostics/dumpsys-activity.txt || true
-          adb shell dumpsys package com.aden.marina \
+          timeout 30s adb shell dumpsys package com.aden.marina \
             > build/patrol-diagnostics/dumpsys-package.txt || true
-          adb shell ps -A \
+          timeout 30s adb shell ps -A \
             > build/patrol-diagnostics/process-list.txt || true
-          find build/app/outputs/androidTest-results build/app/reports/androidTests \
+          timeout 30s find build/app/outputs/androidTest-results build/app/reports/androidTests \
             -type f -maxdepth 8 -print 2>/dev/null \
             > build/patrol-diagnostics/test-result-files.txt || true
 
