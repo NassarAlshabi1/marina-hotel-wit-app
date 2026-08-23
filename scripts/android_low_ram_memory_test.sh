@@ -10,6 +10,8 @@ CYCLES="${LOW_RAM_CYCLES:-5}"
 SWIPES="${LOW_RAM_SWIPES:-8}"
 ACTION_SCRIPT="${LOW_RAM_ACTION_SCRIPT:-}"
 PERF_REPORT_REMOTE_PATH="${LOW_RAM_PERF_REPORT_REMOTE_PATH:-files/marina_performance_report.json}"
+START_TIMEOUT_SEC="${LOW_RAM_START_TIMEOUT_SEC:-45}"
+RELAUNCH_RETRIES="${LOW_RAM_RELAUNCH_RETRIES:-1}"
 
 usage() {
   cat <<'USAGE'
@@ -24,6 +26,10 @@ Options:
   --swipes <count>        Fallback swipes per cycle (default: 8)
   --action-script <path>  Optional executable: script adb package cycle
   --perf-report-path <p>  run-as path for profile PerformanceMonitor JSON
+
+Environment:
+  LOW_RAM_START_TIMEOUT_SEC  seconds to wait for the app process (default: 45)
+  LOW_RAM_RELAUNCH_RETRIES   clean relaunch retries after a failed start (default: 1)
 USAGE
 }
 
@@ -66,6 +72,8 @@ fi
 "$ADB_BIN" shell settings put global window_animation_scale 0 || true
 "$ADB_BIN" shell settings put global transition_animation_scale 0 || true
 "$ADB_BIN" shell settings put global animator_duration_scale 0 || true
+# Keep startup diagnostics scoped to this run; failure artifacts are uploaded by CI.
+"$ADB_BIN" logcat -c >/dev/null 2>&1 || true
 
 if [[ -n "$APK_PATH" ]]; then
   [[ -f "$APK_PATH" ]] || { echo "APK not found: $APK_PATH" >&2; exit 1; }
@@ -97,12 +105,35 @@ process_state() {
 }
 
 wait_for_process() {
-  for _ in $(seq 1 30); do
+  local timeout="${1:-$START_TIMEOUT_SEC}"
+  for _ in $(seq 1 "$timeout"); do
     [[ "$(process_state)" == "running" ]] && return 0
     sleep 1
   done
-  echo "Application process did not start: $PACKAGE" >&2
+  echo "Application process did not start: $PACKAGE (timeout=${timeout}s)" >&2
   return 1
+}
+
+stop_app() {
+  "$ADB_BIN" shell am force-stop "$PACKAGE" >/dev/null 2>&1 || true
+  for _ in $(seq 1 15); do
+    [[ "$(process_state)" == "absent" ]] && return 0
+    sleep 1
+  done
+  # am force-stop is asynchronous on some emulator images. Ask ActivityManager
+  # to kill the package before the next explicit launch instead of racing it.
+  "$ADB_BIN" shell am kill "$PACKAGE" >/dev/null 2>&1 || true
+  sleep 2
+  [[ "$(process_state)" == "absent" ]]
+}
+
+collect_startup_diagnostics() {
+  local prefix="$raw_dir/startup_failure_$(now_ms)"
+  "$ADB_BIN" shell dumpsys activity activities > "${prefix}_activity.txt" 2>&1 || true
+  "$ADB_BIN" shell dumpsys package "$PACKAGE" > "${prefix}_package.txt" 2>&1 || true
+  "$ADB_BIN" logcat -d -b all -v threadtime -t 3000 \
+    | grep -E "${PACKAGE//./\\.}|AndroidRuntime|ActivityTaskManager|FATAL EXCEPTION|Process: " \
+    > "${prefix}_logcat.txt" || true
 }
 
 measure() {
@@ -149,10 +180,35 @@ measure() {
     "$label" "$cycle" "$total_pss" "$private_other" "$unknown" "$java_heap" "$native_heap" "$total_rss" "$swap_pss"
 }
 
-launch_app() {
-  "$ADB_BIN" shell monkey -p "$PACKAGE" 1 >/dev/null
-  wait_for_process
+launch_app_once() {
+  local output
+  output=$("$ADB_BIN" shell am start -W \
+    -n "$PACKAGE/.MainActivity" \
+    -a android.intent.action.MAIN \
+    -c android.intent.category.LAUNCHER 2>&1 || true)
+  printf 'launch_attempt timestamp_ms=%s output=%s\n' "$(now_ms)" "${output//$'\\n'/ | }" >> "$lifecycle_log"
+  if printf '%s' "$output" | grep -Eq 'Error type|Error:|Exception|does not exist'; then
+    return 1
+  fi
+  wait_for_process "$START_TIMEOUT_SEC"
   sleep 8
+  [[ "$(process_state)" == "running" ]] || return 1
+}
+
+launch_app() {
+  local attempt
+  for attempt in $(seq 0 "$RELAUNCH_RETRIES"); do
+    if launch_app_once; then
+      return 0
+    fi
+    printf 'launch_retry timestamp_ms=%s attempt=%s\n' "$(now_ms)" "$attempt" >> "$lifecycle_log"
+    collect_startup_diagnostics
+    stop_app || true
+    sleep 2
+  done
+  collect_startup_diagnostics
+  echo "Application process did not start: $PACKAGE after $((RELAUNCH_RETRIES + 1)) attempt(s)" >&2
+  return 1
 }
 
 run_actions() {
@@ -170,8 +226,9 @@ run_actions() {
   done
 }
 
-"$ADB_BIN" shell am force-stop "$PACKAGE"
+stop_app || true
 sleep 2
+
 printf 'cold_start_before,%s,0,absent\n' "$(now_ms)" >> "$lifecycle_log"
 # No meminfo row is written here: dumpsys on an absent process is not a valid
 # cold-start baseline and must never be treated as zero memory.
@@ -181,7 +238,7 @@ measure cold_start_after 0
 
 for cycle in $(seq 1 "$CYCLES"); do
   if (( cycle > 1 )); then
-    "$ADB_BIN" shell am force-stop "$PACKAGE"
+    stop_app || true
     printf 'cycle_force_stop,%s,%s,%s\n' "$(now_ms)" "$cycle" "$(process_state)" >> "$lifecycle_log"
     sleep 2
     launch_app
