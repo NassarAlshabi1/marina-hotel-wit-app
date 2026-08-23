@@ -12,6 +12,7 @@ ACTION_SCRIPT="${LOW_RAM_ACTION_SCRIPT:-}"
 PERF_REPORT_REMOTE_PATH="${LOW_RAM_PERF_REPORT_REMOTE_PATH:-files/marina_performance_report.json}"
 START_TIMEOUT_SEC="${LOW_RAM_START_TIMEOUT_SEC:-45}"
 RELAUNCH_RETRIES="${LOW_RAM_RELAUNCH_RETRIES:-1}"
+RUNTIME_PERMISSIONS="${LOW_RAM_RUNTIME_PERMISSIONS:-android.permission.CAMERA android.permission.POST_NOTIFICATIONS android.permission.READ_MEDIA_IMAGES android.permission.READ_MEDIA_AUDIO android.permission.READ_MEDIA_VIDEO}"
 
 usage() {
   cat <<'USAGE'
@@ -30,6 +31,7 @@ Options:
 Environment:
   LOW_RAM_START_TIMEOUT_SEC  seconds to wait for the app process (default: 45)
   LOW_RAM_RELAUNCH_RETRIES   clean relaunch retries after a failed start (default: 1)
+  LOW_RAM_RUNTIME_PERMISSIONS space-separated runtime permissions to grant before launch
 USAGE
 }
 
@@ -80,6 +82,11 @@ if [[ -n "$APK_PATH" ]]; then
   "$ADB_BIN" install -r "$APK_PATH"
 fi
 
+# The production manifest requests runtime permissions. On a fresh emulator,
+# PermissionController can remain on top after a force-stop and make `am start`
+# report Status: ok while the app is not actually ready. Grant only the
+# permissions explicitly configured for this test harness before the first
+# launch; failed grants are logged and do not hide real startup failures.
 if ! "$ADB_BIN" shell pm path "$PACKAGE" >/dev/null 2>&1; then
   echo "Package is not installed: $PACKAGE" >&2
   exit 1
@@ -125,6 +132,15 @@ stop_app() {
   "$ADB_BIN" shell am kill "$PACKAGE" >/dev/null 2>&1 || true
   sleep 2
   [[ "$(process_state)" == "absent" ]]
+}
+
+grant_runtime_permissions() {
+  local permission result
+  for permission in $RUNTIME_PERMISSIONS; do
+    result=$("$ADB_BIN" shell pm grant "$PACKAGE" "$permission" 2>&1 || true)
+    printf 'permission_grant timestamp_ms=%s permission=%s result=%s\n' \
+      "$(now_ms)" "$permission" "${result//$'\\n'/ | }" >> "$lifecycle_log"
+  done
 }
 
 collect_startup_diagnostics() {
@@ -226,6 +242,7 @@ run_actions() {
   done
 }
 
+grant_runtime_permissions
 stop_app || true
 sleep 2
 
