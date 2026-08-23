@@ -70,7 +70,6 @@ import 'services/secondary_appwrite_config.dart';
 // ✅ Sync Simplification (2026-08-10): secondary_sync_manager.dart معطّل
 // بالكامل. لا حاجة لاستيراده في main.dart — الشاشة تستخدمه مباشرة عبر
 // SecondarySyncManager.instance الذي يُرجع no-op.
-import 'services/seed.dart';
 import 'services/smart_sync_manager.dart';
 import 'services/sync_conflict_event_bus.dart';
 import 'services/sync_constants.dart';
@@ -698,7 +697,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           },
           syncManager: ref.read(appwrite.appwriteSyncManagerProvider),
         );
-        await Seeder(database).seedIfEmpty();
+        // لا تُضاف بيانات تجريبية تلقائياً؛ تبدأ قاعدة الإنتاج فارغة.
         // ✅ إصلاح hotelDayKey القديم (14:00 → 14:01) لجميع الجداول
         // يعمل مرة واحدة فقط لكل جلسة — يُصلح البيانات المحلية
         // وعند المزامنة التالية يُرفع hotelDayKey المصحح إلى Appwrite Cloud
