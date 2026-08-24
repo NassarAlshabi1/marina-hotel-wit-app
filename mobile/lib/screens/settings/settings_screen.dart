@@ -67,7 +67,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             usersCountAsync,
           ),
 
-          // ✅ المحتوى: الأقسام مع CustomScrollView + RepaintBoundary
+          // ✅ العرض السابق: الأقسام ظاهرة دائماً بدون طيّ.
+          // يحافظ ذلك على قابلية اكتشاف كل الوظائف مع إبقاء التمرير واحداً.
           Expanded(
             child: CustomScrollView(
               slivers: [
@@ -75,43 +76,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   child: RepaintBoundary(
                     child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSectionTitle(
-                            'إدارة البيانات',
-                            Icons.manage_accounts,
-                          ),
-                          _buildSettingsGrid(
-                            context,
-                            _getSectionItems(context, 'data'),
-                          ),
-                          const SizedBox(height: 20),
-                          _buildSectionTitle(
-                            'المزامنة والنسخ الاحتياطي',
-                            Icons.sync,
-                          ),
-                          _buildSettingsGrid(
-                            context,
-                            _getSectionItems(context, 'sync'),
-                          ),
-                          const SizedBox(height: 20),
-                          _buildSectionTitle(
-                            'الإشعارات والتقارير',
-                            Icons.notifications,
-                          ),
-                          _buildSettingsGrid(
-                            context,
-                            _getSectionItems(context, 'whatsapp'),
-                          ),
-                          const SizedBox(height: 20),
-                          _buildSectionTitle('التطبيق', Icons.apps),
-                          _buildSettingsGrid(
-                            context,
-                            _getSectionItems(context, 'app'),
-                          ),
-                        ],
-                      ),
+                      child: _buildSettingsContent(context),
                     ),
                   ),
                 ),
@@ -120,6 +85,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSettingsContent(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('إدارة البيانات', Icons.manage_accounts),
+        _buildSettingsGrid(context, _getSectionItems(context, 'data')),
+        const SizedBox(height: 20),
+        _buildSectionTitle('المزامنة والنسخ الاحتياطي', Icons.sync),
+        _buildSettingsGrid(context, _getSectionItems(context, 'sync')),
+        const SizedBox(height: 20),
+        _buildSectionTitle('الإشعارات والتقارير', Icons.notifications),
+        _buildSettingsGrid(context, _getSectionItems(context, 'whatsapp')),
+        const SizedBox(height: 20),
+        _buildSectionTitle('التطبيق والخدمات', Icons.apps),
+        _buildSettingsGrid(context, _getSectionItems(context, 'app')),
+      ],
     );
   }
 
@@ -152,18 +136,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           _SettingsItem(
-            title: 'إدارة الضيوف',
-            subtitle: 'عرض تاريخ وإحصائيات الضيوف',
-            icon: Icons.person,
-            color: Colors.green,
-            onTap: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(
-                builder: (context) => const SettingsGuestsScreen(),
-              ),
-            ),
-          ),
-          _SettingsItem(
             title: 'إدارة المستخدمين',
             subtitle: 'مستخدمي النظام والصلاحيات',
             icon: Icons.admin_panel_settings,
@@ -172,6 +144,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               context,
               MaterialPageRoute<void>(
                 builder: (context) => const SettingsUsersScreen(),
+              ),
+            ),
+          ),
+          _SettingsItem(
+            title: 'إدارة الضيوف',
+            subtitle: 'عرض تاريخ وإحصائيات الضيوف',
+            icon: Icons.person,
+            color: Colors.green,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => const SettingsGuestsScreen(),
               ),
             ),
           ),
@@ -228,6 +212,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           _SettingsItem(
+            title: 'النسخ الاحتياطي والاستعادة',
+            subtitle: 'نسخ محلية آمنة ومزامنة Appwrite',
+            icon: Icons.backup,
+            color: Colors.deepOrange,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) =>
+                    const backup_v2.ComprehensiveBackupScreen(),
+              ),
+            ),
+          ),
+          _SettingsItem(
             title: 'Appwrite',
             subtitle: 'الاتصال السحابي والأجهزة والسجلات والتخزين المؤقت',
             icon: Icons.cloud_sync,
@@ -248,19 +245,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               context,
               MaterialPageRoute<void>(
                 builder: (context) => const SyncHealthScreen(),
-              ),
-            ),
-          ),
-          _SettingsItem(
-            title: 'النسخ الاحتياطي والاستعادة',
-            subtitle: 'نسخ محلية آمنة ومزامنة Appwrite',
-            icon: Icons.backup,
-            color: Colors.deepOrange,
-            onTap: () => Navigator.push<void>(
-              context,
-              MaterialPageRoute<void>(
-                builder: (context) =>
-                    const backup_v2.ComprehensiveBackupScreen(),
               ),
             ),
           ),
@@ -508,12 +492,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         children: [
           Icon(icon, color: Colors.blue, size: 24),
           const SizedBox(width: 8),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue,
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue,
+              ),
             ),
           ),
         ],
@@ -524,53 +512,77 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   // ─── شبكة الإعدادات ───
 
   Widget _buildSettingsGrid(BuildContext context, List<_SettingsItem> items) {
-    const crossAxisCount = 3;
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        mainAxisExtent: 130,
-      ),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
-        return Card(
-          elevation: 2,
-          child: InkWell(
-            onTap: item.onTap,
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(item.icon, size: 20, color: item.color),
-                  const SizedBox(height: 8),
-                  Text(
-                    item.title,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.subtitle,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // بطاقات صغيرة دائماً: لا نعود إلى بطاقة بعرض الشاشة حتى على
+        // الهواتف الضيقة، بينما تستفيد شاشات Windows من 3 أو 4 أعمدة.
+        final crossAxisCount = constraints.maxWidth >= 1100
+            ? 4
+            : constraints.maxWidth >= 680
+            ? 3
+            : 2;
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            mainAxisExtent: crossAxisCount == 4
+                ? 122
+                : crossAxisCount == 3
+                ? 126
+                : 136,
           ),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return Card(
+              elevation: 1,
+              child: InkWell(
+                onTap: item.onTap,
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Row(
+                    children: [
+                      Icon(item.icon, size: 22, color: item.color),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.title,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              item.subtitle,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.chevron_left, size: 18),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
         );
       },
     );

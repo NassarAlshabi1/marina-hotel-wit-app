@@ -28,6 +28,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show FrameTiming, SchedulerBinding;
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
+const bool profileInstrumentationEnabled = bool.fromEnvironment(
+  'MARINA_ENABLE_PERF_PROFILE',
+  defaultValue: false,
+);
+
 /// نوع التحذير الأدائي
 enum PerfWarningType {
   lowFps,
@@ -133,6 +138,10 @@ class PerformanceMonitor {
   static const int _maxFrameSamples = 120; // ~2 ثانية @ 60fps
   int _totalFrames = 0;
   int _jankFrames = 0;
+  int _totalBuildMicros = 0;
+  int _totalRasterMicros = 0;
+  int _maxBuildMicros = 0;
+  int _maxRasterMicros = 0;
   DateTime? _firstFrameTime;
 
   // مقاييس الذاكرة
@@ -159,9 +168,11 @@ class PerformanceMonitor {
   //  التشغيل
   // ═══════════════════════════════════════════════════════════════════
 
-  /// يبدأ المراقبة — يُستدعى مرة واحدة في main() قبل runApp
-  void start({PerfConfig? config}) {
-    if (!kDebugMode) {
+  /// يبدأ المراقبة — يُستدعى مرة واحدة في main() قبل runApp.
+  /// `forceInProfile` مخصص لاختبارات profile المعزولة فقط عبر dart-define؛
+  /// لا يُستخدم في builds الإنتاج العادية.
+  void start({PerfConfig? config, bool forceInProfile = false}) {
+    if (!kDebugMode && !forceInProfile) {
       dlog('PerformanceMonitor: معطَّل في release mode');
       return;
     }
@@ -214,6 +225,13 @@ class PerformanceMonitor {
       _recentFrames.add(_FrameSample(timing: t, timestamp: now));
       _totalFrames++;
 
+      final buildMicros = t.buildDuration.inMicroseconds;
+      final rasterMicros = t.rasterDuration.inMicroseconds;
+      _totalBuildMicros += buildMicros;
+      _totalRasterMicros += rasterMicros;
+      if (buildMicros > _maxBuildMicros) _maxBuildMicros = buildMicros;
+      if (rasterMicros > _maxRasterMicros) _maxRasterMicros = rasterMicros;
+
       final buildMs = t.buildDuration.inMilliseconds;
       final rasterMs = t.rasterDuration.inMilliseconds;
       final totalMs = buildMs + rasterMs;
@@ -254,12 +272,13 @@ class PerformanceMonitor {
   /// متوسط زمن الإطار (build + raster) بالملي ثانية
   double get averageFrameTimeMs {
     if (_recentFrames.isEmpty) return 0;
-    var sum = 0.0;
+    var sumMicros = 0;
     for (final sample in _recentFrames) {
       final t = sample.timing;
-      sum += t.buildDuration.inMilliseconds + t.rasterDuration.inMilliseconds;
+      sumMicros +=
+          t.buildDuration.inMicroseconds + t.rasterDuration.inMicroseconds;
     }
-    return sum / _recentFrames.length;
+    return sumMicros / _recentFrames.length / 1000.0;
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -522,6 +541,14 @@ class PerformanceMonitor {
       'fps': {
         'current': currentFps.toStringAsFixed(1),
         'averageFrameTimeMs': averageFrameTimeMs.toStringAsFixed(2),
+        'averageBuildTimeMs': _totalFrames > 0
+            ? (_totalBuildMicros / _totalFrames / 1000.0).toStringAsFixed(2)
+            : '0.00',
+        'averageRasterTimeMs': _totalFrames > 0
+            ? (_totalRasterMicros / _totalFrames / 1000.0).toStringAsFixed(2)
+            : '0.00',
+        'maxBuildTimeMs': (_maxBuildMicros / 1000.0).toStringAsFixed(2),
+        'maxRasterTimeMs': (_maxRasterMicros / 1000.0).toStringAsFixed(2),
         'totalFrames': _totalFrames,
         'jankFrames': _jankFrames,
         'jankRatio': _totalFrames > 0
@@ -629,6 +656,10 @@ class PerformanceMonitor {
     _recentFrames.clear();
     _totalFrames = 0;
     _jankFrames = 0;
+    _totalBuildMicros = 0;
+    _totalRasterMicros = 0;
+    _maxBuildMicros = 0;
+    _maxRasterMicros = 0;
     _memorySamples.clear();
     _activeTraces.clear();
     _completedTraces.clear();
@@ -657,7 +688,7 @@ class PerformanceInspector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (kDebugMode) {
+    if (kDebugMode || profileInstrumentationEnabled) {
       PerformanceMonitor.instance.recordRebuild(name);
       onRebuild?.call(PerformanceMonitor.instance.rebuildCounts[name] ?? 1);
     }

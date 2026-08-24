@@ -13,12 +13,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:patrol/patrol.dart';
 
 import 'package:marina_hotel_mobile/screens/payments/booking_payment_screen.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart' as db;
 
 void main() {
+  setUpAll(() async {
+    // PaymentSummaryCard uses DateFormat during build. Patrol runs in a
+    // fresh process where intl locale data is not initialized automatically.
+    await initializeDateFormatting();
+  });
+
   // إنشاء حجز وهمي للاختبار
   db.Booking createMockBooking() {
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -82,7 +89,13 @@ void main() {
 
     await $.pumpWidgetAndSettle(
       ProviderScope(
-        child: MaterialApp(home: BookingPaymentScreen(booking: booking)),
+        child: MaterialApp(
+          home: BookingPaymentScreen(
+            booking: booking,
+            refreshDerivedFieldsOnInit: false,
+            listenToHotelDayTicker: false,
+          ),
+        ),
       ),
     );
 
@@ -101,12 +114,21 @@ void main() {
 
     await $.pumpWidgetAndSettle(
       ProviderScope(
-        child: MaterialApp(home: BookingPaymentScreen(booking: booking)),
+        child: MaterialApp(
+          home: BookingPaymentScreen(
+            booking: booking,
+            refreshDerivedFieldsOnInit: false,
+            listenToHotelDayTicker: false,
+          ),
+        ),
       ),
     );
 
-    // التمرير لأسفل للعثور على زر إرسال كشف الحساب
-    await $('إرسال كشف حساب').scrollTo();
+    // زر كشف الحساب موجود داخل تبويب الإجراءات، وليس في التبويب الافتراضي.
+    await $('الإجراءات').tap();
+    await $.pumpAndSettle();
+    final statementFinder = find.text('إرسال كشف حساب');
+    await $.tester.ensureVisible(statementFinder);
 
     // التحقق من وجود الزر
     expect(
@@ -121,37 +143,48 @@ void main() {
 
     await $.pumpWidgetAndSettle(
       ProviderScope(
-        child: MaterialApp(home: BookingPaymentScreen(booking: booking)),
+        child: MaterialApp(
+          home: BookingPaymentScreen(
+            booking: booking,
+            refreshDerivedFieldsOnInit: false,
+            listenToHotelDayTicker: false,
+          ),
+        ),
       ),
     );
 
-    // التمرير لأسفل والضغط على زر إرسال كشف الحساب
-    await $('إرسال كشف حساب').scrollTo();
-    await $('إرسال كشف حساب').tap();
+    // فتح تبويب الإجراءات ثم الضغط على بطاقة كشف الحساب.
+    await $('الإجراءات').tap();
+    await $.pumpAndSettle();
+    final statementFinder = find.text('إرسال كشف حساب');
+    await $.tester.ensureVisible(statementFinder);
+    await $.tester.tap(find.text('إرسال كشف حساب'));
+    await $.pumpAndSettle();
 
     // ✅ التحقق من ظهور نافذة الحوار
     expect(
-      $(AlertDialog),
+      find.byType(AlertDialog),
       findsOneWidget,
       reason: 'نافذة الحوار يجب أن تظهر عند الضغط على زر إرسال كشف حساب',
     );
 
     // ✅ التحقق من وجود بيانات العميل في النافذة
-    expect($('العميل'), findsOneWidget);
-    expect($('الغرفة'), findsOneWidget);
-    expect($('الهاتف'), findsOneWidget);
+    expect(find.text('العميل'), findsOneWidget);
+    expect(find.text('الغرفة'), findsOneWidget);
+    expect(find.text('الهاتف'), findsOneWidget);
 
     // ✅ التحقق من وجود الملخص المالي
-    expect($('الإجمالي'), findsOneWidget);
-    expect($('المدفوع'), findsOneWidget);
-    expect($('المتبقي'), findsOneWidget);
+    // يظهر العنوان في الملخص وفي صف الإجمالي داخل الحوار.
+    expect(find.text('الإجمالي'), findsWidgets);
+    expect(find.text('المدفوع'), findsWidgets);
+    expect(find.text('المتبقي'), findsWidgets);
 
     // ✅ التحقق من وجود زر معاينة رسالة WhatsApp
-    expect($('معاينة رسالة WhatsApp'), findsOneWidget);
+    expect(find.text('معاينة رسالة WhatsApp'), findsOneWidget);
 
     // ✅ التحقق من وجود أزرار المشاركة
-    expect($('إرسال كنص'), findsOneWidget);
-    expect($('مشاركة PDF'), findsOneWidget);
+    expect(find.text('إرسال كنص'), findsOneWidget);
+    expect(find.text('مشاركة PDF'), findsOneWidget);
   });
 
   patrolTest('يعرض جدول المدفوعات المفصّل عند فتح نافذة كشف الحساب', ($) async {
@@ -159,18 +192,28 @@ void main() {
 
     await $.pumpWidgetAndSettle(
       ProviderScope(
-        child: MaterialApp(home: BookingPaymentScreen(booking: booking)),
+        child: MaterialApp(
+          home: BookingPaymentScreen(
+            booking: booking,
+            refreshDerivedFieldsOnInit: false,
+            listenToHotelDayTicker: false,
+          ),
+        ),
       ),
     );
 
-    // فتح نافذة كشف الحساب
-    await $('إرسال كشف حساب').scrollTo();
-    await $('إرسال كشف حساب').tap();
+    // فتح تبويب الإجراءات ثم بطاقة كشف الحساب.
+    await $('الإجراءات').tap();
+    await $.pumpAndSettle();
+    final statementFinder = find.text('إرسال كشف حساب');
+    await $.tester.ensureVisible(statementFinder);
+    await $.tester.tap(find.text('إرسال كشف حساب'));
+    await $.pumpAndSettle();
 
     // ✅ التحقق من وجود قسم سجل المدفوعات في النافذة
     // (سواء كان فارغاً أو به دفعات — كلاهما يحمل نفس الـ key)
     expect(
-      const ValueKey('payments_section'),
+      find.byKey(const ValueKey('payments_section')),
       findsOneWidget,
       reason: 'يجب أن يوجد قسم لسجل المدفوعات في نافذة كشف الحساب',
     );
@@ -181,13 +224,22 @@ void main() {
 
     await $.pumpWidgetAndSettle(
       ProviderScope(
-        child: MaterialApp(home: BookingPaymentScreen(booking: booking)),
+        child: MaterialApp(
+          home: BookingPaymentScreen(
+            booking: booking,
+            refreshDerivedFieldsOnInit: false,
+            listenToHotelDayTicker: false,
+          ),
+        ),
       ),
     );
 
-    // فتح نافذة كشف الحساب
-    await $('إرسال كشف حساب').scrollTo();
-    await $('إرسال كشف حساب').tap();
+    // فتح تبويب الإجراءات ثم بطاقة كشف الحساب.
+    await $('الإجراءات').tap();
+    await $.pumpAndSettle();
+    final statementFinder = find.text('إرسال كشف حساب');
+    await $.tester.ensureVisible(statementFinder);
+    await $.tester.tap(find.text('إرسال كشف حساب'));
 
     // الضغط على زر المعاينة
     await $('معاينة رسالة WhatsApp').tap();
@@ -216,22 +268,33 @@ void main() {
 
     await $.pumpWidgetAndSettle(
       ProviderScope(
-        child: MaterialApp(home: BookingPaymentScreen(booking: booking)),
+        child: MaterialApp(
+          home: BookingPaymentScreen(
+            booking: booking,
+            refreshDerivedFieldsOnInit: false,
+            listenToHotelDayTicker: false,
+          ),
+        ),
       ),
     );
 
-    // فتح نافذة كشف الحساب
-    await $('إرسال كشف حساب').scrollTo();
-    await $('إرسال كشف حساب').tap();
+    // فتح تبويب الإجراءات ثم بطاقة كشف الحساب.
+    await $('الإجراءات').tap();
+    await $.pumpAndSettle();
+    final statementFinder = find.text('إرسال كشف حساب');
+    await $.tester.ensureVisible(statementFinder);
+    await $.tester.tap(find.text('إرسال كشف حساب'));
+    await $.pumpAndSettle();
 
-    expect($(AlertDialog), findsOneWidget);
+    expect(find.byType(AlertDialog), findsOneWidget);
 
     // الضغط على زر إلغاء
     await $('إلغاء').tap();
+    await $.pumpAndSettle();
 
     // ✅ النافذة أُغلقت
     expect(
-      $(AlertDialog),
+      find.byType(AlertDialog),
       findsNothing,
       reason: 'نافذة الحوار يجب أن تُغلق عند الضغط على إلغاء',
     );

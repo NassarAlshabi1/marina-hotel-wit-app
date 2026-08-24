@@ -11897,6 +11897,39 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _receivedByUserIdMeta = const VerificationMeta(
+    'receivedByUserId',
+  );
+  @override
+  late final GeneratedColumn<int> receivedByUserId = GeneratedColumn<int>(
+    'received_by_user_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _receivedByNameMeta = const VerificationMeta(
+    'receivedByName',
+  );
+  @override
+  late final GeneratedColumn<String> receivedByName = GeneratedColumn<String>(
+    'received_by_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _receivedSessionUuidMeta =
+      const VerificationMeta('receivedSessionUuid');
+  @override
+  late final GeneratedColumn<String> receivedSessionUuid =
+      GeneratedColumn<String>(
+        'received_session_uuid',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -11940,6 +11973,9 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
     voidedBy,
     voidReason,
     isImmutable,
+    receivedByUserId,
+    receivedByName,
+    receivedSessionUuid,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -12287,6 +12323,33 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         ),
       );
     }
+    if (data.containsKey('received_by_user_id')) {
+      context.handle(
+        _receivedByUserIdMeta,
+        receivedByUserId.isAcceptableOrUnknown(
+          data['received_by_user_id']!,
+          _receivedByUserIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('received_by_name')) {
+      context.handle(
+        _receivedByNameMeta,
+        receivedByName.isAcceptableOrUnknown(
+          data['received_by_name']!,
+          _receivedByNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('received_session_uuid')) {
+      context.handle(
+        _receivedSessionUuidMeta,
+        receivedSessionUuid.isAcceptableOrUnknown(
+          data['received_session_uuid']!,
+          _receivedSessionUuidMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -12460,6 +12523,18 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         DriftSqlType.bool,
         data['${effectivePrefix}is_immutable'],
       )!,
+      receivedByUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}received_by_user_id'],
+      ),
+      receivedByName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}received_by_name'],
+      ),
+      receivedSessionUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}received_session_uuid'],
+      ),
     );
   }
 
@@ -12511,6 +12586,9 @@ class Payment extends DataClass implements Insertable<Payment> {
   final String? voidedBy;
   final String? voidReason;
   final bool isImmutable;
+  final int? receivedByUserId;
+  final String? receivedByName;
+  final String? receivedSessionUuid;
   const Payment({
     required this.localUuid,
     this.serverId,
@@ -12553,6 +12631,9 @@ class Payment extends DataClass implements Insertable<Payment> {
     this.voidedBy,
     this.voidReason,
     required this.isImmutable,
+    this.receivedByUserId,
+    this.receivedByName,
+    this.receivedSessionUuid,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -12644,6 +12725,15 @@ class Payment extends DataClass implements Insertable<Payment> {
       map['void_reason'] = Variable<String>(voidReason);
     }
     map['is_immutable'] = Variable<bool>(isImmutable);
+    if (!nullToAbsent || receivedByUserId != null) {
+      map['received_by_user_id'] = Variable<int>(receivedByUserId);
+    }
+    if (!nullToAbsent || receivedByName != null) {
+      map['received_by_name'] = Variable<String>(receivedByName);
+    }
+    if (!nullToAbsent || receivedSessionUuid != null) {
+      map['received_session_uuid'] = Variable<String>(receivedSessionUuid);
+    }
     return map;
   }
 
@@ -12734,6 +12824,15 @@ class Payment extends DataClass implements Insertable<Payment> {
           ? const Value.absent()
           : Value(voidReason),
       isImmutable: Value(isImmutable),
+      receivedByUserId: receivedByUserId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(receivedByUserId),
+      receivedByName: receivedByName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(receivedByName),
+      receivedSessionUuid: receivedSessionUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(receivedSessionUuid),
     );
   }
 
@@ -12790,6 +12889,11 @@ class Payment extends DataClass implements Insertable<Payment> {
       voidedBy: serializer.fromJson<String?>(json['voidedBy']),
       voidReason: serializer.fromJson<String?>(json['voidReason']),
       isImmutable: serializer.fromJson<bool>(json['isImmutable']),
+      receivedByUserId: serializer.fromJson<int?>(json['receivedByUserId']),
+      receivedByName: serializer.fromJson<String?>(json['receivedByName']),
+      receivedSessionUuid: serializer.fromJson<String?>(
+        json['receivedSessionUuid'],
+      ),
     );
   }
   @override
@@ -12839,6 +12943,9 @@ class Payment extends DataClass implements Insertable<Payment> {
       'voidedBy': serializer.toJson<String?>(voidedBy),
       'voidReason': serializer.toJson<String?>(voidReason),
       'isImmutable': serializer.toJson<bool>(isImmutable),
+      'receivedByUserId': serializer.toJson<int?>(receivedByUserId),
+      'receivedByName': serializer.toJson<String?>(receivedByName),
+      'receivedSessionUuid': serializer.toJson<String?>(receivedSessionUuid),
     };
   }
 
@@ -12884,6 +12991,9 @@ class Payment extends DataClass implements Insertable<Payment> {
     Value<String?> voidedBy = const Value.absent(),
     Value<String?> voidReason = const Value.absent(),
     bool? isImmutable,
+    Value<int?> receivedByUserId = const Value.absent(),
+    Value<String?> receivedByName = const Value.absent(),
+    Value<String?> receivedSessionUuid = const Value.absent(),
   }) => Payment(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -12948,6 +13058,15 @@ class Payment extends DataClass implements Insertable<Payment> {
     voidedBy: voidedBy.present ? voidedBy.value : this.voidedBy,
     voidReason: voidReason.present ? voidReason.value : this.voidReason,
     isImmutable: isImmutable ?? this.isImmutable,
+    receivedByUserId: receivedByUserId.present
+        ? receivedByUserId.value
+        : this.receivedByUserId,
+    receivedByName: receivedByName.present
+        ? receivedByName.value
+        : this.receivedByName,
+    receivedSessionUuid: receivedSessionUuid.present
+        ? receivedSessionUuid.value
+        : this.receivedSessionUuid,
   );
   Payment copyWithCompanion(PaymentsCompanion data) {
     return Payment(
@@ -13046,6 +13165,15 @@ class Payment extends DataClass implements Insertable<Payment> {
       isImmutable: data.isImmutable.present
           ? data.isImmutable.value
           : this.isImmutable,
+      receivedByUserId: data.receivedByUserId.present
+          ? data.receivedByUserId.value
+          : this.receivedByUserId,
+      receivedByName: data.receivedByName.present
+          ? data.receivedByName.value
+          : this.receivedByName,
+      receivedSessionUuid: data.receivedSessionUuid.present
+          ? data.receivedSessionUuid.value
+          : this.receivedSessionUuid,
     );
   }
 
@@ -13092,7 +13220,10 @@ class Payment extends DataClass implements Insertable<Payment> {
           ..write('voidedAt: $voidedAt, ')
           ..write('voidedBy: $voidedBy, ')
           ..write('voidReason: $voidReason, ')
-          ..write('isImmutable: $isImmutable')
+          ..write('isImmutable: $isImmutable, ')
+          ..write('receivedByUserId: $receivedByUserId, ')
+          ..write('receivedByName: $receivedByName, ')
+          ..write('receivedSessionUuid: $receivedSessionUuid')
           ..write(')'))
         .toString();
   }
@@ -13140,6 +13271,9 @@ class Payment extends DataClass implements Insertable<Payment> {
     voidedBy,
     voidReason,
     isImmutable,
+    receivedByUserId,
+    receivedByName,
+    receivedSessionUuid,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -13185,7 +13319,10 @@ class Payment extends DataClass implements Insertable<Payment> {
           other.voidedAt == this.voidedAt &&
           other.voidedBy == this.voidedBy &&
           other.voidReason == this.voidReason &&
-          other.isImmutable == this.isImmutable);
+          other.isImmutable == this.isImmutable &&
+          other.receivedByUserId == this.receivedByUserId &&
+          other.receivedByName == this.receivedByName &&
+          other.receivedSessionUuid == this.receivedSessionUuid);
 }
 
 class PaymentsCompanion extends UpdateCompanion<Payment> {
@@ -13230,6 +13367,9 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
   final Value<String?> voidedBy;
   final Value<String?> voidReason;
   final Value<bool> isImmutable;
+  final Value<int?> receivedByUserId;
+  final Value<String?> receivedByName;
+  final Value<String?> receivedSessionUuid;
   const PaymentsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -13272,6 +13412,9 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.voidedBy = const Value.absent(),
     this.voidReason = const Value.absent(),
     this.isImmutable = const Value.absent(),
+    this.receivedByUserId = const Value.absent(),
+    this.receivedByName = const Value.absent(),
+    this.receivedSessionUuid = const Value.absent(),
   });
   PaymentsCompanion.insert({
     required String localUuid,
@@ -13315,6 +13458,9 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.voidedBy = const Value.absent(),
     this.voidReason = const Value.absent(),
     this.isImmutable = const Value.absent(),
+    this.receivedByUserId = const Value.absent(),
+    this.receivedByName = const Value.absent(),
+    this.receivedSessionUuid = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -13365,6 +13511,9 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     Expression<String>? voidedBy,
     Expression<String>? voidReason,
     Expression<bool>? isImmutable,
+    Expression<int>? receivedByUserId,
+    Expression<String>? receivedByName,
+    Expression<String>? receivedSessionUuid,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -13410,6 +13559,10 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       if (voidedBy != null) 'voided_by': voidedBy,
       if (voidReason != null) 'void_reason': voidReason,
       if (isImmutable != null) 'is_immutable': isImmutable,
+      if (receivedByUserId != null) 'received_by_user_id': receivedByUserId,
+      if (receivedByName != null) 'received_by_name': receivedByName,
+      if (receivedSessionUuid != null)
+        'received_session_uuid': receivedSessionUuid,
     });
   }
 
@@ -13455,6 +13608,9 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     Value<String?>? voidedBy,
     Value<String?>? voidReason,
     Value<bool>? isImmutable,
+    Value<int?>? receivedByUserId,
+    Value<String?>? receivedByName,
+    Value<String?>? receivedSessionUuid,
   }) {
     return PaymentsCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -13500,6 +13656,9 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       voidedBy: voidedBy ?? this.voidedBy,
       voidReason: voidReason ?? this.voidReason,
       isImmutable: isImmutable ?? this.isImmutable,
+      receivedByUserId: receivedByUserId ?? this.receivedByUserId,
+      receivedByName: receivedByName ?? this.receivedByName,
+      receivedSessionUuid: receivedSessionUuid ?? this.receivedSessionUuid,
     );
   }
 
@@ -13633,6 +13792,17 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     if (isImmutable.present) {
       map['is_immutable'] = Variable<bool>(isImmutable.value);
     }
+    if (receivedByUserId.present) {
+      map['received_by_user_id'] = Variable<int>(receivedByUserId.value);
+    }
+    if (receivedByName.present) {
+      map['received_by_name'] = Variable<String>(receivedByName.value);
+    }
+    if (receivedSessionUuid.present) {
+      map['received_session_uuid'] = Variable<String>(
+        receivedSessionUuid.value,
+      );
+    }
     return map;
   }
 
@@ -13679,7 +13849,10 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
           ..write('voidedAt: $voidedAt, ')
           ..write('voidedBy: $voidedBy, ')
           ..write('voidReason: $voidReason, ')
-          ..write('isImmutable: $isImmutable')
+          ..write('isImmutable: $isImmutable, ')
+          ..write('receivedByUserId: $receivedByUserId, ')
+          ..write('receivedByName: $receivedByName, ')
+          ..write('receivedSessionUuid: $receivedSessionUuid')
           ..write(')'))
         .toString();
   }
@@ -46562,6 +46735,9 @@ typedef $$PaymentsTableCreateCompanionBuilder =
       Value<String?> voidedBy,
       Value<String?> voidReason,
       Value<bool> isImmutable,
+      Value<int?> receivedByUserId,
+      Value<String?> receivedByName,
+      Value<String?> receivedSessionUuid,
     });
 typedef $$PaymentsTableUpdateCompanionBuilder =
     PaymentsCompanion Function({
@@ -46606,6 +46782,9 @@ typedef $$PaymentsTableUpdateCompanionBuilder =
       Value<String?> voidedBy,
       Value<String?> voidReason,
       Value<bool> isImmutable,
+      Value<int?> receivedByUserId,
+      Value<String?> receivedByName,
+      Value<String?> receivedSessionUuid,
     });
 
 final class $$PaymentsTableReferences
@@ -46853,6 +47032,21 @@ class $$PaymentsTableFilterComposer
 
   ColumnFilters<bool> get isImmutable => $composableBuilder(
     column: $table.isImmutable,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get receivedByUserId => $composableBuilder(
+    column: $table.receivedByUserId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get receivedByName => $composableBuilder(
+    column: $table.receivedByName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get receivedSessionUuid => $composableBuilder(
+    column: $table.receivedSessionUuid,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -47107,6 +47301,21 @@ class $$PaymentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get receivedByUserId => $composableBuilder(
+    column: $table.receivedByUserId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get receivedByName => $composableBuilder(
+    column: $table.receivedByName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get receivedSessionUuid => $composableBuilder(
+    column: $table.receivedSessionUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$BookingsTableOrderingComposer get bookingLocalId {
     final $$BookingsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -47330,6 +47539,21 @@ class $$PaymentsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get receivedByUserId => $composableBuilder(
+    column: $table.receivedByUserId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get receivedByName => $composableBuilder(
+    column: $table.receivedByName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get receivedSessionUuid => $composableBuilder(
+    column: $table.receivedSessionUuid,
+    builder: (column) => column,
+  );
+
   $$BookingsTableAnnotationComposer get bookingLocalId {
     final $$BookingsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -47449,6 +47673,9 @@ class $$PaymentsTableTableManager
                 Value<String?> voidedBy = const Value.absent(),
                 Value<String?> voidReason = const Value.absent(),
                 Value<bool> isImmutable = const Value.absent(),
+                Value<int?> receivedByUserId = const Value.absent(),
+                Value<String?> receivedByName = const Value.absent(),
+                Value<String?> receivedSessionUuid = const Value.absent(),
               }) => PaymentsCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -47491,6 +47718,9 @@ class $$PaymentsTableTableManager
                 voidedBy: voidedBy,
                 voidReason: voidReason,
                 isImmutable: isImmutable,
+                receivedByUserId: receivedByUserId,
+                receivedByName: receivedByName,
+                receivedSessionUuid: receivedSessionUuid,
               ),
           createCompanionCallback:
               ({
@@ -47535,6 +47765,9 @@ class $$PaymentsTableTableManager
                 Value<String?> voidedBy = const Value.absent(),
                 Value<String?> voidReason = const Value.absent(),
                 Value<bool> isImmutable = const Value.absent(),
+                Value<int?> receivedByUserId = const Value.absent(),
+                Value<String?> receivedByName = const Value.absent(),
+                Value<String?> receivedSessionUuid = const Value.absent(),
               }) => PaymentsCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -47577,6 +47810,9 @@ class $$PaymentsTableTableManager
                 voidedBy: voidedBy,
                 voidReason: voidReason,
                 isImmutable: isImmutable,
+                receivedByUserId: receivedByUserId,
+                receivedByName: receivedByName,
+                receivedSessionUuid: receivedSessionUuid,
               ),
           withReferenceMapper: (p0) => p0
               .map(

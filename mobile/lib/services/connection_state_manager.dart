@@ -15,15 +15,32 @@ enum ConnectionStatus { online, offline, checking, unknown }
 /// ويوفر stream للاستماع للتغييرات
 class ConnectionStateManager extends ChangeNotifier {
   factory ConnectionStateManager() => _instance;
-  ConnectionStateManager._internal();
+
+  ConnectionStateManager._internal({
+    required Connectivity connectivity,
+    required Future<void> Function() appwriteProbe,
+  }) : _connectivity = connectivity,
+       _appwriteProbe = appwriteProbe;
+
+  /// Constructor محدود للاختبارات: يسمح بمحاكاة offline/online وعدّ الطلبات.
+  ConnectionStateManager.forTesting({
+    required Connectivity connectivity,
+    required Future<void> Function() appwriteProbe,
+  }) : this._internal(connectivity: connectivity, appwriteProbe: appwriteProbe);
+
   static final ConnectionStateManager _instance =
-      ConnectionStateManager._internal();
+      ConnectionStateManager._internal(
+        connectivity: Connectivity(),
+        appwriteProbe: () => AppwriteService().quickConnectionTest(),
+      );
 
   final _logger = AppwriteLogger();
-  final _connectivity = Connectivity();
+  final Connectivity _connectivity;
+  final Future<void> Function() _appwriteProbe;
 
   ConnectionStatus _status = ConnectionStatus.unknown;
   DateTime? _lastCheckTime;
+  bool _hasNetworkTransport = false;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   Timer? _periodicCheckTimer;
 
@@ -72,32 +89,57 @@ class ConnectionStateManager extends ChangeNotifier {
       },
     );
 
-    // فحص دوري كل 30 ثانية
-    _periodicCheckTimer = Timer.periodic(
-      const Duration(seconds: 30),
-      (_) => checkConnection(),
-    );
+    // فحص دوري كل 30 ثانية، لكن لا نرسل أي طلب عند offline.
+    _periodicCheckTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (_hasNetworkTransport) {
+        unawaited(checkConnection());
+      }
+    });
 
-    // فحص أولي
-    await checkConnection();
+    // فحص أولي: نقرأ حالة الشبكة أولاً حتى لا نبدأ loop طلبات Appwrite
+    // على جهاز غير متصل.
+    final initialResults = await _connectivity.checkConnectivity();
+    _hasNetworkTransport = initialResults.any(
+      (result) => result != ConnectivityResult.none,
+    );
+    if (_hasNetworkTransport) {
+      await checkConnection();
+    } else {
+      _updateStatus(ConnectionStatus.offline);
+    }
   }
 
   /// معالج تغييرات الاتصال
   void _onConnectivityChanged(List<ConnectivityResult> results) {
     _logger.debug('Connectivity changed: $results', tag: 'CONNECTION');
 
-    // إذا لا يوجد اتصال على الإطلاق
-    if (results.isEmpty || results.every((r) => r == ConnectivityResult.none)) {
+    final wasNetworkAvailable = _hasNetworkTransport;
+    _hasNetworkTransport = results.any(
+      (result) => result != ConnectivityResult.none,
+    );
+
+    // إذا لا يوجد اتصال على الإطلاق: حدّث الحالة فقط ولا تفحص Appwrite.
+    if (!_hasNetworkTransport) {
       _updateStatus(ConnectionStatus.offline);
       return;
     }
 
-    // يوجد اتصال - فحص Appwrite
-    checkConnection();
+    // نفّذ فحصاً واحداً فقط عند انتقال الحالة من offline إلى online.
+    // تغيّر Wi-Fi إلى Mobile أو العكس لا يعيد probe بلا حاجة.
+    if (!wasNetworkAvailable) {
+      unawaited(checkConnection());
+    }
   }
 
   /// فحص حالة الاتصال
   Future<void> checkConnection() async {
+    // لا توجد فائدة من تكرار طلبات الشبكة عندما أكد Connectivity أن الجهاز
+    // offline. سيُستأنف الفحص من _onConnectivityChanged عند عودة الاتصال.
+    if (!_hasNetworkTransport) {
+      _updateStatus(ConnectionStatus.offline);
+      return;
+    }
+
     if (_status == ConnectionStatus.checking) {
       _logger.debug('Connection check already in progress', tag: 'CONNECTION');
       return;
@@ -106,9 +148,8 @@ class ConnectionStateManager extends ChangeNotifier {
     _updateStatus(ConnectionStatus.checking);
 
     try {
-      // محاولة طلب بسيط للتحقق من Appwrite
-      final appwriteService = AppwriteService();
-      await appwriteService.quickConnectionTest();
+      // محاولة طلب بسيط للتحقق من Appwrite.
+      await _appwriteProbe();
 
       _updateStatus(ConnectionStatus.online);
       _lastCheckTime = DateTime.now();

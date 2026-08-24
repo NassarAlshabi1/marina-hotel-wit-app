@@ -1039,6 +1039,7 @@ class GoogleDriveBackupService {
   /// تنزيل واستعادة نسخة .db
   Future<void> restoreDbBackup(String fileId) async {
     return _runWithAuth<void>(() async {
+      String? tempPath;
       try {
         // ✅ إصلاح (2026-06-28): جلب appProperties للتحقق من الـ checksum
         // قبل تنزيل المحتوى الكامل (تحسين الأداء + كشف التلف مبكراً)
@@ -1066,6 +1067,7 @@ class GoogleDriveBackupService {
         final tempDir = await getTemporaryDirectory();
         final fileName = 'restore_${DateTime.now().millisecondsSinceEpoch}.db';
         final tempFile = File(p.join(tempDir.path, fileName));
+        tempPath = tempFile.path;
 
         // كتابة البيانات إلى الملف المؤقت
         final List<int> dataStore = [];
@@ -1110,13 +1112,23 @@ class GoogleDriveBackupService {
         // استعادة قاعدة البيانات
         await SqliteBackupRestore.restoreDatabase(tempFile.path);
 
-        // حذف الملف المؤقت
-        await tempFile.delete();
-
         _log('✅ تم استعادة نسخة .db بنجاح');
       } catch (e) {
         _log('❌ خطأ في استعادة نسخة .db: $e');
         rethrow;
+      } finally {
+        final restoredTempPath = tempPath;
+        if (restoredTempPath != null) {
+          final tempFile = File(restoredTempPath);
+          if (tempFile.existsSync()) {
+            try {
+              await tempFile.delete();
+              _log('🧹 تم حذف ملف الاستعادة المؤقت');
+            } catch (cleanupError) {
+              _log('⚠️ تعذر حذف ملف الاستعادة المؤقت: $cleanupError');
+            }
+          }
+        }
       }
     });
   }

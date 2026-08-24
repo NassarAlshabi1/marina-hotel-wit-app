@@ -54,8 +54,14 @@ jobs:
       - name: Generate sources
         run: dart run build_runner build --delete-conflicting-outputs
 
-      - name: Build profile APK
-        run: flutter build apk --profile
+      - name: Run five-cycle CRUD and Outbox stress harness
+        run: |
+          mkdir -p build/low-ram-performance
+          flutter test test/performance/crud_sync_memory_stress_test.dart --reporter expanded \
+            | tee build/low-ram-performance/crud_sync_stress.log
+
+      - name: Build profile APK with performance instrumentation
+        run: flutter build apk --profile --dart-define=MARINA_ENABLE_PERF_PROFILE=true
 
       - name: Start 1GB Android emulator and measure app PSS
         uses: reactivecircus/android-emulator-runner@v2
@@ -73,8 +79,19 @@ jobs:
             cd "$ANDROID_SDK_ROOT/.." >/dev/null 2>&1 || true
             cd "$GITHUB_WORKSPACE"
             mkdir -p mobile/build/low-ram-performance
-            chmod +x scripts/android_low_ram_memory_test.sh
-            MAX_PSS_KB=393216 scripts/android_low_ram_memory_test.sh --package com.aden.marina --apk mobile/build/app/outputs/flutter-apk/app-profile.apk --output mobile/build/low-ram-performance
+            chmod +x scripts/android_low_ram_memory_test.sh scripts/android_low_ram_navigation_actions.sh
+            LOW_RAM_ACTION_LOG="$GITHUB_WORKSPACE/mobile/build/low-ram-performance/navigation_actions.log" LOW_RAM_PERF_REPORT_REMOTE_PATH=files/marina_performance_report.json MAX_PSS_KB=393216 LOW_RAM_CYCLES=5 LOW_RAM_SWIPES=8 scripts/android_low_ram_memory_test.sh --package com.aden.marina --apk mobile/build/app/outputs/flutter-apk/app-profile.apk --cycles 5 --swipes 8 --action-script scripts/android_low_ram_navigation_actions.sh --perf-report-path files/marina_performance_report.json --output mobile/build/low-ram-performance
+
+      - name: Analyze profile Frame/Build/Raster reports
+        if: always()
+        run: |
+          if [ -d build/low-ram-performance/raw ]; then
+            python3 ../scripts/analyze_profile_performance.py \
+              --raw-dir build/low-ram-performance/raw \
+              --output-dir build/low-ram-performance
+          else
+            printf 'status=NO_MEMINFO_ARTIFACT\n' > build/low-ram-performance/frame_summary.txt
+          fi
 
       - name: Publish low-RAM summary
         if: always()
@@ -84,6 +101,15 @@ jobs:
             echo '```text' >> "$GITHUB_STEP_SUMMARY"
             cat build/low-ram-performance/summary.txt >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo '' >> "$GITHUB_STEP_SUMMARY"
+            if [ -f build/low-ram-performance/frame_summary.txt ]; then
+              echo '' >> "$GITHUB_STEP_SUMMARY"
+              echo '### Frame/Build/Raster profile summary' >> "$GITHUB_STEP_SUMMARY"
+              echo '```text' >> "$GITHUB_STEP_SUMMARY"
+              cat build/low-ram-performance/frame_summary.txt >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+            fi
+            echo 'Detailed dumpsys meminfo snapshots and lifecycle.log are included in the artifact.' >> "$GITHUB_STEP_SUMMARY"
           else
             echo 'The emulator measurement did not produce a summary.' >> "$GITHUB_STEP_SUMMARY"
           fi

@@ -17,8 +17,6 @@ import '../../services/appwrite_models.dart';
 import 'appwrite_connection_settings_screen.dart';
 import 'appwrite_logs_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
-import 'sync/unified_sync_settings_screen.dart';
-import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
 
 class AppwriteSettingsScreen extends ConsumerStatefulWidget {
   const AppwriteSettingsScreen({super.key});
@@ -306,29 +304,13 @@ class _AppwriteSettingsScreenState
               ),
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _syncNow,
-                    icon: const Icon(Icons.sync),
-                    label: const Text('مزامنة الآن'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => Navigator.push<void>(
-                      context,
-                      MaterialPageRoute<void>(
-                        builder: (_) => const UnifiedSyncSettingsScreen(),
-                      ),
-                    ),
-                    icon: const Icon(Icons.tune),
-                    label: const Text('إعدادات المزامنة'),
-                  ),
-                ),
-              ],
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isLoading ? null : _syncNow,
+                icon: const Icon(Icons.sync),
+                label: const Text('مزامنة الآن'),
+              ),
             ),
             Align(
               alignment: Alignment.centerRight,
@@ -619,31 +601,6 @@ class _AppwriteSettingsScreenState
                 setState(() => _logFile = value);
                 _saveLocalSettings();
               },
-            ),
-
-            const SizedBox(height: 12),
-
-            // زر النسخ الاحتياطي الشامل
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push<void>(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (context) =>
-                          const backup_v2.ComprehensiveBackupScreen(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.backup),
-                label: const Text('النسخ الاحتياطي الشامل والاستعادة'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.purple.shade700,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
             ),
 
             const Divider(height: 24),

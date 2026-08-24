@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/appwrite_providers.dart';
+import '../providers/auth_provider.dart';
 import '../providers/core_providers.dart';
 import '../providers/repository_providers.dart';
 import '../providers/room_payment_status_provider.dart';
@@ -14,6 +15,7 @@ import '../services/local_db.dart';
 import '../services/sync/sync_gate.dart';
 import '../services/sync_constants.dart';
 import '../utils/loading_snackbar.dart';
+import '../utils/performance_config.dart';
 import '../utils/performance_monitor.dart';
 import '../utils/status_utils.dart';
 import '../widgets/dashboard_conflicts_badge.dart';
@@ -189,6 +191,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               _buildRoomsSection(),
               const SizedBox(height: 12),
               _buildColorInstructions(),
+              const SizedBox(height: 12),
+              _buildCurrentUserSessionPayments(),
             ],
           ),
         ),
@@ -397,13 +401,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0D000000),
-              blurRadius: 4,
-              offset: Offset(0, 2),
-            ),
-          ],
+          boxShadow: isLowEndDevice
+              ? const []
+              : const [
+                  BoxShadow(
+                    color: Color(0x0D000000),
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
+                  ),
+                ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -902,6 +908,90 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               },
               child: const Text('حجز جديد'),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCurrentUserSessionPayments() {
+    final auth = ref.watch(authProvider);
+    final userName = auth.currentUser?.name ?? 'المستخدم الحالي';
+    final paymentsAsync = ref.watch(currentUserSessionPaymentsProvider);
+    final currencyFmt = NumberFormat('#,##0', 'en_US');
+
+    return paymentsAsync.when(
+      loading: () => _buildSessionPaymentCard(userName, '...', false),
+      error: (error, _) => _buildSessionPaymentCard(userName, '--', false),
+      data: (total) =>
+          _buildSessionPaymentCard(userName, currencyFmt.format(total), true),
+    );
+  }
+
+  Widget _buildSessionPaymentCard(
+    String userName,
+    String amount,
+    bool hasData,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.shade100),
+        boxShadow: isLowEndDevice
+            ? const []
+            : const [
+                BoxShadow(
+                  color: Color(0x0D000000),
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                ),
+              ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.account_balance_wallet_outlined,
+              color: Colors.green.shade700,
+              size: 19,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'إجمالي استلام $userName في النوبة',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'منذ تسجيل الدخول • اليوم الفندقي الحالي',
+                  style: TextStyle(fontSize: 9, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            amount,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: hasData ? Colors.green.shade700 : Colors.grey.shade600,
+            ),
+          ),
         ],
       ),
     );

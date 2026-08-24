@@ -207,10 +207,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
   }
 
+  /// يحدّث الحقول المشتقة للعرض فقط؛ فتح الشاشة ليس تغييراً من المستخدم.
+  /// لذلك لا ينبغي أن ينشئ Outbox أو يغيّر قائمة التغييرات المحلية.
   Future<void> _refreshBookingNights() async {
     final db = ref.read(databaseProvider);
     final derivedService = BookingDerivedFieldsService(db);
-    await derivedService.refreshForBookingId(widget.booking.id);
+    await derivedService.refreshForBookingId(
+      widget.booking.id,
+      enqueueOutbox: false,
+    );
   }
 
   DateTime? _parseDateTime(String? value) => DateParser.parse(value);
@@ -1427,7 +1432,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final dbInstance = ref.read(databaseProvider);
     final derivedService = BookingDerivedFieldsService(dbInstance);
 
-    await derivedService.refreshForBookingId(widget.booking.id);
+    // الحساب التمهيدي للعرض/التحقق لا يمثل عملية حفظ؛ لا تنشئ Outbox هنا.
+    await derivedService.refreshForBookingId(
+      widget.booking.id,
+      enqueueOutbox: false,
+    );
 
     final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
     final double roomRate = room?.price ?? 0;
@@ -2944,7 +2953,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             children: [
               Icon(Icons.receipt_long, color: Colors.orange),
               SizedBox(width: 8),
-              Text('إرسال كشف حساب'),
+              Expanded(
+                child: Text('إرسال كشف حساب', overflow: TextOverflow.ellipsis),
+              ),
             ],
           ),
           content: SizedBox(
@@ -3089,32 +3100,40 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ),
             ),
           ),
+          // Wrap prevents the three actions from overflowing on narrow phones.
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('إلغاء'),
-            ),
-            // ✅ مشاركة كنص WhatsApp
-            FilledButton.tonalIcon(
-              onPressed: () {
-                Navigator.pop(context);
-                _sendStatementViaWhatsAppText(summary);
-              },
-              icon: const Icon(Icons.chat, size: 18),
-              label: const Text('إرسال كنص'),
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.green.shade100,
-              ),
-            ),
-            // ✅ مشاركة PDF عبر Share sheet
-            FilledButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                _sendStatementViaPdf(summary);
-              },
-              icon: const Icon(Icons.share, size: 18),
-              label: const Text('مشاركة PDF'),
-              style: FilledButton.styleFrom(backgroundColor: Colors.orange),
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('إلغاء'),
+                ),
+                // ✅ مشاركة كنص WhatsApp
+                FilledButton.tonalIcon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _sendStatementViaWhatsAppText(summary);
+                  },
+                  icon: const Icon(Icons.chat, size: 18),
+                  label: const Text('إرسال كنص'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.green.shade100,
+                  ),
+                ),
+                // ✅ مشاركة PDF عبر Share sheet
+                FilledButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _sendStatementViaPdf(summary);
+                  },
+                  icon: const Icon(Icons.share, size: 18),
+                  label: const Text('مشاركة PDF'),
+                  style: FilledButton.styleFrom(backgroundColor: Colors.orange),
+                ),
+              ],
             ),
           ],
         ),

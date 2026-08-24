@@ -87,6 +87,15 @@ class SyncResult {
 /// تشمل انقطاع الإنترنت، فشل DNS، انتهاء المهلة، وإعادة ضبط الاتصال.
 /// هذه الأخطاء يجب أن تبقي Outbox في حالته المعلقة وتُعاد محاولتها لاحقاً،
 /// ولا ينبغي تسجيلها كـ Fatal في Crashlytics أو إرسال تنبيه إداري لكل جهاز.
+Future<bool> _hasNetworkConnection() async {
+  try {
+    final results = await Connectivity().checkConnectivity();
+    return results.any((result) => result != ConnectivityResult.none);
+  } catch (_) {
+    return false;
+  }
+}
+
 bool _isTransientNetworkSyncError(Object error) {
   if (error is SocketException || error is TimeoutException) {
     return true;
@@ -565,6 +574,15 @@ class AppwriteSyncManager {
         return;
       }
       try {
+        // فحص محلي سريع فقط؛ لا نبدأ دورة Appwrite عند offline.
+        if (!await _hasNetworkConnection()) {
+          _logger.debug(
+            'Auto sync skipped — no network connection',
+            tag: 'SYNC',
+          );
+          return;
+        }
+
         final prefs = await SharedPreferences.getInstance();
         final syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
         final autoSyncEnabled =
@@ -625,6 +643,14 @@ class AppwriteSyncManager {
     _failedRetryTimer?.cancel();
     _failedRetryTimer = Timer.periodic(const Duration(minutes: 5), (_) async {
       try {
+        if (!await _hasNetworkConnection()) {
+          _logger.debug(
+            'Failed outbox retry skipped — no network connection',
+            tag: 'SYNC',
+          );
+          return;
+        }
+
         final failedCount = await outboxDao.count();
         if (failedCount == 0) return;
 
@@ -697,6 +723,14 @@ class AppwriteSyncManager {
           (_) {
             _debouncePushTimer?.cancel();
             _debouncePushTimer = Timer(_debounceWindow, () async {
+              if (!await _hasNetworkConnection()) {
+                _logger.debug(
+                  'Debounced push skipped — no network connection',
+                  tag: 'SYNC',
+                );
+                return;
+              }
+
               _logger.debug('Debounced push triggered', tag: 'SYNC');
               try {
                 final result = await sync(pull: false);

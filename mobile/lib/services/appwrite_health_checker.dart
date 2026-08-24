@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:appwrite/appwrite.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'appwrite_config.dart';
 import 'appwrite_config_manager.dart';
@@ -115,14 +116,36 @@ class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
   factory AppwriteHealthNotifier() => instance;
 
   Timer? _checkTimer;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  final _connectivity = Connectivity();
+  bool _hasNetworkTransport = false;
   bool _isChecking = false;
 
   /// بدء الفحص الدوري كل [interval] (افتراضياً 30 ثانية)
   void startPeriodicCheck({Duration interval = const Duration(seconds: 30)}) {
     stopPeriodicCheck();
-    // فحص فوري عند البدء
-    checkNow();
-    _checkTimer = Timer.periodic(interval, (_) => checkNow());
+
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
+      results,
+    ) {
+      final wasAvailable = _hasNetworkTransport;
+      _hasNetworkTransport = results.any(
+        (result) => result != ConnectivityResult.none,
+      );
+      if (_hasNetworkTransport && !wasAvailable) {
+        unawaited(checkNow());
+      } else if (!_hasNetworkTransport && wasAvailable) {
+        _setOfflineState();
+      }
+    });
+
+    // فحص فوري عند البدء؛ checkNow يقرر محلياً هل توجد شبكة قبل طلب Appwrite.
+    unawaited(checkNow());
+    _checkTimer = Timer.periodic(interval, (_) {
+      if (_hasNetworkTransport) {
+        unawaited(checkNow());
+      }
+    });
     dlog(
       () =>
           '🏥 [HealthChecker] Started periodic check every ${interval.inSeconds}s',
@@ -133,6 +156,8 @@ class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
   void stopPeriodicCheck() {
     _checkTimer?.cancel();
     _checkTimer = null;
+    _connectivitySubscription?.cancel();
+    _connectivitySubscription = null;
   }
 
   /// فحص فوري لحالة الوجهتين
@@ -141,6 +166,15 @@ class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
     _isChecking = true;
 
     try {
+      final connectivity = await _connectivity.checkConnectivity();
+      _hasNetworkTransport = connectivity.any(
+        (result) => result != ConnectivityResult.none,
+      );
+      if (!_hasNetworkTransport) {
+        _setOfflineState();
+        return;
+      }
+
       final results = await Future.wait([_checkPrimary(), _checkSecondary()]);
 
       final primaryResult = results[0];
@@ -172,6 +206,16 @@ class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
     } finally {
       _isChecking = false;
     }
+  }
+
+  void _setOfflineState() {
+    state = AppwriteHealthState(
+      primaryHealth: EndpointHealth.unreachable,
+      secondaryHealth: EndpointHealth.unknown,
+      lastCheckedAt: DateTime.now(),
+      primaryError: 'No internet connection',
+    );
+    AppwriteHealthStatus.instance.update(state);
   }
 
   /// فحص الوجهة الرئيسية

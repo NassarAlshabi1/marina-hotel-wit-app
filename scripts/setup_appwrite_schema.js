@@ -327,6 +327,22 @@ async function addPaymentsImmutabilityFields() {
   await createIndex('payments', 'idx_voided', IndexType.Key, ['isVoided']);
 }
 
+async function addPaymentsReceiverFields() {
+  console.log('\\n📦 Adding payment receiver/session fields...');
+
+  await createIntegerAttribute('payments', 'receivedByUserId', false);
+  await createStringAttribute('payments', 'receivedByName', 200, false);
+  await createStringAttribute('payments', 'receivedSessionUuid', 36, false);
+
+  console.log('  ⏳ Waiting for attributes...');
+  await sleep(5000);
+  await createIndex('payments', 'idx_receiver_session', IndexType.Key, [
+    'receivedByUserId',
+    'receivedSessionUuid',
+    'hotelDayKey',
+  ]);
+}
+
 async function addBookingsFinancialFields() {
   console.log('\n📦 Adding financial freeze fields to bookings collection...');
   
@@ -355,6 +371,7 @@ async function main() {
     // Phase 2: Update existing collections
     await addHotelDayLedgerFields();
     await addPaymentsImmutabilityFields();
+    await addPaymentsReceiverFields();
     await addBookingsFinancialFields();
 
     console.log('\n═══════════════════════════════════════════════════════════');

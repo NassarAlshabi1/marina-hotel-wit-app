@@ -9,6 +9,7 @@ import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
 import 'booking_derived_fields_service.dart';
 import 'local_db.dart';
+import 'repositories/payments_repository.dart';
 import 'price_adjustment_service.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
@@ -1965,26 +1966,15 @@ class GeminiService {
             break;
           }
 
-          final uuid = _uuid.v4();
-          await db
-              .into(db.payments)
-              .insert(
-                PaymentsCompanion(
-                  bookingLocalId: Value(activeBooking.id),
-                  roomNumber: Value(roomNumber),
-                  amount: Value(amount),
-                  paymentDate: Value(now.toIso8601String().split('T')[0]),
-                  paymentMethod: const Value('cash'),
-                  revenueType: const Value('room_rent'),
-                  notes: Value(notes),
-                  localUuid: Value(uuid),
-                  createdAt: Value(now.millisecondsSinceEpoch),
-                  updatedAt: Value(now.millisecondsSinceEpoch),
-                  lastModified: Value(now.millisecondsSinceEpoch),
-                  createdAtIso: Value(now.toIso8601String()),
-                  updatedAtIso: Value(now.toIso8601String()),
-                ),
-              );
+          await PaymentsRepository(db).create(
+            amount: amount,
+            paymentDate: now.toIso8601String(),
+            paymentMethod: 'cash',
+            revenueType: 'room_rent',
+            bookingLocalId: activeBooking.id,
+            roomNumber: roomNumber,
+            notes: notes,
+          );
           result =
               'تم تسجيل دفعة ${amount.toStringAsFixed(0)} ريال للغرفة $roomNumber';
 

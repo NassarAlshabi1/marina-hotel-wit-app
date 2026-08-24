@@ -9,6 +9,7 @@ import '../crashlytics_service.dart';
 import '../daos/outbox_dao.dart';
 import '../daos/payments_dao.dart';
 import '../local_db.dart';
+import '../payment_session_context.dart';
 import '../telegram/telegram_notification_service.dart';
 import '../telegram/whatsapp_notification_service.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
@@ -70,6 +71,35 @@ class PaymentsRepository {
         .map((result) => (result.data['total'] as num).toDouble());
   }
 
+  /// إجمالي المدفوعات التي سجلها المستخدم في جلسة دخوله الحالية.
+  /// يعتمد على session UUID، لذلك لا يخلط دفعات المستخدم من جلسة سابقة
+  /// أو دفعات موظف آخر على الجهاز نفسه.
+  Stream<double> watchTotalByCurrentPaymentSession(String hotelDayKey) {
+    final sessionUuid = PaymentSessionContext.sessionUuid;
+    final userId = PaymentSessionContext.userId;
+    if (sessionUuid == null || userId == null) {
+      return Stream<double>.value(0);
+    }
+
+    return db
+        .customSelect(
+          'SELECT COALESCE(SUM(amount), 0.0) AS total FROM payments '
+          'WHERE deleted_at IS NULL AND is_voided = 0 '
+          'AND is_pending_balance = 0 '
+          'AND received_by_user_id = ? AND received_session_uuid = ? '
+          'AND (hotel_day_key = ? OR (hotel_day_key IS NULL AND payment_date LIKE ?))',
+          variables: [
+            d.Variable.withInt(userId),
+            d.Variable.withString(sessionUuid),
+            d.Variable.withString(hotelDayKey),
+            d.Variable.withString('$hotelDayKey%'),
+          ],
+          readsFrom: {db.payments},
+        )
+        .watchSingle()
+        .map((result) => (result.data['total'] as num).toDouble());
+  }
+
   /// مراقبة إجمالي المدفوعات لحجز محدد عبر SQL SUM() — بديل خفيف الوزن
   /// لـ [paymentsByBooking] عندما يحتاج المستهلك فقط للمجموع (مثل قائمة الحجوزات).
   /// يتجنب تحميل جميع صفوف المدفوعات (38 عمود) وفك تشفيرها فقط لجمع `amount`.
@@ -122,6 +152,9 @@ class PaymentsRepository {
             hotelDayKey: d.Value(hotelDayKey),
             bookingUuidCache: d.Value(bookingUuidCache),
             isPendingBalance: d.Value(isPendingBalance),
+            receivedByUserId: d.Value(PaymentSessionContext.userId),
+            receivedByName: d.Value(PaymentSessionContext.userName),
+            receivedSessionUuid: d.Value(PaymentSessionContext.sessionUuid),
           ),
         );
         if (bookingLocalId != null) {

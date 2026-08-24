@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart' as sqflite_ffi;
 import 'package:workmanager/workmanager.dart';
@@ -69,7 +70,6 @@ import 'services/secondary_appwrite_config.dart';
 // ✅ Sync Simplification (2026-08-10): secondary_sync_manager.dart معطّل
 // بالكامل. لا حاجة لاستيراده في main.dart — الشاشة تستخدمه مباشرة عبر
 // SecondarySyncManager.instance الذي يُرجع no-op.
-import 'services/seed.dart';
 import 'services/smart_sync_manager.dart';
 import 'services/sync_conflict_event_bus.dart';
 import 'services/sync_constants.dart';
@@ -255,8 +255,13 @@ Future<void> main() async {
   }
 
   // مراقب التطوير يجمع FrameTiming واتجاه الذاكرة لاختبارات الأداء.
-  // start() نفسه محمي بـ kDebugMode، لذا لا ينشئ listener أو timer في APK.
-  PerformanceMonitor.instance.start();
+  // profileInstrumentationEnabled لا يُفعّل إلا عبر dart-define في اختبار profile.
+  PerformanceMonitor.instance.start(
+    forceInProfile: profileInstrumentationEnabled,
+  );
+  if (profileInstrumentationEnabled) {
+    unawaited(_startProfilePerformanceReportWriter());
+  }
 
   dlog(() => 'BASE_API_URL=${Env.baseApiUrl}');
   runZonedGuarded(() => runApp(const ProviderScope(child: App())), (
@@ -301,6 +306,25 @@ Future<void> main() async {
   } else {
     unawaited(_initializeFullyAutomatedSyncSystem());
     _startHealthChecker();
+  }
+}
+
+Timer? _profilePerformanceReportTimer;
+
+Future<void> _startProfilePerformanceReportWriter() async {
+  try {
+    final directory = await getApplicationSupportDirectory();
+    final reportPath = '${directory.path}/marina_performance_report.json';
+    final monitor = PerformanceMonitor.instance;
+    await monitor.saveReportToFile(reportPath);
+    _profilePerformanceReportTimer?.cancel();
+    _profilePerformanceReportTimer = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => unawaited(monitor.saveReportToFile(reportPath)),
+    );
+    dlog(() => 'Profile performance report: $reportPath');
+  } catch (e) {
+    dwarn(() => 'Profile performance report writer failed: $e');
   }
 }
 
@@ -363,7 +387,24 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
 
     dlog('📦 Initializing Appwrite Config Manager...');
     await AppwriteConfigManager.init();
+    await AppwriteService().initialize();
     dlog('✅ Appwrite Config loaded');
+
+    // ─── Firebase Cloud Messaging ───
+    // FCM للاستقبال وتسجيل device token فقط. لا نضع Server Key داخل APK؛
+    // الإرسال الجماعي يجب أن يتم من backend/Appwrite Function بصلاحيات خادمية.
+    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+      final syncManager = AppwriteSyncManager.instance;
+      if (syncManager != null) {
+        FcmService.injectDependencies(
+          syncManager: syncManager,
+          realtimeSync: AppwriteRealtimeSync(),
+        );
+      }
+      await _safeInit('FcmService', FcmService().initialize);
+    } else {
+      dlog('ℹ️ FCM skipped on ${Platform.operatingSystem}');
+    }
 
     final driveSyncEnabled =
         prefs.getBool('google_drive_sync_enabled') ?? false;
@@ -656,7 +697,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           },
           syncManager: ref.read(appwrite.appwriteSyncManagerProvider),
         );
-        await Seeder(database).seedIfEmpty();
+        // لا تُضاف بيانات تجريبية تلقائياً؛ تبدأ قاعدة الإنتاج فارغة.
         // ✅ إصلاح hotelDayKey القديم (14:00 → 14:01) لجميع الجداول
         // يعمل مرة واحدة فقط لكل جلسة — يُصلح البيانات المحلية
         // وعند المزامنة التالية يُرفع hotelDayKey المصحح إلى Appwrite Cloud

@@ -50,6 +50,7 @@ import 'package:marina_hotel_mobile/screens/debts/debts_list.dart';
 import 'package:marina_hotel_mobile/screens/employees/employees_list.dart';
 import 'package:marina_hotel_mobile/screens/payments/booking_payment_screen.dart';
 import 'package:marina_hotel_mobile/screens/rooms/rooms_list.dart';
+import 'package:marina_hotel_mobile/services/adapters/adapter_registry.dart';
 import 'package:marina_hotel_mobile/services/daos/bookings_dao.dart';
 import 'package:marina_hotel_mobile/services/fcm_sender.dart';
 import 'package:marina_hotel_mobile/services/daos/debts_dao.dart';
@@ -90,12 +91,14 @@ Future<AppDatabase> _seedFullDatabase({
   int debtsCount = 10,
 }) async {
   final db = AppDatabase.forTesting(NativeDatabase.memory());
-  final outboxDao = OutboxDao(db);
+  AdapterRegistry.initialize(db);
+  final adapters = AdapterRegistry.testing(db);
+  final outboxDao = OutboxDao(db, adapters);
   final roomsDao = RoomsDao(db, outboxDao);
-  final bookingsDao = BookingsDao(db, outboxDao);
-  final employeesDao = EmployeesDao(db, outboxDao);
-  final expensesDao = ExpensesDao(db, outboxDao);
-  final debtsDao = DebtsDao(db, outboxDao);
+  final bookingsDao = BookingsDao(db, outboxDao, adapters);
+  final employeesDao = EmployeesDao(db, outboxDao, adapters);
+  final expensesDao = ExpensesDao(db, outboxDao, adapters);
+  final debtsDao = DebtsDao(db, outboxDao, adapters);
 
   // 1) غرف
   for (var i = 0; i < roomsCount; i++) {

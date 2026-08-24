@@ -2,14 +2,25 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/app_logger.dart';
-import 'appwrite_messaging_service.dart';
 import 'appwrite_sync_manager.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
+
+/// معالج رسائل FCM في الخلفية.
+///
+/// إشعارات notification payload يعرضها نظام Android تلقائياً. تهيئة Firebase
+/// هنا تضمن جاهزية الـ isolate الخلفي للرسائل data-only أيضاً، دون فتح قاعدة
+/// البيانات أو تشغيل مزامنة كاملة في الخلفية على الأجهزة الضعيفة.
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  dlog(() => '📩 FCM: background message received (${message.messageId})');
+}
 
 /// خدمة Firebase Cloud Messaging
 /// تُستخدم لإرسال إشعارات push بين الأجهزة عند حدوث تغييرات في Appwrite
@@ -48,26 +59,31 @@ class FcmService {
       // 1. Firebase تم تهيئته بالفعل في main.dart
       // لا حاجة لاستدعاء Firebase.initializeApp() هنا
 
-      // 2. طلب إذن الإشعارات
+      // 2. تسجيل معالج الخلفية قبل استقبال أي رسالة.
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+      // 3. طلب إذن الإشعارات
       await _requestPermission();
 
-      // 3. الحصول على التوكن
+      // 4. الحصول على التوكن
       _currentToken = await _getToken();
       if (_currentToken != null) {
         dlog(
           () => '✅ FCM token obtained: ${_currentToken!.substring(0, 20)}...',
         );
 
-        // 4. حفظ التوكن في SharedPreferences
+        // 5. حفظ التوكن في SharedPreferences
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('fcm_token', _currentToken!);
 
-        // 4.b ✅ تسجيل الجهاز في Appwrite Messaging أيضاً (بالتوازي مع FCM التقليدي)
-        // هذا يُتيح الاستفادة من مزايا Messaging API (Logs, Topics, UI)
-        await _registerInAppwriteMessaging(_currentToken!);
+        // تحديث حالة SyncManager إن كان جاهزاً؛ لا نستخدم Appwrite Messaging.
+        final syncManager = _getSyncManager();
+        if (syncManager != null) {
+          await syncManager.setFcmToken(_currentToken!);
+        }
       }
 
-      // 5. الاستماع لتغيير التوكن — حفظ الاشتراك لإلغائه عند التنظيف
+      // 6. الاستماع لتغيير التوكن — حفظ الاشتراك لإلغائه عند التنظيف
       _tokenRefreshSubscription = _messaging.onTokenRefresh.listen((
         newToken,
       ) async {
@@ -82,14 +98,13 @@ class FcmService {
           await syncManager.setFcmToken(newToken);
         }
 
-        // ✅ تحديث التوكن في Appwrite Messaging أيضاً
-        await _registerInAppwriteMessaging(newToken);
+        // يبقى تسجيل التوكن عبر SyncManager فقط؛ Appwrite Messaging غير مستخدم.
       });
 
-      // 6. الاستماع للرسائل الواردة
+      // 7. الاستماع للرسائل الواردة
       _setupMessageHandlers();
 
-      // 7. ملاحظة: تحديث التوكن على السيرفر يتم عبر
+      // 8. ملاحظة: تحديث التوكن على السيرفر يتم عبر
       //    AppwriteSyncManager.setFcmToken() في _initializeFcm() في main.dart
       //    لتجنب تكرار الطلب
 
@@ -318,38 +333,6 @@ class FcmService {
   }) {
     _syncManagerInstance = syncManager;
     _realtimeInstance = realtimeSync;
-  }
-
-  /// ✅ تسجيل/تحديث جهاز في Appwrite Messaging (بالتوازي مع FCM التقليدي)
-  ///
-  /// هذه الدالة تُكمّل نظام FCM المباشر بتسجيل إضافي في Appwrite Messaging،
-  /// مما يُتيح الاستفادة من:
-  ///   - سجل تسليم كامل في Messaging → Messages
-  ///   - واجهة UI لإدارة الإشعارات
-  ///   - Topics للاشتراك في مجموعات محددة
-  ///   - إرسال مركزي عبر Function بدون Firebase Admin SDK
-  ///
-  /// آمنة للفشل — إذا تعذّر التسجيل، يُكمل التطبيق بدون مشاكل (FCM التقليدي يعمل).
-  Future<void> _registerInAppwriteMessaging(String fcmToken) async {
-    try {
-      final messagingService = AppwriteMessagingService();
-      if (!messagingService.isInitialized) {
-        await messagingService.initialize();
-      }
-      final targetId = await messagingService.registerDevice(
-        fcmToken: fcmToken,
-      );
-      if (targetId != null) {
-        dlog(() => '✅ Device also registered in Appwrite Messaging: $targetId');
-        // اشترك في Topics الافتراضية
-        await messagingService.subscribeToTopics(MessagingTopics.all);
-      }
-    } catch (e) {
-      // آمن للفشل — نُسجّل تحذيراً فقط
-      dlog(
-        () => '⚠️ Appwrite Messaging registration failed (FCM still works): $e',
-      );
-    }
   }
 
   /// الحصول على التوكن الحالي

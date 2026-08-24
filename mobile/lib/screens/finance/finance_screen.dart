@@ -12,6 +12,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart' as db;
 import '../../utils/currency_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
+import '../../utils/performance_config.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/stream_helpers.dart';
 import '../../utils/time.dart';
@@ -212,13 +213,15 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
           end: Alignment.bottomLeft,
         ),
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.indigo.withValues(alpha: 0.3),
-            blurRadius: 4,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        boxShadow: isLowEndDevice
+            ? const []
+            : [
+                BoxShadow(
+                  color: Colors.indigo.withValues(alpha: 0.3),
+                  blurRadius: 4,
+                  offset: const Offset(0, 3),
+                ),
+              ],
       ),
       child: Row(
         children: [
@@ -300,13 +303,15 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: isLowEndDevice
+            ? const []
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
       ),
       child: Column(
         children: [
