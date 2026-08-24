@@ -159,30 +159,31 @@ void main() {
     final statementFinder = find.text('إرسال كشف حساب');
     await $.tester.ensureVisible(statementFinder);
     await $.tester.tap(find.text('إرسال كشف حساب'));
+    await $.pumpAndSettle();
 
     // ✅ التحقق من ظهور نافذة الحوار
     expect(
-      $(AlertDialog),
+      find.byType(AlertDialog),
       findsOneWidget,
       reason: 'نافذة الحوار يجب أن تظهر عند الضغط على زر إرسال كشف حساب',
     );
 
     // ✅ التحقق من وجود بيانات العميل في النافذة
-    expect($('العميل'), findsOneWidget);
-    expect($('الغرفة'), findsOneWidget);
-    expect($('الهاتف'), findsOneWidget);
+    expect(find.text('العميل'), findsOneWidget);
+    expect(find.text('الغرفة'), findsOneWidget);
+    expect(find.text('الهاتف'), findsOneWidget);
 
     // ✅ التحقق من وجود الملخص المالي
-    expect($('الإجمالي'), findsOneWidget);
-    expect($('المدفوع'), findsOneWidget);
-    expect($('المتبقي'), findsOneWidget);
+    expect(find.text('الإجمالي'), findsOneWidget);
+    expect(find.text('المدفوع'), findsOneWidget);
+    expect(find.text('المتبقي'), findsOneWidget);
 
     // ✅ التحقق من وجود زر معاينة رسالة WhatsApp
-    expect($('معاينة رسالة WhatsApp'), findsOneWidget);
+    expect(find.text('معاينة رسالة WhatsApp'), findsOneWidget);
 
     // ✅ التحقق من وجود أزرار المشاركة
-    expect($('إرسال كنص'), findsOneWidget);
-    expect($('مشاركة PDF'), findsOneWidget);
+    expect(find.text('إرسال كنص'), findsOneWidget);
+    expect(find.text('مشاركة PDF'), findsOneWidget);
   });
 
   patrolTest('يعرض جدول المدفوعات المفصّل عند فتح نافذة كشف الحساب', ($) async {
@@ -206,11 +207,12 @@ void main() {
     final statementFinder = find.text('إرسال كشف حساب');
     await $.tester.ensureVisible(statementFinder);
     await $.tester.tap(find.text('إرسال كشف حساب'));
+    await $.pumpAndSettle();
 
     // ✅ التحقق من وجود قسم سجل المدفوعات في النافذة
     // (سواء كان فارغاً أو به دفعات — كلاهما يحمل نفس الـ key)
     expect(
-      const ValueKey('payments_section'),
+      find.byKey(const ValueKey('payments_section')),
       findsOneWidget,
       reason: 'يجب أن يوجد قسم لسجل المدفوعات في نافذة كشف الحساب',
     );
@@ -281,15 +283,17 @@ void main() {
     final statementFinder = find.text('إرسال كشف حساب');
     await $.tester.ensureVisible(statementFinder);
     await $.tester.tap(find.text('إرسال كشف حساب'));
+    await $.pumpAndSettle();
 
-    expect($(AlertDialog), findsOneWidget);
+    expect(find.byType(AlertDialog), findsOneWidget);
 
     // الضغط على زر إلغاء
     await $('إلغاء').tap();
+    await $.pumpAndSettle();
 
     // ✅ النافذة أُغلقت
     expect(
-      $(AlertDialog),
+      find.byType(AlertDialog),
       findsNothing,
       reason: 'نافذة الحوار يجب أن تُغلق عند الضغط على إلغاء',
     );
