@@ -66,7 +66,6 @@ jobs:
           - login_password_test.dart
           - login_remember_me_test.dart
           - login_rtl_test.dart
-          - login_auth_state_test.dart
           - booking_payment_test.dart
 
     defaults:

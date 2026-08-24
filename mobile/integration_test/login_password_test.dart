@@ -20,13 +20,13 @@ void main() {
 
     await $(TextFormField).at(1).enterText('secret123');
     expect(
-      $.tester.widget<TextFormField>($(TextFormField).at(1)).obscureText,
+      $.tester.widget<TextField>(find.byType(TextField).at(1)).obscureText,
       isTrue,
     );
 
     await $(Icons.visibility).tap();
     expect(
-      $.tester.widget<TextFormField>($(TextFormField).at(1)).obscureText,
+      $.tester.widget<TextField>(find.byType(TextField).at(1)).obscureText,
       isFalse,
     );
     expect($('secret123'), findsOneWidget);
@@ -34,7 +34,7 @@ void main() {
 
     await $(Icons.visibility_off).tap();
     expect(
-      $.tester.widget<TextFormField>($(TextFormField).at(1)).obscureText,
+      $.tester.widget<TextField>(find.byType(TextField).at(1)).obscureText,
       isTrue,
     );
     expect($(Icons.visibility), findsOneWidget);
