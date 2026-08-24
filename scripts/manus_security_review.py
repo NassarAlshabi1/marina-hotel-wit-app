@@ -245,6 +245,28 @@ Unified diff chunk (credentials are redacted before transmission):
 """
 
 
+def _line_for_deduplication(value: Any) -> int:
+    """Return a stable integer line for finding deduplication.
+
+    The structured response asks Manus for an integer, but malformed or
+    partially recovered responses must not abort the complete security report.
+    Invalid values intentionally share the neutral line ``0`` for deduplication
+    while the original finding remains unchanged in the emitted report.
+    """
+    if isinstance(value, bool):
+        return 0
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    if isinstance(value, str):
+        try:
+            return int(value.strip())
+        except ValueError:
+            pass
+    return 0
+
+
 def merge_reports(reports: list[dict[str, Any]], sha: str, total_chunks: int) -> dict[str, Any]:
     severity_rank = {"none": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
     findings: list[dict[str, Any]] = []
@@ -253,7 +275,11 @@ def merge_reports(reports: list[dict[str, Any]], sha: str, total_chunks: int) ->
         for finding in report.get("findings", []):
             if not isinstance(finding, dict):
                 continue
-            key = (str(finding.get("file", "")), int(finding.get("line", 0)), str(finding.get("title", "")))
+            key = (
+                str(finding.get("file", "")),
+                _line_for_deduplication(finding.get("line", 0)),
+                str(finding.get("title", "")),
+            )
             if key not in seen:
                 seen.add(key)
                 findings.append(finding)
