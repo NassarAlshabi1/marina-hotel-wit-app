@@ -127,7 +127,8 @@ void main() {
     // زر كشف الحساب موجود داخل تبويب الإجراءات، وليس في التبويب الافتراضي.
     await $('الإجراءات').tap();
     await $.pumpAndSettle();
-    await $('إرسال كشف حساب').scrollTo();
+    final statementFinder = find.text('إرسال كشف حساب');
+    await $.tester.ensureVisible(statementFinder);
 
     // التحقق من وجود الزر
     expect(
@@ -155,8 +156,9 @@ void main() {
     // فتح تبويب الإجراءات ثم الضغط على بطاقة كشف الحساب.
     await $('الإجراءات').tap();
     await $.pumpAndSettle();
-    await $('إرسال كشف حساب').scrollTo();
-    await $('إرسال كشف حساب').tap();
+    final statementFinder = find.text('إرسال كشف حساب');
+    await $.tester.ensureVisible(statementFinder);
+    await $.tester.tap(find.text('إرسال كشف حساب'));
 
     // ✅ التحقق من ظهور نافذة الحوار
     expect(
@@ -201,8 +203,9 @@ void main() {
     // فتح تبويب الإجراءات ثم بطاقة كشف الحساب.
     await $('الإجراءات').tap();
     await $.pumpAndSettle();
-    await $('إرسال كشف حساب').scrollTo();
-    await $('إرسال كشف حساب').tap();
+    final statementFinder = find.text('إرسال كشف حساب');
+    await $.tester.ensureVisible(statementFinder);
+    await $.tester.tap(find.text('إرسال كشف حساب'));
 
     // ✅ التحقق من وجود قسم سجل المدفوعات في النافذة
     // (سواء كان فارغاً أو به دفعات — كلاهما يحمل نفس الـ key)
@@ -231,8 +234,9 @@ void main() {
     // فتح تبويب الإجراءات ثم بطاقة كشف الحساب.
     await $('الإجراءات').tap();
     await $.pumpAndSettle();
-    await $('إرسال كشف حساب').scrollTo();
-    await $('إرسال كشف حساب').tap();
+    final statementFinder = find.text('إرسال كشف حساب');
+    await $.tester.ensureVisible(statementFinder);
+    await $.tester.tap(find.text('إرسال كشف حساب'));
 
     // الضغط على زر المعاينة
     await $('معاينة رسالة WhatsApp').tap();
@@ -274,8 +278,9 @@ void main() {
     // فتح تبويب الإجراءات ثم بطاقة كشف الحساب.
     await $('الإجراءات').tap();
     await $.pumpAndSettle();
-    await $('إرسال كشف حساب').scrollTo();
-    await $('إرسال كشف حساب').tap();
+    final statementFinder = find.text('إرسال كشف حساب');
+    await $.tester.ensureVisible(statementFinder);
+    await $.tester.tap(find.text('إرسال كشف حساب'));
 
     expect($(AlertDialog), findsOneWidget);
 
