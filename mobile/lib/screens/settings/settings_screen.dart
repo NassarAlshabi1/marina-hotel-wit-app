@@ -514,13 +514,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _buildSettingsGrid(BuildContext context, List<_SettingsItem> items) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        // بطاقات صغيرة دائماً: لا نعود إلى بطاقة بعرض الشاشة حتى على
+        // الهواتف الضيقة، بينما تستفيد شاشات Windows من 3 أو 4 أعمدة.
         final crossAxisCount = constraints.maxWidth >= 1100
             ? 4
             : constraints.maxWidth >= 680
             ? 3
-            : constraints.maxWidth >= 420
-            ? 2
-            : 1;
+            : 2;
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -528,7 +528,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             crossAxisCount: crossAxisCount,
             mainAxisSpacing: 10,
             crossAxisSpacing: 10,
-            mainAxisExtent: crossAxisCount == 1 ? 104 : 132,
+            mainAxisExtent: crossAxisCount == 4
+                ? 122
+                : crossAxisCount == 3
+                ? 126
+                : 136,
           ),
           itemCount: items.length,
           itemBuilder: (context, index) {
@@ -558,7 +562,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 3),
                             Text(
                               item.subtitle,
                               style: const TextStyle(
