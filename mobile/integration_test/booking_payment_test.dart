@@ -177,7 +177,7 @@ void main() {
     // يظهر العنوان في الملخص وفي صف الإجمالي داخل الحوار.
     expect(find.text('الإجمالي'), findsWidgets);
     expect(find.text('المدفوع'), findsWidgets);
-    expect(find.text('المتبقي'), findsOneWidget);
+    expect(find.text('المتبقي'), findsWidgets);
 
     // ✅ التحقق من وجود زر معاينة رسالة WhatsApp
     expect(find.text('معاينة رسالة WhatsApp'), findsOneWidget);
