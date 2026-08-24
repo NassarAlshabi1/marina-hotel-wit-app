@@ -59,7 +59,15 @@ jobs:
         api-level: [34]
         target: [google_apis]
         arch: [x86_64]
-        test-file: [app_test.dart, booking_payment_test.dart]
+        test-file:
+          - app_test.dart
+          - login_validation_test.dart
+          - login_input_test.dart
+          - login_password_test.dart
+          - login_remember_me_test.dart
+          - login_rtl_test.dart
+          - login_auth_state_test.dart
+          - booking_payment_test.dart
 
     defaults:
       run:
