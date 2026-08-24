@@ -174,7 +174,8 @@ void main() {
     expect(find.text('الهاتف'), findsOneWidget);
 
     // ✅ التحقق من وجود الملخص المالي
-    expect(find.text('الإجمالي'), findsOneWidget);
+    // يظهر العنوان في الملخص وفي صف الإجمالي داخل الحوار.
+    expect(find.text('الإجمالي'), findsWidgets);
     expect(find.text('المدفوع'), findsOneWidget);
     expect(find.text('المتبقي'), findsOneWidget);
 
