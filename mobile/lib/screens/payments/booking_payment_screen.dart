@@ -2953,7 +2953,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             children: [
               Icon(Icons.receipt_long, color: Colors.orange),
               SizedBox(width: 8),
-              Text('إرسال كشف حساب'),
+              Expanded(
+                child: Text('إرسال كشف حساب', overflow: TextOverflow.ellipsis),
+              ),
             ],
           ),
           content: SizedBox(
