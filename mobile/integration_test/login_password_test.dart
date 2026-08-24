@@ -19,14 +19,24 @@ void main() {
     );
 
     await $(TextFormField).at(1).enterText('secret123');
-    expect($('secret123'), findsNothing);
+    expect(
+      $.tester.widget<TextFormField>($(TextFormField).at(1)).obscureText,
+      isTrue,
+    );
 
     await $(Icons.visibility).tap();
+    expect(
+      $.tester.widget<TextFormField>($(TextFormField).at(1)).obscureText,
+      isFalse,
+    );
     expect($('secret123'), findsOneWidget);
     expect($(Icons.visibility_off), findsOneWidget);
 
     await $(Icons.visibility_off).tap();
-    expect($('secret123'), findsNothing);
+    expect(
+      $.tester.widget<TextFormField>($(TextFormField).at(1)).obscureText,
+      isTrue,
+    );
     expect($(Icons.visibility), findsOneWidget);
   });
 }
