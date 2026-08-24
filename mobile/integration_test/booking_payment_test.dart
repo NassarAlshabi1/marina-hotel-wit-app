@@ -89,7 +89,13 @@ void main() {
 
     await $.pumpWidgetAndSettle(
       ProviderScope(
-        child: MaterialApp(home: BookingPaymentScreen(booking: booking)),
+        child: MaterialApp(
+          home: BookingPaymentScreen(
+            booking: booking,
+            refreshDerivedFieldsOnInit: false,
+            listenToHotelDayTicker: false,
+          ),
+        ),
       ),
     );
 
@@ -108,11 +114,18 @@ void main() {
 
     await $.pumpWidgetAndSettle(
       ProviderScope(
-        child: MaterialApp(home: BookingPaymentScreen(booking: booking)),
+        child: MaterialApp(
+          home: BookingPaymentScreen(
+            booking: booking,
+            refreshDerivedFieldsOnInit: false,
+            listenToHotelDayTicker: false,
+          ),
+        ),
       ),
     );
 
-    // التمرير لأسفل للعثور على زر إرسال كشف الحساب
+    // زر كشف الحساب موجود داخل تبويب الإجراءات، وليس في التبويب الافتراضي.
+    await $('الإجراءات').tap();
     await $('إرسال كشف حساب').scrollTo();
 
     // التحقق من وجود الزر
@@ -128,11 +141,18 @@ void main() {
 
     await $.pumpWidgetAndSettle(
       ProviderScope(
-        child: MaterialApp(home: BookingPaymentScreen(booking: booking)),
+        child: MaterialApp(
+          home: BookingPaymentScreen(
+            booking: booking,
+            refreshDerivedFieldsOnInit: false,
+            listenToHotelDayTicker: false,
+          ),
+        ),
       ),
     );
 
-    // التمرير لأسفل والضغط على زر إرسال كشف الحساب
+    // فتح تبويب الإجراءات ثم الضغط على بطاقة كشف الحساب.
+    await $('الإجراءات').tap();
     await $('إرسال كشف حساب').scrollTo();
     await $('إرسال كشف حساب').tap();
 
@@ -166,11 +186,18 @@ void main() {
 
     await $.pumpWidgetAndSettle(
       ProviderScope(
-        child: MaterialApp(home: BookingPaymentScreen(booking: booking)),
+        child: MaterialApp(
+          home: BookingPaymentScreen(
+            booking: booking,
+            refreshDerivedFieldsOnInit: false,
+            listenToHotelDayTicker: false,
+          ),
+        ),
       ),
     );
 
-    // فتح نافذة كشف الحساب
+    // فتح تبويب الإجراءات ثم بطاقة كشف الحساب.
+    await $('الإجراءات').tap();
     await $('إرسال كشف حساب').scrollTo();
     await $('إرسال كشف حساب').tap();
 
@@ -188,11 +215,18 @@ void main() {
 
     await $.pumpWidgetAndSettle(
       ProviderScope(
-        child: MaterialApp(home: BookingPaymentScreen(booking: booking)),
+        child: MaterialApp(
+          home: BookingPaymentScreen(
+            booking: booking,
+            refreshDerivedFieldsOnInit: false,
+            listenToHotelDayTicker: false,
+          ),
+        ),
       ),
     );
 
-    // فتح نافذة كشف الحساب
+    // فتح تبويب الإجراءات ثم بطاقة كشف الحساب.
+    await $('الإجراءات').tap();
     await $('إرسال كشف حساب').scrollTo();
     await $('إرسال كشف حساب').tap();
 
@@ -223,11 +257,18 @@ void main() {
 
     await $.pumpWidgetAndSettle(
       ProviderScope(
-        child: MaterialApp(home: BookingPaymentScreen(booking: booking)),
+        child: MaterialApp(
+          home: BookingPaymentScreen(
+            booking: booking,
+            refreshDerivedFieldsOnInit: false,
+            listenToHotelDayTicker: false,
+          ),
+        ),
       ),
     );
 
-    // فتح نافذة كشف الحساب
+    // فتح تبويب الإجراءات ثم بطاقة كشف الحساب.
+    await $('الإجراءات').tap();
     await $('إرسال كشف حساب').scrollTo();
     await $('إرسال كشف حساب').tap();
 
