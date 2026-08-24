@@ -3098,32 +3098,40 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ),
             ),
           ),
+          // Wrap prevents the three actions from overflowing on narrow phones.
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('إلغاء'),
-            ),
-            // ✅ مشاركة كنص WhatsApp
-            FilledButton.tonalIcon(
-              onPressed: () {
-                Navigator.pop(context);
-                _sendStatementViaWhatsAppText(summary);
-              },
-              icon: const Icon(Icons.chat, size: 18),
-              label: const Text('إرسال كنص'),
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.green.shade100,
-              ),
-            ),
-            // ✅ مشاركة PDF عبر Share sheet
-            FilledButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                _sendStatementViaPdf(summary);
-              },
-              icon: const Icon(Icons.share, size: 18),
-              label: const Text('مشاركة PDF'),
-              style: FilledButton.styleFrom(backgroundColor: Colors.orange),
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('إلغاء'),
+                ),
+                // ✅ مشاركة كنص WhatsApp
+                FilledButton.tonalIcon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _sendStatementViaWhatsAppText(summary);
+                  },
+                  icon: const Icon(Icons.chat, size: 18),
+                  label: const Text('إرسال كنص'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.green.shade100,
+                  ),
+                ),
+                // ✅ مشاركة PDF عبر Share sheet
+                FilledButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _sendStatementViaPdf(summary);
+                  },
+                  icon: const Icon(Icons.share, size: 18),
+                  label: const Text('مشاركة PDF'),
+                  style: FilledButton.styleFrom(backgroundColor: Colors.orange),
+                ),
+              ],
             ),
           ],
         ),
