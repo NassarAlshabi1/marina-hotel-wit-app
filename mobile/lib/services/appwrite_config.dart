@@ -82,6 +82,9 @@ class AppwriteConfig {
 
   // جدول إعدادات التطبيق (واتساب، وغيرها)
   static const String appSettingsCollectionId = 'app_settings';
+  static const String inventoryItemsCollectionId = 'inventory_items';
+  static const String inventoryTransactionsCollectionId =
+      'inventory_transactions';
 
   /// خرائط أسماء الكيانات إلى collection IDs.
   /// تستخدم لتحويل اسم الكيان في outbox (مثل 'bookings') إلى collection ID
@@ -109,6 +112,8 @@ class AppwriteConfig {
     'payment_voids': paymentVoidsCollectionId,
     'guest_infos': guestInfosCollectionId,
     'app_settings': appSettingsCollectionId,
+    'inventory_items': inventoryItemsCollectionId,
+    'inventory_transactions': inventoryTransactionsCollectionId,
   };
 
   /// يحوّل اسم الكيان إلى collection ID في Appwrite.

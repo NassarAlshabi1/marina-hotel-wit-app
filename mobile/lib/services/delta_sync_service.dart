@@ -360,6 +360,25 @@ class DeltaSyncService {
         toJson: (dynamic row) => (row as Employee).toJson(),
       ),
       _EntityConfig(
+        entity: 'inventory_items',
+        fetchAll: () => db.select(db.inventoryItems).get(),
+        localUuid: (dynamic row) => (row as InventoryItem).localUuid,
+        createdAt: (dynamic row) => (row as InventoryItem).createdAt,
+        lastModified: (dynamic row) => (row as InventoryItem).lastModified,
+        deletedAt: (dynamic row) => (row as InventoryItem).deletedAt,
+        toJson: (dynamic row) => (row as InventoryItem).toJson(),
+      ),
+      _EntityConfig(
+        entity: 'inventory_transactions',
+        fetchAll: () => db.select(db.inventoryTransactions).get(),
+        localUuid: (dynamic row) => (row as InventoryTransaction).localUuid,
+        createdAt: (dynamic row) => (row as InventoryTransaction).createdAt,
+        lastModified: (dynamic row) =>
+            (row as InventoryTransaction).lastModified,
+        deletedAt: (dynamic row) => (row as InventoryTransaction).deletedAt,
+        toJson: (dynamic row) => (row as InventoryTransaction).toJson(),
+      ),
+      _EntityConfig(
         entity: 'expenses',
         fetchAll: () => db.select(db.expenses).get(),
         localUuid: (dynamic row) => (row as Expense).localUuid,

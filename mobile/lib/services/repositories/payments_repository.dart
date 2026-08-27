@@ -14,6 +14,32 @@ import '../telegram/telegram_notification_service.dart';
 import '../telegram/whatsapp_notification_service.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
+class PaymentShiftSummary {
+  const PaymentShiftSummary({
+    required this.userId,
+    required this.userName,
+    required this.sessionUuid,
+    required this.totalAmount,
+    required this.paymentCount,
+  });
+
+  factory PaymentShiftSummary.fromRow(Map<String, dynamic> row) {
+    return PaymentShiftSummary(
+      userId: (row['user_id'] as num?)?.toInt() ?? 0,
+      userName: row['user_name']?.toString() ?? 'مستخدم غير معروف',
+      sessionUuid: row['session_uuid']?.toString() ?? '',
+      totalAmount: (row['total_amount'] as num?)?.toDouble() ?? 0,
+      paymentCount: (row['payment_count'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  final int userId;
+  final String userName;
+  final String sessionUuid;
+  final double totalAmount;
+  final int paymentCount;
+}
+
 class PaymentsRepository {
   PaymentsRepository(this.db) {
     outbox = OutboxDao(db);
@@ -98,6 +124,40 @@ class PaymentsRepository {
         )
         .watchSingle()
         .map((result) => (result.data['total'] as num).toDouble());
+  }
+
+  /// إجماليات استلامات الموظفين حسب جلسة تسجيل الدخول/النوبة.
+  /// التجميع يتم في SQLite حتى لا تُحمّل جميع صفوف المدفوعات إلى Dart.
+  Stream<List<PaymentShiftSummary>> watchPaymentShiftSummaries(
+    String hotelDayKey,
+  ) {
+    return db
+        .customSelect(
+          'SELECT received_by_user_id AS user_id, '
+          "COALESCE(NULLIF(TRIM(received_by_name), ''), 'مستخدم غير معروف') AS user_name, "
+          'received_session_uuid AS session_uuid, '
+          'COALESCE(SUM(amount), 0.0) AS total_amount, '
+          'COUNT(*) AS payment_count '
+          'FROM payments '
+          'WHERE deleted_at IS NULL AND is_voided = 0 '
+          'AND is_pending_balance = 0 '
+          'AND received_by_user_id IS NOT NULL '
+          'AND received_session_uuid IS NOT NULL '
+          'AND (hotel_day_key = ? OR (hotel_day_key IS NULL AND payment_date LIKE ?)) '
+          'GROUP BY received_by_user_id, received_by_name, received_session_uuid '
+          'ORDER BY total_amount DESC',
+          variables: [
+            d.Variable.withString(hotelDayKey),
+            d.Variable.withString('$hotelDayKey%'),
+          ],
+          readsFrom: {db.payments},
+        )
+        .watch()
+        .map(
+          (rows) => rows
+              .map((row) => PaymentShiftSummary.fromRow(row.data))
+              .toList(growable: false),
+        );
   }
 
   /// مراقبة إجمالي المدفوعات لحجز محدد عبر SQL SUM() — بديل خفيف الوزن

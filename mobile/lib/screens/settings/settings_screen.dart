@@ -11,6 +11,7 @@ import '../../services/local_db.dart';
 import '../../utils/status_utils.dart';
 import '../ai/ai_chat_screen.dart';
 import '../security/blacklist_screen.dart';
+import '../inventory/inventory_screen.dart';
 import 'active_bookings_reminder_screen.dart';
 import 'appwrite_settings_screen.dart';
 import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
@@ -192,6 +193,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               context,
               MaterialPageRoute<void>(
                 builder: (context) => const BlacklistScreen(),
+              ),
+            ),
+          ),
+          _SettingsItem(
+            title: 'المخزون',
+            subtitle: 'الأصناف والرصيد والوارد والصرف والجرد',
+            icon: Icons.inventory_2,
+            color: Colors.brown,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => const InventoryScreen(),
               ),
             ),
           ),
@@ -514,25 +527,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _buildSettingsGrid(BuildContext context, List<_SettingsItem> items) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // بطاقات صغيرة دائماً: لا نعود إلى بطاقة بعرض الشاشة حتى على
-        // الهواتف الضيقة، بينما تستفيد شاشات Windows من 3 أو 4 أعمدة.
-        final crossAxisCount = constraints.maxWidth >= 1100
-            ? 4
-            : constraints.maxWidth >= 680
-            ? 3
-            : 2;
+        // نفس تخطيط فرع A: بطاقات صغيرة ثابتة بثلاثة أعمدة.
+        const crossAxisCount = 3;
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            mainAxisExtent: crossAxisCount == 4
-                ? 122
-                : crossAxisCount == 3
-                ? 126
-                : 136,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            mainAxisExtent: 130,
           ),
           itemCount: items.length,
           itemBuilder: (context, index) {
@@ -544,39 +548,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 borderRadius: BorderRadius.circular(12),
                 child: Padding(
                   padding: const EdgeInsets.all(10),
-                  child: Row(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(item.icon, size: 22, color: item.color),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.title,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              item.subtitle,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                      Icon(item.icon, size: 20, color: item.color),
+                      const SizedBox(height: 8),
+                      Text(
+                        item.title,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
                         ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.chevron_left, size: 18),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.subtitle,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ),
                 ),

@@ -12,6 +12,7 @@ import '../providers/repository_providers.dart';
 import '../providers/room_payment_status_provider.dart';
 import '../services/analytics_service.dart';
 import '../services/local_db.dart';
+import '../services/repositories/payments_repository.dart';
 import '../services/sync/sync_gate.dart';
 import '../services/sync_constants.dart';
 import '../utils/loading_snackbar.dart';
@@ -193,6 +194,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               _buildColorInstructions(),
               const SizedBox(height: 12),
               _buildCurrentUserSessionPayments(),
+              const SizedBox(height: 12),
+              _buildEmployeeShiftPayments(),
             ],
           ),
         ),
@@ -992,6 +995,132 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               color: hasData ? Colors.green.shade700 : Colors.grey.shade600,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmployeeShiftPayments() {
+    final user = ref.watch(authProvider).currentUser;
+    final canViewOtherEmployees =
+        user?.isAdmin == true ||
+        user?.userType == 'manager' ||
+        user?.userType == 'supervisor';
+    if (!canViewOtherEmployees) return const SizedBox.shrink();
+
+    final summariesAsync = ref.watch(employeeShiftPaymentSummariesProvider);
+    final currencyFmt = NumberFormat('#,##0', 'en_US');
+    return summariesAsync.when(
+      loading: () =>
+          _buildEmployeeShiftCard(const [], currencyFmt, isLoading: true),
+      error: (error, _) => _buildEmployeeShiftCard(
+        const [],
+        currencyFmt,
+        errorMessage: 'تعذر تحميل استلامات الموظفين',
+      ),
+      data: (summaries) => _buildEmployeeShiftCard(summaries, currencyFmt),
+    );
+  }
+
+  Widget _buildEmployeeShiftCard(
+    List<PaymentShiftSummary> summaries,
+    NumberFormat currencyFmt, {
+    bool isLoading = false,
+    String? errorMessage,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.shade100),
+        boxShadow: isLowEndDevice
+            ? const []
+            : const [
+                BoxShadow(
+                  color: Color(0x0D000000),
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                ),
+              ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.groups_2_outlined,
+                color: Colors.blue.shade700,
+                size: 19,
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'استلامات الموظفين في النوبات',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const Text(
+                'اليوم الفندقي الحالي',
+                style: TextStyle(fontSize: 9, color: Colors.grey),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (isLoading)
+            const LinearProgressIndicator(minHeight: 2)
+          else if (errorMessage != null)
+            Text(
+              errorMessage,
+              style: TextStyle(fontSize: 11, color: Colors.orange.shade700),
+            )
+          else if (summaries.isEmpty)
+            const Text(
+              'لا توجد استلامات منسوبة إلى نوبات مسجلة بعد',
+              style: TextStyle(fontSize: 11, color: Colors.grey),
+            )
+          else
+            ...summaries
+                .take(12)
+                .map(
+                  (summary) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            summary.userName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${summary.paymentCount} دفعة',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Text(
+                          currencyFmt.format(summary.totalAmount),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
         ],
       ),
     );

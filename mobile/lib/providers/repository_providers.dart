@@ -24,6 +24,7 @@ import '../services/repositories/debts_repository.dart';
 import '../services/repositories/employees_repository.dart';
 import '../services/repositories/expenses_repository.dart';
 import '../services/repositories/guest_infos_repository.dart';
+import '../services/repositories/inventory_repository.dart';
 import '../services/repositories/notes_repository.dart';
 import '../services/repositories/payments_repository.dart';
 import '../services/payment_session_context.dart';
@@ -128,6 +129,14 @@ final paymentsRepoProvider = Provider<PaymentsRepository>(
 final debtsRepoProvider = Provider<DebtsRepository>(
   (ref) => DebtsRepository(ref.read(databaseProvider)),
 );
+final inventoryRepoProvider = Provider<InventoryRepository>(
+  (ref) => InventoryRepository(ref.read(databaseProvider)),
+);
+
+final inventoryItemsProvider = StreamProvider.autoDispose<List<InventoryItem>>(
+  (ref) => ref.watch(inventoryRepoProvider).watchActiveItems(),
+);
+
 final notesRepoProvider = Provider<NotesRepository>(
   (ref) => NotesRepository(ref.read(databaseProvider)),
 );
@@ -367,6 +376,24 @@ final currentUserSessionPaymentsProvider = StreamProvider.autoDispose<double>((
   }
   return paymentsRepo.watchTotalByCurrentPaymentSession(hotelDay);
 });
+
+final employeeShiftPaymentSummariesProvider =
+    StreamProvider.autoDispose<List<PaymentShiftSummary>>((ref) {
+      final user = ref.watch(authProvider).currentUser;
+      final canViewOtherEmployees =
+          user?.isAdmin == true ||
+          user?.userType == 'manager' ||
+          user?.userType == 'supervisor';
+      if (!canViewOtherEmployees) {
+        return Stream.value(const <PaymentShiftSummary>[]);
+      }
+
+      ref.watch(hotelDayTickerProvider);
+      final hotelDay = HotelTimeEngine.getHotelDayKey();
+      return ref
+          .watch(paymentsRepoProvider)
+          .watchPaymentShiftSummaries(hotelDay);
+    });
 
 final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {
   final expensesRepo = ref.watch(expensesRepoProvider);
