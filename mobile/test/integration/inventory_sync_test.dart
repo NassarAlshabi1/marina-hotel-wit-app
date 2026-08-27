@@ -36,9 +36,9 @@ void main() {
       userName: 'مشرف',
     );
 
-    final item = await (db.select(db.inventoryItems)
-          ..where((row) => row.id.equals(itemId)))
-        .getSingle();
+    final item = await (db.select(
+      db.inventoryItems,
+    )..where((row) => row.id.equals(itemId))).getSingle();
     expect(item.quantity, 7);
     expect(await outbox.countPendingPushable(), 3);
 
@@ -51,22 +51,22 @@ void main() {
       throwsA(isA<StateError>()),
     );
     expect(
-      (await (db.select(db.inventoryItems)
-                ..where((row) => row.id.equals(itemId)))
-            .getSingle())
-          .quantity,
+      (await (db.select(
+        db.inventoryItems,
+      )..where((row) => row.id.equals(itemId))).getSingle()).quantity,
       7,
     );
     expect(await outbox.countPendingPushable(), 3);
   });
 
-  test('remote item and movement pull without reverse Outbox entries', () async {
-    const itemUuid = '00000000-0000-4000-8000-000000000001';
-    const movementUuid = '00000000-0000-4000-8000-000000000002';
-    const now = 1_754_000_000;
+  test(
+    'remote item and movement pull without reverse Outbox entries',
+    () async {
+      const itemUuid = '00000000-0000-4000-8000-000000000001';
+      const movementUuid = '00000000-0000-4000-8000-000000000002';
+      const now = 1_754_000_000;
 
-    await adapters.inventoryItems.upsertFromJson(
-      {
+      await adapters.inventoryItems.upsertFromJson({
         'localUuid': itemUuid,
         'name': 'مناديل',
         'unit': 'كرتون',
@@ -80,15 +80,12 @@ void main() {
         'lastModifiedEpoch': now,
         'version': 1,
         'origin': 'mobile',
-      },
-      src: Source.appwrite,
-    );
-    final item = await (db.select(db.inventoryItems)
-          ..where((row) => row.localUuid.equals(itemUuid)))
-        .getSingle();
+      }, src: Source.appwrite);
+      final item = await (db.select(
+        db.inventoryItems,
+      )..where((row) => row.localUuid.equals(itemUuid))).getSingle();
 
-    await adapters.inventoryTransactions.upsertFromJson(
-      {
+      await adapters.inventoryTransactions.upsertFromJson({
         'localUuid': movementUuid,
         'itemLocalUuid': itemUuid,
         'movementType': 'in',
@@ -100,16 +97,15 @@ void main() {
         'createdAtEpoch': now,
         'lastModifiedEpoch': now,
         'version': 1,
-      },
-      src: Source.appwrite,
-    );
+      }, src: Source.appwrite);
 
-    final movement = await (db.select(db.inventoryTransactions)
-          ..where((row) => row.localUuid.equals(movementUuid)))
-        .getSingle();
-    expect(movement.itemId, item.id);
-    expect(movement.itemLocalUuid, itemUuid);
-    expect(movement.origin, 'server');
-    expect(await outbox.countPendingPushable(), 0);
-  });
+      final movement = await (db.select(
+        db.inventoryTransactions,
+      )..where((row) => row.localUuid.equals(movementUuid))).getSingle();
+      expect(movement.itemId, item.id);
+      expect(movement.itemLocalUuid, itemUuid);
+      expect(movement.origin, 'server');
+      expect(await outbox.countPendingPushable(), 0);
+    },
+  );
 }
