@@ -169,6 +169,8 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                           displayName: account.displayName,
                           userType: account.userType,
                           isFixedAccount: account.isFixed,
+                          isActive: account.isActive,
+                          isLocked: account.isLocked,
                           isCloudUser: account.isCloud,
                           docId: account.docId,
                           onDeleted: _refreshAccounts,
@@ -404,6 +406,8 @@ class _UserAccountSummary {
     required this.displayName,
     required this.userType,
     required this.isFixed,
+    this.isActive = true,
+    this.isLocked = false,
     this.isCloud = false,
     this.docId,
   });
@@ -414,6 +418,8 @@ class _UserAccountSummary {
       displayName: (map['full_name'] ?? map['username'] ?? '').toString(),
       userType: (map['user_type'] ?? '').toString(),
       isFixed: map['is_fixed'] == true,
+      isActive: map['is_active'] != false,
+      isLocked: map['is_locked'] == true,
       isCloud: map['is_cloud'] == true,
       docId: map['doc_id']?.toString(),
     );
@@ -422,6 +428,8 @@ class _UserAccountSummary {
   final String displayName;
   final String userType;
   final bool isFixed;
+  final bool isActive;
+  final bool isLocked;
   final bool isCloud;
   final String? docId;
 }
@@ -432,6 +440,8 @@ class UserPermissionsCard extends ConsumerStatefulWidget {
     required this.displayName,
     required this.userType,
     required this.isFixedAccount,
+    this.isActive = true,
+    this.isLocked = false,
     super.key,
     this.isCloudUser = false,
     this.docId,
@@ -442,6 +452,8 @@ class UserPermissionsCard extends ConsumerStatefulWidget {
   final String displayName;
   final String userType;
   final bool isFixedAccount;
+  final bool isActive;
+  final bool isLocked;
   final bool isCloudUser;
   final String? docId;
   final VoidCallback? onDeleted;
@@ -651,7 +663,9 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                         Wrap(
                           spacing: 8,
                           runSpacing: 4,
-                          children: AuthLocalStore.permissionKeys.map((k) {
+                          children: AuthLocalStore.permissionEditorKeys.map((
+                            k,
+                          ) {
                             final selected = selectedPerms.contains(k);
                             return FilterChip(
                               label: Text(_permLabel(k)),
@@ -941,6 +955,29 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                       style: TextStyle(color: Colors.blue, fontSize: 11),
                     ),
                   ),
+                const SizedBox(width: 6),
+                Chip(
+                  avatar: Icon(
+                    widget.isLocked
+                        ? Icons.lock
+                        : widget.isActive
+                        ? Icons.check_circle
+                        : Icons.block,
+                    size: 15,
+                    color: widget.isLocked
+                        ? Colors.orange
+                        : widget.isActive
+                        ? Colors.green
+                        : Colors.red,
+                  ),
+                  label: Text(
+                    widget.isLocked
+                        ? 'مقفل'
+                        : widget.isActive
+                        ? 'نشط'
+                        : 'معطل',
+                  ),
+                ),
                 const SizedBox(width: 6),
                 Chip(
                   label: Text(

@@ -205,7 +205,9 @@ class AuthLocalStore {
 
   /// سحب المستخدمين من Appwrite Cloud (app_users collection)
   /// يعيد Map<username, account_data> أو فارغ عند الفشل
-  Future<Map<String, Map<String, dynamic>>> loadCloudAccounts() async {
+  Future<Map<String, Map<String, dynamic>>> loadCloudAccounts({
+    bool includeInactive = false,
+  }) async {
     try {
       final appwrite = AppwriteService();
       await appwrite.initialize();
@@ -218,8 +220,8 @@ class AuthLocalStore {
         final d = doc.data;
         final username = (d['username'] ?? '').toString().trim();
         if (username.isEmpty) continue;
-        final active = d['active'];
-        if (active == false) continue;
+        final active = d['active'] ?? d['isActive'];
+        if (active == false && !includeInactive) continue;
         cloudAccounts[username] = {
           'password': (d['password'] ?? '').toString(),
           'full_name': (d['full_name'] ?? username).toString(),
@@ -228,7 +230,8 @@ class AuthLocalStore {
           'doc_id': doc.$id,
           'is_cloud': true,
           'permissions_json': (d['permissions'] ?? '[]').toString(),
-          'active': d['active'] ?? true,
+          'active': active ?? true,
+          'is_locked': d['isLocked'] == true || d['is_locked'] == true,
           'credentials_version': d['credentials_version'] ?? 1,
           'role': (d['role'] ?? d['user_type'] ?? 'employee').toString(),
           'version': d['version'] ?? 1,
@@ -771,6 +774,8 @@ class AuthLocalStore {
         'id': data['id'],
         'is_fixed': true,
         'is_cloud': false,
+        'is_active': true,
+        'is_locked': false,
       });
     });
 
@@ -785,13 +790,15 @@ class AuthLocalStore {
           'id': rawData['id'],
           'is_fixed': false,
           'is_cloud': false,
+          'is_active': true,
+          'is_locked': false,
         });
       }
     });
 
-    // حسابات سحابية من Appwrite (app_users)
+    // حسابات سحابية من Appwrite (app_users)، بما فيها المعطلة لعرض حالتها.
     try {
-      final cloudAccounts = await loadCloudAccounts();
+      final cloudAccounts = await loadCloudAccounts(includeInactive: true);
       for (final entry in cloudAccounts.entries) {
         final username = entry.key;
         final data = entry.value;
@@ -807,6 +814,8 @@ class AuthLocalStore {
             'is_fixed': false,
             'is_cloud': true,
             'doc_id': data['doc_id'],
+            'is_active': data['active'] != false,
+            'is_locked': data['is_locked'] == true,
           });
         } else if (result[existingIndex]['is_fixed'] != true) {
           // الحساب أُنشئ محلياً ثم رُفع إلى Appwrite؛ نحتفظ ببطاقة واحدة
@@ -819,6 +828,8 @@ class AuthLocalStore {
                 data['user_type'] ?? result[existingIndex]['user_type'],
             'is_cloud': true,
             'doc_id': data['doc_id'],
+            'is_active': data['active'] != false,
+            'is_locked': data['is_locked'] == true,
           };
         }
       }
