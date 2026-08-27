@@ -1,15 +1,15 @@
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:appwrite/appwrite.dart';
 import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/app_logger.dart';
 import '../utils/id.dart';
 import 'appwrite_service.dart';
+import 'appwrite_sync_manager.dart';
 import 'password_hasher.dart';
-import 'secondary_appwrite_config.dart';
-import 'secondary_appwrite_service.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 enum AuthType { local }
 
@@ -446,103 +446,12 @@ class AuthLocalStore {
         'User $username pushed to cloud (password hashed)',
         tag: 'AUTH',
       );
-
-      // ✅ مزامنة Secondary Appwrite: إرسال نفس البيانات للوجهة الثانوية
-      await _pushToSecondary(docId, {
-        'username': username,
-        'password': hashedPassword,
-        'full_name': fullName,
-        'user_type': userType,
-        'userType': userType,
-        'permissions': jsonEncode(permissions),
-        'active': true,
-        'last_login': 0,
-        'credentials_version': 1,
-        'role': userType,
-        'localUuid': localUuid,
-        'createdAt': now,
-        'updatedAt': now,
-        'lastModified': now,
-        'lastModifiedEpoch': now,
-        'syncTimestamp': now,
-        'version': 1,
-        'vectorClock': vectorClock,
-        'deviceId': deviceId,
-      });
     } catch (e) {
       AppLogger.warning(
         'Failed to push user $username to cloud',
         tag: 'AUTH',
         error: e,
       );
-    }
-  }
-
-  /// ✅ إرسال بيانات المستخدم للوجهة الثانوية (Secondary Appwrite)
-  ///
-  /// تعمل فقط إذا كان Secondary مُفعّلاً + Push مُفعّل.
-  /// الفشل هنا غير حرج — البيانات موجودة في Primary.
-  Future<void> _pushToSecondary(String docId, Map<String, dynamic> data) async {
-    try {
-      if (!SecondaryAppwriteConfig.isEnabled ||
-          !SecondaryAppwriteConfig.isPushEnabled ||
-          !SecondaryAppwriteConfig.isConfigured) {
-        return; // Secondary معطّل — لا شيء لنفعله
-      }
-
-      final service = SecondaryAppwriteService.instance;
-      await service.ensureInitialized();
-      await service.upsertDocument(
-        collectionId: 'app_users',
-        documentId: docId,
-        data: data,
-      );
-      dlog(() => '📤 [Auth] User synced to Secondary: $docId');
-    } catch (e) {
-      // فشل Secondary غير حرج — Primary لديه البيانات
-      dlog(() => '⚠️ [Auth] Secondary sync failed for user $docId: $e');
-    }
-  }
-
-  /// ✅ تحديث مستخدم في الوجهة الثانوية
-  Future<void> _updateSecondary(String docId, Map<String, dynamic> data) async {
-    try {
-      if (!SecondaryAppwriteConfig.isEnabled ||
-          !SecondaryAppwriteConfig.isPushEnabled ||
-          !SecondaryAppwriteConfig.isConfigured) {
-        return;
-      }
-
-      final service = SecondaryAppwriteService.instance;
-      await service.ensureInitialized();
-      await service.upsertDocument(
-        collectionId: 'app_users',
-        documentId: docId,
-        data: data,
-      );
-      dlog(() => '📤 [Auth] User updated in Secondary: $docId');
-    } catch (e) {
-      dlog(() => '⚠️ [Auth] Secondary update failed for user $docId: $e');
-    }
-  }
-
-  /// ✅ حذف مستخدم من الوجهة الثانوية
-  Future<void> _deleteFromSecondary(String docId) async {
-    try {
-      if (!SecondaryAppwriteConfig.isEnabled ||
-          !SecondaryAppwriteConfig.isConfigured) {
-        return;
-      }
-
-      final service = SecondaryAppwriteService.instance;
-      await service.ensureInitialized();
-      await service.deleteDocument(
-        collectionId: 'app_users',
-        documentId: docId,
-      );
-      dlog(() => '📤 [Auth] User deleted from Secondary: $docId');
-    } catch (e) {
-      dlog(() => '⚠️ [Auth] Secondary delete failed for user $docId: $e');
     }
   }
 
@@ -658,6 +567,7 @@ class AuthLocalStore {
     List<String>? newPermissions,
     bool? active,
   }) async {
+    Map<String, dynamic>? pendingData;
     try {
       final appwrite = AppwriteService();
       await appwrite.initialize();
@@ -668,7 +578,7 @@ class AuthLocalStore {
         documentId: docId,
       );
       final currentVersion =
-          currentDoc.data['credentials_version'] as int? ?? 0;
+          (currentDoc.data['credentials_version'] as num?)?.toInt() ?? 0;
       final nextVersion = currentVersion + 1;
 
       final data = <String, dynamic>{'credentials_version': nextVersion};
@@ -693,7 +603,9 @@ class AuthLocalStore {
       data['lastModified'] = now;
       data['lastModifiedEpoch'] = now;
       data['syncTimestamp'] = now;
-      data['version'] = (currentDoc.data['version'] as int? ?? 1) + 1;
+      data['version'] = (currentDoc.data['version'] as num?)?.toInt() ?? 1;
+      data['version'] = (data['version'] as int) + 1;
+      pendingData = Map<String, dynamic>.from(data);
 
       await appwrite.updateDocument(
         collectionId: 'app_users',
@@ -706,11 +618,40 @@ class AuthLocalStore {
         tag: 'AUTH',
       );
 
-      // ✅ مزامنة Secondary Appwrite: تحديث نفس البيانات في الوجهة الثانوية
-      await _updateSecondary(docId, data);
-
       return true;
     } catch (e) {
+      if (_isRetryablePermissionSyncError(e)) {
+        final queuedData =
+            pendingData ??
+            <String, dynamic>{
+              'username': username,
+              'updatedAt': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              'lastModified': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              'lastModifiedEpoch':
+                  DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              'syncTimestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              'version': 0,
+            };
+        if (newPassword != null && newPassword.isNotEmpty) {
+          queuedData['password'] = PasswordHasher.hash(newPassword);
+        }
+        if (newFullName != null) queuedData['full_name'] = newFullName;
+        if (newUserType != null) {
+          queuedData['user_type'] = newUserType;
+          queuedData['role'] = newUserType;
+        }
+        if (newPermissions != null) {
+          queuedData['permissions'] = jsonEncode(newPermissions);
+        }
+        if (active != null) queuedData['active'] = active;
+        if (await _enqueuePermissionSync(docId, queuedData)) {
+          AppLogger.info(
+            'تم حفظ تحديث المستخدم $username في Outbox للمزامنة اللاحقة',
+            tag: 'AUTH',
+          );
+          return true;
+        }
+      }
       AppLogger.error(
         'Failed to update cloud user $username',
         tag: 'AUTH',
@@ -730,9 +671,6 @@ class AuthLocalStore {
         documentId: docId,
       );
       AppLogger.info('Cloud user deleted (doc: $docId)', tag: 'AUTH');
-
-      // ✅ مزامنة Secondary Appwrite: حذف من الوجهة الثانوية
-      await _deleteFromSecondary(docId);
 
       return true;
     } catch (e) {
@@ -1052,11 +990,19 @@ class AuthLocalStore {
     return false;
   }
 
-  /// تحديث صلاحيات مستخدم سحابي في Appwrite
+  /// تحديث صلاحيات مستخدم سحابي في Appwrite.
+  ///
+  /// عند فشل الشبكة لا نلغي التغيير المحلي؛ نسجل payload في Outbox ليُرفع
+  /// لاحقاً. أما أخطاء المصادقة أو مخطط Appwrite فلا تُحجز تلقائياً، حتى لا
+  /// يبقى Outbox يعيد المحاولة بلا نهاية بسبب خطأ غير مؤقت.
   Future<bool> _updateCloudPermissions(
     String username,
     List<String> permissions,
   ) async {
+    // معرف app_users حتمي، لذلك يمكن إنشاء Outbox حتى لو تعذر الوصول
+    // إلى Appwrite قبل قراءة المستند الحالي.
+    String docId = _cloudDocumentId(username);
+    Map<String, dynamic>? pendingPayload;
     try {
       final appwrite = AppwriteService();
       await appwrite.initialize();
@@ -1065,7 +1011,6 @@ class AuthLocalStore {
         useCache: false,
       );
       Map<String, dynamic>? cloudData;
-      String? docId;
       for (final doc in docs) {
         if ((doc.data['username']?.toString() ?? '') == username) {
           cloudData = doc.data;
@@ -1075,12 +1020,14 @@ class AuthLocalStore {
       }
       // لا يوجد مستند سحابي: الحساب محلي، لذلك يكفي الحفظ المحلي.
       if (cloudData == null) return true;
-      if (docId == null || docId.isEmpty) return false;
+      if (docId.isEmpty) return false;
+
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       final credentialsVersion =
           (cloudData['credentials_version'] as num?)?.toInt() ?? 0;
       final version = (cloudData['version'] as num?)?.toInt() ?? 0;
-      final data = <String, dynamic>{
+      pendingPayload = <String, dynamic>{
+        'username': username,
         'permissions': jsonEncode(permissions),
         'credentials_version': credentialsVersion + 1,
         'updatedAt': now,
@@ -1092,21 +1039,81 @@ class AuthLocalStore {
       await appwrite.updateDocument(
         collectionId: 'app_users',
         documentId: docId,
-        data: data,
+        data: pendingPayload,
       );
       AppLogger.debug(
         'Permissions updated for $username in cloud',
         tag: 'AUTH',
       );
 
-      // ✅ مزامنة Secondary Appwrite: تحديث الصلاحيات في الوجهة الثانوية
-      await _updateSecondary(docId, data);
       return true;
     } catch (e) {
+      if (_isRetryablePermissionSyncError(e)) {
+        pendingPayload ??= <String, dynamic>{
+          'username': username,
+          'permissions': jsonEncode(permissions),
+          'updatedAt': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          'lastModified': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          'lastModifiedEpoch': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          'syncTimestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          'version': 0,
+        };
+      }
+      if (_isRetryablePermissionSyncError(e) &&
+          pendingPayload != null &&
+          await _enqueuePermissionSync(docId, pendingPayload)) {
+        AppLogger.info(
+          'تم حفظ صلاحيات $username في Outbox للمزامنة اللاحقة',
+          tag: 'AUTH',
+        );
+        return true;
+      }
       AppLogger.warning(
         'Failed to update cloud permissions for $username',
         tag: 'AUTH',
         error: e,
+      );
+      return false;
+    }
+  }
+
+  bool _isRetryablePermissionSyncError(Object error) {
+    if (error is TimeoutException) return true;
+    if (error is AppwriteException) {
+      final code = error.code;
+      return code == null || code == 408 || code == 429 || code >= 500;
+    }
+    final message = error.toString();
+    return message.contains('SocketException') ||
+        message.contains('HandshakeException') ||
+        message.contains('Connection refused') ||
+        message.contains('Network is unreachable') ||
+        message.contains('TimeoutException') ||
+        message.contains('timed out');
+  }
+
+  Future<bool> _enqueuePermissionSync(
+    String docId,
+    Map<String, dynamic> payload,
+  ) async {
+    final manager = AppwriteSyncManager.instance;
+    if (manager == null) return false;
+    try {
+      await manager.outboxDao.merge(
+        entity: 'app_users',
+        op: 'update',
+        localUuid: docId,
+        payload: payload,
+        clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        source: 'local',
+      );
+      return true;
+    } catch (e, st) {
+      AppLogger.warning(
+        'تعذر إضافة تحديث صلاحيات المستخدم إلى Outbox',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
       );
       return false;
     }

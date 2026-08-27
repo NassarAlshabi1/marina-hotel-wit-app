@@ -3608,6 +3608,8 @@ class AppwriteSyncManager {
           return await _processPaymentVoidEntry(entry);
         case 'audit_logs':
           return await _processAuditLogEntry(entry);
+        case 'app_users':
+          return await _processAppUserEntry(entry);
         case 'inventory_items':
           return await _processInventoryItemEntry(entry);
         case 'inventory_transactions':
@@ -3702,6 +3704,7 @@ class AppwriteSyncManager {
       'payment_voids': AppwriteConfig.paymentVoidsCollectionId,
       'salary_carry_over_logs': 'salary_carry_over_logs',
       'audit_logs': AppwriteConfig.auditLogsCollectionId,
+      'app_users': AppwriteConfig.appUsersCollectionId,
       'inventory_items': AppwriteConfig.inventoryItemsCollectionId,
       'inventory_transactions':
           AppwriteConfig.inventoryTransactionsCollectionId,
@@ -7140,6 +7143,71 @@ class AppwriteSyncManager {
       data: _filterPayload('audit_logs', _addIdempotencyKey(occPayload, entry)),
     );
     return true;
+  }
+
+  /// رفع تغييرات مستخدم سحابي من Outbox.
+  ///
+  /// لا يوجد جدول app_users محلي في Drift؛ لذلك يحفظ AuthLocalStore الحمولة
+  /// الكاملة اللازمة للتحديث. عند وصولها لاحقاً، نقرأ النسخة الحالية من Cloud
+  /// ونزيد credentials_version/version وقت الرفع حتى لا نكتب نسخة قديمة.
+  Future<bool> _processAppUserEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      return _handleDeleteOp(
+        entity: 'app_users',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.appUsersCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+    }
+
+    final rawPayload = jsonDecode(entry.payload);
+    if (rawPayload is! Map) {
+      throw const FormatException('Invalid app_users outbox payload');
+    }
+    final payload = Map<String, dynamic>.from(rawPayload);
+
+    try {
+      final remote = await appwriteService.getDocument(
+        collectionId: AppwriteConfig.appUsersCollectionId,
+        documentId: entry.localUuid,
+        suppressErrorLog: true,
+      );
+      final remoteData = Map<String, dynamic>.from(remote.data);
+      final now = Time.nowEpoch();
+      final remoteVersion = _asIntSafe(remoteData, 'version') ?? 0;
+      final remoteCredentialsVersion =
+          _asIntSafe(remoteData, 'credentials_version') ?? 0;
+      payload['credentials_version'] = remoteCredentialsVersion + 1;
+      payload['version'] = remoteVersion + 1;
+      payload['updatedAt'] = now;
+      payload['lastModified'] = now;
+      payload['lastModifiedEpoch'] = now;
+      payload['syncTimestamp'] = now;
+      payload['localUuid'] ??= remoteData['localUuid'];
+      payload['createdAt'] ??= remoteData['createdAt'];
+      payload['createdAtEpoch'] ??= remoteData['createdAtEpoch'];
+      payload['role'] ??= remoteData['role'] ?? remoteData['user_type'];
+      payload['userType'] ??= remoteData['userType'] ?? remoteData['user_type'];
+      payload['user_type'] ??=
+          remoteData['user_type'] ?? remoteData['userType'];
+      await appwriteService.updateDocument(
+        collectionId: AppwriteConfig.appUsersCollectionId,
+        documentId: entry.localUuid,
+        data: _filterPayload('app_users', _addIdempotencyKey(payload, entry)),
+      );
+      return true;
+    } on AppwriteException catch (error) {
+      if (error.code == 404) {
+        _logger.warning(
+          'تجاوز تحديث app_users لأن الحساب غير موجود في Cloud: ${entry.localUuid}',
+          tag: 'SYNC',
+        );
+        return true;
+      }
+      rethrow;
+    }
   }
 
   Future<bool> _processInventoryItemEntry(OutboxData entry) async {
