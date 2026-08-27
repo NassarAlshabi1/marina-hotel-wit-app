@@ -193,8 +193,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const SizedBox(height: 12),
               _buildColorInstructions(),
               const SizedBox(height: 12),
-              _buildCurrentUserSessionPayments(),
-              const SizedBox(height: 12),
               _buildEmployeeShiftPayments(),
             ],
           ),
@@ -916,90 +914,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  Widget _buildCurrentUserSessionPayments() {
-    final auth = ref.watch(authProvider);
-    final userName = auth.currentUser?.name ?? 'المستخدم الحالي';
-    final paymentsAsync = ref.watch(currentUserSessionPaymentsProvider);
-    final currencyFmt = NumberFormat('#,##0', 'en_US');
-
-    return paymentsAsync.when(
-      loading: () => _buildSessionPaymentCard(userName, '...', false),
-      error: (error, _) => _buildSessionPaymentCard(userName, '--', false),
-      data: (total) =>
-          _buildSessionPaymentCard(userName, currencyFmt.format(total), true),
-    );
-  }
-
-  Widget _buildSessionPaymentCard(
-    String userName,
-    String amount,
-    bool hasData,
-  ) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.green.shade100),
-        boxShadow: isLowEndDevice
-            ? const []
-            : const [
-                BoxShadow(
-                  color: Color(0x0D000000),
-                  blurRadius: 4,
-                  offset: Offset(0, 2),
-                ),
-              ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              Icons.account_balance_wallet_outlined,
-              color: Colors.green.shade700,
-              size: 19,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'إجمالي استلام $userName في النوبة',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                const Text(
-                  'منذ تسجيل الدخول • اليوم الفندقي الحالي',
-                  style: TextStyle(fontSize: 9, color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            amount,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: hasData ? Colors.green.shade700 : Colors.grey.shade600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildEmployeeShiftPayments() {
     final user = ref.watch(authProvider).currentUser;
     final canViewOtherEmployees =
@@ -1058,7 +972,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const SizedBox(width: 8),
               const Expanded(
                 child: Text(
-                  'استلامات الموظفين في النوبات',
+                  'استلامات المستخدمين الآخرين في النوبات',
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                 ),
               ),

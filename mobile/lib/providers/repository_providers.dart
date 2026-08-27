@@ -380,11 +380,10 @@ final currentUserSessionPaymentsProvider = StreamProvider.autoDispose<double>((
 final employeeShiftPaymentSummariesProvider =
     StreamProvider.autoDispose<List<PaymentShiftSummary>>((ref) {
       final user = ref.watch(authProvider).currentUser;
-      final canViewOtherEmployees =
-          user?.isAdmin == true ||
-          user?.userType == 'manager' ||
-          user?.userType == 'supervisor';
-      if (!canViewOtherEmployees) {
+      // كل مستخدم مسجل يرى استلامات المستخدمين الآخرين في النوبات.
+      // لا نعرض إجمالي جلسة المستخدم الحالي هنا؛ المدير يرى بقية المستخدمين
+      // والموظفين بالطريقة نفسها، دون بطاقة منفصلة لاستلامه الشخصي.
+      if (user == null) {
         return Stream.value(const <PaymentShiftSummary>[]);
       }
 
@@ -392,7 +391,7 @@ final employeeShiftPaymentSummariesProvider =
       final hotelDay = HotelTimeEngine.getHotelDayKey();
       return ref
           .watch(paymentsRepoProvider)
-          .watchPaymentShiftSummaries(hotelDay);
+          .watchPaymentShiftSummaries(hotelDay, excludedUserId: user.id);
     });
 
 final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {

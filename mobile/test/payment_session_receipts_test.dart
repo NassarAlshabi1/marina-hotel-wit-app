@@ -77,4 +77,53 @@ void main() {
       expect(pendingId, greaterThan(0));
     },
   );
+
+  test(
+    'shift summaries exclude the current system user and keep employee receipts',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(() async {
+        PaymentSessionContext.clear();
+        await db.close();
+      });
+
+      AdapterRegistry.initialize(db);
+      final repository = PaymentsRepository(db);
+      const paymentDate = '2026-08-21T15:00:00.000Z';
+      final hotelDay = HotelTimeEngine.getHotelDayKeyFromIso(paymentDate);
+
+      PaymentSessionContext.start(
+        userId: 1,
+        userName: 'مدير النظام',
+        sessionUuid: 'session-admin',
+      );
+      await repository.create(
+        amount: 161500,
+        paymentDate: paymentDate,
+        paymentMethod: 'نقدي',
+        revenueType: 'room',
+      );
+
+      PaymentSessionContext.start(
+        userId: 7,
+        userName: 'موظف الاستقبال',
+        sessionUuid: 'session-employee',
+      );
+      await repository.create(
+        amount: 250,
+        paymentDate: paymentDate,
+        paymentMethod: 'نقدي',
+        revenueType: 'room',
+      );
+
+      final summaries = await repository
+          .watchPaymentShiftSummaries(hotelDay, excludedUserId: 1)
+          .first;
+
+      expect(summaries, hasLength(1));
+      expect(summaries.single.userId, 7);
+      expect(summaries.single.userName, 'موظف الاستقبال');
+      expect(summaries.single.totalAmount, 250);
+    },
+  );
 }

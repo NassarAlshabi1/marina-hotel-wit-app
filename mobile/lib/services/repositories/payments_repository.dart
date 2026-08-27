@@ -126,11 +126,12 @@ class PaymentsRepository {
         .map((result) => (result.data['total'] as num).toDouble());
   }
 
-  /// إجماليات استلامات الموظفين حسب جلسة تسجيل الدخول/النوبة.
+  /// إجماليات استلامات المستخدمين الآخرين حسب جلسة تسجيل الدخول/النوبة.
   /// التجميع يتم في SQLite حتى لا تُحمّل جميع صفوف المدفوعات إلى Dart.
   Stream<List<PaymentShiftSummary>> watchPaymentShiftSummaries(
-    String hotelDayKey,
-  ) {
+    String hotelDayKey, {
+    int? excludedUserId,
+  }) {
     return db
         .customSelect(
           'SELECT received_by_user_id AS user_id, '
@@ -143,10 +144,12 @@ class PaymentsRepository {
           'AND is_pending_balance = 0 '
           'AND received_by_user_id IS NOT NULL '
           'AND received_session_uuid IS NOT NULL '
+          '${excludedUserId == null ? '' : 'AND received_by_user_id != ? '} '
           'AND (hotel_day_key = ? OR (hotel_day_key IS NULL AND payment_date LIKE ?)) '
           'GROUP BY received_by_user_id, received_by_name, received_session_uuid '
           'ORDER BY total_amount DESC',
           variables: [
+            if (excludedUserId != null) d.Variable.withInt(excludedUserId),
             d.Variable.withString(hotelDayKey),
             d.Variable.withString('$hotelDayKey%'),
           ],
