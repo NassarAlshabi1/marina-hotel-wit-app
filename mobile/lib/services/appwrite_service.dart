@@ -1403,6 +1403,50 @@ class AppwriteService {
   /// اختبار الاتصال (alias لـ fullConnectionTest)
   Future<Map<String, dynamic>> testConnection() => fullConnectionTest();
 
+  /// اختبار اتصال قراءة فقط باستخدام إعدادات مؤقتة، دون تعديل الإعدادات المحفوظة.
+  /// يُستخدم من شاشة إعداد الاتصال لاختبار القيم التي أدخلها المستخدم قبل الحفظ.
+  Future<Map<String, dynamic>> testConnectionWithConfig({
+    required String endpoint,
+    required String projectId,
+    required String databaseId,
+    required String apiKey,
+  }) async {
+    final results = <String, dynamic>{
+      'tests': <String, dynamic>{},
+      'overall_success': false,
+    };
+
+    try {
+      final client = Client()
+          .setEndpoint(endpoint.trim())
+          .setProject(projectId.trim());
+      final trimmedApiKey = apiKey.trim();
+      if (trimmedApiKey.isNotEmpty) {
+        client.addHeader('X-Appwrite-Key', trimmedApiKey);
+      }
+
+      final databases = Databases(client);
+      await databases
+          // ignore: deprecated_member_use
+          .listDocuments(
+            databaseId: databaseId.trim(),
+            collectionId: AppwriteConfig.roomsCollectionId,
+            queries: [Query.limit(1)],
+          )
+          .timeout(const Duration(seconds: 10));
+
+      results['tests']['rooms'] = true;
+      results['tests']['ping'] = true;
+      results['overall_success'] = true;
+      return results;
+    } catch (e) {
+      results['tests']['rooms'] = false;
+      results['tests']['ping'] = false;
+      results['error'] = e.toString();
+      return results;
+    }
+  }
+
   /// Getter للتحقق من حالة التهيئة
   bool get isInitialized => _initialized;
 

@@ -7570,9 +7570,9 @@ class AppwriteSyncManager {
   }
 
   /// تحميل جميع البيانات من الخادم
-  Future<void> pullAllRemoteData() async {
+  Future<bool> pullAllRemoteData() async {
     _logger.info('Pulling all remote data...', tag: 'SYNC');
-    await pullRemoteChanges();
+    return pullRemoteChanges();
   }
 
   /// إعادة تعيين حالة المزامنة

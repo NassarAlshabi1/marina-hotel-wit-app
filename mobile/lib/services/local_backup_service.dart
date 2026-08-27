@@ -16,6 +16,8 @@ import '../utils/app_logger.dart';
 import '../utils/debug_log.dart';
 import '../utils/json_isolate.dart';
 import 'backup_serializers.dart';
+import 'adapters/adapter_registry.dart';
+import 'adapters/source.dart';
 import 'google_drive_backup_service.dart';
 import 'local_db.dart';
 import 'sqlite_backup_restore.dart';
@@ -176,6 +178,10 @@ class LocalBackupService {
         final salaryCarryOverLogsData = await db
             .select(db.salaryCarryOverLogs)
             .get();
+        final inventoryItemsData = await db.select(db.inventoryItems).get();
+        final inventoryTransactionsData = await db
+            .select(db.inventoryTransactions)
+            .get();
 
         final tableData = BackupTableData(
           roomsData: roomsData,
@@ -198,6 +204,8 @@ class LocalBackupService {
           guestInfosData: guestInfosData,
           salaryWithdrawalsData: salaryWithdrawalsData,
           salaryCarryOverLogsData: salaryCarryOverLogsData,
+          inventoryItemsData: inventoryItemsData,
+          inventoryTransactionsData: inventoryTransactionsData,
         );
 
         final totalRecords = tableData.totalRecords;
@@ -216,6 +224,12 @@ class LocalBackupService {
               ? syncStateData.first.toJson()
               : <String, dynamic>{},
         );
+        final backupMetadata = Map<String, dynamic>.from(
+          backupData['metadata'] as Map,
+        );
+        backupMetadata['data_hash'] =
+            GoogleDriveBackupService.computeBackupChecksum(backupData);
+        backupData['metadata'] = backupMetadata;
 
         final filePath = '${backupDir.path}/$baseName.json.gz';
         final file = File(filePath);
@@ -515,8 +529,15 @@ class LocalBackupService {
       );
     }
 
+    if (!GoogleDriveBackupService.verifyBackupChecksum(backupData)) {
+      throw StateError(
+        'النسخة الاحتياطية المحلية تالفة: تجزئة البيانات غير مطابقة',
+      );
+    }
+
     dlog('🔄 بدء استعادة البيانات من نسخة JSON...');
     final db = getDatabase();
+    final adapterRegistry = AdapterRegistry.instance;
 
     // تعطيل FOREIGN KEYS أثناء الحذف والاستعادة بالكامل
     // (يجب أن يكون خارج transaction لأن SQLite يتجاهل PRAGMA داخل transaction)
@@ -532,6 +553,7 @@ class LocalBackupService {
         // الآن نحذف كل الجداول الـ20 بالترتيب الصحيح (children قبل parents):
         // Level 2 (FK→ Level 0/1)
         await db.delete(db.salaryPayments).go(); // FK→ salary_cycles
+        await db.delete(db.inventoryTransactions).go(); // FK→ inventory_items
         await db.delete(db.salaryWithdrawals).go(); // FK→ employees
         await db.delete(db.salaryCarryOverLogs).go(); // FK→ employees
         await db.delete(db.integrityViolations).go(); // FK→ auto_fix_runs
@@ -546,6 +568,7 @@ class LocalBackupService {
         await db.delete(db.syncConflicts).go(); // FK→ sync_log
         // Level 0
         await db.delete(db.expenses).go();
+        await db.delete(db.inventoryItems).go();
         await db.delete(db.cashTransactions).go();
         await db.delete(db.employees).go();
         await db.delete(db.rooms).go();
@@ -594,6 +617,18 @@ class LocalBackupService {
             serializer: lenientValueSerializer,
           );
           await db.into(db.employees).insertOnConflictUpdate(data);
+        });
+        await insertList<dynamic>('inventory_items', (json) async {
+          await adapterRegistry.inventoryItems.upsertFromJson(
+            Map<String, dynamic>.from(json as Map),
+            src: Source.drive,
+          );
+        });
+        await insertList<dynamic>('inventory_transactions', (json) async {
+          await adapterRegistry.inventoryTransactions.upsertFromJson(
+            Map<String, dynamic>.from(json as Map),
+            src: Source.drive,
+          );
         });
         await insertList<dynamic>('cash_transactions', (json) async {
           final map = Map<String, dynamic>.from(json as Map);
@@ -911,6 +946,9 @@ class LocalBackupService {
         if (!jsonData.containsKey('metadata')) {
           throw Exception('الملف المختار ليس نسخة احتياطية صالحة');
         }
+        if (!GoogleDriveBackupService.verifyBackupChecksum(jsonData)) {
+          throw StateError('الملف المختار تالف: تجزئة البيانات غير مطابقة');
+        }
 
         final ext = extension == '.gz' ? '.json.gz' : '.json';
         final newFilePath = '${backupDir.path}/$baseName$ext';
@@ -1011,16 +1049,10 @@ class LocalBackupService {
     try {
       dlog('🔄 تصدير نسخة احتياطية إلى مجلد Downloads...');
 
-      // إنشاء النسخة الاحتياطية أولاً
-      await createLocalBackup();
-
-      // البحث عن أحدث نسخة
-      final backups = await listLocalBackups();
-      if (backups.isEmpty) {
-        throw Exception('لا توجد نسخ احتياطية متاحة');
-      }
-
-      final latestBackup = backups.first;
+      // إنشاء النسخة الاحتياطية بالصّيغة المفضلة أولاً، ثم استخدام المسار
+      // العائد مباشرةً بدلاً من الاعتماد على ترتيب ملفات المجلد.
+      final preferredFormat = await getPreferredBackupFormat();
+      final backupPath = await createLocalBackup(format: preferredFormat);
 
       // محاولة الحصول على مجلد Downloads
       Directory? downloadsDir;
@@ -1045,12 +1077,16 @@ class LocalBackupService {
 
       downloadsDir ??= await getBackupDirectory();
 
-      // نسخ الملف
-      final sourceFile = File(latestBackup.filePath);
+      // نسخ الملف مع الحفاظ على امتداده الحقيقي (.json.gz أو .sqlite).
+      final sourceFile = File(backupPath);
+      if (!sourceFile.existsSync()) {
+        throw Exception('تعذر العثور على النسخة التي تم إنشاؤها');
+      }
       final timestamp = DateTime.now();
+      final sourceExtension = p.extension(sourceFile.path).toLowerCase();
       final exportFileName =
-          'marina_hotel_export_${timestamp.toIso8601String().split('T')[0]}.json';
-      final exportPath = '${downloadsDir.path}/$exportFileName';
+          'marina_hotel_export_${timestamp.toIso8601String().split('T')[0]}$sourceExtension';
+      final exportPath = p.join(downloadsDir.path, exportFileName);
 
       await sourceFile.copy(exportPath);
 

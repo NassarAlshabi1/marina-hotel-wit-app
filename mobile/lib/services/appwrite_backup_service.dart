@@ -46,6 +46,9 @@ class AppwriteBackupService {
     AppwriteConfig.paymentVoidsCollectionId,
     AppwriteConfig.devicesCollectionId,
     AppwriteConfig.syncLogsCollectionId,
+    AppwriteConfig.appUsersCollectionId,
+    AppwriteConfig.inventoryItemsCollectionId,
+    AppwriteConfig.inventoryTransactionsCollectionId,
   ];
 
   Future<List<dynamic>> _listAllCollections() async {

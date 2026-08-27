@@ -10,7 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/backup_serializers.dart';
 import 'package:marina_hotel_mobile/services/google_drive_backup_service.dart'
-    show BackupFormat, BackupMetadata;
+    show BackupFormat, BackupMetadata, GoogleDriveBackupService;
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart' show Sqflite, openDatabase;
@@ -189,7 +189,59 @@ void main() {
   }
 
   // ═════════════════════════════════════════════════════════════════════════
-  //  Group 1: LocalBackupService — JSON format
+  //  Group 1: Backup JSON schema + checksum
+  // ═════════════════════════════════════════════════════════════════════════
+  group('Backup JSON schema + checksum', () {
+    test('backup map includes inventory tables and detects tampering', () {
+      final metadata = BackupMetadata(
+        appVersion: '1.2.0+3',
+        databaseVersion: db.schemaVersion,
+        backupTimestamp: DateTime(2026, 8, 28),
+        totalRecords: 2,
+        deviceInfo: 'Test Device',
+      ).toJson();
+      final backupData = buildBackupDataMap(
+        metadata: metadata,
+        roomsData: const [],
+        bookingsData: const [],
+        bookingNotesData: const [],
+        bookingNightsData: const [],
+        ledgerData: const [],
+        shiftNotesData: const [],
+        employeesData: const [],
+        expensesData: const [],
+        cashTransactionsData: const [],
+        paymentsData: const [],
+        debtsData: const [],
+        salaryCyclesData: const [],
+        salaryPaymentsData: const [],
+        priceAdjustmentsData: const [],
+        bookingPriceAdjData: const [],
+        auditLogsData: const [],
+        paymentVoidsData: const [],
+        guestInfosData: const [],
+        salaryWithdrawalsData: const [],
+        salaryCarryOverLogsData: const [],
+        inventoryItemsData: const [],
+        inventoryTransactionsData: const [],
+      );
+      expect(backupData, containsPair('inventory_items', isEmpty));
+      expect(backupData, containsPair('inventory_transactions', isEmpty));
+
+      final hash = GoogleDriveBackupService.computeBackupChecksum(backupData);
+      (backupData['metadata'] as Map<String, dynamic>)['data_hash'] = hash;
+      expect(GoogleDriveBackupService.verifyBackupChecksum(backupData), isTrue);
+
+      (backupData['inventory_items'] as List<dynamic>).add({'name': 'تعديل'});
+      expect(
+        GoogleDriveBackupService.verifyBackupChecksum(backupData),
+        isFalse,
+      );
+    });
+  });
+
+  // ═════════════════════════════════════════════════════════════════════════
+  //  Group 2: LocalBackupService — JSON format
   // ═════════════════════════════════════════════════════════════════════════
   group('LocalBackupService — JSON format', () {
     test(

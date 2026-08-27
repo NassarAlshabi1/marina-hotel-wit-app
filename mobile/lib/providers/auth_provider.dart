@@ -115,12 +115,15 @@ class AuthState {
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier()
-    : super(const AuthState(isAuthenticated: false, isRestoring: true)) {
-    restoreSession();
+  AuthNotifier({AuthLocalStore? store, bool restoreSessionOnCreate = true})
+    : _store = store ?? AuthLocalStore(),
+      super(const AuthState(isAuthenticated: false, isRestoring: true)) {
+    if (restoreSessionOnCreate) {
+      restoreSession();
+    }
   }
 
-  final _store = AuthLocalStore();
+  final AuthLocalStore _store;
   Timer? _sessionCheckTimer;
 
   /// فحص دوري لصلاحية الجلسة — كل 30 ثانية
