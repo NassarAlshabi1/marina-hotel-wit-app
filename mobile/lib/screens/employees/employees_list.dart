@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/appwrite_providers.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
@@ -37,6 +38,10 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
   Widget build(BuildContext context) {
     super.build(context); // ✅ AutomaticKeepAlive
     final repo = ref.watch(employeesRepoProvider);
+    final user = ref.watch(authProvider).currentUser;
+    final canCreate = user?.canPerform('employees', 'create') ?? false;
+    final canUpdate = user?.canPerform('employees', 'update') ?? false;
+    final canDelete = user?.canPerform('employees', 'delete') ?? false;
     return wrapWithSyncOnExit(
       child: AppScaffold(
         title: 'الموظفون',
@@ -47,7 +52,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
             tooltip: 'مزامنة',
           ),
           IconButton(
-            onPressed: () => _edit(context, ref),
+            onPressed: canCreate ? () => _edit(context, ref) : null,
             icon: const Icon(Icons.add),
             tooltip: 'إضافة موظف',
           ),
@@ -122,13 +127,20 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                       return RepaintBoundary(
                         child: _EmployeeCard(
                           employee: e,
-                          onTap: () => _edit(context, ref, existing: e),
-                          onDelete: () => _deleteEmployee(context, ref, e),
-                          onTerminate: StatusUtils.isEmployeeActive(e.status)
+                          onTap: canUpdate
+                              ? () => _edit(context, ref, existing: e)
+                              : null,
+                          onDelete: canDelete
+                              ? () => _deleteEmployee(context, ref, e)
+                              : null,
+                          onTerminate:
+                              canUpdate &&
+                                  StatusUtils.isEmployeeActive(e.status)
                               ? () => _showTerminateDialog(context, ref, e)
                               : null,
                           onReactivate:
-                              StatusUtils.isEmployeeTerminated(e.status)
+                              canUpdate &&
+                                  StatusUtils.isEmployeeTerminated(e.status)
                               ? () => _reactivateEmployee(context, ref, e)
                               : null,
                         ),
@@ -151,6 +163,9 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
   }
 
   Widget _buildEmptyState() {
+    final canCreate =
+        ref.read(authProvider).currentUser?.canPerform('employees', 'create') ??
+        false;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -179,11 +194,12 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
             style: TextStyle(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => _edit(context, ref),
-            icon: const Icon(Icons.add),
-            label: const Text('إضافة موظف'),
-          ),
+          if (canCreate)
+            ElevatedButton.icon(
+              onPressed: () => _edit(context, ref),
+              icon: const Icon(Icons.add),
+              label: const Text('إضافة موظف'),
+            ),
         ],
       ),
     );
@@ -992,14 +1008,14 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
 class _EmployeeCard extends StatelessWidget {
   const _EmployeeCard({
     required this.employee,
-    required this.onTap,
-    required this.onDelete,
+    this.onTap,
+    this.onDelete,
     this.onTerminate,
     this.onReactivate,
   });
   final Employee employee;
-  final VoidCallback onTap;
-  final VoidCallback onDelete;
+  final VoidCallback? onTap;
+  final VoidCallback? onDelete;
   final VoidCallback? onTerminate;
   final VoidCallback? onReactivate;
 
@@ -1214,23 +1230,25 @@ class _EmployeeCard extends StatelessWidget {
                         tooltip: 'إعادة تفعيل',
                       ),
                     ),
-                  const SizedBox(width: 2),
-                  SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: IconButton(
-                      onPressed: onDelete,
-                      icon: const Icon(Icons.delete_outline, size: 12),
-                      color: AppColors.dangerColor,
-                      padding: EdgeInsets.zero,
-                      style: IconButton.styleFrom(
-                        backgroundColor: AppColors.dangerColor.withValues(
-                          alpha: 0.1,
+                  if (onDelete != null) ...[
+                    const SizedBox(width: 2),
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: IconButton(
+                        onPressed: onDelete,
+                        icon: const Icon(Icons.delete_outline, size: 12),
+                        color: AppColors.dangerColor,
+                        padding: EdgeInsets.zero,
+                        style: IconButton.styleFrom(
+                          backgroundColor: AppColors.dangerColor.withValues(
+                            alpha: 0.1,
+                          ),
                         ),
+                        tooltip: 'حذف',
                       ),
-                      tooltip: 'حذف',
                     ),
-                  ),
+                  ],
                 ],
               ),
             ],

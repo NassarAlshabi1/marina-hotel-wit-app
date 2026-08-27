@@ -1020,6 +1020,41 @@ class SyncConflicts extends Table {
   ];
 }
 
+/// أصناف المخزون المحلية. الرصيد الحالي مشتق من حركات الوارد والصرف والجرد.
+class InventoryItems extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text().unique()();
+  TextColumn get unit => text().withDefault(const Constant('قطعة'))();
+  TextColumn get category => text().nullable()();
+  IntColumn get quantity => integer().withDefault(const Constant(0))();
+  IntColumn get minimumQuantity => integer().withDefault(const Constant(0))();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  List<Index> get indexes => [
+    Index(
+      'idx_inventory_items_active_name',
+      'CREATE INDEX idx_inventory_items_active_name ON inventory_items (is_active, name)',
+    ),
+  ];
+}
+
+class InventoryTransactions extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get itemLocalUuid => text().nullable()();
+  IntColumn get itemId => integer().references(InventoryItems, #id)();
+  TextColumn get movementType => text()();
+  IntColumn get quantity => integer()();
+  IntColumn get balanceAfter => integer()();
+  TextColumn get note => text().nullable()();
+  IntColumn get userId => integer().nullable()();
+  TextColumn get userName => text().nullable()();
+  List<Index> get indexes => [
+    Index(
+      'idx_inventory_transactions_item_date',
+      'CREATE INDEX idx_inventory_transactions_item_date ON inventory_transactions (item_id, created_at DESC)',
+    ),
+  ];
+}
+
 /// ✅ جدول AncestorCache — يخزّن آخر نسخة معروفة مشتركة (common ancestor)
 /// لكل سجل، ويُستخدم في الدمج ثلاثي الأطراف (3-way merge) لحل التعارضات.
 ///
@@ -1069,6 +1104,8 @@ class AncestorCache extends Table {
     GuestInfos,
     SalaryWithdrawals,
     SalaryCarryOverLogs,
+    InventoryItems,
+    InventoryTransactions,
     AncestorCache,
   ],
 )
@@ -1079,7 +1116,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 61;
+  int get schemaVersion => 63;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1108,6 +1145,19 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('PRAGMA wal_autocheckpoint = 1000');
     },
     onUpgrade: (m, from, to) async {
+      if (from < 62) {
+        await m.createTable(inventoryItems);
+        await m.createTable(inventoryTransactions);
+      }
+      // الإصدار 63: إضافة UUID المرجعي لحركات المخزون الموجودة منذ الإصدار 62.
+      // لا نضيف العمود عند إنشاء الجداول لأول مرة (from < 62)، لأنه موجود
+      // ضمن تعريف الجدول الحالي بالفعل.
+      if (from >= 62 && from < 63) {
+        await m.addColumn(
+          inventoryTransactions,
+          inventoryTransactions.itemLocalUuid,
+        );
+      }
       if (from < 61) {
         await m.addColumn(payments, payments.receivedByUserId);
         await m.addColumn(payments, payments.receivedByName);

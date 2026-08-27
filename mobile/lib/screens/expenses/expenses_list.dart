@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/appwrite_providers.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/custom_list_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/analytics_service.dart';
@@ -105,6 +106,8 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   @override
   Widget build(BuildContext context) {
     final employeesAsync = ref.watch(employeesListProvider);
+    final user = ref.watch(authProvider).currentUser;
+    final canCreate = user?.canPerform('expenses', 'create') ?? false;
 
     return wrapWithSyncOnExit(
       child: AppScaffold(
@@ -115,7 +118,9 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
             icon: const Icon(Icons.sync),
           ),
           IconButton(
-            onPressed: () => _edit(employees: employeesAsync.value),
+            onPressed: canCreate
+                ? () => _edit(employees: employeesAsync.value)
+                : null,
             icon: const Icon(Icons.add),
           ),
         ],
@@ -683,13 +688,18 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
     List<Employee> employees,
   ) {
     final date = _parseExpenseDate(expense.date);
+    final user = ref.read(authProvider).currentUser;
+    final canUpdate = user?.canPerform('expenses', 'update') ?? false;
+    final canDelete = user?.canPerform('expenses', 'delete') ?? false;
     // ✅ السلفة مُستبعدة بالفعل من القائمة أعلاه — لا حاجة لفحص إضافي هنا
     return Card(
       margin: const EdgeInsets.only(bottom: 4),
       elevation: 0.5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: InkWell(
-        onTap: () => _edit(existing: expense, employees: employees),
+        onTap: canUpdate
+            ? () => _edit(existing: expense, employees: employees)
+            : null,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           child: Column(
@@ -720,41 +730,42 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
                     ),
                   ),
                   const SizedBox(width: 4),
-                  // زر التعديل
-                  InkWell(
-                    onTap: () => _edit(existing: expense, employees: employees),
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade50,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Icon(
-                        Icons.edit,
-                        size: 16,
-                        color: Colors.blue.shade700,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  // زر الحذف
-                  InkWell(
-                    onTap: () => _deleteExpense(expense),
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Icon(
-                        Icons.delete_outline,
-                        size: 16,
-                        color: Colors.red.shade700,
+                  if (canUpdate)
+                    InkWell(
+                      onTap: () =>
+                          _edit(existing: expense, employees: employees),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Icon(
+                          Icons.edit,
+                          size: 16,
+                          color: Colors.blue.shade700,
+                        ),
                       ),
                     ),
-                  ),
+                  if (canUpdate && canDelete) const SizedBox(width: 4),
+                  if (canDelete)
+                    InkWell(
+                      onTap: () => _deleteExpense(expense),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Icon(
+                          Icons.delete_outline,
+                          size: 16,
+                          color: Colors.red.shade700,
+                        ),
+                      ),
+                    ),
                 ],
               ),
               const SizedBox(height: 4),
@@ -801,6 +812,18 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
 
   /// حذف مصروف مع تأكيد
   Future<void> _deleteExpense(Expense expense) async {
+    if (!(ref
+            .read(authProvider)
+            .currentUser
+            ?.canPerform('expenses', 'delete') ??
+        false)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ليست لديك صلاحية حذف المصروفات')),
+        );
+      }
+      return;
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -862,6 +885,22 @@ class _ExpensesListScreenState extends ConsumerState<ExpensesListScreen>
   }
 
   Future<void> _edit({Expense? existing, List<Employee>? employees}) async {
+    final action = existing == null ? 'create' : 'update';
+    if (!(ref.read(authProvider).currentUser?.canPerform('expenses', action) ??
+        false)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              existing == null
+                  ? 'ليست لديك صلاحية إضافة المصروفات'
+                  : 'ليست لديك صلاحية تعديل المصروفات',
+            ),
+          ),
+        );
+      }
+      return;
+    }
     final description = TextEditingController(
       text: existing?.description ?? '',
     );

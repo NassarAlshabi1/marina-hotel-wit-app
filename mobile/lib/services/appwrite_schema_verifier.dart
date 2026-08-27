@@ -11,6 +11,46 @@ import 'package:marina_hotel_mobile/utils/debug_log.dart';
 /// ```
 class AppwriteSchemaVerifier {
   static final _requiredCollections = {
+    'inventory_items': {
+      'name': 'Inventory Items',
+      'includeSyncFields': true,
+      'attributes': [
+        {
+          'key': 'localUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true,
+          'unique': true,
+        },
+        {'key': 'name', 'type': 'string', 'size': 200, 'required': true},
+        {'key': 'unit', 'type': 'string', 'size': 50, 'default': 'قطعة'},
+        {'key': 'category', 'type': 'string', 'size': 100},
+        {'key': 'quantity', 'type': 'integer', 'default': 0},
+        {'key': 'minimumQuantity', 'type': 'integer', 'default': 0},
+        {'key': 'isActive', 'type': 'boolean', 'default': true},
+      ],
+    },
+    'inventory_transactions': {
+      'name': 'Inventory Transactions',
+      'includeSyncFields': true,
+      'attributes': [
+        {
+          'key': 'localUuid',
+          'type': 'string',
+          'size': 36,
+          'required': true,
+          'unique': true,
+        },
+        {'key': 'itemLocalUuid', 'type': 'string', 'size': 36},
+        {'key': 'itemId', 'type': 'integer', 'required': true},
+        {'key': 'movementType', 'type': 'string', 'size': 20, 'required': true},
+        {'key': 'quantity', 'type': 'integer', 'required': true},
+        {'key': 'balanceAfter', 'type': 'integer', 'required': true},
+        {'key': 'note', 'type': 'string', 'size': 500},
+        {'key': 'userId', 'type': 'integer'},
+        {'key': 'userName', 'type': 'string', 'size': 200},
+      ],
+    },
     'rooms': {
       'name': 'Rooms',
       'includeSyncFields': true,

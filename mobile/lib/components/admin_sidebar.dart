@@ -19,10 +19,7 @@ class AdminSidebar extends ConsumerWidget {
       if (u == null) {
         return false;
       }
-      if (u.permissions.contains('all') || u.userType == 'admin') {
-        return true;
-      }
-      return u.permissions.contains(key);
+      return u.canAccessModule(key);
     }
 
     const sidebarColor = Color(0xFF0F172A);

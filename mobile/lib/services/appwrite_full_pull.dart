@@ -131,7 +131,18 @@ class AppwriteFullPull {
         collectionId: AppwriteConfig.employeesCollectionId,
         repo: reg.employees,
       ),
-      // 3. الحجوزات (تعتمد على الغرف)
+      // 3. أصناف المخزون ثم حركاتها (الحركات تعتمد على الصنف عبر UUID)
+      _PullEntity(
+        name: 'inventory_items',
+        collectionId: AppwriteConfig.inventoryItemsCollectionId,
+        repo: reg.inventoryItems,
+      ),
+      _PullEntity(
+        name: 'inventory_transactions',
+        collectionId: AppwriteConfig.inventoryTransactionsCollectionId,
+        repo: reg.inventoryTransactions,
+      ),
+      // 4. الحجوزات (تعتمد على الغرف)
       _PullEntity(
         name: 'bookings',
         collectionId: AppwriteConfig.bookingsCollectionId,

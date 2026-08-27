@@ -348,6 +348,26 @@ const SCHEMA = {
     date: 'string',
   }),
 
+  inventory_items: withSync({
+    name: 'string',
+    unit: 'string',
+    category: 'string',
+    quantity: 'integer',
+    minimumQuantity: 'integer',
+    isActive: 'boolean',
+  }),
+
+  inventory_transactions: withSync({
+    itemLocalUuid: 'string',
+    itemId: 'integer',
+    movementType: 'string',
+    quantity: 'integer',
+    balanceAfter: 'integer',
+    note: 'string',
+    userId: 'integer',
+    userName: 'string',
+  }),
+
   salary_carry_over_logs: withSync({
     employeeId: 'integer',
     amount: 'double',
@@ -646,6 +666,14 @@ const COLLECTION_INDEXES = {
   salary_withdrawals: [
     { key: 'idx_employee_id', type: 'key', attributes: ['employeeId'] },
     { key: 'idx_withdraw_date', type: 'key', attributes: ['withdrawDate'] },
+  ],
+  inventory_items: [
+    { key: 'idx_inventory_item_name', type: 'key', attributes: ['name'] },
+    { key: 'idx_inventory_item_active', type: 'key', attributes: ['isActive'] },
+  ],
+  inventory_transactions: [
+    { key: 'idx_inventory_tx_item', type: 'key', attributes: ['itemLocalUuid'] },
+    { key: 'idx_inventory_tx_created', type: 'key', attributes: ['createdAt'] },
   ],
   salary_carry_over_logs: [
     { key: 'idx_employee_id', type: 'key', attributes: ['employeeId'] },

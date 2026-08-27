@@ -1100,6 +1100,63 @@ class AppwriteSyncManager {
                 );
               }
 
+              try {
+                recordsPulled += await _timePhase(
+                  'syncInventoryItems',
+                  () async {
+                    final docs = await appwriteService.listDocuments(
+                      collectionId: AppwriteConfig.inventoryItemsCollectionId,
+                      queries: pullQueries,
+                      useCache: false,
+                    );
+                    final synced = await _syncInventoryItems(docs);
+                    _logger.debug(
+                      'Synced $synced inventory items',
+                      tag: 'SYNC',
+                    );
+                    return synced;
+                  },
+                  phaseMs,
+                );
+              } catch (e, st) {
+                failedCollections.add('inventory_items');
+                _logger.error(
+                  '❌ فشل سحب inventory_items',
+                  error: e,
+                  stackTrace: st,
+                  tag: 'SYNC',
+                );
+              }
+
+              try {
+                recordsPulled += await _timePhase(
+                  'syncInventoryTransactions',
+                  () async {
+                    final docs = await appwriteService.listDocuments(
+                      collectionId:
+                          AppwriteConfig.inventoryTransactionsCollectionId,
+                      queries: pullQueries,
+                      useCache: false,
+                    );
+                    final synced = await _syncInventoryTransactions(docs);
+                    _logger.debug(
+                      'Synced $synced inventory transactions',
+                      tag: 'SYNC',
+                    );
+                    return synced;
+                  },
+                  phaseMs,
+                );
+              } catch (e, st) {
+                failedCollections.add('inventory_transactions');
+                _logger.error(
+                  '❌ فشل سحب inventory_transactions',
+                  error: e,
+                  stackTrace: st,
+                  tag: 'SYNC',
+                );
+              }
+
               // ✅ التوصية 3: إعادة ربط مؤجّلة لمصروفات الرواتب اليتيمة عبر
               // employeeUuid بعد اكتمال سحب الموظفين. يعالج مصروفات وصلت قبل
               // موظفيها في دورة سابقة (خطر #4).
@@ -3551,6 +3608,12 @@ class AppwriteSyncManager {
           return await _processPaymentVoidEntry(entry);
         case 'audit_logs':
           return await _processAuditLogEntry(entry);
+        case 'app_users':
+          return await _processAppUserEntry(entry);
+        case 'inventory_items':
+          return await _processInventoryItemEntry(entry);
+        case 'inventory_transactions':
+          return await _processInventoryTransactionEntry(entry);
         default:
           _logger.warning(
             'Unknown outbox entity: ${entry.entity}',
@@ -3641,6 +3704,10 @@ class AppwriteSyncManager {
       'payment_voids': AppwriteConfig.paymentVoidsCollectionId,
       'salary_carry_over_logs': 'salary_carry_over_logs',
       'audit_logs': AppwriteConfig.auditLogsCollectionId,
+      'app_users': AppwriteConfig.appUsersCollectionId,
+      'inventory_items': AppwriteConfig.inventoryItemsCollectionId,
+      'inventory_transactions':
+          AppwriteConfig.inventoryTransactionsCollectionId,
     };
     return map[entity];
   }
@@ -4786,6 +4853,8 @@ class AppwriteSyncManager {
       'price_adjustments': 'price_adjustments',
       'audit_logs': 'audit_logs',
       'payment_voids': 'payment_voids',
+      'inventory_items': 'inventory_items',
+      'inventory_transactions': 'inventory_transactions',
     };
 
     for (final entity in entityUuidMap.keys) {
@@ -5072,6 +5141,9 @@ class AppwriteSyncManager {
         case 'debts':
           final d = await _getDebtByLocalUuid(localUuid);
           return d?.deletedAt;
+        case 'inventory_items':
+        case 'inventory_transactions':
+          return _getLocalInventoryDeletedAt(entity, localUuid);
         default:
           return null;
       }
@@ -5125,6 +5197,9 @@ class AppwriteSyncManager {
         return _getLocalAuditLogLastModified(localUuid);
       case 'payment_voids':
         return _getLocalPaymentVoidLastModified(localUuid);
+      case 'inventory_items':
+      case 'inventory_transactions':
+        return _getLocalInventoryLastModified(entity, localUuid);
       default:
         // للكيانات غير المعروفة، نعيد null — الحذف الآمن
         return null;
@@ -5202,6 +5277,10 @@ class AppwriteSyncManager {
         return null; // AuditLogs لا تحتوي على حقل origin
       case 'payment_voids':
         return 'payment_voids';
+      case 'inventory_items':
+        return 'inventory_items';
+      case 'inventory_transactions':
+        return 'inventory_transactions';
       default:
         return null;
     }
@@ -5441,6 +5520,46 @@ class AppwriteSyncManager {
             .getSingleOrNull();
     // AuditLogs لا تحتوي على lastModified — نستخدم timestamp
     return row?.timestamp;
+  }
+
+  Future<int?> _getLocalInventoryDeletedAt(
+    String entity,
+    String localUuid,
+  ) async {
+    final table = entity == 'inventory_items'
+        ? 'inventory_items'
+        : 'inventory_transactions';
+    final row = await database
+        .customSelect(
+          'SELECT deleted_at FROM $table WHERE local_uuid = ? LIMIT 1',
+          variables: [drift.Variable.withString(localUuid)],
+          readsFrom: entity == 'inventory_items'
+              ? {database.inventoryItems}
+              : {database.inventoryTransactions},
+        )
+        .getSingleOrNull();
+    final value = row?.data['deleted_at'];
+    return value is num ? value.toInt() : int.tryParse(value?.toString() ?? '');
+  }
+
+  Future<int?> _getLocalInventoryLastModified(
+    String entity,
+    String localUuid,
+  ) async {
+    final table = entity == 'inventory_items'
+        ? 'inventory_items'
+        : 'inventory_transactions';
+    final row = await database
+        .customSelect(
+          'SELECT last_modified FROM $table WHERE local_uuid = ? LIMIT 1',
+          variables: [drift.Variable.withString(localUuid)],
+          readsFrom: entity == 'inventory_items'
+              ? {database.inventoryItems}
+              : {database.inventoryTransactions},
+        )
+        .getSingleOrNull();
+    final value = row?.data['last_modified'];
+    return value is num ? value.toInt() : int.tryParse(value?.toString() ?? '');
   }
 
   Future<int?> _getLocalPaymentVoidLastModified(String localUuid) async {
@@ -7026,6 +7145,163 @@ class AppwriteSyncManager {
     return true;
   }
 
+  /// رفع تغييرات مستخدم سحابي من Outbox.
+  ///
+  /// لا يوجد جدول app_users محلي في Drift؛ لذلك يحفظ AuthLocalStore الحمولة
+  /// الكاملة اللازمة للتحديث. عند وصولها لاحقاً، نقرأ النسخة الحالية من Cloud
+  /// ونزيد credentials_version/version وقت الرفع حتى لا نكتب نسخة قديمة.
+  Future<bool> _processAppUserEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      return _handleDeleteOp(
+        entity: 'app_users',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.appUsersCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+    }
+
+    final rawPayload = jsonDecode(entry.payload);
+    if (rawPayload is! Map) {
+      throw const FormatException('Invalid app_users outbox payload');
+    }
+    final payload = Map<String, dynamic>.from(rawPayload);
+
+    try {
+      final remote = await appwriteService.getDocument(
+        collectionId: AppwriteConfig.appUsersCollectionId,
+        documentId: entry.localUuid,
+        suppressErrorLog: true,
+      );
+      final remoteData = Map<String, dynamic>.from(remote.data);
+      final now = Time.nowEpoch();
+      final remoteVersion = _asIntSafe(remoteData, 'version') ?? 0;
+      final remoteCredentialsVersion =
+          _asIntSafe(remoteData, 'credentials_version') ?? 0;
+      payload['credentials_version'] = remoteCredentialsVersion + 1;
+      payload['version'] = remoteVersion + 1;
+      payload['updatedAt'] = now;
+      payload['lastModified'] = now;
+      payload['lastModifiedEpoch'] = now;
+      payload['syncTimestamp'] = now;
+      payload['localUuid'] ??= remoteData['localUuid'];
+      payload['createdAt'] ??= remoteData['createdAt'];
+      payload['createdAtEpoch'] ??= remoteData['createdAtEpoch'];
+      payload['role'] ??= remoteData['role'] ?? remoteData['user_type'];
+      payload['userType'] ??= remoteData['userType'] ?? remoteData['user_type'];
+      payload['user_type'] ??=
+          remoteData['user_type'] ?? remoteData['userType'];
+      await appwriteService.updateDocument(
+        collectionId: AppwriteConfig.appUsersCollectionId,
+        documentId: entry.localUuid,
+        data: _filterPayload('app_users', _addIdempotencyKey(payload, entry)),
+      );
+      return true;
+    } on AppwriteException catch (error) {
+      if (error.code == 404) {
+        _logger.warning(
+          'تجاوز تحديث app_users لأن الحساب غير موجود في Cloud: ${entry.localUuid}',
+          tag: 'SYNC',
+        );
+        return true;
+      }
+      rethrow;
+    }
+  }
+
+  Future<bool> _processInventoryItemEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      return _handleDeleteOp(
+        entity: 'inventory_items',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.inventoryItemsCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+    }
+    final item =
+        await (database.select(database.inventoryItems)
+              ..where((row) => row.localUuid.equals(entry.localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+    if (item == null) {
+      return _handleDeleteOp(
+        entity: 'inventory_items',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.inventoryItemsCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+    }
+    final payload = _adapterRegistry.inventoryItems.toJsonForSource(
+      item,
+      src: Source.appwrite,
+    );
+    final occPayload = await _occPushCheck(
+      entity: 'inventory_items',
+      documentId: item.localUuid,
+      localPayload: payload,
+    );
+    await appwriteService.upsertDocument(
+      collectionId: AppwriteConfig.inventoryItemsCollectionId,
+      documentId: item.localUuid,
+      data: _filterPayload(
+        'inventory_items',
+        _addIdempotencyKey(occPayload, entry),
+      ),
+    );
+    return true;
+  }
+
+  Future<bool> _processInventoryTransactionEntry(OutboxData entry) async {
+    if (entry.op == 'delete') {
+      return _handleDeleteOp(
+        entity: 'inventory_transactions',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.inventoryTransactionsCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+    }
+    final movement =
+        await (database.select(database.inventoryTransactions)
+              ..where((row) => row.localUuid.equals(entry.localUuid))
+              ..limit(1))
+            .getSingleOrNull();
+    if (movement == null) {
+      return _handleDeleteOp(
+        entity: 'inventory_transactions',
+        entry: entry,
+        hardDeleteFallback: () => appwriteService.deleteDocument(
+          collectionId: AppwriteConfig.inventoryTransactionsCollectionId,
+          documentId: entry.localUuid,
+        ),
+      );
+    }
+    final payload = _adapterRegistry.inventoryTransactions.toJsonForSource(
+      movement,
+      src: Source.appwrite,
+    );
+    final occPayload = await _occPushCheck(
+      entity: 'inventory_transactions',
+      documentId: movement.localUuid,
+      localPayload: payload,
+    );
+    await appwriteService.upsertDocument(
+      collectionId: AppwriteConfig.inventoryTransactionsCollectionId,
+      documentId: movement.localUuid,
+      data: _filterPayload(
+        'inventory_transactions',
+        _addIdempotencyKey(occPayload, entry),
+      ),
+    );
+    return true;
+  }
+
   Future<bool> _processEmployeeEntry(OutboxData entry) async {
     if (entry.op == 'delete') {
       // ✅ حذف ناعم: نبحث عن الموظف محلياً (بما فيه المحذوف ناعماً)
@@ -7332,6 +7608,102 @@ class AppwriteSyncManager {
   // ---------------------------------------------------------------------------
   // Sync Helpers for Additional Entities
   // ---------------------------------------------------------------------------
+
+  Future<int> _syncInventoryItems(List<models.Document> documents) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+        final localUuid = data['localUuid']?.toString() ?? '';
+        final existing =
+            await (database.select(database.inventoryItems)
+                  ..where((row) => row.localUuid.equals(localUuid))
+                  ..limit(1))
+                .getSingleOrNull();
+        if (!(await _isRemoteDataNewer(
+          data,
+          existing?.lastModified,
+          localDeletedAt: existing?.deletedAt,
+          remoteUpdatedAtSec: _extractUpdatedAtSec(doc),
+          localVectorClock: existing?.vectorClock,
+          entityName: 'inventory_items',
+          localUuid: localUuid,
+          localData: existing?.toJson(),
+        )).shouldApplyRemote) {
+          continue;
+        }
+        await _adapterRegistry.inventoryItems.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'inventory_items',
+          localUuid: localUuid,
+          remoteDeviceId: data['deviceId']?.toString() ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
+        processed++;
+      } catch (e) {
+        _logger.warning(
+          'Failed to sync inventory item ${doc.$id}: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+    return processed;
+  }
+
+  Future<int> _syncInventoryTransactions(
+    List<models.Document> documents,
+  ) async {
+    if (documents.isEmpty) return 0;
+    var processed = 0;
+    for (final doc in documents) {
+      try {
+        final data = Map<String, dynamic>.from(doc.data);
+        data['localUuid'] ??= doc.$id;
+        final localUuid = data['localUuid']?.toString() ?? '';
+        final existing =
+            await (database.select(database.inventoryTransactions)
+                  ..where((row) => row.localUuid.equals(localUuid))
+                  ..limit(1))
+                .getSingleOrNull();
+        if (!(await _isRemoteDataNewer(
+          data,
+          existing?.lastModified,
+          localDeletedAt: existing?.deletedAt,
+          remoteUpdatedAtSec: _extractUpdatedAtSec(doc),
+          localVectorClock: existing?.vectorClock,
+          entityName: 'inventory_transactions',
+          localUuid: localUuid,
+          localData: existing?.toJson(),
+        )).shouldApplyRemote) {
+          continue;
+        }
+        await _adapterRegistry.inventoryTransactions.upsertFromJson(
+          data,
+          src: Source.appwrite,
+        );
+        await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
+          entity: 'inventory_transactions',
+          localUuid: localUuid,
+          remoteDeviceId: data['deviceId']?.toString() ?? '',
+          currentDeviceId: _currentDeviceId,
+          lastModified: _asIntNullable(data['lastModified']),
+        );
+        processed++;
+      } catch (e) {
+        _logger.warning(
+          'Failed to sync inventory transaction ${doc.$id}: $e',
+          tag: 'SYNC',
+        );
+      }
+    }
+    return processed;
+  }
 
   Future<int> _syncShiftNotes(List<models.Document> documents) async {
     if (documents.isEmpty) return 0;
