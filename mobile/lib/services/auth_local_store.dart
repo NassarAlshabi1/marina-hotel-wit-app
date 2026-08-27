@@ -895,7 +895,7 @@ class AuthLocalStore {
 
   Future<bool> getRememberMe() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_kRememberMe) ?? false;
+    return prefs.getBool(_kRememberMe) ?? true;
   }
 
   Future<void> setAuthType(AuthType type) async {

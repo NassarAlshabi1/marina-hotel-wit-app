@@ -1,5 +1,6 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:marina_hotel_mobile/providers/auth_provider.dart';
 import 'package:marina_hotel_mobile/services/adapters/adapter_registry.dart';
 import 'package:marina_hotel_mobile/services/auth_local_store.dart';
@@ -11,7 +12,8 @@ void main() {
 
   late AppDatabase db;
 
-  setUp(() {
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
     db = AppDatabase.forTesting(NativeDatabase.memory());
   });
 
@@ -34,6 +36,39 @@ void main() {
     expect(notifier.state.isAuthenticated, isTrue);
     expect(notifier.state.currentUser?.username, 'operator');
     expect(await outbox.count(), 0);
+  });
+
+  test('تُحفظ جلسة الدخول وتُستعاد بعد إعادة إنشاء AuthNotifier', () async {
+    final first = AuthNotifier(restoreSessionOnCreate: false);
+    addTearDown(first.dispose);
+
+    await first.login('admin', 'admin');
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool('remember_me'), isTrue);
+    expect(prefs.getString('current_user'), isNotNull);
+
+    final restored = AuthNotifier(restoreSessionOnCreate: false);
+    addTearDown(restored.dispose);
+    await restored.restoreSession();
+
+    expect(restored.state.isAuthenticated, isTrue);
+    expect(restored.state.currentUser?.username, 'admin');
+    expect(await OutboxDao(db, AdapterRegistry.testing(db)).count(), 0);
+  });
+
+  test('إلغاء تذكر الجلسة يمنع الاستعادة بعد إعادة التشغيل', () async {
+    final first = AuthNotifier(restoreSessionOnCreate: false);
+    addTearDown(first.dispose);
+
+    await first.login('admin', 'admin', rememberMe: false);
+
+    final restored = AuthNotifier(restoreSessionOnCreate: false);
+    addTearDown(restored.dispose);
+    await restored.restoreSession();
+
+    expect(restored.state.isAuthenticated, isFalse);
+    expect(restored.state.currentUser, isNull);
   });
 
   test('التحقق الحقيقي من الحساب المحلي لا ينشئ Outbox', () async {

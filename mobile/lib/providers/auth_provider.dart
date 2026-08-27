@@ -242,7 +242,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> login(
     String username,
     String password, {
-    bool rememberMe = false,
+    bool rememberMe = true,
   }) async {
     PaymentSessionContext.clear();
     state = state.copyWith();
