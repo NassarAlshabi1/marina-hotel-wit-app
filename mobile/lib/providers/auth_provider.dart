@@ -45,6 +45,19 @@ class AuthUser {
 
   bool get isAdmin => userType == 'admin' || permissions.contains('all');
 
+  bool canPerform(String module, String action) => AuthLocalStore.canPerform(
+    userType: userType,
+    permissions: permissions,
+    module: module,
+    action: action,
+  );
+
+  bool canAccessModule(String module) => AuthLocalStore.canAccessModule(
+    userType: userType,
+    permissions: permissions,
+    module: module,
+  );
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'username': username,

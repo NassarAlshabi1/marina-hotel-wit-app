@@ -12,17 +12,20 @@ class InventoryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final itemsAsync = ref.watch(inventoryItemsProvider);
+    final user = ref.watch(authProvider).currentUser;
+    final canCreate = user?.canPerform('inventory', 'create') ?? false;
+    final canUpdate = user?.canPerform('inventory', 'update') ?? false;
     return AppScaffold(
       title: 'المخزون',
       actions: [
         IconButton(
           tooltip: 'إضافة صنف',
-          onPressed: () => _showAddItemDialog(context, ref),
+          onPressed: canCreate ? () => _showAddItemDialog(context, ref) : null,
           icon: const Icon(Icons.add, size: 20),
         ),
       ],
       fab: FloatingActionButton.extended(
-        onPressed: () => _showAddItemDialog(context, ref),
+        onPressed: canCreate ? () => _showAddItemDialog(context, ref) : null,
         icon: const Icon(Icons.add, size: 18),
         label: const Text('إضافة صنف'),
       ),
@@ -43,8 +46,11 @@ class InventoryScreen extends ConsumerWidget {
           return ListView.builder(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
             itemCount: items.length,
-            itemBuilder: (context, index) =>
-                _InventoryItemCard(item: items[index]),
+            itemBuilder: (context, index) => _InventoryItemCard(
+              item: items[index],
+              canCreate: canCreate,
+              canUpdate: canUpdate,
+            ),
           );
         },
       ),
@@ -55,6 +61,14 @@ class InventoryScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
   ) async {
+    if (!(ref
+            .read(authProvider)
+            .currentUser
+            ?.canPerform('inventory', 'create') ??
+        false)) {
+      _showMessage(context, 'ليست لديك صلاحية إضافة أصناف للمخزون');
+      return;
+    }
     final formKey = GlobalKey<FormState>();
     final nameController = TextEditingController();
     final unitController = TextEditingController(text: 'قطعة');
@@ -170,9 +184,15 @@ class InventoryScreen extends ConsumerWidget {
 }
 
 class _InventoryItemCard extends ConsumerWidget {
-  const _InventoryItemCard({required this.item});
+  const _InventoryItemCard({
+    required this.item,
+    required this.canCreate,
+    required this.canUpdate,
+  });
 
   final InventoryItem item;
+  final bool canCreate;
+  final bool canUpdate;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -249,8 +269,9 @@ class _InventoryItemCard extends ConsumerWidget {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () =>
-                        _showMovementDialog(context, ref, item, 'in'),
+                    onPressed: canCreate
+                        ? () => _showMovementDialog(context, ref, item, 'in')
+                        : null,
                     icon: const Icon(Icons.add, size: 16),
                     label: const Text('وارد'),
                   ),
@@ -258,8 +279,9 @@ class _InventoryItemCard extends ConsumerWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () =>
-                        _showMovementDialog(context, ref, item, 'out'),
+                    onPressed: canCreate
+                        ? () => _showMovementDialog(context, ref, item, 'out')
+                        : null,
                     icon: const Icon(Icons.remove, size: 16),
                     label: const Text('صرف'),
                   ),
@@ -267,7 +289,9 @@ class _InventoryItemCard extends ConsumerWidget {
                 const SizedBox(width: 6),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _showStockDialog(context, ref, item),
+                    onPressed: canUpdate
+                        ? () => _showStockDialog(context, ref, item)
+                        : null,
                     icon: const Icon(Icons.fact_check_outlined, size: 16),
                     label: const Text('جرد'),
                   ),
@@ -294,6 +318,14 @@ class _InventoryItemCard extends ConsumerWidget {
     InventoryItem item,
     String movementType,
   ) async {
+    if (!(ref
+            .read(authProvider)
+            .currentUser
+            ?.canPerform('inventory', 'create') ??
+        false)) {
+      _showMessage(context, 'ليست لديك صلاحية تسجيل حركات المخزون');
+      return;
+    }
     final quantityController = TextEditingController();
     final noteController = TextEditingController();
     final formKey = GlobalKey<FormState>();
@@ -381,6 +413,14 @@ class _InventoryItemCard extends ConsumerWidget {
     WidgetRef ref,
     InventoryItem item,
   ) async {
+    if (!(ref
+            .read(authProvider)
+            .currentUser
+            ?.canPerform('inventory', 'update') ??
+        false)) {
+      _showMessage(context, 'ليست لديك صلاحية اعتماد جرد المخزون');
+      return;
+    }
     final quantityController = TextEditingController(text: '${item.quantity}');
     final noteController = TextEditingController();
     final formKey = GlobalKey<FormState>();

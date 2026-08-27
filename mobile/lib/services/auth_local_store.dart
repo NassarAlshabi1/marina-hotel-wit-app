@@ -44,7 +44,61 @@ class AuthLocalStore {
     'notes',
     'information',
     'settings',
+    'inventory',
   ];
+
+  /// صلاحيات العمليات الدقيقة. وجود المفتاح القديم للقسم يبقى متوافقاً
+  /// ويمنح نفس صلاحيات الإصدار السابق، بينما المفاتيح الجديدة تسمح بالفصل
+  /// بين القراءة والإضافة والتعديل والحذف.
+  static const List<String> operationPermissionKeys = [
+    'view',
+    'create',
+    'update',
+    'delete',
+  ];
+
+  static const Map<String, String> _permissionActions = {
+    'view': 'عرض',
+    'create': 'إضافة',
+    'update': 'تعديل',
+    'delete': 'حذف',
+  };
+
+  static List<String> permissionKeysForModule(String module) => [
+    for (final action in operationPermissionKeys) '$module.$action',
+  ];
+
+  /// مفاتيح محرر المستخدمين: المفاتيح القديمة للتوافق، ثم العمليات الدقيقة.
+  static List<String> get permissionEditorKeys => [
+    ...permissionKeys,
+    for (final module in permissionKeys) ...permissionKeysForModule(module),
+  ];
+
+  static String operationLabel(String action) =>
+      _permissionActions[action] ?? action;
+
+  /// يتحقق من صلاحية عملية محددة مع إبقاء الحسابات الحالية متوافقة.
+  static bool canPerform({
+    required String? userType,
+    required List<String> permissions,
+    required String module,
+    required String action,
+  }) {
+    if (userType == 'admin' || permissions.contains('all')) return true;
+    if (permissions.contains(module)) return true;
+    return permissions.contains('$module.$action');
+  }
+
+  /// يستخدم لحارس الصفحة والقائمة: يكفي امتلاك أي صلاحية تشغيلية.
+  static bool canAccessModule({
+    required String? userType,
+    required List<String> permissions,
+    required String module,
+  }) {
+    if (userType == 'admin' || permissions.contains('all')) return true;
+    if (permissions.contains(module)) return true;
+    return permissionKeysForModule(module).any(permissions.contains);
+  }
 
   /// حسابات افتراضية للوصول المحلي (fallback عند عدم توفر Appwrite Cloud).
   ///

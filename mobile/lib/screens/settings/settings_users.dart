@@ -295,7 +295,9 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                       Wrap(
                         spacing: 8,
                         runSpacing: 4,
-                        children: AuthLocalStore.permissionKeys.map((key) {
+                        children: AuthLocalStore.permissionEditorKeys.map((
+                          key,
+                        ) {
                           final selected = selectedPerms.contains(key);
                           return FilterChip(
                             label: Text(_permLabel(key)),
@@ -893,7 +895,7 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
   Widget build(BuildContext context) {
     final isAdminUser =
         widget.username == 'admin' || widget.userType.toLowerCase() == 'admin';
-    const allKeys = AuthLocalStore.permissionKeys;
+    final allKeys = AuthLocalStore.permissionEditorKeys;
 
     return Card(
       child: Padding(
@@ -1010,6 +1012,16 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
 }
 
 String _permLabel(String key) {
+  final separator = key.indexOf('.');
+  if (separator > 0 && separator < key.length - 1) {
+    final module = key.substring(0, separator);
+    final action = key.substring(separator + 1);
+    return '${AuthLocalStore.operationLabel(action)} ${_moduleLabel(module)}';
+  }
+  return _moduleLabel(key);
+}
+
+String _moduleLabel(String key) {
   switch (key) {
     case 'dashboard':
       return 'لوحة التحكم';
@@ -1019,6 +1031,8 @@ String _permLabel(String key) {
       return 'الحجوزات';
     case 'payments':
       return 'المدفوعات';
+    case 'debts':
+      return 'الديون';
     case 'employees':
       return 'الموظفون';
     case 'expenses':
@@ -1033,6 +1047,8 @@ String _permLabel(String key) {
       return 'المعلومية';
     case 'settings':
       return 'الإعدادات';
+    case 'inventory':
+      return 'المخزون';
     default:
       return key;
   }

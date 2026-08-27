@@ -1300,10 +1300,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     if (u == null) {
       return false;
     }
-    if (u.userType == 'admin' || u.permissions.contains('all')) {
-      return true;
-    }
-    return u.permissions.contains(key);
+    return u.canAccessModule(key);
   }
 
   @override
