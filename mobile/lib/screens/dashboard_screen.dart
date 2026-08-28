@@ -191,8 +191,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const SizedBox(height: 20),
               _buildRoomsSection(),
               const SizedBox(height: 12),
-              _buildColorInstructions(),
-              const SizedBox(height: 12),
               _buildEmployeeShiftPayments(),
             ],
           ),
@@ -1037,47 +1035,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
         ],
       ),
-    );
-  }
-
-  Widget _buildColorInstructions() {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Wrap(
-        alignment: WrapAlignment.end,
-        spacing: 8,
-        runSpacing: 4,
-        children: [
-          _buildInstructionDot(Colors.green.shade600, 'شاغرة'),
-          _buildInstructionDot(Colors.red.shade600, 'محجوزة'),
-          _buildInstructionDot(
-            Colors.orange.shade500,
-            'تنبيه (22:00-23:00): جزء برتقالي',
-          ),
-          _buildInstructionDot(
-            Colors.red.shade800,
-            'متأخر (23:00-05:00): أحمر داكن + حدود',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInstructionDot(Color color, String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 6,
-          height: 6,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(3),
-          ),
-        ),
-        const SizedBox(width: 3),
-        Text(label, style: TextStyle(fontSize: 8, color: Colors.grey.shade500)),
-      ],
     );
   }
 
