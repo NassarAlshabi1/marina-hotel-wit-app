@@ -260,8 +260,22 @@ class AppwriteService {
       _cache.set(cacheKey, allDocuments, ttl: AppwriteConfig.cacheExpiry);
     }
 
+    // ✅ (2026-08-31) سجل مُعرِّف ذاتياً — يفرّق بين ثلاثة أنماط قراءة كي
+    // لا يُفهم "Fetched total N documents" على أنه سحب كامل خطأً:
+    //  metadataOnly=true  → $id+$updatedAt فقط (~100 بايت/صف، مسار metadata-first)
+    //  byIds=true         → جلب بالمعرّفات (المتغيّر فعلاً بعد المقارنة)
+    //  deltaWindow=true   → فلتر $updatedAt > مؤشر (دلتا حقيقية)
+    //  كلهما false        → قراءة كاملة بلا فلتر (تهيئة/استعادة فقط)
+    final isMetadataOnly = queries.any((q) => q.startsWith('select('));
+    final isByIds =
+        !isMetadataOnly &&
+        queries.any((q) => q.startsWith('equal(') && q.contains(r'$id'));
+    final isDeltaWindow = queries.any(
+      (q) => q.startsWith('greaterThan(') && q.contains(r'$updatedAt'),
+    );
     _logger.info(
-      'Fetched total ${allDocuments.length} documents from $collectionId',
+      'Fetched total ${allDocuments.length} documents from $collectionId '
+      '(metadataOnly=$isMetadataOnly, byIds=$isByIds, deltaWindow=$isDeltaWindow)',
       tag: 'CRUD',
     );
     return allDocuments;

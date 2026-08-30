@@ -3,9 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../providers/appwrite_providers.dart';
 import '../providers/auth_provider.dart';
 import '../providers/core_providers.dart';
 import '../providers/repository_providers.dart';
@@ -13,9 +11,6 @@ import '../providers/room_payment_status_provider.dart';
 import '../services/analytics_service.dart';
 import '../services/local_db.dart';
 import '../services/repositories/payments_repository.dart';
-import '../services/sync/sync_gate.dart';
-import '../services/sync_constants.dart';
-import '../utils/loading_snackbar.dart';
 import '../utils/performance_config.dart';
 import '../utils/performance_monitor.dart';
 import '../utils/status_utils.dart';
@@ -68,111 +63,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         screenClass: 'DashboardScreen',
       ),
     );
-    // سحب البيانات من Appwrite تلقائياً عند فتح التطبيق
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _autoPullFromAppwrite();
-    });
-  }
-
-  Future<void> _autoPullFromAppwrite() async {
-    // ✅ P3-5 (Global SyncGate): السحب التلقائي عند الفتح يمرّ عبر البوّابة
-    // العامة. إذا كان المستخدم قد ضغط زر مزامنة يدوياً، أو كان المؤقّت
-    // يعمل، فإن السحب التلقائي يُلغى بصمت دون منافسة على الموارد.
-    final executed = await SyncGate.instance.runGuardedVoid(
-      operation: 'auto_pull',
-      source: 'auto_open',
-      task: _autoPullFromAppwriteInner,
-    );
-    if (!executed) {
-      dlog(
-        () =>
-            'ℹ️ [AutoPull] skipped — SyncGate busy with '
-            '${SyncGate.instance.state.operation} from '
-            '${SyncGate.instance.state.source}',
-      );
-    }
-  }
-
-  Future<void> _autoPullFromAppwriteInner() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final appwriteEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
-
-      if (!appwriteEnabled) {
-        return;
-      }
-
-      // ─── فحص ذكي: هل مرت ساعة منذ آخر سحب تلقائي؟ ───
-      final lastPullEpochMs = prefs.getInt(SyncConstants.lastAppOpenPullKey);
-      if (lastPullEpochMs != null) {
-        final lastPull = DateTime.fromMillisecondsSinceEpoch(lastPullEpochMs);
-        final elapsed = DateTime.now().difference(lastPull);
-        if (elapsed < SyncConstants.appOpenSyncInterval) {
-          return;
-        }
-      }
-
-      // التأكد من الاتصال
-      await ref.read(connectionStatusProvider.notifier).checkConnection();
-      final isConnected = ref.read(connectionStatusProvider).isConnected;
-      if (!isConnected) {
-        return;
-      }
-
-      // ✅ إشعار تحميل قابل للإغلاق برمجياً
-      LoadingSnackBar? loading;
-      if (mounted) {
-        loading = LoadingSnackBar.show(
-          context,
-          message: '📥 جاري سحب البيانات...',
-        );
-      }
-
-      final syncManager = ref.read(appwriteSyncManagerProvider);
-      final result = await syncManager.sync(push: false);
-      final pulledCount = result.recordsPulled;
-
-      // ✅ إغلاق إشعار التحميل فور انتهاء السحب
-      if (mounted) {
-        loading?.close();
-      }
-
-      // ─── تسجيل وقت هذا السحب التلقائي ───
-      await prefs.setInt(
-        SyncConstants.lastAppOpenPullKey,
-        DateTime.now().millisecondsSinceEpoch,
-      );
-
-      if (mounted && pulledCount > 0) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.cloud_download, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    '✅ تم سحب $pulledCount سجل جديد من Appwrite تلقائياً',
-                    style: const TextStyle(fontFamily: 'Tajawal'),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.green.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
-      } else if (mounted) {
-        // إشعار صامت بأن البيانات محدثة
-        dlog('✅ البيانات محدثة — لا توجد سجلات جديدة');
-      }
-    } catch (e) {
-      dlog(() => '❌ فشل السحب التلقائي عند الفتح: $e');
-    }
+    // ✅ (2026-08-31) تقليل السحب — الخطوة 2: فتح الشاشة لا يبدأ pull.
+    // الشاشة تقرأ البيانات المحلية فقط (Drift). مصادر السحب الوحيدة الآن:
+    // - startAutoSync: مؤقت دوري (15 دقيقة) داخل AppwriteSyncManager
+    // - أحداث Realtime: delta موثوق مُسرَّع ذاتياً (يتجاوز حارس الدقيقتين)
+    // - فحص الجلسة (AppSessionManager): ساعة ذكية + حارس مركزي دقيقتين
+    // - DashboardSyncButton: زر تحديث يدوي (forcePull فوري + SyncGate)
   }
 
   @override

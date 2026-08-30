@@ -831,6 +831,14 @@ class AppwriteSyncManager {
     bool pull = true,
     bool realtimePriority = false,
 
+    /// ✅ (2026-08-31) تقليل السحب — الخطوة 2: تجاوز حارس الدقيقتين للتفاعل
+    /// اليدوي الصريح (زر التحديث). المستخدم الذي يضغط الزر يطلب بيانات
+    /// محدّثة **الآن** — تأخيره 2 دقيقة إحباط بلا فائدة، خاصة أن الحارس
+    /// يمنع المداخل غير الواعية (شاشات/جلسة/مؤقتات) من التكرار أصلاً.
+    /// كل الحمايات الأخرى تبقى سارية: OutboxPullPolicy وSyncLocks و
+    /// فحص الاتصال ورفض التزامن (syncing بالفعل).
+    bool forcePull = false,
+
     /// ⚡ (2026-08-31) الكيانات التي طُبّقت سجلاتها بالفعل من حمولة أحداث
     /// Realtime (المسار السريع على مستوى السجل). أثناء دورة السحب تُتخطى
     /// delta queries لهذه الكيانات فقط — صفر قراءات إضافية — أما السحب
@@ -886,7 +894,9 @@ class AppwriteSyncManager {
     // ✅ (2026-08-31) realtimePriority يتجاوز هذا الحارس: حدث Realtime
     // إثبات تغيير فعلي من الخادم، والطبقة المُصدِرة مُسرَّعة ذاتياً
     // (ديبونس + تهيئة 15 ث + طابور متابعة). راجع sync() doc أعلاه.
-    if (pull && !realtimePriority && !_canStartPull()) {
+    // ✅ (2026-08-31) forcePull يتجاوزه كذلك: تفاعل يدوي صريح (زر التحديث)
+    // يطلب بيانات محدّثة الآن — بقية الحمايات تبقى سارية.
+    if (pull && !realtimePriority && !forcePull && !_canStartPull()) {
       _logger.debug(
         'Pull skipped: minimum pull gap (${SyncConstants.minPullGap.inMinutes}m) '
         'not reached since last completed sync',

@@ -251,7 +251,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
-      final pullResult = await appwriteSyncManager.sync(push: false);
+      // ✅ (2026-08-31) تقليل السحب — الخطوة 2: زر التحديث اليدوي يسحب فوراً
+      // (forcePull يتجاوز حارس الدقيقتين فقط)؛ منع التوازي عبر SyncGate أعلاه
+      // وبقية الحمايات داخل sync() سارية (Outbox / SyncLocks / الاتصال).
+      final pullResult = await appwriteSyncManager.sync(
+        push: false,
+        forcePull: true,
+      );
       final pulledCount = pullResult.recordsPulled;
 
       // ✅ إغلاق إشعار التحميل فور انتهاء المزامنة
