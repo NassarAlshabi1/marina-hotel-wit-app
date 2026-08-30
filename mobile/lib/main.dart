@@ -54,7 +54,6 @@ import 'services/connectivity_service.dart';
 import 'services/crashlytics_service.dart';
 import 'services/database_sync_coordinator.dart';
 import 'services/diagnostics/diagnostics_logger.dart';
-import 'services/fcm_service.dart';
 import 'services/google_drive_auto_sync_engine.dart';
 import 'services/google_drive_backup_service.dart';
 import 'services/google_drive_conflict_resolver.dart';
@@ -390,22 +389,6 @@ Future<void> _initializeFullyAutomatedSyncSystem() async {
     await AppwriteService().initialize();
     dlog('✅ Appwrite Config loaded');
 
-    // ─── Firebase Cloud Messaging ───
-    // FCM للاستقبال وتسجيل device token فقط. لا نضع Server Key داخل APK؛
-    // الإرسال الجماعي يجب أن يتم من backend/Appwrite Function بصلاحيات خادمية.
-    if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-      final syncManager = AppwriteSyncManager.instance;
-      if (syncManager != null) {
-        FcmService.injectDependencies(
-          syncManager: syncManager,
-          realtimeSync: AppwriteRealtimeSync(),
-        );
-      }
-      await _safeInit('FcmService', FcmService().initialize);
-    } else {
-      dlog('ℹ️ FCM skipped on ${Platform.operatingSystem}');
-    }
-
     final driveSyncEnabled =
         prefs.getBool('google_drive_sync_enabled') ?? false;
     if (!driveSyncEnabled) {
@@ -733,13 +716,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           dwarn(() => 'Device registration error: $e');
         }
 
-        // تهيئة FCM للإشعارات بين الأجهزة
-        try {
-          await _initializeFcm(syncManager);
-        } catch (e) {
-          dwarn(() => 'FCM initialization error: $e');
-        }
-
         // بدء المزامنة التلقائية (push + pull)
         // ✅ Forensic audit fix (2026-07-22):
         // كان الفاصل دقيقتين → 30 دورة/ساعة × 3 أجهزة × 20 collection
@@ -816,8 +792,12 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           }
         }
 
-        await AppwriteRealtimeSync().initialize(deviceId: deviceId);
-        await AppwriteRealtimeSync().start();
+        final realtimeSync = AppwriteRealtimeSync();
+        await realtimeSync.initialize(deviceId: deviceId);
+        realtimeSync.setRemoteChangeHandler(
+          syncManager.applyRemoteRecordChange,
+        );
+        await realtimeSync.start();
         dlog('📡 Realtime sync + auto sync started');
       } catch (e) {
         derr(() => 'Realtime sync init error: $e');
@@ -915,26 +895,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
   }
 
-  /// تهيئة FCM للإشعارات بين الأجهزة
-  Future<void> _initializeFcm(dynamic syncManager) async {
-    final fcm = FcmService();
-
-    // حقن الاعتمادات لتجنب import دائري
-    FcmService.injectDependencies(
-      syncManager: syncManager as AppwriteSyncManager,
-      realtimeSync: AppwriteRealtimeSync(),
-    );
-
-    await fcm.initialize();
-
-    // تسجيل التوكن في SyncManager
-    if (fcm.currentToken != null) {
-      await syncManager.setFcmToken(fcm.currentToken!);
-    }
-
-    dlog('✅ FCM ready — cross-device notifications enabled');
-  }
-
   /// رفع التغييرات المعلقة عند العودة للتطبيق.
   ///
   /// ✅ Forensic audit fix (2026-07-22):
@@ -1027,11 +987,6 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
   /// تنظيف جميع الخدمات Singleton عند إغلاق التطبيق
   static Future<void> _disposeSingletonServices() async {
     dlog('🧹 Disposing singleton services...');
-    try {
-      await FcmService.disposeInstance();
-    } catch (e) {
-      dwarn(() => 'Error disposing FcmService: $e');
-    }
     try {
       await BatteryOptimizer.disposeInstance();
     } catch (e) {

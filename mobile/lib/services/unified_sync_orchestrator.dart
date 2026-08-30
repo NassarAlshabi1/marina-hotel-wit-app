@@ -504,7 +504,7 @@ class UnifiedSyncOrchestrator {
       success = (pushed >= 0) && success;
     }
     if (pull) {
-      success = await manager.pullRemoteChanges() && success;
+      success = await manager.pullRemoteChanges(automatic: true) && success;
     }
 
     return success;

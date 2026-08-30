@@ -446,6 +446,11 @@ class SyncPullService {
     // **الأداء**: هذه القراءة من SQLite سريعة جداً (single row by PK)
     // وتحدث مرة واحدة في بداية كل دورة سحب (لا تؤثر على الأداء).
     final isFullSyncDone = await isFullSyncComplete();
+    _logger.debug(
+      'Delta state: lastPullTs=$lastPullTs, '
+      'fullSyncComplete=${isFullSyncDone ? 1 : 0}',
+      tag: 'SYNC_DIAGNOSTIC',
+    );
     if (!isFullSyncDone) {
       // الجهاز في مرحلة bootstrap — نُجبر full fetch
       return [];
@@ -459,7 +464,14 @@ class SyncPullService {
       cutoffSeconds * 1000,
       isUtc: true,
     ).toIso8601String();
-    return [Query.greaterThan(r'$updatedAt', cutoffIso)];
+    // نثبت الحد العلوي عند بداية دورة السحب. بذلك تعمل كل صفحات cursor
+    // على snapshot زمني واحد؛ السجلات التي تُنشأ أثناء الدورة ستدخل في
+    // الدورة التالية بدلاً من تغيير مجموعة النتائج أثناء pagination.
+    final upperBoundIso = DateTime.now().toUtc().toIso8601String();
+    return [
+      Query.greaterThan(r'$updatedAt', cutoffIso),
+      Query.lessThanEqual(r'$updatedAt', upperBoundIso),
+    ];
   }
 
   /// ✅ إصلاح جوهري: يبني delta queries خاصة بـ booking_nights بنفس النهج
@@ -478,7 +490,11 @@ class SyncPullService {
         cutoffSeconds * 1000,
         isUtc: true,
       ).toIso8601String();
-      return [Query.greaterThan(r'$updatedAt', cutoffIso)];
+      final upperBoundIso = DateTime.now().toUtc().toIso8601String();
+      return [
+        Query.greaterThan(r'$updatedAt', cutoffIso),
+        Query.lessThanEqual(r'$updatedAt', upperBoundIso),
+      ];
     }
     return []; // full fetch
   }

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'appwrite_config.dart';
 import 'appwrite_service.dart';
+import 'remote_change_queue.dart';
 import 'crashlytics_service.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
@@ -21,6 +22,8 @@ class AppwriteRealtimeSync {
   bool _isListening = false;
   bool _intentionallyStopped = false;
   Timer? _debounceTimer;
+  RemoteChangeQueue? _remoteChangeQueue;
+  RemoteChangeHandler? _remoteChangeHandler;
 
   // ✅ تحسين: عداد التغييرات المعلقة من السيرفر (للـ Badge)
   final pendingRemoteChangesCount = ValueNotifier<int>(0);
@@ -49,6 +52,11 @@ class AppwriteRealtimeSync {
     AppwriteConfig.salaryWithdrawalsCollectionId,
     AppwriteConfig.shiftNotesCollectionId,
     AppwriteConfig.guestInfosCollectionId,
+    AppwriteConfig.blacklistCollectionId,
+    AppwriteConfig.appSettingsCollectionId,
+    AppwriteConfig.inventoryItemsCollectionId,
+    AppwriteConfig.inventoryTransactionsCollectionId,
+    AppwriteConfig.salaryCarryOverLogsCollectionId,
     // ❌ hotel_day_ledger - محلي فقط
     AppwriteConfig.priceAdjustmentsCollectionId,
     AppwriteConfig.bookingPriceAdjustmentsCollectionId,
@@ -59,6 +67,12 @@ class AppwriteRealtimeSync {
   Future<void> initialize({required String deviceId}) async {
     _currentDeviceId = deviceId;
     _realtime = Realtime(AppwriteService().client);
+    _remoteChangeQueue ??= RemoteChangeQueue(
+      onFlush: (change) async {
+        final handler = _remoteChangeHandler;
+        if (handler != null) await handler(change);
+      },
+    );
     dlog('📡 AppwriteRealtimeSync initialized');
   }
 
@@ -162,6 +176,7 @@ class AppwriteRealtimeSync {
 
   void _onEvent(RealtimeMessage message) {
     final payload = message.payload;
+    final eventTypes = message.events;
     final sourceDevice = payload['device_id'] ?? payload['lastModifiedBy'];
 
     // ✅ إصلاح P2-13: تصفير عداد إعادة الاتصال عند استلام حدث صحي — يعني
@@ -175,7 +190,6 @@ class AppwriteRealtimeSync {
 
     // ✅ تحسين: تصفية أنواع الأحداث (create/update/delete فقط)
     // لا نهتم بـ permissions.update أو أحداث النظام
-    final eventTypes = message.events;
     final isDataChange = eventTypes.any(
       (e) =>
           e.endsWith('.create') ||
@@ -186,6 +200,33 @@ class AppwriteRealtimeSync {
     if (!isDataChange) {
       dlog(() => '📡 Realtime: ignoring non-data event: $eventTypes');
       return;
+    }
+
+    final documentId = payload[r'$id']?.toString();
+    final collectionId = _collections.firstWhere(
+      (collection) => eventTypes.any(
+        (event) => event.contains('collections.$collection.documents'),
+      ),
+      orElse: () => '',
+    );
+    if (documentId != null && collectionId.isNotEmpty) {
+      final operation = eventTypes.any((e) => e.endsWith('.delete'))
+          ? RemoteOperation.delete
+          : eventTypes.any((e) => e.endsWith('.create'))
+          ? RemoteOperation.create
+          : RemoteOperation.update;
+      _remoteChangeQueue?.add(
+        PendingRemoteRecord(
+          collectionId: collectionId,
+          documentId: documentId,
+          operation: operation,
+          serverUpdatedAt: DateTime.tryParse(
+            (payload[r'$updatedAt'] ?? payload[r'$createdAt'])?.toString() ??
+                '',
+          ),
+          payload: Map<String, dynamic>.from(payload),
+        ),
+      );
     }
 
     // ✅ تحسين: تتبع آخر وقت تحديث (Delta Sync Safety)
@@ -219,6 +260,16 @@ class AppwriteRealtimeSync {
             '📡 Realtime: pending changes count = ${pendingRemoteChangesCount.value}',
       );
     });
+  }
+
+  /// يربط أحداث Realtime بمسار targeted record sync.
+  void setRemoteChangeHandler(RemoteChangeHandler handler) {
+    _remoteChangeHandler = handler;
+  }
+
+  /// يضيف تغييراً معروف المعرف من FCM إلى نفس طابور Realtime.
+  void enqueueRemoteRecord(PendingRemoteRecord change) {
+    _remoteChangeQueue?.add(change);
   }
 
   /// ✅ تحسين: الحصول على آخر وقت تحديث معروف من السيرفر
@@ -299,7 +350,8 @@ class AppwriteRealtimeSync {
   }
 
   Future<void> stop() async {
-    // ✅ إصلاح P2-13: تعليم التوقف كإرادي لمنع _reconnect من إعادة الاتصال
+    // ✅ إصلاح P2-13: تعليم التوقف كإرادي لمنع _reconnect من إعادة الاتصال.
+    _remoteChangeQueue?.dispose();
     _intentionallyStopped = true;
     unawaited(_subscription?.close());
     _subscription = null;

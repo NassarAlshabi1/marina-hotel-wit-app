@@ -46,12 +46,15 @@ void main() {
 
       // lastPullTs = 1000 ثانية، cutoff = 1000 - 15 = 985 ثانية.
       final q = await pull.buildDeltaQueries(1000);
-      expect(q, hasLength(1));
+      expect(q, hasLength(2));
       expect(q.first, contains(r'$updatedAt'));
       // cutoff ISO لـ 985 ثانية = 1970-01-01T00:16:25.000Z
       expect(q.first, contains('1970-01-01T00:16:25'));
       // يجب أن يكون greaterThan (ليس greaterThanEqual) لتفادي التكرار اللانهائي.
       expect(q.first, contains('greaterThan'));
+      // الحد العلوي يثبت snapshot الدورة أثناء cursor pagination.
+      expect(q[1], contains('lessThanEqual'));
+      expect(q[1], contains(r'$updatedAt'));
     });
 
     test(
@@ -68,6 +71,8 @@ void main() {
           isUtc: true,
         ).toIso8601String();
         expect(q.first, contains(expectedCutoffIso));
+        expect(q, hasLength(2));
+        expect(q[1], contains('lessThanEqual'));
       },
     );
 
@@ -91,8 +96,9 @@ void main() {
         1000,
         remoteEpochIsMillis: false,
       );
-      expect(q, hasLength(1));
+      expect(q, hasLength(2));
       expect(q.first, contains(r'$updatedAt'));
+      expect(q[1], contains('lessThanEqual'));
     });
 
     test('bookingNightsDeltaQueries(lastPullTs=0) → سحب كامل', () {

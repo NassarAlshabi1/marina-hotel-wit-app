@@ -51,6 +51,7 @@ import 'sync_core/sync_error_service.dart';
 import 'sync_core/sync_metrics.dart';
 import 'sync_core/sync_pull_service.dart';
 import 'sync_enums.dart';
+import 'remote_change_queue.dart';
 import 'sync_locks.dart';
 import 'telegram/whatsapp_notification_service.dart';
 import 'telegram/telegram_notification_service.dart';
@@ -612,7 +613,7 @@ class AppwriteSyncManager {
           );
           await sync(push: true, pull: false);
         } else {
-          await sync();
+          await sync(automatic: true);
         }
       } catch (e, st) {
         _logger.error(
@@ -783,6 +784,25 @@ class AppwriteSyncManager {
     unawaited(_syncController.close());
   }
 
+  static const Duration _automaticPullMinGap = Duration(minutes: 2);
+
+  Future<bool> _canStartAutomaticPull() async {
+    final state = await (database.select(
+      database.syncState,
+    )..where((t) => t.id.equals(1))).getSingleOrNull();
+    final lastPullTs = state?.lastPullTs ?? 0;
+    if (lastPullTs <= 0) return true;
+
+    final normalizedSeconds = lastPullTs > 10000000000
+        ? lastPullTs ~/ 1000
+        : lastPullTs;
+    final lastPull = DateTime.fromMillisecondsSinceEpoch(
+      normalizedSeconds * 1000,
+      isUtc: true,
+    );
+    return DateTime.now().toUtc().difference(lastPull) >= _automaticPullMinGap;
+  }
+
   /// دورة المزامنة الكاملة مع Appwrite:
   /// - تتحقق من الاتصال بالشبكة
   /// - تنشئ سجل في sync_logs (start)
@@ -791,8 +811,19 @@ class AppwriteSyncManager {
   /// - تحدّث sync_logs (completed/failed) وتخزّن آخر وقت مزامنة محلياً
   ///
   /// الدالة لا ترمي عادةً استثناءات، وتعيد SyncResult مع status/errorMessage.
-  Future<SyncResult> sync({bool push = true, bool pull = true}) async {
+  Future<SyncResult> sync({
+    bool push = true,
+    bool pull = true,
+    bool automatic = false,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
+    if (automatic && pull && !await _canStartAutomaticPull()) {
+      _logger.debug(
+        'Automatic pull skipped — minimum interval not reached',
+        tag: 'SYNC',
+      );
+      pull = false;
+    }
     if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) {
       _logger.info(
         'Sync skipped — Appwrite sync is disabled in settings',
@@ -5642,11 +5673,98 @@ class AppwriteSyncManager {
     }
   }
 
+  /// تطبيق تغيير Realtime/FCM على سجل واحد فقط.
+  ///
+  /// لا يحرّك هذا المسار Delta list؛ فهو يستخدم getDocument بمعرف السجل
+  /// ثم يمرر المستند إلى نفس adapters ومسارات حل التعارض المستخدمة في السحب.
+  Future<void> applyRemoteRecordChange(PendingRemoteRecord change) async {
+    if (change.collectionId.isEmpty || change.documentId.isEmpty) return;
+
+    try {
+      final document = await appwriteService.getRow(
+        collectionId: change.collectionId,
+        documentId: change.documentId,
+        suppressErrorLog: true,
+      );
+      final documents = <models.Document>[document];
+      switch (change.collectionId) {
+        case AppwriteConfig.roomsCollectionId:
+          await _syncRooms(documents);
+        case AppwriteConfig.bookingsCollectionId:
+          await _syncBookings(documents);
+        case AppwriteConfig.employeesCollectionId:
+          await _syncEmployeesWithRetry(documents);
+        case AppwriteConfig.expensesCollectionId:
+          await _syncExpenses(documents);
+        case AppwriteConfig.paymentsCollectionId:
+          await _syncPayments(documents);
+        case AppwriteConfig.debtsCollectionId:
+          await _syncDebts(documents);
+        case AppwriteConfig.guestInfosCollectionId:
+          await _syncGuestInfos(documents);
+        case AppwriteConfig.salaryWithdrawalsCollectionId:
+          await _syncSalaryWithdrawals(documents);
+        case AppwriteConfig.inventoryItemsCollectionId:
+          await _syncInventoryItems(documents);
+        case AppwriteConfig.inventoryTransactionsCollectionId:
+          await _syncInventoryTransactions(documents);
+        case AppwriteConfig.shiftNotesCollectionId:
+          await _syncShiftNotes(documents);
+        case AppwriteConfig.bookingNotesCollectionId:
+          await _syncBookingNotes(documents);
+        case AppwriteConfig.bookingNightsCollectionId:
+          await _syncBookingNights(documents);
+        case AppwriteConfig.cashTransactionsCollectionId:
+          await _syncCashTransactions(documents);
+        case AppwriteConfig.salaryCyclesCollectionId:
+          await _syncSalaryCycles(documents);
+        case AppwriteConfig.salaryPaymentsCollectionId:
+          await _syncSalaryPayments(documents);
+        case AppwriteConfig.bookingPriceAdjustmentsCollectionId:
+          await _syncBookingPriceAdjustments(documents);
+        case AppwriteConfig.priceAdjustmentsCollectionId:
+          await _syncPriceAdjustments(documents);
+        case AppwriteConfig.auditLogsCollectionId:
+          await _syncAuditLogs(documents);
+        case AppwriteConfig.paymentVoidsCollectionId:
+          await _syncPaymentVoids(documents);
+        case AppwriteConfig.salaryCarryOverLogsCollectionId:
+          await _syncSalaryCarryOverLogs(documents);
+        case AppwriteConfig.blacklistCollectionId:
+          await _syncBlacklist(documents);
+        case AppwriteConfig.appSettingsCollectionId:
+          await _syncAppSettings(documents);
+        default:
+          _logger.warning(
+            'Targeted sync skipped: unsupported collection ${change.collectionId}',
+            tag: 'SYNC_TARGETED',
+          );
+      }
+    } catch (error, stackTrace) {
+      _logger.warning(
+        'Targeted sync failed for ${change.collectionId}/${change.documentId}; '
+        'delta recovery will reconcile it.',
+        error: error,
+        stackTrace: stackTrace,
+        tag: 'SYNC_TARGETED',
+      );
+      rethrow;
+    }
+  }
+
   /// سحب التغييرات من Appwrite
   /// يُرجع true إذا كانت هناك تغييرات جديدة تم تطبيقها
   /// Guarded by [SyncLocks.appwriteSyncLock] to prevent concurrent pulls.
   /// All collection syncs are wrapped in a single database transaction for atomicity.
-  Future<bool> pullRemoteChanges() async {
+  Future<bool> pullRemoteChanges({bool automatic = false}) async {
+    if (automatic && !await _canStartAutomaticPull()) {
+      _logger.debug(
+        'Automatic pull skipped — minimum interval not reached',
+        tag: 'SYNC',
+      );
+      return true;
+    }
+
     final pendingLocalChanges = await outboxDao.countUndeliveredToPrimary();
     if (!OutboxPullPolicy.canPull(
       undeliveredOutboxCount: pendingLocalChanges,

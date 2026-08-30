@@ -180,7 +180,7 @@ class AppSessionManager {
       }
 
       // تنفيذ المزامنة (سحب فقط)
-      final result = await syncManager.sync(push: false);
+      final result = await syncManager.sync(push: false, automatic: true);
 
       // تحديث وقت آخر سحب ناجح
       await prefs.setInt(lastPullKey, nowMs);
