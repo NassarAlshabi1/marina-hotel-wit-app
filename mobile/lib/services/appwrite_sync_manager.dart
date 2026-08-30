@@ -223,6 +223,14 @@ class AppwriteSyncManager {
   /// التطبيق فقط — فلا يتقدم المؤشر إذا فشل التطبيق (نفس ضمانة failedCollections).
   final Map<String, int> _pendingMetaServerMaxTs = {};
 
+  /// ⚡ (2026-08-31) تقليل السحب على مستوى السجل — المسار السريع للـ Realtime:
+  /// الكيانات التي طُبّقت سجلاتها من حمولة حدث Realtime مباشرة (صفر قراءات
+  /// شبكة) خلال الدورة الحالية. في دورة السحب التالية تُتخطى delta queries
+  /// لهذه الكيانات فقط (السجلات محلية أصلاً)، ويبقى دوري 15 دقيقة + السحب
+  /// الكامل شبكة أمان للكمال. تُملأ من sync(fastAppliedEntities:) وتُمسح
+  /// في نهاية الدورة أياً كانت نتيجتها.
+  Set<String> _activeFastAppliedEntities = const {};
+
   /// PayloadMapper — تم استخراجه من دوال _xxxToRemote لهذا الصنف
   final PayloadMapper _payloadMapper = const PayloadMapper();
 
@@ -816,6 +824,12 @@ class AppwriteSyncManager {
     bool push = true,
     bool pull = true,
     bool realtimePriority = false,
+
+    /// ⚡ (2026-08-31) الكيانات التي طُبّقت سجلاتها بالفعل من حمولة أحداث
+    /// Realtime (المسار السريع على مستوى السجل). أثناء دورة السحب تُتخطى
+    /// delta queries لهذه الكيانات فقط — صفر قراءات إضافية — أما السحب
+    /// الكامل (isDelta=false) فلا يتأثر أبداً (شبكة أمان الكمال).
+    Set<String>? fastAppliedEntities,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) {
@@ -899,6 +913,10 @@ class AppwriteSyncManager {
       return await SyncLocks.appwriteSyncLock.synchronized(() async {
         _currentStatus = SyncStatus.syncing;
         _syncController.add(_currentStatus);
+
+        // ⚡ (2026-08-31) تفعيل تخطي delta للكيانات المطبّقة من أحداث Realtime
+        // (المسار السريع على مستوى السجل). يُمسح في finally أدناه أياً كانت النتيجة.
+        _activeFastAppliedEntities = fastAppliedEntities ?? const {};
 
         final startTime = DateTime.now();
 
@@ -2138,6 +2156,10 @@ class AppwriteSyncManager {
           // progress" → توقف دائم للمزامنة حتى إعادة تشغيل التطبيق.
           _currentStatus = finalStatus;
           _syncController.add(_currentStatus);
+          // ⚡ (2026-08-31) المجموعة دورية فقط: تُمسح بعد كل دورة. إذا تخطّت
+          // الدورة نفسها (outbox مثلاً) فالكيانات غير المطبّقة ستُسحب في
+          // المتابعة القادمة، والمطبّقة سجلاتها محلية أصلاً (idempotent).
+          _activeFastAppliedEntities = const {};
         }
 
         final endTime = DateTime.now();
@@ -5903,11 +5925,176 @@ class AppwriteSyncManager {
   ///
   /// ملاحظة أمان: المستندات المحذوفة من الخادم تختفي من الـ metadata ولا
   /// تُجلب — مطابق لسلوك السحب الكامل السابق (لا حذف انعكاسي في السحب).
+  /// ⚡ (2026-08-31) تقليل السحب على مستوى السجل — المسار السريع للأحداث:
+  ///
+  /// حدث Realtime من جهاز آخر يحمل حمولة السجل كاملاً (Appwrite يرسل
+  /// المستند نفسه في payload). بدلاً من دورة delta لكل الكيانات، يُطبَّق
+  /// السجل الواحد **مباشرة من الحمولة** عبر نفس دوال التطبيق والمصالحة
+  /// (tombstone guard / Vector Clock / 3-way merge / LWW) المستخدمة في
+  /// السحب — **صفر قراءات شبكة** لكل حدث.
+  ///
+  /// ضمانات السلامة:
+  /// - لا يتقدم مؤشر أي كيان (watermark) من هذا المسار أبداً — الدلتا
+  ///   الدورية تبقى مصدر الكمال وتعيد سحب السجل نفسه مرة واحدة لاحقاً
+  ///   (upsert idempotent). تقدّم المؤشر هنا قد يُفقد سجلات أخرى تغيّرت
+  ///   بين المؤشر وطابق الحدث.
+  /// - خريطة sync_remote_meta تُحدَّث للسجل بعد نجاح تطبيقه (نفس دلالة
+  ///   _checkpointEntity) كي يقارن السحب الكامل القادم بدقة.
+  /// - يُرجع false (فيُسقط الحدث إلى دورة السحب العادية عبر _schedulePull)
+  ///   إذا: دورة مزامنة جارية الآن، أو الكيان غير مدعوم (devices,
+  ///   sync_logs، audit_logs المستبعدة...)، أو الحمولة ناقصة $id/$updatedAt،
+  ///   أو أحداث delete (يقرر طبقة Realtime)، أو فشل التطبيق بأي خطأ.
+  Future<bool> applyRemoteRecordFast({
+    required String collectionId,
+    required String documentId,
+    required Map<String, dynamic> payload,
+  }) async {
+    // دورة مزامنة جارية → دع الدورة نفسها تسحب (تجنب تضارب كتابات Drift
+    // مع معالجة tombstones/deferred في دوال التطبيق).
+    if (_currentStatus == SyncStatus.syncing) {
+      _logger.debug(
+        '⚡ fast-apply: دورة مزامنة جارية — يُسقط الحدث للدورة العادية',
+        tag: 'SYNC',
+      );
+      return false;
+    }
+    if (_pullService == null) return false;
+
+    final entity = AppwriteConfig.entityForCollectionId(collectionId);
+    if (entity == null) return false;
+
+    final id = (payload[r'$id'] as String?) ?? documentId;
+    final updatedAt = payload[r'$updatedAt'] as String?;
+    if (id.isEmpty || updatedAt == null || updatedAt.isEmpty) return false;
+
+    try {
+      final doc = models.Document(
+        $id: id,
+        $sequence: _asIntSafe(payload, r'$sequence') ?? 0,
+        $collectionId: collectionId,
+        $databaseId: (payload[r'$databaseId'] as String?) ?? '',
+        $createdAt: (payload[r'$createdAt'] as String?) ?? updatedAt,
+        $updatedAt: updatedAt,
+        $permissions: const [],
+        data: payload,
+      );
+      await _applyDocsForEntity(entity, [doc]);
+
+      // تحديث خريطة $updatedAt البعيدة بعد نجاح التطبيق فقط — تُغذّي
+      // مقارنة السحب الكامل القادم (metadata-first). المؤشر لا يتحرك.
+      final parsed = DateTime.tryParse(updatedAt);
+      if (parsed != null) {
+        final tsSec = (parsed.millisecondsSinceEpoch / 1000).round();
+        await database.upsertRemoteMeta(collectionId, {id: tsSec});
+      }
+      _logger.info(
+        '⚡ fast-apply($entity/$id): طُبّق السجل من حمولة الحدث مباشرة '
+        '— صفر قراءات شبكة (المؤشر لم يتحرك)',
+        tag: 'SYNC',
+      );
+      return true;
+    } catch (e, st) {
+      _logger.warning(
+        '⚡ fast-apply($entity/$id) فشل — يُسقط الحدث للدورة العادية: $e',
+        tag: 'SYNC',
+        error: e,
+        stackTrace: st,
+      );
+      return false;
+    }
+  }
+
+  /// تطبيق دفعات سجلات على الكيان عبر دوال التطبيق الحقيقية نفسها المستخدمة
+  /// في حلقة السحب (تشمل المصالحة والـ prefetch). يُرجع false للكيانات
+  /// التي لا تدعم التطبيق السريع بعد (مسارات خاصة: devices, sync_logs,
+  /// app_settings, app_users) فتسقلابها الأحداث إلى دورة السحب العادية.
+  Future<bool> _applyDocsForEntity(
+    String entity,
+    List<models.Document> docs,
+  ) async {
+    switch (entity) {
+      case 'rooms':
+        await _syncRooms(docs);
+        return true;
+      case 'employees':
+        await _syncEmployeesWithRetry(docs);
+        return true;
+      case 'bookings':
+        await _syncBookings(docs);
+        return true;
+      case 'cash_transactions':
+        await _syncCashTransactions(docs);
+        return true;
+      case 'expenses':
+        await _syncExpenses(docs);
+        return true;
+      case 'booking_nights':
+        await _syncBookingNights(docs);
+        return true;
+      case 'booking_notes':
+        await _syncBookingNotes(docs);
+        return true;
+      case 'payments':
+        await _syncPayments(docs);
+        return true;
+      case 'debts':
+        await _syncDebts(docs);
+        return true;
+      case 'salary_cycles':
+        await _syncSalaryCycles(docs);
+        return true;
+      case 'salary_payments':
+        await _syncSalaryPayments(docs);
+        return true;
+      case 'salary_withdrawals':
+        await _syncSalaryWithdrawals(docs);
+        return true;
+      case 'guest_infos':
+        await _syncGuestInfos(docs);
+        return true;
+      case 'booking_price_adjustments':
+        await _syncBookingPriceAdjustments(docs);
+        return true;
+      case 'price_adjustments':
+        await _syncPriceAdjustments(docs);
+        return true;
+      case 'shift_notes':
+        await _syncShiftNotes(docs);
+        return true;
+      case 'blacklist':
+        await _syncBlacklist(docs);
+        return true;
+      case 'inventory_items':
+        await _syncInventoryItems(docs);
+        return true;
+      case 'payment_voids':
+        await _syncPaymentVoids(docs);
+        return true;
+      case 'salary_carry_over_logs':
+        await _syncSalaryCarryOverLogs(docs);
+        return true;
+      default:
+        return false;
+    }
+  }
+
   Future<List<models.Document>> _pullDocsMetadataFirst({
     required String entity,
     required bool isDelta,
     required List<String> fallback,
   }) async {
+    // ⚡ (2026-08-31) المسار السريع على مستوى السجل: سجلات هذا الكيان طُبّقت
+    // محلياً من حمولة أحداث Realtime مباشرة خلال هذه الدورة — لا حاجة لأي
+    // delta query. السحب الكامل (isDelta=false) لا يتأثر أبداً: هو شبكة
+    // أمان الكمال بعد resetSyncState/إعادة تثبيت، ويجب أن يمسح كل شيء.
+    if (isDelta && _activeFastAppliedEntities.contains(entity)) {
+      _logger.info(
+        '⚡ fast-path($entity): سجلاته طُبّقت من أحداث Realtime مباشرة '
+        '— تخطي delta query (صفر قراءات شبكة)',
+        tag: 'SYNC',
+      );
+      return const [];
+    }
     final queries = await _entityPullQueries(
       entity,
       isDelta: isDelta,

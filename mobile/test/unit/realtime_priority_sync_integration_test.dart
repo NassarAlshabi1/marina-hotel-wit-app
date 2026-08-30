@@ -280,12 +280,15 @@ void main() {
           // ربط الحلقة كما في main.dart تماماً.
           var triggerCalls = 0;
           var lastTriggerResult = true;
-          realtime.setSyncTrigger(() async {
+          var lastReceivedFastApplied = <String>{};
+          realtime.setSyncTrigger((fastApplied) async {
             triggerCalls++;
+            lastReceivedFastApplied = Set<String>.of(fastApplied);
             final result = await manager.sync(
               push: true,
               pull: true,
               realtimePriority: true,
+              fastAppliedEntities: fastApplied,
             );
             lastTriggerResult = result.isSuccess && !result.pullSkipped;
             return lastTriggerResult;

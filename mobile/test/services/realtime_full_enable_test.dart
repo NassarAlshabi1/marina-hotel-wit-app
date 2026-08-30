@@ -92,7 +92,7 @@ void main() {
     test('R2: حدث من نفس الجهاز → لا سحب ولا شارة', () {
       realtime.currentDeviceIdForTesting = 'device-A';
       var triggerCalls = 0;
-      realtime.setSyncTrigger(() async {
+      realtime.setSyncTrigger((_) async {
         triggerCalls++;
         return true;
       });
@@ -113,7 +113,7 @@ void main() {
     test('R3: حدث غير بيانات (permissions.update) → يُتجاهل', () {
       realtime.currentDeviceIdForTesting = 'device-A';
       var triggerCalls = 0;
-      realtime.setSyncTrigger(() async {
+      realtime.setSyncTrigger((_) async {
         triggerCalls++;
         return true;
       });
@@ -137,7 +137,7 @@ void main() {
         realtime.currentDeviceIdForTesting = 'device-A';
         realtime.debugEventDebounce = const Duration(milliseconds: 10);
         var triggerCalls = 0;
-        realtime.setSyncTrigger(() async {
+        realtime.setSyncTrigger((_) async {
           triggerCalls++;
           return true;
         });
@@ -199,7 +199,7 @@ void main() {
         realtime.debugPullCooldown = const Duration(milliseconds: 100);
 
         var triggerCalls = 0;
-        realtime.setSyncTrigger(() async {
+        realtime.setSyncTrigger((_) async {
           triggerCalls++;
           return true;
         });
@@ -250,7 +250,7 @@ void main() {
 
         final firstGate = Completer<bool>();
         var triggerCalls = 0;
-        realtime.setSyncTrigger(() {
+        realtime.setSyncTrigger((_) {
           triggerCalls++;
           if (triggerCalls == 1) {
             // دورة أولى طويلة (شبكة بطيئة محاكاةً).
@@ -300,7 +300,7 @@ void main() {
 
         var calls = 0;
         final results = <bool>[];
-        realtime.setSyncTrigger(() async {
+        realtime.setSyncTrigger((_) async {
           calls++;
           results.add(calls == 1 ? false : true); // الأولى: السحب تخطّى
           return results.last;
@@ -336,7 +336,7 @@ void main() {
         realtime.resetForTesting();
         realtime.currentDeviceIdForTesting = 'device-A';
         var triggerCalls = 0;
-        realtime.setSyncTrigger(() async {
+        realtime.setSyncTrigger((_) async {
           triggerCalls++;
           return true;
         });
@@ -368,7 +368,7 @@ void main() {
         });
 
         var triggerCalls = 0;
-        realtime.setSyncTrigger(() async {
+        realtime.setSyncTrigger((_) async {
           triggerCalls++;
           return true;
         });

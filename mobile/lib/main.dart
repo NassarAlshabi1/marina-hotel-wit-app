@@ -822,16 +822,31 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         // المُصدِرة مُسرَّعة ذاتياً (ديبونس 500ms + تهيئة 15 ثانية)؛
         // pullSkipped يعني أن السحب تخطّى (outbox غير مفروغ مثلاً) فتُجدول
         // متابعة تلقائياً بدل الظن بأن التغييرات طُبّقت.
-        AppwriteRealtimeSync().setSyncTrigger(() async {
+        AppwriteRealtimeSync().setSyncTrigger((fastAppliedEntities) async {
           final realtimeManager = AppwriteSyncManager.instance;
           if (realtimeManager == null) return false;
           final result = await realtimeManager.sync(
             push: true,
             pull: true,
             realtimePriority: true,
+            // ⚡ (2026-08-31) سجل-مستوى: كيانات طُبّقت سجلاتها من حمولة
+            // أحداث Realtime مباشرة — تتخطى الـ delta في هذه الدورة.
+            fastAppliedEntities: fastAppliedEntities,
           );
           return result.isSuccess && !result.pullSkipped;
         });
+        // ⚡ (2026-08-31) المسار السريع على مستوى السجل: الحمولة تحمل السجل
+        // كاملاً → يُطبَّق فوراً بلا أي قراءة شبكة (المدير يُصالِم بنفس منطق
+        // السحب). الفشل بأي شكل يُسقط الحدث للدورة العادية آلياً.
+        AppwriteRealtimeSync().setFastApplyHandler(
+          (collectionId, documentId, payload) =>
+              AppwriteSyncManager.instance?.applyRemoteRecordFast(
+                collectionId: collectionId,
+                documentId: documentId,
+                payload: payload,
+              ) ??
+              Future<bool>.value(false),
+        );
         await AppwriteRealtimeSync().start();
         dlog('📡 Realtime sync + auto sync started');
       } catch (e) {

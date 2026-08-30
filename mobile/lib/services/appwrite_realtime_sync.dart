@@ -19,7 +19,17 @@ enum RealtimeMode { websocket, fallback, disabled }
 /// العائد `true` = مرحلة السحب (pull) أُكملت فعلاً؛ `false` = السحب
 /// تخطّى/فشل (مثل: outbox محلي لم يُفرَّغ بعد، أو sync قيد التنفيذ) —
 /// في هذه الحالة تُجدول محاولة متابعة بدل اعتبار التغييرات مُطبّقة.
-typedef RemoteChangePull = Future<bool> Function();
+typedef RemoteChangePull =
+    Future<bool> Function(Set<String> fastAppliedEntities);
+
+/// ⚡ (2026-08-31) المسار السريع على مستوى السجل: تطبيق سجل من حمولة حدث
+/// Realtime مباشرة عبر المدير (صفر قراءات شبكة). يُرجع true إذا طُبّق.
+typedef FastRecordApply =
+    Future<bool> Function(
+      String collectionId,
+      String documentId,
+      Map<String, dynamic> payload,
+    );
 
 /// ✅ (2026-08-31) تفعيل Realtime الكامل.
 ///
@@ -75,6 +85,15 @@ class AppwriteRealtimeSync {
 
   // ── ✅ (2026-08-31) محرّك السحب الفعلي عند الأحداث ──
   RemoteChangePull? _syncTrigger;
+
+  /// ⚡ (2026-08-31) معالج التطبيق السريع (يُحقن من main.dart → المدير).
+  /// null يعني المسار القديم فقط: دورة سحب كاملة لكل حدث.
+  FastRecordApply? _fastApply;
+
+  /// الكيانات (collectionIds) التي طُبّقت سجلاتها من حمولة أحداث منذ آخر
+  /// محاولة سحب. تُمرَّر للـ trigger كي تتخطى الدelta لهذه الكيانات، وتُمسح
+  /// بعد كل محاولة، وتُمسح عند إعادة الاشتراك (احتمال فقدان أحداث).
+  final Set<String> _fastAppliedSinceLastDelta = {};
   Timer? _cooldownTimer;
   bool _triggerInFlight = false;
   bool _pullQueued = false;
@@ -118,6 +137,12 @@ class AppwriteRealtimeSync {
   /// ```
   void setSyncTrigger(RemoteChangePull trigger) {
     _syncTrigger = trigger;
+  }
+
+  /// ⚡ (2026-08-31) حقن معالج التطبيق السريع (main.dart يربطه بـ
+  /// AppwriteSyncManager.applyRemoteRecordFast). تمرير null يعطله.
+  void setFastApplyHandler(FastRecordApply? handler) {
+    _fastApply = handler;
   }
 
   Future<void> initialize({required String deviceId}) async {
@@ -200,6 +225,9 @@ class AppwriteRealtimeSync {
     try {
       _subscription = _realtime!.subscribe(channels);
       _isListening = true;
+      // ⚡ (2026-08-31) اشتراك جديد قد يكون فات أحداثاً أثناء الانقطاع —
+      // تُمسح مجموعة التخطي كي تسحب الدelta القادمة كل الكيانات (أمان الكمال).
+      _fastAppliedSinceLastDelta.clear();
       // ✅ الانتقال من fallback إلى WS ناجح — أوقف مؤقتات الـ fallback
       _stopPollingFallback();
 
@@ -293,6 +321,35 @@ class AppwriteRealtimeSync {
     _pollingTimer = null;
   }
 
+  /// تحليل قناة/حدث Appwrite: `databases.<db>.collections.<col>.documents.<doc>.<action>`
+  /// يُرجع null-action للأحداث غير الخاصة بالبيانات.
+  @visibleForTesting
+  static ({String? collectionId, String? documentId, String? action})
+  parseDatabaseEvent(List<String> events) {
+    for (final e in events) {
+      final parts = e.split('.');
+      final colIdx = parts.indexOf('collections');
+      final docIdx = parts.indexOf('documents');
+      if (colIdx == -1 || colIdx + 1 >= parts.length) continue;
+      if (docIdx == -1 || docIdx + 1 >= parts.length) continue;
+      // بنية حدث المستند الصارمة:
+      // databases.<db>.collections.<col>.documents.<doc>.<action>
+      // أي مقطع إضافي (مثل …documents.<doc>.permissions.update) يعني حدث
+      // نظام/صلاحيات وليس تغيير بيانات → يُرفض.
+      if (docIdx != colIdx + 2) continue;
+      if (parts.length != docIdx + 3) continue;
+      final action = parts.last;
+      if (action == 'create' || action == 'update' || action == 'delete') {
+        return (
+          collectionId: parts[colIdx + 1],
+          documentId: parts[docIdx + 1],
+          action: action,
+        );
+      }
+    }
+    return (collectionId: null, documentId: null, action: null);
+  }
+
   void _onEvent(RealtimeMessage message) {
     handleRemoteDataChange(events: message.events, payload: message.payload);
   }
@@ -335,6 +392,44 @@ class AppwriteRealtimeSync {
     if (!isDataChange) {
       dlog(() => '📡 Realtime: ignoring non-data event: $events');
       return;
+    }
+
+    // ⚡⚡ (2026-08-31) تقليل السحب على مستوى السجل — المسار السريع:
+    // حمولة الحدث تحمل السجل كاملاً. يُطبَّق فوراً عبر المدير (نفس دوال
+    // التطبيق والمصالحة — صفر قراءات شبكة)، ويُعلَّم كيانه كي تتخطى دورة
+    // السحب التالية الـ delta له (ما زالت الدورة تعمل للـ push ولِما عدا ذلك).
+    // - أحداث delete تُسقط للدورة العادية (منطق tombstones لا يُختصر).
+    // - فشل التطبيق السريع بأي شكل → بلا تعليم → الدورة العادية تسحب.
+    final parsed = parseDatabaseEvent(events);
+    final fastApply = _fastApply;
+    if (parsed.action != null &&
+        parsed.action != 'delete' &&
+        fastApply != null &&
+        parsed.collectionId != null &&
+        parsed.documentId != null) {
+      final col = parsed.collectionId!;
+      final docId = parsed.documentId!;
+      unawaited(() async {
+        try {
+          final ok = await fastApply(col, docId, payload);
+          if (ok) {
+            _fastAppliedSinceLastDelta.add(col);
+            dlog(
+              () =>
+                  '⚡ Realtime: fast-apply $col/$docId — سجل مطبّق '
+                  'بلا أي قراءة شبكة، وسيُتخطى في الـ delta القادمة',
+            );
+          } else {
+            dlog(
+              () =>
+                  '⚡ Realtime: fast-apply $col/$docId لم يُطبّق '
+                  '— الحدث يمر عبر دورة السحب العادية',
+            );
+          }
+        } catch (e) {
+          dlog(() => '⚡ Realtime: fast-apply $col/$docId رُمى: $e');
+        }
+      }());
     }
 
     // ✅ تحسين: تتبع آخر وقت تحديث (Delta Sync Safety)
@@ -415,11 +510,18 @@ class AppwriteRealtimeSync {
 
     var pulled = false;
     try {
-      pulled = await trigger();
+      // ⚡ (2026-08-31) تمرير الكيانات المطبّقة من أحداث Realtime (مسار
+      // سجل-مستوى) كي تتخطى الدelta لهذه الكيانات فقط، ثم مسحها — سجلاتها
+      // محلية أصلاً؛ إن تخطّت الدورة فالمتابعة القادمة تغطي الجميع.
+      final skipDeltaFor = Set<String>.of(_fastAppliedSinceLastDelta);
+      pulled = await trigger(skipDeltaFor);
     } catch (e) {
       dlog(() => '⚠️ Realtime: triggered pull failed: $e');
     } finally {
       _triggerInFlight = false;
+      // ⚡ المجموعة دورية: استُهلكت لهذه المحاولة — تُمسح أياً كانت النتيجة
+      // (فشل/تخطٍّ → المتابعة تسحب كل شيء؛ نجاح → لا حاجة لها أصلاً).
+      _fastAppliedSinceLastDelta.clear();
     }
 
     if (pulled) {
@@ -542,6 +644,8 @@ class AppwriteRealtimeSync {
     _cooldownTimer = null;
     _pullQueued = false;
     _stopPollingFallback(); // ✅ تنظيف polling fallback
+    // ⚡ (2026-08-31) تنظيف حالة المسار السريع على مستوى السجل
+    _fastAppliedSinceLastDelta.clear();
     // عند التوقف، نعيد تعيين الحالة
     hasRemoteChanges.value = false;
     _hasPendingChanges = false;
@@ -576,6 +680,8 @@ class AppwriteRealtimeSync {
     hasRemoteChanges.value = false;
     pendingRemoteChangesCount.value = 0;
     _syncTrigger = null;
+    _fastApply = null;
+    _fastAppliedSinceLastDelta.clear();
   }
 
   @visibleForTesting
