@@ -1,5 +1,6 @@
 // ignore_for_file: unused_element, deprecated_member_use
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:appwrite/appwrite.dart';
 import 'package:collection/collection.dart';
@@ -541,6 +542,93 @@ class SyncPullService {
     } catch (e) {
       _logger.warning('Failed to update lastPullTs: $e', tag: 'SYNC');
     }
+  }
+
+  // ── Per-Entity Pull Timestamps (2026-08-30) ─────────────────────────────
+  //
+  // ✅ العلاج الجذري للمؤشر العالمي الواحد: كل كيان يحمل مؤشر سحب خاصاً به
+  // ويتقدم باستقلال. فشل كيان ما (مثل guest_infos البطيء) لم يعُد يجمّد
+  // مؤشر الكيانات الأخرى — وبالتالي لا تُعاد سحب deltas سليمة في كل دورة.
+  //
+  // التخزين في SharedPreferences (نفس نمط sync_last_pull_booking_nights
+  // الموجود) بدل عمود جديد في sync_state — لا ترحيل قاعدة بيانات ولا
+  // إعادة توليد كود Drift. القراءة من SPrefs مُخزّنة في الذاكرة بعد أول
+  // تحميل فتكلفتها مهملة مقابل طلبات الشبكة.
+
+  /// مفتاح SharedPreferences لخريطة مؤشرات السحب لكل كيان.
+  static const String _entityPullTsMapKey = 'sync_entity_pull_ts_map';
+
+  /// يقرأ خريطة مؤشرات السحب لكل كيان.
+  Future<Map<String, int>> getEntityPullTsMap() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_entityPullTsMapKey);
+      if (raw == null || raw.isEmpty) return {};
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return decoded.map((k, v) => MapEntry(k, (v as num).toInt()));
+    } catch (e) {
+      _logger.warning('Failed to read entity pull ts map: $e', tag: 'SYNC');
+      return {};
+    }
+  }
+
+  /// يقرأ مؤشر السحب الخاص بكيان محدد.
+  ///
+  /// ✅ ترحيل كسول: الكيانات غير الموجودة في الخريطة تُهيّأ من المؤشر
+  /// العالمي (`lastPullTs`) — هكذا تبقى دورة أول تشغيل بعد هذا التحديث
+  /// مطابقة تماماً للسلوك السابق (نفس cutoff لكل الكيانات)، وتبدأ
+  /// الاستقلالية من الدورة التالية دون أي سحب كامل إضافي.
+  Future<int> getEntityPullTs(String entity) async {
+    final map = await getEntityPullTsMap();
+    if (map.containsKey(entity)) return map[entity] ?? 0;
+    final globalTs = await getLastPullTs();
+    await updateEntityPullTs(entity, globalTs);
+    return globalTs;
+  }
+
+  /// يحدّث مؤشر السحب الخاص بكيان محدد — **تقدّم أحادي الاتجاه فقط**
+  /// (المؤشر لا يتراجع أبداً حتى لو وصلت قيمة أصغر بخطأ ما).
+  Future<void> updateEntityPullTs(String entity, int ts) async {
+    try {
+      final map = await getEntityPullTsMap();
+      final existing = map[entity] ?? 0;
+      if (ts <= existing) return;
+      map[entity] = ts;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_entityPullTsMapKey, jsonEncode(map));
+    } catch (e) {
+      _logger.warning(
+        'Failed to update entity pull ts ($entity): $e',
+        tag: 'SYNC',
+      );
+    }
+  }
+
+  /// يحذف خريطة مؤشرات الكيانات (تُستخدم عند إعادة ضبط المزامنة —
+  /// ستعاد تهيئتها كسولاً من المؤشر العالمي في أول دورة تالية).
+  Future<void> clearEntityPullTsMap() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_entityPullTsMapKey);
+    } catch (_) {}
+  }
+
+  /// ✅ استعلامات delta خاصة بكيان واحد بناءً على مؤشره الخاص.
+  ///
+  /// - يُستدعى فقط في وضع delta (`isDelta == true` محسوب مسبقاً عبر
+  ///   `buildDeltaQueries` الذي يتحقق من `full_sync_complete`).
+  /// - مؤشر ≤ 0 (كيان بلا تاريخ) → قائمة فارغة = سحب كامل **لهذا الكيان
+  ///   وحده** دون بقية الكيانات.
+  /// - نفس نافذة الأمان 15 ثانية المستخدمة في المؤشر العالمي.
+  Future<List<String>> entityDeltaQueries(String entity) async {
+    final ts = await getEntityPullTs(entity);
+    if (ts <= 0) return [];
+    final cutoffSeconds = ts - _safetyWindowSeconds;
+    final cutoffIso = DateTime.fromMillisecondsSinceEpoch(
+      cutoffSeconds * 1000,
+      isUtc: true,
+    ).toIso8601String();
+    return [Query.greaterThan(r'$updatedAt', cutoffIso)];
   }
 
   // ── Full Sync Bootstrap Flag ──────────────────────────────────────────

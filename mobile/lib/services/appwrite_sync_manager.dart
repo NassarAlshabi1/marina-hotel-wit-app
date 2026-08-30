@@ -1044,10 +1044,13 @@ class AppwriteSyncManager {
               try {
                 recordsPulled += await _timePhase('syncRooms', () async {
                   final rooms = await appwriteService.listRooms(
-                    queries: pullQueries,
+                    queries: await _entityPullQueries('rooms',
+                        isDelta: isDelta, fallback: pullQueries),
                     useCache: false,
                   );
                   final roomsSynced = await _syncRooms(rooms);
+                  // ✅ (2026-08-30) مؤشر مستقل لكل كيان — يتقدم حتى لو فشلت كيانات أخرى
+                  await _checkpointEntity('rooms', rooms);
                   _logger.debug('Synced $roomsSynced rooms', tag: 'SYNC');
                   return roomsSynced;
                 }, phaseMs);
@@ -1070,7 +1073,8 @@ class AppwriteSyncManager {
               try {
                 recordsPulled += await _timePhase('syncEmployees', () async {
                   final employees = await appwriteService.listEmployees(
-                    queries: pullQueries,
+                    queries: await _entityPullQueries('employees',
+                        isDelta: isDelta, fallback: pullQueries),
                     useCache: false,
                   );
                   // ✅ التوصية 5: لف _syncEmployees بطبقة إعادة محاولة لتحصين
@@ -1078,6 +1082,8 @@ class AppwriteSyncManager {
                   final employeesSynced = await _syncEmployeesWithRetry(
                     employees,
                   );
+                  // ✅ (2026-08-30) مؤشر مستقل لكل كيان
+                  await _checkpointEntity('employees', employees);
                   _logger.debug(
                     'Synced $employeesSynced employees',
                     tag: 'SYNC',
@@ -1106,10 +1112,13 @@ class AppwriteSyncManager {
                   () async {
                     final docs = await appwriteService.listDocuments(
                       collectionId: AppwriteConfig.inventoryItemsCollectionId,
-                      queries: pullQueries,
+                      queries: await _entityPullQueries('inventory_items',
+                          isDelta: isDelta, fallback: pullQueries),
                       useCache: false,
                     );
                     final synced = await _syncInventoryItems(docs);
+                    // ✅ (2026-08-30) مؤشر مستقل لكل كيان
+                    await _checkpointEntity('inventory_items', docs);
                     _logger.debug(
                       'Synced $synced inventory items',
                       tag: 'SYNC',
@@ -1135,10 +1144,15 @@ class AppwriteSyncManager {
                     final docs = await appwriteService.listDocuments(
                       collectionId:
                           AppwriteConfig.inventoryTransactionsCollectionId,
-                      queries: pullQueries,
+                      queries: await _entityPullQueries(
+                          'inventory_transactions',
+                          isDelta: isDelta,
+                          fallback: pullQueries),
                       useCache: false,
                     );
                     final synced = await _syncInventoryTransactions(docs);
+                    // ✅ (2026-08-30) مؤشر مستقل لكل كيان
+                    await _checkpointEntity('inventory_transactions', docs);
                     _logger.debug(
                       'Synced $synced inventory transactions',
                       tag: 'SYNC',
@@ -1205,12 +1219,17 @@ class AppwriteSyncManager {
                   () async {
                     final cashTransactions = await appwriteService
                         .listCashTransactions(
-                          queries: pullQueries,
+                          queries: await _entityPullQueries(
+                              'cash_transactions',
+                              isDelta: isDelta,
+                              fallback: pullQueries),
                           useCache: false,
                         );
                     final synced = await _syncCashTransactions(
                       cashTransactions,
                     );
+                    // ✅ (2026-08-30) مؤشر مستقل لكل كيان
+                    await _checkpointEntity('cash_transactions', cashTransactions);
                     _logger.debug(
                       'Synced $synced cash transactions',
                       tag: 'SYNC',
@@ -1232,10 +1251,13 @@ class AppwriteSyncManager {
               try {
                 recordsPulled += await _timePhase('syncExpenses', () async {
                   final expenses = await appwriteService.listExpenses(
-                    queries: pullQueries,
+                    queries: await _entityPullQueries('expenses',
+                        isDelta: isDelta, fallback: pullQueries),
                     useCache: false,
                   );
                   final expensesSynced = await _syncExpenses(expenses);
+                  // ✅ (2026-08-30) مؤشر مستقل لكل كيان
+                  await _checkpointEntity('expenses', expenses);
                   _logger.debug('Synced $expensesSynced expenses', tag: 'SYNC');
                   return expensesSynced;
                 }, phaseMs);
@@ -1321,10 +1343,13 @@ class AppwriteSyncManager {
               try {
                 recordsPulled += await _timePhase('syncBookingNotes', () async {
                   final bookingNotes = await appwriteService.listBookingNotes(
-                    queries: pullQueries,
+                    queries: await _entityPullQueries('booking_notes',
+                        isDelta: isDelta, fallback: pullQueries),
                     useCache: false,
                   );
                   final synced = await _syncBookingNotes(bookingNotes);
+                  // ✅ (2026-08-30) مؤشر مستقل لكل كيان
+                  await _checkpointEntity('booking_notes', bookingNotes);
                   _logger.debug('Synced $synced booking notes', tag: 'SYNC');
                   return synced;
                 }, phaseMs);
@@ -1341,10 +1366,13 @@ class AppwriteSyncManager {
               try {
                 recordsPulled += await _timePhase('syncPayments', () async {
                   final payments = await appwriteService.listPayments(
-                    queries: pullQueries,
+                    queries: await _entityPullQueries('payments',
+                        isDelta: isDelta, fallback: pullQueries),
                     useCache: false,
                   );
                   final paymentsSynced = await _syncPayments(payments);
+                  // ✅ (2026-08-30) مؤشر مستقل لكل كيان
+                  await _checkpointEntity('payments', payments);
                   _logger.debug('Synced $paymentsSynced payments', tag: 'SYNC');
                   return paymentsSynced;
                 }, phaseMs);
@@ -1361,10 +1389,13 @@ class AppwriteSyncManager {
               try {
                 recordsPulled += await _timePhase('syncDebts', () async {
                   final debts = await appwriteService.listDebts(
-                    queries: pullQueries,
+                    queries: await _entityPullQueries('debts',
+                        isDelta: isDelta, fallback: pullQueries),
                     useCache: false,
                   );
                   final debtsSynced = await _syncDebts(debts);
+                  // ✅ (2026-08-30) مؤشر مستقل لكل كيان
+                  await _checkpointEntity('debts', debts);
                   _logger.debug('Synced $debtsSynced debts', tag: 'SYNC');
                   return debtsSynced;
                 }, phaseMs);
@@ -1381,10 +1412,13 @@ class AppwriteSyncManager {
               try {
                 recordsPulled += await _timePhase('syncSalaryCycles', () async {
                   final salaryCycles = await appwriteService.listSalaryCycles(
-                    queries: pullQueries,
+                    queries: await _entityPullQueries('salary_cycles',
+                        isDelta: isDelta, fallback: pullQueries),
                     useCache: false,
                   );
                   final synced = await _syncSalaryCycles(salaryCycles);
+                  // ✅ (2026-08-30) مؤشر مستقل لكل كيان
+                  await _checkpointEntity('salary_cycles', salaryCycles);
                   _logger.debug('Synced $synced salary_cycles', tag: 'SYNC');
                   return synced;
                 }, phaseMs);
@@ -1404,10 +1438,15 @@ class AppwriteSyncManager {
                   () async {
                     final salaryPayments = await appwriteService
                         .listSalaryPayments(
-                          queries: pullQueries,
+                          queries: await _entityPullQueries(
+                              'salary_payments',
+                              isDelta: isDelta,
+                              fallback: pullQueries),
                           useCache: false,
                         );
                     final synced = await _syncSalaryPayments(salaryPayments);
+                    // ✅ (2026-08-30) مؤشر مستقل لكل كيان
+                    await _checkpointEntity('salary_payments', salaryPayments);
                     _logger.debug(
                       'Synced $synced salary_payments',
                       tag: 'SYNC',
@@ -1432,12 +1471,18 @@ class AppwriteSyncManager {
                   () async {
                     final salaryWithdrawals = await appwriteService
                         .listSalaryWithdrawals(
-                          queries: pullQueries,
+                          queries: await _entityPullQueries(
+                              'salary_withdrawals',
+                              isDelta: isDelta,
+                              fallback: pullQueries),
                           useCache: false,
                         );
                     final synced = await _syncSalaryWithdrawals(
                       salaryWithdrawals,
                     );
+                    // ✅ (2026-08-30) مؤشر مستقل لكل كيان
+                    await _checkpointEntity(
+                        'salary_withdrawals', salaryWithdrawals);
                     _logger.debug(
                       'Synced $synced salary_withdrawals',
                       tag: 'SYNC',
@@ -1459,10 +1504,13 @@ class AppwriteSyncManager {
               try {
                 recordsPulled += await _timePhase('syncGuestInfos', () async {
                   final guestInfos = await appwriteService.listGuestInfos(
-                    queries: pullQueries,
+                    queries: await _entityPullQueries('guest_infos',
+                        isDelta: isDelta, fallback: pullQueries),
                     useCache: false,
                   );
                   final synced = await _syncGuestInfos(guestInfos);
+                  // ✅ (2026-08-30) مؤشر مستقل لكل كيان
+                  await _checkpointEntity('guest_infos', guestInfos);
                   _logger.debug('Synced $synced guest_infos', tag: 'SYNC');
                   return synced;
                 }, phaseMs);
@@ -1483,10 +1531,16 @@ class AppwriteSyncManager {
                     final adjustments = await appwriteService.listDocuments(
                       collectionId:
                           AppwriteConfig.bookingPriceAdjustmentsCollectionId,
-                      queries: pullQueries,
+                      queries: await _entityPullQueries(
+                          'booking_price_adjustments',
+                          isDelta: isDelta,
+                          fallback: pullQueries),
                     );
                     final adjustmentsSynced =
                         await _syncBookingPriceAdjustments(adjustments);
+                    // ✅ (2026-08-30) مؤشر مستقل لكل كيان
+                    await _checkpointEntity(
+                        'booking_price_adjustments', adjustments);
                     _logger.debug(
                       'Synced $adjustmentsSynced booking price adjustments',
                       tag: 'SYNC',
@@ -1508,10 +1562,13 @@ class AppwriteSyncManager {
               try {
                 recordsPulled += await _timePhase('syncShiftNotes', () async {
                   final shiftNotes = await appwriteService.listShiftNotes(
-                    queries: pullQueries,
+                    queries: await _entityPullQueries('shift_notes',
+                        isDelta: isDelta, fallback: pullQueries),
                     useCache: false,
                   );
                   final synced = await _syncShiftNotes(shiftNotes);
+                  // ✅ (2026-08-30) مؤشر مستقل لكل كيان
+                  await _checkpointEntity('shift_notes', shiftNotes);
                   _logger.debug('Synced $synced shift notes', tag: 'SYNC');
                   return synced;
                 }, phaseMs);
@@ -1528,10 +1585,13 @@ class AppwriteSyncManager {
               try {
                 recordsPulled += await _timePhase('syncBlacklist', () async {
                   final blacklistDocs = await appwriteService.listBlacklist(
-                    queries: pullQueries,
+                    queries: await _entityPullQueries('blacklist',
+                        isDelta: isDelta, fallback: pullQueries),
                     useCache: false,
                   );
                   final synced = await _syncBlacklist(blacklistDocs);
+                  // ✅ (2026-08-30) مؤشر مستقل لكل كيان
+                  await _checkpointEntity('blacklist', blacklistDocs);
                   _logger.debug(
                     'Synced $synced blacklist entries',
                     tag: 'SYNC',
@@ -1554,9 +1614,12 @@ class AppwriteSyncManager {
                   () async {
                     final docs = await appwriteService.listDocuments(
                       collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
-                      queries: pullQueries,
+                      queries: await _entityPullQueries('price_adjustments',
+                          isDelta: isDelta, fallback: pullQueries),
                     );
                     final synced = await _syncPriceAdjustments(docs);
+                    // ✅ (2026-08-30) مؤشر مستقل لكل كيان
+                    await _checkpointEntity('price_adjustments', docs);
                     _logger.debug(
                       'Synced $synced price adjustments',
                       tag: 'SYNC',
@@ -1582,9 +1645,12 @@ class AppwriteSyncManager {
                   recordsPulled += await _timePhase('syncAuditLogs', () async {
                     final docs = await appwriteService.listDocuments(
                       collectionId: AppwriteConfig.auditLogsCollectionId,
-                      queries: pullQueries,
+                      queries: await _entityPullQueries('audit_logs',
+                          isDelta: isDelta, fallback: pullQueries),
                     );
                     final synced = await _syncAuditLogs(docs);
+                    // ✅ (2026-08-30) مؤشر مستقل لكل كيان
+                    await _checkpointEntity('audit_logs', docs);
                     _logger.debug('Synced $synced audit logs', tag: 'SYNC');
                     return synced;
                   }, phaseMs);
@@ -1603,9 +1669,12 @@ class AppwriteSyncManager {
                 recordsPulled += await _timePhase('syncPaymentVoids', () async {
                   final docs = await appwriteService.listDocuments(
                     collectionId: AppwriteConfig.paymentVoidsCollectionId,
-                    queries: pullQueries,
+                    queries: await _entityPullQueries('payment_voids',
+                        isDelta: isDelta, fallback: pullQueries),
                   );
                   final synced = await _syncPaymentVoids(docs);
+                  // ✅ (2026-08-30) مؤشر مستقل لكل كيان
+                  await _checkpointEntity('payment_voids', docs);
                   _logger.debug('Synced $synced payment voids', tag: 'SYNC');
                   return synced;
                 }, phaseMs);
@@ -1629,9 +1698,14 @@ class AppwriteSyncManager {
                   () async {
                     final docs = await appwriteService.listDocuments(
                       collectionId: 'salary_carry_over_logs',
-                      queries: pullQueries,
+                      queries: await _entityPullQueries(
+                          'salary_carry_over_logs',
+                          isDelta: isDelta,
+                          fallback: pullQueries),
                     );
                     final synced = await _syncSalaryCarryOverLogs(docs);
+                    // ✅ (2026-08-30) مؤشر مستقل لكل كيان
+                    await _checkpointEntity('salary_carry_over_logs', docs);
                     _logger.debug(
                       'Synced $synced salary carry over logs',
                       tag: 'SYNC',
@@ -1681,8 +1755,16 @@ class AppwriteSyncManager {
                 );
               }
 
-              // تحديث lastPullTs فقط إذا نجحت كل الكولكشنات
-              // إذا فشل بعضها، لا نحدّث timestamp حتى نتمكن من سحبها في المرة القادمة
+              // ✅ (2026-08-30) تصميم المؤشرات بعد إدخال المؤشرات المستقلة:
+              //
+              // 1) كل كيان سحبناه بنجاح فوق يتقدم بمؤشره الخاص
+              //    (_checkpointEntity ← sync_entity_pull_ts_map) فور نجاحه،
+              //    بمعزل تام عن فشل أي كيان آخر.
+              // 2) المؤشر العالمي (lastPullTs) هنا يبقى احتياطياً فقط:
+              //    بذرة الترحيل الكسول للكيانات الجديدة + مرجع للمسارات
+              //    الثانوية (pullRemoteChanges). تقدمه الكلي-أو-لاشيء لم يعد
+              //    يُسبب إعادة سحب deltas سليمة لأن delta الفعلي لكل كيان
+              //    يُبنى من مؤشره الخاص في _entityPullQueries.
               if (failedCollections.isEmpty) {
                 // ✅ إصلاح جوهري: اشتقاق المؤشر من أقصى $updatedAt (سلطة الخادم)
                 // بدل Time.nowEpoch() (وقت الجهاز الساحب الذي قد يكون منحرفاً).
@@ -5613,6 +5695,55 @@ class AppwriteSyncManager {
     await _pullService?.updateLastPullTs(ts);
   }
 
+  /// ✅ (2026-08-30) استعلامات السحب الخاصة بكل كيان (Delta مستقل لكل كيان).
+  ///
+  /// - وضع السحب الكامل أو غياب خدمة السحب → يُعاد [fallback] كما هو.
+  /// - وضع delta: فلتر `$updatedAt > مؤشر_الكيان − نافذة_الأمان`.
+  ///
+  /// فشل كيان لم يعُد يمتد أثره إلى بقية الكيانات: كل كيان يحمل مؤشره
+  /// الخاص ويتقدم باستقلال — العلاج الجذري للمؤشر العالمي الواحد الذي
+  /// كان يجمد كل الكيانات عند فشل واحد ويعيد سحب deltas سليمة كل دورة.
+  Future<List<String>> _entityPullQueries(
+    String entity, {
+    required bool isDelta,
+    required List<String> fallback,
+  }) async {
+    if (!isDelta) return fallback;
+    final service = _pullService;
+    if (service == null) return fallback;
+    try {
+      return await service.entityDeltaQueries(entity);
+    } catch (e) {
+      _logger.warning(
+        '⚠️ entityDeltaQueries($entity) فشل — استخدام المؤشر العام: $e',
+        tag: 'SYNC',
+      );
+      return fallback;
+    }
+  }
+
+  /// ✅ (2026-08-30) تسجيل مؤشر السحب الخاص بالكيان بعد نجاح سحبه.
+  ///
+  /// يُشتق من أقصى `$updatedAt` في الصفحات المسحوبة (سلطة الخادم،
+  /// نفس فلسفة `buildDeltaQueries`). عند قائمة فارغة لا يتقدم المؤشر —
+  /// أأمن من القفز بوقت الجهاز الذي قد يتخطى سجلات كُتبت أثناء تأخر الشبكة.
+  Future<void> _checkpointEntity(
+    String entity,
+    List<models.Document> docs,
+  ) async {
+    int? maxTs;
+    for (final doc in docs) {
+      final ts = _extractUpdatedAtSec(doc);
+      if (ts != null && (maxTs == null || ts > maxTs)) maxTs = ts;
+    }
+    if (maxTs == null) return;
+    try {
+      await _pullService?.updateEntityPullTs(entity, maxTs);
+    } catch (e) {
+      _logger.warning('⚠️ checkpoint($entity) فشل: $e', tag: 'SYNC');
+    }
+  }
+
   /// الحصول على قائمة الأجهزة المسجلة
   /// [limit] عدد الأجهزة المطلوبة (افتراضياً 2)
   /// يحاول الترتيب من الخادم أولاً، وإذا فشل (لا يوجد فهرس) يرجع للترتيب المحلي
@@ -5736,6 +5867,9 @@ class AppwriteSyncManager {
             );
             recordsPulled += await _syncRooms(rooms);
           } catch (e, st) {
+            // ✅ (2026-08-30) إصلاح فعلي لباج P1-5: الفشل كان يُسجّل فقط
+            // والمؤشر يتقدّم → فقد صامت للسجلات. الآن يُمنع التقدّم عند أي فشل.
+            failedCollections.add('rooms');
             _logger.error(
               '❌ فشل سحب rooms (pullRemoteChanges)',
               error: e,
@@ -5751,6 +5885,8 @@ class AppwriteSyncManager {
             );
             recordsPulled += await _syncBookings(bookings);
           } catch (e, st) {
+            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
+            failedCollections.add('bookings');
             _logger.error(
               '❌ فشل سحب bookings (pullRemoteChanges)',
               error: e,
@@ -5767,6 +5903,8 @@ class AppwriteSyncManager {
             // ✅ التوصية 5: تحصين أسبقية الموظفين عبر إعادة المحاولة.
             recordsPulled += await _syncEmployeesWithRetry(employees);
           } catch (e, st) {
+            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
+            failedCollections.add('employees');
             _logger.error(
               '❌ فشل سحب employees (pullRemoteChanges)',
               error: e,
@@ -5796,6 +5934,8 @@ class AppwriteSyncManager {
             );
             recordsPulled += await _syncExpenses(expenses);
           } catch (e, st) {
+            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
+            failedCollections.add('expenses');
             _logger.error(
               '❌ فشل سحب expenses (pullRemoteChanges)',
               error: e,
@@ -5811,6 +5951,8 @@ class AppwriteSyncManager {
             );
             recordsPulled += await _syncPayments(payments);
           } catch (e, st) {
+            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
+            failedCollections.add('payments');
             _logger.error(
               '❌ فشل سحب payments (pullRemoteChanges)',
               error: e,
@@ -5826,6 +5968,8 @@ class AppwriteSyncManager {
             );
             recordsPulled += await _syncDebts(debts);
           } catch (e, st) {
+            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
+            failedCollections.add('debts');
             _logger.error(
               '❌ فشل سحب debts (pullRemoteChanges)',
               error: e,
@@ -5841,6 +5985,8 @@ class AppwriteSyncManager {
             );
             recordsPulled += await _syncGuestInfos(guestInfos);
           } catch (e, st) {
+            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
+            failedCollections.add('guest_infos');
             _logger.error(
               '❌ فشل سحب guest_infos (pullRemoteChanges)',
               error: e,
@@ -5854,6 +6000,8 @@ class AppwriteSyncManager {
                 .listSalaryWithdrawals(queries: pullQueries, useCache: false);
             recordsPulled += await _syncSalaryWithdrawals(salaryWithdrawals);
           } catch (e, st) {
+            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
+            failedCollections.add('salary_withdrawals');
             _logger.error(
               '❌ فشل سحب salary_withdrawals (pullRemoteChanges)',
               error: e,
@@ -5871,6 +6019,8 @@ class AppwriteSyncManager {
               bookingPriceAdjustments,
             );
           } catch (e, st) {
+            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
+            failedCollections.add('booking_price_adjustments');
             _logger.error(
               '❌ فشل سحب booking_price_adjustments (pullRemoteChanges)',
               error: e,
@@ -5886,6 +6036,8 @@ class AppwriteSyncManager {
             );
             recordsPulled += await _syncShiftNotes(shiftNotes);
           } catch (e, st) {
+            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
+            failedCollections.add('shift_notes');
             _logger.error(
               '❌ فشل سحب shift_notes (pullRemoteChanges)',
               error: e,
@@ -5901,6 +6053,8 @@ class AppwriteSyncManager {
             );
             recordsPulled += await _syncBlacklist(blacklistDocs);
           } catch (e, st) {
+            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
+            failedCollections.add('blacklist');
             _logger.error(
               '❌ فشل سحب blacklist (pullRemoteChanges)',
               error: e,
@@ -5916,6 +6070,8 @@ class AppwriteSyncManager {
             );
             recordsPulled += await _syncBookingNotes(bookingNotes);
           } catch (e, st) {
+            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
+            failedCollections.add('booking_notes');
             _logger.error(
               '❌ فشل سحب booking_notes (pullRemoteChanges)',
               error: e,
@@ -5967,6 +6123,8 @@ class AppwriteSyncManager {
             recordsPulled += await _syncBookingNights(bookingNights);
             await _updateBookingNightsPullTs(Time.nowEpoch());
           } catch (e, st) {
+            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
+            failedCollections.add('booking_nights');
             _logger.error(
               '❌ فشل سحب booking_nights (pullRemoteChanges)',
               error: e,
@@ -5982,6 +6140,8 @@ class AppwriteSyncManager {
             );
             recordsPulled += await _syncCashTransactions(cashTransactions);
           } catch (e, st) {
+            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
+            failedCollections.add('cash_transactions');
             _logger.error(
               '❌ فشل سحب cash_transactions (pullRemoteChanges)',
               error: e,
@@ -5997,6 +6157,8 @@ class AppwriteSyncManager {
             );
             recordsPulled += await _syncSalaryCycles(salaryCycles);
           } catch (e, st) {
+            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
+            failedCollections.add('salary_cycles');
             _logger.error(
               '❌ فشل سحب salary_cycles (pullRemoteChanges)',
               error: e,
@@ -6012,6 +6174,8 @@ class AppwriteSyncManager {
             );
             recordsPulled += await _syncSalaryPayments(salaryPayments);
           } catch (e, st) {
+            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
+            failedCollections.add('salary_payments');
             _logger.error(
               '❌ فشل سحب salary_payments (pullRemoteChanges)',
               error: e,
@@ -6027,6 +6191,8 @@ class AppwriteSyncManager {
             );
             recordsPulled += await _syncPriceAdjustments(priceAdjustments);
           } catch (e, st) {
+            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
+            failedCollections.add('price_adjustments');
             _logger.error(
               '❌ فشل سحب price_adjustments (pullRemoteChanges)',
               error: e,
@@ -6044,6 +6210,8 @@ class AppwriteSyncManager {
               );
               recordsPulled += await _syncAuditLogs(auditLogs);
             } catch (e, st) {
+              // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
+              failedCollections.add('audit_logs');
               _logger.error(
                 '❌ فشل سحب audit_logs (pullRemoteChanges)',
                 error: e,
@@ -6060,6 +6228,8 @@ class AppwriteSyncManager {
             );
             recordsPulled += await _syncPaymentVoids(paymentVoids);
           } catch (e, st) {
+            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
+            failedCollections.add('payment_voids');
             _logger.error(
               '❌ فشل سحب payment_voids (pullRemoteChanges)',
               error: e,
@@ -6071,6 +6241,9 @@ class AppwriteSyncManager {
           // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
 
           // ✅ P1-5 fix: تحديث lastPullTs فقط إذا نجحت كل الكولكشنات
+          // ✅ (2026-08-30) الحارس صار فعّالاً الآن: كل كتل catch تملأ
+          // failedCollections — قبل ذلك كانت القائمة فارغة دائماً والمؤشر
+          // يتقدّم رغم الفشل (فقد صامت للسجلات التي لم تُسحب).
           if (failedCollections.isEmpty) {
             // ✅ إصلاح جوهري: اشتقاق المؤشر من أقصى $updatedAt (سلطة الخادم)
             // بدل Time.nowEpoch() (وقت الجهاز الساحب الذي قد يكون منحرفاً).
@@ -7613,6 +7786,11 @@ class AppwriteSyncManager {
   Future<void> resetSyncState() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('appwrite_last_sync_time');
+    // ✅ (2026-08-30) مسح مؤشرات الكيانات الفردية — ستُهيّأ كسولاً من
+    // المؤشر العالمي في أول دورة تالية (لا سحب كامل إضافي).
+    try {
+      await _pullService?.clearEntityPullTsMap();
+    } catch (_) {}
     _lastSyncTime = null;
     _logger.info('Sync state reset', tag: 'SYNC');
   }
