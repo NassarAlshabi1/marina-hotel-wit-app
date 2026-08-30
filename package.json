@@ -19,7 +19,7 @@
   "devDependencies": {
     "@playwright/test": "^1.44.0",
     "ts-node": "^10.9.0",
-    "typescript": "^5.0.0"
+    "typescript": "^7.0.2"
   },
   "dependencies": {
     "node-appwrite": "^20.3.0"
