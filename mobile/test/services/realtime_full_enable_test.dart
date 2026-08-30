@@ -363,6 +363,14 @@ void main() {
     test('WS معطّل → fallback polling يُطلق سحباً فعلياً دورياً', () {
       fakeAsync((async) {
         realtime.resetForTesting();
+        // ✅ إصلاح إخفاق CI (2026-08-31): مع --test-randomize-ordering-seed
+        // random قد يسبق R9 اختبارات cooldown (R5-R7) فيورث cooldown
+        // الإنتاجي (15 ثانية). التحقق الثاني للسحب يجري بعد ~0ms زمن حقيقي
+        // ف يدخل فرع cooldown ويجدول مؤقتاً بعد نقطة التحقق → Actual: 1.
+        // نية R9 هي إثبات أن polling يُطلق سحباً فعلياً دورياً — دلالات
+        // cooldown لها اختباراتها المستقلة (R5-R7 تحدد debugPullCooldown
+        // الخاص بها). صفر هنا = مسار الإطلاق الفوري بلا اعتماد على ساعة.
+        realtime.debugPullCooldown = Duration.zero;
         SharedPreferences.setMockInitialValues({
           'appwrite_realtime_ws_enabled': false, // فرض الوضع اليدوي
         });

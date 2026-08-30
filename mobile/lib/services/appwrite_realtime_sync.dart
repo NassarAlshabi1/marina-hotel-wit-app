@@ -682,6 +682,13 @@ class AppwriteRealtimeSync {
     _syncTrigger = null;
     _fastApply = null;
     _fastAppliedSinceLastDelta.clear();
+    // ✅ (2026-08-31) تصفير حقول debug أيضاً — منع التسرب بين الاختبارات:
+    // اختبار يترك debugPullCooldown صغيراً كان يغيّر سلوك اختبار آخر حسب
+    // ترتيب تشغيلها (--test-randomize-ordering-seed random في CI).
+    // كل اختبار يضبط حقول debug التي يحتاجها بعد resetForTesting صراحةً.
+    debugEventDebounce = null;
+    debugPullCooldown = null;
+    debugFallbackPullInterval = null;
   }
 
   @visibleForTesting
