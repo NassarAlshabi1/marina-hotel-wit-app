@@ -163,7 +163,7 @@ if (applied.shouldApplyRemote) {
 تبقى نافعة لدورات السحب الاحتياطية (backstop) وللكيانات غير المشمولة بـ Realtime:
 - **watermark مستقل لكل كيان** (تعميم نمط `booking_nights`, `sync_pull_service.dart:490-503`)
   — ضروري ليعمل السحب الموجّه (A) دون إعادة سحب البقية.
-- **Field Projection عبر `Query.select()`** — يقلّل بايتات backstop pull.
+- ✅ **Field Projection عبر `Query.select()` — [تم التنفيذ لجميع الكيانات]** (انظر §8).
 - **استبعاد tombstones القديمة من delta**.
 - **إنهاء مبكر عند 0 مستند**.
 
@@ -250,6 +250,49 @@ Guard). كل مرحلة تُختبر ضدّه:
 - `lib/services/advanced_query_builder.dart:180` — استخدام قائم لـ `Query.select` (جدوى Field Projection).
 - `lib/services/sync_constants.dart` — `tableOrder` (:18-52)، الفواصل (:66)، بايتات تقديرية (:106).
 - `lib/services/local_db.dart` — مخطّط `SyncState` (:903-935) و`Outbox` (:783).
+
+---
+
+## 8. ✅ ما تم تنفيذه: Field Projection لجميع الكيانات
+
+طُبّقت رافعة تقليل **البايتات لكل سجل** على **جميع الكيانات** في مسار السحب: بدل جلب
+كل حقول المستند، يُطلب فقط الحقول المعروفة للتطبيق عبر `Query.select`.
+
+### مصدر الحقيقة (بلا تخمين)
+قائمة الحقول لكل كولكشن مشتقّة من `AppwriteSyncUtils.validFieldsPerCollection`
+(`appwrite_sync_utils.dart:38`) — **نفس** القائمة المستخدمة أصلاً في تصفية الرفع
+(push). أي أن السحب أصبح **متماثلاً مع الرفع**: أي حقل لا يرفعه التطبيق لا يُطلب عند
+السحب → لا فقدان بيانات فعلي (المحوّلات `adapters` تتجاهل أصلاً أي حقل خارج هذه القائمة).
+
+### التغييرات
+- `lib/services/appwrite_sync_utils.dart`
+  - `fieldProjectionEnabled` (kill-switch، افتراضي `true`).
+  - `selectFieldsFor(collectionId)` → حقول الكولكشن + حقول النظام
+    (`$id, $createdAt, $updatedAt`)، أو `null` (كولكشن غير معروف/معطّل → مستند كامل).
+- `lib/services/appwrite_service.dart` — `_listAllDocumentsInternal` (النقطة المركزية
+  التي تمرّ عبرها كل استدعاءات `listRooms/listBookings/listDocuments/...`):
+  - يضيف `Query.select(...)` لكل صفحة عند تفعيل الإسقاط.
+  - 🛟 **fallback ذاتي**: إن فشل `Query.select` بسبب سمة قديمة غير موجودة
+    (`_isFieldProjectionError`) يُعيد الجلب تلقائياً بلا إسقاط، فلا تتعطّل مزامنة أي كولكشن.
+  - مفتاح الكاش يفرّق بين المُسقَط والكامل (`_proj`) لمنع تسرّب نسخة مُسقَطة لمستهلك
+    يحتاج المستند كاملاً.
+- **استثناء النسخ الاحتياطي/الاستعادة**: `listAllDocuments` تمرّر
+  `applyFieldProjection: false` (النسخ الاحتياطي يحتاج المستند كاملاً).
+
+### التغطية
+جميع الكيانات الـ22 المسحوبة لها مدخل في `validFieldsPerCollection` وقيم
+`collectionId` مطابقة تماماً لمفاتيح القائمة (تم التحقق) → الإسقاط يشمل الجميع.
+
+### التحقق الموصى به (قبل الدمج)
+- تشغيل `flutter analyze` (غير متاح في بيئة الإنشاء الحالية).
+- سحب تجريبي لكل كولكشن ومقارنة السجلات محلياً قبل/بعد (خاصة `rooms, bookings,
+  payments, app_users`) للتأكد من عدم فقد أي حقل.
+- محاكاة سمة قديمة في القائمة للتأكد من عمل الـ fallback.
+- اختبار أن النسخ الاحتياطي ما زال يلتقط المستند كاملاً.
+
+### كيف تُعطّله فوراً
+`AppwriteSyncUtils.fieldProjectionEnabled = false;` (يعود السحب لجلب المستند الكامل
+دون أي تغييرات أخرى).
 
 ---
 

@@ -23,6 +23,41 @@ class AppwriteSyncUtils {
     'telegram_chat_id',
   ];
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // ✅ Field Projection (Pull) — تقليل السحب على مستوى السجل
+  // ──────────────────────────────────────────────────────────────────────────
+  // بدل جلب كل حقول المستند في كل سحب، نطلب فقط الحقول المعروفة للتطبيق عبر
+  // Query.select. القائمة مشتقّة من `validFieldsPerCollection` (نفس مصدر الحقيقة
+  // المستخدم في تصفية الرفع)، لذا فالسحب متماثل مع الرفع تماماً: أي حقل لا يرفعه
+  // التطبيق لا يُطلب عند السحب — بلا فقدان بيانات فعلي.
+  //
+  // 🔒 kill-switch: اجعل [fieldProjectionEnabled] = false لتعطيلها فوراً والعودة
+  //    لجلب المستند الكامل دون أي تغييرات أخرى.
+  // 🛟 أمان: مسار السحب في AppwriteService يُعيد المحاولة تلقائياً بدون select إن
+  //    فشل بسبب سمة غير موجودة (حقل قديم في القائمة) — فلا تتعطّل مزامنة كولكشن.
+  // ══════════════════════════════════════════════════════════════════════════
+  static bool fieldProjectionEnabled = true;
+
+  /// حقول نظام Appwrite التي يعتمد عليها مسار السحب/حل التعارض دائماً.
+  static const List<String> _systemSelectFields = [
+    r'$id',
+    r'$createdAt',
+    r'$updatedAt',
+  ];
+
+  /// يُعيد قائمة السمات المطلوبة عبر Query.select للكولكشن [collectionId]،
+  /// أو null إذا كانت الإسقاطات معطّلة أو الكولكشن غير معروف (→ يُجلب المستند كاملاً).
+  static List<String>? selectFieldsFor(String collectionId) {
+    if (!fieldProjectionEnabled) {
+      return null;
+    }
+    final fields = validFieldsPerCollection[collectionId];
+    if (fields == null || fields.isEmpty) {
+      return null;
+    }
+    return [...fields, ..._systemSelectFields];
+  }
+
   /// الحقول التي يجب تحويلها إلى أعداد صحيحة (بناءً على قيود Appwrite الحالية)
   /// ⚠️ تم التحديث بناءً على الجداول الفعلية (remainingAmount وسواها أصبحت double)
   /// - payment_voids.voidedAmount: integer على Cloud ✓ (المتبقي الوحيد)

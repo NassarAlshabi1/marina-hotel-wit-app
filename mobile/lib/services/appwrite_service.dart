@@ -128,6 +128,9 @@ class AppwriteService {
     bool useCache = true,
     bool useRetry = true,
     int? maxRecords,
+    // ✅ Field Projection: مفعّل افتراضياً لمسار السحب (تقليل البايتات/سجل).
+    // النسخ الاحتياطي/الاستعادة يمرّرها false للحصول على المستند كاملاً.
+    bool applyFieldProjection = true,
   }) async {
     // ✅ Manual failover: if active, read from Secondary instead of Primary
     // This covers all entity reads (listRooms, listBookings, listPayments, etc.)
@@ -139,7 +142,16 @@ class AppwriteService {
       return _listFromSecondary(collectionId, queries);
     }
 
-    final cacheKey = '${collectionId}_${queries.join('_')}_all';
+    const pageSize = AppwriteConfig.maxPageSize;
+    // ✅ Field Projection: قائمة السمات المطلوبة فقط (أو null = المستند كامل).
+    final selectFields = applyFieldProjection
+        ? AppwriteSyncUtils.selectFieldsFor(collectionId)
+        : null;
+
+    // ⚠️ مفتاح الكاش يفرّق بين المستند المُسقَط (proj) والكامل حتى لا يحصل
+    // مستهلك يحتاج المستند كاملاً (مثل النسخ الاحتياطي) على نسخة مُسقَطة.
+    final cacheKey =
+        '${collectionId}_${queries.join('_')}_all${selectFields != null ? '_proj' : ''}';
     if (useCache) {
       final cached = _cache.get<List<models.Document>>(cacheKey);
       if (cached != null) {
@@ -148,14 +160,18 @@ class AppwriteService {
       }
     }
 
-    final allDocuments = <models.Document>[];
-    const pageSize = AppwriteConfig.maxPageSize;
-    // ✅ P1-4 fix: cursor pagination بدل offset لمنع إسقاط/تكرار السجلات
-    String? cursorAfterId;
-
-    try {
+    // ✅ حلقة الترقيم المؤشّري كدالة داخلية حتى يمكن إعادة تشغيلها بدون select
+    // إذا فشل الإسقاط (حقل قديم في القائمة غير موجود على السحابة).
+    Future<List<models.Document>> paginate({required bool withSelect}) async {
+      final docs = <models.Document>[];
+      // ✅ P1-4 fix: cursor pagination بدل offset لمنع إسقاط/تكرار السجلات
+      String? cursorAfterId;
       while (true) {
         final pagedQueries = List<String>.from(queries);
+        // ✅ Field Projection: نطلب فقط الحقول المعروفة للتطبيق لتقليل الحمولة.
+        if (withSelect && selectFields != null) {
+          pagedQueries.add(Query.select(selectFields));
+        }
         // ✅ P1-4: ترتيب ثابت بـ $id لضمان ترقيم مؤشّري حتمي.
         // ⚠️ إصلاح (PR #451 r3521832510): يجب إضافة orderAsc على كل صفحة،
         // ليس فقط الأولى. cursor pagination يتطلب ترتيباً متطابقاً عبر
@@ -195,12 +211,12 @@ class AppwriteService {
           break;
         }
 
-        allDocuments.addAll(pageDocs);
+        docs.addAll(pageDocs);
 
         // ✅ قطع عند بلوغ maxRecords (مثلاً السحب الأولي لـ booking_nights)
-        if (maxRecords != null && allDocuments.length >= maxRecords) {
-          if (allDocuments.length > maxRecords) {
-            allDocuments.removeRange(maxRecords, allDocuments.length);
+        if (maxRecords != null && docs.length >= maxRecords) {
+          if (docs.length > maxRecords) {
+            docs.removeRange(maxRecords, docs.length);
           }
           break;
         }
@@ -212,6 +228,30 @@ class AppwriteService {
         // ✅ P1-4: تحديث المؤشّر بآخر $id في الصفحة
         cursorAfterId = pageDocs.last.$id;
       }
+      return docs;
+    }
+
+    final allDocuments = <models.Document>[];
+
+    try {
+      List<models.Document> fetched;
+      try {
+        fetched = await paginate(withSelect: true);
+      } on AppwriteException catch (e) {
+        // 🛟 fallback: لو فشل Query.select بسبب سمة غير موجودة في المخطط،
+        // نُعيد الجلب بلا إسقاط بدل تعطيل مزامنة الكولكشن بالكامل.
+        if (selectFields != null && _isFieldProjectionError(e)) {
+          _logger.warning(
+            '⚠️ Field projection failed for $collectionId '
+            '(${e.message}) — retrying without Query.select',
+            tag: 'SYNC',
+          );
+          fetched = await paginate(withSelect: false);
+        } else {
+          rethrow;
+        }
+      }
+      allDocuments.addAll(fetched);
     } catch (primaryError) {
       // ✅ Failover: إذا فشل Primary و Secondary مُفعّل للسحب (Pull)، نقرأ منه
       if (SecondaryAppwriteConfig.isEnabled &&
@@ -254,6 +294,18 @@ class AppwriteService {
       tag: 'CRUD',
     );
     return allDocuments;
+  }
+
+  /// هل الخطأ ناتج عن Query.select (سمة غير موجودة / استعلام غير صالح)؟
+  /// يُستخدم لتحديد ما إذا كان يجب إعادة الجلب بلا إسقاط حقول.
+  bool _isFieldProjectionError(AppwriteException e) {
+    final type = (e.type ?? '').toLowerCase();
+    final msg = (e.message ?? '').toLowerCase();
+    return type.contains('query') ||
+        type.contains('attribute') ||
+        msg.contains('select') ||
+        msg.contains('attribute') ||
+        msg.contains('invalid query');
   }
 
   // ════════════════════════════════════════════════════════════════════
@@ -449,6 +501,8 @@ class AppwriteService {
         collectionId: collectionId,
         queries: effectiveQueries,
         useCache: false,
+        // ✅ النسخ الاحتياطي/الاستعادة يحتاج المستند كاملاً — لا إسقاط حقول هنا.
+        applyFieldProjection: false,
       );
     }
 
@@ -461,6 +515,8 @@ class AppwriteService {
         // getOrLoad هو المالك الوحيد لقراءة/كتابة Cache في هذا المسار،
         // لذلك لا نخزن الاستجابة مرتين ولا نكرر الطلب الجاري.
         useCache: false,
+        // ✅ النسخ الاحتياطي/الاستعادة يحتاج المستند كاملاً — لا إسقاط حقول هنا.
+        applyFieldProjection: false,
       ),
     );
   }
