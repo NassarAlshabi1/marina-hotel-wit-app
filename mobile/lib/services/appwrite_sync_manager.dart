@@ -181,6 +181,12 @@ class AppwriteSyncManager {
       _ancestorCacheDao,
       deviceId: _currentDeviceId,
     );
+    // ✅ (2026-08-31) تقليل السحب على مستوى السجل — echo immunization:
+    // كل رفع ناجح يُسجّل $updatedAt المعاد من الخادم في sync_remote_meta
+    // فوراً، فلا تُنزّل حمولة echo في دورة delta التالية (metadata match).
+    appwriteService.onDocumentUpserted = (collectionId, doc) {
+      unawaited(recordPushedDocumentMeta(collectionId, doc));
+    };
   }
   static AppwriteSyncManager? _instance;
 
@@ -5913,8 +5919,7 @@ class AppwriteSyncManager {
 
   /// ✅ (2026-08-30) الفجوتان 3+4 — طبقة السحب metadata-first.
   ///
-  /// في وضع delta تُجلب المستندات كما كانت (delta رخيصة أصلاً). أما في
-  /// السحب الكامل (أول مزامنة / فقد watermark / resetSyncState) فبدل تنزيل
+  /// في السحب الكامل (أول مزامنة / فقد watermark / resetSyncState) بدل تنزيل
   /// كل المستندات بكل أعمدتها:
   /// 1) سحب ($id + $updatedAt) فقط لكل مستندات الكولكشن — ترقيم مؤشري،
   ///    حمولة ~100 بايت للصف.
@@ -5922,6 +5927,10 @@ class AppwriteSyncManager {
   /// 3) لا تغييرات → إعادة قائمة فارغة + تسجيل أقصى $updatedAt للخادم
   ///    "معلقاً" لكيان (يستهلكه checkpoint بعد نجاح الدورة) — صفر جلب كامل.
   /// 4) هناك تغييرات → جلبها كاملة على دفعات Query.equal($id, chunk).
+  ///
+  /// ✅ (2026-08-31) تقليل السحب على مستوى السجل: وضع delta لم يعد يُنزّل
+  /// الحمولات الكاملة مباشرة — يمر عبر [_pullDocsDeltaMetadataFirst]
+  /// (metadata النافذة الزمنية أولاً ثم تنزيل المتغيّر فعلاً فقط).
   ///
   /// ملاحظة أمان: المستندات المحذوفة من الخادم تختفي من الـ metadata ولا
   /// تُجلب — مطابق لسلوك السحب الكامل السابق (لا حذف انعكاسي في السحب).
@@ -6001,6 +6010,46 @@ class AppwriteSyncManager {
         stackTrace: st,
       );
       return false;
+    }
+  }
+
+  /// ✅ (2026-08-31) تقليل السحب على مستوى السجل — echo immunization.
+  ///
+  /// يُستدعى بعد نجاح أي رفع (كل مسارات الرفع تمر عبر
+  /// AppwriteService._upsertDocumentInternal → onDocumentUpserted).
+  /// يُسجّل `$updatedAt` المعاد من الخادم في sync_remote_meta فوراً كي
+  /// تعتبره دورة delta التالية نسخة "مُحكَمة عليها" (metadata match) ولا
+  /// تُنزّل حمولته الكاملة — القرار السابق كان تنزيل echo كاملاً ثم رفضه
+  /// في المصالحة (هدر شبكي بحت لكل سجل نرفعه).
+  ///
+  /// دلالات الأمان: الخادم أعاد هذا الطابع لرفع **نجح بمحتوى هذا الجهاز** —
+  /// تسجيله يعني "الخادم يحمل هذا الإصدار ونحن مصدره"؛ إن عاد في delta
+  /// فتخطيه مطابق لتنزيله ورفضه. تعديل محلي لاحق يبقى في outbox وسيُرفع
+  /// ويعيد التسجيل بطابع أحدث — لا تعارض.
+  ///
+  /// public لكي تختبره الاختبارات مباشرة؛ لا يرمي أبداً (فشله غير مؤثر —
+  /// echo سُحب مرة واحدة إضافية في أسوأ الحالات).
+  Future<void> recordPushedDocumentMeta(
+    String collectionId,
+    models.Document doc,
+  ) async {
+    try {
+      // كيانات المزامنة فقط — كولكشنز النظام (auth/devices/…) لا تدخل
+      // في مقارنات metadata-first أصلاً فلا داعي لتلوث الخريطة.
+      if (AppwriteConfig.entityForCollectionId(collectionId) == null) return;
+      final ts = _extractUpdatedAtSec(doc);
+      if (ts == null) return;
+      await database.upsertRemoteMeta(collectionId, {doc.$id: ts});
+      _logger.debug(
+        '⚡ push-echo meta($collectionId/${doc.$id}): ts=$ts — '
+        'echo لن يُنزَّل في الدورة التالية',
+        tag: 'SYNC',
+      );
+    } catch (e) {
+      _logger.warning(
+        '⚠️ push-echo meta($collectionId) فشل (غير مؤثر): $e',
+        tag: 'SYNC',
+      );
     }
   }
 
@@ -6088,6 +6137,11 @@ class AppwriteSyncManager {
     // delta query. السحب الكامل (isDelta=false) لا يتأثر أبداً: هو شبكة
     // أمان الكمال بعد resetSyncState/إعادة تثبيت، ويجب أن يمسح كل شيء.
     if (isDelta && _activeFastAppliedEntities.contains(entity)) {
+      // ✅ حارس pending القديم: أي serverMax "معلّق" هنا بقايا دورة سابقة
+      // فشلت بعد ضبطه (metadata نجحت ثم فشل الجلب/التطبيق) — استهلاكه
+      // الآن سيقدّم المؤشر فوق سجلات لم تُطبَّق قط (اختفاء حتى full pull).
+      // تُمسح هنا لأن هذه الدورة لم تشغّل مرحلة metadata لهذا الكيان.
+      _pendingMetaServerMaxTs.remove(entity);
       _logger.info(
         '⚡ fast-path($entity): سجلاته طُبّقت من أحداث Realtime مباشرة '
         '— تخطي delta query (صفر قراءات شبكة)',
@@ -6101,12 +6155,9 @@ class AppwriteSyncManager {
       fallback: fallback,
     );
     if (isDelta) {
-      final collectionId = AppwriteConfig.collectionIdFor(entity) ?? entity;
-      return appwriteService.listDocuments(
-        collectionId: collectionId,
-        queries: queries,
-        useCache: false,
-      );
+      // ✅ (2026-08-31) تقليل السحب على مستوى السجل — delta صار metadata-first
+      // أيضاً (كان يُنزّل الحمولة الكاملة لكل مستند في النافذة الزمنية).
+      return _pullDocsDeltaMetadataFirst(entity, queries);
     }
 
     // ── السحب الكامل: metadata-first ──
@@ -6163,6 +6214,114 @@ class AppwriteSyncManager {
     );
     if (serverMax > 0) _pendingMetaServerMaxTs[entity] = serverMax;
     return docs;
+  }
+
+  /// ✅ (2026-08-31) تقليل السحب على مستوى السجل — metadata-first حتى في delta.
+  ///
+  /// قبل هذا: delta تُنزّل الحمولة الكاملة لكل مستند طابق الفلتر الزمني.
+  /// سيناريو الإهدار الأشهر: echo الرفع — سجل دفعناه للتو يعود في الدورة
+  /// التالية ويُنزَّل كاملاً رغم أن محتواه لدينا بالضبط. سيناريو آخر:
+  /// إعادة فحص سجلات داخل نافذة الأمان (15 ثانية) في كل دورة متقاربة.
+  ///
+  /// المراحل:
+  /// 1) metadata خفيفة ($id + $updatedAt) **مقيّدة بفلتر delta نفسه** —
+  ///    الخادم يُرجع فقط ما تغيّر في نافذة المؤشر (~100 بايت/صف).
+  /// 2) نافذة فارغة → صفر عمل إضافي (المؤشر لا يتقدم — لا شيء أحدث منه).
+  /// 3) مقارنة مع sync_remote_meta (تُكتب بعد نجاح التطبيق فقط):
+  ///    - مطابق → نملك هذا الإصدار حرفياً → يُتخطى (صفر تنزيل).
+  ///    - مختلف/غائب → يُجلب كاملاً عبر listDocumentsByIds (دفعات 100).
+  /// 4) meta محلية فارغة لهذا الكولكشن (bootstrap الكيان: لا معرفة لكل
+  ///    سجل) → سحب delta عادي بتمرير واحد — المرحلتان ستضاعفان الطلبات
+  ///    بلا أي تخطٍّ ممكن.
+  ///
+  /// ضمانات السلامة:
+  /// - sync_remote_meta تُكتب بعد نجاح التطبيق فقط (checkpoint/fast-apply/
+  ///   push-echo) → "مطابق" يعني "مُحكَماً عليه فعلاً" — التخطي مطابق
+  ///   دلالياً لتنزيل السجل ورفضه في المصالحة.
+  /// - مؤشر الكيان يتقدم إلى أقصى $updatedAt في **نافذة delta** (سلطة
+  ///   الخادم) عبر _pendingMetaServerMaxTs الذي يستهلكه _checkpointEntity
+  ///   بعد النجاح فقط — كل مستندات النافذة تصير محكومة (مُطبَّق أو مطابق
+  ///   محلياً) فالتقدم فوقها آمن ولا يُفقد سجلات.
+  /// - فشل أي مرحلة → استثناء → failedCollections → لا تقدم للمؤشر
+  ///   ولا كتابة meta (نفس عقد السحب الكامل).
+  /// - المستندات المحذوفة من الخادم تختفي من النافذة كالسابق (لا حذف
+  ///   انعكاسي)، وtombstones (deletedAt>0) تظهر كتغيير عادي إن لم تُطبَّق.
+  Future<List<models.Document>> _pullDocsDeltaMetadataFirst(
+    String entity,
+    List<String> deltaQueries,
+  ) async {
+    final collectionId = AppwriteConfig.collectionIdFor(entity);
+    if (collectionId == null) {
+      // كيان بلا خريطة معرّفات — السلوك القديم احتياطاً
+      return appwriteService.listDocuments(
+        collectionId: entity,
+        queries: deltaQueries,
+        useCache: false,
+      );
+    }
+
+    // المرحلة 1: metadata النافذة الزمنية فقط (فلتر delta مُمرَّر كما هو).
+    final metaDocs = await appwriteService.listDocumentsMetadata(
+      collectionId,
+      extraQueries: deltaQueries,
+    );
+    if (metaDocs.isEmpty) {
+      // نافذة فارغة: لا تغييرات على الخادم منذ مؤشر الكيان — لا جلب ولا
+      // تقدم للمؤشر (النافذة نفسها تُعاد بناؤها في الدورة التالية).
+      return const [];
+    }
+
+    final serverMeta = <String, int>{};
+    final unknownTsIds = <String>[];
+    for (final d in metaDocs) {
+      final ts = _extractUpdatedAtSec(d);
+      if (ts == null) {
+        unknownTsIds.add(d.$id);
+      } else {
+        serverMeta[d.$id] = ts;
+      }
+    }
+
+    final localMeta = await database.getRemoteMetaMap(collectionId);
+    if (localMeta.isEmpty) {
+      // bootstrap الكيان: لا معرفة لكل سجل → لا شيء يُتخطى — تمرير واحد
+      // (listDocuments) أرخص من مرحلتين (metadata ثم دفعات byIds).
+      return appwriteService.listDocuments(
+        collectionId: collectionId,
+        queries: deltaQueries,
+        useCache: false,
+      );
+    }
+
+    final changedIds = SyncPullService.computeChangedIds(
+      serverMeta: serverMeta,
+      localMeta: localMeta,
+      unknownTsDocIds: unknownTsIds,
+    );
+
+    // يُستهلك في _checkpointEntity بعد نجاح التطبيق فقط — التقدم إلى أقصى
+    // النافذة آمن لأن كل مستنداتها صارت محكومة (مُطبَّق أو مطابق محلياً).
+    var serverMax = 0;
+    for (final ts in serverMeta.values) {
+      if (ts > serverMax) serverMax = ts;
+    }
+    if (serverMax > 0) _pendingMetaServerMaxTs[entity] = serverMax;
+
+    if (changedIds.isEmpty) {
+      _logger.info(
+        '🪶 delta metadata-first($entity): كل مستندات النافذة '
+        '(${serverMeta.length}) مطابقة محلياً — صفر تنزيل',
+        tag: 'SYNC',
+      );
+      return const [];
+    }
+
+    _logger.info(
+      '🪶 delta metadata-first($entity): ${changedIds.length} من '
+      '${metaDocs.length} في النافذة متغير فعلاً — تنزيل المتغير فقط',
+      tag: 'SYNC',
+    );
+    return appwriteService.listDocumentsByIds(collectionId, changedIds);
   }
 
   /// ✅ (2026-08-30) تسجيل مؤشر السحب الخاص بالكيان بعد نجاح سحبه.

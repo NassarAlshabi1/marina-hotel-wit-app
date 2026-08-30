@@ -61,6 +61,12 @@ class _FakeAppwriteService implements AppwriteService {
   final Map<String, List<models.Document>> serverCollections = {};
   final List<String> callNames = [];
 
+  /// ✅ (2026-08-31) مراقب نجاح الرفع — حقل حقيقي كي يلتقطه مُنشئ المدير
+  /// (بدون هذا يقع الـ setter في noSuchMethod → فشل صاخب عند البناء).
+  @override
+  void Function(String collectionId, models.Document document)?
+  onDocumentUpserted;
+
   /// إثبات على مستوى السجل: أي مجموعة سُئلت عبر أي مسار قراءة.
   final List<String> readCollections = [];
 

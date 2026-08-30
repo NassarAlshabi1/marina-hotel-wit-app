@@ -52,6 +52,17 @@ class AppwriteService {
   // ignore: unused_field
   final _errorHandler = AppwriteErrorHandler();
   final _cache = AppwriteCacheManager();
+
+  /// ✅ (2026-08-31) تقليل السحب على مستوى السجل — مراقب نجاح الرفع.
+  ///
+  /// يُستدعى بعد نجاح أي upsert على الكولكشن الأساسي (كل مسارات الرفع
+  /// تمر عبر [_upsertDocumentInternal]). الاستخدام: تسجيل `$updatedAt`
+  /// المعاد من الخادم في sync_remote_meta (تحصين ضد echo السحب — السجل
+  /// الذي دفعناه للتو يصبح "مُحكَماً عليه" محلياً فلا يُنزَّل في الدورة
+  /// التالية). يجب ألا يرمي المراقب أبداً — خدمة الشبكة تلتقط أي استثناء
+  /// منه ولن تؤثر على دلالات الرفع.
+  void Function(String collectionId, models.Document document)?
+  onDocumentUpserted;
   final _networkHelper = AppwriteNetworkHelper();
 
   /// ✅ جديد: getter لكشف حالة الـ circuit breaker من خارج الخدمة.
@@ -506,11 +517,21 @@ class AppwriteService {
     final maxRetries = workingData.length + 1;
     for (var attempt = 0; ; attempt++) {
       try {
-        return await _upsertDocumentOnce(
+        final doc = await _upsertDocumentOnce(
           collectionId: collectionId,
           documentId: canonicalId,
           data: workingData,
         );
+        // ✅ (2026-08-31) إشعار مراقب نجاح الرفع (echo immunization).
+        // الالتقاط هنا عمداً: فشل المراقب (تشخيص/تحسين) لا يُفسد أبداً
+        // دلالات رفع نجح فعلاً على الخادم.
+        final observer = onDocumentUpserted;
+        if (observer != null) {
+          try {
+            observer(collectionId, doc);
+          } catch (_) {}
+        }
+        return doc;
       } on AppwriteException catch (e) {
         final unknownAttr = _extractUnknownAttribute(e);
         if (unknownAttr != null &&
@@ -1265,14 +1286,20 @@ class AppwriteService {
   /// بدل المستند الكامل (كيلوبايتات)، فيتكلف فحص "ماذا تغيّر؟" كسوراً
   /// ضئيلة من تكلفة السحب الكامل التقليدي.
   /// بلا كاش عمداً — يجب أن تعكس صورة الخادم اللحظية.
+  /// ✅ (2026-08-31) تقليل السحب على مستوى السجل — دعم extraQueries:
+  /// تُبنى queries بـ (select [$id, $updatedAt]) + استعلامات إضافية تُمرَّر
+  /// كما هي (مثل فلتر delta `greaterThan($updatedAt, cutoff)`) — كي تخدم
+  /// مرحلة metadata الأولى في delta أيضاً لا في السحب الكامل فقط.
   Future<List<models.Document>> listDocumentsMetadata(
-    String collectionId,
-  ) async {
+    String collectionId, {
+    List<String> extraQueries = const [],
+  }) async {
     await _ensureInitialized();
     return _listAllDocumentsInternal(
       collectionId: collectionId,
       queries: [
         Query.select([r'$id', r'$updatedAt']),
+        ...extraQueries,
       ],
       useCache: false,
     );

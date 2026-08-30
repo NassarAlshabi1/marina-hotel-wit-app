@@ -60,6 +60,12 @@ class _FakeAppwriteService implements AppwriteService {
   final Map<String, List<models.Document>> serverCollections = {};
   final List<String> callNames = [];
 
+  /// ✅ (2026-08-31) مراقب نجاح الرفع — حقل حقيقي كي يلتقطه مُنشئ المدير
+  /// (بدون هذا يقع الـ setter في noSuchMethod → فشل صاخب عند البناء).
+  @override
+  void Function(String collectionId, models.Document document)?
+  onDocumentUpserted;
+
   void reset() {
     serverCollections.clear();
     callNames.clear();
@@ -220,12 +226,13 @@ void main() {
         isTrue,
         reason: 'realtimePriority يتجاوز حارس الدقيقتين',
       );
-      // بعد اكتمال أول سحب، الدورة الثانية تعمل بوضع delta (listDocuments)
-      // لا metadata-first — المهم أنها **حدثت فعلاً**.
+      // بعد اكتمال أول سحب، الدورة الثانية تعمل بوضع delta — والمسار الآن
+      // metadata-first أيضاً في delta (✅ 2026-08-31) — المهم أنها **حدثت
+      // فعلاً** ودون تنزيل لأن النافذة مطابقة محلياً.
       expect(
         fake.callNames,
-        contains('listDocuments'),
-        reason: 'السحب الثاني (delta) حدث فعلاً',
+        contains('listDocumentsMetadata'),
+        reason: 'السحب الثاني (delta metadata-first) حدث فعلاً',
       );
       expect(second.pullSkipped, isFalse);
     });
@@ -325,12 +332,13 @@ void main() {
                 'الدورة نجحت والسحب تم (بلا pullSkipped) رغم أن الدورة '
                 'السابقة انتهت قبل ثوانٍ — تجاوز الحارس عبر realtimePriority',
           );
-          // الدورة المُطلَقة بالحدث تعمل بوضع delta (listDocuments) لأن أول
-          // سحب اكتمل قبلها — المهم أنها حدثت فعلاً بتجاوز الحارس.
+          // الدورة المُطلَقة بالحدث تعمل بوضع delta metadata-first (✅
+          // 2026-08-31) لأن أول سحب اكتمل قبلها — المهم أنها حدثت فعلاً
+          // بتجاوز الحارس.
           expect(
             fake.callNames,
-            contains('listDocuments'),
-            reason: 'سحب delta حقيقي حدث نتيجة الحدث مباشرة',
+            contains('listDocumentsMetadata'),
+            reason: 'سحب delta حقيقي (metadata-first) حدث نتيجة الحدث مباشرة',
           );
           expect(
             realtime.hasRemoteChanges.value,

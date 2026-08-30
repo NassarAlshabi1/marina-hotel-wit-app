@@ -29,6 +29,9 @@
 
 // ignore_for_file: avoid_print
 
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:appwrite/models.dart' as models;
 // ignore: depend_on_referenced_packages (واجهة المنصة مستخدمة لمحاكاة الاتصال في الاختبار فقط)
 import 'package:connectivity_plus_platform_interface/connectivity_plus_platform_interface.dart';
@@ -75,8 +78,18 @@ class _FakeAppwriteService implements AppwriteService {
   /// استعلامات listDocuments لكل كولكشن (للتحقق من cutoff في وضع delta).
   final Map<String, List<String>> listDocumentsQueries = {};
 
+  /// ✅ (2026-08-31) استعلامات listDocumentsMetadata الإضافية (extraQueries)
+  /// لكل كولكشن — لإثبات أن delta metadata-first يمرّر فلتر delta نفسه.
+  final Map<String, List<String>> metadataQueries = {};
+
   /// معاملات listBookingNights الأخيرة (للتحقق من maxRecords).
   Map<Symbol, Object?>? lastBookingNightsNamedArgs;
+
+  /// ✅ (2026-08-31) مراقب نجاح الرفع (echo immunization) — يُلتقط من
+  /// المُنشئ عبر setter حقيقي (الحقل مُعرَّف هنا فيتجاوز noSuchMethod).
+  @override
+  void Function(String collectionId, models.Document document)?
+  onDocumentUpserted;
 
   void reset() {
     serverCollections.clear();
@@ -84,6 +97,7 @@ class _FakeAppwriteService implements AppwriteService {
     callNames.clear();
     byIdsRequests.clear();
     listDocumentsQueries.clear();
+    metadataQueries.clear();
     lastBookingNightsNamedArgs = null;
   }
 
@@ -101,6 +115,23 @@ class _FakeAppwriteService implements AppwriteService {
 
   String _argStr(Object? v) => v?.toString() ?? '';
 
+  /// ✅ (2026-08-31) يفك ترميز استعلام Appwrite (JSON) ويستخرج cutoff من
+  /// `greaterThan($updatedAt, iso)` — لمحاكاة فلترة الخادم في الـ fake.
+  String? _parseGreaterThanUpdatedAtCutoff(String query) {
+    try {
+      final decoded = jsonDecode(query);
+      if (decoded is Map<String, dynamic> &&
+          decoded['method'] == 'greaterThan' &&
+          decoded['attribute'] == r'$updatedAt') {
+        final values = decoded['values'];
+        if (values is List && values.isNotEmpty) {
+          return values.first.toString();
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) {
     final name = _memberName(invocation);
@@ -114,13 +145,32 @@ class _FakeAppwriteService implements AppwriteService {
         return true;
 
       // ── metadata-first: سحب ($id + $updatedAt) فقط ──
+      // ✅ (2026-08-31) يدعم extraQueries ويطبّق فلتر greaterThan($updatedAt)
+      // بشكل وفي للخادم — delta metadata-first يمرّر فلتر نافذة المؤشر
+      // فالخادم الحقيقي يُرجع فقط ما تغيّر فيها (لا كل الكولكشن).
       case 'listDocumentsMetadata':
         final collectionId = _argStr(invocation.positionalArguments[0]);
+        final extraQueries =
+            (invocation.namedArguments[#extraQueries] as List?)
+                ?.cast<String>() ??
+            const <String>[];
+        metadataQueries
+            .putIfAbsent(collectionId, () => <String>[])
+            .addAll(extraQueries);
         _maybeThrow('listDocumentsMetadata:$collectionId');
         _maybeThrow('listDocumentsMetadata');
-        return Future<List<models.Document>>.value(
-          List.of(serverCollections[collectionId] ?? const []),
+        var metaDocs = List.of(
+          serverCollections[collectionId] ?? const <models.Document>[],
         );
+        for (final q in extraQueries) {
+          final cutoffIso = _parseGreaterThanUpdatedAtCutoff(q);
+          if (cutoffIso != null) {
+            metaDocs = metaDocs
+                .where((d) => d.$updatedAt.compareTo(cutoffIso) > 0)
+                .toList();
+          }
+        }
+        return Future<List<models.Document>>.value(metaDocs);
 
       // ── جلب المستندات الكاملة بمعرّفاتها (بعد حصر المتغيّر) ──
       case 'listDocumentsByIds':
@@ -536,7 +586,7 @@ void main() {
 
       // إعادة الضبط للاختبار (أو مرور الفاصل في الواقع) → السحب يعمل من جديد.
       // ملاحظة: الدورة هنا ستكون delta لأن الدورة الأولى نجحت (full_sync_complete=1
-      // والمؤشرات > 0) — لذا نتحقق من مسار delta لا من metadata.
+      // والمؤشرات > 0) — والمسار الآن metadata-first أيضاً في delta.
       fake.serverCollections['blacklist'] = [
         mkDoc('A', 1700001000, {'name': 'شخص-أ'}),
       ];
@@ -545,19 +595,19 @@ void main() {
       expect(resumed.errorMessage, isNull);
       expect(
         fake.callNames,
-        contains('listDocuments'),
-        reason: 'بعد مرور الفاصل استُؤنف السحب — بوضع delta',
+        contains('listDocumentsMetadata'),
+        reason: 'بعد مرور الفاصل استُؤنف السحب — بوضع delta (metadata-first)',
       );
-      expect(fake.listDocumentsQueries['blacklist'], isNotNull);
+      expect(fake.metadataQueries['blacklist'], isNotNull);
       expect(
-        fake.callNames.where((n) => n == 'listDocumentsMetadata'),
-        isEmpty,
-        reason: 'delta لا يحتاج مقارنة metadata',
+        fake.byIdsRequests['blacklist'],
+        isNull,
+        reason: 'النافذة مطابقة محلياً → صفر تنزيل حتى في delta',
       );
     });
 
-    test('T8: دورة delta تالية → cutoff مشتق من مؤشر الكيان − 15 ثانية '
-        'وليس من وقت الجهاز', () async {
+    test('T8: دورة delta تالية → مقارنة metadata بفلتر النافذة (cutoff = مؤشر '
+        r'الكيان − 15) وكل المطابق يُتخطى بلا تنزيل', () async {
       fake.serverCollections['blacklist'] = [
         mkDoc('A', 1700001000, {'name': 'شخص-أ'}),
       ];
@@ -575,21 +625,308 @@ void main() {
         mkDoc('A', 1700001000, {'name': 'شخص-أ'}),
       ];
 
-      // دورة ثانية: delta — تحقق من الاستعلام المُرسل لـ blacklist.
+      // دورة ثانية: delta metadata-first — فلتر النافذة يُمرَّر للـ metadata.
       await runFullPull();
 
-      final queries = fake.listDocumentsQueries['blacklist'];
-      expect(queries, isNotNull, reason: 'delta يستخدم listDocuments');
-      expect(queries, hasLength(1));
-      expect(queries!.first, contains(r'$updatedAt'));
+      final metaQ = fake.metadataQueries['blacklist'];
+      expect(metaQ, isNotNull, reason: 'delta يستخدم مقارنة metadata الآن');
+      expect(metaQ, hasLength(1));
+      expect(metaQ!.first, contains(r'$updatedAt'));
       // cutoff = 1700001000 − 15 = 1700000985 (نافذة الأمان).
-      expect(queries.first, contains(isoOf(1700001000 - 15)));
-      // وفي delta لا تُستدعى طبقة metadata إطلاقاً (delta رخيصة أصلاً).
+      expect(metaQ.first, contains(isoOf(1700001000 - 15)));
+
+      // كل مستندات النافذة (A) مطابقة محلياً → صفر تنزيل إطلاقاً:
+      // لا جلب كامل ولا byIds — وأثر ذلك الوحيد قراءة metadata خفيفة.
       expect(
-        fake.callNames.where((n) => n == 'listDocumentsMetadata'),
-        isEmpty,
-        reason: 'delta لا يحتاج مقارنة metadata — فلتر زمني مباشر',
+        fake.byIdsRequests['blacklist'],
+        isNull,
+        reason: 'echo/مطابق → لا تنزيل حمولة كاملة في delta',
       );
+      expect(
+        fake.listDocumentsQueries['blacklist'],
+        isNull,
+        reason: 'لا حاجة لتمرير كامل بديل — المقارنة حصرت المتغيّر (لا شيء)',
+      );
+
+      // المؤشر بقي عند قيمة الخادم (لا تراجع ولا قفز زائف).
+      expect((await entityWatermarks())['blacklist'], 1700001000);
     });
   });
+
+  // ───────────────────────────────────────────────────────────────────────
+  // ✅ (2026-08-31) تقليل السحب على مستوى السجل — metadata-first في delta
+  // ───────────────────────────────────────────────────────────────────────
+  group(
+    'DT: delta metadata-first — السحب على مستوى السجل عبر الدورة الحقيقية',
+    () {
+      setUp(resetState);
+
+      test('DT1: echo الرفع لا يُنزَّل — تسجيل meta من مراقب الرفع يكفي '
+          'للتخطي، والمؤشر يتقدم فوق النافذة المحكومة', () async {
+        // دورة 1 (full): خط الأساس — مؤشر 1700001000 و meta {A}.
+        fake.serverCollections['blacklist'] = [
+          mkDoc('A', 1700001000, {'name': 'شخص-أ'}),
+        ];
+        await seedLocalMeta('blacklist', {'A': 1700001000});
+        await runFullPull();
+        expect((await entityWatermarks())['blacklist'], 1700001000);
+
+        // ⚡ محاكاة رفع ناجح: مراقب الرفع (المربوط في المُنشئ) يُخطِر بالسجل
+        // المرفوع P مع $updatedAt الذي أعاده الخادم.
+        expect(
+          fake.onDocumentUpserted,
+          isNotNull,
+          reason: 'المدير يربط مراقب نجاح الرفع في المُنشئ',
+        );
+        fake.onDocumentUpserted!(
+          'blacklist',
+          mkDoc('P', 1700003000, {'name': 'رفع-محلي'}),
+        );
+        await pumpEventQueue();
+        expect(
+          (await db.getRemoteMetaMap('blacklist'))['P'],
+          1700003000,
+          reason: 'echo immunization: meta تُسجَّل لحظة نجاح الرفع',
+        );
+
+        // دورة 2 (delta): الخادم يحمل A وP (echo عاد في النافذة) — الاثنان
+        // مطابقان محلياً → صفر تنزيل رغم أن P أحدث من المؤشر.
+        fake.reset();
+        manager.resetPullThrottleForTesting();
+        fake.serverCollections['blacklist'] = [
+          mkDoc('A', 1700001000, {'name': 'شخص-أ'}),
+          mkDoc('P', 1700003000, {'name': 'رفع-محلي'}),
+        ];
+        await runFullPull();
+
+        expect(
+          fake.byIdsRequests['blacklist'],
+          isNull,
+          reason: 'echo المسجَّل meta لا يُنزَّل — هذا هو وفر السجل الواحد',
+        );
+        expect(fake.listDocumentsQueries['blacklist'], isNull);
+
+        // المؤشر تقدم إلى أقصى النافذة (1700003000) — آمن لأن كل مستنداتها
+        // صارت محكومة: A مطابق وP هو echo مرفوعنا.
+        expect((await entityWatermarks())['blacklist'], 1700003000);
+      });
+
+      test(
+        'DT2: نافذة delta بمطابق + متغيرين → byIds يجلب المتغيرين فقط '
+        'والمؤشر يتقدم إلى أقصى النافذة (سلطة الخادم) لا أقصى المجلوب',
+        () async {
+          // دورة 1: خط الأساس — A وC معروفان محلياً (C داخل نافذة الأمان
+          // من المؤشر: 1700000990 > 1700000985).
+          fake.serverCollections['blacklist'] = [
+            mkDoc('A', 1700001000, {'name': 'شخص-أ'}),
+          ];
+          await seedLocalMeta('blacklist', {'A': 1700001000, 'C': 1700000990});
+          await runFullPull();
+          expect((await entityWatermarks())['blacklist'], 1700001000);
+
+          // دورة 2: تغيّر A (محتوى جديد) + وُلد B + بقي C كما هو (سيُعاد
+          // فحصه في النافذة بسبب نافذة الأمان — وهذا المطلوب).
+          fake.reset();
+          manager.resetPullThrottleForTesting();
+          fake.serverCollections['blacklist'] = [
+            mkDoc('A', 1700002500, {'name': 'شخص-أ-محدث'}),
+            mkDoc('B', 1700002000, {'name': 'جديد'}),
+            mkDoc('C', 1700000990, {'name': 'ثابت'}),
+          ];
+          await runFullPull();
+
+          // الجلب الكامل حُصر في المتغيرين فعلاً — C المطابق لم يُنزَّل رغم
+          // وجوده في النافذة.
+          expect(
+            fake.byIdsRequests['blacklist'],
+            ['A', 'B'],
+            reason: 'metadata-first في delta: تنزيل المتغيّر فقط',
+          );
+
+          // الصفوف وصلت محلياً.
+          final rows = await db.select(db.shiftNotes).get();
+          expect(rows.map((r) => r.localUuid).toSet(), {'A', 'B'});
+
+          // المؤشر = أقصى $updatedAt في النافذة (1700002500) — بواسطة pending
+          // serverMax لا أقصى المستندات المجلوبة (وهما متساويان هنا لأن أقصى
+          // النافذة هو نفسه متغير مُجلوب، لكن القيمة مصدرها النافذة الكاملة).
+          expect((await entityWatermarks())['blacklist'], 1700002500);
+
+          // meta حُدّثت بالمجلوب فقط، والمطابق C بقي بطابعه.
+          expect(await db.getRemoteMetaMap('blacklist'), {
+            'A': 1700002500,
+            'B': 1700002000,
+            'C': 1700000990,
+          });
+        },
+      );
+
+      test('DT3: فشل metadata في delta → مؤشر الكيان والسحب العالمي لا '
+          'يتقدمان (لا "رؤية" بلا محتوى)', () async {
+        fake.serverCollections['blacklist'] = [
+          mkDoc('A', 1700001000, {'name': 'شخص-أ'}),
+        ];
+        await seedLocalMeta('blacklist', {'A': 1700001000});
+        await runFullPull();
+        expect((await entityWatermarks())['blacklist'], 1700001000);
+        final globalBefore = await globalLastPullTs();
+        expect(globalBefore, greaterThan(0));
+
+        // دورة delta فاشلة: metadata لـ blacklist ترمي — سجل جديد N لن يُرى.
+        fake.reset();
+        manager.resetPullThrottleForTesting();
+        fake.throwOn['listDocumentsMetadata:blacklist'] = Exception('timeout');
+        fake.serverCollections['blacklist'] = [
+          mkDoc('A', 1700001000, {'name': 'شخص-أ'}),
+          mkDoc('N', 1700002000, {'name': 'لن-يصل'}),
+        ];
+
+        await runFullPull();
+
+        // المؤشر تجمّد: N لم يُحكَم عليه فلا حق لتقدم المؤشر فوقه.
+        expect(
+          (await entityWatermarks())['blacklist'],
+          1700001000,
+          reason: 'فشل مرحلة metadata في delta يجب ألا يقدّم المؤشر',
+        );
+        expect(
+          await globalLastPullTs(),
+          globalBefore,
+          reason: 'failedCollections تمنع تقدم المؤشر العالمي',
+        );
+        expect(
+          await db.getRemoteMetaMap('blacklist'),
+          {'A': 1700001000},
+          reason: 'لا كتابة meta عند الفشل',
+        );
+      });
+
+      test('DT4: bootstrap الكيان (meta فارغة) → تمرير واحد عادي في delta '
+          'لا مرحلتين (لا فائدة من المقارنة بلا معرفة لكل سجل)', () async {
+        fake.serverCollections['blacklist'] = [
+          mkDoc('A', 1700001000, {'name': 'شخص-أ'}),
+        ];
+        await seedLocalMeta('blacklist', {'A': 1700001000});
+        await runFullPull();
+        expect((await entityWatermarks())['blacklist'], 1700001000);
+
+        // فقدان المعرفة لكل سجل (كأن الكولكشن جديد على هذه القاعدة).
+        await db.clearRemoteMeta(collection: 'blacklist');
+
+        fake.reset();
+        manager.resetPullThrottleForTesting();
+        fake.serverCollections['blacklist'] = [
+          mkDoc('A', 1700001000, {'name': 'شخص-أ'}),
+          mkDoc('B', 1700002000, {'name': 'جديد'}),
+        ];
+        await runFullPull();
+
+        // مرحلة metadata اشتغلت ثم اكتشفت غياب المعرفة → fallback تمرير واحد.
+        expect(fake.metadataQueries['blacklist'], isNotNull);
+        expect(
+          fake.listDocumentsQueries['blacklist'],
+          isNotNull,
+          reason: 'bootstrap: سحب delta عادي بتمرير واحد (أرخص من byIds)',
+        );
+        expect(
+          fake.byIdsRequests['blacklist'],
+          isNull,
+          reason: 'لا دفعات byIds في مسار bootstrap',
+        );
+
+        // النتيجة كاملة كالسحب العادي: B وصل والمؤشر تقدم من المستندات.
+        final rows = await db.select(db.shiftNotes).get();
+        expect(rows.map((r) => r.localUuid).toSet(), {'A', 'B'});
+        expect((await entityWatermarks())['blacklist'], 1700002000);
+      });
+
+      test('DT5: بقايا pending من دورة فاشلة لا تُستهلك في مسار fast-path — '
+          'سجلات النافذة غير المطبقة تُسحب لاحقاً (حارس ضد اختفاء)', () async {
+        // دورة 1: خط الأساس.
+        fake.serverCollections['blacklist'] = [
+          mkDoc('A', 1700001000, {'name': 'شخص-أ'}),
+        ];
+        await seedLocalMeta('blacklist', {'A': 1700001000});
+        await runFullPull();
+        expect((await entityWatermarks())['blacklist'], 1700001000);
+
+        // دورة 2 (delta): C وB متغيران → pending = 1700002000 يُضبط ثم
+        // فشل byIds → checkpoint لا يُستهلك — بقايا pending على الطاولة.
+        fake.reset();
+        manager.resetPullThrottleForTesting();
+        fake.throwOn['listDocumentsByIds:blacklist'] = Exception('timeout');
+        fake.serverCollections['blacklist'] = [
+          mkDoc('A', 1700001000, {'name': 'شخص-أ'}),
+          mkDoc('C', 1700001500, {'name': 'بين-النافذتين'}),
+          mkDoc('B', 1700002000, {'name': 'أحدث'}),
+        ];
+        await runFullPull();
+        expect(
+          (await entityWatermarks())['blacklist'],
+          1700001000,
+          reason: 'الفشل أوقف checkpoint — المؤشر ثابت',
+        );
+
+        // دورة 3 (delta + fast-path): الكيان في مجموعة التخطي — بدون الحارس
+        // كان pending القديم سيُستهلك هنا ويقفز بالمؤشر إلى 1700002000،
+        // فيختفي C (1700001500) من كل النوافذ التالية إلى أن يأتي full pull.
+        fake.reset();
+        manager.resetPullThrottleForTesting();
+        fake.serverCollections['blacklist'] = [
+          mkDoc('A', 1700001000, {'name': 'شخص-أ'}),
+          mkDoc('C', 1700001500, {'name': 'بين-النافذتين'}),
+          mkDoc('B', 1700002000, {'name': 'أحدث'}),
+        ];
+        await manager.sync(
+          push: false,
+          pull: true,
+          fastAppliedEntities: {'blacklist'},
+        );
+        expect(
+          (await entityWatermarks())['blacklist'],
+          1700001000,
+          reason:
+              'fast-path يمسح pending القديم — لا قفز زائف فوق سجلات '
+              'لم تُطبَّق (1700002000 كان سيختفي C بعده)',
+        );
+
+        // دورة 4 (delta عادي): النافذة ما زالت من 1700000985 → C وB يظهران
+        // ويُجلَبان — إثبات أن الحارس أبقى سجلات كانت ستُفقد.
+        manager.resetPullThrottleForTesting();
+        await runFullPull();
+        expect(
+          fake.byIdsRequests['blacklist'],
+          containsAll(['C', 'B']),
+          reason: 'سجلات النافذة غير المطبقة تُسحب بعد الدورة المُخطَّاة',
+        );
+        final rows = await db.select(db.shiftNotes).get();
+        expect(rows.map((r) => r.localUuid).toSet(), containsAll({'C', 'B'}));
+        expect((await entityWatermarks())['blacklist'], 1700002000);
+      });
+
+      test('DT6: recordPushedDocumentMeta — يسجل لكيانات المزامنة فقط ولا '
+          'يرمي أبداً على كولكشنز النظام', () async {
+        // ربط المراقب موجود (أُثبت في DT1) — هنا العقد المباشر للدالة.
+        await manager.recordPushedDocumentMeta(
+          'blacklist',
+          mkDoc('P', 1700003000, {'name': 'مرفوع'}),
+        );
+        expect(
+          await db.getRemoteMetaMap('blacklist'),
+          {'P': 1700003000},
+          reason: 'echo immunization: الطابع المعاد يُخزَّن فوراً',
+        );
+
+        // كولكشن غير مخطَّط → يُتجاهل بصمت (لا تلوث ولا استثناء).
+        await manager.recordPushedDocumentMeta(
+          'definitely_not_mapped_xyz',
+          mkDoc('X', 1700004000),
+        );
+        expect(await db.getRemoteMetaMap('definitely_not_mapped_xyz'), isEmpty);
+
+        // مستند بلا $updatedAt مقروء → يُتجاهل بلا استثناء.
+        await manager.recordPushedDocumentMeta('blacklist', mkDoc('Q', 0));
+      });
+    },
+  );
 }
