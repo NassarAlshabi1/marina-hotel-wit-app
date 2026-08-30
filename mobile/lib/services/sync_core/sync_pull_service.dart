@@ -432,6 +432,29 @@ class SyncPullService {
     Query.or([Query.isNull('deletedAt'), Query.equal('deletedAt', 0)]),
   ];
 
+  /// ✅ (2026-08-30) الفجوتان 3+4 — حساب معرّفات المستندات المتغيرة فعلاً
+  /// بمقارنة metadata الخادم بالخريطة المحلية (sync_remote_meta).
+  ///
+  /// دالة نقية (قابلة للاختبار مباشرة). القاعدة:
+  /// - مستند غائب محلياً أو طابعه اختلف → متغيّر (يُجلب كاملاً).
+  /// - مستند طابعه مطابق → نملك محتوى ذلك الإصدار بالضبط (الخريطة تُكتب
+  ///   بعد نجاح التطبيق فقط) → تُتخطى.
+  /// - [unknownTsDocIds]: مستندات تعذّر قراءة $updatedAt لها من الخادم —
+  ///   تُجلب كاملة احتياطاً بدل المخاطرة بتخطيها.
+  static List<String> computeChangedIds({
+    required Map<String, int> serverMeta,
+    required Map<String, int> localMeta,
+    List<String> unknownTsDocIds = const [],
+  }) {
+    final changed = <String>[];
+    serverMeta.forEach((id, ts) {
+      final local = localMeta[id];
+      if (local == null || local != ts) changed.add(id);
+    });
+    changed.addAll(unknownTsDocIds);
+    return changed;
+  }
+
   Future<List<String>> buildDeltaQueries(int lastPullTs) async {
     // ✅ Sync Safety Wave 2 (2026-08-12): Full Sync Bootstrap Guard.
     //

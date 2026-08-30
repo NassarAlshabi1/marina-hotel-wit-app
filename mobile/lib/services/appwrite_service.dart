@@ -1258,6 +1258,49 @@ class AppwriteService {
     );
   }
 
+  /// ✅ (2026-08-30) الفجوتان 3+4 — سحب metadata فقط ($id + $updatedAt)
+  /// لكل مستندات الكولكشن بترقيم مؤشري.
+  ///
+  /// تُستخدم في السحب الكامل (metadata-first): الحمولة لكل صف ~100 بايت
+  /// بدل المستند الكامل (كيلوبايتات)، فيتكلف فحص "ماذا تغيّر؟" كسوراً
+  /// ضئيلة من تكلفة السحب الكامل التقليدي.
+  /// بلا كاش عمداً — يجب أن تعكس صورة الخادم اللحظية.
+  Future<List<models.Document>> listDocumentsMetadata(
+    String collectionId,
+  ) async {
+    await _ensureInitialized();
+    return _listAllDocumentsInternal(
+      collectionId: collectionId,
+      queries: [
+        Query.select([r'$id', r'$updatedAt']),
+      ],
+      useCache: false,
+    );
+  }
+
+  /// ✅ (2026-08-30) جلب مستندات كاملة بمعرّفاتها على دفعات
+  /// (Query.equal على $id، 100 معرّفاً للدفعة) — مرافق metadata-first:
+  /// بعد حصر المتغيّر من مقارنة الـ metadata لا نُنزّل إلا هو.
+  Future<List<models.Document>> listDocumentsByIds(
+    String collectionId,
+    List<String> ids,
+  ) async {
+    await _ensureInitialized();
+    final out = <models.Document>[];
+    const chunkSize = 100;
+    for (var i = 0; i < ids.length; i += chunkSize) {
+      final end = (i + chunkSize < ids.length) ? i + chunkSize : ids.length;
+      final chunk = ids.sublist(i, end);
+      final page = await _listAllDocumentsInternal(
+        collectionId: collectionId,
+        queries: [Query.equal(r'$id', chunk)],
+        useCache: false,
+      );
+      out.addAll(page);
+    }
+    return out;
+  }
+
   Future<void> deleteRow({
     required String collectionId,
     required String documentId,

@@ -210,6 +210,12 @@ class AppwriteSyncManager {
   final _err = SyncErrorService(tag: 'SYNC');
   SyncPullService? _pullService;
 
+  /// ✅ (2026-08-30) الفجوتان 3+4 (metadata-first): أقصى $updatedAt على
+  /// الخادم لكل كيان، محسوب من مرحلة الـ metadata في السحب الكامل.
+  /// يُسجَّل "معلقاً" بعد نجاح الجلب، ويستهلكه _checkpointEntity بعد نجاح
+  /// التطبيق فقط — فلا يتقدم المؤشر إذا فشل التطبيق (نفس ضمانة failedCollections).
+  final Map<String, int> _pendingMetaServerMaxTs = {};
+
   /// PayloadMapper — تم استخراجه من دوال _xxxToRemote لهذا الصنف
   final PayloadMapper _payloadMapper = const PayloadMapper();
 
@@ -1043,10 +1049,10 @@ class AppwriteSyncManager {
 
               try {
                 recordsPulled += await _timePhase('syncRooms', () async {
-                  final rooms = await appwriteService.listRooms(
-                    queries: await _entityPullQueries('rooms',
-                        isDelta: isDelta, fallback: pullQueries),
-                    useCache: false,
+                  final rooms = await _pullDocsMetadataFirst(
+                    entity: 'rooms',
+                    isDelta: isDelta,
+                    fallback: pullQueries,
                   );
                   final roomsSynced = await _syncRooms(rooms);
                   // ✅ (2026-08-30) مؤشر مستقل لكل كيان — يتقدم حتى لو فشلت كيانات أخرى
@@ -1072,10 +1078,10 @@ class AppwriteSyncManager {
 
               try {
                 recordsPulled += await _timePhase('syncEmployees', () async {
-                  final employees = await appwriteService.listEmployees(
-                    queries: await _entityPullQueries('employees',
-                        isDelta: isDelta, fallback: pullQueries),
-                    useCache: false,
+                  final employees = await _pullDocsMetadataFirst(
+                    entity: 'employees',
+                    isDelta: isDelta,
+                    fallback: pullQueries,
                   );
                   // ✅ التوصية 5: لف _syncEmployees بطبقة إعادة محاولة لتحصين
                   // أسبقية الموظفين قبل المصروفات (يقلّل خطر #4).
@@ -1110,11 +1116,10 @@ class AppwriteSyncManager {
                 recordsPulled += await _timePhase(
                   'syncInventoryItems',
                   () async {
-                    final docs = await appwriteService.listDocuments(
-                      collectionId: AppwriteConfig.inventoryItemsCollectionId,
-                      queries: await _entityPullQueries('inventory_items',
-                          isDelta: isDelta, fallback: pullQueries),
-                      useCache: false,
+                    final docs = await _pullDocsMetadataFirst(
+                      entity: 'inventory_items',
+                      isDelta: isDelta,
+                      fallback: pullQueries,
                     );
                     final synced = await _syncInventoryItems(docs);
                     // ✅ (2026-08-30) مؤشر مستقل لكل كيان
@@ -1141,14 +1146,10 @@ class AppwriteSyncManager {
                 recordsPulled += await _timePhase(
                   'syncInventoryTransactions',
                   () async {
-                    final docs = await appwriteService.listDocuments(
-                      collectionId:
-                          AppwriteConfig.inventoryTransactionsCollectionId,
-                      queries: await _entityPullQueries(
-                          'inventory_transactions',
-                          isDelta: isDelta,
-                          fallback: pullQueries),
-                      useCache: false,
+                    final docs = await _pullDocsMetadataFirst(
+                      entity: 'inventory_transactions',
+                      isDelta: isDelta,
+                      fallback: pullQueries,
                     );
                     final synced = await _syncInventoryTransactions(docs);
                     // ✅ (2026-08-30) مؤشر مستقل لكل كيان
@@ -1188,11 +1189,17 @@ class AppwriteSyncManager {
 
               try {
                 recordsPulled += await _timePhase('syncBookings', () async {
-                  final bookings = await appwriteService.listBookings(
-                    queries: pullQueries,
-                    useCache: false,
+                  // ✅ (2026-08-30) bookings كان يستعلم بالمؤشر العام فقط
+                  // (queries: pullQueries) دون استعلام/تقدم مستقل — أعلى كيان
+                  // حركة في النظام بقي معلقاً بالمؤشر الكلي-أو-لاشيء! الآن
+                  // يستعلم بمؤشره الخاص ويتقدم به مثل بقية الكيانات.
+                  final bookings = await _pullDocsMetadataFirst(
+                    entity: 'bookings',
+                    isDelta: isDelta,
+                    fallback: pullQueries,
                   );
                   final bookingsSynced = await _syncBookings(bookings);
+                  await _checkpointEntity('bookings', bookings);
                   _logger.debug('Synced $bookingsSynced bookings', tag: 'SYNC');
                   return bookingsSynced;
                 }, phaseMs);
@@ -1217,19 +1224,19 @@ class AppwriteSyncManager {
                 recordsPulled += await _timePhase(
                   'syncCashTransactions',
                   () async {
-                    final cashTransactions = await appwriteService
-                        .listCashTransactions(
-                          queries: await _entityPullQueries(
-                              'cash_transactions',
-                              isDelta: isDelta,
-                              fallback: pullQueries),
-                          useCache: false,
-                        );
+                    final cashTransactions = await _pullDocsMetadataFirst(
+                      entity: 'cash_transactions',
+                      isDelta: isDelta,
+                      fallback: pullQueries,
+                    );
                     final synced = await _syncCashTransactions(
                       cashTransactions,
                     );
                     // ✅ (2026-08-30) مؤشر مستقل لكل كيان
-                    await _checkpointEntity('cash_transactions', cashTransactions);
+                    await _checkpointEntity(
+                      'cash_transactions',
+                      cashTransactions,
+                    );
                     _logger.debug(
                       'Synced $synced cash transactions',
                       tag: 'SYNC',
@@ -1250,10 +1257,10 @@ class AppwriteSyncManager {
 
               try {
                 recordsPulled += await _timePhase('syncExpenses', () async {
-                  final expenses = await appwriteService.listExpenses(
-                    queries: await _entityPullQueries('expenses',
-                        isDelta: isDelta, fallback: pullQueries),
-                    useCache: false,
+                  final expenses = await _pullDocsMetadataFirst(
+                    entity: 'expenses',
+                    isDelta: isDelta,
+                    fallback: pullQueries,
                   );
                   final expensesSynced = await _syncExpenses(expenses);
                   // ✅ (2026-08-30) مؤشر مستقل لكل كيان
@@ -1342,10 +1349,10 @@ class AppwriteSyncManager {
 
               try {
                 recordsPulled += await _timePhase('syncBookingNotes', () async {
-                  final bookingNotes = await appwriteService.listBookingNotes(
-                    queries: await _entityPullQueries('booking_notes',
-                        isDelta: isDelta, fallback: pullQueries),
-                    useCache: false,
+                  final bookingNotes = await _pullDocsMetadataFirst(
+                    entity: 'booking_notes',
+                    isDelta: isDelta,
+                    fallback: pullQueries,
                   );
                   final synced = await _syncBookingNotes(bookingNotes);
                   // ✅ (2026-08-30) مؤشر مستقل لكل كيان
@@ -1365,10 +1372,10 @@ class AppwriteSyncManager {
 
               try {
                 recordsPulled += await _timePhase('syncPayments', () async {
-                  final payments = await appwriteService.listPayments(
-                    queries: await _entityPullQueries('payments',
-                        isDelta: isDelta, fallback: pullQueries),
-                    useCache: false,
+                  final payments = await _pullDocsMetadataFirst(
+                    entity: 'payments',
+                    isDelta: isDelta,
+                    fallback: pullQueries,
                   );
                   final paymentsSynced = await _syncPayments(payments);
                   // ✅ (2026-08-30) مؤشر مستقل لكل كيان
@@ -1388,10 +1395,10 @@ class AppwriteSyncManager {
 
               try {
                 recordsPulled += await _timePhase('syncDebts', () async {
-                  final debts = await appwriteService.listDebts(
-                    queries: await _entityPullQueries('debts',
-                        isDelta: isDelta, fallback: pullQueries),
-                    useCache: false,
+                  final debts = await _pullDocsMetadataFirst(
+                    entity: 'debts',
+                    isDelta: isDelta,
+                    fallback: pullQueries,
                   );
                   final debtsSynced = await _syncDebts(debts);
                   // ✅ (2026-08-30) مؤشر مستقل لكل كيان
@@ -1411,10 +1418,10 @@ class AppwriteSyncManager {
 
               try {
                 recordsPulled += await _timePhase('syncSalaryCycles', () async {
-                  final salaryCycles = await appwriteService.listSalaryCycles(
-                    queries: await _entityPullQueries('salary_cycles',
-                        isDelta: isDelta, fallback: pullQueries),
-                    useCache: false,
+                  final salaryCycles = await _pullDocsMetadataFirst(
+                    entity: 'salary_cycles',
+                    isDelta: isDelta,
+                    fallback: pullQueries,
                   );
                   final synced = await _syncSalaryCycles(salaryCycles);
                   // ✅ (2026-08-30) مؤشر مستقل لكل كيان
@@ -1436,14 +1443,11 @@ class AppwriteSyncManager {
                 recordsPulled += await _timePhase(
                   'syncSalaryPayments',
                   () async {
-                    final salaryPayments = await appwriteService
-                        .listSalaryPayments(
-                          queries: await _entityPullQueries(
-                              'salary_payments',
-                              isDelta: isDelta,
-                              fallback: pullQueries),
-                          useCache: false,
-                        );
+                    final salaryPayments = await _pullDocsMetadataFirst(
+                      entity: 'salary_payments',
+                      isDelta: isDelta,
+                      fallback: pullQueries,
+                    );
                     final synced = await _syncSalaryPayments(salaryPayments);
                     // ✅ (2026-08-30) مؤشر مستقل لكل كيان
                     await _checkpointEntity('salary_payments', salaryPayments);
@@ -1469,20 +1473,19 @@ class AppwriteSyncManager {
                 recordsPulled += await _timePhase(
                   'syncSalaryWithdrawals',
                   () async {
-                    final salaryWithdrawals = await appwriteService
-                        .listSalaryWithdrawals(
-                          queries: await _entityPullQueries(
-                              'salary_withdrawals',
-                              isDelta: isDelta,
-                              fallback: pullQueries),
-                          useCache: false,
-                        );
+                    final salaryWithdrawals = await _pullDocsMetadataFirst(
+                      entity: 'salary_withdrawals',
+                      isDelta: isDelta,
+                      fallback: pullQueries,
+                    );
                     final synced = await _syncSalaryWithdrawals(
                       salaryWithdrawals,
                     );
                     // ✅ (2026-08-30) مؤشر مستقل لكل كيان
                     await _checkpointEntity(
-                        'salary_withdrawals', salaryWithdrawals);
+                      'salary_withdrawals',
+                      salaryWithdrawals,
+                    );
                     _logger.debug(
                       'Synced $synced salary_withdrawals',
                       tag: 'SYNC',
@@ -1503,10 +1506,10 @@ class AppwriteSyncManager {
 
               try {
                 recordsPulled += await _timePhase('syncGuestInfos', () async {
-                  final guestInfos = await appwriteService.listGuestInfos(
-                    queries: await _entityPullQueries('guest_infos',
-                        isDelta: isDelta, fallback: pullQueries),
-                    useCache: false,
+                  final guestInfos = await _pullDocsMetadataFirst(
+                    entity: 'guest_infos',
+                    isDelta: isDelta,
+                    fallback: pullQueries,
                   );
                   final synced = await _syncGuestInfos(guestInfos);
                   // ✅ (2026-08-30) مؤشر مستقل لكل كيان
@@ -1528,19 +1531,18 @@ class AppwriteSyncManager {
                 recordsPulled += await _timePhase(
                   'syncBookingPriceAdjustments',
                   () async {
-                    final adjustments = await appwriteService.listDocuments(
-                      collectionId:
-                          AppwriteConfig.bookingPriceAdjustmentsCollectionId,
-                      queries: await _entityPullQueries(
-                          'booking_price_adjustments',
-                          isDelta: isDelta,
-                          fallback: pullQueries),
+                    final adjustments = await _pullDocsMetadataFirst(
+                      entity: 'booking_price_adjustments',
+                      isDelta: isDelta,
+                      fallback: pullQueries,
                     );
                     final adjustmentsSynced =
                         await _syncBookingPriceAdjustments(adjustments);
                     // ✅ (2026-08-30) مؤشر مستقل لكل كيان
                     await _checkpointEntity(
-                        'booking_price_adjustments', adjustments);
+                      'booking_price_adjustments',
+                      adjustments,
+                    );
                     _logger.debug(
                       'Synced $adjustmentsSynced booking price adjustments',
                       tag: 'SYNC',
@@ -1561,10 +1563,10 @@ class AppwriteSyncManager {
 
               try {
                 recordsPulled += await _timePhase('syncShiftNotes', () async {
-                  final shiftNotes = await appwriteService.listShiftNotes(
-                    queries: await _entityPullQueries('shift_notes',
-                        isDelta: isDelta, fallback: pullQueries),
-                    useCache: false,
+                  final shiftNotes = await _pullDocsMetadataFirst(
+                    entity: 'shift_notes',
+                    isDelta: isDelta,
+                    fallback: pullQueries,
                   );
                   final synced = await _syncShiftNotes(shiftNotes);
                   // ✅ (2026-08-30) مؤشر مستقل لكل كيان
@@ -1584,10 +1586,10 @@ class AppwriteSyncManager {
 
               try {
                 recordsPulled += await _timePhase('syncBlacklist', () async {
-                  final blacklistDocs = await appwriteService.listBlacklist(
-                    queries: await _entityPullQueries('blacklist',
-                        isDelta: isDelta, fallback: pullQueries),
-                    useCache: false,
+                  final blacklistDocs = await _pullDocsMetadataFirst(
+                    entity: 'blacklist',
+                    isDelta: isDelta,
+                    fallback: pullQueries,
                   );
                   final synced = await _syncBlacklist(blacklistDocs);
                   // ✅ (2026-08-30) مؤشر مستقل لكل كيان
@@ -1612,10 +1614,10 @@ class AppwriteSyncManager {
                 recordsPulled += await _timePhase(
                   'syncPriceAdjustments',
                   () async {
-                    final docs = await appwriteService.listDocuments(
-                      collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
-                      queries: await _entityPullQueries('price_adjustments',
-                          isDelta: isDelta, fallback: pullQueries),
+                    final docs = await _pullDocsMetadataFirst(
+                      entity: 'price_adjustments',
+                      isDelta: isDelta,
+                      fallback: pullQueries,
                     );
                     final synced = await _syncPriceAdjustments(docs);
                     // ✅ (2026-08-30) مؤشر مستقل لكل كيان
@@ -1645,8 +1647,11 @@ class AppwriteSyncManager {
                   recordsPulled += await _timePhase('syncAuditLogs', () async {
                     final docs = await appwriteService.listDocuments(
                       collectionId: AppwriteConfig.auditLogsCollectionId,
-                      queries: await _entityPullQueries('audit_logs',
-                          isDelta: isDelta, fallback: pullQueries),
+                      queries: await _entityPullQueries(
+                        'audit_logs',
+                        isDelta: isDelta,
+                        fallback: pullQueries,
+                      ),
                     );
                     final synced = await _syncAuditLogs(docs);
                     // ✅ (2026-08-30) مؤشر مستقل لكل كيان
@@ -1667,10 +1672,10 @@ class AppwriteSyncManager {
 
               try {
                 recordsPulled += await _timePhase('syncPaymentVoids', () async {
-                  final docs = await appwriteService.listDocuments(
-                    collectionId: AppwriteConfig.paymentVoidsCollectionId,
-                    queries: await _entityPullQueries('payment_voids',
-                        isDelta: isDelta, fallback: pullQueries),
+                  final docs = await _pullDocsMetadataFirst(
+                    entity: 'payment_voids',
+                    isDelta: isDelta,
+                    fallback: pullQueries,
                   );
                   final synced = await _syncPaymentVoids(docs);
                   // ✅ (2026-08-30) مؤشر مستقل لكل كيان
@@ -1696,12 +1701,10 @@ class AppwriteSyncManager {
                 recordsPulled += await _timePhase(
                   'syncSalaryCarryOverLogs',
                   () async {
-                    final docs = await appwriteService.listDocuments(
-                      collectionId: 'salary_carry_over_logs',
-                      queries: await _entityPullQueries(
-                          'salary_carry_over_logs',
-                          isDelta: isDelta,
-                          fallback: pullQueries),
+                    final docs = await _pullDocsMetadataFirst(
+                      entity: 'salary_carry_over_logs',
+                      isDelta: isDelta,
+                      fallback: pullQueries,
                     );
                     final synced = await _syncSalaryCarryOverLogs(docs);
                     // ✅ (2026-08-30) مؤشر مستقل لكل كيان
@@ -2824,6 +2827,12 @@ class AppwriteSyncManager {
     var processed = 0;
     final affectedRoomNumbers = <String>{};
 
+    // ✅ إصلاح N+1 (2026-08-30): جلب كل الحجوزات الموجودة للصفحة الواحدة في
+    // استعلام واحد (local_uuid IN ...) بدل SELECT لكل مستند. الخريطة تُحدَّث
+    // من إعادة الجلب بعد كل upsert، فتبقى صحيحة حتى لو تكرر localUuid داخل
+    // نفس الصفحة (نادر — قد يحدث مع بيانات نسخ احتياطي يدوي).
+    final existingBookingsByUuid = await _prefetchBookingsByUuid(documents);
+
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -2831,9 +2840,11 @@ class AppwriteSyncManager {
 
         // ✅ حفظ حالة الحجز القديمة قبل التحديث لمقارنتها
         final localUuid = (data['localUuid'] as String?) ?? '';
-        final existingBooking = await (database.select(
-          database.bookings,
-        )..where((b) => b.localUuid.equals(localUuid))).getSingleOrNull();
+        final existingBooking =
+            existingBookingsByUuid[localUuid] ??
+            await (database.select(
+              database.bookings,
+            )..where((b) => b.localUuid.equals(localUuid))).getSingleOrNull();
         final oldStatus = existingBooking?.status;
         final oldRoomNumber = existingBooking?.roomNumber;
 
@@ -2875,6 +2886,10 @@ class AppwriteSyncManager {
         final booking = await (database.select(
           database.bookings,
         )..where((b) => b.localUuid.equals(localUuid))).getSingleOrNull();
+        // ✅ N+1: تحديث الخريطة بالحالة بعد الـ upsert لضمان صحة المرات اللاحقة
+        if (booking != null) {
+          existingBookingsByUuid[localUuid] = booking;
+        }
 
         if (booking != null) {
           // ✅ تسجيل تشخيصي بعد السحب: التحقق من حفظ الحقول الحرجة محلياً
@@ -3177,6 +3192,12 @@ class AppwriteSyncManager {
     var processed = 0;
     final deferred = <models.Document>[];
 
+    // ✅ إصلاح N+1 (2026-08-30): جلب كل المدفوعات الموجودة للصفحة في استعلام
+    // واحد بدل SELECT لكل مستند. uuid الذي سبق upsert له في هذه الدفعة يُقرأ
+    // من القاعدة مباشرة لضمان أحدث حالة (الخريطة تُبنى قبل الحلقة فقط).
+    final existingPaymentsByUuid = await _prefetchPaymentsByUuid(documents);
+    final upsertedPaymentUuids = <String>{};
+
     // المرحلة الأولى: معالجة الدفعات
     for (final doc in documents) {
       try {
@@ -3198,7 +3219,9 @@ class AppwriteSyncManager {
 
         // ✅ إصلاح: التحقق من الحذف الناعم + عدم تجاوز البيانات المحلية الأحدث
         final localUuid = (data['localUuid'] as String?) ?? '';
-        final existingPayment = await _getPaymentByLocalUuid(localUuid);
+        final existingPayment = upsertedPaymentUuids.contains(localUuid)
+            ? await _getPaymentByLocalUuid(localUuid)
+            : existingPaymentsByUuid[localUuid];
 
         // منع إعادة إحياء السجلات المحذوفة softly
         if (existingPayment != null && existingPayment.deletedAt != null) {
@@ -3241,6 +3264,7 @@ class AppwriteSyncManager {
           data,
           src: Source.appwrite,
         );
+        upsertedPaymentUuids.add(localUuid);
         // ✅ Wave 7: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
           entity: 'payments',
@@ -3309,6 +3333,11 @@ class AppwriteSyncManager {
     var processed = 0;
     final deferred = <models.Document>[];
 
+    // ✅ إصلاح N+1 (2026-08-30): جلب كل الديون الموجودة للصفحة في استعلام
+    // واحد بدل SELECT لكل مستند (نفس نمط _syncPayments).
+    final existingDebtsByUuid = await _prefetchDebtsByUuid(documents);
+    final upsertedDebtUuids = <String>{};
+
     // المرحلة الأولى: معالجة الديون
     for (final doc in documents) {
       try {
@@ -3317,7 +3346,9 @@ class AppwriteSyncManager {
 
         // ✅ إصلاح: التحقق من الحذف الناعم + عدم تجاوز البيانات المحلية الأحدث
         final localUuid = (data['localUuid'] as String?) ?? '';
-        final existingDebt = await _getDebtByLocalUuid(localUuid);
+        final existingDebt = upsertedDebtUuids.contains(localUuid)
+            ? await _getDebtByLocalUuid(localUuid)
+            : existingDebtsByUuid[localUuid];
 
         // منع إعادة إحياء السجلات المحذوفة softly
         if (existingDebt != null && existingDebt.deletedAt != null) {
@@ -3356,6 +3387,7 @@ class AppwriteSyncManager {
         }
 
         await _adapterRegistry.debts.upsertFromJson(data, src: Source.appwrite);
+        upsertedDebtUuids.add(localUuid);
         processed++;
       } catch (e) {
         // ✅ تأجيل الدين فقط إذا كان الخطأ FOREIGN KEY أو NOT NULL constraint
@@ -4500,6 +4532,68 @@ class AppwriteSyncManager {
     return (database.select(
       database.debts,
     )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
+  }
+
+  // ✅ إصلاح N+1 (2026-08-30): دوال جلب مسبق للدفعة الواحدة من السحب.
+  // استعلام IN واحد لكل صفحة (≤100 مستنداً) بدل SELECT لكل مستند — يلغي
+  // استعلامات القراءة المتكررة في مسارات السحب الأكثر حركة. ملاحظة: uuid
+  // الفارغ غير مضمّن في الفلتر (يطابق سلوك الحلقة الأصلية حيث '' لا يجد شيئاً).
+
+  Future<Map<String, Booking>> _prefetchBookingsByUuid(
+    List<models.Document> documents,
+  ) async {
+    final uuids = <String>{};
+    for (final d in documents) {
+      final v = d.data['localUuid'];
+      if (v is String && v.isNotEmpty) uuids.add(v);
+    }
+    final byUuid = <String, Booking>{};
+    if (uuids.isEmpty) return byUuid;
+    final rows = await (database.select(
+      database.bookings,
+    )..where((t) => t.localUuid.isIn(uuids))).get();
+    for (final row in rows) {
+      byUuid[row.localUuid] = row;
+    }
+    return byUuid;
+  }
+
+  Future<Map<String, Payment>> _prefetchPaymentsByUuid(
+    List<models.Document> documents,
+  ) async {
+    final uuids = <String>{};
+    for (final d in documents) {
+      final v = d.data['localUuid'];
+      if (v is String && v.isNotEmpty) uuids.add(v);
+    }
+    final byUuid = <String, Payment>{};
+    if (uuids.isEmpty) return byUuid;
+    final rows = await (database.select(
+      database.payments,
+    )..where((t) => t.localUuid.isIn(uuids))).get();
+    for (final row in rows) {
+      byUuid[row.localUuid] = row;
+    }
+    return byUuid;
+  }
+
+  Future<Map<String, Debt>> _prefetchDebtsByUuid(
+    List<models.Document> documents,
+  ) async {
+    final uuids = <String>{};
+    for (final d in documents) {
+      final v = d.data['localUuid'];
+      if (v is String && v.isNotEmpty) uuids.add(v);
+    }
+    final byUuid = <String, Debt>{};
+    if (uuids.isEmpty) return byUuid;
+    final rows = await (database.select(
+      database.debts,
+    )..where((t) => t.localUuid.isIn(uuids))).get();
+    for (final row in rows) {
+      byUuid[row.localUuid] = row;
+    }
+    return byUuid;
   }
 
   // ─── GuestInfos ──────────────────────────────────────────────────────────
@@ -5722,6 +5816,95 @@ class AppwriteSyncManager {
     }
   }
 
+  /// ✅ (2026-08-30) الفجوتان 3+4 — طبقة السحب metadata-first.
+  ///
+  /// في وضع delta تُجلب المستندات كما كانت (delta رخيصة أصلاً). أما في
+  /// السحب الكامل (أول مزامنة / فقد watermark / resetSyncState) فبدل تنزيل
+  /// كل المستندات بكل أعمدتها:
+  /// 1) سحب ($id + $updatedAt) فقط لكل مستندات الكولكشن — ترقيم مؤشري،
+  ///    حمولة ~100 بايت للصف.
+  /// 2) مقارنة مع الخريطة المحلية sync_remote_meta → معرّفات المتغيّر فعلاً.
+  /// 3) لا تغييرات → إعادة قائمة فارغة + تسجيل أقصى $updatedAt للخادم
+  ///    "معلقاً" لكيان (يستهلكه checkpoint بعد نجاح الدورة) — صفر جلب كامل.
+  /// 4) هناك تغييرات → جلبها كاملة على دفعات Query.equal($id, chunk).
+  ///
+  /// ملاحظة أمان: المستندات المحذوفة من الخادم تختفي من الـ metadata ولا
+  /// تُجلب — مطابق لسلوك السحب الكامل السابق (لا حذف انعكاسي في السحب).
+  Future<List<models.Document>> _pullDocsMetadataFirst({
+    required String entity,
+    required bool isDelta,
+    required List<String> fallback,
+  }) async {
+    final queries = await _entityPullQueries(
+      entity,
+      isDelta: isDelta,
+      fallback: fallback,
+    );
+    if (isDelta) {
+      final collectionId = AppwriteConfig.collectionIdFor(entity) ?? entity;
+      return appwriteService.listDocuments(
+        collectionId: collectionId,
+        queries: queries,
+        useCache: false,
+      );
+    }
+
+    // ── السحب الكامل: metadata-first ──
+    final collectionId = AppwriteConfig.collectionIdFor(entity);
+    if (collectionId == null) {
+      // كيان بلا خريطة معرّفات — السلوك القديم احتياطاً
+      return appwriteService.listDocuments(
+        collectionId: entity,
+        queries: queries,
+        useCache: false,
+      );
+    }
+
+    final metaDocs = await appwriteService.listDocumentsMetadata(collectionId);
+    final serverMeta = <String, int>{};
+    final unknownTsIds = <String>[];
+    for (final d in metaDocs) {
+      final ts = _extractUpdatedAtSec(d);
+      if (ts == null) {
+        unknownTsIds.add(d.$id);
+      } else {
+        serverMeta[d.$id] = ts;
+      }
+    }
+    var serverMax = 0;
+    for (final ts in serverMeta.values) {
+      if (ts > serverMax) serverMax = ts;
+    }
+    final localMeta = await database.getRemoteMetaMap(collectionId);
+    final changedIds = SyncPullService.computeChangedIds(
+      serverMeta: serverMeta,
+      localMeta: localMeta,
+      unknownTsDocIds: unknownTsIds,
+    );
+
+    if (changedIds.isEmpty) {
+      _logger.info(
+        '🪶 metadata-first($entity): لا تغييرات بين الخادم والمحلي '
+        '(${serverMeta.length} مستنداً) — تخطي السحب الكامل',
+        tag: 'SYNC',
+      );
+      if (serverMax > 0) _pendingMetaServerMaxTs[entity] = serverMax;
+      return const [];
+    }
+
+    _logger.info(
+      '🪶 metadata-first($entity): ${changedIds.length} من '
+      '${serverMeta.length} مستنداً متغيراً — جلب كامل للمتغير فقط',
+      tag: 'SYNC',
+    );
+    final docs = await appwriteService.listDocumentsByIds(
+      collectionId,
+      changedIds,
+    );
+    if (serverMax > 0) _pendingMetaServerMaxTs[entity] = serverMax;
+    return docs;
+  }
+
   /// ✅ (2026-08-30) تسجيل مؤشر السحب الخاص بالكيان بعد نجاح سحبه.
   ///
   /// يُشتق من أقصى `$updatedAt` في الصفحات المسحوبة (سلطة الخادم،
@@ -5736,9 +5919,30 @@ class AppwriteSyncManager {
       final ts = _extractUpdatedAtSec(doc);
       if (ts != null && (maxTs == null || ts > maxTs)) maxTs = ts;
     }
+    // ✅ (2026-08-30) metadata-first: أقصى $updatedAt على الخادم من مرحلة
+    // الـ metadata — يُستهلك هنا فقط (أي بعد نجاح التطبيق). المستندات غير
+    // المتغيرة لم تُجلب، لذا أقصى المستندات المجلوبة قد يكون أقل من الخادم.
+    final pendingServerMax = _pendingMetaServerMaxTs.remove(entity);
+    if (pendingServerMax != null &&
+        (maxTs == null || pendingServerMax > maxTs)) {
+      maxTs = pendingServerMax;
+    }
     if (maxTs == null) return;
     try {
       await _pullService?.updateEntityPullTs(entity, maxTs);
+      // ✅ (2026-08-30) metadata-first: تحديث خريطة $updatedAt البعيدة
+      // للمستندات المطبقة بنجاح (delta أو full) — تُغذّي مقارنة السحب
+      // الكامل القادم. الكتابة هنا = بعد نجاح التطبيق، فلا "معلومة رؤية"
+      // بلا محتوى فعلي محلياً.
+      final collectionId = AppwriteConfig.collectionIdFor(entity);
+      if (collectionId != null && docs.isNotEmpty) {
+        final meta = <String, int>{};
+        for (final doc in docs) {
+          final ts = _extractUpdatedAtSec(doc);
+          if (ts != null) meta[doc.$id] = ts;
+        }
+        await database.upsertRemoteMeta(collectionId, meta);
+      }
     } catch (e) {
       _logger.warning('⚠️ checkpoint($entity) فشل: $e', tag: 'SYNC');
     }
@@ -7791,6 +7995,15 @@ class AppwriteSyncManager {
     try {
       await _pullService?.clearEntityPullTsMap();
     } catch (_) {}
+    // ✅ (2026-08-30) metadata-first: مسح خريطة $updatedAt البعيدة إلزامي
+    // عند التصفير — وإلا فالسحب الكامل التالي سيقارن بخريطة قديمة ويعتقد
+    // أن كل شيء محفوظ ويتخطى الجلب. القصد من التصفير هو سحب شامل.
+    try {
+      await database.clearRemoteMeta();
+    } catch (e) {
+      _logger.warning('⚠️ مسح sync_remote_meta فشل: $e', tag: 'SYNC');
+    }
+    _pendingMetaServerMaxTs.clear();
     _lastSyncTime = null;
     _logger.info('Sync state reset', tag: 'SYNC');
   }
