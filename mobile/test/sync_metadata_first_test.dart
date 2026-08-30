@@ -92,9 +92,7 @@ void main() {
     });
 
     test('الشرائح: 1200 مدخلاً (فوق حد الشريحة 500) تُخزن كلها', () async {
-      final meta = {
-        for (var i = 0; i < 1200; i++) 'doc_$i': 1700000000 + i,
-      };
+      final meta = {for (var i = 0; i < 1200; i++) 'doc_$i': 1700000000 + i};
       await db.upsertRemoteMeta('booking_nights', meta);
 
       final map = await db.getRemoteMetaMap('booking_nights');
@@ -227,14 +225,16 @@ void main() {
   });
 
   group('Schema v65', () {
-    test('قاعدة الذاكرة تُنشأ بأحدث schema ويوجد جدول sync_remote_meta',
-        () async {
-      final db = AppDatabase.forTesting(NativeDatabase.memory());
-      addTearDown(db.close);
-      // أي عملية على الجدول تثبت وجوده وصحة أعمدته
-      await db.upsertRemoteMeta('x', {'d': 1});
-      expect(await db.getRemoteMetaMap('x'), {'d': 1});
-      expect(db.schemaVersion, 65);
-    });
+    test(
+      'قاعدة الذاكرة تُنشأ بأحدث schema ويوجد جدول sync_remote_meta',
+      () async {
+        final db = AppDatabase.forTesting(NativeDatabase.memory());
+        addTearDown(db.close);
+        // أي عملية على الجدول تثبت وجوده وصحة أعمدته
+        await db.upsertRemoteMeta('x', {'d': 1});
+        expect(await db.getRemoteMetaMap('x'), {'d': 1});
+        expect(db.schemaVersion, 65);
+      },
+    );
   });
 }

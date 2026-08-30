@@ -773,7 +773,9 @@ class HotelDayKeyFixService {
                     'entity': 'audit_logs',
                     'op': 'update',
                     'localUuid': item.localUuid,
-                    'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+                    'payload': <String, dynamic>{
+                      'hotelDayKey': item.correctKey,
+                    },
                     'clientTs': now,
                   },
                 )

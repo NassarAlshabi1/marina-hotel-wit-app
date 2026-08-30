@@ -50,8 +50,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// منصة اتصال وهمية — تتجاوز DBus/NetworkManager على مضيف الاختبار.
 class _FakeConnectivityPlatform extends ConnectivityPlatform {
   @override
-  Future<List<ConnectivityResult>> checkConnectivity() async =>
-      [ConnectivityResult.wifi];
+  Future<List<ConnectivityResult>> checkConnectivity() async => [
+    ConnectivityResult.wifi,
+  ];
 }
 
 /// خدمة Appwrite وهمية تُسجّل كل استدعاء وتتحكم في سلوك كل مسار.
@@ -125,9 +126,7 @@ class _FakeAppwriteService implements AppwriteService {
       case 'listDocumentsByIds':
         final collectionId = _argStr(invocation.positionalArguments[0]);
         final ids = (invocation.positionalArguments[1] as List).cast<String>();
-        byIdsRequests
-            .putIfAbsent(collectionId, () => <String>[])
-            .addAll(ids);
+        byIdsRequests.putIfAbsent(collectionId, () => <String>[]).addAll(ids);
         _maybeThrow('listDocumentsByIds:$collectionId');
         _maybeThrow('listDocumentsByIds');
         final all = serverCollections[collectionId] ?? const [];
@@ -157,8 +156,10 @@ class _FakeAppwriteService implements AppwriteService {
         );
         _maybeThrow('listBookingNights');
         return Future<List<models.Document>>.value(
-          List.of(serverCollections[AppwriteConfig.bookingNightsCollectionId] ??
-              const []),
+          List.of(
+            serverCollections[AppwriteConfig.bookingNightsCollectionId] ??
+                const [],
+          ),
         );
 
       // سجل المزامنة السحابي غير حرج — يرمي والمسار يستمر بلا سجل.
@@ -214,9 +215,10 @@ models.Document mkDoc(
   );
 }
 
-String isoOf(int tsSec) =>
-    DateTime.fromMillisecondsSinceEpoch(tsSec * 1000, isUtc: true)
-        .toIso8601String();
+String isoOf(int tsSec) => DateTime.fromMillisecondsSinceEpoch(
+  tsSec * 1000,
+  isUtc: true,
+).toIso8601String();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // الحزمة
@@ -255,9 +257,9 @@ void main() {
   }
 
   Future<int> globalLastPullTs() async {
-    final row =
-        await (db.select(db.syncState)..where((t) => t.id.equals(1)))
-            .getSingleOrNull();
+    final row = await (db.select(
+      db.syncState,
+    )..where((t) => t.id.equals(1))).getSingleOrNull();
     return row?.lastPullTs ?? 0;
   }
 
@@ -293,10 +295,16 @@ void main() {
       expect(fake.callNames, contains('listDocumentsMetadata'));
 
       // 2) صفر جلب مستندات كاملة — لا byIds ولا listDocuments للكولكشن.
-      expect(fake.byIdsRequests['blacklist'], isNull,
-          reason: 'مطابقة تامة يجب ألا تُنزّل أي مستند كامل');
-      expect(fake.listDocumentsQueries['blacklist'], isNull,
-          reason: 'السحب الكامل لا يمر عبر listDocuments عند تطابق meta');
+      expect(
+        fake.byIdsRequests['blacklist'],
+        isNull,
+        reason: 'مطابقة تامة يجب ألا تُنزّل أي مستند كامل',
+      );
+      expect(
+        fake.listDocumentsQueries['blacklist'],
+        isNull,
+        reason: 'السحب الكامل لا يمر عبر listDocuments عند تطابق meta',
+      );
       expect(fake.callNames.where((n) => n == 'listBlacklist'), isEmpty);
 
       // 3) مؤشر الكيان تقدّم إلى أقصى $updatedAt على الخادم (1700001000)
@@ -305,8 +313,10 @@ void main() {
       expect(marks['blacklist'], 1700001000);
 
       // 4) خريطة meta المحلية بقيت كما هي.
-      expect(await db.getRemoteMetaMap('blacklist'),
-          {'A': 1700001000, 'B': 1700000900});
+      expect(await db.getRemoteMetaMap('blacklist'), {
+        'A': 1700001000,
+        'B': 1700000900,
+      });
 
       // 5) لا شيء كُتب في shift_notes.
       final rows = await db.select(db.shiftNotes).get();
@@ -326,14 +336,16 @@ void main() {
 
       expect(result.errorMessage, isNull);
       expect(fake.callNames, contains('listDocumentsMetadata'));
-      expect(fake.byIdsRequests['blacklist'], ['NEW'],
-          reason: 'يجب حصر الجلب الكامل في المستند المتغيّر وحده');
+      expect(
+        fake.byIdsRequests['blacklist'],
+        ['NEW'],
+        reason: 'يجب حصر الجلب الكامل في المستند المتغيّر وحده',
+      );
 
       // المستند الجديد وصل قاعدة البيانات المحلية.
-      final rows =
-          await (db.select(db.shiftNotes)
-                ..where((t) => t.localUuid.equals('NEW')))
-              .get();
+      final rows = await (db.select(
+        db.shiftNotes,
+      )..where((t) => t.localUuid.equals('NEW'))).get();
       expect(rows, hasLength(1));
       // lastModified اشتُق من $updatedAt (1700002000) — بلا lastModified في data.
       expect(rows.first.lastModified, 1700002000);
@@ -345,15 +357,18 @@ void main() {
       expect(marks['blacklist'], 1700002000);
 
       // خريطة meta تحدّثت بالمستند المطبّق فقط (A: القديم، NEW: الجديد).
-      expect(await db.getRemoteMetaMap('blacklist'),
-          {'A': 1700001000, 'NEW': 1700002000});
+      expect(await db.getRemoteMetaMap('blacklist'), {
+        'A': 1700001000,
+        'NEW': 1700002000,
+      });
     });
 
     test('T3: فشل metadata لكولكشن → failedCollections الحقيقي: مؤشره لا '
         'يتقدم، غيره يتقدم (استقلالية)، والعالمي لا يُضبط', () async {
       // blacklist: metadata ترمي (فشل شبكة محاكى).
-      fake.throwOn['listDocumentsMetadata:blacklist'] =
-          Exception('socket timeout');
+      fake.throwOn['listDocumentsMetadata:blacklist'] = Exception(
+        'socket timeout',
+      );
       // rooms: metadata سليمة ومطابقة محلياً (كيان سليم يثبت استقلاليته).
       fake.serverCollections['rooms'] = [mkDoc('R1', 1700005000)];
       await seedLocalMeta(AppwriteConfig.roomsCollectionId, {'R1': 1700005000});
@@ -366,16 +381,25 @@ void main() {
 
       // 1) مؤشر الكيان الفاشل لا يتقدم أبداً.
       final marks = await entityWatermarks();
-      expect(marks.containsKey('blacklist'), false,
-          reason: 'فشل الجلب يجب ألا يقدّم مؤشر blacklist');
+      expect(
+        marks.containsKey('blacklist'),
+        false,
+        reason: 'فشل الجلب يجب ألا يقدّم مؤشر blacklist',
+      );
 
       // 2) مؤشر الكيان السليم تقدّم — استقلالية الكيانات عبر المسار الحقيقي.
-      expect(marks['rooms'], 1700005000,
-          reason: 'فشل blacklist يجب ألا يجمّد rooms');
+      expect(
+        marks['rooms'],
+        1700005000,
+        reason: 'فشل blacklist يجب ألا يجمّد rooms',
+      );
 
       // 3) المؤشر العالمي لم يتقدم (حارس كل-أو-لاشيء).
-      expect(await globalLastPullTs(), 0,
-          reason: 'failedCollections غير فارغة → لا تحديث لـ lastPullTs');
+      expect(
+        await globalLastPullTs(),
+        0,
+        reason: 'failedCollections غير فارغة → لا تحديث لـ lastPullTs',
+      );
 
       // 4) full_sync_complete لم يُضبط — الجهاز لا يدخل delta قبل اكتمال كل شيء.
       expect(await fullSyncDone(), false);
@@ -394,33 +418,41 @@ void main() {
       await runFullPull();
 
       final marks = await entityWatermarks();
-      expect(marks.containsKey('blacklist'), false,
-          reason: 'فشل الجلب الكامل بعد metadata يجب ألا يقدّم المؤشر');
-      expect(await db.getRemoteMetaMap('blacklist'), isEmpty,
-          reason: r'لا يحق تخزين $updatedAt قبل تطبيق المحتوى فعلياً');
+      expect(
+        marks.containsKey('blacklist'),
+        false,
+        reason: 'فشل الجلب الكامل بعد metadata يجب ألا يقدّم المؤشر',
+      );
+      expect(
+        await db.getRemoteMetaMap('blacklist'),
+        isEmpty,
+        reason: r'لا يحق تخزين $updatedAt قبل تطبيق المحتوى فعلياً',
+      );
       expect(await fullSyncDone(), false);
       expect(await globalLastPullTs(), 0);
     });
 
-    test('T5: دورة كاملة ناجحة → full_sync_complete = 1 و lastPullTs يتقدم',
-        () async {
-      fake.serverCollections['blacklist'] = [
-        mkDoc('A', 1700001000, {'name': 'شخص-أ'}),
-      ];
-      // المحلي يعرف A → صفر جلب كامل، والدورة ناجحة تماماً.
-      await seedLocalMeta('blacklist', {'A': 1700001000});
+    test(
+      'T5: دورة كاملة ناجحة → full_sync_complete = 1 و lastPullTs يتقدم',
+      () async {
+        fake.serverCollections['blacklist'] = [
+          mkDoc('A', 1700001000, {'name': 'شخص-أ'}),
+        ];
+        // المحلي يعرف A → صفر جلب كامل، والدورة ناجحة تماماً.
+        await seedLocalMeta('blacklist', {'A': 1700001000});
 
-      final result = await runFullPull();
+        final result = await runFullPull();
 
-      expect(result.errorMessage, isNull);
-      expect(await fullSyncDone(), true);
-      expect(await globalLastPullTs(), greaterThan(0));
-      // idempotency: دورة ثانية ناجحة تحافظ على العلم (بإلغاء الحارس الزمني
-      // لأن الدورتين متلاصقتان داخل الاختبار).
-      manager.resetPullThrottleForTesting();
-      await runFullPull();
-      expect(await fullSyncDone(), true);
-    });
+        expect(result.errorMessage, isNull);
+        expect(await fullSyncDone(), true);
+        expect(await globalLastPullTs(), greaterThan(0));
+        // idempotency: دورة ثانية ناجحة تحافظ على العلم (بإلغاء الحارس الزمني
+        // لأن الدورتين متلاصقتان داخل الاختبار).
+        manager.resetPullThrottleForTesting();
+        await runFullPull();
+        expect(await fullSyncDone(), true);
+      },
+    );
 
     test('T6: سقف booking_nights = initialBookingNightsPullLimit (1000) في '
         'السحب الكامل، وnull في delta', () async {
@@ -432,8 +464,10 @@ void main() {
       // 1) دورة أولى: سحب كامل → maxRecords = 1000.
       await runFullPull();
       expect(fake.lastBookingNightsNamedArgs, isNotNull);
-      expect(fake.lastBookingNightsNamedArgs![#maxRecords],
-          SyncConstants.initialBookingNightsPullLimit);
+      expect(
+        fake.lastBookingNightsNamedArgs![#maxRecords],
+        SyncConstants.initialBookingNightsPullLimit,
+      );
 
       // 2) دورة ثانية: full_sync_complete=1 و lastPullTs>0 → delta.
       fake.reset();
@@ -443,8 +477,11 @@ void main() {
       ];
       await runFullPull();
       expect(fake.lastBookingNightsNamedArgs, isNotNull);
-      expect(fake.lastBookingNightsNamedArgs![#maxRecords], isNull,
-          reason: 'delta لـ booking_nights لا يجب أن يقيّد بعدُ');
+      expect(
+        fake.lastBookingNightsNamedArgs![#maxRecords],
+        isNull,
+        reason: 'delta لـ booking_nights لا يجب أن يقيّد بعدُ',
+      );
     });
 
     test('T7: audit_logs مستبعدة تماماً من دورة السحب (محلية فقط)', () async {
@@ -459,9 +496,12 @@ void main() {
         fake.listDocumentsQueries.keys,
         isNot(contains(AppwriteConfig.auditLogsCollectionId)),
       );
-      expect(fake.callNames.where((n) => n.toLowerCase().contains('audit')),
-          isEmpty,
-          reason: 'auditLogsSyncEnabled=false → لا مسار سحب لـ audit_logs إطلاقاً');
+      expect(
+        fake.callNames.where((n) => n.toLowerCase().contains('audit')),
+        isEmpty,
+        reason:
+            'auditLogsSyncEnabled=false → لا مسار سحب لـ audit_logs إطلاقاً',
+      );
       // دفاعي: الثابت نفسه false — لو تغيّر، صار هذا الاختبار بلا معنى.
       expect(SyncConstants.auditLogsSyncEnabled, false);
     });
@@ -484,8 +524,11 @@ void main() {
       final throttled = await runFullPull();
       expect(throttled.status, SyncStatus.idle);
       expect(throttled.errorMessage, contains('minimum pull gap'));
-      expect(fake.callNames, isEmpty,
-          reason: 'داخل فاصل الدقيقتين لا يُسمح بأي استدعاء شبكة');
+      expect(
+        fake.callNames,
+        isEmpty,
+        reason: 'داخل فاصل الدقيقتين لا يُسمح بأي استدعاء شبكة',
+      );
 
       // pullRemoteChanges كذلك يُخَطّى (يعيد true — ليس فشلاً).
       expect(await manager.pullRemoteChanges(), isTrue);
@@ -500,8 +543,11 @@ void main() {
       manager.resetPullThrottleForTesting();
       final resumed = await runFullPull();
       expect(resumed.errorMessage, isNull);
-      expect(fake.callNames, contains('listDocuments'),
-          reason: 'بعد مرور الفاصل استُؤنف السحب — بوضع delta');
+      expect(
+        fake.callNames,
+        contains('listDocuments'),
+        reason: 'بعد مرور الفاصل استُؤنف السحب — بوضع delta',
+      );
       expect(fake.listDocumentsQueries['blacklist'], isNotNull);
       expect(
         fake.callNames.where((n) => n == 'listDocumentsMetadata'),
@@ -539,9 +585,11 @@ void main() {
       // cutoff = 1700001000 − 15 = 1700000985 (نافذة الأمان).
       expect(queries.first, contains(isoOf(1700001000 - 15)));
       // وفي delta لا تُستدعى طبقة metadata إطلاقاً (delta رخيصة أصلاً).
-      expect(fake.callNames.where((n) => n == 'listDocumentsMetadata'),
-          isEmpty,
-          reason: 'delta لا يحتاج مقارنة metadata — فلتر زمني مباشر');
+      expect(
+        fake.callNames.where((n) => n == 'listDocumentsMetadata'),
+        isEmpty,
+        reason: 'delta لا يحتاج مقارنة metadata — فلتر زمني مباشر',
+      );
     });
   });
 }

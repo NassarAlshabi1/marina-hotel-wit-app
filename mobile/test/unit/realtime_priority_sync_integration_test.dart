@@ -46,8 +46,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeConnectivityPlatform extends ConnectivityPlatform {
   @override
-  Future<List<ConnectivityResult>> checkConnectivity() async =>
-      [ConnectivityResult.wifi];
+  Future<List<ConnectivityResult>> checkConnectivity() async => [
+    ConnectivityResult.wifi,
+  ];
 
   /// في M4 يُجرى فحص الاتصال داخل fakeAsync — نجعله دقيقة عبر microtask.
   @override
@@ -192,8 +193,11 @@ void main() {
       expect(second.status, SyncStatus.idle);
       expect(second.errorMessage, contains('Pull skipped: minimum pull gap'));
       // السحب لم يحدث فعلاً — لا استدعاءات شبكة metadata.
-      expect(fake.callNames.where((n) => n == 'listDocumentsMetadata'), isEmpty,
-          reason: 'الحارس منع السحب العادي المتقارب');
+      expect(
+        fake.callNames.where((n) => n == 'listDocumentsMetadata'),
+        isEmpty,
+        reason: 'الحارس منع السحب العادي المتقارب',
+      );
     });
 
     test('M2: realtimePriority يتجاوز الحارس → دورة سحب فعلية ثانية', () async {
@@ -211,12 +215,18 @@ void main() {
         realtimePriority: true,
       );
 
-      expect(second.isSuccess, isTrue,
-          reason: 'realtimePriority يتجاوز حارس الدقيقتين');
+      expect(
+        second.isSuccess,
+        isTrue,
+        reason: 'realtimePriority يتجاوز حارس الدقيقتين',
+      );
       // بعد اكتمال أول سحب، الدورة الثانية تعمل بوضع delta (listDocuments)
       // لا metadata-first — المهم أنها **حدثت فعلاً**.
-      expect(fake.callNames, contains('listDocuments'),
-          reason: 'السحب الثاني (delta) حدث فعلاً');
+      expect(
+        fake.callNames,
+        contains('listDocuments'),
+        reason: 'السحب الثاني (delta) حدث فعلاً',
+      );
       expect(second.pullSkipped, isFalse);
     });
 
@@ -232,79 +242,101 @@ void main() {
       // push+pull عادي متقارب: الحارس يخفض pull ويكمل push (الoutbox فارغ).
       final result = await manager.sync(push: true, pull: true);
 
-      expect(result.isSuccess, isTrue,
-          reason: 'دورة الرفع فقط اكتملت بنجاح (outbox فارغ)');
-      expect(result.pullSkipped, isTrue,
-          reason: 'علامة pullSkipped إلزامية كي يُتابع مدخل Realtime');
-      expect(fake.callNames.where((n) => n == 'listDocumentsMetadata'), isEmpty,
-          reason: 'لا سحب فعلي في هذه الدورة');
+      expect(
+        result.isSuccess,
+        isTrue,
+        reason: 'دورة الرفع فقط اكتملت بنجاح (outbox فارغ)',
+      );
+      expect(
+        result.pullSkipped,
+        isTrue,
+        reason: 'علامة pullSkipped إلزامية كي يُتابع مدخل Realtime',
+      );
+      expect(
+        fake.callNames.where((n) => n == 'listDocumentsMetadata'),
+        isEmpty,
+        reason: 'لا سحب فعلي في هذه الدورة',
+      );
     });
   });
 
-  group('M4: الحلقة الكاملة — حدث Realtime → سحب فعلي عبر المدير الحقيقي',
-      () {
+  group('M4: الحلقة الكاملة — حدث Realtime → سحب فعلي عبر المدير الحقيقي', () {
     setUp(resetState);
 
-    test('حدث من جهاز آخر يُطلق sync(realtimePriority) حقيقية ويتجاوز الحارس',
-        () {
-      fakeAsync((async) {
-        SharedPreferences.setMockInitialValues({});
-        fake.reset();
-        manager.resetPullThrottleForTesting();
-        realtime.resetForTesting();
-        realtime.currentDeviceIdForTesting = 'device-A';
-        realtime.debugEventDebounce = const Duration(milliseconds: 5);
+    test(
+      'حدث من جهاز آخر يُطلق sync(realtimePriority) حقيقية ويتجاوز الحارس',
+      () {
+        fakeAsync((async) {
+          SharedPreferences.setMockInitialValues({});
+          fake.reset();
+          manager.resetPullThrottleForTesting();
+          realtime.resetForTesting();
+          realtime.currentDeviceIdForTesting = 'device-A';
+          realtime.debugEventDebounce = const Duration(milliseconds: 5);
 
-        // المحتوى الخادمي: مستند يحمل أقصى $updatedAt معروفاً.
-        fake.serverCollections['blacklist'] = [mkDoc('A', 1700001000)];
+          // المحتوى الخادمي: مستند يحمل أقصى $updatedAt معروفاً.
+          fake.serverCollections['blacklist'] = [mkDoc('A', 1700001000)];
 
-        // ربط الحلقة كما في main.dart تماماً.
-        var triggerCalls = 0;
-        var lastTriggerResult = true;
-        realtime.setSyncTrigger(() async {
-          triggerCalls++;
-          final result = await manager.sync(
-            push: true,
-            pull: true,
-            realtimePriority: true,
+          // ربط الحلقة كما في main.dart تماماً.
+          var triggerCalls = 0;
+          var lastTriggerResult = true;
+          realtime.setSyncTrigger(() async {
+            triggerCalls++;
+            final result = await manager.sync(
+              push: true,
+              pull: true,
+              realtimePriority: true,
+            );
+            lastTriggerResult = result.isSuccess && !result.pullSkipped;
+            return lastTriggerResult;
+          });
+
+          // دورة سحب عادية سابقة (تضبط ساعة الحارس — تماماً كالواقع).
+          unawaited(manager.sync(push: false, pull: true));
+          async.flushMicrotasks();
+          async.elapse(const Duration(milliseconds: 10));
+          async.flushMicrotasks();
+          expect(
+            fake.callNames.where((n) => n == 'listDocumentsMetadata'),
+            isNotEmpty,
           );
-          lastTriggerResult = result.isSuccess && !result.pullSkipped;
-          return lastTriggerResult;
+          fake.reset(); // تعقّب ما يحدث بعد الحدث فقط
+
+          // ✅ الحدث: جهاز B أنشأ حجزاً — خلال ثوانٍ يجب أن يُسحب فعلياً.
+          realtime.handleRemoteDataChange(
+            events: ['databases.main.collections.bookings.documents.create'],
+            payload: {
+              'device_id': 'device-B',
+              r'$updatedAt': '2026-08-31T12:00:00.000Z',
+            },
+          );
+
+          async.elapse(const Duration(milliseconds: 20));
+          async.flushMicrotasks();
+
+          expect(triggerCalls, 1, reason: 'الحدث أطلق دورة sync واحدة');
+          expect(
+            lastTriggerResult,
+            isTrue,
+            reason:
+                'الدورة نجحت والسحب تم (بلا pullSkipped) رغم أن الدورة '
+                'السابقة انتهت قبل ثوانٍ — تجاوز الحارس عبر realtimePriority',
+          );
+          // الدورة المُطلَقة بالحدث تعمل بوضع delta (listDocuments) لأن أول
+          // سحب اكتمل قبلها — المهم أنها حدثت فعلاً بتجاوز الحارس.
+          expect(
+            fake.callNames,
+            contains('listDocuments'),
+            reason: 'سحب delta حقيقي حدث نتيجة الحدث مباشرة',
+          );
+          expect(
+            realtime.hasRemoteChanges.value,
+            isFalse,
+            reason: 'السحب نجح → شارة "تغييرات معلقة" صُفّرت',
+          );
+          expect(realtime.pendingRemoteChangesCount.value, 0);
         });
-
-        // دورة سحب عادية سابقة (تضبط ساعة الحارس — تماماً كالواقع).
-        unawaited(manager.sync(push: false, pull: true));
-        async.flushMicrotasks();
-        async.elapse(const Duration(milliseconds: 10));
-        async.flushMicrotasks();
-        expect(fake.callNames.where((n) => n == 'listDocumentsMetadata'),
-            isNotEmpty);
-        fake.reset(); // تعقّب ما يحدث بعد الحدث فقط
-
-        // ✅ الحدث: جهاز B أنشأ حجزاً — خلال ثوانٍ يجب أن يُسحب فعلياً.
-        realtime.handleRemoteDataChange(
-          events: ['databases.main.collections.bookings.documents.create'],
-          payload: {
-            'device_id': 'device-B',
-            r'$updatedAt': '2026-08-31T12:00:00.000Z',
-          },
-        );
-
-        async.elapse(const Duration(milliseconds: 20));
-        async.flushMicrotasks();
-
-        expect(triggerCalls, 1, reason: 'الحدث أطلق دورة sync واحدة');
-        expect(lastTriggerResult, isTrue,
-            reason: 'الدورة نجحت والسحب تم (بلا pullSkipped) رغم أن الدورة '
-                'السابقة انتهت قبل ثوانٍ — تجاوز الحارس عبر realtimePriority');
-        // الدورة المُطلَقة بالحدث تعمل بوضع delta (listDocuments) لأن أول
-        // سحب اكتمل قبلها — المهم أنها حدثت فعلاً بتجاوز الحارس.
-        expect(fake.callNames, contains('listDocuments'),
-            reason: 'سحب delta حقيقي حدث نتيجة الحدث مباشرة');
-        expect(realtime.hasRemoteChanges.value, isFalse,
-            reason: 'السحب نجح → شارة "تغييرات معلقة" صُفّرت');
-        expect(realtime.pendingRemoteChangesCount.value, 0);
-      });
-    });
+      },
+    );
   });
 }

@@ -51,7 +51,8 @@ typedef RemoteChangePull = Future<bool> Function();
 class AppwriteRealtimeSync {
   factory AppwriteRealtimeSync() => _instance;
   AppwriteRealtimeSync._internal();
-  static final AppwriteRealtimeSync _instance = AppwriteRealtimeSync._internal();
+  static final AppwriteRealtimeSync _instance =
+      AppwriteRealtimeSync._internal();
 
   Realtime? _realtime;
   RealtimeSubscription? _subscription;
@@ -100,7 +101,8 @@ class AppwriteRealtimeSync {
     // ❌ hotel_day_ledger - محلي فقط
     AppwriteConfig.priceAdjustmentsCollectionId,
     AppwriteConfig.bookingPriceAdjustmentsCollectionId,
-    if (SyncConstants.auditLogsSyncEnabled) AppwriteConfig.auditLogsCollectionId,
+    if (SyncConstants.auditLogsSyncEnabled)
+      AppwriteConfig.auditLogsCollectionId,
     AppwriteConfig.paymentVoidsCollectionId,
   ];
 
@@ -276,7 +278,8 @@ class AppwriteRealtimeSync {
       // ✅ (2026-08-31) سحب فعلي خفيف دوري — الأجهزة التي يفشل عندها WS
       // لا تبقى بلا تحديثات حتى auto-sync التالي.
       final interval =
-          debugFallbackPullInterval ?? SyncConstants.realtimeFallbackPullInterval;
+          debugFallbackPullInterval ??
+          SyncConstants.realtimeFallbackPullInterval;
       if (elapsed >= interval) {
         elapsed = Duration.zero;
         dlog('📡 Realtime: fallback periodic pull triggered');
@@ -291,10 +294,7 @@ class AppwriteRealtimeSync {
   }
 
   void _onEvent(RealtimeMessage message) {
-    handleRemoteDataChange(
-      events: message.events,
-      payload: message.payload,
-    );
+    handleRemoteDataChange(events: message.events, payload: message.payload);
   }
 
   /// نواة معالجة الحدث (مفصولة عن RealtimeMessage لتكون قابلة للاختبار
@@ -436,7 +436,8 @@ class AppwriteRealtimeSync {
         _schedulePull();
       } else {
         dlog(
-          () => '📡 Realtime: pull skipped ×$_consecutiveSkips — '
+          () =>
+              '📡 Realtime: pull skipped ×$_consecutiveSkips — '
               'waiting for next event',
         );
       }
