@@ -839,6 +839,26 @@ class AppwriteSyncManager {
       }
     }
 
+    // ✅ (2026-08-30) الحارس المركزي: فاصل أدنى بين دورتي سحب من أي مدخل.
+    // يُطبَّق بعد حارس Outbox وقبل القفل — أرخص قرار وأبكر خروج.
+    if (pull && !_canStartPull()) {
+      _logger.debug(
+        'Pull skipped: minimum pull gap (${SyncConstants.minPullGap.inMinutes}m) '
+        'not reached since last completed sync',
+        tag: 'SYNC',
+      );
+      if (push) {
+        pull = false;
+      } else {
+        return SyncResult(
+          status: SyncStatus.idle,
+          errorMessage: 'Pull skipped: minimum pull gap not reached',
+          timestamp: DateTime.now(),
+          duration: Duration.zero,
+        );
+      }
+    }
+
     if (_currentStatus == SyncStatus.syncing) {
       _logger.warning('Sync already in progress', tag: 'SYNC');
       return SyncResult(
@@ -5780,6 +5800,32 @@ class AppwriteSyncManager {
     return _pullService?.getLastPullTs() ?? 0;
   }
 
+  /// ✅ (2026-08-30) حارس مركزي يمنع عواصف السحب من أي مدخل
+  /// (dashboard / session / أزرار يدوية / مؤقتات).
+  ///
+  /// ⚠️ الساعة المستخدمة هي **وقت الجهاز لآخر مزامنة مكتملة**
+  /// (`_lastSyncTime` المحفوظة في prefs باسم appwrite_last_sync_time) —
+  /// وليس `lastPullTs`؛ لأن `lastPullTs` يُشتق من أقصى `$updatedAt`
+  /// على الخادم (سلطة الخادم لفلتر delta) فليس زمنَ سحبٍ، وببيانات خادم
+  /// هادئة سيكون قديماً دائماً وبالتالي لا يمنع شيئاً، ومع انحراف ساعات
+  /// قد يحجب السحب ساعات. الفاصل الحالي: SyncConstants.minPullGap.
+  ///
+  /// ملاحظة: `_lastSyncTime` تُحدَّث عند اكتمال أي دورة مزامنة (حتى
+  /// push-only) — هذا مقصود: نشاط مزامنة حديث يعني أن السحب عبر مدخل آخر
+  /// كان قريباً أو على وشك الحدوث.
+  bool _canStartPull() {
+    final last = _lastSyncTime;
+    if (last == null) return true;
+    return DateTime.now().difference(last) >= SyncConstants.minPullGap;
+  }
+
+  /// ✅ (2026-08-30) إعادة ضبط حارس السحب للاختبارات (تسلسل دورات متقاربة
+  /// داخل الاختبار يجب ألا يُقيَّد بفاصل الدقيقتين).
+  @visibleForTesting
+  void resetPullThrottleForTesting() {
+    _lastSyncTime = null;
+  }
+
   /// تحديث آخر timestamp لسحب البيانات في جدول SyncState
   /// ✅ نستخدم insertOnConflictUpdate بدلاً من update فقط
   /// لأن صف SyncState (id=1) قد لا يكون موجوداً بعد، مما يجعل UPDATE
@@ -6010,6 +6056,17 @@ class AppwriteSyncManager {
   /// Guarded by [SyncLocks.appwriteSyncLock] to prevent concurrent pulls.
   /// All collection syncs are wrapped in a single database transaction for atomicity.
   Future<bool> pullRemoteChanges() async {
+    // ✅ (2026-08-30) الحارس المركزي — نفس سياسة sync(): فاصل أدنى بين
+    // دورتي سحب. العائد true (لا failure) حتى لا يعتبره المستدعي فشلاً.
+    if (!_canStartPull()) {
+      _logger.debug(
+        'Pull skipped: minimum pull gap '
+        '(${SyncConstants.minPullGap.inMinutes}m) not reached',
+        tag: 'SYNC',
+      );
+      return true;
+    }
+
     final pendingLocalChanges = await outboxDao.countUndeliveredToPrimary();
     if (!OutboxPullPolicy.canPull(
       undeliveredOutboxCount: pendingLocalChanges,

@@ -124,6 +124,14 @@ class SyncConstants {
   /// مفتاح SharedPreferences لحفظ وقت آخر سحب تلقائي عند فتح التطبيق
   static const String lastAppOpenPullKey = 'last_app_open_pull_epoch_ms';
 
+  /// ✅ (2026-08-30) حارس مركزي: الفاصل الأدنى بين دورتي سحب من أي مدخل
+  /// (شاشة/جلسة/زر/مؤقت). يُقاس من **وقت الجهاز لآخر مزامنة مكتملة**
+  /// (appwrite_last_sync_time) — وليس من lastPullTs لأنه أقصى $updatedAt
+  /// على الخادم (زمن الخادم) وليس زمن السحب، فلا يصلح ساعةً للتقييد.
+  /// المؤقت الدوري (15 دقيقة) والشاشات (ساعة) يتجاوزانه تلقائياً؛ دوره
+  /// حماية أخيرة من عواصف السحب من مداخل غير متوقعة.
+  static const Duration minPullGap = Duration(minutes: 2);
+
   static const int googleDriveDefaultShardBytes = 4 * 1024 * 1024;
   static const int estimatedBytesPerDeltaChange = 500;
 }

@@ -470,6 +470,15 @@ class SyncPullService {
     // **الأداء**: هذه القراءة من SQLite سريعة جداً (single row by PK)
     // وتحدث مرة واحدة في بداية كل دورة سحب (لا تؤثر على الأداء).
     final isFullSyncDone = await isFullSyncComplete();
+    // ✅ (2026-08-30) تشخيص أحادي السطر (SYNC_DIAGNOSTIC): لو لاحظت "Full
+    // Sync" في كل دورة فالسبب واحد من هذين المفتاحين — fullSyncComplete=0
+    // (لم يكتمل full sync بنجاح أو فشل كولكشن) أو lastPullTs<=0.
+    _logger.debug(
+      'SYNC_DIAGNOSTIC: lastPullTs=$lastPullTs, '
+      'fullSyncComplete=$isFullSyncDone → '
+      '${(!isFullSyncDone || lastPullTs <= 0) ? 'FULL pull' : 'delta pull'}',
+      tag: 'SYNC_DIAGNOSTIC',
+    );
     if (!isFullSyncDone) {
       // الجهاز في مرحلة bootstrap — نُجبر full fetch
       return [];
