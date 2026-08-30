@@ -971,7 +971,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const Expanded(
                 child: Text(
                   'استلامات المستخدمين الآخرين في النوبات',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
                 ),
               ),
               const Text(
@@ -991,7 +991,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           else if (summaries.isEmpty)
             const Text(
               'لا توجد استلامات منسوبة إلى نوبات مسجلة بعد',
-              style: TextStyle(fontSize: 11, color: Colors.grey),
+              style: TextStyle(fontSize: 10, color: Colors.grey),
             )
           else
             ...summaries
