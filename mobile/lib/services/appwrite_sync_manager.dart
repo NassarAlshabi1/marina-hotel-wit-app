@@ -1271,9 +1271,23 @@ class AppwriteSyncManager {
                       tag: 'SYNC',
                     );
                   }
+                  // ✅ (2026-08-30) سقف السحب الكامل/الأولي لـ booking_nights
+                  // (SyncConstants.initialBookingNightsPullLimit = 1000).
+                  // السحب الكامل غير المحدود كان ينزّل عشرات الآلاف من الليالي
+                  // التاريخية — نفس سياسة pullRemoteChanges الآن في كلا المسارين.
+                  final bool isNightsFullPull = !isDelta;
+                  if (isNightsFullPull) {
+                    _logger.info(
+                      '📥 سحب كامل لـ booking_nights — تحديد ${SyncConstants.initialBookingNightsPullLimit} سجل كحد أقصى',
+                      tag: 'SYNC',
+                    );
+                  }
                   final bookingNights = await appwriteService.listBookingNights(
                     queries: effectiveNightsPullQueries,
                     useCache: false,
+                    maxRecords: isNightsFullPull
+                        ? SyncConstants.initialBookingNightsPullLimit
+                        : null,
                   );
                   final synced = await _syncBookingNights(bookingNights);
                   // ✅ Sync Safety Fix (2026-08-10): تتبّع max($updatedAt) الخاص
@@ -1561,24 +1575,28 @@ class AppwriteSyncManager {
                 );
               }
 
-              try {
-                recordsPulled += await _timePhase('syncAuditLogs', () async {
-                  final docs = await appwriteService.listDocuments(
-                    collectionId: AppwriteConfig.auditLogsCollectionId,
-                    queries: pullQueries,
+              // ✅ (2026-08-30) audit_logs مستبعد من مزامنة Appwrite — محلي فقط.
+              // يوفّر سحب سجلات عالية الحركة والحجم لا تحتاجها الأجهزة الأخرى.
+              if (SyncConstants.auditLogsSyncEnabled) {
+                try {
+                  recordsPulled += await _timePhase('syncAuditLogs', () async {
+                    final docs = await appwriteService.listDocuments(
+                      collectionId: AppwriteConfig.auditLogsCollectionId,
+                      queries: pullQueries,
+                    );
+                    final synced = await _syncAuditLogs(docs);
+                    _logger.debug('Synced $synced audit logs', tag: 'SYNC');
+                    return synced;
+                  }, phaseMs);
+                } catch (e, st) {
+                  failedCollections.add('audit_logs');
+                  _logger.error(
+                    '❌ فشل سحب audit_logs',
+                    error: e,
+                    stackTrace: st,
+                    tag: 'SYNC',
                   );
-                  final synced = await _syncAuditLogs(docs);
-                  _logger.debug('Synced $synced audit logs', tag: 'SYNC');
-                  return synced;
-                }, phaseMs);
-              } catch (e, st) {
-                failedCollections.add('audit_logs');
-                _logger.error(
-                  '❌ فشل سحب audit_logs',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC',
-                );
+                }
               }
 
               try {
@@ -3607,6 +3625,16 @@ class AppwriteSyncManager {
         case 'payment_voids':
           return await _processPaymentVoidEntry(entry);
         case 'audit_logs':
+          // ✅ (2026-08-30) audit_logs مستبعد من رفع Appwrite — محلي فقط.
+          // نُعدّ المدخلة "مُسلَّمة" (return true) لتفادي تراكم مدخلات قديمة
+          // في الـ outbox بحالة failed/dead بعد تفعيل الاستبعاد.
+          if (!SyncConstants.auditLogsSyncEnabled) {
+            _logger.debug(
+              '⏭️ audit_logs مستبعد من الرفع — إسقاط مدخلة ${entry.localUuid}',
+              tag: 'SYNC',
+            );
+            return true;
+          }
           return await _processAuditLogEntry(entry);
         case 'app_users':
           return await _processAppUserEntry(entry);
@@ -5905,11 +5933,13 @@ class AppwriteSyncManager {
               nightsPullTs,
               remoteEpochIsMillis: remoteEpochIsMillis,
             );
-            // ✅ عند السحب الأولي (nightsPullTs == 0): تحديد 1000 سجل كحد أقصى
+            // ✅ عند السحب الكامل/الأولي: تحديد السجلات بحد أقصى موحّد
+            // (SyncConstants.initialBookingNightsPullLimit = 1000).
             // booking_nights قد يحوي عشرات الآلاف من السجلات (ليالية تاريخية)
             // مما يسبب بطء شديد في التثبيت الأول + استهلاك ذاكرة كبير.
             // السحب التزايدي اللاحق يجلب التغييرات الجديدة فقط.
-            const int kInitialBookingNightsLimit = 1000;
+            const int kInitialBookingNightsLimit =
+                SyncConstants.initialBookingNightsPullLimit;
             final bool isInitialPull = nightsPullTs == 0;
             // نطبق نفس سياسة السحب الكامل على booking_nights: لا ننزّل
             // tombstones إلى قاعدة البيانات المحلية عند التهيئة الأولى أو
@@ -5917,16 +5947,17 @@ class AppwriteSyncManager {
             final effectiveNightsPullQueries = (!isDelta || isInitialPull)
                 ? SyncPullService.buildFullSyncQueries()
                 : nightsDeltaQ;
-            if (isInitialPull) {
+            final bool isNightsFullPull = !isDelta || isInitialPull;
+            if (isNightsFullPull) {
               _logger.info(
-                '📥 السحب الأولي لـ booking_nights — تحديد $kInitialBookingNightsLimit سجل كحد أقصى',
+                '📥 السحب الكامل/الأولي لـ booking_nights — تحديد $kInitialBookingNightsLimit سجل كحد أقصى',
                 tag: 'SYNC',
               );
             }
             final bookingNights = await appwriteService.listBookingNights(
               queries: effectiveNightsPullQueries,
               useCache: false,
-              maxRecords: isInitialPull ? kInitialBookingNightsLimit : null,
+              maxRecords: isNightsFullPull ? kInitialBookingNightsLimit : null,
             );
             _logger.info(
               '📊 تم جلب ${bookingNights.length} سجل booking_nights'
@@ -6004,19 +6035,22 @@ class AppwriteSyncManager {
             );
           }
 
-          try {
-            final auditLogs = await appwriteService.listDocuments(
-              collectionId: AppwriteConfig.auditLogsCollectionId,
-              queries: pullQueries,
-            );
-            recordsPulled += await _syncAuditLogs(auditLogs);
-          } catch (e, st) {
-            _logger.error(
-              '❌ فشل سحب audit_logs (pullRemoteChanges)',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC',
-            );
+          // ✅ (2026-08-30) audit_logs مستبعد من مزامنة Appwrite — محلي فقط.
+          if (SyncConstants.auditLogsSyncEnabled) {
+            try {
+              final auditLogs = await appwriteService.listDocuments(
+                collectionId: AppwriteConfig.auditLogsCollectionId,
+                queries: pullQueries,
+              );
+              recordsPulled += await _syncAuditLogs(auditLogs);
+            } catch (e, st) {
+              _logger.error(
+                '❌ فشل سحب audit_logs (pullRemoteChanges)',
+                error: e,
+                stackTrace: st,
+                tag: 'SYNC',
+              );
+            }
           }
 
           try {

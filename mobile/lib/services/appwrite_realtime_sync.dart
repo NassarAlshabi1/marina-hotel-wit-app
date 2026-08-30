@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'appwrite_config.dart';
 import 'appwrite_service.dart';
 import 'crashlytics_service.dart';
+import 'sync_constants.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class AppwriteRealtimeSync {
@@ -34,7 +35,9 @@ class AppwriteRealtimeSync {
   // ✅ تحسين: حماية من الفيضان (Flood Protection)
   bool _hasPendingChanges = false;
 
-  static const _collections = [
+  // ✅ (2026-08-30) audit_logs مستبعد من اشتراكات Realtime
+  // (SyncConstants.auditLogsSyncEnabled = false) — لا أحداث ولا سحب له.
+  static final List<String> _collections = [
     AppwriteConfig.roomsCollectionId,
     AppwriteConfig.bookingsCollectionId,
     AppwriteConfig.bookingNotesCollectionId,
@@ -52,7 +55,7 @@ class AppwriteRealtimeSync {
     // ❌ hotel_day_ledger - محلي فقط
     AppwriteConfig.priceAdjustmentsCollectionId,
     AppwriteConfig.bookingPriceAdjustmentsCollectionId,
-    AppwriteConfig.auditLogsCollectionId,
+    if (SyncConstants.auditLogsSyncEnabled) AppwriteConfig.auditLogsCollectionId,
     AppwriteConfig.paymentVoidsCollectionId,
   ];
 

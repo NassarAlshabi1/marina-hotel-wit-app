@@ -5,6 +5,7 @@ import '../utils/hotel_time_engine.dart';
 import '../utils/time.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
+import 'sync_constants.dart';
 
 /// ✅ خدمة إصلاح hotelDayKey لجميع الجداول
 ///
@@ -759,21 +760,26 @@ class HotelDayKeyFixService {
           );
         }
 
-        final outboxDao = OutboxDao(db);
-        final now = Time.nowEpoch();
-        await outboxDao.mergeBatch(
-          toFix
-              .map(
-                (item) => <String, dynamic>{
-                  'entity': 'audit_logs',
-                  'op': 'update',
-                  'localUuid': item.localUuid,
-                  'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
-                  'clientTs': now,
-                },
-              )
-              .toList(),
-        );
+        // ✅ (2026-08-30) audit_logs مستبعد من مزامنة Appwrite
+        // (SyncConstants.auditLogsSyncEnabled = false) — لا نُنشئ مدخلات
+        // outbox له إطلاقاً لتفادي تراكم مدخلات لن تُرفع أبداً.
+        if (SyncConstants.auditLogsSyncEnabled) {
+          final outboxDao = OutboxDao(db);
+          final now = Time.nowEpoch();
+          await outboxDao.mergeBatch(
+            toFix
+                .map(
+                  (item) => <String, dynamic>{
+                    'entity': 'audit_logs',
+                    'op': 'update',
+                    'localUuid': item.localUuid,
+                    'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+                    'clientTs': now,
+                  },
+                )
+                .toList(),
+          );
+        }
       });
 
       dlog(() => '  📋 audit_logs: تم إصلاح ${toFix.length} سجل');
