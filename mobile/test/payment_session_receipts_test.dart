@@ -126,4 +126,63 @@ void main() {
       expect(summaries.single.totalAmount, 250);
     },
   );
+
+  test(
+    'shift summaries keep another device user with the same local id',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(() async {
+        PaymentSessionContext.clear();
+        await db.close();
+      });
+
+      AdapterRegistry.initialize(db);
+      final repository = PaymentsRepository(db);
+      const paymentDate = '2026-08-21T15:00:00.000Z';
+      final hotelDay = HotelTimeEngine.getHotelDayKeyFromIso(paymentDate);
+
+      PaymentSessionContext.start(
+        userId: 1,
+        userName: 'المدير',
+        cloudUserId: 'cloud-manager',
+        sessionUuid: 'session-manager',
+      );
+      await repository.create(
+        amount: 100,
+        paymentDate: paymentDate,
+        paymentMethod: 'نقدي',
+        revenueType: 'room',
+      );
+
+      // نفس المعرف المحلي قد يمثل مستخدماً مختلفاً على جهاز آخر.
+      PaymentSessionContext.start(
+        userId: 1,
+        userName: 'المستخدم 1',
+        cloudUserId: 'cloud-user-1',
+        sessionUuid: 'session-user-1',
+      );
+      await repository.create(
+        amount: 17000,
+        paymentDate: paymentDate,
+        paymentMethod: 'نقدي',
+        revenueType: 'room',
+      );
+
+      final savedPayments = await db.select(db.payments).get();
+      expect(savedPayments.last.receivedByCloudId, 'cloud-user-1');
+
+      final summaries = await repository
+          .watchPaymentShiftSummaries(
+            hotelDay,
+            excludedUserName: 'المدير',
+            excludedUserCloudId: 'cloud-manager',
+          )
+          .first;
+
+      expect(summaries, hasLength(1));
+      expect(summaries.single.userId, 1);
+      expect(summaries.single.userName, 'المستخدم 1');
+      expect(summaries.single.totalAmount, 17000);
+    },
+  );
 }

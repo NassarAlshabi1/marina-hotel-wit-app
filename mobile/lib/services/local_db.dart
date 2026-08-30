@@ -276,6 +276,8 @@ class Payments extends Table with SyncFields {
   IntColumn get receivedByUserId => integer().nullable()();
   TextColumn get receivedByName => text().nullable()();
   TextColumn get receivedSessionUuid => text().nullable()();
+  // معرّف مستخدم Appwrite Cloud الثابت بين الأجهزة.
+  TextColumn get receivedByCloudId => text().nullable()();
 
   List<Index> get indexes => [
     Index(
@@ -1116,7 +1118,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 63;
+  int get schemaVersion => 64;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1162,6 +1164,11 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(payments, payments.receivedByUserId);
         await m.addColumn(payments, payments.receivedByName);
         await m.addColumn(payments, payments.receivedSessionUuid);
+      }
+      // الإصدار 64: هوية Appwrite Cloud الثابتة لاستلام الدفعة.
+      // Nullable عمداً؛ لا نعيد نسب السجلات القديمة إلى مستخدم دون دليل.
+      if (from < 64) {
+        await m.addColumn(payments, payments.receivedByCloudId);
       }
       if (from < 2) {
         await m.addColumn(bookings, bookings.guestIdType);

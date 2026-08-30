@@ -131,7 +131,15 @@ class PaymentsRepository {
   Stream<List<PaymentShiftSummary>> watchPaymentShiftSummaries(
     String hotelDayKey, {
     int? excludedUserId,
+    String? excludedUserName,
+    String? excludedUserCloudId,
   }) {
+    final excludedNameFilter = excludedUserName == null
+        ? ''
+        : "AND COALESCE(NULLIF(TRIM(received_by_name), ''), 'مستخدم غير معروف') != ? ";
+    final excludedCloudIdFilter = excludedUserCloudId == null
+        ? ''
+        : 'AND (received_by_cloud_id IS NULL OR received_by_cloud_id != ?) ';
     return db
         .customSelect(
           'SELECT received_by_user_id AS user_id, '
@@ -144,12 +152,19 @@ class PaymentsRepository {
           'AND is_pending_balance = 0 '
           'AND received_by_user_id IS NOT NULL '
           'AND received_session_uuid IS NOT NULL '
+          'AND (received_by_cloud_id IS NOT NULL OR received_by_name IS NOT NULL) '
           '${excludedUserId == null ? '' : 'AND received_by_user_id != ? '} '
+          '$excludedNameFilter'
+          '$excludedCloudIdFilter'
           'AND (hotel_day_key = ? OR (hotel_day_key IS NULL AND payment_date LIKE ?)) '
           'GROUP BY received_by_user_id, received_by_name, received_session_uuid '
           'ORDER BY total_amount DESC',
           variables: [
             if (excludedUserId != null) d.Variable.withInt(excludedUserId),
+            if (excludedUserName != null)
+              d.Variable.withString(excludedUserName),
+            if (excludedUserCloudId != null)
+              d.Variable.withString(excludedUserCloudId),
             d.Variable.withString(hotelDayKey),
             d.Variable.withString('$hotelDayKey%'),
           ],
@@ -190,6 +205,9 @@ class PaymentsRepository {
     bool isPendingBalance = false,
   }) async {
     try {
+      if (!PaymentSessionContext.isActive) {
+        throw StateError('لا يمكن تسجيل دفعة دون جلسة مستخدم نشطة');
+      }
       final hotelDayKey = HotelTimeEngine.getHotelDayKeyFromIso(paymentDate);
 
       String? bookingUuidCache;
@@ -218,6 +236,7 @@ class PaymentsRepository {
             receivedByUserId: d.Value(PaymentSessionContext.userId),
             receivedByName: d.Value(PaymentSessionContext.userName),
             receivedSessionUuid: d.Value(PaymentSessionContext.sessionUuid),
+            receivedByCloudId: d.Value(PaymentSessionContext.cloudUserId),
           ),
         );
         if (bookingLocalId != null) {

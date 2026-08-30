@@ -11930,6 +11930,18 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _receivedByCloudIdMeta = const VerificationMeta(
+    'receivedByCloudId',
+  );
+  @override
+  late final GeneratedColumn<String> receivedByCloudId =
+      GeneratedColumn<String>(
+        'received_by_cloud_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -11976,6 +11988,7 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
     receivedByUserId,
     receivedByName,
     receivedSessionUuid,
+    receivedByCloudId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -12350,6 +12363,15 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         ),
       );
     }
+    if (data.containsKey('received_by_cloud_id')) {
+      context.handle(
+        _receivedByCloudIdMeta,
+        receivedByCloudId.isAcceptableOrUnknown(
+          data['received_by_cloud_id']!,
+          _receivedByCloudIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -12535,6 +12557,10 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         DriftSqlType.string,
         data['${effectivePrefix}received_session_uuid'],
       ),
+      receivedByCloudId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}received_by_cloud_id'],
+      ),
     );
   }
 
@@ -12589,6 +12615,7 @@ class Payment extends DataClass implements Insertable<Payment> {
   final int? receivedByUserId;
   final String? receivedByName;
   final String? receivedSessionUuid;
+  final String? receivedByCloudId;
   const Payment({
     required this.localUuid,
     this.serverId,
@@ -12634,6 +12661,7 @@ class Payment extends DataClass implements Insertable<Payment> {
     this.receivedByUserId,
     this.receivedByName,
     this.receivedSessionUuid,
+    this.receivedByCloudId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -12734,6 +12762,9 @@ class Payment extends DataClass implements Insertable<Payment> {
     if (!nullToAbsent || receivedSessionUuid != null) {
       map['received_session_uuid'] = Variable<String>(receivedSessionUuid);
     }
+    if (!nullToAbsent || receivedByCloudId != null) {
+      map['received_by_cloud_id'] = Variable<String>(receivedByCloudId);
+    }
     return map;
   }
 
@@ -12833,6 +12864,9 @@ class Payment extends DataClass implements Insertable<Payment> {
       receivedSessionUuid: receivedSessionUuid == null && nullToAbsent
           ? const Value.absent()
           : Value(receivedSessionUuid),
+      receivedByCloudId: receivedByCloudId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(receivedByCloudId),
     );
   }
 
@@ -12894,6 +12928,9 @@ class Payment extends DataClass implements Insertable<Payment> {
       receivedSessionUuid: serializer.fromJson<String?>(
         json['receivedSessionUuid'],
       ),
+      receivedByCloudId: serializer.fromJson<String?>(
+        json['receivedByCloudId'],
+      ),
     );
   }
   @override
@@ -12946,6 +12983,7 @@ class Payment extends DataClass implements Insertable<Payment> {
       'receivedByUserId': serializer.toJson<int?>(receivedByUserId),
       'receivedByName': serializer.toJson<String?>(receivedByName),
       'receivedSessionUuid': serializer.toJson<String?>(receivedSessionUuid),
+      'receivedByCloudId': serializer.toJson<String?>(receivedByCloudId),
     };
   }
 
@@ -12994,6 +13032,7 @@ class Payment extends DataClass implements Insertable<Payment> {
     Value<int?> receivedByUserId = const Value.absent(),
     Value<String?> receivedByName = const Value.absent(),
     Value<String?> receivedSessionUuid = const Value.absent(),
+    Value<String?> receivedByCloudId = const Value.absent(),
   }) => Payment(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -13067,6 +13106,9 @@ class Payment extends DataClass implements Insertable<Payment> {
     receivedSessionUuid: receivedSessionUuid.present
         ? receivedSessionUuid.value
         : this.receivedSessionUuid,
+    receivedByCloudId: receivedByCloudId.present
+        ? receivedByCloudId.value
+        : this.receivedByCloudId,
   );
   Payment copyWithCompanion(PaymentsCompanion data) {
     return Payment(
@@ -13174,6 +13216,9 @@ class Payment extends DataClass implements Insertable<Payment> {
       receivedSessionUuid: data.receivedSessionUuid.present
           ? data.receivedSessionUuid.value
           : this.receivedSessionUuid,
+      receivedByCloudId: data.receivedByCloudId.present
+          ? data.receivedByCloudId.value
+          : this.receivedByCloudId,
     );
   }
 
@@ -13223,7 +13268,8 @@ class Payment extends DataClass implements Insertable<Payment> {
           ..write('isImmutable: $isImmutable, ')
           ..write('receivedByUserId: $receivedByUserId, ')
           ..write('receivedByName: $receivedByName, ')
-          ..write('receivedSessionUuid: $receivedSessionUuid')
+          ..write('receivedSessionUuid: $receivedSessionUuid, ')
+          ..write('receivedByCloudId: $receivedByCloudId')
           ..write(')'))
         .toString();
   }
@@ -13274,6 +13320,7 @@ class Payment extends DataClass implements Insertable<Payment> {
     receivedByUserId,
     receivedByName,
     receivedSessionUuid,
+    receivedByCloudId,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -13322,7 +13369,8 @@ class Payment extends DataClass implements Insertable<Payment> {
           other.isImmutable == this.isImmutable &&
           other.receivedByUserId == this.receivedByUserId &&
           other.receivedByName == this.receivedByName &&
-          other.receivedSessionUuid == this.receivedSessionUuid);
+          other.receivedSessionUuid == this.receivedSessionUuid &&
+          other.receivedByCloudId == this.receivedByCloudId);
 }
 
 class PaymentsCompanion extends UpdateCompanion<Payment> {
@@ -13370,6 +13418,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
   final Value<int?> receivedByUserId;
   final Value<String?> receivedByName;
   final Value<String?> receivedSessionUuid;
+  final Value<String?> receivedByCloudId;
   const PaymentsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -13415,6 +13464,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.receivedByUserId = const Value.absent(),
     this.receivedByName = const Value.absent(),
     this.receivedSessionUuid = const Value.absent(),
+    this.receivedByCloudId = const Value.absent(),
   });
   PaymentsCompanion.insert({
     required String localUuid,
@@ -13461,6 +13511,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.receivedByUserId = const Value.absent(),
     this.receivedByName = const Value.absent(),
     this.receivedSessionUuid = const Value.absent(),
+    this.receivedByCloudId = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -13514,6 +13565,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     Expression<int>? receivedByUserId,
     Expression<String>? receivedByName,
     Expression<String>? receivedSessionUuid,
+    Expression<String>? receivedByCloudId,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -13563,6 +13615,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       if (receivedByName != null) 'received_by_name': receivedByName,
       if (receivedSessionUuid != null)
         'received_session_uuid': receivedSessionUuid,
+      if (receivedByCloudId != null) 'received_by_cloud_id': receivedByCloudId,
     });
   }
 
@@ -13611,6 +13664,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     Value<int?>? receivedByUserId,
     Value<String?>? receivedByName,
     Value<String?>? receivedSessionUuid,
+    Value<String?>? receivedByCloudId,
   }) {
     return PaymentsCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -13659,6 +13713,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       receivedByUserId: receivedByUserId ?? this.receivedByUserId,
       receivedByName: receivedByName ?? this.receivedByName,
       receivedSessionUuid: receivedSessionUuid ?? this.receivedSessionUuid,
+      receivedByCloudId: receivedByCloudId ?? this.receivedByCloudId,
     );
   }
 
@@ -13803,6 +13858,9 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
         receivedSessionUuid.value,
       );
     }
+    if (receivedByCloudId.present) {
+      map['received_by_cloud_id'] = Variable<String>(receivedByCloudId.value);
+    }
     return map;
   }
 
@@ -13852,7 +13910,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
           ..write('isImmutable: $isImmutable, ')
           ..write('receivedByUserId: $receivedByUserId, ')
           ..write('receivedByName: $receivedByName, ')
-          ..write('receivedSessionUuid: $receivedSessionUuid')
+          ..write('receivedSessionUuid: $receivedSessionUuid, ')
+          ..write('receivedByCloudId: $receivedByCloudId')
           ..write(')'))
         .toString();
   }
@@ -49471,6 +49530,7 @@ typedef $$PaymentsTableCreateCompanionBuilder =
       Value<int?> receivedByUserId,
       Value<String?> receivedByName,
       Value<String?> receivedSessionUuid,
+      Value<String?> receivedByCloudId,
     });
 typedef $$PaymentsTableUpdateCompanionBuilder =
     PaymentsCompanion Function({
@@ -49518,6 +49578,7 @@ typedef $$PaymentsTableUpdateCompanionBuilder =
       Value<int?> receivedByUserId,
       Value<String?> receivedByName,
       Value<String?> receivedSessionUuid,
+      Value<String?> receivedByCloudId,
     });
 
 final class $$PaymentsTableReferences
@@ -49780,6 +49841,11 @@ class $$PaymentsTableFilterComposer
 
   ColumnFilters<String> get receivedSessionUuid => $composableBuilder(
     column: $table.receivedSessionUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get receivedByCloudId => $composableBuilder(
+    column: $table.receivedByCloudId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -50049,6 +50115,11 @@ class $$PaymentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get receivedByCloudId => $composableBuilder(
+    column: $table.receivedByCloudId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$BookingsTableOrderingComposer get bookingLocalId {
     final $$BookingsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -50287,6 +50358,11 @@ class $$PaymentsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get receivedByCloudId => $composableBuilder(
+    column: $table.receivedByCloudId,
+    builder: (column) => column,
+  );
+
   $$BookingsTableAnnotationComposer get bookingLocalId {
     final $$BookingsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -50409,6 +50485,7 @@ class $$PaymentsTableTableManager
                 Value<int?> receivedByUserId = const Value.absent(),
                 Value<String?> receivedByName = const Value.absent(),
                 Value<String?> receivedSessionUuid = const Value.absent(),
+                Value<String?> receivedByCloudId = const Value.absent(),
               }) => PaymentsCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -50454,6 +50531,7 @@ class $$PaymentsTableTableManager
                 receivedByUserId: receivedByUserId,
                 receivedByName: receivedByName,
                 receivedSessionUuid: receivedSessionUuid,
+                receivedByCloudId: receivedByCloudId,
               ),
           createCompanionCallback:
               ({
@@ -50501,6 +50579,7 @@ class $$PaymentsTableTableManager
                 Value<int?> receivedByUserId = const Value.absent(),
                 Value<String?> receivedByName = const Value.absent(),
                 Value<String?> receivedSessionUuid = const Value.absent(),
+                Value<String?> receivedByCloudId = const Value.absent(),
               }) => PaymentsCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -50546,6 +50625,7 @@ class $$PaymentsTableTableManager
                 receivedByUserId: receivedByUserId,
                 receivedByName: receivedByName,
                 receivedSessionUuid: receivedSessionUuid,
+                receivedByCloudId: receivedByCloudId,
               ),
           withReferenceMapper: (p0) => p0
               .map(

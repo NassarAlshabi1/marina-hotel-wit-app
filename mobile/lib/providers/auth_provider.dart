@@ -11,6 +11,7 @@ class AuthUser {
     required this.username,
     required this.fullName,
     required this.userType,
+    this.cloudUserId,
     this.permissions = const [],
   });
 
@@ -30,6 +31,7 @@ class AuthUser {
       username: (json['username'] ?? '').toString(),
       fullName: (json['full_name'] ?? json['name'] ?? '').toString(),
       userType: (json['user_type'] ?? '').toString(),
+      cloudUserId: json['cloud_user_id']?.toString(),
       permissions: rawPerms is List
           ? rawPerms.map((e) => e.toString()).toList()
           : const <String>[],
@@ -39,6 +41,7 @@ class AuthUser {
   final String username;
   final String fullName;
   final String userType;
+  final String? cloudUserId;
   final List<String> permissions;
 
   String get name => fullName.isNotEmpty ? fullName : username;
@@ -233,7 +236,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       rememberMe: rememberMe,
       authType: authType,
     );
-    PaymentSessionContext.start(userId: user.id, userName: user.name);
+    PaymentSessionContext.start(
+      userId: user.id,
+      userName: user.name,
+      cloudUserId: user.cloudUserId,
+    );
 
     // يبدأ للمستخدمين السحابيين فقط؛ الحسابات المحلية لا تتصل بالشبكة.
     await _startCloudSessionCheckIfNeeded(user);
@@ -266,7 +273,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       currentUser: user,
       rememberMe: rememberMe,
     );
-    PaymentSessionContext.start(userId: user.id, userName: user.name);
+    PaymentSessionContext.start(
+      userId: user.id,
+      userName: user.name,
+      cloudUserId: user.cloudUserId,
+    );
 
     // يبدأ للمستخدمين السحابيين فقط؛ الحسابات المحلية لا تتصل بالشبكة.
     await _startCloudSessionCheckIfNeeded(user);

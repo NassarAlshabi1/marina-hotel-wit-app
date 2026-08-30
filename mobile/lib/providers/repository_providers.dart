@@ -391,7 +391,11 @@ final employeeShiftPaymentSummariesProvider =
       final hotelDay = HotelTimeEngine.getHotelDayKey();
       return ref
           .watch(paymentsRepoProvider)
-          .watchPaymentShiftSummaries(hotelDay, excludedUserId: user.id);
+          .watchPaymentShiftSummaries(
+            hotelDay,
+            excludedUserName: user.name,
+            excludedUserCloudId: user.cloudUserId,
+          );
     });
 
 final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {
