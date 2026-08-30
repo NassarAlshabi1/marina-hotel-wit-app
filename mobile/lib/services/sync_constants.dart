@@ -132,6 +132,28 @@ class SyncConstants {
   /// حماية أخيرة من عواصف السحب من مداخل غير متوقعة.
   static const Duration minPullGap = Duration(minutes: 2);
 
+  /// ✅ (2026-08-31) تفعيل Realtime الكامل — فترة تهيئة السحب المُطلَق بحدث
+  /// Realtime داخل AppwriteRealtimeSync نفسها.
+  ///
+  /// حدث Realtime يعني أن الخادم أعلن تغييراً فعلياً — لذلك يُسمح له بمعدل
+  /// أعلى بكثير من minPullGap (الدقيقتان لمداخل الشاشات/الأزرار/المؤقتات):
+  ///   - ديبونس 500ms يجمّع العواصف.
+  ///   - هذه التهيئة (15 ثانية) تحدّ السحب المُطلَق بـ 4 دورات/دقيقة كحد أقصى
+  ///     تحت أعنف عاصفة مستمرة، وعادةً دورة واحدة لكل دفعة تغييرات.
+  ///   - المسار العام AppwriteSyncManager.sync(realtimePriority: true)
+  ///     يتجاوز حارس الدقيقتين لهذا المدخل لأنه مدخل موثوق مُسرَّع ذاتياً —
+  ///     حماية الـ outbox و SyncLocks و connectivity تبقى سارية.
+  ///   - Metadata-first يجعل كل دورة رخيصة ($id + $updatedAt فقط) عند عدم
+  ///     وجود تغييرات.
+  static const Duration realtimeEventPullCooldown = Duration(seconds: 15);
+
+  /// ✅ (2026-08-31) فاصل السحب في وضع الـ fallback عندما يكون WebSocket
+  /// معطلاً/فاشلاً (لا أحداث Realtime وصلت). كل tick (30 ثانية) يُحدّث علامة
+  /// الـ UI فقط، وكل [realtimeFallbackPullInterval] يُطلق سحباً فعلياً خفيفاً
+  /// حتى لا تبقى الأجهزة التي يفشل عندها WS بلا تحديثات.
+  /// 5 دقائق توازن بين "شبه فوري" وتكلفة reads على Appwrite Cloud.
+  static const Duration realtimeFallbackPullInterval = Duration(minutes: 5);
+
   static const int googleDriveDefaultShardBytes = 4 * 1024 * 1024;
   static const int estimatedBytesPerDeltaChange = 500;
 }

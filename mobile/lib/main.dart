@@ -817,6 +817,21 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         }
 
         await AppwriteRealtimeSync().initialize(deviceId: deviceId);
+        // ✅ (2026-08-31) تفعيل Realtime الكامل: حدث من جهاز آخر → سحب فعلي
+        // فوري (push + pull بأولوية realtime) وليس مجرد شارة UI. الطبقة
+        // المُصدِرة مُسرَّعة ذاتياً (ديبونس 500ms + تهيئة 15 ثانية)؛
+        // pullSkipped يعني أن السحب تخطّى (outbox غير مفروغ مثلاً) فتُجدول
+        // متابعة تلقائياً بدل الظن بأن التغييرات طُبّقت.
+        AppwriteRealtimeSync().setSyncTrigger(() async {
+          final realtimeManager = AppwriteSyncManager.instance;
+          if (realtimeManager == null) return false;
+          final result = await realtimeManager.sync(
+            push: true,
+            pull: true,
+            realtimePriority: true,
+          );
+          return result.isSuccess && !result.pullSkipped;
+        });
         await AppwriteRealtimeSync().start();
         dlog('📡 Realtime sync + auto sync started');
       } catch (e) {
@@ -1145,6 +1160,10 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // UnifiedSyncOrchestrator.onAppForeground + SyncGuardian.onAppForeground)
       // الآن: _syncOnResume كعملية أساسية + إشعار UnifiedSyncOrchestrator بدون مزامنة مستقلة
       unawaited(_syncOnResume());
+      // ✅ (2026-08-31) Realtime كامل: أعد محاولة الاشتراك إذا كان WebSocket
+      // قد استسل أثناء الغياب (استنفد max reconnect attempts) — fallback
+      // polling كان يغطي الفجوة، وعند العودة نستعيد التحديث الفوري.
+      unawaited(AppwriteRealtimeSync().ensureStarted());
       // إشعار خدمات المزامنة بالعودة — بدون بدء مزامنة مستقلة (ستكتفي بالتحقق)
       UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
         (Object e, StackTrace s) =>

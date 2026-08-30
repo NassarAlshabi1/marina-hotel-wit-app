@@ -120,6 +120,12 @@ class _UnifiedSyncSettingsScreenState
 
   Future<void> _applyRealtimeSync(bool enabled) async {
     if (!_appwriteSyncEnabled) return;
+    // ✅ (2026-08-31) تفعيل Realtime الكامل: المفتاح المرئي يكتب المفتاحين
+    // معاً — master switch (appwrite_realtime_sync_enabled) ووضع WebSocket
+    // (appwrite_realtime_ws_enabled) — كي يتحكم المفتاح الواحد بالوضعين
+    // فعلاً (كان WS يبقى على قيمته السابقة مهما غيّر المستخدم هنا).
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('appwrite_realtime_ws_enabled', enabled);
     final realtime = AppwriteRealtimeSync();
     if (enabled) {
       await realtime.start();
@@ -423,8 +429,11 @@ class _UnifiedSyncSettingsScreenState
           ),
           const Divider(height: 1),
           SwitchListTile(
-            title: const Text('المزامنة الفورية'),
-            subtitle: const Text('مزامنة فورية عند حدوث تغييرات'),
+            title: const Text('المزامنة الفورية (Realtime)'),
+            subtitle: const Text(
+              'استقبال تغييرات الأجهزة الأخرى فور حدوثها عبر WebSocket '
+              'وسحبها خلال ثوانٍ — إن تعذر الاتصال يُستخدم سحب خفيف دوري',
+            ),
             value: _realtimeSyncEnabled,
             onChanged: _isSaving
                 ? null

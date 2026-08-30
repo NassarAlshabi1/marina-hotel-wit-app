@@ -69,6 +69,7 @@ class SyncResult {
     this.recordsPulled = 0,
     this.conflicts = 0,
     this.errorMessage,
+    this.pullSkipped = false,
   });
   final SyncStatus status;
   final int recordsPushed;
@@ -77,6 +78,12 @@ class SyncResult {
   final String? errorMessage;
   final DateTime timestamp;
   final Duration duration;
+
+  /// ✅ (2026-08-31) true إذا كانت مرحلة السحب مطلوبة لكنها **تخطّت**
+  /// (Outbox غير مفروغ / حارس الفاصل الدنيا) واستُكمل الرفع فقط.
+  /// يستخدمها مدخل Realtime ليعرف أنه يجب جدولة متابعة، بدل أن يظن
+  /// أن التغييرات من السيرفر طُبّقت وهي لم تُطبّق بعد.
+  final bool pullSkipped;
 
   bool get isSuccess => status == SyncStatus.success;
   bool get hasConflicts => conflicts > 0;
@@ -796,8 +803,20 @@ class AppwriteSyncManager {
   /// - Pull: تسحب collections (rooms → bookings → employees → expenses → payments → debts)
   /// - تحدّث sync_logs (completed/failed) وتخزّن آخر وقت مزامنة محلياً
   ///
+  /// ✅ (2026-08-31) [realtimePriority]: مدخل أحداث Realtime (تغيير فعلي
+  /// مؤكَّد من الخادم). يتجاوز حارس الدقيقتين [SyncConstants.minPullGap]
+  /// لأن الطبقة المُصدِرة (AppwriteRealtimeSync) مُسرَّعة ذاتياً: ديبونس
+  /// 500ms + تهيئة 15 ثانية + طابور متابعة + حارس in-flight. بقية
+  /// الحمايات (OutboxPullPolicy و SyncLocks و فحص الاتصال) تبقى سارية.
+  /// عند تخطّي السحب لأي سبب يُضبط [SyncResult.pullSkipped] = true كي
+  /// يُجدول المدخل متابعة بدل الظن بأن التغييرات طُبّقت.
+  ///
   /// الدالة لا ترمي عادةً استثناءات، وتعيد SyncResult مع status/errorMessage.
-  Future<SyncResult> sync({bool push = true, bool pull = true}) async {
+  Future<SyncResult> sync({
+    bool push = true,
+    bool pull = true,
+    bool realtimePriority = false,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) {
       _logger.info(
@@ -814,6 +833,8 @@ class AppwriteSyncManager {
     // سياسة Offline-first: لا نسمح بالسحب فوق تغييرات محلية لم تصل
     // بعد إلى Appwrite. عند sync كامل نتابع بالرفع فقط؛ وعند طلب pull
     // صريح نرفضه ونبقي Outbox هو مصدر الحقيقة إلى أن يفرغ.
+    // ✅ (2026-08-31) pullSkipped يُبلّغ مدخل Realtime ليُتابع لاحقاً.
+    var pullSkipped = false;
     if (pull) {
       final pendingLocalChanges = await outboxDao.countUndeliveredToPrimary();
       if (!OutboxPullPolicy.canPull(
@@ -828,6 +849,7 @@ class AppwriteSyncManager {
         );
         if (push) {
           pull = false;
+          pullSkipped = true;
         } else {
           return SyncResult(
             status: SyncStatus.idle,
@@ -841,7 +863,10 @@ class AppwriteSyncManager {
 
     // ✅ (2026-08-30) الحارس المركزي: فاصل أدنى بين دورتي سحب من أي مدخل.
     // يُطبَّق بعد حارس Outbox وقبل القفل — أرخص قرار وأبكر خروج.
-    if (pull && !_canStartPull()) {
+    // ✅ (2026-08-31) realtimePriority يتجاوز هذا الحارس: حدث Realtime
+    // إثبات تغيير فعلي من الخادم، والطبقة المُصدِرة مُسرَّعة ذاتياً
+    // (ديبونس + تهيئة 15 ث + طابور متابعة). راجع sync() doc أعلاه.
+    if (pull && !realtimePriority && !_canStartPull()) {
       _logger.debug(
         'Pull skipped: minimum pull gap (${SyncConstants.minPullGap.inMinutes}m) '
         'not reached since last completed sync',
@@ -849,6 +874,7 @@ class AppwriteSyncManager {
       );
       if (push) {
         pull = false;
+        pullSkipped = true;
       } else {
         return SyncResult(
           status: SyncStatus.idle,
@@ -2166,6 +2192,7 @@ class AppwriteSyncManager {
           errorMessage: errorMessage,
           timestamp: endTime,
           duration: duration,
+          pullSkipped: pullSkipped,
         );
       });
     } on TimeoutException {
