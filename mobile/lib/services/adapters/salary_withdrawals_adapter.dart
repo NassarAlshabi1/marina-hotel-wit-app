@@ -129,7 +129,7 @@ class SalaryWithdrawalsAdapter
       // ملاحظة: employeeId هو NOT NULL، لذا إدراج بـ absent سيفشل بـ NOT NULL constraint
       // بدلاً من FK constraint — وهذا أفضل لأنه يُمكّن المتصل من التقاط الخطأ
       // وتخطي السجل بدلاً من إدراج بيانات فاسدة.
-      // المتصل (_syncSalaryWithdrawals / AppwriteFullPull) يفحص قبل الإدراج.
+      // المتصل (_syncSalaryWithdrawals) يفحص قبل الإدراج.
       employeeId: refs.employeeLocalId != null
           ? d.Value(refs.employeeLocalId!)
           : (src == Source.appwrite || src == Source.drive)
