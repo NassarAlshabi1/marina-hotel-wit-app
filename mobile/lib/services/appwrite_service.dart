@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 
@@ -111,6 +113,25 @@ class AppwriteService {
   // Generic Helpers
   // ---------------------------------------------------------------------------
 
+  /// ✅ (2026-08-31) كشف أسلوب استعلام Appwrite بصيغتيه:
+  /// - SDK الحديث (≥21) يُسلسل الاستعلام JSON:
+  ///   `{"method":"greaterThan","attribute":"$updatedAt",...}`
+  /// - الصيغة القديمة: `greaterThan("attr", ...)`.
+  ///
+  /// أي فحص نصي بصيغة واحدة فقط كان يفشل صامتاً على الصيغة الأخرى —
+  /// (لاحقة تشخيص "Fetched total" كانت تُبلغ false/false/false دائماً).
+  static bool queryHasMethod(String query, String method) {
+    if (query.startsWith('{')) {
+      try {
+        final decoded = jsonDecode(query);
+        return decoded is Map && decoded['method'] == method;
+      } catch (_) {
+        return false;
+      }
+    }
+    return query.startsWith('$method(');
+  }
+
   /// دالة مساعدة عامة لإضافة Query للصفحات
   List<String> _applyPagingQueries(
     List<String> baseQueries, {
@@ -120,8 +141,10 @@ class AppwriteService {
     final effectiveQueries = List<String>.from(baseQueries);
 
     // التحقق من وجود Limit/Offset مسبقاً لتجنب التكرار
-    final hasLimit = effectiveQueries.any((q) => q.startsWith('limit('));
-    final hasOffset = effectiveQueries.any((q) => q.startsWith('offset('));
+    // ✅ (2026-08-31) عبر queryHasMethod — الصيغة JSON للـ SDK الحديث لم تكن
+    // تُكتشف بـ startsWith فكان يُضاف limit() مكرر لمن مرّر حداً مسبقاً.
+    final hasLimit = effectiveQueries.any((q) => queryHasMethod(q, 'limit'));
+    final hasOffset = effectiveQueries.any((q) => queryHasMethod(q, 'offset'));
 
     if (!hasLimit) {
       effectiveQueries.add(Query.limit(limit));
@@ -266,12 +289,15 @@ class AppwriteService {
     //  byIds=true         → جلب بالمعرّفات (المتغيّر فعلاً بعد المقارنة)
     //  deltaWindow=true   → فلتر $updatedAt > مؤشر (دلتا حقيقية)
     //  كلهما false        → قراءة كاملة بلا فلتر (تهيئة/استعادة فقط)
-    final isMetadataOnly = queries.any((q) => q.startsWith('select('));
+    // ✅ (2026-08-31) الكشف عبر queryHasMethod — SDK 21 يُسلسل الاستعلامات
+    // JSON فكانت startsWith('greaterThan(') لا تطابق أبداً وكل الأنماط
+    // تُبلغ false.
+    final isMetadataOnly = queries.any((q) => queryHasMethod(q, 'select'));
     final isByIds =
         !isMetadataOnly &&
-        queries.any((q) => q.startsWith('equal(') && q.contains(r'$id'));
+        queries.any((q) => queryHasMethod(q, 'equal') && q.contains(r'$id'));
     final isDeltaWindow = queries.any(
-      (q) => q.startsWith('greaterThan(') && q.contains(r'$updatedAt'),
+      (q) => queryHasMethod(q, 'greaterThan') && q.contains(r'$updatedAt'),
     );
     _logger.info(
       'Fetched total ${allDocuments.length} documents from $collectionId '

@@ -14,6 +14,10 @@
 //       والرفع يبقى سليماً.
 //   E4  عقود الثوابت: minPullGap=2 دقائق، المؤقت الدوري 15 دقيقة (نافذة
 //       10–15)، فاصل السحب عند الفتح ساعة.
+//   E5  كيان بمؤشر خاص متقدم يمضي delta حتى لو كان وضع الدورة العام full
+//       (fullSyncComplete=0 بفشل كيان آخر) — القرار على مستوى الكيان.
+//   E6  كيان بلا مؤشر خاص في وضع عام full يبقى full له — شبكة الكمال
+//       محفوظة (لا cutoff = مسح كامل للكيان).
 //   S1..S4 عقود مصادر (tripwires ثابتة على الكود المصدري):
 //       S1 فتح Dashboard لا يستدعي sync() أبداً (الشاشة تقرأ محلياً فقط).
 //       S2 زر التحديث (DashboardSyncButton) يمرر forcePull: true.
@@ -29,6 +33,7 @@ import 'dart:io';
 import 'package:appwrite/models.dart' as models;
 // ignore: depend_on_referenced_packages (واجهة المنصة لمحاكاة الاتصال فقط)
 import 'package:connectivity_plus_platform_interface/connectivity_plus_platform_interface.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/appwrite_network_helper.dart';
@@ -52,10 +57,19 @@ class _FakeConnectivityPlatform extends ConnectivityPlatform {
   Future<void> ensureInitialized() async {}
 }
 
+/// تسجيل استدعاء metadata مع الفلاتر المُمرَّرة — للتمييز بين قراءة
+/// delta (فلتر cutoff) وقراءة full (بلا فلتر زمني) في الادعاءات.
+class _MetaCall {
+  _MetaCall(this.collectionId, this.extraQueries);
+  final String collectionId;
+  final List<String> extraQueries;
+}
+
 /// خدمة Appwrite وهمية — فشل صاخب لكل استدعاء غير متوقع.
 class _FakeAppwriteService implements AppwriteService {
   final Map<String, List<models.Document>> serverCollections = {};
   final List<String> callNames = [];
+  final List<_MetaCall> metadataCalls = [];
 
   /// مراقب نجاح الرفع — حقل حقيقي كي يلتقطه مُنشئ المدير
   /// (بدون هذا يقع الـ setter في noSuchMethod → فشل صاخب عند البناء).
@@ -66,6 +80,7 @@ class _FakeAppwriteService implements AppwriteService {
   void reset() {
     serverCollections.clear();
     callNames.clear();
+    metadataCalls.clear();
   }
 
   String _memberName(Invocation invocation) {
@@ -88,6 +103,10 @@ class _FakeAppwriteService implements AppwriteService {
 
       case 'listDocumentsMetadata':
         final collectionId = invocation.positionalArguments[0].toString();
+        final extra =
+            (invocation.namedArguments[#extraQueries] as List<String>?) ??
+            const <String>[];
+        metadataCalls.add(_MetaCall(collectionId, List.of(extra)));
         return Future<List<models.Document>>.value(
           List.of(serverCollections[collectionId] ?? const []),
         );
@@ -264,6 +283,86 @@ void main() {
         2,
         reason: 'إعادة السحب idempotent — لا تكرار',
       );
+    });
+  });
+
+  group('E5→E6: قرار delta على مستوى الكيان (وليس على مستوى الدورة)', () {
+    test('E5: فشل كيان آخر (وضع عام full) لا يعيد سحب الكيان السليم كاملاً '
+        '— مؤشره الخاص يقوده إلى delta', () async {
+      await resetState();
+
+      // ── خط أساس: دورة ناجحة تضبط checkpoint الكيان (مؤشر خاص > 0) ──
+      fake.serverCollections['blacklist'] = [mkDoc('A', 1700001000)];
+      final baseline = await manager.sync(push: false, pull: true);
+      expect(baseline.isSuccess, isTrue, reason: 'الدورة الأساس سليمة');
+      expect(await localBlacklistCount(), 1, reason: 'A طُبِّق محلياً');
+
+      // ── إجبار وضع الدورة العام على full: fullSyncComplete=0 و
+      // lastPullTs=0 (كأن كياناً آخر يفشل باستمرار ويجمّد المؤشر العام)
+      // — دون لمس checkpoint الكيان في prefs ──
+      await (db.update(db.syncState)..where((t) => t.id.equals(1))).write(
+        const SyncStateCompanion(
+          fullSyncComplete: Value(0),
+          lastPullTs: Value(0),
+        ),
+      );
+      fake.reset(); // ⚠️ يمسح الخادم والتسجيلات معاً — البذر بعده
+      fake.serverCollections['blacklist'] = [
+        mkDoc('A', 1700001000), // غير متغير — مطابق محلياً (لا يُنزَّل)
+        mkDoc('C', 1700001300), // جديد — يجب سحبه وحده
+      ];
+
+      // تصفير ساعة الحارس المركزي فقط (لا يمس prefs ولا DB) — الدورة
+      // الثانية دورة عادية غير قسرية تقع زمنياً داخل فجوة الدقيقتين.
+      manager.resetPullThrottleForTesting();
+
+      final result = await manager.sync(push: false, pull: true);
+      expect(result.isSuccess, isTrue, reason: 'الدورة الهجينة تعمل');
+
+      // القرار: metadata الكيان مرّت بفلتر cutoff خاص به رغم أن وضع
+      // الدورة العام full — هذا هو جوهر E5.
+      final blacklistMeta = fake.metadataCalls
+          .where((c) => c.collectionId == 'blacklist')
+          .toList();
+      expect(blacklistMeta, isNotEmpty, reason: 'مرّت بمرحلة metadata');
+      expect(
+        blacklistMeta.last.extraQueries
+            .where((q) => AppwriteService.queryHasMethod(q, 'greaterThan'))
+            .where((q) => q.contains(r'$updatedAt')),
+        isNotEmpty,
+        reason:
+            'كيان بمؤشر خاص متقدم يمضي delta حتى مع وضع عام full '
+            '— actual=${blacklistMeta.map((c) => c.extraQueries).toList()}',
+      );
+
+      // التنزيل عبر listDocumentsByIds (المتغيّر فقط) ثم التطبيق.
+      expect(
+        fake.callNames.where((n) => n == 'listDocumentsByIds'),
+        isNotEmpty,
+        reason: 'المتغيّر وحده يُنزَّل — لا مسح كامل للكيان السليم',
+      );
+      expect(await localBlacklistCount(), 2, reason: 'C طُبِّق محلياً');
+    });
+
+    test('E6: كيان بلا مؤشر خاص في وضع عام full يبقى full له — شبكة الكمال '
+        'محفوظة (metadata بلا cutoff)', () async {
+      await resetState();
+      fake.serverCollections['blacklist'] = [mkDoc('A', 1700001000)];
+      final r = await manager.sync(push: false, pull: true);
+      expect(r.isSuccess, isTrue);
+
+      final blacklistMeta = fake.metadataCalls
+          .where((c) => c.collectionId == 'blacklist')
+          .toList();
+      expect(blacklistMeta, isNotEmpty);
+      expect(
+        blacklistMeta.first.extraQueries,
+        isEmpty,
+        reason:
+            'كيان لا مؤشر له (bootstrap) يبقى full له وحده — '
+            'metadata بلا فلتر cutoff',
+      );
+      expect(await localBlacklistCount(), 1);
     });
   });
 

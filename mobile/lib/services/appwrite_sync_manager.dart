@@ -5905,6 +5905,10 @@ class AppwriteSyncManager {
   /// - وضع السحب الكامل أو غياب خدمة السحب → يُعاد [fallback] كما هو.
   /// - وضع delta: فلتر `$updatedAt > مؤشر_الكيان − نافذة_الأمان`.
   ///
+  /// ✅ (2026-08-31) [isDelta] هنا قرار **الكيان** (يُحسب في
+  /// [_pullDocsMetadataFirst]: العام || مؤشر الكيان > 0) — لا القرار العام
+  /// للدورة.
+  ///
   /// فشل كيان لم يعُد يمتد أثره إلى بقية الكيانات: كل كيان يحمل مؤشره
   /// الخاص ويتقدم باستقلال — العلاج الجذري للمؤشر العالمي الواحد الذي
   /// كان يجمد كل الكيانات عند فشل واحد ويعيد سحب deltas سليمة كل دورة.
@@ -5941,6 +5945,10 @@ class AppwriteSyncManager {
   /// ✅ (2026-08-31) تقليل السحب على مستوى السجل: وضع delta لم يعد يُنزّل
   /// الحمولات الكاملة مباشرة — يمر عبر [_pullDocsDeltaMetadataFirst]
   /// (metadata النافذة الزمنية أولاً ثم تنزيل المتغيّر فعلاً فقط).
+  ///
+  /// ✅ (2026-08-31) قرار delta/full صار على مستوى الكيان: [isDelta] هنا
+  /// قرار الكيان (`isDelta` العام || مؤشر الكيان > 0) — فشل كيان آخر لا
+  /// يُعيد سحب هذا الكيان كاملاً كل دورة.
   ///
   /// ملاحظة أمان: المستندات المحذوفة من الخادم تختفي من الـ metadata ولا
   /// تُجلب — مطابق لسلوك السحب الكامل السابق (لا حذف انعكاسي في السحب).
@@ -6142,11 +6150,40 @@ class AppwriteSyncManager {
     required bool isDelta,
     required List<String> fallback,
   }) async {
-    // ⚡ (2026-08-31) المسار السريع على مستوى السجل: سجلات هذا الكيان طُبّقت
-    // محلياً من حمولة أحداث Realtime مباشرة خلال هذه الدورة — لا حاجة لأي
-    // delta query. السحب الكامل (isDelta=false) لا يتأثر أبداً: هو شبكة
-    // أمان الكمال بعد resetSyncState/إعادة تثبيت، ويجب أن يمسح كل شيء.
-    if (isDelta && _activeFastAppliedEntities.contains(entity)) {
+    // ✅ (2026-08-31) قرار delta/full على مستوى الكيان لا على مستوى الدورة:
+    // كيان مؤشره الخاص > 0 يمضي في delta حتى لو كانت الدورة عامةً full
+    // (fullSyncComplete=0 بسبب فشل كيان آخر مستمر) — الكيان السليم لا يُعاقَب
+    // بعقدة جاره، والكيان الفاشل وحده يبقى full له وحده.
+    //
+    // أمان القرار (ثلاث طبقات مثبتة في الكود):
+    //  1) مؤشر الكيان يتقدّم فقط بعد نجاح سحبه وتطبيقه (_checkpointEntity
+    //     تُستدعى بعد نجاح _sync*) وهو أحادي الاتجاه — لا يقفز فوق سجلات
+    //     لم تُطبَّق، والمسار السريع Realtime لا يقدّمه إطلاقاً.
+    //  2) إذا كانت خريطة sync_remote_meta فارغة محلياً (قاعدة بيانات مُعادة
+    //     التهيئة مع بقاء prefs) يهبط _pullDocsDeltaMetadataFirst تلقائياً
+    //     إلى full لهذا الكيان.
+    //  3) بعد resetSyncState تُمسح خريطة المؤشرات مع lastPullTs — تعود كل
+    //     الكيانات إلى full ويبقى هو شبكة أمان الكمال.
+    int entityTs = 0;
+    try {
+      entityTs = await _pullService?.getEntityPullTs(entity) ?? 0;
+    } catch (_) {
+      entityTs = 0;
+    }
+    final entityIsDelta = isDelta || entityTs > 0;
+    if (!isDelta && entityIsDelta) {
+      _logger.info(
+        '🪶 per-entity delta($entity): مؤشره الخاص ($entityTs) يتقدّم رغم '
+        'وضع الدورة العام full — فشل كيان آخر لا يعيد سحبه كاملاً',
+        tag: 'SYNC',
+      );
+    }
+
+    // ⚡ المسار السريع على مستوى السجل: سجلات هذا الكيان طُبّقت محلياً من
+    // حمولة أحداث Realtime مباشرة خلال هذه الدورة — لا حاجة لأي delta
+    // query. لا يُطبَّق عندما يكون الكيان فعلاً في وضع full (شبكة أمان
+    // الكمال بعد resetSyncState/إعادة تثبيت يجب أن تمسح كل شيء).
+    if (entityIsDelta && _activeFastAppliedEntities.contains(entity)) {
       // ✅ حارس pending القديم: أي serverMax "معلّق" هنا بقايا دورة سابقة
       // فشلت بعد ضبطه (metadata نجحت ثم فشل الجلب/التطبيق) — استهلاكه
       // الآن سيقدّم المؤشر فوق سجلات لم تُطبَّق قط (اختفاء حتى full pull).
@@ -6161,10 +6198,10 @@ class AppwriteSyncManager {
     }
     final queries = await _entityPullQueries(
       entity,
-      isDelta: isDelta,
+      isDelta: entityIsDelta,
       fallback: fallback,
     );
-    if (isDelta) {
+    if (entityIsDelta) {
       // ✅ (2026-08-31) تقليل السحب على مستوى السجل — delta صار metadata-first
       // أيضاً (كان يُنزّل الحمولة الكاملة لكل مستند في النافذة الزمنية).
       return _pullDocsDeltaMetadataFirst(entity, queries);
