@@ -420,6 +420,12 @@ class SyncPullService {
   /// إذا كان lastPullTs <= 0 → يُعيد قائمة فارغة (سحب كامل).
   static const int _safetyWindowSeconds = 15;
 
+  /// السحب التلقائي لا يملك صلاحية bootstrap؛ لا يعمل إلا بعد اكتمال
+  /// Full Sync الأول ووجود checkpoint صالح.
+  Future<bool> isDeltaReady(int lastPullTs) async {
+    return lastPullTs > 0 && await isFullSyncComplete();
+  }
+
   /// استعلام السحب الكامل للكيانات المتزامنة.
   ///
   /// لا تُعاد مستندات الـ tombstone (`deletedAt > 0`) إلى هاتف جديد أو

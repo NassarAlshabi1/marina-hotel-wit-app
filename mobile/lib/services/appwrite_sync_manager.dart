@@ -786,12 +786,13 @@ class AppwriteSyncManager {
 
   static const Duration _automaticPullMinGap = Duration(minutes: 2);
 
-  Future<bool> _canStartAutomaticPull() async {
-    final state = await (database.select(
-      database.syncState,
-    )..where((t) => t.id.equals(1))).getSingleOrNull();
-    final lastPullTs = state?.lastPullTs ?? 0;
-    if (lastPullTs <= 0) return true;
+  Future<bool> _canStartAutomaticDeltaPull() async {
+    final lastPullTs = await _getLastPullTs();
+    final deltaReady = _pullService == null
+        ? false
+        : await _pullService!.isDeltaReady(lastPullTs);
+
+    if (!deltaReady) return false;
 
     final normalizedSeconds = lastPullTs > 10000000000
         ? lastPullTs ~/ 1000
@@ -817,12 +818,16 @@ class AppwriteSyncManager {
     bool automatic = false,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    if (automatic && pull && !await _canStartAutomaticPull()) {
-      _logger.debug(
-        'Automatic pull skipped — minimum interval not reached',
-        tag: 'SYNC',
-      );
-      pull = false;
+    if (automatic && pull) {
+      final canStart = await _canStartAutomaticDeltaPull();
+      if (!canStart) {
+        _logger.debug(
+          'Automatic Delta pull skipped — Delta is not ready; '
+          'full sync requires explicit/manual action',
+          tag: 'SYNC',
+        );
+        pull = false;
+      }
     }
     if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) {
       _logger.info(
@@ -5799,9 +5804,10 @@ class AppwriteSyncManager {
   /// Guarded by [SyncLocks.appwriteSyncLock] to prevent concurrent pulls.
   /// All collection syncs are wrapped in a single database transaction for atomicity.
   Future<bool> pullRemoteChanges({bool automatic = false}) async {
-    if (automatic && !await _canStartAutomaticPull()) {
+    if (automatic && !await _canStartAutomaticDeltaPull()) {
       _logger.debug(
-        'Automatic pull skipped — minimum interval not reached',
+        'Automatic Delta pull skipped — Delta is not ready; '
+        'full sync requires explicit/manual action',
         tag: 'SYNC',
       );
       return true;
