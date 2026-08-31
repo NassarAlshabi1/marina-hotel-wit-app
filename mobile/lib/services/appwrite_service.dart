@@ -1327,9 +1327,15 @@ class AppwriteService {
   /// ضئيلة من تكلفة السحب الكامل التقليدي.
   /// بلا كاش عمداً — يجب أن تعكس صورة الخادم اللحظية.
   /// ✅ (2026-08-31) تقليل السحب على مستوى السجل — دعم extraQueries:
-  /// تُبنى queries بـ (select [$id, $updatedAt]) + استعلامات إضافية تُمرَّر
-  /// كما هي (مثل فلتر delta `greaterThan($updatedAt, cutoff)`) — كي تخدم
-  /// مرحلة metadata الأولى في delta أيضاً لا في السحب الكامل فقط.
+  /// تُبنى queries بـ (select [$id, $updatedAt, deletedAt]) + استعلامات
+  /// إضافية تُمرَّر كما هي (مثل فلتر delta `greaterThan($updatedAt, cutoff)`)
+  /// — كي تخدم مرحلة metadata الأولى في delta أيضاً لا في السحب الكامل فقط.
+  ///
+  /// ✅ (2026-08-31) `deletedAt` أُضيفت للحمولة الخفيفة: تُمكّن استبعاد
+  /// tombstones من التنزيل في مرحلة المقارنة (سجل محذوف على الخادم وغير
+  /// معروف محلياً = صفر تنزيل) بدل تنزيل محتواه كاملاً. السمة موجودة في
+  /// `_syncFields` لكل كولكشنات المزامنة (وهي نفسها التي يفلتر عليها
+  /// `buildFullSyncQueries` أصلاً) فلا خطر رفض استعلام.
   Future<List<models.Document>> listDocumentsMetadata(
     String collectionId, {
     List<String> extraQueries = const [],
@@ -1338,7 +1344,7 @@ class AppwriteService {
     return _listAllDocumentsInternal(
       collectionId: collectionId,
       queries: [
-        Query.select([r'$id', r'$updatedAt']),
+        Query.select([r'$id', r'$updatedAt', 'deletedAt']),
         ...extraQueries,
       ],
       useCache: false,

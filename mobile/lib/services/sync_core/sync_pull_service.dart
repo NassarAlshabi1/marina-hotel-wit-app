@@ -463,6 +463,32 @@ class SyncPullService {
     return changed;
   }
 
+  /// ✅ (2026-08-31) استبعاد tombstones من السحب — تقليل السحب على مستوى
+  /// السجل للمحذوف.
+  ///
+  /// سجل محذوف على الخادم وغير معروف محلياً (لا صف له ولا إدخال في
+  /// sync_remote_meta) لا فائدة من تنزيله: كان يُجلب كاملاً (بكل أعمدته
+  /// وبياناته الحساسة) ثم يُدرَج محلياً كصف tombstone غير مرئي عبر فرع
+  /// "غير موجود → أضف دائماً" في [checkAndResolveConflict]. يُتخطى بدل
+  /// ذلك ويُعلَّم في sync_remote_meta كي لا يُعاد تعداده كل دورة.
+  ///
+  /// المحذوف **المعروف** محلياً لا يُتخطى عمداً: توصيل الحذف إلى هذا
+  /// الجهاز يعتمد على تنزيل الـ tombstone وتطبيقه — انظر فرع "tombstone
+  /// يتجاوز VC والطوابع" في [checkAndResolveConflict]. تخطيه هنا يعني
+  /// سجلات شبحية تبقى نشطة محلياً بعد حذفها من جهاز آخر (resurrection).
+  ///
+  /// دالة نقية (قابلة للاختبار مباشرة).
+  static Set<String> tombstoneSkipIds({
+    required Map<String, int> deletedTs,
+    required Map<String, int> localMeta,
+  }) {
+    final skip = <String>{};
+    deletedTs.forEach((id, _) {
+      if (!localMeta.containsKey(id)) skip.add(id);
+    });
+    return skip;
+  }
+
   Future<List<String>> buildDeltaQueries(int lastPullTs) async {
     // ✅ Sync Safety Wave 2 (2026-08-12): Full Sync Bootstrap Guard.
     //

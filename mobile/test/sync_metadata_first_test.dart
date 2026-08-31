@@ -63,6 +63,62 @@ void main() {
     });
   });
 
+  group('SyncPullService.tombstoneSkipIds (استبعاد المحذوف من التنزيل)', () {
+    test('محذوف على الخادم وغير معروف محلياً → يُتخطى (صفر تنزيل)', () {
+      final skip = SyncPullService.tombstoneSkipIds(
+        deletedTs: {'del1': 1700000000, 'del2': 1700000100},
+        localMeta: {'alive1': 100},
+      );
+      expect(skip.toSet(), {'del1', 'del2'});
+    });
+
+    test('محذوف ومعروف محلياً → لا يُتخطى (توصيل الحذف يعتمد على تنزيله)', () {
+      final skip = SyncPullService.tombstoneSkipIds(
+        deletedTs: {'known': 1700000000},
+        localMeta: {'known': 1699999000},
+      );
+      expect(skip, isEmpty);
+    });
+
+    test('خليط: المحذوف الغريب يُتخطى والمحذوف المعلوم يبقى', () {
+      final skip = SyncPullService.tombstoneSkipIds(
+        deletedTs: {'gone': 1700000000, 'mine': 1700000500},
+        localMeta: {'alive1': 100, 'mine': 1699990000},
+      );
+      expect(skip, {'gone'});
+    });
+
+    test('لا محذوفات → لا تخطي', () {
+      final skip = SyncPullService.tombstoneSkipIds(
+        deletedTs: {},
+        localMeta: {'a': 100},
+      );
+      expect(skip, isEmpty);
+    });
+
+    test(
+      'الدمج مع computeChangedIds: المحذوف الغريب يخرج من قائمة التنزيل',
+      () {
+        // سيناريو كامل كما في _pullDocsMetadataFirst: الحذف لا يغيّر النتيجة
+        // المتوقعة من computeChangedIds — الفصل يقتطع المحذوف الغريب فقط.
+        final serverMeta = {'alive_new': 300, 'gone': 200, 'mine': 400};
+        final localMeta = {'alive_old': 100, 'mine': 350};
+        final changed = SyncPullService.computeChangedIds(
+          serverMeta: serverMeta,
+          localMeta: localMeta,
+        );
+        expect(changed.toSet(), {'alive_new', 'gone', 'mine'});
+
+        final skip = SyncPullService.tombstoneSkipIds(
+          deletedTs: {'gone': 200, 'mine': 400},
+          localMeta: localMeta,
+        );
+        changed.removeWhere(skip.contains);
+        expect(changed.toSet(), {'alive_new', 'mine'});
+      },
+    );
+  });
+
   group('SyncRemoteMeta helpers (in-memory drift database)', () {
     late AppDatabase db;
 

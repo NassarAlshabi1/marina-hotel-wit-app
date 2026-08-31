@@ -2428,6 +2428,74 @@ class AppwriteSyncManager {
     }
   }
 
+  /// ✅ (2026-08-31) قراءة `deletedAt` من metadata الوثيقة (السمة أُضيفت
+  /// إلى حمولة [AppwriteService.listDocumentsMetadata] لهذا الغرض) —
+  /// يعيد null إذا غابت، و0 تُعامل كـ"حيّ" (نفس دلالة buildFullSyncQueries).
+  int? _extractDeletedAtSec(models.Document doc) {
+    try {
+      final raw = doc.data['deletedAt'];
+      if (raw is int) return raw;
+      if (raw is num) return raw.toInt();
+      if (raw is String) return int.tryParse(raw);
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// ✅ (2026-08-31) فصل tombstones في مرحلة metadata: يبني خريطة
+  /// `id → deletedAt` للمحذوف (>0) من صفوف metadata الخفيفة، ثم يستبعد
+  /// منها المحذوف **غير المعروف محلياً** من [changedIds] ويعلّمه في
+  /// sync_remote_meta (صفر تنزيل، لا يُعاد تعداده).
+  ///
+  /// المحذوف المعروف محلياً يبقى في changedIds عمداً — تنزيله هو آلية
+  /// توصيل الحذف لهذا الجهاز (فرع tombstone في المصالحة).
+  Future<void> _partitionTombstones({
+    required List<models.Document> metaDocs,
+    required Map<String, int> serverMeta,
+    required Map<String, int> localMeta,
+    required String collectionId,
+    required String entity,
+    required List<String> changedIds,
+  }) async {
+    final deletedTs = <String, int>{};
+    for (final d in metaDocs) {
+      final del = _extractDeletedAtSec(d);
+      if (del != null && del > 0) deletedTs[d.$id] = del;
+    }
+    if (deletedTs.isEmpty) return;
+
+    final skipIds = SyncPullService.tombstoneSkipIds(
+      deletedTs: deletedTs,
+      localMeta: localMeta,
+    );
+    if (skipIds.isEmpty) return;
+
+    changedIds.removeWhere(skipIds.contains);
+    final skipMeta = <String, int>{};
+    for (final id in skipIds) {
+      final ts = serverMeta[id];
+      if (ts != null) skipMeta[id] = ts;
+    }
+    // كتابة المعرفة فوراً: قرار التخطي نهائي (لا شيء يُطبَّق)، وأي تعديل
+    // لاحق للسجل يرفع $updatedAt فيعود في النافذة/المقارنة طبيعياً.
+    try {
+      if (skipMeta.isNotEmpty) {
+        await database.upsertRemoteMeta(collectionId, skipMeta);
+      }
+    } catch (e) {
+      _logger.warning(
+        '⚠️ tombstone meta($entity) فشل: $e — ستُعاد المقارنة الدورة القادمة',
+        tag: 'SYNC',
+      );
+    }
+    _logger.info(
+      '🪧 metadata-first($entity): تخطي ${skipIds.length} tombstone غير '
+      'معروف محلياً (من ${deletedTs.length} محذوفاً في النطاق) — صفر تنزيل',
+      tag: 'SYNC',
+    );
+  }
+
   /// ✅ إصلاح جذري (2026-06-27): دمج Vector Clock في حل التعارضات
   ///
   /// المنطق القديم كان يعتمد فقط على `lastModified` (LWW — Last Write Wins).
@@ -6240,6 +6308,19 @@ class AppwriteSyncManager {
       unknownTsDocIds: unknownTsIds,
     );
 
+    // ✅ (2026-08-31) استبعاد tombstones غير المطلوبة من التنزيل — السحب
+    // الكامل metadata-first لم يكن يحترم فلتر buildFullSyncQueries (كان
+    // يعدّد كل الكولكشن بمن فيهم المحذوف ثم يُنزّل المحذوف غير المعروف
+    // محلياً كاملاً ليدرجه صف tombstone غير مرئي).
+    await _partitionTombstones(
+      metaDocs: metaDocs,
+      serverMeta: serverMeta,
+      localMeta: localMeta,
+      collectionId: collectionId,
+      entity: entity,
+      changedIds: changedIds,
+    );
+
     if (changedIds.isEmpty) {
       _logger.info(
         '🪶 metadata-first($entity): لا تغييرات بين الخادم والمحلي '
@@ -6333,9 +6414,29 @@ class AppwriteSyncManager {
     if (localMeta.isEmpty) {
       // bootstrap الكيان: لا معرفة لكل سجل → لا شيء يُتخطى — تمرير واحد
       // (listDocuments) أرخص من مرحلتين (metadata ثم دفعات byIds).
+      //
+      // ✅ (2026-08-31) مع فلتر استبعاد tombstones: كان bootstrap يُنزّل
+      // محتوى كل السجلات المحذوفة تاريخياً كاملاً (بتكلفتها وخصوصيتها)
+      // ليدرجه صفوفاً tombstone غير مرئية. الآن التنزيل يستبعد المحذوف
+      // بنفس فلتر السحب الكامل (Query.or على deletedAt مدمجاً AND مع
+      // فلتر النافذة)، والمؤشر يتقدّم إلى أقصى النافذة (سلطة الخادم) —
+      // فلا تعود النافذة التالية لتشمل المحذوف أصلاً. جهاز جديد = صفر
+      // تنزيل لأي سجل محذوف إطلاقاً.
+      //
+      // ملاحظة: لا نكتب sync_remote_meta للمحذوف هنا — الاستبعاد يعتمد
+      // على فلتر الخادم لا على المعرفة، وفشل دورة bootstrap يعيد المحاولة
+      // بنفس الفلتر دون أي تنزيل محذوف (ولا pending يتجاوز سجلات غير
+      // مطبَّقة: يُستهلك فقط بعد نجاح تطبيق هذه النافذة نفسها).
+      var bootstrapServerMax = 0;
+      for (final ts in serverMeta.values) {
+        if (ts > bootstrapServerMax) bootstrapServerMax = ts;
+      }
+      if (bootstrapServerMax > 0) {
+        _pendingMetaServerMaxTs[entity] = bootstrapServerMax;
+      }
       return appwriteService.listDocuments(
         collectionId: collectionId,
-        queries: deltaQueries,
+        queries: [...deltaQueries, ...SyncPullService.buildFullSyncQueries()],
         useCache: false,
       );
     }
@@ -6344,6 +6445,16 @@ class AppwriteSyncManager {
       serverMeta: serverMeta,
       localMeta: localMeta,
       unknownTsDocIds: unknownTsIds,
+    );
+
+    // ✅ (2026-08-31) استبعاد tombstones غير المطلوبة من تنزيل النافذة.
+    await _partitionTombstones(
+      metaDocs: metaDocs,
+      serverMeta: serverMeta,
+      localMeta: localMeta,
+      collectionId: collectionId,
+      entity: entity,
+      changedIds: changedIds,
     );
 
     // يُستهلك في _checkpointEntity بعد نجاح التطبيق فقط — التقدم إلى أقصى
