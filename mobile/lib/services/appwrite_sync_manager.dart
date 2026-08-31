@@ -6802,7 +6802,23 @@ class AppwriteSyncManager {
               tag: 'SYNC',
             );
             recordsPulled += await _syncBookingNights(bookingNights);
-            await _updateBookingNightsPullTs(Time.nowEpoch());
+            // ✅ (2026-08-31) توحيد مع الدورة الرئيسية (L1415): مؤشر
+            // booking_nights من max($updatedAt) للسجلات المسحوبة (سلطة
+            // الخادم). كان يقفز إلى Time.nowEpoch() غير المشروط: مع حد
+            // السحب الأولي (1000 سجل) كانت القفزة تضع المؤشر فوق بقية
+            // الليالي الأقدم فتُسقط نهائياً على هذا المسار (فقد صامت).
+            // التقدم هنا فقط بدليل من الخادم — الدورة الفارغة لا تحرك
+            // المؤشر (النافذة تُعاد بناؤها في الدورة التالية).
+            int? nightsMaxTs;
+            for (final doc in bookingNights) {
+              final ts = _extractUpdatedAtSec(doc);
+              if (ts != null && (nightsMaxTs == null || ts > nightsMaxTs)) {
+                nightsMaxTs = ts;
+              }
+            }
+            if (nightsMaxTs != null) {
+              await _updateBookingNightsPullTs(nightsMaxTs);
+            }
           } catch (e, st) {
             // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
             failedCollections.add('booking_nights');
