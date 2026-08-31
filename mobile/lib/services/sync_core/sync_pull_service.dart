@@ -362,10 +362,18 @@ class SyncPullService {
       final info = appwriteService.getProjectInfo();
       final dbId = info['databaseId'] ?? AppwriteConfig.databaseId;
 
+      // ✅ (2026-08-31) Query.select للحمولات: الكشف كان ينزّل صف rooms
+      // كاملاً (أعرض جدول + بيانات ضيوف) ليقرأ حقول lastModified التي لا
+      // توجد أصلاً في مخطط rooms. نتيجة الكشف يستهلكها اليوم مسارٌ واحد
+      // (bookingNightsDeltaQueries) الذي يتجاهلها — select($id) يجعل
+      // القيمة false حتمياً (كما هي فعلاً) دون أي تنزيل بيانات ضيوف.
       final list = await appwriteService.databases.listDocuments(
         databaseId: dbId,
         collectionId: AppwriteConfig.roomsCollectionId,
-        queries: [Query.limit(1)],
+        queries: [
+          Query.select([r'$id']),
+          Query.limit(1),
+        ],
       );
 
       if (list.documents.isEmpty) {
