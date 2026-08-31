@@ -39,6 +39,21 @@ void main() {
       expect(q, isEmpty);
     });
 
+    test('isDeltaReady يرفض Delta قبل اكتمال Full Sync', () async {
+      expect(await pull.isDeltaReady(1000), isFalse);
+      await pull.markFullSyncComplete();
+      expect(await pull.isDeltaReady(0), isFalse);
+      expect(await pull.isDeltaReady(1000), isTrue);
+      await pull.resetFullSyncComplete();
+      expect(await pull.isDeltaReady(1000), isFalse);
+    });
+
+    test('Full Sync يستبعد سجلات deletedAt', () {
+      final q = SyncPullService.buildFullSyncQueries();
+      expect(q, hasLength(1));
+      expect(q.single, contains('deletedAt'));
+    });
+
     test('lastPullTs > 0 → فلتر updatedAt مع نافذة أمان 15s', () async {
       // ✅ Sync Safety Wave 2 (2026-08-12): full_sync_complete يجب أن = 1
       // قبل السماح بـ delta queries. نضبطه يدوياً هنا للاختبار.
