@@ -12,6 +12,7 @@
 import 'dart:async';
 import 'dart:io' show Directory;
 
+import 'package:drift/drift.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,6 +22,9 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   // ✅ تهيئة SQLite FFI مرة واحدة قبل كل الاختبارات
   // هذا يمنع segmentation faults في drift/NativeDatabase.memory()
   TestWidgetsFlutterBinding.ensureInitialized();
+  // الاختبارات تنشئ NativeDatabase.memory() معزولة عمداً. لا نشارك
+  // QueryExecutor بين قواعد الاختبارات، لذلك لا يفيد هذا التحذير العام هنا.
+  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
 
