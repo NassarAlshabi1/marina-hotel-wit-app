@@ -15,6 +15,7 @@ import '../daos/outbox_dao.dart';
 import '../local_db.dart';
 import '../vector_clock_service.dart';
 import 'smart_conflict_resolver.dart';
+import 'sync_checkpoint_store.dart';
 
 /// خدمة سحب التغييرات من Appwrite Cloud إلى القاعدة المحلية
 ///
@@ -47,6 +48,15 @@ class SyncPullService {
 
   /// ✅ Audit Fix: deviceId الحالي (لـ LWW tie-break).
   String? _currentDeviceId;
+
+  /// ✅ Unified Pull (2026-08-31): مخزن الـ checkpoints المخصص لكل مجموعة
+  /// (جدول SQLite `sync_checkpoints` — يُنشأ عبر SQL خام).
+  SyncCheckpointStore? _checkpointStore;
+
+  /// ✅ Unified Pull: حقن مخزن الـ checkpoints من AppwriteSyncManager.
+  void setCheckpointStore(SyncCheckpointStore store) {
+    _checkpointStore = store;
+  }
 
   /// ✅ Audit Fix: حقن AncestorCacheDao من AppwriteSyncManager.
   /// هذا يسمح لـ SyncPullService بالوصول إلى الـ ancestor cache
@@ -451,6 +461,23 @@ class SyncPullService {
       return [];
     }
 
+    if (lastPullTs <= 0) {
+      return [];
+    }
+    final cutoffSeconds = lastPullTs - _safetyWindowSeconds;
+    final cutoffIso = DateTime.fromMillisecondsSinceEpoch(
+      cutoffSeconds * 1000,
+      isUtc: true,
+    ).toIso8601String();
+    return [Query.greaterThan(r'$updatedAt', cutoffIso)];
+  }
+
+  /// ✅ Unified Pull (2026-08-31): بناء استعلامات Delta على مستوى مجموعة واحدة.
+  ///
+  /// يختلف عن [buildDeltaQueries] في أنه لا يفحص علامة `full_sync_complete`
+  /// العامة — فحص الاكتمال أصبح لكل مجموعة مستقلة عبر UnifiedPullEngine
+  /// وجدول `sync_checkpoints` (فشل مجموعة لا يُجبر البقية على Full pull).
+  List<String> buildDeltaQueriesForCollection(int lastPullTs) {
     if (lastPullTs <= 0) {
       return [];
     }
