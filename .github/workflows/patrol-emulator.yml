@@ -186,37 +186,14 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
           disable-animations: true
           script: |
-            # android-emulator-runner passes the script to /usr/bin/sh -c.
-            # ملاحظة (2026-08-31): لوحظ انهيار بنية تحتية متقطع —
+            # android-emulator-runner passes EACH LINE to /usr/bin/sh -c
+            # separately — multi-line control structures (while/for/do)
+            # break with "end of file unexpected". كل الحلقة في سطر واحد.
+            # ملاحظة (2026-08-31): انهيار بنية تحتية متقطع —
             # "[EmulatorConsole]: Failed to start Emulator console" يتبعه
-            # تجمّد Gradle بلا مخرجات حتى ضرب مهلة الـ job (run 33436036654:
-            # علِق 31 دقيقة في :app:assembleDebugAndroidTest). نفس الكود
-            # ينجح في بقية jobs الـ matrix وعادةً ما يكفي إعادة المحاولة.
+            # تجمّد Gradle بلا مخرجات حتى مهلة الـ job (run 33436036654).
             # إعادة محاولة محدودة (3 × 15د) مع إعادة ضبط adb بين المحاولات.
-            cd "${{ github.workspace }}/mobile"
-            export PATH="$HOME/.pub-cache/bin:$PATH"
-            max_attempts=3
-            attempt=1
-            while [ "$attempt" -le "$max_attempts" ]; do
-              echo "::group::🧪 Patrol attempt ${attempt}/${max_attempts} — ${{ matrix.test-file }}"
-              adb kill-server >/dev/null 2>&1 || true
-              adb start-server >/dev/null 2>&1 || true
-              adb wait-for-device || true
-              if timeout 900 env PATROL_ANALYTICS_ENABLED=false patrol test --target "integration_test/${{ matrix.test-file }}" --exclude-tags skip-ci --verbose; then
-                echo "::endgroup::"
-                exit 0
-              fi
-              status=$?
-              echo "::endgroup::"
-              echo "⚠️ Patrol attempt ${attempt} failed (exit ${status})."
-              attempt=$((attempt + 1))
-              if [ "$attempt" -le "$max_attempts" ]; then
-                echo "إعادة المحاولة بعد 20 ثانية..."
-                sleep 20
-              fi
-            done
-            echo "::error::Patrol tests failed after ${max_attempts} attempts"
-            exit 1
+            cd "${{ github.workspace }}/mobile" && export PATH="$HOME/.pub-cache/bin:$PATH" && attempt=1; while [ "$attempt" -le 3 ]; do echo "::group::🧪 Patrol attempt ${attempt}/3 — ${{ matrix.test-file }}"; adb kill-server >/dev/null 2>&1 || true; adb start-server >/dev/null 2>&1 || true; adb wait-for-device || true; if timeout 900 env PATROL_ANALYTICS_ENABLED=false patrol test --target "integration_test/${{ matrix.test-file }}" --exclude-tags skip-ci --verbose; then echo "::endgroup::"; exit 0; fi; echo "::endgroup::"; echo "⚠️ Patrol attempt ${attempt} failed."; attempt=$((attempt + 1)); [ "$attempt" -le 3 ] && sleep 20; done; echo "::error::Patrol tests failed after 3 attempts"; exit 1
 
       # ─────────────────────────────────────────────────────────────────────
       #  12. جمع تشخيصات Android عند انهيار Instrumentation.
