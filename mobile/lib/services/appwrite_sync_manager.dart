@@ -5673,10 +5673,26 @@ class AppwriteSyncManager {
     }
   }
 
-  /// تطبيق تغيير Realtime/FCM على سجل واحد فقط.
+  /// تطبيق تغيير Realtime على سجل واحد فقط.
   ///
   /// لا يحرّك هذا المسار Delta list؛ فهو يستخدم getDocument بمعرف السجل
   /// ثم يمرر المستند إلى نفس adapters ومسارات حل التعارض المستخدمة في السحب.
+  bool _isRemoteDeleted(models.Document document) {
+    final data = document.data;
+    final deletedAt = data['deletedAt'] ?? data['deleted_at'];
+    if (deletedAt is num) return deletedAt > 0;
+    if (deletedAt is String) {
+      final value = deletedAt.trim();
+      if (value.isEmpty || value == '0') return false;
+      final numeric = num.tryParse(value);
+      if (numeric != null) return numeric > 0;
+      return DateTime.tryParse(value) != null;
+    }
+
+    final isDeleted = data['isDeleted'] ?? data['is_deleted'];
+    return isDeleted == true || isDeleted == 1 || isDeleted == 'true';
+  }
+
   Future<void> applyRemoteRecordChange(PendingRemoteRecord change) async {
     if (change.collectionId.isEmpty || change.documentId.isEmpty) return;
 
@@ -5686,6 +5702,15 @@ class AppwriteSyncManager {
         documentId: change.documentId,
         suppressErrorLog: true,
       );
+      if (_isRemoteDeleted(document)) {
+        _logger.debug(
+          'Targeted sync skipped deleted record '
+          '${change.collectionId}/${change.documentId}',
+          tag: 'SYNC_TARGETED',
+        );
+        return;
+      }
+
       final documents = <models.Document>[document];
       switch (change.collectionId) {
         case AppwriteConfig.roomsCollectionId:
@@ -5740,6 +5765,23 @@ class AppwriteSyncManager {
             tag: 'SYNC_TARGETED',
           );
       }
+    } on AppwriteException catch (error) {
+      if (error.code == 404) {
+        _logger.debug(
+          'Targeted sync skipped missing/deleted record '
+          '${change.collectionId}/${change.documentId}',
+          tag: 'SYNC_TARGETED',
+        );
+        return;
+      }
+      _logger.warning(
+        'Targeted sync failed for ${change.collectionId}/${change.documentId}; '
+        'delta recovery will reconcile it.',
+        error: error,
+        stackTrace: StackTrace.current,
+        tag: 'SYNC_TARGETED',
+      );
+      rethrow;
     } catch (error, stackTrace) {
       _logger.warning(
         'Targeted sync failed for ${change.collectionId}/${change.documentId}; '

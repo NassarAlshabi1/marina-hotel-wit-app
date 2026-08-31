@@ -471,6 +471,7 @@ class SyncPullService {
     return [
       Query.greaterThan(r'$updatedAt', cutoffIso),
       Query.lessThanEqual(r'$updatedAt', upperBoundIso),
+      Query.or([Query.isNull('deletedAt'), Query.equal('deletedAt', 0)]),
     ];
   }
 
@@ -494,6 +495,7 @@ class SyncPullService {
       return [
         Query.greaterThan(r'$updatedAt', cutoffIso),
         Query.lessThanEqual(r'$updatedAt', upperBoundIso),
+        Query.or([Query.isNull('deletedAt'), Query.equal('deletedAt', 0)]),
       ];
     }
     return []; // full fetch
