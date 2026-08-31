@@ -145,13 +145,16 @@ class UnifiedPullEngine {
       final stopwatch = Stopwatch()..start();
       var success = false;
       try {
-        final plan = await plan(task.name);
-        final docs = await task.fetch(plan);
+        // ملاحظة: اسم المتغير المحلي يجب ألا يحجب اسم الدالة [plan] —
+        // الظلّ هنا (final plan = await plan(...)) يجعل الاستدعاء يشير
+        // إلى المتغير نفسه قبل تهيئته (referenced_before_declaration).
+        final pullPlan = await plan(task.name);
+        final docs = await task.fetch(pullPlan);
         recordsPulled += await task.apply(docs);
         await commit(
           task.name,
           maxUpdatedAtSec: maxUpdatedAtOf(docs),
-          sinceTs: plan.sinceTs,
+          sinceTs: pullPlan.sinceTs,
         );
         success = true;
       } catch (error, stackTrace) {

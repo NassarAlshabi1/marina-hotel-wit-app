@@ -177,8 +177,10 @@ class AppwriteSyncManager {
       deviceId: _currentDeviceId,
     );
     // ✅ Unified Pull (2026-08-31): تهيئة مخزن الـ checkpoints والمحرك الموحد.
+    // ملاحظة: أُزيل حقن setCheckpointStore في SyncPullService — الحقل
+    // هناك كان يُكتب ولا يُقرأ أبداً (unused_field)؛ المحرك الموحد
+    // يحتفظ بالمخزن مباشرة عبر المعامل `checkpoints`.
     _checkpointStore = SyncCheckpointStore(database);
-    _pullService!.setCheckpointStore(_checkpointStore);
     _unifiedPull = UnifiedPullEngine(
       checkpoints: _checkpointStore,
       pullService: _pullService!,
@@ -4174,27 +4176,12 @@ class AppwriteSyncManager {
 
   // ─── Delta Sync ────────────────────────────────────────────────────────
 
-  /// قراءة آخر timestamp خاص بـ booking_nights من SharedPreferences
-  Future<int> _getBookingNightsPullTs() async {
-    return _pullService?.getBookingNightsPullTs() ?? 0;
-  }
-
-  /// تحديث آخر timestamp خاص بـ booking_nights
-  Future<void> _updateBookingNightsPullTs(int ts) async {
-    await _pullService?.updateBookingNightsPullTs(ts);
-  }
-
-  /// بناء delta queries خاصة بـ booking_nights
-  List<String> _bookingNightsDeltaQueries(
-    int lastPullTs, {
-    required bool remoteEpochIsMillis,
-  }) {
-    return _pullService?.bookingNightsDeltaQueries(
-          lastPullTs,
-          remoteEpochIsMillis: remoteEpochIsMillis,
-        ) ??
-        [];
-  }
+  // ملاحظة (2026-08-31): أُزيلت الأغلفة الخاصة غير المستخدمة
+  // (_getBookingNightsPullTs، _updateBookingNightsPullTs،
+  // _bookingNightsDeltaQueries) — كانت بقايا مسار Delta القديم
+  // قبل مسار السحب الموحد (UnifiedPullEngine) الذي يقرأ المؤشرات
+  // من SyncCheckpointStore مباشرة. الدوال العامة في SyncPullService
+  // بقيت لأن اختبارات الوحدات تستخدمها.
 
   /// تنظيف outbox بعد سحب البيانات من السحابة بنجاح.
   /// يحذف عناصر outbox التي تتطابق مع بيانات تم سحبها فعلياً (بنفس entity + localUuid).
@@ -4950,11 +4937,6 @@ class AppwriteSyncManager {
     return row?.lastModified;
   }
 
-  /// قراءة آخر timestamp لسحب البيانات من جدول SyncState
-  Future<int> _getLastPullTs() async {
-    return _pullService?.getLastPullTs() ?? 0;
-  }
-
   /// تحديث آخر timestamp لسحب البيانات في جدول SyncState
   /// ✅ نستخدم insertOnConflictUpdate بدلاً من update فقط
   /// لأن صف SyncState (id=1) قد لا يكون موجوداً بعد، مما يجعل UPDATE
@@ -5035,10 +5017,8 @@ class AppwriteSyncManager {
     final tasks = <CollectionPullTask>[
       CollectionPullTask(
         name: 'rooms',
-        fetch: (plan) => appwriteService.listRooms(
-          queries: plan.queries,
-          useCache: false,
-        ),
+        fetch: (plan) =>
+            appwriteService.listRooms(queries: plan.queries, useCache: false),
         apply: (docs) => _syncRooms(docs),
       ),
       CollectionPullTask(
@@ -5142,10 +5122,8 @@ class AppwriteSyncManager {
       ),
       CollectionPullTask(
         name: 'debts',
-        fetch: (plan) => appwriteService.listDebts(
-          queries: plan.queries,
-          useCache: false,
-        ),
+        fetch: (plan) =>
+            appwriteService.listDebts(queries: plan.queries, useCache: false),
         apply: (docs) => _syncDebts(docs),
       ),
       CollectionPullTask(

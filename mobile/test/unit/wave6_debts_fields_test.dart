@@ -298,8 +298,10 @@ void main() {
       expect(columnNames, contains('date'));
     });
 
-    test('3e. أحدث schemaVersion = 63', () {
-      expect(db.schemaVersion, 63);
+    test('3e. أحدث schemaVersion = 64', () {
+      // ✅ Migration 64: إضافة payments.receivedByCloudId (هوية Appwrite
+      // Cloud الثابتة لاستلام الدفعة) — انظر local_db.dart onUpgrade.
+      expect(db.schemaVersion, 64);
     });
   });
 

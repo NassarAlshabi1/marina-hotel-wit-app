@@ -15,7 +15,6 @@ import '../daos/outbox_dao.dart';
 import '../local_db.dart';
 import '../vector_clock_service.dart';
 import 'smart_conflict_resolver.dart';
-import 'sync_checkpoint_store.dart';
 
 /// خدمة سحب التغييرات من Appwrite Cloud إلى القاعدة المحلية
 ///
@@ -49,14 +48,10 @@ class SyncPullService {
   /// ✅ Audit Fix: deviceId الحالي (لـ LWW tie-break).
   String? _currentDeviceId;
 
-  /// ✅ Unified Pull (2026-08-31): مخزن الـ checkpoints المخصص لكل مجموعة
-  /// (جدول SQLite `sync_checkpoints` — يُنشأ عبر SQL خام).
-  SyncCheckpointStore? _checkpointStore;
-
   /// ✅ Unified Pull: حقن مخزن الـ checkpoints من AppwriteSyncManager.
-  void setCheckpointStore(SyncCheckpointStore store) {
-    _checkpointStore = store;
-  }
+  /// ملاحظة (2026-08-31): أُزيل حقل _checkpointStore وsetter الخاص به —
+  /// كانا يُكتبان ولا يُقرآن أبداً (unused_field). المحرك الموحد
+  /// (UnifiedPullEngine) يحتفظ بالمخزن مباشرة ولا يحتاج هذه الخدمة إليه.
 
   /// ✅ Audit Fix: حقن AncestorCacheDao من AppwriteSyncManager.
   /// هذا يسمح لـ SyncPullService بالوصول إلى الـ ancestor cache
