@@ -157,12 +157,21 @@ class _GoogleDriveLoginScreenState
       if (done) {
         return;
       }
-      await prefs.setBool(key, true);
 
       final manager = ref.read(appwrite.appwriteSyncManagerProvider);
       await manager.initialize();
-      // سحب جميع البيانات مع تعطيل Foreign Keys مؤقتاً لضمان عدم فشل السحب
-      await manager.pullAllDataWithDisabledFK();
+      // المتابعة بدون Google Drive لا تعني تخطي Appwrite؛ إنها تشغّل
+      // Full Sync صريحاً لتهيئة الجهاز قبل السماح بـ Delta التلقائي.
+      final fullSyncSucceeded = await manager.pullAllDataWithDisabledFK();
+      if (!fullSyncSucceeded) {
+        dlog(
+          '⚠️ Full Sync بعد تخطي Google Drive لم يكتمل؛ ستتم إعادة المحاولة',
+        );
+        return;
+      }
+      // لا نثبت علامة الاكتمال قبل نجاح Full Sync، حتى لا يبقى الجهاز
+      // عالقاً في حالة تم فيها تجاوز التهيئة بعد فشل الشبكة أو المزامنة.
+      await prefs.setBool(key, true);
     } catch (e) {
       dlog(() => '❌ Appwrite auto pull after skip error: $e');
     }

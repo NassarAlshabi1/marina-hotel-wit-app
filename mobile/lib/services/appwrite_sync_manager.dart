@@ -6266,21 +6266,28 @@ class AppwriteSyncManager {
   /// يُستخدم عند التثبيت الأول (المتابعة بدون مزامنة)
   /// ✅ إصلاح: لم نعد نعطل FK — ترتيب السحب يضمن وجود الآباء قبل الأبناء
   /// ونمط التأجيل/إعادة المحاولة يعالج الحالات الاستثنائية
-  Future<void> pullAllDataWithDisabledFK() async {
+  Future<bool> pullAllDataWithDisabledFK() async {
     if (_currentStatus == SyncStatus.syncing) {
       _logger.warning('⏸️ تخطي السحب - المزامنة جارية', tag: 'SYNC');
-      return;
+      return false;
     }
 
     _logger.info(
-      '📥 سحب شامل مع الحفاظ على Foreign Keys مفعّلة...',
+      '📥 سحب شامل صريح مع الحفاظ على Foreign Keys مفعّلة...',
       tag: 'SYNC',
     );
 
-    // ✅ لم نعد نعطل FOREIGN KEY — ترتيب السحب + نمط التأجيل يكفيان
+    // ✅ هذا المسار مخصص لتهيئة الجهاز من شاشة التثبيت؛ نجبر Full Sync
+    // صراحةً، ولا نسمح لـ lastPullTs/full_sync_complete قديمين بتحويله إلى Delta.
+    await _pullService?.resetFullSyncComplete();
+
+    var pullSucceeded = false;
     try {
-      await pullRemoteChanges();
-      _logger.info('✅ تم السحب الشامل بنجاح', tag: 'SYNC');
+      pullSucceeded = await pullRemoteChanges();
+      if (pullSucceeded) {
+        _logger.info('✅ تم السحب الشامل بنجاح', tag: 'SYNC');
+      }
+      return pullSucceeded;
     } finally {
       // ✅ تحقق من سلامة المفاتيح الأجنبية بعد السحب
       try {
