@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:appwrite/appwrite.dart';
 
-import 'appwrite_cache_manager.dart';
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
 
@@ -50,7 +49,6 @@ class AppwriteRealtimeService {
 
   late final Realtime _realtime;
   final _logger = AppwriteLogger();
-  final _cache = AppwriteCacheManager();
 
   bool _initialized = false;
   final Map<String, RealtimeSubscription> _subscriptions = {};
@@ -416,9 +414,6 @@ class AppwriteRealtimeService {
         data: payload as Map<String, dynamic>?,
       );
 
-      // تحديث الذاكرة المؤقتة
-      _updateCacheOnEvent(event);
-
       // استدعاء المعالج
       handler(event);
     } catch (e, stackTrace) {
@@ -426,39 +421,6 @@ class AppwriteRealtimeService {
         'Error handling Realtime response',
         error: e,
         stackTrace: stackTrace,
-        tag: 'REALTIME',
-      );
-    }
-  }
-
-  /// تحديث الذاكرة المؤقتة بناءً على الحدث
-  void _updateCacheOnEvent(RealtimeEvent event) {
-    try {
-      final cacheKey = '${event.collection}_${event.documentId}';
-
-      switch (event.type) {
-        case RealtimeEventType.create:
-        case RealtimeEventType.update:
-          // تحديث أو إضافة إلى الذاكرة المؤقتة
-          if (event.data != null) {
-            _cache.set(cacheKey, event.data);
-          }
-          // مسح قائمة المستندات للتحديث
-          _cache.clearByPattern('^${event.collection}_all');
-
-        case RealtimeEventType.delete:
-          // حذف من الذاكرة المؤقتة
-          _cache.remove(cacheKey);
-          _cache.clearByPattern('^${event.collection}_all');
-
-        case RealtimeEventType.unknown:
-          // لا شيء
-          break;
-      }
-    } catch (e) {
-      _logger.warning(
-        'Failed to update cache on Realtime event',
-        error: e,
         tag: 'REALTIME',
       );
     }

@@ -816,7 +816,10 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           }
         }
 
-        await AppwriteRealtimeSync().initialize(deviceId: deviceId);
+        await AppwriteRealtimeSync().initialize(
+          deviceId: deviceId,
+          deltaPull: syncManager.pullRemoteChanges,
+        );
         await AppwriteRealtimeSync().start();
         dlog('📡 Realtime sync + auto sync started');
       } catch (e) {
