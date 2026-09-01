@@ -19,17 +19,14 @@ enum RealtimeMode { websocket, fallback, disabled }
 /// العائد `true` = مرحلة السحب (pull) أُكملت فعلاً؛ `false` = السحب
 /// تخطّى/فشل (مثل: outbox محلي لم يُفرَّغ بعد، أو sync قيد التنفيذ) —
 /// في هذه الحالة تُجدول محاولة متابعة بدل اعتبار التغييرات مُطبّقة.
-typedef RemoteChangePull =
-    Future<bool> Function(Set<String> fastAppliedEntities);
-
-/// ⚡ (2026-08-31) المسار السريع على مستوى السجل: تطبيق سجل من حمولة حدث
-/// Realtime مباشرة عبر المدير (صفر قراءات شبكة). يُرجع true إذا طُبّق.
-typedef FastRecordApply =
-    Future<bool> Function(
-      String collectionId,
-      String documentId,
-      Map<String, dynamic> payload,
-    );
+///
+/// ✅ (2026-09-01) إزالة fast-apply من مسار Realtime — المسار **الوحيد**
+/// المقبول لـ Remote → Local:
+///   Realtime event → AppwriteRealtimeSync → (طابور الأحداث المُجدول أدناه)
+///   → AppwriteSyncManager/SyncPullService → Delta Pull → merge → Drift.
+/// لا يوجد أي مسار مباشر من Realtime إلى Drift (typedef بلا وسائط: لا
+/// "كيانات مطبّقة" ولا تطبيق من الحمولة).
+typedef RemoteChangePull = Future<bool> Function();
 
 /// ✅ (2026-08-31) تفعيل Realtime الكامل.
 ///
@@ -47,22 +44,25 @@ typedef FastRecordApply =
 ///  5. [ensureStarted] لإعادة الاشتراك عند عودة التطبيق بعد استسلام
 ///     إعادة الاتصال (max reconnect attempts).
 ///
-/// ضبط المعدل (Self-pacing) — لماذا يجوز لمدخل Realtime تجاوز حارس
-/// الدقيقتين (minPullGap)؟
+/// ضبط المعدل (طابور الأحداث — دور RemoteChangeQueue): لماذا يجوز لمدخل
+/// Realtime تجاوز حارس الدقيقتين (minPullGap)؟
 ///  - الحدث نفسه إثبات من الخادم بحدوث تغيير فعلي، وليس تخميناً دورياً.
-///  - الطبقة هنا تُسرَّع ذاتها: ديبونس 500ms + تهيئة
-///    [SyncConstants.realtimeEventPullCooldown] + طابور متابعة (trailing)
-///    + حارس in-flight — الحد الأقصى النظري 4 دورات/دقيقة تحت عاصفة
-///    مستمرة، وعادةً دورة واحدة لكل دفعة تغييرات.
-///  - Metadata-first يجعل الدورة الرخيصة (سحب $id+$updatedAt فقط) عندما
-///    لا يوجد شيء جديد فعلاً.
+///  - الطبقة هنا طابور مُصمت: ديبونس 500ms (دمج دفعة أحداث في حدث واحد)
+///    + تهيئة [SyncConstants.realtimeEventPullCooldown] + حارس in-flight
+///    + طابور متابعة (trailing) — 10 أحداث متتالية = دورة سحب **واحدة**:
+///    الحد الأقصى النظري 4 دورات/دقيقة تحت عاصفة مستمرة، وعادةً دورة واحدة
+///    لكل دفعة تغييرات. لا سحوبات متزامنة إطلاقاً (in-flight + trailing).
+///  - Delta pull يجلب كل التغييرات منذ المؤشر أياً كان عددها، فالدمج آمن.
+///  - Metadata-first يجعل الدورة الرخيصة عندما لا يوجد شيء جديد فعلاً.
 ///  - حمايات المدير تبقى سارية: OutboxPullPolicy (لا سحب فوق تغييرات
 ///    محلية غير مرفوعة) و SyncLocks و فحص الاتصال.
+///  - ✅ (2026-09-01) السحب المُشغَّل من هنا **delta-only حصراً**
+///    (deltaOnly: true في المدخل المحقون من main.dart) — يستحيل أن يبدأ
+///    Full Sync من Realtime أو من الخلفية؛ الفحص الصريح فقط.
 class AppwriteRealtimeSync {
   factory AppwriteRealtimeSync() => _instance;
   AppwriteRealtimeSync._internal();
-  static final AppwriteRealtimeSync _instance =
-      AppwriteRealtimeSync._internal();
+  static final AppwriteRealtimeSync _instance = AppwriteRealtimeSync._internal();
 
   Realtime? _realtime;
   RealtimeSubscription? _subscription;
@@ -84,24 +84,36 @@ class AppwriteRealtimeSync {
   bool _hasPendingChanges = false;
 
   // ── ✅ (2026-08-31) محرّك السحب الفعلي عند الأحداث ──
+  // ✅ (2026-09-01) إزالة fast-apply نهائياً: الحدث لا يُطبَّق من الحمولة
+  // أبداً — يمر عبر الطابور إلى Delta Pull (المسار الوحيد المقبول).
   RemoteChangePull? _syncTrigger;
 
-  /// ⚡ (2026-08-31) معالج التطبيق السريع (يُحقن من main.dart → المدير).
-  /// null يعني المسار القديم فقط: دورة سحب كاملة لكل حدث.
-  FastRecordApply? _fastApply;
-
-  /// الكيانات (collectionIds) التي طُبّقت سجلاتها من حمولة أحداث منذ آخر
-  /// محاولة سحب. تُمرَّر للـ trigger كي تتخطى الدelta لهذه الكيانات، وتُمسح
-  /// بعد كل محاولة، وتُمسح عند إعادة الاشتراك (احتمال فقدان أحداث).
-  final Set<String> _fastAppliedSinceLastDelta = {};
   Timer? _cooldownTimer;
   bool _triggerInFlight = false;
   bool _pullQueued = false;
   DateTime? _lastFireAt;
   int _consecutiveSkips = 0;
 
-  /// ✅ (2026-08-30) audit_logs مستبعد من اشتراكات Realtime
-  /// (SyncConstants.auditLogsSyncEnabled = false) — لا أحداث ولا سحب له.
+  /// ✅ (2026-09-01) استرداد ما بعد إعادة الاتصال (إلزامي):
+  /// تُضبط عند فقدان الاتصال/الاستسلام/عودة التطبيق — ويُستهلك في
+  /// [onSubscriptionEstablished] بإطلاق Delta Pull يستدراك الأحداث المفقودة
+  /// خلال الانقطاع. لا Full Sync أبداً — delta فقط عبر المدخل المحقون.
+  bool _pendingRecoveryPull = false;
+
+  /// ✅ (2026-09-01) جدول اشتراكات Realtime = الكيانات البعيدة التي يمكن
+  /// تعديلها من جهاز آخر (جدول الكيانات الكامل في تقرير المسار المعماري):
+  ///  - **18 كياناً بعيداً** لكل منها اشتراك + Delta pull.
+  ///  - `audit_logs` مستبعد تماماً (SyncConstants.auditLogsSyncEnabled =
+  ///    false — لا مزامنة أصلاً منذ e1975be) → لا Realtime ولا pull.
+  ///  - `hotel_day_ledger` محلي فقط (appwrite_config.dart L59-60) →
+  ///    No Realtime / No Appwrite Pull.
+  ///  - `app_settings`/`blacklist`/`salary_carry_over_logs`/
+  ///    `inventory_items`/`inventory_transactions` كانت تُسحب دلتا لكن
+  ///    **بلا اشتراك Realtime** — تغييرها من جهاز آخر لم يكن يصل إلا بعد
+  ///    auto-sync (15 دقيقة) أو حارس الركود (ساعة). أُضيفت هنا (2026-09-01):
+  ///    كيانات Remote قابلة للتعديل من أجهزة أخرى.
+  ///  - `devices`/`sync_logs`/`sync_state`/`app_users` بنية تحتية —
+  ///    ليست بيانات عمل تُسحب؛ لا اشتراك.
   static final List<String> _collections = [
     AppwriteConfig.roomsCollectionId,
     AppwriteConfig.bookingsCollectionId,
@@ -115,13 +127,17 @@ class AppwriteRealtimeSync {
     AppwriteConfig.salaryCyclesCollectionId,
     AppwriteConfig.salaryPaymentsCollectionId,
     AppwriteConfig.salaryWithdrawalsCollectionId,
+    AppwriteConfig.salaryCarryOverLogsCollectionId,
     AppwriteConfig.shiftNotesCollectionId,
     AppwriteConfig.guestInfosCollectionId,
     // ❌ hotel_day_ledger - محلي فقط
     AppwriteConfig.priceAdjustmentsCollectionId,
     AppwriteConfig.bookingPriceAdjustmentsCollectionId,
-    if (SyncConstants.auditLogsSyncEnabled)
-      AppwriteConfig.auditLogsCollectionId,
+    AppwriteConfig.blacklistCollectionId,
+    AppwriteConfig.inventoryItemsCollectionId,
+    AppwriteConfig.inventoryTransactionsCollectionId,
+    AppwriteConfig.appSettingsCollectionId,
+    if (SyncConstants.auditLogsSyncEnabled) AppwriteConfig.auditLogsCollectionId,
     AppwriteConfig.paymentVoidsCollectionId,
   ];
 
@@ -130,19 +146,15 @@ class AppwriteRealtimeSync {
   /// ```dart
   /// AppwriteRealtimeSync().setSyncTrigger(() async {
   ///   final r = await syncManager.sync(
-  ///     push: true, pull: true, realtimePriority: true,
+  ///     // ✅ (2026-09-01) deltaOnly: true — السحب المُشغَّل من Realtime
+  ///     // لا يبدأ Full Sync أبداً (Bootstrap الصريح فقط).
+  ///     push: true, pull: true, realtimePriority: true, deltaOnly: true,
   ///   );
   ///   return r.isSuccess && !r.pullSkipped;
   /// });
   /// ```
   void setSyncTrigger(RemoteChangePull trigger) {
     _syncTrigger = trigger;
-  }
-
-  /// ⚡ (2026-08-31) حقن معالج التطبيق السريع (main.dart يربطه بـ
-  /// AppwriteSyncManager.applyRemoteRecordFast). تمرير null يعطله.
-  void setFastApplyHandler(FastRecordApply? handler) {
-    _fastApply = handler;
   }
 
   Future<void> initialize({required String deviceId}) async {
@@ -216,31 +228,24 @@ class AppwriteRealtimeSync {
     }
 
     final channels = _collections
-        .map(
-          (c) =>
-              'databases.${AppwriteConfig.databaseId}.collections.$c.documents',
-        )
+        .map((c) => 'databases.${AppwriteConfig.databaseId}.collections.$c.documents')
         .toList();
 
     try {
       _subscription = _realtime!.subscribe(channels);
       _isListening = true;
-      // ⚡ (2026-08-31) اشتراك جديد قد يكون فات أحداثاً أثناء الانقطاع —
-      // تُمسح مجموعة التخطي كي تسحب الدelta القادمة كل الكيانات (أمان الكمال).
-      _fastAppliedSinceLastDelta.clear();
-      // ✅ الانتقال من fallback إلى WS ناجح — أوقف مؤقتات الـ fallback
-      _stopPollingFallback();
+      onSubscriptionEstablished();
 
       dlog(
         () =>
-            '📡 Realtime: WebSocket ON — listening on ${channels.length} '
-            'collections (full realtime pull enabled)',
+            '[Realtime] connected — subscribed: ${channels.length} '
+            'collections (delta pull enabled)',
       );
 
       _subscription!.stream.listen(
         _onEvent,
         onError: (Object e) {
-          dlog(() => '❌ Realtime WebSocket error: $e');
+          dlog(() => '[Realtime] disconnected — stream error: $e');
           CrashlyticsService.instance.recordSyncError(
             operation: 'realtime_listen',
             error: e.toString(),
@@ -254,25 +259,52 @@ class AppwriteRealtimeSync {
         onDone: () {
           _isListening = false;
           if (!_intentionallyStopped) {
+            dlog('[Realtime] disconnected — stream done');
             _reconnect();
           }
         },
       );
     } catch (e) {
-      dlog('❌ Realtime: WebSocket not available — falling back to polling');
+      dlog('[Realtime] disconnected — WebSocket not available, falling back');
       dlog(() => '   Error: $e');
       // ✅ WebSocket غير متاح — نعتمد على fallback
       _startPollingFallback();
     }
   }
 
+  /// ✅ (2026-09-01) نُفّذ نجاح الاشتراك — منفصل عن [start] ليكون قابلاً
+  /// للاختبار بلا WebSocket حقيقي، ولتوحيد منطق "اشتراك جديد":
+  ///
+  ///  - الانتقال من fallback إلى WS ناجح → أوقف مؤقتات الـ fallback.
+  ///  - استرداد ما بعد انقطاع (إلزامي): إذا كان الاتصال فقد سابقاً
+  ///    (reconnect/resume/تحول من fallback) أطلق **Delta Pull** واحداً
+  ///    يستدراك الأحداث المفقودة خلال الانقطاع — عبر نقطة الدخول الحالية
+  ///    (المدخل المحقون) ولا Full Sync أبداً.
+  ///  - الاشتراك الأول عند إقلاع التطبيق لا يُطلق استرداداً — فحص فتح
+  ///    التطبيق والـ bootstrap الصريح هما مسؤولاه.
+  @visibleForTesting
+  void onSubscriptionEstablished() {
+    final needsRecovery = _pendingRecoveryPull || _pollingTimer != null;
+    _pendingRecoveryPull = false;
+    _stopPollingFallback();
+    if (needsRecovery) {
+      dlog('[Realtime] reconnected — recovery pull scheduled');
+      dlog('[DeltaSync] recovery pull started');
+      _schedulePull();
+    }
+  }
+
   /// ✅ (2026-08-31) إعادة المحاولة الآمنة عند عودة التطبيق للواجهة:
   /// إذا استسلمت إعادة الاتصال (max attempts) أو فشل start() عند الإقلاع،
   /// استدعاء عند resume يعيد محاولة الاشتراك من جديد.
+  ///
+  /// ✅ (2026-09-01) عودة التطبيق بعد غياب = فجوة أحداث محتملة →
+  /// يُعلَّم الاسترداد كي يُطلق Delta Pull بعد نجاح الاشتراك.
   Future<void> ensureStarted() async {
     if (_isListening || _intentionallyStopped) {
       return;
     }
+    _pendingRecoveryPull = true;
     await start();
   }
 
@@ -305,9 +337,7 @@ class AppwriteRealtimeSync {
 
       // ✅ (2026-08-31) سحب فعلي خفيف دوري — الأجهزة التي يفشل عندها WS
       // لا تبقى بلا تحديثات حتى auto-sync التالي.
-      final interval =
-          debugFallbackPullInterval ??
-          SyncConstants.realtimeFallbackPullInterval;
+      final interval = debugFallbackPullInterval ?? SyncConstants.realtimeFallbackPullInterval;
       if (elapsed >= interval) {
         elapsed = Duration.zero;
         dlog('📡 Realtime: fallback periodic pull triggered');
@@ -324,8 +354,7 @@ class AppwriteRealtimeSync {
   /// تحليل قناة/حدث Appwrite: `databases.<db>.collections.<col>.documents.<doc>.<action>`
   /// يُرجع null-action للأحداث غير الخاصة بالبيانات.
   @visibleForTesting
-  static ({String? collectionId, String? documentId, String? action})
-  parseDatabaseEvent(List<String> events) {
+  static ({String? collectionId, String? documentId, String? action}) parseDatabaseEvent(List<String> events) {
     for (final e in events) {
       final parts = e.split('.');
       final colIdx = parts.indexOf('collections');
@@ -340,11 +369,7 @@ class AppwriteRealtimeSync {
       if (parts.length != docIdx + 3) continue;
       final action = parts.last;
       if (action == 'create' || action == 'update' || action == 'delete') {
-        return (
-          collectionId: parts[colIdx + 1],
-          documentId: parts[docIdx + 1],
-          action: action,
-        );
+        return (collectionId: parts[colIdx + 1], documentId: parts[docIdx + 1], action: action);
       }
     }
     return (collectionId: null, documentId: null, action: null);
@@ -357,10 +382,7 @@ class AppwriteRealtimeSync {
   /// نواة معالجة الحدث (مفصولة عن RealtimeMessage لتكون قابلة للاختبار
   /// المباشر بلا WebSocket ولا بناء نماذج SDK).
   @visibleForTesting
-  void handleRemoteDataChange({
-    required List<String> events,
-    required Map<String, dynamic> payload,
-  }) {
+  void handleRemoteDataChange({required List<String> events, required Map<String, dynamic> payload}) {
     // ✅ stop() يعني التوقف الكامل: لا سحب من أحداث متأخرة بعد الإغلاق
     // (الاشتراك مغلق فعلياً، وهذا حارس إضافي ضد أي أحداث متبقية).
     if (_intentionallyStopped) {
@@ -382,63 +404,26 @@ class AppwriteRealtimeSync {
 
     // ✅ تحسين: تصفية أنواع الأحداث (create/update/delete فقط)
     // لا نهتم بـ permissions.update أو أحداث النظام
-    final isDataChange = events.any(
-      (e) =>
-          e.endsWith('.create') ||
-          e.endsWith('.update') ||
-          e.endsWith('.delete'),
-    );
+    final isDataChange = events.any((e) => e.endsWith('.create') || e.endsWith('.update') || e.endsWith('.delete'));
 
     if (!isDataChange) {
       dlog(() => '📡 Realtime: ignoring non-data event: $events');
       return;
     }
 
-    // ⚡⚡ (2026-08-31) تقليل السحب على مستوى السجل — المسار السريع:
-    // حمولة الحدث تحمل السجل كاملاً. يُطبَّق فوراً عبر المدير (نفس دوال
-    // التطبيق والمصالحة — صفر قراءات شبكة)، ويُعلَّم كيانه كي تتخطى دورة
-    // السحب التالية الـ delta له (ما زالت الدورة تعمل للـ push ولِما عدا ذلك).
-    // - أحداث delete تُسقط للدورة العادية (منطق tombstones لا يُختصر).
-    // - فشل التطبيق السريع بأي شكل → بلا تعليم → الدورة العادية تسحب.
-    final parsed = parseDatabaseEvent(events);
-    final fastApply = _fastApply;
-    if (parsed.action != null &&
-        parsed.action != 'delete' &&
-        fastApply != null &&
-        parsed.collectionId != null &&
-        parsed.documentId != null) {
-      final col = parsed.collectionId!;
-      final docId = parsed.documentId!;
-      unawaited(() async {
-        try {
-          final ok = await fastApply(col, docId, payload);
-          if (ok) {
-            _fastAppliedSinceLastDelta.add(col);
-            dlog(
-              () =>
-                  '⚡ Realtime: fast-apply $col/$docId — سجل مطبّق '
-                  'بلا أي قراءة شبكة، وسيُتخطى في الـ delta القادمة',
-            );
-          } else {
-            dlog(
-              () =>
-                  '⚡ Realtime: fast-apply $col/$docId لم يُطبّق '
-                  '— الحدث يمر عبر دورة السحب العادية',
-            );
-          }
-        } catch (e) {
-          dlog(() => '⚡ Realtime: fast-apply $col/$docId رُمى: $e');
-        }
-      }());
-    }
+    // ✅ (2026-09-01) إزالة fast-apply من مسار Realtime نهائياً — النقطة
+    // الأهم في المواصفة: **لا يوجد مسار مباشر من Realtime إلى Drift**.
+    // الحمولة لا تُطبَّق من هنا أبداً (create/update/delete كلها) — الحدث
+    // يُدمَج في الطابور أدناه ويُسحب عبر Delta Pull (نقطة الدخول الحالية:
+    // AppwriteSyncManager → SyncPullService) حيث يعمل Field-Level merge
+    // ومنطق tombstones الحالي دون اختصار.
 
     // ✅ تحسين: تتبع آخر وقت تحديث (Delta Sync Safety)
     final updatedAt = payload[r'$updatedAt'] ?? payload[r'$createdAt'];
     if (updatedAt != null) {
       try {
         final serverTime = DateTime.parse(updatedAt as String);
-        if (_lastServerUpdate == null ||
-            serverTime.isAfter(_lastServerUpdate!)) {
+        if (_lastServerUpdate == null || serverTime.isAfter(_lastServerUpdate!)) {
           _lastServerUpdate = serverTime;
         }
       } catch (e) {
@@ -447,23 +432,27 @@ class AppwriteRealtimeSync {
     }
 
     _debounceTimer?.cancel();
-    _debounceTimer = Timer(
-      debugEventDebounce ?? const Duration(milliseconds: 500),
-      () {
-        // ✅ تحسين: حماية من الفيضان (Flood Protection)
-        if (!_hasPendingChanges) {
-          hasRemoteChanges.value = true;
-          _hasPendingChanges = true;
-          dlog('📡 Realtime: detected remote changes - UI activated');
-        }
+    _debounceTimer = Timer(debugEventDebounce ?? const Duration(milliseconds: 500), () {
+      // ✅ تحسين: حماية من الفيضان (Flood Protection)
+      if (!_hasPendingChanges) {
+        hasRemoteChanges.value = true;
+        _hasPendingChanges = true;
+        dlog('📡 Realtime: detected remote changes - UI activated');
+      }
 
-        pendingRemoteChangesCount.value++;
+      pendingRemoteChangesCount.value++;
 
-        // ✅✅ (2026-08-31) التفعيل الكامل: الحدث يُطلق **سحباً فعلياً**
-        // وليس مجرد شارة UI — التغيير من جهاز آخر يصل خلال ثوانٍ.
-        _schedulePull();
-      },
-    );
+      // ✅✅ (2026-08-31) التفعيل الكامل: الحدث يُطلق **سحباً فعلياً**
+      // وليس مجرد شارة UI — التغيير من جهاز آخر يصل خلال ثوانٍ.
+      // ✅ (2026-09-01) تسجيل واضح للطابور: الحدث مُدمَج (debounce) وجاهز
+      // لإطلاق Delta Pull — لا تطبيق مباشر من الحمولة.
+      dlog(
+        () =>
+            '[Realtime] event: ${events.join(',')} — queued (merged by '
+            'debounce), triggering delta pull',
+      );
+      _schedulePull();
+    });
   }
 
   // ───────────────────────────────────────────────────────────────────────
@@ -488,8 +477,7 @@ class AppwriteRealtimeSync {
 
     final now = DateTime.now();
     final last = _lastFireAt;
-    final cooldown =
-        debugPullCooldown ?? SyncConstants.realtimeEventPullCooldown;
+    final cooldown = debugPullCooldown ?? SyncConstants.realtimeEventPullCooldown;
     if (last == null || now.difference(last) >= cooldown) {
       unawaited(_firePull());
       return;
@@ -506,27 +494,25 @@ class AppwriteRealtimeSync {
 
     _lastFireAt = DateTime.now();
     _triggerInFlight = true;
-    dlog('⚡ Realtime: firing real pull (remote change)');
+    dlog('[Realtime] triggering delta pull');
+    dlog('[DeltaSync] pull started');
 
     var pulled = false;
     try {
-      // ⚡ (2026-08-31) تمرير الكيانات المطبّقة من أحداث Realtime (مسار
-      // سجل-مستوى) كي تتخطى الدelta لهذه الكيانات فقط، ثم مسحها — سجلاتها
-      // محلية أصلاً؛ إن تخطّت الدورة فالمتابعة القادمة تغطي الجميع.
-      final skipDeltaFor = Set<String>.of(_fastAppliedSinceLastDelta);
-      pulled = await trigger(skipDeltaFor);
+      // ✅ (2026-09-01) المسار الوحيد: Realtime → طابور → Delta Pull عبر
+      // نقطة الدخول الحالية (sync(push, pull, realtimePriority, deltaOnly))
+      // → Field-Level merge → Drift. بلا أي وسائط تخطٍّ/تطبيق مباشر.
+      pulled = await trigger();
     } catch (e) {
       dlog(() => '⚠️ Realtime: triggered pull failed: $e');
     } finally {
       _triggerInFlight = false;
-      // ⚡ المجموعة دورية: استُهلكت لهذه المحاولة — تُمسح أياً كانت النتيجة
-      // (فشل/تخطٍّ → المتابعة تسحب كل شيء؛ نجاح → لا حاجة لها أصلاً).
-      _fastAppliedSinceLastDelta.clear();
     }
 
     if (pulled) {
       // السحب أُكمل فعلاً — التغييرات من السيرفر طُبّقت، صفّر شارات الـ UI.
       _consecutiveSkips = 0;
+      dlog('[DeltaSync] pull completed');
       resetRemoteChangesFlag();
     } else {
       // السحب تخطّى (مثلاً: outbox محلي لم يُفرَّغ بعد، أو دورة أخرى كانت
@@ -580,7 +566,16 @@ class AppwriteRealtimeSync {
       return;
     }
 
+    // ✅ (2026-09-01) استرداد إلزامي: فقدنا أحداثاً خلال الانقطاع حتماً —
+    // الاشتراك القادم سيُطلق Delta Pull واحداً (لا Full Sync).
+    _pendingRecoveryPull = true;
+
     _reconnectAttempts++;
+    dlog(
+      () =>
+          '[Realtime] reconnecting '
+          '(attempt $_reconnectAttempts/$_maxReconnectAttempts)',
+    );
 
     // ✅ إصلاح P2-13: حد أقصى لمحاولات إعادة الاتصال لتجنب إهدار البطارية
     // بعد 6 محاولات (5s → 10s → 20s → 40s → 60s → 60s = ~3.5 min total)
@@ -592,8 +587,7 @@ class AppwriteRealtimeSync {
       );
       CrashlyticsService.instance.recordSyncError(
         operation: 'realtime_reconnect_giveup',
-        error:
-            'Max reconnect attempts reached after $_maxReconnectAttempts tries',
+        error: 'Max reconnect attempts reached after $_maxReconnectAttempts tries',
         severity: CrashlyticsSeverity.warning,
         context: {'deviceId': _currentDeviceId ?? 'unknown'},
       );
@@ -604,9 +598,7 @@ class AppwriteRealtimeSync {
     }
 
     // ✅ P1-14 fix: backoff أسّي محدود (5s → 10s → 20s → 40s → 60s capped)
-    final delaySeconds = (_reconnectAttempts == 1)
-        ? 5
-        : (5 * (1 << (_reconnectAttempts - 1))).clamp(5, 60);
+    final delaySeconds = (_reconnectAttempts == 1) ? 5 : (5 * (1 << (_reconnectAttempts - 1))).clamp(5, 60);
 
     CrashlyticsService.instance.recordSyncError(
       operation: 'realtime_reconnect',
@@ -614,10 +606,7 @@ class AppwriteRealtimeSync {
           'Connection lost — reconnecting in ${delaySeconds}s '
           '(attempt $_reconnectAttempts/$_maxReconnectAttempts)',
       severity: CrashlyticsSeverity.info,
-      context: {
-        'deviceId': _currentDeviceId ?? 'unknown',
-        'attempt': _reconnectAttempts,
-      },
+      context: {'deviceId': _currentDeviceId ?? 'unknown', 'attempt': _reconnectAttempts},
     );
 
     // ✅ P1-14 fix: إغلاق الاشتراك القديم قبل إعادة الاشتراك
@@ -642,10 +631,13 @@ class AppwriteRealtimeSync {
     _debounceTimer?.cancel();
     _cooldownTimer?.cancel();
     _cooldownTimer = null;
-    _pullQueued = false;
+    _pullQueued = false; // ✅ (2026-09-01) إفراغ طابور الأحداث (Logout)
+    _pendingRecoveryPull = false; // ✅ لا استرداد بعد توقف إرادي
     _stopPollingFallback(); // ✅ تنظيف polling fallback
-    // ⚡ (2026-08-31) تنظيف حالة المسار السريع على مستوى السجل
-    _fastAppliedSinceLastDelta.clear();
+    dlog(
+      '[Realtime] disconnected — intentional stop (subscriptions closed, '
+      'queue cleared)',
+    );
     // عند التوقف، نعيد تعيين الحالة
     hasRemoteChanges.value = false;
     _hasPendingChanges = false;
@@ -680,8 +672,7 @@ class AppwriteRealtimeSync {
     hasRemoteChanges.value = false;
     pendingRemoteChangesCount.value = 0;
     _syncTrigger = null;
-    _fastApply = null;
-    _fastAppliedSinceLastDelta.clear();
+    _pendingRecoveryPull = false;
     // ✅ (2026-08-31) تصفير حقول debug أيضاً — منع التسرب بين الاختبارات:
     // اختبار يترك debugPullCooldown صغيراً كان يغيّر سلوك اختبار آخر حسب
     // ترتيب تشغيلها (--test-randomize-ordering-seed random في CI).
@@ -708,4 +699,14 @@ class AppwriteRealtimeSync {
 
   @visibleForTesting
   bool get fallbackPollingActiveForTesting => _pollingTimer != null;
+
+  @visibleForTesting
+  bool get pendingRecoveryPullForTesting => _pendingRecoveryPull;
+
+  /// ✅ (2026-09-01) خطاف اختبار: يحاكي حدث فقدان الاتصال (نفس أول خطوة
+  /// [_reconnect] الحقيقية — تعليم الاسترداد) بلا WebSocket حقيقي.
+  @visibleForTesting
+  void markDisconnectedForTesting() {
+    _pendingRecoveryPull = true;
+  }
 }
