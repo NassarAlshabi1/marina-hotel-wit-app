@@ -245,6 +245,9 @@ class AppwriteSyncManager {
   Timer? _failedRetryTimer;
   Timer? _cleanupTimer;
   Timer? _stuckRecoveryTimer;
+
+  /// ✅ (2026-09-01) مؤقت حارس ركود السحب — راجع [startPullStalenessGuard].
+  Timer? _pullStalenessTimer;
   double get _initialBatchSize =>
       (SyncPerformanceOptimizer.instance
                   .getCurrentPerformanceSettings()['batchSize']
@@ -665,6 +668,124 @@ class AppwriteSyncManager {
     _logger.info('Auto sync stopped', tag: 'SYNC');
   }
 
+  /// ✅ (2026-09-01) دالة نقية: هل ركود السحب يستدعي سحباً تلقائياً (دلتا فقط)؟
+  ///
+  /// - الطابع null → false: جهاز لم يسحب قط. التهيئة الأولى مسؤولية فحص
+  ///   فتح التطبيق أو المزامنة اليدوية — ليس صمام الأمان (لا Full من الخلفية).
+  /// - الحد: [SyncConstants.pullStalenessThreshold] = ساعة منذ آخر سحب مكتمل.
+  @visibleForTesting
+  static bool isPullStaleForAutoDelta({
+    required int? lastPullWallClockMs,
+    required DateTime now,
+  }) {
+    if (lastPullWallClockMs == null) return false;
+    final last = DateTime.fromMillisecondsSinceEpoch(lastPullWallClockMs);
+    return now.difference(last) >= SyncConstants.pullStalenessThreshold;
+  }
+
+  /// ✅ (2026-09-01) صمام أمان الركود — سيناريو "المستخدم نسى المزامنة
+  /// اليدوية": فحص تلقائي كل [SyncConstants.pullStalenessCheckInterval]؛
+  /// إذا مرت ساعة على آخر **سحب** مكتمل يبدأ سحب تلقائي **دلتا فقط**.
+  ///
+  /// لماذا مستقل عن مؤقت المزامنة التلقائية (15 دقيقة)؟
+  /// - المؤقت التلقائي يتوقف نهائياً عند تعطيل appwrite_auto_sync_enabled
+  ///   (شاشة الإعدادات) — عندها لا يوجد أي سحب دوري إطلاقاً، والجهاز يبقى
+  ///   قديماً حتى يتذكر المستخدم الزر اليدوي. الحارس يعمل دائماً — هذا هو
+  ///   الغرض منه — لكنه يحترم المفتاح الرئيسي appwrite_sync_enabled.
+  /// - لماذا طابع مستقل عن _lastSyncTime؟ لأنه يتقدم مع أي دورة مزامنة
+  ///   (حتى رفع فقط). جهاز استقبال نشط يرفع طوال اليوم لكنه لا يسحب —
+  ///   قياس الركود منه كان سيؤجل السحب إلى ما لا نهاية. الطابع الجديد
+  ///   (lastPullWallClockKey) يتقدم عند نُفّذت مرحلة سحب فعلياً فقط.
+  ///
+  /// الحمايات عند التنفيذ (عبر sync(deltaOnly: true)):
+  /// - deltaOnly يمنع بدء Full Sync من الخلفية (الجهاز غير المُهيأ ينتظر
+  ///   المزامنة اليدوية/إقلاع التطبيق).
+  /// - OutboxPullPolicy و SyncLocks و فحص الاتصال و wifi-only ورفض
+  ///   التزامن — كلها سارية كما في أي مدخل.
+  /// - push=false: الحارس يسحب فقط؛ رفع التغييرات المحلية مسؤولية مراقب
+  ///   Outbox والمؤقت التلقائي.
+  void startPullStalenessGuard() {
+    _pullStalenessTimer?.cancel();
+    _pullStalenessTimer = Timer.periodic(
+      SyncConstants.pullStalenessCheckInterval,
+      (_) async {
+        final token = SyncGuard.tryAcquire(label: 'pull_staleness_guard');
+        if (token == null) {
+          _logger.debug(
+            'Pull staleness guard skipped — another sync active '
+            '(${SyncGuard.activeLabel})',
+            tag: 'SYNC',
+          );
+          return;
+        }
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) {
+            return;
+          }
+
+          // الطابع يُقرأ من prefs مباشرة (لا حقل في الذاكرة) — مقاوم
+          // لترتيب التهيئة ودقيق عبر الجلسات.
+          final stale = isPullStaleForAutoDelta(
+            lastPullWallClockMs: prefs.getInt(
+              SyncConstants.lastPullWallClockKey,
+            ),
+            now: DateTime.now(),
+          );
+          if (!stale) return;
+
+          if (!await _hasNetworkConnection()) {
+            _logger.debug(
+              'Pull staleness guard skipped — no network connection',
+              tag: 'SYNC',
+            );
+            return;
+          }
+
+          final wifiOnly = prefs.getBool('appwrite_wifi_only_sync') ?? false;
+          if (wifiOnly) {
+            final connectivity = await Connectivity().checkConnectivity();
+            if (!connectivity.contains(ConnectivityResult.wifi)) {
+              _logger.info(
+                'Pull staleness guard skipped — WiFi-only mode is active',
+                tag: 'SYNC',
+              );
+              return;
+            }
+          }
+
+          _logger.info(
+            '⏰ مرت ساعة على آخر سحب مكتمل — بدء سحب تلقائي (دلتا فقط)',
+            tag: 'SYNC',
+          );
+          await sync(push: false, pull: true, deltaOnly: true);
+        } catch (e, st) {
+          _logger.error(
+            '❌ Pull staleness guard: استثناء غير متوقع',
+            error: e,
+            stackTrace: st,
+            tag: 'SYNC',
+          );
+        } finally {
+          SyncGuard.release(token);
+        }
+      },
+    );
+    _logger.info(
+      'Pull staleness guard started (check every '
+      '${SyncConstants.pullStalenessCheckInterval.inMinutes}m, threshold '
+      '${SyncConstants.pullStalenessThreshold.inMinutes}m, delta-only)',
+      tag: 'SYNC',
+    );
+  }
+
+  /// إيقاف حارس ركود السحب (للاختبارات/التشخيص — التشغيل العادي يتركه دائماً).
+  void stopPullStalenessGuard() {
+    _pullStalenessTimer?.cancel();
+    _pullStalenessTimer = null;
+    _logger.info('Pull staleness guard stopped', tag: 'SYNC');
+  }
+
   /// مؤقت إعادة محاولة العناصر الفاشلة — كل 5 دقائق يفحص ويعيد المحاولة
   void _startFailedRetryTimer() {
     _failedRetryTimer?.cancel();
@@ -844,6 +965,16 @@ class AppwriteSyncManager {
     /// delta queries لهذه الكيانات فقط — صفر قراءات إضافية — أما السحب
     /// الكامل (isDelta=false) فلا يتأثر أبداً (شبكة أمان الكمال).
     Set<String>? fastAppliedEntities,
+
+    /// ✅ (2026-09-01) صمام أمان الركود — قاعدة "دلتا فقط للسحب التلقائي".
+    ///
+    /// عندما true (مدخل حارس الركود فقط): إذا تعذّرت الدلتا — الجهاز في
+    /// مرحلة التهيئة (full_sync_complete=false أو lastPullTs=0، راجع
+    /// SyncPullService.buildDeltaQueries) — يُتخطى السحب كلياً بدل تحويله
+    /// تلقائياً إلى Full Sync. السحب الكامل قرار مرئي: مزامنة يدوية أو
+    /// فحص فتح التطبيق؛ لا يبدأ من الخلفية دون علم المستخدم أبداً.
+    /// لا أثر له على بقية المداخل (القيمة الافتراضية false).
+    bool deltaOnly = false,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) {
@@ -912,6 +1043,37 @@ class AppwriteSyncManager {
           timestamp: DateTime.now(),
           duration: Duration.zero,
         );
+      }
+    }
+
+    // ✅ (2026-09-01) صمام أمان الركود — قاعدة "دلتا فقط للسحب التلقائي":
+    // حارس الركود (deltaOnly=true) يجب ألا يبدأ Full Sync أبداً. إذا كان
+    // الجهاز في مرحلة التهيئة (full_sync_complete=false أو lastPullTs=0)
+    // يُتخطى السحب — السحب الكامل قرار مرئي (مزامنة يدوية/إقلاع التطبيق).
+    // القرار رخيص: قراءتا SQLite صغيرتان فقط عندما deltaOnly=true؛ بقية
+    // المداخل (false) لا تدخل هذا الفرع إطلاقاً.
+    if (pull && deltaOnly) {
+      final lastPullTs = await _getLastPullTs();
+      final deltaQ =
+          await (_pullService?.buildDeltaQueries(lastPullTs) ?? <String>[]);
+      if (deltaQ.isEmpty) {
+        _logger.info(
+          '⏭️ Delta-only pull skipped — device in bootstrap state '
+          '(full_sync_complete=false أو lastPullTs=0)؛ '
+          'السحب الكامل يحتاج مزامنة يدوية أو إعادة تشغيل التطبيق',
+          tag: 'SYNC',
+        );
+        if (push) {
+          pull = false;
+          pullSkipped = true;
+        } else {
+          return SyncResult(
+            status: SyncStatus.idle,
+            errorMessage: 'Delta-only pull skipped: bootstrap state',
+            timestamp: DateTime.now(),
+            duration: Duration.zero,
+          );
+        }
       }
     }
 
@@ -1999,6 +2161,20 @@ class AppwriteSyncManager {
           }
 
           _lastSyncTime = endTime;
+
+          // ✅ (2026-09-01) طابع آخر سحب مكتمل (ساعة الحائط) — يختلف عن
+          // _lastSyncTime الذي يتقدم مع أي دورة (حتى رفع فقط). حارس الركود
+          // يقيس من هذا الطابع حصراً: جهاز يرفع تغييراته طوال اليوم لا يزال
+          // بحاجة إلى سحب بيانات الأجهزة الأخرى كل ساعة. يُكتب فقط عندما
+          // نُفّذت مرحلة سحب فعلياً في هذه الدورة (بعد كل منطق التخطي أعلاه)؛
+          // المحاولة الفاشلة تُحدّثه أيضاً — إيقاع إعادة المحاولة يبقى ساعة.
+          if (pull) {
+            await prefs.setInt(
+              SyncConstants.lastPullWallClockKey,
+              endTime.millisecondsSinceEpoch,
+            );
+          }
+
           await _saveSettings();
 
           // ✅ Wave 7 (2026-08-12): Flush pending remote change notifications.
@@ -7075,6 +7251,20 @@ class AppwriteSyncManager {
         });
 
         _lastSyncTime = DateTime.now();
+        // ✅ (2026-09-01) pullRemoteChanges سحب فعلي دائماً — يحدّث طابع
+        // آخر سحب مكتمل (ساعة الحائط) الذي يقيس منه حارس الركود.
+        try {
+          final pullWallPrefs = await SharedPreferences.getInstance();
+          await pullWallPrefs.setInt(
+            SyncConstants.lastPullWallClockKey,
+            _lastSyncTime!.millisecondsSinceEpoch,
+          );
+        } catch (e) {
+          _logger.warning(
+            '⚠️ تعذّرت كتابة lastPullWallClockKey: $e',
+            tag: 'SYNC',
+          );
+        }
         await _saveSettings();
 
         // ✅ إصلاح الحجوزات يتم فقط عبر Google Drive Backup — لا عبر Appwrite.
@@ -8594,6 +8784,9 @@ class AppwriteSyncManager {
   Future<void> resetSyncState() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('appwrite_last_sync_time');
+    // ✅ (2026-09-01) مسح طابع آخر سحب مكتمل — حارس الركود يعود لحالة
+    // "لم يسحب قط" (null → تخطي) حتى تكتمل التهيئة التالية.
+    await prefs.remove(SyncConstants.lastPullWallClockKey);
     // ✅ (2026-08-30) مسح مؤشرات الكيانات الفردية — ستُهيّأ كسولاً من
     // المؤشر العالمي في أول دورة تالية (لا سحب كامل إضافي).
     try {

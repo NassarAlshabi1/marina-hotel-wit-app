@@ -765,6 +765,12 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         syncManager.startAutoSync(interval: Duration(minutes: clampedMinutes));
         dlog('⏰ Auto-sync started: every $clampedMinutes minutes');
 
+        // ✅ (2026-09-01) صمام أمان الركود: فحص تلقائي كل 10 دقائق — إذا
+        // مرت ساعة على آخر سحب مكتمل يبدأ سحب تلقائي (دلتا فقط، لا Full
+        // من الخلفية). يعمل حتى عند تعطيل المزامنة التلقائية — الغرض
+        // تغطية المستخدم الذي نسى المزامنة اليدوية.
+        syncManager.startPullStalenessGuard();
+
         // سحب البيانات عند فتح التطبيق — مع فحص ذكي (مرة كل ساعة)
         try {
           final prefs = await SharedPreferences.getInstance();

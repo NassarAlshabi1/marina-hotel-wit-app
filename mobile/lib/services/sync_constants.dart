@@ -132,6 +132,26 @@ class SyncConstants {
   /// حماية أخيرة من عواصف السحب من مداخل غير متوقعة.
   static const Duration minPullGap = Duration(minutes: 2);
 
+  /// ✅ (2026-09-01) صمام أمان الركود — سيناريو "المستخدم نسى المزامنة".
+  ///
+  /// إذا مرت [pullStalenessThreshold] على آخر **سحب** مكتمل (وليس أي دورة
+  /// مزامنة — الرفع وحده لا يجلب بيانات الأجهزة الأخرى)، يُطلق حارس الركود
+  /// سحباً تلقائياً **دلتا فقط** (deltaOnly=true — لا يبدأ Full Sync من
+  /// الخلفية أبداً؛ الجهاز غير المُهيأ ينتظر المزامنة اليدوية/إقلاع
+  /// التطبيق). يعمل حتى عند تعطيل المزامنة التلقائية — هذا هو الغرض —
+  /// لكنه يحترم المفتاح الرئيسي appwrite_sync_enabled وwifi-only.
+  static const Duration pullStalenessThreshold = Duration(hours: 1);
+
+  /// ✅ (2026-09-01) فحص الركود كل 10 دقائق — تكلفة الفحص قراءة SharedPreferences
+  /// ومقارنة طابع فقط؛ السحب الفعلي لا يبدأ إلا عند تجاوز العتبة.
+  static const Duration pullStalenessCheckInterval = Duration(minutes: 10);
+
+  /// ✅ (2026-09-01) مفتاح SharedPreferences لطابع آخر **سحب** مكتمل
+  /// (ساعة الحائط للجهاز). يختلف عن appwrite_last_sync_time الذي يتقدم مع
+  /// أي دورة (حتى رفع فقط)، وعن lastPullTs المشتق من أقصى $updatedAt على
+  /// الخادم. كتابته عند اكتمال أي دورة نفّذت مرحلة سحب فعلية.
+  static const String lastPullWallClockKey = 'appwrite_last_pull_wall_clock_ms';
+
   /// ✅ (2026-08-31) تفعيل Realtime الكامل — فترة تهيئة السحب المُطلَق بحدث
   /// Realtime داخل AppwriteRealtimeSync نفسها.
   ///
