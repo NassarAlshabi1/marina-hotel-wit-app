@@ -19,7 +19,8 @@
 //   E6  كيان بلا مؤشر خاص في وضع عام full يبقى full له — شبكة الكمال
 //       محفوظة (لا cutoff = مسح كامل للكيان).
 //   S1..S4 عقود مصادر (tripwires ثابتة على الكود المصدري):
-//       S1 فتح Dashboard لا يستدعي sync() أبداً (الشاشة تقرأ محلياً فقط).
+//       S1 فتح Dashboard يستدعي sync(deltaOnly:true) فقط — سحب ذكي مُقيَّد
+//         (SyncGate + فحص ساعة) — لا Full Sync من الشاشة أبداً.
 //       S2 زر التحديث (DashboardSyncButton) يمرر forcePull: true.
 //       S3 EnhancedSyncButton يمرر forcePull: true في موضعيه.
 //       S4 فحص الجلسة (AppSessionManager) يحتفظ بالتقييد الذكي (ساعة)
@@ -386,21 +387,33 @@ void main() {
 
   group('S1..S4: عقود مصادر السحب (tripwires على الكود المصدري)', () {
     test(
-      'S1: فتح Dashboard لا يستدعي sync() أبداً — الشاشة تقرأ محلياً فقط',
+      'S1: فتح Dashboard يستدعي sync(deltaOnly:true) فقط — لا Full من الشاشة',
       () {
         final source = readSource('screens/dashboard_screen.dart');
-        // الخطوة 2: لا استدعاء sync من الشاشة إطلاقاً — أي عودة لهذا
-        // الاستدعاء تكسر العقد وتُفشل الاختبار فوراً.
+        // ✅ (2026-09-01) العقد المحدَّث (طلب صريح: بنفس طريقة الفرع
+        // refactor/performance-fixes-v2): فتح الشاشة يشغّل سحباً ذكياً
+        // (SyncGate + فحص ساعة lastAppOpenPullKey) لكن **دلتا فقط** —
+        // أي sync() بلا deltaOnly:true أو أي Full من الشاشة يكسر العقد.
         expect(
           source.contains('.sync('),
-          isFalse,
-          reason: 'dashboard_screen.dart يجب ألا يبدأ pull من أي مكان',
+          isTrue,
+          reason: 'فتح الشاشة يشغّل السحب الذكي (deltaOnly) لتحديث الاستلامات',
         );
         expect(
-          source.contains('addPostFrameCallback'),
-          isFalse,
-          reason: 'لا تهيئة مؤجلة تبدأ سحباً عند الفتح',
+          source.contains('deltaOnly: true'),
+          isTrue,
+          reason: 'سحب الشاشة مقيَّد deltaOnly — لا Full Sync من الخلفية',
         );
+        // لا استدعاء sync دون deltaOnly داخل الشاشة (كل الاستدعاءات مقيّدة).
+        final syncCalls = RegExp(r'\.sync\([^)]*\)').allMatches(source);
+        expect(syncCalls, isNotEmpty);
+        for (final call in syncCalls) {
+          expect(
+            call.group(0)!.contains('deltaOnly'),
+            isTrue,
+            reason: 'كل استدعاءات sync في الشاشة يجب أن تمرر deltaOnly',
+          );
+        }
       },
     );
 
