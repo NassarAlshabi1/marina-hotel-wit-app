@@ -1054,7 +1054,7 @@ class AppwriteSyncManager {
     // المداخل (false) لا تدخل هذا الفرع إطلاقاً.
     if (pull && deltaOnly) {
       final lastPullTs = await _getLastPullTs();
-      final deltaQ =
+      final List<String> deltaQ =
           await (_pullService?.buildDeltaQueries(lastPullTs) ?? <String>[]);
       if (deltaQ.isEmpty) {
         _logger.info(
