@@ -6693,6 +6693,47 @@ class AppwriteSyncManager {
             );
           }
 
+          // ✅ (2026-09-02) توحيد مسار الاسترداد مع الدورة الرئيسية:
+          // inventory_items + inventory_transactions كانا غائبين عن هذا
+          // المسار (موجودان في sync() فقط) — bootstrap عبر
+          // pullAllDataWithDisabledFK لم يكن ينزّلهما من أول مرة.
+          // الترتيب إلزامي: transactions.itemId → InventoryItems (FK).
+          try {
+            final inventoryItems = await appwriteService.listDocuments(
+              collectionId: AppwriteConfig.inventoryItemsCollectionId,
+              queries: pullQueries,
+            );
+            recordsPulled += await _syncInventoryItems(inventoryItems);
+          } catch (e, st) {
+            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
+            failedCollections.add('inventory_items');
+            _logger.error(
+              '❌ فشل سحب inventory_items (pullRemoteChanges)',
+              error: e,
+              stackTrace: st,
+              tag: 'SYNC',
+            );
+          }
+
+          try {
+            final inventoryTransactions = await appwriteService.listDocuments(
+              collectionId: AppwriteConfig.inventoryTransactionsCollectionId,
+              queries: pullQueries,
+            );
+            recordsPulled += await _syncInventoryTransactions(
+              inventoryTransactions,
+            );
+          } catch (e, st) {
+            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
+            failedCollections.add('inventory_transactions');
+            _logger.error(
+              '❌ فشل سحب inventory_transactions (pullRemoteChanges)',
+              error: e,
+              stackTrace: st,
+              tag: 'SYNC',
+            );
+          }
+
           // ✅ التوصية 3: إعادة ربط مؤجّلة لمصروفات الرواتب اليتيمة بعد سحب
           // الموظفين (يعالج خطر #4 — مصروفات وصلت قبل موظفيها).
           try {
@@ -7028,6 +7069,28 @@ class AppwriteSyncManager {
             failedCollections.add('payment_voids');
             _logger.error(
               '❌ فشل سحب payment_voids (pullRemoteChanges)',
+              error: e,
+              stackTrace: st,
+              tag: 'SYNC',
+            );
+          }
+
+          // ✅ (2026-09-02) توحيد مسار الاسترداد مع الدورة الرئيسية:
+          // salary_carry_over_logs كان غائباً عن هذا المسار — bootstrap
+          // لم يكن ينزّله. موضعه بعد salary_cycles/salary_payments و
+          // employees (employeeId → Employees FK) المتاحة أعلاه، مطابقاً
+          // لموضعه نهاية الدورة الرئيسية (sync()).
+          try {
+            final carryOverLogs = await appwriteService.listDocuments(
+              collectionId: AppwriteConfig.salaryCarryOverLogsCollectionId,
+              queries: pullQueries,
+            );
+            recordsPulled += await _syncSalaryCarryOverLogs(carryOverLogs);
+          } catch (e, st) {
+            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
+            failedCollections.add('salary_carry_over_logs');
+            _logger.error(
+              '❌ فشل سحب salary_carry_over_logs (pullRemoteChanges)',
               error: e,
               stackTrace: st,
               tag: 'SYNC',

@@ -28,6 +28,7 @@ import 'package:connectivity_plus_platform_interface/connectivity_plus_platform_
 import 'package:drift/native.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:marina_hotel_mobile/services/appwrite_config.dart';
 import 'package:marina_hotel_mobile/services/appwrite_network_helper.dart';
 import 'package:marina_hotel_mobile/services/appwrite_realtime_sync.dart';
 import 'package:marina_hotel_mobile/services/appwrite_service.dart';
@@ -845,5 +846,56 @@ void main() {
         expect(pulls3, 0);
       },
     );
+
+    test('H4: pullRemoteChanges يغطي كيانات الدورة الرئيسية كاملة — '
+        'inventory_items → inventory_transactions (ترتيب FK) + '
+        'salary_carry_over_logs', () {
+      fakeAsync((async) {
+        unawaited(resetAll());
+        async.flushMicrotasks();
+
+        // bootstrap (مسار pullAllDataWithDisabledFK → pullRemoteChanges)
+        // يجب أن يطلب الكيانات الثلاثة التي كانت حصرية للدورة الرئيسية:
+        var ok = false;
+        unawaited(manager.pullAllDataWithDisabledFK().then((v) => ok = v));
+        async.flushMicrotasks();
+        async.elapse(const Duration(milliseconds: 20));
+        async.flushMicrotasks();
+        expect(ok, isTrue);
+
+        final reads = fake.readCollections;
+        expect(
+          reads,
+          contains(AppwriteConfig.inventoryItemsCollectionId),
+          reason:
+              'inventory_items كان غائباً عن مسار الاسترداد — bootstrap '
+              'لم يكن ينزّله من أول مرة',
+        );
+        expect(
+          reads,
+          contains(AppwriteConfig.inventoryTransactionsCollectionId),
+          reason: 'inventory_transactions كان غائباً عن مسار الاسترداد',
+        );
+        expect(
+          reads,
+          contains(AppwriteConfig.salaryCarryOverLogsCollectionId),
+          reason: 'salary_carry_over_logs كان غائباً عن مسار الاسترداد',
+        );
+
+        // ترتيب FK إلزامي: transactions.itemId → InventoryItems —
+        // الآباء قبل الأبناء داخل نفس دورة الاسترداد.
+        final itemsIdx = reads.indexOf(
+          AppwriteConfig.inventoryItemsCollectionId,
+        );
+        final txIdx = reads.indexOf(
+          AppwriteConfig.inventoryTransactionsCollectionId,
+        );
+        expect(
+          itemsIdx,
+          lessThan(txIdx),
+          reason: 'inventory_items يجب أن يُطلب قبل inventory_transactions',
+        );
+      });
+    });
   });
 }
