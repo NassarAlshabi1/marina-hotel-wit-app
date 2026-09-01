@@ -45,7 +45,11 @@ void main() {
   group('R1: قرار الوضع — WebSocket مفعّل افتراضياً', () {
     test('كل المفاتيح غائبة → websocket (التفعيل الكامل افتراضياً)', () {
       expect(
-        AppwriteRealtimeSync.resolveRealtimeMode(appwriteSyncEnabled: null, realtimeSyncEnabled: null, wsEnabled: null),
+        AppwriteRealtimeSync.resolveRealtimeMode(
+          appwriteSyncEnabled: null,
+          realtimeSyncEnabled: null,
+          wsEnabled: null,
+        ),
         RealtimeMode.websocket,
       );
     });
@@ -115,7 +119,9 @@ void main() {
       });
 
       realtime.handleRemoteDataChange(
-        events: ['databases.main.collections.bookings.documents.permissions.update'],
+        events: [
+          'databases.main.collections.bookings.documents.permissions.update',
+        ],
         payload: {'device_id': 'device-B'},
       );
 
@@ -138,7 +144,10 @@ void main() {
 
         realtime.handleRemoteDataChange(
           events: ['databases.main.collections.payments.documents.create'],
-          payload: {'device_id': 'device-B', r'$updatedAt': '2026-08-31T10:00:00.000Z'},
+          payload: {
+            'device_id': 'device-B',
+            r'$updatedAt': '2026-08-31T10:00:00.000Z',
+          },
         );
 
         // قبل انتهاء الديبونس: لا شيء بعد.
@@ -149,8 +158,16 @@ void main() {
         async.flushMicrotasks();
 
         // بعد الديبونس: شارة UI + سحب فعلي واحد.
-        expect(triggerCalls, 1, reason: 'حدث Realtime يجب أن يُطلق سحباً فعلياً فورياً');
-        expect(realtime.hasRemoteChanges.value, isFalse, reason: 'السحب نجح → الشارات صُفّرت (التغييرات طُبّقت)');
+        expect(
+          triggerCalls,
+          1,
+          reason: 'حدث Realtime يجب أن يُطلق سحباً فعلياً فورياً',
+        );
+        expect(
+          realtime.hasRemoteChanges.value,
+          isFalse,
+          reason: 'السحب نجح → الشارات صُفّرت (التغييرات طُبّقت)',
+        );
         expect(realtime.pendingRemoteChangesCount.value, 0);
       });
     });
@@ -160,10 +177,16 @@ void main() {
       realtime.currentDeviceIdForTesting = 'device-A';
       realtime.handleRemoteDataChange(
         events: ['databases.main.collections.rooms.documents.update'],
-        payload: {'device_id': 'device-B', r'$updatedAt': '2026-08-31T11:30:00.000Z'},
+        payload: {
+          'device_id': 'device-B',
+          r'$updatedAt': '2026-08-31T11:30:00.000Z',
+        },
       );
       expect(realtime.lastKnownServerUpdate, isNotNull);
-      expect(realtime.lastKnownServerUpdate!.toUtc().toIso8601String(), startsWith('2026-08-31T11:30:00'));
+      expect(
+        realtime.lastKnownServerUpdate!.toUtc().toIso8601String(),
+        startsWith('2026-08-31T11:30:00'),
+      );
     });
   });
 
@@ -198,13 +221,21 @@ void main() {
           );
           async.elapse(const Duration(milliseconds: 10));
           async.flushMicrotasks();
-          expect(triggerCalls, 1, reason: 'داخل التهيئة: لا سحب جديد قبل بلوغ الفاصل');
+          expect(
+            triggerCalls,
+            1,
+            reason: 'داخل التهيئة: لا سحب جديد قبل بلوغ الفاصل',
+          );
         }
 
         // انتهاء التهيئة → السحب المؤجل (trailing) يغطي كل المتراكم مرة واحدة.
         async.elapse(const Duration(milliseconds: 100));
         async.flushMicrotasks();
-        expect(triggerCalls, 2, reason: 'سحب trailing واحد بعد التهيئة — السحب delta يغطي الكل');
+        expect(
+          triggerCalls,
+          2,
+          reason: 'سحب trailing واحد بعد التهيئة — السحب delta يغطي الكل',
+        );
       });
     });
   });
@@ -252,7 +283,11 @@ void main() {
         async.flushMicrotasks();
         async.elapse(const Duration(milliseconds: 5));
         async.flushMicrotasks();
-        expect(triggerCalls, 2, reason: 'التغيير الذي وصل أثناء الدورة يُسحب بعد انتهائها');
+        expect(
+          triggerCalls,
+          2,
+          reason: 'التغيير الذي وصل أثناء الدورة يُسحب بعد انتهائها',
+        );
       });
     });
 
@@ -285,32 +320,43 @@ void main() {
         async.elapse(const Duration(milliseconds: 60));
         async.flushMicrotasks();
         expect(calls, 2, reason: 'متابعة واحدة محدودة — لا حلقة لا نهائية');
-        expect(realtime.hasRemoteChanges.value, isFalse, reason: 'المتابعة نجحت → الشارات صُفّرت');
+        expect(
+          realtime.hasRemoteChanges.value,
+          isFalse,
+          reason: 'المتابعة نجحت → الشارات صُفّرت',
+        );
       });
     });
   });
 
   group('R8: التوقف الإرادي وضمان الاستئناف', () {
-    test('بعد stop(): الأحداث لا تُطلق سحباً وensureStarted يبقى صامتاً', () async {
-      realtime.resetForTesting();
-      realtime.currentDeviceIdForTesting = 'device-A';
-      var triggerCalls = 0;
-      realtime.setSyncTrigger(() async {
-        triggerCalls++;
-        return true;
-      });
+    test(
+      'بعد stop(): الأحداث لا تُطلق سحباً وensureStarted يبقى صامتاً',
+      () async {
+        realtime.resetForTesting();
+        realtime.currentDeviceIdForTesting = 'device-A';
+        var triggerCalls = 0;
+        realtime.setSyncTrigger(() async {
+          triggerCalls++;
+          return true;
+        });
 
-      await realtime.stop();
-      await realtime.ensureStarted(); // يجب أن يحترم intentionallyStopped
-      expect(realtime.isListening, isFalse);
+        await realtime.stop();
+        await realtime.ensureStarted(); // يجب أن يحترم intentionallyStopped
+        expect(realtime.isListening, isFalse);
 
-      realtime.handleRemoteDataChange(
-        events: ['databases.main.collections.bookings.documents.create'],
-        payload: {'device_id': 'device-B'},
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 30));
-      expect(triggerCalls, 0, reason: 'لا سحب من أحداث جديدة بعد stop() قبل أي start() جديد');
-    });
+        realtime.handleRemoteDataChange(
+          events: ['databases.main.collections.bookings.documents.create'],
+          payload: {'device_id': 'device-B'},
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 30));
+        expect(
+          triggerCalls,
+          0,
+          reason: 'لا سحب من أحداث جديدة بعد stop() قبل أي start() جديد',
+        );
+      },
+    );
   });
 
   group('R9: وضع fallback — علامة + سحب خفيف دوري', () {
@@ -338,19 +384,31 @@ void main() {
         unawaited(realtime.start());
         async.flushMicrotasks();
 
-        expect(realtime.fallbackPollingActiveForTesting, isTrue, reason: 'WS معطّل → وضع fallback يعمل');
+        expect(
+          realtime.fallbackPollingActiveForTesting,
+          isTrue,
+          reason: 'WS معطّل → وضع fallback يعمل',
+        );
 
         // تكت (30 ثانية) أولى: علامة UI فقط.
         async.elapse(const Duration(seconds: 31));
         async.flushMicrotasks();
-        expect(triggerCalls, 0, reason: 'قبل بلوغ فاصل السحب الخفيف: لا سحب بعد');
+        expect(
+          triggerCalls,
+          0,
+          reason: 'قبل بلوغ فاصل السحب الخفيف: لا سحب بعد',
+        );
         expect(realtime.hasRemoteChanges.value, isTrue);
 
         // فاصل السحب الخفيف (مختصر للاختبار إلى 60 ثانية = تكتان).
         realtime.debugFallbackPullInterval = const Duration(minutes: 1);
         async.elapse(const Duration(seconds: 31));
         async.flushMicrotasks();
-        expect(triggerCalls, 1, reason: 'الـ fallback يُطلق سحباً فعلياً دورياً وليس شارة فقط');
+        expect(
+          triggerCalls,
+          1,
+          reason: 'الـ fallback يُطلق سحباً فعلياً دورياً وليس شارة فقط',
+        );
 
         // تكت التالي: الفاصل = 30 ثانية (يساوي تيك واحد) → سحب ثانٍ.
         realtime.debugFallbackPullInterval = const Duration(seconds: 30);
@@ -368,8 +426,14 @@ void main() {
   test('الثوابت: التهيئة والفواصل ضمن حدود معقولة', () {
     // حماية من تعديل يكسر ضبط المعدل: التهيئة ≥ 5 ث (لا إغراق) و≤ 60 ث
     // (يبقى "فورياً" بإحساس المستخدم)، والفاصل الاحتياطي ≥ دقيقة.
-    expect(SyncConstants.realtimeEventPullCooldown.inSeconds, allOf(greaterThanOrEqualTo(5), lessThanOrEqualTo(60)));
-    expect(SyncConstants.realtimeFallbackPullInterval.inMinutes, greaterThanOrEqualTo(1));
+    expect(
+      SyncConstants.realtimeEventPullCooldown.inSeconds,
+      allOf(greaterThanOrEqualTo(5), lessThanOrEqualTo(60)),
+    );
+    expect(
+      SyncConstants.realtimeFallbackPullInterval.inMinutes,
+      greaterThanOrEqualTo(1),
+    );
     // التفعيل الكامل يجب ألا يلمس حارس الدقيقتين لمداخل الشاشات/المؤقتات.
     expect(SyncConstants.minPullGap, const Duration(minutes: 2));
   });

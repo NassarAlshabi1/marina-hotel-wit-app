@@ -43,7 +43,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeConnectivityPlatform extends ConnectivityPlatform {
   @override
-  Future<List<ConnectivityResult>> checkConnectivity() async => [ConnectivityResult.wifi];
+  Future<List<ConnectivityResult>> checkConnectivity() async => [
+    ConnectivityResult.wifi,
+  ];
 
   @override
   Future<void> ensureInitialized() async {}
@@ -67,7 +69,8 @@ class _FakeAppwriteService implements AppwriteService {
   }
 
   @override
-  void Function(String collectionId, models.Document document)? onDocumentUpserted;
+  void Function(String collectionId, models.Document document)?
+  onDocumentUpserted;
 
   void reset() {
     serverCollections.clear();
@@ -102,10 +105,14 @@ class _FakeAppwriteService implements AppwriteService {
         _maybeThrow('listDocumentsMetadata:$collectionId');
         if (metadataGate != null) {
           return metadataGate!.future.then(
-            (_) => List<models.Document>.of(serverCollections[collectionId] ?? const []),
+            (_) => List<models.Document>.of(
+              serverCollections[collectionId] ?? const [],
+            ),
           );
         }
-        return Future<List<models.Document>>.value(List.of(serverCollections[collectionId] ?? const []));
+        return Future<List<models.Document>>.value(
+          List.of(serverCollections[collectionId] ?? const []),
+        );
 
       case 'listDocumentsByIds':
         final collectionId = invocation.positionalArguments[0].toString();
@@ -114,16 +121,23 @@ class _FakeAppwriteService implements AppwriteService {
         byIdsRequests.putIfAbsent(collectionId, () => []).addAll(ids);
         final all = serverCollections[collectionId] ?? const [];
         final idSet = ids.toSet();
-        return Future<List<models.Document>>.value(all.where((d) => idSet.contains(d.$id)).toList());
+        return Future<List<models.Document>>.value(
+          all.where((d) => idSet.contains(d.$id)).toList(),
+        );
 
       case 'listDocuments':
-        final collectionId = invocation.namedArguments[#collectionId].toString();
+        final collectionId = invocation.namedArguments[#collectionId]
+            .toString();
         readCollections.add(collectionId);
-        return Future<List<models.Document>>.value(List.of(serverCollections[collectionId] ?? const []));
+        return Future<List<models.Document>>.value(
+          List.of(serverCollections[collectionId] ?? const []),
+        );
 
       case 'listBookingNights':
         readCollections.add('booking_nights');
-        return Future<List<models.Document>>.value(List.of(serverCollections['booking_nights'] ?? const []));
+        return Future<List<models.Document>>.value(
+          List.of(serverCollections['booking_nights'] ?? const []),
+        );
 
       case 'createSyncLog':
         throw StateError('sync-log unavailable (fake)');
@@ -142,8 +156,16 @@ class _FakeAppwriteService implements AppwriteService {
   }
 }
 
-models.Document mkDoc(String collectionId, String id, int updatedAtSec, [Map<String, dynamic> data = const {}]) {
-  final iso = DateTime.fromMillisecondsSinceEpoch(updatedAtSec * 1000, isUtc: true).toIso8601String();
+models.Document mkDoc(
+  String collectionId,
+  String id,
+  int updatedAtSec, [
+  Map<String, dynamic> data = const {},
+]) {
+  final iso = DateTime.fromMillisecondsSinceEpoch(
+    updatedAtSec * 1000,
+    isUtc: true,
+  ).toIso8601String();
   return models.Document(
     $id: id,
     $sequence: updatedAtSec,
@@ -157,8 +179,15 @@ models.Document mkDoc(String collectionId, String id, int updatedAtSec, [Map<Str
 }
 
 /// حمولة حدث Realtime واقعية — Appwrite يرسل المستند نفسه (مع مفاتيح النظام).
-Map<String, dynamic> blacklistPayload(String id, int updatedAtSec, {String deviceId = 'device-B'}) {
-  final iso = DateTime.fromMillisecondsSinceEpoch(updatedAtSec * 1000, isUtc: true).toIso8601String();
+Map<String, dynamic> blacklistPayload(
+  String id,
+  int updatedAtSec, {
+  String deviceId = 'device-B',
+}) {
+  final iso = DateTime.fromMillisecondsSinceEpoch(
+    updatedAtSec * 1000,
+    isUtc: true,
+  ).toIso8601String();
   return <String, dynamic>{
     r'$id': id,
     r'$sequence': updatedAtSec,
@@ -186,9 +215,14 @@ void main() {
   fake = _FakeAppwriteService();
   manager = AppwriteSyncManager(appwriteService: fake, database: db);
   realtime = AppwriteRealtimeSync();
-  pullService = SyncPullService(appwriteService: fake, database: db, outboxDao: OutboxDao(db));
+  pullService = SyncPullService(
+    appwriteService: fake,
+    database: db,
+    outboxDao: OutboxDao(db),
+  );
 
-  Future<Map<String, int>> entityWatermarks() => pullService.getEntityPullTsMap();
+  Future<Map<String, int>> entityWatermarks() =>
+      pullService.getEntityPullTsMap();
 
   /// تنظيف كامل بين الاختبارات — قاعدة البيانات مشتركة (أُنشئت مرة) والـ
   /// singleton كذلك؛ بلا هذا يتسرب syncState/الصفوف بين الاختبارات (سبب
@@ -208,7 +242,12 @@ void main() {
   /// ربط الحلقة كما في main.dart تماماً (2026-09-01):
   /// trigger بلا وسائط + deltaOnly:true — لا fast-apply، لا Full Sync.
   /// يتتبع عدد الإطلاقات وأقصى تزامن وآخر نتيجة (pullSkipped).
-  ({List<int> fireCount, List<bool> lastPullSkipped, int Function() maxConcurrent}) wireRealtimeLoop() {
+  ({
+    List<int> fireCount,
+    List<bool> lastPullSkipped,
+    int Function() maxConcurrent,
+  })
+  wireRealtimeLoop() {
     final fireCount = <int>[0];
     final lastPullSkipped = <bool>[false];
     var concurrent = 0;
@@ -218,14 +257,23 @@ void main() {
       concurrent++;
       if (concurrent > maxConcurrent) maxConcurrent = concurrent;
       try {
-        final result = await manager.sync(push: true, pull: true, realtimePriority: true, deltaOnly: true);
+        final result = await manager.sync(
+          push: true,
+          pull: true,
+          realtimePriority: true,
+          deltaOnly: true,
+        );
         lastPullSkipped[0] = result.pullSkipped;
         return result.isSuccess && !result.pullSkipped;
       } finally {
         concurrent--;
       }
     });
-    return (fireCount: fireCount, lastPullSkipped: lastPullSkipped, maxConcurrent: () => maxConcurrent);
+    return (
+      fireCount: fireCount,
+      lastPullSkipped: lastPullSkipped,
+      maxConcurrent: () => maxConcurrent,
+    );
   }
 
   group('A/B: المسار الوحيد — Realtime → طابور → Delta Pull → Drift', () {
@@ -240,7 +288,11 @@ void main() {
 
         // خط الأساس: السجل موجود محلياً (نشط) باسم قديم.
         fake.serverCollections['blacklist'] = [
-          mkDoc('blacklist', 'blk-1', 1700000000, {'name': 'اسم-قديم', 'active': true, 'deletedAt': null}),
+          mkDoc('blacklist', 'blk-1', 1700000000, {
+            'name': 'اسم-قديم',
+            'active': true,
+            'deletedAt': null,
+          }),
         ];
         unawaited(manager.sync(push: false, pull: true));
         async.flushMicrotasks();
@@ -249,10 +301,16 @@ void main() {
 
         // تعديل من جهاز آخر: الحمولة تحمل الاسم الجديد، والخادم أيضاً.
         fake.serverCollections['blacklist'] = [
-          mkDoc('blacklist', 'blk-1', 1700001234, {'name': 'اسم-محدَّث-من-جهاز-B', 'active': true, 'deletedAt': null}),
+          mkDoc('blacklist', 'blk-1', 1700001234, {
+            'name': 'اسم-محدَّث-من-جهاز-B',
+            'active': true,
+            'deletedAt': null,
+          }),
         ];
         realtime.handleRemoteDataChange(
-          events: ['databases.main.collections.blacklist.documents.blk-1.update'],
+          events: [
+            'databases.main.collections.blacklist.documents.blk-1.update',
+          ],
           payload: blacklistPayload('blk-1', 1700001234),
         );
 
@@ -261,12 +319,16 @@ void main() {
         async.flushMicrotasks();
         var nameNow = '';
         unawaited(
-          (db.select(
-            db.shiftNotes,
-          )..where((t) => t.localUuid.equals('blk-1'))).getSingleOrNull().then((r) => nameNow = r?.title ?? ''),
+          (db.select(db.shiftNotes)..where((t) => t.localUuid.equals('blk-1')))
+              .getSingleOrNull()
+              .then((r) => nameNow = r?.title ?? ''),
         );
         async.flushMicrotasks();
-        expect(nameNow, 'اسم-قديم', reason: 'لا مسار مباشر من Realtime إلى Drift — الحدث في الطابور فقط');
+        expect(
+          nameNow,
+          'اسم-قديم',
+          reason: 'لا مسار مباشر من Realtime إلى Drift — الحدث في الطابور فقط',
+        );
 
         // الديبونس انقضى → Delta Pull يجلب من الخادم → field-level merge.
         async.elapse(const Duration(milliseconds: 10));
@@ -282,9 +344,9 @@ void main() {
         );
         var nameAfter = '';
         unawaited(
-          (db.select(
-            db.shiftNotes,
-          )..where((t) => t.localUuid.equals('blk-1'))).getSingleOrNull().then((r) => nameAfter = r?.title ?? ''),
+          (db.select(db.shiftNotes)..where((t) => t.localUuid.equals('blk-1')))
+              .getSingleOrNull()
+              .then((r) => nameAfter = r?.title ?? ''),
         );
         async.flushMicrotasks();
         expect(
@@ -307,7 +369,9 @@ void main() {
           mkDoc('blacklist', 'blk-x', 1700001234, {'name': 'من-جهاز-B'}),
         ];
         realtime.handleRemoteDataChange(
-          events: ['databases.main.collections.blacklist.documents.blk-x.update'],
+          events: [
+            'databases.main.collections.blacklist.documents.blk-x.update',
+          ],
           payload: blacklistPayload('blk-x', 1700001234),
         );
         async.elapse(const Duration(milliseconds: 20));
@@ -316,53 +380,67 @@ void main() {
         var rows = -1;
         unawaited(db.select(db.shiftNotes).get().then((r) => rows = r.length));
         async.flushMicrotasks();
-        expect(rows, 0, reason: 'بلا نقطة الدخول لا يوجد أي مسار بديل يكتب Drift مباشرة');
+        expect(
+          rows,
+          0,
+          reason: 'بلا نقطة الدخول لا يوجد أي مسار بديل يكتب Drift مباشرة',
+        );
       });
     });
   });
 
   group('C: عاصفة أحداث (Burst) — طابور مُصمت بلا سحوبات متزامنة', () {
-    test('10 أحداث متتالية → سحوبات قليلة متتالية (لا storm) وتزامن أقصى = 1', () {
-      fakeAsync((async) {
-        unawaited(resetAll());
-        async.flushMicrotasks();
-        realtime.debugEventDebounce = const Duration(milliseconds: 5);
-        realtime.debugPullCooldown = const Duration(milliseconds: 20);
-        final loop = wireRealtimeLoop();
-
-        // خط أساس لتجنب bootstrap (وإلا تُتخطى كل الدلتا وينقلص العدّاد زوراً).
-        fake.serverCollections['blacklist'] = [
-          mkDoc('blacklist', 'seed', 1700000000, {'name': 'بذرة'}),
-        ];
-        unawaited(manager.sync(push: false, pull: true));
-        async.flushMicrotasks();
-        async.elapse(const Duration(milliseconds: 10));
-        async.flushMicrotasks();
-        final baselineFires = loop.fireCount[0];
-
-        // 10 أحداث متتالية خلال نافذة الديبونس نفسها.
-        for (var i = 1; i <= 10; i++) {
-          realtime.handleRemoteDataChange(
-            events: ['databases.main.collections.blacklist.documents.blk-$i.create'],
-            payload: blacklistPayload('blk-$i', 1700001000 + i),
-          );
+    test(
+      '10 أحداث متتالية → سحوبات قليلة متتالية (لا storm) وتزامن أقصى = 1',
+      () {
+        fakeAsync((async) {
+          unawaited(resetAll());
           async.flushMicrotasks();
-        }
+          realtime.debugEventDebounce = const Duration(milliseconds: 5);
+          realtime.debugPullCooldown = const Duration(milliseconds: 20);
+          final loop = wireRealtimeLoop();
 
-        async.elapse(const Duration(milliseconds: 200));
-        async.flushMicrotasks();
+          // خط أساس لتجنب bootstrap (وإلا تُتخطى كل الدلتا وينقلص العدّاد زوراً).
+          fake.serverCollections['blacklist'] = [
+            mkDoc('blacklist', 'seed', 1700000000, {'name': 'بذرة'}),
+          ];
+          unawaited(manager.sync(push: false, pull: true));
+          async.flushMicrotasks();
+          async.elapse(const Duration(milliseconds: 10));
+          async.flushMicrotasks();
+          final baselineFires = loop.fireCount[0];
 
-        final fired = loop.fireCount[0] - baselineFires;
-        expect(
-          fired,
-          lessThanOrEqualTo(2),
-          reason:
-              '10 أحداث = دفعة واحدة: 1 in-flight + 1 trailing كحد أقصى '
-              '(كانت ستكون 10 سحوبات متزامنة بلا طابور)',
-        );
-        expect(loop.maxConcurrent(), 1, reason: 'لا سحوبات متزامنة إطلاقاً — حارس in-flight + trailing queue');
-      });
-    });
+          // 10 أحداث متتالية خلال نافذة الديبونس نفسها.
+          for (var i = 1; i <= 10; i++) {
+            realtime.handleRemoteDataChange(
+              events: [
+                'databases.main.collections.blacklist.documents.blk-$i.create',
+              ],
+              payload: blacklistPayload('blk-$i', 1700001000 + i),
+            );
+            async.flushMicrotasks();
+          }
+
+          async.elapse(const Duration(milliseconds: 200));
+          async.flushMicrotasks();
+
+          final fired = loop.fireCount[0] - baselineFires;
+          expect(
+            fired,
+            lessThanOrEqualTo(2),
+            reason:
+                '10 أحداث = دفعة واحدة: 1 in-flight + 1 trailing كحد أقصى '
+                '(كانت ستكون 10 سحوبات متزامنة بلا طابور)',
+          );
+          expect(
+            loop.maxConcurrent(),
+            1,
+            reason:
+                'لا سحوبات متزامنة إطلاقاً — حارس in-flight + trailing queue',
+          );
+        });
+      },
+    );
   });
 
   group('D: الاسترداد بعد إعادة الاتصال (إلزامي) — Delta لا Full', () {
@@ -387,11 +465,17 @@ void main() {
         // انقطاع: أثناء الانقطاع تغيّر السجل على الخادم (أحداث فُقدان).
         realtime.markDisconnectedForTesting();
         async.flushMicrotasks();
-        expect(realtime.pendingRecoveryPullForTesting, isTrue, reason: 'علامة الاسترداد مضبوطة بعد فقدان الاتصال');
+        expect(
+          realtime.pendingRecoveryPullForTesting,
+          isTrue,
+          reason: 'علامة الاسترداد مضبوطة بعد فقدان الاتصال',
+        );
         // تغييرات حدثت خلال الانقطاع:
         fake.serverCollections['blacklist'] = [
           mkDoc('blacklist', 'seed', 1700000000, {'name': 'بذرة'}),
-          mkDoc('blacklist', 'blk-missed', 1700005000, {'name': 'فائت-أثناء-الانقطاع'}),
+          mkDoc('blacklist', 'blk-missed', 1700005000, {
+            'name': 'فائت-أثناء-الانقطاع',
+          }),
         ];
         // إعادة الاتصال نجحت:
         realtime.onSubscriptionEstablished();
@@ -404,7 +488,8 @@ void main() {
         expect(
           loop.fireCount[0],
           greaterThan(baselineFires),
-          reason: 'Reconnect → Delta Pull (استدراك الفاقد) عبر نقطة الدخول الحالية',
+          reason:
+              'Reconnect → Delta Pull (استدراك الفاقد) عبر نقطة الدخول الحالية',
         );
         expect(
           fake.byIdsRequests['blacklist'],
@@ -413,13 +498,18 @@ void main() {
         );
         var found = false;
         unawaited(
-          (db.select(
-            db.shiftNotes,
-          )..where((t) => t.localUuid.equals('blk-missed'))).get().then((r) => found = r.isNotEmpty),
+          (db.select(db.shiftNotes)
+                ..where((t) => t.localUuid.equals('blk-missed')))
+              .get()
+              .then((r) => found = r.isNotEmpty),
         );
         async.flushMicrotasks();
         expect(found, isTrue, reason: 'سجل الانقطاع وصل Drift');
-        expect(realtime.pendingRecoveryPullForTesting, isFalse, reason: 'الاسترداد يُستهلك مرة واحدة');
+        expect(
+          realtime.pendingRecoveryPullForTesting,
+          isFalse,
+          reason: 'الاسترداد يُستهلك مرة واحدة',
+        );
       });
     });
 
@@ -446,8 +536,16 @@ void main() {
         async.elapse(const Duration(milliseconds: 10));
         async.flushMicrotasks();
 
-        expect(loop.lastPullSkipped[0], isTrue, reason: 'deltaOnly يمنع تحويل الاسترداد إلى Full Sync في bootstrap');
-        expect(fake.readCollections, isEmpty, reason: 'صفر قراءات شبكة — السحب الكامل قرار Bootstrap الصريح فقط');
+        expect(
+          loop.lastPullSkipped[0],
+          isTrue,
+          reason: 'deltaOnly يمنع تحويل الاسترداد إلى Full Sync في bootstrap',
+        );
+        expect(
+          fake.readCollections,
+          isEmpty,
+          reason: 'صفر قراءات شبكة — السحب الكامل قرار Bootstrap الصريح فقط',
+        );
       });
     });
   });
@@ -473,21 +571,32 @@ void main() {
         // جهاز B حذف السجل (soft delete بـ deletedAt ISO — صيغة blacklist):
         // الحدث delete لا يُطبَّق مباشرة من الحمولة — يمر عبر الدلتا.
         fake.serverCollections['blacklist'] = [
-          mkDoc('blacklist', 'blk-del', 1700006000, {'name': 'سيُحذف', 'deletedAt': '2026-09-01T10:00:00.000Z'}),
+          mkDoc('blacklist', 'blk-del', 1700006000, {
+            'name': 'سيُحذف',
+            'deletedAt': '2026-09-01T10:00:00.000Z',
+          }),
         ];
         realtime.handleRemoteDataChange(
-          events: ['databases.main.collections.blacklist.documents.blk-del.delete'],
+          events: [
+            'databases.main.collections.blacklist.documents.blk-del.delete',
+          ],
           payload: blacklistPayload('blk-del', 1700006000),
         );
         async.flushMicrotasks();
         var stillThere = true;
         unawaited(
-          (db.select(
-            db.shiftNotes,
-          )..where((t) => t.localUuid.equals('blk-del'))).get().then((r) => stillThere = r.isNotEmpty),
+          (db.select(db.shiftNotes)
+                ..where((t) => t.localUuid.equals('blk-del')))
+              .get()
+              .then((r) => stillThere = r.isNotEmpty),
         );
         async.flushMicrotasks();
-        expect(stillThere, isTrue, reason: 'لا حذف مباشر من الحدث — tombstone منطق الدلتا هو آلية التوصيل');
+        expect(
+          stillThere,
+          isTrue,
+          reason:
+              'لا حذف مباشر من الحدث — tombstone منطق الدلتا هو آلية التوصيل',
+        );
 
         async.elapse(const Duration(milliseconds: 10));
         async.flushMicrotasks();
@@ -498,16 +607,23 @@ void main() {
         expect(
           fake.byIdsRequests['blacklist'],
           contains('blk-del'),
-          reason: 'السجل معروف محلياً → يُنزَّل tombstone لتوصيل الحذف (منع resurrection)',
+          reason:
+              'السجل معروف محلياً → يُنزَّل tombstone لتوصيل الحذف (منع resurrection)',
         );
         stillThere = false;
         unawaited(
-          (db.select(
-            db.shiftNotes,
-          )..where((t) => t.localUuid.equals('blk-del'))).get().then((r) => stillThere = r.isNotEmpty),
+          (db.select(db.shiftNotes)
+                ..where((t) => t.localUuid.equals('blk-del')))
+              .get()
+              .then((r) => stillThere = r.isNotEmpty),
         );
         async.flushMicrotasks();
-        expect(stillThere, isFalse, reason: 'Remote delete → Realtime → Queue → Delta → tombstone → local delete');
+        expect(
+          stillThere,
+          isFalse,
+          reason:
+              'Remote delete → Realtime → Queue → Delta → tombstone → local delete',
+        );
       });
     });
   });
@@ -536,8 +652,16 @@ void main() {
         unawaited(realtime.stop());
         async.flushMicrotasks();
         expect(realtime.isListening, isFalse);
-        expect(realtime.triggerInFlightForTesting, isFalse, reason: 'لا دورة معلّقة بعد الخروج');
-        expect(realtime.pendingRecoveryPullForTesting, isFalse, reason: 'لا استرداد بعد توقف إرادي');
+        expect(
+          realtime.triggerInFlightForTesting,
+          isFalse,
+          reason: 'لا دورة معلّقة بعد الخروج',
+        );
+        expect(
+          realtime.pendingRecoveryPullForTesting,
+          isFalse,
+          reason: 'لا استرداد بعد توقف إرادي',
+        );
 
         // أحداث متأخرة بعد stop → لا سحب ولا شارة (الاشتراك مغلق).
         realtime.handleRemoteDataChange(
@@ -548,7 +672,11 @@ void main() {
         async.flushMicrotasks();
         final firesAfterLogout = loop.fireCount[0];
         async.elapse(const Duration(milliseconds: 20));
-        expect(loop.fireCount[0], firesAfterLogout, reason: 'بلا اشتراك حي لا يُطلق أي سحب (الطابور مُفرَّغ)');
+        expect(
+          loop.fireCount[0],
+          firesAfterLogout,
+          reason: 'بلا اشتراك حي لا يُطلق أي سحب (الطابور مُفرَّغ)',
+        );
 
         // Login جديد: اشتراك جديد نظيف — استرداد واحد للفجوة فقط.
         realtime.markDisconnectedForTesting();
@@ -567,37 +695,45 @@ void main() {
   });
 
   group('G: Realtime غير متاح — المزامنة اليدوية تبقى عاملة', () {
-    test('بلا أي trigger: sync يدوي يسحب ويطبّق (مسار DashboardSyncButton)', () {
-      fakeAsync((async) {
-        SharedPreferences.setMockInitialValues({
-          'appwrite_realtime_sync_enabled': false, // Realtime معطّل كلياً
+    test(
+      'بلا أي trigger: sync يدوي يسحب ويطبّق (مسار DashboardSyncButton)',
+      () {
+        fakeAsync((async) {
+          SharedPreferences.setMockInitialValues({
+            'appwrite_realtime_sync_enabled': false, // Realtime معطّل كلياً
+          });
+          fake.reset();
+          manager.resetPullThrottleForTesting();
+          realtime.resetForTesting();
+          realtime.debugEventDebounce = const Duration(milliseconds: 5);
+
+          fake.serverCollections['blacklist'] = [
+            mkDoc('blacklist', 'manual-1', 1700003000, {'name': 'يدوي'}),
+          ];
+
+          var ok = false;
+          unawaited(
+            manager
+                .sync(push: false, pull: true, forcePull: true)
+                .then((r) => ok = r.isSuccess),
+          );
+          async.flushMicrotasks();
+          async.elapse(const Duration(milliseconds: 10));
+          async.flushMicrotasks();
+
+          expect(ok, isTrue, reason: 'المزامنة اليدوية لا تعتمد على Realtime');
+          var found = false;
+          unawaited(
+            (db.select(db.shiftNotes)
+                  ..where((t) => t.localUuid.equals('manual-1')))
+                .get()
+                .then((r) => found = r.isNotEmpty),
+          );
+          async.flushMicrotasks();
+          expect(found, isTrue);
         });
-        fake.reset();
-        manager.resetPullThrottleForTesting();
-        realtime.resetForTesting();
-        realtime.debugEventDebounce = const Duration(milliseconds: 5);
-
-        fake.serverCollections['blacklist'] = [
-          mkDoc('blacklist', 'manual-1', 1700003000, {'name': 'يدوي'}),
-        ];
-
-        var ok = false;
-        unawaited(manager.sync(push: false, pull: true, forcePull: true).then((r) => ok = r.isSuccess));
-        async.flushMicrotasks();
-        async.elapse(const Duration(milliseconds: 10));
-        async.flushMicrotasks();
-
-        expect(ok, isTrue, reason: 'المزامنة اليدوية لا تعتمد على Realtime');
-        var found = false;
-        unawaited(
-          (db.select(
-            db.shiftNotes,
-          )..where((t) => t.localUuid.equals('manual-1'))).get().then((r) => found = r.isNotEmpty),
-        );
-        async.flushMicrotasks();
-        expect(found, isTrue);
-      });
-    });
+      },
+    );
   });
 
   group('H: Bootstrap الصريح — علم appwrite_pull_after_drive_skip_done', () {
@@ -633,7 +769,11 @@ void main() {
         var ok = true;
         unawaited(manager.pullAllDataWithDisabledFK().then((v) => ok = v));
         async.flushMicrotasks();
-        expect(ok, isFalse, reason: 'syncing جارية → لم يحدث سحب شامل → false → العلم لا يُضبط');
+        expect(
+          ok,
+          isFalse,
+          reason: 'syncing جارية → لم يحدث سحب شامل → false → العلم لا يُضبط',
+        );
 
         // تحرير الدورة وتنظيف.
         fake.metadataGate!.complete();
@@ -643,55 +783,67 @@ void main() {
       });
     });
 
-    test('H3: عقود العلم النقية — يُضبط بعد النجاح حصراً (نفس ترتيب الشاشة)', () async {
-      SharedPreferences.setMockInitialValues({});
-      // نفس منطق _pullAppwriteOnceAfterSkip في google_drive_login_screen.dart:
-      //   if (done) return;  →  ok = await pull();  →  if (ok) setFlag.
-      Future<bool> runBootstrapFlow(SharedPreferences prefs, Future<bool> Function() pull) async {
-        const key = 'appwrite_pull_after_drive_skip_done';
-        if (prefs.getBool(key) ?? false) return false;
-        final ok = await pull();
-        if (!ok) return false;
-        await prefs.setBool(key, true);
-        return true;
-      }
+    test(
+      'H3: عقود العلم النقية — يُضبط بعد النجاح حصراً (نفس ترتيب الشاشة)',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        // نفس منطق _pullAppwriteOnceAfterSkip في google_drive_login_screen.dart:
+        //   if (done) return;  →  ok = await pull();  →  if (ok) setFlag.
+        Future<bool> runBootstrapFlow(
+          SharedPreferences prefs,
+          Future<bool> Function() pull,
+        ) async {
+          const key = 'appwrite_pull_after_drive_skip_done';
+          if (prefs.getBool(key) ?? false) return false;
+          final ok = await pull();
+          if (!ok) return false;
+          await prefs.setBool(key, true);
+          return true;
+        }
 
-      // نجاح → علم مرفوع.
-      final prefs1 = await SharedPreferences.getInstance();
-      var pulls1 = 0;
-      final r1 = await runBootstrapFlow(prefs1, () async {
-        pulls1++;
-        return true;
-      });
-      expect(r1, isTrue);
-      expect(pulls1, 1);
-      expect(await prefs1.getBool('appwrite_pull_after_drive_skip_done'), isTrue);
+        // نجاح → علم مرفوع.
+        final prefs1 = await SharedPreferences.getInstance();
+        var pulls1 = 0;
+        final r1 = await runBootstrapFlow(prefs1, () async {
+          pulls1++;
+          return true;
+        });
+        expect(r1, isTrue);
+        expect(pulls1, 1);
+        expect(
+          await prefs1.getBool('appwrite_pull_after_drive_skip_done'),
+          isTrue,
+        );
 
-      // فشل → العلم فارغ + إعادة المحاولة ممكنة (يدعو pull ثانية).
-      SharedPreferences.setMockInitialValues({}); // مخزن معزول لهذا السيناريو
-      final prefs2 = await SharedPreferences.getInstance();
-      var pulls2 = 0;
-      final r2a = await runBootstrapFlow(prefs2, () async {
-        pulls2++;
-        return false; // Full Sync FAILURE
-      });
-      expect(r2a, isFalse);
-      expect(await prefs2.getBool('appwrite_pull_after_drive_skip_done'), isNull);
-      final r2b = await runBootstrapFlow(prefs2, () async {
-        pulls2++;
-        return true; // إعادة المحاولة نجحت
-      });
-      expect(r2b, isTrue);
-      expect(pulls2, 2, reason: 'الفشل سمح بإعادة المحاولة');
+        // فشل → العلم فارغ + إعادة المحاولة ممكنة (يدعو pull ثانية).
+        SharedPreferences.setMockInitialValues({}); // مخزن معزول لهذا السيناريو
+        final prefs2 = await SharedPreferences.getInstance();
+        var pulls2 = 0;
+        final r2a = await runBootstrapFlow(prefs2, () async {
+          pulls2++;
+          return false; // Full Sync FAILURE
+        });
+        expect(r2a, isFalse);
+        expect(
+          await prefs2.getBool('appwrite_pull_after_drive_skip_done'),
+          isNull,
+        );
+        final r2b = await runBootstrapFlow(prefs2, () async {
+          pulls2++;
+          return true; // إعادة المحاولة نجحت
+        });
+        expect(r2b, isTrue);
+        expect(pulls2, 2, reason: 'الفشل سمح بإعادة المحاولة');
 
-      // علم مرفوع مسبقاً → idempotent (لا سحب ثانٍ).
-      var pulls3 = 0;
-      final r3 = await runBootstrapFlow(prefs1, () async {
-        pulls3++;
-        return true;
-      });
-      expect(r3, isFalse);
-      expect(pulls3, 0);
-    });
+        // علم مرفوع مسبقاً → idempotent (لا سحب ثانٍ).
+        var pulls3 = 0;
+        final r3 = await runBootstrapFlow(prefs1, () async {
+          pulls3++;
+          return true;
+        });
+        expect(r3, isFalse);
+        expect(pulls3, 0);
+      },
+    );
   });
 }

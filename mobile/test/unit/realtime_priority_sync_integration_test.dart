@@ -46,7 +46,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeConnectivityPlatform extends ConnectivityPlatform {
   @override
-  Future<List<ConnectivityResult>> checkConnectivity() async => [ConnectivityResult.wifi];
+  Future<List<ConnectivityResult>> checkConnectivity() async => [
+    ConnectivityResult.wifi,
+  ];
 
   /// في M4 يُجرى فحص الاتصال داخل fakeAsync — نجعله دقيقة عبر microtask.
   @override
@@ -61,7 +63,8 @@ class _FakeAppwriteService implements AppwriteService {
   /// ✅ (2026-08-31) مراقب نجاح الرفع — حقل حقيقي كي يلتقطه مُنشئ المدير
   /// (بدون هذا يقع الـ setter في noSuchMethod → فشل صاخب عند البناء).
   @override
-  void Function(String collectionId, models.Document document)? onDocumentUpserted;
+  void Function(String collectionId, models.Document document)?
+  onDocumentUpserted;
 
   void reset() {
     serverCollections.clear();
@@ -88,22 +91,30 @@ class _FakeAppwriteService implements AppwriteService {
 
       case 'listDocumentsMetadata':
         final collectionId = invocation.positionalArguments[0].toString();
-        return Future<List<models.Document>>.value(List.of(serverCollections[collectionId] ?? const []));
+        return Future<List<models.Document>>.value(
+          List.of(serverCollections[collectionId] ?? const []),
+        );
 
       case 'listDocumentsByIds':
         final collectionId = invocation.positionalArguments[0].toString();
         final ids = (invocation.positionalArguments[1] as List).cast<String>();
         final all = serverCollections[collectionId] ?? const [];
         final idSet = ids.toSet();
-        return Future<List<models.Document>>.value(all.where((d) => idSet.contains(d.$id)).toList());
+        return Future<List<models.Document>>.value(
+          all.where((d) => idSet.contains(d.$id)).toList(),
+        );
 
       case 'listDocuments':
         final named = invocation.namedArguments;
         final collectionId = named[#collectionId].toString();
-        return Future<List<models.Document>>.value(List.of(serverCollections[collectionId] ?? const []));
+        return Future<List<models.Document>>.value(
+          List.of(serverCollections[collectionId] ?? const []),
+        );
 
       case 'listBookingNights':
-        return Future<List<models.Document>>.value(List.of(serverCollections['booking_nights'] ?? const []));
+        return Future<List<models.Document>>.value(
+          List.of(serverCollections['booking_nights'] ?? const []),
+        );
 
       case 'createSyncLog':
         // سجل المزامنة السحابي غير حرج — المسار يستمر بلا سجل.
@@ -125,7 +136,10 @@ class _FakeAppwriteService implements AppwriteService {
 }
 
 models.Document mkDoc(String id, int updatedAtSec) {
-  final iso = DateTime.fromMillisecondsSinceEpoch(updatedAtSec * 1000, isUtc: true).toIso8601String();
+  final iso = DateTime.fromMillisecondsSinceEpoch(
+    updatedAtSec * 1000,
+    isUtc: true,
+  ).toIso8601String();
   return models.Document(
     $id: id,
     $sequence: updatedAtSec,
@@ -201,9 +215,17 @@ void main() {
       fake.reset();
 
       // الحدث الواقعي: تغيير وصل مباشرة بعد دورة — يجب ألا يمنعه الحارس.
-      final second = await manager.sync(push: false, pull: true, realtimePriority: true);
+      final second = await manager.sync(
+        push: false,
+        pull: true,
+        realtimePriority: true,
+      );
 
-      expect(second.isSuccess, isTrue, reason: 'realtimePriority يتجاوز حارس الدقيقتين');
+      expect(
+        second.isSuccess,
+        isTrue,
+        reason: 'realtimePriority يتجاوز حارس الدقيقتين',
+      );
       // بعد اكتمال أول سحب، الدورة الثانية تعمل بوضع delta — والمسار الآن
       // metadata-first أيضاً في delta (✅ 2026-08-31) — المهم أنها **حدثت
       // فعلاً** ودون تنزيل لأن النافذة مطابقة محلياً.
@@ -227,74 +249,104 @@ void main() {
       // push+pull عادي متقارب: الحارس يخفض pull ويكمل push (الoutbox فارغ).
       final result = await manager.sync(push: true, pull: true);
 
-      expect(result.isSuccess, isTrue, reason: 'دورة الرفع فقط اكتملت بنجاح (outbox فارغ)');
-      expect(result.pullSkipped, isTrue, reason: 'علامة pullSkipped إلزامية كي يُتابع مدخل Realtime');
-      expect(fake.callNames.where((n) => n == 'listDocumentsMetadata'), isEmpty, reason: 'لا سحب فعلي في هذه الدورة');
+      expect(
+        result.isSuccess,
+        isTrue,
+        reason: 'دورة الرفع فقط اكتملت بنجاح (outbox فارغ)',
+      );
+      expect(
+        result.pullSkipped,
+        isTrue,
+        reason: 'علامة pullSkipped إلزامية كي يُتابع مدخل Realtime',
+      );
+      expect(
+        fake.callNames.where((n) => n == 'listDocumentsMetadata'),
+        isEmpty,
+        reason: 'لا سحب فعلي في هذه الدورة',
+      );
     });
   });
 
   group('M4: الحلقة الكاملة — حدث Realtime → سحب فعلي عبر المدير الحقيقي', () {
     setUp(resetState);
 
-    test('حدث من جهاز آخر يُطلق sync(realtimePriority) حقيقية ويتجاوز الحارس', () {
-      fakeAsync((async) {
-        SharedPreferences.setMockInitialValues({});
-        fake.reset();
-        manager.resetPullThrottleForTesting();
-        realtime.resetForTesting();
-        realtime.currentDeviceIdForTesting = 'device-A';
-        realtime.debugEventDebounce = const Duration(milliseconds: 5);
+    test(
+      'حدث من جهاز آخر يُطلق sync(realtimePriority) حقيقية ويتجاوز الحارس',
+      () {
+        fakeAsync((async) {
+          SharedPreferences.setMockInitialValues({});
+          fake.reset();
+          manager.resetPullThrottleForTesting();
+          realtime.resetForTesting();
+          realtime.currentDeviceIdForTesting = 'device-A';
+          realtime.debugEventDebounce = const Duration(milliseconds: 5);
 
-        // المحتوى الخادمي: مستند يحمل أقصى $updatedAt معروفاً.
-        fake.serverCollections['blacklist'] = [mkDoc('A', 1700001000)];
+          // المحتوى الخادمي: مستند يحمل أقصى $updatedAt معروفاً.
+          fake.serverCollections['blacklist'] = [mkDoc('A', 1700001000)];
 
-        // ربط الحلقة كما في main.dart تماماً (2026-09-01: بلا fast-apply —
-        // المسار الوحيد: Queue → sync(deltaOnly) → Delta → Drift).
-        var triggerCalls = 0;
-        var lastTriggerResult = true;
-        realtime.setSyncTrigger(() async {
-          triggerCalls++;
-          final result = await manager.sync(push: true, pull: true, realtimePriority: true, deltaOnly: true);
-          lastTriggerResult = result.isSuccess && !result.pullSkipped;
-          return lastTriggerResult;
+          // ربط الحلقة كما في main.dart تماماً (2026-09-01: بلا fast-apply —
+          // المسار الوحيد: Queue → sync(deltaOnly) → Delta → Drift).
+          var triggerCalls = 0;
+          var lastTriggerResult = true;
+          realtime.setSyncTrigger(() async {
+            triggerCalls++;
+            final result = await manager.sync(
+              push: true,
+              pull: true,
+              realtimePriority: true,
+              deltaOnly: true,
+            );
+            lastTriggerResult = result.isSuccess && !result.pullSkipped;
+            return lastTriggerResult;
+          });
+
+          // دورة سحب عادية سابقة (تضبط ساعة الحارس — تماماً كالواقع).
+          unawaited(manager.sync(push: false, pull: true));
+          async.flushMicrotasks();
+          async.elapse(const Duration(milliseconds: 10));
+          async.flushMicrotasks();
+          expect(
+            fake.callNames.where((n) => n == 'listDocumentsMetadata'),
+            isNotEmpty,
+          );
+          fake.reset(); // تعقّب ما يحدث بعد الحدث فقط
+
+          // ✅ الحدث: جهاز B أنشأ حجزاً — خلال ثوانٍ يجب أن يُسحب فعلياً.
+          realtime.handleRemoteDataChange(
+            events: ['databases.main.collections.bookings.documents.create'],
+            payload: {
+              'device_id': 'device-B',
+              r'$updatedAt': '2026-08-31T12:00:00.000Z',
+            },
+          );
+
+          async.elapse(const Duration(milliseconds: 20));
+          async.flushMicrotasks();
+
+          expect(triggerCalls, 1, reason: 'الحدث أطلق دورة sync واحدة');
+          expect(
+            lastTriggerResult,
+            isTrue,
+            reason:
+                'الدورة نجحت والسحب تم (بلا pullSkipped) رغم أن الدورة '
+                'السابقة انتهت قبل ثوانٍ — تجاوز الحارس عبر realtimePriority',
+          );
+          // الدورة المُطلَقة بالحدث تعمل بوضع delta metadata-first (✅
+          // 2026-08-31) لأن أول سحب اكتمل قبلها — المهم أنها حدثت فعلاً
+          // بتجاوز الحارس.
+          expect(
+            fake.callNames,
+            contains('listDocumentsMetadata'),
+            reason: 'سحب delta حقيقي (metadata-first) حدث نتيجة الحدث مباشرة',
+          );
+          expect(
+            realtime.hasRemoteChanges.value,
+            isFalse,
+            reason: 'السحب نجح → شارة "تغييرات معلقة" صُفّرت',
+          );
+          expect(realtime.pendingRemoteChangesCount.value, 0);
         });
-
-        // دورة سحب عادية سابقة (تضبط ساعة الحارس — تماماً كالواقع).
-        unawaited(manager.sync(push: false, pull: true));
-        async.flushMicrotasks();
-        async.elapse(const Duration(milliseconds: 10));
-        async.flushMicrotasks();
-        expect(fake.callNames.where((n) => n == 'listDocumentsMetadata'), isNotEmpty);
-        fake.reset(); // تعقّب ما يحدث بعد الحدث فقط
-
-        // ✅ الحدث: جهاز B أنشأ حجزاً — خلال ثوانٍ يجب أن يُسحب فعلياً.
-        realtime.handleRemoteDataChange(
-          events: ['databases.main.collections.bookings.documents.create'],
-          payload: {'device_id': 'device-B', r'$updatedAt': '2026-08-31T12:00:00.000Z'},
-        );
-
-        async.elapse(const Duration(milliseconds: 20));
-        async.flushMicrotasks();
-
-        expect(triggerCalls, 1, reason: 'الحدث أطلق دورة sync واحدة');
-        expect(
-          lastTriggerResult,
-          isTrue,
-          reason:
-              'الدورة نجحت والسحب تم (بلا pullSkipped) رغم أن الدورة '
-              'السابقة انتهت قبل ثوانٍ — تجاوز الحارس عبر realtimePriority',
-        );
-        // الدورة المُطلَقة بالحدث تعمل بوضع delta metadata-first (✅
-        // 2026-08-31) لأن أول سحب اكتمل قبلها — المهم أنها حدثت فعلاً
-        // بتجاوز الحارس.
-        expect(
-          fake.callNames,
-          contains('listDocumentsMetadata'),
-          reason: 'سحب delta حقيقي (metadata-first) حدث نتيجة الحدث مباشرة',
-        );
-        expect(realtime.hasRemoteChanges.value, isFalse, reason: 'السحب نجح → شارة "تغييرات معلقة" صُفّرت');
-        expect(realtime.pendingRemoteChangesCount.value, 0);
-      });
-    });
+      },
+    );
   });
 }

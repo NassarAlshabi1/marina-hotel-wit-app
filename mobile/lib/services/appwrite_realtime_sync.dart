@@ -62,7 +62,8 @@ typedef RemoteChangePull = Future<bool> Function();
 class AppwriteRealtimeSync {
   factory AppwriteRealtimeSync() => _instance;
   AppwriteRealtimeSync._internal();
-  static final AppwriteRealtimeSync _instance = AppwriteRealtimeSync._internal();
+  static final AppwriteRealtimeSync _instance =
+      AppwriteRealtimeSync._internal();
 
   Realtime? _realtime;
   RealtimeSubscription? _subscription;
@@ -137,7 +138,8 @@ class AppwriteRealtimeSync {
     AppwriteConfig.inventoryItemsCollectionId,
     AppwriteConfig.inventoryTransactionsCollectionId,
     AppwriteConfig.appSettingsCollectionId,
-    if (SyncConstants.auditLogsSyncEnabled) AppwriteConfig.auditLogsCollectionId,
+    if (SyncConstants.auditLogsSyncEnabled)
+      AppwriteConfig.auditLogsCollectionId,
     AppwriteConfig.paymentVoidsCollectionId,
   ];
 
@@ -228,7 +230,10 @@ class AppwriteRealtimeSync {
     }
 
     final channels = _collections
-        .map((c) => 'databases.${AppwriteConfig.databaseId}.collections.$c.documents')
+        .map(
+          (c) =>
+              'databases.${AppwriteConfig.databaseId}.collections.$c.documents',
+        )
         .toList();
 
     try {
@@ -337,7 +342,9 @@ class AppwriteRealtimeSync {
 
       // ✅ (2026-08-31) سحب فعلي خفيف دوري — الأجهزة التي يفشل عندها WS
       // لا تبقى بلا تحديثات حتى auto-sync التالي.
-      final interval = debugFallbackPullInterval ?? SyncConstants.realtimeFallbackPullInterval;
+      final interval =
+          debugFallbackPullInterval ??
+          SyncConstants.realtimeFallbackPullInterval;
       if (elapsed >= interval) {
         elapsed = Duration.zero;
         dlog('📡 Realtime: fallback periodic pull triggered');
@@ -354,7 +361,8 @@ class AppwriteRealtimeSync {
   /// تحليل قناة/حدث Appwrite: `databases.<db>.collections.<col>.documents.<doc>.<action>`
   /// يُرجع null-action للأحداث غير الخاصة بالبيانات.
   @visibleForTesting
-  static ({String? collectionId, String? documentId, String? action}) parseDatabaseEvent(List<String> events) {
+  static ({String? collectionId, String? documentId, String? action})
+  parseDatabaseEvent(List<String> events) {
     for (final e in events) {
       final parts = e.split('.');
       final colIdx = parts.indexOf('collections');
@@ -369,7 +377,11 @@ class AppwriteRealtimeSync {
       if (parts.length != docIdx + 3) continue;
       final action = parts.last;
       if (action == 'create' || action == 'update' || action == 'delete') {
-        return (collectionId: parts[colIdx + 1], documentId: parts[docIdx + 1], action: action);
+        return (
+          collectionId: parts[colIdx + 1],
+          documentId: parts[docIdx + 1],
+          action: action,
+        );
       }
     }
     return (collectionId: null, documentId: null, action: null);
@@ -382,7 +394,10 @@ class AppwriteRealtimeSync {
   /// نواة معالجة الحدث (مفصولة عن RealtimeMessage لتكون قابلة للاختبار
   /// المباشر بلا WebSocket ولا بناء نماذج SDK).
   @visibleForTesting
-  void handleRemoteDataChange({required List<String> events, required Map<String, dynamic> payload}) {
+  void handleRemoteDataChange({
+    required List<String> events,
+    required Map<String, dynamic> payload,
+  }) {
     // ✅ stop() يعني التوقف الكامل: لا سحب من أحداث متأخرة بعد الإغلاق
     // (الاشتراك مغلق فعلياً، وهذا حارس إضافي ضد أي أحداث متبقية).
     if (_intentionallyStopped) {
@@ -404,7 +419,12 @@ class AppwriteRealtimeSync {
 
     // ✅ تحسين: تصفية أنواع الأحداث (create/update/delete فقط)
     // لا نهتم بـ permissions.update أو أحداث النظام
-    final isDataChange = events.any((e) => e.endsWith('.create') || e.endsWith('.update') || e.endsWith('.delete'));
+    final isDataChange = events.any(
+      (e) =>
+          e.endsWith('.create') ||
+          e.endsWith('.update') ||
+          e.endsWith('.delete'),
+    );
 
     if (!isDataChange) {
       dlog(() => '📡 Realtime: ignoring non-data event: $events');
@@ -423,7 +443,8 @@ class AppwriteRealtimeSync {
     if (updatedAt != null) {
       try {
         final serverTime = DateTime.parse(updatedAt as String);
-        if (_lastServerUpdate == null || serverTime.isAfter(_lastServerUpdate!)) {
+        if (_lastServerUpdate == null ||
+            serverTime.isAfter(_lastServerUpdate!)) {
           _lastServerUpdate = serverTime;
         }
       } catch (e) {
@@ -432,27 +453,30 @@ class AppwriteRealtimeSync {
     }
 
     _debounceTimer?.cancel();
-    _debounceTimer = Timer(debugEventDebounce ?? const Duration(milliseconds: 500), () {
-      // ✅ تحسين: حماية من الفيضان (Flood Protection)
-      if (!_hasPendingChanges) {
-        hasRemoteChanges.value = true;
-        _hasPendingChanges = true;
-        dlog('📡 Realtime: detected remote changes - UI activated');
-      }
+    _debounceTimer = Timer(
+      debugEventDebounce ?? const Duration(milliseconds: 500),
+      () {
+        // ✅ تحسين: حماية من الفيضان (Flood Protection)
+        if (!_hasPendingChanges) {
+          hasRemoteChanges.value = true;
+          _hasPendingChanges = true;
+          dlog('📡 Realtime: detected remote changes - UI activated');
+        }
 
-      pendingRemoteChangesCount.value++;
+        pendingRemoteChangesCount.value++;
 
-      // ✅✅ (2026-08-31) التفعيل الكامل: الحدث يُطلق **سحباً فعلياً**
-      // وليس مجرد شارة UI — التغيير من جهاز آخر يصل خلال ثوانٍ.
-      // ✅ (2026-09-01) تسجيل واضح للطابور: الحدث مُدمَج (debounce) وجاهز
-      // لإطلاق Delta Pull — لا تطبيق مباشر من الحمولة.
-      dlog(
-        () =>
-            '[Realtime] event: ${events.join(',')} — queued (merged by '
-            'debounce), triggering delta pull',
-      );
-      _schedulePull();
-    });
+        // ✅✅ (2026-08-31) التفعيل الكامل: الحدث يُطلق **سحباً فعلياً**
+        // وليس مجرد شارة UI — التغيير من جهاز آخر يصل خلال ثوانٍ.
+        // ✅ (2026-09-01) تسجيل واضح للطابور: الحدث مُدمَج (debounce) وجاهز
+        // لإطلاق Delta Pull — لا تطبيق مباشر من الحمولة.
+        dlog(
+          () =>
+              '[Realtime] event: ${events.join(',')} — queued (merged by '
+              'debounce), triggering delta pull',
+        );
+        _schedulePull();
+      },
+    );
   }
 
   // ───────────────────────────────────────────────────────────────────────
@@ -477,7 +501,8 @@ class AppwriteRealtimeSync {
 
     final now = DateTime.now();
     final last = _lastFireAt;
-    final cooldown = debugPullCooldown ?? SyncConstants.realtimeEventPullCooldown;
+    final cooldown =
+        debugPullCooldown ?? SyncConstants.realtimeEventPullCooldown;
     if (last == null || now.difference(last) >= cooldown) {
       unawaited(_firePull());
       return;
@@ -587,7 +612,8 @@ class AppwriteRealtimeSync {
       );
       CrashlyticsService.instance.recordSyncError(
         operation: 'realtime_reconnect_giveup',
-        error: 'Max reconnect attempts reached after $_maxReconnectAttempts tries',
+        error:
+            'Max reconnect attempts reached after $_maxReconnectAttempts tries',
         severity: CrashlyticsSeverity.warning,
         context: {'deviceId': _currentDeviceId ?? 'unknown'},
       );
@@ -598,7 +624,9 @@ class AppwriteRealtimeSync {
     }
 
     // ✅ P1-14 fix: backoff أسّي محدود (5s → 10s → 20s → 40s → 60s capped)
-    final delaySeconds = (_reconnectAttempts == 1) ? 5 : (5 * (1 << (_reconnectAttempts - 1))).clamp(5, 60);
+    final delaySeconds = (_reconnectAttempts == 1)
+        ? 5
+        : (5 * (1 << (_reconnectAttempts - 1))).clamp(5, 60);
 
     CrashlyticsService.instance.recordSyncError(
       operation: 'realtime_reconnect',
@@ -606,7 +634,10 @@ class AppwriteRealtimeSync {
           'Connection lost — reconnecting in ${delaySeconds}s '
           '(attempt $_reconnectAttempts/$_maxReconnectAttempts)',
       severity: CrashlyticsSeverity.info,
-      context: {'deviceId': _currentDeviceId ?? 'unknown', 'attempt': _reconnectAttempts},
+      context: {
+        'deviceId': _currentDeviceId ?? 'unknown',
+        'attempt': _reconnectAttempts,
+      },
     );
 
     // ✅ P1-14 fix: إغلاق الاشتراك القديم قبل إعادة الاشتراك
