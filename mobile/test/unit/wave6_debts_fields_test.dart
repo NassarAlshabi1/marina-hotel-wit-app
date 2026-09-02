@@ -470,6 +470,7 @@ class _StubResolver implements IdResolver {
     String? uuid,
     int? serverId,
     int? employeeId,
+    bool fromRemote = false,
   }) async => localId;
 
   @override
@@ -477,6 +478,7 @@ class _StubResolver implements IdResolver {
     int? localId,
     int? serverId,
     String? uuid,
+    bool fromRemote = false,
   }) async => localId;
 
   @override

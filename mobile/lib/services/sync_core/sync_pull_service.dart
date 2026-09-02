@@ -436,9 +436,34 @@ class SyncPullService {
   /// جديد في الواجهة. نسمح كذلك بالقيمة القديمة `deletedAt = 0` لأنها تعني
   /// سجلاً نشطاً في الإصدارات السابقة. الحذف الناعم يبقى محفوظاً في Appwrite
   /// كسجل تاريخي، لكنه ليس جزءاً من بيانات التشغيل النشطة.
-  static List<String> buildFullSyncQueries() => [
-    Query.or([Query.isNull('deletedAt'), Query.equal('deletedAt', 0)]),
-  ];
+  ///
+  /// ✅ (2026-09-02) استثناء كيانات الآباء FK — [entityNeedsTombstoneParents]:
+  /// استبعاد tombstones الشامل كان يمنع جهازاً جديداً من تنزيل الموظفين
+  /// المحذوفين ناعماً، فيفشل حل FK في salary_withdrawals/salary_cycles
+  /// (المحلل يبحث بالـ serverId) وتُتخطى سجلات مالية كاملة كـ"أيتام" —
+  /// 128 سحوبة (654,500 وحدة) في بيانات الإنتاج. للكيانات هذه تُسمح
+  /// الـ tombstones بالتنزيل (تُدرج صفوفاً غير مرئية deletedAt>0 كالسابق).
+  static List<String> buildFullSyncQueries({bool includeTombstones = false}) =>
+      includeTombstones
+      ? <String>[]
+      : [
+          Query.or([Query.isNull('deletedAt'), Query.equal('deletedAt', 0)]),
+        ];
+
+  /// كيانات "الآباء" المرجعية التي يجب سحب tombstones الخاصة بها حتى على
+  /// جهاز جديد، لأن أبناءها (سجلات مالية) يُحلّ FK ضدّها عبر serverId.
+  ///
+  /// الأدلة (2026-09-02):
+  /// - `_syncEmployees`: "salary_withdrawals و salary_cycles يستخدمان
+  ///   employeeId البعيد الذي يساوي id الموظف على جهاز المصدر. بتخزينه في
+  ///   serverId يمكن حل FK بالبحث عن serverId = remoteEmployeeId".
+  /// - سحابة الإنتاج: الموظفان المحذوفان serverId=11 و serverId=12 مرتبط
+  ///   بهما 128 سحوبة راتب (382,000 + 272,500).
+  /// - نفس قرار "لا ربط خاطئ عبر الأجهزة" المعمول به في resolveBooking
+  ///   (id_resolver.dart) و expenses_adapter: بدون الموظف المحذوف محلياً
+  ///   لا يمكن حل المرجع إطلاقاً — فالسحب ضرورة سلامة بيانات لا رفاهية.
+  static bool entityNeedsTombstoneParents(String entity) =>
+      entity == 'employees';
 
   /// ✅ (2026-08-30) الفجوتان 3+4 — حساب معرّفات المستندات المتغيرة فعلاً
   /// بمقارنة metadata الخادم بالخريطة المحلية (sync_remote_meta).

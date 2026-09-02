@@ -2616,6 +2616,14 @@ class AppwriteSyncManager {
     required String entity,
     required List<String> changedIds,
   }) async {
+    // ✅ (2026-09-02) كيانات الآباء المرجعية (employees) تستثنى من تخطي
+    // tombstones: أبناؤها الماليون (salary_withdrawals/salary_cycles) يُحلّ
+    // FK ضد الموظف عبر serverId — بدون تنزيل الموظفين المحذوفين ناعماً
+    // يفشل الحل على جهاز جديد وتُتخطى سجلات مالية كاملة كـ"أيتام"
+    // (128 سحوبة / 654,500 في الإنتاج). انظر entityNeedsTombstoneParents.
+    if (SyncPullService.entityNeedsTombstoneParents(entity)) {
+      return;
+    }
     final deletedTs = <String, int>{};
     for (final d in metaDocs) {
       final del = _extractDeletedAtSec(d);
@@ -5025,6 +5033,13 @@ class AppwriteSyncManager {
     if (documents.isEmpty) return 0;
     var processed = 0;
     final deferred = <Map<String, dynamic>>[];
+    // ✅ (2026-09-02) عدّاد التخطي للملخص النهائي (رؤية بدل 60 سطراً متفرقاً)
+    var skippedOrphans = 0;
+    var skippedOrphansAmount = 0;
+    final skippedOrphanRefs = <int>{};
+    final skippedOrphanSampleIds = <String>[];
+    // ✅ (2026-09-02) محلّل واحد يعاد استخدامه لكل المستندات
+    final employeeFkResolver = IdResolver(database);
 
     for (final doc in documents) {
       try {
@@ -5052,7 +5067,14 @@ class AppwriteSyncManager {
           continue;
         }
 
-        // ✅ حل FK الموظف بثلاث مستويات: UUID → id → serverId
+        // ✅ حل FK الموظف: UUID → serverId (id جهاز المصدر).
+        // ⚠️ (2026-09-02) أُزيلت "الطريقة 2" (مطابقة employeeId البعيد مع
+        // e.id المحلي): Employee.id autoIncrement يختلف بين الأجهزة
+        // (base_repository يزيل id للسجلات الجديدة)، والمطابقة تربط السحوبة
+        // بموظف خاطئ بصمت عند التصادم الرقمي — 378 سحوبة في بيانات الإنتاج
+        // معرّضة لهذا على جهاز جديد. نفس قرار resolveBooking (id_resolver)
+        // و expenses_adapter، ويتطابق مع توثيق _syncEmployees:
+        // serverId = id الموظف على جهاز المصدر.
         final remoteEmployeeId =
             _asIntSafe(data, 'employeeId') ?? _asIntSafe(data, 'employee_id');
         final employeeUuid =
@@ -5061,36 +5083,32 @@ class AppwriteSyncManager {
             (data['employeeLocalUuid'] as String?) ??
             (data['employee_local_uuid'] as String?);
 
+        final resolvedEmployeeId =
+            employeeUuid != null || remoteEmployeeId != null
+            ? await employeeFkResolver.resolveEmployee(
+                uuid: employeeUuid,
+                serverId: remoteEmployeeId,
+                fromRemote: true,
+              )
+            : null;
+
+        // جلب صف الموظف المحلول لختم UUID القياسي أدناه
         Employee? employee;
-
-        // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
-        if (employeeUuid != null && employeeUuid.isNotEmpty) {
+        if (resolvedEmployeeId != null) {
           employee =
               await (database.select(database.employees)
-                    ..where((e) => e.localUuid.equals(employeeUuid))
-                    ..limit(1))
-                  .getSingleOrNull();
-        }
-
-        // الطريقة 2: البحث بالـ id البعيد كـ id محلي (يعمل إذا تطابقت المعرفات)
-        if (employee == null && remoteEmployeeId != null) {
-          employee =
-              await (database.select(database.employees)
-                    ..where((e) => e.id.equals(remoteEmployeeId))
-                    ..limit(1))
-                  .getSingleOrNull();
-        }
-
-        // الطريقة 3: البحث بالـ serverId (id الأصلي من جهاز المصدر)
-        if (employee == null && remoteEmployeeId != null) {
-          employee =
-              await (database.select(database.employees)
-                    ..where((e) => e.serverId.equals(remoteEmployeeId))
+                    ..where((e) => e.id.equals(resolvedEmployeeId))
                     ..limit(1))
                   .getSingleOrNull();
         }
 
         if (employee == null) {
+          skippedOrphans++;
+          skippedOrphansAmount += _asIntSafe(data, 'amount') ?? 0;
+          if (remoteEmployeeId != null) skippedOrphanRefs.add(remoteEmployeeId);
+          if (skippedOrphanSampleIds.length < 5) {
+            skippedOrphanSampleIds.add(doc.$id);
+          }
           _logger.warning(
             '⏭️ تخطي salary_withdrawal ${doc.$id}: الموظف $remoteEmployeeId (uuid=$employeeUuid) غير موجود محلياً (سجل يتيم)',
             tag: 'SYNC',
@@ -5101,6 +5119,10 @@ class AppwriteSyncManager {
         // ✅ استبدال employeeId البعيد بالمعرف المحلي للموظف
         // هذا يضمن أن FK يشير للمعرف المحلي الصحيح
         data['employeeId'] = employee.id;
+        // ✅ (2026-09-02) ختم employeeUuid القياسي: المحلّل داخل الـ adapter
+        // (أثناء upsertFromJson) يحل المرجع عبر الطريقة 1 (UUID) حتماً بدل
+        // الاعتماد على قيم خام قد تفشل عبر الأجهزة.
+        data['employeeUuid'] = employee.localUuid;
 
         final insertedId = await _adapterRegistry.salaryWithdrawals
             .upsertFromJson(data, src: Source.appwrite);
@@ -5190,6 +5212,22 @@ class AppwriteSyncManager {
           );
         }
       }
+    }
+
+    // ✅ (2026-09-02) ملخص واحد قابل للتصرف بدل تسطّح التحذيرات: عدد
+    // الأيتام + إجمالي المبالغ + مراجع الموظفين المفقودة. التخطي هنا
+    // نهائي بلا فائدة من إعادة المحاولة: الموظف غير موجود في السحابة
+    // نفسها (تحقق 2026-09-02: 96 سحوبة/484,500 بلا موظف) — التنظيف قرار
+    // مالك البيانات، والـ checkpoint يبقى كما هو لعدم إعادة سحب أبدية.
+    if (skippedOrphans > 0) {
+      _logger.warning(
+        '📋 ملخص salary_withdrawals: تخطي $skippedOrphans سجل يتيم '
+        '(إجمالي $skippedOrphansAmount) — مراجع موظفين مفقودة: '
+        '${skippedOrphanRefs.toList()..sort()} '
+        '${skippedOrphanSampleIds.isEmpty ? '' : 'نماذج: $skippedOrphanSampleIds'} '
+        '— لا يوجد موظف مطابق في السحابة/محلياً؛ مراجعة تنظيف السحابة مطلوبة',
+        tag: 'SYNC',
+      );
     }
 
     return processed;
@@ -6424,7 +6462,16 @@ class AppwriteSyncManager {
       }
       return appwriteService.listDocuments(
         collectionId: collectionId,
-        queries: [...deltaQueries, ...SyncPullService.buildFullSyncQueries()],
+        queries: [
+          ...deltaQueries,
+          // ✅ (2026-09-02) كيانات الآباء (employees): دون فلتر tombstones
+          // لضمان حل FK الأبناء الماليين (انظر entityNeedsTombstoneParents).
+          ...SyncPullService.buildFullSyncQueries(
+            includeTombstones: SyncPullService.entityNeedsTombstoneParents(
+              entity,
+            ),
+          ),
+        ],
         useCache: false,
       );
     }
@@ -6626,6 +6673,12 @@ class AppwriteSyncManager {
         final pullQueries = isDelta
             ? deltaQ
             : SyncPullService.buildFullSyncQueries();
+        // ✅ (2026-09-02) الموظفون آباء FK — سحبهم الكامل يشمل tombstones
+        // (انظر entityNeedsTombstoneParents). في delta تبقى deltaQ بلا فلتر
+        // أصلاً فتصل الـ tombstones كتغييرات عادية.
+        final employeePullQueries = isDelta
+            ? deltaQ
+            : SyncPullService.buildFullSyncQueries(includeTombstones: true);
         if (isDelta) {
           _logger.info(
             '🔄 Delta Sync: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(lastPullTs * 1000).toIso8601String()}',
@@ -6677,7 +6730,7 @@ class AppwriteSyncManager {
 
           try {
             final employees = await appwriteService.listEmployees(
-              queries: pullQueries,
+              queries: employeePullQueries,
               useCache: false,
             );
             // ✅ التوصية 5: تحصين أسبقية الموظفين عبر إعادة المحاولة.
@@ -7582,10 +7635,20 @@ class AppwriteSyncManager {
       final salaryWithdrawals = await database
           .select(database.salaryWithdrawals)
           .get();
+      // ✅ (2026-09-02) ختم employeeUuid في مسار الرفع الكامل أيضاً — كان
+      // ناقصاً (مسار outbox فقط كان يختمه): بدون الحقل لا يمكن للأجهزة
+      // الأخرى حل FK عبر UUID (الطريقة الأكثر موثوقية عبر الأجهزة).
+      final employeeUuidById = {
+        for (final e in await database.select(database.employees).get())
+          e.id: e.localUuid,
+      };
       for (final withdrawal in salaryWithdrawals) {
         if (skipDeleted && withdrawal.deletedAt != null) continue;
         try {
-          final payload = _payloadMapper.salaryWithdrawalToRemote(withdrawal);
+          final payload = _payloadMapper.salaryWithdrawalToRemote(
+            withdrawal,
+            employeeUuid: employeeUuidById[withdrawal.employeeId],
+          );
           await appwriteService.upsertDocument(
             collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
             documentId: withdrawal.localUuid,
@@ -9086,6 +9149,9 @@ class AppwriteSyncManager {
     if (documents.isEmpty) return 0;
     var processed = 0;
     final deferred = <Map<String, dynamic>>[];
+    var skippedOrphans = 0;
+    final skippedOrphanRefs = <int>{};
+    final employeeFkResolver = IdResolver(database);
 
     for (final doc in documents) {
       try {
@@ -9113,7 +9179,9 @@ class AppwriteSyncManager {
           continue;
         }
 
-        // ✅ حل FK الموظف بثلاث مستويات: UUID → id → serverId
+        // ✅ حل FK الموظف: UUID → serverId (id جهاز المصدر).
+        // ⚠️ (2026-09-02) أُزيلت مطابقة employeeId البعيد مع e.id المحلي —
+        // نفس قرار salary_withdrawals أعلاه (ربط خاطئ صامت عبر الأجهزة).
         final remoteEmployeeId =
             _asIntSafe(data, 'employeeId') ?? _asIntSafe(data, 'employee_id');
         final employeeUuid =
@@ -9122,36 +9190,27 @@ class AppwriteSyncManager {
             (data['employeeLocalUuid'] as String?) ??
             (data['employee_local_uuid'] as String?);
 
+        final resolvedEmployeeId =
+            employeeUuid != null || remoteEmployeeId != null
+            ? await employeeFkResolver.resolveEmployee(
+                uuid: employeeUuid,
+                serverId: remoteEmployeeId,
+                fromRemote: true,
+              )
+            : null;
+
         Employee? employee;
-
-        // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
-        if (employeeUuid != null && employeeUuid.isNotEmpty) {
+        if (resolvedEmployeeId != null) {
           employee =
               await (database.select(database.employees)
-                    ..where((e) => e.localUuid.equals(employeeUuid))
-                    ..limit(1))
-                  .getSingleOrNull();
-        }
-
-        // الطريقة 2: البحث بالـ id البعيد كـ id محلي
-        if (employee == null && remoteEmployeeId != null) {
-          employee =
-              await (database.select(database.employees)
-                    ..where((e) => e.id.equals(remoteEmployeeId))
-                    ..limit(1))
-                  .getSingleOrNull();
-        }
-
-        // الطريقة 3: البحث بالـ serverId (id الأصلي من جهاز المصدر)
-        if (employee == null && remoteEmployeeId != null) {
-          employee =
-              await (database.select(database.employees)
-                    ..where((e) => e.serverId.equals(remoteEmployeeId))
+                    ..where((e) => e.id.equals(resolvedEmployeeId))
                     ..limit(1))
                   .getSingleOrNull();
         }
 
         if (employee == null) {
+          skippedOrphans++;
+          if (remoteEmployeeId != null) skippedOrphanRefs.add(remoteEmployeeId);
           _logger.warning(
             '⏭️ تخطي salary_cycle ${doc.$id}: الموظف $remoteEmployeeId (uuid=$employeeUuid) غير موجود محلياً (سجل يتيم)',
             tag: 'SYNC',
@@ -9161,6 +9220,8 @@ class AppwriteSyncManager {
 
         // ✅ استبدال employeeId البعيد بالمعرف المحلي الصحيح
         data['employeeId'] = employee.id;
+        // ✅ (2026-09-02) ختم employeeUuid القياسي للمحلّل داخل الـ adapter
+        data['employeeUuid'] = employee.localUuid;
 
         await _adapterRegistry.salaryCycles.upsertFromJson(
           data,
@@ -9226,6 +9287,16 @@ class AppwriteSyncManager {
           );
         }
       }
+    }
+
+    // ✅ (2026-09-02) ملخص واحد قابل للتصرف (نفس salary_withdrawals)
+    if (skippedOrphans > 0) {
+      _logger.warning(
+        '📋 ملخص salary_cycles: تخطي $skippedOrphans سجل يتيم — مراجع '
+        'موظفين مفقودة: ${skippedOrphanRefs.toList()..sort()} '
+        '— لا يوجد موظف مطابق في السحابة/محلياً',
+        tag: 'SYNC',
+      );
     }
 
     return processed;
