@@ -40,7 +40,9 @@ import 'repositories/bookings_repository.dart';
 import 'repositories/rooms_repository.dart';
 import 'salary_fix_helper.dart';
 import 'secondary_appwrite_config.dart';
+import 'sync_circuit_breaker.dart';
 import 'sync_constants.dart';
+import 'sync_priority.dart';
 import 'sync_guard.dart';
 import 'sync_performance_optimizer.dart';
 import 'remote_change_notification_service.dart'; // ✅ Wave 7
@@ -198,6 +200,7 @@ class AppwriteSyncManager {
     try {
       // إعادة تحميل الإعدادات
       await _loadSettings();
+    await SyncCircuitBreaker.instance.restore();
       // إعادة تهيئة Secondary Appwrite
       await SecondaryAppwriteConfig.ensureInitialized();
       _logger.info('🔄 Reinitialized after config change', tag: 'SYNC');
@@ -754,8 +757,14 @@ class AppwriteSyncManager {
             '⏰ مرت ساعة على آخر سحب مكتمل — بدء سحب تلقائي (دلتا فقط)',
             tag: 'SYNC',
           );
-          await sync(push: false, pull: true, deltaOnly: true);
+          final result = await sync(push: false, pull: true, deltaOnly: true);
+          if (result.isSuccess) {
+            SyncCircuitBreaker.instance.reset();
+          } else {
+            SyncCircuitBreaker.instance.recordFailure();
+          }
         } catch (e, st) {
+          SyncCircuitBreaker.instance.recordFailure();
           _logger.error(
             '❌ Pull staleness guard: استثناء غير متوقع',
             error: e,
@@ -787,6 +796,7 @@ class AppwriteSyncManager {
     _failedRetryTimer?.cancel();
     _failedRetryTimer = Timer.periodic(const Duration(minutes: 5), (_) async {
       try {
+        if (!SyncCircuitBreaker.instance.shouldAttempt()) return;
         if (!await _hasNetworkConnection()) {
           _logger.debug(
             'Failed outbox retry skipped — no network connection',
@@ -812,6 +822,7 @@ class AppwriteSyncManager {
           dlog('✅ نجحت إعادة محاولة رفع العناصر الفاشلة');
         }
       } catch (e) {
+        SyncCircuitBreaker.instance.recordFailure();
         dwarn(() => 'فشلت إعادة محاولة العناصر الفاشلة: $e');
       }
     });
@@ -923,6 +934,7 @@ class AppwriteSyncManager {
     _stuckRecoveryTimer = null;
     _outboxSubscription?.cancel();
     _outboxSubscription = null;
+    SyncCircuitBreaker.instance.save();
     stopAutoSync();
     unawaited(_syncController.close());
   }

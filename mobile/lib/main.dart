@@ -72,6 +72,7 @@ import 'services/secondary_appwrite_config.dart';
 // SecondarySyncManager.instance الذي يُرجع no-op.
 import 'services/smart_sync_manager.dart';
 import 'services/sync_conflict_event_bus.dart';
+import 'services/sync_circuit_breaker.dart';
 import 'services/sync_constants.dart';
 import 'services/sync_continuation_service.dart';
 import 'services/sync_guardian.dart';
@@ -97,6 +98,8 @@ Future<void> main() async {
   // يجب استدعاؤه قبل أي خدمة ثقيلة لضمان تكييف الأداء.
   // ✅ Performance Fix (2026-08-10): أصبح async لقراءة RAM الفعلي.
   await WeakDeviceOptimizer.instance.initialize();
+  // ✅ Restore circuit breaker state from previous session.
+  await SyncCircuitBreaker.instance.restore();
 
   // ─── Performance: تحسينات الأداء للأجهزة الضعيفة ───
   configurePerformance();
@@ -214,6 +217,20 @@ Future<void> main() async {
     }
     final result = await syncManager.sync(pull: false);
     return result.recordsPushed;
+  };
+
+  // ✅ Batch push: uses smaller batches to prevent huge API calls.
+  AutoOutboxSyncWatcher.pushFunctionBatched = () async {
+    final syncManager = AppwriteSyncManager.instance;
+    if (syncManager == null) return 0;
+    int totalPushed = 0;
+    // Push in batches of outboxBatchSize to avoid overwhelming the API.
+    for (var i = 0; i < 10; i++) { // max 10 batches = 500 entries
+      final result = await syncManager.sync(pull: false);
+      if (!result.isSuccess || result.recordsPushed == 0) break;
+      totalPushed += result.recordsPushed;
+    }
+    return totalPushed;
   };
   // ✅ Code Review Fix (2026-08-06): start() أصبحت async (تُنتظر connectivity
   // check قبل تسجيل الـ listeners). نستخدم unawaited() لجعل النية واضحة:

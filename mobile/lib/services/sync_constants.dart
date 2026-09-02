@@ -176,4 +176,19 @@ class SyncConstants {
 
   static const int googleDriveDefaultShardBytes = 4 * 1024 * 1024;
   static const int estimatedBytesPerDeltaChange = 500;
+
+  // ✅ Circuit Breaker — prevents battery drain during server outages.
+  static const int circuitBreakerFailureThreshold = 5;
+  static const int circuitBreakerMinCooldownMinutes = 5;
+  static const int circuitBreakerMaxCooldownMinutes = 60;
+
+  // ✅ Sync Timeout — force-release SyncGuard if held longer than this.
+  static const Duration syncGuardMaxHoldDuration = Duration(minutes: 5);
+
+  // ✅ Adaptive Fallback — initial interval when WebSocket disconnects.
+  static const Duration realtimeFallbackBaseInterval = Duration(minutes: 5);
+  static const Duration realtimeFallbackMaxInterval = Duration(minutes: 60);
+
+  // ✅ Batch Push — push outbox entries in batches to avoid huge API calls.
+  static const int outboxBatchSize = 50;
 }

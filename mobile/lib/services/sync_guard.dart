@@ -34,7 +34,7 @@ class SyncGuard {
   SyncGuard._();
 
   /// الإعدادات الحالية (الافتراضية)
-  static const _defaultStaleLockTimeout = Duration(minutes: 10);
+  static const _defaultStaleLockTimeout = SyncConstants.syncGuardMaxHoldDuration;
 
   static Duration _staleLockTimeout = _defaultStaleLockTimeout;
 
@@ -103,7 +103,10 @@ class SyncGuard {
   ///
   /// **ownership safety**: فقط `release(token)` بنفس الـ token يفك القفل.
   /// هذا يمنع stale release و cross-release (انظر [release]).
-  static SyncLockToken? tryAcquire({required String label}) {
+  static SyncLockToken? tryAcquire({
+    required String label,
+    SyncPriority? priority,
+  }) {
     if (!canStart(label: label)) {
       dlog(
         () =>
