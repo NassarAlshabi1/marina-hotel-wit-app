@@ -37,7 +37,8 @@ class SyncGuard {
   SyncGuard._();
 
   /// الإعدادات الحالية (الافتراضية)
-  static const _defaultStaleLockTimeout = SyncConstants.syncGuardMaxHoldDuration;
+  static const _defaultStaleLockTimeout =
+      SyncConstants.syncGuardMaxHoldDuration;
 
   static Duration _staleLockTimeout = _defaultStaleLockTimeout;
 
