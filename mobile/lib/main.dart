@@ -787,14 +787,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         // من الخلفية). يعمل حتى عند تعطيل المزامنة التلقائية — الغرض
         // تغطية المستخدم الذي نسى المزامنة اليدوية.
         // ✅ صمام أمان الركود مع حد أقصى للمحاولات (5 × 10 دقائق = 50 دقيقة).
-syncManager.startPullStalenessGuard(
-        maxConsecutiveFailures: 5,
-        onFailure: (int consecutiveFailures) {
-          dwarn(
-            () => '⚠️ PullStalenessGuard: فشل متتالي #$consecutiveFailures',
-          );
-        },
-      );
+syncManager.startPullStalenessGuard();
 
         // سحب البيانات عند فتح التطبيق — مع فحص ذكي (مرة كل ساعة)
         try {
