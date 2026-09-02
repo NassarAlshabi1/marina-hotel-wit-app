@@ -225,7 +225,8 @@ Future<void> main() async {
     if (syncManager == null) return 0;
     int totalPushed = 0;
     // Push in batches of outboxBatchSize to avoid overwhelming the API.
-    for (var i = 0; i < 10; i++) { // max 10 batches = 500 entries
+    for (var i = 0; i < 10; i++) {
+      // max 10 batches = 500 entries
       final result = await syncManager.sync(pull: false);
       if (!result.isSuccess || result.recordsPushed == 0) break;
       totalPushed += result.recordsPushed;
@@ -787,7 +788,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         // من الخلفية). يعمل حتى عند تعطيل المزامنة التلقائية — الغرض
         // تغطية المستخدم الذي نسى المزامنة اليدوية.
         // ✅ صمام أمان الركود مع حد أقصى للمحاولات (5 × 10 دقائق = 50 دقيقة).
-syncManager.startPullStalenessGuard();
+        syncManager.startPullStalenessGuard();
 
         // سحب البيانات عند فتح التطبيق — مع فحص ذكي (مرة كل ساعة)
         try {
