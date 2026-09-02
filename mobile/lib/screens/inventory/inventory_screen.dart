@@ -5,10 +5,27 @@ import '../../components/app_scaffold.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
+import '../../utils/debug_log.dart';
+
+/// ✅ رسالة خطأ ودّية بدل عرض الاستثناء الخام للمستخدم (Issue: كانت
+/// شاشة المخزون تعرض SqliteException(11) الخام). التفاصيل الكاملة تُسجّل
+/// في السجل فقط (dwarn) عبر مواقع الاستدعاء.
+String _friendlyErrorMessage(Object error) {
+  final text = error.toString();
+  final isDbCorruption =
+      text.contains('malformed') ||
+      text.contains('database disk image') ||
+      (text.contains('SqliteException') && text.contains('code 11'));
+  if (isDbCorruption) {
+    return 'قاعدة البيانات المحلية بحاجة إلى إصلاح. أعد تشغيل التطبيق '
+        'ليتم فحصها وإصلاحها تلقائياً وإعادة مزامنة البيانات من السحابة. '
+        'إذا استمرت المشكلة تواصل مع الدعم الفني.';
+  }
+  return 'حدث خطأ غير متوقع. حاول مرة أخرى، وإذا تكرر أعد تشغيل التطبيق.';
+}
 
 class InventoryScreen extends ConsumerWidget {
   const InventoryScreen({super.key});
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final itemsAsync = ref.watch(inventoryItemsProvider);
@@ -31,12 +48,30 @@ class InventoryScreen extends ConsumerWidget {
       ),
       body: itemsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(
-          child: Text(
-            'تعذر تحميل المخزون: $error',
-            textAlign: TextAlign.center,
-          ),
-        ),
+        error: (error, _) {
+          // ✅ لا نُعرض الخطأ الخام للمستخدم — التفاصيل في السجل فقط
+          dwarn(() => 'Inventory list error: $error');
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: Colors.orange,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    _friendlyErrorMessage(error),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
         data: (items) {
           if (items.isEmpty) {
             return const Center(
@@ -161,7 +196,14 @@ class InventoryScreen extends ConsumerWidget {
         _showMessage(context, 'تمت إضافة الصنف');
       }
     } catch (error) {
-      if (context.mounted) _showMessage(context, 'تعذر إضافة الصنف: $error');
+      // ✅ لا نعرض الاستثناء الخام — رسالة ودّية + التفاصيل في السجل
+      dwarn(() => 'Inventory createItem error: $error');
+      if (context.mounted) {
+        _showMessage(
+          context,
+          'تعذر إضافة الصنف: ${_friendlyErrorMessage(error)}',
+        );
+      }
     } finally {
       nameController.dispose();
       unitController.dispose();
@@ -485,7 +527,14 @@ class _InventoryItemCard extends ConsumerWidget {
           );
       if (context.mounted) _showMessage(context, 'تم اعتماد الجرد');
     } catch (error) {
-      if (context.mounted) _showMessage(context, 'تعذر اعتماد الجرد: $error');
+      // ✅ لا نعرض الاستثناء الخام — رسالة ودّية + التفاصيل في السجل
+      dwarn(() => 'Inventory approve error: $error');
+      if (context.mounted) {
+        _showMessage(
+          context,
+          'تعذر اعتماد الجرد: ${_friendlyErrorMessage(error)}',
+        );
+      }
     } finally {
       quantityController.dispose();
       noteController.dispose();

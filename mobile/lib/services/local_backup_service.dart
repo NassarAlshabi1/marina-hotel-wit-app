@@ -71,23 +71,41 @@ class LocalBackupService {
   Directory? _backupDirectory;
 
   /// التحقق من الأذونات المطلوبة
+  ///
+  /// ✅ إصلاح (2026-09): سابقاً كان الكود يطلب Permission.manageExternalStorage
+  /// على Android 11+، لكن الـ manifest لا يصرّح بها — **بقرار أمني موثّق**
+  /// (AndroidManifest: "SECURITY: Removed MANAGE_EXTERNAL_STORAGE (overly
+  /// broad)") — فيرفض النظام الطلب دائماً → hasStoragePermission=false
+  /// دائماً وشاشة النسخ حمراء.
+  ///
+  /// الاستراتيجية الآن متوافقة مع قرار scoped storage:
+  /// - Android 11+: لا نطلب إذن الـ All-files-access إطلاقاً (غير مصرّح به
+  ///   وطلب يفتح شاشة فارغة) — نتحقق من مجلد التطبيق المخصص (بلا أذونات)
+  ///   باختبار كتابة فعلي.
+  /// - Android < 11: نطلب storage كالسابق، ومع الرفض نجرب مجلد fallback.
   Future<bool> checkPermissions() async {
     try {
       if (Platform.isAndroid) {
         final deviceInfo = DeviceInfoPlugin();
         final androidInfo = await deviceInfo.androidInfo;
 
-        // Android 13+ يتطلب أذونات مختلفة
-        if (androidInfo.version.sdkInt >= 33) {
-          // للـ Android 13+، نستخدم MANAGE_EXTERNAL_STORAGE أو تطبيق scoped storage
-          return await Permission.manageExternalStorage.request().isGranted;
-        } else if (androidInfo.version.sdkInt >= 30) {
-          // Android 11-12
-          return await Permission.manageExternalStorage.request().isGranted;
+        if (androidInfo.version.sdkInt >= 30) {
+          // ✅ Android 11+: scoped storage فقط (الإذن الخاص مرفوض
+          // بقرار أمني في الـ manifest) — مجلد التطبيق المخصص كافٍ
+          final fallbackOk = await _isFallbackDirUsable();
+          if (!fallbackOk) {
+            dwarn(
+              () => '⚠️ مجلد fallback غير متاح — hasStoragePermission=false',
+            );
+          }
+          return fallbackOk;
         } else {
-          // Android < 11
+          // Android < 11 — إذن storage العادي مصرّح به (maxSdk=28)
           final storagePermission = await Permission.storage.request();
-          return storagePermission.isGranted;
+          if (storagePermission.isGranted) {
+            return true;
+          }
+          return await _isFallbackDirUsable();
         }
       }
       return true; // على iOS أو منصات أخرى
@@ -97,19 +115,77 @@ class LocalBackupService {
     }
   }
 
+  /// هل مجلد النسخ الاحتياطي البديل (بلا أذونات) قابل للاستخدام؟
+  /// الترتيب: مجلد التطبيق الخارجي المخصص ثم مستندات التطبيق الخاصة.
+  Future<bool> _isFallbackDirUsable() async {
+    try {
+      final dir = await _resolveFallbackDir();
+      if (dir == null) {
+        return false;
+      }
+      // اختبار كتابة فعلي — exists/create وحدها لا تكفي
+      final probe = File(
+        p.join(
+          dir.path,
+          '.perm_probe_${DateTime.now().millisecondsSinceEpoch}',
+        ),
+      );
+      try {
+        await probe.writeAsString('ok');
+      } finally {
+        if (probe.existsSync()) {
+          await probe.delete();
+        }
+      }
+      return true;
+    } catch (e) {
+      dlog(() => '⚠️ مجلد fallback غير قابل للاستخدام: $e');
+      return false;
+    }
+  }
+
+  /// أول مجلد بديل بلا أذونات: التخزين الخارجي المخصص للتطبيق
+  /// (Android/data/<pkg>/files/documents) ثم مستندات التطبيق الخاصة.
+  Future<Directory?> _resolveFallbackDir() async {
+    try {
+      final extDirs = await getExternalStorageDirectories(
+        type: StorageDirectory.documents,
+      );
+      if (extDirs != null && extDirs.isNotEmpty) {
+        final target = Directory(p.join(extDirs.first.path, _backupFolderName));
+        if (!target.existsSync()) {
+          await target.create(recursive: true);
+        }
+        return target;
+      }
+    } catch (e) {
+      dlog(() => '⚠️ getExternalStorageDirectories فشل: $e');
+    }
+    try {
+      return await getApplicationDocumentsDirectory();
+    } catch (e) {
+      dlog(() => '⚠️ getApplicationDocumentsDirectory فشل: $e');
+      return null;
+    }
+  }
+
   /// الحصول على مجلد النسخ الاحتياطي المحلي
+  ///
+  /// ✅ إصلاح (2026-09): كان المسار العام
+  /// /storage/emulated/0/Documents ثابتاً بلا fallback — يفشل على
+  /// Android 11+ بدون MANAGE_EXTERNAL_STORAGE. الآن سلسلة fallback
+  /// مطابقة لـ SqliteBackupRestore._resolveUserAccessibleDir مع
+  /// اختبار كتابة فعلي للمجلد العام قبل اعتماده.
   Future<Directory> getBackupDirectory() async {
     if (_backupDirectory != null) {
       return _backupDirectory!;
     }
 
     try {
-      final Directory selectedDir;
+      Directory selectedDir;
 
       if (Platform.isAndroid) {
-        selectedDir = Directory(
-          '/storage/emulated/0/Documents/$_backupFolderName',
-        );
+        selectedDir = await _resolveAndroidBackupDir();
       } else {
         selectedDir = await getApplicationDocumentsDirectory();
       }
@@ -129,6 +205,52 @@ class LocalBackupService {
       dlog(() => '❌ خطأ في إنشاء مجلد النسخ الاحتياطي: $e');
       rethrow;
     }
+  }
+
+  /// حل مجلد النسخ على Android: العام إن كان قابلاً للكتابة فعلياً،
+  /// وإلا مجلد التطبيق المخصص (بلا أذونات) ثم مستندات التطبيق الخاصة.
+  Future<Directory> _resolveAndroidBackupDir() async {
+    // 1) المسار العام (يتطلب MANAGE_EXTERNAL_STORAGE على Android 11+)
+    try {
+      final publicDir = Directory(
+        '/storage/emulated/0/Documents/$_backupFolderName',
+      );
+      if (!publicDir.existsSync()) {
+        await publicDir.create(recursive: true);
+      }
+      // اختبار كتابة فعلي — بعض الأجهزة تسمح بالإنشاء وتمنع الكتابة
+      final probe = File(
+        p.join(
+          publicDir.path,
+          '.write_probe_${DateTime.now().millisecondsSinceEpoch}',
+        ),
+      );
+      try {
+        await probe.writeAsString('ok');
+      } finally {
+        if (probe.existsSync()) {
+          await probe.delete();
+        }
+      }
+      return publicDir;
+    } catch (e) {
+      dlog(() => '⚠️ المسار العام غير قابل للكتابة، fallback: $e');
+    }
+
+    // 2) مجلد التطبيق المخصص على التخزين الخارجي (بلا أذونات)
+    try {
+      final extDirs = await getExternalStorageDirectories(
+        type: StorageDirectory.documents,
+      );
+      if (extDirs != null && extDirs.isNotEmpty) {
+        return Directory(p.join(extDirs.first.path, _backupFolderName));
+      }
+    } catch (e) {
+      dlog(() => '⚠️ getExternalStorageDirectories فشل: $e');
+    }
+
+    // 3) مستندات التطبيق الخاصة — دائماً متاحة
+    return getApplicationDocumentsDirectory();
   }
 
   /// إنشاء نسخة احتياطية محلية
