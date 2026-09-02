@@ -23,7 +23,9 @@ class AppwriteRealtimeSync {
   bool _intentionallyStopped = false;
   Timer? _debounceTimer;
   RemoteChangeQueue? _remoteChangeQueue;
-  RemoteChangeHandler? _remoteChangeHandler;
+  RemoteChangeBatchHandler? _remoteChangeHandler;
+  Future<void> Function()? _onReconnected;
+  bool _hasEstablishedConnection = false;
 
   // ✅ تحسين: عداد التغييرات المعلقة من السيرفر (للـ Badge)
   final pendingRemoteChangesCount = ValueNotifier<int>(0);
@@ -68,9 +70,9 @@ class AppwriteRealtimeSync {
     _currentDeviceId = deviceId;
     _realtime = Realtime(AppwriteService().client);
     _remoteChangeQueue ??= RemoteChangeQueue(
-      onFlush: (change) async {
+      onFlush: (changes) async {
         final handler = _remoteChangeHandler;
-        if (handler != null) await handler(change);
+        if (handler != null) await handler(changes);
       },
     );
     dlog('📡 AppwriteRealtimeSync initialized');
@@ -86,13 +88,14 @@ class AppwriteRealtimeSync {
       return;
     }
 
-    // ✅ إذا كان WebSocket معطّلاً (لا يدعمه السيرفر/الشبكة)،
-    // نعتمد على FCM + auto-sync بدلاً من WebSocket Realtime.
-    // هذا يمنع إهدار البطارية في 6 محاولات إعادة اتصال فاشلة.
+    // Appwrite Cloud Realtime هو قناة الأحداث الأساسية. عند تعذر WebSocket،
+    // نستخدم polling/Delta recovery فقط، ولا نعتمد على FCM أو Messaging.
     final realtimeEnabled =
-        prefs.getBool('appwrite_realtime_ws_enabled') ?? false;
+        prefs.getBool('appwrite_realtime_ws_enabled') ?? true;
     if (!realtimeEnabled) {
-      dlog('📡 Realtime: WebSocket disabled — relying on FCM + auto-sync');
+      dlog(
+        '📡 Realtime: WebSocket disabled — relying on Delta polling recovery',
+      );
       _startPollingFallback();
       return;
     }
@@ -108,10 +111,22 @@ class AppwriteRealtimeSync {
         .toList();
 
     try {
+      final isRecovery = _hasEstablishedConnection;
       _subscription = _realtime!.subscribe(channels);
       _isListening = true;
+      _hasEstablishedConnection = true;
 
-      dlog('📡 Realtime: listening via WebSocket...');
+      dlog(
+        isRecovery
+            ? '📡 Realtime: reconnected and subscriptions established'
+            : '📡 Realtime: listening via WebSocket...',
+      );
+      if (isRecovery) {
+        final recoveryHandler = _onReconnected;
+        if (recoveryHandler != null) {
+          unawaited(recoveryHandler());
+        }
+      }
 
       _subscription!.stream.listen(
         _onEvent,
@@ -262,12 +277,17 @@ class AppwriteRealtimeSync {
     });
   }
 
-  /// يربط أحداث Realtime بمسار targeted record sync.
-  void setRemoteChangeHandler(RemoteChangeHandler handler) {
+  /// يربط أحداث Realtime بمسار Delta trigger batch.
+  void setRemoteChangeHandler(RemoteChangeBatchHandler handler) {
     _remoteChangeHandler = handler;
   }
 
-  /// يضيف تغييراً معروف المعرف من FCM إلى نفس طابور Realtime.
+  /// يطلق Delta recovery بعد إعادة إنشاء اشتراك Realtime.
+  void setReconnectRecoveryHandler(Future<void> Function() handler) {
+    _onReconnected = handler;
+  }
+
+  /// يضيف تغييراً معروف المعرف إلى طابور Realtime.
   void enqueueRemoteRecord(PendingRemoteRecord change) {
     _remoteChangeQueue?.add(change);
   }
@@ -352,6 +372,8 @@ class AppwriteRealtimeSync {
   Future<void> stop() async {
     // ✅ إصلاح P2-13: تعليم التوقف كإرادي لمنع _reconnect من إعادة الاتصال.
     _remoteChangeQueue?.dispose();
+    _onReconnected = null;
+    _hasEstablishedConnection = false;
     _intentionallyStopped = true;
     unawaited(_subscription?.close());
     _subscription = null;

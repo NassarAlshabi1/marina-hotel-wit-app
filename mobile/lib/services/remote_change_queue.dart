@@ -32,17 +32,18 @@ class PendingRemoteRecord {
   }
 }
 
-typedef RemoteChangeHandler = Future<void> Function(PendingRemoteRecord change);
+typedef RemoteChangeBatchHandler =
+    Future<void> Function(List<PendingRemoteRecord> changes);
 
-/// In-memory coalescing queue for realtime/FCM record changes.
-/// Multiple events for one record result in one handler invocation.
+/// In-memory coalescing queue for Appwrite Realtime record changes.
+/// Multiple events in one burst are delivered as one coalesced batch.
 class RemoteChangeQueue {
   RemoteChangeQueue({
     required this.onFlush,
     this.debounce = const Duration(milliseconds: 400),
   });
 
-  final RemoteChangeHandler onFlush;
+  final RemoteChangeBatchHandler onFlush;
   final Duration debounce;
   final Map<String, PendingRemoteRecord> _pending = {};
   Timer? _timer;
@@ -68,13 +69,11 @@ class RemoteChangeQueue {
       while (_pending.isNotEmpty) {
         final batch = List<PendingRemoteRecord>.of(_pending.values);
         _pending.clear();
-        for (final change in batch) {
-          try {
-            await onFlush(change);
-          } catch (_) {
-            // Keep the realtime listener alive. Recovery delta will reconcile
-            // a record whose targeted application failed.
-          }
+        try {
+          await onFlush(batch);
+        } catch (_) {
+          // Keep the realtime listener alive. The next Delta recovery will
+          // reconcile the coalesced batch if the trigger fails.
         }
       }
     } finally {

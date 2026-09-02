@@ -219,6 +219,8 @@ class AppwriteSyncManager {
   Timer? _failedRetryTimer;
   Timer? _cleanupTimer;
   Timer? _stuckRecoveryTimer;
+  bool _realtimeDeltaPullInFlight = false;
+  bool _realtimeDeltaPullPending = false;
   double get _initialBatchSize =>
       (SyncPerformanceOptimizer.instance
                   .getCurrentPerformanceSettings()['batchSize']
@@ -5678,124 +5680,57 @@ class AppwriteSyncManager {
     }
   }
 
-  /// تطبيق تغيير Realtime على سجل واحد فقط.
-  ///
-  /// لا يحرّك هذا المسار Delta list؛ فهو يستخدم getDocument بمعرف السجل
-  /// ثم يمرر المستند إلى نفس adapters ومسارات حل التعارض المستخدمة في السحب.
-  bool _isRemoteDeleted(models.Document document) {
-    final data = document.data;
-    final deletedAt = data['deletedAt'] ?? data['deleted_at'];
-    if (deletedAt is num) return deletedAt > 0;
-    if (deletedAt is String) {
-      final value = deletedAt.trim();
-      if (value.isEmpty || value == '0') return false;
-      final numeric = num.tryParse(value);
-      if (numeric != null) return numeric > 0;
-      return DateTime.tryParse(value) != null;
-    }
-
-    final isDeleted = data['isDeleted'] ?? data['is_deleted'];
-    return isDeleted == true || isDeleted == 1 || isDeleted == 'true';
+  /// Trigger-only entry point for Appwrite Realtime batches.
+  /// Realtime never reads or writes local records; SyncPullService is the only
+  /// Remote → Local execution path.
+  Future<void> triggerDeltaPullFromRealtime(
+    List<PendingRemoteRecord> changes,
+  ) async {
+    if (changes.isEmpty) return;
+    await _runRealtimeDeltaPull(triggerCount: changes.length);
   }
 
-  Future<void> applyRemoteRecordChange(PendingRemoteRecord change) async {
-    if (change.collectionId.isEmpty || change.documentId.isEmpty) return;
+  /// Recovery pull after Realtime re-establishes its subscription.
+  /// This is always Delta-only and never bootstraps a Full Sync.
+  Future<void> triggerDeltaPullAfterRealtimeReconnect() async {
+    await _runRealtimeDeltaPull(triggerCount: 0, isRecovery: true);
+  }
 
+  Future<void> _runRealtimeDeltaPull({
+    required int triggerCount,
+    bool isRecovery = false,
+  }) async {
+    if (_realtimeDeltaPullInFlight) {
+      _realtimeDeltaPullPending = true;
+      return;
+    }
+
+    _realtimeDeltaPullInFlight = true;
     try {
-      final document = await appwriteService.getRow(
-        collectionId: change.collectionId,
-        documentId: change.documentId,
-        suppressErrorLog: true,
-      );
-      if (_isRemoteDeleted(document)) {
-        _logger.debug(
-          'Targeted sync skipped deleted record '
-          '${change.collectionId}/${change.documentId}',
-          tag: 'SYNC_TARGETED',
-        );
-        return;
-      }
-
-      final documents = <models.Document>[document];
-      switch (change.collectionId) {
-        case AppwriteConfig.roomsCollectionId:
-          await _syncRooms(documents);
-        case AppwriteConfig.bookingsCollectionId:
-          await _syncBookings(documents);
-        case AppwriteConfig.employeesCollectionId:
-          await _syncEmployeesWithRetry(documents);
-        case AppwriteConfig.expensesCollectionId:
-          await _syncExpenses(documents);
-        case AppwriteConfig.paymentsCollectionId:
-          await _syncPayments(documents);
-        case AppwriteConfig.debtsCollectionId:
-          await _syncDebts(documents);
-        case AppwriteConfig.guestInfosCollectionId:
-          await _syncGuestInfos(documents);
-        case AppwriteConfig.salaryWithdrawalsCollectionId:
-          await _syncSalaryWithdrawals(documents);
-        case AppwriteConfig.inventoryItemsCollectionId:
-          await _syncInventoryItems(documents);
-        case AppwriteConfig.inventoryTransactionsCollectionId:
-          await _syncInventoryTransactions(documents);
-        case AppwriteConfig.shiftNotesCollectionId:
-          await _syncShiftNotes(documents);
-        case AppwriteConfig.bookingNotesCollectionId:
-          await _syncBookingNotes(documents);
-        case AppwriteConfig.bookingNightsCollectionId:
-          await _syncBookingNights(documents);
-        case AppwriteConfig.cashTransactionsCollectionId:
-          await _syncCashTransactions(documents);
-        case AppwriteConfig.salaryCyclesCollectionId:
-          await _syncSalaryCycles(documents);
-        case AppwriteConfig.salaryPaymentsCollectionId:
-          await _syncSalaryPayments(documents);
-        case AppwriteConfig.bookingPriceAdjustmentsCollectionId:
-          await _syncBookingPriceAdjustments(documents);
-        case AppwriteConfig.priceAdjustmentsCollectionId:
-          await _syncPriceAdjustments(documents);
-        case AppwriteConfig.auditLogsCollectionId:
-          await _syncAuditLogs(documents);
-        case AppwriteConfig.paymentVoidsCollectionId:
-          await _syncPaymentVoids(documents);
-        case AppwriteConfig.salaryCarryOverLogsCollectionId:
-          await _syncSalaryCarryOverLogs(documents);
-        case AppwriteConfig.blacklistCollectionId:
-          await _syncBlacklist(documents);
-        case AppwriteConfig.appSettingsCollectionId:
-          await _syncAppSettings(documents);
-        default:
-          _logger.warning(
-            'Targeted sync skipped: unsupported collection ${change.collectionId}',
-            tag: 'SYNC_TARGETED',
+      do {
+        _realtimeDeltaPullPending = false;
+        final lastPullTs = await _getLastPullTs();
+        final deltaReady =
+            _pullService != null &&
+            await _pullService!.isDeltaReady(lastPullTs);
+        if (!deltaReady) {
+          _logger.debug(
+            'Realtime Delta trigger skipped — bootstrap Full Sync is required',
+            tag: 'SYNC_REALTIME',
           );
-      }
-    } on AppwriteException catch (error) {
-      if (error.code == 404) {
-        _logger.debug(
-          'Targeted sync skipped missing/deleted record '
-          '${change.collectionId}/${change.documentId}',
-          tag: 'SYNC_TARGETED',
+          return;
+        }
+
+        _logger.info(
+          isRecovery
+              ? 'Realtime reconnected — triggering Delta recovery pull'
+              : 'Realtime batch received ($triggerCount events) — triggering Delta Pull',
+          tag: 'SYNC_REALTIME',
         );
-        return;
-      }
-      _logger.warning(
-        'Targeted sync failed for ${change.collectionId}/${change.documentId}; '
-        'delta recovery will reconcile it.',
-        error: error,
-        stackTrace: StackTrace.current,
-        tag: 'SYNC_TARGETED',
-      );
-      rethrow;
-    } catch (error, stackTrace) {
-      _logger.warning(
-        'Targeted sync failed for ${change.collectionId}/${change.documentId}; '
-        'delta recovery will reconcile it.',
-        error: error,
-        stackTrace: stackTrace,
-        tag: 'SYNC_TARGETED',
-      );
-      rethrow;
+        await pullRemoteChanges();
+      } while (_realtimeDeltaPullPending);
+    } finally {
+      _realtimeDeltaPullInFlight = false;
     }
   }
 

@@ -795,7 +795,10 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         final realtimeSync = AppwriteRealtimeSync();
         await realtimeSync.initialize(deviceId: deviceId);
         realtimeSync.setRemoteChangeHandler(
-          syncManager.applyRemoteRecordChange,
+          syncManager.triggerDeltaPullFromRealtime,
+        );
+        realtimeSync.setReconnectRecoveryHandler(
+          syncManager.triggerDeltaPullAfterRealtimeReconnect,
         );
         await realtimeSync.start();
         dlog('📡 Realtime sync + auto sync started');
