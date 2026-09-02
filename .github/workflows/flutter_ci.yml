@@ -138,7 +138,7 @@ jobs:
           ssh-private-key: ${{ secrets.ssh_key }}
 
       - name: 📦 Install Dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile=false
 
       - name: 🏗️ Run Build Runner
         if: inputs.run_build_runner == true
@@ -195,7 +195,7 @@ jobs:
           java-version: ${{ inputs.java_version }}
 
       - name: 📦 Install Dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile=false
 
       - name: 🏗️ Run Build Runner
         if: inputs.run_build_runner == true
@@ -309,7 +309,7 @@ jobs:
           cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
 
       - name: 📦 Install Dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile=false
 
       - name: 🏗️ Run Build Runner
         if: inputs.run_build_runner == true
