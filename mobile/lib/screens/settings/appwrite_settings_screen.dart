@@ -1242,8 +1242,9 @@ class _AppwriteSettingsScreenState
       ref.read(ap.appwriteLoggerProvider).clearLogs();
       ref.invalidate(ap.logStatsProvider);
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('تم مسح السجلات')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('تم مسح السجلات')));
       }
     }
   }
@@ -1548,7 +1549,9 @@ class _AppwriteSettingsScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              pulledChanges ? 'تم سحب التغييرات من السحابة بنجاح' : 'اكتمل الفحص دون تغييرات مطبقة؛ قد لا توجد تغييرات جديدة أو توجد تغييرات محلية غير مرفوعة',
+              pulledChanges
+                  ? 'تم سحب التغييرات من السحابة بنجاح'
+                  : 'اكتمل الفحص دون تغييرات مطبقة؛ قد لا توجد تغييرات جديدة أو توجد تغييرات محلية غير مرفوعة',
             ),
             backgroundColor: pulledChanges ? Colors.green : Colors.orange,
           ),
@@ -1640,8 +1643,9 @@ class _AppwriteSettingsScreenState
 
   Future<void> _testSync() async {
     if (mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('اختبار المزامنة...')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('اختبار المزامنة...')));
     }
     await _syncNow();
   }
