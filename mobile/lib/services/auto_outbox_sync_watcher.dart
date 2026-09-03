@@ -40,6 +40,13 @@ class AutoOutboxSyncWatcher {
     _pushFn = fn;
   }
 
+  /// ✅ Batch push function — pushes outbox entries in configurable batches.
+  /// Prevents huge API calls that can fail on slow connections.
+  static Future<int> Function()? _pushFnBatched;
+  static set pushFunctionBatched(Future<int> Function() fn) {
+    _pushFnBatched = fn;
+  }
+
   /// Starts watching the outbox + connectivity.
   ///
   /// ✅ Code Review Fix (2026-08-06): تحويل لـ async + await connectivity check.

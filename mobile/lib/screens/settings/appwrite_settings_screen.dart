@@ -37,6 +37,15 @@ class _AppwriteSettingsScreenState
   bool _logFile = false;
   bool _isLoading = false;
 
+  /// تنفيذ آمن لـ setState — يتحقق من mounted قبل الاستدعاء.
+  void _safeSetState(VoidCallback fn) {
+    if (mounted) {
+      setState(fn);
+    } else {
+      fn();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -603,11 +612,12 @@ class _AppwriteSettingsScreenState
                     child: Text(value.toUpperCase()),
                   );
                 }).toList(),
-                onChanged: (value) {
+                onChanged: (value) async {
                   if (value != null) {
                     setState(() => _logLevel = value);
-                    unawaited(_saveLocalSettings());
-                    unawaited(_applyLoggerSettings());
+                    await _saveLocalSettings();
+                    if (!mounted) return;
+                    await _applyLoggerSettings();
                   }
                 },
               ),
@@ -618,10 +628,11 @@ class _AppwriteSettingsScreenState
               title: 'تسجيل في Console',
               subtitle: 'عرض السجلات في وحدة التحكم',
               value: _logConsole,
-              onChanged: (value) {
+              onChanged: (value) async {
                 setState(() => _logConsole = value);
-                unawaited(_saveLocalSettings());
-                unawaited(_applyLoggerSettings());
+                await _saveLocalSettings();
+                if (!mounted) return;
+                await _applyLoggerSettings();
               },
             ),
 
@@ -630,10 +641,11 @@ class _AppwriteSettingsScreenState
               title: 'تسجيل في الملفات',
               subtitle: 'حفظ السجلات في ملفات نصية',
               value: _logFile,
-              onChanged: (value) {
+              onChanged: (value) async {
                 setState(() => _logFile = value);
-                unawaited(_saveLocalSettings());
-                unawaited(_applyLoggerSettings());
+                await _saveLocalSettings();
+                if (!mounted) return;
+                await _applyLoggerSettings();
               },
             ),
 
@@ -1171,11 +1183,7 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      } else {
-        _isLoading = false;
-      }
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1281,11 +1289,7 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      } else {
-        _isLoading = false;
-      }
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1429,11 +1433,7 @@ class _AppwriteSettingsScreenState
         ),
       );
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      } else {
-        _isLoading = false;
-      }
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1504,11 +1504,7 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      } else {
-        _isLoading = false;
-      }
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1583,11 +1579,7 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      } else {
-        _isLoading = false;
-      }
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1641,11 +1633,7 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      } else {
-        _isLoading = false;
-      }
+      _safeSetState(() => _isLoading = false);
     }
   }
 

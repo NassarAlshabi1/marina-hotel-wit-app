@@ -8,6 +8,7 @@ import 'appwrite_config.dart';
 import 'appwrite_service.dart';
 import 'crashlytics_service.dart';
 import 'sync_constants.dart';
+
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// نوع المدخل الذي يُطلق السحب الفعلي.
@@ -535,8 +536,9 @@ class AppwriteRealtimeSync {
     }
 
     if (pulled) {
-      // السحب أُكمل فعلاً — التغييرات من السيرفر طُبّقت، صفّر شارات الـ UI.
       _consecutiveSkips = 0;
+      _consecutiveFallbackFails = 0;
+      _nextFallbackInterval = SyncConstants.realtimeFallbackBaseInterval;
       dlog('[DeltaSync] pull completed');
       resetRemoteChangesFlag();
     } else {
@@ -559,6 +561,28 @@ class AppwriteRealtimeSync {
     if (_pullQueued && !_intentionallyStopped) {
       _pullQueued = false;
       _schedulePull();
+    }
+  }
+
+  /// ✅ Adaptive fallback: increase polling interval on consecutive failures.
+  void _adjustFallbackInterval(bool success) {
+    if (success) {
+      _consecutiveFallbackFails = 0;
+      _nextFallbackInterval = SyncConstants.realtimeFallbackBaseInterval;
+    } else {
+      _consecutiveFallbackFails++;
+      final minutes = (5 * (1 << (_consecutiveFallbackFails - 1).clamp(0, 3)))
+          .clamp(
+            SyncConstants.realtimeFallbackBaseInterval.inMinutes,
+            SyncConstants.realtimeFallbackMaxInterval.inMinutes,
+          );
+      _nextFallbackInterval = Duration(minutes: minutes);
+      dlog(
+        () =>
+            '📡 Fallback interval increased to '
+            '${_nextFallbackInterval.inMinutes}m '
+            '($_consecutiveFallbackFails consecutive fails)',
+      );
     }
   }
 
@@ -721,6 +745,10 @@ class AppwriteRealtimeSync {
 
   @visibleForTesting
   Duration? debugPullCooldown;
+
+  // ✅ Adaptive fallback: backoff when WebSocket keeps failing.
+  Duration _nextFallbackInterval = SyncConstants.realtimeFallbackBaseInterval;
+  int _consecutiveFallbackFails = 0;
 
   @visibleForTesting
   Duration? debugFallbackPullInterval;

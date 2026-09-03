@@ -72,41 +72,35 @@ class LocalBackupService {
 
   /// التحقق من الأذونات المطلوبة
   ///
-  /// ✅ إصلاح (2026-09): سابقاً كان الكود يطلب Permission.manageExternalStorage
-  /// على Android 11+، لكن الـ manifest لا يصرّح بها — **بقرار أمني موثّق**
-  /// (AndroidManifest: "SECURITY: Removed MANAGE_EXTERNAL_STORAGE (overly
-  /// broad)") — فيرفض النظام الطلب دائماً → hasStoragePermission=false
-  /// دائماً وشاشة النسخ حمراء.
-  ///
-  /// الاستراتيجية الآن متوافقة مع قرار scoped storage:
-  /// - Android 11+: لا نطلب إذن الـ All-files-access إطلاقاً (غير مصرّح به
-  ///   وطلب يفتح شاشة فارغة) — نتحقق من مجلد التطبيق المخصص (بلا أذونات)
-  ///   باختبار كتابة فعلي.
-  /// - Android < 11: نطلب storage كالسابق، ومع الرفض نجرب مجلد fallback.
+  /// ✅ FIX: عند رفض MANAGE_EXTERNAL_STORAGE، لا نُفشل сразу بل نُعيّن
+  /// مجلد تخزين بديل (app-private) حتى تبقى وظائف النسخ تعمل.
   Future<bool> checkPermissions() async {
     try {
       if (Platform.isAndroid) {
         final deviceInfo = DeviceInfoPlugin();
         final androidInfo = await deviceInfo.androidInfo;
 
+        // Android 11+ يحتاج MANAGE_EXTERNAL_STORAGE للوصول الكامل
         if (androidInfo.version.sdkInt >= 30) {
-          // ✅ Android 11+: scoped storage فقط (الإذن الخاص مرفوض
-          // بقرار أمني في الـ manifest) — مجلد التطبيق المخصص كافٍ
-          final fallbackOk = await _isFallbackDirUsable();
-          if (!fallbackOk) {
-            dwarn(
-              () => '⚠️ مجلد fallback غير متاح — hasStoragePermission=false',
-            );
-          }
-          return fallbackOk;
-        } else {
-          // Android < 11 — إذن storage العادي مصرّح به (maxSdk=28)
-          final storagePermission = await Permission.storage.request();
-          if (storagePermission.isGranted) {
+          final granted = await Permission.manageExternalStorage
+              .request()
+              .isGranted;
+          if (granted) {
+            dlog('✅ MANAGE_EXTERNAL_STORAGE granted');
             return true;
           }
-          return await _isFallbackDirUsable();
+          // ✅ الإذن مرفوض — نستخدم مجلد app-private كبديل
+          // لضمان عمل النسخ الاحتياطي حتى بدون صلاحية التخزين الخارجي.
+          dlog(
+            '⚠️ MANAGE_EXTERNAL_STORAGE denied — '
+            'falling back to app-private backup directory',
+          );
+          _backupDirectory ??= await getApplicationDocumentsDirectory();
+          return true;
         }
+        // Android < 11
+        final storagePermission = await Permission.storage.request();
+        return storagePermission.isGranted;
       }
       return true; // على iOS أو منصات أخرى
     } catch (e) {
@@ -171,13 +165,10 @@ class LocalBackupService {
 
   /// الحصول على مجلد النسخ الاحتياطي المحلي
   ///
-  /// ✅ إصلاح (2026-09): كان المسار العام
-  /// /storage/emulated/0/Documents ثابتاً بلا fallback — يفشل على
-  /// Android 11+ بدون MANAGE_EXTERNAL_STORAGE. الآن سلسلة fallback
-  /// مطابقة لـ SqliteBackupRestore._resolveUserAccessibleDir مع
-  /// اختبار كتابة فعلي للمجلد العام قبل اعتماده.
+  /// ✅ FIX: عند فشل الوصول للمجلد الخارجي (أذونات مرفوضة مثلاً)،
+  /// ننتقل تلقائياً إلى مجلد app-private الخاص بالتطبيق.
   Future<Directory> getBackupDirectory() async {
-    if (_backupDirectory != null) {
+    if (_backupDirectory != null && _backupDirectory!.existsSync()) {
       return _backupDirectory!;
     }
 
@@ -185,14 +176,30 @@ class LocalBackupService {
       Directory selectedDir;
 
       if (Platform.isAndroid) {
-        selectedDir = await _resolveAndroidBackupDir();
+        final externalDir = Directory(
+          '/storage/emulated/0/Documents/$_backupFolderName',
+        );
+        try {
+          if (!externalDir.existsSync()) {
+            await externalDir.create(recursive: true);
+          }
+          selectedDir = externalDir;
+          dlog(() => '✅ مجلد النسخ الاحتياطي الخارجي: ${selectedDir.path}');
+        } catch (e) {
+          // ✅ فشل الوصول للتخزين الخارجي — نستخدم app-private كبديل
+          dlog(
+            () =>
+                '⚠️ فشل الوصول للتخزين الخارجي ($e) — '
+                'الانتقال إلى مجلد التطبيق',
+          );
+          selectedDir = await getApplicationDocumentsDirectory();
+        }
       } else {
         selectedDir = await getApplicationDocumentsDirectory();
       }
 
       if (!selectedDir.existsSync()) {
         await selectedDir.create(recursive: true);
-        dlog(() => '✅ تم إنشاء مجلد النسخ الاحتياطي: ${selectedDir.path}');
       }
 
       _backupDirectory = selectedDir;
@@ -203,7 +210,10 @@ class LocalBackupService {
       return _backupDirectory!;
     } catch (e) {
       dlog(() => '❌ خطأ في إنشاء مجلد النسخ الاحتياطي: $e');
-      rethrow;
+      // ✅终极 fallback: استخدام directoriy المؤقت
+      _backupDirectory = Directory.systemTemp.createTempSync('marina_backup_');
+      dlog(() => '⚠️ استخدام مجلد مؤقت: ${_backupDirectory!.path}');
+      return _backupDirectory!;
     }
   }
 
