@@ -1558,8 +1558,8 @@ class AppwriteSyncManager {
                     // ✅ (2026-09-03) delta metadata-first: نفس المسار الآمن
                     // لـ bookings/payments — صفر تنزيل للمطابق محلياً.
                     bookingNights = await _pullDocsDeltaMetadataFirst(
-                      entity: 'booking_nights',
-                      queries: nightsDeltaQ,
+                      'booking_nights',
+                      nightsDeltaQ,
                     );
                   }
                   final synced = await _syncBookingNights(bookingNights);
@@ -7040,8 +7040,8 @@ class AppwriteSyncManager {
               // ✅ (2026-09-03) delta metadata-first (نفس مسار sync()):
               // صفر تنزيل للمطابق محلياً في sync_remote_meta.
               bookingNights = await _pullDocsDeltaMetadataFirst(
-                entity: 'booking_nights',
-                queries: nightsDeltaQ,
+                'booking_nights',
+                nightsDeltaQ,
               );
               _logger.info(
                 '📊 تم جلب ${bookingNights.length} سجل booking_nights '
