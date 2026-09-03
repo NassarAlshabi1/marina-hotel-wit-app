@@ -109,6 +109,60 @@ class LocalBackupService {
     }
   }
 
+  /// هل مجلد النسخ الاحتياطي البديل (بلا أذونات) قابل للاستخدام؟
+  /// الترتيب: مجلد التطبيق الخارجي المخصص ثم مستندات التطبيق الخاصة.
+  Future<bool> _isFallbackDirUsable() async {
+    try {
+      final dir = await _resolveFallbackDir();
+      if (dir == null) {
+        return false;
+      }
+      // اختبار كتابة فعلي — exists/create وحدها لا تكفي
+      final probe = File(
+        p.join(
+          dir.path,
+          '.perm_probe_${DateTime.now().millisecondsSinceEpoch}',
+        ),
+      );
+      try {
+        await probe.writeAsString('ok');
+      } finally {
+        if (probe.existsSync()) {
+          await probe.delete();
+        }
+      }
+      return true;
+    } catch (e) {
+      dlog(() => '⚠️ مجلد fallback غير قابل للاستخدام: $e');
+      return false;
+    }
+  }
+
+  /// أول مجلد بديل بلا أذونات: التخزين الخارجي المخصص للتطبيق
+  /// (Android/data/<pkg>/files/documents) ثم مستندات التطبيق الخاصة.
+  Future<Directory?> _resolveFallbackDir() async {
+    try {
+      final extDirs = await getExternalStorageDirectories(
+        type: StorageDirectory.documents,
+      );
+      if (extDirs != null && extDirs.isNotEmpty) {
+        final target = Directory(p.join(extDirs.first.path, _backupFolderName));
+        if (!target.existsSync()) {
+          await target.create(recursive: true);
+        }
+        return target;
+      }
+    } catch (e) {
+      dlog(() => '⚠️ getExternalStorageDirectories فشل: $e');
+    }
+    try {
+      return await getApplicationDocumentsDirectory();
+    } catch (e) {
+      dlog(() => '⚠️ getApplicationDocumentsDirectory فشل: $e');
+      return null;
+    }
+  }
+
   /// الحصول على مجلد النسخ الاحتياطي المحلي
   ///
   /// ✅ FIX: عند فشل الوصول للمجلد الخارجي (أذونات مرفوضة مثلاً)،
@@ -119,7 +173,7 @@ class LocalBackupService {
     }
 
     try {
-      final Directory selectedDir;
+      Directory selectedDir;
 
       if (Platform.isAndroid) {
         final externalDir = Directory(
@@ -161,6 +215,52 @@ class LocalBackupService {
       dlog(() => '⚠️ استخدام مجلد مؤقت: ${_backupDirectory!.path}');
       return _backupDirectory!;
     }
+  }
+
+  /// حل مجلد النسخ على Android: العام إن كان قابلاً للكتابة فعلياً،
+  /// وإلا مجلد التطبيق المخصص (بلا أذونات) ثم مستندات التطبيق الخاصة.
+  Future<Directory> _resolveAndroidBackupDir() async {
+    // 1) المسار العام (يتطلب MANAGE_EXTERNAL_STORAGE على Android 11+)
+    try {
+      final publicDir = Directory(
+        '/storage/emulated/0/Documents/$_backupFolderName',
+      );
+      if (!publicDir.existsSync()) {
+        await publicDir.create(recursive: true);
+      }
+      // اختبار كتابة فعلي — بعض الأجهزة تسمح بالإنشاء وتمنع الكتابة
+      final probe = File(
+        p.join(
+          publicDir.path,
+          '.write_probe_${DateTime.now().millisecondsSinceEpoch}',
+        ),
+      );
+      try {
+        await probe.writeAsString('ok');
+      } finally {
+        if (probe.existsSync()) {
+          await probe.delete();
+        }
+      }
+      return publicDir;
+    } catch (e) {
+      dlog(() => '⚠️ المسار العام غير قابل للكتابة، fallback: $e');
+    }
+
+    // 2) مجلد التطبيق المخصص على التخزين الخارجي (بلا أذونات)
+    try {
+      final extDirs = await getExternalStorageDirectories(
+        type: StorageDirectory.documents,
+      );
+      if (extDirs != null && extDirs.isNotEmpty) {
+        return Directory(p.join(extDirs.first.path, _backupFolderName));
+      }
+    } catch (e) {
+      dlog(() => '⚠️ getExternalStorageDirectories فشل: $e');
+    }
+
+    // 3) مستندات التطبيق الخاصة — دائماً متاحة
+    return getApplicationDocumentsDirectory();
   }
 
   /// إنشاء نسخة احتياطية محلية

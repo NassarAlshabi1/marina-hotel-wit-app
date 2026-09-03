@@ -52,6 +52,7 @@ import 'services/battery_optimizer.dart';
 import 'services/central_sync_coordinator.dart';
 import 'services/connectivity_service.dart';
 import 'services/crashlytics_service.dart';
+import 'services/database_startup_guard.dart';
 import 'services/database_sync_coordinator.dart';
 import 'services/diagnostics/diagnostics_logger.dart';
 import 'services/fcm_service.dart';
@@ -93,6 +94,23 @@ import 'utils/weak_device_optimizer.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ DatabaseStartupGuard: فحص تلف قاعدة البيانات (SqliteException 11)
+  // قبل أي مستهلك لها — الـ health checker الحالي (SELECT 1) لا يكشف
+  // تلف الصفحات. عند التلف: نسخة forensics + حذف + إعادة إنشاء،
+  // ودورة المزامنة الأولى تعيد سحب كل شيء من Appwrite. لا يعيق الإقلاع أبداً.
+  try {
+    final dbGuard = await DatabaseStartupGuard.verifyAndRecover();
+    if (dbGuard.recovered) {
+      dwarn(
+        () =>
+            '🛠️ تم استرداد قاعدة بيانات تالفة عند الإقلاع — '
+            'نسخة العزل: ${dbGuard.quarantinePath}',
+      );
+    }
+  } catch (e) {
+    dwarn(() => '⚠️ DB startup guard failed (continuing): $e');
+  }
 
   // ✅ WeakDeviceOptimizer: يكتشف قوة الجهاز ويضبط مستوى التحسين
   // يجب استدعاؤه قبل أي خدمة ثقيلة لضمان تكييف الأداء.
