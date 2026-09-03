@@ -200,7 +200,7 @@ class AppwriteSyncManager {
     try {
       // إعادة تحميل الإعدادات
       await _loadSettings();
-    await SyncCircuitBreaker.instance.restore();
+      await SyncCircuitBreaker.instance.restore();
       // إعادة تهيئة Secondary Appwrite
       await SecondaryAppwriteConfig.ensureInitialized();
       _logger.info('🔄 Reinitialized after config change', tag: 'SYNC');
@@ -3922,9 +3922,8 @@ class AppwriteSyncManager {
           break;
         }
         try {
-          final success = await _processOutboxEntry(
-            entry,
-          ).timeout(entryTimeout);
+          final success = await _processOutboxEntry(entry)
+              .timeout(entryTimeout);
           if (success) {
             // ✅ Dual-delivery: نضع علامة "مُسلّم للرئيسي" بدلاً من الحذف.
             // السجل يُحذف تلقائياً فقط إذا كان مُسلّماً للثانوي أيضاً.

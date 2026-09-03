@@ -28,11 +28,12 @@ class SyncCircuitBreaker {
   /// Exponential backoff: 5 → 10 → 20 → 40 → 60 (max)
   Duration get currentCooldown {
     if (_consecutiveFailures <= 0) return Duration.zero;
-    final minutes =
-        (5 * pow(2, min(_consecutiveFailures - 1, 3))).toInt().clamp(
-              SyncConstants.circuitBreakerMinCooldownMinutes,
-              SyncConstants.circuitBreakerMaxCooldownMinutes,
-            );
+    final minutes = (5 * pow(2, min(_consecutiveFailures - 1, 3)))
+        .toInt()
+        .clamp(
+          SyncConstants.circuitBreakerMinCooldownMinutes,
+          SyncConstants.circuitBreakerMaxCooldownMinutes,
+        );
     return Duration(minutes: minutes);
   }
 
@@ -48,11 +49,11 @@ class SyncCircuitBreaker {
     _consecutiveFailures++;
     _lastFailureAt = DateTime.now();
 
-    if (_consecutiveFailures >=
-        SyncConstants.circuitBreakerFailureThreshold) {
+    if (_consecutiveFailures >= SyncConstants.circuitBreakerFailureThreshold) {
       _isOpen = true;
       dwarn(
-        () => '🔴 Circuit breaker OPEN: $_consecutiveFailures failures, '
+        () =>
+            '🔴 Circuit breaker OPEN: $_consecutiveFailures failures, '
             'cooldown ${currentCooldown.inMinutes}m',
       );
     }
@@ -61,7 +62,8 @@ class SyncCircuitBreaker {
   void reset() {
     if (_isOpen) {
       dlog(
-        () => '🟢 Circuit breaker CLOSED after successful sync '
+        () =>
+            '🟢 Circuit breaker CLOSED after successful sync '
             '(${_consecutiveFailures} failures resolved)',
       );
     }
@@ -91,8 +93,9 @@ class SyncCircuitBreaker {
     final prefs = await SharedPreferences.getInstance();
     _consecutiveFailures = prefs.getInt('_cb_failures') ?? 0;
     final lastMs = prefs.getInt('_cb_last_failure') ?? 0;
-    _lastFailureAt =
-        lastMs > 0 ? DateTime.fromMillisecondsSinceEpoch(lastMs) : null;
+    _lastFailureAt = lastMs > 0
+        ? DateTime.fromMillisecondsSinceEpoch(lastMs)
+        : null;
     _isOpen = prefs.getBool('_cb_open') ?? false;
 
     // If the cooldown has elapsed since the last failure, close the breaker.

@@ -8,6 +8,7 @@ import 'appwrite_config.dart';
 import 'appwrite_service.dart';
 import 'crashlytics_service.dart';
 import 'sync_constants.dart';
+
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// نوع المدخل الذي يُطلق السحب الفعلي.
@@ -572,12 +573,13 @@ class AppwriteRealtimeSync {
       _consecutiveFallbackFails++;
       final minutes = (5 * (1 << (_consecutiveFallbackFails - 1).clamp(0, 3)))
           .clamp(
-        SyncConstants.realtimeFallbackBaseInterval.inMinutes,
-        SyncConstants.realtimeFallbackMaxInterval.inMinutes,
-      );
+            SyncConstants.realtimeFallbackBaseInterval.inMinutes,
+            SyncConstants.realtimeFallbackMaxInterval.inMinutes,
+          );
       _nextFallbackInterval = Duration(minutes: minutes);
       dlog(
-        () => '📡 Fallback interval increased to '
+        () =>
+            '📡 Fallback interval increased to '
             '${_nextFallbackInterval.inMinutes}m '
             '($_consecutiveFallbackFails consecutive fails)',
       );

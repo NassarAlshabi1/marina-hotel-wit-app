@@ -15,8 +15,7 @@ enum SyncPriority {
   foreground(60, 'app_foreground'),
   staleness(40, 'pull_staleness_guard'),
   autoSync(20, 'auto_sync_timer'),
-  background(10, 'workmanager'),
-  ;
+  background(10, 'workmanager');
 
   final int value;
   final String label;
@@ -52,7 +51,8 @@ class SyncPriorityGuard {
 
   void release() {
     dlog(
-      () => '🔓 SyncPriority released: ${_currentPriority?.label} '
+      () =>
+          '🔓 SyncPriority released: ${_currentPriority?.label} '
           '(ran for ${elapsed?.inSeconds}s)',
     );
     _currentPriority = null;
@@ -65,7 +65,8 @@ class SyncPriorityGuard {
     if (_currentPriority == null || _startedAt == null) return;
     if (DateTime.now().difference(_startedAt!) > maxDuration) {
       dlog(
-        () => '⚠️ SyncPriority timeout: force releasing '
+        () =>
+            '⚠️ SyncPriority timeout: force releasing '
             '"${_currentPriority?.label}" after ${maxDuration.inMinutes}m',
       );
       release();
