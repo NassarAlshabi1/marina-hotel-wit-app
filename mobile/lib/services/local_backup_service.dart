@@ -430,6 +430,25 @@ class LocalBackupService {
         // VACUUM ليس شرطًا للسلامة ويستهلك I/O وذاكرة كبيرة، خصوصًا على
         // الأجهزة الضعيفة؛ لذلك لا نجريه ضمن مسار النسخ الاحتياطي.
         await File(dbPath).copy(destinationPath);
+
+        // ✅ التحقق من سلامة النسخة المنتجة — يضمن أن ملف .db نسخة كاملة
+        // قابلة للفتح (يرصد النسخ المبتورة بسبب انقطاع النسخ أو امتلاء
+        // التخزين) بدلاً من اكتشاف التلف وقت الاستعادة.
+        // عند الفشل نحذف الملف التالف فوراً حتى لا يبقى في قائمة النسخ
+        // ملف "كامل الشكل" لكنه غير صالح للاستعادة.
+        try {
+          await SqliteBackupRestore.verifyBackupIntegrity(
+            File(destinationPath),
+          );
+        } catch (verifyError) {
+          final badFile = File(destinationPath);
+          if (badFile.existsSync()) {
+            await badFile.delete();
+          }
+          dlog(() => '❌ حُذفت نسخة تالفة بعد التحقق من سلامتها: $verifyError');
+          rethrow;
+        }
+
         final metadataFile = File(_metadataFilePath(destinationPath));
         await metadataFile.writeAsString(jsonEncode(metadata.toJson()));
 
@@ -456,56 +475,47 @@ class LocalBackupService {
   }
 
   Future<Map<String, int>> _collectRecordCounts(AppDatabase db) async {
-    Future<int> count(String table) async {
+    // ✅ عدّ كامل: نجمع كل جداول المستخدم من sqlite_master بدلاً من 7 جداول
+    // فقط، حتى تعكس metadata.totalRecords حجم قاعدة البيانات بالكامل
+    // (33 جدولاً في schemaVersion 65) بما يتوافق مع طبيعة نسخة .db الكاملة.
+    final tables = await db
+        .customSelect(
+          "SELECT name FROM sqlite_master "
+          "WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
+          'ORDER BY name',
+        )
+        .get();
+    final counts = <String, int>{};
+    for (final table in tables) {
+      final name = table.data['name'] as String;
       final row = await db
-          .customSelect('SELECT COUNT(*) AS count FROM $table')
+          .customSelect('SELECT COUNT(*) AS count FROM "$name"')
           .getSingle();
       final value = row.data['count'];
-      if (value is int) {
-        return value;
-      }
-      if (value is num) {
-        return value.toInt();
-      }
-      return 0;
+      counts[name] = value is int ? value : (value is num ? value.toInt() : 0);
     }
-
-    return {
-      'rooms': await count('rooms'),
-      'bookings': await count('bookings'),
-      'booking_notes': await count('booking_notes'),
-      'employees': await count('employees'),
-      'expenses': await count('expenses'),
-      'cash_transactions': await count('cash_transactions'),
-      'payments': await count('payments'),
-    };
+    return counts;
   }
 
   Future<Map<String, int>> _collectRecordCountsFromRawDb(Database db) async {
-    Future<int> count(String table) async {
-      final result = await db.rawQuery('SELECT COUNT(*) AS count FROM $table');
+    // ✅ عدّ كامل من sqlite_master (متوافق مع _collectRecordCounts)
+    final tables = await db.rawQuery(
+      "SELECT name FROM sqlite_master "
+      "WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
+      'ORDER BY name',
+    );
+    final counts = <String, int>{};
+    for (final row in tables) {
+      final name = row['name'] as String;
+      final result = await db.rawQuery('SELECT COUNT(*) AS count FROM "$name"');
       if (result.isEmpty) {
-        return 0;
+        counts[name] = 0;
+        continue;
       }
       final value = result.first['count'];
-      if (value is int) {
-        return value;
-      }
-      if (value is num) {
-        return value.toInt();
-      }
-      return 0;
+      counts[name] = value is int ? value : (value is num ? value.toInt() : 0);
     }
-
-    return {
-      'rooms': await count('rooms'),
-      'bookings': await count('bookings'),
-      'booking_notes': await count('booking_notes'),
-      'employees': await count('employees'),
-      'expenses': await count('expenses'),
-      'cash_transactions': await count('cash_transactions'),
-      'payments': await count('payments'),
-    };
+    return counts;
   }
 
   Future<String> _getDatabaseFilePath() async {
@@ -540,8 +550,7 @@ class LocalBackupService {
 
       for (final file in files) {
         final extension = p.extension(file.path).toLowerCase();
-        final format =
-            (extension == '.sqlite' || extension == '.db')
+        final format = (extension == '.sqlite' || extension == '.db')
             ? BackupFormat.sqlite
             : BackupFormat.json;
         // ignore: unused_local_variable
