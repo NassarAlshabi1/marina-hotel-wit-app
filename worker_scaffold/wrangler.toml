@@ -1,0 +1,52 @@
+# Marina Hotel Sync Worker — Cloudflare Worker
+# TypeScript · D1 Database + KV (rate-limiting) + Durable Objects (realtime lock)
+
+name = "marina-sync-worker"
+main = "src/index.ts"
+compatibility_date = "2026-09-04"
+workers_dev = true
+
+# ── D1 Database (SQLite) ─────────────────────────────────────────────────
+[[d1_databases]]
+binding = "DB"
+database_name = "marina_hotel"
+database_id = "REPLACE_ME_D1_DATABASE_ID"
+
+# ── KV (rate-limiting token bucket) ─────────────────────────────────────
+[[kv_namespaces]]
+binding = "RATE_KV"
+id = "REPLACE_ME_KV_NAMESPACE_ID"
+
+# ── Durable Objects (realtime WebSocket + sync lock) ────────────────────
+[[durable_objects]]
+name = "SyncSession"
+class_name = "SyncSession"
+
+# ── Secrets (set via `wrangler secret put`) ─────────────────────────────
+# JWT_SECRET, HOTEL_ID, ADMIN_API_KEY
+
+[env.staging]
+name = "marina-sync-worker-staging"
+[[d1_databases]]
+binding = "DB"
+database_name = "marina_hotel_staging"
+database_id = "REPLACE_ME_STAGING_D1_ID"
+[[kv_namespaces]]
+binding = "RATE_KV"
+id = "REPLACE_ME_STAGING_KV_ID"
+[[durable_objects]]
+name = "SyncSession"
+class_name = "SyncSession"
+
+[env.production]
+name = "marina-sync-worker"
+[[d1_databases]]
+binding = "DB"
+database_name = "marina_hotel"
+database_id = "REPLACE_ME_D1_DATABASE_ID"
+[[kv_namespaces]]
+binding = "RATE_KV"
+id = "REPLACE_ME_KV_NAMESPACE_ID"
+[[durable_objects]]
+name = "SyncSession"
+class_name = "SyncSession"

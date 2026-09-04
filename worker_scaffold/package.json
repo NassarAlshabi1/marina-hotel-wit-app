@@ -1,0 +1,32 @@
+{
+  "name": "marina-sync-worker",
+  "version": "1.0.0",
+  "description": "Marina Hotel sync engine — TypeScript Cloudflare Worker (D1 + KV + Durable Objects)",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy --env production",
+    "migrate": "wrangler d1 execute marina_hotel --file migrations/001_initial_schema.sql",
+    "migrate:local": "wrangler d1 execute marina_hotel --local --file migrations/001_initial_schema.sql",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src test"
+  },
+  "dependencies": {
+    "hono": "^4.7.0",
+    "@hono/cloudflare-workers": "^4.1.0",
+    "jose": "^5.9.6"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250904.0",
+    "@vitest/cloudflare": "^0.0.0",
+    "eslint": "^9.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0",
+    "wrangler": "^4.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
