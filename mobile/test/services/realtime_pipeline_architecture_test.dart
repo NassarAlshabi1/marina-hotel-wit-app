@@ -197,7 +197,7 @@ Map<String, dynamic> blacklistPayload(
     r'$createdAt': iso,
     r'$updatedAt': iso,
     r'$permissions': <String>[],
-    'device_id': deviceId, // جهاز آخر (ليس هذا الجهاز)
+    'deviceId': deviceId, // جهاز آخر (ليس هذا الجهاز)
   };
 }
 

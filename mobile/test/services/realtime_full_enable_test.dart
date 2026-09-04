@@ -100,7 +100,7 @@ void main() {
       realtime.handleRemoteDataChange(
         events: ['databases.main.collections.bookings.documents.create'],
         payload: {
-          'device_id': 'device-A', // نفس الجهاز الحالي
+          'deviceId': 'device-A', // نفس الجهاز الحالي
           r'$updatedAt': '2026-08-31T10:00:00.000Z',
         },
       );
@@ -122,7 +122,7 @@ void main() {
         events: [
           'databases.main.collections.bookings.documents.permissions.update',
         ],
-        payload: {'device_id': 'device-B'},
+        payload: {'deviceId': 'device-B'},
       );
 
       expect(realtime.hasRemoteChanges.value, isFalse);
@@ -145,7 +145,7 @@ void main() {
         realtime.handleRemoteDataChange(
           events: ['databases.main.collections.payments.documents.create'],
           payload: {
-            'device_id': 'device-B',
+            'deviceId': 'device-B',
             r'$updatedAt': '2026-08-31T10:00:00.000Z',
           },
         );
@@ -178,7 +178,7 @@ void main() {
       realtime.handleRemoteDataChange(
         events: ['databases.main.collections.rooms.documents.update'],
         payload: {
-          'device_id': 'device-B',
+          'deviceId': 'device-B',
           r'$updatedAt': '2026-08-31T11:30:00.000Z',
         },
       );
@@ -207,7 +207,7 @@ void main() {
         // سحب أول فوري.
         realtime.handleRemoteDataChange(
           events: ['databases.main.collections.bookings.documents.create'],
-          payload: {'device_id': 'device-B'},
+          payload: {'deviceId': 'device-B'},
         );
         async.elapse(const Duration(milliseconds: 10));
         async.flushMicrotasks();
@@ -217,7 +217,7 @@ void main() {
         for (var i = 0; i < 5; i++) {
           realtime.handleRemoteDataChange(
             events: ['databases.main.collections.bookings.documents.update'],
-            payload: {'device_id': 'device-B'},
+            payload: {'deviceId': 'device-B'},
           );
           async.elapse(const Duration(milliseconds: 10));
           async.flushMicrotasks();
@@ -261,7 +261,7 @@ void main() {
 
         realtime.handleRemoteDataChange(
           events: ['databases.main.collections.bookings.documents.create'],
-          payload: {'device_id': 'device-B'},
+          payload: {'deviceId': 'device-B'},
         );
         async.elapse(const Duration(milliseconds: 10));
         async.flushMicrotasks();
@@ -271,7 +271,7 @@ void main() {
         // حدث جديد أثناء الدورة الجارية → يُطابَر فقط.
         realtime.handleRemoteDataChange(
           events: ['databases.main.collections.debts.documents.create'],
-          payload: {'device_id': 'device-B'},
+          payload: {'deviceId': 'device-B'},
         );
         async.elapse(const Duration(milliseconds: 10));
         async.flushMicrotasks();
@@ -308,7 +308,7 @@ void main() {
 
         realtime.handleRemoteDataChange(
           events: ['databases.main.collections.bookings.documents.create'],
-          payload: {'device_id': 'device-B'},
+          payload: {'deviceId': 'device-B'},
         );
         async.elapse(const Duration(milliseconds: 10));
         async.flushMicrotasks();
@@ -347,7 +347,7 @@ void main() {
 
         realtime.handleRemoteDataChange(
           events: ['databases.main.collections.bookings.documents.create'],
-          payload: {'device_id': 'device-B'},
+          payload: {'deviceId': 'device-B'},
         );
         await Future<void>.delayed(const Duration(milliseconds: 30));
         expect(

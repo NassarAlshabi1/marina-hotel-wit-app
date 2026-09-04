@@ -406,7 +406,10 @@ class AppwriteRealtimeSync {
       return;
     }
 
-    final sourceDevice = payload['device_id'] ?? payload['lastModifiedBy'];
+    // ✅ V-3 (تدقيق معماري): الحمولة الحقيقية تحمل deviceId (انظر
+    // payload_mapper) — قراءة device_id كانت تُبطل فلتر الذات وتحوّل كل
+    // كتابة محلية إلى حلقة سحب ذاتية كاملة عبر 22 كولكشن.
+    final sourceDevice = payload['deviceId'] ?? payload['lastModifiedBy'];
 
     // ✅ إصلاح P2-13: تصفير عداد إعادة الاتصال عند استلام حدث صحي — يعني
     // الاتصال سليم، لذا أي انقطاع مستقبلي يبدأ من backoff قصير.

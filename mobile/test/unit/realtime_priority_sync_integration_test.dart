@@ -315,7 +315,7 @@ void main() {
           realtime.handleRemoteDataChange(
             events: ['databases.main.collections.bookings.documents.create'],
             payload: {
-              'device_id': 'device-B',
+              'deviceId': 'device-B',
               r'$updatedAt': '2026-08-31T12:00:00.000Z',
             },
           );
