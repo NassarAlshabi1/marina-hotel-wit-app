@@ -3,17 +3,37 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../providers/repository_providers.dart';
+import '../../../../services/cloudflare_config.dart';
 import '../../../../services/cloudflare_d1_service.dart';
 import '../../../../services/daos/outbox_dao.dart';
 
-/// تبويب رفع البيانات المحلية (المسحوبة من Appwrite) إلى Cloudflare D1.
+/// تبويب رفع بيانات جداول المزامنة (المطابقة لمجموعات Appwrite Cloud فقط)
+/// إلى Cloudflare D1.
 ///
 /// المسار للقراءة فقط من القاعدة المحلية (SELECT) ثم INSERT OR REPLACE
 /// إلى D1 — لا يمس حلقة مزامنة Appwrite ولا يحذف أي سجل بعيد.
+/// النطاق: جداول المزامنة المطابقة لعقد Appwrite Cloud حصراً
+/// (scopeSyncTables) — جداول البنية المحلية مستبعدة.
 /// القيود المطبقة (مثبتة تجريبياً): ≤ 96 معاملاً لكل استعلام،
 /// وعبارات متعددة بلا معاملات في النداء الواحد.
 class CloudflareD1Tab extends ConsumerStatefulWidget {
   const CloudflareD1Tab({super.key});
+
+  /// ✅ حصر نطاق الرفع على جداول المزامنة المطابقة لمجموعات Appwrite
+  /// Cloud فقط (طلب المستخدم: لا يُرفع إلا ما يقابل collections).
+  ///
+  /// المصدر الموثق: [CloudflareConfig.migrationOrder] (خطة D7 — نفس
+  /// ENTITY_TABLES في worker/src/database.ts، ومشتق من عقد Appwrite 27
+  /// مجموعة: 21 جدولاً محلياً + blacklist سحابية بلا جدول Drift).
+  /// أي جدول محلي بلا مقابل في العقد (outbox، sync_remote_meta،
+  /// sync_state، sync_log، hotel_day_ledger المحلي-فقط،
+  /// custom_list_items، جداول Room الداخلية…) يُستبعد هنا، وكيان العقد
+  /// بلا جدول محلي (blacklist) يُتخطى تلقائياً بفحص sqlite_master.
+  @visibleForTesting
+  static List<String> scopeSyncTables(Iterable<String> existingTables) {
+    final existing = existingTables.toSet();
+    return CloudflareConfig.migrationOrder.where(existing.contains).toList();
+  }
 
   @override
   ConsumerState<CloudflareD1Tab> createState() => _CloudflareD1TabState();
@@ -159,18 +179,26 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
     setState(() => _loadingTables = true);
     try {
       final db = ref.read(databaseProvider);
-      const excluded =
-          "name NOT LIKE 'sqlite_%' AND name != 'android_metadata' "
-          "AND name != 'room_master_table' AND name NOT LIKE '_cf_%'";
-      final rows = await db
+      // ✅ نطاق الرفع: جداول المزامنة المطابقة لمجموعات Appwrite Cloud فقط
+      // (لا يُرفع قاعدة البيانات المحلية كاملة).
+      // المصدر الموثق: CloudflareConfig.migrationOrder (خطة D7 — نفس
+      // ENTITY_TABLES في worker/src/database.ts ومطابق لعقد Appwrite 27
+      // مجموعة). الكيانات بلا جدول Drift محلي (blacklist — سحابية فقط)
+      // تُتخطى تلقائياً بفحص sqlite_master، وجداول البنية المحلية
+      // (outbox, sync_remote_meta, sync_state, sync_log, hotel_day_ledger
+      // المحلي-فقط، custom_list_items، ...) مستبعدة عمداً — لا مقابل لها
+      // في Appwrite Cloud.
+      final wanted = CloudflareConfig.migrationOrder;
+      final existingRows = await db
           .customSelect(
-            "SELECT name FROM sqlite_master WHERE type='table' AND $excluded ORDER BY name",
+            "SELECT name FROM sqlite_master WHERE type='table' AND name IN "
+            "(${List.filled(wanted.length, '?').join(',')})",
+            variables: wanted.map(Variable.withString).toList(),
           )
           .get();
-      final names = rows
-          .map((r) => r.data['name']?.toString() ?? '')
-          .where((n) => n.isNotEmpty)
-          .toList();
+      final names = CloudflareD1Tab.scopeSyncTables(
+        existingRows.map((r) => r.data['name']?.toString() ?? ''),
+      );
 
       // جلب DDL (جداول + فهارس) مرتبة: الجداول أولاً ثم فهارسها.
       final ddlRows = await db
@@ -373,9 +401,13 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'ينقل هذا التبويب جميع البيانات المحلية (المسحوبة من Appwrite) إلى '
-          'قاعدة Cloudflare D1 كنسخة استشارية على السحابة. القراءة من '
-          'القاعدة المحلية فقط، والكتابة بأسلوب INSERT OR REPLACE الآمن.',
+          'ينقل هذا التبويب بيانات جداول المزامنة المطابقة لمجموعات Appwrite '
+          'Cloud فقط (نفس كيانات مزامنة Cloudflare — خطة D7) إلى قاعدة '
+          'Cloudflare D1 كنسخة استشارية على السحابة. القراءة من القاعدة '
+          'المحلية فقط، والكتابة بأسلوب INSERT OR REPLACE الآمن. جداول '
+          'البنية المحلية (outbox، sync_remote_meta، sync_state، sync_log، '
+          'hotel_day_ledger المحلي فقط…) لا مقابل لها في Appwrite Cloud '
+          'فتُستبعد، وblacklist سحابية بلا جدول محلي فتُتخطى تلقائياً.',
           textAlign: TextAlign.start,
         ),
         if (_outboxPending > 0) ...[
@@ -529,7 +561,8 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
                   children: [
                     Expanded(
                       child: Text(
-                        'الجداول المحلية ($_selected/${_localTables.length} محددة — '
+                        'جداول المزامنة المطابقة لـ Appwrite Cloud '
+                        '($_selected/${_localTables.length} محددة — '
                         '$selectedRows صف)',
                         style: Theme.of(context).textTheme.titleSmall,
                       ),
