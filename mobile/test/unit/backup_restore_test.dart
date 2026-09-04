@@ -11,8 +11,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/backup_serializers.dart';
 import 'package:marina_hotel_mobile/services/google_drive_backup_service.dart'
     show BackupFormat, BackupMetadata, GoogleDriveBackupService;
+import 'package:marina_hotel_mobile/services/local_backup_service.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
 import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart' show Sqflite, openDatabase;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -1470,6 +1472,30 @@ void main() {
         );
       },
     );
+  });
+
+  // ═════════════════════════════════════════════════════════════════════════
+  //  Group 9: Local backup default format — SQLite .db
+  //  الحفظ المحلي الافتراضي: نسخة .db خام تُحفظ تلقائياً في
+  //  /storage/emulated/0/Documents/MarinaHotelBackups
+  // ═════════════════════════════════════════════════════════════════════════
+  group('Local backup default format (.db)', () {
+    test('getPreferredBackupFormat defaults to BackupFormat.sqlite', () async {
+      SharedPreferences.setMockInitialValues({});
+      final service = LocalBackupService();
+      final format = await service.getPreferredBackupFormat();
+      expect(format, BackupFormat.sqlite);
+      expect(format.name, 'sqlite');
+    });
+
+    test('setPreferredBackupFormat round-trips the chosen format', () async {
+      SharedPreferences.setMockInitialValues({});
+      final service = LocalBackupService();
+      await service.setPreferredBackupFormat(BackupFormat.json);
+      expect(await service.getPreferredBackupFormat(), BackupFormat.json);
+      await service.setPreferredBackupFormat(BackupFormat.sqlite);
+      expect(await service.getPreferredBackupFormat(), BackupFormat.sqlite);
+    });
   });
 }
 

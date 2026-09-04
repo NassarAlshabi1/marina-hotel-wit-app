@@ -1520,7 +1520,11 @@ class AppwriteSyncManager {
 
               try {
                 recordsPulled += await _timePhase('syncBookingNights', () async {
-                  // booking_nights يستخدم lastPullTs خاص به (مستقل عن باقي الجداول)
+                  // ✅ (2026-09-03) Fix: booking_nights يمر عبر طبقة السحب
+                  // metadata-first نفسها المستخدمة لبقية الكيانات — سحب
+                  // ($id + $updatedAt) للنافذة الزمنية أولاً ثم تنزيل المتغيّر
+                  // فعلاً فقط عبر listDocumentsByIds. المسار القديم كان يسحب
+                  // حمولة كاملة لكل ليلة داخل النافذة في كل دورة.
                   final nightsPullTs = await _getBookingNightsPullTs();
                   final bool remoteEpochIsMillis =
                       await (_pullService?.isRemoteEpochMillis() ?? false);
@@ -1528,42 +1532,62 @@ class AppwriteSyncManager {
                     nightsPullTs,
                     remoteEpochIsMillis: remoteEpochIsMillis,
                   );
-                  // إذا كانت الدورة الحالية سحباً كاملاً، لا نستثني
-                  // booking_nights من سياسة استبعاد tombstones حتى لو كان
-                  // لها checkpoint خاص قديم.
-                  final effectiveNightsPullQueries = !isDelta
-                      ? SyncPullService.buildFullSyncQueries()
-                      : nightsDeltaQ;
-                  if (nightsDeltaQ.isNotEmpty) {
+                  // السحب الكامل/الأولي يحافظ على سقفه السابق (1000 سجل)
+                  final bool isNightsFullPull = !isDelta;
+                  if (!isNightsFullPull && nightsDeltaQ.isNotEmpty) {
                     _logger.info(
                       '🔄 booking_nights Delta: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(nightsPullTs * 1000).toIso8601String()}',
                       tag: 'SYNC',
                     );
                   }
-                  // ✅ (2026-08-30) سقف السحب الكامل/الأولي لـ booking_nights
-                  // (SyncConstants.initialBookingNightsPullLimit = 1000).
-                  // السحب الكامل غير المحدود كان ينزّل عشرات الآلاف من الليالي
-                  // التاريخية — نفس سياسة pullRemoteChanges الآن في كلا المسارين.
-                  final bool isNightsFullPull = !isDelta;
                   if (isNightsFullPull) {
                     _logger.info(
                       '📥 سحب كامل لـ booking_nights — تحديد ${SyncConstants.initialBookingNightsPullLimit} سجل كحد أقصى',
                       tag: 'SYNC',
                     );
                   }
-                  final bookingNights = await appwriteService.listBookingNights(
-                    queries: effectiveNightsPullQueries,
-                    useCache: false,
-                    maxRecords: isNightsFullPull
-                        ? SyncConstants.initialBookingNightsPullLimit
-                        : null,
-                  );
+                  List<models.Document> bookingNights;
+                  if (isNightsFullPull) {
+                    // السحب الكامل: قائمة كاملة بسقف 1000 (سلوك سابق محفوظ)
+                    bookingNights = await appwriteService.listBookingNights(
+                      queries: SyncPullService.buildFullSyncQueries(),
+                      useCache: false,
+                      maxRecords: SyncConstants.initialBookingNightsPullLimit,
+                    );
+                  } else {
+                    // ✅ (2026-09-03) delta metadata-first: نفس المسار الآمن
+                    // لـ bookings/payments — صفر تنزيل للمطابق محلياً.
+                    bookingNights = await _pullDocsDeltaMetadataFirst(
+                      'booking_nights',
+                      nightsDeltaQ,
+                    );
+                  }
                   final synced = await _syncBookingNights(bookingNights);
-                  // ✅ Sync Safety Fix (2026-08-10): تتبّع max($updatedAt) الخاص
-                  // بـ booking_nights فقط، وليس من المتغير العام _maxUpdatedAtInPull
-                  // الذي يُحدَّث من كل الكيانات. سابقاً، كان booking_nights checkpoint
-                  // يتحرك بناءً على max($updatedAt) من كيانات أخرى (مثل rooms) —
-                  // هذا قد يتسبب في تخطي سجلات booking_nights المستقبلية.
+                  // ✅ (2026-09-03) تسجيل $updatedAt للمستندات المطبقة في
+                  // sync_remote_meta — كي تعرف دورة delta التالية أنها
+                  // مطابقة محلياً فتتخطاها (صفر تنزيل).
+                  try {
+                    final collectionId = AppwriteConfig.collectionIdFor(
+                      'booking_nights',
+                    );
+                    if (collectionId != null && bookingNights.isNotEmpty) {
+                      final meta = <String, int>{};
+                      for (final doc in bookingNights) {
+                        final ts = _extractUpdatedAtSec(doc);
+                        if (ts != null) meta[doc.$id] = ts;
+                      }
+                      await database.upsertRemoteMeta(collectionId, meta);
+                    }
+                  } catch (metaError) {
+                    _logger.warning(
+                      '⚠️ booking_nights meta write فشل (غير مؤثر): $metaError',
+                      tag: 'SYNC',
+                    );
+                  }
+                  // ✅ (2026-09-03) المؤشر يتقدّم إلى أقصى $updatedAt للخادم
+                  // في نافذة الـ metadata (سلطة الخادم) عبر نفس آلية
+                  // _pendingMetaServerMaxTs — يغلق النافذة ويمنع إعادة سحب
+                  // نفس الصفوف كل دورة (النافذة كانت عالقة منذ 2026-08-02).
                   int? nightsMaxTs;
                   for (final doc in bookingNights) {
                     final ts = _extractUpdatedAtSec(doc);
@@ -1572,8 +1596,16 @@ class AppwriteSyncManager {
                       nightsMaxTs = ts;
                     }
                   }
-                  final nightsNewTs = nightsMaxTs ?? Time.nowEpoch();
-                  await _updateBookingNightsPullTs(nightsNewTs);
+                  final pendingServerMax = _pendingMetaServerMaxTs.remove(
+                    'booking_nights',
+                  );
+                  if (pendingServerMax != null &&
+                      (nightsMaxTs == null || pendingServerMax > nightsMaxTs)) {
+                    nightsMaxTs = pendingServerMax;
+                  }
+                  if (nightsMaxTs != null) {
+                    await _updateBookingNightsPullTs(nightsMaxTs);
+                  }
                   _logger.debug('Synced $synced booking nights', tag: 'SYNC');
                   return synced;
                 }, phaseMs);
@@ -6967,7 +6999,11 @@ class AppwriteSyncManager {
           }
 
           try {
-            // booking_nights يستخدم lastPullTs خاص به (مستقل عن باقي الجداول)
+            // ✅ (2026-09-03) Fix: booking_nights يمر عبر طبقة السحب
+            // metadata-first نفسها المستخدمة لبقية الكيانات — سحب
+            // ($id + $updatedAt) للنافذة الزمنية أولاً ثم تنزيل المتغيّر
+            // فعلاً فقط. المسار القديم كان يسحب حمولة كاملة لكل ليلة داخل
+            // النافذة في كل دورة.
             final nightsPullTs = await _getBookingNightsPullTs();
             final bool remoteEpochIsMillis =
                 await (_pullService?.isRemoteEpochMillis() ?? false);
@@ -6977,18 +7013,10 @@ class AppwriteSyncManager {
             );
             // ✅ عند السحب الكامل/الأولي: تحديد السجلات بحد أقصى موحّد
             // (SyncConstants.initialBookingNightsPullLimit = 1000).
-            // booking_nights قد يحوي عشرات الآلاف من السجلات (ليالية تاريخية)
-            // مما يسبب بطء شديد في التثبيت الأول + استهلاك ذاكرة كبير.
             // السحب التزايدي اللاحق يجلب التغييرات الجديدة فقط.
             const int kInitialBookingNightsLimit =
                 SyncConstants.initialBookingNightsPullLimit;
             final bool isInitialPull = nightsPullTs == 0;
-            // نطبق نفس سياسة السحب الكامل على booking_nights: لا ننزّل
-            // tombstones إلى قاعدة البيانات المحلية عند التهيئة الأولى أو
-            // عندما تكون دورة السحب العامة نفسها كاملة.
-            final effectiveNightsPullQueries = (!isDelta || isInitialPull)
-                ? SyncPullService.buildFullSyncQueries()
-                : nightsDeltaQ;
             final bool isNightsFullPull = !isDelta || isInitialPull;
             if (isNightsFullPull) {
               _logger.info(
@@ -6996,30 +7024,70 @@ class AppwriteSyncManager {
                 tag: 'SYNC',
               );
             }
-            final bookingNights = await appwriteService.listBookingNights(
-              queries: effectiveNightsPullQueries,
-              useCache: false,
-              maxRecords: isNightsFullPull ? kInitialBookingNightsLimit : null,
-            );
-            _logger.info(
-              '📊 تم جلب ${bookingNights.length} سجل booking_nights'
-              '${isInitialPull ? " (حد أولي: $kInitialBookingNightsLimit)" : ""}',
-              tag: 'SYNC',
-            );
+            List<models.Document> bookingNights;
+            if (isNightsFullPull) {
+              bookingNights = await appwriteService.listBookingNights(
+                queries: SyncPullService.buildFullSyncQueries(),
+                useCache: false,
+                maxRecords: kInitialBookingNightsLimit,
+              );
+              _logger.info(
+                '📊 تم جلب ${bookingNights.length} سجل booking_nights'
+                '${isInitialPull ? " (حد أولي: $kInitialBookingNightsLimit)" : ""}',
+                tag: 'SYNC',
+              );
+            } else {
+              // ✅ (2026-09-03) delta metadata-first (نفس مسار sync()):
+              // صفر تنزيل للمطابق محلياً في sync_remote_meta.
+              bookingNights = await _pullDocsDeltaMetadataFirst(
+                'booking_nights',
+                nightsDeltaQ,
+              );
+              _logger.info(
+                '📊 تم جلب ${bookingNights.length} سجل booking_nights '
+                '(delta metadata-first)',
+                tag: 'SYNC',
+              );
+            }
             recordsPulled += await _syncBookingNights(bookingNights);
-            // ✅ (2026-08-31) توحيد مع الدورة الرئيسية (L1415): مؤشر
-            // booking_nights من max($updatedAt) للسجلات المسحوبة (سلطة
-            // الخادم). كان يقفز إلى Time.nowEpoch() غير المشروط: مع حد
-            // السحب الأولي (1000 سجل) كانت القفزة تضع المؤشر فوق بقية
-            // الليالي الأقدم فتُسقط نهائياً على هذا المسار (فقد صامت).
-            // التقدم هنا فقط بدليل من الخادم — الدورة الفارغة لا تحرك
-            // المؤشر (النافذة تُعاد بناؤها في الدورة التالية).
+            // ✅ (2026-09-03) تسجيل $updatedAt للمستندات المطبقة في
+            // sync_remote_meta — كي تعرف دورة delta التالية أنها مطابقة
+            // محلياً فتتخطاها (صفر تنزيل).
+            try {
+              final collectionId = AppwriteConfig.collectionIdFor(
+                'booking_nights',
+              );
+              if (collectionId != null && bookingNights.isNotEmpty) {
+                final meta = <String, int>{};
+                for (final doc in bookingNights) {
+                  final ts = _extractUpdatedAtSec(doc);
+                  if (ts != null) meta[doc.$id] = ts;
+                }
+                await database.upsertRemoteMeta(collectionId, meta);
+              }
+            } catch (metaError) {
+              _logger.warning(
+                '⚠️ booking_nights meta write فشل (غير مؤثر): $metaError',
+                tag: 'SYNC',
+              );
+            }
+            // ✅ (2026-08-31 + 2026-09-03) توحيد مع الدورة الرئيسية: مؤشر
+            // booking_nights يتقدّم إلى أقصى $updatedAt للخادم في النافذة
+            // (سلطة الخادم) — لا يقفز إلى Time.nowEpoch() غير المشروط ولا
+            // يبقى عالقاً في نافذة قديمة. الدورة الفارغة لا تحرك المؤشر.
             int? nightsMaxTs;
             for (final doc in bookingNights) {
               final ts = _extractUpdatedAtSec(doc);
               if (ts != null && (nightsMaxTs == null || ts > nightsMaxTs)) {
                 nightsMaxTs = ts;
               }
+            }
+            final pendingServerMax = _pendingMetaServerMaxTs.remove(
+              'booking_nights',
+            );
+            if (pendingServerMax != null &&
+                (nightsMaxTs == null || pendingServerMax > nightsMaxTs)) {
+              nightsMaxTs = pendingServerMax;
             }
             if (nightsMaxTs != null) {
               await _updateBookingNightsPullTs(nightsMaxTs);

@@ -264,8 +264,12 @@ class LocalBackupService {
   }
 
   /// إنشاء نسخة احتياطية محلية
+  ///
+  /// الافتراضي الآن هو SQLite (.db) — نسخة خام كاملة من قاعدة البيانات،
+  /// تُحفظ تلقائياً في /storage/emulated/0/Documents/MarinaHotelBackups
+  /// على أندرويد (انظر getBackupDirectory).
   Future<String> createLocalBackup({
-    BackupFormat format = BackupFormat.json,
+    BackupFormat format = BackupFormat.sqlite,
   }) async {
     try {
       dlog(() => '🔄 بدء إنشاء نسخة احتياطية محلية (${format.name})...');
@@ -408,9 +412,10 @@ class LocalBackupService {
         );
 
         final dbPath = await _getDatabaseFilePath();
-        final destinationPath = '${backupDir.path}/$baseName.sqlite';
+        // ✅ الحفظ المحلي بصيغة .db — نسخة خام من ملف قاعدة SQLite
+        final destinationPath = '${backupDir.path}/$baseName.db';
 
-        // يجب أن تكون النسخة متسقة قبل نسخ ملف .sqlite. لا نستمر عند
+        // يجب أن تكون النسخة متسقة قبل نسخ ملف .db. لا نستمر عند
         // فشل checkpoint لأن ذلك قد ينتج نسخة تخلو من معاملات موجودة في WAL.
         final checkpoint = await db
             .customSelect('PRAGMA wal_checkpoint(TRUNCATE)')
@@ -524,7 +529,8 @@ class LocalBackupService {
                 entity is File &&
                 (entity.path.endsWith('.json.gz') ||
                     entity.path.endsWith('.json') ||
-                    entity.path.endsWith('.sqlite')) &&
+                    entity.path.endsWith('.sqlite') ||
+                    entity.path.endsWith('.db')) &&
                 entity.path.contains(_backupFilePrefix),
           )
           .map((entity) => entity as File)
@@ -534,7 +540,8 @@ class LocalBackupService {
 
       for (final file in files) {
         final extension = p.extension(file.path).toLowerCase();
-        final format = extension == '.sqlite'
+        final format =
+            (extension == '.sqlite' || extension == '.db')
             ? BackupFormat.sqlite
             : BackupFormat.json;
         // ignore: unused_local_variable
@@ -602,7 +609,7 @@ class LocalBackupService {
       dlog(() => '🔄 بدء استعادة النسخة الاحتياطية من: $filePath');
 
       final extension = p.extension(filePath).toLowerCase();
-      if (extension == '.sqlite') {
+      if (extension == '.sqlite' || extension == '.db') {
         await _restoreFromSqliteBackup(filePath);
         return;
       }
@@ -644,17 +651,30 @@ class LocalBackupService {
     // (backup files can be 10+ MB → causes ANR on weak devices)
     final backupData = await JsonIsolate.decodeAsMap(jsonString);
 
-    if (!backupData.containsKey('metadata')) {
-      throw Exception('النسخة الاحتياطية لا تحتوي على بيانات وصفية');
-    }
-
     final metadataSource = backupData['metadata'];
-    if (metadataSource is! Map) {
-      throw Exception('صيغة بيانات النسخة الاحتياطية غير صالحة');
+    final BackupMetadata metadata;
+    if (metadataSource is Map) {
+      metadata = BackupMetadata.fromJson(
+        Map<String, dynamic>.from(metadataSource),
+      );
+    } else {
+      // ✅ توافق مع النسخ القديمة (قبل إضافة حقل metadata):
+      // تحتوي على بيانات الجداول فقط بدون بيانات وصفية — نكمل بقيم
+      // افتراضية بدلاً من رفض الاستعادة.
+      final fileStat = await file.stat();
+      metadata = BackupMetadata(
+        appVersion: '',
+        databaseVersion: AppDatabase().schemaVersion,
+        backupTimestamp: fileStat.modified,
+        totalRecords: 0,
+        deviceInfo: 'legacy-backup',
+        format: BackupFormat.json,
+      );
+      dlog(
+        '⚠️ النسخة الاحتياطية لا تحتوي على بيانات وصفية — '
+        'تم الاستعادة بوضع التوافق مع النسخ القديمة',
+      );
     }
-    final metadata = BackupMetadata.fromJson(
-      Map<String, dynamic>.from(metadataSource),
-    );
     if (metadata.databaseVersion > AppDatabase().schemaVersion) {
       throw Exception(
         'إصدار قاعدة البيانات في النسخة الاحتياطية أحدث من التطبيق الحالي',
@@ -674,6 +694,7 @@ class LocalBackupService {
     // تعطيل FOREIGN KEYS أثناء الحذف والاستعادة بالكامل
     // (يجب أن يكون خارج transaction لأن SQLite يتجاهل PRAGMA داخل transaction)
     await db.customStatement('PRAGMA foreign_keys = OFF');
+    var restoredRows = 0;
     try {
       // ✅ إصلاح حرج (audit agent-7 F.4 + engineer recommendation):
       // لف كل عمليات الحذف والإدراج في transaction واحد لضمان atomicity.
@@ -731,6 +752,7 @@ class LocalBackupService {
           }
           final list = backupData[key] as List<dynamic>;
           for (final json in list) {
+            restoredRows++;
             await insert(Map<String, dynamic>.from(json as Map));
           }
         }
@@ -918,7 +940,9 @@ class LocalBackupService {
 
       dlog(
         () =>
-            '✅ تم استعادة ${metadata.totalRecords} سجل بنجاح من نسخة JSON '
+            '✅ تم استعادة '
+            '${metadata.totalRecords > 0 ? metadata.totalRecords : restoredRows} '
+            'سجل بنجاح من نسخة JSON '
             '(جميع الجداول الـ20) — atomic transaction',
       );
     } finally {
@@ -1041,7 +1065,7 @@ class LocalBackupService {
 
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['json', 'sqlite', 'gz'],
+        allowedExtensions: ['json', 'sqlite', 'db', 'gz'],
       );
 
       if (result == null || result.files.isEmpty) {
@@ -1076,7 +1100,11 @@ class LocalBackupService {
         }
         final jsonData = jsonDecode(content) as Map<String, dynamic>;
         if (!jsonData.containsKey('metadata')) {
-          throw Exception('الملف المختار ليس نسخة احتياطية صالحة');
+          // ✅ توافق مع النسخ القديمة: تُستورد وتُستعاد بوضع التوافق
+          dlog(
+            '⚠️ الملف المختار بدون بيانات وصفية (نسخة قديمة) — '
+            'سيتم استيراده بوضع التوافق',
+          );
         }
         if (!GoogleDriveBackupService.verifyBackupChecksum(jsonData)) {
           throw StateError('الملف المختار تالف: تجزئة البيانات غير مطابقة');
@@ -1089,8 +1117,8 @@ class LocalBackupService {
         return newFilePath;
       }
 
-      if (extension == '.sqlite') {
-        final newFilePath = '${backupDir.path}/$baseName.sqlite';
+      if (extension == '.sqlite' || extension == '.db') {
+        final newFilePath = '${backupDir.path}/$baseName$extension';
         await sourceFile.copy(newFilePath);
 
         Database? tempDb;
@@ -1209,7 +1237,7 @@ class LocalBackupService {
 
       downloadsDir ??= await getBackupDirectory();
 
-      // نسخ الملف مع الحفاظ على امتداده الحقيقي (.json.gz أو .sqlite).
+      // نسخ الملف مع الحفاظ على امتداده الحقيقي (.json.gz أو .db).
       final sourceFile = File(backupPath);
       if (!sourceFile.existsSync()) {
         throw Exception('تعذر العثور على النسخة التي تم إنشاؤها');
@@ -1253,9 +1281,11 @@ class LocalBackupService {
   Future<BackupFormat> getPreferredBackupFormat() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_prefsBackupFormatKey);
+    // ✅ الافتراضي: SQLite (.db) — النسخ التلقائي (المنبه/Workmanager)
+    // ينتج نسخ .db خام بدلاً من JSON المضغوط.
     return BackupFormat.values.firstWhere(
       (format) => format.name == raw,
-      orElse: () => BackupFormat.json,
+      orElse: () => BackupFormat.sqlite,
     );
   }
 
