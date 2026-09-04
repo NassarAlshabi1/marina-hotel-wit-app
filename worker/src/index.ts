@@ -6,7 +6,7 @@
 import { Database, ALL_TABLE_NAMES } from './database';
 import { authMiddleware, handleLogin, hashPassword, signToken } from './auth';
 import { handlePull, handlePush, handleSyncLog, handleConflicts, handleMigrate } from './sync';
-import { SyncLockDO } from './sync-lock';
+import { SyncLockDO, type RealtimeMessage } from './sync-lock';
 
 // ─── Environment bindings ─────────────────────────────────────
 
@@ -20,6 +20,29 @@ export interface Env {
   RATE_LIMIT_WINDOW: string;
   RATE_LIMIT_MAX: string;
   CORS_ORIGIN: string;
+}
+
+// ─── Realtime Broadcast Adapter (plan phase 3) ────────────────
+// Forwards change events to the SyncLockDO WebSocket hub so connected
+// devices pull deltas immediately. Best-effort by contract: every error
+// is swallowed here — realtime is an optimization, never a correctness
+// guarantee (auto-sync + delta cursor still converge all devices).
+function realtimeBroadcaster(env: Env): (msg: RealtimeMessage) => Promise<void> {
+  return async (msg: RealtimeMessage) => {
+    try {
+      const lockId = env.SYNC_LOCK.idFromName('global');
+      const stub = env.SYNC_LOCK.get(lockId);
+      await stub.fetch(
+        new Request('https://do.internal/broadcast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(msg),
+        })
+      );
+    } catch (err) {
+      console.error('[REALTIME] Broadcast failed (non-fatal):', err);
+    }
+  };
 }
 
 // ─── Rate Limiting ────────────────────────────────────────────
@@ -271,7 +294,7 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
 
       // ─── Sync Push ──────────────────────────────────────
       if (path === '/api/sync/push' && method === 'POST') {
-        const response = await handlePush(request, db, ctx);
+        const response = await handlePush(request, db, ctx, realtimeBroadcaster(env));
         logRequest(method, path, response.status, Date.now() - startTime, clientIp);
         return response;
       }

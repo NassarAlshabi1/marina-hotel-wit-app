@@ -6,6 +6,16 @@
 import type { Database, PushOperation, SyncRecord } from './database';
 import { isValidEntity, SYNC_ENTITY_TABLES } from './database';
 import type { AuthContext } from './auth';
+import type { RealtimeMessage } from './sync-lock';
+
+/**
+ * Best-effort realtime change notifier (plan phase 3): after a successful
+ * push the worker notifies the SyncLockDO WebSocket hub so OTHER devices
+ * trigger an immediate delta pull instead of waiting for auto-sync.
+ * Implementation lives in index.ts (it owns the DO namespace binding);
+ * sync.ts stays decoupled from bindings.
+ */
+export type RealtimeBroadcast = (msg: RealtimeMessage) => Promise<void>;
 
 // ─── Validation ───────────────────────────────────────────────
 
@@ -201,7 +211,8 @@ export async function handlePull(
 export async function handlePush(
   request: Request,
   db: Database,
-  ctx: AuthContext
+  ctx: AuthContext,
+  broadcast?: RealtimeBroadcast
 ): Promise<Response> {
   try {
     // ─── Size limit check (use compressed size if gzip) ─────
@@ -244,6 +255,15 @@ export async function handlePush(
       error?: string;
       skipped?: boolean;
     }> = [];
+
+    // Distinct entities touched by SUCCESSFUL, non-skipped ops — one change
+    // event per entity (entity-level signal; clients answer with a delta
+    // pull, so per-row granularity is unnecessary). Skipped ops are exact
+    // replays already broadcast with their original batch.
+    const touched = new Map<
+      string,
+      { entityId: string; deviceId: string; operation: string }
+    >();
 
     for (const op of body.operations) {
       try {
@@ -306,6 +326,14 @@ export async function handlePush(
         const responsePayload = { entity: op.entity, entityId, operation: op.operation };
         await db.saveIdempotency(op.idempotencyKey, op.entity, op.operation, entityId, responsePayload);
 
+        if (!touched.has(op.entity)) {
+          touched.set(op.entity, {
+            entityId,
+            deviceId: opDeviceId(op, ctx),
+            operation: op.operation,
+          });
+        }
+
         results.push({
           idempotencyKey: op.idempotencyKey,
           success: true,
@@ -319,6 +347,29 @@ export async function handlePush(
           success: false,
           error: String(err),
         });
+      }
+    }
+
+    // ─── Realtime broadcast (plan phase 3) ────────────────────
+    // Best-effort and AFTER the push is durably recorded: a broadcast
+    // failure must never fail the push (realtime is an optimization —
+    // devices still converge via auto-sync/delta cursor).
+    if (broadcast && touched.size > 0) {
+      try {
+        await Promise.all(
+          [...touched.entries()].map(([entity, info]) =>
+            broadcast({
+              type: 'change',
+              entity,
+              entityId: info.entityId,
+              operation: info.operation,
+              deviceId: info.deviceId,
+              timestamp: Date.now(),
+            })
+          )
+        );
+      } catch (err) {
+        console.error('[SYNC/PUSH] Realtime broadcast failed (push unaffected):', err);
       }
     }
 

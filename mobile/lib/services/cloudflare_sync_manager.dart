@@ -16,6 +16,7 @@ import '../screens/settings/error_tracker_screen.dart'
     show logHttpError, logError, ErrorCategory;
 import '../utils/env.dart';
 import 'cloudflare_config.dart';
+import 'cloudflare_realtime_sync.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'remote_change_notifier.dart';
@@ -23,6 +24,11 @@ import 'resilient_http_client.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_enums.dart';
 import 'vector_clock_service.dart';
+
+// ✅ المرحلة 3: التنفيذ الكامل للـ Realtime في cloudflare_realtime_sync.dart
+// (WebSocket على SyncLockDO) — الاستيراد أعلاه + هذا الـ export يحفظان
+// كل imports القائمة دون تغيير في بقية الملفات.
+export 'cloudflare_realtime_sync.dart';
 
 // ─── SyncResult (same interface as AppwriteSyncManager) ────────
 
@@ -50,15 +56,8 @@ class SyncResult {
 }
 
 // ─── Realtime sync state ───────────────────────────────────────
-
-class CloudflareRealtimeSync {
-  final pendingRemoteChangesCount = ValueNotifier<int>(0);
-  final hasRemoteChanges = ValueNotifier<bool>(false);
-
-  Future<void> initialize({String? deviceId}) async {}
-  Future<void> start() async {}
-  void stop() {}
-}
+// ✅ المرحلة 3: كانت هنا stub فارغة — التنفيذ الكامل أصبح في
+// cloudflare_realtime_sync.dart (مُستورد ومُعاد تصديره أعلاه).
 
 // ─── CloudflareSyncManager ─────────────────────────────────────
 
@@ -1199,6 +1198,29 @@ class CloudflareSyncManager {
 
   // AppwriteService compatibility (some files pass this)
   dynamic get appwriteService => null;
+
+  /// ✅ المرحلة 3: مدخل السحب المُشغَّل من Realtime (عقد RemoteChangePull).
+  ///
+  /// - delta-only حصراً: لا يبدأ Full Sync أبداً من حدث realtime —
+  ///   لا يُسحب قبل اكتمال full sync الأولى (P0-B)؛ الـ full sync
+  ///   يجري عبر المسار الصريح فقط.
+  /// - حارس re-entrancy (P0-I): sync() نفسه محمي، لكن نتجنب هنا
+  ///   إهدار دورة على "already in progress".
+  /// - push أولاً ثم pull داخل sync() — الترتيب يضمن أن التغييرات
+  ///   المحلية المعلّقة تُرفع قبل الاستماع للبعيدة (نفس عقد Outbox).
+  Future<bool> realtimeTriggeredPull() async {
+    if (!_fullSyncCompleted) {
+      debugPrint('⏭️ Realtime pull skipped — full sync not completed yet');
+      return false;
+    }
+    if (_syncInProgress) {
+      debugPrint('⏭️ Realtime pull skipped — sync already in progress');
+      return false;
+    }
+    // sync() الافتراضي: push ثم pull — الترتيب الداخلي يرفع outbox أولاً
+    final result = await sync();
+    return result.isSuccess;
+  }
 }
 
 // ═══ Backward compatibility aliases ═══════════════════════════
