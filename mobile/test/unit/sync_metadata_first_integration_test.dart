@@ -18,7 +18,8 @@
 //       مؤشر الكيان لا يتقدّم ولا تُكتب sync_remote_meta (لا "رؤية" بلا محتوى).
 //   T5  دورة كاملة ناجحة → full_sync_complete = 1 (idempotent عبر الدورات).
 //   T6  سقف booking_nights: maxRecords = initialBookingNightsPullLimit (1000)
-//       في السحب الكامل، ويصبح null في delta.
+//       في السحب الكامل، وdelta يمر عبر metadata-first بلا استدعاء
+//       listBookingNights المقيّد إطلاقاً (probe + تنزيل المتغيّر فقط).
 //   T7  audit_logs مستبعدة: صفر استدعاءات لكولكشن audit_logs في كل دورة.
 //   T8  نافذة الأمان 15 ثانية في دورة delta تالية: cutoff مشتق من مؤشر
 //       الكيان (سلطة الخادم) وليس من وقت الجهاز.
@@ -505,7 +506,7 @@ void main() {
     );
 
     test('T6: سقف booking_nights = initialBookingNightsPullLimit (1000) في '
-        'السحب الكامل، وnull في delta', () async {
+        'السحب الكامل، وdelta عبر metadata-first بلا استدعاء مقيّد', () async {
       fake.serverCollections['blacklist'] = [
         mkDoc('A', 1700001000, {'name': 'شخص-أ'}),
       ];
@@ -520,17 +521,25 @@ void main() {
       );
 
       // 2) دورة ثانية: full_sync_complete=1 و lastPullTs>0 → delta.
+      //    ✅ (2026-09-03) delta لـ booking_nights عبر طبقة metadata-first
+      //    نفسها المستخدمة لبقية الكيانات: probe ($id + $updatedAt) بفلتر
+      //    delta ثم تنزيل المتغيّر فقط عبر listDocumentsByIds — لا استدعاء
+      //    listBookingNights الكامل المقيّد في delta إطلاقاً.
       fake.reset();
       manager.resetPullThrottleForTesting();
       fake.serverCollections['blacklist'] = [
         mkDoc('A', 1700001000, {'name': 'شخص-أ'}),
       ];
       await runFullPull();
-      expect(fake.lastBookingNightsNamedArgs, isNotNull);
       expect(
-        fake.lastBookingNightsNamedArgs![#maxRecords],
+        fake.lastBookingNightsNamedArgs,
         isNull,
-        reason: 'delta لـ booking_nights لا يجب أن يقيّد بعدُ',
+        reason: 'delta لا يستدعي listBookingNights المقيّد — metadata-first',
+      );
+      expect(
+        fake.metadataQueries.containsKey('booking_nights'),
+        isTrue,
+        reason: 'delta لـ booking_nights يمر عبر probe الـ metadata-first',
       );
     });
 
