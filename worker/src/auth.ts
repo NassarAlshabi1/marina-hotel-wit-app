@@ -44,6 +44,28 @@ function base64UrlDecode(str: string): string {
   return new TextDecoder().decode(bytes);
 }
 
+function base64UrlDecodeBytes(str: string): Uint8Array {
+  const padded = str.replace(/-/g, '+').replace(/_/g, '/');
+  const withPadding = padded + '='.repeat((4 - (padded.length % 4)) % 4);
+  const binary = atob(withPadding);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+// ─── Constant-time comparison (prevents timing oracles) ───────
+
+function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
+  const maxLen = Math.max(a.length, b.length);
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < maxLen; i++) {
+    diff |= (a[i] ?? 0) ^ (b[i] ?? 0);
+  }
+  return diff === 0;
+}
+
 async function hmacSign(secret: string, message: string): Promise<ArrayBuffer> {
   const key = await crypto.subtle.importKey(
     'raw',
@@ -57,58 +79,106 @@ async function hmacSign(secret: string, message: string): Promise<ArrayBuffer> {
 
 async function hmacVerify(secret: string, message: string, signature: string): Promise<boolean> {
   const expected = await hmacSign(secret, message);
-  const expectedB64 = base64UrlEncode(expected);
-  return expectedB64 === signature;
+  let provided: Uint8Array;
+  try {
+    provided = base64UrlDecodeBytes(signature);
+  } catch {
+    return false;
+  }
+  // ✅ Constant-time compare — string equality leaked signature prefix
+  // matches through timing.
+  return constantTimeEqual(new Uint8Array(expected), provided);
 }
 
-// ─── Password Hashing (PBKDF2) ────────────────────────────────
+// ─── Password Hashing (PBKDF2, versioned) ─────────────────────
+
+// 25,000 iterations: ≈2.5× stronger than the legacy 10,000 while staying
+// inside the Workers free-plan CPU budget (WebCrypto PBKDF2 is native).
+// The format is versioned so the count can rise later without breaking
+// stored hashes. verifyPassword supports BOTH formats.
+const PBKDF2_ITERATIONS = 25_000;
+const PBKDF2_LEGACY_ITERATIONS = 10_000;
+
+function toHex(bytes: Uint8Array): string {
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function hexToBytes(hex: string): Uint8Array | null {
+  if (hex.length === 0 || hex.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(hex)) return null;
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    out[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+  return out;
+}
+
+async function pbkdf2Derive(password: string, salt: Uint8Array, iterations: number): Promise<ArrayBuffer> {
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  );
+  return crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: salt as BufferSource,
+      iterations,
+      hash: 'SHA-256',
+    },
+    key,
+    256
+  );
+}
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const key = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(password),
-    'PBKDF2',
-    false,
-    ['deriveBits']
-  );
-  const hash = await crypto.subtle.deriveBits(
-    {
-      name: 'PBKDF2',
-      salt,
-      iterations: 10000,
-      hash: 'SHA-256',
-    },
-    key,
-    256
-  );
-  const saltHex = Array.from(salt).map((b) => b.toString(16).padStart(2, '0')).join('');
-  const hashHex = Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, '0')).join('');
-  return `${saltHex}:${hashHex}`;
+  const hash = await pbkdf2Derive(password, salt, PBKDF2_ITERATIONS);
+  const saltHex = toHex(salt);
+  const hashHex = toHex(new Uint8Array(hash));
+  return `pbkdf2$${PBKDF2_ITERATIONS}$${saltHex}$${hashHex}`;
 }
 
 export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
-  const [saltHex, hashHex] = storedHash.split(':');
-  const salt = new Uint8Array(saltHex.match(/.{2}/g)!.map((byte) => parseInt(byte, 16)));
-  const key = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(password),
-    'PBKDF2',
-    false,
-    ['deriveBits']
-  );
-  const hash = await crypto.subtle.deriveBits(
-    {
-      name: 'PBKDF2',
-      salt,
-      iterations: 10000,
-      hash: 'SHA-256',
-    },
-    key,
-    256
-  );
-  const computedHex = Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, '0')).join('');
-  return computedHex === hashHex;
+  try {
+    let salt: Uint8Array;
+    let expectedHash: Uint8Array;
+    let iterations: number;
+
+    if (storedHash.startsWith('pbkdf2$')) {
+      // Versioned format: pbkdf2$<iterations>$<saltHex>$<hashHex>
+      const parts = storedHash.split('$');
+      if (parts.length !== 4) return false;
+      const parsedIterations = parseInt(parts[1] ?? '', 10);
+      const s = hexToBytes(parts[2] ?? '');
+      const h = hexToBytes(parts[3] ?? '');
+      if (!s || !h || !Number.isFinite(parsedIterations) || parsedIterations < 1 || parsedIterations > 1_000_000) {
+        return false;
+      }
+      iterations = parsedIterations;
+      salt = s;
+      expectedHash = h;
+    } else {
+      // Legacy format: <saltHex>:<hashHex> with 10,000 iterations
+      const parts = storedHash.split(':');
+      if (parts.length !== 2) return false;
+      const s = hexToBytes(parts[0] ?? '');
+      const h = hexToBytes(parts[1] ?? '');
+      if (!s || !h) return false;
+      iterations = PBKDF2_LEGACY_ITERATIONS;
+      salt = s;
+      expectedHash = h;
+    }
+
+    const derived = new Uint8Array(await pbkdf2Derive(password, salt, iterations));
+    // ✅ Constant-time compare — the old string equality leaked hash prefix
+    // matches through timing, and a malformed stored hash used to THROW
+    // (match on undefined) instead of failing the login cleanly.
+    return constantTimeEqual(derived, expectedHash);
+  } catch {
+    return false;
+  }
 }
 
 // ─── JWT Token ────────────────────────────────────────────────

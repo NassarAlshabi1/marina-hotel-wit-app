@@ -90,6 +90,17 @@ export function getTableName(entity: string): string {
   return table;
 }
 
+/** Every physical table the API touches (entities + infrastructure). */
+export const ALL_TABLE_NAMES: string[] = [
+  ...Object.keys(ENTITY_TABLES),
+  'users',
+  'devices',
+  'rate_limits',
+];
+
+/** Physical table names that bulk migration may write to (entities only). */
+export const SYNC_ENTITY_TABLES: readonly string[] = Object.values(ENTITY_TABLES);
+
 // ─── Database wrapper ─────────────────────────────────────────
 
 export class Database {
@@ -100,6 +111,64 @@ export class Database {
     return this.db;
   }
 
+  // ─── Sync Clock (monotonic unique updated_at allocator) ───────
+
+  /**
+   * Allocate a globally-unique, strictly-monotonic `updated_at` (seconds).
+   * Single atomic statement against the sync_clock singleton; two concurrent
+   * writes can therefore never share the same updated_at, which is what
+   * makes the integer pull cursor lossless.
+   */
+  async allocateUpdatedAt(): Promise<number> {
+    const now = Math.floor(Date.now() / 1000);
+    const result = await this.db
+      .prepare(
+        'UPDATE sync_clock SET last_ts = MAX(last_ts + 1, ?) WHERE id = 1 RETURNING last_ts'
+      )
+      .bind(now)
+      .first<{ last_ts: number }>();
+
+    if (result && typeof result.last_ts === 'number') {
+      return result.last_ts;
+    }
+
+    // Singleton row missing (DB created before seeding) — seed and retry once.
+    await this.db
+      .prepare('INSERT OR IGNORE INTO sync_clock (id, last_ts) VALUES (1, ?)')
+      .bind(now)
+      .run();
+    const retry = await this.db
+      .prepare(
+        'UPDATE sync_clock SET last_ts = MAX(last_ts + 1, ?) WHERE id = 1 RETURNING last_ts'
+      )
+      .bind(now)
+      .first<{ last_ts: number }>();
+    if (retry && typeof retry.last_ts === 'number') {
+      return retry.last_ts;
+    }
+    throw new Error('sync_clock allocation failed');
+  }
+
+  /** Advance the sync clock past a foreign timestamp (e.g. after bulk migration). */
+  async advanceSyncClock(minTs: number): Promise<void> {
+    if (!Number.isFinite(minTs) || minTs <= 0) return;
+    await this.db
+      .prepare('UPDATE sync_clock SET last_ts = MAX(last_ts, ?) WHERE id = 1')
+      .bind(Math.floor(minTs))
+      .run();
+  }
+
+  /** MAX(updated_at) across every synced entity table. */
+  async maxUpdatedAtAcrossEntities(): Promise<number> {
+    const unions = Object.values(ENTITY_TABLES)
+      .map((t) => `SELECT MAX(updated_at) AS m FROM ${t}`)
+      .join(' UNION ALL ');
+    const row = await this.db
+      .prepare(`SELECT MAX(m) AS m FROM (${unions})`)
+      .first<{ m: number | string }>();
+    return Number(row?.m ?? 0);
+  }
+
   // ─── Delta Pull ────────────────────────────────────────────
 
   async pullChanges(
@@ -108,37 +177,47 @@ export class Database {
     limit: number = 200
   ): Promise<PullResult> {
     const entities = entity ? [entity] : Object.keys(ENTITY_TABLES);
+    const fetchLimit = Math.max(1, limit) + 1; // +1 → detect overflow cheaply
     const allChanges: SyncRecord[] = [];
-    let maxTimestamp = cursor;
 
     for (const ent of entities) {
       const table = ENTITY_TABLES[ent];
-      const stmt = this.db.prepare(
-        `SELECT * FROM ${table} WHERE updated_at > ? ORDER BY updated_at ASC LIMIT ?`
-      );
-      const rows = await stmt.bind(cursor, limit).all();
+      const rows = await this.db
+        .prepare(
+          `SELECT * FROM ${table} WHERE updated_at > ? ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
+        )
+        .bind(cursor, fetchLimit)
+        .all();
       for (const row of rows.results) {
         const record = row as unknown as SyncRecord;
         // ✅ أضف _entity لكل سجل ليتمكن Flutter من معرفة الجدول
         // بدون الحاجة لتخمين نوعه من الحقول
         (record as Record<string, unknown>)._entity = ent;
         allChanges.push(record);
-        if (record.updated_at > maxTimestamp) {
-          maxTimestamp = record.updated_at;
-        }
       }
     }
 
-    // Sort all changes by updated_at
-    allChanges.sort((a, b) => a.updated_at - b.updated_at);
+    // Global deterministic order across tables.
+    // updated_at is unique for server-written rows (sync_clock allocator);
+    // local_uuid is the tie-breaker for any legacy rows.
+    allChanges.sort((a, b) => {
+      if (a.updated_at !== b.updated_at) return a.updated_at - b.updated_at;
+      return String(a.local_uuid).localeCompare(String(b.local_uuid));
+    });
 
     // Paginate
     const page = allChanges.slice(0, limit);
     const hasMore = allChanges.length > limit;
 
+    // ✅ CRITICAL FIX: cursor must be the updated_at of the LAST record
+    // actually returned in this page — never the max across all fetched
+    // rows (the old code returned the global max, permanently skipping
+    // every record between the page boundary and that max).
+    const nextCursor = page.length > 0 ? page[page.length - 1].updated_at : cursor;
+
     return {
       changes: page,
-      cursor: maxTimestamp,
+      cursor: nextCursor,
       has_more: hasMore,
     };
   }
@@ -171,7 +250,8 @@ export class Database {
   async createRecord(
     entity: string,
     data: Record<string, unknown>,
-    deviceId: string
+    deviceId: string,
+    clientVectorClock?: string
   ): Promise<SyncRecord> {
     const table = getTableName(entity);
     const now = Math.floor(Date.now() / 1000);
@@ -179,16 +259,32 @@ export class Database {
     // Use local_uuid as the primary identifier — D1 tables use INTEGER autoIncrement for id
     const localUuid = (data.local_uuid as string) || crypto.randomUUID();
 
+    // ✅ Globally-unique updated_at (keeps the pull cursor lossless)
+    const serverUpdatedAt = await this.allocateUpdatedAt();
+
+    // ✅ Respect the client's vector clock when it is a valid object;
+    // otherwise seed a fresh clock for this device.
+    const clientVc = this.parseVectorClock(clientVectorClock || '{}');
+    const vectorClockJson =
+      Object.keys(clientVc).length > 0
+        ? JSON.stringify(clientVc)
+        : JSON.stringify({ [deviceId]: 1 });
+
+    const createdAtNum = Number(data.created_at);
+
     const record: SyncRecord = {
       ...data,
       local_uuid: localUuid,
       server_id: null,
-      created_at: (data.created_at as number) || now,
-      updated_at: now,
+      created_at:
+        Number.isFinite(createdAtNum) && createdAtNum > 0
+          ? Math.floor(createdAtNum)
+          : now,
+      updated_at: serverUpdatedAt,
       deleted_at: null,
       version: 1,
       device_id: deviceId,
-      vector_clock: JSON.stringify({ [deviceId]: 1 }),
+      vector_clock: vectorClockJson,
       origin: 'cloud',
     };
 
@@ -276,7 +372,8 @@ export class Database {
     recordId: string,
     data: Record<string, unknown>,
     vectorClock: string,
-    deviceId: string
+    deviceId: string,
+    fallbackUpdatedAt?: number
   ): Promise<SyncRecord> {
     const table = getTableName(entity);
 
@@ -288,25 +385,40 @@ export class Database {
 
     if (!existing) {
       // Record doesn't exist — create it instead
-      return this.createRecord(entity, { ...data, local_uuid: recordId }, deviceId);
+      return this.createRecord(entity, { ...data, local_uuid: recordId }, deviceId, vectorClock);
     }
 
     // ─── Conflict Detection: Vector Clock ───────────────────
     const conflict = this.detectConflict(existing.vector_clock || '{}', vectorClock);
+    const incomingTimestamp =
+      Number(data.updated_at) ||
+      (fallbackUpdatedAt !== undefined && Number.isFinite(fallbackUpdatedAt)
+        ? Math.floor(fallbackUpdatedAt)
+        : Math.floor(Date.now() / 1000));
+
     if (conflict === 'concurrent') {
-      // Save conflict
+      // Save conflict for audit
       await this.saveConflict(entity, recordId, existing, data, existing.vector_clock ?? '{}', vectorClock);
 
       // LWW resolution: compare timestamps
-      const incomingTimestamp = (data.updated_at as number) || Math.floor(Date.now() / 1000);
       if (incomingTimestamp <= existing.updated_at) {
-        // Local is newer — reject incoming
+        // Server copy is newer — reject incoming
+        return existing;
+      }
+    } else if (conflict === 'local_newer') {
+      // ✅ FIX: server state strictly dominates the client clock — the edit
+      // was made against stale data. The old code fell through and APPLIED
+      // it, regressing fields the server had already superseded. Apply only
+      // if the client demonstrably edited later in wall-clock time
+      // (slow-sync device); otherwise reject.
+      if (incomingTimestamp <= existing.updated_at) {
         return existing;
       }
     }
+    // 'equal' | 'remote_newer' → apply
 
     // ─── Apply update ────────────────────────────────────────
-    const now = Math.floor(Date.now() / 1000);
+    const now = await this.allocateUpdatedAt();
     const newVersion = existing.version + 1;
 
     // Merge vector clocks
@@ -325,10 +437,16 @@ export class Database {
     delete updateFields.created_at;
     delete updateFields.server_id;
 
-    // Filter out undefined values
+    // ✅ SECURITY FIX: whitelist column names against the real table schema.
+    // `data` keys were previously interpolated raw into the SET clause — a
+    // malicious client could craft keys containing SQL (balancing '?'
+    // placeholders and commenting out the trailing WHERE) to run arbitrary
+    // UPDATE logic. Values stay bound; identifiers must come from
+    // PRAGMA table_info only.
+    const validColumns = await this.getTableColumns(table);
     const cleanUpdate: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(updateFields)) {
-      if (value !== undefined) {
+      if (value !== undefined && validColumns.has(key)) {
         cleanUpdate[key] = value;
       }
     }
@@ -344,10 +462,10 @@ export class Database {
       .run();
 
     // Log to sync_log
-    await this.logSync(entity, recordId, 'update', newVersion, deviceId, updateFields);
+    await this.logSync(entity, recordId, 'update', newVersion, deviceId, cleanUpdate);
 
     // Return updated record
-    return { ...existing, ...updateFields } as SyncRecord;
+    return { ...existing, ...cleanUpdate } as SyncRecord;
   }
 
   // ─── Push: Delete (soft delete) ────────────────────────────
@@ -358,7 +476,9 @@ export class Database {
     deviceId: string
   ): Promise<{ deleted: boolean }> {
     const table = getTableName(entity);
-    const now = Math.floor(Date.now() / 1000);
+    // ✅ Tombstones must be pullable too — allocate a unique updated_at so
+    // the deletion surfaces exactly once in every client's delta stream.
+    const now = await this.allocateUpdatedAt();
 
     const existing = await this.db
       .prepare(`SELECT version FROM ${table} WHERE local_uuid = ?`)
@@ -426,6 +546,24 @@ export class Database {
       .run();
   }
 
+  // ─── Sync Log / Conflicts queries (typed, no private-field hacks) ─
+
+  async getSyncLog(limit: number, offset: number): Promise<unknown[]> {
+    const result = await this.db
+      .prepare('SELECT * FROM sync_log ORDER BY timestamp DESC, id DESC LIMIT ? OFFSET ?')
+      .bind(limit, offset)
+      .all();
+    return result.results;
+  }
+
+  async getConflicts(limit: number): Promise<unknown[]> {
+    const result = await this.db
+      .prepare('SELECT * FROM sync_conflicts ORDER BY created_at DESC, id DESC LIMIT ?')
+      .bind(limit)
+      .all();
+    return result.results;
+  }
+
   // ─── Conflict Handling ─────────────────────────────────────
 
   private detectConflict(localVc: string, remoteVc: string): 'equal' | 'local_newer' | 'remote_newer' | 'concurrent' {
@@ -480,7 +618,18 @@ export class Database {
 
   private parseVectorClock(vc: string): Record<string, number> {
     try {
-      return JSON.parse(vc) || {};
+      const parsed: unknown = JSON.parse(vc);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return {};
+      }
+      const out: Record<string, number> = {};
+      for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+        const num = Number(value);
+        if (key.length > 0 && Number.isFinite(num)) {
+          out[key] = num;
+        }
+      }
+      return out;
     } catch {
       return {};
     }

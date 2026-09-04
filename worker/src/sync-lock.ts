@@ -93,6 +93,16 @@ export class SyncLockDO {
 
   async handleLockAcquire(request: Request): Promise<Response> {
     const body = (await request.json()) as SyncLockRequest;
+    // ✅ Validate input — a missing field used to silently create a lock on
+    // the key "undefined:undefined", blocking the real entity for 30s.
+    if (!body || typeof body.deviceId !== 'string' || body.deviceId.length === 0 ||
+        typeof body.entity !== 'string' || body.entity.length === 0 ||
+        typeof body.entityId !== 'string' || body.entityId.length === 0) {
+      return Response.json(
+        { granted: false, error: 'deviceId, entity, and entityId are required' },
+        { status: 400 }
+      );
+    }
     const lockKey = `${body.entity}:${body.entityId}`;
 
     // Check existing lock
@@ -174,6 +184,14 @@ export class SyncLockDO {
 
   async handleLockRelease(request: Request): Promise<Response> {
     const body = (await request.json()) as SyncLockRequest;
+    if (!body || typeof body.deviceId !== 'string' || body.deviceId.length === 0 ||
+        typeof body.entity !== 'string' || body.entity.length === 0 ||
+        typeof body.entityId !== 'string' || body.entityId.length === 0) {
+      return Response.json(
+        { released: false, error: 'deviceId, entity, and entityId are required' },
+        { status: 400 }
+      );
+    }
     const lockKey = `${body.entity}:${body.entityId}`;
 
     const existingLock = (await this.state.storage.get<{ deviceId: string }>(

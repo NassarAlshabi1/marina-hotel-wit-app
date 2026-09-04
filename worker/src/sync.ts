@@ -3,8 +3,8 @@
 //  Delta sync + idempotent push + conflict resolution (LWW + VC)
 // ═══════════════════════════════════════════════════════════════
 
-import type { D1Database } from '@cloudflare/workers-types';
 import type { Database, PushOperation, SyncRecord } from './database';
+import { isValidEntity, SYNC_ENTITY_TABLES } from './database';
 import type { AuthContext } from './auth';
 
 // ─── Validation ───────────────────────────────────────────────
@@ -43,6 +43,107 @@ function requireEntityId(data: Record<string, unknown>): string {
   return value;
 }
 
+// ─── SQL splitting (quote-aware) ─────────────────────────────────
+
+/**
+ * Split raw SQL text into individual statements while respecting
+ * single-quoted string literals (including '' escapes).
+ * A naive split(';') breaks any statement whose VALUES contain a
+ * semicolon inside a string (e.g. notes fields) and corrupts migrations.
+ */
+export function splitSqlStatements(sqlText: string): string[] {
+  const statements: string[] = [];
+  let current = '';
+  let inString = false;
+  for (let i = 0; i < sqlText.length; i++) {
+    const ch = sqlText[i];
+    if (inString) {
+      current += ch;
+      if (ch === "'") {
+        if (sqlText[i + 1] === "'") {
+          current += "'"; // escaped quote — consume both
+          i++;
+        } else {
+          inString = false;
+        }
+      }
+      continue;
+    }
+    if (ch === "'") {
+      inString = true;
+      current += ch;
+      continue;
+    }
+    if (ch === ';') {
+      const trimmed = current.trim();
+      if (trimmed.length > 0) statements.push(trimmed);
+      current = '';
+      continue;
+    }
+    current += ch;
+  }
+  const trailing = current.trim();
+  if (trailing.length > 0) statements.push(trailing);
+  return statements;
+}
+
+/** Only single-statement INSERTs into whitelisted entity tables pass. */
+const MIGRATE_INSERT_RE =
+  /^INSERT\s+(?:OR\s+(?:REPLACE|IGNORE)\s+)?INTO\s+([A-Za-z_][A-Za-z0-9_]*)/i;
+const MAX_MIGRATE_STATEMENTS = 200;
+
+/**
+ * Remove single-quoted string literals (quote-aware) so keyword scanning
+ * only sees the structural SQL skeleton.
+ */
+function stripSqlStrings(stmt: string): string {
+  let out = '';
+  let inString = false;
+  for (let i = 0; i < stmt.length; i++) {
+    const ch = stmt[i];
+    if (inString) {
+      if (ch === "'") {
+        if (stmt[i + 1] === "'") {
+          i++; // escaped quote — stays inside the string
+        } else {
+          inString = false;
+        }
+      }
+      continue; // drop literal content
+    }
+    if (ch === "'") {
+      inString = true;
+      out += ' ';
+      continue;
+    }
+    out += ch;
+  }
+  return out;
+}
+
+/**
+ * Forbidden keywords ANYWHERE after the target table name. This blocks
+ * semicolon-free attack vectors that still start with a valid
+ * `INSERT INTO <entity>`: WITH-clause data modification
+ * (`INSERT INTO rooms WITH d AS (DELETE FROM users) SELECT …`),
+ * subquery exfiltration (`VALUES ((SELECT password_hash FROM users))`),
+ * ON CONFLICT DO UPDATE, etc. The migration client only ever sends
+ * `INSERT [OR REPLACE] INTO t (cols) VALUES (literals…)` — literals only.
+ * Word-boundary matching keeps identifiers like `updated_at`/`deleted_at`
+ * safe (underscore is a word character, so no boundary after UPDATE/DELETE).
+ */
+const FORBIDDEN_TAIL_RE =
+  /\b(SELECT|DELETE|UPDATE|DROP|ALTER|CREATE|ATTACH|DETACH|PRAGMA|WITH|VACUUM|REINDEX|UNION|JOIN|TRIGGER|VIEW|INDEX|INSERT)\b/i;
+
+export function isAllowedMigrateStatement(stmt: string, validTargets: Set<string>): boolean {
+  const match = MIGRATE_INSERT_RE.exec(stmt);
+  const target = match?.[1];
+  if (!match || !target || !validTargets.has(target)) return false;
+  const skeleton = stripSqlStrings(stmt);
+  const tail = skeleton.slice(match[0].length);
+  return !FORBIDDEN_TAIL_RE.test(tail);
+}
+
 // ─── Pull Handler (Delta Sync) ────────────────────────────────
 
 export async function handlePull(
@@ -53,8 +154,13 @@ export async function handlePull(
   try {
     const url = new URL(request.url);
     const cursorStr = url.searchParams.get('cursor') || '0';
-    const cursor = parseInt(cursorStr, 10) || 0;
+    const cursor = Math.max(0, parseInt(cursorStr, 10) || 0);
     const entity = url.searchParams.get('entity');
+    // ✅ Validate the entity BEFORE touching SQL — an unknown entity used to
+    // reach the database and surface as an opaque 500 with SQL details.
+    if (entity !== null && !isValidEntity(entity)) {
+      return jsonResponse({ error: `Unknown entity: ${entity}` }, 400);
+    }
     const limitStr = url.searchParams.get('limit') || '200';
     const limit = Math.min(Math.max(parseInt(limitStr, 10) || 200, 1), MAX_BATCH_SIZE);
 
@@ -152,7 +258,7 @@ export async function handlePush(
 
         switch (op.operation) {
           case 'create': {
-            const record = await db.createRecord(op.entity, op.data, ctx.deviceId);
+            const record = await db.createRecord(op.entity, op.data, ctx.deviceId, op.vectorClock);
             entityId = record.local_uuid;
             break;
           }
@@ -163,7 +269,8 @@ export async function handlePush(
               recordId,
               op.data,
               op.vectorClock,
-              ctx.deviceId
+              ctx.deviceId,
+              op.updatedAt
             );
             entityId = record.local_uuid;
             break;
@@ -228,14 +335,11 @@ export async function handleSyncLog(
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 200);
     const offset = parseInt(url.searchParams.get('offset') || '0', 10);
 
-    // Note: sync_log queries use the D1 prepare/bind pattern (SQL injection safe)
-    const stmt = (db as unknown as { db: { prepare: (sql: string) => { bind: (...args: unknown[]) => { all: () => Promise<{ results: unknown[] }> } } } }).db
-      .prepare('SELECT * FROM sync_log ORDER BY timestamp DESC LIMIT ? OFFSET ?')
-      .bind(limit, offset);
-    const result = await stmt.all();
+    // Note: sync log reads go through the typed Database layer
+    const logs = await db.getSyncLog(limit, offset);
 
     return jsonResponse({
-      logs: result.results,
+      logs,
       limit,
       offset,
     });
@@ -294,26 +398,40 @@ export async function handleMigrate(
       return jsonResponse({ error: 'Empty SQL body' }, 400);
     }
 
-    // ─── Security: only allow INSERT statements ───────────────
-    const sqlUpper = sqlText.trim().toUpperCase();
-    if (!sqlUpper.startsWith('INSERT')) {
+    // ✅ Cap the DECOMPRESSED size too — Content-Length only reflects the
+    // gzipped bytes; a small zip bomb otherwise expands without bound.
+    if (sqlText.length > 10 * 1024 * 1024) {
+      return jsonResponse({ error: 'Payload too large (max 10MB decompressed)' }, 413);
+    }
+
+    // ─── Security: per-statement INSERT whitelist ─────────────
+    // The old check (first statement starts with INSERT + `;\s*KEYWORD`
+    // regex) was bypassable with SQL comments: `;/**/DELETE FROM users`
+    // slipped past the regex and was then executed. Every statement is now
+    // individually validated to be a plain INSERT into a whitelisted entity
+    // table — any comment or other prefix fails the regex and the whole
+    // batch is rejected BEFORE anything executes.
+    const validTargets = new Set<string>(SYNC_ENTITY_TABLES);
+    const statements = splitSqlStatements(sqlText);
+
+    if (statements.length === 0) {
+      return jsonResponse({ error: 'Empty SQL body' }, 400);
+    }
+    if (statements.length > MAX_MIGRATE_STATEMENTS) {
       return jsonResponse(
-        { error: 'Only INSERT statements are allowed for migration' },
+        { error: `Too many statements (max ${MAX_MIGRATE_STATEMENTS} per batch)` },
         400
       );
     }
 
-    // Block dangerous keywords (defense in depth)
-    const dangerous = ['DROP', 'DELETE', 'UPDATE', 'ALTER', 'CREATE', 'ATTACH', 'DETACH'];
-    for (const kw of dangerous) {
-      // Allow these words only inside VALUES (as string literals), but
-      // block them as statement starts. Simple check: if the statement
-      // starts with INSERT and contains these as separate statements
-      // (after ;), reject.
-      const re = new RegExp(`;\\s*${kw}`, 'i');
-      if (re.test(sqlText)) {
+    for (let i = 0; i < statements.length; i++) {
+      if (!isAllowedMigrateStatement(statements[i] ?? '', validTargets)) {
         return jsonResponse(
-          { error: `Blocked keyword after semicolon: ${kw}` },
+          {
+            error:
+              'Only INSERT [OR REPLACE / IGNORE] INTO <entity> (cols) VALUES (literals) statements are allowed',
+            statement_index: i + 1,
+          },
           400
         );
       }
@@ -323,15 +441,9 @@ export async function handleMigrate(
     // Simpler than batch() — avoids PRAGMA issues and gives accurate
     // per-statement error reporting. Each INSERT OR REPLACE statement
     // is executed independently.
-    const d1Db = (db as unknown as { db: D1Database }).db;
+    const d1Db = db.raw;
     let rowsInserted = 0;
     const errors: string[] = [];
-
-    // Split by semicolons to handle multiple INSERT statements
-    const statements = sqlText
-      .split(';')
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
 
     console.log(`[MIGRATE] Received ${statements.length} SQL statements, ` +
       `${sqlText.length} bytes (${contentLength} compressed)`);
@@ -357,6 +469,15 @@ export async function handleMigrate(
 
     console.log(`[MIGRATE] Done: ${rowsInserted} rows inserted, ` +
       `${errors.length} errors`);
+
+    // ✅ Advance the sync clock past migrated timestamps so subsequent
+    // server-side allocations remain strictly greater than migrated rows
+    // (keeps the integer pull cursor lossless after bulk import).
+    try {
+      await db.advanceSyncClock(await db.maxUpdatedAtAcrossEntities());
+    } catch (clockErr) {
+      console.warn('[MIGRATE] sync_clock advance failed:', clockErr);
+    }
 
     return jsonResponse({
       success: errors.length === 0,
@@ -386,13 +507,11 @@ export async function handleConflicts(
     const url = new URL(request.url);
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 200);
 
-    const stmt = (db as unknown as { db: { prepare: (sql: string) => { bind: (...args: unknown[]) => { all: () => Promise<{ results: unknown[] }> } } } }).db
-      .prepare('SELECT * FROM sync_conflicts ORDER BY created_at DESC LIMIT ?')
-      .bind(limit);
-    const result = await stmt.all();
+    // Note: conflicts reads go through the typed Database layer
+    const conflicts = await db.getConflicts(limit);
 
     return jsonResponse({
-      conflicts: result.results,
+      conflicts,
       limit,
     });
   } catch (err) {

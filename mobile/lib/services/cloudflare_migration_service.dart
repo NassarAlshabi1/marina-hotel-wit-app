@@ -21,6 +21,9 @@ class CloudflareMigrationService {
 
   static const _migrationCompleteKey = 'cf_migration_complete';
   static const _migrationProgressKey = 'cf_migration_progress';
+  // ✅ Persisted cursor for unique server-side updated_at stamping
+  // (see migrate() — survives crashes/resumes, never reissues a value).
+  static const _migrationTsCursorKey = 'cf_migration_ts_cursor';
 
   /// HTTP client with DoH fallback (bypasses broken ISP DNS).
   /// Uses 60s timeout per request — migration batches can be slow on
@@ -110,6 +113,21 @@ class CloudflareMigrationService {
         '${networkSpeed.toStringAsFixed(1)} KB/s, batch size: $currentBatchSize)');
     final completedTables = await getMigrationProgress();
 
+    // ─── Unique timestamp allocator ───
+    // Migration writes raw SQL that bypasses the server's sync_clock, so
+    // the SERVER cannot dedupe timestamps for these rows. We stamp every
+    // record with a strictly-increasing value from a persisted cursor;
+    // without this, thousands of rows sharing one second guarantee that
+    // the server's integer pull cursor (> comparison) silently skips rows
+    // at page boundaries — permanent data loss.
+    final tsPrefs = await SharedPreferences.getInstance();
+    int tsCursor = tsPrefs.getInt(_migrationTsCursorKey) ?? 0;
+    int nextUniqueTimestamp() {
+      final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      tsCursor = tsCursor + 1 > nowSec ? tsCursor + 1 : nowSec;
+      return tsCursor;
+    }
+
     debugPrint('🔄 Starting Cloudflare migration...');
 
     for (final entity in CloudflareConfig.migrationOrder) {
@@ -156,6 +174,11 @@ class CloudflareMigrationService {
         for (final row in records) {
           final record = Map<String, dynamic>.from(row.data);
           record.remove('id'); // Remove local autoIncrement id
+          // ✅ Stamp a UNIQUE, strictly-increasing updated_at for the server
+          // (kept in sync with last_modified — both are sync-order fields).
+          final serverTs = nextUniqueTimestamp();
+          record['updated_at'] = serverTs;
+          record['last_modified'] = serverTs;
           allRecords.add(record);
         }
 
@@ -179,6 +202,7 @@ class CloudflareMigrationService {
         // = 600 req/min, well within the 1000/min budget.
         // The 15-parallel version was hitting 212 req in <60s, exceeding
         // the old 100/min limit and causing HTTP 429 errors.
+        int tableFailed = 0;
         const parallelCount = 5;
         for (var g = 0; g < allBatches.length; g += parallelCount) {
           final group = allBatches.sublist(
@@ -204,8 +228,13 @@ class CloudflareMigrationService {
           for (final result in results) {
             totalPushed += result.pushed;
             totalFailed += result.failed;
+            tableFailed += result.failed;
             errors.addAll(result.errors);
           }
+
+          // ✅ Persist the unique-timestamp cursor after every group so a
+          // crash/resume can never reissue a timestamp already sent.
+          await tsPrefs.setInt(_migrationTsCursorKey, tsCursor);
 
           // Rate-limit throttle: wait 500ms between parallel groups
           // to avoid burst-requesting the Worker (prevents 429).
@@ -219,19 +248,31 @@ class CloudflareMigrationService {
           }
         }
 
-        // Mark table as complete
-        completedTables[entity] = true;
-        await _saveProgress(completedTables);
-        debugPrint('  ✅ $entity: migration complete');
+        // ✅ Mark table as complete ONLY if nothing failed — previously a
+        // table with failed batches was still marked done and its lost rows
+        // were silently never retried.
+        if (tableFailed == 0) {
+          completedTables[entity] = true;
+          await _saveProgress(completedTables);
+          debugPrint('  ✅ $entity: migration complete');
+        } else {
+          debugPrint(
+              '  ⚠️ $entity: $tableFailed records failed — table NOT marked complete (will retry)');
+        }
       } catch (e) {
         errors.add('$entity: $e');
         debugPrint('  ❌ $entity: $e');
       }
     }
 
-    // Mark migration as complete
+    // ✅ Mark migration complete ONLY if nothing failed. The old code set
+    // the flag unconditionally, permanently masking partial data loss.
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_migrationCompleteKey, true);
+    if (totalFailed == 0) {
+      await prefs.setBool(_migrationCompleteKey, true);
+    } else {
+      debugPrint('⚠️ Migration incomplete: $totalFailed records failed — NOT marking complete');
+    }
 
     final duration = DateTime.now().difference(startTime);
     debugPrint('🔄 Migration complete: $totalPushed/$totalRecords pushed in ${duration.inSeconds}s');
@@ -251,12 +292,15 @@ class CloudflareMigrationService {
   }
 
   /// Build a SQL INSERT statement with multiple VALUES from a batch of records.
-  /// Uses INSERT OR IGNORE for idempotency (duplicate local_uuid = skip).
+  /// Uses INSERT OR REPLACE for idempotent re-runs (unique local_uuid).
   /// All values are properly SQL-escaped to prevent injection.
   /// Fills NOT NULL columns (without defaults) with empty values to prevent
   /// silent constraint violations.
-  /// Replaces FK column values with 0 to avoid FK constraint failures
-  /// (D1 doesn't support PRAGMA foreign_keys = OFF in batch mode).
+  /// ✅ FK columns are sent with their REAL values: the D1 schema declares
+  /// no FOREIGN KEY constraints (D1 enforces FKs by default and cannot turn
+  /// them off), so no zeroing is needed. The old zeroing DESTROYED data —
+  /// every migrated booking lost its room_number, every payment its
+  /// booking_local_id, etc.
   Future<String> _buildSqlInsert({
     required String tableName,
     required List<Map<String, dynamic>> batch,
@@ -268,15 +312,6 @@ class CloudflareMigrationService {
     final columnInfo = await db.customSelect(
       'PRAGMA table_info($tableName)',
     ).get();
-
-    // Read FK info to identify FK columns
-    final fkInfo = await db.customSelect(
-      'PRAGMA foreign_key_list($tableName)',
-    ).get();
-    final fkColumns = <String>{};
-    for (final fk in fkInfo) {
-      fkColumns.add(fk.data['from'] as String);
-    }
 
     // Build map: column name → default value (for NOT NULL without default)
     final notNullDefaults = <String, dynamic>{};
@@ -329,18 +364,11 @@ class CloudflareMigrationService {
         .toList();
     final columnsStr = d1Columns.join(', ');
 
-    // Build VALUES clauses with proper escaping + fill defaults
-    // For FK columns, use 0 instead of the actual value to avoid FK
-    // constraint failures (the actual parent record may not exist in D1
-    // yet, or may have a different autoIncrement id).
-    // The app uses local_uuid for cross-device references, not id.
+    // Build VALUES clauses with proper escaping + fill defaults.
+    // Reference columns keep their real values (see doc comment above).
     final valuesClauses = <String>[];
     for (final record in batch) {
       final values = requiredColumns.map((col) {
-        // Skip FK columns — use 0 to avoid constraint failure
-        if (fkColumns.contains(col)) {
-          return '0';
-        }
         if (record.containsKey(col) && record[col] != null) {
           return _escapeSqlValue(record[col]);
         }

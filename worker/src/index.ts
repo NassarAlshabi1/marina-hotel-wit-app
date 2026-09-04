@@ -3,7 +3,7 @@
 //  Router + Rate Limiting + CORS + Auth Middleware
 // ═══════════════════════════════════════════════════════════════
 
-import { Database, isValidEntity } from './database';
+import { Database, ALL_TABLE_NAMES } from './database';
 import { authMiddleware, handleLogin, hashPassword, signToken } from './auth';
 import { handlePull, handlePush, handleSyncLog, handleConflicts, handleMigrate } from './sync';
 import { SyncLockDO } from './sync-lock';
@@ -106,10 +106,9 @@ function logRequest(method: string, path: string, status: number, durationMs: nu
 
 // ─── Main Worker ──────────────────────────────────────────────
 
-export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    const startTime = Date.now();
-    const url = new URL(request.url);
+async function handleRequest(request: Request, env: Env): Promise<Response> {
+  const startTime = Date.now();
+  const url = new URL(request.url);
     const path = url.pathname;
     const method = request.method;
 
@@ -164,6 +163,28 @@ export default {
 
     // ─── Auth endpoint (no token needed) ─────────────────────
     if (path === '/api/auth/login' && method === 'POST') {
+      // ✅ Dedicated brute-force bucket per IP — far stricter than the
+      // global limit (20 attempts/window) so password guessing is not
+      // drowned in the 1000/min global budget.
+      const loginLimit = await checkRateLimit(
+        new Database(env.DB),
+        `login:${clientIp}`,
+        rateLimitWindow,
+        20
+      );
+      if (!loginLimit.allowed) {
+        logRequest(method, path, 429, Date.now() - startTime, clientIp);
+        const retryAfterSec = Math.ceil((loginLimit.resetAt - Date.now()) / 1000);
+        const headers = new Headers({ 'Content-Type': 'application/json' });
+        const cors = corsHeaders(env.CORS_ORIGIN);
+        cors.forEach((val: string, key: string) => headers.set(key, val));
+        headers.set('Retry-After', String(Math.max(1, retryAfterSec)));
+        return new Response(
+          JSON.stringify({ error: 'Too many login attempts', retry_after: loginLimit.resetAt }),
+          { status: 429, headers }
+        );
+      }
+
       const db = new Database(env.DB);
       const response = await handleLogin(request, db, env.JWT_SECRET);
       // Add CORS headers
@@ -221,7 +242,12 @@ export default {
           env,
         );
       } catch (err) {
-        return json({ error: 'Registration failed', detail: String(err) }, 500, env);
+        const msg = String(err);
+        // Duplicate username (UNIQUE constraint on users.username) → 409
+        if (msg.includes('UNIQUE') && msg.includes('users.username')) {
+          return json({ error: 'Username already exists' }, 409, env);
+        }
+        return json({ error: 'Registration failed', detail: msg }, 500, env);
       }
     }
 
@@ -272,21 +298,17 @@ export default {
       // Returns aggregate stats for monitoring/debugging
       if (path === '/api/stats' && method === 'GET') {
         try {
+          // ✅ Table list derived from the single source of truth — the old
+          // hardcoded list drifted from the schema and made /api/stats 500.
           const tableCounts: Record<string, number> = {};
-          const tables = ['rooms', 'bookings', 'payments', 'expenses', 'employees',
-            'debts', 'booking_nights', 'salary_withdrawals', 'guest_infos',
-            'booking_price_adjustments', 'devices', 'users', 'rate_limits'];
-          for (const t of tables) {
+          for (const t of ALL_TABLE_NAMES) {
             const r = await db.raw.prepare(`SELECT COUNT(*) as c FROM ${t}`).first<{ c: number }>();
             tableCounts[t] = r?.c ?? 0;
           }
-          const rlResult = await db.raw.prepare(
-            'SELECT COUNT(*) as c FROM rate_limits'
-          ).first<{ c: number }>();
           logRequest(method, path, 200, Date.now() - startTime, clientIp);
           return json({
             tables: tableCounts,
-            rate_limit_entries: rlResult?.c ?? 0,
+            rate_limit_entries: tableCounts['rate_limits'] ?? 0,
             server_time: Math.floor(Date.now() / 1000),
             uptime_hint: 'Workers are stateless — no uptime tracking',
           }, 200, env);
@@ -320,11 +342,16 @@ export default {
 
       // GET /api/devices/tokens — list all FCM tokens (excludes current device)
       if (path === '/api/devices/tokens' && method === 'GET') {
-        const db = new Database(env.DB);
-        const excludeDeviceId = url.searchParams.get('exclude') || undefined;
-        const tokens = await db.getDeviceTokens(excludeDeviceId);
-        logRequest(method, path, 200, Date.now() - startTime, clientIp);
-        return json({ tokens, count: tokens.length }, 200, env);
+        try {
+          const tokens = await db.getDeviceTokens(url.searchParams.get('exclude') || undefined);
+          logRequest(method, path, 200, Date.now() - startTime, clientIp);
+          return json({ tokens, count: tokens.length }, 200, env);
+        } catch (err) {
+          // ✅ Was previously unguarded — a missing devices table surfaced as
+          // an opaque Cloudflare 500 without CORS headers.
+          logRequest(method, path, 500, Date.now() - startTime, clientIp);
+          return json({ error: 'Device token fetch failed', detail: String(err) }, 500, env);
+        }
       }
 
       // ─── Durable Object: Sync Lock ────────────────────────
@@ -380,5 +407,24 @@ export default {
     // ─── 404 for non-API routes ───────────────────────────────
     logRequest(method, path, 404, Date.now() - startTime, clientIp);
     return json({ error: 'Not found', path }, 404, env);
+}
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    // ✅ Top-level safety net: any unhandled exception used to escape the
+    // worker and surface as a plaintext Cloudflare 500 WITHOUT CORS headers,
+    // which the Flutter client cannot parse. Return structured JSON instead.
+    try {
+      return await handleRequest(request, env);
+    } catch (err) {
+      console.error('[UNHANDLED]', err);
+      const headers = new Headers({ 'Content-Type': 'application/json' });
+      const cors = corsHeaders(env.CORS_ORIGIN);
+      cors.forEach((val, key) => headers.set(key, val));
+      return new Response(
+        JSON.stringify({ error: 'Internal server error' }),
+        { status: 500, headers }
+      );
+    }
   },
 };
