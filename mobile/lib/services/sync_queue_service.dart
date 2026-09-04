@@ -1,7 +1,5 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// [Deprecated] This service is being replaced by Unified Outbox Architecture.
 /// All methods are now No-ops.
@@ -15,14 +13,14 @@ class SyncQueueService {
   Stream<int> get queueCountStream => _queueController.stream;
 
   Future<void> initialize() async {
-    debugPrint('⚠️ [SyncQueue] Service deprecated - initializing as no-op');
+    dlog('⚠️ [SyncQueue] Service deprecated - initializing as no-op');
   }
 
   Future<void> addToQueue({
     required String screenId,
     required Map<String, dynamic> data,
   }) async {
-    debugPrint('⚠️ [SyncQueue] addToQueue ignored (using Outbox instead)');
+    dlog('⚠️ [SyncQueue] addToQueue ignored (using Outbox instead)');
   }
 
   Future<List<SyncQueueItem>> getQueueItems() async {

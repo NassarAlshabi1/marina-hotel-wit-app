@@ -37,7 +37,7 @@ void main() {
   });
 
   /// Helper: إنشاء غرفة في قاعدة البيانات (مطلوبة كـ foreign key).
-  Future<String> _seedRoom(String roomNumber, {String status = 'شاغرة'}) async {
+  Future<String> seedRoom(String roomNumber, {String status = 'شاغرة'}) async {
     return roomsDao.insertOne(
       RoomsCompanion(
         roomNumber: d.Value(roomNumber),
@@ -50,7 +50,7 @@ void main() {
   }
 
   /// Helper: إنشاء حجز في قاعدة البيانات.
-  Future<int> _seedBooking({
+  Future<int> seedBooking({
     required String roomNumber,
     String guestName = 'أحمد',
     String guestPhone = '0501234567',
@@ -74,8 +74,8 @@ void main() {
       'EC-1: تحديث جزئي بحقل واحد (status فقط) لا يُسبب InvalidDataException',
       () async {
         // Arrange
-        await _seedRoom('101');
-        final bookingId = await _seedBooking(roomNumber: '101');
+        await seedRoom('101');
+        final bookingId = await seedBooking(roomNumber: '101');
 
         // Act: تحديث status فقط — هذا السيناريو كان يفشل قبل الإصلاح
         // لأن replace يتطلب localUuid, createdAt, roomNumber, guestName, guestPhone
@@ -108,8 +108,8 @@ void main() {
       'EC-2: تحديث بـ Companion شبه فارغ (فقط actualCheckout) يعمل',
       () async {
         // Arrange
-        await _seedRoom('102');
-        final bookingId = await _seedBooking(roomNumber: '102');
+        await seedRoom('102');
+        final bookingId = await seedBooking(roomNumber: '102');
 
         // Act: تحديث actualCheckout فقط — الحالة الكلاسيكية لتسجيل المغادرة
         final result = await bookingsDao.updateById(
@@ -131,8 +131,8 @@ void main() {
 
     test('EC-3: تحديث بـ Companion فارغ تماماً لا يكسر البيانات', () async {
       // Arrange
-      await _seedRoom('103');
-      final bookingId = await _seedBooking(roomNumber: '103');
+      await seedRoom('103');
+      final bookingId = await seedBooking(roomNumber: '103');
       final beforeUpdate = await bookingsDao.getById(bookingId);
       expect(beforeUpdate, isNotNull);
       final versionBefore = beforeUpdate!.version;
@@ -170,13 +170,13 @@ void main() {
       'EC-5: تحديث guestPhone فقط (سيناريو شائع في booking_payment_screen)',
       () async {
         // Arrange
-        await _seedRoom('104');
-        final bookingId = await _seedBooking(roomNumber: '104');
+        await seedRoom('104');
+        final bookingId = await seedBooking(roomNumber: '104');
 
         // Act: تحديث رقم الهاتف فقط — سيناريو booking_payment_screen.dart:2104
         final result = await bookingsDao.updateById(
           bookingId,
-          BookingsCompanion(guestPhone: const d.Value('0509876543')),
+          const BookingsCompanion(guestPhone: d.Value('0509876543')),
         );
 
         // Assert
@@ -192,8 +192,8 @@ void main() {
 
     test('EC-6: تحديث discount و discountType معاً', () async {
       // Arrange
-      await _seedRoom('105');
-      final bookingId = await _seedBooking(roomNumber: '105');
+      await seedRoom('105');
+      final bookingId = await seedBooking(roomNumber: '105');
 
       // Act: سيناريو booking_payment_screen.dart:2909
       final result = await bookingsDao.updateById(

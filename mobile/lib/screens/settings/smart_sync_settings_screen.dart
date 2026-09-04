@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 // ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -49,9 +47,7 @@ class _SmartSyncSettingsScreenState
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تغيير حالة المزامنة: $e'),
           backgroundColor: Colors.red,
@@ -78,9 +74,7 @@ class _SmartSyncSettingsScreenState
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تغيير فترة المزامنة: $e'),
           backgroundColor: Colors.red,
@@ -100,18 +94,14 @@ class _SmartSyncSettingsScreenState
 
       ref.invalidate(smartSyncStatusProvider);
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('🤝 تم تغيير استراتيجية حل التضارب'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تغيير استراتيجية التضارب: $e'),
           backgroundColor: Colors.red,
@@ -131,18 +121,14 @@ class _SmartSyncSettingsScreenState
 
       ref.invalidate(smartSyncStatusProvider);
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('🔄 تمت المزامنة اليدوية بنجاح'),
           backgroundColor: Colors.green,
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ فشلت المزامنة اليدوية: $e'),
           backgroundColor: Colors.red,
@@ -166,9 +152,7 @@ class _SmartSyncSettingsScreenState
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ تعذر تشغيل مزامنة WorkManager: $e'),
           backgroundColor: Colors.red,
@@ -195,9 +179,7 @@ class _SmartSyncSettingsScreenState
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ تعذر تغيير أولوية الجهاز: $e'),
           backgroundColor: Colors.red,

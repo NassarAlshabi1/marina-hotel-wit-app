@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -8,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../components/app_scaffold.dart';
+import '../../providers/appwrite_providers.dart';
 import '../../services/appwrite_logger.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class AppwriteLogsScreen extends ConsumerStatefulWidget {
   const AppwriteLogsScreen({super.key});
@@ -41,7 +41,9 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
   /// بدء التحديث التلقائي
   void _startAutoRefresh() {
     _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+    // ✅ خفض تردد التحديث من 3 ثوان إلى 10 ثوان
+    // 3 ثوان = 20 setState في الدقيقة = rebuild ثقيل على الأجهزة الضعيفة
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       // ✅ لفّ في try-catch — لو رمى setState/build استثناء، لا يتوقف الـ timer
       // صامتاً (يفقد المستخدم auto-refresh دون أن يعرف).
       try {
@@ -49,7 +51,7 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
           setState(() {}); // تحديث الشاشة
         }
       } catch (e) {
-        debugPrint('⚠️ appwrite_logs auto-refresh setState failed: $e');
+        dlog(() => '⚠️ appwrite_logs auto-refresh setState failed: $e');
       }
     });
   }
@@ -63,8 +65,8 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
   /// الحصول على السجلات الحالية من Logger
   List<LogEntry> _getCurrentLogs() {
     try {
-      // TODO: integrate with CloudflareSyncManager audit log
-      return <LogEntry>[];
+      final logger = ref.read(appwriteLoggerProvider);
+      return logger.getLogs();
     } catch (e) {
       return [];
     }
@@ -590,9 +592,7 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
 
     await Clipboard.setData(ClipboardData(text: buffer.toString()));
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تم نسخ ${_currentLogs.length} سجل إلى الحافظة'),
         ),
@@ -601,11 +601,13 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
   }
 
   Future<void> _exportLogs() async {
-    // TODO: integrate with CloudflareSyncManager audit log export
-    if (mounted) {
+    final logger = ref.read(appwriteLoggerProvider);
+    final file = await logger.exportLogs();
+
+    if (file != null && mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('لا توجد سجلات للتصدير')));
+      ).showSnackBar(SnackBar(content: Text('تم التصدير إلى: ${file.path}')));
     }
   }
 
@@ -664,9 +666,12 @@ class _AppwriteLogsScreenState extends ConsumerState<AppwriteLogsScreen> {
       _stopAutoRefresh();
 
       // مسح السجلات
+      final logger = ref.read(appwriteLoggerProvider);
+      logger.clearLogs();
+
       // تحديث الشاشة فوراً
       setState(() {
-        _currentLogs = <LogEntry>[];
+        _currentLogs = [];
       });
 
       // إعادة تشغيل التحديث التلقائي

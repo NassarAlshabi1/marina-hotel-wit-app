@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 // ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
@@ -9,14 +7,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
-import '../providers/secondary_sync_provider.dart';
 import '../services/appwrite_health_checker.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/daos/sync_log_dao.dart';
-import '../services/secondary_appwrite_config.dart';
-import '../services/secondary_sync_manager.dart';
+// ✅ Wave 5 (2026-08-12): secondary_sync_provider.dart و secondary_sync_manager.dart
+// أُزيلا بالكامل — Appwrite primary هو authority الوحيد.
 import '../services/sync/sync_gate.dart';
 import '../utils/loading_snackbar.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class DashboardSyncButton extends ConsumerStatefulWidget {
   const DashboardSyncButton({super.key});
@@ -52,8 +50,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     _loadPendingChangesCount();
     _loadAppwriteEnabled();
 
-    // مؤقت للتحديث الدوري
-    _pendingChangesTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+    // ✅ خفض تردد التحديث من 5 ثوان إلى 15 ثانية
+    // 5 ثوان = 12 استعلام DB في الدقيقة = ضغط على الأجهزة الضعيفة
+    // 15 ثانية = 4 استعلام DB في الدقيقة = كافي لمؤشر pending changes
+    _pendingChangesTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       if (mounted && !_isPulling && !_isPushing) {
         _loadPendingChangesCount();
         _loadAppwriteEnabled();
@@ -88,7 +88,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         });
       }
     } catch (e) {
-      debugPrint('❌ خطأ في تحميل عدد التغييرات المعلقة: $e');
+      dlog(() => '❌ خطأ في تحميل عدد التغييرات المعلقة: $e');
     }
   }
 
@@ -106,7 +106,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         _appwriteEnabled = enabled;
       }
     } catch (e) {
-      debugPrint('❌ خطأ في تحميل حالة Appwrite: $e');
+      dlog(() => '❌ خطأ في تحميل حالة Appwrite: $e');
       // في حالة الخطأ — نفترض مفعّل (احتياطي)
       if (mounted) {
         setState(() => _appwriteEnabled = true);
@@ -165,40 +165,25 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       return;
     }
 
-    // ✅ P2-4 fix: تحذير قبل السحب عند وجود تغييرات محلية غير مرفوعة
+    // سياسة Offline-first: السحب اليدوي غير متاح ما دامت تغييرات محلية
+    // غير مُسلّمة موجودة في Outbox. يُرفع المستخدم التغييرات أولاً ثم يعيد
+    // طلب السحب بعد تأكيد تفريغ الصف؛ لا يوجد خيار «سحب فقط» لتجنب دهسها.
     if (_pendingChangesCount > 0) {
       if (!mounted) return;
-      final shouldContinue = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('⚠️ تغييرات محلية غير مرفوعة'),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
           content: Text(
-            'لديك $_pendingChangesCount تغييراً محلياً لم يُرفع بعد.\n\n'
-            'سحب البيانات قبل رفع تغييراتك قد يدهس تعديلاتك المحلية.\n\n'
-            'هل تريد الرفع أولاً ثم السحب؟',
+            '⬆️ يجب رفع $_pendingChangesCount تغييراً محلياً قبل سحب البيانات',
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('سحب فقط'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('رفع ثم سحب'),
-            ),
-          ],
+          backgroundColor: Colors.orange,
+          action: SnackBarAction(
+            label: 'رفع الآن',
+            textColor: Colors.white,
+            onPressed: () => _pushChanges(context),
+          ),
         ),
       );
-      // null = المستخدم أغلق الحوار؛ true = رفع ثم سحب؛ false = سحب فقط
-      if (shouldContinue == null) {
-        return;
-      }
-      if (shouldContinue) {
-        // رفع ثم سحب — نخرج مؤقتاً من البوّابة الحالية لأن _pushChanges
-        // سيحاول دخولها بنفسه. البوّابة تُحرَّر هنا ويُعاد دخولها في الـ push.
-        if (!mounted) return;
-        await _pushChanges(context);
-      }
+      return;
     }
 
     _isPulling = true;
@@ -234,9 +219,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       if (!appwriteConnected) {
         _isPulling = false;
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('لا يوجد اتصال بـ Appwrite'),
               backgroundColor: Colors.red,
@@ -268,7 +251,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       }
 
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
-      final pullResult = await appwriteSyncManager.sync(push: false);
+      // ✅ (2026-08-31) تقليل السحب — الخطوة 2: زر التحديث اليدوي يسحب فوراً
+      // (forcePull يتجاوز حارس الدقيقتين فقط)؛ منع التوازي عبر SyncGate أعلاه
+      // وبقية الحمايات داخل sync() سارية (Outbox / SyncLocks / الاتصال).
+      final pullResult = await appwriteSyncManager.sync(
+        push: false,
+        forcePull: true,
+      );
       final pulledCount = pullResult.recordsPulled;
 
       // ✅ إغلاق إشعار التحميل فور انتهاء المزامنة
@@ -321,7 +310,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         );
       }
     } catch (e) {
-      debugPrint('❌ خطأ في سحب التغييرات: $e');
+      dlog(() => '❌ خطأ في سحب التغييرات: $e');
 
       // ✅ إغلاق إشعار "جاري" فوراً عند الفشل
       loading?.close();
@@ -340,8 +329,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           errorMessage: e.toString(),
           durationMs: stopwatch.elapsedMilliseconds,
         );
-      } catch (e) {
-      debugPrint('⚠️ Swallowed error in dashboard_sync_button.dart: ');}
+      } catch (_) {}
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -379,8 +367,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     try {
       controller.stop();
       controller.reset();
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in dashboard_sync_button.dart: ');
+    } catch (_) {
       // الـ controller تم dispose — تجاهل
     }
   }
@@ -556,7 +543,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             'pushed': 0,
             'error': e.toString(),
           };
-          debugPrint('❌ خطأ في رفع التغييرات إلى Appwrite: $e');
+          dlog(() => '❌ خطأ في رفع التغييرات إلى Appwrite: $e');
         }
       }
 
@@ -574,37 +561,12 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
             'pushed': 0,
             'error': e.toString(),
           };
-          debugPrint('❌ خطأ في رفع التغييرات إلى Google Drive: $e');
+          dlog(() => '❌ خطأ في رفع التغييرات إلى Google Drive: $e');
         }
       }
 
-      // ✅ رفع إلى Appwrite الثانوي (إذا مُفعّل)
-      // يستخدم نفس outbox الرئيسي — لا يسبب فقدان بيانات أو تكرار.
-      // السجل يُحذف من outbox فقط بعد نجاح كلا الوجهتين.
-      if (SecondaryAppwriteConfig.isEnabled &&
-          SecondaryAppwriteConfig.isPushEnabled) {
-        try {
-          final secondaryResult = await SecondarySyncManager.instance
-              .pushLocalChanges();
-          results['Appwrite الثانوي'] = {
-            'success': secondaryResult,
-            'pushed': _pendingChangesCount,
-          };
-          if (secondaryResult) {
-            ref
-                .read(secondarySyncProvider.notifier)
-                .updateLastSync(DateTime.now());
-          }
-          debugPrint('🔵 [Dashboard] Secondary sync push: $secondaryResult');
-        } catch (e) {
-          results['Appwrite الثانوي'] = {
-            'success': false,
-            'pushed': 0,
-            'error': e.toString(),
-          };
-          debugPrint('❌ خطأ في رفع التغييرات إلى Appwrite الثانوي: $e');
-        }
-      }
+      // ✅ Sync Simplification (2026-08-10): Secondary sync مُعطّل بالكامل.
+      // Appwrite primary هو authority الوحيد. لا حاجة لرفع للثانوي.
 
       await _loadPendingChangesCount();
 
@@ -737,7 +699,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       ref.invalidate(smartSyncStatusProvider);
     } catch (e) {
-      debugPrint('❌ فشل رفع التغييرات: $e');
+      dlog(() => '❌ فشل رفع التغييرات: $e');
 
       // ✅ تسجيل فشل العملية
       stopwatch.stop();
@@ -848,10 +810,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     int pendingCount,
     bool gateBusy,
   ) {
-    // زر السحب متاح دائماً طالما Appwrite مفعّل وليس جاري مزامنة محلياً،
-    // والبوّابة العامة ليست مشغولة بعملية من أي مصدر آخر.
+    // سياسة Offline-first: لا نسمح بالسحب اليدوي قبل تسليم كل تغييرات
+    // Outbox المحلية إلى Appwrite. يبقى زر الرفع متاحاً لتفريغ الصف أولاً.
     final bool pullEnabled =
-        _appwriteEnabled && !_isPulling && !_isPushing && !gateBusy;
+        _appwriteEnabled &&
+        pendingCount == 0 &&
+        !_isPulling &&
+        !_isPushing &&
+        !gateBusy;
 
     Color buttonColor;
     IconData buttonIcon;
@@ -872,8 +838,10 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
 
     return Tooltip(
-      message: hasRemoteChanges
-          ? 'يوجد $pendingCount تحديث من السيرفر — اضغط للسحب'
+      message: pendingCount > 0
+          ? 'السحب معطّل حتى رفع $pendingCount تغييراً محلياً'
+          : hasRemoteChanges
+          ? 'يوجد تحديث من السيرفر — اضغط للسحب'
           : 'اضغط لسحب التغييرات من السيرفر',
       child: Stack(
         clipBehavior: Clip.none,

@@ -15,30 +15,30 @@ void main() {
         nights,
         2,
         reason:
-            'يجب أن يكون يومين: يوم من 05/11 إلى 06/11، ويوم إضافي لأن المغادرة بعد 14:01',
+            'يجب أن يكون يومين: يوم من 05/11 إلى 06/11، ويوم إضافي لأن المغادرة بعد 14:00',
       );
       expect(totalCost, 30000, reason: 'التكلفة = 2 أيام × 15000 = 30000');
     });
 
-    test('مغادرة قبل 14:01 - لا يُضاف يوم إضافي', () {
+    test('مغادرة قبل 14:00 - لا يُضاف يوم إضافي', () {
       final checkin = DateTime(2024, 11, 5, 19, 0);
       final checkout = DateTime(2024, 11, 6, 13, 59);
 
       final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
 
-      expect(nights, 1, reason: 'يوم واحد فقط لأن المغادرة قبل 14:01');
+      expect(nights, 1, reason: 'يوم واحد فقط لأن المغادرة قبل 14:00');
     });
 
-    test('مغادرة في تمام 14:00 (قبل 14:01) - لا يُضاف يوم إضافي', () {
+    test('مغادرة في تمام 14:00 - لا يُضاف يوم إضافي', () {
       final checkin = DateTime(2024, 11, 5, 19, 0);
       final checkout = DateTime(2024, 11, 6, 14, 0);
 
       final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
 
-      expect(nights, 1, reason: 'يوم واحد فقط لأن المغادرة في تمام 14:00 (قبل 14:01)');
+      expect(nights, 1, reason: 'يوم واحد فقط لأن المغادرة في تمام 14:00');
     });
 
-    test('مغادرة بعد 14:01 بدقيقة واحدة - يُضاف يوم إضافي', () {
+    test('مغادرة بعد 14:00 بدقيقة واحدة - يُضاف يوم إضافي', () {
       final checkin = DateTime(2024, 11, 5, 19, 0);
       final checkout = DateTime(2024, 11, 6, 14, 1);
 
@@ -47,7 +47,7 @@ void main() {
       expect(
         nights,
         2,
-        reason: 'يومان: يوم أساسي + يوم إضافي للمغادرة بعد 14:01',
+        reason: 'يومان: يوم أساسي + يوم إضافي للمغادرة بعد 14:00',
       );
     });
 
@@ -60,16 +60,16 @@ void main() {
       expect(nights, 1, reason: 'الحد الأدنى يوم واحد حتى لو في نفس التاريخ');
     });
 
-    test('إقامة في نفس اليوم مع مغادرة بعد 14:01', () {
+    test('إقامة في نفس اليوم مع مغادرة بعد 14:00', () {
       final checkin = DateTime(2024, 11, 5, 10, 0);
       final checkout = DateTime(2024, 11, 5, 15, 0);
 
       final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
 
-      expect(nights, 2, reason: 'يوم أساسي + يوم إضافي للمغادرة بعد 14:01');
+      expect(nights, 2, reason: 'يوم أساسي + يوم إضافي للمغادرة بعد 14:00');
     });
 
-    test('إقامة يومين كاملين مع مغادرة قبل 14:01', () {
+    test('إقامة يومين كاملين مع مغادرة قبل 14:00', () {
       final checkin = DateTime(2024, 11, 5, 19, 0);
       final checkout = DateTime(2024, 11, 7, 13, 0);
 
@@ -82,16 +82,16 @@ void main() {
       );
     });
 
-    test('إقامة يومين كاملين مع مغادرة بعد 14:01', () {
+    test('إقامة يومين كاملين مع مغادرة بعد 14:00', () {
       final checkin = DateTime(2024, 11, 5, 19, 0);
       final checkout = DateTime(2024, 11, 7, 15, 0);
 
       final nights = Time.nightsWithCutoff(checkin, checkout: checkout);
 
-      expect(nights, 3, reason: 'يومان أساسيان + يوم إضافي للمغادرة بعد 14:01');
+      expect(nights, 3, reason: 'يومان أساسيان + يوم إضافي للمغادرة بعد 14:00');
     });
 
-    test('إقامة أسبوع كامل مع مغادرة بعد 14:01', () {
+    test('إقامة أسبوع كامل مع مغادرة بعد 14:00', () {
       final checkin = DateTime(2024, 11, 5, 10, 0);
       final checkout = DateTime(2024, 11, 12, 16, 30);
 
@@ -100,7 +100,7 @@ void main() {
       expect(
         nights,
         9,
-        reason: '7 أيام أساسية + يوم إضافي لكل تجاوز بعد 14:01',
+        reason: '7 أيام أساسية + يوم إضافي لكل تجاوز بعد 14:00',
       );
     });
 
@@ -113,7 +113,7 @@ void main() {
       expect(
         nights,
         1,
-        reason: 'يوم واحد للانتقال من يوم إلى آخر مع مغادرة قبل 14:01',
+        reason: 'يوم واحد للانتقال من يوم إلى آخر مع مغادرة قبل 14:00',
       );
     });
 
@@ -150,7 +150,7 @@ void main() {
           'expectedDays': 2,
           'roomPrice': 12000.0,
           'expectedCost': 24000.0,
-          'description': 'نفس اليوم مع مغادرة بعد 14:01',
+          'description': 'نفس اليوم مع مغادرة بعد 14:00',
         },
       ];
 
@@ -186,9 +186,9 @@ void main() {
       final nights14 = Time.nightsWithCutoff(
         checkin,
         checkout: checkout,
-        cutoffHour: 14, cutoffMinute: 1,
+        cutoffHour: 14,
       );
-      expect(nights14, 2, reason: 'مع ساعة قطع 14:01 يجب أن يكون يومين');
+      expect(nights14, 2, reason: 'مع ساعة قطع 14:00 يجب أن يكون يومين');
 
       // اختبار مع ساعة قطع 16:00
       final nights16 = Time.nightsWithCutoff(
@@ -208,7 +208,7 @@ void main() {
     });
 
     test('اختبار checkout = null (يستخدم الوقت الحالي)', () {
-      final checkin = DateTime.now().subtract(Duration(days: 2));
+      final checkin = DateTime.now().subtract(const Duration(days: 2));
 
       final nights = Time.nightsWithCutoff(checkin);
 
@@ -226,17 +226,17 @@ void main() {
             2024,
             11,
             6,
-            13,
-            59,
+            14,
+            0,
             59,
           ), // قبل 14:01 بثانية واحدة
           'expectedDays': 1,
           'description': 'قبل 14:01 بثانية واحدة',
         },
         {
-          'checkout': DateTime(2024, 11, 6, 14, 0, 0), // تمام 14:00
-          'expectedDays': 1,
-          'description': 'تمام الساعة 14:00',
+          'checkout': DateTime(2024, 11, 6, 14, 1, 0), // تمام 14:01
+          'expectedDays': 2,
+          'description': 'تمام الساعة 14:01',
         },
         {
           'checkout': DateTime(2024, 11, 6, 14, 1, 1), // بعد 14:01 بثانية واحدة

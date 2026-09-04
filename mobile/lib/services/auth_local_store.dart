@@ -1,17 +1,30 @@
+import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
+import 'package:appwrite/appwrite.dart';
+import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/app_logger.dart';
+import '../utils/id.dart';
 import 'appwrite_service.dart';
+import 'appwrite_sync_manager.dart';
 import 'password_hasher.dart';
-import 'secondary_appwrite_config.dart';
-import 'secondary_appwrite_service.dart';
 
 enum AuthType { local }
 
 class AuthLocalStore {
+  String _cloudDocumentId(String username) {
+    final legacyId = 'user_$username';
+    final validLegacy =
+        legacyId.length <= 36 &&
+        RegExp(r'^[A-Za-z0-9._-]+$').hasMatch(legacyId);
+    if (validLegacy) return legacyId;
+
+    final digest = sha256.convert(utf8.encode(username)).toString();
+    return 'user_${digest.substring(0, 31)}';
+  }
+
   static const _kCurrentUser = 'current_user';
   static const _kPermissionsMap = 'user_permissions';
   static const _kCustomAccounts = 'custom_accounts';
@@ -31,32 +44,74 @@ class AuthLocalStore {
     'notes',
     'information',
     'settings',
+    'inventory',
   ];
 
+  /// صلاحيات العمليات الدقيقة. وجود المفتاح القديم للقسم يبقى متوافقاً
+  /// ويمنح نفس صلاحيات الإصدار السابق، بينما المفاتيح الجديدة تسمح بالفصل
+  /// بين القراءة والإضافة والتعديل والحذف.
+  static const List<String> operationPermissionKeys = [
+    'view',
+    'create',
+    'update',
+    'delete',
+  ];
+
+  static const Map<String, String> _permissionActions = {
+    'view': 'عرض',
+    'create': 'إضافة',
+    'update': 'تعديل',
+    'delete': 'حذف',
+  };
+
+  static List<String> permissionKeysForModule(String module) => [
+    for (final action in operationPermissionKeys) '$module.$action',
+  ];
+
+  /// مفاتيح محرر المستخدمين: المفاتيح القديمة للتوافق، ثم العمليات الدقيقة.
+  static List<String> get permissionEditorKeys => [
+    ...permissionKeys,
+    for (final module in permissionKeys) ...permissionKeysForModule(module),
+  ];
+
+  static String operationLabel(String action) =>
+      _permissionActions[action] ?? action;
+
+  /// يتحقق من صلاحية عملية محددة مع إبقاء الحسابات الحالية متوافقة.
+  static bool canPerform({
+    required String? userType,
+    required List<String> permissions,
+    required String module,
+    required String action,
+  }) {
+    if (userType == 'admin' || permissions.contains('all')) return true;
+    if (permissions.contains(module)) return true;
+    return permissions.contains('$module.$action');
+  }
+
+  /// يستخدم لحارس الصفحة والقائمة: يكفي امتلاك أي صلاحية تشغيلية.
+  static bool canAccessModule({
+    required String? userType,
+    required List<String> permissions,
+    required String module,
+  }) {
+    if (userType == 'admin' || permissions.contains('all')) return true;
+    if (permissions.contains(module)) return true;
+    return permissionKeysForModule(module).any(permissions.contains);
+  }
+
+  /// حسابات افتراضية للوصول المحلي (fallback عند عدم توفر Appwrite Cloud).
+  ///
+  /// admin/admin — مدير النظام
+  ///
+  /// ⚠️ مهم: هذه الحسابات تعمل فقط على الأجهزة التي لم تُهاجر لـ Appwrite Cloud.
+  /// الأجهزة المُهاجرة تستخدم `app_users` collection في Cloud.
   static const Map<String, Map<String, dynamic>> _fixedAccounts = {
     'admin': {
       'password': 'admin',
       'user_type': 'admin',
       'full_name': 'مدير النظام',
       'id': 1,
-    },
-    'm': {
-      'password': '1',
-      'user_type': 'supervisor',
-      'full_name': 'محمد',
-      'id': 2,
-    },
-    'ahmed': {
-      'password': '2222',
-      'user_type': 'employee',
-      'full_name': 'أحمد',
-      'id': 3,
-    },
-    '1': {
-      'password': '1',
-      'user_type': 'supervisor',
-      'full_name': 'محمد',
-      'id': 4,
     },
   };
 
@@ -150,7 +205,9 @@ class AuthLocalStore {
 
   /// سحب المستخدمين من Appwrite Cloud (app_users collection)
   /// يعيد Map<username, account_data> أو فارغ عند الفشل
-  Future<Map<String, Map<String, dynamic>>> loadCloudAccounts() async {
+  Future<Map<String, Map<String, dynamic>>> loadCloudAccounts({
+    bool includeInactive = false,
+  }) async {
     try {
       final appwrite = AppwriteService();
       await appwrite.initialize();
@@ -163,17 +220,20 @@ class AuthLocalStore {
         final d = doc.data;
         final username = (d['username'] ?? '').toString().trim();
         if (username.isEmpty) continue;
-        final active = d['active'];
-        if (active == false) continue;
+        final active = d['active'] ?? d['isActive'];
+        if (active == false && !includeInactive) continue;
         cloudAccounts[username] = {
           'password': (d['password'] ?? '').toString(),
           'full_name': (d['full_name'] ?? username).toString(),
           'user_type': (d['user_type'] ?? d['role'] ?? 'employee').toString(),
+          // id محلي للتوافق فقط؛ doc.$id هوية Cloud الثابتة بين الأجهزة.
           'id': doc.$id.hashCode,
+          'cloud_user_id': doc.$id,
           'doc_id': doc.$id,
           'is_cloud': true,
           'permissions_json': (d['permissions'] ?? '[]').toString(),
-          'active': d['active'] ?? true,
+          'active': active ?? true,
+          'is_locked': d['isLocked'] == true || d['is_locked'] == true,
           'credentials_version': d['credentials_version'] ?? 1,
           'role': (d['role'] ?? d['user_type'] ?? 'employee').toString(),
           'version': d['version'] ?? 1,
@@ -281,8 +341,10 @@ class AuthLocalStore {
     } else {
       perms = await getPermissions(normalized);
     }
+
     return {
       'id': account['id'] ?? 0,
+      'cloud_user_id': account['cloud_user_id'],
       'username': normalized,
       'full_name': (account['full_name'] ?? normalized).toString(),
       'user_type': (account['user_type'] ?? 'employee').toString(),
@@ -349,9 +411,14 @@ class AuthLocalStore {
     try {
       final appwrite = AppwriteService();
       await appwrite.initialize();
-      final docId = 'user_$username';
+      final docId = _cloudDocumentId(username);
+      final localUuid = IdGen.uuid();
       final hashedPassword = PasswordHasher.hash(password);
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final deviceId = await _getDeviceId() ?? '';
+      final vectorClock = deviceId.isEmpty
+          ? '{}'
+          : jsonEncode(<String, int>{deviceId: 1});
 
       await appwrite.upsertDocument(
         collectionId: 'app_users',
@@ -362,6 +429,7 @@ class AuthLocalStore {
           'password': hashedPassword,
           'full_name': fullName,
           'user_type': userType,
+          'userType': userType,
           'permissions': jsonEncode(permissions),
           'active': true,
           'last_login': 0,
@@ -369,113 +437,27 @@ class AuthLocalStore {
           'role': userType,
 
           // حقول المزامنة الأساسية فقط (7)
-          'localUuid': docId,
+          'localUuid': localUuid,
           'createdAt': now,
           'updatedAt': now,
           'lastModified': now,
+          'lastModifiedEpoch': now,
+          'syncTimestamp': now,
           'version': 1,
-          'vectorClock': '{}',
-          'deviceId': await _getDeviceId() ?? '',
+          'vectorClock': vectorClock,
+          'deviceId': deviceId,
         },
       );
       AppLogger.debug(
         'User $username pushed to cloud (password hashed)',
         tag: 'AUTH',
       );
-
-      // ✅ مزامنة Secondary Appwrite: إرسال نفس البيانات للوجهة الثانوية
-      await _pushToSecondary(docId, {
-        'username': username,
-        'password': hashedPassword,
-        'full_name': fullName,
-        'user_type': userType,
-        'permissions': jsonEncode(permissions),
-        'active': true,
-        'last_login': 0,
-        'credentials_version': 1,
-        'role': userType,
-        'localUuid': docId,
-        'createdAt': now,
-        'updatedAt': now,
-        'lastModified': now,
-        'version': 1,
-        'vectorClock': '{}',
-        'deviceId': await _getDeviceId() ?? '',
-      });
     } catch (e) {
       AppLogger.warning(
         'Failed to push user $username to cloud',
         tag: 'AUTH',
         error: e,
       );
-    }
-  }
-
-  /// ✅ إرسال بيانات المستخدم للوجهة الثانوية (Secondary Appwrite)
-  ///
-  /// تعمل فقط إذا كان Secondary مُفعّلاً + Push مُفعّل.
-  /// الفشل هنا غير حرج — البيانات موجودة في Primary.
-  Future<void> _pushToSecondary(String docId, Map<String, dynamic> data) async {
-    try {
-      if (!SecondaryAppwriteConfig.isEnabled ||
-          !SecondaryAppwriteConfig.isPushEnabled ||
-          !SecondaryAppwriteConfig.isConfigured) {
-        return; // Secondary معطّل — لا شيء لنفعله
-      }
-
-      final service = SecondaryAppwriteService.instance;
-      await service.ensureInitialized();
-      await service.upsertDocument(
-        collectionId: 'app_users',
-        documentId: docId,
-        data: data,
-      );
-      debugPrint('📤 [Auth] User synced to Secondary: $docId');
-    } catch (e) {
-      // فشل Secondary غير حرج — Primary لديه البيانات
-      debugPrint('⚠️ [Auth] Secondary sync failed for user $docId: $e');
-    }
-  }
-
-  /// ✅ تحديث مستخدم في الوجهة الثانوية
-  Future<void> _updateSecondary(String docId, Map<String, dynamic> data) async {
-    try {
-      if (!SecondaryAppwriteConfig.isEnabled ||
-          !SecondaryAppwriteConfig.isPushEnabled ||
-          !SecondaryAppwriteConfig.isConfigured) {
-        return;
-      }
-
-      final service = SecondaryAppwriteService.instance;
-      await service.ensureInitialized();
-      await service.upsertDocument(
-        collectionId: 'app_users',
-        documentId: docId,
-        data: data,
-      );
-      debugPrint('📤 [Auth] User updated in Secondary: $docId');
-    } catch (e) {
-      debugPrint('⚠️ [Auth] Secondary update failed for user $docId: $e');
-    }
-  }
-
-  /// ✅ حذف مستخدم من الوجهة الثانوية
-  Future<void> _deleteFromSecondary(String docId) async {
-    try {
-      if (!SecondaryAppwriteConfig.isEnabled ||
-          !SecondaryAppwriteConfig.isConfigured) {
-        return;
-      }
-
-      final service = SecondaryAppwriteService.instance;
-      await service.ensureInitialized();
-      await service.deleteDocument(
-        collectionId: 'app_users',
-        documentId: docId,
-      );
-      debugPrint('📤 [Auth] User deleted from Secondary: $docId');
-    } catch (e) {
-      debugPrint('⚠️ [Auth] Secondary delete failed for user $docId: $e');
     }
   }
 
@@ -522,6 +504,64 @@ class AuthLocalStore {
     }
   }
 
+  /// تحديث حساب محلي مخصص.
+  Future<bool> updateLocalUser({
+    required String username,
+    String? newPassword,
+    String? newFullName,
+    String? newUserType,
+    List<String>? newPermissions,
+  }) async {
+    final accounts = await _loadCustomAccounts();
+    final raw = accounts[username];
+    if (raw is! Map) return false;
+
+    final account = Map<String, dynamic>.from(raw);
+    if (newPassword != null && newPassword.isNotEmpty) {
+      account['password'] = PasswordHasher.hash(newPassword);
+    }
+    if (newFullName != null) account['full_name'] = newFullName;
+    if (newUserType != null) account['user_type'] = newUserType;
+    accounts[username] = account;
+    await _saveCustomAccounts(accounts);
+    if (newPermissions != null) {
+      await setPermissions(username, newPermissions);
+    }
+    return true;
+  }
+
+  /// حذف حساب محلي مخصص.
+  Future<bool> deleteLocalUser(String username) async {
+    if (_fixedAccounts.containsKey(username)) return false;
+    final accounts = await _loadCustomAccounts();
+    if (!accounts.containsKey(username)) return false;
+    accounts.remove(username);
+    await _saveCustomAccounts(accounts);
+
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kPermissionsMap);
+    if (raw != null) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) {
+          final permissions = decoded.map(
+            (key, value) => MapEntry(key.toString(), value),
+          );
+          permissions.remove(username);
+          await prefs.setString(_kPermissionsMap, jsonEncode(permissions));
+        }
+      } catch (e, st) {
+        AppLogger.warning(
+          'تعذر تنظيف صلاحيات المستخدم المحلي المحذوف $username',
+          tag: 'AUTH',
+          error: e,
+          stackTrace: st,
+        );
+      }
+    }
+    return true;
+  }
+
   /// تحديث بيانات مستخدم سحابي (اسم، كلمة مرور، صلاحيات) + زيادة credentials_version
   /// يعيد true إذا نجح → يجب قطع الجلسة على الأجهزة الأخرى
   Future<bool> updateCloudUser({
@@ -533,6 +573,7 @@ class AuthLocalStore {
     List<String>? newPermissions,
     bool? active,
   }) async {
+    Map<String, dynamic>? pendingData;
     try {
       final appwrite = AppwriteService();
       await appwrite.initialize();
@@ -543,7 +584,7 @@ class AuthLocalStore {
         documentId: docId,
       );
       final currentVersion =
-          currentDoc.data['credentials_version'] as int? ?? 0;
+          (currentDoc.data['credentials_version'] as num?)?.toInt() ?? 0;
       final nextVersion = currentVersion + 1;
 
       final data = <String, dynamic>{'credentials_version': nextVersion};
@@ -566,7 +607,11 @@ class AuthLocalStore {
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       data['updatedAt'] = now;
       data['lastModified'] = now;
-      data['version'] = (currentDoc.data['version'] as int? ?? 1) + 1;
+      data['lastModifiedEpoch'] = now;
+      data['syncTimestamp'] = now;
+      data['version'] = (currentDoc.data['version'] as num?)?.toInt() ?? 1;
+      data['version'] = (data['version'] as int) + 1;
+      pendingData = Map<String, dynamic>.from(data);
 
       await appwrite.updateDocument(
         collectionId: 'app_users',
@@ -579,11 +624,40 @@ class AuthLocalStore {
         tag: 'AUTH',
       );
 
-      // ✅ مزامنة Secondary Appwrite: تحديث نفس البيانات في الوجهة الثانوية
-      await _updateSecondary(docId, data);
-
       return true;
     } catch (e) {
+      if (_isRetryablePermissionSyncError(e)) {
+        final queuedData =
+            pendingData ??
+            <String, dynamic>{
+              'username': username,
+              'updatedAt': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              'lastModified': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              'lastModifiedEpoch':
+                  DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              'syncTimestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              'version': 0,
+            };
+        if (newPassword != null && newPassword.isNotEmpty) {
+          queuedData['password'] = PasswordHasher.hash(newPassword);
+        }
+        if (newFullName != null) queuedData['full_name'] = newFullName;
+        if (newUserType != null) {
+          queuedData['user_type'] = newUserType;
+          queuedData['role'] = newUserType;
+        }
+        if (newPermissions != null) {
+          queuedData['permissions'] = jsonEncode(newPermissions);
+        }
+        if (active != null) queuedData['active'] = active;
+        if (await _enqueuePermissionSync(docId, queuedData)) {
+          AppLogger.info(
+            'تم حفظ تحديث المستخدم $username في Outbox للمزامنة اللاحقة',
+            tag: 'AUTH',
+          );
+          return true;
+        }
+      }
       AppLogger.error(
         'Failed to update cloud user $username',
         tag: 'AUTH',
@@ -603,9 +677,6 @@ class AuthLocalStore {
         documentId: docId,
       );
       AppLogger.info('Cloud user deleted (doc: $docId)', tag: 'AUTH');
-
-      // ✅ مزامنة Secondary Appwrite: حذف من الوجهة الثانوية
-      await _deleteFromSecondary(docId);
 
       return true;
     } catch (e) {
@@ -633,7 +704,6 @@ class AuthLocalStore {
     try {
       final prefs = await SharedPreferences.getInstance();
       final storedVersion = prefs.getInt(_kCredVersion);
-      if (storedVersion == null) return true; // مستخدم محلي، لا تحقق
 
       final currentUser = await loadCurrentUser();
       if (currentUser == null) return true;
@@ -644,20 +714,39 @@ class AuthLocalStore {
 
       final appwrite = AppwriteService();
       await appwrite.initialize();
-      final cloudAccounts = await loadCloudAccounts();
-      final cloudAccount = cloudAccounts[username];
-      if (cloudAccount == null) return true; // ليس مستخدم سحابي
+      // نستخدم طلباً واحداً يعيد الحسابات النشطة وغير النشطة معاً؛ لأن
+      // loadCloudAccounts() يستبعد active=false ولا يمكنه التمييز بين حساب
+      // معطّل وحساب محذوف أو فشل شبكة.
+      final docs = await appwrite.listDocuments(
+        collectionId: 'app_users',
+        useCache: false,
+      );
+      Map<String, dynamic>? cloudData;
+      for (final doc in docs) {
+        if ((doc.data['username']?.toString() ?? '') == username) {
+          cloudData = doc.data;
+          break;
+        }
+      }
 
-      // ✅ Forensic audit fix (2026-07-22):
-      // كان الكود السابق يستدعي listDocuments('app_users') مرة ثانية (السطر 552)
-      // للبحث عن credentials_version — لكن loadCloudAccounts() أعلاه (السطر 547)
-      // سبق وجلب نفس البيانات وخزّنها في cloudAccount['credentials_version']
-      // (انظر auth_local_store.dart:146). هذا الاستدعاء المكرر يستهلك
-      // listDocuments API call إضافي بلا داعٍ في كل فحص جلسة (كل 30 ثانية).
-      //
-      /// للتراجع: أعد استدعاء listDocuments('app_users') بدل استخدام cloudAccount.
+      // غياب المستند يعني أن الحساب حُذف أو لم يعد حساباً سحابياً. بما أن
+      // هذا الفحص داخل try، فإن فشل الشبكة يبقى في catch ويُبقي الجلسة مؤقتاً.
+      if (cloudData == null || cloudData['active'] == false) {
+        AppLogger.warning(
+          'Session invalid for $username: account deleted or inactive',
+          tag: 'AUTH',
+        );
+        return false;
+      }
+
       final cloudVersion =
-          (cloudAccount['credentials_version'] as num?)?.toInt() ?? 0;
+          (cloudData['credentials_version'] as num?)?.toInt() ?? 0;
+      if (storedVersion == null) {
+        // جلسة قديمة من إصدار لا يحفظ النسخة: نثبت النسخة الحالية بعد
+        // التحقق من أن الحساب موجود ونشط، بدلاً من تجاوز الإلغاء تماماً.
+        await saveCredentialsVersion(cloudVersion);
+        return true;
+      }
       if (cloudVersion != storedVersion) {
         AppLogger.warning(
           'Session invalid for $username: local=$storedVersion, cloud=$cloudVersion',
@@ -688,6 +777,8 @@ class AuthLocalStore {
         'id': data['id'],
         'is_fixed': true,
         'is_cloud': false,
+        'is_active': true,
+        'is_locked': false,
       });
     });
 
@@ -702,19 +793,22 @@ class AuthLocalStore {
           'id': rawData['id'],
           'is_fixed': false,
           'is_cloud': false,
+          'is_active': true,
+          'is_locked': false,
         });
       }
     });
 
-    // حسابات سحابية من Appwrite (app_users)
+    // حسابات سحابية من Appwrite (app_users)، بما فيها المعطلة لعرض حالتها.
     try {
-      final cloudAccounts = await loadCloudAccounts();
-      final localUsernames = result
-          .map((a) => a['username'].toString())
-          .toSet();
-      cloudAccounts.forEach((username, data) {
-        // تجنب التكرار مع الحسابات المحلية
-        if (!localUsernames.contains(username)) {
+      final cloudAccounts = await loadCloudAccounts(includeInactive: true);
+      for (final entry in cloudAccounts.entries) {
+        final username = entry.key;
+        final data = entry.value;
+        final existingIndex = result.indexWhere(
+          (account) => account['username'].toString() == username,
+        );
+        if (existingIndex == -1) {
           result.add({
             'username': username,
             'full_name': data['full_name'] ?? username,
@@ -723,9 +817,25 @@ class AuthLocalStore {
             'is_fixed': false,
             'is_cloud': true,
             'doc_id': data['doc_id'],
+            'is_active': data['active'] != false,
+            'is_locked': data['is_locked'] == true,
           });
+        } else if (result[existingIndex]['is_fixed'] != true) {
+          // الحساب أُنشئ محلياً ثم رُفع إلى Appwrite؛ نحتفظ ببطاقة واحدة
+          // ونضيف doc_id حتى تستخدم الشاشة مسار التعديل السحابي الصحيح.
+          result[existingIndex] = {
+            ...result[existingIndex],
+            'full_name':
+                data['full_name'] ?? result[existingIndex]['full_name'],
+            'user_type':
+                data['user_type'] ?? result[existingIndex]['user_type'],
+            'is_cloud': true,
+            'doc_id': data['doc_id'],
+            'is_active': data['active'] != false,
+            'is_locked': data['is_locked'] == true,
+          };
         }
-      });
+      }
     } catch (e, st) {
       // فشل سحب السحابي — لا مشكلة، نعرض المحلي فقط
       AppLogger.warning(
@@ -788,7 +898,7 @@ class AuthLocalStore {
 
   Future<bool> getRememberMe() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_kRememberMe) ?? false;
+    return prefs.getBool(_kRememberMe) ?? true;
   }
 
   Future<void> setAuthType(AuthType type) async {
@@ -853,7 +963,7 @@ class AuthLocalStore {
     }
   }
 
-  Future<void> setPermissions(String username, List<String> permissions) async {
+  Future<bool> setPermissions(String username, List<String> permissions) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_kPermissionsMap);
     Map<String, dynamic> map = {};
@@ -872,47 +982,154 @@ class AuthLocalStore {
         );
       }
     }
-    map[username] = permissions;
+    final previous = map.containsKey(username) ? map[username] : null;
+    final nextPermissions = username == 'admin' ? <String>['all'] : permissions;
+    map[username] = nextPermissions;
     await prefs.setString(_kPermissionsMap, jsonEncode(map));
-    if (username == 'admin') {
-      map[username] = ['all'];
-    }
 
-    // تحديث الصلاحيات في السحابة أيضاً
-    await _updateCloudPermissions(username, permissions);
+    // تحديث الصلاحيات في السحابة أيضاً. إذا فشل، نعيد القيمة المحلية السابقة
+    // حتى لا تعرض الواجهة صلاحيات لم تصل فعلياً إلى Appwrite.
+    final cloudUpdated = await _updateCloudPermissions(
+      username,
+      nextPermissions,
+    );
+    if (cloudUpdated) return true;
+
+    if (previous == null) {
+      map.remove(username);
+    } else {
+      map[username] = previous;
+    }
+    await prefs.setString(_kPermissionsMap, jsonEncode(map));
+    return false;
   }
 
-  /// تحديث صلاحيات مستخدم سحابي في Appwrite
-  Future<void> _updateCloudPermissions(
+  /// تحديث صلاحيات مستخدم سحابي في Appwrite.
+  ///
+  /// عند فشل الشبكة لا نلغي التغيير المحلي؛ نسجل payload في Outbox ليُرفع
+  /// لاحقاً. أما أخطاء المصادقة أو مخطط Appwrite فلا تُحجز تلقائياً، حتى لا
+  /// يبقى Outbox يعيد المحاولة بلا نهاية بسبب خطأ غير مؤقت.
+  Future<bool> _updateCloudPermissions(
     String username,
     List<String> permissions,
   ) async {
+    // معرف app_users حتمي، لذلك يمكن إنشاء Outbox حتى لو تعذر الوصول
+    // إلى Appwrite قبل قراءة المستند الحالي.
+    String docId = _cloudDocumentId(username);
+    Map<String, dynamic>? pendingPayload;
     try {
       final appwrite = AppwriteService();
       await appwrite.initialize();
-      final cloudAccounts = await loadCloudAccounts();
-      final cloudAccount = cloudAccounts[username];
-      if (cloudAccount == null) return;
-      final docId = cloudAccount['doc_id'] as String?;
-      if (docId == null) return;
+      final docs = await appwrite.listDocuments(
+        collectionId: 'app_users',
+        useCache: false,
+      );
+      Map<String, dynamic>? cloudData;
+      for (final doc in docs) {
+        if ((doc.data['username']?.toString() ?? '') == username) {
+          cloudData = doc.data;
+          docId = doc.$id;
+          break;
+        }
+      }
+      // لا يوجد مستند سحابي: الحساب محلي، لذلك يكفي الحفظ المحلي.
+      if (cloudData == null) return true;
+      if (docId.isEmpty) return false;
+
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final credentialsVersion =
+          (cloudData['credentials_version'] as num?)?.toInt() ?? 0;
+      final version = (cloudData['version'] as num?)?.toInt() ?? 0;
+      pendingPayload = <String, dynamic>{
+        'username': username,
+        'permissions': jsonEncode(permissions),
+        'credentials_version': credentialsVersion + 1,
+        'updatedAt': now,
+        'lastModified': now,
+        'lastModifiedEpoch': now,
+        'syncTimestamp': now,
+        'version': version + 1,
+      };
       await appwrite.updateDocument(
         collectionId: 'app_users',
         documentId: docId,
-        data: {'permissions': jsonEncode(permissions)},
+        data: pendingPayload,
       );
       AppLogger.debug(
         'Permissions updated for $username in cloud',
         tag: 'AUTH',
       );
 
-      // ✅ مزامنة Secondary Appwrite: تحديث الصلاحيات في الوجهة الثانوية
-      await _updateSecondary(docId, {'permissions': jsonEncode(permissions)});
+      return true;
     } catch (e) {
+      if (_isRetryablePermissionSyncError(e)) {
+        pendingPayload ??= <String, dynamic>{
+          'username': username,
+          'permissions': jsonEncode(permissions),
+          'updatedAt': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          'lastModified': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          'lastModifiedEpoch': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          'syncTimestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          'version': 0,
+        };
+      }
+      if (_isRetryablePermissionSyncError(e) &&
+          pendingPayload != null &&
+          await _enqueuePermissionSync(docId, pendingPayload)) {
+        AppLogger.info(
+          'تم حفظ صلاحيات $username في Outbox للمزامنة اللاحقة',
+          tag: 'AUTH',
+        );
+        return true;
+      }
       AppLogger.warning(
         'Failed to update cloud permissions for $username',
         tag: 'AUTH',
         error: e,
       );
+      return false;
+    }
+  }
+
+  bool _isRetryablePermissionSyncError(Object error) {
+    if (error is TimeoutException) return true;
+    if (error is AppwriteException) {
+      final code = error.code;
+      return code == null || code == 408 || code == 429 || code >= 500;
+    }
+    final message = error.toString();
+    return message.contains('SocketException') ||
+        message.contains('HandshakeException') ||
+        message.contains('Connection refused') ||
+        message.contains('Network is unreachable') ||
+        message.contains('TimeoutException') ||
+        message.contains('timed out');
+  }
+
+  Future<bool> _enqueuePermissionSync(
+    String docId,
+    Map<String, dynamic> payload,
+  ) async {
+    final manager = AppwriteSyncManager.instance;
+    if (manager == null) return false;
+    try {
+      await manager.outboxDao.merge(
+        entity: 'app_users',
+        op: 'update',
+        localUuid: docId,
+        payload: payload,
+        clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        source: 'local',
+      );
+      return true;
+    } catch (e, st) {
+      AppLogger.warning(
+        'تعذر إضافة تحديث صلاحيات المستخدم إلى Outbox',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
+      return false;
     }
   }
 
@@ -972,8 +1189,7 @@ class AuthLocalStore {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getString('appwrite_device_id') ??
           prefs.getString('appwrite_realtime_device_id');
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in auth_local_store.dart: ');
+    } catch (_) {
       return null;
     }
   }

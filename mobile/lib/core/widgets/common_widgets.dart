@@ -340,11 +340,7 @@ class LoadingStateWidget extends StatelessWidget {
 
 /// Error State Widget - عرض حالة خطأ
 class ErrorStateWidget extends StatelessWidget {
-  const ErrorStateWidget({
-    required this.message,
-    super.key,
-    this.onRetry,
-  });
+  const ErrorStateWidget({required this.message, super.key, this.onRetry});
   final String message;
   final VoidCallback? onRetry;
 

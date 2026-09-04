@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -14,6 +12,7 @@ import '../../services/sync_service.dart';
 import '../../utils/status_utils.dart';
 import '../bookings/booking_edit.dart';
 import '../payments/booking_payment_screen.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class RoomsDashboard extends ConsumerStatefulWidget {
   const RoomsDashboard({super.key});
@@ -57,7 +56,7 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
           return roomsWithStatusAsync.when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, st) {
-              debugPrint('❌ RoomsDashboard error: $e\n$st');
+              dlog(() => '❌ RoomsDashboard error: $e\n$st');
               return const Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -213,9 +212,7 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
   }
 
   void _navigateToBooking(BuildContext context, String roomNumber) {
-    Navigator.of(
-      context,
-    ).push<void>(
+    Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
       ),
@@ -250,9 +247,7 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
       }
 
       unawaited(
-        Navigator.of(
-          context,
-        ).push<void>(
+        Navigator.of(context).push<void>(
           MaterialPageRoute<void>(
             builder: (_) => BookingPaymentScreen(booking: activeBooking),
           ),

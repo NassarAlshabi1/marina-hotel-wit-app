@@ -85,17 +85,12 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
   }) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
-      final nowIso = DateTime.now().toIso8601String();
       final uuid = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
       final companion = data.copyWith(
         localUuid: Value(uuid),
         createdAt: Value(now),
-        createdAtIso: Value(nowIso),
-        createdAtEpoch: Value(now),
         updatedAt: Value(now),
-        updatedAtIso: Value(nowIso),
         lastModified: Value(now),
-        lastModifiedEpoch: Value(now),
         version: const Value(1),
         origin: Value(originIsServer ? 'server' : 'local'),
         deviceId: originIsServer
@@ -135,15 +130,9 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
       final effectiveLastModified = originIsServer && data.lastModified.present
           ? data.lastModified
           : Value(now);
-      final effectiveLastModifiedEpoch =
-          originIsServer && data.lastModifiedEpoch.present
-          ? data.lastModifiedEpoch
-          : Value(now);
       final companion = data.copyWith(
         updatedAt: Value(now),
-        updatedAtIso: Value(DateTime.now().toIso8601String()),
         lastModified: effectiveLastModified,
-        lastModifiedEpoch: effectiveLastModifiedEpoch,
         version: Value(existing.version + 1),
       );
       final rows = await (update(
@@ -166,7 +155,6 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
   Future<int> softDelete(int id, {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
-      final nowIso = DateTime.now().toIso8601String();
       final existing = await getById(id);
       if (existing == null) {
         return 0;
@@ -174,12 +162,8 @@ class DebtsDao extends DatabaseAccessor<AppDatabase> with _$DebtsDaoMixin {
       final rows = await (update(debts)..where((t) => t.id.equals(id))).write(
         DebtsCompanion(
           deletedAt: Value(now),
-          deletedAtIso: Value(nowIso),
           updatedAt: Value(now),
-          updatedAtIso: Value(nowIso),
           lastModified: Value(now),
-          lastModifiedEpoch: Value(now),
-          version: Value(existing.version + 1),
         ),
       );
       if (rows > 0 && !originIsServer) {

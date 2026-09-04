@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 // ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
@@ -15,8 +13,10 @@ import '../../providers/room_payment_status_provider.dart'; // استيراد ا
 import '../../services/local_db.dart';
 import '../../services/price_adjustment_service.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/performance_config.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/theme.dart';
+import '../../utils/english_digits_input_formatter.dart';
 
 class RoomsListScreen extends ConsumerStatefulWidget {
   const RoomsListScreen({super.key});
@@ -166,6 +166,9 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
       },
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 12),
+        scrollCacheExtent: optimizedScrollCacheExtent,
+        addAutomaticKeepAlives: false,
+        addRepaintBoundaries: false,
         itemCount: sortedFloors.length,
         itemBuilder: (context, index) {
           final floorNumber = sortedFloors[index];
@@ -185,7 +188,8 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
               floorNumber: floorNumber,
               totalRooms: floorRooms.length,
               availableRooms: availableCount,
-              initiallyExpanded: index < 2,
+              // لا نفتتح أكثر من طابق واحد في ملف 1GB لتقليل بناء GridView.
+              initiallyExpanded: !isLowEndDevice && index < 2,
               children: [
                 Padding(
                   padding: const EdgeInsets.all(12),
@@ -201,6 +205,8 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                       mainAxisSpacing: 10,
                     ),
                     itemCount: floorRooms.length,
+                    addAutomaticKeepAlives: false,
+                    addRepaintBoundaries: false,
                     itemBuilder: (context, i) {
                       final roomData = floorRooms[i];
                       return RepaintBoundary(
@@ -232,6 +238,9 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
       },
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        scrollCacheExtent: optimizedScrollCacheExtent,
+        addAutomaticKeepAlives: false,
+        addRepaintBoundaries: false,
         itemCount: rooms.length,
         separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (context, index) {
@@ -536,6 +545,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                       ),
                     ),
                     keyboardType: TextInputType.number,
+                    inputFormatters: const [englishIntegerInputFormatter],
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
                         return 'أدخل السعر';
@@ -674,9 +684,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حفظ الغرفة: $e'),
           backgroundColor: Colors.red.shade900,

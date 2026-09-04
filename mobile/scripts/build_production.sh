@@ -2,11 +2,11 @@
 
 # Marina Hotel Mobile - Production Build Script
 # ==============================================
-# F4DD Automated Production Build Script
-# F4BB Maintainer: Marina Hotel Dev Team
-# F4D1 Last Updated: 2026-08-03
+# Automated Production Build Script
+# Maintainer: Marina Hotel Dev Team
+# Last Updated: 2026-08-04
 #
-# F4D1 Usage:
+# Usage:
 #   ./scripts/build_production.sh          # Full production build
 #   ./scripts/build_production.sh apk      # Build APK only
 #   ./scripts/build_production.sh appbundle # Build AppBundle only
@@ -16,12 +16,12 @@
 # CONFIGURATION
 # ============================================
 
-# Colors for output
+# Colors for output (use printf for proper escape handling)
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 # Build configuration
 BUILD_TYPE="release"
@@ -40,33 +40,31 @@ OUTPUT_BUNDLE_DIR="build/app/outputs/bundle/release"
 
 # Print header
 print_header() {
-    echo ""
-    echo "${BLUE}============================================${NC}"
-    echo "${BLUE}  Marina Hotel Mobile - Production Build${NC}"
-    echo "${BLUE}============================================${NC}"
+    printf '%b\n' "${BLUE}============================================${NC}"
+    printf '%b\n' "${BLUE}  Marina Hotel Mobile - Production Build${NC}"
+    printf '%b\n' "${BLUE}============================================${NC}"
     echo ""
 }
 
 # Print section
 print_section() {
-    echo ""
-    echo "${YELLOW}--- $1 ---${NC}"
+    printf '%b\n' "${YELLOW}--- $1 ---${NC}"
     echo ""
 }
 
 # Print success
 print_success() {
-    echo "${GREEN}✓ $1${NC}"
+    printf '%b\n' "${GREEN} $1${NC}"
 }
 
 # Print error
 print_error() {
-    echo "${RED}✗ $1${NC}"
+    printf '%b\n' "${RED} $1${NC}"
 }
 
 # Print info
 print_info() {
-    echo "${BLUE}ℹ $1${NC}"
+    printf '%b\n' "${BLUE} $1${NC}"
 }
 
 # Check if command exists
@@ -88,18 +86,6 @@ clean_build() {
     if [ -d "$DEBUG_SYMBOLS_DIR" ]; then
         rm -rf "$DEBUG_SYMBOLS_DIR"
         print_success "Removed debug symbols directory"
-    fi
-    
-    # Remove pub cache
-    if [ -d ".pub-cache" ]; then
-        rm -rf ".pub-cache"
-        print_success "Removed pub cache"
-    fi
-    
-    # Remove generated files
-    if [ -d "generated" ]; then
-        rm -rf "generated"
-        print_success "Removed generated directory"
     fi
     
     # Run flutter clean
@@ -128,14 +114,16 @@ install_dependencies() {
     
     # Check for outdated dependencies
     print_info "Checking for outdated dependencies..."
-    flutter pub outdated 2>&1 | tee outdated_dependencies.txt
+    local outdated_output=$(flutter pub outdated 2>&1)
     
-    if [ -s "outdated_dependencies.txt" ]; then
-        print_error "Outdated dependencies found!"
-        print_info "See outdated_dependencies.txt for details"
-        print_info "Run 'flutter pub upgrade' to update dependencies"
-    else
+    # Check if there are actually outdated dependencies
+    if echo "$outdated_output" | grep -q "All dependencies are up to date"; then
         print_success "All dependencies are up to date"
+    else
+        print_error "Outdated dependencies found!"
+        print_info "See below for details:"
+        echo "$outdated_output"
+        print_info "Run 'flutter pub upgrade' to update dependencies"
     fi
     
     return 0
@@ -146,7 +134,7 @@ generate_code() {
     print_section "Generating Code"
     
     print_info "Running build_runner..."
-    if flutter pub run build_runner build --delete-conflicting-outputs; then
+    if flutter pub run build_runner build; then
         print_success "Code generation completed"
     else
         print_error "Code generation failed"
@@ -164,7 +152,7 @@ run_quality_checks() {
     
     # Run static analysis
     print_info "Running static analysis..."
-    if ! flutter analyze --fatal-infos --fatal-warnings .; then
+    if ! dart analyze --fatal-infos --fatal-warnings .; then
         print_error "Static analysis failed"
         all_passed=false
     else
@@ -173,20 +161,11 @@ run_quality_checks() {
     
     # Check formatting
     print_info "Checking code formatting..."
-    if ! flutter format --set-exit-if-changed .; then
+    if ! dart format --output=none --set-exit-if-changed .; then
         print_error "Code formatting check failed"
         all_passed=false
     else
         print_success "Code formatting check passed"
-    fi
-    
-    # Run linter
-    print_info "Running linter..."
-    if ! flutter lint; then
-        print_error "Linting failed"
-        all_passed=false
-    else
-        print_success "Linting passed"
     fi
     
     if [ "$all_passed" = true ]; then
@@ -432,7 +411,7 @@ full_production_build() {
     print_section "Build Summary"
     
     if [ "$all_passed" = true ]; then
-        print_success "Production build completed successfully! ✓"
+        print_success "Production build completed successfully!"
         print_info ""
         print_info "Artifacts:"
         print_info "  - APKs: $OUTPUT_APK_DIR/"
@@ -440,7 +419,7 @@ full_production_build() {
         print_info "  - Debug Symbols: $DEBUG_SYMBOLS_DIR/"
         return 0
     else
-        print_error "Production build failed! ✗"
+        print_error "Production build failed!"
         return 1
     fi
 }
@@ -458,11 +437,6 @@ if ! command_exists flutter; then
     print_info "Install Flutter from: https://flutter.dev/docs/get-started/install"
     exit 1
 fi
-
-# Check Flutter version
-FLUTTER_CURRENT_VERSION=$(flutter --version | head -1 | awk '{print $2}')
-print_info "Current Flutter version: $FLUTTER_CURRENT_VERSION"
-print_info "Required Flutter version: $FLUTTER_VERSION"
 
 # Check if we're in the right directory
 if [ ! -f "pubspec.yaml" ]; then

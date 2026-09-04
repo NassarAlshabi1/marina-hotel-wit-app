@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/core.dart';
@@ -438,18 +436,14 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
     if (mounted) {
       final state = ref.read(backupStatusProvider);
       if (state.status == BackupStatus.success) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(state.message ?? 'تم إنشاء النسخة'),
             backgroundColor: Colors.green,
           ),
         );
       } else if (state.status == BackupStatus.error) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(state.message ?? 'حدث خطأ'),
             backgroundColor: Colors.red,
@@ -464,18 +458,14 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
     if (mounted) {
       final state = ref.read(backupStatusProvider);
       if (state.status == BackupStatus.success) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(state.message ?? 'تم الاستيراد'),
             backgroundColor: Colors.green,
           ),
         );
       } else if (state.status == BackupStatus.error) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(state.message ?? 'حدث خطأ'),
             backgroundColor: Colors.red,
@@ -548,9 +538,7 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
           ),
         );
       } else if (state.status == BackupStatus.error) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(state.message ?? 'فشلت الاستعادة'),
             backgroundColor: Colors.red,
@@ -593,9 +581,7 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
         .deleteLocalBackup(backup.filePath);
 
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('تم حذف النسخة الاحتياطية'),
           backgroundColor: Colors.orange,

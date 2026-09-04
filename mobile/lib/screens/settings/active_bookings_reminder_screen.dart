@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 // ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 import 'dart:ui' as ui;
@@ -13,6 +11,7 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 // ✅ whatsapp_template_manager ملغي — البناء مباشر
 
 /// شاشة إرسال تذكير واتساب بالمبلغ المتبقي للحجوزات النشطة
@@ -56,7 +55,7 @@ class _ActiveBookingsReminderScreenState
         setState(() => _isInitialLoading = false);
       }
     } catch (e) {
-      debugPrint('⚠️ خطأ في التحديث التلقائي: $e');
+      dlog(() => '⚠️ خطأ في التحديث التلقائي: $e');
       if (mounted) {
         setState(() => _isInitialLoading = false);
       }
@@ -165,9 +164,7 @@ class _ActiveBookingsReminderScreenState
       message: message,
     );
     if (result.quotaMessage != null && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result.quotaMessage!),
           backgroundColor: Colors.orange,
@@ -180,9 +177,7 @@ class _ActiveBookingsReminderScreenState
   /// إرسال تذكير لجميع الحجوزات المحددة
   Future<void> _sendBulkReminders(List<Booking> bookings) async {
     if (bookings.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('لم تختر أي حجز لإرسال التذكير'),
           backgroundColor: Colors.orange,
@@ -1180,9 +1175,7 @@ class _ActiveBookingsReminderScreenState
   /// تأكيد الإرسال المجمّع
   Future<void> _showBulkSendConfirmation(BuildContext context) async {
     if (_selectedIds.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('اختر حجزاً واحداً على الأقل'),
           backgroundColor: Colors.orange,

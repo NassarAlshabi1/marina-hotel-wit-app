@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 // ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
@@ -12,19 +10,16 @@ import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/booking_price_adjustment_service.dart';
-import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart' hide GuestInfo;
 import '../../services/repositories/payments_repository.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/id.dart';
 import '../../utils/status_utils.dart';
 import 'guest_info.dart';
+import '../../utils/english_digits_input_formatter.dart';
 
 class GuestEditScreen extends ConsumerStatefulWidget {
-  const GuestEditScreen({
-    required this.guest,
-    super.key,
-  });
+  const GuestEditScreen({required this.guest, super.key});
 
   final GuestInfo guest;
 
@@ -50,7 +45,6 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
   final Map<int, AdjustmentMode> _adjustmentModeSelections = {};
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final _idNumberFormatter = FilteringTextInputFormatter.allow(RegExp('[0-9]'));
 
   bool _saving = false;
   bool _hasUnsavedChanges = false;
@@ -118,29 +112,6 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       _discountControllers[booking.id]?.addListener(_markUnsaved);
       _discountStartDateControllers[booking.id]?.addListener(_markUnsaved);
       _checkinDateControllers[booking.id]?.addListener(_markUnsaved);
-    }
-
-    // ─── تعطيل التعديلات المنتهية تلقائياً عند فتح الشاشة ───
-    // هذا يضمن أن السجلات التي انتهت مدتها (endHotelDay < اليوم الفندقي)
-    // يتم تعطيل is_active لها، فلا تظهر في UI كـ "نشطة" رغم انتهائها.
-    // Also syncs the change to D1 via outbox.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _deactivateExpiredAdjustments();
-    });
-  }
-
-  /// تعطيل التعديلات المنتهية تلقائياً (يتبع اليوم الفندقي).
-  Future<void> _deactivateExpiredAdjustments() async {
-    try {
-      final db = ref.read(databaseProvider);
-      final count = await BookingPriceAdjustmentService(db)
-          .deactivateExpiredAdjustments();
-      if (count > 0 && mounted) {
-        debugPrint('🧹 تم تعطيل $count تعديل منتهي عند فتح شاشة الضيف');
-        setState(() {}); // تحديث UI لإزالة التعديلات المنتهية
-      }
-    } catch (e) {
-      debugPrint('⚠️ خطأ في تعطيل التعديلات المنتهية: $e');
     }
   }
 
@@ -306,9 +277,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('تعذر حفظ التغييرات: $error'),
             backgroundColor: Colors.red,
@@ -386,28 +355,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
               updatedAtIso: Value(nowIso),
             ),
           );
-
-      // ✅ تسجيل في outbox للمزامنة التلقائية مع Cloudflare D1
-      await OutboxDao(db).merge(
-        entity: 'cash_transactions',
-        op: 'create',
-        localUuid: localUuid,
-        clientTs: nowEpoch,
-        payload: {
-          'localUuid': localUuid,
-          'transactionType': 'room_transfer',
-          'amount': 0,
-          'transactionTime': nowIso,
-          'description': description,
-          'referenceType': 'booking',
-          'referenceId': bookingId,
-          'createdAt': nowEpoch,
-          'updatedAt': nowEpoch,
-          'lastModified': nowEpoch,
-        },
-      );
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in guest_edit_screen.dart: ');
+    } catch (_) {
       // سجل التدقيق غير حرج — لا نوقف العملية إذا فشل
     }
   }
@@ -585,8 +533,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     }
     try {
       return DateTime.parse(value);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in guest_edit_screen.dart: ');
+    } catch (_) {
       return null;
     }
   }
@@ -687,6 +634,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           label: 'رقم الهاتف (اختياري)',
                           icon: Icons.phone,
                           keyboardType: TextInputType.phone,
+                          inputFormatters: const [englishIntegerInputFormatter],
                         ),
                         const SizedBox(height: 12),
                         _buildTextField(
@@ -755,7 +703,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                             border: OutlineInputBorder(),
                           ),
                           keyboardType: TextInputType.number,
-                          inputFormatters: [_idNumberFormatter],
+                          inputFormatters: const [englishIntegerInputFormatter],
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
                               return null;
@@ -873,11 +821,18 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
     required String label,
     required IconData icon,
     TextInputType keyboardType = TextInputType.text,
+    List<TextInputFormatter>? inputFormatters,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
+      inputFormatters:
+          inputFormatters ??
+          ((keyboardType == TextInputType.phone ||
+                  keyboardType == TextInputType.number)
+              ? const [englishIntegerInputFormatter]
+              : null),
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
@@ -1306,10 +1261,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                           TextFormField(
                             controller: discountController,
                             keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                RegExp('[0-9٠-٩.,،]'),
-                              ),
+                            inputFormatters: const [
+                              englishIntegerInputFormatter,
                             ],
                             decoration: const InputDecoration(
                               labelText: 'المبلغ',
@@ -1482,9 +1435,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تم إنهاء $type بنجاح'),
           backgroundColor: Colors.green,

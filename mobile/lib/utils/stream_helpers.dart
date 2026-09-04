@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 // ✅ استخدمنا alias لتجنّب تعارض اسم الدالة signal<T>() مع الـ field/getter signal
@@ -8,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:signals_flutter/signals_flutter.dart'
     as signals
     show Signal, signal;
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// ✅ تأخير إصدار بيانات الـ Stream حتى تهدأ التغييرات.
 Stream<T> debounceStream<T>(Stream<T> source, Duration duration) {
@@ -57,7 +56,7 @@ class StreamToValueNotifier<T> extends ValueNotifier<T> {
         if (value != data) value = data;
       },
       onError: (Object error) {
-        debugPrint('❌ [StreamToValueNotifier] Stream error: $error');
+        dlog(() => '❌ [StreamToValueNotifier] Stream error: $error');
       },
     );
   }
@@ -104,7 +103,7 @@ class StreamToSignal<T> {
         _signal.value = data;
       },
       onError: (Object error) {
-        debugPrint('❌ [StreamToSignal] Stream error: $error');
+        dlog(() => '❌ [StreamToSignal] Stream error: $error');
       },
     );
   }

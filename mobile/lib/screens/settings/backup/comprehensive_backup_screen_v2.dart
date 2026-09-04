@@ -1,11 +1,9 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../components/app_scaffold.dart';
 import '../../../core/core.dart';
-import 'tabs/google_drive_tab.dart';
+import 'tabs/appwrite_backup_tab.dart';
 import 'tabs/local_backups_tab.dart';
 
 /// Comprehensive Backup Screen - الشاشة الرئيسية للنسخ الاحتياطي
@@ -14,7 +12,7 @@ import 'tabs/local_backups_tab.dart';
 /// تم إزالة تبويب "نظرة عامة" (كان mock ببيانات hardcoded من 2024-01-29)
 /// وتبويب "إدارة الملفات" (كان mock بأزرار لا تعمل).
 /// الآن الشاشة تحتوي فقط على التبويبات الوظيفية:
-/// - Google Drive: للنسخ السحابي
+/// - Appwrite: إنشاء ورفع نسخة إدارية إلى الخادم المعتمد
 /// - النسخ المحلية: للنسخ على الجهاز
 ///
 /// كما تم:
@@ -68,7 +66,7 @@ class _ComprehensiveBackupScreenState
               unselectedLabelColor: Colors.grey,
               indicatorColor: UIConstants.backupColor,
               tabs: const [
-                Tab(icon: Icon(Icons.cloud), text: 'Google Drive'),
+                Tab(icon: Icon(Icons.cloud_upload), text: 'Appwrite'),
                 Tab(icon: Icon(Icons.phone_android), text: 'النسخ المحلية'),
               ],
             ),
@@ -78,7 +76,7 @@ class _ComprehensiveBackupScreenState
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: const [GoogleDriveTab(), LocalBackupsTab()],
+              children: const [AppwriteBackupTab(), LocalBackupsTab()],
             ),
           ),
         ],
@@ -94,10 +92,10 @@ class _ComprehensiveBackupScreenState
         content: const SingleChildScrollView(
           child: Text(
             'نظام النسخ الاحتياطي:\n\n'
-            '• Google Drive: نسخ احتياطي سحابي تلقائي ويدوي\n'
-            '  - يسجل الدخول بحساب Google\n'
-            '  - يرفع النسخ مشفّرة ومضغوطة\n'
-            '  - يدعم المزامنة التفاضلية (Delta Sync)\n\n'
+            '• Appwrite: رفع نسخة إدارية يدوياً\n'
+            '  - ينشئ ملف JSON من البيانات المحلية\n'
+            '  - يرفعه إلى Appwrite بعد تأكيد صريح\n'
+            '  - لا يُسمح به ما دام Outbox يحتوي تغييرات غير مُسلّمة\n\n'
             '• النسخ المحلية: نسخ على ذاكرة الجهاز\n'
             '  - إنشاء نسخة احتياطية محلية\n'
             '  - استعادة من نسخة محلية\n'

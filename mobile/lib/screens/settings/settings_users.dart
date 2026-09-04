@@ -1,11 +1,9 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
-// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/auth_local_store.dart';
+import '../../utils/snackbar_helper.dart';
 
 class SettingsUsersScreen extends ConsumerStatefulWidget {
   const SettingsUsersScreen({super.key});
@@ -171,6 +169,8 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                           displayName: account.displayName,
                           userType: account.userType,
                           isFixedAccount: account.isFixed,
+                          isActive: account.isActive,
+                          isLocked: account.isLocked,
                           isCloudUser: account.isCloud,
                           docId: account.docId,
                           onDeleted: _refreshAccounts,
@@ -297,7 +297,9 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                       Wrap(
                         spacing: 8,
                         runSpacing: 4,
-                        children: AuthLocalStore.permissionKeys.map((key) {
+                        children: AuthLocalStore.permissionEditorKeys.map((
+                          key,
+                        ) {
                           final selected = selectedPerms.contains(key);
                           return FilterChip(
                             label: Text(_permLabel(key)),
@@ -358,14 +360,11 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                                   userType: userType,
                                   permissions: selectedPerms.toList(),
                                 );
-                            if (mounted) {
+                            if (mounted && context.mounted) {
                               Navigator.pop(dialogContext);
-                              ScaffoldMessenger.of(
+                              SnackBarHelper.showSuccess(
                                 context,
-                              ).showSnackBar(
-                                const SnackBar(
-                                  content: Text('تم إضافة المستخدم بنجاح'),
-                                ),
+                                'تم إضافة المستخدم بنجاح',
                               );
                               _refreshAccounts();
                             }
@@ -407,6 +406,8 @@ class _UserAccountSummary {
     required this.displayName,
     required this.userType,
     required this.isFixed,
+    this.isActive = true,
+    this.isLocked = false,
     this.isCloud = false,
     this.docId,
   });
@@ -417,6 +418,8 @@ class _UserAccountSummary {
       displayName: (map['full_name'] ?? map['username'] ?? '').toString(),
       userType: (map['user_type'] ?? '').toString(),
       isFixed: map['is_fixed'] == true,
+      isActive: map['is_active'] != false,
+      isLocked: map['is_locked'] == true,
       isCloud: map['is_cloud'] == true,
       docId: map['doc_id']?.toString(),
     );
@@ -425,6 +428,8 @@ class _UserAccountSummary {
   final String displayName;
   final String userType;
   final bool isFixed;
+  final bool isActive;
+  final bool isLocked;
   final bool isCloud;
   final String? docId;
 }
@@ -435,6 +440,8 @@ class UserPermissionsCard extends ConsumerStatefulWidget {
     required this.displayName,
     required this.userType,
     required this.isFixedAccount,
+    this.isActive = true,
+    this.isLocked = false,
     super.key,
     this.isCloudUser = false,
     this.docId,
@@ -445,6 +452,8 @@ class UserPermissionsCard extends ConsumerStatefulWidget {
   final String displayName;
   final String userType;
   final bool isFixedAccount;
+  final bool isActive;
+  final bool isLocked;
   final bool isCloudUser;
   final String? docId;
   final VoidCallback? onDeleted;
@@ -458,6 +467,7 @@ class UserPermissionsCard extends ConsumerStatefulWidget {
 class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
   List<String> _perms = [];
   bool _loading = true;
+  bool _savingPermissions = false;
 
   @override
   void initState() {
@@ -468,10 +478,42 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
   Future<void> _load() async {
     final store = AuthLocalStore();
     final p = await store.getPermissions(widget.username);
+    if (!mounted) return;
     setState(() {
       _perms = List<String>.from(p);
       _loading = false;
     });
+  }
+
+  Future<void> _savePermissions(List<String> nextPermissions) async {
+    if (_savingPermissions) return;
+    final previous = List<String>.from(_perms);
+    setState(() {
+      _perms = List<String>.from(nextPermissions);
+      _savingPermissions = true;
+    });
+
+    try {
+      final saved = await ref
+          .read(authProvider.notifier)
+          .updateUserPermissions(widget.username, _perms);
+      if (!mounted) return;
+      if (!saved) {
+        throw StateError('تعذر حفظ الصلاحيات في السحابة');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _perms = previous);
+      SnackBarHelper.showError(
+        context,
+        'تعذر حفظ صلاحيات ${widget.username}: '
+        '${e.toString().replaceFirst('Exception: ', '')}',
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _savingPermissions = false);
+      }
+    }
   }
 
   Future<void> _openEditDialog() async {
@@ -550,15 +592,17 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                         ],
                         onChanged: (v) {
                           if (v != null) {
-                            setDialog(() => userType = v);
-                            if (v == 'admin') {
-                              setDialog(() {
-                                selectedPerms.clear();
-                                selectedPerms.addAll(
-                                  AuthLocalStore.permissionKeys,
-                                );
-                              });
-                            }
+                            setDialog(() {
+                              userType = v;
+                              selectedPerms.remove('all');
+                              if (v == 'admin') {
+                                selectedPerms
+                                  ..clear()
+                                  ..addAll(AuthLocalStore.permissionKeys);
+                              } else if (selectedPerms.isEmpty) {
+                                selectedPerms.add('dashboard');
+                              }
+                            });
                           }
                         },
                       ),
@@ -619,7 +663,9 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                         Wrap(
                           spacing: 8,
                           runSpacing: 4,
-                          children: AuthLocalStore.permissionKeys.map((k) {
+                          children: AuthLocalStore.permissionEditorKeys.map((
+                            k,
+                          ) {
                             final selected = selectedPerms.contains(k);
                             return FilterChip(
                               label: Text(_permLabel(k)),
@@ -707,20 +753,33 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                     onPressed: () async {
                       setDialog(() => saving = true);
                       try {
-                        final success = await ref
-                            .read(authProvider.notifier)
-                            .deleteCloudUser(docId: widget.docId!);
-                        if (mounted && success) {
+                        if (widget.username ==
+                            ref.read(authProvider).currentUser?.username) {
+                          setDialog(() {
+                            saving = false;
+                            deleteRequested = false;
+                            localError = 'لا يمكن حذف الحساب المستخدم حالياً';
+                          });
+                          return;
+                        }
+                        final success = widget.isCloudUser
+                            ? widget.docId == null
+                                  ? false
+                                  : await ref
+                                        .read(authProvider.notifier)
+                                        .deleteCloudUser(
+                                          docId: widget.docId!,
+                                          username: widget.username,
+                                        )
+                            : await ref
+                                  .read(authProvider.notifier)
+                                  .deleteLocalUser(username: widget.username);
+                        if (mounted && context.mounted && success) {
                           Navigator.pop(dialogContext);
                           widget.onDeleted?.call();
-                          ScaffoldMessenger.of(
+                          SnackBarHelper.showSuccess(
                             context,
-                          ).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'تم حذف المستخدم ${widget.username}',
-                              ),
-                            ),
+                            'تم حذف المستخدم ${widget.username}',
                           );
                         }
                       } catch (e) {
@@ -768,31 +827,49 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                               localError = null;
                             });
                             try {
-                              final success = await ref
-                                  .read(authProvider.notifier)
-                                  .updateCloudUser(
-                                    username: widget.username,
-                                    docId: widget.docId!,
-                                    newFullName: fullNameCtrl.text.trim(),
-                                    newPassword: passwordCtrl.text.isNotEmpty
-                                        ? passwordCtrl.text
-                                        : null,
-                                    newUserType: userType,
-                                    newPermissions: userType == 'admin'
-                                        ? AuthLocalStore.permissionKeys
-                                        : selectedPerms,
-                                  );
-                              if (mounted && success) {
+                              final success = widget.isCloudUser
+                                  ? widget.docId == null
+                                        ? false
+                                        : await ref
+                                              .read(authProvider.notifier)
+                                              .updateCloudUser(
+                                                username: widget.username,
+                                                docId: widget.docId!,
+                                                newFullName: fullNameCtrl.text
+                                                    .trim(),
+                                                newPassword:
+                                                    passwordCtrl.text.isNotEmpty
+                                                    ? passwordCtrl.text
+                                                    : null,
+                                                newUserType: userType,
+                                                newPermissions:
+                                                    userType == 'admin'
+                                                    ? AuthLocalStore
+                                                          .permissionKeys
+                                                    : selectedPerms,
+                                              )
+                                  : await ref
+                                        .read(authProvider.notifier)
+                                        .updateLocalUser(
+                                          username: widget.username,
+                                          newFullName: fullNameCtrl.text.trim(),
+                                          newPassword:
+                                              passwordCtrl.text.isNotEmpty
+                                              ? passwordCtrl.text
+                                              : null,
+                                          newUserType: userType,
+                                          newPermissions: userType == 'admin'
+                                              ? AuthLocalStore.permissionKeys
+                                              : selectedPerms,
+                                        );
+                              if (mounted && context.mounted && success) {
                                 Navigator.pop(dialogContext);
                                 widget.onUpdated?.call();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      passwordCtrl.text.isNotEmpty
-                                          ? 'تم تحديث بيانات ${widget.username} — سيتم قطع الجلسة على الأجهزة الأخرى'
-                                          : 'تم تحديث بيانات ${widget.username}',
-                                    ),
-                                  ),
+                                SnackBarHelper.showSuccess(
+                                  context,
+                                  passwordCtrl.text.isNotEmpty
+                                      ? 'تم تحديث بيانات ${widget.username} — سيتم قطع الجلسة على الأجهزة الأخرى'
+                                      : 'تم تحديث بيانات ${widget.username}',
                                 );
                               } else {
                                 setDialog(() {
@@ -830,8 +907,9 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
 
   @override
   Widget build(BuildContext context) {
-    final isAdminUser = widget.username == 'admin';
-    const allKeys = AuthLocalStore.permissionKeys;
+    final isAdminUser =
+        widget.username == 'admin' || widget.userType.toLowerCase() == 'admin';
+    final allKeys = AuthLocalStore.permissionEditorKeys;
 
     return Card(
       child: Padding(
@@ -879,6 +957,29 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                   ),
                 const SizedBox(width: 6),
                 Chip(
+                  avatar: Icon(
+                    widget.isLocked
+                        ? Icons.lock
+                        : widget.isActive
+                        ? Icons.check_circle
+                        : Icons.block,
+                    size: 15,
+                    color: widget.isLocked
+                        ? Colors.orange
+                        : widget.isActive
+                        ? Colors.green
+                        : Colors.red,
+                  ),
+                  label: Text(
+                    widget.isLocked
+                        ? 'مقفل'
+                        : widget.isActive
+                        ? 'نشط'
+                        : 'معطل',
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Chip(
                   label: Text(
                     widget.userType.isEmpty
                         ? 'مستخدم'
@@ -900,7 +1001,7 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
               ],
             ),
             const SizedBox(height: 8),
-            if (_loading)
+            if (_loading || _savingPermissions)
               const Padding(
                 padding: EdgeInsets.all(8.0),
                 child: CircularProgressIndicator(),
@@ -914,19 +1015,16 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                   return FilterChip(
                     label: Text(_permLabel(k)),
                     selected: checked,
-                    onSelected: isAdminUser
+                    onSelected: isAdminUser || _savingPermissions
                         ? null
-                        : (v) async {
-                            setState(() {
-                              if (v) {
-                                _perms.add(k);
-                              } else {
-                                _perms.remove(k);
-                              }
-                            });
-                            await ref
-                                .read(authProvider.notifier)
-                                .updateUserPermissions(widget.username, _perms);
+                        : (v) {
+                            final next = List<String>.from(_perms);
+                            if (v) {
+                              if (!next.contains(k)) next.add(k);
+                            } else {
+                              next.remove(k);
+                            }
+                            _savePermissions(next);
                           },
                   );
                 }).toList(),
@@ -935,12 +1033,9 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: TextButton.icon(
-                    onPressed: () async {
-                      setState(() => _perms = []);
-                      await ref
-                          .read(authProvider.notifier)
-                          .updateUserPermissions(widget.username, _perms);
-                    },
+                    onPressed: _savingPermissions
+                        ? null
+                        : () => _savePermissions(const <String>[]),
                     icon: const Icon(Icons.clear),
                     label: const Text('إزالة جميع الصلاحيات'),
                   ),
@@ -954,6 +1049,16 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
 }
 
 String _permLabel(String key) {
+  final separator = key.indexOf('.');
+  if (separator > 0 && separator < key.length - 1) {
+    final module = key.substring(0, separator);
+    final action = key.substring(separator + 1);
+    return '${AuthLocalStore.operationLabel(action)} ${_moduleLabel(module)}';
+  }
+  return _moduleLabel(key);
+}
+
+String _moduleLabel(String key) {
   switch (key) {
     case 'dashboard':
       return 'لوحة التحكم';
@@ -963,6 +1068,8 @@ String _permLabel(String key) {
       return 'الحجوزات';
     case 'payments':
       return 'المدفوعات';
+    case 'debts':
+      return 'الديون';
     case 'employees':
       return 'الموظفون';
     case 'expenses':
@@ -977,6 +1084,8 @@ String _permLabel(String key) {
       return 'المعلومية';
     case 'settings':
       return 'الإعدادات';
+    case 'inventory':
+      return 'المخزون';
     default:
       return key;
   }

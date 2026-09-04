@@ -1,8 +1,8 @@
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
 
 import 'database_fixer.dart';
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// نظام مراقبة صحة قاعدة البيانات المستمر
 class DatabaseHealthMonitor {
@@ -94,7 +94,7 @@ class DatabaseHealthMonitor {
         orphanExpenses: results[2],
       );
     } catch (e) {
-      debugPrint('Error collecting metrics: $e');
+      dlog(() => 'Error collecting metrics: $e');
       return HealthMetrics(
         invalidServerIds: 0,
         orphanPayments: 0,
@@ -116,7 +116,7 @@ class DatabaseHealthMonitor {
 
       return result.data['total'] as int? ?? 0;
     } catch (e) {
-      debugPrint('Error counting invalid serverIds: $e');
+      dlog(() => 'Error counting invalid serverIds: $e');
       return 0;
     }
   }
@@ -135,7 +135,7 @@ class DatabaseHealthMonitor {
 
       return result.data['count'] as int? ?? 0;
     } catch (e) {
-      debugPrint('Error counting orphan payments: $e');
+      dlog(() => 'Error counting orphan payments: $e');
       return 0;
     }
   }
@@ -152,7 +152,7 @@ class DatabaseHealthMonitor {
 
       return result.data['count'] as int? ?? 0;
     } catch (e) {
-      debugPrint('Error counting orphan expenses: $e');
+      dlog(() => 'Error counting orphan expenses: $e');
       return 0;
     }
   }
@@ -217,7 +217,7 @@ class DatabaseHealthMonitor {
 
       await _cleanOldHistory();
     } catch (e) {
-      debugPrint('Error saving health history: $e');
+      dlog(() => 'Error saving health history: $e');
     }
   }
 
@@ -230,7 +230,7 @@ class DatabaseHealthMonitor {
         variables: [Variable.withInt(cutoff.millisecondsSinceEpoch ~/ 1000)],
       );
     } catch (e) {
-      debugPrint('Error cleaning old history: $e');
+      dlog(() => 'Error cleaning old history: $e');
     }
   }
 
@@ -264,7 +264,7 @@ class DatabaseHealthMonitor {
         );
       }).toList();
     } catch (e) {
-      debugPrint('Error getting history: $e');
+      dlog(() => 'Error getting history: $e');
       return [];
     }
   }

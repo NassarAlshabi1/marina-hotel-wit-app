@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -19,6 +17,7 @@ import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
 import 'report_page_scaffold.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class PaymentsReportScreen extends ConsumerStatefulWidget {
   const PaymentsReportScreen({super.key});
@@ -71,8 +70,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       final db = ref.read(databaseProvider);
       final derivedService = BookingDerivedFieldsService(db);
       await derivedService.refreshAllActiveBookings();
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in payments_report_screen.dart: ');}
+    } catch (_) {}
     await _fetchReport();
   }
 
@@ -188,7 +186,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
       final paymentDate = _parseDateTime(payment.paymentDate);
       if (paymentDate == null) {
         // لا يمكن تحديد تاريخ الدفعة، نهملها مع إمكانية تسجيل خطأ
-        debugPrint('تجاهل دفعة ذات تاريخ غير صالح: ${payment.paymentDate}');
+        dlog(() => 'تجاهل دفعة ذات تاريخ غير صالح: ${payment.paymentDate}');
         continue;
       }
 
@@ -680,10 +678,9 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
         : value.replaceFirst(' ', 'T');
     try {
       return DateTime.parse(normalized);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in payments_report_screen.dart: ');
+    } catch (_) {
       // طباعة الخطأ (اختياري) وإرجاع null ليتجاهل المُستدعي السجل
-      debugPrint('_parseDateTime: فشل تحليل "$value"');
+      dlog(() => '_parseDateTime: فشل تحليل "$value"');
       return null;
     }
   }

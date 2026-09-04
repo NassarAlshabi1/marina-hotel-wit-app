@@ -5,7 +5,6 @@ import 'package:drift/drift.dart' as d;
 import '../utils/status_utils.dart';
 import 'hotel_time_engine.dart';
 import 'local_db.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 /// Reactive model combining raw booking data with computed financial values.
 ///
@@ -63,8 +62,7 @@ DateTime? _parseDate(String? value) {
   final withSeconds = normalized.length == 16 ? '$normalized:00' : normalized;
   try {
     return DateTime.parse(withSeconds);
-  } catch (e) {
-      debugPrint('⚠️ Swallowed error in booking_computed_stream_service.dart: ');
+  } catch (_) {
     return null;
   }
 }

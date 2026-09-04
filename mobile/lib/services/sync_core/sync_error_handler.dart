@@ -1,7 +1,6 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 enum SyncErrorType {
   network,
@@ -197,12 +196,12 @@ class SyncErrorHandler {
   }
 
   void _logError(SyncError error) {
-    debugPrint('❌ [SyncError] ${error.type.name}: ${error.message}');
+    dlog(() => '❌ [SyncError] ${error.type.name}: ${error.message}');
     if (error.context != null) {
-      debugPrint('   Context: ${error.context}');
+      dlog(() => '   Context: ${error.context}');
     }
     if (error.stackTrace != null && kDebugMode) {
-      debugPrint('   Stack: ${error.stackTrace}');
+      dlog(() => '   Stack: ${error.stackTrace}');
     }
   }
 

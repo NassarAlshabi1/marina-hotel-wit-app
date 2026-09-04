@@ -1,6 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -10,6 +7,7 @@ import '../services/telegram/telegram_notification_service.dart';
 import '../services/telegram/telegram_report_service.dart';
 import '../services/telegram/telegram_service.dart';
 import '../utils/env.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// حالة إعداد Telegram
 enum TelegramSetupStatus { idle, testing, success, error, sendingReport }
@@ -78,13 +76,13 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
   bool _mounted = true;
 
   /// تهيئة الحالة من SharedPreferences — القيم الافتراضية مُحمّلة مسبقاً
+  /// ✅ P0-7 FIX: قراءة botToken من FlutterSecureStorage بدلاً من SharedPreferences
   Future<void> _initialize() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final enabled = prefs.getBool('telegram_enabled') ?? false;
-      final botToken =
-          prefs.getString('telegram_bot_token') ??
-          TelegramConfig.defaultBotToken;
+      // ✅ ابتداء من 2026-08-06: قراءة botToken من SecureStorage لضمان الأمان
+      final currentBotToken = await TelegramConfig.getBotToken();
       final chatId =
           prefs.getString('telegram_chat_id') ?? TelegramConfig.defaultChatId;
       final notificationsEnabled =
@@ -98,7 +96,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
 
       state = state.copyWith(
         isEnabled: enabled,
-        botToken: botToken,
+        botToken: currentBotToken,
         chatId: chatId,
         isConfigured: configured,
         isNotificationsEnabled: notificationsEnabled,
@@ -107,7 +105,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
         lastReportSent: lastReportSent,
       );
     } catch (e) {
-      debugPrint('❌ خطأ في تهيئة TelegramNotifier: $e');
+      dlog(() => '❌ خطأ في تهيئة TelegramNotifier: $e');
     }
   }
 
@@ -171,7 +169,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
         await AlarmBackup.cancelTelegramReportAlarm();
       }
     } catch (e) {
-      debugPrint('⚠️ خطأ في جدولة إنذار Telegram: $e');
+      dlog(() => '⚠️ خطأ في جدولة إنذار Telegram: $e');
     }
     _clearMessageAfterDelay();
   }
@@ -190,7 +188,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
         );
       }
     } catch (e) {
-      debugPrint('⚠️ خطأ في إعادة جدولة إنذار Telegram: $e');
+      dlog(() => '⚠️ خطأ في إعادة جدولة إنذار Telegram: $e');
     }
   }
 
@@ -261,7 +259,7 @@ class TelegramNotifier extends StateNotifier<TelegramState> {
     try {
       return await _reports.sendDailyReport();
     } catch (e) {
-      debugPrint('❌ خطأ في إرسال التقرير اليومي: $e');
+      dlog(() => '❌ خطأ في إرسال التقرير اليومي: $e');
       return false;
     }
   }

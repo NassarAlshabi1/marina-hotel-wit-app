@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (avoid_dynamic_calls)
-// ignore_for_file: avoid_dynamic_calls
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -127,9 +125,7 @@ class AppwriteSyncStatsScreen extends ConsumerWidget {
                 await dao.clearStale();
                 ref.invalidate(syncStatsProvider);
                 if (context.mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text(
                         'تفريغ ذكي: تم تهيئة المحاولات وحذف العناصر القديمة',

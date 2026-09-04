@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (avoid_dynamic_calls, discarded_futures)
-// ignore_for_file: avoid_dynamic_calls, discarded_futures
 // ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
@@ -13,18 +11,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart' as ap;
-import '../../providers/appwrite_providers.dart' show connectionStatusProvider;
 import '../../services/appwrite_backup_service.dart';
 import '../../services/appwrite_cache_manager.dart';
+import '../../services/appwrite_logger.dart';
 import '../../services/appwrite_models.dart';
-import '../../services/cloudflare_migration_service.dart';
-import '../../services/cloudflare_sync_manager.dart';
-import '../../services/local_db.dart';
 import 'appwrite_connection_settings_screen.dart';
 import 'appwrite_logs_screen.dart';
 import 'appwrite_sync_stats_screen.dart';
-import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
-import 'error_tracker_screen.dart';
 
 class AppwriteSettingsScreen extends ConsumerStatefulWidget {
   const AppwriteSettingsScreen({super.key});
@@ -36,9 +29,6 @@ class AppwriteSettingsScreen extends ConsumerStatefulWidget {
 
 class _AppwriteSettingsScreenState
     extends ConsumerState<AppwriteSettingsScreen> {
-  bool _syncEnabled = false;
-  int _syncInterval = 15;
-  bool _autoSyncOnConnect = true;
   bool _cacheEnabled = true;
   int _cacheTTLHours = 6;
   int _cacheMaxSizeMB = 20;
@@ -47,15 +37,14 @@ class _AppwriteSettingsScreenState
   bool _logFile = false;
   bool _isLoading = false;
 
-  // Migration state
-  bool _isMigrating = false;
-  String _migrationStatus = '';
-  int _migrationCurrent = 0;
-  int _migrationTotal = 0;
-  String _migrationTable = '';
-  bool _migrationCompleted = false;
-  double _effectiveSpeedKBps = 0;
-  DateTime? _migrationStartTime;
+  /// تنفيذ آمن لـ setState — يتحقق من mounted قبل الاستدعاء.
+  void _safeSetState(VoidCallback fn) {
+    if (mounted) {
+      setState(fn);
+    } else {
+      fn();
+    }
+  }
 
   @override
   void initState() {
@@ -66,11 +55,10 @@ class _AppwriteSettingsScreenState
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) {
+      return;
+    }
     setState(() {
-      _syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
-      _syncInterval = prefs.getInt('appwrite_sync_interval') ?? 15;
-      _autoSyncOnConnect =
-          prefs.getBool('appwrite_auto_sync_on_connect') ?? true;
       _cacheEnabled = prefs.getBool('appwrite_cache_enabled') ?? true;
       _cacheTTLHours = prefs.getInt('appwrite_cache_ttl') ?? 6;
       _cacheMaxSizeMB = prefs.getInt('appwrite_cache_max_size') ?? 20;
@@ -78,27 +66,43 @@ class _AppwriteSettingsScreenState
       _logConsole = prefs.getBool('appwrite_log_console') ?? true;
       _logFile = prefs.getBool('appwrite_log_file') ?? false;
     });
+    await _applyLoggerSettings();
   }
 
-  Future<void> _saveSettings() async {
+  LogLevel _selectedLogLevel() {
+    switch (_logLevel) {
+      case 'debug':
+        return LogLevel.debug;
+      case 'warning':
+        return LogLevel.warning;
+      case 'error':
+        return LogLevel.error;
+      case 'critical':
+        return LogLevel.critical;
+      case 'info':
+      default:
+        return LogLevel.info;
+    }
+  }
+
+  Future<void> _applyLoggerSettings() {
+    return ref
+        .read(ap.appwriteLoggerProvider)
+        .initialize(
+          minLevel: _selectedLogLevel(),
+          enableConsole: _logConsole,
+          enableFile: _logFile,
+        );
+  }
+
+  Future<void> _saveLocalSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('appwrite_sync_enabled', _syncEnabled);
-    await prefs.setInt('appwrite_sync_interval', _syncInterval);
-    await prefs.setBool('appwrite_auto_sync_on_connect', _autoSyncOnConnect);
     await prefs.setBool('appwrite_cache_enabled', _cacheEnabled);
     await prefs.setInt('appwrite_cache_ttl', _cacheTTLHours);
     await prefs.setInt('appwrite_cache_max_size', _cacheMaxSizeMB);
     await prefs.setString('appwrite_log_level', _logLevel);
     await prefs.setBool('appwrite_log_console', _logConsole);
     await prefs.setBool('appwrite_log_file', _logFile);
-
-    // تحديث مدير المزامنة بالإعدادات الجديدة
-    final syncManager = ref.read(ap.appwriteSyncManagerProvider);
-    if (_syncEnabled) {
-      syncManager.startAutoSync(interval: Duration(minutes: _syncInterval));
-    } else {
-      syncManager.stopAutoSync();
-    }
   }
 
   Future<void> _copyToClipboard(String text) async {
@@ -115,12 +119,12 @@ class _AppwriteSettingsScreenState
   }
 
   Future<void> _checkConnection() async {
-    await ref.read(connectionStatusProvider.notifier).checkConnection();
+    await ref.read(ap.connectionStatusProvider.notifier).checkConnection();
   }
 
   @override
   Widget build(BuildContext context) {
-    final connectionState = ref.watch(connectionStatusProvider);
+    final connectionState = ref.watch(ap.connectionStatusProvider);
     final syncStatsAsync = ref.watch(ap.syncStatsProvider);
     final cacheStats = ref.watch(ap.cacheStatsProvider);
     final logStats = ref.watch(ap.logStatsProvider);
@@ -320,127 +324,46 @@ class _AppwriteSettingsScreenState
                 Icon(Icons.sync, color: Colors.cyan, size: 24),
                 SizedBox(width: 8),
                 Text(
-                  'إعدادات المزامنة',
+                  'المزامنة بين الأجهزة',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
-            const Divider(height: 24),
-
-            // تفعيل المزامنة
-            _buildSettingSwitch(
-              title: 'تفعيل المزامنة التلقائية',
-              subtitle: _syncEnabled
-                  ? 'يتم المزامنة تلقائياً في الخلفية'
-                  : 'المزامنة التلقائية معطّلة (يدوي فقط)',
-              value: _syncEnabled,
-              onChanged: (value) async {
-                setState(() => _syncEnabled = value);
-                await _saveSettings();
-
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        value
-                            ? 'تم تفعيل المزامنة التلقائية'
-                            : 'تم إيقاف المزامنة التلقائية',
-                      ),
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                }
-              },
+            const SizedBox(height: 8),
+            const Text(
+              'تُدار الفترة والتشغيل التلقائي والشبكة والبطارية من شاشة المزامنة الموحدة.',
+              style: TextStyle(color: Colors.grey),
             ),
-
-            // فترة المزامنة
-            if (_syncEnabled)
-              ListTile(
-                title: const Text('فترة المزامنة الدورية'),
-                subtitle: Text('كل $_syncInterval دقيقة'),
-                trailing: DropdownButton<int>(
-                  value: _syncInterval,
-                  items: [5, 10, 15, 30, 60].map((int value) {
-                    return DropdownMenuItem<int>(
-                      value: value,
-                      child: Text('$value دقيقة'),
-                    );
-                  }).toList(),
-                  onChanged: (value) async {
-                    if (value != null) {
-                      setState(() => _syncInterval = value);
-                      await _saveSettings();
-                    }
-                  },
-                ),
-              ),
-
-            // مزامنة عند الاتصال
-            _buildSettingSwitch(
-              title: 'مزامنة عند الاتصال التلقائي',
-              subtitle: _autoSyncOnConnect
-                  ? 'مزامنة البيانات فور اتصال التطبيق'
-                  : 'انتظار المزامنة الدورية أو اليدوية',
-              value: _autoSyncOnConnect,
-              onChanged: (value) async {
-                setState(() => _autoSyncOnConnect = value);
-                await _saveSettings();
-              },
-            ),
-
             const Divider(height: 24),
-
-            // إحصائيات المزامنة
             statsAsync.when(
               data: (stats) => _buildSyncStats(context, stats),
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'خطأ: $e',
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => _copyToClipboard('خطأ: $e'),
-                    icon: const Icon(Icons.copy, size: 16),
-                    tooltip: 'نسخ الخطأ',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                ],
+              error: (e, _) => Text(
+                'تعذر تحميل الإحصاءات: $e',
+                style: const TextStyle(color: Colors.red),
               ),
             ),
-
             const SizedBox(height: 12),
-
-            // أزرار المزامنة
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _isLoading ? null : _syncNow,
-                    icon: const Icon(Icons.sync),
-                    label: const Text('مزامنة الآن'),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _isLoading ? null : _syncNow,
+                icon: const Icon(Icons.sync),
+                label: const Text('مزامنة الآن'),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => Navigator.push<void>(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => const AppwriteSyncStatsScreen(),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.push<void>(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (context) => const AppwriteSyncStatsScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.analytics),
-                    label: const Text('التفاصيل'),
-                  ),
-                ),
-              ],
+                icon: const Icon(Icons.analytics),
+                label: const Text('عرض التفاصيل'),
+              ),
             ),
           ],
         ),
@@ -550,7 +473,7 @@ class _AppwriteSettingsScreenState
               value: _cacheEnabled,
               onChanged: (value) {
                 setState(() => _cacheEnabled = value);
-                _saveSettings();
+                _saveLocalSettings();
                 ref.read(ap.appwriteCacheManagerProvider).setEnabled(value);
               },
             ),
@@ -570,7 +493,7 @@ class _AppwriteSettingsScreenState
                 onChanged: (value) {
                   if (value != null) {
                     setState(() => _cacheTTLHours = value);
-                    _saveSettings();
+                    _saveLocalSettings();
                     ref
                         .read(ap.appwriteCacheManagerProvider)
                         .setDefaultTTL(Duration(hours: value));
@@ -594,7 +517,7 @@ class _AppwriteSettingsScreenState
                 onChanged: (value) {
                   if (value != null) {
                     setState(() => _cacheMaxSizeMB = value);
-                    _saveSettings();
+                    _saveLocalSettings();
                     ref
                         .read(ap.appwriteCacheManagerProvider)
                         .setMaxSizeMB(value);
@@ -643,7 +566,7 @@ class _AppwriteSettingsScreenState
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: _clearCache,
+                onPressed: _isLoading ? null : _clearCache,
                 icon: const Icon(Icons.delete_sweep),
                 label: const Text('مسح الذاكرة المؤقتة'),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -689,10 +612,12 @@ class _AppwriteSettingsScreenState
                     child: Text(value.toUpperCase()),
                   );
                 }).toList(),
-                onChanged: (value) {
+                onChanged: (value) async {
                   if (value != null) {
                     setState(() => _logLevel = value);
-                    _saveSettings();
+                    await _saveLocalSettings();
+                    if (!mounted) return;
+                    await _applyLoggerSettings();
                   }
                 },
               ),
@@ -703,9 +628,11 @@ class _AppwriteSettingsScreenState
               title: 'تسجيل في Console',
               subtitle: 'عرض السجلات في وحدة التحكم',
               value: _logConsole,
-              onChanged: (value) {
+              onChanged: (value) async {
                 setState(() => _logConsole = value);
-                _saveSettings();
+                await _saveLocalSettings();
+                if (!mounted) return;
+                await _applyLoggerSettings();
               },
             ),
 
@@ -714,35 +641,12 @@ class _AppwriteSettingsScreenState
               title: 'تسجيل في الملفات',
               subtitle: 'حفظ السجلات في ملفات نصية',
               value: _logFile,
-              onChanged: (value) {
+              onChanged: (value) async {
                 setState(() => _logFile = value);
-                _saveSettings();
+                await _saveLocalSettings();
+                if (!mounted) return;
+                await _applyLoggerSettings();
               },
-            ),
-
-            const SizedBox(height: 12),
-
-            // زر النسخ الاحتياطي الشامل
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push<void>(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (context) =>
-                          const backup_v2.ComprehensiveBackupScreen(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.backup),
-                label: const Text('النسخ الاحتياطي الشامل والاستعادة'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.purple.shade700,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
             ),
 
             const Divider(height: 24),
@@ -801,22 +705,7 @@ class _AppwriteSettingsScreenState
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push<void>(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (context) => const ErrorTrackerScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.error_outline),
-                    label: const Text('تتبع الأخطاء'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _exportLogs,
+                    onPressed: _isLoading ? null : _exportLogs,
                     icon: const Icon(Icons.file_download),
                     label: const Text('تصدير'),
                   ),
@@ -824,7 +713,7 @@ class _AppwriteSettingsScreenState
                 const SizedBox(width: 8),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: _clearLogs,
+                    onPressed: _isLoading ? null : _clearLogs,
                     icon: const Icon(Icons.delete),
                     label: const Text('مسح'),
                     style: ElevatedButton.styleFrom(
@@ -933,9 +822,9 @@ class _AppwriteSettingsScreenState
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: () {
-                  ref.invalidate(ap.devicesListProvider);
-                },
+                onPressed: _isLoading
+                    ? null
+                    : () => ref.invalidate(ap.devicesListProvider),
                 icon: const Icon(Icons.refresh),
                 label: const Text('تحديث قائمة الأجهزة'),
               ),
@@ -1006,9 +895,6 @@ class _AppwriteSettingsScreenState
               actionLabel: 'بدء السحب',
               onPressed: _pullAllData,
             ),
-            const SizedBox(height: 12),
-            // ═══ Cloudflare D1 Migration Button ═══
-            _buildMigrationCard(context),
             const SizedBox(height: 12),
             ListTile(
               leading: const Icon(Icons.restart_alt, color: Colors.orange),
@@ -1239,9 +1125,7 @@ class _AppwriteSettingsScreenState
       // if (result.isSuccess && result.recordsPulled > 0) {
       //   final fixService = RestoreFixService(DatabaseManager.instance);
       //   final fixReport = await fixService.runAutoFixAfterRestore();
-      //   debugPrint(
-      //     'Auto-fix after sync: ${fixReport.bookingsFixed} bookings fixed',
-      //   );
+      //   dlog(() => //     'Auto-fix after sync: ${fixReport.bookingsFixed} bookings fixed');
       // }
 
       if (mounted) {
@@ -1299,7 +1183,7 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      setState(() => _isLoading = false);
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1325,6 +1209,7 @@ class _AppwriteSettingsScreenState
 
     if (confirmed ?? false) {
       ref.read(ap.appwriteCacheManagerProvider).clear();
+      ref.invalidate(ap.cacheStatsProvider);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -1355,6 +1240,7 @@ class _AppwriteSettingsScreenState
 
     if (confirmed ?? false) {
       ref.read(ap.appwriteLoggerProvider).clearLogs();
+      ref.invalidate(ap.logStatsProvider);
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -1403,7 +1289,7 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      setState(() => _isLoading = false);
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1540,20 +1426,14 @@ class _AppwriteSettingsScreenState
         return;
       }
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل إنشاء النسخة الاحتياطية: $e'),
           backgroundColor: Colors.red,
         ),
       );
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      } else {
-        _isLoading = false;
-      }
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1595,9 +1475,7 @@ class _AppwriteSettingsScreenState
       final manager = ref.read(ap.appwriteSyncManagerProvider);
       await manager.pushAllLocalData();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('تم رفع البيانات بنجاح'),
             backgroundColor: Colors.green,
@@ -1626,11 +1504,7 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      } else {
-        _isLoading = false;
-      }
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -1670,14 +1544,16 @@ class _AppwriteSettingsScreenState
     setState(() => _isLoading = true);
     try {
       final manager = ref.read(ap.appwriteSyncManagerProvider);
-      await manager.pullAllRemoteData();
+      final pulledChanges = await manager.pullAllRemoteData();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
-          const SnackBar(
-            content: Text('تم سحب البيانات بنجاح'),
-            backgroundColor: Colors.green,
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              pulledChanges
+                  ? 'تم سحب التغييرات من السحابة بنجاح'
+                  : 'اكتمل الفحص دون تغييرات مطبقة؛ قد لا توجد تغييرات جديدة أو توجد تغييرات محلية غير مرفوعة',
+            ),
+            backgroundColor: pulledChanges ? Colors.green : Colors.orange,
           ),
         );
         ref.invalidate(ap.syncStatsProvider);
@@ -1703,491 +1579,15 @@ class _AppwriteSettingsScreenState
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      } else {
-        _isLoading = false;
-      }
-    }
-  }
-
-  // ═══════════════════════════════════════════════════════════════
-  //  Cloudflare D1 Migration (Local SQLite → D1)
-  // ═══════════════════════════════════════════════════════════════
-
-  Widget _buildMigrationCard(BuildContext context) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  _migrationCompleted ? Icons.cloud_done : Icons.sync,
-                  color: _migrationCompleted ? Colors.green : Colors.teal,
-                  size: 24,
-                ),
-                const SizedBox(width: 8),
-                const Expanded(
-                  child: Text(
-                    'ترحيل البيانات إلى Cloudflare D1',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-            const Divider(height: 24),
-            const Text(
-              'يرفع كل البيانات المحلية (الغرف، الحجوزات، المدفوعات، '
-              'الموظفين، الديون، المصروفات، ...) من قاعدة SQLite المحلية '
-              'إلى قاعدة بيانات Cloudflare D1 السحابية دفعة واحدة.',
-              style: TextStyle(fontSize: 13, color: Colors.grey),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              '• يدعم 22 جدول تلقائياً\n'
-              '• يستخدم DoH fallback لتجاوز مشاكل DNS\n'
-              '• يكمل من حيث توقف (resumable)\n'
-              '• يستغرق عادةً 30 ثانية - 2 دقيقة',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-
-            // Status / Progress display
-            if (_isMigrating || _migrationStatus.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: _migrationCompleted
-                      ? Colors.green.shade50
-                      : Colors.teal.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: _migrationCompleted
-                        ? Colors.green
-                        : Colors.teal,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (_isMigrating) ...[
-                      Row(
-                        children: [
-                          const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _migrationTable.isNotEmpty
-                                  ? '$_migrationStatus — جدول: $_migrationTable'
-                                  : _migrationStatus,
-                              style: const TextStyle(fontSize: 13),
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (_migrationTotal > 0) ...[
-                        const SizedBox(height: 8),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: _migrationTotal > 0
-                                ? _migrationCurrent / _migrationTotal
-                                : 0,
-                            backgroundColor: Colors.teal.shade100,
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                              Colors.teal,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        // Stats row: records + speed + ETA
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '$_migrationCurrent / $_migrationTotal سجل',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.teal.shade700,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            if (_effectiveSpeedKBps > 0) ...[
-                              Text(
-                                '${_effectiveSpeedKBps.toStringAsFixed(1)} KB/s',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: _effectiveSpeedKBps >= 50
-                                      ? Colors.green
-                                      : _effectiveSpeedKBps >= 20
-                                          ? Colors.orange
-                                          : Colors.red,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              if (_migrationTotal > 0 &&
-                                  _migrationCurrent < _migrationTotal) ...[
-                                Builder(builder: (context) {
-                                  final remaining =
-                                      _migrationTotal - _migrationCurrent;
-                                  final recordsPerSec =
-                                      _effectiveSpeedKBps > 0
-                                          ? (_effectiveSpeedKBps * 1024) / 150
-                                          : 0;
-                                  final etaSecs = recordsPerSec > 0
-                                      ? (remaining / recordsPerSec).round()
-                                      : 0;
-                                  final etaMin = (etaSecs / 60).floor();
-                                  final etaSec = etaSecs % 60;
-                                  return Text(
-                                    'متبقي: $etaMinد $etaSecث',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  );
-                                }),
-                              ],
-                            ],
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        // Compression + parallel indicator
-                        Row(
-                          children: [
-                            Icon(Icons.compress,
-                                size: 12, color: Colors.teal.shade600),
-                            const SizedBox(width: 4),
-                            Text(
-                              'SQL + gzip + 15 parallel',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.teal.shade600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ] else ...[
-                      Row(
-                        children: [
-                          Icon(
-                            _migrationCompleted
-                                ? Icons.check_circle
-                                : Icons.info,
-                            color: _migrationCompleted
-                                ? Colors.green
-                                : Colors.teal,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _migrationStatus,
-                              style: const TextStyle(fontSize: 13),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 16),
-
-            // Action buttons
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _isMigrating ? null : _migrateToCloudflare,
-                    icon: const Icon(Icons.cloud_sync),
-                    label: Text(
-                      _migrationCompleted
-                          ? 'إعادة الترحيل'
-                          : 'بدء الترحيل إلى D1',
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.teal,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _migrateToCloudflare() async {
-    // Confirmation dialog
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('تأكيد الترحيل إلى Cloudflare D1'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('سيتم رفع جميع البيانات المحلية إلى Cloudflare D1.'),
-            SizedBox(height: 12),
-            Text('• 22 جدول (غرف، حجوزات، مدفوعات، ...)',
-                style: TextStyle(fontSize: 13)),
-            Text('• البيانات الموجودة في D1 لن تُحذف',
-                style: TextStyle(fontSize: 13)),
-            Text('• العمليات idempotent (آمنة للتكرار)',
-                style: TextStyle(fontSize: 13)),
-            Text('• لا توقف التطبيق أثناء الترحيل',
-                style: TextStyle(fontSize: 13)),
-            SizedBox(height: 12),
-            Text(
-              '⚠️ تأكد من اتصال الإنترنت المستقر قبل البدء.',
-              style: TextStyle(fontSize: 12, color: Colors.orange),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop<bool>(context, false),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop<bool>(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
-            child: const Text('بدء الترحيل'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    setState(() {
-      _isMigrating = true;
-      _migrationCompleted = false;
-      _migrationStatus = 'جاري تسجيل الدخول إلى Cloudflare...';
-      _migrationTable = '';
-      _migrationCurrent = 0;
-      _migrationTotal = 0;
-      _effectiveSpeedKBps = 0;
-      _migrationStartTime = DateTime.now();
-    });
-
-    try {
-      // 1) Initialize CloudflareSyncManager (login + get token)
-      final manager = CloudflareSyncManager();
-      await manager.initialize(forceRetry: true);
-
-      if (!manager.isAvailable || manager.token == null) {
-        setState(() {
-          _isMigrating = false;
-          _migrationStatus =
-              'فشل تسجيل الدخول: ${manager.initError ?? "خطأ غير معروف"}';
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('فشل الترحيل: ${manager.initError}'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-        return;
-      }
-
-      // 2) Get device ID
-      final deviceId = manager.currentDeviceId ??
-          CloudflareSyncManager.currentDeviceIdStatic ??
-          'unknown';
-
-      // 3) Get local database
-      final db = DatabaseManager.instance;
-
-      setState(() {
-        _migrationStatus = 'جاري التحقق من حالة الترحيل السابقة...';
-      });
-
-      // 4) Check if migration was already completed
-      final alreadyComplete =
-          await CloudflareMigrationService.instance.isMigrationComplete();
-
-      if (alreadyComplete) {
-        final resetConfirmed = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('الترحيل مكتمل سابقاً'),
-            content: const Text(
-              'تم ترحيل البيانات سابقاً. هل تريد إعادة الترحيل من البداية؟\n\n'
-              'سيؤدي ذلك إلى مسح حالة التقدم وإعادة رفع كل البيانات.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop<bool>(context, false),
-                child: const Text('إلغاء'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop<bool>(context, true),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                child: const Text('إعادة الترحيل'),
-              ),
-            ],
-          ),
-        );
-
-        if (resetConfirmed ?? false) {
-          await CloudflareMigrationService.instance.reset();
-        } else {
-          setState(() {
-            _isMigrating = false;
-            _migrationStatus = 'تم إلغاء الترحيل (مكتمل سابقاً)';
-          });
-          return;
-        }
-      }
-
-      // 5) Run migration with progress callback
-      setState(() {
-        _migrationStatus = 'جاري ترحيل البيانات...';
-      });
-
-      final result = await CloudflareMigrationService.instance.migrate(
-        db: db,
-        token: manager.token!,
-        deviceId: deviceId,
-        onProgress: (current, total, table) {
-          if (mounted) {
-            // Calculate effective throughput (records per second → KB/s)
-            // Each record is ~500 bytes JSON, but with gzip it's ~150 bytes
-            // transmitted. With parallel batches (5x), effective speed is
-            // records/s × 150 bytes × 5 = bytes/s effective.
-            final elapsed = _migrationStartTime != null
-                ? DateTime.now().difference(_migrationStartTime!).inSeconds
-                : 0;
-            double effectiveKBps = 0;
-            if (elapsed > 0 && current > 0) {
-              // 150 bytes per record (gzipped) × records pushed
-              final bytesTransmitted = current * 150;
-              effectiveKBps = (bytesTransmitted / 1024) / elapsed;
-            }
-
-            setState(() {
-              _migrationCurrent = current;
-              _migrationTotal = total;
-              _migrationTable = table;
-              _migrationStatus = 'جاري الرفع...';
-              _effectiveSpeedKBps = effectiveKBps;
-            });
-          }
-        },
-      );
-
-      // 6) Show result with accurate success/failure detection
-      setState(() {
-        _isMigrating = false;
-        _migrationCompleted = result.isSuccess;
-
-        if (result.isCompleteFailure) {
-          // All records failed — show clear error
-          _migrationStatus = '❌ فشل الترحيل بالكامل: 0/${result.totalRecords} '
-              'سجل مُرحَّل في ${result.duration.inSeconds} ثانية. '
-              '${result.errors.length} خطأ. تحقق من اتصال الإنترنت وحاول مجدداً.';
-        } else if (result.isPartialSuccess) {
-          // Some succeeded, some failed
-          _migrationStatus = '⚠️ ترحيل جزئي: ${result.totalPushed}/'
-              '${result.totalRecords} سجل نجح، ${result.totalFailed} فشل '
-              'في ${result.duration.inSeconds} ثانية';
-        } else {
-          // Full success
-          _migrationStatus = '✅ تم الترحيل بنجاح: ${result.totalPushed}/'
-              '${result.totalRecords} سجل في ${result.duration.inSeconds} ثانية';
-        }
-      });
-
-      if (mounted) {
-        final snackBarMsg = result.isCompleteFailure
-            ? 'فشل الترحيل بالكامل — تحقق من الأخطاء'
-            : result.isPartialSuccess
-                ? 'ترحيل جزئي: ${result.totalPushed} نجح، ${result.totalFailed} فشل'
-                : 'تم ترحيل ${result.totalPushed} سجل إلى Cloudflare D1';
-        final snackBarColor = result.isCompleteFailure
-            ? Colors.red
-            : result.isPartialSuccess
-                ? Colors.orange
-                : Colors.green;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(snackBarMsg),
-            backgroundColor: snackBarColor,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-
-        // Show detailed errors if any
-        if (result.errors.isNotEmpty && mounted) {
-          unawaited(
-            showDialog<void>(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('تفاصيل الأخطاء'),
-                content: SizedBox(
-                  width: double.maxFinite,
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: result.errors.length,
-                    itemBuilder: (context, index) {
-                      return ListTile(
-                        leading: const Icon(Icons.error_outline,
-                            color: Colors.red, size: 20),
-                        title: Text(
-                          result.errors[index],
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('إغلاق'),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      setState(() {
-        _isMigrating = false;
-        _migrationStatus = '❌ خطأ: $e';
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('خطأ في الترحيل: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _safeSetState(() => _isLoading = false);
     }
   }
 
   Future<void> _resetSync() async {
+    if (_isLoading) {
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -2207,14 +1607,33 @@ class _AppwriteSettingsScreenState
       ),
     );
 
-    if (confirmed ?? false) {
+    if (confirmed != true) {
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
       await ref.read(ap.appwriteSyncManagerProvider).resetSyncState();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تم إعادة تعيين المزامنة')),
+          const SnackBar(
+            content: Text('تم إعادة تعيين مؤشر المزامنة المحلي فقط'),
+            backgroundColor: Colors.green,
+          ),
         );
         ref.invalidate(ap.syncStatsProvider);
       }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل إعادة تعيين المزامنة: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      _safeSetState(() => _isLoading = false);
     }
   }
 
@@ -2223,9 +1642,11 @@ class _AppwriteSettingsScreenState
   }
 
   Future<void> _testSync() async {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('اختبار المزامنة...')));
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('اختبار المزامنة...')));
+    }
     await _syncNow();
   }
 

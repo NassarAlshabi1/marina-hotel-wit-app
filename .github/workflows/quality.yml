@@ -71,11 +71,12 @@ jobs:
       format_line_length: '120'
       min_coverage: ${{ inputs.check_level == 'full' && 60 || 0 }}
       coverage_excludes: '**/*.g.dart **/*.freezed.dart **/generated_plugin_registrant.dart'
-      run_build_runner: true
+      run_build_runner: false
       run_tests: ${{ inputs.run_tests != false }}
       test_concurrency: 4
       test_timeout: ${{ inputs.check_level == 'full' && '120s' || '60s' }}
       run_benchmarks: ${{ inputs.run_tests != false }}
+      java_version: '17'
 
   # ═══════════════════════════════════════════════════════════════
   #  Job 2: Extended Quality Checks (full mode only)
@@ -92,37 +93,23 @@ jobs:
       - name: 📚 Checkout Code
         uses: actions/checkout@v5
 
-      - name: 🐦 Setup Flutter
-        uses: subosito/flutter-action@v2.23.0
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v5
         with:
-          flutter-version: '3.44.4'
-          channel: stable
-          cache: true
-          cache-key: flutter-:os:-:channel:-:version:-:arch:-:hash:-${{ hashFiles('**/pubspec.lock') }}
+          python-version: "3.10"
 
       - name: 🟢 Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v4
         with:
           node-version: "24"
 
-      - name: 📦 Install Tools (Dart-native + jscpd for duplicate detection)
-        # Note: Python security tools (bandit, safety, radon, lizard) REMOVED —
-        # they target Python projects. Dart code analysis is now done via
-        # dart_code_linter (DCL) which is Dart-native.
+      - name: 📦 Install Tools
         run: npm install -g jscpd
 
-      - name: 📥 Flutter Pub Get
-        working-directory: mobile
-        run: flutter pub get
-
       # ─────────────────────────────────────────────────────────────────────
-      #  Full-only: Duplicate Code + Dart-specific Quality Checks
-      #  All Dart analysis is now done via dart_code_linter (DCL).
-      #  DCL provides: cyclomatic-complexity, maintainability-index,
-      #  number-of-parameters, source-lines-of-code, maximum-nesting-level,
-      #  check-unused-code, check-unused-files (configured in mobile/dcl.yaml)
+      #  Full-only: Find Duplicate Code + Architecture Validation + Reports
       # ─────────────────────────────────────────────────────────────────────
-      - name: 👯 Find Duplicate Code (jscpd — supports Dart)
+      - name: 👯 Find Duplicate Code
         run: |
           mkdir -p reports
           jscpd ./mobile/lib \
@@ -130,30 +117,16 @@ jobs:
             --reporters json \
             --output ./reports || true
 
-      - name: 📊 Dart Code Linter — Metrics (replaces Python complexity-report)
-        # replaces: scripts/complexity-report.py
-        # provides: cyclomatic-complexity, maintainability-index, source-lines-of-code,
-        #           number-of-fields, number-of-parameters, maximum-nesting-level
-        working-directory: mobile
-        run: |
-          mkdir -p reports
-          dart run dart_code_linter:metrics analyze lib \
-            --reporter=console \
-            --json-output=reports/dcl-metrics.json || true
-
-      - name: 🪦 Dart Code Linter — Unused Code (replaces Python dead-code-report)
-        # replaces: scripts/dead-code-report.py
-        # provides: check-unused-code, check-unused-files
-        working-directory: mobile
-        run: |
-          dart run dart_code_linter:metrics check-unused-code lib \
-            --reporter=console || true
-
-      - name: 🏗️ Architecture Validation (Dart-aware)
+      - name: 🏗️ Architecture Validation
         run: python3 scripts/architecture-validator.py --project-root mobile || true
 
-      - name: 🔒 Security Scan (Dart/Flutter-focused)
-        run: bash scripts/security-scan.sh mobile/lib || true
+      - name: 📊 Run Custom Reports
+        run: |
+          mkdir -p reports
+          python3 scripts/performance-report.py mobile/lib || true
+          python3 scripts/complexity-report.py mobile/lib || true
+          python3 scripts/dead-code-report.py || true
+          bash scripts/security-scan.sh mobile/lib || true
 
       - name: 📝 Generate Quality Dashboard
         run: python3 scripts/quality-summary.py || true

@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 import 'dart:math';
 
@@ -8,6 +6,7 @@ import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/debug_log.dart';
+import '../utils/weak_device_optimizer.dart';
 import '../utils/debug_logs.dart';
 import 'google_drive_backup_service.dart';
 import 'google_drive_conflict_resolver.dart';
@@ -414,10 +413,11 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('❤️ Starting health check monitor...');
 
     _healthCheckTimer?.cancel();
-    _healthCheckTimer = Timer.periodic(
-      const Duration(minutes: 5),
-      (_) => _performHealthCheck(),
-    );
+    final interval = WeakDeviceOptimizer.instance.isWeakDevice
+        ? const Duration(minutes: 15)
+        : const Duration(minutes: 5);
+    _healthCheckTimer = Timer.periodic(interval, (_) => _performHealthCheck());
+    _log('❤️ Health check interval: ${interval.inMinutes} minutes');
   }
 
   Future<void> _performHealthCheck() async {
@@ -497,9 +497,11 @@ class AutoSyncEngine with WidgetsBindingObserver {
         '📤 Syncing $_pendingChangesCount pending changes after network restore',
       );
       await _guardedSyncNow(pull: false, reason: 'network_restore_push');
-    } else {
+    } else if (!WeakDeviceOptimizer.instance.isWeakDevice) {
       _log('📥 Checking for remote changes after network restore');
       await _guardedSyncNow(push: false, reason: 'network_restore_pull');
+    } else {
+      _log('🧠 Low-RAM policy: deferred empty pull after network restore');
     }
   }
 
@@ -560,6 +562,13 @@ class AutoSyncEngine with WidgetsBindingObserver {
       }
     }
 
+    if (WeakDeviceOptimizer.instance.isWeakDevice) {
+      // مزامنة foreground الكاملة قد تبدأ pull + snapshot قريبًا من استعادة
+      // الواجهة. على 1GB نؤجلها إلى المؤقت أو إلى إجراء المستخدم.
+      _log('🧠 Low-RAM policy: deferred foreground pull');
+      return;
+    }
+
     Future<void>.delayed(SyncConstants.appForegroundDelay, () async {
       try {
         await _orchestrator.onAppForeground();
@@ -572,7 +581,10 @@ class AutoSyncEngine with WidgetsBindingObserver {
   void _onAppPaused() {
     _log('⏸️ App paused');
 
-    if (_pendingChangesCount > 0 && _hasNetworkConnection && _isSignedIn) {
+    if (!WeakDeviceOptimizer.instance.isWeakDevice &&
+        _pendingChangesCount > 0 &&
+        _hasNetworkConnection &&
+        _isSignedIn) {
       _log('💾 App paused with pending changes - quick sync before background');
 
       _guardedSyncNow(pull: false, reason: 'app_paused')

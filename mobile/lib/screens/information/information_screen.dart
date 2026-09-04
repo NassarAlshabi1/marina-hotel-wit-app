@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 // ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 import 'dart:typed_data';
@@ -19,6 +17,7 @@ import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/pdf_utils.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class InformationScreen extends ConsumerStatefulWidget {
   const InformationScreen({super.key});
@@ -497,9 +496,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حفظ السجل: $e'),
           backgroundColor: Colors.red.shade900,
@@ -541,9 +538,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل حذف السجل: $e'),
           backgroundColor: Colors.red.shade900,
@@ -764,8 +759,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       await Printing.sharePdf(bytes: pdfBytes, filename: filename);
     } catch (error, stackTrace) {
       // ✅ تشخيص مفصّل: نُسجّل الـ stackTrace في console + نُظهر رسالة واضحة للمستخدم.
-      debugPrint(
-        '❌ فشل تصدير PDF لسجل المعلومية:\n  error: $error\n  stack: $stackTrace',
+      dlog(
+        () =>
+            '❌ فشل تصدير PDF لسجل المعلومية:\n  error: $error\n  stack: $stackTrace',
       );
       _showSnack('فشل تصدير الملف: $error');
     } finally {
@@ -797,7 +793,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
       final syncManager = ref.read(appwrite.appwriteSyncManagerProvider);
       await syncManager.sync(pull: false);
     } catch (e) {
-      debugPrint('⚠️ فشلت المزامنة الفورية: $e');
+      dlog(() => '⚠️ فشلت المزامنة الفورية: $e');
     }
   }
 }

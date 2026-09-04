@@ -482,6 +482,20 @@ class SecondarySyncManager {
             source: row.read<String>('source'),
             deliveredToPrimary: row.read<bool>('delivered_to_primary'),
             deliveredToSecondary: row.read<bool>('delivered_to_secondary'),
+            // ✅ Migration 55 + Wave 5 (من فرع perf): حقول الفصل والـ
+            // generation الجديدة — مطلوبة في OutboxData الحديث (fallbacks
+            // مطابقة لنمط outbox_dao.dart).
+            primaryProcessingStatus:
+                row.read<String?>('primary_processing_status') ?? 'pending',
+            primaryAttempts: row.read<int?>('primary_attempts') ?? 0,
+            primaryLastError: row.read<String?>('primary_last_error'),
+            secondaryProcessingStatus:
+                row.read<String?>('secondary_processing_status') ?? 'pending',
+            secondaryAttempts: row.read<int?>('secondary_attempts') ?? 0,
+            secondaryLastError: row.read<String?>('secondary_last_error'),
+            payloadVersion: row.read<int?>('payload_version') ?? 1,
+            processingPayloadVersion:
+                row.read<int?>('processing_payload_version') ?? 1,
           ),
         )
         .get();

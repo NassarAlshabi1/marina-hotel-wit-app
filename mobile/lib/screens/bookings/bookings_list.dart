@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -13,6 +11,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/analytics_service.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
+import '../../utils/performance_config.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import '../payments/booking_payment_screen.dart';
@@ -27,9 +26,12 @@ class BookingsListScreen extends ConsumerStatefulWidget {
 }
 
 class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
-    with SyncOnExitMixin {
+    with SyncOnExitMixin, AutomaticKeepAliveClientMixin {
   @override
   String get screenId => 'bookings_list';
+
+  @override
+  bool get wantKeepAlive => true;
   final _currencyFmt = NumberFormat('#,##0', 'en_US');
 
   @override
@@ -57,6 +59,7 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // ✅ AutomaticKeepAlive
     final bookingsAsync = ref.watch(bookingsListProvider);
     final roomsAsync = ref.watch(roomsListProvider);
 
@@ -137,6 +140,9 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(minWidth: 1100),
                         child: ListView.builder(
+                          scrollCacheExtent: optimizedScrollCacheExtent,
+                          addAutomaticKeepAlives: false,
+                          addRepaintBoundaries: false,
                           shrinkWrap: true,
                           itemCount: filtered.length + 1,
                           itemBuilder: (context, index) {
@@ -205,6 +211,9 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
 
                   return ListView.separated(
                     physics: const AlwaysScrollableScrollPhysics(),
+                    scrollCacheExtent: optimizedScrollCacheExtent,
+                    addAutomaticKeepAlives: false,
+                    addRepaintBoundaries: false,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 12,
@@ -750,8 +759,7 @@ String _formatDate(String s) {
   try {
     final d = DateTime.parse(s);
     return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-  } catch (e) {
-      debugPrint('⚠️ Swallowed error in bookings_list.dart: ');
+  } catch (_) {
     return s;
   }
 }

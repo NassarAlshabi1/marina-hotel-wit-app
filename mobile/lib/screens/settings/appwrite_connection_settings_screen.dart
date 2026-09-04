@@ -1,9 +1,8 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
+import '../../providers/appwrite_providers.dart' as ap;
 import '../../services/appwrite_config.dart';
 import '../../services/appwrite_config_manager.dart';
 import '../../utils/snackbar_helper.dart';
@@ -161,6 +160,9 @@ class _AppwriteConnectionSettingsScreenState
 
     await AppwriteConfigManager.resetToDefaults();
 
+    if (!mounted) {
+      return;
+    }
     setState(() {
       _endpointController.text = AppwriteConfig.endpoint;
       _projectIdController.text = AppwriteConfig.projectId;
@@ -184,25 +186,47 @@ class _AppwriteConnectionSettingsScreenState
   }
 
   Future<void> _testConnection() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
     setState(() => _isTesting = true);
 
     try {
-      await Future<void>.delayed(const Duration(seconds: 2));
+      final result = await ref
+          .read(ap.appwriteServiceProvider)
+          .testConnectionWithConfig(
+            endpoint: _endpointController.text,
+            projectId: _projectIdController.text,
+            databaseId: _databaseIdController.text,
+            apiKey: _apiKeyController.text,
+          );
+      if (!mounted) {
+        return;
+      }
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'اختبار الاتصال: يرجى حفظ الإعدادات أولاً ثم إعادة تشغيل التطبيق',
-            ),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 3),
+      final success = result['overall_success'] == true;
+      final error = result['error']?.toString();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? 'نجح اختبار الاتصال بـ Appwrite باستخدام القيم الحالية'
+                : 'فشل اختبار الاتصال${error == null ? '' : ': $error'}',
           ),
-        );
+          backgroundColor: success ? Colors.green : Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        SnackBarHelper.showError(context, 'فشل اختبار الاتصال: $e');
       }
     } finally {
       if (mounted) {
         setState(() => _isTesting = false);
+      } else {
+        _isTesting = false;
       }
     }
   }

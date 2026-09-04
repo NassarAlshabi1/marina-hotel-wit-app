@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -11,6 +9,7 @@ import '../../providers/auto_backup_provider.dart';
 import '../../providers/backup_provider.dart';
 import '../../utils/performance_monitor.dart';
 import '../../utils/theme.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class GoogleDriveLoginScreen extends ConsumerStatefulWidget {
   const GoogleDriveLoginScreen({super.key});
@@ -43,13 +42,12 @@ class _GoogleDriveLoginScreenState
         try {
           await ref.read(autoBackupManagerProvider).setEnabled(true);
         } catch (e) {
-          debugPrint(
-            '⚠️ Failed to enable auto backup after silent sign-in: $e',
+          dlog(
+            () => '⚠️ Failed to enable auto backup after silent sign-in: $e',
           );
         }
       }
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in google_drive_login_screen.dart: ');
+    } catch (_) {
       // فشل الصامت — يظهر الواجهة العادية
     }
     if (mounted) {
@@ -70,9 +68,9 @@ class _GoogleDriveLoginScreenState
       if (state.isSignedIn) {
         try {
           await ref.read(autoBackupManagerProvider).setEnabled(true);
-          debugPrint('✅ تم تفعيل المزامنة التلقائية');
+          dlog('✅ تم تفعيل المزامنة التلقائية');
         } catch (e) {
-          debugPrint('⚠️ خطأ في تفعيل المزامنة التلقائية: $e');
+          dlog(() => '⚠️ خطأ في تفعيل المزامنة التلقائية: $e');
         }
         if (mounted) {
           setState(() {
@@ -159,14 +157,22 @@ class _GoogleDriveLoginScreenState
       if (done) {
         return;
       }
-      await prefs.setBool(key, true);
 
       final manager = ref.read(appwrite.appwriteSyncManagerProvider);
       await manager.initialize();
       // سحب جميع البيانات مع تعطيل Foreign Keys مؤقتاً لضمان عدم فشل السحب
-      await manager.pullAllDataWithDisabledFK();
+      //
+      // ✅ (2026-09-01) Bootstrap الصريح — مسار النجاح/الفشل الإلزامي:
+      //  - SUCCESS → pullAllDataWithDisabledFK تُرجع true → العلم يُضبط
+      //    **بعد** اكتمال السحب فقط (appwrite_pull_after_drive_skip_done=1).
+      //  - FAILURE → العلم يبقى فارغاً وتُتاح إعادة المحاولة (فتح الشاشة
+      //    القادم يعيد السحب الشامل). دلالات العلم نفسها — توقيت الضبط فقط.
+      final ok = await manager.pullAllDataWithDisabledFK();
+      if (ok) {
+        await prefs.setBool(key, true);
+      }
     } catch (e) {
-      debugPrint('❌ Appwrite auto pull after skip error: $e');
+      dlog(() => '❌ Appwrite auto pull after skip error: $e');
     }
   }
 

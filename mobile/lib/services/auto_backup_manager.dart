@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 import 'dart:io';
 
@@ -8,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/debug_log.dart';
 import '../utils/hotel_time_engine.dart';
+import '../utils/weak_device_optimizer.dart';
 import 'appwrite_service.dart';
 import 'appwrite_sync_manager.dart';
 import 'booking_derived_fields_service.dart';
@@ -76,6 +75,7 @@ class AutoBackupManager {
     _database = database;
     await _initializeDeviceId();
     await _loadBackupMode();
+    _applyLowMemoryPolicy();
     await _schedulePeriodicCleanup();
 
     if (database != null) {
@@ -103,6 +103,24 @@ class AutoBackupManager {
     }
   }
 
+  void _applyLowMemoryPolicy() {
+    final optimizer = WeakDeviceOptimizer.instance;
+    if (!optimizer.isWeakDevice) {
+      return;
+    }
+
+    // النسخ الكامل يجمع قاعدة البيانات وJSON وgzip في الذاكرة. نحتفظ بخيار
+    // المستخدم في SharedPreferences، لكن نستخدم delta فقط أثناء هذه الجلسة.
+    if (_currentMode == BackupMode.fullBackup ||
+        _currentMode == BackupMode.both) {
+      _currentMode = BackupMode.deltaSync;
+      dlog(
+        () =>
+            '🧠 Low-RAM policy: full automatic backups are disabled for this session',
+      );
+    }
+  }
+
   Future<void> _startDeltaSyncTimer() async {
     _deltaSyncTimer?.cancel();
     final deltaSyncEnabled = await isDeltaSyncEnabled();
@@ -110,10 +128,13 @@ class AutoBackupManager {
       return;
     }
 
-    _deltaSyncTimer = Timer.periodic(const Duration(minutes: 5), (timer) async {
+    final interval = WeakDeviceOptimizer.instance.isWeakDevice
+        ? const Duration(minutes: 15)
+        : const Duration(minutes: 5);
+    _deltaSyncTimer = Timer.periodic(interval, (timer) async {
       await performDeltaSync();
     });
-    dlog('⏰ تم جدولة المزامنة التفاضلية كل 5 دقائق');
+    dlog(() => '⏰ تم جدولة المزامنة التفاضلية كل ${interval.inMinutes} دقيقة');
   }
 
   /// تهيئة معرف الجهاز للتمييز بين الأجهزة
@@ -218,7 +239,9 @@ class AutoBackupManager {
         _currentMode == BackupMode.both) {
       _deltaSyncDebounceTimer?.cancel();
       _deltaSyncDebounceTimer = Timer(
-        const Duration(milliseconds: _instantSyncDebounceMilliseconds),
+        WeakDeviceOptimizer.instance.isWeakDevice
+            ? const Duration(seconds: 2)
+            : const Duration(milliseconds: _instantSyncDebounceMilliseconds),
         () async {
           // ملاحظة: performDeltaSync() يحمي نفسه داخلياً ضد التزامن عبر
           // _isDeltaSyncing، فلا يمكن أن تعمل مزامنتان تفاضليتان معاً.
@@ -232,8 +255,9 @@ class AutoBackupManager {
       );
     }
 
-    if (_currentMode == BackupMode.fullBackup ||
-        _currentMode == BackupMode.both) {
+    if ((_currentMode == BackupMode.fullBackup ||
+            _currentMode == BackupMode.both) &&
+        !WeakDeviceOptimizer.instance.isWeakDevice) {
       _debounceTimer?.cancel();
       _debounceTimer = Timer(const Duration(seconds: _debounceSeconds), () {
         _performAutoBackup(
@@ -250,6 +274,10 @@ class AutoBackupManager {
     required String reason,
     int changesCount = 1,
   }) async {
+    if (WeakDeviceOptimizer.instance.isWeakDevice) {
+      dlog('🧠 Low-RAM policy: skipped full automatic backup');
+      return;
+    }
     if (_isBackingUp || _backupService == null || !_backupService!.isSignedIn) {
       dwarn(
         () =>
@@ -599,7 +627,12 @@ class AutoBackupManager {
           _appwriteService!.isInitialized &&
           _database != null) {
         try {
-          final syncManager = AppwriteSyncManager();
+          final syncManager =
+              AppwriteSyncManager.instance ??
+              AppwriteSyncManager(
+                appwriteService: _appwriteService!,
+                database: _database!,
+              );
           final result = await syncManager.sync();
           results['appwrite'] = {
             'push': {

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class PerformanceMetrics {
   PerformanceMetrics({
@@ -66,7 +67,7 @@ class PerformanceNotifier extends StateNotifier<PerformanceState> {
     state = state.copyWith(metrics: newMetrics, averageTimings: averages);
 
     if (metric.duration.inMilliseconds > 1000) {
-      debugPrint('⚠️  Slow: ${metric.operation} = ${metric.durationMs}');
+      dlog(() => '⚠️  Slow: ${metric.operation} = ${metric.durationMs}');
     }
   }
 

@@ -22,11 +22,11 @@ class CurrencyFormatter {
     return amount.ceil();
   }
 
-  /// تنسيق المبلغ بالفواصل فقط (5,000)
+  /// تنسيق المبلغ بالفواصل فقط (5,000)، وفق سياسة الفندق بدون كسور.
+  ///
+  /// `showDecimals` متروك للتوافق مع الاستدعاءات القديمة، لكنه لا يغيّر
+  /// النتيجة؛ المبالغ تعرض دائماً كأعداد صحيحة.
   static String formatCurrency(double amount, {bool showDecimals = false}) {
-    if (showDecimals) {
-      return _decimalFormatter.format(amount);
-    }
     return _intFormatter.format(_roundAmount(amount));
   }
 
@@ -95,7 +95,9 @@ class CurrencyFormatter {
     return _roundAmount(parsed).toDouble();
   }
 
-  /// إنشاء NumberFormat للاستخدام المتكرر
+  /// إنشاء NumberFormat للاستخدام المتكرر.
   static NumberFormat get defaultFormatter => _intFormatter;
+
+  /// متاح للتوافق مع الإصدارات السابقة، ولا ينبغي استخدامه لعرض مبالغ الفندق.
   static NumberFormat get decimalFormatter => _decimalFormatter;
 }

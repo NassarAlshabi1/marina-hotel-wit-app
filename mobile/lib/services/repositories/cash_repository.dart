@@ -13,7 +13,8 @@ class CashRepository {
   final OutboxDao outbox;
   final CashTransactionsDao dao;
 
-  Stream<List<CashTransaction>> watchAll() => dao.watchList();
+  Stream<List<CashTransaction>> watchAll({int? limit, int offset = 0}) =>
+      dao.watchList(limit: limit, offset: offset);
   Stream<CashTransaction?> watchOne(int id) => dao.watchById(id);
 
   Future<List<CashTransaction>> listByReference({

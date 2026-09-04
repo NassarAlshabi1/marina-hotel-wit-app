@@ -5,7 +5,7 @@ import '../utils/hotel_time_engine.dart';
 import '../utils/time.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'sync_constants.dart';
 
 /// ✅ خدمة إصلاح hotelDayKey لجميع الجداول
 ///
@@ -95,8 +95,7 @@ class HotelDayKeyFixService {
       return HotelTimeEngine.getHotelDayKey(
         dateTime: DateTime(year, month, day, 14, 1),
       );
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in hotel_day_key_fix_service.dart: ');
+    } catch (_) {
       return HotelTimeEngine.getHotelDayKey();
     }
   }
@@ -129,8 +128,6 @@ class HotelDayKeyFixService {
       }
       if (toFix.isEmpty) return 0;
 
-      final now = Time.nowEpoch();
-      final nowIso = DateTime.now().toIso8601String();
       await db.transaction(() async {
         for (final item in toFix) {
           await (db.update(
@@ -138,30 +135,27 @@ class HotelDayKeyFixService {
           )..where((t) => t.id.equals(item.id))).write(
             ExpensesCompanion(
               hotelDayKey: d.Value(item.correctKey),
-              updatedAt: d.Value(now),
-              updatedAtIso: d.Value(nowIso),
-              lastModified: d.Value(now),
-              lastModifiedEpoch: d.Value(now),
               version: d.Value(item.version + 1),
             ),
           );
         }
-      });
 
-      final outboxDao = OutboxDao(db);
-      await outboxDao.mergeBatch(
-        toFix
-            .map(
-              (item) => <String, dynamic>{
-                'entity': 'expenses',
-                'op': 'update',
-                'localUuid': item.localUuid,
-                'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
-                'clientTs': now,
-              },
-            )
-            .toList(),
-      );
+        final outboxDao = OutboxDao(db);
+        final now = Time.nowEpoch();
+        await outboxDao.mergeBatch(
+          toFix
+              .map(
+                (item) => <String, dynamic>{
+                  'entity': 'expenses',
+                  'op': 'update',
+                  'localUuid': item.localUuid,
+                  'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+                  'clientTs': now,
+                },
+              )
+              .toList(),
+        );
+      });
 
       dlog(() => '  📋 expenses: تم إصلاح ${toFix.length} سجل');
       return toFix.length;
@@ -193,8 +187,6 @@ class HotelDayKeyFixService {
       }
       if (toFix.isEmpty) return 0;
 
-      final now = Time.nowEpoch();
-      final nowIso = DateTime.now().toIso8601String();
       await db.transaction(() async {
         for (final item in toFix) {
           await (db.update(
@@ -202,30 +194,27 @@ class HotelDayKeyFixService {
           )..where((t) => t.id.equals(item.id))).write(
             SalaryWithdrawalsCompanion(
               hotelDayKey: d.Value(item.correctKey),
-              updatedAt: d.Value(now),
-              updatedAtIso: d.Value(nowIso),
-              lastModified: d.Value(now),
-              lastModifiedEpoch: d.Value(now),
               version: d.Value(item.version + 1),
             ),
           );
         }
-      });
 
-      final outboxDao = OutboxDao(db);
-      await outboxDao.mergeBatch(
-        toFix
-            .map(
-              (item) => <String, dynamic>{
-                'entity': 'salary_withdrawals',
-                'op': 'update',
-                'localUuid': item.localUuid,
-                'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
-                'clientTs': now,
-              },
-            )
-            .toList(),
-      );
+        final outboxDao = OutboxDao(db);
+        final now = Time.nowEpoch();
+        await outboxDao.mergeBatch(
+          toFix
+              .map(
+                (item) => <String, dynamic>{
+                  'entity': 'salary_withdrawals',
+                  'op': 'update',
+                  'localUuid': item.localUuid,
+                  'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+                  'clientTs': now,
+                },
+              )
+              .toList(),
+        );
+      });
 
       dlog(() => '  📋 salary_withdrawals: تم إصلاح ${toFix.length} سجل');
       return toFix.length;
@@ -387,10 +376,9 @@ class HotelDayKeyFixService {
           );
         }
 
-        // ✅ تنفيذ التحديثات دفعة واحدة في معاملة واحدة
+        // ✅ تنفيذ التحديثات + expense_id + mergeBatch في معاملة واحدة
         if (dbUpdates.isNotEmpty) {
           final now = Time.nowEpoch();
-          final nowIso = DateTime.now().toIso8601String();
           await db.transaction(() async {
             for (final item in dbUpdates) {
               await (db.update(
@@ -399,30 +387,25 @@ class HotelDayKeyFixService {
                 SalaryWithdrawalsCompanion(
                   reason: d.Value(item.newReason),
                   updatedAt: d.Value(now),
-                  updatedAtIso: d.Value(nowIso),
                   lastModified: d.Value(now),
-                  lastModifiedEpoch: d.Value(now),
                   version: d.Value(item.version + 1),
                 ),
               );
             }
-          });
 
-          // تحديث expense_id عبر SQL خام — دفعة واحدة
-          try {
-            for (final item in customSqlUpdates) {
-              await db.customStatement(
-                'UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?',
-                [item.expenseId, item.id],
-              );
+            try {
+              for (final item in customSqlUpdates) {
+                await db.customStatement(
+                  'UPDATE salary_withdrawals SET expense_id = ? WHERE id = ?',
+                  [item.expenseId, item.id],
+                );
+              }
+            } catch (_) {
+              // العمود قد لا يكون موجوداً
             }
-          } catch (e) {
-      debugPrint('⚠️ Swallowed error in hotel_day_key_fix_service.dart: ');
-            // العمود قد لا يكون موجوداً
-          }
 
-          // ✅ mergeBatch لكل عناصر outbox
-          await outboxDao.mergeBatch(outboxItems);
+            await outboxDao.mergeBatch(outboxItems);
+          });
         }
       } catch (e) {
         dwarn(() => '  ⚠️ fixExpenseWithdrawalLinks step2: $e');
@@ -533,8 +516,6 @@ class HotelDayKeyFixService {
       }
       if (toFix.isEmpty) return 0;
 
-      final now = Time.nowEpoch();
-      final nowIso = DateTime.now().toIso8601String();
       await db.transaction(() async {
         for (final item in toFix) {
           await (db.update(
@@ -542,30 +523,27 @@ class HotelDayKeyFixService {
           )..where((t) => t.id.equals(item.id))).write(
             PaymentsCompanion(
               hotelDayKey: d.Value(item.correctKey),
-              updatedAt: d.Value(now),
-              updatedAtIso: d.Value(nowIso),
-              lastModified: d.Value(now),
-              lastModifiedEpoch: d.Value(now),
               version: d.Value(item.version + 1),
             ),
           );
         }
-      });
 
-      final outboxDao = OutboxDao(db);
-      await outboxDao.mergeBatch(
-        toFix
-            .map(
-              (item) => <String, dynamic>{
-                'entity': 'payments',
-                'op': 'update',
-                'localUuid': item.localUuid,
-                'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
-                'clientTs': now,
-              },
-            )
-            .toList(),
-      );
+        final outboxDao = OutboxDao(db);
+        final now = Time.nowEpoch();
+        await outboxDao.mergeBatch(
+          toFix
+              .map(
+                (item) => <String, dynamic>{
+                  'entity': 'payments',
+                  'op': 'update',
+                  'localUuid': item.localUuid,
+                  'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+                  'clientTs': now,
+                },
+              )
+              .toList(),
+        );
+      });
 
       dlog(() => '  📋 payments: تم إصلاح ${toFix.length} سجل');
       return toFix.length;
@@ -596,8 +574,6 @@ class HotelDayKeyFixService {
       }
       if (toFix.isEmpty) return 0;
 
-      final now = Time.nowEpoch();
-      final nowIso = DateTime.now().toIso8601String();
       await db.transaction(() async {
         for (final item in toFix) {
           await (db.update(
@@ -605,30 +581,27 @@ class HotelDayKeyFixService {
           )..where((t) => t.id.equals(item.id))).write(
             BookingNightsCompanion(
               hotelDayKey: d.Value(item.correctKey),
-              updatedAt: d.Value(now),
-              updatedAtIso: d.Value(nowIso),
-              lastModified: d.Value(now),
-              lastModifiedEpoch: d.Value(now),
               version: d.Value(item.version + 1),
             ),
           );
         }
-      });
 
-      final outboxDao = OutboxDao(db);
-      await outboxDao.mergeBatch(
-        toFix
-            .map(
-              (item) => <String, dynamic>{
-                'entity': 'booking_nights',
-                'op': 'update',
-                'localUuid': item.localUuid,
-                'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
-                'clientTs': now,
-              },
-            )
-            .toList(),
-      );
+        final outboxDao = OutboxDao(db);
+        final now = Time.nowEpoch();
+        await outboxDao.mergeBatch(
+          toFix
+              .map(
+                (item) => <String, dynamic>{
+                  'entity': 'booking_nights',
+                  'op': 'update',
+                  'localUuid': item.localUuid,
+                  'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+                  'clientTs': now,
+                },
+              )
+              .toList(),
+        );
+      });
 
       dlog(() => '  📋 booking_nights: تم إصلاح ${toFix.length} سجل');
       return toFix.length;
@@ -659,8 +632,6 @@ class HotelDayKeyFixService {
       }
       if (toFix.isEmpty) return 0;
 
-      final now = Time.nowEpoch();
-      final nowIso = DateTime.now().toIso8601String();
       await db.transaction(() async {
         for (final item in toFix) {
           await (db.update(
@@ -668,30 +639,27 @@ class HotelDayKeyFixService {
           )..where((t) => t.id.equals(item.id))).write(
             SalaryPaymentsCompanion(
               hotelDayKey: d.Value(item.correctKey),
-              updatedAt: d.Value(now),
-              updatedAtIso: d.Value(nowIso),
-              lastModified: d.Value(now),
-              lastModifiedEpoch: d.Value(now),
               version: d.Value(item.version + 1),
             ),
           );
         }
-      });
 
-      final outboxDao = OutboxDao(db);
-      await outboxDao.mergeBatch(
-        toFix
-            .map(
-              (item) => <String, dynamic>{
-                'entity': 'salary_payments',
-                'op': 'update',
-                'localUuid': item.localUuid,
-                'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
-                'clientTs': now,
-              },
-            )
-            .toList(),
-      );
+        final outboxDao = OutboxDao(db);
+        final now = Time.nowEpoch();
+        await outboxDao.mergeBatch(
+          toFix
+              .map(
+                (item) => <String, dynamic>{
+                  'entity': 'salary_payments',
+                  'op': 'update',
+                  'localUuid': item.localUuid,
+                  'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+                  'clientTs': now,
+                },
+              )
+              .toList(),
+        );
+      });
 
       dlog(() => '  📋 salary_payments: تم إصلاح ${toFix.length} سجل');
       return toFix.length;
@@ -722,8 +690,6 @@ class HotelDayKeyFixService {
       }
       if (toFix.isEmpty) return 0;
 
-      final now = Time.nowEpoch();
-      final nowIso = DateTime.now().toIso8601String();
       await db.transaction(() async {
         for (final item in toFix) {
           await (db.update(
@@ -731,30 +697,27 @@ class HotelDayKeyFixService {
           )..where((t) => t.id.equals(item.id))).write(
             PaymentVoidsCompanion(
               hotelDayKey: d.Value(item.correctKey),
-              updatedAt: d.Value(now),
-              updatedAtIso: d.Value(nowIso),
-              lastModified: d.Value(now),
-              lastModifiedEpoch: d.Value(now),
               version: d.Value(item.version + 1),
             ),
           );
         }
-      });
 
-      final outboxDao = OutboxDao(db);
-      await outboxDao.mergeBatch(
-        toFix
-            .map(
-              (item) => <String, dynamic>{
-                'entity': 'payment_voids',
-                'op': 'update',
-                'localUuid': item.localUuid,
-                'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
-                'clientTs': now,
-              },
-            )
-            .toList(),
-      );
+        final outboxDao = OutboxDao(db);
+        final now = Time.nowEpoch();
+        await outboxDao.mergeBatch(
+          toFix
+              .map(
+                (item) => <String, dynamic>{
+                  'entity': 'payment_voids',
+                  'op': 'update',
+                  'localUuid': item.localUuid,
+                  'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
+                  'clientTs': now,
+                },
+              )
+              .toList(),
+        );
+      });
 
       dlog(() => '  📋 payment_voids: تم إصلاح ${toFix.length} سجل');
       return toFix.length;
@@ -785,8 +748,6 @@ class HotelDayKeyFixService {
       }
       if (toFix.isEmpty) return 0;
 
-      final now = Time.nowEpoch();
-      final nowIso = DateTime.now().toIso8601String();
       await db.transaction(() async {
         for (final item in toFix) {
           await (db.update(
@@ -794,30 +755,34 @@ class HotelDayKeyFixService {
           )..where((t) => t.id.equals(item.id))).write(
             AuditLogsCompanion(
               hotelDayKey: d.Value(item.correctKey),
-              updatedAt: d.Value(now),
-              updatedAtIso: d.Value(nowIso),
-              lastModified: d.Value(now),
-              lastModifiedEpoch: d.Value(now),
               version: d.Value(item.version + 1),
             ),
           );
         }
-      });
 
-      final outboxDao = OutboxDao(db);
-      await outboxDao.mergeBatch(
-        toFix
-            .map(
-              (item) => <String, dynamic>{
-                'entity': 'audit_logs',
-                'op': 'update',
-                'localUuid': item.localUuid,
-                'payload': <String, dynamic>{'hotelDayKey': item.correctKey},
-                'clientTs': now,
-              },
-            )
-            .toList(),
-      );
+        // ✅ (2026-08-30) audit_logs مستبعد من مزامنة Appwrite
+        // (SyncConstants.auditLogsSyncEnabled = false) — لا نُنشئ مدخلات
+        // outbox له إطلاقاً لتفادي تراكم مدخلات لن تُرفع أبداً.
+        if (SyncConstants.auditLogsSyncEnabled) {
+          final outboxDao = OutboxDao(db);
+          final now = Time.nowEpoch();
+          await outboxDao.mergeBatch(
+            toFix
+                .map(
+                  (item) => <String, dynamic>{
+                    'entity': 'audit_logs',
+                    'op': 'update',
+                    'localUuid': item.localUuid,
+                    'payload': <String, dynamic>{
+                      'hotelDayKey': item.correctKey,
+                    },
+                    'clientTs': now,
+                  },
+                )
+                .toList(),
+          );
+        }
+      });
 
       dlog(() => '  📋 audit_logs: تم إصلاح ${toFix.length} سجل');
       return toFix.length;

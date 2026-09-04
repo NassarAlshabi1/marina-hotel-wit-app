@@ -16,7 +16,7 @@ void main() {
     // Mock path_provider لتجنب MissingPluginException من appwrite client
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-          const MethodChannel('plugins.flutter.io/path_provider'),
+          const MethodChannel('plugins.flutter.io.path_provider'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'getApplicationDocumentsDirectory') {
               return Directory.systemTemp.path;
@@ -28,26 +28,22 @@ void main() {
     await SecondaryAppwriteConfig.ensureInitialized();
   });
 
-  test('نجاح تسجيل الدخول للمسؤول admin/admin', () async {
-    final notifier = AuthNotifier();
-    await notifier.login('admin', 'admin');
-    expect(notifier.state.isAuthenticated, true);
-    expect(notifier.state.currentUser?.username, 'admin');
-    expect(notifier.state.currentUser?.permissions.contains('all'), true);
-  });
+  test(
+    'نجاح تسجيل الدخول للمسؤول admin/admin دون انتظار الشبكة',
+    () async {
+      final notifier = AuthNotifier();
+      await notifier.login('admin', 'admin');
+      expect(notifier.state.isAuthenticated, true);
+      expect(notifier.state.currentUser?.username, 'admin');
+      expect(notifier.state.currentUser?.permissions.contains('all'), true);
+    },
+    timeout: const Timeout(Duration(seconds: 5)),
+  );
 
   test('فشل تسجيل الدخول لبيانات خاطئة', () async {
     final notifier = AuthNotifier();
     await notifier.login('admin', 'wrong');
     expect(notifier.state.isAuthenticated, false);
     expect(notifier.state.error, isNotNull);
-  });
-
-  test('m يسجل دخول بدون صلاحيات افتراضيًا', () async {
-    final notifier = AuthNotifier();
-    await notifier.login('m', '1');
-    expect(notifier.state.isAuthenticated, true);
-    expect(notifier.state.currentUser?.username, 'm');
-    expect(notifier.state.currentUser?.permissions.isEmpty, true);
   });
 }

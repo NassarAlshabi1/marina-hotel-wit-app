@@ -1,77 +1,60 @@
-// lib/utils/performance_config.dart
-//
-// ✅ تحسينات الأداء للأجهزة الضعيفة (1-2GB RAM)
-//
-// المشاكل المُكتشفة:
-// 1. لا يوجد حد لـ image cache — قد يستهلك 100MB+ على أجهزة ضعيفة
-// 2. ListView() (eager) في 30 مكان — يُحمّل كل العناصر دفعة واحدة
-// 3. 0 AutomaticKeepAliveClientMixin — التبويبات تُعاد بناؤها كاملاً
-// 4. فقط 28 .select() vs 94 .watch() — إعادة بناء زائدة
-// 5. 522 Column() — layout مكلف على المعالجات الضعيفة
-
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/painting.dart';
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 
-/// تهيئة تحسينات الأداء — تُستدعى في بداية main() قبل runApp
+import '../services/appwrite_cache_manager.dart';
+import 'debug_log.dart';
+import 'weak_device_optimizer.dart';
+
+/// تهيئة تحسينات الأداء — تُستدعى في بداية `main()` قبل `runApp`.
 void configurePerformance() {
-  // ═══════════════════════════════════════════════════════════════
-  //  1. Image Cache — حد آمن جداً للأجهزة الضعيفة (1GB RAM)
-  // ═══════════════════════════════════════════════════════════════
-  PaintingBinding.instance.imageCache.maximumSize = 50;
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 5 * 1024 * 1024; // 5MB only
+  final optimizer = WeakDeviceOptimizer.instance;
 
-  // ═══════════════════════════════════════════════════════════════
-  //  2. Memory pressure handler — إخلاء الكاش عند ضغط الذاكرة
-  //
-  //  ✅ إصلاح P0-A: استخدمنا سابقاً SystemChannels.system.setMethodCallHandler
-  //     وهذا API خاطئ (SystemChannels.system هو BasicMessageChannel وليس
-  //     MethodChannel). كما أن الـ setMessageHandler override يكسر إشارات
-  //     النظام الأخرى (textScale, brightness).
-  //
-  //  ✅ الحل الأبسط والأكثر أماناً: استخدام PaintingBinding.instantiateImageCodec
-  //     من خلال ImageCache.liveSize limitation + إخلاء الكاش بشكل استباقي.
-  //     لا نحتاج لـ system channel handler — ImageCache نفسه يحترم حدود
-  //     maximumSizeBytes ويلغي cached images تلقائياً عند تجاوز الحد.
-  //
-  //  إخلاء فوري عند بدء التشغيل لتفريغ أي صور مخزنة من session سابقة.
-  // ═══════════════════════════════════════════════════════════════
-  PaintingBinding.instance.imageCache.clear();
-  PaintingBinding.instance.imageCache.clearLiveImages();
+  // image cache هو أكبر cache افتراضي في Flutter؛ نحده قبل إنشاء أول واجهة.
+  PaintingBinding.instance.imageCache.maximumSize = optimizer.maxImageCacheSize;
+  PaintingBinding.instance.imageCache.maximumSizeBytes =
+      optimizer.maxImageCacheBytes;
+
+  // تطبيق الحدود نفسها على cache بيانات Appwrite. هذه القيم كانت موجودة في
+  // WeakDeviceOptimizer ولكنها لم تكن موصولة بمسار التنفيذ.
+  final dataCache = AppwriteCacheManager.instance;
+  dataCache.setMaxEntries(optimizer.maxCacheEntries);
+  dataCache.setMaxSizeMB(optimizer.maxDataCacheSizeMB);
+  // الاستجابات البعيدة قصيرة العمر على الأجهزة الضعيفة؛ المصدر الدائم
+  // للبيانات غير المتصلة هو Drift وليس Cache الذاكرة.
+  dataCache.setDefaultTTL(
+    optimizer.isWeakDevice
+        ? const Duration(minutes: 2)
+        : const Duration(minutes: 5),
+  );
+  // يزيل النتائج منتهية الصلاحية حتى إن لم يُعاد فتح الشاشة نفسها.
+  dataCache.startCleanup(
+    interval: optimizer.isWeakDevice
+        ? const Duration(minutes: 5)
+        : const Duration(minutes: 15),
+  );
 
   if (Platform.isAndroid) {
-    debugPrint('🚀 Performance: Low-end device optimizations active (5MB cache)');
+    dlog(
+      () =>
+          'Performance profile L${optimizer.optimizationLevel}: image cache '
+          '${optimizer.maxImageCacheSize} entries / '
+          '${optimizer.maxImageCacheBytes ~/ (1024 * 1024)}MB, data cache '
+          '${optimizer.maxCacheEntries} entries / '
+          '${optimizer.maxDataCacheSizeMB}MB',
+    );
   }
 }
 
-/// تحديد ما إذا كان الجهاز ضعيفاً
-bool get isLowEndDevice => true;
+/// هل الجهاز ضمن ملف الأداء منخفض الموارد.
+bool get isLowEndDevice => WeakDeviceOptimizer.instance.isWeakDevice;
 
-/// cacheExtent مُحسّن لـ ListView.builder
-double get optimizedCacheExtent => isLowEndDevice ? 100.0 : 500.0;
+/// مجال صغير لإنشاء العناصر خارج مجال العرض على الأجهزة الضعيفة.
+/// القوائم تستخدمه بدلاً من Flutter الافتراضي لتفادي prefetch مفرط للـ Widgets.
+double get optimizedCacheExtent => isLowEndDevice ? 160.0 : 500.0;
 
-/// الحد الأقصى للعناصر في ListView قبل التحميل الكسول
-int get maxEagerItems => isLowEndDevice ? 15 : 50;
-
-/// تأخير debounce للمزامنة التلقائية
-Duration get syncDebounceDuration => isLowEndDevice ? const Duration(seconds: 5) : const Duration(seconds: 2);
-
-/// هل نُفعّل PerformanceInspector في الـ UI؟
-bool get enablePerformanceInspector => false;
-
-/// الحد الأقصى لعدد StreamBuilders النشطة
-int get maxActiveStreams => isLowEndDevice ? 5 : 20;
-
-/// batch size للمزامنة على الأجهزة الضعيفة
-int get syncBatchSize => isLowEndDevice ? 15 : 25;
-
-/// عدد الطلبات المتوازية في migration
-int get migrationParallelCount => isLowEndDevice ? 3 : 5;
-
-/// تأخير بين مجموعات migration
-Duration get migrationGroupDelay =>
-    isLowEndDevice ? const Duration(milliseconds: 800) : const Duration(milliseconds: 500);
-
-/// تعطيل flutter_animate على الأجهزة الضعيفة
-bool get enableAnimations => !isLowEndDevice;
+/// واجهة Flutter الحديثة لمجال إنشاء العناصر خارج الشاشة.
+/// تُستخدم في ListView.builder وCustomScrollView بدلاً من cacheExtent المهجور.
+ScrollCacheExtent get optimizedScrollCacheExtent =>
+    ScrollCacheExtent.pixels(optimizedCacheExtent);

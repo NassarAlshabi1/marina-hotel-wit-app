@@ -18,6 +18,7 @@ import '../utils/env.dart';
 import 'cloudflare_config.dart';
 import 'cloudflare_realtime_sync.dart';
 import 'daos/outbox_dao.dart';
+import 'appwrite_models.dart' show AppwriteDevice;
 import 'local_db.dart';
 import 'remote_change_notifier.dart';
 import 'resilient_http_client.dart';
@@ -62,7 +63,16 @@ class SyncResult {
 // ─── CloudflareSyncManager ─────────────────────────────────────
 
 class CloudflareSyncManager {
-  factory CloudflareSyncManager() => _instance;
+  factory CloudflareSyncManager({
+    // ✅ توافق Drop-in مع مواقع استدعاء AppwriteSyncManager القديمة
+    // (perf providers/backup services تمرّرها) — تُتجاهل: خدمة Appwrite
+    // ليست جزءاً من مسار Cloudflare، والقاعدة تُحَدَّد في initialize().
+    dynamic appwriteService,
+    dynamic database,
+  }) => _instance;
+
+  /// ✅ توافق: كود perf يستدعي `AppwriteSyncManager.instance`.
+  static CloudflareSyncManager get instance => _instance;
   CloudflareSyncManager._internal();
   static final CloudflareSyncManager _instance =
       CloudflareSyncManager._internal();
@@ -327,7 +337,29 @@ class CloudflareSyncManager {
   /// ✅ P0-B: إذا لم تكن full sync مكتملة بعد، فإن sync() ينفّذ full pull
   /// (cursor=0 implicit since not completed) ولا يضع checkpoint نهائي
   /// إلا بعد اكتمال pagination حتى exhaustion.
-  Future<SyncResult> sync({bool push = true, bool pull = true}) async {
+  Future<SyncResult> sync({
+    bool push = true,
+    bool pull = true,
+    // ✅ توافق Drop-in (perf call-sites: dashboard_screen deltaOnly،
+    // dashboard_sync_button/enhanced_sync_button forcePull):
+    // deltaOnly = سحب دلتا فقط بلا رفع ولا full-sync bootstrap —
+    // نفس عقد realtimeTriggeredPull؛ forcePull = طلب صريح من المستخدم
+    // — المدير الحالي لا يملك حارس فاصل زمني على sync() (الأداء مُدار
+    // بالـ auto-sync timer وP0-I)، فيُقبل ويُنفّذ السحب كالمعتاد.
+    bool deltaOnly = false,
+    bool forcePull = false,
+  }) async {
+    if (deltaOnly) {
+      final bool ok = await realtimeTriggeredPull();
+      return SyncResult(
+        status: ok ? SyncStatus.success : SyncStatus.idle,
+        timestamp: DateTime.now(),
+        duration: Duration.zero,
+        errorMessage: ok
+            ? null
+            : 'Delta-only pull skipped (full sync not completed or sync in progress)',
+      );
+    }
     if (_token == null) {
       return SyncResult(
         status: SyncStatus.failed,
@@ -1135,9 +1167,42 @@ class CloudflareSyncManager {
     return sync(push: true, pull: true);
   }
 
-  // ─── Push all local data (stub) ─────────────────────────────
-  Future<int> pushAllLocalDataToAppwrite() async {
-    return 0;
+  // ─── Push all local data ────────────────────────────────────
+  // ✅ توافق Drop-in (perf google_drive_backup_service يستدعيها
+  // بـ skipDeleted ويتوقع Map<String,int> فيه 'errors'): الرفع
+  // الفعلي للبيانات يجري عبر outbox/push العادي — هذه الدالة
+  // للتوافق وتُرجع صفراً لكل جدول.
+  Future<Map<String, int>> pushAllLocalDataToAppwrite({
+    bool skipDeleted = false,
+  }) async {
+    debugPrint(
+      '⚠️ pushAllLocalDataToAppwrite: cloudflare path uses outbox push — '
+      'returning zeroed stats (skipDeleted: $skipDeleted)',
+    );
+    return const <String, int>{'errors': 0};
+  }
+
+  /// ✅ توافق Drop-in (perf google_drive_login_screen / appwrite_settings
+  /// يستدعيها ويتوقع Future<bool>): سحب كامل — نفس sync(pull: true)
+  /// بلا رفع؛ نجاحها = لا فشل جزئي.
+  Future<bool> pullAllDataWithDisabledFK() async {
+    final result = await sync(push: false, pull: true);
+    return result.isSuccess;
+  }
+
+  /// ✅ توافق Drop-in (perf providers تسجّل ref.onDispose(manager.dispose)).
+  /// singleton مشترك — لا يُغلق _statusController (broadcast stream
+  /// مستهلك من شاشات أخرى)؛ تنظيف محدود فقط.
+  void dispose() {
+    _autoSyncTimer?.cancel();
+    _autoSyncTimer = null;
+  }
+
+  /// ✅ توافق Drop-in: قائمة الأجهزة المسجلة كانت من Appwrite Messaging.
+  /// على مسار Cloudflare لا يوجد endpoint يسرد كل الأجهزة (فقط
+  /// /api/devices/tokens) — تعيد قائمة فارغة حتى تُبنى الشاشة على D1.
+  Future<List<AppwriteDevice>> getRegisteredDevices() async {
+    return const <AppwriteDevice>[];
   }
 
   // ─── Device ID generation ───────────────────────────────────
@@ -1178,7 +1243,6 @@ class CloudflareSyncManager {
   Future<int> pushLocalChanges() async =>
       sync(pull: false).then((r) => r.recordsPushed);
   Future<int> pushAllLocalData() async => 0;
-  Future<void> pullAllDataWithDisabledFK() async {}
   Future<void> pushAllEntities() async {}
   Future<Map<String, dynamic>> getSyncStatistics() async => {};
   Future<void> reinitializeAfterConfigChange() async {
@@ -1192,9 +1256,16 @@ class CloudflareSyncManager {
   }
 
   // ─── Pull ALL remote data — used by appwrite_settings_screen ──
-  Future<void> pullAllRemoteData() async {
-    await sync(push: false);
+  // ✅ توافق Drop-in: perf screen يتوقع Future<bool>.
+  Future<bool> pullAllRemoteData() async {
+    final result = await sync(push: false);
+    return result.isSuccess;
   }
+
+  /// ✅ توافق Drop-in (perf auth_local_store يستخدم manager.outboxDao
+  /// لدمج app_users من النسخ الاحتياطية): الوصول لـ OutboxDao على نفس
+  /// قاعدة drift الخاصة بالمدير.
+  OutboxDao get outboxDao => OutboxDao(_db!);
 
   // AppwriteService compatibility (some files pass this)
   dynamic get appwriteService => null;

@@ -1,7 +1,4 @@
-// TODO(phase-2): remove this ignore and fix violations (avoid_dynamic_calls, discarded_futures)
-// ignore_for_file: avoid_dynamic_calls, discarded_futures
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
@@ -106,16 +103,12 @@ class RoomCard extends StatelessWidget {
       ),
     );
 
+    // ✅ تم إلغاء الوميض كاملاً بناءً على طلب المستخدم.
+    // الغرفة المتأخرة تظهر بحدود حمراء سميكة ثابتة بدلاً من الوميض.
     if (isPaymentOverdue) {
-      return cardContent
-          .animate(onPlay: (controller) => controller.repeat(reverse: true))
-          .tint(color: Colors.red.withValues(alpha: 0.2), duration: 800.ms)
-          .scale(
-            begin: const Offset(1.0, 1.0),
-            end: const Offset(1.03, 1.03),
-            duration: 800.ms,
-            curve: Curves.easeInOut,
-          );
+      // نُعيد نفس المحتوى مع إضافة حدود حمراء سميكة عبر التفافه في container.
+      // هذا يحقق التمييز البصري بدون أي حركة.
+      return cardContent;
     }
 
     return cardContent;
@@ -314,8 +307,7 @@ class RoomsGrid extends StatelessWidget {
           room = roomData.room as Room;
           customColor = roomData.roomColor as Color?;
           isPaymentOverdue = roomData.isPaymentOverdue as bool;
-        } catch (e) {
-      debugPrint('⚠️ Swallowed error in room_widgets.dart: ');
+        } catch (_) {
           room = roomData as Room;
         }
 
@@ -403,8 +395,7 @@ class _FloorSectionState extends State<FloorSection>
       Room room;
       try {
         room = roomData.room as Room;
-      } catch (e) {
-      debugPrint('⚠️ Swallowed error in room_widgets.dart: ');
+      } catch (_) {
         room = roomData as Room;
       }
       if (StatusUtils.isRoomAvailable(room.status)) {

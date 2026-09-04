@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,6 +6,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../utils/currency_formatter.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class SalaryEntitlementsScreen extends ConsumerStatefulWidget {
   const SalaryEntitlementsScreen({super.key});
@@ -53,7 +52,7 @@ class _SalaryEntitlementsScreenState
       _summary = await _service.getSummary();
       _entitlements = _summary['entitlements'] as List<SalaryEntitlement>;
     } catch (e) {
-      debugPrint('Error: $e');
+      dlog(() => 'Error: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -368,9 +367,10 @@ class _SalaryEntitlementsScreenState
           );
         }
         final cycle = snapshot.data!;
-        final remaining = cycle.remainingBalance;
-        final hasExceeded = cycle.hasExceeded;
-        final hasCarryOver = cycle.carriedOverFromPrevious > 0;
+        final calculation = cycle.calculation;
+        final remaining = calculation.remainingBalance;
+        final hasExceeded = calculation.hasExceeded;
+        final hasCarryOver = calculation.carriedOverFromPrevious > 0;
 
         return Container(
           width: double.infinity,
@@ -433,11 +433,27 @@ class _SalaryEntitlementsScreenState
                   '- ${CurrencyFormatter.formatAmount(cycle.totalWithdrawals)}',
                   Colors.orange,
                 ),
-              if (cycle.totalAdvances > 0)
+              if (calculation.advances > 0)
                 _row(
                   'السلف',
-                  '- ${CurrencyFormatter.formatAmount(cycle.totalAdvances)}',
+                  '- ${CurrencyFormatter.formatAmount(calculation.advances.toDouble())}',
                   Colors.indigo,
+                ),
+              if (calculation.installmentsPaid > 0)
+                _row(
+                  'أقساط مسددة',
+                  CurrencyFormatter.formatAmount(
+                    calculation.installmentsPaid.toDouble(),
+                  ),
+                  Colors.indigo.shade300,
+                ),
+              if (calculation.advanceBalance > 0)
+                _row(
+                  'رصيد السلفة',
+                  CurrencyFormatter.formatAmount(
+                    calculation.advanceBalance.toDouble(),
+                  ),
+                  Colors.indigo.shade700,
                 ),
               if (cycle.totalDeductions > 0)
                 _row(
@@ -448,7 +464,7 @@ class _SalaryEntitlementsScreenState
               const Divider(height: 4),
               _row(
                 'المتبقي',
-                CurrencyFormatter.formatAmount(remaining),
+                CurrencyFormatter.formatAmount(remaining.toDouble()),
                 hasExceeded ? Colors.red : Colors.green,
                 true,
               ),
@@ -461,7 +477,7 @@ class _SalaryEntitlementsScreenState
                       const SizedBox(width: 3),
                       Expanded(
                         child: Text(
-                          'تجاوز ${CurrencyFormatter.formatAmount(cycle.carryOverToNext)} → يُرحّل',
+                          'تجاوز ${CurrencyFormatter.formatAmount(calculation.carryOverToNext.toDouble())} → يُرحّل',
                           style: const TextStyle(
                             fontSize: 8,
                             fontWeight: FontWeight.bold,
@@ -485,7 +501,7 @@ class _SalaryEntitlementsScreenState
                       const SizedBox(width: 3),
                       Expanded(
                         child: Text(
-                          'خصم ${CurrencyFormatter.formatAmount(cycle.carriedOverFromPrevious)} مرحّل',
+                          'خصم ${CurrencyFormatter.formatAmount(calculation.carriedOverFromPrevious.toDouble())} مرحّل',
                           style: TextStyle(
                             fontSize: 8,
                             color: Colors.orange.shade700,

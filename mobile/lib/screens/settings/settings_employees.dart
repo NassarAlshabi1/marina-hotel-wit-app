@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 // ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
@@ -16,6 +14,7 @@ import '../../utils/currency_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
 import '../employees/salary_entitlements_screen.dart';
+import '../../utils/english_digits_input_formatter.dart';
 
 class SettingsEmployeesScreen extends ConsumerWidget {
   const SettingsEmployeesScreen({super.key});
@@ -588,6 +587,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
+                  inputFormatters: const [englishIntegerInputFormatter],
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -597,6 +597,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.phone,
+                  inputFormatters: const [englishIntegerInputFormatter],
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -649,9 +650,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                 if (nameController.text.trim().isEmpty ||
                     positionController.text.trim().isEmpty ||
                     salaryController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('يرجى تعبئة الحقول المطلوبة')),
                   );
                   return;
@@ -975,9 +974,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   }
                 } catch (e) {
                   if (context.mounted) {
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(
+                    ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('فشل إنهاء الخدمة: $e'),
                         backgroundColor: Colors.red,
@@ -1061,9 +1058,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('فشل إعادة التفعيل: $e'),
             backgroundColor: Colors.red,
@@ -1370,6 +1365,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
+                  inputFormatters: const [englishIntegerInputFormatter],
                 ),
                 const SizedBox(height: 12),
 
@@ -1427,9 +1423,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
               onPressed: () async {
                 final amountText = amountController.text.trim();
                 if (amountText.isEmpty) {
-                  ScaffoldMessenger.of(
-                    ctx,
-                  ).showSnackBar(
+                  ScaffoldMessenger.of(ctx).showSnackBar(
                     const SnackBar(
                       content: Text('يرجى إدخال المبلغ'),
                       backgroundColor: Colors.red,
@@ -1499,9 +1493,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   }
                 } catch (e) {
                   if (ctx.mounted) {
-                    ScaffoldMessenger.of(
-                      ctx,
-                    ).showSnackBar(
+                    ScaffoldMessenger.of(ctx).showSnackBar(
                       SnackBar(
                         content: Text('فشل تسجيل السحب: $e'),
                         backgroundColor: Colors.red,
@@ -1620,9 +1612,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
       );
 
       if (!context.mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('تم ${newStatus == 'نشط' ? 'تفعيل' : 'إيقاف'} الموظف'),
         ),

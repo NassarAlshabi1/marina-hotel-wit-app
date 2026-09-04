@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (avoid_dynamic_calls)
-// ignore_for_file: avoid_dynamic_calls
 import 'dart:convert';
 import 'dart:io';
 import 'package:appwrite/appwrite.dart';
@@ -8,7 +6,6 @@ import 'package:path_provider/path_provider.dart';
 import 'appwrite_config.dart';
 import 'appwrite_config_manager.dart';
 import 'appwrite_service.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 class AppwriteBackupResult {
   const AppwriteBackupResult({
@@ -49,6 +46,9 @@ class AppwriteBackupService {
     AppwriteConfig.paymentVoidsCollectionId,
     AppwriteConfig.devicesCollectionId,
     AppwriteConfig.syncLogsCollectionId,
+    AppwriteConfig.appUsersCollectionId,
+    AppwriteConfig.inventoryItemsCollectionId,
+    AppwriteConfig.inventoryTransactionsCollectionId,
   ];
 
   Future<List<dynamic>> _listAllCollections() async {
@@ -73,8 +73,7 @@ class AppwriteBackupService {
           break;
         }
         offset += limit;
-      } catch (e) {
-      debugPrint('⚠️ Swallowed error in appwrite_backup_service.dart: ');
+      } catch (_) {
         usedFallback = true;
         break;
       }
@@ -89,8 +88,7 @@ class AppwriteBackupService {
                 collectionId: id,
               );
           allCollections.add(collection);
-        } catch (e) {
-      debugPrint('⚠️ Swallowed error in appwrite_backup_service.dart: ');
+        } catch (_) {
           allCollections.add({r'$id': id});
         }
       }
@@ -106,8 +104,7 @@ class AppwriteBackupService {
     try {
       final map = (collection as dynamic).toMap();
       return Map<String, dynamic>.from(map as Map);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in appwrite_backup_service.dart: ');
+    } catch (_) {
       try {
         final dynamic c = collection;
         return {
@@ -117,8 +114,7 @@ class AppwriteBackupService {
           'documentSecurity': c.documentSecurity,
           'permissions': c.permissions,
         };
-      } catch (e) {
-      debugPrint('⚠️ Swallowed error in appwrite_backup_service.dart: ');
+      } catch (_) {
         return {'raw': collection.toString()};
       }
     }

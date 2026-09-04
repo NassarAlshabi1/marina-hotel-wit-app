@@ -1,6 +1,7 @@
+import 'dart:convert';
+
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
-import 'package:flutter/foundation.dart';
 
 import 'adapters/id_resolver.dart';
 import 'appwrite_cache_manager.dart';
@@ -10,7 +11,9 @@ import 'appwrite_error_handler.dart';
 import 'appwrite_health_checker.dart';
 import 'appwrite_logger.dart';
 import 'appwrite_network_helper.dart';
+import 'appwrite_sync_utils.dart';
 import 'secondary_appwrite_config.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// خدمة Appwrite الأساسية - CRUD Operations
 class AppwriteService {
@@ -51,6 +54,17 @@ class AppwriteService {
   // ignore: unused_field
   final _errorHandler = AppwriteErrorHandler();
   final _cache = AppwriteCacheManager();
+
+  /// ✅ (2026-08-31) تقليل السحب على مستوى السجل — مراقب نجاح الرفع.
+  ///
+  /// يُستدعى بعد نجاح أي upsert على الكولكشن الأساسي (كل مسارات الرفع
+  /// تمر عبر [_upsertDocumentInternal]). الاستخدام: تسجيل `$updatedAt`
+  /// المعاد من الخادم في sync_remote_meta (تحصين ضد echo السحب — السجل
+  /// الذي دفعناه للتو يصبح "مُحكَماً عليه" محلياً فلا يُنزَّل في الدورة
+  /// التالية). يجب ألا يرمي المراقب أبداً — خدمة الشبكة تلتقط أي استثناء
+  /// منه ولن تؤثر على دلالات الرفع.
+  void Function(String collectionId, models.Document document)?
+  onDocumentUpserted;
   final _networkHelper = AppwriteNetworkHelper();
 
   /// ✅ جديد: getter لكشف حالة الـ circuit breaker من خارج الخدمة.
@@ -99,6 +113,25 @@ class AppwriteService {
   // Generic Helpers
   // ---------------------------------------------------------------------------
 
+  /// ✅ (2026-08-31) كشف أسلوب استعلام Appwrite بصيغتيه:
+  /// - SDK الحديث (≥21) يُسلسل الاستعلام JSON:
+  ///   `{"method":"greaterThan","attribute":"$updatedAt",...}`
+  /// - الصيغة القديمة: `greaterThan("attr", ...)`.
+  ///
+  /// أي فحص نصي بصيغة واحدة فقط كان يفشل صامتاً على الصيغة الأخرى —
+  /// (لاحقة تشخيص "Fetched total" كانت تُبلغ false/false/false دائماً).
+  static bool queryHasMethod(String query, String method) {
+    if (query.startsWith('{')) {
+      try {
+        final decoded = jsonDecode(query);
+        return decoded is Map && decoded['method'] == method;
+      } catch (_) {
+        return false;
+      }
+    }
+    return query.startsWith('$method(');
+  }
+
   /// دالة مساعدة عامة لإضافة Query للصفحات
   List<String> _applyPagingQueries(
     List<String> baseQueries, {
@@ -108,8 +141,10 @@ class AppwriteService {
     final effectiveQueries = List<String>.from(baseQueries);
 
     // التحقق من وجود Limit/Offset مسبقاً لتجنب التكرار
-    final hasLimit = effectiveQueries.any((q) => q.startsWith('limit('));
-    final hasOffset = effectiveQueries.any((q) => q.startsWith('offset('));
+    // ✅ (2026-08-31) عبر queryHasMethod — الصيغة JSON للـ SDK الحديث لم تكن
+    // تُكتشف بـ startsWith فكان يُضاف limit() مكرر لمن مرّر حداً مسبقاً.
+    final hasLimit = effectiveQueries.any((q) => queryHasMethod(q, 'limit'));
+    final hasOffset = effectiveQueries.any((q) => queryHasMethod(q, 'offset'));
 
     if (!hasLimit) {
       effectiveQueries.add(Query.limit(limit));
@@ -134,9 +169,7 @@ class AppwriteService {
         SecondaryAppwriteConfig.isPullEnabled &&
         SecondaryAppwriteConfig.isEnabled &&
         SecondaryAppwriteConfig.isConfigured) {
-      debugPrint(
-        '🔄 [Failover] Manual failover active — reading from Secondary',
-      );
+      dlog('🔄 [Failover] Manual failover active — reading from Secondary');
       return _listFromSecondary(collectionId, queries);
     }
 
@@ -218,9 +251,10 @@ class AppwriteService {
       if (SecondaryAppwriteConfig.isEnabled &&
           SecondaryAppwriteConfig.isPullEnabled &&
           SecondaryAppwriteConfig.isConfigured) {
-        debugPrint(
-          '🔄 [Failover] Primary listDocuments failed ($primaryError), '
-          'falling back to Secondary for $collectionId',
+        dlog(
+          () =>
+              '🔄 [Failover] Primary listDocuments failed ($primaryError), '
+              'falling back to Secondary for $collectionId',
         );
         try {
           final secondaryDocs = await _listFromSecondary(collectionId, queries);
@@ -234,8 +268,9 @@ class AppwriteService {
           }
           return secondaryDocs;
         } catch (secondaryError) {
-          debugPrint(
-            '❌ [Failover] Secondary also failed for $collectionId: $secondaryError',
+          dlog(
+            () =>
+                '❌ [Failover] Secondary also failed for $collectionId: $secondaryError',
           );
           // نرمي خطأ Primary الأصلي لأنه المصدر الرئيسي
           rethrow;
@@ -248,8 +283,25 @@ class AppwriteService {
       _cache.set(cacheKey, allDocuments, ttl: AppwriteConfig.cacheExpiry);
     }
 
+    // ✅ (2026-08-31) سجل مُعرِّف ذاتياً — يفرّق بين ثلاثة أنماط قراءة كي
+    // لا يُفهم "Fetched total N documents" على أنه سحب كامل خطأً:
+    //  metadataOnly=true  → $id+$updatedAt فقط (~100 بايت/صف، مسار metadata-first)
+    //  byIds=true         → جلب بالمعرّفات (المتغيّر فعلاً بعد المقارنة)
+    //  deltaWindow=true   → فلتر $updatedAt > مؤشر (دلتا حقيقية)
+    //  كلهما false        → قراءة كاملة بلا فلتر (تهيئة/استعادة فقط)
+    // ✅ (2026-08-31) الكشف عبر queryHasMethod — SDK 21 يُسلسل الاستعلامات
+    // JSON فكانت startsWith('greaterThan(') لا تطابق أبداً وكل الأنماط
+    // تُبلغ false.
+    final isMetadataOnly = queries.any((q) => queryHasMethod(q, 'select'));
+    final isByIds =
+        !isMetadataOnly &&
+        queries.any((q) => queryHasMethod(q, 'equal') && q.contains(r'$id'));
+    final isDeltaWindow = queries.any(
+      (q) => queryHasMethod(q, 'greaterThan') && q.contains(r'$updatedAt'),
+    );
     _logger.info(
-      'Fetched total ${allDocuments.length} documents from $collectionId',
+      'Fetched total ${allDocuments.length} documents from $collectionId '
+      '(metadataOnly=$isMetadataOnly, byIds=$isByIds, deltaWindow=$isDeltaWindow)',
       tag: 'CRUD',
     );
     return allDocuments;
@@ -288,8 +340,8 @@ class AppwriteService {
       // إذا فشل Primary و Secondary متاح، نقرأ منه
       if (SecondaryAppwriteConfig.isEnabled &&
           SecondaryAppwriteConfig.isConfigured) {
-        debugPrint(
-          '⚠️ [Failover] Primary failed ($e), falling back to Secondary',
+        dlog(
+          () => '⚠️ [Failover] Primary failed ($e), falling back to Secondary',
         );
         return _listFromSecondary(collectionId, queries);
       }
@@ -310,7 +362,7 @@ class AppwriteService {
         SecondaryAppwriteConfig.isPullEnabled &&
         SecondaryAppwriteConfig.isEnabled &&
         SecondaryAppwriteConfig.isConfigured) {
-      debugPrint(
+      dlog(
         '🔄 [Failover] Manual failover active — reading from Secondary for getDocument',
       );
       return _getFromSecondary(collectionId, documentId);
@@ -334,8 +386,9 @@ class AppwriteService {
     } catch (e) {
       if (SecondaryAppwriteConfig.isEnabled &&
           SecondaryAppwriteConfig.isConfigured) {
-        debugPrint(
-          '⚠️ [Failover] getDocument Primary failed ($e), falling back to Secondary',
+        dlog(
+          () =>
+              '⚠️ [Failover] getDocument Primary failed ($e), falling back to Secondary',
         );
         return _getFromSecondary(collectionId, documentId);
       }
@@ -441,10 +494,25 @@ class AppwriteService {
     bool useCache = true,
   }) async {
     await _ensureInitialized();
-    return _listAllDocumentsInternal(
-      collectionId: collectionId,
-      queries: queries ?? [],
-      useCache: useCache,
+    final effectiveQueries = queries ?? const <String>[];
+    if (!useCache) {
+      return _listAllDocumentsInternal(
+        collectionId: collectionId,
+        queries: effectiveQueries,
+        useCache: false,
+      );
+    }
+
+    final cacheKey = '${collectionId}_${effectiveQueries.join('_')}_all';
+    return _cache.getOrLoad<List<models.Document>>(
+      cacheKey,
+      () => _listAllDocumentsInternal(
+        collectionId: collectionId,
+        queries: effectiveQueries,
+        // getOrLoad هو المالك الوحيد لقراءة/كتابة Cache في هذا المسار،
+        // لذلك لا نخزن الاستجابة مرتين ولا نكرر الطلب الجاري.
+        useCache: false,
+      ),
     );
   }
 
@@ -480,7 +548,8 @@ class AppwriteService {
     required String documentId,
     required Map<String, dynamic> data,
   }) async {
-    var workingData = Map<String, dynamic>.from(data);
+    // حماية نقل أخيرة: لا نسمح لساعة متجهة مركبة أو تالفة بأن تصل إلى SDK.
+    var workingData = AppwriteSyncUtils.normalizeVectorClockInPayload(data);
     // ✅ سياسة "المستند بشرطات": نطبّع المعرّف إلى الصيغة القانونية (بشرطات)
     //    عبر IdResolver.normalizeUuid قبل أي عملية، فلا نكتب مستنداً بلا شرطات.
     final canonicalId = IdResolver.normalizeUuid(documentId);
@@ -488,11 +557,21 @@ class AppwriteService {
     final maxRetries = workingData.length + 1;
     for (var attempt = 0; ; attempt++) {
       try {
-        return await _upsertDocumentOnce(
+        final doc = await _upsertDocumentOnce(
           collectionId: collectionId,
           documentId: canonicalId,
           data: workingData,
         );
+        // ✅ (2026-08-31) إشعار مراقب نجاح الرفع (echo immunization).
+        // الالتقاط هنا عمداً: فشل المراقب (تشخيص/تحسين) لا يُفسد أبداً
+        // دلالات رفع نجح فعلاً على الخادم.
+        final observer = onDocumentUpserted;
+        if (observer != null) {
+          try {
+            observer(collectionId, doc);
+          } catch (_) {}
+        }
+        return doc;
       } on AppwriteException catch (e) {
         final unknownAttr = _extractUnknownAttribute(e);
         if (unknownAttr != null &&
@@ -601,8 +680,9 @@ class AppwriteService {
       return await doUpdate(documentId, suppressErrorLog: true, probe: true);
     } on AppwriteException catch (updateError) {
       if (isRateLimit(updateError)) {
-        debugPrint(
-          '⚠️ primary_upsert: 429 on update $documentId — waiting 65s then create',
+        dlog(
+          () =>
+              '⚠️ primary_upsert: 429 on update $documentId — waiting 65s then create',
         );
         await Future<void>.delayed(const Duration(seconds: 65));
         // انتقل مباشرة للخطوة 2 (create)
@@ -1239,6 +1319,61 @@ class AppwriteService {
     );
   }
 
+  /// ✅ (2026-08-30) الفجوتان 3+4 — سحب metadata فقط ($id + $updatedAt)
+  /// لكل مستندات الكولكشن بترقيم مؤشري.
+  ///
+  /// تُستخدم في السحب الكامل (metadata-first): الحمولة لكل صف ~100 بايت
+  /// بدل المستند الكامل (كيلوبايتات)، فيتكلف فحص "ماذا تغيّر؟" كسوراً
+  /// ضئيلة من تكلفة السحب الكامل التقليدي.
+  /// بلا كاش عمداً — يجب أن تعكس صورة الخادم اللحظية.
+  /// ✅ (2026-08-31) تقليل السحب على مستوى السجل — دعم extraQueries:
+  /// تُبنى queries بـ (select [$id, $updatedAt, deletedAt]) + استعلامات
+  /// إضافية تُمرَّر كما هي (مثل فلتر delta `greaterThan($updatedAt, cutoff)`)
+  /// — كي تخدم مرحلة metadata الأولى في delta أيضاً لا في السحب الكامل فقط.
+  ///
+  /// ✅ (2026-08-31) `deletedAt` أُضيفت للحمولة الخفيفة: تُمكّن استبعاد
+  /// tombstones من التنزيل في مرحلة المقارنة (سجل محذوف على الخادم وغير
+  /// معروف محلياً = صفر تنزيل) بدل تنزيل محتواه كاملاً. السمة موجودة في
+  /// `_syncFields` لكل كولكشنات المزامنة (وهي نفسها التي يفلتر عليها
+  /// `buildFullSyncQueries` أصلاً) فلا خطر رفض استعلام.
+  Future<List<models.Document>> listDocumentsMetadata(
+    String collectionId, {
+    List<String> extraQueries = const [],
+  }) async {
+    await _ensureInitialized();
+    return _listAllDocumentsInternal(
+      collectionId: collectionId,
+      queries: [
+        Query.select([r'$id', r'$updatedAt', 'deletedAt']),
+        ...extraQueries,
+      ],
+      useCache: false,
+    );
+  }
+
+  /// ✅ (2026-08-30) جلب مستندات كاملة بمعرّفاتها على دفعات
+  /// (Query.equal على $id، 100 معرّفاً للدفعة) — مرافق metadata-first:
+  /// بعد حصر المتغيّر من مقارنة الـ metadata لا نُنزّل إلا هو.
+  Future<List<models.Document>> listDocumentsByIds(
+    String collectionId,
+    List<String> ids,
+  ) async {
+    await _ensureInitialized();
+    final out = <models.Document>[];
+    const chunkSize = 100;
+    for (var i = 0; i < ids.length; i += chunkSize) {
+      final end = (i + chunkSize < ids.length) ? i + chunkSize : ids.length;
+      final chunk = ids.sublist(i, end);
+      final page = await _listAllDocumentsInternal(
+        collectionId: collectionId,
+        queries: [Query.equal(r'$id', chunk)],
+        useCache: false,
+      );
+      out.addAll(page);
+    }
+    return out;
+  }
+
   Future<void> deleteRow({
     required String collectionId,
     required String documentId,
@@ -1292,11 +1427,8 @@ class AppwriteService {
 
   /// اختبار شامل للاتصال (قراءة فقط - لا يعتمد على كتابة المستندات)
   Future<Map<String, dynamic>> fullConnectionTest() async {
-    // Use a typed local `tests` map to avoid `avoid_dynamic_calls` violations
-    // when accessing results['tests']['rooms'] etc. (results['tests'] is dynamic).
-    final tests = <String, dynamic>{};
     final results = <String, dynamic>{
-      'tests': tests,
+      'tests': <String, dynamic>{},
       'overall_success': false,
     };
 
@@ -1315,10 +1447,10 @@ class AppwriteService {
           operationName: 'listDocuments(rooms)',
           timeout: const Duration(seconds: 10),
         );
-        tests['rooms'] = true;
+        results['tests']['rooms'] = true;
       } catch (e) {
-        tests['rooms'] = false;
-        tests['rooms_error'] = e.toString();
+        results['tests']['rooms'] = false;
+        results['tests']['rooms_error'] = e.toString();
       }
 
       // 2. اختبار القراءة من bookings
@@ -1333,10 +1465,10 @@ class AppwriteService {
           operationName: 'listDocuments(bookings)',
           timeout: const Duration(seconds: 5),
         );
-        tests['bookings'] = true;
+        results['tests']['bookings'] = true;
       } catch (e) {
-        tests['bookings'] = false;
-        tests['bookings_error'] = e.toString();
+        results['tests']['bookings'] = false;
+        results['tests']['bookings_error'] = e.toString();
       }
 
       // 3. اختبار القراءة من devices
@@ -1351,15 +1483,16 @@ class AppwriteService {
           operationName: 'listDocuments(devices)',
           timeout: const Duration(seconds: 5),
         );
-        tests['devices'] = true;
+        results['tests']['devices'] = true;
       } catch (e) {
-        tests['devices'] = false;
-        tests['devices_error'] = e.toString();
+        results['tests']['devices'] = false;
+        results['tests']['devices_error'] = e.toString();
       }
 
       // حساب الحالة النهائية - ping يعتمد على rooms فقط
+      final tests = results['tests'] as Map<String, dynamic>;
       results['overall_success'] = tests['rooms'] == true;
-      tests['ping'] = tests['rooms'];
+      results['tests']['ping'] = tests['rooms'];
 
       if (results['overall_success'] == true) {
         _logger.info('Full connection test passed', tag: 'CONNECTION_TEST');
@@ -1386,6 +1519,50 @@ class AppwriteService {
   /// اختبار الاتصال (alias لـ fullConnectionTest)
   Future<Map<String, dynamic>> testConnection() => fullConnectionTest();
 
+  /// اختبار اتصال قراءة فقط باستخدام إعدادات مؤقتة، دون تعديل الإعدادات المحفوظة.
+  /// يُستخدم من شاشة إعداد الاتصال لاختبار القيم التي أدخلها المستخدم قبل الحفظ.
+  Future<Map<String, dynamic>> testConnectionWithConfig({
+    required String endpoint,
+    required String projectId,
+    required String databaseId,
+    required String apiKey,
+  }) async {
+    final results = <String, dynamic>{
+      'tests': <String, dynamic>{},
+      'overall_success': false,
+    };
+
+    try {
+      final client = Client()
+          .setEndpoint(endpoint.trim())
+          .setProject(projectId.trim());
+      final trimmedApiKey = apiKey.trim();
+      if (trimmedApiKey.isNotEmpty) {
+        client.addHeader('X-Appwrite-Key', trimmedApiKey);
+      }
+
+      final databases = Databases(client);
+      await databases
+          // ignore: deprecated_member_use
+          .listDocuments(
+            databaseId: databaseId.trim(),
+            collectionId: AppwriteConfig.roomsCollectionId,
+            queries: [Query.limit(1)],
+          )
+          .timeout(const Duration(seconds: 10));
+
+      results['tests']['rooms'] = true;
+      results['tests']['ping'] = true;
+      results['overall_success'] = true;
+      return results;
+    } catch (e) {
+      results['tests']['rooms'] = false;
+      results['tests']['ping'] = false;
+      results['error'] = e.toString();
+      return results;
+    }
+  }
+
   /// Getter للتحقق من حالة التهيئة
   bool get isInitialized => _initialized;
 
@@ -1405,7 +1582,7 @@ class AppwriteService {
         SecondaryAppwriteConfig.isPullEnabled &&
         SecondaryAppwriteConfig.isEnabled &&
         SecondaryAppwriteConfig.isConfigured) {
-      debugPrint(
+      dlog(
         '🔄 [Failover] Manual failover active — reading document from Secondary',
       );
       return _getFromSecondary(collectionId, documentId);

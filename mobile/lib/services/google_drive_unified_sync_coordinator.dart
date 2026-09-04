@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 // ignore_for_file: unused_field
 
 import 'dart:async';
@@ -18,7 +16,6 @@ import 'sync_constants.dart';
 import 'sync_guard.dart';
 import 'sync_locks.dart';
 import 'sync_performance_optimizer.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 enum SyncTrigger { manual, appForeground, localChange, periodic, scheduled }
 
@@ -455,16 +452,15 @@ class GoogleDriveUnifiedSyncCoordinator {
   Future<void> _handlePeriodicPull() async {
     if (!_isSyncing && (_backupService?.isSignedIn ?? false)) {
       if (_pullEnabled) {
-        // ✅ إصلاح P2-10: حارس مشترك لمنع تداخل المزامنة مع SmartSyncManager
-        // أو AppwriteSyncManager. إذا كانت مزامنة أخرى نشطة، نتخطى هذه الدورة.
-        if (!SyncGuard.canStart(label: 'gd_unified_pull')) {
+        // ✅ Wave 5: ownership-safe tryAcquire (with token).
+        final token = SyncGuard.tryAcquire(label: 'gd_unified_pull');
+        if (token == null) {
           _log(
             '⏸️ Periodic pull skipped — another sync active (${SyncGuard.activeLabel})',
           );
           return;
         }
         _log('🔄 Periodic pull check triggered');
-        SyncGuard.markStarted(label: 'gd_unified_pull');
         // ✅ إصلاح جذري: catch + finally — سابقاً try/finally فقط بدون catch.
         try {
           await performSync(
@@ -475,7 +471,7 @@ class GoogleDriveUnifiedSyncCoordinator {
           _log('❌ Periodic pull error: $e');
           // لا rethrow — نمنع fatal crash من Timer callback
         } finally {
-          SyncGuard.markFinished();
+          SyncGuard.release(token);
         }
       }
     }
@@ -917,8 +913,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     }
     try {
       return DateTime.parse(iso);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in google_drive_unified_sync_coordinator.dart: ');
+    } catch (_) {
       return null;
     }
   }

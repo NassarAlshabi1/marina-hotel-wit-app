@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// إعدادات Appwrite المركزية
 class AppwriteConfig {
@@ -24,8 +25,11 @@ class AppwriteConfig {
   // شاشة إعدادات اتصال Appwrite. عند الاستبدال، يُحفظ المفتاح الجديد في
   // SharedPreferences ويُحمَّل عند بدء التطبيق بدلاً من هذا الافتراضي.
   // استخدم AppwriteConfigManager.apiKey للوصول للقيمة الفعّالة وقت التشغيل.
-  static const String defaultApiKey =
-      'standard_c0ab6ac2628715c7714eb312e2272a55ae41809dcc156c7e4553874e4a6ad9f3d3e9169d8a69b84f7d746b108905041e412a66ec66d03e122ccb056484c43d2a27f7839088bf60385ab58061624bbcc1f82271c09d608536e68d9cc0ff1b05b83ae4fe14c4dc4ce38840317ea555155f1733141450b3097df09a2a1b4b154a6c';
+  // ✅ SECURITY: API key via --dart-define, NOT hardcoded.
+  // Pass at build time: --dart-define=APPWRITE_API_KEY=standard_xxx
+  static const String defaultApiKey = String.fromEnvironment(
+    'APPWRITE_API_KEY',
+  );
 
   // ═══════════════════════════════════════════════════════════════
   //  Messaging — Appwrite Messaging Provider ID
@@ -72,8 +76,16 @@ class AppwriteConfig {
   // جدول سحوبات الرواتب
   static const String salaryWithdrawalsCollectionId = 'salary_withdrawals';
 
+  // جدول سجلات ترحيل الرواتب
+  static const String salaryCarryOverLogsCollectionId =
+      'salary_carry_over_logs';
+
   // جدول إعدادات التطبيق (واتساب، وغيرها)
   static const String appSettingsCollectionId = 'app_settings';
+  static const String appUsersCollectionId = 'app_users';
+  static const String inventoryItemsCollectionId = 'inventory_items';
+  static const String inventoryTransactionsCollectionId =
+      'inventory_transactions';
 
   /// خرائط أسماء الكيانات إلى collection IDs.
   /// تستخدم لتحويل اسم الكيان في outbox (مثل 'bookings') إلى collection ID
@@ -93,7 +105,7 @@ class AppwriteConfig {
     'salary_cycles': salaryCyclesCollectionId,
     'salary_payments': salaryPaymentsCollectionId,
     'salary_withdrawals': salaryWithdrawalsCollectionId,
-    'salary_carry_over_logs': 'salary_carry_over_logs',
+    'salary_carry_over_logs': salaryCarryOverLogsCollectionId,
     'blacklist': blacklistCollectionId,
     'price_adjustments': priceAdjustmentsCollectionId,
     'booking_price_adjustments': bookingPriceAdjustmentsCollectionId,
@@ -101,12 +113,26 @@ class AppwriteConfig {
     'payment_voids': paymentVoidsCollectionId,
     'guest_infos': guestInfosCollectionId,
     'app_settings': appSettingsCollectionId,
+    'app_users': appUsersCollectionId,
+    'inventory_items': inventoryItemsCollectionId,
+    'inventory_transactions': inventoryTransactionsCollectionId,
   };
 
   /// يحوّل اسم الكيان إلى collection ID في Appwrite.
   /// يُرجع null إذا لم يكن الكيان معروفاً (مثل 'hotel_day_ledger' المحلي فقط).
   static String? collectionIdFor(String entity) {
     return _entityToCollection[entity];
+  }
+
+  /// ⚡ (2026-08-31) العكس: collection ID → اسم الكيان — يغذّي المسار
+  /// السريع على مستوى السجل من أحداث Realtime (تطبيق السجل من حمولة
+  /// الحدث مباشرة). يُرجع null للمجموعات غير المُخزَّنة محلياً كصفوف
+  /// مزامنة (devices, sync_logs) فتسقط تلك الأحداث إلى دورة السحب.
+  static String? entityForCollectionId(String collectionId) {
+    for (final entry in _entityToCollection.entries) {
+      if (entry.value == collectionId) return entry.key;
+    }
+    return null;
   }
 
   // إعدادات المزامنة
@@ -130,29 +156,29 @@ class AppwriteConfig {
   /// طباعة الإعدادات (للتشخيص)
   static void printConfig() {
     if (kDebugMode) {
-      debugPrint('═══════════════════════════════════════');
-      debugPrint('🔧 Appwrite Configuration');
-      debugPrint('═══════════════════════════════════════');
-      debugPrint('Endpoint: $endpoint');
-      debugPrint('Project ID: $projectId');
-      debugPrint('Database ID: $databaseId');
-      debugPrint('Sync Interval: ${syncInterval.inMinutes} minutes');
-      debugPrint('Cache Expiry: ${cacheExpiry.inHours} hours');
-      debugPrint('Max Cache Size: $maxCacheSizeMB MB');
-      debugPrint('Default Page Size: $defaultPageSize');
-      debugPrint('Max Page Size: $maxPageSize');
-      debugPrint('Batch Size: $batchSize');
-      debugPrint('Max Retries: $maxRetries');
-      debugPrint('Default Timeout: ${defaultTimeout.inSeconds}s');
-      debugPrint('Long Timeout: ${longTimeout.inSeconds}s');
-      debugPrint('═══════════════════════════════════════');
+      dlog('═══════════════════════════════════════');
+      dlog('🔧 Appwrite Configuration');
+      dlog('═══════════════════════════════════════');
+      dlog(() => 'Endpoint: $endpoint');
+      dlog(() => 'Project ID: $projectId');
+      dlog(() => 'Database ID: $databaseId');
+      dlog(() => 'Sync Interval: ${syncInterval.inMinutes} minutes');
+      dlog(() => 'Cache Expiry: ${cacheExpiry.inHours} hours');
+      dlog(() => 'Max Cache Size: $maxCacheSizeMB MB');
+      dlog(() => 'Default Page Size: $defaultPageSize');
+      dlog(() => 'Max Page Size: $maxPageSize');
+      dlog(() => 'Batch Size: $batchSize');
+      dlog(() => 'Max Retries: $maxRetries');
+      dlog(() => 'Default Timeout: ${defaultTimeout.inSeconds}s');
+      dlog(() => 'Long Timeout: ${longTimeout.inSeconds}s');
+      dlog('═══════════════════════════════════════');
     }
   }
 
   /// التحقق من صحة الإعدادات
   static bool validateConfig() {
     if (projectId == 'YOUR_PROJECT_ID_HERE') {
-      debugPrint('❌ Error: Please set your Appwrite Project ID');
+      dlog('❌ Error: Please set your Appwrite Project ID');
       return false;
     }
     return true;

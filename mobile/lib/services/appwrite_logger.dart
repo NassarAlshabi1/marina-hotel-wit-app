@@ -1,12 +1,10 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'logging/log_models.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 export 'logging/log_models.dart';
 
@@ -52,7 +50,43 @@ class AppwriteLogger {
           'appwrite_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.log';
       _logFile = File('${logsDir.path}/$fileName');
     } catch (e) {
-      debugPrint('Error initializing log file: $e');
+      dlog(() => 'Error initializing log file: $e');
+    }
+  }
+
+  /// يحذف ملفات سجل Appwrite الأقدم من مدة الاحتفاظ المطلوبة.
+  ///
+  /// أسماء الملفات تتبع الصيغة `appwrite_yyyy-MM-dd.log`، لذا لا يحذف هذا
+  /// الإجراء أي ملف آخر في مجلد المستندات.
+  Future<void> pruneLogs({required int retentionDays}) async {
+    if (retentionDays < 1) {
+      throw ArgumentError.value(
+        retentionDays,
+        'retentionDays',
+        'must be at least one day',
+      );
+    }
+
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final logsDir = Directory('${directory.path}/appwrite_logs');
+      if (!await logsDir.exists()) return;
+
+      final cutoff = DateTime.now().subtract(Duration(days: retentionDays));
+      final namePattern = RegExp(r'^appwrite_(\d{4}-\d{2}-\d{2})\.log$');
+      await for (final entity in logsDir.list()) {
+        if (entity is! File) continue;
+        final match = namePattern.firstMatch(entity.uri.pathSegments.last);
+        if (match == null) continue;
+
+        final date = DateTime.tryParse(match.group(1)!);
+        if (date != null && date.isBefore(cutoff)) {
+          await entity.delete();
+        }
+      }
+    } catch (e) {
+      dlog(() => 'Error pruning Appwrite logs: $e');
+      rethrow;
     }
   }
 
@@ -232,7 +266,7 @@ class AppwriteLogger {
   /// طباعة إلى Console
   void _printToConsole(LogEntry entry) {
     final emoji = _getEmojiForLevel(entry.level);
-    debugPrint('$emoji ${entry.toFormattedString()}');
+    dlog(() => '$emoji ${entry.toFormattedString()}');
   }
 
   /// كتابة إلى الملف
@@ -243,7 +277,7 @@ class AppwriteLogger {
         mode: FileMode.append,
       );
     } catch (e) {
-      debugPrint('Error writing to log file: $e');
+      dlog(() => 'Error writing to log file: $e');
     }
   }
 

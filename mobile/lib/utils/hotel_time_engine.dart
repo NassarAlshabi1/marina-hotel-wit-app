@@ -1,5 +1,4 @@
 import 'time.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 /// محرك الوقت الفندقي — المصدر الوحيد للحسابات
 ///
@@ -21,12 +20,12 @@ class HotelTimeEngine {
   // ثوابت
   // ═══════════════════════════════════════════════════════════════
 
-  /// ساعة بداية اليوم الفندقي (14)
-  static const int boundaryHour = 14;
+  /// ساعة بداية اليوم الفندقي (14).
+  static const int boundaryHour = Time.hotelDayBoundaryHour;
 
-  /// دقيقة بداية اليوم الفندقي (01)
-  /// اليوم الفندقي يبدأ الساعة 14:01 وليس 14:00
-  static const int boundaryMinute = 1;
+  /// دقيقة بداية اليوم الفندقي (01).
+  /// اليوم الفندقي يبدأ الساعة 14:01 وليس 14:00.
+  static const int boundaryMinute = Time.hotelDayBoundaryMinute;
 
   /// دالة لتحديد بداية ونهاية اليوم الفندقي لتاريخ معين.
   /// اليوم الفندقي يبدأ الساعة 14:01 وينتهي في اليوم التالي الساعة 14:00:59.
@@ -126,8 +125,7 @@ class HotelTimeEngine {
           : isoString.trim().replaceFirst(' ', 'T');
       final dt = DateTime.parse(normalized);
       return getHotelDayKey(dateTime: dt);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in hotel_time_engine.dart: ');
+    } catch (_) {
       return getHotelDayKey();
     }
   }
@@ -254,8 +252,7 @@ class HotelTimeEngine {
             : checkoutDate.replaceFirst(' ', 'T'),
       );
       return DateTime.now().isAfter(checkout);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in hotel_time_engine.dart: ');
+    } catch (_) {
       return false;
     }
   }

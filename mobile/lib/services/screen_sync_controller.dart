@@ -1,18 +1,16 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart';
 
-import 'secondary_appwrite_config.dart';
-import 'secondary_sync_manager.dart';
+// ✅ Sync Simplification (2026-08-10): secondary_sync_manager.dart معطّل
+// بالكامل. لا حاجة لاستيراده هنا.
 import 'smart_sync_manager.dart';
 import 'sync_core/circuit_breaker.dart';
 import 'sync_core/retry_strategy.dart';
 import 'sync_core/sync_error_handler.dart';
 import 'sync_core/sync_validator.dart';
 import 'sync_locks.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class ScreenSyncController {
   ScreenSyncController({
@@ -49,13 +47,13 @@ class ScreenSyncController {
     _hasChanges = true;
     _emitStatus(SyncStatus.pending);
     _resetDebounceTimer();
-    debugPrint('📝 [$screenId] تم تسجيل تغيير - إعادة ضبط المؤقت');
+    dlog(() => '📝 [$screenId] تم تسجيل تغيير - إعادة ضبط المؤقت');
   }
 
   void _resetDebounceTimer() {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(debounceDelay, () {
-      debugPrint('⏰ [$screenId] انتهى المؤقت - بدء المزامنة التلقائية');
+      dlog(() => '⏰ [$screenId] انتهى المؤقت - بدء المزامنة التلقائية');
       syncNow();
     });
   }
@@ -74,7 +72,7 @@ class ScreenSyncController {
 
   Future<bool> syncNow() async {
     if (!_hasChanges) {
-      debugPrint('✓ [$screenId] لا توجد تغييرات للمزامنة');
+      dlog(() => '✓ [$screenId] لا توجد تغييرات للمزامنة');
       return true;
     }
 
@@ -87,7 +85,7 @@ class ScreenSyncController {
     });
 
     if (!canStart) {
-      debugPrint('⏳ [$screenId] المزامنة جارية بالفعل');
+      dlog(() => '⏳ [$screenId] المزامنة جارية بالفعل');
       return false;
     }
 
@@ -104,26 +102,26 @@ class ScreenSyncController {
           .validateNetworkConditions(hasConnection: hasConnection);
 
       if (!networkValidation.isValid) {
-        debugPrint('📴 [$screenId] ${networkValidation.error}');
+        dlog(() => '📴 [$screenId] ${networkValidation.error}');
         // تم إلغاء SyncQueue لصالح Outbox - سيتم المزامنة تلقائياً عند عودة الاتصال
         return false;
       }
 
       if (!SmartSyncManager.instance.isDriveSignedIn) {
-        debugPrint('🔒 [$screenId] المستخدم غير مسجل في Google Drive');
+        dlog(() => '🔒 [$screenId] المستخدم غير مسجل في Google Drive');
         return false;
       }
 
       if (networkValidation.warnings.isNotEmpty) {
         for (final warning in networkValidation.warnings) {
-          debugPrint('⚠️ [$screenId] $warning');
+          dlog(() => '⚠️ [$screenId] $warning');
         }
       }
 
       final success = await _retryStrategy.executeWithFallback(
         operation: () async {
           return _circuitBreaker.execute(() async {
-            debugPrint('🌐 [$screenId] بدء المزامنة مع الحماية...');
+            dlog(() => '🌐 [$screenId] بدء المزامنة مع الحماية...');
             return SmartSyncManager.instance.pushLocalChanges();
           });
         },
@@ -135,20 +133,20 @@ class ScreenSyncController {
           return syncError.isRetryable;
         },
         fallback: () {
-          debugPrint(
-            '⚠️ [$screenId] استخدام القيمة الاحتياطية بعد فشل المحاولات',
+          dlog(
+            () => '⚠️ [$screenId] استخدام القيمة الاحتياطية بعد فشل المحاولات',
           );
           return false;
         },
         onRetry: (attempt, error) {
-          debugPrint('🔄 [$screenId] إعادة المحاولة $attempt');
+          dlog(() => '🔄 [$screenId] إعادة المحاولة $attempt');
         },
       );
 
       if (success ?? false) {
         _hasChanges = false;
         _emitStatus(SyncStatus.synced);
-        debugPrint('✅ [$screenId] تمت المزامنة بنجاح');
+        dlog(() => '✅ [$screenId] تمت المزامنة بنجاح');
 
         // ✅ إصلاح (2026-06-28): رفع التغييرات للوجهة الثانوية أيضاً
         // بدون هذا، Secondary لا يُفعّل إلا عبر:
@@ -159,13 +157,13 @@ class ScreenSyncController {
 
         return true;
       } else {
-        debugPrint(
-          '⚠️ [$screenId] فشل الرفع - سيتم المحاولة لاحقاً عبر Outbox',
+        dlog(
+          () => '⚠️ [$screenId] فشل الرفع - سيتم المحاولة لاحقاً عبر Outbox',
         );
         return false;
       }
     } on CircuitBreakerOpenException catch (e) {
-      debugPrint('🔌 [$screenId] Circuit breaker مفتوح: $e');
+      dlog(() => '🔌 [$screenId] Circuit breaker مفتوح: $e');
       _emitStatus(SyncStatus.error);
       return false;
     } catch (e, stackTrace) {
@@ -174,7 +172,7 @@ class ScreenSyncController {
         stackTrace: stackTrace,
         context: {'screenId': screenId, 'operation': 'syncNow'},
       );
-      debugPrint('❌ [$screenId] خطأ في المزامنة: $e');
+      dlog(() => '❌ [$screenId] خطأ في المزامنة: $e');
       _emitStatus(SyncStatus.error);
       return false;
     } finally {
@@ -189,7 +187,7 @@ class ScreenSyncController {
   }
 
   Future<bool> syncOnExit() async {
-    debugPrint('🚪 [$screenId] الخروج من الشاشة...');
+    dlog(() => '🚪 [$screenId] الخروج من الشاشة...');
     cancelTimer();
     return syncNow();
   }
@@ -201,27 +199,11 @@ class ScreenSyncController {
   /// حتى تنجح محاولة Secondary التالية (auto-sync timer أو مزامنة يدوية).
   Future<void> _pushToSecondary() async {
     try {
-      if (!SecondaryAppwriteConfig.isEnabled) {
-        return; // Secondary معطّل — لا شيء لنفعله
-      }
-      if (!SecondaryAppwriteConfig.isPushEnabled) {
-        return; // الرفع للثانوي معطّل
-      }
-
-      debugPrint('🔵 [$screenId] بدء الرفع للوجهة الثانوية...');
-      final result = await SecondarySyncManager.instance.pushLocalChanges();
-      if (result) {
-        debugPrint('✅ [$screenId] تم الرفع للوجهة الثانوية بنجاح');
-      } else {
-        debugPrint(
-          '⚠️ [$screenId] الرفع للوجهة الثانوية لم يكتمل — '
-          'سيتم المحاولة لاحقاً عبر auto-sync',
-        );
-      }
+      // ✅ Sync Simplification (2026-08-10): Secondary sync مُعطّل بالكامل.
+      // لا حاجة لرفع للوجهة الثانوية. العودة مباشرة.
+      return;
     } catch (e) {
-      // فشل Secondary ليس خطأ قاتلاً — Primary نجح بالفعل
-      // السجلات تبقى في outbox حتى تنجح محاولة Secondary التالية
-      debugPrint('⚠️ [$screenId] خطأ في الرفع للثانوي (غير حرج): $e');
+      dlog(() => '⚠️ [$screenId] خطأ غير متوقع: $e');
     }
   }
 

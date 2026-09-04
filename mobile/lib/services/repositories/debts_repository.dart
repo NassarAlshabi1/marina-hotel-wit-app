@@ -65,7 +65,8 @@ class DebtsRepository {
           note: d.Value(note),
         ),
       );
-      unawaited(AutoBackupManager.instance.onDataChange(
+      unawaited(
+        AutoBackupManager.instance.onDataChange(
           'debts',
           'INSERT',
           recordData: {'guest_name': guestName},
@@ -156,7 +157,8 @@ class DebtsRepository {
         ),
       );
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange(
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
             'debts',
             'UPDATE',
             recordData: {'id': id},
@@ -180,7 +182,8 @@ class DebtsRepository {
     try {
       final result = await dao.softDelete(id);
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange(
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
             'debts',
             'DELETE',
             recordData: {'id': id},

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show debugPrint;
 class AppliedAdjustment {
   const AppliedAdjustment({
     required this.uuid,
@@ -133,8 +132,7 @@ DateTime _parseDateTime(dynamic value) {
   if (value is String) {
     try {
       return DateTime.parse(value);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in financial_models.dart: ');
+    } catch (_) {
       return DateTime(1970);
     }
   }

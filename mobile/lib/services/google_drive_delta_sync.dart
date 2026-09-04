@@ -15,6 +15,7 @@ import 'local_db.dart';
 import 'repositories/rooms_repository.dart';
 import 'sync_constants.dart';
 import 'sync_locks.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 enum SyncFileType { fullBackup, deltaSync }
 
@@ -48,7 +49,7 @@ class GoogleDriveDeltaSync {
     _adapterRegistry = AdapterRegistry.instance;
     _deltaSyncService = DeltaSyncService(db);
     await _initializeDeviceId();
-    debugPrint('✅ تم تهيئة خدمة المزامنة التفاضلية لـ Google Drive');
+    dlog('✅ تم تهيئة خدمة المزامنة التفاضلية لـ Google Drive');
   }
 
   Future<void> _initializeDeviceId() async {
@@ -107,13 +108,13 @@ class GoogleDriveDeltaSync {
     }
 
     try {
-      debugPrint('📤 بدء المزامنة التفاضلية إلى Google Drive...');
+      dlog('📤 بدء المزامنة التفاضلية إلى Google Drive...');
 
       final lastSyncTs = await _getLastPushTimestamp();
       final computation = await _deltaSyncService!.compute(since: lastSyncTs);
 
       if (computation.changes.isEmpty) {
-        debugPrint('✅ لا توجد تغييرات للمزامنة');
+        dlog('✅ لا توجد تغييرات للمزامنة');
         return DeltaSyncResult(success: true, message: 'لا توجد تغييرات');
       }
 
@@ -124,8 +125,8 @@ class GoogleDriveDeltaSync {
       await _deltaSyncService!.persistMirror(computation);
       await _updateLastPushTimestamp();
 
-      debugPrint(
-        '✅ تم رفع ${computation.changes.length} تغيير إلى Google Drive',
+      dlog(
+        () => '✅ تم رفع ${computation.changes.length} تغيير إلى Google Drive',
       );
 
       return DeltaSyncResult(
@@ -135,8 +136,8 @@ class GoogleDriveDeltaSync {
       );
     } catch (e, stackTrace) {
       final errorMessage = 'خطأ في رفع التغييرات: $e';
-      debugPrint('❌ $errorMessage');
-      debugPrint('🔍 Stack trace: $stackTrace');
+      dlog(() => '❌ $errorMessage');
+      dlog(() => '🔍 Stack trace: $stackTrace');
       return DeltaSyncResult(success: false, message: errorMessage);
     } finally {
       await SyncLocks.deltaSyncLock.synchronized(() async {
@@ -182,7 +183,7 @@ class GoogleDriveDeltaSync {
     }
 
     try {
-      debugPrint('📥 فحص التغييرات من Google Drive...');
+      dlog('📥 فحص التغييرات من Google Drive...');
 
       final deltaFiles = await _listDeltaSyncFiles();
       if (deltaFiles.isEmpty) {
@@ -229,9 +230,9 @@ class GoogleDriveDeltaSync {
           await RoomsRepository(
             _database!,
           ).refreshAllRoomOccupancy(originIsServer: true);
-          debugPrint('🔄 تم تحديث حالة إشغال الغرف بعد مزامنة Google Drive');
+          dlog('🔄 تم تحديث حالة إشغال الغرف بعد مزامنة Google Drive');
         } catch (e) {
-          debugPrint('⚠️ فشل تحديث حالة الإشغال: $e');
+          dlog(() => '⚠️ فشل تحديث حالة الإشغال: $e');
         }
       }
 
@@ -242,8 +243,8 @@ class GoogleDriveDeltaSync {
       );
     } catch (e, stackTrace) {
       final errorMessage = 'خطأ في سحب التغييرات: $e';
-      debugPrint('❌ $errorMessage');
-      debugPrint('🔍 Stack trace: $stackTrace');
+      dlog(() => '❌ $errorMessage');
+      dlog(() => '🔍 Stack trace: $stackTrace');
       return DeltaSyncResult(success: false, message: errorMessage);
     } finally {
       await SyncLocks.deltaSyncLock.synchronized(() async {
@@ -310,7 +311,7 @@ class GoogleDriveDeltaSync {
       // هنا — الرفع المضغوط والتنزيل متوافقان تلقائياً.
       return await _driveService!.downloadBackup(fileId);
     } catch (e) {
-      debugPrint('⚠️ خطأ في تحميل ملف المزامنة: $e');
+      dlog(() => '⚠️ خطأ في تحميل ملف المزامنة: $e');
       return null;
     }
   }
@@ -334,7 +335,7 @@ class GoogleDriveDeltaSync {
         applied++;
       }
 
-      debugPrint('✅ تم تطبيق $applied تغيير بنجاح داخل transaction واحدة');
+      dlog(() => '✅ تم تطبيق $applied تغيير بنجاح داخل transaction واحدة');
       return applied;
     });
   }
@@ -392,7 +393,7 @@ class GoogleDriveDeltaSync {
       return;
     }
 
-    debugPrint('🔄 تطبيق $operation على $entity/$localUuid');
+    dlog(() => '🔄 تطبيق $operation على $entity/$localUuid');
 
     if (operation == 'delete') {
       await _deleteEntity(db, entity, localUuid);
@@ -697,10 +698,10 @@ class GoogleDriveDeltaSync {
 
       for (final file in toDelete) {
         await _driveService!.deleteBackup(file.fileId);
-        debugPrint('🗑️ حذف ملف مزامنة قديم: ${file.fileName}');
+        dlog(() => '🗑️ حذف ملف مزامنة قديم: ${file.fileName}');
       }
     } catch (e) {
-      debugPrint('⚠️ خطأ في تنظيف ملفات المزامنة: $e');
+      dlog(() => '⚠️ خطأ في تنظيف ملفات المزامنة: $e');
     }
   }
 

@@ -1,9 +1,6 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../components/app_scaffold.dart';
@@ -16,6 +13,7 @@ import '../../utils/date_parser.dart';
 import '../../utils/hotel_date_helper.dart';
 import '../../utils/hotel_day_ticker.dart';
 import '../../utils/time.dart';
+import '../../utils/english_digits_input_formatter.dart';
 
 class BookingCheckoutScreen extends ConsumerStatefulWidget {
   const BookingCheckoutScreen({required this.booking, super.key});
@@ -213,15 +211,9 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                       Text('رقم الغرفة: ${widget.booking.roomNumber}'),
                       Text('نوع الهوية: ${widget.booking.guestIdType}'),
                       if (widget.booking.guestIdNumber.isNotEmpty)
-                        Text(
-                          'رقم الهوية: ${widget.booking.guestIdNumber}',
-                        ),
-                      Text(
-                        'الجنسية: ${widget.booking.guestNationality}',
-                      ),
-                      Text(
-                        'تاريخ الدخول: ${widget.booking.checkinDate}',
-                      ),
+                        Text('رقم الهوية: ${widget.booking.guestIdNumber}'),
+                      Text('الجنسية: ${widget.booking.guestNationality}'),
+                      Text('تاريخ الدخول: ${widget.booking.checkinDate}'),
                       if (widget.booking.checkoutDate != null)
                         Text(
                           'تاريخ المغادرة المخطط: ${widget.booking.checkoutDate}',
@@ -233,7 +225,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                       Text('الليالي المتوقعة: $expectedNights'),
                       if (actualCheckout != null)
                         Text('الليالي الفعلية: $nightsCount'),
-                      // مؤشر إضافة ليالي بعد الساعة 14:01 للنزلاء الذين لم يسجلوا خروج
+                      // مؤشر إضافة ليالي بعد الساعة 14:00 للنزلاء الذين لم يسجلوا خروج
                       if (hasNotCheckedOut &&
                           nowIsAfterCutoff &&
                           actualNights > expectedNights)
@@ -258,7 +250,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                'تمت إضافة ${actualNights - expectedNights} ليلة بعد الساعة 14:01 (لم يسجل النزيل خروج)',
+                                'تمت إضافة ${actualNights - expectedNights} ليلة بعد الساعة 14:00 (لم يسجل النزيل خروج)',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.orange.shade700,
@@ -467,7 +459,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
                   TextField(
                     controller: amountController,
                     keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    inputFormatters: const [englishIntegerInputFormatter],
                     decoration: const InputDecoration(
                       labelText: 'المبلغ *',
                       border: OutlineInputBorder(),

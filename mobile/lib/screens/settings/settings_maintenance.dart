@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (avoid_dynamic_calls, discarded_futures)
-// ignore_for_file: avoid_dynamic_calls, discarded_futures
 // ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 import 'dart:io';
@@ -21,6 +19,7 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart' show DatabaseManager;
 import '../../services/sqlite_backup_restore.dart';
 import '../../utils/env.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 // ═══════════════════════════════════════════════════════════════
 //  نموذج البيانات الحقيقية
@@ -87,7 +86,7 @@ class _SettingsMaintenanceScreenState
         setState(() => _info = info);
       }
     } catch (e) {
-      debugPrint('⚠️ Failed to load system info: $e');
+      dlog(() => '⚠️ Failed to load system info: $e');
     } finally {
       if (mounted) {
         setState(() => _isLoadingInfo = false);
@@ -137,8 +136,7 @@ class _SettingsMaintenanceScreenState
             : (v is num)
             ? v.toInt()
             : 0;
-      } catch (e) {
-      debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
+      } catch (_) {}
     }
 
     // آخر مزامنة
@@ -158,12 +156,14 @@ class _SettingsMaintenanceScreenState
       }
     }
 
-    // Outbox
+    // Outbox: نعرض فقط العمليات غير المسلّمة إلى Appwrite، لا السجل
+    // التاريخي للعمليات المكتملة حتى لا تبدو الشاشة وكأن لديها عمليات معلقة.
     int outboxCount = 0;
     try {
-      outboxCount = await ref.read(outboxDaoProvider).count();
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
+      outboxCount = await ref
+          .read(outboxDaoProvider)
+          .countUndeliveredToPrimary();
+    } catch (_) {}
 
     // Logs
     final logStats = ref.read(diagnosticsLoggerProvider).getStats();
@@ -175,8 +175,7 @@ class _SettingsMaintenanceScreenState
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       appVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
+    } catch (_) {}
     try {
       final deviceInfo = DeviceInfoPlugin();
       if (Platform.isAndroid) {
@@ -188,8 +187,7 @@ class _SettingsMaintenanceScreenState
         deviceModel = ios.name;
         osVersion = 'iOS ${ios.systemVersion}';
       }
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
+    } catch (_) {}
 
     return _SystemInfo(
       appVersion: appVersion,
@@ -271,8 +269,8 @@ class _SettingsMaintenanceScreenState
           ),
 
           _buildMaintenanceCard(
-            title: 'مسح Outbox المعطّل',
-            subtitle: 'إعادة تعيين العمليات المعلقة في قائمة الانتظار',
+            title: 'إعادة محاولة Outbox الفاشل',
+            subtitle: 'تعيد العمليات الفاشلة إلى الانتظار دون حذف أي بيانات',
             icon: Icons.outbox,
             color: Colors.deepPurple,
             onTap: () => _showOutboxResetDialog(context, ref),
@@ -696,7 +694,7 @@ class _SettingsMaintenanceScreenState
             SizedBox(height: 12),
             Text(
               'سيتم تنفيذ VACUUM لتحرير المساحة غير المستخدمة.\n'
-              'قد يستغرق ذلك بضع ثوانٍ.',
+              'يتطلب مساحة مؤقتة، ولا يمكن تشغيله عند وجود تغييرات لم تُرفع.',
               textAlign: TextAlign.center,
             ),
           ],
@@ -709,22 +707,37 @@ class _SettingsMaintenanceScreenState
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              _showLoading('جاري ضغط قاعدة البيانات (VACUUM)...');
               try {
-                final db = ref.read(databaseProvider);
-                final sizeBefore = await _getTotalDbSizeBytes();
-                await db.customStatement('VACUUM');
-                final sizeAfter = await _getTotalDbSizeBytes();
-                final saved = sizeBefore - sizeAfter;
-                _hideLoading();
-                _showSnack(
-                  'تم الضغط بنجاح — تم تحرير ${(saved / 1024).toStringAsFixed(0)} KB',
-                  color: Colors.green,
-                );
-                unawaited(_loadSystemInfo());
+                final pending = await ref
+                    .read(outboxDaoProvider)
+                    .countUndeliveredToPrimary();
+                if (pending > 0) {
+                  _showSnack(
+                    'لا يمكن ضغط قاعدة البيانات: توجد $pending تغييرات لم تُرفع إلى Appwrite.',
+                    color: Colors.orange,
+                  );
+                  return;
+                }
+
+                _showLoading('جاري ضغط قاعدة البيانات (VACUUM)...');
+                try {
+                  final db = ref.read(databaseProvider);
+                  final sizeBefore = await _getTotalDbSizeBytes();
+                  await db.customStatement('VACUUM');
+                  final sizeAfter = await _getTotalDbSizeBytes();
+                  final saved = sizeBefore - sizeAfter;
+                  _hideLoading();
+                  _showSnack(
+                    'تم الضغط بنجاح — تم تحرير ${(saved / 1024).toStringAsFixed(0)} KB',
+                    color: Colors.green,
+                  );
+                  unawaited(_loadSystemInfo());
+                } catch (e) {
+                  _hideLoading();
+                  _showSnack('خطأ في الضغط: $e', color: Colors.red);
+                }
               } catch (e) {
-                _hideLoading();
-                _showSnack('خطأ في الضغط: $e', color: Colors.red);
+                _showSnack('تعذر التحقق من Outbox: $e', color: Colors.red);
               }
             },
             child: const Text('ضغط'),
@@ -1004,10 +1017,10 @@ class _SettingsMaintenanceScreenState
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('مسح Outbox المعطّل'),
+        title: const Text('إعادة محاولة Outbox الفاشل'),
         content: const Text(
-          'سيتم إعادة تعيين جميع العمليات الفاشلة في قائمة الانتظار '
-          'إلى حالة "معلقة" للمحاولة مرة أخرى.',
+          'ستُعاد العمليات الفاشلة فقط إلى حالة "معلقة" للمحاولة مرة أخرى.\n'
+          'لن تُحذف أي عملية أو بيانات محلية.',
         ),
         actions: [
           TextButton(
@@ -1034,7 +1047,7 @@ class _SettingsMaintenanceScreenState
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
-            child: const Text('إعادة تعيين'),
+            child: const Text('إعادة المحاولة'),
           ),
         ],
       ),
@@ -1116,74 +1129,124 @@ class _SettingsMaintenanceScreenState
   }
 
   void _showConfirmResetDialog(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('تأكيد نهائي'),
-        content: const Text('هل أنت متأكد تماماً؟\nسيتم فقدان جميع البيانات.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
+    final confirmationController = TextEditingController();
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setDialogState) => AlertDialog(
+            title: const Text('تأكيد نهائي'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'سيُحذف مخزن البيانات المحلي فقط. يجب رفع جميع التغييرات '
+                  'إلى Appwrite أو إنشاء نسخة احتياطية قبل المتابعة.',
+                ),
+                const SizedBox(height: 16),
+                const Text('اكتب «حذف» لتفعيل زر الحذف.'),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: confirmationController,
+                  autofocus: true,
+                  onChanged: (_) => setDialogState(() {}),
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'حذف',
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton(
+                onPressed: confirmationController.text.trim() == 'حذف'
+                    ? () async {
+                        try {
+                          final pending = await ref
+                              .read(outboxDaoProvider)
+                              .countUndeliveredToPrimary();
+                          if (pending > 0) {
+                            Navigator.pop(ctx);
+                            _showSnack(
+                              'تم إلغاء الحذف: توجد $pending تغييرات لم تُرفع. '
+                              'ارفعها إلى Appwrite أولاً.',
+                              color: Colors.orange,
+                            );
+                            return;
+                          }
+
+                          Navigator.pop(ctx);
+                          _showLoading('جاري إعادة تعيين التطبيق...');
+                          try {
+                            await DatabaseManager.close();
+                            final dbPath = p.join(
+                              await sqflite.getDatabasesPath(),
+                              SqliteBackupRestore.kDefaultDbFileName,
+                            );
+                            await sqflite.deleteDatabase(dbPath);
+
+                            // نحذف مفاتيح البيانات فقط ونحتفظ بإعدادات الاتصال.
+                            final prefs = await SharedPreferences.getInstance();
+                            const keysToRemove = [
+                              'appwrite_last_sync_time',
+                              'appwrite_pull_after_drive_skip_done',
+                              'sync_last_pull_booking_nights',
+                              'appwrite_delta_sync_enabled',
+                              'last_auto_backup_timestamp',
+                              'auto_backup_enabled',
+                              'delta_sync_enabled',
+                              'backup_mode',
+                              'appwrite_last_delta_sync',
+                              'last_app_open_pull',
+                              'device_id',
+                              'appwrite_delta_device_id',
+                            ];
+                            for (final key in keysToRemove) {
+                              await prefs.remove(key);
+                            }
+
+                            try {
+                              await ref.read(syncGuardianProvider).restart();
+                            } catch (_) {}
+
+                            _hideLoading();
+                            _showSnack(
+                              'تمت إعادة التعيين. افتح المزامنة لاستعادة البيانات من Appwrite.',
+                              color: Colors.green,
+                            );
+                            unawaited(_loadSystemInfo());
+                          } catch (e) {
+                            _hideLoading();
+                            _showSnack(
+                              'خطأ في إعادة التعيين: $e',
+                              color: Colors.red,
+                            );
+                          } finally {
+                            // ضمان إعادة فتح قاعدة البيانات حتى لو فشل الحذف.
+                            try {
+                              await DatabaseManager.reopen();
+                            } catch (_) {}
+                          }
+                        } catch (e) {
+                          _showSnack(
+                            'تعذر التحقق من Outbox: $e',
+                            color: Colors.red,
+                          );
+                        }
+                      }
+                    : null,
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('تأكيد الحذف'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              _showLoading('جاري إعادة تعيين التطبيق...');
-              try {
-                await DatabaseManager.close();
-                final dbPath = p.join(
-                  await sqflite.getDatabasesPath(),
-                  SqliteBackupRestore.kDefaultDbFileName,
-                );
-                await sqflite.deleteDatabase(dbPath);
-
-                // ✅ إصلاح P0: حذف مختار للمفاتيح بدلاً من prefs.clear()
-                // نحذف فقط المفاتيح المتعلقة بالبيانات، ونحتفظ بالإعدادات الحرجة
-                final prefs = await SharedPreferences.getInstance();
-                const keysToRemove = [
-                  'appwrite_last_sync_time',
-                  'appwrite_pull_after_drive_skip_done',
-                  'sync_last_pull_booking_nights',
-                  'appwrite_delta_sync_enabled',
-                  'last_auto_backup_timestamp',
-                  'auto_backup_enabled',
-                  'delta_sync_enabled',
-                  'backup_mode',
-                  'appwrite_last_delta_sync',
-                  'last_app_open_pull',
-                  'device_id',
-                  'appwrite_delta_device_id',
-                ];
-                for (final key in keysToRemove) {
-                  await prefs.remove(key);
-                }
-
-                // ✅ إصلاح P1: إعادة تهيئة المزامنة بعد reset
-                try {
-                  await ref.read(syncGuardianProvider).restart();
-                } catch (e) {
-      debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
-
-                _hideLoading();
-                _showSnack('تم إعادة تعيين التطبيق بنجاح', color: Colors.green);
-                unawaited(_loadSystemInfo());
-              } catch (e) {
-                _hideLoading();
-                _showSnack('خطأ في إعادة التعيين: $e', color: Colors.red);
-              } finally {
-                // ✅ P0 fix: ضمان إعادة فتح قاعدة البيانات حتى لو فشل الحذف
-                try {
-                  await DatabaseManager.reopen();
-                } catch (e) {
-      debugPrint('⚠️ Swallowed error in settings_maintenance.dart: ');}
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('تأكيد الحذف'),
-          ),
-        ],
-      ),
+        ),
+      ).whenComplete(confirmationController.dispose),
     );
   }
 }

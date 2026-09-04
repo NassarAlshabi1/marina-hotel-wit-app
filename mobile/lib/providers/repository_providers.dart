@@ -1,13 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/adapters/adapter_registry.dart';
 import '../services/auth_local_store.dart';
+import 'auth_provider.dart';
 import '../services/daos/bookings_dao.dart';
 import '../services/daos/debts_dao.dart';
 import '../services/daos/employees_dao.dart';
 import '../services/daos/expenses_dao.dart';
 import '../services/daos/outbox_dao.dart';
+// ✅ P2 Performance Fix (2026-08-10): استيراد WeakDeviceOptimizer
+// لاستخدام maxListItemsBeforePagination في تقييد القوائم على الأجهزة الضعيفة.
+import '../utils/weak_device_optimizer.dart';
 import '../services/daos/payments_dao.dart';
 import '../services/diagnostics/diagnostics_logger.dart';
 import '../services/local_db.dart';
@@ -18,8 +24,10 @@ import '../services/repositories/debts_repository.dart';
 import '../services/repositories/employees_repository.dart';
 import '../services/repositories/expenses_repository.dart';
 import '../services/repositories/guest_infos_repository.dart';
+import '../services/repositories/inventory_repository.dart';
 import '../services/repositories/notes_repository.dart';
 import '../services/repositories/payments_repository.dart';
+import '../services/payment_session_context.dart';
 import '../services/repositories/rooms_repository.dart';
 import '../services/repositories/salary_withdrawals_repository.dart';
 import '../services/repositories/shift_notes_repository.dart';
@@ -121,6 +129,14 @@ final paymentsRepoProvider = Provider<PaymentsRepository>(
 final debtsRepoProvider = Provider<DebtsRepository>(
   (ref) => DebtsRepository(ref.read(databaseProvider)),
 );
+final inventoryRepoProvider = Provider<InventoryRepository>(
+  (ref) => InventoryRepository(ref.read(databaseProvider)),
+);
+
+final inventoryItemsProvider = StreamProvider.autoDispose<List<InventoryItem>>(
+  (ref) => ref.watch(inventoryRepoProvider).watchActiveItems(),
+);
+
 final notesRepoProvider = Provider<NotesRepository>(
   (ref) => NotesRepository(ref.read(databaseProvider)),
 );
@@ -190,14 +206,22 @@ final whatsappServiceProvider = Provider<WhatsAppService>((ref) {
 
 final roomsListProvider = StreamProvider.autoDispose<List<Room>>(
   (ref) => debounceStream(
-    ref.watch(roomsRepoProvider).watchAll(),
+    ref
+        .watch(roomsRepoProvider)
+        .watchAll(
+          limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
+        ),
     const Duration(milliseconds: 150),
   ),
 );
 final availableRoomsProvider = StreamProvider.autoDispose(
   (ref) =>
       debounceStream(
-        ref.watch(roomsRepoProvider).watchAll(),
+        ref
+            .watch(roomsRepoProvider)
+            .watchAll(
+              limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
+            ),
         const Duration(milliseconds: 150),
       ).map(
         (rooms) => rooms
@@ -208,8 +232,15 @@ final availableRoomsProvider = StreamProvider.autoDispose(
 
 final bookingsListProvider = StreamProvider.autoDispose<List<Booking>>(
   (ref) => debounceStream(
-    ref.watch(bookingsRepoProvider).watch(),
-    const Duration(milliseconds: 300),
+    // ✅ P2 Performance Fix (2026-08-10): تقييد عدد الحجوزات على الأجهزة الضعيفة.
+    // نستخدم BookingsDao مباشرة لتطبيق LIMIT في SQL.
+    BookingsDao(
+      ref.watch(databaseProvider),
+      ref.watch(outboxDaoProvider),
+    ).watchList(
+      limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
+    ),
+    const Duration(milliseconds: 150),
   ),
 );
 final activeNotesProvider = FutureProvider.autoDispose(
@@ -241,32 +272,54 @@ final highPrioritySimpleNotesProvider = FutureProvider.autoDispose(
 
 final employeesListProvider = StreamProvider.autoDispose<List<Employee>>(
   (ref) => debounceStream(
-    ref.watch(employeesRepoProvider).watchAll(),
+    ref
+        .watch(employeesRepoProvider)
+        .watchAll(
+          limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
+        ),
     const Duration(milliseconds: 150),
   ),
 );
 
 final guestInfoListProvider = StreamProvider.autoDispose(
   (ref) => debounceStream(
-    ref.watch(guestInfoRepoProvider).watchAll(),
+    ref
+        .watch(guestInfoRepoProvider)
+        .watchAll(
+          limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
+        ),
     const Duration(milliseconds: 150),
   ),
 );
 
 final expensesListProvider = StreamProvider.autoDispose(
   (ref) => debounceStream(
-    ref.watch(expensesRepoProvider).watchAll(),
+    // ✅ P2 Performance Fix: LIMIT في SQL على الأجهزة الضعيفة.
+    ExpensesDao(
+      ref.watch(databaseProvider),
+      ref.watch(outboxDaoProvider),
+    ).watchList(
+      limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
+    ),
     const Duration(milliseconds: 150),
   ),
 );
 
 final salaryWithdrawalsListProvider = FutureProvider.autoDispose((ref) {
-  return ref.watch(salaryWithdrawalsRepoProvider).listAll();
+  return ref
+      .watch(salaryWithdrawalsRepoProvider)
+      .listActive(
+        limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
+      );
 });
 
 final cashTransactionsListProvider = StreamProvider.autoDispose(
   (ref) => debounceStream(
-    ref.watch(cashRepoProvider).watchAll(),
+    ref
+        .watch(cashRepoProvider)
+        .watchAll(
+          limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
+        ),
     const Duration(milliseconds: 150),
   ),
 );
@@ -277,6 +330,27 @@ final usersCountProvider = FutureProvider.autoDispose<int>((ref) async {
   return store.getUsersCount();
 });
 
+/// يبث مفتاح اليوم الفندقي عند عبور وقت بداية اليوم الفندقي.
+/// يستخدم فقط لإعادة بناء مؤشرات Dashboard التي تعتمد على اليوم الحالي.
+final hotelDayTickerProvider = StreamProvider<String>((ref) {
+  final controller = StreamController<String>.broadcast();
+  var lastEmitted = HotelTimeEngine.getHotelDayKey();
+  final timer = Timer.periodic(const Duration(seconds: 30), (_) {
+    final current = HotelTimeEngine.getHotelDayKey();
+    if (current != lastEmitted) {
+      lastEmitted = current;
+      controller.add(current);
+    }
+  });
+
+  ref.onDispose(() {
+    timer.cancel();
+    controller.close();
+  });
+
+  return controller.stream;
+});
+
 // Daily Statistics Providers — تحديث فوري عبر Stream من قاعدة البيانات
 final todayPaymentsProvider = StreamProvider.autoDispose<double>((ref) {
   final paymentsRepo = ref.watch(paymentsRepoProvider);
@@ -285,6 +359,44 @@ final todayPaymentsProvider = StreamProvider.autoDispose<double>((ref) {
   // الفلتر على مستوى قاعدة البيانات بدلاً من تحميل كل المدفوعات
   return paymentsRepo.watchTotalByHotelDayKey(hotelDay);
 });
+
+/// إجمالي ما استلمه المستخدم الحالي منذ بداية جلسة تسجيل الدخول
+/// ضمن اليوم الفندقي الحالي. السجلات القديمة التي لا تحمل session UUID
+/// لا تُنسب للمستخدم بأثر رجعي.
+final currentUserSessionPaymentsProvider = StreamProvider.autoDispose<double>((
+  ref,
+) {
+  ref.watch(authProvider.select((state) => state.currentUser?.id));
+  // إعادة بناء الاستعلام عند انتقال الفندق إلى يوم جديد.
+  ref.watch(hotelDayTickerProvider);
+  final paymentsRepo = ref.watch(paymentsRepoProvider);
+  final hotelDay = HotelTimeEngine.getHotelDayKey();
+  if (!PaymentSessionContext.isActive) {
+    return Stream<double>.value(0);
+  }
+  return paymentsRepo.watchTotalByCurrentPaymentSession(hotelDay);
+});
+
+final employeeShiftPaymentSummariesProvider =
+    StreamProvider.autoDispose<List<PaymentShiftSummary>>((ref) {
+      final user = ref.watch(authProvider).currentUser;
+      // كل مستخدم مسجل يرى استلامات المستخدمين الآخرين في النوبات.
+      // لا نعرض إجمالي جلسة المستخدم الحالي هنا؛ المدير يرى بقية المستخدمين
+      // والموظفين بالطريقة نفسها، دون بطاقة منفصلة لاستلامه الشخصي.
+      if (user == null) {
+        return Stream.value(const <PaymentShiftSummary>[]);
+      }
+
+      ref.watch(hotelDayTickerProvider);
+      final hotelDay = HotelTimeEngine.getHotelDayKey();
+      return ref
+          .watch(paymentsRepoProvider)
+          .watchPaymentShiftSummaries(
+            hotelDay,
+            excludedUserName: user.name,
+            excludedUserCloudId: user.cloudUserId,
+          );
+    });
 
 final todayExpensesProvider = StreamProvider.autoDispose<double>((ref) {
   final expensesRepo = ref.watch(expensesRepoProvider);
@@ -329,7 +441,13 @@ final bookingPaidAmountProvider = StreamProvider.family
 
 final debtsListProvider = StreamProvider.autoDispose(
   (ref) => debounceStream(
-    ref.watch(debtsRepoProvider).watchAll(),
+    // ✅ P2 Performance Fix: LIMIT في SQL على الأجهزة الضعيفة.
+    DebtsDao(
+      ref.watch(databaseProvider),
+      ref.watch(outboxDaoProvider),
+    ).watchList(
+      limit: WeakDeviceOptimizer.instance.maxListItemsBeforePagination,
+    ),
     const Duration(milliseconds: 150),
   ),
 );

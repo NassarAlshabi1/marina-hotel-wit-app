@@ -1,14 +1,24 @@
 // lib/services/password_hasher.dart
 //
 // ✅ تشفير كلمات المرور (2026-06-28 P2)
+// ✅ OCR Review (2026-08-06): تحديث الـ comment ليُعكس القرار الهندسي
 //
 // يُسلّط كلمات المرور باستخدام PBKDF2 (Password-Based Key Derivation Function 2)
 // مع SHA-256 و salt عشوائي لكل كلمة مرور.
 //
 // لماذا PBKDF2 وليس bcrypt/argon2؟
-// - bcrypt و argon2 غير متوفرين بشكل أصلي في Flutter/Dart
-// - PBKDF2 متوفر عبر pointycastle (موجود بالفعل في pubspec)
-// - مع 100,000 تكرار، PBKDF2-HMAC-SHA-256 مقاوم للهجمات
+// ✅ القرار الهندسي (محْدّث 2026-08-06):
+// - bcrypt و argon2 متوفران الآن في pub.dev عبر packages مثل `bcrypt` و
+//   `cryptography`، لكننا نبقى على PBKDF2 للأسباب التالية:
+//   1. pointycastle مُستخدم بالفعل (لا إضافة dependency جديدة)
+//   2. PBKDF2 معيار NIST SP 800-132 — مقبول للأنظمة الإنتاجية
+//   3. مع 100,000 تكرار، PBKDF2-HMAC-SHA-256 مقاوم للهجمات
+//   4. تجنّب إضافة dependency لـ `bcrypt` package التي قد تحتوي native code
+//   5. توافق رجعي: لا يمكن تغيير الخوارزمية بدون migration كامل لكلمات المرور
+//
+// ملاحظة مستقبلية: لو قررنا الترحيل لـ argon2 (أقوى ضد GPU attacks)،
+// يجب: (1) إضافة `cryptography` package، (2) migration تدريجي عند تسجيل
+// الدخول التالي لكل مستخدم (verify بـ PBKDF2 ثم re-hash بـ argon2).
 //
 // الصيغة المخزّنة: `pbkdf2_sha256$<iterations>$<salt_base64>$<hash_base64>`
 // مثال: `pbkdf2_sha256$100000$Yc2lzZWx0c29sdA==$z3Jv...==`
@@ -19,7 +29,6 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:pointycastle/export.dart' as pc;
-import 'package:flutter/foundation.dart' show debugPrint;
 
 /// خدمة تشفير كلمات المرور
 class PasswordHasher {
@@ -91,8 +100,7 @@ class PasswordHasher {
 
       // مقارنة ثابتة الزمن (constant-time comparison) لمنع timing attacks
       return _constantTimeEquals(expectedHash, actualHash);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in password_hasher.dart: ');
+    } catch (_) {
       return false;
     }
   }

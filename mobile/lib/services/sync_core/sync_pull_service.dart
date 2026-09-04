@@ -1,40 +1,296 @@
 // ignore_for_file: unused_element, deprecated_member_use
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:appwrite/appwrite.dart';
+import 'package:collection/collection.dart';
 import 'package:drift/drift.dart' as drift;
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../appwrite_config.dart';
 import '../appwrite_logger.dart';
 import '../appwrite_service.dart';
+import '../daos/ancestor_cache_dao.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
+import '../vector_clock_service.dart';
+import 'smart_conflict_resolver.dart';
 
 /// خدمة سحب التغييرات من Appwrite Cloud إلى القاعدة المحلية
 ///
-/// نسخة مُنظَّفة (v2) — تحتوي فقط على الدوال المستخدمة فعليًا من AppwriteSyncManager.
-/// الدوال المُكررة (17 دالة _syncXxx + دوال المساعدة) محذوفة لأن AppwriteSyncManager
-/// يحتفظ بنسخه الخاصة الحية منها.
+/// ✅ Audit Fix (2026-08-06): تمت إضافة `checkAndResolveConflict` — منطق
+/// كشف وحل التعارضات الذي كان مُلصقاً في 17 موقعاً في AppwriteSyncManager.
+/// الآن SyncPullService هو المسؤول الوحيد عن:
+///   - بناء delta queries
+///   - إدارة pull timestamps
+///   - **كشف وحل التعارضات** (جديد)
 ///
-/// الدوال المُستخدمة (7):
-///   - buildDeltaQueries / bookingNightsDeltaQueries
-///   - isRemoteEpochMillis
-///   - getBookingNightsPullTs / updateBookingNightsPullTs
-///   - getLastPullTs / updateLastPullTs
+/// AppwriteSyncManager._isRemoteDataNewer يُفوّض الآن إلى
+/// `_pullService.checkAndResolveConflict(...)`.
 class SyncPullService {
   SyncPullService({
     required this.appwriteService,
     required this.database,
     required this.outboxDao,
     AppwriteLogger? logger,
-  }) : _logger = logger ?? AppwriteLogger();
+  }) : _logger = logger ?? AppwriteLogger(),
+       _ancestorCacheDao = null;
 
   final AppwriteService appwriteService;
   final AppDatabase database;
   final OutboxDao outboxDao;
   final AppwriteLogger _logger;
+
+  /// ✅ Audit Fix: AncestorCacheDao للوصول إلى الـ ancestor cache.
+  /// يُحقنlazy من AppwriteSyncManager عبر [setAncestorCacheDao].
+  AncestorCacheDao? _ancestorCacheDao;
+
+  /// ✅ Audit Fix: deviceId الحالي (لـ LWW tie-break).
+  String? _currentDeviceId;
+
+  /// ✅ Audit Fix: حقن AncestorCacheDao من AppwriteSyncManager.
+  /// هذا يسمح لـ SyncPullService بالوصول إلى الـ ancestor cache
+  /// بدون إنشاء instance منفصل (يضمن استخدام نفس الـ DAO).
+  void setAncestorCacheDao(AncestorCacheDao dao, {String? deviceId}) {
+    _ancestorCacheDao = dao;
+    _currentDeviceId = deviceId;
+  }
+
+  // ── Conflict Detection & Resolution ──────────────────────────────────
+
+  /// ✅ Audit Fix (2026-08-06): كشف وحل التعارضات.
+  ///
+  /// هذه الدالة هي القلب المنطقي للمزامنة — تحدد ما إذا كان يجب تطبيق
+  /// البيانات البعيدة، وتحل التعارضات المتزامنة عبر 3-way merge.
+  ///
+  /// المعاملات:
+  /// - [remoteData] — بيانات المستند البعيد (من Appwrite). **يُعدَّل in-place**
+  ///   عند الدمج (يُستبدل بالبيانات المدموجة).
+  /// - [localLastModified] — timestamp آخر تعديل محلي (epoch seconds).
+  /// - [localDeletedAt] — timestamp الحذف المحلي (null إذا غير محذوف).
+  /// - [remoteUpdatedAtSec] — `$updatedAt` من Appwrite (seconds).
+  /// - [localVectorClock] — VC المحلي (JSON string).
+  /// - [entityName] — اسم الكيان (لـ SmartConflictResolver policies).
+  /// - [localUuid] — UUID المحلي للسجل.
+  /// - [localData] — البيانات المحلية الكاملة (لـ 3-way merge).
+  ///
+  /// Returns: [RemoteCheckResult] مع `shouldApplyRemote` وبيانات الدمج.
+  Future<RemoteCheckResult> checkAndResolveConflict(
+    Map<String, dynamic> remoteData,
+    int? localLastModified, {
+    int? localDeletedAt,
+    int? remoteUpdatedAtSec,
+    String? localVectorClock,
+    String? entityName,
+    String? localUuid,
+    Map<String, dynamic>? localData,
+  }) async {
+    // 1) حماية الحذف المحلي (soft delete) — له أولوية أعلى
+    if (localDeletedAt != null) {
+      final remoteDeletedAt =
+          _asIntNullable(remoteData['deletedAt']) ??
+          _asIntNullable(remoteData['deleted_at']);
+      if (remoteDeletedAt != null) {
+        return const RemoteCheckResult(shouldApplyRemote: true);
+      }
+      return const RemoteCheckResult(shouldApplyRemote: false);
+    }
+
+    // ✅ Sync Safety Wave 4 (2026-08-12): Durable tombstone from remote.
+    //
+    // إذا كان البعيد يحتوي على `deletedAt` (tombstone) والمحلي غير محذوف،
+    // يجب تطبيق الـ tombstone دائماً (تجاوز فحص الـ VC وtimestamp).
+    //
+    // السبب: جهاز-A حذف softly ورفع tombstone. جهاز-B لديه السجل نشطاً
+    // محلياً ولا يعرف بالحذف. عند سحب الـ tombstone، يجب أن يُطبَّق لتوصيل
+    // الحذف إلى جهاز-B. بدون هذا التجاوز، قد يفوز المحلي في مقارنة VC
+    // (لأن جهاز-B قد يكون لديه VC أحدث من تعديل صغير) → السجل يبقى نشطاً
+    // على جهاز-B رغم حذفه على الجهاز-A → resurrection.
+    if (localDeletedAt == null) {
+      final remoteDeletedAt =
+          _asIntNullable(remoteData['deletedAt']) ??
+          _asIntNullable(remoteData['deleted_at']);
+      if (remoteDeletedAt != null && remoteDeletedAt > 0) {
+        // ✅ تطبيق الـ tombstone دائماً (تجاوز VC وtimestamp)
+        return const RemoteCheckResult(shouldApplyRemote: true);
+      }
+    }
+
+    // 2) السجل غير موجود محلياً → يجب إضافته
+    if (localLastModified == null) {
+      return const RemoteCheckResult(shouldApplyRemote: true);
+    }
+
+    // 3) استخراج timestamp البعيد
+    final remoteLastModified =
+        _asIntNullable(remoteData['lastModified']) ??
+        _asIntNullable(remoteData['last_modified']) ??
+        _asIntNullable(remoteData['lastModifiedEpoch']);
+    final effectiveRemoteTs = remoteLastModified ?? remoteUpdatedAtSec;
+
+    if (effectiveRemoteTs == null) {
+      // لا timestamp متاح → تطبيق البعيد كحل آمن
+      _logger.debug(
+        'checkAndResolveConflict: no remote timestamp — applying remote. '
+        'uuid=$localUuid',
+        tag: 'SYNC',
+      );
+      return const RemoteCheckResult(shouldApplyRemote: true);
+    }
+
+    // 4) Vector Clock comparison
+    final remoteVcStr =
+        (remoteData['vectorClock'] as String?) ??
+        (remoteData['vector_clock'] as String?) ??
+        '{}';
+
+    // إذا كانت كلتا الساعتين فارغتين → LWW
+    if ((localVectorClock == null ||
+            localVectorClock.isEmpty ||
+            localVectorClock == '{}') &&
+        (remoteVcStr.isEmpty || remoteVcStr == '{}')) {
+      final normalizedRemoteTs = effectiveRemoteTs > 10000000000
+          ? effectiveRemoteTs ~/ 1000
+          : effectiveRemoteTs;
+      final normalizedLocalTs = localLastModified > 10000000000
+          ? localLastModified ~/ 1000
+          : localLastModified;
+      return RemoteCheckResult(
+        shouldApplyRemote: normalizedRemoteTs > normalizedLocalTs,
+      );
+    }
+
+    final localVc = VectorClock.fromString(localVectorClock ?? '{}');
+    final remoteVc = VectorClock.fromString(remoteVcStr);
+
+    if (kDebugMode && (localVc.isEmpty || remoteVc.isEmpty)) {
+      _logger.info(
+        'VC empty: entity=$entityName, uuid=$localUuid, '
+        'localVc=${localVc.isEmpty ? "empty" : "non-empty"}, '
+        'remoteVc=${remoteVc.isEmpty ? "empty" : "non-empty"}',
+        tag: 'VC_HEALTH',
+      );
+    }
+
+    // سجلات Appwrite القديمة قد تفتقد vectorClock. في هذه الحالة لا يمكن
+    // إثبات السببية من VC أحادي الطرف، لذا نعود إلى LWW بدلاً من اعتبار
+    // الساعة المحلية غير الفارغة أحدث دائماً وإسقاط تحديث بعيد أحدث.
+    if (localVc.isEmpty || remoteVc.isEmpty) {
+      final normalizedRemoteTs = effectiveRemoteTs > 10000000000
+          ? effectiveRemoteTs ~/ 1000
+          : effectiveRemoteTs;
+      final normalizedLocalTs = localLastModified > 10000000000
+          ? localLastModified ~/ 1000
+          : localLastModified;
+      final remoteDeviceId = (remoteData['deviceId'] as String?) ?? '';
+      final localDeviceId = _currentDeviceId ?? '';
+      return RemoteCheckResult(
+        shouldApplyRemote:
+            normalizedRemoteTs > normalizedLocalTs ||
+            (normalizedRemoteTs == normalizedLocalTs &&
+                remoteDeviceId.compareTo(localDeviceId) < 0),
+      );
+    }
+
+    final comparison = VectorClockComparator.compare(localVc, remoteVc);
+
+    switch (comparison) {
+      case VectorClockComparison.equal:
+        // ✅ Fix (2026-08-08): لا نرفض السجل صامتاً عند تطابق الـ VC.
+        // Appwrite لا يزيد الـ vectorClock تلقائياً عند التخزين، لذا قد يتطابق
+        // VC رغم اختلاف البيانات الفعلية (مثل تغيّر status/actualCheckout).
+        // نتحقق من المحتوى الفعلي — إن اختلف → البعيد أحدث ويُطبَّق.
+        if (localData != null && !_contentEquals(localData, remoteData)) {
+          return const RemoteCheckResult(shouldApplyRemote: true);
+        }
+        return const RemoteCheckResult(shouldApplyRemote: false);
+
+      case VectorClockComparison.remoteNewer:
+        return const RemoteCheckResult(shouldApplyRemote: true);
+
+      case VectorClockComparison.localNewer:
+        return const RemoteCheckResult(shouldApplyRemote: false);
+
+      case VectorClockComparison.concurrent:
+        // ⚠️ تعارض متزامن!
+        _logger.warning(
+          '⚠️ CONCURRENT CONFLICT: entity=$entityName, uuid=$localUuid, '
+          'localVc=$localVectorClock, remoteVc=$remoteVcStr.',
+          tag: 'CONFLICT',
+        );
+
+        // محاولة الحل الذكي عبر SmartConflictResolver (3-way merge)
+        if (entityName != null &&
+            localUuid != null &&
+            localData != null &&
+            _ancestorCacheDao != null) {
+          try {
+            final ancestor = await _ancestorCacheDao!.getAncestor(
+              entityName,
+              localUuid,
+            );
+            final remoteDataOriginal = Map<String, dynamic>.from(remoteData);
+            final resolution = SmartConflictResolver.resolve(
+              entity: entityName,
+              localData: localData,
+              remoteData: remoteData,
+              commonAncestor: ancestor,
+            );
+
+            if (resolution.strategy == ResolutionStrategy.fieldLevelMerge) {
+              _logger.info(
+                '✅ 3-way merge resolved: entity=$entityName, uuid=$localUuid, '
+                'warnings=${resolution.warnings.length}',
+                tag: 'CONFLICT',
+              );
+              // كتابة البيانات المدمجة في remoteData in-place.
+              // ✅ Sync Safety Fix (2026-08-10): استخدم iterative put بدل
+              // addAll لتفادي type mismatch عند runtime. مشكلة addAll: إذا
+              // كان remoteData من literal `{'k': 'v'}` يصبح runtime type
+              // هو `_Map<String, Object>`، بينما mergedData قد يكون
+              // `Map<String, dynamic>` → addAll يرمي type error ويُحوِّل
+              // المسار لـ LWW fallback (فقدان النتيجة المدمجة).
+              // الـ iterative put يتجاوز variance rules في Dart.
+              remoteData.clear();
+              for (final entry in resolution.mergedData.entries) {
+                remoteData[entry.key] = entry.value;
+              }
+              // حفظ البيانات البعيدة الأصلية كـ ancestor
+              await _ancestorCacheDao!.saveAncestor(
+                entity: entityName,
+                localUuid: localUuid,
+                data: remoteDataOriginal,
+              );
+              return RemoteCheckResult(
+                shouldApplyRemote: true,
+                mergedData: resolution.mergedData,
+                pushedToRemote: resolution.pushedToRemote,
+              );
+            }
+          } catch (e) {
+            _logger.warning(
+              '⚠️ SmartConflictResolver failed, LWW fallback: $e',
+              tag: 'CONFLICT',
+            );
+          }
+        }
+
+        // LWW fallback + deviceId tie-break
+        final normalizedRemoteTs = effectiveRemoteTs > 10000000000
+            ? effectiveRemoteTs ~/ 1000
+            : effectiveRemoteTs;
+        final remoteDeviceId = (remoteData['deviceId'] as String?) ?? '';
+        final localDeviceId = _currentDeviceId ?? '';
+        final shouldApply =
+            normalizedRemoteTs > localLastModified ||
+            (normalizedRemoteTs == localLastModified &&
+                remoteDeviceId.compareTo(localDeviceId) < 0);
+        return RemoteCheckResult(shouldApplyRemote: shouldApply);
+    }
+  }
+
+  // ── Helper Methods ─────────────────────────────────────────────────────
 
   bool? _remoteEpochIsMillis;
 
@@ -53,6 +309,48 @@ class SyncPullService {
     return null;
   }
 
+  /// ✅ Fix (2026-08-08): يقارن محتوى البيانات الفعلي متجاهلاً الحقول الوصفية
+  /// (timestamps/version/vectorClock/ids). يُستخدم لمنع تخطّي سجل تغيّرت
+  /// بياناته رغم تطابق vectorClock — الحالة التي تحدث عندما يرفع نفس الجهاز
+  /// نفس السجل بقيم مختلفة دون أن يزيد Appwrite الـ VC تلقائياً.
+  static bool _contentEquals(Map<String, dynamic> a, Map<String, dynamic> b) {
+    const skip = {
+      'lastModified',
+      'updatedAt',
+      'version',
+      'vectorClock',
+      'vector_clock',
+      'last_modified',
+      'last_modified_epoch',
+      'updated_at',
+      'createdAt',
+      'created_at',
+      'deletedAt',
+      'deleted_at',
+      'syncTimestamp',
+      'sync_origin',
+      'localUuid',
+      'serverId',
+      'id',
+      'idempotencyKey',
+      'lastModifiedEpoch',
+      'createdAtEpoch',
+      'createdAtIso',
+      'updatedAtIso',
+      'deletedAtIso',
+      '\$id',
+      '\$createdAt',
+      '\$updatedAt',
+      '\$permissions',
+    };
+    final keys = <String>{...a.keys, ...b.keys}..removeWhere(skip.contains);
+    const eq = DeepCollectionEquality();
+    for (final k in keys) {
+      if (!eq.equals(a[k], b[k])) return false;
+    }
+    return true;
+  }
+
   /// يحدد ما إذا كان الطابع الزمني البعيد مُعبَّرًا عنه بالميلي ثانية أم بالثواني.
   /// يُستخدم لبناء delta queries بالوحدة الصحيحة.
   Future<bool> isRemoteEpochMillis() async {
@@ -64,10 +362,18 @@ class SyncPullService {
       final info = appwriteService.getProjectInfo();
       final dbId = info['databaseId'] ?? AppwriteConfig.databaseId;
 
+      // ✅ (2026-08-31) Query.select للحمولات: الكشف كان ينزّل صف rooms
+      // كاملاً (أعرض جدول + بيانات ضيوف) ليقرأ حقول lastModified التي لا
+      // توجد أصلاً في مخطط rooms. نتيجة الكشف يستهلكها اليوم مسارٌ واحد
+      // (bookingNightsDeltaQueries) الذي يتجاهلها — select($id) يجعل
+      // القيمة false حتمياً (كما هي فعلاً) دون أي تنزيل بيانات ضيوف.
       final list = await appwriteService.databases.listDocuments(
         databaseId: dbId,
         collectionId: AppwriteConfig.roomsCollectionId,
-        queries: [Query.limit(1)],
+        queries: [
+          Query.select([r'$id']),
+          Query.limit(1),
+        ],
       );
 
       if (list.documents.isEmpty) {
@@ -92,8 +398,7 @@ class SyncPullService {
       final isMillis = value != null && value > 10000000000;
       _remoteEpochIsMillis = isMillis;
       return isMillis;
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in sync_pull_service.dart: ');
+    } catch (_) {
       _remoteEpochIsMillis = false;
       return false;
     }
@@ -124,7 +429,120 @@ class SyncPullService {
   /// إذا كان lastPullTs <= 0 → يُعيد قائمة فارغة (سحب كامل).
   static const int _safetyWindowSeconds = 15;
 
+  /// استعلام السحب الكامل للكيانات المتزامنة.
+  ///
+  /// لا تُعاد مستندات الـ tombstone (`deletedAt > 0`) إلى هاتف جديد أو
+  /// بعد إعادة السحب الكامل. هذا يمنع إدخال سجل محذوف محلياً ثم ظهوره من
+  /// جديد في الواجهة. نسمح كذلك بالقيمة القديمة `deletedAt = 0` لأنها تعني
+  /// سجلاً نشطاً في الإصدارات السابقة. الحذف الناعم يبقى محفوظاً في Appwrite
+  /// كسجل تاريخي، لكنه ليس جزءاً من بيانات التشغيل النشطة.
+  ///
+  /// ✅ (2026-09-02) استثناء كيانات الآباء FK — [entityNeedsTombstoneParents]:
+  /// استبعاد tombstones الشامل كان يمنع جهازاً جديداً من تنزيل الموظفين
+  /// المحذوفين ناعماً، فيفشل حل FK في salary_withdrawals/salary_cycles
+  /// (المحلل يبحث بالـ serverId) وتُتخطى سجلات مالية كاملة كـ"أيتام" —
+  /// 128 سحوبة (654,500 وحدة) في بيانات الإنتاج. للكيانات هذه تُسمح
+  /// الـ tombstones بالتنزيل (تُدرج صفوفاً غير مرئية deletedAt>0 كالسابق).
+  static List<String> buildFullSyncQueries({bool includeTombstones = false}) =>
+      includeTombstones
+      ? <String>[]
+      : [
+          Query.or([Query.isNull('deletedAt'), Query.equal('deletedAt', 0)]),
+        ];
+
+  /// كيانات "الآباء" المرجعية التي يجب سحب tombstones الخاصة بها حتى على
+  /// جهاز جديد، لأن أبناءها (سجلات مالية) يُحلّ FK ضدّها عبر serverId.
+  ///
+  /// الأدلة (2026-09-02):
+  /// - `_syncEmployees`: "salary_withdrawals و salary_cycles يستخدمان
+  ///   employeeId البعيد الذي يساوي id الموظف على جهاز المصدر. بتخزينه في
+  ///   serverId يمكن حل FK بالبحث عن serverId = remoteEmployeeId".
+  /// - سحابة الإنتاج: الموظفان المحذوفان serverId=11 و serverId=12 مرتبط
+  ///   بهما 128 سحوبة راتب (382,000 + 272,500).
+  /// - نفس قرار "لا ربط خاطئ عبر الأجهزة" المعمول به في resolveBooking
+  ///   (id_resolver.dart) و expenses_adapter: بدون الموظف المحذوف محلياً
+  ///   لا يمكن حل المرجع إطلاقاً — فالسحب ضرورة سلامة بيانات لا رفاهية.
+  static bool entityNeedsTombstoneParents(String entity) =>
+      entity == 'employees';
+
+  /// ✅ (2026-08-30) الفجوتان 3+4 — حساب معرّفات المستندات المتغيرة فعلاً
+  /// بمقارنة metadata الخادم بالخريطة المحلية (sync_remote_meta).
+  ///
+  /// دالة نقية (قابلة للاختبار مباشرة). القاعدة:
+  /// - مستند غائب محلياً أو طابعه اختلف → متغيّر (يُجلب كاملاً).
+  /// - مستند طابعه مطابق → نملك محتوى ذلك الإصدار بالضبط (الخريطة تُكتب
+  ///   بعد نجاح التطبيق فقط) → تُتخطى.
+  /// - [unknownTsDocIds]: مستندات تعذّر قراءة $updatedAt لها من الخادم —
+  ///   تُجلب كاملة احتياطاً بدل المخاطرة بتخطيها.
+  static List<String> computeChangedIds({
+    required Map<String, int> serverMeta,
+    required Map<String, int> localMeta,
+    List<String> unknownTsDocIds = const [],
+  }) {
+    final changed = <String>[];
+    serverMeta.forEach((id, ts) {
+      final local = localMeta[id];
+      if (local == null || local != ts) changed.add(id);
+    });
+    changed.addAll(unknownTsDocIds);
+    return changed;
+  }
+
+  /// ✅ (2026-08-31) استبعاد tombstones من السحب — تقليل السحب على مستوى
+  /// السجل للمحذوف.
+  ///
+  /// سجل محذوف على الخادم وغير معروف محلياً (لا صف له ولا إدخال في
+  /// sync_remote_meta) لا فائدة من تنزيله: كان يُجلب كاملاً (بكل أعمدته
+  /// وبياناته الحساسة) ثم يُدرَج محلياً كصف tombstone غير مرئي عبر فرع
+  /// "غير موجود → أضف دائماً" في [checkAndResolveConflict]. يُتخطى بدل
+  /// ذلك ويُعلَّم في sync_remote_meta كي لا يُعاد تعداده كل دورة.
+  ///
+  /// المحذوف **المعروف** محلياً لا يُتخطى عمداً: توصيل الحذف إلى هذا
+  /// الجهاز يعتمد على تنزيل الـ tombstone وتطبيقه — انظر فرع "tombstone
+  /// يتجاوز VC والطوابع" في [checkAndResolveConflict]. تخطيه هنا يعني
+  /// سجلات شبحية تبقى نشطة محلياً بعد حذفها من جهاز آخر (resurrection).
+  ///
+  /// دالة نقية (قابلة للاختبار مباشرة).
+  static Set<String> tombstoneSkipIds({
+    required Map<String, int> deletedTs,
+    required Map<String, int> localMeta,
+  }) {
+    final skip = <String>{};
+    deletedTs.forEach((id, _) {
+      if (!localMeta.containsKey(id)) skip.add(id);
+    });
+    return skip;
+  }
+
   Future<List<String>> buildDeltaQueries(int lastPullTs) async {
+    // ✅ Sync Safety Wave 2 (2026-08-12): Full Sync Bootstrap Guard.
+    //
+    // قبل هذا الإصلاح، كان الاعتماد فقط على `lastPullTs <= 0` لتحديد
+    // "full sync mode". لكن هذا يعني أن أي lastPullTs > 0 (حتى لو كان
+    // من دورة فاشلة جزئياً) يسمح بـ delta sync — مما قد يفقد سجلات
+    // لم تُسحب بعد.
+    //
+    // الآن: نتحقق من `full_sync_complete` flag أولاً. إذا كان false
+    // (الجهاز لم يكمل أول full sync بنجاح)، نُرجع قائمة فارغة (full fetch)
+    // بغض النظر عن `lastPullTs`.
+    //
+    // **الأداء**: هذه القراءة من SQLite سريعة جداً (single row by PK)
+    // وتحدث مرة واحدة في بداية كل دورة سحب (لا تؤثر على الأداء).
+    final isFullSyncDone = await isFullSyncComplete();
+    // ✅ (2026-08-30) تشخيص أحادي السطر (SYNC_DIAGNOSTIC): لو لاحظت "Full
+    // Sync" في كل دورة فالسبب واحد من هذين المفتاحين — fullSyncComplete=0
+    // (لم يكتمل full sync بنجاح أو فشل كولكشن) أو lastPullTs<=0.
+    _logger.debug(
+      'SYNC_DIAGNOSTIC: lastPullTs=$lastPullTs, '
+      'fullSyncComplete=$isFullSyncDone → '
+      '${(!isFullSyncDone || lastPullTs <= 0) ? 'FULL pull' : 'delta pull'}',
+      tag: 'SYNC_DIAGNOSTIC',
+    );
+    if (!isFullSyncDone) {
+      // الجهاز في مرحلة bootstrap — نُجبر full fetch
+      return [];
+    }
+
     if (lastPullTs <= 0) {
       return [];
     }
@@ -190,8 +608,7 @@ class SyncPullService {
         return ts ~/ 1000;
       }
       return ts;
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in sync_pull_service.dart: ');
+    } catch (_) {
       _logger.warning('Failed to read lastPullTs, using 0', tag: 'SYNC');
       return 0;
     }
@@ -212,8 +629,195 @@ class SyncPullService {
               lastPullTs: drift.Value(ts),
             ),
           );
+      _logger.debug('📍 Updated lastPullTs to $ts', tag: 'SYNC');
     } catch (e) {
       _logger.warning('Failed to update lastPullTs: $e', tag: 'SYNC');
     }
   }
+
+  // ── Per-Entity Pull Timestamps (2026-08-30) ─────────────────────────────
+  //
+  // ✅ العلاج الجذري للمؤشر العالمي الواحد: كل كيان يحمل مؤشر سحب خاصاً به
+  // ويتقدم باستقلال. فشل كيان ما (مثل guest_infos البطيء) لم يعُد يجمّد
+  // مؤشر الكيانات الأخرى — وبالتالي لا تُعاد سحب deltas سليمة في كل دورة.
+  //
+  // التخزين في SharedPreferences (نفس نمط sync_last_pull_booking_nights
+  // الموجود) بدل عمود جديد في sync_state — لا ترحيل قاعدة بيانات ولا
+  // إعادة توليد كود Drift. القراءة من SPrefs مُخزّنة في الذاكرة بعد أول
+  // تحميل فتكلفتها مهملة مقابل طلبات الشبكة.
+
+  /// مفتاح SharedPreferences لخريطة مؤشرات السحب لكل كيان.
+  static const String _entityPullTsMapKey = 'sync_entity_pull_ts_map';
+
+  /// يقرأ خريطة مؤشرات السحب لكل كيان.
+  Future<Map<String, int>> getEntityPullTsMap() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_entityPullTsMapKey);
+      if (raw == null || raw.isEmpty) return {};
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return decoded.map((k, v) => MapEntry(k, (v as num).toInt()));
+    } catch (e) {
+      _logger.warning('Failed to read entity pull ts map: $e', tag: 'SYNC');
+      return {};
+    }
+  }
+
+  /// يقرأ مؤشر السحب الخاص بكيان محدد.
+  ///
+  /// ✅ ترحيل كسول: الكيانات غير الموجودة في الخريطة تُهيّأ من المؤشر
+  /// العالمي (`lastPullTs`) — هكذا تبقى دورة أول تشغيل بعد هذا التحديث
+  /// مطابقة تماماً للسلوك السابق (نفس cutoff لكل الكيانات)، وتبدأ
+  /// الاستقلالية من الدورة التالية دون أي سحب كامل إضافي.
+  Future<int> getEntityPullTs(String entity) async {
+    final map = await getEntityPullTsMap();
+    if (map.containsKey(entity)) return map[entity] ?? 0;
+    final globalTs = await getLastPullTs();
+    await updateEntityPullTs(entity, globalTs);
+    return globalTs;
+  }
+
+  /// يحدّث مؤشر السحب الخاص بكيان محدد — **تقدّم أحادي الاتجاه فقط**
+  /// (المؤشر لا يتراجع أبداً حتى لو وصلت قيمة أصغر بخطأ ما).
+  Future<void> updateEntityPullTs(String entity, int ts) async {
+    try {
+      final map = await getEntityPullTsMap();
+      final existing = map[entity] ?? 0;
+      if (ts <= existing) return;
+      map[entity] = ts;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_entityPullTsMapKey, jsonEncode(map));
+    } catch (e) {
+      _logger.warning(
+        'Failed to update entity pull ts ($entity): $e',
+        tag: 'SYNC',
+      );
+    }
+  }
+
+  /// يحذف خريطة مؤشرات الكيانات (تُستخدم عند إعادة ضبط المزامنة —
+  /// ستعاد تهيئتها كسولاً من المؤشر العالمي في أول دورة تالية).
+  Future<void> clearEntityPullTsMap() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_entityPullTsMapKey);
+    } catch (_) {}
+  }
+
+  /// ✅ استعلامات delta خاصة بكيان واحد بناءً على مؤشره الخاص.
+  ///
+  /// - يُستدعى فقط في وضع delta (`isDelta == true` محسوب مسبقاً عبر
+  ///   `buildDeltaQueries` الذي يتحقق من `full_sync_complete`).
+  /// - مؤشر ≤ 0 (كيان بلا تاريخ) → قائمة فارغة = سحب كامل **لهذا الكيان
+  ///   وحده** دون بقية الكيانات.
+  /// - نفس نافذة الأمان 15 ثانية المستخدمة في المؤشر العالمي.
+  Future<List<String>> entityDeltaQueries(String entity) async {
+    final ts = await getEntityPullTs(entity);
+    if (ts <= 0) return [];
+    final cutoffSeconds = ts - _safetyWindowSeconds;
+    final cutoffIso = DateTime.fromMillisecondsSinceEpoch(
+      cutoffSeconds * 1000,
+      isUtc: true,
+    ).toIso8601String();
+    return [Query.greaterThan(r'$updatedAt', cutoffIso)];
+  }
+
+  // ── Full Sync Bootstrap Flag ──────────────────────────────────────────
+
+  /// ✅ Sync Safety Wave 2 (2026-08-12): هل اكتملت أول full sync؟
+  ///
+  /// القيمة الافتراضية: 0 (false) — الجهاز لم يكمل بعد أول full sync.
+  /// تُضبط على 1 (true) فقط بعد نجاح دورة سحب كاملة بدون فشل أي collection.
+  ///
+  /// **الاستخدام**: تستخدم `buildDeltaQueries` هذا الـ flag لتحديد ما إذا كان
+  /// يجب السماح بـ delta sync. إذا كان `full_sync_complete = 0`، فإن
+  /// `buildDeltaQueries` تُرجع قائمة فارغة (full fetch) بغض النظر عن
+  /// `lastPullTs`، لضمان عدم تحول الجهاز لـ delta mode قبل اكتمال
+  /// جميع الكولكشنات.
+  ///
+  /// **متى تُستدعى**: في بداية كل دورة سحب لتحديد الوضع (full vs delta).
+  Future<bool> isFullSyncComplete() async {
+    try {
+      final state = await (database.select(
+        database.syncState,
+      )..where((t) => t.id.equals(1))).getSingleOrNull();
+      final flag = state?.fullSyncComplete ?? 0;
+      return flag == 1;
+    } catch (_) {
+      // في حالة الخطأ، نُرجع false (تحفظياً) — نُجبر full sync
+      _logger.warning(
+        'Failed to read fullSyncComplete flag — assuming false (full sync required)',
+        tag: 'SYNC',
+      );
+      return false;
+    }
+  }
+
+  /// ✅ Sync Safety Wave 2 (2026-08-12): ضبط full_sync_complete = 1.
+  ///
+  /// تُستدعى فقط بعد التحقق من أن `failedCollections.isEmpty` في دورة سحب
+  /// كاملة. هذا يضمن أن الجهاز لا يدخل delta mode قبل أن يكتمل سحب
+  /// كل الكولكشنات بنجاح.
+  Future<void> markFullSyncComplete() async {
+    try {
+      await database
+          .into(database.syncState)
+          .insertOnConflictUpdate(
+            const SyncStateCompanion(
+              id: drift.Value(1),
+              fullSyncComplete: drift.Value(1),
+            ),
+          );
+      _logger.info(
+        '✅ Full sync marked complete — delta sync enabled',
+        tag: 'SYNC',
+      );
+    } catch (e) {
+      _logger.warning('Failed to mark full sync complete: $e', tag: 'SYNC');
+    }
+  }
+
+  /// ✅ Sync Safety Wave 2 (2026-08-12): إعادة ضبط full_sync_complete = 0.
+  ///
+  /// تُستدعى عند الحاجة لإعادة full sync (مثلاً: تسجيل خروج + دخول بمستخدم
+  /// جديد، استعادة نسخة احتياطية، أو اكتشاف عدم تطابق الـ schema).
+  Future<void> resetFullSyncComplete() async {
+    try {
+      await database
+          .into(database.syncState)
+          .insertOnConflictUpdate(
+            const SyncStateCompanion(
+              id: drift.Value(1),
+              fullSyncComplete: drift.Value(0),
+            ),
+          );
+      _logger.info(
+        '🔄 Full sync flag reset — full sync required next cycle',
+        tag: 'SYNC',
+      );
+    } catch (e) {
+      _logger.warning('Failed to reset full sync flag: $e', tag: 'SYNC');
+    }
+  }
+}
+
+/// ✅ Audit Fix (2026-08-06): نتيجة فحص التعارض.
+///
+/// تُماثل `_RemoteNewerResult` في AppwriteSyncManager لكنها public
+/// لتسمح لـ SyncPullService بإرجاعها مباشرة.
+class RemoteCheckResult {
+  const RemoteCheckResult({
+    required this.shouldApplyRemote,
+    this.mergedData,
+    this.pushedToRemote = false,
+  });
+
+  /// هل يجب تطبيق البيانات البعيدة؟
+  final bool shouldApplyRemote;
+
+  /// البيانات المدموجة (فقط عند 3-way merge ناجح).
+  final Map<String, dynamic>? mergedData;
+
+  /// هل يجب رفع النتيجة للسحابة؟ (فقط عند 3-way merge مع pushedToRemote=true).
+  final bool pushedToRemote;
 }

@@ -23,6 +23,7 @@
 /// to the current AppDatabase API (see test/restore_fix_service_test.dart
 /// for an example of the new API usage).
 /// ============================================================
+library;
 
 import 'package:flutter_test/flutter_test.dart';
 

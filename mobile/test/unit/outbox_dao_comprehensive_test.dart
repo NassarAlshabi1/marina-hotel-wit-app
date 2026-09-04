@@ -7,6 +7,7 @@
 
 // ignore_for_file: lines_longer_than_80_chars, avoid_redundant_argument_values, unused_local_variable, unnecessary_parenthesis
 
+import 'package:drift/drift.dart' as drift;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
@@ -227,6 +228,11 @@ void main() {
         );
         // delivered_to_secondary افتراضياً true (لأن SecondaryAppwriteConfig غير مُهيّأ)
         // delivered_to_primary = false (افتراضي)
+        // ✅ Sync Safety Fix: set to processing before markDelivered
+        await (db.customStatement(
+          'UPDATE outbox SET processing_status = ? WHERE id = ?',
+          ['processing', id],
+        ));
         await outboxDao.markDeliveredToPrimary(id);
         // منذ delivered_to_secondary = true و delivered_to_primary = true → يحذف
         final after = await (db.select(db.outbox)).get();
@@ -250,6 +256,11 @@ void main() {
           'UPDATE outbox SET delivered_to_secondary = 0 WHERE id = ?',
           [id],
         );
+        // ✅ Sync Safety Fix: set to processing before markDelivered
+        await (db.customStatement(
+          'UPDATE outbox SET processing_status = ? WHERE id = ?',
+          ['processing', id],
+        ));
         await outboxDao.markDeliveredToPrimary(id);
         final updated = await (db.select(
           db.outbox,
@@ -266,8 +277,11 @@ void main() {
     );
 
     test(
-      'markDeliveredToSecondary يحذف السجل عندما يكون مُسلّماً للرئيسي أيضاً',
+      '✅ Wave3: markDeliveredToSecondary no-op — السجل يُحذف فقط عبر markDeliveredToPrimary',
       () async {
+        // ✅ Sync Simplification (2026-08-10): Secondary sync معطّل بالكامل.
+        // markDeliveredToSecondary أصبحت no-op. السجل يُحذف تلقائياً عند
+        // تسليمه للرئيسي فقط (لأن delivered_to_secondary=true دائماً في schema).
         final id = await outboxDao.merge(
           entity: 'rooms',
           op: 'create',
@@ -276,30 +290,30 @@ void main() {
           clientTs: 100,
           source: 'local',
         );
+        // تعيين حالة processing (مطلوبة قبل markDelivered)
         await db.customStatement(
-          'UPDATE outbox SET delivered_to_secondary = 0 WHERE id = ?',
-          [id],
+          'UPDATE outbox SET processing_status = ? WHERE id = ?',
+          ['processing', id],
         );
-        // سلّم للرئيسي أولاً
+        // markDeliveredToPrimary يحذف السجل فوراً (لأن secondary=true دائماً)
         await outboxDao.markDeliveredToPrimary(id);
         expect(
           await (db.select(db.outbox)).get(),
-          hasLength(1),
-          reason: 'لم يُسلّم للثانوي بعد',
-        );
-        // ثم سلّم للثانوي — يجب حذف السجل
-        await outboxDao.markDeliveredToSecondary(id);
-        expect(
-          await (db.select(db.outbox)).get(),
           isEmpty,
-          reason: 'بعد تسليم الوجهتين، يُحذف',
+          reason: 'السجل يُحذف فور تسليمه للرئيسي — لا حاجة لـ secondary',
         );
+
+        // markDeliveredToSecondary على id محذوف يجب أن تكون no-op آمنة
+        // (لا رمي استثناء)
+        await outboxDao.markDeliveredToSecondary(id);
       },
     );
 
     test(
-      'دورة حياة كاملة: pending → processing → completed + تسليم كلا الوجهتين',
+      '✅ Wave3: دورة حياة مبسطة — pending → processing → markDeliveredToPrimary → حذف',
       () async {
+        // ✅ Sync Simplification (2026-08-10): دورة حياة أبسط — لا حاجة
+        // لـ markDeliveredToSecondary منفصلة.
         // 1) إنشاء سجل
         final id = await outboxDao.merge(
           entity: 'rooms',
@@ -309,10 +323,6 @@ void main() {
           clientTs: 100,
           source: 'local',
         );
-        await db.customStatement(
-          'UPDATE outbox SET delivered_to_secondary = 0 WHERE id = ?',
-          [id],
-        );
         expect(await outboxDao.countPendingPushable(), 1);
 
         // 2) takeBatch = processing
@@ -320,21 +330,18 @@ void main() {
         expect(batch.length, 1);
         expect(batch.first.processingStatus, 'processing');
 
-        // 3) markCompleted + markDeliveredToPrimary
+        // 3) markCompleted + markDeliveredToPrimary → حذف فوري
         await outboxDao.markCompleted([id]);
-        await outboxDao.markDeliveredToPrimary(id);
-        expect(
-          await outboxDao.countPendingPushable(),
-          0,
-          reason: 'اكتمل للرئيسي',
+        // ✅ Sync Safety Fix: set to processing before markDelivered
+        await db.customStatement(
+          'UPDATE outbox SET processing_status = ? WHERE id = ?',
+          ['processing', id],
         );
-
-        // 4) markDeliveredToSecondary — يحذف السجل
-        await outboxDao.markDeliveredToSecondary(id);
+        await outboxDao.markDeliveredToPrimary(id);
         expect(
           await (db.select(db.outbox)).get(),
           isEmpty,
-          reason: 'حُذف بعد تسليم الوجهتين',
+          reason: 'حُذف فور تسليمه للرئيسي — secondary=true دائماً',
         );
       },
     );
@@ -677,18 +684,74 @@ void main() {
     );
 
     test(
-      'cleanupForMissingEntities يحذف سجلات pending/failed للكيانات غير الموجودة',
+      '✅ Wave4: cleanupForMissingEntities يحذف فقط سجلات completed (لا pending/failed)',
       () async {
-        final id = await outboxDao.merge(
+        // ✅ Sync Safety Wave 4 (2026-08-12): cleanupForMissingEntities الآن
+        // تحذف فقط السجلات 'completed' — تحمي التغييرات المعلقة من الفقدان.
+        // السيناريو الخطير: المستخدم يعدّل غرفة → outbox `create` pending
+        // → المستخدم يحذف الغرفة فعلياً → الكيان غير موجود.
+        // قبل الإصلاح: الكود يحذف العنصر → فقدان صامت.
+        // بعد الإصلاح: العنصر يُترك ليُعاد في دورة push القادمة.
+
+        // 1. سجل pending — يجب أن يُترك (لا حذف)
+        final idPending = await outboxDao.merge(
           entity: 'rooms',
           op: 'create',
-          localUuid: 'missing',
+          localUuid: 'missing-pending',
           payload: {},
           clientTs: 100,
           source: 'local',
         );
-        final cleaned = await outboxDao.cleanupForMissingEntities(['missing']);
-        expect(cleaned, 1);
+        // 2. سجل failed — يجب أن يُترك
+        final idFailed = await outboxDao.merge(
+          entity: 'rooms',
+          op: 'update',
+          localUuid: 'missing-failed',
+          payload: {},
+          clientTs: 200,
+          source: 'local',
+        );
+        // تحويل لـ 'failed'
+        await (db.update(db.outbox)..where((t) => t.id.equals(idFailed))).write(
+          const OutboxCompanion(processingStatus: drift.Value('failed')),
+        );
+        // 3. سجل completed — يجب أن يُحذف
+        final idCompleted = await outboxDao.merge(
+          entity: 'rooms',
+          op: 'delete',
+          localUuid: 'missing-completed',
+          payload: {},
+          clientTs: 300,
+          source: 'local',
+        );
+        // تحويل لـ 'completed'
+        await (db.update(
+          db.outbox,
+        )..where((t) => t.id.equals(idCompleted))).write(
+          const OutboxCompanion(processingStatus: drift.Value('completed')),
+        );
+
+        // تنفيذ cleanup
+        final cleaned = await outboxDao.cleanupForMissingEntities([
+          'missing-pending',
+          'missing-failed',
+          'missing-completed',
+        ]);
+
+        // فقط 1 يجب أن يُحذف (الـ completed)
+        expect(
+          cleaned,
+          1,
+          reason:
+              'فقط سجل completed يجب أن يُحذف — pending/failed تُترك للأمان',
+        );
+        // تحقق أن pending و failed ما زالا موجودين
+        final remaining = await (db.select(db.outbox)).get();
+        expect(remaining.length, 2);
+        final remainingUuids = remaining.map((r) => r.localUuid).toSet();
+        expect(remainingUuids.contains('missing-pending'), isTrue);
+        expect(remainingUuids.contains('missing-failed'), isTrue);
+        expect(remainingUuids.contains('missing-completed'), isFalse);
       },
     );
 
@@ -781,8 +844,10 @@ void main() {
 
   group('OutboxDao — bulk delivery flags', () {
     test(
-      'markAllLocalAsUndeliveredToSecondary يجعل كل السجلات المحلية غير مُسلّمة للثانوي',
+      '✅ Wave3: markAllLocalAsUndeliveredToSecondary no-op (secondary معطّل)',
       () async {
+        // ✅ Sync Simplification (2026-08-10): markAllLocalAsUndeliveredToSecondary
+        // أصبحت no-op — لا وجهة ثانوية. تُرجع 0 دائماً ولا تغيّر أي flags.
         await outboxDao.merge(
           entity: 'rooms',
           op: 'create',
@@ -800,9 +865,18 @@ void main() {
           source: 'restore',
         );
         final changed = await outboxDao.markAllLocalAsUndeliveredToSecondary();
-        expect(changed, 1, reason: 'فقط source=local يتأثر');
+        expect(changed, 0, reason: 'no-op يجب أن يُرجع 0 — لا تغيير');
         final pending = await outboxDao.countPendingForSecondary();
-        expect(pending, 1);
+        expect(pending, 0, reason: 'لا سجلات معلّقة للثانوي (secondary معطّل)');
+        // تحقق أن الـ flags لم تتغير
+        final records = await (db.select(db.outbox)).get();
+        for (final r in records) {
+          expect(
+            r.deliveredToSecondary,
+            isTrue,
+            reason: 'delivered_to_secondary يجب أن يبقى true (default)',
+          );
+        }
       },
     );
 

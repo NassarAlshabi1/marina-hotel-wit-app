@@ -8,7 +8,6 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../local_db.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 part 'ancestor_cache_dao.g.dart';
 
@@ -18,17 +17,37 @@ class AncestorCacheDao extends DatabaseAccessor<AppDatabase>
   AncestorCacheDao(super.db);
 
   /// حفظ نسخة من السجل كما جاءت من السحابة آخر مرة
+  ///
+  /// ✅ Sync Safety Fix (2026-08-10): استخدام `insertOnConflictUpdate` كان
+  /// يفشل عند وجود UNIQUE constraint على (entity, local_uuid) لأن Drift
+  /// يُولّد `ON CONFLICT (id)` (primary key) بدلاً من `ON CONFLICT (entity,
+  /// local_uuid)`. بما أن `id` autoIncrement، لا يحدث تعارض على `id`،
+  /// لكن UNIQUE constraint على (entity, local_uuid) يفشل بصمت ويُحوّل
+  /// المسار إلى LWW fallback في checkAndResolveConflict.
+  ///
+  /// الحل: حذف السجل الموجود يدوياً قبل الإدراج. هذا أبسط وأكثر موثوقية
+  /// من الاعتماد على `insertOnConflictUpdate` الذي لا يستهدف unique keys
+  /// بشكل صحيح في جميع إصدارات Drift.
   Future<void> saveAncestor({
     required String entity,
     required String localUuid,
     required Map<String, dynamic> data,
   }) async {
-    await into(ancestorCache).insertOnConflictUpdate(
+    // حذف السجل الموجود (إن وُجد) قبل الإدراج لتفادي UNIQUE constraint
+    await (delete(ancestorCache)..where(
+          (t) => t.entity.equals(entity) & t.localUuid.equals(localUuid),
+        ))
+        .go();
+
+    await into(ancestorCache).insert(
       AncestorCacheCompanion.insert(
         entity: entity,
         localUuid: localUuid,
         dataJson: jsonEncode(data),
-        capturedAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        // ✅ P0-2 Audit Fix (2026-08-06): استخدام مللي ثانية (epoch ms)
+        // بدلاً من ثواني. توحيد مع باقي الجداول (Outbox.clientTs,
+        // SyncState.lastServerTs). Migration 51 يُحدّث القيم الموجودة.
+        capturedAt: DateTime.now().millisecondsSinceEpoch,
       ),
     );
   }
@@ -48,8 +67,7 @@ class AncestorCacheDao extends DatabaseAccessor<AppDatabase>
     if (row == null) return null;
     try {
       return jsonDecode(row.dataJson) as Map<String, dynamic>;
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in ancestor_cache_dao.dart: ');
+    } catch (_) {
       return null;
     }
   }
@@ -63,12 +81,12 @@ class AncestorCacheDao extends DatabaseAccessor<AppDatabase>
   }
 
   /// تنظيف السجلات القديمة (أقدم من maxAgeDays)
+  ///
+  /// ✅ P0-2 Audit Fix: استخدام مللي ثانية بدلاً من ثواني.
   Future<int> cleanupOldEntries({int maxAgeDays = 30}) async {
-    final cutoff =
-        DateTime.now()
-            .subtract(Duration(days: maxAgeDays))
-            .millisecondsSinceEpoch ~/
-        1000;
+    final cutoff = DateTime.now()
+        .subtract(Duration(days: maxAgeDays))
+        .millisecondsSinceEpoch;
     return (delete(
       ancestorCache,
     )..where((t) => t.capturedAt.isSmallerThanValue(cutoff))).go();

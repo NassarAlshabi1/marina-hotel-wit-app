@@ -168,14 +168,8 @@ class ExportService {
     }
 
     // Calculate totals
-    final totalSalaries = salaries.fold<double>(
-      0,
-      (sum, s) => sum + s.amount,
-    );
-    final totalExpenses = expenses.fold<double>(
-      0,
-      (sum, e) => sum + e.amount,
-    );
+    final totalSalaries = salaries.fold<double>(0, (sum, s) => sum + s.amount);
+    final totalExpenses = expenses.fold<double>(0, (sum, e) => sum + e.amount);
     final grandTotal = totalSalaries + totalExpenses;
 
     // Summary data
@@ -507,10 +501,9 @@ class ExportService {
 
   /// مشاركة ملف عبر نظام المشاركة في الجهاز
   Future<void> shareFile(File file, {String? subject}) async {
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      subject: subject ?? 'Marina Hotel Export',
-    );
+    await Share.shareXFiles([
+      XFile(file.path),
+    ], subject: subject ?? 'Marina Hotel Export');
   }
 
   /// حفظ الملف في مجلد التحميلات (إن أمكن)
@@ -520,8 +513,7 @@ class ExportService {
       if (dir == null) return null;
 
       final downloadsDir = Directory('${dir.path}/Download');
-      // avoid_slow_async_io: existsSync is faster than `await exists()` for local dirs
-      if (!downloadsDir.existsSync()) {
+      if (!await downloadsDir.exists()) {
         await downloadsDir.create(recursive: true);
       }
 

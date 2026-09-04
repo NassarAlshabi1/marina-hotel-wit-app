@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (avoid_dynamic_calls)
-// ignore_for_file: avoid_dynamic_calls
 import 'package:drift/drift.dart';
 
 /// Serializer يسمح بالتعامل مع قيم null أو أنواع غير متوقعة أثناء تحويل JSON
@@ -168,6 +166,8 @@ class BackupTableData {
     required this.guestInfosData,
     required this.salaryWithdrawalsData,
     required this.salaryCarryOverLogsData,
+    required this.inventoryItemsData,
+    required this.inventoryTransactionsData,
   });
 
   final List<dynamic> roomsData;
@@ -190,6 +190,8 @@ class BackupTableData {
   final List<dynamic> guestInfosData;
   final List<dynamic> salaryWithdrawalsData;
   final List<dynamic> salaryCarryOverLogsData;
+  final List<dynamic> inventoryItemsData;
+  final List<dynamic> inventoryTransactionsData;
 
   /// إجمالي عدد السجلات في جميع الجداول
   int get totalRecords =>
@@ -212,7 +214,9 @@ class BackupTableData {
       paymentVoidsData.length +
       guestInfosData.length +
       salaryWithdrawalsData.length +
-      salaryCarryOverLogsData.length;
+      salaryCarryOverLogsData.length +
+      inventoryItemsData.length +
+      inventoryTransactionsData.length;
 
   /// بناء خريطة بيانات النسخ الاحتياطي من هذه الحاوية
   Map<String, dynamic> toBackupDataMap({
@@ -243,6 +247,8 @@ class BackupTableData {
       guestInfosData: guestInfosData,
       salaryWithdrawalsData: salaryWithdrawalsData,
       salaryCarryOverLogsData: salaryCarryOverLogsData,
+      inventoryItemsData: inventoryItemsData,
+      inventoryTransactionsData: inventoryTransactionsData,
       blacklistData: blacklistData,
       whatsappSettings: whatsappSettings,
       syncStateData: syncStateData,
@@ -274,6 +280,8 @@ Map<String, dynamic> buildBackupDataMap({
   required List<dynamic> guestInfosData,
   required List<dynamic> salaryWithdrawalsData,
   required List<dynamic> salaryCarryOverLogsData,
+  required List<dynamic> inventoryItemsData,
+  required List<dynamic> inventoryTransactionsData,
   List<dynamic>? blacklistData,
   Map<String, dynamic>? whatsappSettings,
   Map<String, dynamic>? syncStateData,
@@ -309,6 +317,10 @@ Map<String, dynamic> buildBackupDataMap({
     'salary_withdrawals': salaryWithdrawalsData.map((s) => s.toJson()).toList(),
     'salary_carry_over_logs': salaryCarryOverLogsData
         .map((s) => s.toJson())
+        .toList(),
+    'inventory_items': inventoryItemsData.map((item) => item.toJson()).toList(),
+    'inventory_transactions': inventoryTransactionsData
+        .map((transaction) => transaction.toJson())
         .toList(),
   };
 

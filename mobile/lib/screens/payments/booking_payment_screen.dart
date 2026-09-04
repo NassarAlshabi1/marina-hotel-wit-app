@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 // ignore_for_file: use_build_context_synchronously
 // ignore_for_file: unused_element
 
@@ -9,7 +7,6 @@ import 'dart:ui' as ui;
 
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
@@ -35,13 +32,25 @@ import '../../utils/time.dart';
 import 'payment_history_screen.dart';
 import 'widgets/actions_tab.dart';
 import 'widgets/payment_summary_card.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../../utils/english_digits_input_formatter.dart';
 
 class BookingPaymentScreen extends ConsumerStatefulWidget {
   const BookingPaymentScreen({
     required this.booking,
+    this.refreshDerivedFieldsOnInit = true,
+    this.listenToHotelDayTicker = true,
     super.key,
   });
   final db.Booking booking;
+
+  /// يظل مفعّلاً في الإنتاج؛ يُعطّل فقط في اختبارات بناء الواجهة المعزولة
+  /// حتى لا يقيس الـ benchmark كتابة قاعدة البيانات أو تفعيل المزامنة.
+  final bool refreshDerivedFieldsOnInit;
+
+  /// يبقى الاشتراك مفعلاً في التطبيق؛ يوقف في benchmark الواجهة المعزول
+  /// لأن مؤقت اليوم الفندقي العام لا يقيس بناء شاشة الدفع.
+  final bool listenToHotelDayTicker;
 
   @override
   ConsumerState<BookingPaymentScreen> createState() =>
@@ -160,8 +169,12 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     _phoneController = TextEditingController(text: widget.booking.guestPhone);
     _currentGuestPhone = widget.booking.guestPhone;
     _checkForDebts();
-    _refreshBookingNights();
-    _startHotelDayAutoRefresh();
+    if (widget.refreshDerivedFieldsOnInit) {
+      unawaited(_refreshBookingNights());
+    }
+    if (widget.listenToHotelDayTicker) {
+      _startHotelDayAutoRefresh();
+    }
   }
 
   /// بدء الاستماع للتيار العالمي لبداية اليوم الفندقي الجديد
@@ -194,10 +207,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     }
   }
 
+  /// يحدّث الحقول المشتقة للعرض فقط؛ فتح الشاشة ليس تغييراً من المستخدم.
+  /// لذلك لا ينبغي أن ينشئ Outbox أو يغيّر قائمة التغييرات المحلية.
   Future<void> _refreshBookingNights() async {
     final db = ref.read(databaseProvider);
     final derivedService = BookingDerivedFieldsService(db);
-    await derivedService.refreshForBookingId(widget.booking.id);
+    await derivedService.refreshForBookingId(
+      widget.booking.id,
+      enqueueOutbox: false,
+    );
   }
 
   DateTime? _parseDateTime(String? value) => DateParser.parse(value);
@@ -214,7 +232,8 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       discountStartDate.year,
       discountStartDate.month,
       discountStartDate.day,
-      14,
+      HotelTimeEngine.boundaryHour,
+      HotelTimeEngine.boundaryMinute,
     );
     final effectiveStart = discountDayStart.isAfter(checkin)
         ? discountDayStart
@@ -695,6 +714,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           child: TextFormField(
             controller: _phoneController,
             keyboardType: TextInputType.phone,
+            inputFormatters: const [englishIntegerInputFormatter],
             decoration: const InputDecoration(
               labelText: 'رقم هاتف النزيل',
               border: OutlineInputBorder(),
@@ -950,9 +970,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'^\d+')),
-                    ],
+                    inputFormatters: const [englishIntegerInputFormatter],
                   ),
 
                   const SizedBox(height: 12),
@@ -967,7 +985,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                       ),
                       keyboardType: TextInputType.number,
                       maxLength: 4,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      inputFormatters: const [englishIntegerInputFormatter],
                     ),
                     const SizedBox(height: 12),
                   ],
@@ -1072,17 +1090,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         message: message.toString(),
       );
       if (result.quotaMessage != null && mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result.quotaMessage!),
             backgroundColor: Colors.orange,
           ),
         );
       }
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in booking_payment_screen.dart: ');
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('تعذّر إرسال رسالة واتساب')),
@@ -1395,17 +1410,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         message: message,
       );
       if (result.quotaMessage != null && mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result.quotaMessage!),
             backgroundColor: Colors.orange,
           ),
         );
       }
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in booking_payment_screen.dart: ');
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('تعذّر إرسال رسالة واتساب')),
@@ -1420,7 +1432,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final dbInstance = ref.read(databaseProvider);
     final derivedService = BookingDerivedFieldsService(dbInstance);
 
-    await derivedService.refreshForBookingId(widget.booking.id);
+    // الحساب التمهيدي للعرض/التحقق لا يمثل عملية حفظ؛ لا تنشئ Outbox هنا.
+    await derivedService.refreshForBookingId(
+      widget.booking.id,
+      enqueueOutbox: false,
+    );
 
     final room = await roomsRepo.watchByNumber(widget.booking.roomNumber).first;
     final double roomRate = room?.price ?? 0;
@@ -1638,7 +1654,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         if (needsExtension) {
           await bookingsRepo.update(
             widget.booking.id,
-            checkoutDate: _formatDateTime(newCheckout!),
+            checkoutDate: _formatDateTime(newCheckout ?? DateTime.now()),
             expectedNights: newExpectedNights,
             notes: widget.booking.notes != null
                 ? '${widget.booking.notes}\nتمديد تلقائي: $extraNights ${extraNights == 1 ? 'ليلة' : 'ليالي'}'
@@ -1734,9 +1750,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('تعذّر تسجيل الدفعة: $e'),
             backgroundColor: Colors.red,
@@ -1969,9 +1983,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         : null;
 
     if (plannedCheckout == null || !now.isBefore(plannedCheckout)) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
             'لا يوجد مغادرة مبكرة — الحجز انتهى أو لا يوجد تاريخ مغادرة مخطط',
@@ -2205,11 +2217,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         revenueType: 'room',
       );
 
-      // 3. تحرير الغرفة
+      // 3. تحرير الغرفة فوراً (تغيير الحالة إلى شاغرة لتظهر باللون الأخضر)
       final room = await roomsRepo
           .watchByNumber(widget.booking.roomNumber)
           .first;
       if (room != null) {
+        dlog(
+          () =>
+              '🏠 [EarlyCheckout] Updating room ${room.roomNumber} status to available',
+        );
         await roomsRepo.update(room.id, status: 'شاغرة');
       }
 
@@ -2226,15 +2242,17 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             .read(appwriteSyncManagerProvider)
             .pushLocalChanges()
             .then((pushedCount) {
-              debugPrint(
-                '📤 [EarlyCheckout] push-only to Appwrite Cloud: '
-                '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred (will retry via outbox)"}',
+              dlog(
+                () =>
+                    '📤 [EarlyCheckout] push-only to Appwrite Cloud: '
+                    '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred (will retry via outbox)"}',
               );
             })
             .catchError((Object e) {
-              debugPrint(
-                '⚠️ [EarlyCheckout] push to Appwrite Cloud failed: $e — '
-                'سيتم إعادة المحاولة تلقائياً عبر outbox',
+              dlog(
+                () =>
+                    '⚠️ [EarlyCheckout] push to Appwrite Cloud failed: $e — '
+                    'سيتم إعادة المحاولة تلقائياً عبر outbox',
               );
             }),
       );
@@ -2259,7 +2277,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
       );
     } catch (e) {
-      debugPrint('❌ خطأ في المغادرة المبكرة: $e');
+      dlog(() => '❌ خطأ في المغادرة المبكرة: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2298,17 +2316,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         message: message,
       );
       if (result.quotaMessage != null && mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result.quotaMessage!),
             backgroundColor: Colors.orange,
           ),
         );
       }
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in booking_payment_screen.dart: ');
+    } catch (_) {
       // تجاهل الأخطاء
     }
   }
@@ -2387,13 +2402,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             .read(appwriteSyncManagerProvider)
             .pushLocalChanges()
             .then((pushedCount) {
-              debugPrint(
-                '📤 [CreateDebt] push-only to Appwrite Cloud: '
-                '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred"}',
+              dlog(
+                () =>
+                    '📤 [CreateDebt] push-only to Appwrite Cloud: '
+                    '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred"}',
               );
             })
             .catchError((Object e) {
-              debugPrint('⚠️ [CreateDebt] push failed: $e');
+              dlog(() => '⚠️ [CreateDebt] push failed: $e');
             }),
       );
 
@@ -2416,11 +2432,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
       );
     } catch (e) {
-      debugPrint('❌ خطأ في إنشاء الدين: $e');
+      dlog(() => '❌ خطأ في إنشاء الدين: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل إنشاء الدين: $e'),
           backgroundColor: Colors.red,
@@ -2445,9 +2459,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final currentUser = ref.read(authProvider).currentUser;
     if (currentUser == null || !currentUser.isAdmin) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('⚠️ صلاحية الخصم متاحة للمدير فقط'),
           backgroundColor: Colors.red,
@@ -2502,6 +2514,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
+                  inputFormatters: const [englishIntegerInputFormatter],
                   decoration: const InputDecoration(
                     hintText: '0',
                     suffixText: 'ريال',
@@ -2542,9 +2555,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final amount = double.tryParse(amountStr) ?? 0;
     if (amount <= 0) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('⚠️ المبلغ غير صالح'),
           backgroundColor: Colors.red,
@@ -2583,13 +2594,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             .read(appwriteSyncManagerProvider)
             .pushLocalChanges()
             .then((pushedCount) {
-              debugPrint(
-                '📤 [DiscountNights] push to Appwrite: '
-                '${pushedCount > 0 ? "success ($pushedCount)" : "deferred"}',
+              dlog(
+                () =>
+                    '📤 [DiscountNights] push to Appwrite: '
+                    '${pushedCount > 0 ? "success ($pushedCount)" : "deferred"}',
               );
             })
             .catchError((Object e) {
-              debugPrint('⚠️ [DiscountNights] push failed: $e');
+              dlog(() => '⚠️ [DiscountNights] push failed: $e');
             }),
       );
 
@@ -2604,11 +2616,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
       );
     } catch (e) {
-      debugPrint('❌ خطأ في تطبيق الخصم: $e');
+      dlog(() => '❌ خطأ في تطبيق الخصم: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('فشل تطبيق الخصم: $e'),
           backgroundColor: Colors.red,
@@ -2650,10 +2660,15 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         actualCheckout: nowIso,
         calculatedNights: actualNights,
       );
+      // 2. تحرير الغرفة فوراً (تغيير الحالة إلى شاغرة لتظهر باللون الأخضر)
       final room = await roomsRepo
           .watchByNumber(widget.booking.roomNumber)
           .first;
       if (room != null) {
+        dlog(
+          () =>
+              '🏠 [Checkout] Updating room ${room.roomNumber} status to available',
+        );
         await roomsRepo.update(room.id, status: 'شاغرة');
       }
       // ✅ تسجيل تغيير المزامنة بعد تحرير الغرفة
@@ -2669,16 +2684,20 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             .read(appwriteSyncManagerProvider)
             .pushLocalChanges()
             .then((pushedCount) {
-              debugPrint(
-                '📤 [Checkout] push-only to Appwrite Cloud: '
-                '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred (will retry via outbox)"}',
+              dlog(
+                () =>
+                    '📤 [Checkout] push-only to Appwrite Cloud: '
+                    '${pushedCount > 0 ? "success ($pushedCount records)" : "deferred (will retry via outbox)"}',
               );
             })
             .catchError((Object e) {
-              debugPrint(
-                '⚠️ [Checkout] push to Appwrite Cloud failed: $e — '
-                'سيتم إعادة المحاولة تلقائياً عبر outbox',
+              dlog(
+                () =>
+                    '⚠️ [Checkout] push to Appwrite Cloud failed: $e — '
+                    'سيتم إعادة المحاولة تلقائياً عبر outbox',
               );
+              // ✅ Fix: لا نُفشل المغادرة بسبب فشل push — البيانات المحلية
+              // صحيحة، والـ outbox سيُعيد الرفع تلقائياً.
             }),
       );
 
@@ -2695,7 +2714,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       );
       Navigator.pop(context);
     } catch (e) {
-      debugPrint('❌ خطأ في تسجيل المغادرة: $e');
+      dlog(() => '❌ خطأ في تسجيل المغادرة: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2900,7 +2919,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
       );
     } catch (e) {
-      debugPrint('❌ خطأ في إلغاء دفعات اليوم: $e');
+      dlog(() => '❌ خطأ في إلغاء دفعات اليوم: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2915,9 +2934,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   void _sendAccountStatement(BookingPaymentSummary summary) {
     if (_currentGuestPhone.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('لا يوجد رقم هاتف للعميل'),
           backgroundColor: Colors.red,
@@ -2936,7 +2953,9 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             children: [
               Icon(Icons.receipt_long, color: Colors.orange),
               SizedBox(width: 8),
-              Text('إرسال كشف حساب'),
+              Expanded(
+                child: Text('إرسال كشف حساب', overflow: TextOverflow.ellipsis),
+              ),
             ],
           ),
           content: SizedBox(
@@ -3081,32 +3100,40 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ),
             ),
           ),
+          // Wrap prevents the three actions from overflowing on narrow phones.
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('إلغاء'),
-            ),
-            // ✅ مشاركة كنص WhatsApp
-            FilledButton.tonalIcon(
-              onPressed: () {
-                Navigator.pop(context);
-                _sendStatementViaWhatsAppText(summary);
-              },
-              icon: const Icon(Icons.chat, size: 18),
-              label: const Text('إرسال كنص'),
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.green.shade100,
-              ),
-            ),
-            // ✅ مشاركة PDF عبر Share sheet
-            FilledButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                _sendStatementViaPdf(summary);
-              },
-              icon: const Icon(Icons.share, size: 18),
-              label: const Text('مشاركة PDF'),
-              style: FilledButton.styleFrom(backgroundColor: Colors.orange),
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('إلغاء'),
+                ),
+                // ✅ مشاركة كنص WhatsApp
+                FilledButton.tonalIcon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _sendStatementViaWhatsAppText(summary);
+                  },
+                  icon: const Icon(Icons.chat, size: 18),
+                  label: const Text('إرسال كنص'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.green.shade100,
+                  ),
+                ),
+                // ✅ مشاركة PDF عبر Share sheet
+                FilledButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _sendStatementViaPdf(summary);
+                  },
+                  icon: const Icon(Icons.share, size: 18),
+                  label: const Text('مشاركة PDF'),
+                  style: FilledButton.styleFrom(backgroundColor: Colors.orange),
+                ),
+              ],
             ),
           ],
         ),
@@ -3484,9 +3511,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     } catch (e) {
       if (mounted) loading.close();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('خطأ في إنشاء PDF: $e'),
           backgroundColor: Colors.red,
@@ -3764,9 +3789,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
       if (mounted) {
         if (result.quotaMessage != null) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(result.quotaMessage!),
               backgroundColor: Colors.orange,
@@ -3780,9 +3803,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ),
           );
         } else {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('فشل في إرسال تذكير الدفع'),
               backgroundColor: Colors.red,
@@ -3792,9 +3813,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('خطأ في إرسال التذكير: $e'),
             backgroundColor: Colors.red,
@@ -3854,6 +3873,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 TextField(
                   controller: nightsController,
                   keyboardType: TextInputType.number,
+                  inputFormatters: const [englishIntegerInputFormatter],
                   decoration: const InputDecoration(
                     labelText: 'عدد الليالي الإضافية',
                     border: OutlineInputBorder(),
@@ -3989,7 +4009,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         ),
       );
     } catch (e) {
-      debugPrint('❌ خطأ في تمديد الإقامة: $e');
+      dlog(() => '❌ خطأ في تمديد الإقامة: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -4027,17 +4047,14 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         message: message,
       );
       if (result.quotaMessage != null && mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result.quotaMessage!),
             backgroundColor: Colors.orange,
           ),
         );
       }
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in booking_payment_screen.dart: ');
+    } catch (_) {
       // تجاهل الأخطاء، الدفعة مسجلة بنجاح
     }
   }

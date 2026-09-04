@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -10,7 +8,9 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/performance_config.dart';
 import '../../utils/time.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class PaymentHistoryScreen extends ConsumerStatefulWidget {
   const PaymentHistoryScreen({super.key, this.bookingId});
@@ -53,9 +53,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                   ? _buildPaymentsList(paymentsRepo.watchAll())
                   : StreamBuilder<Booking?>(
                       stream:
-                          (database.select(
-                                database.bookings,
-                              )..where(
+                          (database.select(database.bookings)..where(
                                 (t) => t.localUuid.equals(widget.bookingId!),
                               ))
                               .watchSingleOrNull(),
@@ -217,6 +215,9 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                 onRefresh: () => ref.read(syncServiceProvider).runSync(),
                 child: ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
+                  scrollCacheExtent: optimizedScrollCacheExtent,
+                  addAutomaticKeepAlives: false,
+                  addRepaintBoundaries: false,
                   itemCount: payments.length,
                   itemBuilder: (context, index) {
                     final payment = payments[index];
@@ -406,7 +407,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
             return false;
           }
         } catch (e) {
-          debugPrint('Date parse error in filter: $e');
+          dlog(() => 'Date parse error in filter: $e');
         }
       }
 

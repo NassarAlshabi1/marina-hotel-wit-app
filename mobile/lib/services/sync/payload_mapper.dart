@@ -1,11 +1,10 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
-
 import '../../utils/time.dart';
 import '../appwrite_config.dart';
 import '../appwrite_sync_utils.dart';
 import '../local_db.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// PayloadMapper — يحوّل كيانات Drift المحلية إلى Map<String, dynamic>
 /// جاهزة للإرسال إلى Appwrite Cloud.
@@ -135,9 +134,8 @@ class PayloadMapper {
     putIfStringNotEmpty(data, 'vectorClock', booking.vectorClock);
     data['deviceId'] = booking.deviceId;
 
-    // حقول v2 الجديدة
-    // TODO: enable when Drift model has this field — putIfNotNull(data, 'financialFrozenAt', booking.financialFrozenAt);
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'financialHash', booking.financialHash);
+    putIfNotNull(data, 'financialFrozenAt', booking.financialFrozenAt);
+    putIfStringNotEmpty(data, 'financialHash', booking.financialHash);
     putIfStringNotEmpty(data, 'stayDurationIso', booking.stayDurationIso);
     putIfNotNull(data, 'lastNightEpoch', booking.lastNightEpoch);
     putIfNotNull(data, 'isOverdue', booking.isOverdue);
@@ -150,7 +148,7 @@ class PayloadMapper {
     putIfNotNull(data, 'createdAtEpoch', booking.createdAtEpoch);
     putIfNotNull(data, 'lastModifiedEpoch', booking.lastModifiedEpoch);
     putIfStringNotEmpty(data, 'sync_origin', booking.origin);
-    putIfNotNull(data, 'syncTimestamp', booking.lastModified);
+    data['syncTimestamp'] = booking.lastModified;
 
     return AppwriteSyncUtils.sanitizePayload(
       'bookings',
@@ -261,9 +259,8 @@ class PayloadMapper {
     putIfNotNull(data, 'voidedAt', payment.voidedAt);
     putIfStringNotEmpty(data, 'voidedBy', payment.voidedBy);
 
-    // حقول v2 الجديدة
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'voidReason', payment.voidReason);
-    // TODO: enable when Drift model has this field — putIfNotNull(data, 'isImmutable', payment.isImmutable);
+    putIfStringNotEmpty(data, 'voidReason', payment.voidReason);
+    putIfNotNull(data, 'isImmutable', payment.isImmutable);
     putIfStringNotEmpty(data, 'idempotencyKey', payment.idempotencyKey);
 
     putIfNotNull(data, 'createdAtEpoch', payment.createdAtEpoch);
@@ -272,7 +269,7 @@ class PayloadMapper {
     data['deviceId'] = payment.deviceId;
     putIfStringNotEmpty(data, 'createdAtIso', payment.createdAtIso);
     putIfStringNotEmpty(data, 'updatedAtIso', payment.updatedAtIso);
-    putIfNotNull(data, 'syncTimestamp', payment.lastModified);
+    data['syncTimestamp'] = payment.lastModified;
     putIfStringNotEmpty(data, 'sync_origin', payment.origin);
 
     return AppwriteSyncUtils.sanitizePayload(
@@ -319,15 +316,30 @@ class PayloadMapper {
 
     // حقول v2 الجديدة
     putIfStringNotEmpty(data, 'dateRecorded', debt.dateRecorded);
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'guestPhone', debt.guestPhone);
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'description', debt.description);
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'status', debt.status);
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'dueDate', debt.dueDate);
+    putIfStringNotEmpty(data, 'guestPhone', debt.guestPhone);
+    putIfStringNotEmpty(data, 'description', debt.description);
+    putIfStringNotEmpty(data, 'status', debt.status);
+    putIfStringNotEmpty(data, 'dueDate', debt.dueDate);
     putIfStringNotEmpty(data, 'idempotencyKey', debt.idempotencyKey);
+
+    // ✅ Wave 6 (2026-08-12): حقول إضافية مطلوبة من Appwrite Cloud لـ debts.
+    // موجودة في schemaAttributeTypes و filterPayload لكنها كانت مفقودة من الـ push.
+    // انظر appwrite_sync_utils.dart:362-411 (whitelist) و
+    // appwrite_schema_verifier.dart:301-304 (Cloud schema).
+    // bookingUuidCache: يُرسل دائماً للسماح للترابط بين الأجهزة (لا يعتمد على bookingLocalId الذي يختلف بين الأجهزة)
+    putIfStringNotEmpty(data, 'bookingUuidCache', debt.bookingUuidCache);
+    // debtorName: قد يختلف عن guestName في حالات الديون غير المرتبطة بنزلاء
+    putIfStringNotEmpty(data, 'debtorName', debt.debtorName);
+    // amount: مبلغ الدين (قد يختلف عن totalAmount في حالات الديون الجزئية)
+    if (debt.amount != null) {
+      data['amount'] = debt.amount;
+    }
+    // date: تاريخ الدين (مستقل عن checkinDate/checkoutDate/paymentDate)
+    putIfStringNotEmpty(data, 'date', debt.date);
 
     putIfNotNull(data, 'createdAtEpoch', debt.createdAtEpoch);
     putIfNotNull(data, 'lastModifiedEpoch', debt.lastModifiedEpoch);
-    putIfNotNull(data, 'syncTimestamp', debt.lastModified);
+    data['syncTimestamp'] = debt.lastModified;
     putIfStringNotEmpty(data, 'sync_origin', debt.origin);
 
     return AppwriteSyncUtils.sanitizePayload(
@@ -386,6 +398,7 @@ class PayloadMapper {
 
   /// يحوّل [BookingNote] محلي إلى payload لـ Appwrite.
   Map<String, dynamic> bookingNoteToRemote(BookingNote note) {
+    final now = Time.nowEpoch();
     final data = <String, dynamic>{
       'bookingId': note.bookingId,
       'noteText': note.noteText,
@@ -395,22 +408,29 @@ class PayloadMapper {
       'createdAt': note.createdAt,
       'updatedAt': note.updatedAt,
       'lastModified': note.lastModified,
+      'createdAtEpoch': note.createdAtEpoch,
+      'lastModifiedEpoch': note.lastModifiedEpoch,
       'version': note.version,
       'origin': note.origin,
       // ✅ إصلاح: إضافة vectorClock
       'vectorClock': note.vectorClock,
       'sync_origin': note.origin,
+      'syncTimestamp': now,
       'deviceId': note.deviceId,
     };
     putIfNotNull(data, 'serverId', note.serverId);
     putIfNotNull(data, 'deletedAt', note.deletedAt);
     putIfStringNotEmpty(data, 'alertUntil', note.alertUntil);
+    putIfStringNotEmpty(data, 'createdAtIso', note.createdAtIso);
+    putIfStringNotEmpty(data, 'updatedAtIso', note.updatedAtIso);
+    putIfStringNotEmpty(data, 'deletedAtIso', note.deletedAtIso);
     putIfStringNotEmpty(data, 'idempotencyKey', note.idempotencyKey);
     return data;
   }
 
   /// يحوّل [BookingNight] محلي إلى payload لـ Appwrite.
   Map<String, dynamic> bookingNightToRemote(BookingNight night) {
+    final now = Time.nowEpoch();
     final data = <String, dynamic>{
       // ✅ إصلاح: لا نرسل bookingLocalId للسيرفر (id محلي يختلف بين الأجهزة)
       // الربط يتم عبر resolveBooking في nights_adapter باستخدام bookingUuidCache
@@ -427,11 +447,14 @@ class PayloadMapper {
       'createdAt': night.createdAt,
       'updatedAt': night.updatedAt,
       'lastModified': night.lastModified,
+      'createdAtEpoch': night.createdAtEpoch,
+      'lastModifiedEpoch': night.lastModifiedEpoch,
       'version': night.version,
       'origin': night.origin,
       'vectorClock': night.vectorClock,
       'deviceId': night.deviceId,
       'sync_origin': night.origin,
+      'syncTimestamp': now,
     };
     putIfNotNull(data, 'serverId', night.serverId);
     putIfNotNull(data, 'deletedAt', night.deletedAt);
@@ -446,9 +469,11 @@ class PayloadMapper {
       night.appliedAdjustmentsJson,
     );
 
-    // حقول v2 الجديدة
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'bookingUuidCache', night.bookingUuidCache);
-    // TODO: enable when Drift model has this field — putIfNotNull(data, 'serverBookingId', night.serverBookingId);
+    putIfStringNotEmpty(data, 'bookingUuidCache', night.bookingUuidCache);
+    putIfNotNull(data, 'serverBookingId', night.serverBookingId);
+    putIfStringNotEmpty(data, 'createdAtIso', night.createdAtIso);
+    putIfStringNotEmpty(data, 'updatedAtIso', night.updatedAtIso);
+    putIfStringNotEmpty(data, 'deletedAtIso', night.deletedAtIso);
     putIfStringNotEmpty(data, 'idempotencyKey', night.idempotencyKey);
 
     return data;
@@ -456,20 +481,24 @@ class PayloadMapper {
 
   /// يحوّل [CashTransaction] محلي إلى payload لـ Appwrite.
   Map<String, dynamic> cashTransactionToRemote(CashTransaction transaction) {
+    final now = Time.nowEpoch();
     final data = <String, dynamic>{
       'transactionType': transaction.transactionType,
-      'amount': transaction.amount, // ✅ Appwrite: double (fixed 2026-07-26)
+      'amount': transaction.amount.round(), // Appwrite: integer
       'transactionTime': transaction.transactionTime,
       'localUuid': transaction.localUuid,
       'createdAt': transaction.createdAt,
       'updatedAt': transaction.updatedAt,
       'lastModified': transaction.lastModified,
+      'createdAtEpoch': transaction.createdAtEpoch,
+      'lastModifiedEpoch': transaction.lastModifiedEpoch,
       'version': transaction.version,
       'origin': transaction.origin,
       // ✅ إصلاح: إضافة vectorClock
       'vectorClock': transaction.vectorClock,
       'deviceId': transaction.deviceId,
       'sync_origin': transaction.origin,
+      'syncTimestamp': now,
     };
     putIfNotNull(data, 'registerId', transaction.registerId);
     putIfNotNull(data, 'referenceId', transaction.referenceId);
@@ -478,12 +507,16 @@ class PayloadMapper {
     putIfNotNull(data, 'deletedAt', transaction.deletedAt);
     putIfStringNotEmpty(data, 'referenceType', transaction.referenceType);
     putIfStringNotEmpty(data, 'description', transaction.description);
+    putIfStringNotEmpty(data, 'createdAtIso', transaction.createdAtIso);
+    putIfStringNotEmpty(data, 'updatedAtIso', transaction.updatedAtIso);
+    putIfStringNotEmpty(data, 'deletedAtIso', transaction.deletedAtIso);
     putIfStringNotEmpty(data, 'idempotencyKey', transaction.idempotencyKey);
     return data;
   }
 
   /// يحوّل [SalaryCycle] محلي إلى payload لـ Appwrite.
   Map<String, dynamic> salaryCycleToRemote(SalaryCycle cycle) {
+    final now = Time.nowEpoch();
     final data = <String, dynamic>{
       'employeeId': cycle.employeeId,
       'cycleKey': cycle.cycleKey,
@@ -495,22 +528,29 @@ class PayloadMapper {
       'createdAt': cycle.createdAt,
       'updatedAt': cycle.updatedAt,
       'lastModified': cycle.lastModified,
+      'createdAtEpoch': cycle.createdAtEpoch,
+      'lastModifiedEpoch': cycle.lastModifiedEpoch,
       'version': cycle.version,
       'origin': cycle.origin,
       'vectorClock': cycle.vectorClock,
       'deviceId': cycle.deviceId,
       'sync_origin': cycle.origin,
+      'syncTimestamp': now,
     };
     putIfNotNull(data, 'serverId', cycle.serverId);
     putIfNotNull(data, 'deletedAt', cycle.deletedAt);
     putIfStringNotEmpty(data, 'hotelDayStart', cycle.hotelDayStart);
     putIfStringNotEmpty(data, 'hotelDayEnd', cycle.hotelDayEnd);
+    putIfStringNotEmpty(data, 'createdAtIso', cycle.createdAtIso);
+    putIfStringNotEmpty(data, 'updatedAtIso', cycle.updatedAtIso);
+    putIfStringNotEmpty(data, 'deletedAtIso', cycle.deletedAtIso);
     putIfStringNotEmpty(data, 'idempotencyKey', cycle.idempotencyKey);
     return data;
   }
 
   /// يحوّل [SalaryPayment] محلي إلى payload لـ Appwrite.
   Map<String, dynamic> salaryPaymentToRemote(SalaryPayment payment) {
+    final now = Time.nowEpoch();
     final data = <String, dynamic>{
       'cycleId': payment.cycleId,
       'amount': payment.amount,
@@ -520,17 +560,23 @@ class PayloadMapper {
       'createdAt': payment.createdAt,
       'updatedAt': payment.updatedAt,
       'lastModified': payment.lastModified,
+      'createdAtEpoch': payment.createdAtEpoch,
+      'lastModifiedEpoch': payment.lastModifiedEpoch,
       'version': payment.version,
       'origin': payment.origin,
       // ✅ إصلاح: إضافة vectorClock
       'vectorClock': payment.vectorClock,
       'deviceId': payment.deviceId,
       'sync_origin': payment.origin,
+      'syncTimestamp': now,
     };
     putIfNotNull(data, 'serverId', payment.serverId);
     putIfNotNull(data, 'deletedAt', payment.deletedAt);
     putIfStringNotEmpty(data, 'hotelDayKey', payment.hotelDayKey);
     putIfStringNotEmpty(data, 'method', payment.method);
+    putIfStringNotEmpty(data, 'createdAtIso', payment.createdAtIso);
+    putIfStringNotEmpty(data, 'updatedAtIso', payment.updatedAtIso);
+    putIfStringNotEmpty(data, 'deletedAtIso', payment.deletedAtIso);
     putIfStringNotEmpty(data, 'idempotencyKey', payment.idempotencyKey);
     return data;
   }
@@ -554,10 +600,10 @@ class PayloadMapper {
       'priority': note.priority,
       'shiftType': note.shiftType,
       'isRead': note.isRead == 1,
-      // ✅ إصلاح: shift_notes schema يُعرّف createdAt/updatedAt كـ string (ISO)
-      'createdAt': createdAtIso,
+      // createdAt/updatedAt مخزونان كـ epoch integer (seconds) في Appwrite Cloud
+      'createdAt': note.createdAt,
       'createdAtIso': createdAtIso,
-      'updatedAt': updatedAtIso,
+      'updatedAt': note.updatedAt,
       'updatedAtIso': updatedAtIso,
       'lastModified': note.lastModified,
       'createdBy': note.createdBy,
@@ -622,7 +668,7 @@ class PayloadMapper {
     try {
       extra = jsonDecode(item.content) as Map<String, dynamic>;
     } catch (e) {
-      debugPrint('WARN: Failed to parse blacklist content for sync: $e');
+      dlog(() => 'WARN: Failed to parse blacklist content for sync: $e');
     }
 
     final now = Time.nowEpoch();
@@ -644,14 +690,14 @@ class PayloadMapper {
         : null;
 
     final data = <String, dynamic>{
-      // تم الإصلاح الجذري لمطابقة مخطط v2
-      'guestName': item.title,
-      'guestPhone': (extra['phone'] as String?) ?? '',
-      'guestIdNumber': (extra['nationalId'] as String?) ?? '',
+      'name': item.title,
+      'nationality': (extra['nationality'] as String?) ?? '',
+      'nationalId': (extra['nationalId'] as String?) ?? '',
+      'phone': (extra['phone'] as String?) ?? '',
       'reason': (extra['reason'] as String?) ?? '',
-      'isActive': (extra['active'] as bool?) ?? true,
-      'addedDate': createdAtIso,
-      'addedBy': (extra['reportedBy'] as String?) ?? 'police',
+      'notes': (extra['notes'] as String?) ?? '',
+      'active': (extra['active'] as bool?) ?? true,
+      'reportedBy': (extra['reportedBy'] as String?) ?? 'police',
 
       'localUuid': item.localUuid,
       // ✅ إصلاح: blacklist schema يُعرّف createdAt/updatedAt/deletedAt كـ string (ISO)
@@ -743,7 +789,7 @@ class PayloadMapper {
       'deviceId': withdrawal.deviceId,
       // تمت إزالة 'id'
       'employeeId': withdrawal.employeeId,
-      'amount': withdrawal.amount, // ✅ Appwrite: double (fixed 2026-07-26)
+      'amount': withdrawal.amount,
       'withdrawDate': effectiveWithdrawDate,
       'withdrawalDate': effectiveWithdrawDate,
     };
@@ -794,7 +840,7 @@ class PayloadMapper {
       'bookingLocalUuid': adj.bookingLocalUuid,
       'adjustmentType': adj.adjustmentType,
       'adjustmentMode': adj.adjustmentMode,
-      'amount': adj.amount, // ✅ Appwrite: double (fixed 2026-07-26)
+      'amount': adj.amount.round(),
       'effectiveHotelDay': adj.effectiveHotelDay,
       // ✅ إصلاح 2026-07-26: hotelDayKey مطلوب على Appwrite Cloud (required attribute,
       // created 2026-07-03). محلياً BookingPriceAdjustments لا يملك عمود hotelDayKey
@@ -807,8 +853,8 @@ class PayloadMapper {
     };
 
     // حقول v2 الجديدة
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'bookingUuid', adj.bookingUuid);
-    // TODO: enable when Drift model has this field — putIfNotNull(data, 'appliedAt', adj.appliedAt);
+    putIfStringNotEmpty(data, 'bookingUuid', adj.bookingUuid);
+    putIfNotNull(data, 'appliedAt', adj.appliedAt);
     putIfStringNotEmpty(data, 'idempotencyKey', adj.idempotencyKey);
 
     putIfNotNull(data, 'serverId', adj.serverId);
@@ -847,16 +893,15 @@ class PayloadMapper {
       'employeeId': log.employeeId,
       'amount': log.amount,
       'reason': log.reason,
-
-      // تم الإصلاح ليتوافق مع v2 (ترحيل المتغيرات إذا تم تحديث Drift، وإلا تمرير القديمة مؤقتاً لتجنب الأخطاء)
-      // TODO: enable when Drift model has this field — 'fromCycleId': log.fromCycleId ?? log.previousCycleStart, // احتياطي إن لم يحدث الموديل
-      // TODO: enable when Drift model has this field — 'toCycleId': log.toCycleId ?? log.newCycleStart,         // احتياطي
-      // TODO: enable when Drift model has this field — 'carryDate': log.carryDate ?? log.carriedAt,             // احتياطي
+      // دمج كلا الفرعين: إرسال كل الحقول المتاحة في النموذج.
+      'previousCycleStart': log.previousCycleStart,
+      'previousCycleEnd': log.previousCycleEnd,
+      'newCycleStart': log.newCycleStart,
+      'newCycleEnd': log.newCycleEnd,
+      'carriedAt': log.carriedAt,
+      'carryDate': log.carryDate,
     };
 
-    // حقول v2 الجديدة
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'hotelDayKey', log.hotelDayKey);
-    // TODO: enable when Drift model has this field — putIfStringNotEmpty(data, 'performedBy', log.performedBy);
     putIfStringNotEmpty(data, 'idempotencyKey', log.idempotencyKey);
 
     putIfNotNull(data, 'serverId', log.serverId);

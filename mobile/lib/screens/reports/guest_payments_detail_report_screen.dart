@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -16,6 +14,7 @@ import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 // ─────────────────────────────────────────────────────────────────
 // يستخدم StayBalanceCalculator المحرك الموحد لحساب الرصيد والتواريخ
@@ -89,7 +88,7 @@ class _GuestPaymentsDetailReportScreenState
 
   static final _dateFormatter = DateFormat('yyyy/MM/dd');
 
-  /// حساب الأيام المقضية فعلياً بناءً على قاعدة الساعة 14:01
+  /// حساب الأيام المقضية فعلياً بناءً على قاعدة الساعة 14:00
   /// ✅ إصلاح: عند فشل تحليل تاريخ الدخول، نستخدم اليوم الفندقي بدلاً من DateTime.now()
   int _getActualDaysSpent(Booking b) {
     final checkin = DateTime.tryParse(b.checkinDate);
@@ -158,7 +157,7 @@ class _GuestPaymentsDetailReportScreenState
       _coverageCache[b.id] = result;
       return result;
     } catch (e) {
-      debugPrint('⚠️ خطأ في حساب تغطية الحجز ${b.id}: $e');
+      dlog(() => '⚠️ خطأ في حساب تغطية الحجز ${b.id}: $e');
       final fallback = _safeFallback(b);
       _coverageCache[b.id] = fallback;
       return fallback;
@@ -241,7 +240,7 @@ class _GuestPaymentsDetailReportScreenState
             priceAdjustments: filtered,
           );
         } catch (e) {
-          debugPrint('⚠️ خطأ في حساب تغطية الحجز ${b.id}: $e');
+          dlog(() => '⚠️ خطأ في حساب تغطية الحجز ${b.id}: $e');
           newCache[b.id] = _safeFallback(b);
         }
         // ✅ السماح بتحديث UI كل 10 حجوزات لمنع تجميد الشاشة
@@ -257,7 +256,7 @@ class _GuestPaymentsDetailReportScreenState
         });
       }
     } catch (e) {
-      debugPrint('Error refreshing data: $e');
+      dlog(() => 'Error refreshing data: $e');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -574,7 +573,7 @@ class _GuestPaymentsDetailReportScreenState
     try {
       return _buildReport(allBookings);
     } catch (e) {
-      debugPrint('⚠️ خطأ في بناء تقرير المدفوعات: $e');
+      dlog(() => '⚠️ خطأ في بناء تقرير المدفوعات: $e');
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),

@@ -47,7 +47,10 @@ abstract class SyncState with _$SyncState {
 }
 
 /// إعدادات المزامنة
-@freezed
+/// ✅ toJson: false — يتطابق مع create_to_json: false في build.yaml
+///    لمنع freezed من توليد toJson() الذي يستدعي _$SyncSettingsToJson
+///    غير الموجود (json_serializable لا يولده بسبب create_to_json: false)
+@Freezed(toJson: false)
 abstract class SyncSettings with _$SyncSettings {
   const factory SyncSettings({
     @Default(true) bool autoSyncEnabled,

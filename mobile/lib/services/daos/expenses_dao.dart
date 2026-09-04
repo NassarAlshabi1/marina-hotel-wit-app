@@ -4,13 +4,13 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 
 import '../../utils/id.dart';
+import '../../utils/sql_date_range.dart';
 import '../../utils/time.dart';
 import '../adapters/adapter_registry.dart';
 import '../adapters/source.dart';
 import '../appwrite_sync_manager.dart';
 import '../fcm_sender.dart';
 import '../local_db.dart';
-import '../local_notification_service.dart';
 import '../sync_core/optimistic_lock_helper.dart';
 import 'outbox_dao.dart';
 
@@ -122,26 +122,26 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     }
 
     if (fromHotelDay != null) {
-      // hotelDayKey >= fromHotelDay، مع fallback لحقل date عند كون hotelDayKey فارغاً
-      // ✅ إضافة LIKE prefix fallback: بعض السجلات القديمة تحتوي على وقت في date
-      // (مثل "2026-05-19 14:30") مما يجعل المقارنة النصية دقيقة
+      // قيم ISO الزمنية ترتب زمنياً كنص، لذلك شرط النطاق يستوعب أيضاً
+      // الصفوف القديمة ذات الساعة مثل "2026-05-19 14:30" بلا LIKE إضافي.
       q.where(
         (t) =>
             (t.hotelDayKey.isNotNull() &
                 t.hotelDayKey.isBiggerOrEqualValue(fromHotelDay)) |
             (t.hotelDayKey.isNull() &
-                t.date.isBiggerOrEqualValue(fromHotelDay)) |
-            (t.hotelDayKey.isNull() & t.date.like('$fromHotelDay%')),
+                t.date.isBiggerOrEqualValue(fromHotelDay)),
       );
     }
     if (toHotelDay != null) {
+      final endRange = SqlDateRange.forDay(toHotelDay);
       q.where(
         (t) =>
             (t.hotelDayKey.isNotNull() &
                 t.hotelDayKey.isSmallerOrEqualValue(toHotelDay)) |
             (t.hotelDayKey.isNull() &
-                t.date.isSmallerOrEqualValue(toHotelDay)) |
-            (t.hotelDayKey.isNull() & t.date.like('$toHotelDay%')),
+                (endRange == null
+                    ? t.date.isSmallerOrEqualValue(toHotelDay)
+                    : t.date.isSmallerThanValue(endRange.endExclusive))),
       );
     }
     if (expenseType != null && expenseType.isNotEmpty) {
@@ -198,11 +198,15 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     final q = select(expenses);
     q.where((t) => t.deletedAt.isNull());
 
-    final byKey = expenses.hotelDayKey.equals(hotelDayKey);
-    final byDateFallback =
-        expenses.hotelDayKey.isNull() & expenses.date.like('$hotelDayKey%');
-
-    q.where((t) => byKey | byDateFallback);
+    final range = SqlDateRange.forDay(hotelDayKey);
+    q.where((t) {
+      final legacyDateMatch = range == null
+          ? t.date.like('$hotelDayKey%')
+          : (t.date.isBiggerOrEqualValue(range.start) &
+                t.date.isSmallerThanValue(range.endExclusive));
+      return t.hotelDayKey.equals(hotelDayKey) |
+          (t.hotelDayKey.isNull() & legacyDateMatch);
+    });
     return q.watch();
   }
 
@@ -215,7 +219,13 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     if (!includeDeleted) {
       q.where((t) => t.deletedAt.isNull());
     }
-    q.where((t) => t.date.like('$date%'));
+    final range = SqlDateRange.forDay(date);
+    q.where(
+      (t) => range == null
+          ? t.date.like('$date%')
+          : (t.date.isBiggerOrEqualValue(range.start) &
+                t.date.isSmallerThanValue(range.endExclusive)),
+    );
     return q.get();
   }
 
@@ -228,11 +238,15 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       q.where((t) => t.deletedAt.isNull());
     }
 
-    final byKey = expenses.hotelDayKey.equals(hotelDayKey);
-    final byDateFallback =
-        expenses.hotelDayKey.isNull() & expenses.date.like('$hotelDayKey%');
-
-    q.where((t) => byKey | byDateFallback);
+    final range = SqlDateRange.forDay(hotelDayKey);
+    q.where((t) {
+      final legacyDateMatch = range == null
+          ? t.date.like('$hotelDayKey%')
+          : (t.date.isBiggerOrEqualValue(range.start) &
+                t.date.isSmallerThanValue(range.endExclusive));
+      return t.hotelDayKey.equals(hotelDayKey) |
+          (t.hotelDayKey.isNull() & legacyDateMatch);
+    });
     return q.get();
   }
 
@@ -258,18 +272,12 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     bool originIsServer = false,
   }) async {
     final now = Time.nowEpoch();
-    final nowIso = DateTime.now().toIso8601String();
     final uu = data.localUuid.present ? data.localUuid.value : IdGen.uuid();
     final comp = data.copyWith(
       localUuid: Value(uu),
       createdAt: Value(now),
-      createdAtIso: Value(nowIso),
-      createdAtEpoch: Value(now),
       updatedAt: Value(now),
-      updatedAtIso: Value(nowIso),
       lastModified: Value(now),
-      lastModifiedEpoch: Value(now),
-      version: const Value(1),
       origin: Value(originIsServer ? 'server' : 'local'),
       deviceId: originIsServer
           ? const Value.absent()
@@ -293,22 +301,12 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
     // ✅ FCM: إشعار الأجهزة الأخرى بمصروف جديد (fire-and-forget)
     // بعد نجاح الـ transaction.
     if (!originIsServer && comp.amount.present) {
-      final expenseTypeStr = comp.expenseType.present
-          ? comp.expenseType.value
-          : 'مصروف';
       unawaited(
         FcmSender().notifyExpenseAdded(
           amount: comp.amount.value,
-          expenseType: expenseTypeStr,
-        ),
-      );
-      // ✅ إشعار محلي على نفس الجهاز
-      unawaited(
-        LocalNotificationService.instance.notifyExpenseAdded(
-          category: expenseTypeStr,
-          amount: comp.amount.value,
-          description:
-              comp.description.present ? comp.description.value : null,
+          expenseType: comp.expenseType.present
+              ? comp.expenseType.value
+              : 'مصروف',
         ),
       );
     }
@@ -328,19 +326,17 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       }
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified = originIsServer && data.lastModified.present
-          ? data.lastModified
-          : Value(now);
-      final effectiveLastModifiedEpoch =
-          originIsServer && data.lastModifiedEpoch.present
-          ? data.lastModifiedEpoch
+      final effectiveLastModified = originIsServer
+          ? (data.lastModified.present
+                ? data.lastModified
+                : Value(existing.lastModified))
           : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
-        updatedAtIso: Value(DateTime.now().toIso8601String()),
         lastModified: effectiveLastModified,
-        lastModifiedEpoch: effectiveLastModifiedEpoch,
-        version: Value(existing.version + 1),
+        version: Value(
+          originIsServer ? existing.version : existing.version + 1,
+        ),
       );
       final rows = await (update(
         expenses,
@@ -370,13 +366,17 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       }
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified = originIsServer && data.lastModified.present
-          ? data.lastModified
+      final effectiveLastModified = originIsServer
+          ? (data.lastModified.present
+                ? data.lastModified
+                : Value(existing.lastModified))
           : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
-        version: Value(existing.version + 1),
+        version: Value(
+          originIsServer ? existing.version : existing.version + 1,
+        ),
       );
       final rows = await (update(
         expenses,
@@ -412,13 +412,17 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       }
       // ✅ إصلاح: عند originIsServer=true، نستخدم lastModified من البيانات الواردة
       // بدلاً من تعيين now، لمنع إعادة رفع البيانات المسحوبة من السيرفر
-      final effectiveLastModified = originIsServer && data.lastModified.present
-          ? data.lastModified
+      final effectiveLastModified = originIsServer
+          ? (data.lastModified.present
+                ? data.lastModified
+                : Value(existing.lastModified))
           : Value(now);
       final comp = data.copyWith(
         updatedAt: Value(now),
         lastModified: effectiveLastModified,
-        version: Value(existing.version + 1),
+        version: Value(
+          originIsServer ? existing.version : existing.version + 1,
+        ),
       );
       final rows = await (update(
         expenses,
@@ -442,7 +446,6 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
   Future<int> softDelete(int id, {bool originIsServer = false}) async {
     return db.transaction(() async {
       final now = Time.nowEpoch();
-      final nowIso = DateTime.now().toIso8601String();
       final existing = await getById(id);
       if (existing == null) {
         return 0;
@@ -451,12 +454,8 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
           .write(
             ExpensesCompanion(
               deletedAt: Value(now),
-              deletedAtIso: Value(nowIso),
               updatedAt: Value(now),
-              updatedAtIso: Value(nowIso),
               lastModified: Value(now),
-              lastModifiedEpoch: Value(now),
-              version: Value(existing.version + 1),
             ),
           );
       if (rows > 0 && !originIsServer) {

@@ -65,11 +65,19 @@ class PostHogService {
   ///
   /// يجب استدعاؤها مرة واحدة في بداية التطبيق (main.dart).
   /// إذا لم يكن POSTHOG_API_KEY مُهيأ، تتجاهل الخدمة بصمت.
-  /// PostHog API Key — مُدمج من AndroidManifest meta-data
-  /// (يمكن تجاوزه عبر --dart-define=POSTHOG_API_KEY)
+  ///
+  /// ✅ P0-4 FIX (2026-08-06 Audit): إزالة hardcoded API key default.
+  /// سابقاً كان المفتاح الإنتاجي الفعلي مُدمج في الكود كـ defaultValue،
+  /// مما يُكسر الأمان — أي مهاجم يفك الـ APK يحصل على المفتاح.
+  /// الإصلاح: المفتاح يجب أن يأتي فقط من:
+  ///   1. --dart-define=POSTHOG_API_KEY=... في وقت البناء
+  ///   2. AndroidManifest meta-data (يُقرأ في initialize())
+  /// إذا لم يكن مُهيأ، PostHog يُعطّل بصمت.
+  ///
+  /// ⚠️ مهم: يجب تدوير المفتاح القديم (phc_Aunn...) في PostHog لأنه قد
+  /// يكون تسرب في إصدارات سابقة من التطبيق.
   static const String _defaultApiKey = String.fromEnvironment(
     'POSTHOG_API_KEY',
-    defaultValue: 'phc_AunnUfNB2zemediAycLLbFYEgqdtL9k7ej8PhYHwFL6q',
   );
 
   /// PostHog Host — ingestion endpoint للـ US Cloud
@@ -169,16 +177,10 @@ class PostHogService {
     if (!isEnabled) return;
 
     try {
-      await Posthog().capture(
-        eventName: eventName,
-        properties: properties,
-      );
+      await Posthog().capture(eventName: eventName, properties: properties);
     } catch (e) {
       // تجاهل أخطاء التحليلات بصمت
-      developer.log(
-        'PostHog track error: $e',
-        name: 'PostHogService',
-      );
+      developer.log('PostHog track error: $e', name: 'PostHogService');
     }
   }
 
@@ -197,10 +199,7 @@ class PostHogService {
     if (!isEnabled) return;
 
     try {
-      await Posthog().screen(
-        screenName: screenName,
-        properties: properties,
-      );
+      await Posthog().screen(screenName: screenName, properties: properties);
     } catch (e) {
       // تجاهل بصمت
     }
@@ -227,10 +226,7 @@ class PostHogService {
     if (!isEnabled) return;
 
     try {
-      await Posthog().identify(
-        userId: userId,
-        userProperties: properties,
-      );
+      await Posthog().identify(userId: userId, userProperties: properties);
     } catch (e) {
       // تجاهل بصمت
     }
@@ -398,10 +394,7 @@ class PostHogService {
   }) async {
     await track(
       'sync_failed',
-      properties: {
-        'error': error,
-        'operation': operation,
-      },
+      properties: {'error': error, 'operation': operation},
     );
   }
 
@@ -413,11 +406,7 @@ class PostHogService {
   }) async {
     await track(
       'backup_created',
-      properties: {
-        'type': type,
-        'sizeBytes': sizeBytes,
-        'success': success,
-      },
+      properties: {'type': type, 'sizeBytes': sizeBytes, 'success': success},
     );
   }
 
@@ -426,13 +415,7 @@ class PostHogService {
     required String userId,
     required String role,
   }) async {
-    await track(
-      'user_login',
-      properties: {
-        'userId': userId,
-        'role': role,
-      },
-    );
+    await track('user_login', properties: {'userId': userId, 'role': role});
     await identify(
       userId,
       properties: {

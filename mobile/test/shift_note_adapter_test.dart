@@ -18,6 +18,7 @@ BookingNote _bookingNote({
     updatedAt: 1,
     deletedAt: null,
     lastModified: 1,
+    syncTimestamp: 1,
     createdAtIso: null,
     updatedAtIso: null,
     deletedAtIso: null,

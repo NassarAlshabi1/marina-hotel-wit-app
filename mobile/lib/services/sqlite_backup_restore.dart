@@ -1,10 +1,10 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// File-based SQLite backup/restore utilities.
 ///
@@ -55,8 +55,8 @@ class SqliteBackupRestore {
           }
           return documentsTarget;
         } catch (e) {
-          debugPrint(
-            '⚠️ Failed to access default backup dir, falling back: $e',
+          dlog(
+            () => '⚠️ Failed to access default backup dir, falling back: $e',
           );
         }
         final fallbackDirs = await getExternalStorageDirectories(
@@ -79,7 +79,7 @@ class SqliteBackupRestore {
         dir = downloadsDir ?? await getApplicationDocumentsDirectory();
       }
     } catch (e) {
-      debugPrint('⚠️ Failed to resolve user dir, falling back to app docs: $e');
+      dlog(() => '⚠️ Failed to resolve user dir, falling back to app docs: $e');
     }
 
     dir ??= await getApplicationDocumentsDirectory();
@@ -102,9 +102,16 @@ class SqliteBackupRestore {
       }
 
       // ✅ WAL Checkpoint قبل النسخ — يضمن دمج كل التغييرات من ملف WAL (-wal)
-      // إلى قاعدة البيانات الرئيسية قبل النسخ. بدون هذا، قد تكون النسخة الاحتياطية
-      // غير متسقة إذا كانت هناك كتابة جارية. نستخدم TRUNCATE لمسح ملف WAL أيضاً.
-      await _performWalCheckpoint();
+      // إلى قاعدة البيانات الرئيسية قبل النسخ. عند النجاح (busy=0) يحتوي ملف
+      // .db وحده على 100% من المعاملات الملتزمة → النسخة كاملة بملف واحد.
+      // إذا كان هناك قارئ نشط يمنع اكتمال checkpoint نرفض إنشاء النسخة
+      // بدلاً من إنتاج نسخة ناقصة بصمت (نسخة كاملة أو لا نسخة).
+      final checkpointBusy = await _performWalCheckpoint();
+      if (checkpointBusy) {
+        throw StateError(
+          'لا يمكن إنشاء نسخة SQLite متسقة أثناء وجود قارئ نشط لملف WAL',
+        );
+      }
 
       final destDir = await _resolveUserAccessibleDir();
       final backupName = 'backup_${_ts()}.db';
@@ -112,50 +119,77 @@ class SqliteBackupRestore {
 
       await srcFile.copy(destPath);
 
-      // ✅ نسخ ملفي WAL و SHM إذا كانا موجودين — ضمان إضافي للاتساق في الوضع
-      // النادر الذي يفشل فيه checkpoint. هذه الملفات ستُستهلك تلقائياً عند الفتح.
-      final walFile = File('$srcPath-wal');
-      final shmFile = File('$srcPath-shm');
-      if (walFile.existsSync()) {
-        await walFile.copy('$destPath-wal');
-      }
-      if (shmFile.existsSync()) {
-        await shmFile.copy('$destPath-shm');
-      }
+      // ✅ لا ننسخ -wal/-shm إلى مجلد النسخ. بعد wal_checkpoint(TRUNCATE)
+      // الناجح (busy=0) يكون ملف WAL فارغاً وكل البيانات في .db نفسه، فالنسخ
+      // بملف واحد هو الصيغة الكاملة والآمنة. نسخ sidecars في لحظة لاحقة من
+      // لحظة نسخ .db قد يُنتج زوجاً غير متطابق زمنياً ويُفسد الاستعادة
+      // ("database disk image is malformed").
 
-      debugPrint('✅ SQLite backup created at: $destPath');
+      // ✅ التحقق من سلامة النسخة بعد النسخ — يضمن أن الملف المنتج نسخة
+      // كاملة قابلة للفتح (يرصد النسخ المبتورة بسبب امتلاء التخزين مثلاً)
+      // بدلاً من اكتشاف التلف وقت الاستعادة وهو أسوأ وقت ممكن.
+      await verifyBackupIntegrity(File(destPath));
+
+      dlog(() => '✅ SQLite backup created at: $destPath');
       return destPath;
     } catch (e, st) {
-      debugPrint('❌ Failed to backup database: $e\n$st');
+      dlog(() => '❌ Failed to backup database: $e\n$st');
       rethrow;
     }
   }
 
   /// تنفيذ PRAGMA wal_checkpoint(TRUNCATE) عبر اتصال sqflite مستقل.
   /// يدمج كل الصفحات المعدّلة من ملف WAL إلى قاعدة البيانات الرئيسية ثم يصفّر
-  /// ملف WAL. هذا يضمن أن نسخة .db تكون متسقة ومكتملة.
-  static Future<void> _performWalCheckpoint() async {
+  /// ملف WAL. يعيد true إذا كان الـ checkpoint مشغولاً (busy=1: قارئ نشط
+  /// يمنع دمج كل الصفحات) — في هذه الحالة يجب على المتصل رفض إنشاء النسخة.
+  static Future<bool> _performWalCheckpoint() async {
+    final dbPath = await _resolveDefaultDbPath();
+    // نفتح اتصالاً مباشراً على نفس ملف قاعدة البيانات وننفّذ checkpoint.
+    // sqflite يدير اتصالًا مستقلاً عن Drift، لكن PRAGMA wal_checkpoint آمن
+    // للتشغيل المتزامن لأنه داخلياً يأخذ lock على WAL.
+    final db = await sqflite.openDatabase(dbPath, singleInstance: false);
     try {
-      final dbPath = await _resolveDefaultDbPath();
-      // نفتح اتصالاً مباشراً على نفس ملف قاعدة البيانات وننفّذ checkpoint.
-      // sqflite يدير اتصالًا مستقلاً عن Drift، لكن PRAGMA wal_checkpoint آمن
-      // للتشغيل المتزامن لأنه داخلياً يأخذ lock على WAL.
-      final db = await sqflite.openDatabase(dbPath, singleInstance: false);
-      try {
-        await db.execute('PRAGMA wal_checkpoint(TRUNCATE)');
-      } finally {
-        await db.close();
+      // النتيجة صف واحد: (busy, log, checkpointed)
+      final result = await db.rawQuery('PRAGMA wal_checkpoint(TRUNCATE)');
+      final busyValue = result.isNotEmpty ? result.first['busy'] : null;
+      final busy = busyValue is num ? busyValue != 0 : false;
+      if (busy) {
+        dlog('⚠️ WAL checkpoint busy (active reader blocks completeness)');
+      } else {
+        dlog('✅ WAL checkpoint (TRUNCATE) completed before backup');
       }
-      debugPrint('✅ WAL checkpoint (TRUNCATE) completed before backup');
-    } catch (e) {
-      // checkpoint فشل — لا نمنع النسخة الاحتياطية، لكن نسجّل التحذير
-      debugPrint('⚠️ WAL checkpoint failed (proceeding with backup): $e');
+      return busy;
+    } finally {
+      await db.close();
     }
   }
 
-  /// Restore the on-device database from a provided .db file path.
+  /// التحقق من أن ملف SQLite نسخة كاملة وسليمة عبر PRAGMA integrity_check.
+  /// عام (public) ليُعاد استخدامه بعد إنشاء أي نسخة .db — يضمن اكتشاف
+  /// النسخ المبتورة/التالفة وقت الإنشاء بدلاً من وقت الاستعادة.
+  static Future<void> verifyBackupIntegrity(File backupFile) async {
+    sqflite.Database? backupDb;
+    try {
+      backupDb = await sqflite.openDatabase(
+        backupFile.path,
+        readOnly: true,
+        singleInstance: false,
+      );
+      final result = await backupDb.rawQuery('PRAGMA integrity_check');
+      final integrity = result.isEmpty ? null : result.first.values.first;
+      if (integrity != 'ok') {
+        throw StateError(
+          'SQLite integrity_check failed for ${backupFile.path}: $integrity',
+        );
+      }
+    } finally {
+      await backupDb?.close();
+    }
+  }
+
+  /// Restore the on-device database from a provided SQLite backup path.
   ///
-  /// - Ensures the file exists and has a .db extension.
+  /// - Ensures the file exists and has a .db or .sqlite extension.
   /// - Closes the current Drift database before replacing the file to avoid locks.
   /// - Copies the file to the default database path and reopens the database.
   /// - Optionally accepts a `reopenCallback` for custom reinitialization flows.
@@ -167,14 +201,19 @@ class SqliteBackupRestore {
       if (sourcePath.isEmpty) {
         throw ArgumentError('sourcePath must not be empty');
       }
-      if (!sourcePath.endsWith('.db')) {
-        throw ArgumentError('Selected file must be a .db database file');
+      final extension = p.extension(sourcePath).toLowerCase();
+      if (extension != '.db' && extension != '.sqlite') {
+        throw ArgumentError('Selected file must be a .db or .sqlite database');
       }
 
       final srcFile = File(sourcePath);
       if (!srcFile.existsSync()) {
         throw Exception('Backup file not found: $sourcePath');
       }
+
+      // لا نلمس قاعدة البيانات الحالية قبل التأكد من قابلية فتح النسخة
+      // ومن اجتياز SQLite integrity_check.
+      await verifyBackupIntegrity(srcFile);
 
       final dstPath = await _resolveDefaultDbPath();
       final dstFile = File(dstPath);
@@ -217,7 +256,7 @@ class SqliteBackupRestore {
         final backupFile = File('$dstPath.pre_restore');
         if (backupFile.existsSync()) {
           await backupFile.rename(dstPath);
-          debugPrint('⚠️ تم استعادة DB الأصلي بعد فشل الاستعادة: $renameError');
+          dlog(() => '⚠️ تم استعادة DB الأصلي بعد فشل الاستعادة: $renameError');
         }
         rethrow;
       }
@@ -243,10 +282,10 @@ class SqliteBackupRestore {
         if (sidecar.existsSync()) {
           try {
             await sidecar.delete();
-            debugPrint('🧹 حذف ملف $suffix القديم قبل إعادة الفتح');
+            dlog(() => '🧹 حذف ملف $suffix القديم قبل إعادة الفتح');
           } catch (e) {
-            debugPrint(
-              '⚠️ فشل حذف $suffix القديم: $e — قد يسبب مشاكل عند الفتح',
+            dlog(
+              () => '⚠️ فشل حذف $suffix القديم: $e — قد يسبب مشاكل عند الفتح',
             );
           }
         }
@@ -259,9 +298,9 @@ class SqliteBackupRestore {
         await DatabaseManager.reopen();
       }
 
-      debugPrint('✅ SQLite database restored from: $sourcePath');
+      dlog(() => '✅ SQLite database restored from: $sourcePath');
     } catch (e, st) {
-      debugPrint('❌ Failed to restore database: $e\n$st');
+      dlog(() => '❌ Failed to restore database: $e\n$st');
       rethrow;
     }
   }

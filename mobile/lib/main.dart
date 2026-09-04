@@ -995,7 +995,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         state == AppLifecycleState.detached) {
       debugPrint('📱 التطبيق في الخلفية...');
       // ✅ المرحلة 3.3: إغلاق Realtime في الخلفية (توفير بطارية/وحدات DO)
-      AppwriteRealtimeSync().stop();
+      unawaited(AppwriteRealtimeSync().stop());
       // مزامنة فورية عند الخروج لضمان عدم ضياع البيانات
       unawaited(_pushPendingChangesOnPause());
       // ✅ جدولة مهمة WorkManager لإكمال المزامنة في الخلفية

@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -14,6 +12,7 @@ import '../../services/appwrite_config.dart';
 import '../../services/whatsapp_service.dart';
 import '../../services/whatsapp_settings_sync.dart';
 import '../../utils/message_templates.dart';
+import '../../utils/snackbar_helper.dart';
 
 class WhatsAppSettingsScreen extends ConsumerStatefulWidget {
   const WhatsAppSettingsScreen({super.key});
@@ -109,14 +108,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
       return;
     }
     setState(() => _isSaving = false);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(
-      const SnackBar(
-        content: Text('تم حفظ إعدادات API بنجاح'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    SnackBarHelper.showSuccess(context, 'تم حفظ إعدادات API بنجاح');
   }
 
   Future<void> _saveTemplate() async {
@@ -135,22 +127,13 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
     }
     setState(() => _isSaving = false);
     if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تعذّر حفظ إعدادات الرسالة، حاول مرة أخرى'),
-          backgroundColor: Colors.red,
-        ),
+      SnackBarHelper.showError(
+        context,
+        'تعذّر حفظ إعدادات الرسالة، حاول مرة أخرى',
       );
       return;
     }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(
-      const SnackBar(
-        content: Text('تم حفظ إعدادات الرسالة بنجاح'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    SnackBarHelper.showSuccess(context, 'تم حفظ إعدادات الرسالة بنجاح');
   }
 
   Future<void> _resetApiToDefault() async {
@@ -187,11 +170,9 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
       return;
     }
     if (!allRemoved) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تعذّرت استعادة بعض الإعدادات، حاول مرة أخرى'),
-          backgroundColor: Colors.red,
-        ),
+      SnackBarHelper.showError(
+        context,
+        'تعذّرت استعادة بعض الإعدادات، حاول مرة أخرى',
       );
       return;
     }
@@ -203,12 +184,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
       _customUrlController.text = '';
       _selectedApiType = WhatsAppApiType.custom;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('تم استعادة جميع الإعدادات الافتراضية'),
-        backgroundColor: Colors.orange,
-      ),
-    );
+    SnackBarHelper.showWarning(context, 'تم استعادة جميع الإعدادات الافتراضية');
   }
 
   Future<void> _testConnection() async {
@@ -340,7 +316,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
     setState(() => _isSyncing = true);
     try {
       final appwrite = ref.read(appwriteServiceProvider);
-      final sync = WhatsAppSettingsSync(appwrite!);
+      final sync = WhatsAppSettingsSync(appwrite);
       final result = await sync.uploadToCloud();
       if (!mounted) {
         return;
@@ -418,7 +394,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
     setState(() => _isSyncing = true);
     try {
       final appwrite = ref.read(appwriteServiceProvider);
-      final sync = WhatsAppSettingsSync(appwrite!);
+      final sync = WhatsAppSettingsSync(appwrite);
       final result = await sync.downloadFromCloud();
       if (!mounted) {
         return;
@@ -456,8 +432,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
   Future<void> _openUrl(String url) async {
     try {
       await Process.run('xdg-open', [url]);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in whatsapp_settings_screen.dart: ');}
+    } catch (_) {}
   }
 
   @override

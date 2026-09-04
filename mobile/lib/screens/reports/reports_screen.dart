@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (avoid_dynamic_calls, discarded_futures)
-// ignore_for_file: avoid_dynamic_calls, discarded_futures
 import 'package:drift/drift.dart' hide Column;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +16,7 @@ import 'debts_report_screen.dart';
 import 'expenses_report_screen.dart';
 import 'guest_payments_detail_report_screen.dart';
 import 'income_expense_report_screen.dart';
+import 'inventory_report_screen.dart';
 import 'payments_report_screen.dart';
 import 'salary_withdrawals_report_screen.dart';
 
@@ -290,6 +289,13 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   color: Colors.blue,
                   onTap: () =>
                       _navigate((_) => const SalaryWithdrawalsReportScreen()),
+                ),
+                const SizedBox(height: 4),
+                _ReportShortcut(
+                  icon: Icons.inventory_2_outlined,
+                  label: 'التقرير المخزني',
+                  color: Colors.brown,
+                  onTap: () => _navigate((_) => const InventoryReportScreen()),
                 ),
                 const SizedBox(height: 10),
 

@@ -1,11 +1,10 @@
-// ignore_for_file: unused_catch_stack
 // lib/services/sync_health_monitor.dart
 import 'dart:async';
 
 import 'package:drift/drift.dart' show Variable;
-import 'package:flutter/foundation.dart';
 
 import 'local_db.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// خدمة مراقبة صحة نظام المزامنة.
 ///
@@ -75,7 +74,7 @@ class SyncHealthMonitor {
         timestamp: DateTime.now(),
       );
     } catch (e, st) {
-      debugPrint('❌ SyncHealthMonitor.getHealthReport failed: $e\n$st');
+      dlog(() => '❌ SyncHealthMonitor.getHealthReport failed: $e\n$st');
       return SyncHealthReport(
         pendingCount: 0,
         processingCount: 0,
@@ -103,8 +102,7 @@ class SyncHealthMonitor {
           )
           .getSingle();
       return result.read<int>('cnt');
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in sync_health_monitor.dart: ');
+    } catch (_) {
       return 0;
     }
   }
@@ -128,8 +126,7 @@ class SyncHealthMonitor {
       if (oldestEpoch == 0) return null;
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       return Duration(seconds: now - oldestEpoch);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in sync_health_monitor.dart: ');
+    } catch (_) {
       return null;
     }
   }
@@ -153,8 +150,7 @@ class SyncHealthMonitor {
           )
           .getSingle();
       return result.read<int>('cnt');
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in sync_health_monitor.dart: ');
+    } catch (_) {
       return 0;
     }
   }
@@ -176,8 +172,7 @@ class SyncHealthMonitor {
         for (final row in result)
           row.read<String>('entity'): row.read<int>('cnt'),
       };
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in sync_health_monitor.dart: ');
+    } catch (_) {
       return {};
     }
   }
@@ -212,8 +207,7 @@ class SyncHealthMonitor {
             .customSelect('SELECT COUNT(*) AS cnt FROM $table')
             .getSingle();
         sizes[table] = result.read<int>('cnt');
-      } catch (e, st) {
-      debugPrint('⚠️ Swallowed error in sync_health_monitor.dart: ');
+      } catch (_) {
         sizes[table] = -1; // خطأ
       }
     }
@@ -224,8 +218,7 @@ class SyncHealthMonitor {
     try {
       final result = await db.customSelect('PRAGMA foreign_key_check').get();
       return result.length;
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in sync_health_monitor.dart: ');
+    } catch (_) {
       return 0;
     }
   }

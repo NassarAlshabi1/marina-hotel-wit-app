@@ -1,10 +1,8 @@
-// TODO(phase-2): remove this ignore and fix violations (avoid_dynamic_calls)
-// ignore_for_file: avoid_dynamic_calls
 import 'dart:convert';
 
 import 'package:characters/characters.dart';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// أنواع واتساب API المدعومة
 enum WhatsAppApiType { greenapi, custom }
@@ -86,19 +84,18 @@ class WhatsAppService {
               json['correspondentsStatus']?['description'] as String? ??
               'تجاوز الحصة الشهرية';
           return (success: false, quotaMessage: desc);
-        } catch (e) {
-      debugPrint('⚠️ Swallowed error in whatsapp_service.dart: ');
+        } catch (_) {
           return (success: false, quotaMessage: 'تجاوز الحصة الشهرية');
         }
       }
 
-      debugPrint(
-        'WhatsApp send failed: ${response.statusCode} ${response.body}',
+      dlog(
+        () => 'WhatsApp send failed: ${response.statusCode} ${response.body}',
       );
       return (success: false, quotaMessage: null);
     } catch (error, stackTrace) {
-      debugPrint('WhatsApp send error: $error');
-      debugPrint('$stackTrace');
+      dlog(() => 'WhatsApp send error: $error');
+      dlog(() => '$stackTrace');
       return (success: false, quotaMessage: null);
     }
   }
@@ -131,13 +128,14 @@ class WhatsAppService {
         return (success: true, quotaMessage: null);
       }
 
-      debugPrint(
-        'Custom WhatsApp API failed: ${response.statusCode} ${response.body}',
+      dlog(
+        () =>
+            'Custom WhatsApp API failed: ${response.statusCode} ${response.body}',
       );
       return (success: false, quotaMessage: null);
     } catch (error, stackTrace) {
-      debugPrint('Custom WhatsApp send error: $error');
-      debugPrint('$stackTrace');
+      dlog(() => 'Custom WhatsApp send error: $error');
+      dlog(() => '$stackTrace');
       return (success: false, quotaMessage: null);
     }
   }
@@ -206,8 +204,9 @@ class WhatsAppService {
       return message;
     }
 
-    debugPrint(
-      'WhatsApp message trimmed: ${message.characters.length} → $maxMessageLength chars',
+    dlog(
+      () =>
+          'WhatsApp message trimmed: ${message.characters.length} → $maxMessageLength chars',
     );
 
     final lines = message.split('\n');

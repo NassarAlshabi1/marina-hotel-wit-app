@@ -1,162 +1,181 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/appwrite_cache_manager.dart';
-import '../services/appwrite_models.dart';
+import '../services/appwrite_error_handler.dart';
+import '../services/appwrite_logger.dart';
 import '../services/appwrite_service.dart';
 import '../services/appwrite_sync_manager.dart';
+import '../services/daos/outbox_dao.dart';
+import '../services/providers.dart';
+import '../services/smart_sync_manager.dart';
+import '../services/unified_sync_orchestrator.dart';
 
-// ─── Backward-compatible providers (used by all settings screens) ───
+// ============ Service Providers ============
 
-// Replaces appwriteSyncManagerProvider. Returns the singleton
-// CloudflareSyncManager (aliased as AppwriteSyncManager).
-final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
-  return AppwriteSyncManager();
+/// مزود خدمة Appwrite
+final appwriteServiceProvider = Provider<AppwriteService>((ref) {
+  return AppwriteService();
 });
 
-// Stub providers for backward compat with screens that still reference them
-final appwriteServiceProvider = Provider<AppwriteService?>((ref) => null);
-final appwriteLoggerProvider = Provider<_StubLogger>((ref) => _StubLogger());
+/// مزود مدير المزامنة
+final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
+  // ✅ إصلاح Gemini: استخدام ref.watch بدلاً من ref.read داخل provider
+  final service = ref.watch(appwriteServiceProvider);
+  final database = ref.watch(databaseProvider);
+  final manager = AppwriteSyncManager(
+    appwriteService: service,
+    database: database,
+  );
+
+  ref.onDispose(manager.dispose);
+
+  return manager;
+});
+
+final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((
+  ref,
+) {
+  // ✅ إصلاح Gemini: استخدام ref.watch بدلاً من ref.read داخل provider
+  final appwriteSync = ref.watch(appwriteSyncManagerProvider);
+  final db = ref.watch(databaseProvider);
+  final smart = SmartSyncManager.instance;
+  final orch = UnifiedSyncOrchestrator.instance;
+  orch.initialize(appwrite: appwriteSync, smart: smart, database: db);
+  return orch;
+});
+
+final unifiedSyncStateProvider = StreamProvider<UnifiedSyncState>((ref) {
+  final orch = ref.watch(unifiedSyncOrchestratorProvider);
+  ref.onDispose(orch.dispose);
+  return orch.stateStream;
+});
+
+/// مزود مدير الذاكرة المؤقتة
 final appwriteCacheManagerProvider = Provider<AppwriteCacheManager>((ref) {
   return AppwriteCacheManager();
 });
 
-// ─── Connection status (returns a ConnectionState-like value) ───
-//
-// Many screens expect:
-//   - ref.read(connectionStatusProvider.notifier).checkConnection()
-//   - ref.watch(connectionStatusProvider).isConnected
-// We provide a NotifierFamily that yields a ConnectionState value.
+/// مزود المسجل
+final appwriteLoggerProvider = Provider<AppwriteLogger>((ref) {
+  return AppwriteLogger();
+});
+
+/// مزود معالج الأخطاء
+final appwriteErrorHandlerProvider = Provider<AppwriteErrorHandler>((ref) {
+  return AppwriteErrorHandler();
+});
+
+// ============ State Providers ============
+
+/// مزود حالة الاتصال
 final connectionStatusProvider =
-    NotifierProvider<ConnectionStatusNotifier, ConnectionState>(
-        ConnectionStatusNotifier.new);
+    StateNotifierProvider<ConnectionStatusNotifier, ConnectionState>((ref) {
+      return ConnectionStatusNotifier(ref);
+    });
 
 class ConnectionState {
-  const ConnectionState({
-    this.isConnected = false,
+  ConnectionState({
+    required this.isConnected,
     this.isChecking = false,
-    this.status = 'unknown',
-    this.latencyMs,
-    this.lastChecked,
     this.errorMessage,
   });
-
   final bool isConnected;
   final bool isChecking;
-  final String status;
-  final int? latencyMs;
-  final DateTime? lastChecked;
   final String? errorMessage;
 
   ConnectionState copyWith({
     bool? isConnected,
     bool? isChecking,
-    String? status,
-    int? latencyMs,
-    DateTime? lastChecked,
     String? errorMessage,
   }) {
     return ConnectionState(
       isConnected: isConnected ?? this.isConnected,
       isChecking: isChecking ?? this.isChecking,
-      status: status ?? this.status,
-      latencyMs: latencyMs ?? this.latencyMs,
-      lastChecked: lastChecked ?? this.lastChecked,
       errorMessage: errorMessage ?? this.errorMessage,
     );
   }
 }
 
-class ConnectionStatusNotifier extends Notifier<ConnectionState> {
-  @override
-  ConnectionState build() {
-    // Kick off a background connection check.
-    Future.microtask(checkConnection);
-    return const ConnectionState();
-  }
+class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
+  ConnectionStatusNotifier(this.ref)
+    : super(ConnectionState(isConnected: false));
+  final Ref ref;
 
   Future<void> checkConnection() async {
     state = state.copyWith(isChecking: true);
+
     try {
-      final manager = ref.read(appwriteSyncManagerProvider);
-      await manager.initialize();
+      final service = ref.read(appwriteServiceProvider);
+      await service.initialize();
+      final connectionResult = await service.testConnection();
+      final isConnected = connectionResult['overall_success'] == true;
+      final failureMessage = isConnected
+          ? null
+          : (connectionResult['error'] as String?) ?? 'فشل الاتصال بـ Appwrite';
+
       state = ConnectionState(
-        isConnected: manager.isAvailable,
-        
-        status: manager.isAvailable ? 'connected' : 'disconnected',
-        lastChecked: DateTime.now(),
-        errorMessage: manager.initError,
+        isConnected: isConnected,
+        errorMessage: failureMessage,
       );
     } catch (e) {
       state = ConnectionState(
-        status: 'error',
-        errorMessage: e.toString(),
-        lastChecked: DateTime.now(),
+        isConnected: false,
+        errorMessage: 'خطأ في الاتصال: $e',
       );
     }
   }
 }
 
-// ─── Sync statistics provider (returns a Map<String,dynamic>) ───
-//
-// appwrite_sync_stats_screen.dart expects:
-//   ref.watch(syncStatsProvider).when(data: (stats) => ...)
-//   stats['outboxCount'], stats['lastSyncAt'], etc.
-// We return a Map so existing screens work without changes.
-final syncStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-  final manager = ref.read(appwriteSyncManagerProvider);
-  await manager.initialize();
-  return {
-    'outboxCount': 0,
-    'lastSyncAt': DateTime.now().toIso8601String(),
-    'lastError': manager.lastError,
-    'totalPushed': 0,
-    'totalPulled': 0,
-    'conflicts': 0,
-    'successRate': 100.0,
-    // Extra fields expected by appwrite_sync_stats_screen
-    'totalSyncs': 0,
-    'successfulSyncs': 0,
-    'failedSyncs': 0,
-    'totalRecordsPushed': 0,
-    'totalRecordsPulled': 0,
-    'totalConflicts': 0,
-  };
+// ============ Data Providers ============
+
+/// مزود إحصائيات المزامنة
+final syncStatsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((
+  ref,
+) async {
+  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
+  final syncManager = ref.watch(appwriteSyncManagerProvider);
+  return syncManager.getSyncStatistics();
 });
 
-// ─── Cache statistics provider (returns CacheStatistics) ───
+final outboxCountProvider = StreamProvider.autoDispose<int>((ref) {
+  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
+  final db = ref.watch(databaseProvider);
+  final dao = OutboxDao(db);
+  // ✅ فصل هندسي: نراقب فقط عناصر source='local' (تغييرات محلية)
+  return dao.watchCount(sources: const ['local']);
+});
+
+/// مزود إحصائيات الذاكرة المؤقتة
 final cacheStatsProvider = Provider<CacheStatistics>((ref) {
-  final cache = ref.read(appwriteCacheManagerProvider);
-  return cache.getStatistics();
+  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
+  final cacheManager = ref.watch(appwriteCacheManagerProvider);
+  return cacheManager.getStatistics();
 });
 
-// ─── Log statistics provider (returns Map<String,int>) ───
+/// مزود إحصائيات السجلات
 final logStatsProvider = Provider<Map<String, int>>((ref) {
-  return {'total': 0, 'error': 0, 'warning': 0, 'info': 0, 'debug': 0};
+  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
+  final logger = ref.watch(appwriteLoggerProvider);
+  return logger.getStatistics();
 });
 
-// ─── Project info provider (returns Map<String,String>) ───
+/// مزود معلومات المشروع
 final projectInfoProvider = Provider<Map<String, String>>((ref) {
-  return {
-    'name': 'Marina Hotel',
-    'version': '1.0.0',
-    'database': 'cloudflare-d1',
-    'endpoint': 'https://marina-hotel-api.adenmarina2.workers.dev',
-  };
+  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
+  final service = ref.watch(appwriteServiceProvider);
+  return service.getProjectInfo();
 });
 
-// ─── Devices list provider ───
-final devicesListProvider = FutureProvider<List<AppwriteDevice>>((ref) async {
-  // Currently returns an empty list — CloudflareSyncManager does not yet
-  // implement a "list registered devices" endpoint. The settings screen
-  // handles the empty case gracefully.
-  return <AppwriteDevice>[];
+/// مزود قائمة الأجهزة المسجلة (أحدث جهازين فقط)
+final devicesListProvider = FutureProvider.autoDispose((ref) async {
+  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
+  final syncManager = ref.watch(appwriteSyncManagerProvider);
+  return syncManager.getRegisteredDevices();
 });
 
-// ─── Stub logger (used by appwrite_settings_screen for clearLogs/exportLogs) ───
-class _StubLogger {
-  void clearLogs() {}
-  Future<dynamic> exportLogs() async => null;
-  List<dynamic> getLogs() => const [];
-}
+/// مزود السجلات
+final logsProvider = Provider((ref) {
+  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
+  final logger = ref.watch(appwriteLoggerProvider);
+  return logger.getLogs();
+});

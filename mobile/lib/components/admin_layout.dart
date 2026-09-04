@@ -413,11 +413,7 @@ class _AdminTableState extends State<AdminTable> {
 }
 
 class StatusBadge extends StatelessWidget {
-  const StatusBadge({
-    required this.text,
-    required this.color,
-    super.key,
-  });
+  const StatusBadge({required this.text, required this.color, super.key});
 
   factory StatusBadge.success(String text) {
     return StatusBadge(text: text, color: Colors.green);

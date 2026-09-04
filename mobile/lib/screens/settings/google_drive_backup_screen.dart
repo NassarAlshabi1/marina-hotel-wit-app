@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 import 'dart:ui' as ui;
 
@@ -9,6 +7,9 @@ import 'package:intl/intl.dart';
 import '../../components/app_scaffold.dart';
 import '../../providers/backup_provider.dart';
 import '../../services/google_drive_backup_service.dart';
+import '../../services/local_db.dart';
+import '../../services/restore_fix_service.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/theme.dart';
 import 'google_drive_logs_screen.dart';
 
@@ -627,39 +628,55 @@ class _GoogleDriveBackupContentState
   }
 
   Future<void> _restoreDbBackup(String fileId) async {
+    final notifier = ref.read(backupStatusProvider.notifier);
     try {
-      ref
-          .read(backupStatusProvider.notifier)
-          .setStatus(BackupStatus.downloading, 'جاري تنزيل نسخة .db...');
+      notifier.setStatus(BackupStatus.downloading, 'جاري تنزيل نسخة .db...');
 
       final service = ref.read(googleDriveBackupServiceProvider);
       await service.restoreDbBackup(fileId);
 
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
-          const SnackBar(
-            content: Text('✅ تم استعادة نسخة .db بنجاح'),
-            backgroundColor: Colors.green,
+      if (!mounted) return;
+      notifier.setStatus(
+        BackupStatus.restoring,
+        'جاري فحص وإصلاح البيانات بعد الاستعادة...',
+      );
+
+      // مسار SQLite يستبدل ملف القاعدة مباشرة، لذلك يحتاج إلى نفس
+      // post-restore fix الموجود في مسار JSON لإعادة ربط العلاقات وتحديث
+      // القيم المشتقة بعد إعادة فتح DatabaseManager.
+      final fixReport = await RestoreFixService(
+        DatabaseManager.instance,
+      ).runAutoFixAfterRestore();
+      if (!fixReport.success) {
+        dlog(
+          () => '⚠️ فشل الإصلاح التلقائي بعد استعادة .db: ${fixReport.error}',
+        );
+      }
+
+      await notifier.updateDatabaseSize();
+      if (!mounted) return;
+      notifier.setStatus(
+        BackupStatus.success,
+        fixReport.success
+            ? 'تمت استعادة قاعدة البيانات وإصلاحها بنجاح'
+            : 'تمت الاستعادة، لكن يلزم فحص الإصلاحات يدوياً',
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            fixReport.success
+                ? '✅ تمت استعادة نسخة .db وإصلاح البيانات بنجاح'
+                : '⚠️ تمت الاستعادة مع وجود ملاحظات في الإصلاح التلقائي',
           ),
-        );
-        ref
-            .read(backupStatusProvider.notifier)
-            .setStatus(
-              BackupStatus.success,
-              'تمت استعادة قاعدة البيانات بنجاح',
-            );
-      }
+          backgroundColor: fixReport.success ? Colors.green : Colors.orange,
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('❌ خطأ: $e'), backgroundColor: Colors.red),
-        );
-        ref
-            .read(backupStatusProvider.notifier)
-            .setStatus(BackupStatus.error, 'فشل الاستعادة: $e');
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('❌ خطأ: $e'), backgroundColor: Colors.red),
+      );
+      notifier.setStatus(BackupStatus.error, 'فشل الاستعادة: $e');
     }
   }
 

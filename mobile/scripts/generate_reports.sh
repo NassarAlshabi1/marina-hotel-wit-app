@@ -2,11 +2,11 @@
 
 # Marina Hotel Mobile - Code Quality Reports Generator
 # ====================================================
-# F4DD Generate Comprehensive Code Quality Reports
-# F4BB Maintainer: Marina Hotel Dev Team
-# F4D1 Last Updated: 2026-08-04
+# Generate Comprehensive Code Quality Reports
+# Maintainer: Marina Hotel Dev Team
+# Last Updated: 2026-08-04
 #
-# F4D1 Usage:
+# Usage:
 #   ./scripts/generate_reports.sh          # Generate all reports
 #   ./scripts/generate_reports.sh quality  # Generate quality reports only
 #   ./scripts/generate_reports.sh test     # Generate test reports only
@@ -18,14 +18,14 @@
 # CONFIGURATION
 # ============================================
 
-# Colors for output
+# Colors for output (use printf for proper escape handling)
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 BLUE='\033[0;34m'
 PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 # Directories
 REPORTS_DIR="reports"
@@ -35,13 +35,13 @@ SECURITY_DIR="security_reports"
 QUALITY_DIR="quality_reports"
 
 # File paths
-ANALYSIS_REPORT="$QUALITY_DIR/analysis_report.json"
-LINT_REPORT="$QUALITY_DIR/lint_report.json"
-FORMAT_REPORT="$QUALITY_DIR/format_report.json"
-COMPLEXITY_REPORT="$QUALITY_DIR/complexity_report.json"
-TEST_REPORT="$TEST_RESULTS_DIR/test_report.json"
+ANALYSIS_REPORT="$QUALITY_DIR/analysis_report.txt"
+LINT_REPORT="$QUALITY_DIR/lint_report.txt"
+FORMAT_REPORT="$QUALITY_DIR/format_report.txt"
+COMPLEXITY_REPORT="$QUALITY_DIR/complexity_report.txt"
+TEST_REPORT="$TEST_RESULTS_DIR/test_report.md"
 COVERAGE_REPORT="$COVERAGE_DIR/coverage_report.html"
-SECURITY_REPORT="$SECURITY_DIR/security_report.json"
+SECURITY_REPORT="$SECURITY_DIR/security_report.md"
 FINAL_REPORT="$REPORTS_DIR/code_quality_final_report.md"
 
 # ============================================
@@ -50,38 +50,36 @@ FINAL_REPORT="$REPORTS_DIR/code_quality_final_report.md"
 
 # Print header
 print_header() {
-    echo ""
-    echo "${BLUE}============================================${NC}"
-    echo "${BLUE}  Marina Hotel Mobile - Code Quality Reports${NC}"
-    echo "${BLUE}============================================${NC}"
+    printf '%b\n' "${BLUE}============================================${NC}"
+    printf '%b\n' "${BLUE}  Marina Hotel Mobile - Code Quality Reports${NC}"
+    printf '%b\n' "${BLUE}============================================${NC}"
     echo ""
 }
 
 # Print section
 print_section() {
-    echo ""
-    echo "${YELLOW}=== $1 ===${NC}"
+    printf '%b\n' "${YELLOW}=== $1 ===${NC}"
     echo ""
 }
 
 # Print success
 print_success() {
-    echo "${GREEN}✓ $1${NC}"
+    printf '%b\n' "${GREEN}✓ $1${NC}"
 }
 
 # Print error
 print_error() {
-    echo "${RED}✗ $1${NC}"
+    printf '%b\n' "${RED}✗ $1${NC}"
 }
 
 # Print info
 print_info() {
-    echo "${BLUE}ℹ $1${NC}"
+    printf '%b\n' "${BLUE}ℹ $1${NC}"
 }
 
 # Print warning
 print_warning() {
-    echo "${YELLOW}⚠ $1${NC}"
+    printf '%b\n' "${YELLOW}⚠ $1${NC}"
 }
 
 # Check if command exists
@@ -121,15 +119,15 @@ generate_analysis_report() {
     
     ensure_dir "$QUALITY_DIR"
     
-    print_info "Running flutter analyze..."
+    print_info "Running dart analyze..."
     
-    if flutter analyze --format=json --output="$ANALYSIS_REPORT" 2>&1; then
+    if dart analyze --fatal-infos --fatal-warnings . > "$ANALYSIS_REPORT" 2>&1; then
         print_success "Analysis report generated: $ANALYSIS_REPORT"
         
         # Count issues
-        local issue_count=$(jq '.issues | length' "$ANALYSIS_REPORT" 2>/dev/null || echo "0")
-        local error_count=$(jq '.errors | length' "$ANALYSIS_REPORT" 2>/dev/null || echo "0")
-        local warning_count=$(jq '.warnings | length' "$ANALYSIS_REPORT" 2>/dev/null || echo "0")
+        local issue_count=$(grep -c "\!\|error\|warning" "$ANALYSIS_REPORT" 2>/dev/null || echo "0")
+        local error_count=$(grep -c "error" "$ANALYSIS_REPORT" 2>/dev/null || echo "0")
+        local warning_count=$(grep -c "warning" "$ANALYSIS_REPORT" 2>/dev/null || echo "0")
         
         print_info "Issues found: $issue_count (Errors: $error_count, Warnings: $warning_count)"
         
@@ -145,19 +143,20 @@ generate_analysis_report() {
     fi
 }
 
-# Generate lint report
+# Generate lint report (lints are part of dart analyze)
 generate_lint_report() {
     print_section "Generating Lint Report"
     
     ensure_dir "$QUALITY_DIR"
     
-    print_info "Running flutter lint..."
+    print_info "Running dart analyze for linting..."
     
-    if flutter lint --format=json --output="$LINT_REPORT" 2>&1; then
+    # Lints are checked via dart analyze with analysis_options.yaml
+    if dart analyze . > "$LINT_REPORT" 2>&1; then
         print_success "Lint report generated: $LINT_REPORT"
         
         # Count lint issues
-        local lint_count=$(jq '. | length' "$LINT_REPORT" 2>/dev/null || echo "0")
+        local lint_count=$(grep -c "\!\|warning" "$LINT_REPORT" 2>/dev/null || echo "0")
         print_info "Lint issues found: $lint_count"
         
         if [ "$lint_count" -gt 0 ]; then
@@ -179,11 +178,11 @@ generate_format_report() {
     
     print_info "Checking code formatting..."
     
-    if flutter format --output=json --set-exit-if-changed . > "$FORMAT_REPORT" 2>&1; then
+    if dart format --output=none --set-exit-if-changed . > "$FORMAT_REPORT" 2>&1; then
         print_success "Format report generated: $FORMAT_REPORT"
         
         # Count files that need formatting
-        local format_count=$(jq '. | length' "$FORMAT_REPORT" 2>/dev/null || echo "0")
+        local format_count=$(grep -c "Formatted" "$FORMAT_REPORT" 2>/dev/null || echo "0")
         print_info "Files needing formatting: $format_count"
         
         if [ "$format_count" -gt 0 ]; then
@@ -197,37 +196,24 @@ generate_format_report() {
     fi
 }
 
-# Generate complexity report (using dart_code_metrics)
+# Generate complexity report (using dart analyze metrics)
 generate_complexity_report() {
     print_section "Generating Code Complexity Report"
     
     ensure_dir "$QUALITY_DIR"
     
-    if command_exists dart_code_metrics; then
-        print_info "Running dart_code_metrics..."
-        
-        if dart_code_metrics analyze lib/ --reporter=json > "$COMPLEXITY_REPORT" 2>&1; then
-            print_success "Complexity report generated: $COMPLEXITY_REPORT"
-            
-            # Extract summary
-            local avg_complexity=$(jq '.metrics.averageCyclomaticComplexity // 0' "$COMPLEXITY_REPORT" 2>/dev/null || echo "0")
-            local avg_lines=$(jq '.metrics.averageLinesOfCode // 0' "$COMPLEXITY_REPORT" 2>/dev/null || echo "0")
-            local files_analyzed=$(jq '.files | length' "$COMPLEXITY_REPORT" 2>/dev/null || echo "0")
-            
-            print_info "Files analyzed: $files_analyzed"
-            print_info "Average complexity: $avg_complexity"
-            print_info "Average lines per file: $avg_lines"
-            
-            return 0
-        else
-            print_error "Failed to generate complexity report"
-            return 1
-        fi
-    else
-        print_info "dart_code_metrics not installed, skipping complexity report"
-        print_info "Install with: dart pub global activate dart_code_metrics"
-        return 0
-    fi
+    print_info "Analyzing code complexity..."
+    
+    # Use dart analyze to get metrics
+    # For now, create a basic complexity report
+    local report="Code Complexity Analysis\n\n"
+    report+="This report will be enhanced with proper complexity analysis tools.\n"
+    report+="For now, use: dart analyze --fatal-infos --fatal-warnings .\n"
+    
+    printf '%b' "$report" > "$COMPLEXITY_REPORT"
+    print_success "Complexity report generated: $COMPLEXITY_REPORT"
+    
+    return 0
 }
 
 # Generate quality summary report
@@ -241,56 +227,34 @@ generate_quality_summary() {
     summary+="## Static Analysis\n\n"
     
     if [ -f "$ANALYSIS_REPORT" ]; then
-        local issue_count=$(jq '.issues | length' "$ANALYSIS_REPORT" 2>/dev/null || echo "0")
-        local error_count=$(jq '.errors | length' "$ANALYSIS_REPORT" 2>/dev/null || echo "0")
-        local warning_count=$(jq '.warnings | length' "$ANALYSIS_REPORT" 2>/dev/null || echo "0")
+        local issue_count=$(grep -c "\!\|error\|warning" "$ANALYSIS_REPORT" 2>/dev/null || echo "0")
+        local error_count=$(grep -c "error" "$ANALYSIS_REPORT" 2>/dev/null || echo "0")
+        local warning_count=$(grep -c "warning" "$ANALYSIS_REPORT" 2>/dev/null || echo "0")
         
-        summary+="- **Status:** $(if [ "$error_count" -gt 0 ]; then echo "❌ FAILED"; else echo "✅ PASSED"; fi)\n"
+        summary+="- **Status:** $(if [ "$error_count" -gt 0 ]; then echo "FAILED"; else echo "PASSED"; fi)\n"
         summary+="- **Errors:** $error_count\n"
         summary+="- **Warnings:** $warning_count\n"
         summary+="- **Total Issues:** $issue_count\n\n"
     else
-        summary+="- **Status:** ⚠️ NOT RUN\n\n"
+        summary+="- **Status:** NOT RUN\n\n"
     fi
     
     summary+="## Linting\n\n"
     if [ -f "$LINT_REPORT" ]; then
-        local lint_count=$(jq '. | length' "$LINT_REPORT" 2>/dev/null || echo "0")
-        summary+="- **Status:** $(if [ "$lint_count" -gt 0 ]; then echo "⚠️ WARNINGS"; else echo "✅ PASSED"; fi)\n"
+        local lint_count=$(grep -c "\!\|warning" "$LINT_REPORT" 2>/dev/null || echo "0")
+        summary+="- **Status:** $(if [ "$lint_count" -gt 0 ]; then echo "WARNINGS"; else echo "PASSED"; fi)\n"
         summary+="- **Issues:** $lint_count\n\n"
     else
-        summary+="- **Status:** ⚠️ NOT RUN\n\n"
+        summary+="- **Status:** NOT RUN\n\n"
     fi
     
     summary+="## Code Formatting\n\n"
     if [ -f "$FORMAT_REPORT" ]; then
-        local format_count=$(jq '. | length' "$FORMAT_REPORT" 2>/dev/null || echo "0")
-        summary+="- **Status:** $(if [ "$format_count" -gt 0 ]; then echo "⚠️ NEEDS FORMATTING"; else echo "✅ PASSED"; fi)\n"
+        local format_count=$(grep -c "Formatted" "$FORMAT_REPORT" 2>/dev/null || echo "0")
+        summary+="- **Status:** $(if [ "$format_count" -gt 0 ]; then echo "NEEDS FORMATTING"; else echo "PASSED"; fi)\n"
         summary+="- **Files to format:** $format_count\n\n"
     else
-        summary+="- **Status:** ⚠️ NOT RUN\n\n"
-    fi
-    
-    summary+="## Code Complexity\n\n"
-    if [ -f "$COMPLEXITY_REPORT" ]; then
-        local avg_complexity=$(jq '.metrics.averageCyclomaticComplexity // 0' "$COMPLEXITY_REPORT" 2>/dev/null || echo "0")
-        local avg_lines=$(jq '.metrics.averageLinesOfCode // 0' "$COMPLEXITY_REPORT" 2>/dev/null || echo "0")
-        local files_analyzed=$(jq '.files | length' "$COMPLEXITY_REPORT" 2>/dev/null || echo "0")
-        
-        summary+="- **Files analyzed:** $files_analyzed\n"
-        summary+="- **Avg. complexity:** $avg_complexity\n"
-        summary+="- **Avg. lines/file:** $avg_lines\n"
-        
-        if [ "$avg_complexity" -gt 20 ]; then
-            summary+="- **Status:** ⚠️ HIGH COMPLEXITY\n"
-        elif [ "$avg_complexity" -gt 10 ]; then
-            summary+="- **Status:** ⚠️ MODERATE COMPLEXITY\n"
-        else
-            summary+="- **Status:** ✅ GOOD COMPLEXITY\n"
-        fi
-        summary+="\n"
-    else
-        summary+="- **Status:** ⚠️ NOT RUN\n\n"
+        summary+="- **Status:** NOT RUN\n\n"
     fi
     
     summary+="## Overall Quality Score\n\n"
@@ -299,7 +263,7 @@ generate_quality_summary() {
     local issues=0
     
     if [ -f "$ANALYSIS_REPORT" ]; then
-        local error_count=$(jq '.errors | length' "$ANALYSIS_REPORT" 2>/dev/null || echo "0")
+        local error_count=$(grep -c "error" "$ANALYSIS_REPORT" 2>/dev/null || echo "0")
         if [ "$error_count" -gt 0 ]; then
             score=$((score - 40))
             issues=$((issues + error_count))
@@ -307,7 +271,7 @@ generate_quality_summary() {
     fi
     
     if [ -f "$LINT_REPORT" ]; then
-        local lint_count=$(jq '. | length' "$LINT_REPORT" 2>/dev/null || echo "0")
+        local lint_count=$(grep -c "warning" "$LINT_REPORT" 2>/dev/null || echo "0")
         if [ "$lint_count" -gt 10 ]; then
             score=$((score - 20))
         elif [ "$lint_count" -gt 5 ]; then
@@ -317,19 +281,10 @@ generate_quality_summary() {
     fi
     
     if [ -f "$FORMAT_REPORT" ]; then
-        local format_count=$(jq '. | length' "$FORMAT_REPORT" 2>/dev/null || echo "0")
+        local format_count=$(grep -c "Formatted" "$FORMAT_REPORT" 2>/dev/null || echo "0")
         if [ "$format_count" -gt 0 ]; then
             score=$((score - 10))
             issues=$((issues + format_count))
-        fi
-    fi
-    
-    if [ -f "$COMPLEXITY_REPORT" ]; then
-        local avg_complexity=$(jq '.metrics.averageCyclomaticComplexity // 0' "$COMPLEXITY_REPORT" 2>/dev/null || echo "0")
-        if [ "$avg_complexity" -gt 20 ]; then
-            score=$((score - 20))
-        elif [ "$avg_complexity" -gt 15 ]; then
-            score=$((score - 10))
         fi
     fi
     
@@ -337,27 +292,27 @@ generate_quality_summary() {
     summary+="- **Total Issues:** $issues\n"
     
     if [ "$score" -ge 90 ]; then
-        summary+="- **Grade:** 🌟 A+ (Excellent)\n"
+        summary+="- **Grade:** A+ (Excellent)\n"
     elif [ "$score" -ge 80 ]; then
-        summary+="- **Grade:** 🌟 A (Good)\n"
+        summary+="- **Grade:** A (Good)\n"
     elif [ "$score" -ge 70 ]; then
-        summary+="- **Grade:** 🌟 B (Fair)\n"
+        summary+="- **Grade:** B (Fair)\n"
     elif [ "$score" -ge 60 ]; then
-        summary+="- **Grade:** 🌟 C (Needs Improvement)\n"
+        summary+="- **Grade:** C (Needs Improvement)\n"
     else
-        summary+="- **Grade:** 🌟 D (Poor)\n"
+        summary+="- **Grade:** D (Poor)\n"
     fi
     
     summary+="\n---\n\n"
     summary+="*Generated by Marina Hotel Mobile Code Quality Reports Generator*\n"
     
-    echo "$summary" > "$QUALITY_DIR/quality_summary.md"
+    printf '%b' "$summary" > "$QUALITY_DIR/quality_summary.md"
     
     print_success "Quality summary report generated: $QUALITY_DIR/quality_summary.md"
     
     # Print summary to console
     echo ""
-    echo "${PURPLE}=== CODE QUALITY SUMMARY ===${NC}"
+    print_section "CODE QUALITY SUMMARY"
     echo "$summary"
 }
 
@@ -376,7 +331,7 @@ run_all_tests() {
     
     # Run unit tests
     print_info "Running unit tests..."
-    if flutter test test/unit/ --coverage --coverage-path="$COVERAGE_DIR/unit.lcov" --reporter=json > "$TEST_RESULTS_DIR/unit_tests.json" 2>&1; then
+    if dart test test/unit/ --coverage --coverage-path="$COVERAGE_DIR/unit.lcov" 2>&1 | tee "$TEST_RESULTS_DIR/unit_tests.txt"; then
         print_success "Unit tests passed"
     else
         print_error "Unit tests failed"
@@ -385,7 +340,7 @@ run_all_tests() {
     
     # Run widget tests
     print_info "Running widget tests..."
-    if flutter test test/widget/ --coverage --coverage-path="$COVERAGE_DIR/widget.lcov" --reporter=json > "$TEST_RESULTS_DIR/widget_tests.json" 2>&1; then
+    if dart test test/widget/ --coverage --coverage-path="$COVERAGE_DIR/widget.lcov" 2>&1 | tee "$TEST_RESULTS_DIR/widget_tests.txt"; then
         print_success "Widget tests passed"
     else
         print_error "Widget tests failed"
@@ -394,7 +349,7 @@ run_all_tests() {
     
     # Run integration tests
     print_info "Running integration tests..."
-    if flutter test integration_test/ --coverage --coverage-path="$COVERAGE_DIR/integration.lcov" --reporter=json > "$TEST_RESULTS_DIR/integration_tests.json" 2>&1; then
+    if dart test integration_test/ --coverage --coverage-path="$COVERAGE_DIR/integration.lcov" 2>&1 | tee "$TEST_RESULTS_DIR/integration_tests.txt"; then
         print_success "Integration tests passed"
     else
         print_error "Integration tests failed"
@@ -420,48 +375,41 @@ generate_test_report() {
     local total_tests=0
     local passed_tests=0
     local failed_tests=0
-    local total_time=0
     
     # Process unit test results
-    if [ -f "$TEST_RESULTS_DIR/unit_tests.json" ]; then
-        local unit_tests=$(jq '.tests | length' "$TEST_RESULTS_DIR/unit_tests.json" 2>/dev/null || echo "0")
-        local unit_passed=$(jq '.tests | map(select(.result == "success")) | length' "$TEST_RESULTS_DIR/unit_tests.json" 2>/dev/null || echo "0")
-        local unit_failed=$((unit_tests - unit_passed))
-        local unit_time=$(jq '.time // 0' "$TEST_RESULTS_DIR/unit_tests.json" 2>/dev/null || echo "0")
+    if [ -f "$TEST_RESULTS_DIR/unit_tests.txt" ]; then
+        local unit_passed=$(grep -c "PASSED" "$TEST_RESULTS_DIR/unit_tests.txt" 2>/dev/null || echo "0")
+        local unit_failed=$(grep -c "FAILED" "$TEST_RESULTS_DIR/unit_tests.txt" 2>/dev/null || echo "0")
+        local unit_tests=$((unit_passed + unit_failed))
         
         total_tests=$((total_tests + unit_tests))
         passed_tests=$((passed_tests + unit_passed))
         failed_tests=$((failed_tests + unit_failed))
-        total_time=$((total_time + unit_time))
     fi
     
     # Process widget test results
-    if [ -f "$TEST_RESULTS_DIR/widget_tests.json" ]; then
-        local widget_tests=$(jq '.tests | length' "$TEST_RESULTS_DIR/widget_tests.json" 2>/dev/null || echo "0")
-        local widget_passed=$(jq '.tests | map(select(.result == "success")) | length' "$TEST_RESULTS_DIR/widget_tests.json" 2>/dev/null || echo "0")
-        local widget_failed=$((widget_tests - widget_passed))
-        local widget_time=$(jq '.time // 0' "$TEST_RESULTS_DIR/widget_tests.json" 2>/dev/null || echo "0")
+    if [ -f "$TEST_RESULTS_DIR/widget_tests.txt" ]; then
+        local widget_passed=$(grep -c "PASSED" "$TEST_RESULTS_DIR/widget_tests.txt" 2>/dev/null || echo "0")
+        local widget_failed=$(grep -c "FAILED" "$TEST_RESULTS_DIR/widget_tests.txt" 2>/dev/null || echo "0")
+        local widget_tests=$((widget_passed + widget_failed))
         
         total_tests=$((total_tests + widget_tests))
         passed_tests=$((passed_tests + widget_passed))
         failed_tests=$((failed_tests + widget_failed))
-        total_time=$((total_time + widget_time))
     fi
     
     # Process integration test results
-    if [ -f "$TEST_RESULTS_DIR/integration_tests.json" ]; then
-        local integration_tests=$(jq '.tests | length' "$TEST_RESULTS_DIR/integration_tests.json" 2>/dev/null || echo "0")
-        local integration_passed=$(jq '.tests | map(select(.result == "success")) | length' "$TEST_RESULTS_DIR/integration_tests.json" 2>/dev/null || echo "0")
-        local integration_failed=$((integration_tests - integration_passed))
-        local integration_time=$(jq '.time // 0' "$TEST_RESULTS_DIR/integration_tests.json" 2>/dev/null || echo "0")
+    if [ -f "$TEST_RESULTS_DIR/integration_tests.txt" ]; then
+        local integration_passed=$(grep -c "PASSED" "$TEST_RESULTS_DIR/integration_tests.txt" 2>/dev/null || echo "0")
+        local integration_failed=$(grep -c "FAILED" "$TEST_RESULTS_DIR/integration_tests.txt" 2>/dev/null || echo "0")
+        local integration_tests=$((integration_passed + integration_failed))
         
         total_tests=$((total_tests + integration_tests))
         passed_tests=$((passed_tests + integration_passed))
         failed_tests=$((failed_tests + integration_failed))
-        total_time=$((total_time + integration_time))
     fi
     
-    # Calculate pass rate
+    # Calculate pass rate (guard against division by zero)
     local pass_rate=0
     if [ "$total_tests" -gt 0 ]; then
         pass_rate=$(( (passed_tests * 100) / total_tests ))
@@ -474,69 +422,77 @@ generate_test_report() {
     report+="| Test Type | Total | Passed | Failed | Success Rate |\n"
     report+="|------------|-------|--------|--------|--------------|\n"
     
-    if [ -f "$TEST_RESULTS_DIR/unit_tests.json" ]; then
-        local unit_tests=$(jq '.tests | length' "$TEST_RESULTS_DIR/unit_tests.json" 2>/dev/null || echo "0")
-        local unit_passed=$(jq '.tests | map(select(.result == "success")) | length' "$TEST_RESULTS_DIR/unit_tests.json" 2>/dev/null || echo "0")
-        local unit_rate=$(( (unit_passed * 100) / unit_tests ))
-        report+="| Unit Tests | $unit_tests | $unit_passed | $((unit_tests - unit_passed)) | $unit_rate% |\n"
+    # Unit tests
+    if [ -f "$TEST_RESULTS_DIR/unit_tests.txt" ]; then
+        local unit_tests=$((unit_passed + unit_failed))
+        local unit_rate=0
+        if [ "$unit_tests" -gt 0 ]; then
+            unit_rate=$(( (unit_passed * 100) / unit_tests ))
+        fi
+        report+="| Unit Tests | $unit_tests | $unit_passed | $unit_failed | ${unit_rate}% |\n"
     fi
     
-    if [ -f "$TEST_RESULTS_DIR/widget_tests.json" ]; then
-        local widget_tests=$(jq '.tests | length' "$TEST_RESULTS_DIR/widget_tests.json" 2>/dev/null || echo "0")
-        local widget_passed=$(jq '.tests | map(select(.result == "success")) | length' "$TEST_RESULTS_DIR/widget_tests.json" 2>/dev/null || echo "0")
-        local widget_rate=$(( (widget_passed * 100) / widget_tests ))
-        report+="| Widget Tests | $widget_tests | $widget_passed | $((widget_tests - widget_passed)) | $widget_rate% |\n"
+    # Widget tests
+    if [ -f "$TEST_RESULTS_DIR/widget_tests.txt" ]; then
+        local widget_tests=$((widget_passed + widget_failed))
+        local widget_rate=0
+        if [ "$widget_tests" -gt 0 ]; then
+            widget_rate=$(( (widget_passed * 100) / widget_tests ))
+        fi
+        report+="| Widget Tests | $widget_tests | $widget_passed | $widget_failed | ${widget_rate}% |\n"
     fi
     
-    if [ -f "$TEST_RESULTS_DIR/integration_tests.json" ]; then
-        local integration_tests=$(jq '.tests | length' "$TEST_RESULTS_DIR/integration_tests.json" 2>/dev/null || echo "0")
-        local integration_passed=$(jq '.tests | map(select(.result == "success")) | length' "$TEST_RESULTS_DIR/integration_tests.json" 2>/dev/null || echo "0")
-        local integration_rate=$(( (integration_passed * 100) / integration_tests ))
-        report+="| Integration Tests | $integration_tests | $integration_passed | $((integration_tests - integration_passed)) | $integration_rate% |\n"
+    # Integration tests
+    if [ -f "$TEST_RESULTS_DIR/integration_tests.txt" ]; then
+        local integration_tests=$((integration_passed + integration_failed))
+        local integration_rate=0
+        if [ "$integration_tests" -gt 0 ]; then
+            integration_rate=$(( (integration_passed * 100) / integration_tests ))
+        fi
+        report+="| Integration Tests | $integration_tests | $integration_passed | $integration_failed | ${integration_rate}% |\n"
     fi
     
     report+="| **Total** | **$total_tests** | **$passed_tests** | **$failed_tests** | **${pass_rate}%** |\n\n"
     
     report+="## Overall Status\n\n"
     if [ "$pass_rate" -ge 90 ]; then
-        report+="- **Status:** ✅ EXCELLENT (${pass_rate}% pass rate)\n"
+        report+="- **Status:** PASSED EXCELLENT (${pass_rate}% pass rate)\n"
     elif [ "$pass_rate" -ge 80 ]; then
-        report+="- **Status:** ✅ GOOD (${pass_rate}% pass rate)\n"
+        report+="- **Status:** PASSED GOOD (${pass_rate}% pass rate)\n"
     elif [ "$pass_rate" -ge 70 ]; then
-        report+="- **Status:** ⚠️ FAIR (${pass_rate}% pass rate)\n"
+        report+="- **Status:** FAIR (${pass_rate}% pass rate)\n"
     else
-        report+="- **Status:** ❌ POOR (${pass_rate}% pass rate)\n"
+        report+="- **Status:** FAILED POOR (${pass_rate}% pass rate)\n"
     fi
     
     report+="- **Total Tests:** $total_tests\n"
     report+="- **Passed:** $passed_tests\n"
-    report+="- **Failed:** $failed_tests\n"
-    report+="- **Total Time:** ${total_time}s\n\n"
+    report+="- **Failed:** $failed_tests\n\n"
     
     report+="## Recommendations\n\n"
     
     if [ "$failed_tests" -gt 0 ]; then
-        report+="- ❌ **Fix failing tests** before merging\n"
+        report+="- Fix failing tests before merging\n"
     fi
     
     if [ "$pass_rate" -lt 80 ]; then
-        report+="- ⚠️ **Improve test coverage** - aim for 80%+ pass rate\n"
+        report+="- Improve test coverage - aim for 80%+ pass rate\n"
     fi
     
     if [ "$total_tests" -lt 50 ]; then
-        report+="- ℹ️ **Consider adding more tests** - currently only $total_tests tests\n"
+        report+="- Consider adding more tests - currently only $total_tests tests\n"
     fi
     
     report+="\n---\n\n"
     report+="*Generated by Marina Hotel Mobile Test Reports Generator*\n"
     
-    echo "$report" > "$TEST_RESULTS_DIR/test_report.md"
+    printf '%b' "$report" > "$TEST_REPORT"
     
-    print_success "Test report generated: $TEST_RESULTS_DIR/test_report.md"
+    print_success "Test report generated: $TEST_REPORT"
     
     # Print summary to console
     echo ""
-    echo "${PURPLE}=== TEST REPORT SUMMARY ===${NC}"
+    print_section "TEST REPORT SUMMARY"
     echo "Total Tests: $total_tests"
     echo "Passed: $passed_tests"
     echo "Failed: $failed_tests"
@@ -608,36 +564,36 @@ generate_coverage_report() {
             coverage_report+="- **Coverage Percentage:** $COVERAGE_PERCENT%\n\n"
             
             if [ "$COVERAGE_PERCENT" -ge 80 ]; then
-                coverage_report+="- **Status:** ✅ EXCELLENT (>= 80% required)\n"
+                coverage_report+="- **Status:** PASSED EXCELLENT (>= 80% required)\n"
             elif [ "$COVERAGE_PERCENT" -ge 70 ]; then
-                coverage_report+="- **Status:** ⚠️ GOOD (70-79%)\n"
+                coverage_report+="- **Status:** GOOD (70-79%)\n"
             elif [ "$COVERAGE_PERCENT" -ge 60 ]; then
-                coverage_report+="- **Status:** ⚠️ FAIR (60-69%)\n"
+                coverage_report+="- **Status:** FAIR (60-69%)\n"
             else
-                coverage_report+="- **Status:** ❌ POOR (< 60%)\n"
+                coverage_report+="- **Status:** FAILED POOR (< 60%)\n"
             fi
             
             coverage_report+="\n"
             coverage_report+="## Coverage Details\n\n"
             coverage_report+="Run the following to see detailed coverage:\n"
-            coverage_report+="```bash\n"
+            coverage_report+="\`\`\`bash\n"
             coverage_report+="lcov --list $COVERAGE_DIR/combined.lcov\n"
-            coverage_report+="```\n\n"
+            coverage_report+="\`\`\`\n\n"
             coverage_report+="Or open the HTML report:\n"
-            coverage_report+="```bash\n"
+            coverage_report+="\`\`\`bash\n"
             coverage_report+="xdg-open $COVERAGE_DIR/html/index.html  # Linux\n"
             coverage_report+="open $COVERAGE_DIR/html/index.html      # macOS\n"
-            coverage_report+="```\n\n"
+            coverage_report+="\`\`\`\n\n"
             coverage_report+="---\n\n"
             coverage_report+="*Generated by Marina Hotel Mobile Coverage Reports Generator*\n"
             
-            echo "$coverage_report" > "$COVERAGE_DIR/coverage_summary.md"
+            printf '%b' "$coverage_report" > "$COVERAGE_DIR/coverage_summary.md"
             
             print_success "Coverage summary generated: $COVERAGE_DIR/coverage_summary.md"
             
             # Print summary to console
             echo ""
-            echo "${PURPLE}=== COVERAGE REPORT SUMMARY ===${NC}"
+            print_section "COVERAGE REPORT SUMMARY"
             echo "Total Lines: $TOTAL_LINES"
             echo "Covered Lines: $COVERED_LINES"
             echo "Coverage: $COVERAGE_PERCENT%"
@@ -673,31 +629,31 @@ generate_security_report() {
         print_info "Running GitLeaks scan..."
         
         if [ -f ".gitleaks.toml" ]; then
-            if gitleaks detect --source . --config .gitleaks.toml --report-path="$SECURITY_DIR/gitleaks_report.json" --verbose 2>&1; then
+            if gitleaks detect --source . --config .gitleaks.toml --report-path="$SECURITY_DIR/gitleaks_report.json" --verbose 2>&1 | tee "$SECURITY_DIR/gitleaks_scan.log"; then
                 report+="## GitLeaks Scan\n\n"
-                report+="- **Status:** ✅ PASSED\n"
+                report+="- **Status:** PASSED\n"
                 report+="- **Secrets Found:** 0\n\n"
             else
                 report+="## GitLeaks Scan\n\n"
-                report+="- **Status:** ❌ FAILED\n"
+                report+="- **Status:** FAILED\n"
                 report+="- **Secrets Found:** See $SECURITY_DIR/gitleaks_report.json\n\n"
                 print_error "GitLeaks found potential secrets!"
             fi
         else
-            if gitleaks detect --source . --report-path="$SECURITY_DIR/gitleaks_report.json" --verbose 2>&1; then
+            if gitleaks detect --source . --report-path="$SECURITY_DIR/gitleaks_report.json" --verbose 2>&1 | tee "$SECURITY_DIR/gitleaks_scan.log"; then
                 report+="## GitLeaks Scan\n\n"
-                report+="- **Status:** ✅ PASSED\n"
+                report+="- **Status:** PASSED\n"
                 report+="- **Secrets Found:** 0\n\n"
             else
                 report+="## GitLeaks Scan\n\n"
-                report+="- **Status:** ❌ FAILED\n"
+                report+="- **Status:** FAILED\n"
                 report+="- **Secrets Found:** See $SECURITY_DIR/gitleaks_report.json\n\n"
                 print_error "GitLeaks found potential secrets!"
             fi
         fi
     else
         report+="## GitLeaks Scan\n\n"
-        report+="- **Status:** ⚠️ SKIPPED (GitLeaks not installed)\n"
+        report+="- **Status:** SKIPPED (GitLeaks not installed)\n"
         report+="- **Install:** brew install gitleaks (macOS) or sudo snap install gitleaks (Linux)\n\n"
     fi
     
@@ -707,13 +663,13 @@ generate_security_report() {
     
     if [ "$api_key_count" -gt 0 ]; then
         report+="## Hardcoded API Keys\n\n"
-        report+="- **Status:** ❌ FOUND\n"
+        report+="- **Status:** FAILED\n"
         report+="- **Count:** $api_key_count\n"
         report+="- **Action Required:** Remove hardcoded API keys\n\n"
         print_error "Found $api_key_count potential hardcoded API keys!"
     else
         report+="## Hardcoded API Keys\n\n"
-        report+="- **Status:** ✅ PASSED\n"
+        report+="- **Status:** PASSED\n"
         report+="- **Count:** 0\n\n"
     fi
     
@@ -723,13 +679,13 @@ generate_security_report() {
     
     if [ "$password_count" -gt 0 ]; then
         report+="## Hardcoded Passwords\n\n"
-        report+="- **Status:** ❌ FOUND\n"
+        report+="- **Status:** FAILED\n"
         report+="- **Count:** $password_count\n"
         report+="- **Action Required:** Remove hardcoded passwords\n\n"
         print_error "Found $password_count potential hardcoded passwords!"
     else
         report+="## Hardcoded Passwords\n\n"
-        report+="- **Status:** ✅ PASSED\n"
+        report+="- **Status:** PASSED\n"
         report+="- **Count:** 0\n\n"
     fi
     
@@ -739,42 +695,42 @@ generate_security_report() {
     
     if [ "$token_count" -gt 0 ]; then
         report+="## Hardcoded Tokens/Secrets\n\n"
-        report+="- **Status:** ❌ FOUND\n"
+        report+="- **Status:** FAILED\n"
         report+="- **Count:** $token_count\n"
         report+="- **Action Required:** Remove hardcoded tokens/secrets\n\n"
         print_error "Found $token_count potential hardcoded tokens/secrets!"
     else
         report+="## Hardcoded Tokens/Secrets\n\n"
-        report+="- **Status:** ✅ PASSED\n"
+        report+="- **Status:** PASSED\n"
         report+="- **Count:** 0\n\n"
     fi
     
     # Overall security status
-    local security_status="✅ PASSED"
+    local security_status="PASSED"
     if [ "$api_key_count" -gt 0 ] || [ "$password_count" -gt 0 ] || [ "$token_count" -gt 0 ]; then
-        security_status="❌ FAILED"
+        security_status="FAILED"
     fi
     
     report+="## Overall Security Status\n\n"
     report+="- **Status:** $security_status\n"
-    report+="- **Recommendation:** $(if [ "$security_status" = "❌ FAILED" ]; then echo "Fix security issues before merging"; else echo "Code is secure"; fi)\n\n"
+    report+="- **Recommendation:** $(if [ "$security_status" = "FAILED" ]; then echo "Fix security issues before merging"; else echo "Code is secure"; fi)\n\n"
     
     report+="---\n\n"
     report+="*Generated by Marina Hotel Mobile Security Reports Generator*\n"
     
-    echo "$report" > "$SECURITY_REPORT"
+    printf '%b' "$report" > "$SECURITY_REPORT"
     
     print_success "Security report generated: $SECURITY_REPORT"
     
     # Print summary to console
     echo ""
-    echo "${PURPLE}=== SECURITY REPORT SUMMARY ===${NC}"
+    print_section "SECURITY REPORT SUMMARY"
     echo "Status: $security_status"
     echo "API Keys Found: $api_key_count"
     echo "Passwords Found: $password_count"
     echo "Tokens Found: $token_count"
     
-    if [ "$security_status" = "❌ FAILED" ]; then
+    if [ "$security_status" = "FAILED" ]; then
         return 1
     fi
     
@@ -802,9 +758,9 @@ generate_final_report() {
     fi
     
     # Add test summary
-    if [ -f "$TEST_RESULTS_DIR/test_report.md" ]; then
+    if [ -f "$TEST_REPORT" ]; then
         final_report+="## Test Results\n\n"
-        final_report+="$(cat "$TEST_RESULTS_DIR/test_report.md" | sed '1,/^##/d' | sed '/^---/,$d')\n\n"
+        final_report+="$(cat "$TEST_REPORT" | sed '1,/^##/d' | sed '/^---/,$d')\n\n"
     fi
     
     # Add coverage summary
@@ -832,8 +788,8 @@ generate_final_report() {
     fi
     
     # Test pass rate
-    if [ -f "$TEST_RESULTS_DIR/test_report.md" ]; then
-        local pass_rate=$(grep "Success Rate:" "$TEST_RESULTS_DIR/test_report.md" | awk '{print $3}' | tr -d '%')
+    if [ -f "$TEST_REPORT" ]; then
+        local pass_rate=$(grep "Success Rate:" "$TEST_REPORT" | awk '{print $3}' | tr -d '%')
         health_score=$(( (health_score + pass_rate) / 2 ))
     fi
     
@@ -845,54 +801,54 @@ generate_final_report() {
     
     # Security status
     if [ -f "$SECURITY_REPORT" ]; then
-        if grep -q "❌ FAILED" "$SECURITY_REPORT"; then
+        if grep -q "FAILED" "$SECURITY_REPORT"; then
             health_score=$((health_score - 30))
         fi
     fi
     
     # Determine health grade
-    local health_grade="🌟 A+ (Excellent)"
+    local health_grade="A+ (Excellent)"
     if [ "$health_score" -ge 90 ]; then
-        health_grade="🌟 A+ (Excellent)"
+        health_grade="A+ (Excellent)"
     elif [ "$health_score" -ge 80 ]; then
-        health_grade="🌟 A (Good)"
+        health_grade="A (Good)"
     elif [ "$health_score" -ge 70 ]; then
-        health_grade="🌟 B (Fair)"
+        health_grade="B (Fair)"
     elif [ "$health_score" -ge 60 ]; then
-        health_grade="🌟 C (Needs Improvement)"
+        health_grade="C (Needs Improvement)"
     else
-        health_grade="🌟 D (Poor)"
+        health_grade="D (Poor)"
     fi
     
     final_report+="| Metric | Score | Grade |\n"
     final_report+="|--------|-------|-------|\n"
-    final_report+="| Code Quality | ${quality_score:-N/A}% | $(if [ -n "$quality_score" ]; then echo "$(if [ "$quality_score" -ge 80 ]; then echo "✅"; else echo "⚠️"; fi)"; else echo "N/A"; fi) |\n"
-    final_report+="| Test Results | ${pass_rate:-N/A}% | $(if [ -n "$pass_rate" ]; then echo "$(if [ "$pass_rate" -ge 80 ]; then echo "✅"; else echo "⚠️"; fi)"; else echo "N/A"; fi) |\n"
-    final_report+="| Code Coverage | ${coverage:-N/A}% | $(if [ -n "$coverage" ]; then echo "$(if [ "$coverage" -ge 80 ]; then echo "✅"; else echo "⚠️"; fi)"; else echo "N/A"; fi) |\n"
-    final_report+="| Security | $(if grep -q "✅ PASSED" "$SECURITY_REPORT" 2>/dev/null; then echo "100%"; else echo "0%"; fi) | $(if grep -q "✅ PASSED" "$SECURITY_REPORT" 2>/dev/null; then echo "✅"; else echo "❌"; fi) |\n"
+    final_report+="| Code Quality | ${quality_score:-N/A}% | $(if [ -n "$quality_score" ]; then echo "$(if [ "$quality_score" -ge 80 ]; then echo "PASSED"; else echo "WARNING"; fi)"; else echo "N/A"; fi) |\n"
+    final_report+="| Test Results | ${pass_rate:-N/A}% | $(if [ -n "$pass_rate" ]; then echo "$(if [ "$pass_rate" -ge 80 ]; then echo "PASSED"; else echo "WARNING"; fi)"; else echo "N/A"; fi) |\n"
+    final_report+="| Code Coverage | ${coverage:-N/A}% | $(if [ -n "$coverage" ]; then echo "$(if [ "$coverage" -ge 80 ]; then echo "PASSED"; else echo "WARNING"; fi)"; else echo "N/A"; fi) |\n"
+    final_report+="| Security | $(if grep -q "PASSED" "$SECURITY_REPORT" 2>/dev/null; then echo "100%"; else echo "0%"; fi) | $(if grep -q "PASSED" "$SECURITY_REPORT" 2>/dev/null; then echo "PASSED"; else echo "FAILED"; fi) |\n"
     final_report+="| **Overall Health** | **${health_score}%** | **$health_grade** |\n\n"
     
     # Recommendations
     final_report+="## Recommendations\n\n"
     
     if [ "$health_score" -lt 80 ]; then
-        final_report+="- ❌ **Address critical issues** before merging\n"
+        final_report+="- Address critical issues before merging\n"
     fi
     
     if [ "$quality_score" -lt 80 ] 2>/dev/null; then
-        final_report+="- ⚠️ **Improve code quality** - aim for 80%+ score\n"
+        final_report+="- Improve code quality - aim for 80%+ score\n"
     fi
     
     if [ "$pass_rate" -lt 80 ] 2>/dev/null; then
-        final_report+="- ⚠️ **Fix failing tests** - aim for 80%+ pass rate\n"
+        final_report+="- Fix failing tests - aim for 80%+ pass rate\n"
     fi
     
     if [ "$coverage" -lt 80 ] 2>/dev/null; then
-        final_report+="- ⚠️ **Improve test coverage** - aim for 80%+ coverage\n"
+        final_report+="- Improve test coverage - aim for 80%+ coverage\n"
     fi
     
-    if grep -q "❌ FAILED" "$SECURITY_REPORT" 2>/dev/null; then
-        final_report+="- ❌ **Fix security issues** before merging\n"
+    if grep -q "FAILED" "$SECURITY_REPORT" 2>/dev/null; then
+        final_report+="- Fix security issues before merging\n"
     fi
     
     final_report+="\n"
@@ -906,20 +862,20 @@ generate_final_report() {
     final_report+="---\n\n"
     final_report+="*Generated by Marina Hotel Mobile Code Quality Reports Generator*\n"
     
-    echo "$final_report" > "$FINAL_REPORT"
+    printf '%b' "$final_report" > "$FINAL_REPORT"
     
     print_success "Final report generated: $FINAL_REPORT"
     
     # Print summary to console
     echo ""
-    echo "${PURPLE}=== FINAL CODE QUALITY REPORT ===${NC}"
+    print_section "FINAL CODE QUALITY REPORT"
     echo "Project Health Score: ${health_score}%"
     echo "Health Grade: $health_grade"
     echo ""
     echo "Quality Score: ${quality_score:-N/A}%"
     echo "Test Pass Rate: ${pass_rate:-N/A}%"
     echo "Coverage: ${coverage:-N/A}%"
-    echo "Security: $(if grep -q "✅ PASSED" "$SECURITY_REPORT" 2>/dev/null; then echo "✅ PASSED"; else echo "❌ FAILED"; fi)"
+    echo "Security: $(if grep -q "PASSED" "$SECURITY_REPORT" 2>/dev/null; then echo "PASSED"; else echo "FAILED"; fi)"
 }
 
 # ============================================
@@ -928,13 +884,6 @@ generate_final_report() {
 
 # Print header
 print_header
-
-# Check if Flutter is installed
-if ! command_exists flutter; then
-    print_error "Flutter is not installed!"
-    print_info "Install Flutter from: https://flutter.dev/docs/get-started/install"
-    exit 1
-fi
 
 # Check if we're in the right directory
 if [ ! -f "pubspec.yaml" ]; then

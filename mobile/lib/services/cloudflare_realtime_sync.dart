@@ -183,7 +183,8 @@ class CloudflareRealtimeSync {
   }
 
   /// إيقاف مقصود (background — المرحلة 3.3): لا إعادة اتصال بعده.
-  void stop() {
+  /// (Future<void> لتوافق perf call-sites التي تعمل await realtime.stop()).
+  Future<void> stop() async {
     _intentionallyStopped = true;
     _isListening = false;
     _reconnectTimer?.cancel();

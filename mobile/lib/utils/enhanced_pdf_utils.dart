@@ -2,7 +2,6 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart' hide PdfColors;
 import 'package:pdf/widgets.dart' as pw;
-import 'package:flutter/foundation.dart' show debugPrint;
 
 /// ألوان مخصصة للـ PDF
 class PdfColors {
@@ -114,8 +113,7 @@ class EnhancedPdfUtils {
       final data = await rootBundle.load('assets/images/hotel_logo.jpg');
       final Uint8List bytes = data.buffer.asUint8List();
       return pw.MemoryImage(bytes);
-    } catch (e) {
-      debugPrint('⚠️ Swallowed error in enhanced_pdf_utils.dart: ');
+    } catch (_) {
       return null;
     }
   }

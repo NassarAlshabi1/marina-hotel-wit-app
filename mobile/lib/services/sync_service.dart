@@ -1,9 +1,6 @@
-// TODO(phase-2): remove this ignore and fix violations (avoid_dynamic_calls, discarded_futures)
-// ignore_for_file: avoid_dynamic_calls, discarded_futures
 import 'dart:async';
 
 import 'package:drift/drift.dart' as d;
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/repository_providers.dart';
@@ -23,6 +20,7 @@ import 'repositories/rooms_repository.dart';
 import 'sync_config.dart';
 import 'sync_mutex.dart';
 import 'sync_performance_optimizer.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 enum SyncStatus { idle, pushing, pulling, error }
 
@@ -56,7 +54,7 @@ class SyncService {
   /// تهيئة محسن الأداء
   Future<void> initializePerformanceOptimizer() async {
     await _performanceOptimizer.initialize();
-    debugPrint('🔧 تم تهيئة محسن أداء المزامنة');
+    dlog('🔧 تم تهيئة محسن أداء المزامنة');
   }
 
   /// الحصول على إحصائيات الأداء
@@ -78,13 +76,13 @@ class SyncService {
   /// تشغيل المزامنة مع تحسين الأداء وحماية من التشغيل المتزامن
   Future<void> runSync() async {
     if (!await _syncMutex.acquire(timeout: SyncConfig.syncMutexTimeout)) {
-      debugPrint('⏸️ المزامنة جارية بالفعل، تخطي المحاولة الجديدة');
+      dlog('⏸️ المزامنة جارية بالفعل، تخطي المحاولة الجديدة');
       return;
     }
 
     try {
       if (await _performanceOptimizer.shouldSkipSync()) {
-        debugPrint('⏭️ تم تخطي المزامنة حسب إعدادات محسن الأداء');
+        dlog('⏭️ تم تخطي المزامنة حسب إعدادات محسن الأداء');
         return;
       }
 
@@ -96,11 +94,11 @@ class SyncService {
       _performanceOptimizer.recordSyncAttempt(success: true);
       _status.add(SyncStatus.idle);
 
-      debugPrint('✅ تم إنجاز المزامنة بنجاح');
+      dlog('✅ تم إنجاز المزامنة بنجاح');
     } catch (e) {
       _performanceOptimizer.recordSyncAttempt(success: false);
       _status.add(SyncStatus.error);
-      debugPrint('❌ فشل في المزامنة: $e');
+      dlog(() => '❌ فشل في المزامنة: $e');
       rethrow;
     } finally {
       _syncMutex.release();
@@ -131,8 +129,9 @@ class SyncService {
           if (index >= results.length) {
             allSucceeded = false;
             final missingChange = computation.changes[index];
-            debugPrint(
-              '❌ Missing push result for ${missingChange.entity}/${missingChange.localUuid}',
+            dlog(
+              () =>
+                  '❌ Missing push result for ${missingChange.entity}/${missingChange.localUuid}',
             );
             break;
           }
@@ -147,8 +146,9 @@ class SyncService {
             );
           } else {
             allSucceeded = false;
-            debugPrint(
-              '❌ فشل إرسال ${change.entity}/${change.localUuid}: ${result['error']}',
+            dlog(
+              () =>
+                  '❌ فشل إرسال ${change.entity}/${change.localUuid}: ${result['error']}',
             );
           }
         }
@@ -179,7 +179,7 @@ class SyncService {
             );
       });
     } catch (e) {
-      debugPrint('❌ فشل في إرسال بيانات المزامنة: $e');
+      dlog(() => '❌ فشل في إرسال بيانات المزامنة: $e');
       rethrow;
     }
   }
@@ -248,8 +248,9 @@ class SyncService {
         try {
           await _applyIncoming(entity, op, serverId, serverTs, item);
         } catch (e) {
-          debugPrint(
-            '❌ Failed to apply incoming change for $entity with server_id $serverId: $e. Skipping item.',
+          dlog(
+            () =>
+                '❌ Failed to apply incoming change for $entity with server_id $serverId: $e. Skipping item.',
           );
         }
       }
@@ -959,7 +960,7 @@ class SyncService {
         hotelDayKey == null ||
         nightStart == null ||
         nightEnd == null) {
-      debugPrint('⚠️ تخطي booking_nights/$localUuid لعدم اكتمال البيانات');
+      dlog(() => '⚠️ تخطي booking_nights/$localUuid لعدم اكتمال البيانات');
       return;
     }
 
@@ -1079,7 +1080,7 @@ class SyncService {
 
     final hotelDayKey = _asString(data['hotel_day_key']);
     if (hotelDayKey == null || hotelDayKey.isEmpty) {
-      debugPrint('⚠️ تخطي hotel_day_ledger/$localUuid لعدم اكتمال البيانات');
+      dlog(() => '⚠️ تخطي hotel_day_ledger/$localUuid لعدم اكتمال البيانات');
       return;
     }
 

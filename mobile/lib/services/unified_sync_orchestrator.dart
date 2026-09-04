@@ -5,14 +5,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/sync_models.dart' as models;
 import '../utils/debug_log.dart';
+import '../utils/weak_device_optimizer.dart';
 import 'analytics_service.dart';
-import 'appwrite_sync_manager.dart' show AppwriteSyncManager;
+import 'appwrite_service.dart';
+import 'appwrite_sync_manager.dart' show AppwriteSyncManager, SyncStatus;
 import 'google_drive_backup_service.dart';
 import 'google_drive_logger.dart';
 import 'google_drive_unified_sync_coordinator.dart';
 import 'local_db.dart';
 import 'smart_sync_manager.dart';
-import 'sync_enums.dart' show SyncStatus;
 import 'sync_integrity_checker.dart';
 
 class UnifiedSyncState {
@@ -205,9 +206,7 @@ class UnifiedSyncOrchestrator {
 
   /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
   static void disposeInstance() {
-    // dispose() returns Future<void>; we fire-and-forget it here because
-    // disposeInstance is synchronous (called from app shutdown hooks).
-    unawaited(instance.dispose());
+    instance.dispose();
   }
 
   Future<void> notifyLocalChange({String? table, String? operation}) async {
@@ -391,6 +390,13 @@ class UnifiedSyncOrchestrator {
   }
 
   Future<void> _snapshotIfNeeded({bool force = false}) async {
+    // الـ snapshot التلقائي يقرأ جداول كاملة ويبني عدة نسخ JSON في الذاكرة.
+    // على جهاز 1GB نحتفظ بالمزامنة التفاضلية ونؤجل الـ snapshot إلى طلب يدوي.
+    if (!force && WeakDeviceOptimizer.instance.isWeakDevice) {
+      dlog('🧠 Low-RAM policy: skipped automatic full snapshot');
+      return;
+    }
+
     final now = DateTime.now();
     if (!force && _state.lastSnapshotAt != null) {
       final diff = now.difference(_state.lastSnapshotAt!);
@@ -427,33 +433,54 @@ class UnifiedSyncOrchestrator {
 
   Future<String> _computeUnifiedChecksum() async {
     final db = _database!;
-    // Load each table with its proper type to keep type safety (avoid_dynamic_calls).
-    // Future.wait on mixed-type futures would return List<List<dynamic>> and force
-    // dynamic .toJson() calls below.
-    final rooms = await db.select(db.rooms).get();
-    final bookings = await db.select(db.bookings).get();
-    final bookingNotes = await db.select(db.bookingNotes).get();
-    final employees = await db.select(db.employees).get();
-    final expenses = await db.select(db.expenses).get();
-    final cashTransactions = await db.select(db.cashTransactions).get();
-    final payments = await db.select(db.payments).get();
-    final debts = await db.select(db.debts).get();
-    final bookingNights = await db.select(db.bookingNights).get();
-    final hotelDayLedger = await db.select(db.hotelDayLedger).get();
-    final shiftNotes = await db.select(db.shiftNotes).get();
+    final results = await Future.wait([
+      db.select(db.rooms).get(),
+      db.select(db.bookings).get(),
+      db.select(db.bookingNotes).get(),
+      db.select(db.employees).get(),
+      db.select(db.expenses).get(),
+      db.select(db.cashTransactions).get(),
+      db.select(db.payments).get(),
+      db.select(db.debts).get(),
+      db.select(db.bookingNights).get(),
+      db.select(db.hotelDayLedger).get(),
+      db.select(db.shiftNotes).get(),
+    ]);
 
     final tablesPayload = <String, List<Map<String, dynamic>>>{
-      'rooms': rooms.map((r) => r.toJson()).toList(),
-      'bookings': bookings.map((b) => b.toJson()).toList(),
-      'booking_notes': bookingNotes.map((n) => n.toJson()).toList(),
-      'employees': employees.map((e) => e.toJson()).toList(),
-      'expenses': expenses.map((e) => e.toJson()).toList(),
-      'cash_transactions': cashTransactions.map((c) => c.toJson()).toList(),
-      'payments': payments.map((p) => p.toJson()).toList(),
-      'debts': debts.map((d) => d.toJson()).toList(),
-      'booking_nights': bookingNights.map((n) => n.toJson()).toList(),
-      'hotel_day_ledger': hotelDayLedger.map((l) => l.toJson()).toList(),
-      'shift_notes': shiftNotes.map((s) => s.toJson()).toList(),
+      'rooms': (results[0] as List)
+          .map((e) => e.toJson() as Map<String, dynamic>)
+          .toList(),
+      'bookings': (results[1] as List)
+          .map((e) => e.toJson() as Map<String, dynamic>)
+          .toList(),
+      'booking_notes': (results[2] as List)
+          .map((e) => e.toJson() as Map<String, dynamic>)
+          .toList(),
+      'employees': (results[3] as List)
+          .map((e) => e.toJson() as Map<String, dynamic>)
+          .toList(),
+      'expenses': (results[4] as List)
+          .map((e) => e.toJson() as Map<String, dynamic>)
+          .toList(),
+      'cash_transactions': (results[5] as List)
+          .map((e) => e.toJson() as Map<String, dynamic>)
+          .toList(),
+      'payments': (results[6] as List)
+          .map((e) => e.toJson() as Map<String, dynamic>)
+          .toList(),
+      'debts': (results[7] as List)
+          .map((e) => e.toJson() as Map<String, dynamic>)
+          .toList(),
+      'booking_nights': (results[8] as List)
+          .map((e) => e.toJson() as Map<String, dynamic>)
+          .toList(),
+      'hotel_day_ledger': (results[9] as List)
+          .map((e) => e.toJson() as Map<String, dynamic>)
+          .toList(),
+      'shift_notes': (results[10] as List)
+          .map((e) => e.toJson() as Map<String, dynamic>)
+          .toList(),
     };
     return Isolate.run(
       () => models.SyncChecksum.compute({'tables': tablesPayload}),
@@ -489,7 +516,8 @@ class UnifiedSyncOrchestrator {
     }
     final db = _database ?? DatabaseManager.instance;
     _database ??= db;
-    final manager = AppwriteSyncManager();
+    final service = AppwriteService();
+    final manager = AppwriteSyncManager(appwriteService: service, database: db);
     await manager.initialize();
     _appwrite = manager;
     return manager;

@@ -1,12 +1,10 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart' as d;
-import 'package:flutter/foundation.dart';
 
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import '../auto_backup_manager.dart';
-import '../blacklist_alert_service.dart';
 import '../booking_derived_fields_service.dart';
 import '../crashlytics_service.dart';
 import '../daos/bookings_dao.dart';
@@ -14,6 +12,7 @@ import '../daos/outbox_dao.dart';
 import '../local_db.dart';
 import '../telegram/telegram_notification_service.dart';
 import '../telegram/whatsapp_notification_service.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class BookingsRepository {
   BookingsRepository(this.db) {
@@ -99,7 +98,8 @@ class BookingsRepository {
         return id;
       });
 
-      unawaited(AutoBackupManager.instance.onDataChange(
+      unawaited(
+        AutoBackupManager.instance.onDataChange(
           'bookings',
           'INSERT',
           recordData: {'id': result},
@@ -107,19 +107,6 @@ class BookingsRepository {
       );
       // إشعارات فورية (fire-and-forget)
       unawaited(_notifyNewBooking(result));
-
-      // ✅ فحص القائمة السوداء عند تسجيل الدخول
-      if (status == 'checked_in') {
-        unawaited(
-          BlacklistAlertService.instance.checkGuest(
-            db: db,
-            guestName: guestName,
-            roomNumber: roomNumber,
-            bookingId: result,
-          ),
-        );
-      }
-
       return result;
     } catch (e, stack) {
       await CrashlyticsService.instance.recordScreenError(
@@ -240,7 +227,8 @@ class BookingsRepository {
       });
 
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange(
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
             'bookings',
             'UPDATE',
             recordData: {'id': id},
@@ -271,7 +259,8 @@ class BookingsRepository {
     try {
       final result = await dao.softDelete(id);
       if (result > 0) {
-        unawaited(AutoBackupManager.instance.onDataChange(
+        unawaited(
+          AutoBackupManager.instance.onDataChange(
             'bookings',
             'DELETE',
             recordData: {'id': id},
@@ -330,7 +319,10 @@ class BookingsRepository {
   /// لذلك هذه الدالة تقوم بـ:
   /// 1. إلغاء أي سجلات legacy_discount يتيمة (عند عدم وجود تخفيض)
   /// 2. عدم إنشاء سجلات جديدة (كانت ميتة ولا فائدة منها)
-  Future<void> syncLegacyDiscountToAdjustments(int bookingId) async {
+  Future<void> syncLegacyDiscountToAdjustments(
+    int bookingId, {
+    bool enqueueOutbox = true,
+  }) async {
     final booking = await (db.select(
       db.bookings,
     )..where((b) => b.id.equals(bookingId))).getSingleOrNull();
@@ -341,7 +333,10 @@ class BookingsRepository {
     final discount = booking.discount;
     if (discount <= 0 || booking.discountType == 'total') {
       // لا يوجد تخفيض — ألغِ أي سجلات يتيمة
-      await _cancelLegacyDiscountAdjustments(bookingId);
+      await _cancelLegacyDiscountAdjustments(
+        bookingId,
+        enqueueOutbox: enqueueOutbox,
+      );
       return;
     }
 
@@ -349,12 +344,18 @@ class BookingsRepository {
     // 1. EnhancedBookingCalculationService يستبعدها دائماً
     // 2. التخفيض يُطبق مباشرة عبر booking.discount في المسار القديم
     // فقط تأكد من تنظيف أي سجلات يتيمة بمبلغ مختلف
-    await _cancelLegacyDiscountAdjustments(bookingId);
+    await _cancelLegacyDiscountAdjustments(
+      bookingId,
+      enqueueOutbox: enqueueOutbox,
+    );
   }
 
   /// إلغاء جميع سجلات legacy_discount النشطة لحجز معين.
   /// تُستدعى عندما يُزال التخفيض من الحجز (discount <= 0) لمنع سجلات يتيمة.
-  Future<void> _cancelLegacyDiscountAdjustments(int bookingId) async {
+  Future<void> _cancelLegacyDiscountAdjustments(
+    int bookingId, {
+    bool enqueueOutbox = true,
+  }) async {
     final now = Time.nowEpoch();
     final nowIso = DateTime.now().toUtc().toIso8601String();
 
@@ -386,10 +387,9 @@ class BookingsRepository {
           ),
         );
 
-    // ─── إنشاء outbox entries لمزامنة التعديلات المُلغاة ───
-    // ✅ تحسين أداء: استبدال N × merge() بـ mergeBatch() — معاملة واحدة بدل N
-    // بدون هذا، إلغاء legacy_discount لن يُزامن إلى الأجهزة الأخرى
-    if (orphans.isNotEmpty) {
+    // لا تُرحّل صيانة السجلات المسحوبة من Appwrite إلى Outbox. أمّا صيانة
+    // التعديل المحلي فتحتفظ بالسلوك الحالي وتُرفع تلقائياً.
+    if (enqueueOutbox) {
       final outboxDao = OutboxDao(db);
       await outboxDao.mergeBatch(
         orphans
@@ -447,7 +447,8 @@ class BookingsRepository {
           nights: nights,
         ),
       );
-      unawaited(TelegramNotificationService.instance.notifyNewBooking(
+      unawaited(
+        TelegramNotificationService.instance.notifyNewBooking(
           roomNumber: roomNumber,
           guestName: guestName,
           guestPhone: guestPhone,
@@ -457,7 +458,7 @@ class BookingsRepository {
         ),
       );
     } catch (e) {
-      debugPrint('⚠️ فشل إرسال إشعار الحجز الجديد: $e');
+      dlog(() => '⚠️ فشل إرسال إشعار الحجز الجديد: $e');
     }
   }
 
@@ -484,7 +485,8 @@ class BookingsRepository {
             expectedNights: booking.expectedNights,
           ),
         );
-        unawaited(TelegramNotificationService.instance.notifyCheckIn(
+        unawaited(
+          TelegramNotificationService.instance.notifyCheckIn(
             roomNumber: roomNumber,
             guestName: guestName,
             guestPhone: booking.guestPhone,
@@ -504,7 +506,8 @@ class BookingsRepository {
             remaining: remaining > 0 ? remaining : null,
           ),
         );
-        unawaited(TelegramNotificationService.instance.notifyCheckOut(
+        unawaited(
+          TelegramNotificationService.instance.notifyCheckOut(
             roomNumber: roomNumber,
             guestName: guestName,
             actualNights: booking.calculatedNights,
@@ -514,7 +517,7 @@ class BookingsRepository {
         );
       }
     } catch (e) {
-      debugPrint('⚠️ فشل إرسال إشعار تحديث الحجز: $e');
+      dlog(() => '⚠️ فشل إرسال إشعار تحديث الحجز: $e');
     }
   }
 }

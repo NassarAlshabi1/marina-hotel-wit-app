@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (avoid_dynamic_calls, discarded_futures)
-// ignore_for_file: unused_catch_stack, avoid_dynamic_calls, discarded_futures
 // lib/services/appwrite_messaging_service.dart
 //
 // ✅ خدمة Appwrite Messaging — بديل/مكمّل لـ FCM المباشر.
@@ -26,13 +24,13 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:appwrite/appwrite.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/app_logger.dart';
 import 'appwrite_config.dart';
 import 'appwrite_service.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// Topics المتاحة في Appwrite Messaging
 class MessagingTopics {
@@ -79,6 +77,12 @@ class AppwriteMessagingService {
   bool _isInitialized = false;
   StreamSubscription<dynamic>? _realtimeSubscription;
 
+  // FCM هو مسار التسليم الفعلي المهيأ للتطبيق. إبقاء Realtime على قناة
+  // `messages` يسبب إشعاراً مزدوجاً، وقد يلتقط رسائل Targets أخرى من نفس
+  // مشروع Appwrite قبل تطبيق فلتر مستلم موثوق. يبقى المسار متاحاً كخيار
+  // داخلي لاحقاً، لكنه معطّل افتراضياً لتجنب الإشعارات الكاذبة.
+  static const bool _useRealtimeNotificationFallback = false;
+
   static const AndroidNotificationChannel _messagingChannel =
       AndroidNotificationChannel(
         'marina_messaging_channel',
@@ -101,7 +105,7 @@ class AppwriteMessagingService {
       await _initLocalNotifications();
 
       _isInitialized = true;
-      debugPrint('✅ Appwrite Messaging Service initialized');
+      dlog('✅ Appwrite Messaging Service initialized');
     } catch (e, st) {
       AppLogger.error(
         'فشل تهيئة Appwrite Messaging',
@@ -122,12 +126,12 @@ class AppwriteMessagingService {
     String? userId,
   }) async {
     if (!_isInitialized) {
-      debugPrint('⚠️ Messaging Service not initialized');
+      dlog('⚠️ Messaging Service not initialized');
       return null;
     }
 
     if (fcmToken.isEmpty) {
-      debugPrint('⚠️ FCM token is empty');
+      dlog('⚠️ FCM token is empty');
       return null;
     }
 
@@ -154,7 +158,7 @@ class AppwriteMessagingService {
             if (userId != null) 'userId': userId,
           },
         );
-        debugPrint('✅ Messaging device updated: $deviceId');
+        dlog(() => '✅ Messaging device updated: $deviceId');
       } on AppwriteException catch (e) {
         if (e.code == 404) {
           // ignore: deprecated_member_use
@@ -171,7 +175,7 @@ class AppwriteMessagingService {
               if (userId != null) 'userId': userId,
             },
           );
-          debugPrint('✅ Messaging device created: $deviceId');
+          dlog(() => '✅ Messaging device created: $deviceId');
         } else {
           rethrow;
         }
@@ -192,14 +196,17 @@ class AppwriteMessagingService {
               'messaging_registered_at': DateTime.now().toIso8601String(),
             },
           );
-        } catch (e, st) {
+        } catch (e) {
           // غير حرج
-          debugPrint('⚠️ Could not update user prefs: $e');
+          dlog(() => '⚠️ Could not update user prefs: $e');
         }
       }
 
-      // بدء الاستماع للإشعارات عبر Realtime
-      _subscribeToRealtime();
+      // لا نشغّل مستمع Realtime هنا؛ FcmService يستمع إلى FCM ويعرض
+      // الإشعار ويطلق السحب مرة واحدة. هذا يمنع الإشعار/السحب المزدوج.
+      if (_useRealtimeNotificationFallback) {
+        _subscribeToRealtime();
+      }
 
       return deviceId;
     } catch (e, st) {
@@ -218,7 +225,7 @@ class AppwriteMessagingService {
   /// [topicIds] قائمة بمعرفات الـ Topics
   Future<void> subscribeToTopics(List<String> topicIds) async {
     if (!_isInitialized) {
-      debugPrint('⚠️ Messaging Service not initialized');
+      dlog('⚠️ Messaging Service not initialized');
       return;
     }
 
@@ -229,7 +236,7 @@ class AppwriteMessagingService {
         final targetId = prefs.getString('messaging_target_id');
 
         if (targetId == null) {
-          debugPrint('⚠️ No target registered — cannot subscribe to $topicId');
+          dlog(() => '⚠️ No target registered — cannot subscribe to $topicId');
           continue;
         }
 
@@ -239,7 +246,7 @@ class AppwriteMessagingService {
         // للاشتراك الفعلي، نحتاج لإضافة الـ target لقائمة المشتركين عبر Console
         // أو عبر server-side function
 
-        debugPrint('✅ Subscribed to topic: $topicId');
+        dlog(() => '✅ Subscribed to topic: $topicId');
 
         // حفظ قائمة الاشتراكات محلياً
         final subscribed =
@@ -248,8 +255,8 @@ class AppwriteMessagingService {
           subscribed.add(topicId);
           await prefs.setStringList('messaging_subscribed_topics', subscribed);
         }
-      } catch (e, st) {
-        debugPrint('⚠️ Failed to subscribe to $topicId: $e');
+      } catch (e) {
+        dlog(() => '⚠️ Failed to subscribe to $topicId: $e');
       }
     }
   }
@@ -262,9 +269,9 @@ class AppwriteMessagingService {
           prefs.getStringList('messaging_subscribed_topics') ?? [];
       subscribed.remove(topicId);
       await prefs.setStringList('messaging_subscribed_topics', subscribed);
-      debugPrint('✅ Unsubscribed from: $topicId');
+      dlog(() => '✅ Unsubscribed from: $topicId');
     } catch (e) {
-      debugPrint('⚠️ Failed to unsubscribe from $topicId: $e');
+      dlog(() => '⚠️ Failed to unsubscribe from $topicId: $e');
     }
   }
 
@@ -297,7 +304,7 @@ class AppwriteMessagingService {
         },
       );
 
-      debugPrint('✅ Subscribed to Messaging Realtime');
+      dlog('✅ Subscribed to Messaging Realtime');
     } catch (e, st) {
       AppLogger.error(
         'فشل الاشتراك في Realtime',
@@ -320,7 +327,7 @@ class AppwriteMessagingService {
       // التحقق أن الرسالة من نظامنا
       final source = data['type'] ?? data['source'];
       if (source != null && source != 'marina_sync') {
-        debugPrint('📩 Messaging: ignoring non-sync message ($source)');
+        dlog(() => '📩 Messaging: ignoring non-sync message ($source)');
         return;
       }
 
@@ -329,7 +336,7 @@ class AppwriteMessagingService {
       if (senderDeviceId != null) {
         _getMyDeviceId().then((myId) {
           if (myId == senderDeviceId) {
-            debugPrint('📩 Messaging: ignoring message from same device');
+            dlog('📩 Messaging: ignoring message from same device');
             return;
           }
           _showLocalNotification(title, body, data);
@@ -340,7 +347,7 @@ class AppwriteMessagingService {
         _triggerSync();
       }
     } catch (e) {
-      debugPrint('⚠️ Messaging: failed to handle message: $e');
+      dlog(() => '⚠️ Messaging: failed to handle message: $e');
     }
   }
 
@@ -372,15 +379,15 @@ class AppwriteMessagingService {
         details,
         payload: jsonEncode(data),
       );
-      debugPrint('🔔 Messaging: local notification shown: $title');
+      dlog(() => '🔔 Messaging: local notification shown: $title');
     } catch (e) {
-      debugPrint('⚠️ Messaging: show notification failed: $e');
+      dlog(() => '⚠️ Messaging: show notification failed: $e');
     }
   }
 
   /// تشغيل المزامنة فور وصول إشعار
   Future<void> _triggerSync() async {
-    debugPrint('🔄 Messaging: triggering sync...');
+    dlog('🔄 Messaging: triggering sync...');
     try {
       // إشعار Realtime بانتظار تغييرات
       // نعتمد على FcmService._triggerPull() أو AppwriteSyncManager.sync()
@@ -388,10 +395,10 @@ class AppwriteMessagingService {
       final syncManager = _syncManagerInstance;
       if (syncManager != null) {
         await syncManager.sync(push: false);
-        debugPrint('✅ Messaging: sync completed');
+        dlog('✅ Messaging: sync completed');
       }
     } catch (e) {
-      debugPrint('⚠️ Messaging: sync error: $e');
+      dlog(() => '⚠️ Messaging: sync error: $e');
     }
   }
 
@@ -422,9 +429,9 @@ class AppwriteMessagingService {
             >()
             ?.createNotificationChannel(_messagingChannel);
       }
-      debugPrint('✅ Messaging: local notifications initialized');
+      dlog('✅ Messaging: local notifications initialized');
     } catch (e) {
-      debugPrint('⚠️ Messaging: local notifications init failed: $e');
+      dlog(() => '⚠️ Messaging: local notifications init failed: $e');
     }
   }
 
@@ -463,7 +470,7 @@ class AppwriteMessagingService {
     _currentTargetId = null;
     _currentUserId = null;
     _isInitialized = false;
-    debugPrint('🛑 Appwrite Messaging Service disposed');
+    dlog('🛑 Appwrite Messaging Service disposed');
   }
 
   /// تنظيف الموارد الثابتة (يُستدعى عند إغلاق التطبيق)

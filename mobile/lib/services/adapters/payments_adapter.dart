@@ -1,5 +1,4 @@
 import 'package:drift/drift.dart' as d;
-import 'package:flutter/foundation.dart';
 
 import '../../utils/id.dart';
 import '../../utils/time.dart';
@@ -8,6 +7,7 @@ import 'entity_adapter.dart';
 import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
   PaymentsAdapter(this.resolver);
@@ -49,8 +49,9 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
     // تحذير إذا كان لدينا booking_local_id لكن لم نتمكن من حل المرجع
     if (resolvedId == null && localId != null) {
       // تسجيل تحذير فقط، سيتم معالجة الخطأ في _syncPayments
-      debugPrint(
-        '[PaymentsAdapter] Warning: Could not resolve booking for localId: $localId',
+      dlog(
+        () =>
+            '[PaymentsAdapter] Warning: Could not resolve booking for localId: $localId',
       );
     }
 
@@ -190,6 +191,38 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       isVoided: _vBool(json, 'isVoided', src, fallback: false),
       voidedAt: _vInt(json, 'voidedAt', src),
       voidedBy: _vStr(json, 'voidedBy', src),
+      // ✅ Wave 6b (2026-08-12): voidReason و isImmutable كانا موجودين في
+      // Cloud schema و filterPayload و Drift table لكنهما لم يُقرآ من adapter.
+      // بدون هذا الإصلاح، الدفعات الملغاة تفقد سبب الإلغاء عند السحب،
+      // والدفعات المثبتة مالياً يمكن تعديلها عن طريق الخطأ.
+      // انظر appwrite_schema_verifier.dart:264-265 (Cloud) و
+      // local_db.dart:256-257 (Drift columns).
+      voidReason: _vStr(json, 'voidReason', src, altKey: 'void_reason'),
+      isImmutable: _vBool(json, 'isImmutable', src, fallback: false),
+      receivedByUserId: _vInt(
+        json,
+        'receivedByUserId',
+        src,
+        altKey: 'received_by_user_id',
+      ),
+      receivedByName: _vStr(
+        json,
+        'receivedByName',
+        src,
+        altKey: 'received_by_name',
+      ),
+      receivedSessionUuid: _vStr(
+        json,
+        'receivedSessionUuid',
+        src,
+        altKey: 'received_session_uuid',
+      ),
+      receivedByCloudId: _vStr(
+        json,
+        'receivedByCloudId',
+        src,
+        altKey: 'received_by_cloud_id',
+      ),
     );
   }
 
@@ -240,6 +273,15 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       _k(src, 'isVoided', 'is_voided'): model.isVoided,
       _k(src, 'voidedAt', 'voided_at'): model.voidedAt,
       _k(src, 'voidedBy', 'voided_by'): model.voidedBy,
+      _k(src, 'voidReason', 'void_reason'): model.voidReason,
+      _k(src, 'isImmutable', 'is_immutable'): model.isImmutable,
+      _k(src, 'receivedByUserId', 'received_by_user_id'):
+          model.receivedByUserId,
+      _k(src, 'receivedByName', 'received_by_name'): model.receivedByName,
+      _k(src, 'receivedSessionUuid', 'received_session_uuid'):
+          model.receivedSessionUuid,
+      _k(src, 'receivedByCloudId', 'received_by_cloud_id'):
+          model.receivedByCloudId,
     };
   }
 }

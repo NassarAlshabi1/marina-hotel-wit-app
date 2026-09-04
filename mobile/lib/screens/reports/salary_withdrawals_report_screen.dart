@@ -1,5 +1,3 @@
-// TODO(phase-2): remove this ignore and fix violations (discarded_futures)
-// ignore_for_file: discarded_futures
 import 'dart:async';
 
 import 'package:drift/drift.dart' hide Column;
@@ -16,6 +14,7 @@ import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
+import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// بيانات معاملة واحدة من جدول salary_withdrawals
 class _SalaryTxRow {
@@ -84,7 +83,7 @@ class _SalaryWithdrawalsReportScreenState
   }
 
   Future<void> _initializeDefaults() async {
-    // ✅ افتراضي: اليوم الفندقي الحالي (14:01 → 14:00)
+    // ✅ افتراضي: اليوم الفندقي الحالي (14:00 → 13:59)
     final range = DateFilterController.getDefaultHotelDayRange();
     _fromDate = range.from;
     _toDate = range.to;
@@ -893,7 +892,7 @@ class _SalaryWithdrawalsReportScreenState
     try {
       return DateTime.parse(normalized);
     } catch (e) {
-      debugPrint('⚠️ تعذر تحليل تاريخ سحب الراتب "$value": $e');
+      dlog(() => '⚠️ تعذر تحليل تاريخ سحب الراتب "$value": $e');
       return DateTime.fromMillisecondsSinceEpoch(0);
     }
   }

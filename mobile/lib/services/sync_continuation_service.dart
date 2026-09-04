@@ -31,6 +31,7 @@
 
 import 'dart:async';
 import 'dart:developer' as developer;
+import 'dart:io' show Platform;
 
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -82,6 +83,7 @@ class SyncContinuationService {
     bool push = true,
     bool pull = false,
   }) async {
+    if (!Platform.isAndroid && !Platform.isIOS) return;
     if (!_initialized) {
       developer.log(
         '⚠️ SyncContinuationService not initialized',
@@ -142,6 +144,7 @@ class SyncContinuationService {
   /// تُسجّل مرة واحدة عند بدء التطبيق لتفقد المزامنات المعلّقة
   /// كل 15 دقيقة (الحد الأدنى لـ WorkManager على Android).
   static Future<void> schedulePeriodicCheck() async {
+    if (!Platform.isAndroid && !Platform.isIOS) return;
     if (!_initialized) return;
 
     try {
@@ -168,6 +171,7 @@ class SyncContinuationService {
 
   /// إلغاء جميع مهام الإكمال
   static Future<void> cancelAll() async {
+    if (!Platform.isAndroid && !Platform.isIOS) return;
     try {
       await Workmanager().cancelByUniqueName(kSyncCompletionImmediateTask);
       await Workmanager().cancelByUniqueName(kSyncCompletionTask);

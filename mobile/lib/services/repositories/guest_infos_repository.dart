@@ -11,18 +11,34 @@ class GuestInfosRepository {
   final AppDatabase _db;
   final OutboxDao _outboxDao;
 
-  /// جلب كل السجلات (بدون المحذوفة)
-  Future<List<GuestInfo>> listAll() async {
-    return (_db.select(
-      _db.guestInfos,
-    )..where((t) => t.deletedAt.isNull())).get();
+  /// جلب السجلات غير المحذوفة. يدعم pagination لتقليل الذاكرة في الشاشات.
+  Future<List<GuestInfo>> listAll({int? limit, int offset = 0}) async {
+    final query = _db.select(_db.guestInfos)
+      ..where((t) => t.deletedAt.isNull())
+      ..orderBy([
+        (t) =>
+            d.OrderingTerm(expression: t.updatedAt, mode: d.OrderingMode.desc),
+        (t) => d.OrderingTerm(expression: t.id, mode: d.OrderingMode.desc),
+      ]);
+    if (limit != null) {
+      query.limit(limit, offset: offset);
+    }
+    return query.get();
   }
 
-  /// مراقبة التغييرات (بدون المحذوفة)
-  Stream<List<GuestInfo>> watchAll() {
-    return (_db.select(
-      _db.guestInfos,
-    )..where((t) => t.deletedAt.isNull())).watch();
+  /// مراقبة التغييرات (بدون المحذفة) مع حد اختياري على مستوى SQLite.
+  Stream<List<GuestInfo>> watchAll({int? limit, int offset = 0}) {
+    final query = _db.select(_db.guestInfos)
+      ..where((t) => t.deletedAt.isNull())
+      ..orderBy([
+        (t) =>
+            d.OrderingTerm(expression: t.updatedAt, mode: d.OrderingMode.desc),
+        (t) => d.OrderingTerm(expression: t.id, mode: d.OrderingMode.desc),
+      ]);
+    if (limit != null) {
+      query.limit(limit, offset: offset);
+    }
+    return query.watch();
   }
 
   /// إنشاء سجل جديد + كتابة outbox للمزامنة
