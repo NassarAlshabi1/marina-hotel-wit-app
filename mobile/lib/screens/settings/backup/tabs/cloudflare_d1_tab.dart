@@ -129,7 +129,7 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
       _probeResult = null;
     });
     try {
-      final service = CloudflareD1Service();
+      final service = CloudflareD1Service(_config);
       final result = await service.probe();
       List<String> d1Tables;
       try {
@@ -157,7 +157,7 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
     setState(() => _loadingTables = true);
     try {
       final db = ref.read(databaseProvider);
-      final excluded = "name NOT LIKE 'sqlite_%' AND name != 'android_metadata' "
+      const excluded = "name NOT LIKE 'sqlite_%' AND name != 'android_metadata' "
           "AND name != 'room_master_table' AND name NOT LIKE '_cf_%'";
       final rows = await db
           .customSelect(
@@ -249,7 +249,7 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
 
   Future<void> _upload() async {
     final db = ref.read(databaseProvider);
-    final service = CloudflareD1Service();
+    final service = CloudflareD1Service(_config);
     _activeService = service;
 
     final sources = <CloudflareD1SourceTable>[];

@@ -15,12 +15,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// - compound SELECT (UNION) يفشل عند 6 عناصر — نتجنبه كلياً.
 /// - الكتابة تتطلب توكناً بصلاحية D1 Edit وإلا رُفضت بـ SQLITE_AUTH.
 class CloudflareD1Service {
-  CloudflareD1Service({http.Client? client}) : _client = client ?? http.Client();
+  CloudflareD1Service(this.config, {http.Client? client})
+      : _client = client ?? http.Client();
 
   static const String _baseUrl = 'https://api.cloudflare.com/client/v4';
   static const int maxParamsPerQuery = 100; // مُثبت تجريبياً
   static const int _paramSafetyMargin = 4;
   static const int paramsBudget = maxParamsPerQuery - _paramSafetyMargin; // 96
+
+  /// إعدادات الاتصال (الحساب/القاعدة/التوكن).
+  CloudflareD1Config config;
 
   final http.Client _client;
   bool _cancelled = false;
@@ -135,8 +139,9 @@ class CloudflareD1Service {
           accountReachable: false,
           databaseReachable: false,
           databaseName: null,
-          canWrite: false,
-          writeError: null,
+          dmlAllowed: false,
+          ddlAllowed: false,
+          dmlError: null,
           databases: databases,
           fatalError: fatalError,
         );
