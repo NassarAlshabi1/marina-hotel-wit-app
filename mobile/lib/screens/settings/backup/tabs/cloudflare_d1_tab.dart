@@ -6,6 +6,34 @@ import '../../../../providers/repository_providers.dart';
 import '../../../../services/cloudflare_d1_service.dart';
 import '../../../../services/daos/outbox_dao.dart';
 
+/// الجداول المحلية المطابقة لمجموعات Appwrite Cloud (collections) —
+/// مشتقة من خريطة `_entityToCollectionId` في AppwriteSyncManager ومن دورة
+/// السحب الفعلية. بيانات blacklist تُخزّن محلياً داخل shift_notes، و
+/// app_users بلا جدول محلي (AuthLocalStore) — لذا لا جدول مستقل لهما هنا.
+const Set<String> kAppwriteSyncedTables = <String>{
+  'rooms',
+  'bookings',
+  'booking_nights',
+  'booking_notes',
+  'booking_price_adjustments',
+  'payments',
+  'payment_voids',
+  'price_adjustments',
+  'expenses',
+  'debts',
+  'employees',
+  'guest_infos',
+  'cash_transactions',
+  'shift_notes',
+  'salary_cycles',
+  'salary_payments',
+  'salary_withdrawals',
+  'salary_carry_over_logs',
+  'audit_logs',
+  'inventory_items',
+  'inventory_transactions',
+};
+
 /// تبويب رفع البيانات المحلية (المسحوبة من Appwrite) إلى Cloudflare D1.
 ///
 /// المسار للقراءة فقط من القاعدة المحلية (SELECT) ثم INSERT OR REPLACE
@@ -42,6 +70,10 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
   bool _probing = false;
   bool _loadingTables = false;
   bool _uploading = false;
+
+  /// الافتراضي: جداول مزامنة Appwrite فقط (مطابقة للـ collections) —
+  /// ويمكن إظهار جميع الجداول المحلية عبر المفتاح في بطاقة الجداول.
+  bool _appwriteOnly = true;
 
   CloudflareD1ProbeResult? _probeResult;
   List<String>? _d1Tables;
@@ -209,7 +241,7 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         _localTables = tables;
         _selected
           ..clear()
-          ..addAll(tables.map((t) => t.name));
+          ..addAll(_visibleTables.map((t) => t.name));
       });
     } catch (e) {
       if (!mounted) return;
@@ -219,6 +251,22 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
     } finally {
       if (mounted) setState(() => _loadingTables = false);
     }
+  }
+
+  /// الجداول الظاهرة حسب وضع التصفية (مزامنة Appwrite فقط / الكل).
+  List<_LocalTableInfo> get _visibleTables {
+    if (!_appwriteOnly) return _localTables;
+    return _localTables
+        .where((t) => kAppwriteSyncedTables.contains(t.name))
+        .toList();
+  }
+
+  void _selectAllVisible() {
+    setState(() {
+      _selected
+        ..clear()
+        ..addAll(_visibleTables.map((t) => t.name));
+    });
   }
 
   Future<void> _confirmAndUpload() async {
@@ -373,9 +421,11 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'ينقل هذا التبويب جميع البيانات المحلية (المسحوبة من Appwrite) إلى '
-          'قاعدة Cloudflare D1 كنسخة استشارية على السحابة. القراءة من '
-          'القاعدة المحلية فقط، والكتابة بأسلوب INSERT OR REPLACE الآمن.',
+          'ينقل هذا التبويب بيانات جداول المزامنة من Appwrite Cloud — '
+          'المطابقة لمجموعات collections — إلى قاعدة Cloudflare D1 كنسخة '
+          'استشارية على السحابة. القراءة من القاعدة المحلية فقط والكتابة '
+          'بأسلوب INSERT OR REPLACE الآمن، ويمكن إظهار جميع الجداول '
+          'المحلية عبر المفتاح أدناه.',
           textAlign: TextAlign.start,
         ),
         if (_outboxPending > 0) ...[
@@ -529,19 +579,15 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
                   children: [
                     Expanded(
                       child: Text(
-                        'الجداول المحلية ($_selected/${_localTables.length} محددة — '
+                        'الجداول ($_selected/${_visibleTables.length} محددة — '
                         '$selectedRows صف)',
                         style: Theme.of(context).textTheme.titleSmall,
                       ),
                     ),
                     TextButton(
-                      onPressed: _localTables.isEmpty
+                      onPressed: _visibleTables.isEmpty
                           ? null
-                          : () => setState(
-                              () => _selected
-                                ..clear()
-                                ..addAll(_localTables.map((t) => t.name)),
-                            ),
+                          : _selectAllVisible,
                       child: const Text('الكل'),
                     ),
                     TextButton(
@@ -552,12 +598,33 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
                     ),
                   ],
                 ),
+                SwitchListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  value: _appwriteOnly,
+                  onChanged: _uploading
+                      ? null
+                      : (v) {
+                          setState(() {
+                            _appwriteOnly = v;
+                            _selected
+                              ..clear()
+                              ..addAll(_visibleTables.map((t) => t.name));
+                          });
+                        },
+                  title: const Text('جداول مزامنة Appwrite Cloud فقط'),
+                  subtitle: const Text(
+                    'المطابقة لمجموعات Appwrite (collections) — بدل جميع '
+                    'الجداول المحلية',
+                  ),
+                ),
                 if (missingInD1.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Text(
                       'تنبيه: ${missingInD1.length} جدولاً محدداً غير موجود في D1 '
-                      '(ستفشل): ${missingInD1.take(5).join('، ')}',
+                      '(سيُنشأ أثناء الرفع عند توفر صلاحية إنشاء الجداول): '
+                      '${missingInD1.take(5).join('، ')}',
                       style: TextStyle(color: Colors.orange.shade800),
                     ),
                   ),
@@ -572,9 +639,9 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
                     child: ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      itemCount: _localTables.length,
+                      itemCount: _visibleTables.length,
                       itemBuilder: (context, i) {
-                        final t = _localTables[i];
+                        final t = _visibleTables[i];
                         final existsInD1 =
                             d1Set == null || d1Set.contains(t.name);
                         return CheckboxListTile(

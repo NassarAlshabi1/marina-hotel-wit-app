@@ -13,7 +13,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// - نقطة /query تقبل عبارات متعددة في نداء واحد لكن **بدون** params
 ///   (خطأ 7400: "params with multiple statements is not supported").
 /// - compound SELECT (UNION) يفشل عند 6 عناصر — نتجنبه كلياً.
-/// - الكتابة تتطلب توكناً بصلاحية D1 Edit وإلا رُفضت بـ SQLITE_AUTH.
+/// - الكتابة تتطلب توكناً بصلاحية كتابة وإلا رُفضت بـ SQLITE_AUTH؛
+///   ومُثبت أن ALTER TABLE ADD COLUMN يُسمح به أحياناً بينما CREATE
+///   TABLE يُرفض — لذا تُصالَح أعمدة الجداول الموجودة تلقائياً.
 class CloudflareD1Service {
   CloudflareD1Service(this.config, {http.Client? client})
     : _client = client ?? http.Client();
@@ -313,6 +315,9 @@ class CloudflareD1Service {
           firstChunk ??= chunk;
           if (columns.isEmpty) {
             columns = firstChunk.first.keys.toList();
+            // مصالحة المخطط قبل أول INSERT: أعمدة محلية غائبة عن D1 تُضاف
+            // بـ ALTER (مخطط D1 قد يكون أقدم من المخطط المحلي).
+            await _reconcileSchema(t, columns, warnings);
           }
           final colCount = columns.length;
           if (colCount <= paramsBudget) {
@@ -429,6 +434,145 @@ class CloudflareD1Service {
   }
 
   static const int _chunkSize = 400;
+
+  // ════════════════════════════════════════════════════════════════
+  //  مصالحة المخطط (Schema Reconciliation)
+  // ════════════════════════════════════════════════════════════════
+
+  /// أعمدة جدول في D1 عبر pragma_table_info (مُثبت أنه يعمل على D1).
+  Future<List<String>> _d1TableColumns(String table) async {
+    final safe = table.replaceAll("'", "''");
+    final sets = await _query("SELECT name FROM pragma_table_info('$safe')");
+    if (sets.isEmpty) return const <String>[];
+    final rows = (sets.first['results'] as List?) ?? const [];
+    return rows.map((r) => (r as Map)['name'].toString()).toList();
+  }
+
+  /// قبل رفع بيانات الجدول: إن كانت أعمدة محلية غائبة عن D1 (مخطط D1
+  /// أقدم من المحلي) تُضاف بـ ALTER TABLE ADD COLUMN مشتقة من DDL الجهاز
+  /// المحلي نفسه — بلا تصلّب ولا تخمين.
+  ///
+  /// مُثبت تجريبياً على هذا الحساب (2026-09-05): ALTER TABLE ADD COLUMN
+  /// يُسمح به لتوكن بصلاحية DML فقط بينما CREATE TABLE يُرفض بـ SQLITE_AUTH
+  /// — لذا الجداول الغائبة كلياً تُنشأ فقط عبر مرحلة DDL أعلاه.
+  Future<void> _reconcileSchema(
+    CloudflareD1SourceTable t,
+    List<String> columns,
+    List<String> warnings,
+  ) async {
+    try {
+      final d1Cols = await _d1TableColumns(t.name);
+      // قائمة فارغة = الجدول غير موجود أصلاً؛ تُنشئه مرحلة DDL.
+      if (d1Cols.isEmpty) return;
+      final missing = columns.where((c) => !d1Cols.contains(c)).toList();
+      if (missing.isEmpty) return;
+      String? createSql;
+      for (final s in t.createSqlList) {
+        if (s.trim().toUpperCase().startsWith('CREATE TABLE')) {
+          createSql = s;
+          break;
+        }
+      }
+      if (createSql == null) return;
+      final frags = _columnFragments(createSql);
+      final alters = <String>[];
+      for (final c in missing) {
+        final raw = frags[c];
+        if (raw == null) continue;
+        final add = _toAddColumnFragment(raw);
+        if (add == null) continue;
+        alters.add(
+          'ALTER TABLE "${_quoteIdent(t.name)}" ADD COLUMN "$c" $add',
+        );
+      }
+      if (alters.isEmpty) return;
+      for (var i = 0; i < alters.length; i += 40) {
+        await executeStatements(
+          alters.sublist(i, (i + 40).clamp(0, alters.length)),
+        );
+      }
+      warnings.add(
+        'مصالحة مخطط: أُضيف ${alters.length} عموداً غائباً في ${t.name}',
+      );
+    } on CloudflareD1Exception catch (e) {
+      // بلا صلاحية كتابة: يُسجّل تحذيراً ويفشل الجدول المتأثر بخطأ واضح.
+      warnings.add('تعذر مصالحة مخطط ${t.name}: ${e.message}');
+    }
+  }
+
+  /// استخراج تعريفات الأعمدة من CREATE TABLE محلي (اسم → نص التعريف).
+  /// قيود الجدول (PRIMARY KEY/UNIQUE/CHECK/FOREIGN KEY) تُتجاهل لأنها
+  /// لا تبدأ باسم عمود مقتبس.
+  static Map<String, String> _columnFragments(String createSql) {
+    final open = createSql.indexOf('(');
+    final close = createSql.lastIndexOf(')');
+    if (open < 0 || close <= open) return const <String, String>{};
+    final body = createSql.substring(open + 1, close);
+    final frags = <String, String>{};
+    final buffer = StringBuffer();
+    var depth = 0;
+    var inQuote = false;
+    void flush() {
+      final f = buffer.toString().trim();
+      buffer.clear();
+      if (f.isEmpty) return;
+      final m = RegExp(r'^"([^"]+)"\s+(.*)$', dotAll: true).firstMatch(f);
+      if (m != null) frags[m.group(1)!] = m.group(2)!.trim();
+    }
+
+    for (var i = 0; i < body.length; i++) {
+      final ch = body[i];
+      if (ch == "'") inQuote = !inQuote;
+      if (inQuote) {
+        buffer.write(ch);
+        continue;
+      }
+      if (ch == '(') {
+        depth++;
+      } else if (ch == ')') {
+        depth--;
+      } else if (ch == ',' && depth == 0) {
+        flush();
+        continue;
+      }
+      buffer.write(ch);
+    }
+    flush();
+    return frags;
+  }
+
+  /// تجهيز تعريف عمود لـ ADD COLUMN: تجريد ما يرفضه SQLite في ALTER
+  /// (PRIMARY KEY/UNIQUE/REFERENCES، وNOT NULL بلا DEFAULT).
+  /// القيم الفعلية تُرفع دائماً لكل الأعمدة NOT NULL فلا فقدان بيانات.
+  static String? _toAddColumnFragment(String fragment) {
+    var f = fragment
+        .replaceFirst(
+          RegExp(r'\bPRIMARY\s+KEY\b', caseSensitive: false),
+          '',
+        )
+        .replaceFirst(RegExp(r'\bUNIQUE\b', caseSensitive: false), '')
+        .replaceFirst(
+          RegExp(r'\bREFERENCES\b.*$', caseSensitive: false, dotAll: true),
+          '',
+        )
+        .trim();
+    final hasDefault = RegExp(
+      r'\bDEFAULT\b',
+      caseSensitive: false,
+    ).hasMatch(f);
+    final hasNotNull = RegExp(
+      r'\bNOT\s+NULL\b',
+      caseSensitive: false,
+    ).hasMatch(f);
+    if (hasNotNull && !hasDefault) {
+      f = f.replaceFirst(
+        RegExp(r'\bNOT\s+NULL\b', caseSensitive: false),
+        '',
+      );
+    }
+    f = f.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return f.isEmpty ? null : f;
+  }
 
   // ════════════════════════════════════════════════════════════════
   //  أدوات مساعدة
