@@ -481,9 +481,7 @@ class CloudflareD1Service {
         if (raw == null) continue;
         final add = _toAddColumnFragment(raw);
         if (add == null) continue;
-        alters.add(
-          'ALTER TABLE "${_quoteIdent(t.name)}" ADD COLUMN "$c" $add',
-        );
+        alters.add('ALTER TABLE "${_quoteIdent(t.name)}" ADD COLUMN "$c" $add');
       }
       if (alters.isEmpty) return;
       for (var i = 0; i < alters.length; i += 40) {
@@ -546,29 +544,20 @@ class CloudflareD1Service {
   /// القيم الفعلية تُرفع دائماً لكل الأعمدة NOT NULL فلا فقدان بيانات.
   static String? _toAddColumnFragment(String fragment) {
     var f = fragment
-        .replaceFirst(
-          RegExp(r'\bPRIMARY\s+KEY\b', caseSensitive: false),
-          '',
-        )
+        .replaceFirst(RegExp(r'\bPRIMARY\s+KEY\b', caseSensitive: false), '')
         .replaceFirst(RegExp(r'\bUNIQUE\b', caseSensitive: false), '')
         .replaceFirst(
           RegExp(r'\bREFERENCES\b.*$', caseSensitive: false, dotAll: true),
           '',
         )
         .trim();
-    final hasDefault = RegExp(
-      r'\bDEFAULT\b',
-      caseSensitive: false,
-    ).hasMatch(f);
+    final hasDefault = RegExp(r'\bDEFAULT\b', caseSensitive: false).hasMatch(f);
     final hasNotNull = RegExp(
       r'\bNOT\s+NULL\b',
       caseSensitive: false,
     ).hasMatch(f);
     if (hasNotNull && !hasDefault) {
-      f = f.replaceFirst(
-        RegExp(r'\bNOT\s+NULL\b', caseSensitive: false),
-        '',
-      );
+      f = f.replaceFirst(RegExp(r'\bNOT\s+NULL\b', caseSensitive: false), '');
     }
     f = f.replaceAll(RegExp(r'\s+'), ' ').trim();
     return f.isEmpty ? null : f;
