@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/appwrite_realtime_sync.dart';
 import '../services/auth_local_store.dart' show AuthLocalStore, AuthType;
 import '../services/payment_session_context.dart';
 import '../utils/app_logger.dart';
@@ -244,6 +246,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     // يبدأ للمستخدمين السحابيين فقط؛ الحسابات المحلية لا تتصل بالشبكة.
     await _startCloudSessionCheckIfNeeded(user);
+
+    // ✅ V-4 (perf 014cc156): استئناف مستمع Realtime بعد الدخول/الاستعادة
+    // (أُوقف في logout). Idempotent: start() تعود مبكراً إن كان الاستماع
+    // جارياً.
+    unawaited(_resumeCloudSyncAfterLogin());
   }
 
   Future<void> login(
@@ -281,13 +288,52 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     // يبدأ للمستخدمين السحابيين فقط؛ الحسابات المحلية لا تتصل بالشبكة.
     await _startCloudSessionCheckIfNeeded(user);
+
+    // ✅ V-4 (perf 014cc156): استئناف مستمع Realtime بعد الدخول/الاستعادة
+    // (أُوقف في logout). Idempotent: start() تعود مبكراً إن كان الاستماع
+    // جارياً.
+    unawaited(_resumeCloudSyncAfterLogin());
   }
 
   Future<void> logout() async {
     _stopSessionCheck();
     PaymentSessionContext.clear();
+
+    // ✅ V-4 (تدقيق معماري — perf 014cc156): إيقاف مستمع Realtime عند
+    // الخروج — stop() تغلق الاشتراك وتفرّغ طابور الأحداث وتمنع إعادة
+    // الاتصال الإرادية. الاستئناف عند تسجيل الدخول التالي
+    // (_resumeCloudSyncAfterLogin).
+    await AppwriteRealtimeSync().stop();
+
     await _store.clearSession();
     state = const AuthState(isAuthenticated: false);
+  }
+
+  /// استئناف مستمع Realtime بعد الدخول/الاستعادة (V-4 — perf 014cc156).
+  ///
+  /// قاعدة البيانات لا تُعاد إنشاؤها عند تسجيل الدخول
+  /// (DatabaseManager.instance ثابت) لذا لا توجد نقطة إعادة تشغيل
+  /// أخرى في دورة الحياة. العملية idempotent بالكامل:
+  /// - initialize() تضمن جاهزية قناة Realtime.
+  /// - start() تعود مبكراً إذا كان الاستماع جارياً (_isListening)، وتحترم
+  ///   مفتاح Dual-Run البعيد (بوابة kill-switch).
+  /// - بلا deviceId محفوظ (تثبيت أول) نتخطى — مسار main.dart يسجّل
+  ///   الجهاز لاحقاً ويشغّل الاستماع من مساره الأساسي.
+  Future<void> _resumeCloudSyncAfterLogin() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final deviceId =
+          prefs.getString('appwrite_device_id') ??
+          prefs.getString('appwrite_realtime_device_id');
+      if (deviceId == null) {
+        return;
+      }
+      final realtime = AppwriteRealtimeSync();
+      await realtime.initialize(deviceId: deviceId);
+      await realtime.start();
+    } catch (e) {
+      dwarn(() => 'Resume realtime after login error: $e');
+    }
   }
 
   Future<bool> updateUserPermissions(

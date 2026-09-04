@@ -504,7 +504,19 @@ class UnifiedSyncOrchestrator {
       success = (pushed >= 0) && success;
     }
     if (pull) {
-      success = await manager.pullRemoteChanges() && success;
+      // ✅ V-2 (تدقيق معماري — perf 014cc156): تفويض السحب للحلقة الرئيسية
+      // الموحدة — pullRemoteChanges مسار قديم بلا metadata-first: checkpoint
+      // عالمي فقط، لا يكتب sync_remote_meta ولا مؤشرات الكيانات، فيعيد
+      // تنزيل كامل في كل استدعاء. deltaOnly يمنع بدء Full Sync من الخلفية
+      // على جهاز في مرحلة bootstrap (نمط حارس الركود — ASM:760).
+      // كل مستدعي pull-only هم مهام خلفية/تلقائية؛ اليدوي يمر عبر فرع
+      // push&&pull أعلاه حيث يبقى السحب الكامل قراراً مرئياً.
+      final result = await manager.sync(
+        push: false,
+        pull: true,
+        deltaOnly: true,
+      );
+      success = result.isSuccess && success;
     }
 
     return success;
