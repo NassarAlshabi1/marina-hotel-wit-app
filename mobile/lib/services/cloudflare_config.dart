@@ -16,6 +16,10 @@ class CloudflareConfig {
   static String get password => Env.cloudflarePassword;
 
   /// Entity → D1 table name mapping (1:1, same names as Drift)
+  ///
+  /// خطة الانتقال D7: أُضيفت inventory_items وinventory_transactions
+  /// وblacklist — الثلاثة موجودة في عقد Appwrite (27 مجموعة) وكانت مفقودة
+  /// من طبقة Cloudflare كاملةً، وأي سجل مخزون/قائمة سوداء كان سيُفقد صمتاً.
   static const Map<String, String> entityToTable = {
     'rooms': 'rooms',
     'bookings': 'bookings',
@@ -36,6 +40,9 @@ class CloudflareConfig {
     'audit_logs': 'audit_logs',
     'payment_voids': 'payment_voids',
     'guest_infos': 'guest_infos',
+    'inventory_items': 'inventory_items',
+    'inventory_transactions': 'inventory_transactions',
+    'blacklist': 'blacklist',
   };
 
   /// Tables to migrate (ordered by FK dependency — topological sort)
@@ -54,6 +61,9 @@ class CloudflareConfig {
   ///  11. salary_withdrawals (deps: employees, expenses)
   ///  12. salary_carry_over_logs (deps: employees)
   ///  13. audit_logs, payment_voids, shift_notes, price_adjustments
+  ///  14. inventory_items (no FK deps) → inventory_transactions (deps:
+  ///      inventory_items via item_local_uuid/item_id)
+  ///  15. blacklist (cloud-only, no deps)
   static const List<String> migrationOrder = [
     'rooms',
     'employees',
@@ -74,6 +84,9 @@ class CloudflareConfig {
     'payment_voids',
     'shift_notes',
     'price_adjustments',
+    'inventory_items',
+    'inventory_transactions',
+    'blacklist',
   ];
 
   static String? tableNameFor(String entity) => entityToTable[entity];

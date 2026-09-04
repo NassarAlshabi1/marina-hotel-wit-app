@@ -40,7 +40,13 @@ export interface PushOperation {
 
 // ─── Entity table mapping ─────────────────────────────────────
 // 1:1 mapping — entity name = D1 table name (matches Drift SQLite schema)
-// All 20 tables supported (matches Flutter's cloudflare_config.dart migrationOrder)
+// 22 synced entities (plan D7/D8):
+//   * inventory_items / inventory_transactions / blacklist added — the
+//     Appwrite contract (27 collections) includes them and omitting them
+//     meant inventory & blacklist writes were silently lost.
+//   * hotel_day_ledger REMOVED (plan D8): it is local-only by design
+//     (Appwrite sync manager never synced it either) — keeping it in the
+//     mapping invited stuck pushes for a table clients never upload.
 
 const ENTITY_TABLES: Record<string, string> = {
   // Core hotel entities
@@ -72,8 +78,12 @@ const ENTITY_TABLES: Record<string, string> = {
   audit_logs: 'audit_logs',
   payment_voids: 'payment_voids',
 
-  // Ledger
-  hotel_day_ledger: 'hotel_day_ledger',
+  // Inventory (gap closure — was silently missing)
+  inventory_items: 'inventory_items',
+  inventory_transactions: 'inventory_transactions',
+
+  // Blacklist (cloud-only entity, no Drift table client-side)
+  blacklist: 'blacklist',
 };
 
 const VALID_ENTITIES = new Set(Object.keys(ENTITY_TABLES));
@@ -160,13 +170,19 @@ export class Database {
 
   /** MAX(updated_at) across every synced entity table. */
   async maxUpdatedAtAcrossEntities(): Promise<number> {
-    const unions = Object.values(ENTITY_TABLES)
-      .map((t) => `SELECT MAX(updated_at) AS m FROM ${t}`)
-      .join(' UNION ALL ');
-    const row = await this.db
-      .prepare(`SELECT MAX(m) AS m FROM (${unions})`)
-      .first<{ m: number | string }>();
-    return Number(row?.m ?? 0);
+    // One MAX query per table — a single `SELECT MAX(m) FROM (…22 UNION ALL…)`
+    // trips D1's compound-SELECT term limit ("too many terms in compound
+    // SELECT"), which silently broke sync_clock advancement after every
+    // migration. Per-table queries + a JS max are immune.
+    let max = 0;
+    for (const table of Object.values(ENTITY_TABLES)) {
+      const row = await this.db
+        .prepare(`SELECT MAX(updated_at) AS m FROM ${table}`)
+        .first<{ m: number | string | null }>();
+      const v = Number(row?.m ?? 0);
+      if (Number.isFinite(v) && v > max) max = v;
+    }
+    return max;
   }
 
   // ─── Delta Pull ────────────────────────────────────────────
@@ -174,20 +190,35 @@ export class Database {
   async pullChanges(
     entity: string | null,
     cursor: number,
-    limit: number = 200
+    limit: number = 200,
+    excludeDeviceId?: string
   ): Promise<PullResult> {
     const entities = entity ? [entity] : Object.keys(ENTITY_TABLES);
     const fetchLimit = Math.max(1, limit) + 1; // +1 → detect overflow cheaply
     const allChanges: SyncRecord[] = [];
 
+    // Echo filter (plan 2.5): a device that already applied its own push
+    // must not receive its own rows back — skipping them removes the
+    // guaranteed-empty delta cycle after every local change. Server-written
+    // rows (device_id '') are never excluded.
+    const excludeDevice =
+      excludeDeviceId && excludeDeviceId.length > 0 ? excludeDeviceId : null;
+
     for (const ent of entities) {
       const table = ENTITY_TABLES[ent];
-      const rows = await this.db
-        .prepare(
-          `SELECT * FROM ${table} WHERE updated_at > ? ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
-        )
-        .bind(cursor, fetchLimit)
-        .all();
+      const rows = excludeDevice
+        ? await this.db
+            .prepare(
+              `SELECT * FROM ${table} WHERE updated_at > ? AND (device_id IS NULL OR device_id != ?) ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
+            )
+            .bind(cursor, excludeDevice, fetchLimit)
+            .all()
+        : await this.db
+            .prepare(
+              `SELECT * FROM ${table} WHERE updated_at > ? ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
+            )
+            .bind(cursor, fetchLimit)
+            .all();
       for (const row of rows.results) {
         const record = row as unknown as SyncRecord;
         // ✅ أضف _entity لكل سجل ليتمكن Flutter من معرفة الجدول
@@ -390,18 +421,32 @@ export class Database {
 
     // ─── Conflict Detection: Vector Clock ───────────────────
     const conflict = this.detectConflict(existing.vector_clock || '{}', vectorClock);
+    // LWW input precedence (fix proven by test + client code): the op-level
+    // `updatedAt` (outbox clientTs, cloudflare_sync_manager.dart:857) is the
+    // authoritative edit timestamp of the operation; `data.updated_at` is a
+    // row snapshot that can be stale relative to the edit. The protocol
+    // field wins; the row field is the legacy fallback.
     const incomingTimestamp =
-      Number(data.updated_at) ||
-      (fallbackUpdatedAt !== undefined && Number.isFinite(fallbackUpdatedAt)
+      fallbackUpdatedAt !== undefined && Number.isFinite(fallbackUpdatedAt)
         ? Math.floor(fallbackUpdatedAt)
-        : Math.floor(Date.now() / 1000));
+        : Number(data.updated_at) || Math.floor(Date.now() / 1000);
+
+    // LWW resolution (plan 2.4): wall-clock timestamps are not monotonic
+    // across devices (a slow clock must not win) — timestamps decide only
+    // when they DIFFER; on a tie the monotonic `version` counter decides.
+    // The client increments SyncFields.version on every local edit, so a
+    // genuinely newer edit from a slow-clock device still carries a higher
+    // version and wins the tie instead of being silently dropped.
+    const timestampLoss =
+      incomingTimestamp < existing.updated_at ||
+      (incomingTimestamp === existing.updated_at &&
+        !this.incomingVersionWins(existing.version, data.version));
 
     if (conflict === 'concurrent') {
       // Save conflict for audit
       await this.saveConflict(entity, recordId, existing, data, existing.vector_clock ?? '{}', vectorClock);
 
-      // LWW resolution: compare timestamps
-      if (incomingTimestamp <= existing.updated_at) {
+      if (timestampLoss) {
         // Server copy is newer — reject incoming
         return existing;
       }
@@ -409,9 +454,9 @@ export class Database {
       // ✅ FIX: server state strictly dominates the client clock — the edit
       // was made against stale data. The old code fell through and APPLIED
       // it, regressing fields the server had already superseded. Apply only
-      // if the client demonstrably edited later in wall-clock time
-      // (slow-sync device); otherwise reject.
-      if (incomingTimestamp <= existing.updated_at) {
+      // if the client demonstrably edited later (later timestamp, or an
+      // equal timestamp with a strictly higher version); otherwise reject.
+      if (timestampLoss) {
         return existing;
       }
     }
@@ -614,6 +659,20 @@ export class Database {
         ''
       )
       .run();
+  }
+
+  /**
+   * Tie-breaker for equal `updated_at` (plan 2.4): the incoming edit wins
+   * only with a strictly higher version. Absent/invalid version loses —
+   * old clients without version semantics keep the previous behaviour
+   * (server copy wins ties).
+   */
+  private incomingVersionWins(
+    existingVersion: number,
+    incomingVersion: unknown
+  ): boolean {
+    const v = Number(incomingVersion);
+    return Number.isFinite(v) && v > existingVersion;
   }
 
   private parseVectorClock(vc: string): Record<string, number> {

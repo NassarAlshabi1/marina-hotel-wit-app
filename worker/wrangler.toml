@@ -10,10 +10,11 @@ binding = "DB"
 database_name = "marina-hotel-db"
 database_id = "607f1090-83b1-4281-975f-d81b8f6154e7"
 
-# ─── KV for rate limiting ─────────────────────────────────────
-[[kv_namespaces]]
-binding = "RATE_LIMIT"
-id = "13ee86354dee4511b0bffc708fc90459"
+# ─── Rate limiting ────────────────────────────────────────────
+# Decision (plan D1/D2): rate limiting runs on D1
+# (INSERT ... ON CONFLICT ... RETURNING — atomic, no KV free-tier
+# 1000 writes/day cap, no eventual consistency). The former dead
+# RATE_LIMIT KV binding was removed — it was never read by the code.
 
 # ─── Durable Objects (sync locks + realtime) ──────────────────
 [[durable_objects.bindings]]

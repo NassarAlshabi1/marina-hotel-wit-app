@@ -15,7 +15,6 @@ export { SyncLockDO };
 export interface Env {
   DB: D1Database;
   SYNC_LOCK: DurableObjectNamespace;
-  RATE_LIMIT: KVNamespace;
   JWT_SECRET: string;
   JWT_EXPIRY_HOURS: string;
   RATE_LIMIT_WINDOW: string;

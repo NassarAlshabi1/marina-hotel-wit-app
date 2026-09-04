@@ -12,7 +12,8 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../screens/settings/error_tracker_screen.dart' show logHttpError, logError, ErrorCategory;
+import '../screens/settings/error_tracker_screen.dart'
+    show logHttpError, logError, ErrorCategory;
 import '../utils/env.dart';
 import 'cloudflare_config.dart';
 import 'daos/outbox_dao.dart';
@@ -64,7 +65,8 @@ class CloudflareRealtimeSync {
 class CloudflareSyncManager {
   factory CloudflareSyncManager() => _instance;
   CloudflareSyncManager._internal();
-  static final CloudflareSyncManager _instance = CloudflareSyncManager._internal();
+  static final CloudflareSyncManager _instance =
+      CloudflareSyncManager._internal();
 
   // ─── Static device ID (same interface as AppwriteSyncManager) ──
   static String? _staticDeviceId;
@@ -131,7 +133,10 @@ class CloudflareSyncManager {
   );
 
   // ─── Initialize ─────────────────────────────────────────────
-  Future<void> initialize({AppDatabase? database, bool forceRetry = false}) async {
+  Future<void> initialize({
+    AppDatabase? database,
+    bool forceRetry = false,
+  }) async {
     if (_token != null && !forceRetry) return;
 
     _db = database ?? DatabaseManager.instance;
@@ -159,7 +164,9 @@ class CloudflareSyncManager {
       final outboxDao = OutboxDao(_db!);
       final reclaimed = await outboxDao.reclaimAllStuckProcessingOnStartup();
       if (reclaimed > 0) {
-        debugPrint('🔧 [P0-H] Reclaimed $reclaimed stuck outbox entries on init');
+        debugPrint(
+          '🔧 [P0-H] Reclaimed $reclaimed stuck outbox entries on init',
+        );
       }
     } catch (e) {
       debugPrint('⚠️ Failed to reclaim stuck outbox entries: $e');
@@ -228,12 +235,14 @@ class CloudflareSyncManager {
         }
 
         // Final attempt failed — set actionable error message
-        if (errStr.contains('Failed host lookup') || errStr.contains('No address associated with hostname')) {
+        if (errStr.contains('Failed host lookup') ||
+            errStr.contains('No address associated with hostname')) {
           _initError =
               'لا يمكن الوصول إلى خادم Cloudflare (${CloudflareConfig.workerUrl}). '
               'تأكد من اتصالك بالإنترنت وأن الشبكة لا تحظر الدومين workers.dev. '
               'الخطأ الأصلي: $e';
-        } else if (errStr.contains('SocketException') || errStr.contains('HandshakeException')) {
+        } else if (errStr.contains('SocketException') ||
+            errStr.contains('HandshakeException')) {
           _initError =
               'فشل الاتصال بخادم Cloudflare. تحقق من الشبكة وأعد المحاولة. '
               'الخطأ الأصلي: $e';
@@ -502,7 +511,9 @@ class CloudflareSyncManager {
       // إعادة السجلات إلى pending (reclaim)
       for (final item in pending) {
         try {
-          await (outboxDao.update(outboxDao.outbox)..where((t) => t.id.equals(item.id))).write(
+          await (outboxDao.update(
+            outboxDao.outbox,
+          )..where((t) => t.id.equals(item.id))).write(
             const OutboxCompanion(
               processingStatus: Value('pending'),
               processingStartedAt: Value(null),
@@ -531,7 +542,9 @@ class CloudflareSyncManager {
         // auth issue — أعِد السجلات لـ pending بدل failed
         for (final item in pending) {
           try {
-            await (outboxDao.update(outboxDao.outbox)..where((t) => t.id.equals(item.id))).write(
+            await (outboxDao.update(
+              outboxDao.outbox,
+            )..where((t) => t.id.equals(item.id))).write(
               const OutboxCompanion(
                 processingStatus: Value('pending'),
                 processingStartedAt: Value(null),
@@ -552,7 +565,9 @@ class CloudflareSyncManager {
       final item = r as Map<String, dynamic>;
       final key = item['idempotencyKey'] as String?;
       final success = item['success'] as bool? ?? false;
-      final opStatus = item['status'] as String?; // ✅ P0-G: 'ok','not_found','conflict','validation_error'
+      final opStatus =
+          item['status']
+              as String?; // ✅ P0-G: 'ok','not_found','conflict','validation_error'
       final errorMsg = item['error'] as String?;
 
       if (key == null) continue;
@@ -563,7 +578,9 @@ class CloudflareSyncManager {
       );
 
       if (success) {
-        await (outboxDao.delete(outboxDao.outbox)..where((t) => t.id.equals(outboxItem.id))).go();
+        await (outboxDao.delete(
+          outboxDao.outbox,
+        )..where((t) => t.id.equals(outboxItem.id))).go();
         successCount++;
       } else {
         // ✅ P0-G: نفرّق بين أنواع الفشل
@@ -571,8 +588,12 @@ class CloudflareSyncManager {
         // - 'validation_error' (400): خطأ بيانات دائم — dead-letter
         // - 'not_found' (404): لا يمكن أن يحدث في push (يحدث في pull)
         // - أي شيء آخر: فشل مؤقت — failed + إعادة محاولة
-        final isPermanentError = opStatus == 'validation_error' || errorMsg != null && errorMsg.contains('validation');
-        final isConflict = opStatus == 'conflict' || errorMsg != null && errorMsg.contains('conflict');
+        final isPermanentError =
+            opStatus == 'validation_error' ||
+            errorMsg != null && errorMsg.contains('validation');
+        final isConflict =
+            opStatus == 'conflict' ||
+            errorMsg != null && errorMsg.contains('conflict');
 
         if (isPermanentError) {
           // ✅ P0-G: خطأ دائم — ضع السجل في dead-letter
@@ -591,7 +612,9 @@ class CloudflareSyncManager {
           );
         } else {
           // فشل مؤقت — إعادة المحاولة في الدورة القادمة
-          await (outboxDao.update(outboxDao.outbox)..where((t) => t.id.equals(outboxItem.id))).write(
+          await (outboxDao.update(
+            outboxDao.outbox,
+          )..where((t) => t.id.equals(outboxItem.id))).write(
             OutboxCompanion(
               processingStatus: const Value('failed'),
               attempts: Value(outboxItem.attempts + 1),
@@ -632,10 +655,17 @@ class CloudflareSyncManager {
         try {
           response = await _httpClient
               .get(
-                Uri.parse('${CloudflareConfig.workerUrl}/api/sync/pull').replace(
+                Uri.parse(
+                  '${CloudflareConfig.workerUrl}/api/sync/pull',
+                ).replace(
                   queryParameters: {
                     'cursor': pendingCursor.toString(),
                     'limit': CloudflareConfig.batchSize.toString(),
+                    // ✅ خطة 2.5: لا تُعد إلينا سجلات دفعناها نحن (echo) —
+                    // الخادم يستثني device_id الخاص بنا من نتيجة السحب.
+                    if (_deviceId case final ownDevice?
+                        when ownDevice.isNotEmpty)
+                      'exclude_device': ownDevice,
                   },
                 ),
                 headers: {
@@ -698,7 +728,8 @@ class CloudflareSyncManager {
         for (final change in changes) {
           try {
             final record = Map<String, dynamic>.from(change as Map);
-            final entity = record['_entity'] as String? ?? _detectEntity(record);
+            final entity =
+                record['_entity'] as String? ?? _detectEntity(record);
             record.remove('_entity'); // don't store this field in SQLite
 
             if (entity != null) {
@@ -712,7 +743,9 @@ class CloudflareSyncManager {
 
         // P0-C: contradictory state - has_more=true but empty changes
         if (changes.isEmpty && hasMore) {
-          debugPrint('⚠️ Pull returned has_more=true but empty changes - stopping');
+          debugPrint(
+            '⚠️ Pull returned has_more=true but empty changes - stopping',
+          );
           hasMore = false;
         }
       }
@@ -736,12 +769,16 @@ class CloudflareSyncManager {
         debugPrint('✅ Full sync completed - device is now delta-ready');
       }
 
-      debugPrint('📥 Pulled $totalPulled changes (cursor: $initialCursor -> $_lastPullCursor)');
+      debugPrint(
+        '📥 Pulled $totalPulled changes (cursor: $initialCursor -> $_lastPullCursor)',
+      );
     } else {
       // P0-C: on failure, do NOT advance cursor in prefs
       _lastPullCursor = initialCursor;
       _failedCollectionsInLastSync.add('pull');
-      debugPrint('⚠️ Pull failed - checkpoint NOT advanced (stayed at $initialCursor). Error: $errorMessage');
+      debugPrint(
+        '⚠️ Pull failed - checkpoint NOT advanced (stayed at $initialCursor). Error: $errorMessage',
+      );
       throw Exception('Pull failed: $errorMessage');
     }
 
@@ -811,7 +848,9 @@ class CloudflareSyncManager {
         // إذا كان موجود، فنحن في حالة "تعارض" - السجل المحلي أحدث لكنه لم
         // يُرفع بعد. السجل البعيد أقدم لكنه على الخادم. هذا تعارض محتمل
         // لكن LWW هنا يعطي الأولوية للمحلي. سنرفع المحلي في الـ sync القادمة.
-        debugPrint('  ⏭️ $entity/$localUuid: محلي أحدث ($localUpdatedAt > $remoteUpdatedAt) — تخطي');
+        debugPrint(
+          '  ⏭️ $entity/$localUuid: محلي أحدث ($localUpdatedAt > $remoteUpdatedAt) — تخطي',
+        );
         return;
       }
 
@@ -825,7 +864,9 @@ class CloudflareSyncManager {
 
       // إذا كانت الـ vector clocks متزامنة (concurrent)، فهذا تعارض حقيقي
       // نستخدم SmartConflictResolver لحله على مستوى الحقول.
-      if (localVc.isNotEmpty && remoteVc.isNotEmpty && localVc.isConcurrent(remoteVc)) {
+      if (localVc.isNotEmpty &&
+          remoteVc.isNotEmpty &&
+          localVc.isConcurrent(remoteVc)) {
         final resolution = SmartConflictResolver.resolve(
           entity: entity,
           localData: localData,
@@ -857,7 +898,9 @@ class CloudflareSyncManager {
               clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
               source: 'local',
             );
-            debugPrint('  🤝 $entity/$localUuid: conflict resolved + queued for re-upload');
+            debugPrint(
+              '  🤝 $entity/$localUuid: conflict resolved + queued for re-upload',
+            );
           } catch (e) {
             debugPrint('  ⚠️ Failed to queue merged conflict result: $e');
           }
@@ -910,7 +953,10 @@ class CloudflareSyncManager {
       final inserted = await _db!
           .customSelect(
             'SELECT 1 FROM $tableName WHERE local_uuid = ? AND updated_at = ?',
-            variables: [Variable<String>(localUuid), Variable<int>(remoteUpdatedAt)],
+            variables: [
+              Variable<String>(localUuid),
+              Variable<int>(remoteUpdatedAt),
+            ],
           )
           .getSingleOrNull();
       if (inserted != null) {
@@ -932,27 +978,32 @@ class CloudflareSyncManager {
     if (record.containsKey('room_number') && record.containsKey('price')) {
       return 'rooms';
     }
-    if (record.containsKey('guest_name') && record.containsKey('checkin_date')) {
+    if (record.containsKey('guest_name') &&
+        record.containsKey('checkin_date')) {
       return 'bookings';
     }
     if (record.containsKey('amount') && record.containsKey('payment_method')) {
       return 'payments';
     }
-    if (record.containsKey('expense_type') && record.containsKey('description')) {
+    if (record.containsKey('expense_type') &&
+        record.containsKey('description')) {
       return 'expenses';
     }
     if (record.containsKey('basic_salary') && record.containsKey('position')) {
       return 'employees';
     }
-    if (record.containsKey('debt_reason') && record.containsKey('remaining_amount')) {
+    if (record.containsKey('debt_reason') &&
+        record.containsKey('remaining_amount')) {
       return 'debts';
     }
 
     // Booking-related
-    if (record.containsKey('final_rate') && record.containsKey('hotel_day_key')) {
+    if (record.containsKey('final_rate') &&
+        record.containsKey('hotel_day_key')) {
       return 'booking_nights';
     }
-    if (record.containsKey('adjustment_type') && record.containsKey('effective_hotel_day')) {
+    if (record.containsKey('adjustment_type') &&
+        record.containsKey('effective_hotel_day')) {
       return 'booking_price_adjustments';
     }
     if (record.containsKey('note_text') && record.containsKey('alert_type')) {
@@ -966,29 +1017,35 @@ class CloudflareSyncManager {
     if (record.containsKey('shift_date') && record.containsKey('is_read')) {
       return 'shift_notes';
     }
-    if (record.containsKey('transaction_type') && record.containsKey('transaction_time')) {
+    if (record.containsKey('transaction_type') &&
+        record.containsKey('transaction_time')) {
       return 'cash_transactions';
     }
 
     // Salary
-    if (record.containsKey('cycle_key') && record.containsKey('expected_amount')) {
+    if (record.containsKey('cycle_key') &&
+        record.containsKey('expected_amount')) {
       return 'salary_cycles';
     }
-    if (record.containsKey('payment_date_iso') && record.containsKey('cycle_id')) {
+    if (record.containsKey('payment_date_iso') &&
+        record.containsKey('cycle_id')) {
       return 'salary_payments';
     }
     if (record.containsKey('withdrawal_type') && record.containsKey('amount')) {
       return 'salary_withdrawals';
     }
-    if (record.containsKey('previous_cycle_start') && record.containsKey('new_cycle_start')) {
+    if (record.containsKey('previous_cycle_start') &&
+        record.containsKey('new_cycle_start')) {
       return 'salary_carry_over_logs';
     }
 
     // Adjustments & audit
-    if (record.containsKey('target_type') && record.containsKey('target_uuid')) {
+    if (record.containsKey('target_type') &&
+        record.containsKey('target_uuid')) {
       return 'price_adjustments';
     }
-    if (record.containsKey('operation_type') && record.containsKey('entity_type')) {
+    if (record.containsKey('operation_type') &&
+        record.containsKey('entity_type')) {
       return 'audit_logs';
     }
     if (record.containsKey('void_reason') && record.containsKey('voided_by')) {
@@ -1119,7 +1176,8 @@ class CloudflareSyncManager {
 
   // ─── Stubs for methods called by existing screens ──────────
 
-  Future<int> pushLocalChanges() async => sync(pull: false).then((r) => r.recordsPushed);
+  Future<int> pushLocalChanges() async =>
+      sync(pull: false).then((r) => r.recordsPushed);
   Future<int> pushAllLocalData() async => 0;
   Future<void> pullAllDataWithDisabledFK() async {}
   Future<void> pushAllEntities() async {}
