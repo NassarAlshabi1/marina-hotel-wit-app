@@ -14,6 +14,7 @@ import '../security/blacklist_screen.dart';
 import 'active_bookings_reminder_screen.dart';
 import 'appwrite_settings_screen.dart';
 import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
+import 'cloudflare_migration_screen.dart';
 import 'data_protection_screen.dart';
 import 'google_drive_backup_screen.dart';
 import 'late_payment_whatsapp_screen.dart';
@@ -185,14 +186,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               MaterialPageRoute<void>(builder: (context) => const GoogleDriveBackupScreen()),
             ),
           ),
+           _SettingsItem(
+             title: 'Appwrite',
+             subtitle: 'المزامنة السحابية',
+             icon: Icons.cloud_sync,
+             color: Colors.pink,
+             onTap: () => Navigator.push<void>(
+               context,
+               MaterialPageRoute<void>(builder: (context) => const AppwriteSettingsScreen()),
+             ),
+           ),
+          // ✅ Cloudflare Migration
           _SettingsItem(
-            title: 'Appwrite',
-            subtitle: 'المزامنة السحابية',
-            icon: Icons.cloud_sync,
-            color: Colors.pink,
+            title: 'ترحيل إلى Cloudflare',
+            subtitle: 'رفع البيانات الكاملة إلى D1',
+            icon: Icons.cloud_upload,
+            color: Colors.blue,
             onTap: () => Navigator.push<void>(
               context,
-              MaterialPageRoute<void>(builder: (context) => const AppwriteSettingsScreen()),
+              MaterialPageRoute<void>(builder: (context) => const CloudflareMigrationScreen()),
             ),
           ),
           // ✅ جديد: Appwrite الثانوي (نسخة احتياطية)
