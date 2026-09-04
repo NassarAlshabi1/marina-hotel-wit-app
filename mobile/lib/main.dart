@@ -44,7 +44,10 @@ import 'services/background_sync_service.dart';
 import 'services/blacklist_alert_service.dart';
 import 'services/battery_optimizer.dart';
 import 'services/central_sync_coordinator.dart';
+import 'services/appwrite_config.dart';
+import 'services/appwrite_service.dart';
 import 'services/cloudflare_config.dart';
+import 'services/cloudflare_dual_run_service.dart';
 import 'services/cloudflare_migration_service.dart';
 import 'services/cloudflare_sync_manager.dart';
 import 'services/connectivity_service.dart';
@@ -571,6 +574,13 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           debugPrint('FCM initialization error: $e');
         }
 
+        // ✅ المرحلة 6: مفتاح الإيقاف البعيد + المقارنة الظلّية
+        try {
+          _initializeDualRun(syncManager);
+        } catch (e) {
+          debugPrint('DualRun initialization error: $e');
+        }
+
         // بدء المزامنة التلقائية (push + pull)
         // ✅ Forensic audit fix (2026-07-22):
         // كان الفاصل دقيقتين → 30 دورة/ساعة × 3 أجهزة × 20 collection
@@ -776,6 +786,44 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
 
     debugPrint('✅ FCM ready — cross-device notifications enabled');
+  }
+
+  /// ✅ المرحلة 6 (Dual-Run): تهيئة مفتاح الإيقاف البعيد والمقارنة
+  /// الظلّية (قراءة-فقط) — جدولة: أول جولة بعد 5 دقائق من الإقلاع
+  /// ثم كل 12 ساعة؛ الفروق تُسجَّل فقط (لا كتابة على أي مصدر).
+  void _initializeDualRun(AppwriteSyncManager syncManager) {
+    CloudflareDualRunService().configure(
+      tokenProvider: () async => CloudflareSyncManager().token,
+      appwriteCounter: _countAppwriteEntity,
+    );
+    Timer(const Duration(minutes: 5), () {
+      unawaited(_runShadowComparison());
+    });
+    Timer.periodic(const Duration(hours: 12), (_) {
+      unawaited(_runShadowComparison());
+    });
+  }
+
+  Future<void> _runShadowComparison() async {
+    try {
+      await CloudflareDualRunService().runShadowComparison();
+    } catch (e) {
+      derr(() => 'Shadow comparison error: $e');
+    }
+  }
+
+  /// عدّاد Appwrite الظلّي لكيان واحد — metadata-only (~100B/صف)
+  /// عبر listDocumentsMetadata (نفس مسار perf الرخيص).
+  Future<int> _countAppwriteEntity(String entity) async {
+    final collectionId = AppwriteConfig.collectionIdFor(entity);
+    if (collectionId == null) return -1; // محلي فقط — بلا مقارنة
+    final appwrite = AppwriteService();
+    if (!appwrite.isInitialized) {
+      await appwrite.initialize();
+    }
+    if (!appwrite.isInitialized) return -1;
+    final docs = await appwrite.listDocumentsMetadata(collectionId);
+    return docs.length;
   }
 
   /// رفع التغييرات المعلقة عند العودة للتطبيق.

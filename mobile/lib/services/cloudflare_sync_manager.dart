@@ -16,6 +16,7 @@ import '../screens/settings/error_tracker_screen.dart'
     show logHttpError, logError, ErrorCategory;
 import '../utils/env.dart';
 import 'cloudflare_config.dart';
+import 'cloudflare_dual_run_service.dart';
 import 'cloudflare_realtime_sync.dart';
 import 'daos/outbox_dao.dart';
 import 'appwrite_models.dart' show AppwriteDevice;
@@ -349,6 +350,17 @@ class CloudflareSyncManager {
     bool deltaOnly = false,
     bool forcePull = false,
   }) async {
+    // ✅ المرحلة 6 (Dual-Run): مفتاح الإيقاف عن بُعد — disabled يعني
+    // عودة آمنة للمحلي بلا مزامنة سحابية (خطة الرجوع: دقائق).
+    if (!await CloudflareDualRunService().isCloudflareSyncEnabled()) {
+      debugPrint('⏸️ Cloudflare sync disabled remotely (kill switch)');
+      return SyncResult(
+        status: SyncStatus.idle,
+        timestamp: DateTime.now(),
+        duration: Duration.zero,
+        errorMessage: 'Cloudflare sync disabled remotely (kill switch)',
+      );
+    }
     if (deltaOnly) {
       final bool ok = await realtimeTriggeredPull();
       return SyncResult(

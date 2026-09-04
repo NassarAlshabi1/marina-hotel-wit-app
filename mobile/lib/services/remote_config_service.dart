@@ -163,6 +163,10 @@ class RemoteConfigService {
   bool get whatsappEnabled =>
       _remoteConfig?.getBool('whatsapp_enabled') ?? true;
 
+  /// ✅ المرحلة 6: مفتاح مسار Cloudflare (افتراضي true — مفعّل).
+  bool get cloudflareSyncEnabled =>
+      _remoteConfig?.getBool('cloudflare_sync_enabled') ?? true;
+
   /// رقم هاتف الفندق (يظهر في رسائل الديون)
   /// الافتراضي: '9677734587456'
   /// الملف المرتبط: late_payment_whatsapp_screen.dart:92
@@ -295,6 +299,11 @@ class RemoteConfigService {
     'daily_backup_time': '21:00',
     'whatsapp_report_time': '21:00',
     'telegram_report_time': '02:00',
+
+    // ✅ المرحلة 6 (Dual-Run): مفتاح الإيقاف عن بُعد لمسار Cloudflare —
+    // true = Cloudflare هو مسار المزامنة؛ false = تعطيل فوري (رجوع آمن
+    // بدون نشر تحديث) والبقاء على القراءة المحلية حتى إعادة التمكين.
+    'cloudflare_sync_enabled': true,
 
     // قواعد الحجوزات
     'checkout_hour': 14,

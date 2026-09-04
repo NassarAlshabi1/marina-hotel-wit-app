@@ -30,6 +30,7 @@ import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/io.dart';
 
 import '../utils/debug_log.dart';
+import 'cloudflare_dual_run_service.dart';
 
 /// callback السحب الفعلي المُحقن من main.dart — نفس عقد فرع perf:
 /// العائد `true` = السحب أُكمل فعلاً؛ `false` = تخطّى/فشل (outbox
@@ -176,6 +177,11 @@ class CloudflareRealtimeSync {
 
   /// بدء الاستماع (idempotent).
   Future<void> start() async {
+    // ✅ المرحلة 6 (Dual-Run): المفتاح البعيد يعطّل Realtime أيضاً
+    if (!await CloudflareDualRunService().isCloudflareSyncEnabled()) {
+      dwarn(() => 'realtime: disabled remotely (kill switch) — not starting');
+      return;
+    }
     if (_isListening && !_intentionallyStopped) return;
     _isListening = true;
     _intentionallyStopped = false;
