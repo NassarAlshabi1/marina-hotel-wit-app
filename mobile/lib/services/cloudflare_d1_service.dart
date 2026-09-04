@@ -16,7 +16,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// - الكتابة تتطلب توكناً بصلاحية D1 Edit وإلا رُفضت بـ SQLITE_AUTH.
 class CloudflareD1Service {
   CloudflareD1Service(this.config, {http.Client? client})
-      : _client = client ?? http.Client();
+    : _client = client ?? http.Client();
 
   static const String _baseUrl = 'https://api.cloudflare.com/client/v4';
   static const int maxParamsPerQuery = 100; // مُثبت تجريبياً
@@ -58,15 +58,21 @@ class CloudflareD1Service {
               .timeout(const Duration(seconds: 90));
         } else {
           resp = await _client
-              .post(uri, headers: headers, body: jsonEncode(body ?? <String, dynamic>{}))
+              .post(
+                uri,
+                headers: headers,
+                body: jsonEncode(body ?? <String, dynamic>{}),
+              )
               .timeout(const Duration(seconds: 120));
         }
         final decoded =
             jsonDecode(utf8.decode(resp.bodyBytes)) as Map<String, dynamic>;
         if (decoded['success'] != true) {
           final errors = decoded['errors'];
-          throw CloudflareD1Exception('فشل نداء Cloudflare (HTTP ${resp.statusCode})',
-              details: errors?.toString());
+          throw CloudflareD1Exception(
+            'فشل نداء Cloudflare (HTTP ${resp.statusCode})',
+            details: errors?.toString(),
+          );
         }
         return decoded;
       } on CloudflareD1Exception {
@@ -76,8 +82,10 @@ class CloudflareD1Service {
         if (attempt == 0) continue;
       }
     }
-    throw CloudflareD1Exception('تعذر الاتصال بـ Cloudflare',
-        details: lastError?.toString());
+    throw CloudflareD1Exception(
+      'تعذر الاتصال بـ Cloudflare',
+      details: lastError?.toString(),
+    );
   }
 
   /// تنفيذ SQL وإرجاع كل مجموعات النتائج (متعددة العبارات → مجموعات متعددة).
@@ -87,9 +95,11 @@ class CloudflareD1Service {
   }) async {
     final body = <String, dynamic>{'sql': sql};
     if (params != null) body['params'] = params;
-    final decoded = await _call('POST',
-        '/accounts/${config.accountId}/d1/database/${config.databaseId}/query',
-        body: body);
+    final decoded = await _call(
+      'POST',
+      '/accounts/${config.accountId}/d1/database/${config.databaseId}/query',
+      body: body,
+    );
     final result = decoded['result'];
     if (result is List) {
       return result.cast<Map<String, dynamic>>();
@@ -125,7 +135,10 @@ class CloudflareD1Service {
     final databases = <CloudflareD1DatabaseInfo>[];
 
     try {
-      final verify = await _call('GET', '/accounts/${config.accountId}/tokens/verify');
+      final verify = await _call(
+        'GET',
+        '/accounts/${config.accountId}/tokens/verify',
+      );
       tokenValid = (verify['result']?['status'] == 'active');
     } on CloudflareD1Exception catch (e) {
       // توكنات المستخدم (cfut_) تُفحص عبر نقطة /user/tokens/verify
@@ -150,17 +163,21 @@ class CloudflareD1Service {
 
     try {
       final list = await _call(
-          'GET', '/accounts/${config.accountId}/d1/database?per_page=50');
+        'GET',
+        '/accounts/${config.accountId}/d1/database?per_page=50',
+      );
       accountReachable = true;
       final result = list['result'];
       final rows = (result is Map ? result['results'] : result) as List?;
       for (final row in (rows ?? const [])) {
         if (row is Map) {
-          databases.add(CloudflareD1DatabaseInfo(
-            uuid: row['uuid']?.toString() ?? '',
-            name: row['name']?.toString() ?? '',
-            fileSize: (row['file_size'] as num?)?.toInt() ?? 0,
-          ));
+          databases.add(
+            CloudflareD1DatabaseInfo(
+              uuid: row['uuid']?.toString() ?? '',
+              name: row['name']?.toString() ?? '',
+              fileSize: (row['file_size'] as num?)?.toInt() ?? 0,
+            ),
+          );
           if (row['uuid']?.toString() == config.databaseId) {
             databaseReachable = true;
             databaseName = row['name']?.toString();
@@ -182,7 +199,8 @@ class CloudflareD1Service {
         if (blob.contains('no such table') || blob.contains('sqlite_error')) {
           dmlAllowed = true;
         } else {
-          dmlError = '${e.message}${e.details != null ? ' — ${e.details}' : ''}';
+          dmlError =
+              '${e.message}${e.details != null ? ' — ${e.details}' : ''}';
         }
       }
       // DDL: إنشاء/حذف جدول اختبار حقيقي.
@@ -213,7 +231,8 @@ class CloudflareD1Service {
   /// أسماء الجداول الموجودة في D1 (لمقارنة التغطية مع الجداول المحلية).
   Future<List<String>> listD1Tables() async {
     final sets = await _query(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
+      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+    );
     if (sets.isEmpty) return const <String>[];
     final rows = (sets.first['results'] as List?) ?? const [];
     return rows.map((r) => (r as Map)['name'].toString()).toList();
@@ -265,14 +284,16 @@ class CloudflareD1Service {
     for (var ti = 0; ti < totalTables; ti++) {
       if (_cancelled) break;
       final t = tables[ti];
-      onProgress?.call(CloudflareD1Progress(
-        stage: 'نقل المخطط والبيانات',
-        currentTable: t.name,
-        tableIndex: ti,
-        tableCount: totalTables,
-        rowsDone: 0,
-        rowsTotal: t.rowCount,
-      ));
+      onProgress?.call(
+        CloudflareD1Progress(
+          stage: 'نقل المخطط والبيانات',
+          currentTable: t.name,
+          tableIndex: ti,
+          tableCount: totalTables,
+          rowsDone: 0,
+          rowsTotal: t.rowCount,
+        ),
+      );
 
       if (t.rowCount == 0) {
         doneTables.add(t.name);
@@ -299,12 +320,16 @@ class CloudflareD1Service {
             final rowsPerCall = (paramsBudget ~/ colCount).clamp(1, _chunkSize);
             for (var i = 0; i < chunk.length; i += rowsPerCall) {
               if (_cancelled) break;
-              final part = chunk.sublist(i, (i + rowsPerCall).clamp(0, chunk.length));
+              final part = chunk.sublist(
+                i,
+                (i + rowsPerCall).clamp(0, chunk.length),
+              );
               final placeholders = List.generate(
                 part.length,
                 (_) => '(${List.filled(colCount, '?').join(',')})',
               ).join(',');
-              final sql = 'INSERT OR REPLACE INTO "${_quoteIdent(t.name)}" '
+              final sql =
+                  'INSERT OR REPLACE INTO "${_quoteIdent(t.name)}" '
                   '(${columns.map(_quoteIdent).join(',')}) VALUES $placeholders';
               final params = <Object?>[];
               for (final row in part) {
@@ -315,45 +340,54 @@ class CloudflareD1Service {
               await _query(sql, params: params);
               callCount++;
               rowsForTable += part.length;
-              onProgress?.call(CloudflareD1Progress(
-                stage: 'رفع البيانات',
-                currentTable: t.name,
-                tableIndex: ti,
-                tableCount: totalTables,
-                rowsDone: rowsForTable,
-                rowsTotal: t.rowCount,
-              ));
+              onProgress?.call(
+                CloudflareD1Progress(
+                  stage: 'رفع البيانات',
+                  currentTable: t.name,
+                  tableIndex: ti,
+                  tableCount: totalTables,
+                  rowsDone: rowsForTable,
+                  rowsTotal: t.rowCount,
+                ),
+              );
             }
           } else {
             // جداول عريضة (>96 عموداً): حرفية مُهربة بعناية، صف لكل عبارة.
             final statements = <String>[];
             for (final row in chunk) {
               final values = columns.map((c) => _sqlLiteral(row[c])).join(',');
-              statements.add('INSERT OR REPLACE INTO "${_quoteIdent(t.name)}" '
-                  '(${columns.map(_quoteIdent).join(',')}) VALUES ($values)');
+              statements.add(
+                'INSERT OR REPLACE INTO "${_quoteIdent(t.name)}" '
+                '(${columns.map(_quoteIdent).join(',')}) VALUES ($values)',
+              );
             }
             for (var i = 0; i < statements.length; i += 40) {
               if (_cancelled) break;
               await executeStatements(
-                  statements.sublist(i, (i + 40).clamp(0, statements.length)));
+                statements.sublist(i, (i + 40).clamp(0, statements.length)),
+              );
               callCount++;
             }
             rowsForTable += chunk.length;
-            onProgress?.call(CloudflareD1Progress(
-              stage: 'رفع البيانات (نمط حرفي)',
-              currentTable: t.name,
-              tableIndex: ti,
-              tableCount: totalTables,
-              rowsDone: rowsForTable,
-              rowsTotal: t.rowCount,
-            ));
+            onProgress?.call(
+              CloudflareD1Progress(
+                stage: 'رفع البيانات (نمط حرفي)',
+                currentTable: t.name,
+                tableIndex: ti,
+                tableCount: totalTables,
+                rowsDone: rowsForTable,
+                rowsTotal: t.rowCount,
+              ),
+            );
           }
           offset += chunk.length;
         }
         rowsUploaded += rowsForTable;
         doneTables.add(t.name);
       } on CloudflareD1Exception catch (e) {
-        errors.add('${t.name}: ${e.message}${e.details != null ? ' — ${e.details}' : ''}');
+        errors.add(
+          '${t.name}: ${e.message}${e.details != null ? ' — ${e.details}' : ''}',
+        );
       }
     }
 
@@ -449,7 +483,9 @@ class CloudflareD1Config {
   final String apiToken;
 
   bool get isComplete =>
-      accountId.trim().isNotEmpty && databaseId.trim().isNotEmpty && apiToken.trim().isNotEmpty;
+      accountId.trim().isNotEmpty &&
+      databaseId.trim().isNotEmpty &&
+      apiToken.trim().isNotEmpty;
 }
 
 class CloudflareD1DatabaseInfo {
@@ -509,8 +545,10 @@ class CloudflareD1Progress {
   final int rowsDone;
   final int rowsTotal;
 
-  double get tableFraction =>
-      tableCount == 0 ? 0 : ((tableIndex + (rowsTotal > 0 ? (rowsDone / rowsTotal) : 1)) / tableCount);
+  double get tableFraction => tableCount == 0
+      ? 0
+      : ((tableIndex + (rowsTotal > 0 ? (rowsDone / rowsTotal) : 1)) /
+            tableCount);
 }
 
 class CloudflareD1UploadResult {
@@ -542,7 +580,8 @@ class CloudflareD1Exception implements Exception {
   final String? details;
 
   @override
-  String toString() => 'CloudflareD1Exception: $message${details != null ? ' ($details)' : ''}';
+  String toString() =>
+      'CloudflareD1Exception: $message${details != null ? ' ($details)' : ''}';
 }
 
 /// جدول مصدر مجرد عن قاعدة drift — تُنشئه الشاشة من AppDatabase.
@@ -561,7 +600,8 @@ class CloudflareD1SourceTable {
   final List<String> createSqlList;
 
   /// قراءة دفعة صفوف (خام بنمط SQLite: int/double/String/Uint8List/null).
-  final Future<List<Map<String, Object?>>> Function(int limit, int offset) readChunk;
+  final Future<List<Map<String, Object?>>> Function(int limit, int offset)
+  readChunk;
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -590,7 +630,10 @@ class CloudflareD1Settings {
     );
   }
 
-  static Future<void> save(CloudflareD1Config config, {String? deviceLabel}) async {
+  static Future<void> save(
+    CloudflareD1Config config, {
+    String? deviceLabel,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_accountKey, config.accountId.trim());
     await prefs.setString(_databaseKey, config.databaseId.trim());
