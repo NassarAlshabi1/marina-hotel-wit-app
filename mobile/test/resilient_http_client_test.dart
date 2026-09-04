@@ -123,8 +123,16 @@ void main() {
     test('compresses and decompresses JSON correctly', () {
       final original = jsonEncode({
         'operations': [
-          {'id': '1', 'entity': 'rooms', 'data': {'room_number': '101'}},
-          {'id': '2', 'entity': 'rooms', 'data': {'room_number': '102'}},
+          {
+            'id': '1',
+            'entity': 'rooms',
+            'data': {'room_number': '101'},
+          },
+          {
+            'id': '2',
+            'entity': 'rooms',
+            'data': {'room_number': '102'},
+          },
         ],
       });
 
@@ -145,25 +153,28 @@ void main() {
 
       // Large repetitive payload
       final large = jsonEncode({
-        'operations': List.generate(50, (i) => {
-          'idempotencyKey': 'key-$i',
-          'entity': 'rooms',
-          'operation': 'create',
-          'data': {
-            'local_uuid': 'uuid-$i',
-            'room_number': '${100 + i}',
-            'type': 'standard',
-            'price': 15000,
-            'status': 'available',
-            'created_at': 1785549900,
-            'updated_at': 1785549900,
-            'last_modified': 1785549900,
-            'version': 1,
-            'vector_clock': '{}',
-            'origin': 'cloud',
-            'device_id': 'test',
+        'operations': List.generate(
+          50,
+          (i) => {
+            'idempotencyKey': 'key-$i',
+            'entity': 'rooms',
+            'operation': 'create',
+            'data': {
+              'local_uuid': 'uuid-$i',
+              'room_number': '${100 + i}',
+              'type': 'standard',
+              'price': 15000,
+              'status': 'available',
+              'created_at': 1785549900,
+              'updated_at': 1785549900,
+              'last_modified': 1785549900,
+              'version': 1,
+              'vector_clock': '{}',
+              'origin': 'cloud',
+              'device_id': 'test',
+            },
           },
-        }),
+        ),
       });
       final largeCompressed = GZipCodec(level: 9).encode(utf8.encode(large));
       final largeRatio = largeCompressed.length / large.length;
@@ -201,7 +212,9 @@ void main() {
       });
 
       final resilient = ResilientHttpClient(innerClient: mockClient);
-      final compressed = GZipCodec(level: 9).encode(utf8.encode('{"test":true}'));
+      final compressed = GZipCodec(
+        level: 9,
+      ).encode(utf8.encode('{"test":true}'));
       await resilient.post(
         Uri.parse('https://example.com/api'),
         headers: {

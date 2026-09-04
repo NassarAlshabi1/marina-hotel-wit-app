@@ -45,7 +45,10 @@ class BlacklistAlert {
     'detectedAt': detectedAt.toIso8601String(),
   };
 
-  static BlacklistAlert fromJson(Map<String, dynamic> json, BlacklistEntry entry) {
+  static BlacklistAlert fromJson(
+    Map<String, dynamic> json,
+    BlacklistEntry entry,
+  ) {
     return BlacklistAlert(
       guestName: json['guestName'] as String,
       roomNumber: json['roomNumber'] as String,
@@ -111,7 +114,9 @@ class BlacklistAlertService {
     _alertsController.add(_activeAlerts);
     await _persistAlerts();
 
-    debugPrint('🚨 BLACKLIST ALERT: ${match.name} matched guest "$guestName" in room $roomNumber');
+    debugPrint(
+      '🚨 BLACKLIST ALERT: ${match.name} matched guest "$guestName" in room $roomNumber',
+    );
 
     return alert;
   }
@@ -164,7 +169,9 @@ class BlacklistAlertService {
 
   /// إزالة تنبيه عند مغادرة النزيل
   Future<void> dismissAlert(int bookingId) async {
-    _activeAlerts = _activeAlerts.where((a) => a.bookingId != bookingId).toList();
+    _activeAlerts = _activeAlerts
+        .where((a) => a.bookingId != bookingId)
+        .toList();
     _alertsController.add(_activeAlerts);
     await _persistAlerts();
   }
@@ -196,7 +203,10 @@ class BlacklistAlertService {
         final booking = await db
             .customSelect(
               'SELECT id FROM bookings WHERE id = ? AND status = ? AND deleted_at IS NULL',
-              variables: [Variable<int>(bookingId), Variable<String>('checked_in')],
+              variables: [
+                Variable<int>(bookingId),
+                Variable<String>('checked_in'),
+              ],
             )
             .getSingleOrNull();
 

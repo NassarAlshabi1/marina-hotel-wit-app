@@ -71,12 +71,15 @@ void main() {
       expect(result, isFalse);
     });
 
-    test('pullAllRemoteData completes without throwing when not initialized', () async {
-      final manager = CloudflareSyncManager();
-      manager.reset();
-      // Should not throw
-      await manager.pullAllRemoteData();
-    });
+    test(
+      'pullAllRemoteData completes without throwing when not initialized',
+      () async {
+        final manager = CloudflareSyncManager();
+        manager.reset();
+        // Should not throw
+        await manager.pullAllRemoteData();
+      },
+    );
 
     test('pushAllLocalData returns 0', () async {
       final manager = CloudflareSyncManager();
@@ -92,7 +95,10 @@ void main() {
 
     test('static device ID can be set and retrieved', () {
       CloudflareSyncManager.setStaticDeviceId('test-device-123');
-      expect(CloudflareSyncManager.currentDeviceIdStatic, equals('test-device-123'));
+      expect(
+        CloudflareSyncManager.currentDeviceIdStatic,
+        equals('test-device-123'),
+      );
     });
 
     test('audit log can be written and cleared', () {
@@ -147,14 +153,17 @@ void main() {
       expect(partial.hasConflicts, isTrue);
     });
 
-    test('CloudflareRealtimeSync initializes and starts without errors', () async {
-      final realtime = CloudflareRealtimeSync();
-      await realtime.initialize(deviceId: 'test-device');
-      await realtime.start();
-      realtime.stop();
-      expect(realtime.pendingRemoteChangesCount.value, equals(0));
-      expect(realtime.hasRemoteChanges.value, isFalse);
-    });
+    test(
+      'CloudflareRealtimeSync initializes and starts without errors',
+      () async {
+        final realtime = CloudflareRealtimeSync();
+        await realtime.initialize(deviceId: 'test-device');
+        await realtime.start();
+        realtime.stop();
+        expect(realtime.pendingRemoteChangesCount.value, equals(0));
+        expect(realtime.hasRemoteChanges.value, isFalse);
+      },
+    );
   });
 
   group('SyncStatus enum', () {

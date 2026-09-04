@@ -128,7 +128,9 @@ class VectorClock {
   ///
   /// يرجع true إذا لم تكن أي منهما happens-before الأخرى.
   bool isConcurrent(VectorClock other) {
-    return !happensBefore(other) && !other.happensBefore(this) && !isEqual(other);
+    return !happensBefore(other) &&
+        !other.happensBefore(this) &&
+        !isEqual(other);
   }
 
   /// تحويل إلى JSON string (للتخزين في DB)
@@ -154,7 +156,8 @@ class VectorClock {
   int get totalEvents => _counters.values.fold(0, (a, b) => a + b);
 
   @override
-  bool operator ==(Object other) => identical(this, other) || (other is VectorClock && isEqual(other));
+  bool operator ==(Object other) =>
+      identical(this, other) || (other is VectorClock && isEqual(other));
 
   @override
   int get hashCode => toString().hashCode;

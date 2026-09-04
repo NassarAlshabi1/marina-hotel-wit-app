@@ -23,8 +23,8 @@ import 'package:http/io_client.dart';
 
 class ResilientHttpClient extends http.BaseClient {
   ResilientHttpClient({http.Client? innerClient, Duration? timeout})
-      : _inner = innerClient ?? http.Client(),
-        _timeout = timeout ?? const Duration(seconds: 30);
+    : _inner = innerClient ?? http.Client(),
+      _timeout = timeout ?? const Duration(seconds: 30);
 
   final http.Client _inner;
   final Duration _timeout;
@@ -43,14 +43,18 @@ class ResilientHttpClient extends http.BaseClient {
 
     // Try the normal path first (fast — usually works)
     try {
-      return await _inner.send(request).timeout(
-        _timeout,
-        onTimeout: () =>
-            throw TimeoutException('Inner send timeout (after ${_timeout.inSeconds}s)'),
-      );
+      return await _inner
+          .send(request)
+          .timeout(
+            _timeout,
+            onTimeout: () => throw TimeoutException(
+              'Inner send timeout (after ${_timeout.inSeconds}s)',
+            ),
+          );
     } catch (e) {
       final errStr = e.toString();
-      final isDnsFailure = errStr.contains('Failed host lookup') ||
+      final isDnsFailure =
+          errStr.contains('Failed host lookup') ||
           errStr.contains('No address associated with hostname') ||
           errStr.contains('SocketException') ||
           errStr.contains('Hostname not found');
@@ -104,7 +108,9 @@ class ResilientHttpClient extends http.BaseClient {
       ..badCertificateCallback = (cert, host, port) {
         // Accept any cert — we trust the IP because we got it from DoH,
         // and SNI is set to the original hostname via IOClient.
-        debugPrint('⚠️ Accepting cert for $host:$port (SNI: ${originalUri.host})');
+        debugPrint(
+          '⚠️ Accepting cert for $host:$port (SNI: ${originalUri.host})',
+        );
         return true;
       };
 
@@ -205,13 +211,15 @@ class ResilientHttpClient extends http.BaseClient {
     final ioClient = IOClient(httpClient);
 
     try {
-      final response = await ioClient.get(
-        dohUri,
-        headers: {
-          'Accept': 'application/dns-json',
-          'Host': endpoint.hostname, // SNI + Host header
-        },
-      ).timeout(const Duration(seconds: 8));
+      final response = await ioClient
+          .get(
+            dohUri,
+            headers: {
+              'Accept': 'application/dns-json',
+              'Host': endpoint.hostname, // SNI + Host header
+            },
+          )
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode != 200) {
         throw Exception('DoH returned ${response.statusCode}');

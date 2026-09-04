@@ -10,14 +10,16 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../screens/settings/error_tracker_screen.dart' show logHttpError, logError, ErrorCategory;
+import '../screens/settings/error_tracker_screen.dart'
+    show logHttpError, logError, ErrorCategory;
 import 'cloudflare_config.dart';
 import 'local_db.dart';
 import 'resilient_http_client.dart';
 
 class CloudflareMigrationService {
   CloudflareMigrationService._();
-  static final CloudflareMigrationService instance = CloudflareMigrationService._();
+  static final CloudflareMigrationService instance =
+      CloudflareMigrationService._();
 
   static const _migrationCompleteKey = 'cf_migration_complete';
   static const _migrationProgressKey = 'cf_migration_progress';
@@ -51,9 +53,11 @@ class CloudflareMigrationService {
   Future<double> _measureNetworkSpeed() async {
     try {
       final stopwatch = Stopwatch()..start();
-      final response = await _httpClient.get(
-        Uri.parse('${CloudflareConfig.workerUrl}/api/ping'),
-      ).timeout(const Duration(seconds: 10));
+      final response = await _httpClient
+          .get(
+            Uri.parse('${CloudflareConfig.workerUrl}/api/ping'),
+          )
+          .timeout(const Duration(seconds: 10));
       stopwatch.stop();
 
       if (response.statusCode != 200) return 1.0; // assume slow
@@ -65,8 +69,10 @@ class CloudflareMigrationService {
       const responseSizeKB = 1.5;
       final speedKBps = responseSizeKB / elapsedSeconds;
 
-      debugPrint('📊 Network speed: ${speedKBps.toStringAsFixed(1)} KB/s '
-          '(${elapsedSeconds.toStringAsFixed(2)}s for /api/ping)');
+      debugPrint(
+        '📊 Network speed: ${speedKBps.toStringAsFixed(1)} KB/s '
+        '(${elapsedSeconds.toStringAsFixed(2)}s for /api/ping)',
+      );
       return speedKBps;
     } catch (e) {
       debugPrint('⚠️ Network speed measurement failed: $e — assuming 1 KB/s');
@@ -109,8 +115,10 @@ class CloudflareMigrationService {
     // ─── Measure network speed and set adaptive batch size ───
     final networkSpeed = await _measureNetworkSpeed();
     final currentBatchSize = _calculateBatchSize(networkSpeed);
-    debugPrint('🔄 Starting Cloudflare migration (network: '
-        '${networkSpeed.toStringAsFixed(1)} KB/s, batch size: $currentBatchSize)');
+    debugPrint(
+      '🔄 Starting Cloudflare migration (network: '
+      '${networkSpeed.toStringAsFixed(1)} KB/s, batch size: $currentBatchSize)',
+    );
     final completedTables = await getMigrationProgress();
 
     // ─── Unique timestamp allocator ───
@@ -144,9 +152,11 @@ class CloudflareMigrationService {
         }
 
         // Read all records from local Drift DB
-        final records = await db.customSelect(
-          'SELECT * FROM $tableName',
-        ).get();
+        final records = await db
+            .customSelect(
+              'SELECT * FROM $tableName',
+            )
+            .get();
 
         final count = records.length;
         debugPrint('  📦 $entity: $count records found');
@@ -185,16 +195,20 @@ class CloudflareMigrationService {
         // Split records into batches of currentBatchSize
         final allBatches = <List<Map<String, dynamic>>>[];
         for (var i = 0; i < allRecords.length; i += currentBatchSize) {
-          allBatches.add(allRecords.sublist(
-            i,
-            (i + currentBatchSize > allRecords.length)
-                ? allRecords.length
-                : i + currentBatchSize,
-          ));
+          allBatches.add(
+            allRecords.sublist(
+              i,
+              (i + currentBatchSize > allRecords.length)
+                  ? allRecords.length
+                  : i + currentBatchSize,
+            ),
+          );
         }
 
-        debugPrint('  📦 $entity: ${allBatches.length} SQL batches '
-            '($currentBatchSize records each, parallel=5, gzip=on)');
+        debugPrint(
+          '  📦 $entity: ${allBatches.length} SQL batches '
+          '($currentBatchSize records each, parallel=5, gzip=on)',
+        );
 
         // Process batches in groups of 5 (parallel) — reduced from 15 to
         // respect Cloudflare Worker rate limit (1000 req/min per IP).
@@ -215,13 +229,15 @@ class CloudflareMigrationService {
           // Send group in parallel — each batch becomes one SQL INSERT
           // statement with multiple VALUES, gzipped, sent to /api/sync/migrate
           final results = await Future.wait(
-            group.map((batch) => _sendSqlBatchWithRetry(
-                  entity: entity,
-                  tableName: tableName,
-                  batch: batch,
-                  token: token,
-                  db: db,
-                )),
+            group.map(
+              (batch) => _sendSqlBatchWithRetry(
+                entity: entity,
+                tableName: tableName,
+                batch: batch,
+                token: token,
+                db: db,
+              ),
+            ),
           );
 
           // Aggregate results
@@ -257,7 +273,8 @@ class CloudflareMigrationService {
           debugPrint('  ✅ $entity: migration complete');
         } else {
           debugPrint(
-              '  ⚠️ $entity: $tableFailed records failed — table NOT marked complete (will retry)');
+            '  ⚠️ $entity: $tableFailed records failed — table NOT marked complete (will retry)',
+          );
         }
       } catch (e) {
         errors.add('$entity: $e');
@@ -271,11 +288,15 @@ class CloudflareMigrationService {
     if (totalFailed == 0) {
       await prefs.setBool(_migrationCompleteKey, true);
     } else {
-      debugPrint('⚠️ Migration incomplete: $totalFailed records failed — NOT marking complete');
+      debugPrint(
+        '⚠️ Migration incomplete: $totalFailed records failed — NOT marking complete',
+      );
     }
 
     final duration = DateTime.now().difference(startTime);
-    debugPrint('🔄 Migration complete: $totalPushed/$totalRecords pushed in ${duration.inSeconds}s');
+    debugPrint(
+      '🔄 Migration complete: $totalPushed/$totalRecords pushed in ${duration.inSeconds}s',
+    );
 
     return MigrationResult(
       totalRecords: totalRecords,
@@ -309,9 +330,11 @@ class CloudflareMigrationService {
     if (batch.isEmpty) return '';
 
     // ─── Read column metadata from local Drift DB (same schema as D1) ───
-    final columnInfo = await db.customSelect(
-      'PRAGMA table_info($tableName)',
-    ).get();
+    final columnInfo = await db
+        .customSelect(
+          'PRAGMA table_info($tableName)',
+        )
+        .get();
 
     // Build map: column name → default value (for NOT NULL without default)
     final notNullDefaults = <String, dynamic>{};
@@ -326,7 +349,9 @@ class CloudflareMigrationService {
       // If NOT NULL and no default (and not autoIncrement id), fill it
       if (notnull == 1 && dfltValue == null && name != 'id') {
         final typeLower = type.toLowerCase();
-        if (typeLower == 'integer' || typeLower == 'real' || typeLower == 'numeric') {
+        if (typeLower == 'integer' ||
+            typeLower == 'real' ||
+            typeLower == 'numeric') {
           notNullDefaults[name] = 0;
         } else {
           notNullDefaults[name] = '';
@@ -437,9 +462,11 @@ class CloudflareMigrationService {
     final compressionRatio = sqlBytes.isEmpty
         ? 100
         : (compressedBytes.length / sqlBytes.length * 100).round();
-    debugPrint('    🗜️ $entity SQL batch: ${sqlBytes.length}B → '
-        '${compressedBytes.length}B ($compressionRatio% of original, '
-        '${batch.length} records)');
+    debugPrint(
+      '    🗜️ $entity SQL batch: ${sqlBytes.length}B → '
+      '${compressedBytes.length}B ($compressionRatio% of original, '
+      '${batch.length} records)',
+    );
 
     for (var attempt = 1; attempt <= 3; attempt++) {
       try {
@@ -464,7 +491,11 @@ class CloudflareMigrationService {
               batchErrors.add('$entity: $e');
             }
           }
-          return _BatchResult(pushed: pushed, failed: failed, errors: batchErrors);
+          return _BatchResult(
+            pushed: pushed,
+            failed: failed,
+            errors: batchErrors,
+          );
         } else if (response.statusCode == 429 && attempt < 3) {
           // ✅ Rate limit handling: respect retry_after from server.
           // The Worker returns { error, retry_after } where retry_after is
@@ -475,12 +506,16 @@ class CloudflareMigrationService {
             final retryAfterMs = body['retry_after'] as int? ?? 0;
             final nowMs = DateTime.now().millisecondsSinceEpoch;
             final waitMs = (retryAfterMs - nowMs).clamp(1000, 60000);
-            debugPrint('    ⏳ $entity SQL batch rate-limited (429), '
-                'waiting ${(waitMs / 1000).toStringAsFixed(1)}s before '
-                'retry $attempt/3...');
+            debugPrint(
+              '    ⏳ $entity SQL batch rate-limited (429), '
+              'waiting ${(waitMs / 1000).toStringAsFixed(1)}s before '
+              'retry $attempt/3...',
+            );
             await Future<void>.delayed(Duration(milliseconds: waitMs + 1000));
           } catch (e) {
-      debugPrint('⚠️ Swallowed error in cloudflare_migration_service.dart: ');
+            debugPrint(
+              '⚠️ Swallowed error in cloudflare_migration_service.dart: ',
+            );
             // If we can't parse retry_after, use exponential backoff
             await Future<void>.delayed(Duration(seconds: 5 * attempt));
           }
@@ -493,8 +528,10 @@ class CloudflareMigrationService {
             responseBody: response.body,
             source: 'migration:$entity',
           );
-          debugPrint('    ⚠️ $entity SQL batch HTTP ${response.statusCode}, '
-              'retry $attempt/3...');
+          debugPrint(
+            '    ⚠️ $entity SQL batch HTTP ${response.statusCode}, '
+            'retry $attempt/3...',
+          );
           await Future<void>.delayed(Duration(seconds: attempt));
           continue;
         } else {
@@ -506,12 +543,20 @@ class CloudflareMigrationService {
             responseBody: response.body,
             source: 'migration:$entity',
           );
-          batchErrors.add('$entity: HTTP ${response.statusCode} — ${response.body}');
-          return _BatchResult(pushed: pushed, failed: failed, errors: batchErrors);
+          batchErrors.add(
+            '$entity: HTTP ${response.statusCode} — ${response.body}',
+          );
+          return _BatchResult(
+            pushed: pushed,
+            failed: failed,
+            errors: batchErrors,
+          );
         }
       } catch (e) {
         if (attempt < 3) {
-          debugPrint('    ⚠️ $entity SQL batch failed (attempt $attempt/3): $e');
+          debugPrint(
+            '    ⚠️ $entity SQL batch failed (attempt $attempt/3): $e',
+          );
           await Future<void>.delayed(Duration(seconds: attempt));
         } else {
           failed += batch.length;
@@ -524,7 +569,11 @@ class CloudflareMigrationService {
           );
           batchErrors.add('$entity SQL batch (after 3 retries): $e');
           debugPrint('    ❌ $entity SQL batch final failure: $e');
-          return _BatchResult(pushed: pushed, failed: failed, errors: batchErrors);
+          return _BatchResult(
+            pushed: pushed,
+            failed: failed,
+            errors: batchErrors,
+          );
         }
       }
     }

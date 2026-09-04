@@ -73,7 +73,9 @@ class TrackedError {
     if (source != null) buffer.writeln('📂 المصدر: $source');
     if (retryAfter != null) {
       final retryTime = DateTime.fromMillisecondsSinceEpoch(retryAfter!);
-      buffer.writeln('⏳ إعادة المحاولة بعد: ${DateFormat('HH:mm:ss').format(retryTime)}');
+      buffer.writeln(
+        '⏳ إعادة المحاولة بعد: ${DateFormat('HH:mm:ss').format(retryTime)}',
+      );
     }
     buffer.writeln('📝 التفاصيل:');
     buffer.writeln(message);
@@ -327,17 +329,21 @@ class _ErrorTrackerScreenState extends State<ErrorTrackerScreen> {
       );
       return;
     }
-    final jsonList = errors.map((e) => {
-      'timestamp': e.timestamp.toIso8601String(),
-      'category': e.category.name,
-      'severity': e.severity.name,
-      'title': e.title,
-      'message': e.message,
-      'source': e.source,
-      'statusCode': e.statusCode,
-      'retryAfter': e.retryAfter,
-      'stackTrace': e.stackTrace,
-    }).toList();
+    final jsonList = errors
+        .map(
+          (e) => {
+            'timestamp': e.timestamp.toIso8601String(),
+            'category': e.category.name,
+            'severity': e.severity.name,
+            'title': e.title,
+            'message': e.message,
+            'source': e.source,
+            'statusCode': e.statusCode,
+            'retryAfter': e.retryAfter,
+            'stackTrace': e.stackTrace,
+          },
+        )
+        .toList();
     final jsonStr = const JsonEncoder.withIndent('  ').convert(jsonList);
     await Clipboard.setData(ClipboardData(text: jsonStr));
     if (!mounted) return;
@@ -354,8 +360,10 @@ class _ErrorTrackerScreenState extends State<ErrorTrackerScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('مسح كل الأخطاء'),
-        content: const Text('هل أنت متأكد من مسح جميع الأخطاء المسجلة؟ '
-            'لا يمكن التراجع عن هذا الإجراء.'),
+        content: const Text(
+          'هل أنت متأكد من مسح جميع الأخطاء المسجلة؟ '
+          'لا يمكن التراجع عن هذا الإجراء.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -410,35 +418,43 @@ class _ErrorTrackerScreenState extends State<ErrorTrackerScreen> {
           itemBuilder: (context) => [
             const PopupMenuItem(
               value: 'copy_all',
-              child: Row(children: [
-                Icon(Icons.copy_all),
-                SizedBox(width: 8),
-                Text('نسخ جميع الأخطاء'),
-              ]),
+              child: Row(
+                children: [
+                  Icon(Icons.copy_all),
+                  SizedBox(width: 8),
+                  Text('نسخ جميع الأخطاء'),
+                ],
+              ),
             ),
             const PopupMenuItem(
               value: 'share',
-              child: Row(children: [
-                Icon(Icons.share),
-                SizedBox(width: 8),
-                Text('مشاركة التقرير'),
-              ]),
+              child: Row(
+                children: [
+                  Icon(Icons.share),
+                  SizedBox(width: 8),
+                  Text('مشاركة التقرير'),
+                ],
+              ),
             ),
             const PopupMenuItem(
               value: 'export',
-              child: Row(children: [
-                Icon(Icons.file_download),
-                SizedBox(width: 8),
-                Text('تصدير JSON'),
-              ]),
+              child: Row(
+                children: [
+                  Icon(Icons.file_download),
+                  SizedBox(width: 8),
+                  Text('تصدير JSON'),
+                ],
+              ),
             ),
             const PopupMenuItem(
               value: 'clear',
-              child: Row(children: [
-                Icon(Icons.delete_sweep, color: Colors.red),
-                SizedBox(width: 8),
-                Text('مسح الكل', style: TextStyle(color: Colors.red)),
-              ]),
+              child: Row(
+                children: [
+                  Icon(Icons.delete_sweep, color: Colors.red),
+                  SizedBox(width: 8),
+                  Text('مسح الكل', style: TextStyle(color: Colors.red)),
+                ],
+              ),
             ),
           ],
         ),
@@ -489,7 +505,9 @@ class _ErrorTrackerScreenState extends State<ErrorTrackerScreen> {
                     selectedColor: cat.color.withValues(alpha: 0.3),
                     labelStyle: TextStyle(
                       color: isSelected ? cat.color : Colors.grey[700],
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                     ),
                   ),
                 );
@@ -502,8 +520,10 @@ class _ErrorTrackerScreenState extends State<ErrorTrackerScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             child: Row(
               children: [
-                Text('الحد الأدنى للخطورة: ',
-                    style: Theme.of(context).textTheme.bodySmall),
+                Text(
+                  'الحد الأدنى للخطورة: ',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: SingleChildScrollView(
@@ -513,7 +533,8 @@ class _ErrorTrackerScreenState extends State<ErrorTrackerScreen> {
                         ChoiceChip(
                           label: const Text('الكل'),
                           selected: _minSeverity == null,
-                          onSelected: (_) => setState(() => _minSeverity = null),
+                          onSelected: (_) =>
+                              setState(() => _minSeverity = null),
                         ),
                         const SizedBox(width: 4),
                         ChoiceChip(
@@ -643,8 +664,7 @@ class _ErrorTrackerScreenState extends State<ErrorTrackerScreen> {
                 _DetailRow('الخطورة', error.severity.name.toUpperCase()),
                 if (error.statusCode != null)
                   _DetailRow('HTTP Status', error.statusCode.toString()),
-                if (error.source != null)
-                  _DetailRow('المصدر', error.source!),
+                if (error.source != null) _DetailRow('المصدر', error.source!),
                 if (error.retryAfter != null)
                   _DetailRow(
                     'إعادة المحاولة',
@@ -653,8 +673,10 @@ class _ErrorTrackerScreenState extends State<ErrorTrackerScreen> {
                     ),
                   ),
                 const SizedBox(height: 12),
-                const Text('التفاصيل:',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
+                const Text(
+                  'التفاصيل:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 4),
                 Container(
                   padding: const EdgeInsets.all(8),
@@ -672,8 +694,10 @@ class _ErrorTrackerScreenState extends State<ErrorTrackerScreen> {
                 ),
                 if (error.stackTrace != null) ...[
                   const SizedBox(height: 12),
-                  const Text('Stack Trace:',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Stack Trace:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 4),
                   Container(
                     padding: const EdgeInsets.all(8),
@@ -790,7 +814,10 @@ class _ErrorCard extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Text(_severityEmoji, style: const TextStyle(fontSize: 14)),
+                        Text(
+                          _severityEmoji,
+                          style: const TextStyle(fontSize: 14),
+                        ),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
@@ -837,8 +864,11 @@ class _ErrorCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.access_time,
-                            size: 12, color: Colors.grey[500]),
+                        Icon(
+                          Icons.access_time,
+                          size: 12,
+                          color: Colors.grey[500],
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           error.shortTime,
@@ -849,8 +879,7 @@ class _ErrorCard extends StatelessWidget {
                         ),
                         if (error.source != null) ...[
                           const SizedBox(width: 8),
-                          Icon(Icons.folder,
-                              size: 12, color: Colors.grey[500]),
+                          Icon(Icons.folder, size: 12, color: Colors.grey[500]),
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
@@ -866,8 +895,7 @@ class _ErrorCard extends StatelessWidget {
                         ],
                         if (error.retryAfter != null) ...[
                           const SizedBox(width: 8),
-                          Icon(Icons.timer,
-                              size: 12, color: Colors.deepOrange),
+                          Icon(Icons.timer, size: 12, color: Colors.deepOrange),
                           const SizedBox(width: 4),
                           Text(
                             '⏳ retry',
