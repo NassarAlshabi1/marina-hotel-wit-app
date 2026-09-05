@@ -46,10 +46,7 @@ void main() {
       );
 
       for (var i = 0; i < 10; i++) {
-        realtime.enqueueForTesting(
-          collection: 'payments',
-          documentId: 'p$i',
-        );
+        realtime.enqueueForTesting(collection: 'payments', documentId: 'p$i');
       }
 
       await completed.future.timeout(const Duration(seconds: 2));
