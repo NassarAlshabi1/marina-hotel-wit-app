@@ -297,6 +297,9 @@ CREATE TABLE IF NOT EXISTS bookings (
   is_fully_paid INTEGER NOT NULL DEFAULT 0,
   hotel_day_checkin TEXT,
   hotel_day_checkout TEXT,
+  -- ✅ Parity (2026-09-05): Drift Bookings — تجميد مالي
+  financial_frozen_at INTEGER,
+  financial_hash TEXT,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
   created_at INTEGER NOT NULL,
@@ -333,6 +336,8 @@ CREATE TABLE IF NOT EXISTS guest_infos (
   issue_place TEXT,
   governorate TEXT,
   notes TEXT,
+  -- ✅ Parity (2026-09-05): Drift GuestInfos
+  guest_phone TEXT,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
   created_at INTEGER NOT NULL,
@@ -396,6 +401,9 @@ CREATE TABLE IF NOT EXISTS booking_nights (
   final_rate REAL NOT NULL DEFAULT 0,
   applied_adjustment_uuid TEXT,
   applied_adjustments_json TEXT,
+  -- ✅ Parity (2026-09-05): Drift BookingNights
+  booking_uuid_cache TEXT,
+  server_booking_id INTEGER,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
   created_at INTEGER NOT NULL,
@@ -433,6 +441,9 @@ CREATE TABLE IF NOT EXISTS booking_price_adjustments (
   applied_by TEXT,
   cancelled_at TEXT,
   cancelled_by TEXT,
+  -- ✅ Parity (2026-09-05): Drift BookingPriceAdjustments
+  booking_uuid TEXT,
+  applied_at INTEGER,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
   created_at INTEGER NOT NULL,
@@ -478,6 +489,15 @@ CREATE TABLE IF NOT EXISTS payments (
   is_voided INTEGER NOT NULL DEFAULT 0,
   voided_at INTEGER,
   voided_by TEXT,
+  -- ✅ Parity (2026-09-05): Drift Payments — بيانات الإبطال
+  -- الكاملة وهوية المستلم (الخيار A) لعرض استلامات النوبات
+  -- عبر الأجهزة (dashboards منسوبة للمستخدم الصحيح)
+  void_reason TEXT,
+  is_immutable INTEGER NOT NULL DEFAULT 0,
+  received_by_user_id INTEGER,
+  received_by_name TEXT,
+  received_session_uuid TEXT,
+  received_by_cloud_id TEXT,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
   created_at INTEGER NOT NULL,
@@ -562,6 +582,16 @@ CREATE TABLE IF NOT EXISTS debts (
   hotel_day_closed TEXT,
   is_from_auto_fix INTEGER NOT NULL DEFAULT 0,
   settlement_confirmed INTEGER NOT NULL DEFAULT 0,
+  -- ✅ Parity (2026-09-05): Drift Debts Wave-6 — أعمدة عقد
+  -- Appwrite (appwrite_sync_utils.dart:362-411)
+  guest_phone TEXT,
+  description TEXT,
+  status TEXT,
+  due_date TEXT,
+  booking_uuid_cache TEXT,
+  debtor_name TEXT,
+  amount REAL,
+  date TEXT,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
   created_at INTEGER NOT NULL,
@@ -659,6 +689,12 @@ CREATE TABLE IF NOT EXISTS salary_carry_over_logs (
   new_cycle_end TEXT NOT NULL,
   reason TEXT NOT NULL,
   carried_at INTEGER NOT NULL,
+  -- ✅ Parity (2026-09-05): Drift SalaryCarryOverLogs
+  from_cycle_id TEXT,
+  to_cycle_id TEXT,
+  carry_date TEXT,
+  performed_by TEXT,
+  hotel_day_key TEXT,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
   created_at INTEGER NOT NULL,
@@ -750,8 +786,10 @@ CREATE TABLE IF NOT EXISTS price_adjustments (
   target_type TEXT NOT NULL,
   target_uuid TEXT NOT NULL,
   adjustment_type TEXT NOT NULL,
-  previous_value INTEGER NOT NULL,
-  new_value INTEGER NOT NULL,
+  -- ✅ Type fix (2026-09-05): Wave 6b غيّر Drift إلى RealColumn
+  -- (عقد السحابة double — منع اقتطاع 1500.75) ولم يُحدَّث هنا.
+  previous_value REAL NOT NULL,
+  new_value REAL NOT NULL,
   reason TEXT,
   effective_date TEXT NOT NULL,
   applied_by TEXT NOT NULL,
@@ -759,6 +797,10 @@ CREATE TABLE IF NOT EXISTS price_adjustments (
   is_reversed INTEGER NOT NULL DEFAULT 0,
   reversed_at TEXT,
   reversed_by TEXT,
+  -- ✅ Parity (2026-09-05): Drift PriceAdjustments
+  adjustment_mode TEXT NOT NULL DEFAULT 'per_night',
+  booking_uuid TEXT,
+  applied_at INTEGER,
   local_uuid TEXT NOT NULL UNIQUE,
   server_id INTEGER,
   created_at INTEGER NOT NULL,
