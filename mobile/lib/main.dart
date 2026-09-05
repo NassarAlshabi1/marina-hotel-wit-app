@@ -856,10 +856,26 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           }
         }
 
-        await AppwriteRealtimeSync().initialize(
-          deviceId: deviceId,
-          deltaPull: syncManager.pullRemoteChanges,
-        );
+        await AppwriteRealtimeSync().initialize(deviceId: deviceId);
+        // ✅ (2026-09-01) المسار الوحيد المقبول لـ Remote → Local:
+        //   Realtime event → AppwriteRealtimeSync (طابور الأحداث: ديبونس +
+        //   cooldown + in-flight) → AppwriteSyncManager → SyncPullService
+        //   → Delta Pull → Field-Level merge → Drift → Riverpod → UI.
+        // - deltaOnly: true — السحب المُشغَّل من Realtime لا يبدأ Full Sync
+        //   أبداً (Bootstrap الصريح فقط)؛ في حالة التهيئة يُتخطى السحب.
+        // - pullSkipped يعني أن السحب تخطّى (outbox غير مفروغ مثلاً) فتُجدول
+        //   متابعة تلقائياً بدل الظن بأن التغييرات طُبّقت.
+        AppwriteRealtimeSync().setSyncTrigger(() async {
+          final realtimeManager = AppwriteSyncManager.instance;
+          if (realtimeManager == null) return false;
+          final result = await realtimeManager.sync(
+            push: true,
+            pull: true,
+            realtimePriority: true,
+            deltaOnly: true,
+          );
+          return result.isSuccess && !result.pullSkipped;
+        });
         await AppwriteRealtimeSync().start();
         dlog('📡 Realtime sync + auto sync started');
       } catch (e) {

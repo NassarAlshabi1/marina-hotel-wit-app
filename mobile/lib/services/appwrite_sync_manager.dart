@@ -71,12 +71,19 @@ class SyncResult {
     this.recordsPulled = 0,
     this.conflicts = 0,
     this.errorMessage,
+    this.pullSkipped = false,
   });
   final SyncStatus status;
   final int recordsPushed;
   final int recordsPulled;
   final int conflicts;
   final String? errorMessage;
+
+  /// ✅ (2026-08-31) true يعني أن طلب السحب (pull=true) قُدّم وتخطّى
+  /// (Outbox غير مفروغ أو bootstrap state مع deltaOnly) — مدخل Realtime
+  /// (setSyncTrigger في main.dart) يجدول متابعة تلقائية بدل الظن بأن
+  /// التغييرات طُبّقت.
+  final bool pullSkipped;
   final DateTime timestamp;
   final Duration duration;
 
@@ -808,7 +815,23 @@ class AppwriteSyncManager {
   /// - تحدّث sync_logs (completed/failed) وتخزّن آخر وقت مزامنة محلياً
   ///
   /// الدالة لا ترمي عادةً استثناءات، وتعيد SyncResult مع status/errorMessage.
-  Future<SyncResult> sync({bool push = true, bool pull = true}) async {
+  ///
+  /// ✅ (2026-09-01) بارامترات واجهة الاستدعاء الموحدة (محرك السحب الموحد
+  /// UnifiedPullEngine يبقى مسؤولاً عن التنفيذ):
+  /// - [realtimePriority]: مدخل أحداث Realtime (تغيير فعلي من جهاز آخر).
+  /// - [forcePull]: تفاعل يدوي صريح (زر التحديث) — تجاوز أي حارس تكرار.
+  ///   ملاحظة: في عالم المحرك الموحد لا يوجد حارس دقيقتين داخل sync() —
+  /// خفض التكرار يتم عند المصدر (مشغّلات السحب) وعبر checkpoints لكل
+  /// مجموعة؛ البارامتر محفوظ لثبات الواجهة العامة ولأي حارس مستقبلي.
+  /// - [deltaOnly]: صمام أمان الركود — يمنع بدء Full Sync من الخلفية
+  /// (راجع الفرع داخل الدالة أدناه).
+  Future<SyncResult> sync({
+    bool push = true,
+    bool pull = true,
+    bool realtimePriority = false,
+    bool forcePull = false,
+    bool deltaOnly = false,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) {
       _logger.info(
@@ -821,6 +844,10 @@ class AppwriteSyncManager {
         duration: Duration.zero,
       );
     }
+
+    // ✅ (2026-08-31) pullSkipped يُبلّغ مدخل Realtime ليُتابع لاحقاً
+    // (تُقرأ عبر SyncResult.pullSkipped من setSyncTrigger في main.dart).
+    var pullSkipped = false;
 
     // سياسة Offline-first: لا نسمح بالسحب فوق تغييرات محلية لم تصل
     // بعد إلى Appwrite. عند sync كامل نتابع بالرفع فقط؛ وعند طلب pull
@@ -839,10 +866,45 @@ class AppwriteSyncManager {
         );
         if (push) {
           pull = false;
+          pullSkipped = true;
         } else {
           return SyncResult(
             status: SyncStatus.idle,
             errorMessage: message,
+            pullSkipped: true,
+            timestamp: DateTime.now(),
+            duration: Duration.zero,
+          );
+        }
+      }
+    }
+
+    // ✅ (2026-09-01) صمام أمان الركود — قاعدة "دلتا فقط للسحب التلقائي":
+    // حارس الركود (deltaOnly=true) يجب ألا يبدأ Full Sync أبداً. إذا كان
+    // الجهاز في مرحلة التهيئة (full_sync_complete=false أو lastPullTs=0،
+    // راجع SyncPullService.buildDeltaQueries) يُتخطى السحب — السحب الكامل
+    // قرار مرئي: مزامنة يدوية أو فحص فتح التطبيق؛ لا يبدأ من الخلفية
+    // دون علم المستخدم أبداً. القرار رخيص: قراءتا SQLite صغيرتان فقط
+    // عندما deltaOnly=true؛ بقية المداخل (false) لا تدخل هذا الفرع إطلاقاً.
+    if (pull && deltaOnly) {
+      final lastPullTs = await _pullService?.getLastPullTs() ?? 0;
+      final List<String> deltaQ =
+          await (_pullService?.buildDeltaQueries(lastPullTs) ?? <String>[]);
+      if (deltaQ.isEmpty) {
+        _logger.info(
+          '⏭️ Delta-only pull skipped — device in bootstrap state '
+          '(full_sync_complete=false أو lastPullTs=0)؛ '
+          'السحب الكامل يحتاج مزامنة يدوية أو إعادة تشغيل التطبيق',
+          tag: 'SYNC',
+        );
+        if (push) {
+          pull = false;
+          pullSkipped = true;
+        } else {
+          return SyncResult(
+            status: SyncStatus.idle,
+            errorMessage: 'Delta-only pull skipped: bootstrap state',
+            pullSkipped: true,
             timestamp: DateTime.now(),
             duration: Duration.zero,
           );
@@ -1422,6 +1484,7 @@ class AppwriteSyncManager {
           recordsPushed: recordsPushed,
           recordsPulled: recordsPulled,
           errorMessage: errorMessage,
+          pullSkipped: pullSkipped,
           timestamp: endTime,
           duration: duration,
         );
