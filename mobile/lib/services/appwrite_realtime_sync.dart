@@ -92,16 +92,14 @@ class AppwriteRealtimeSync {
     _currentDeviceId = deviceId;
     _deltaPull = deltaPull;
     _intentionallyStopped = false;
-    // ✅ AppwriteService.initialize() idempotent — يضمن جاهزية client في كل
-    // مسارات الاستدعاء (اختبارات الوحدة / شاشة الإعدادات) حتى لو لم يمرّ
-    // مسار main.dart بعد. بدونها: LateInitializationError على _client.
-    await AppwriteService().initialize();
-    _realtime ??= Realtime(AppwriteService().client);
+    // ✅ لا يُبنى Client هنا — البناء الكسول في [start] فقط؛ تبقى هذه
+    // التهيئة معقّمة للاختبارات (بلا نظام ملفات/شبكة) وتكفي لدخول الطابور
+    // عبر enqueueForTesting مع deltaPull محقون.
     dlog('[Realtime] initialized');
   }
 
   Future<void> start() async {
-    if (_isListening || _realtime == null) return;
+    if (_isListening) return;
     final prefs = await SharedPreferences.getInstance();
     if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) return;
 
@@ -115,6 +113,12 @@ class AppwriteRealtimeSync {
       _startPollingFallback();
       return;
     }
+
+    // ✅ بناء كسول للـ Realtime (وليس في initialize) — يضمن جاهزية
+    // AppwriteService (idempotent) في كل مسارات البدء دون أن يجعل
+    // initialize() يلمس نظام الملفات/الشبكة في بيئة الاختبار.
+    await AppwriteService().initialize();
+    _realtime ??= Realtime(AppwriteService().client);
 
     final channels = _collections
         .map(
@@ -253,7 +257,13 @@ class AppwriteRealtimeSync {
       );
     } finally {
       _pullInFlight = false;
-      if (!remoteChangeQueue.isEmpty) _scheduleDeltaPull();
+      if (!remoteChangeQueue.isEmpty) {
+        // إعادة جدولة بديبونس بدل الاستدعاء الفوري: يمنع الحلقة الساخنة
+        // عند فشل متكرر (drain→فشل→استعادة→فوراً) ويجعل حالة الطابور
+        // مستقرة بين المحاولات — نفس نافذة تجميع الأحداث.
+        _debounceTimer?.cancel();
+        _debounceTimer = Timer(_debounceWindow, () => _scheduleDeltaPull());
+      }
     }
   }
 

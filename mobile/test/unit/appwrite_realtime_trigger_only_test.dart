@@ -50,6 +50,9 @@ void main() {
       }
 
       await completed.future.timeout(const Duration(seconds: 2));
+      // العلم يُصفَّر بعد عودة الـcallback مباشرة (microtask لاحق) — استقرار
+      // قصير قبل الجزم لتجنّب السباق مع سلسلة _runDeltaPull.
+      await Future<void>.delayed(const Duration(milliseconds: 50));
       expect(pulls, 1);
       expect(realtime.hasRemoteChanges.value, isFalse);
     });
