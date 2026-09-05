@@ -44,7 +44,8 @@ camelCase** (صيغة Appwrite القديمة) إلى worker لا يقبل إل�
 | ✅ **snake_case (صحيح)** | `rooms`, `debts`, `cash_transactions`, `booking_notes`, `shift_notes`, `app_users` | `_payloadFrom` في الـ DAO / `appUsersSyncPayload` |
 | ❌ **camelCase (مكسور)** | `bookings`, `payments`, `expenses`, `employees` | DAO → `toJsonForSource(row, Source.appwrite)` |
 | ❌ **camelCase (مكسور)** | `guest_infos`, `inventory_items`, `inventory_transactions`, `salary_withdrawals`, `booking_price_adjustments`, `payment_voids`, `price_adjustments`, `blacklist` | خرائط camelCase يدوية في المستودعات/الخدمات |
-| ⚠️ **مسار الإدراج غير مؤكد** | `booking_nights`, `salary_cycles`, `salary_payments`, `salary_carry_over_logs`, `audit_logs` | ظهرت فقط في `delta_sync_service` (محرك Drive منفصل) — لم أؤكد كيف/هل تُدرَج في outbox الخاص بـ Cloudflare |
+| 🚫 **لا إدراج تزايدي** | `booking_nights`, `salary_cycles`, `salary_payments`, `audit_logs` | لا `outboxDao.merge` إطلاقاً (تُنقل عبر الرفع الجماعي فقط) — انظر القسم «مساران منفصلان» أدناه |
+| ❌ **camelCase (مكسور)** | `salary_carry_over_logs` | `salary_entitlement_service.dart:413` بحمولة camelCase |
 
 ### الأثر على الكيانات المكسورة
 - **create**: `data.local_uuid` غير موجود (المفتاح `localUuid`) → الـ worker يولّد UUID
@@ -53,11 +54,51 @@ camelCase** (صيغة Appwrite القديمة) إلى worker لا يقبل إل�
   `WHERE local_uuid = '<رقم>'` → لا تطابق → التحديث لا يُصيب أي صف.
 - **النتيجة**: مزامنة Cloudflare غير وظيفية عملياً لهذه الكيانات (فقدان بيانات صامت).
 
+### 🧭 توضيح حاسم (تتبع مكتمل): **مساران منفصلان للدفع إلى Cloudflare**
+
+يجب التمييز بين مسارين — أحدهما سليم والآخر فيه العلة:
+
+#### المسار (1): الرفع الجماعي / نسخ D1 الاحتياطي — ✅ **snake_case صحيح لكل الكيانات**
+`cloudflare_migration_service._buildSqlInsert` (تبويب «رفع D1»):
+- يقرأ الصفوف عبر `SELECT * FROM $tableName` (سطر 168) ثم
+  `Map<String, dynamic>.from(row.data)` (سطر 201) → المفاتيح **snake_case** (أسماء
+  أعمدة SQLite الحقيقية في Drift).
+- يقرأ بيانات الأعمدة من `PRAGMA table_info` المحلي ويملأ NOT NULL، مع تعيين
+  «Drift quirks → D1 canonical» (سطر 393+).
+- **النتيجة:** الرفع الأولي الكامل إلى D1 سليم لكل الـ 23 كياناً (بما فيها المكسورة تزايدياً).
+
+#### المسار (2): المزامنة التزايدية — `outbox → _pushBatch` — ⚠️ **هنا العلة**
+الحمولة تُبنى وقت الإدراج في outbox، وحالتها تعتمد على البانية:
+
+| الحالة | الكيانات |
+|---|---|
+| ✅ snake_case (صحيح) | `rooms`, `debts`, `cash_transactions`, `booking_notes`, `shift_notes`, `app_users` |
+| ❌ camelCase (مكسور تزايدياً) | `bookings`, `payments`, `expenses`, `employees`, `guest_infos`, `inventory_items`, `inventory_transactions`, `salary_withdrawals`, `salary_carry_over_logs`, `booking_price_adjustments`, `payment_voids`, `price_adjustments`, `blacklist` |
+| 🚫 **لا إدراج تزايدي إطلاقاً في outbox** | `booking_nights`, `salary_cycles`, `salary_payments`, `audit_logs` |
+
+**أدلة الفئة الأخيرة:**
+- لا يوجد أي استدعاء `outboxDao.merge` لهذه الأربعة في كل `mobile/lib` — تظهر فقط
+  كـ `_EntityConfig` داخل `delta_sync_service.dart` (محرك Drive منفصل **لا يستدعي**
+  `outboxDao.merge` إطلاقاً).
+- `audit_logs` **غائب أصلاً** عن خريطة `_entityTableMap` في `outbox_dao.dart:1315-1334`.
+- الأثر: بعد الترحيل الأولي، أي **تعديل لاحق** على هذه الأربعة لا يُدفَع تزايدياً إلى D1.
+
+- `salary_carry_over_logs` يُدرَج تزايدياً عبر `salary_entitlement_service.dart:413`
+  لكن بحمولة **camelCase** (`employeeId`, `previousCycleStart`, `carriedAt` …) → مكسور.
+
+### 📌 الخلاصة النهائية للأثر
+- **الرفع الأولي الكامل (تبويب رفع D1): سليم** لكل الكيانات (snake_case).
+- **المزامنة التزايدية بعد الترحيل:**
+  - تعمل فقط لـ 6 كيانات (rooms, debts, cash_transactions, booking_notes, shift_notes, app_users).
+  - **مكسورة** (camelCase تُسقَط + هوية خاطئة) لـ 13 كياناً.
+  - **مفقودة كلياً** لـ 4 كيانات (booking_nights, salary_cycles, salary_payments, audit_logs).
+
 ### مستوى الثقة
 - **عالٍ على مستوى الكود** — الأدلة متسقة ومتقاطعة (كود worker + كود adapter +
-  اختبار round-trip يؤكد camelCase + غياب أي تطبيع + غياب اختبار حارس).
+  اختبار round-trip يؤكد camelCase + غياب أي تطبيع + غياب اختبار حارس + تتبع كل
+  مواضع `outboxDao.merge`).
 - **لم يُتحقق وقت التشغيل**: Flutter غير مثبت في الـ sandbox، فلم أُنفّذ دفعاً حياً ضد
-  worker حقيقي. يُوصى بتشغيل دفعة `bookings` واحدة ومراقبة صف D1 لتأكيد نهائي.
+  worker حقيقي. يُوصى بتشغيل دفعة `bookings` تزايدية واحدة ومراقبة صف D1 لتأكيد نهائي.
 
 ### الإصلاح المقترح (جذري)
 توحيد كل مسارات الدفع إلى Cloudflare على **snake_case + local_uuid + vector_clock**:
