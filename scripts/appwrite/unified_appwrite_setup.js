@@ -214,6 +214,10 @@ const SCHEMA = {
     isImmutable: 'boolean',
     discountAmount: 'double',
     discountStartDate: 'string',
+    receivedByUserId: 'integer',
+    receivedByName: 'string',
+    receivedSessionUuid: 'string',
+    receivedByCloudId: 'string',
   }),
 
   expenses: withSync({

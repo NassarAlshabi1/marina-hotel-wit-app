@@ -217,6 +217,12 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
         src,
         altKey: 'received_session_uuid',
       ),
+      receivedByCloudId: _vStr(
+        json,
+        'receivedByCloudId',
+        src,
+        altKey: 'received_by_cloud_id',
+      ),
     );
   }
 
@@ -274,6 +280,8 @@ class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
       _k(src, 'receivedByName', 'received_by_name'): model.receivedByName,
       _k(src, 'receivedSessionUuid', 'received_session_uuid'):
           model.receivedSessionUuid,
+      _k(src, 'receivedByCloudId', 'received_by_cloud_id'):
+          model.receivedByCloudId,
     };
   }
 }

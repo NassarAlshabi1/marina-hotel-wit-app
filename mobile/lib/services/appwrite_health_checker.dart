@@ -234,12 +234,17 @@ class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
       final db = Databases(client);
       final stopwatch = Stopwatch()..start();
 
+      // فحص الصحة لا يقرأ أي بيانات — select($id) يقلّص الحمولة من صف rooms
+      // كامل (أعرض جدول + بيانات ضيوف) إلى معرّف واحد فقط.
       await db
           // ignore: deprecated_member_use
           .listDocuments(
             databaseId: AppwriteConfigManager.databaseId,
             collectionId: AppwriteConfig.roomsCollectionId,
-            queries: [Query.limit(1)],
+            queries: [
+              Query.select([r'$id']),
+              Query.limit(1),
+            ],
           )
           .timeout(const Duration(seconds: 10));
 
@@ -293,12 +298,17 @@ class AppwriteHealthNotifier extends StateNotifier<AppwriteHealthState> {
       final db = Databases(client);
       final stopwatch = Stopwatch()..start();
 
+      // فحص الصحة لا يقرأ أي بيانات — select($id) يقلّص الحمولة من صف rooms
+      // كامل (أعرض جدول + بيانات ضيوف) إلى معرّف واحد فقط.
       await db
           // ignore: deprecated_member_use
           .listDocuments(
             databaseId: SecondaryAppwriteConfig.databaseId,
             collectionId: AppwriteConfig.roomsCollectionId,
-            queries: [Query.limit(1)],
+            queries: [
+              Query.select([r'$id']),
+              Query.limit(1),
+            ],
           )
           .timeout(const Duration(seconds: 10));
 

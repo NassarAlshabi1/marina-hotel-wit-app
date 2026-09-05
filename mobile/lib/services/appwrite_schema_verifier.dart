@@ -306,6 +306,7 @@ class AppwriteSchemaVerifier {
         {'key': 'receivedByUserId', 'type': 'integer'},
         {'key': 'receivedByName', 'type': 'string', 'size': 200},
         {'key': 'receivedSessionUuid', 'type': 'string', 'size': 36},
+        {'key': 'receivedByCloudId', 'type': 'string', 'size': 100},
       ],
     },
     'debts': {
@@ -775,7 +776,13 @@ class AppwriteSchemaVerifier {
         final response = await databases.listDocuments(
           databaseId: AppwriteConfigManager.databaseId,
           collectionId: collectionId,
-          queries: [],
+          // التحقق يستهلك response.total فقط (عدد المطابقات على الخادم،
+          // لا يتأثر بـ limit) — select($id)+limit(1) تقلّص الحمولة من
+          // 25 صفاً كاملاً لكل كولكشن إلى صف واحد بمعرّفه فقط.
+          queries: [
+            Query.select([r'$id']),
+            Query.limit(1),
+          ],
         );
 
         foundCollections++;

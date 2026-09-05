@@ -10,6 +10,7 @@ class PaymentSessionContext {
   static int? userId;
   static String? userName;
   static String? sessionUuid;
+  static String? cloudUserId;
   static DateTime? startedAt;
 
   static bool get isActive => userId != null && sessionUuid != null;
@@ -18,11 +19,13 @@ class PaymentSessionContext {
     required int userId,
     required String userName,
     String? sessionUuid,
+    String? cloudUserId,
     DateTime? startedAt,
   }) {
     PaymentSessionContext.userId = userId;
     PaymentSessionContext.userName = userName;
     PaymentSessionContext.sessionUuid = sessionUuid ?? IdGen.uuid();
+    PaymentSessionContext.cloudUserId = cloudUserId;
     PaymentSessionContext.startedAt = startedAt ?? DateTime.now();
   }
 
@@ -30,6 +33,7 @@ class PaymentSessionContext {
     userId = null;
     userName = null;
     sessionUuid = null;
+    cloudUserId = null;
     startedAt = null;
   }
 }

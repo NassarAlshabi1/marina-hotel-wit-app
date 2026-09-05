@@ -1,5 +1,6 @@
 // ignore_for_file: unused_element, deprecated_member_use
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:appwrite/appwrite.dart';
 import 'package:collection/collection.dart';
@@ -47,6 +48,11 @@ class SyncPullService {
 
   /// ✅ Audit Fix: deviceId الحالي (لـ LWW tie-break).
   String? _currentDeviceId;
+
+  /// ✅ Unified Pull: حقن مخزن الـ checkpoints من AppwriteSyncManager.
+  /// ملاحظة (2026-08-31): أُزيل حقل _checkpointStore وsetter الخاص به —
+  /// كانا يُكتبان ولا يُقرآن أبداً (unused_field). المحرك الموحد
+  /// (UnifiedPullEngine) يحتفظ بالمخزن مباشرة ولا يحتاج هذه الخدمة إليه.
 
   /// ✅ Audit Fix: حقن AncestorCacheDao من AppwriteSyncManager.
   /// هذا يسمح لـ SyncPullService بالوصول إلى الـ ancestor cache
@@ -361,10 +367,18 @@ class SyncPullService {
       final info = appwriteService.getProjectInfo();
       final dbId = info['databaseId'] ?? AppwriteConfig.databaseId;
 
+      // ✅ (2026-08-31) Query.select للحمولات: الكشف كان ينزّل صف rooms
+      // كاملاً (أعرض جدول + بيانات ضيوف) ليقرأ حقول lastModified التي لا
+      // توجد أصلاً في مخطط rooms. نتيجة الكشف يستهلكها اليوم مسارٌ واحد
+      // (bookingNightsDeltaQueries) الذي يتجاهلها — select($id) يجعل
+      // القيمة false حتمياً (كما هي فعلاً) دون أي تنزيل بيانات ضيوف.
       final list = await appwriteService.databases.listDocuments(
         databaseId: dbId,
         collectionId: AppwriteConfig.roomsCollectionId,
-        queries: [Query.limit(1)],
+        queries: [
+          Query.select([r'$id']),
+          Query.limit(1),
+        ],
       );
 
       if (list.documents.isEmpty) {
@@ -427,9 +441,83 @@ class SyncPullService {
   /// جديد في الواجهة. نسمح كذلك بالقيمة القديمة `deletedAt = 0` لأنها تعني
   /// سجلاً نشطاً في الإصدارات السابقة. الحذف الناعم يبقى محفوظاً في Appwrite
   /// كسجل تاريخي، لكنه ليس جزءاً من بيانات التشغيل النشطة.
-  static List<String> buildFullSyncQueries() => [
-    Query.or([Query.isNull('deletedAt'), Query.equal('deletedAt', 0)]),
-  ];
+  ///
+  /// ✅ (2026-09-02) استثناء كيانات الآباء FK — [entityNeedsTombstoneParents]:
+  /// استبعاد tombstones الشامل كان يمنع جهازاً جديداً من تنزيل الموظفين
+  /// المحذوفين ناعماً، فيفشل حل FK في salary_withdrawals/salary_cycles
+  /// (المحلل يبحث بالـ serverId) وتُتخطى سجلات مالية كاملة كـ"أيتام" —
+  /// 128 سحوبة (654,500 وحدة) في بيانات الإنتاج. للكيانات هذه تُسمح
+  /// الـ tombstones بالتنزيل (تُدرج صفوفاً غير مرئية deletedAt>0 كالسابق).
+  static List<String> buildFullSyncQueries({bool includeTombstones = false}) =>
+      includeTombstones
+      ? <String>[]
+      : [
+          Query.or([Query.isNull('deletedAt'), Query.equal('deletedAt', 0)]),
+        ];
+
+  /// كيانات "الآباء" المرجعية التي يجب سحب tombstones الخاصة بها حتى على
+  /// جهاز جديد، لأن أبناءها (سجلات مالية) يُحلّ FK ضدّها عبر serverId.
+  ///
+  /// الأدلة (2026-09-02):
+  /// - `_syncEmployees`: "salary_withdrawals و salary_cycles يستخدمان
+  ///   employeeId البعيد الذي يساوي id الموظف على جهاز المصدر. بتخزينه في
+  ///   serverId يمكن حل FK بالبحث عن serverId = remoteEmployeeId".
+  /// - سحابة الإنتاج: الموظفان المحذوفان serverId=11 و serverId=12 مرتبط
+  ///   بهما 128 سحوبة راتب (382,000 + 272,500).
+  /// - نفس قرار "لا ربط خاطئ عبر الأجهزة" المعمول به في resolveBooking
+  ///   (id_resolver.dart) و expenses_adapter: بدون الموظف المحذوف محلياً
+  ///   لا يمكن حل المرجع إطلاقاً — فالسحب ضرورة سلامة بيانات لا رفاهية.
+  static bool entityNeedsTombstoneParents(String entity) =>
+      entity == 'employees';
+
+  /// ✅ (2026-08-30) الفجوتان 3+4 — حساب معرّفات المستندات المتغيرة فعلاً
+  /// بمقارنة metadata الخادم بالخريطة المحلية (sync_remote_meta).
+  ///
+  /// دالة نقية (قابلة للاختبار مباشرة). القاعدة:
+  /// - مستند غائب محلياً أو طابعه اختلف → متغيّر (يُجلب كاملاً).
+  /// - مستند طابعه مطابق → نملك محتوى ذلك الإصدار بالضبط (الخريطة تُكتب
+  ///   بعد نجاح التطبيق فقط) → تُتخطى.
+  /// - [unknownTsDocIds]: مستندات تعذّر قراءة $updatedAt لها من الخادم —
+  ///   تُجلب كاملة احتياطاً بدل المخاطرة بتخطيها.
+  static List<String> computeChangedIds({
+    required Map<String, int> serverMeta,
+    required Map<String, int> localMeta,
+    List<String> unknownTsDocIds = const [],
+  }) {
+    final changed = <String>[];
+    serverMeta.forEach((id, ts) {
+      final local = localMeta[id];
+      if (local == null || local != ts) changed.add(id);
+    });
+    changed.addAll(unknownTsDocIds);
+    return changed;
+  }
+
+  /// ✅ (2026-08-31) استبعاد tombstones من السحب — تقليل السحب على مستوى
+  /// السجل للمحذوف.
+  ///
+  /// سجل محذوف على الخادم وغير معروف محلياً (لا صف له ولا إدخال في
+  /// sync_remote_meta) لا فائدة من تنزيله: كان يُجلب كاملاً (بكل أعمدته
+  /// وبياناته الحساسة) ثم يُدرَج محلياً كصف tombstone غير مرئي عبر فرع
+  /// "غير موجود → أضف دائماً" في [checkAndResolveConflict]. يُتخطى بدل
+  /// ذلك ويُعلَّم في sync_remote_meta كي لا يُعاد تعداده كل دورة.
+  ///
+  /// المحذوف **المعروف** محلياً لا يُتخطى عمداً: توصيل الحذف إلى هذا
+  /// الجهاز يعتمد على تنزيل الـ tombstone وتطبيقه — انظر فرع "tombstone
+  /// يتجاوز VC والطوابع" في [checkAndResolveConflict]. تخطيه هنا يعني
+  /// سجلات شبحية تبقى نشطة محلياً بعد حذفها من جهاز آخر (resurrection).
+  ///
+  /// دالة نقية (قابلة للاختبار مباشرة).
+  static Set<String> tombstoneSkipIds({
+    required Map<String, int> deletedTs,
+    required Map<String, int> localMeta,
+  }) {
+    final skip = <String>{};
+    deletedTs.forEach((id, _) {
+      if (!localMeta.containsKey(id)) skip.add(id);
+    });
+    return skip;
+  }
 
   Future<List<String>> buildDeltaQueries(int lastPullTs) async {
     // ✅ Sync Safety Wave 2 (2026-08-12): Full Sync Bootstrap Guard.
@@ -446,11 +534,37 @@ class SyncPullService {
     // **الأداء**: هذه القراءة من SQLite سريعة جداً (single row by PK)
     // وتحدث مرة واحدة في بداية كل دورة سحب (لا تؤثر على الأداء).
     final isFullSyncDone = await isFullSyncComplete();
+    // ✅ (2026-08-30) تشخيص أحادي السطر (SYNC_DIAGNOSTIC): لو لاحظت "Full
+    // Sync" في كل دورة فالسبب واحد من هذين المفتاحين — fullSyncComplete=0
+    // (لم يكتمل full sync بنجاح أو فشل كولكشن) أو lastPullTs<=0.
+    _logger.debug(
+      'SYNC_DIAGNOSTIC: lastPullTs=$lastPullTs, '
+      'fullSyncComplete=$isFullSyncDone → '
+      '${(!isFullSyncDone || lastPullTs <= 0) ? 'FULL pull' : 'delta pull'}',
+      tag: 'SYNC_DIAGNOSTIC',
+    );
     if (!isFullSyncDone) {
       // الجهاز في مرحلة bootstrap — نُجبر full fetch
       return [];
     }
 
+    if (lastPullTs <= 0) {
+      return [];
+    }
+    final cutoffSeconds = lastPullTs - _safetyWindowSeconds;
+    final cutoffIso = DateTime.fromMillisecondsSinceEpoch(
+      cutoffSeconds * 1000,
+      isUtc: true,
+    ).toIso8601String();
+    return [Query.greaterThan(r'$updatedAt', cutoffIso)];
+  }
+
+  /// ✅ Unified Pull (2026-08-31): بناء استعلامات Delta على مستوى مجموعة واحدة.
+  ///
+  /// يختلف عن [buildDeltaQueries] في أنه لا يفحص علامة `full_sync_complete`
+  /// العامة — فحص الاكتمال أصبح لكل مجموعة مستقلة عبر UnifiedPullEngine
+  /// وجدول `sync_checkpoints` (فشل مجموعة لا يُجبر البقية على Full pull).
+  List<String> buildDeltaQueriesForCollection(int lastPullTs) {
     if (lastPullTs <= 0) {
       return [];
     }
@@ -541,6 +655,93 @@ class SyncPullService {
     } catch (e) {
       _logger.warning('Failed to update lastPullTs: $e', tag: 'SYNC');
     }
+  }
+
+  // ── Per-Entity Pull Timestamps (2026-08-30) ─────────────────────────────
+  //
+  // ✅ العلاج الجذري للمؤشر العالمي الواحد: كل كيان يحمل مؤشر سحب خاصاً به
+  // ويتقدم باستقلال. فشل كيان ما (مثل guest_infos البطيء) لم يعُد يجمّد
+  // مؤشر الكيانات الأخرى — وبالتالي لا تُعاد سحب deltas سليمة في كل دورة.
+  //
+  // التخزين في SharedPreferences (نفس نمط sync_last_pull_booking_nights
+  // الموجود) بدل عمود جديد في sync_state — لا ترحيل قاعدة بيانات ولا
+  // إعادة توليد كود Drift. القراءة من SPrefs مُخزّنة في الذاكرة بعد أول
+  // تحميل فتكلفتها مهملة مقابل طلبات الشبكة.
+
+  /// مفتاح SharedPreferences لخريطة مؤشرات السحب لكل كيان.
+  static const String _entityPullTsMapKey = 'sync_entity_pull_ts_map';
+
+  /// يقرأ خريطة مؤشرات السحب لكل كيان.
+  Future<Map<String, int>> getEntityPullTsMap() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_entityPullTsMapKey);
+      if (raw == null || raw.isEmpty) return {};
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return decoded.map((k, v) => MapEntry(k, (v as num).toInt()));
+    } catch (e) {
+      _logger.warning('Failed to read entity pull ts map: $e', tag: 'SYNC');
+      return {};
+    }
+  }
+
+  /// يقرأ مؤشر السحب الخاص بكيان محدد.
+  ///
+  /// ✅ ترحيل كسول: الكيانات غير الموجودة في الخريطة تُهيّأ من المؤشر
+  /// العالمي (`lastPullTs`) — هكذا تبقى دورة أول تشغيل بعد هذا التحديث
+  /// مطابقة تماماً للسلوك السابق (نفس cutoff لكل الكيانات)، وتبدأ
+  /// الاستقلالية من الدورة التالية دون أي سحب كامل إضافي.
+  Future<int> getEntityPullTs(String entity) async {
+    final map = await getEntityPullTsMap();
+    if (map.containsKey(entity)) return map[entity] ?? 0;
+    final globalTs = await getLastPullTs();
+    await updateEntityPullTs(entity, globalTs);
+    return globalTs;
+  }
+
+  /// يحدّث مؤشر السحب الخاص بكيان محدد — **تقدّم أحادي الاتجاه فقط**
+  /// (المؤشر لا يتراجع أبداً حتى لو وصلت قيمة أصغر بخطأ ما).
+  Future<void> updateEntityPullTs(String entity, int ts) async {
+    try {
+      final map = await getEntityPullTsMap();
+      final existing = map[entity] ?? 0;
+      if (ts <= existing) return;
+      map[entity] = ts;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_entityPullTsMapKey, jsonEncode(map));
+    } catch (e) {
+      _logger.warning(
+        'Failed to update entity pull ts ($entity): $e',
+        tag: 'SYNC',
+      );
+    }
+  }
+
+  /// يحذف خريطة مؤشرات الكيانات (تُستخدم عند إعادة ضبط المزامنة —
+  /// ستعاد تهيئتها كسولاً من المؤشر العالمي في أول دورة تالية).
+  Future<void> clearEntityPullTsMap() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_entityPullTsMapKey);
+    } catch (_) {}
+  }
+
+  /// ✅ استعلامات delta خاصة بكيان واحد بناءً على مؤشره الخاص.
+  ///
+  /// - يُستدعى فقط في وضع delta (`isDelta == true` محسوب مسبقاً عبر
+  ///   `buildDeltaQueries` الذي يتحقق من `full_sync_complete`).
+  /// - مؤشر ≤ 0 (كيان بلا تاريخ) → قائمة فارغة = سحب كامل **لهذا الكيان
+  ///   وحده** دون بقية الكيانات.
+  /// - نفس نافذة الأمان 15 ثانية المستخدمة في المؤشر العالمي.
+  Future<List<String>> entityDeltaQueries(String entity) async {
+    final ts = await getEntityPullTs(entity);
+    if (ts <= 0) return [];
+    final cutoffSeconds = ts - _safetyWindowSeconds;
+    final cutoffIso = DateTime.fromMillisecondsSinceEpoch(
+      cutoffSeconds * 1000,
+      isUtc: true,
+    ).toIso8601String();
+    return [Query.greaterThan(r'$updatedAt', cutoffIso)];
   }
 
   // ── Full Sync Bootstrap Flag ──────────────────────────────────────────

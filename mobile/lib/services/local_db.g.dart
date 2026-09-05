@@ -11930,6 +11930,18 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _receivedByCloudIdMeta = const VerificationMeta(
+    'receivedByCloudId',
+  );
+  @override
+  late final GeneratedColumn<String> receivedByCloudId =
+      GeneratedColumn<String>(
+        'received_by_cloud_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     localUuid,
@@ -11976,6 +11988,7 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
     receivedByUserId,
     receivedByName,
     receivedSessionUuid,
+    receivedByCloudId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -12350,6 +12363,15 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         ),
       );
     }
+    if (data.containsKey('received_by_cloud_id')) {
+      context.handle(
+        _receivedByCloudIdMeta,
+        receivedByCloudId.isAcceptableOrUnknown(
+          data['received_by_cloud_id']!,
+          _receivedByCloudIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -12535,6 +12557,10 @@ class $PaymentsTable extends Payments with TableInfo<$PaymentsTable, Payment> {
         DriftSqlType.string,
         data['${effectivePrefix}received_session_uuid'],
       ),
+      receivedByCloudId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}received_by_cloud_id'],
+      ),
     );
   }
 
@@ -12589,6 +12615,7 @@ class Payment extends DataClass implements Insertable<Payment> {
   final int? receivedByUserId;
   final String? receivedByName;
   final String? receivedSessionUuid;
+  final String? receivedByCloudId;
   const Payment({
     required this.localUuid,
     this.serverId,
@@ -12634,6 +12661,7 @@ class Payment extends DataClass implements Insertable<Payment> {
     this.receivedByUserId,
     this.receivedByName,
     this.receivedSessionUuid,
+    this.receivedByCloudId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -12734,6 +12762,9 @@ class Payment extends DataClass implements Insertable<Payment> {
     if (!nullToAbsent || receivedSessionUuid != null) {
       map['received_session_uuid'] = Variable<String>(receivedSessionUuid);
     }
+    if (!nullToAbsent || receivedByCloudId != null) {
+      map['received_by_cloud_id'] = Variable<String>(receivedByCloudId);
+    }
     return map;
   }
 
@@ -12833,6 +12864,9 @@ class Payment extends DataClass implements Insertable<Payment> {
       receivedSessionUuid: receivedSessionUuid == null && nullToAbsent
           ? const Value.absent()
           : Value(receivedSessionUuid),
+      receivedByCloudId: receivedByCloudId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(receivedByCloudId),
     );
   }
 
@@ -12894,6 +12928,9 @@ class Payment extends DataClass implements Insertable<Payment> {
       receivedSessionUuid: serializer.fromJson<String?>(
         json['receivedSessionUuid'],
       ),
+      receivedByCloudId: serializer.fromJson<String?>(
+        json['receivedByCloudId'],
+      ),
     );
   }
   @override
@@ -12946,6 +12983,7 @@ class Payment extends DataClass implements Insertable<Payment> {
       'receivedByUserId': serializer.toJson<int?>(receivedByUserId),
       'receivedByName': serializer.toJson<String?>(receivedByName),
       'receivedSessionUuid': serializer.toJson<String?>(receivedSessionUuid),
+      'receivedByCloudId': serializer.toJson<String?>(receivedByCloudId),
     };
   }
 
@@ -12994,6 +13032,7 @@ class Payment extends DataClass implements Insertable<Payment> {
     Value<int?> receivedByUserId = const Value.absent(),
     Value<String?> receivedByName = const Value.absent(),
     Value<String?> receivedSessionUuid = const Value.absent(),
+    Value<String?> receivedByCloudId = const Value.absent(),
   }) => Payment(
     localUuid: localUuid ?? this.localUuid,
     serverId: serverId.present ? serverId.value : this.serverId,
@@ -13067,6 +13106,9 @@ class Payment extends DataClass implements Insertable<Payment> {
     receivedSessionUuid: receivedSessionUuid.present
         ? receivedSessionUuid.value
         : this.receivedSessionUuid,
+    receivedByCloudId: receivedByCloudId.present
+        ? receivedByCloudId.value
+        : this.receivedByCloudId,
   );
   Payment copyWithCompanion(PaymentsCompanion data) {
     return Payment(
@@ -13174,6 +13216,9 @@ class Payment extends DataClass implements Insertable<Payment> {
       receivedSessionUuid: data.receivedSessionUuid.present
           ? data.receivedSessionUuid.value
           : this.receivedSessionUuid,
+      receivedByCloudId: data.receivedByCloudId.present
+          ? data.receivedByCloudId.value
+          : this.receivedByCloudId,
     );
   }
 
@@ -13223,7 +13268,8 @@ class Payment extends DataClass implements Insertable<Payment> {
           ..write('isImmutable: $isImmutable, ')
           ..write('receivedByUserId: $receivedByUserId, ')
           ..write('receivedByName: $receivedByName, ')
-          ..write('receivedSessionUuid: $receivedSessionUuid')
+          ..write('receivedSessionUuid: $receivedSessionUuid, ')
+          ..write('receivedByCloudId: $receivedByCloudId')
           ..write(')'))
         .toString();
   }
@@ -13274,6 +13320,7 @@ class Payment extends DataClass implements Insertable<Payment> {
     receivedByUserId,
     receivedByName,
     receivedSessionUuid,
+    receivedByCloudId,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -13322,7 +13369,8 @@ class Payment extends DataClass implements Insertable<Payment> {
           other.isImmutable == this.isImmutable &&
           other.receivedByUserId == this.receivedByUserId &&
           other.receivedByName == this.receivedByName &&
-          other.receivedSessionUuid == this.receivedSessionUuid);
+          other.receivedSessionUuid == this.receivedSessionUuid &&
+          other.receivedByCloudId == this.receivedByCloudId);
 }
 
 class PaymentsCompanion extends UpdateCompanion<Payment> {
@@ -13370,6 +13418,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
   final Value<int?> receivedByUserId;
   final Value<String?> receivedByName;
   final Value<String?> receivedSessionUuid;
+  final Value<String?> receivedByCloudId;
   const PaymentsCompanion({
     this.localUuid = const Value.absent(),
     this.serverId = const Value.absent(),
@@ -13415,6 +13464,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.receivedByUserId = const Value.absent(),
     this.receivedByName = const Value.absent(),
     this.receivedSessionUuid = const Value.absent(),
+    this.receivedByCloudId = const Value.absent(),
   });
   PaymentsCompanion.insert({
     required String localUuid,
@@ -13461,6 +13511,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     this.receivedByUserId = const Value.absent(),
     this.receivedByName = const Value.absent(),
     this.receivedSessionUuid = const Value.absent(),
+    this.receivedByCloudId = const Value.absent(),
   }) : localUuid = Value(localUuid),
        createdAt = Value(createdAt),
        updatedAt = Value(updatedAt),
@@ -13514,6 +13565,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     Expression<int>? receivedByUserId,
     Expression<String>? receivedByName,
     Expression<String>? receivedSessionUuid,
+    Expression<String>? receivedByCloudId,
   }) {
     return RawValuesInsertable({
       if (localUuid != null) 'local_uuid': localUuid,
@@ -13563,6 +13615,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       if (receivedByName != null) 'received_by_name': receivedByName,
       if (receivedSessionUuid != null)
         'received_session_uuid': receivedSessionUuid,
+      if (receivedByCloudId != null) 'received_by_cloud_id': receivedByCloudId,
     });
   }
 
@@ -13611,6 +13664,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
     Value<int?>? receivedByUserId,
     Value<String?>? receivedByName,
     Value<String?>? receivedSessionUuid,
+    Value<String?>? receivedByCloudId,
   }) {
     return PaymentsCompanion(
       localUuid: localUuid ?? this.localUuid,
@@ -13659,6 +13713,7 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
       receivedByUserId: receivedByUserId ?? this.receivedByUserId,
       receivedByName: receivedByName ?? this.receivedByName,
       receivedSessionUuid: receivedSessionUuid ?? this.receivedSessionUuid,
+      receivedByCloudId: receivedByCloudId ?? this.receivedByCloudId,
     );
   }
 
@@ -13803,6 +13858,9 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
         receivedSessionUuid.value,
       );
     }
+    if (receivedByCloudId.present) {
+      map['received_by_cloud_id'] = Variable<String>(receivedByCloudId.value);
+    }
     return map;
   }
 
@@ -13852,7 +13910,8 @@ class PaymentsCompanion extends UpdateCompanion<Payment> {
           ..write('isImmutable: $isImmutable, ')
           ..write('receivedByUserId: $receivedByUserId, ')
           ..write('receivedByName: $receivedByName, ')
-          ..write('receivedSessionUuid: $receivedSessionUuid')
+          ..write('receivedSessionUuid: $receivedSessionUuid, ')
+          ..write('receivedByCloudId: $receivedByCloudId')
           ..write(')'))
         .toString();
   }
@@ -43112,6 +43171,286 @@ class AncestorCacheCompanion extends UpdateCompanion<AncestorCacheData> {
   }
 }
 
+class $SyncRemoteMetaTable extends SyncRemoteMeta
+    with TableInfo<$SyncRemoteMetaTable, SyncRemoteMetaRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncRemoteMetaTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _collectionMeta = const VerificationMeta(
+    'collection',
+  );
+  @override
+  late final GeneratedColumn<String> collection = GeneratedColumn<String>(
+    'collection',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _docIdMeta = const VerificationMeta('docId');
+  @override
+  late final GeneratedColumn<String> docId = GeneratedColumn<String>(
+    'doc_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _remoteUpdatedAtSecMeta =
+      const VerificationMeta('remoteUpdatedAtSec');
+  @override
+  late final GeneratedColumn<int> remoteUpdatedAtSec = GeneratedColumn<int>(
+    'remote_updated_at_sec',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [collection, docId, remoteUpdatedAtSec];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_remote_meta';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncRemoteMetaRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('collection')) {
+      context.handle(
+        _collectionMeta,
+        collection.isAcceptableOrUnknown(data['collection']!, _collectionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_collectionMeta);
+    }
+    if (data.containsKey('doc_id')) {
+      context.handle(
+        _docIdMeta,
+        docId.isAcceptableOrUnknown(data['doc_id']!, _docIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_docIdMeta);
+    }
+    if (data.containsKey('remote_updated_at_sec')) {
+      context.handle(
+        _remoteUpdatedAtSecMeta,
+        remoteUpdatedAtSec.isAcceptableOrUnknown(
+          data['remote_updated_at_sec']!,
+          _remoteUpdatedAtSecMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_remoteUpdatedAtSecMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {collection, docId};
+  @override
+  SyncRemoteMetaRow map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncRemoteMetaRow(
+      collection: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}collection'],
+      )!,
+      docId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}doc_id'],
+      )!,
+      remoteUpdatedAtSec: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}remote_updated_at_sec'],
+      )!,
+    );
+  }
+
+  @override
+  $SyncRemoteMetaTable createAlias(String alias) {
+    return $SyncRemoteMetaTable(attachedDatabase, alias);
+  }
+}
+
+class SyncRemoteMetaRow extends DataClass
+    implements Insertable<SyncRemoteMetaRow> {
+  /// معرّف كولكشن Appwrite (مثل 'bookings')
+  final String collection;
+
+  /// معرّف المستند على الخادم ($id)
+  final String docId;
+
+  /// $updatedAt بالثواني لآخر إصدار جُلب وطبّق بنجاح (سلطة الخادم)
+  final int remoteUpdatedAtSec;
+  const SyncRemoteMetaRow({
+    required this.collection,
+    required this.docId,
+    required this.remoteUpdatedAtSec,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['collection'] = Variable<String>(collection);
+    map['doc_id'] = Variable<String>(docId);
+    map['remote_updated_at_sec'] = Variable<int>(remoteUpdatedAtSec);
+    return map;
+  }
+
+  SyncRemoteMetaCompanion toCompanion(bool nullToAbsent) {
+    return SyncRemoteMetaCompanion(
+      collection: Value(collection),
+      docId: Value(docId),
+      remoteUpdatedAtSec: Value(remoteUpdatedAtSec),
+    );
+  }
+
+  factory SyncRemoteMetaRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncRemoteMetaRow(
+      collection: serializer.fromJson<String>(json['collection']),
+      docId: serializer.fromJson<String>(json['docId']),
+      remoteUpdatedAtSec: serializer.fromJson<int>(json['remoteUpdatedAtSec']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'collection': serializer.toJson<String>(collection),
+      'docId': serializer.toJson<String>(docId),
+      'remoteUpdatedAtSec': serializer.toJson<int>(remoteUpdatedAtSec),
+    };
+  }
+
+  SyncRemoteMetaRow copyWith({
+    String? collection,
+    String? docId,
+    int? remoteUpdatedAtSec,
+  }) => SyncRemoteMetaRow(
+    collection: collection ?? this.collection,
+    docId: docId ?? this.docId,
+    remoteUpdatedAtSec: remoteUpdatedAtSec ?? this.remoteUpdatedAtSec,
+  );
+  SyncRemoteMetaRow copyWithCompanion(SyncRemoteMetaCompanion data) {
+    return SyncRemoteMetaRow(
+      collection: data.collection.present
+          ? data.collection.value
+          : this.collection,
+      docId: data.docId.present ? data.docId.value : this.docId,
+      remoteUpdatedAtSec: data.remoteUpdatedAtSec.present
+          ? data.remoteUpdatedAtSec.value
+          : this.remoteUpdatedAtSec,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncRemoteMetaRow(')
+          ..write('collection: $collection, ')
+          ..write('docId: $docId, ')
+          ..write('remoteUpdatedAtSec: $remoteUpdatedAtSec')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(collection, docId, remoteUpdatedAtSec);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncRemoteMetaRow &&
+          other.collection == this.collection &&
+          other.docId == this.docId &&
+          other.remoteUpdatedAtSec == this.remoteUpdatedAtSec);
+}
+
+class SyncRemoteMetaCompanion extends UpdateCompanion<SyncRemoteMetaRow> {
+  final Value<String> collection;
+  final Value<String> docId;
+  final Value<int> remoteUpdatedAtSec;
+  final Value<int> rowid;
+  const SyncRemoteMetaCompanion({
+    this.collection = const Value.absent(),
+    this.docId = const Value.absent(),
+    this.remoteUpdatedAtSec = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncRemoteMetaCompanion.insert({
+    required String collection,
+    required String docId,
+    required int remoteUpdatedAtSec,
+    this.rowid = const Value.absent(),
+  }) : collection = Value(collection),
+       docId = Value(docId),
+       remoteUpdatedAtSec = Value(remoteUpdatedAtSec);
+  static Insertable<SyncRemoteMetaRow> custom({
+    Expression<String>? collection,
+    Expression<String>? docId,
+    Expression<int>? remoteUpdatedAtSec,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (collection != null) 'collection': collection,
+      if (docId != null) 'doc_id': docId,
+      if (remoteUpdatedAtSec != null)
+        'remote_updated_at_sec': remoteUpdatedAtSec,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncRemoteMetaCompanion copyWith({
+    Value<String>? collection,
+    Value<String>? docId,
+    Value<int>? remoteUpdatedAtSec,
+    Value<int>? rowid,
+  }) {
+    return SyncRemoteMetaCompanion(
+      collection: collection ?? this.collection,
+      docId: docId ?? this.docId,
+      remoteUpdatedAtSec: remoteUpdatedAtSec ?? this.remoteUpdatedAtSec,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (collection.present) {
+      map['collection'] = Variable<String>(collection.value);
+    }
+    if (docId.present) {
+      map['doc_id'] = Variable<String>(docId.value);
+    }
+    if (remoteUpdatedAtSec.present) {
+      map['remote_updated_at_sec'] = Variable<int>(remoteUpdatedAtSec.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncRemoteMetaCompanion(')
+          ..write('collection: $collection, ')
+          ..write('docId: $docId, ')
+          ..write('remoteUpdatedAtSec: $remoteUpdatedAtSec, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -43156,6 +43495,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $InventoryTransactionsTable inventoryTransactions =
       $InventoryTransactionsTable(this);
   late final $AncestorCacheTable ancestorCache = $AncestorCacheTable(this);
+  late final $SyncRemoteMetaTable syncRemoteMeta = $SyncRemoteMetaTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -43193,6 +43533,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     inventoryItems,
     inventoryTransactions,
     ancestorCache,
+    syncRemoteMeta,
   ];
 }
 
@@ -49471,6 +49812,7 @@ typedef $$PaymentsTableCreateCompanionBuilder =
       Value<int?> receivedByUserId,
       Value<String?> receivedByName,
       Value<String?> receivedSessionUuid,
+      Value<String?> receivedByCloudId,
     });
 typedef $$PaymentsTableUpdateCompanionBuilder =
     PaymentsCompanion Function({
@@ -49518,6 +49860,7 @@ typedef $$PaymentsTableUpdateCompanionBuilder =
       Value<int?> receivedByUserId,
       Value<String?> receivedByName,
       Value<String?> receivedSessionUuid,
+      Value<String?> receivedByCloudId,
     });
 
 final class $$PaymentsTableReferences
@@ -49780,6 +50123,11 @@ class $$PaymentsTableFilterComposer
 
   ColumnFilters<String> get receivedSessionUuid => $composableBuilder(
     column: $table.receivedSessionUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get receivedByCloudId => $composableBuilder(
+    column: $table.receivedByCloudId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -50049,6 +50397,11 @@ class $$PaymentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get receivedByCloudId => $composableBuilder(
+    column: $table.receivedByCloudId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$BookingsTableOrderingComposer get bookingLocalId {
     final $$BookingsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -50287,6 +50640,11 @@ class $$PaymentsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get receivedByCloudId => $composableBuilder(
+    column: $table.receivedByCloudId,
+    builder: (column) => column,
+  );
+
   $$BookingsTableAnnotationComposer get bookingLocalId {
     final $$BookingsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -50409,6 +50767,7 @@ class $$PaymentsTableTableManager
                 Value<int?> receivedByUserId = const Value.absent(),
                 Value<String?> receivedByName = const Value.absent(),
                 Value<String?> receivedSessionUuid = const Value.absent(),
+                Value<String?> receivedByCloudId = const Value.absent(),
               }) => PaymentsCompanion(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -50454,6 +50813,7 @@ class $$PaymentsTableTableManager
                 receivedByUserId: receivedByUserId,
                 receivedByName: receivedByName,
                 receivedSessionUuid: receivedSessionUuid,
+                receivedByCloudId: receivedByCloudId,
               ),
           createCompanionCallback:
               ({
@@ -50501,6 +50861,7 @@ class $$PaymentsTableTableManager
                 Value<int?> receivedByUserId = const Value.absent(),
                 Value<String?> receivedByName = const Value.absent(),
                 Value<String?> receivedSessionUuid = const Value.absent(),
+                Value<String?> receivedByCloudId = const Value.absent(),
               }) => PaymentsCompanion.insert(
                 localUuid: localUuid,
                 serverId: serverId,
@@ -50546,6 +50907,7 @@ class $$PaymentsTableTableManager
                 receivedByUserId: receivedByUserId,
                 receivedByName: receivedByName,
                 receivedSessionUuid: receivedSessionUuid,
+                receivedByCloudId: receivedByCloudId,
               ),
           withReferenceMapper: (p0) => p0
               .map(
@@ -65262,6 +65624,178 @@ typedef $$AncestorCacheTableProcessedTableManager =
       AncestorCacheData,
       PrefetchHooks Function()
     >;
+typedef $$SyncRemoteMetaTableCreateCompanionBuilder =
+    SyncRemoteMetaCompanion Function({
+      required String collection,
+      required String docId,
+      required int remoteUpdatedAtSec,
+      Value<int> rowid,
+    });
+typedef $$SyncRemoteMetaTableUpdateCompanionBuilder =
+    SyncRemoteMetaCompanion Function({
+      Value<String> collection,
+      Value<String> docId,
+      Value<int> remoteUpdatedAtSec,
+      Value<int> rowid,
+    });
+
+class $$SyncRemoteMetaTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncRemoteMetaTable> {
+  $$SyncRemoteMetaTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get collection => $composableBuilder(
+    column: $table.collection,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get docId => $composableBuilder(
+    column: $table.docId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get remoteUpdatedAtSec => $composableBuilder(
+    column: $table.remoteUpdatedAtSec,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncRemoteMetaTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncRemoteMetaTable> {
+  $$SyncRemoteMetaTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get collection => $composableBuilder(
+    column: $table.collection,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get docId => $composableBuilder(
+    column: $table.docId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get remoteUpdatedAtSec => $composableBuilder(
+    column: $table.remoteUpdatedAtSec,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncRemoteMetaTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncRemoteMetaTable> {
+  $$SyncRemoteMetaTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get collection => $composableBuilder(
+    column: $table.collection,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get docId =>
+      $composableBuilder(column: $table.docId, builder: (column) => column);
+
+  GeneratedColumn<int> get remoteUpdatedAtSec => $composableBuilder(
+    column: $table.remoteUpdatedAtSec,
+    builder: (column) => column,
+  );
+}
+
+class $$SyncRemoteMetaTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncRemoteMetaTable,
+          SyncRemoteMetaRow,
+          $$SyncRemoteMetaTableFilterComposer,
+          $$SyncRemoteMetaTableOrderingComposer,
+          $$SyncRemoteMetaTableAnnotationComposer,
+          $$SyncRemoteMetaTableCreateCompanionBuilder,
+          $$SyncRemoteMetaTableUpdateCompanionBuilder,
+          (
+            SyncRemoteMetaRow,
+            BaseReferences<
+              _$AppDatabase,
+              $SyncRemoteMetaTable,
+              SyncRemoteMetaRow
+            >,
+          ),
+          SyncRemoteMetaRow,
+          PrefetchHooks Function()
+        > {
+  $$SyncRemoteMetaTableTableManager(
+    _$AppDatabase db,
+    $SyncRemoteMetaTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncRemoteMetaTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncRemoteMetaTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncRemoteMetaTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> collection = const Value.absent(),
+                Value<String> docId = const Value.absent(),
+                Value<int> remoteUpdatedAtSec = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncRemoteMetaCompanion(
+                collection: collection,
+                docId: docId,
+                remoteUpdatedAtSec: remoteUpdatedAtSec,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String collection,
+                required String docId,
+                required int remoteUpdatedAtSec,
+                Value<int> rowid = const Value.absent(),
+              }) => SyncRemoteMetaCompanion.insert(
+                collection: collection,
+                docId: docId,
+                remoteUpdatedAtSec: remoteUpdatedAtSec,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncRemoteMetaTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncRemoteMetaTable,
+      SyncRemoteMetaRow,
+      $$SyncRemoteMetaTableFilterComposer,
+      $$SyncRemoteMetaTableOrderingComposer,
+      $$SyncRemoteMetaTableAnnotationComposer,
+      $$SyncRemoteMetaTableCreateCompanionBuilder,
+      $$SyncRemoteMetaTableUpdateCompanionBuilder,
+      (
+        SyncRemoteMetaRow,
+        BaseReferences<_$AppDatabase, $SyncRemoteMetaTable, SyncRemoteMetaRow>,
+      ),
+      SyncRemoteMetaRow,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -65333,4 +65867,6 @@ class $AppDatabaseManager {
       $$InventoryTransactionsTableTableManager(_db, _db.inventoryTransactions);
   $$AncestorCacheTableTableManager get ancestorCache =>
       $$AncestorCacheTableTableManager(_db, _db.ancestorCache);
+  $$SyncRemoteMetaTableTableManager get syncRemoteMeta =>
+      $$SyncRemoteMetaTableTableManager(_db, _db.syncRemoteMeta);
 }

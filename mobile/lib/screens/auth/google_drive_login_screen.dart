@@ -157,12 +157,11 @@ class _GoogleDriveLoginScreenState
       if (done) {
         return;
       }
-      await prefs.setBool(key, true);
-
       final manager = ref.read(appwrite.appwriteSyncManagerProvider);
       await manager.initialize();
-      // سحب جميع البيانات مع تعطيل Foreign Keys مؤقتاً لضمان عدم فشل السحب
+      // هذا هو مسار Bootstrap الصريح الوحيد؛ لا تُحفظ العلامة إلا بعد النجاح.
       await manager.pullAllDataWithDisabledFK();
+      await prefs.setBool(key, true);
     } catch (e) {
       dlog(() => '❌ Appwrite auto pull after skip error: $e');
     }

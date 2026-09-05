@@ -7,8 +7,38 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'appwrite_config.dart';
 import 'appwrite_service.dart';
 import 'crashlytics_service.dart';
+
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
+typedef DeltaPullCallback = Future<bool> Function();
+
+/// A bounded ingress queue for remote Realtime notifications.
+/// It carries change hints only; documents are always read through Delta Pull.
+class RemoteChangeQueue {
+  final Set<String> _keys = <String>{};
+
+  int get length => _keys.length;
+  bool get isEmpty => _keys.isEmpty;
+
+  void add({required String collection, String? documentId, String? event}) {
+    _keys.add('$collection:${documentId ?? '*'}:${event ?? 'change'}');
+  }
+
+  Set<String> drain() {
+    final changes = Set<String>.from(_keys);
+    _keys.clear();
+    return changes;
+  }
+
+  void restore(Iterable<String> changes) => _keys.addAll(changes);
+  void clear() => _keys.clear();
+}
+
+/// Appwrite Realtime ingress for the existing AppwriteSyncManager Delta path.
+///
+/// Realtime is deliberately restricted to subscription management, event
+/// filtering, queueing, coalescing, reconnect, and triggering Delta Pull.
+/// It never applies payloads to Drift and never runs Full Sync or Outbox logic.
 class AppwriteRealtimeSync {
   factory AppwriteRealtimeSync() => _instance;
   AppwriteRealtimeSync._internal();
@@ -20,20 +50,20 @@ class AppwriteRealtimeSync {
   String? _currentDeviceId;
   bool _isListening = false;
   bool _intentionallyStopped = false;
+  bool _hasConnectedBefore = false;
+  bool _pullInFlight = false;
   Timer? _debounceTimer;
+  Timer? _pollingTimer;
+  DeltaPullCallback? _deltaPull;
 
-  // ✅ تحسين: عداد التغييرات المعلقة من السيرفر (للـ Badge)
+  final RemoteChangeQueue remoteChangeQueue = RemoteChangeQueue();
   final pendingRemoteChangesCount = ValueNotifier<int>(0);
-
-  // ✅ تحسين: ValueNotifier لإشعار الـ UI بوجود تغييرات جديدة من السيرفر
   final hasRemoteChanges = ValueNotifier<bool>(false);
-
-  // ✅ تححسين: تتبع آخر وقت تحديث من السيرفر (للـ Delta Sync Safety)
   DateTime? _lastServerUpdate;
-
-  // ✅ تحسين: حماية من الفيضان (Flood Protection)
   bool _hasPendingChanges = false;
 
+  static const Duration _debounceWindow = Duration(milliseconds: 500);
+  static const Duration _pollingInterval = Duration(seconds: 30);
   static const _collections = [
     AppwriteConfig.roomsCollectionId,
     AppwriteConfig.bookingsCollectionId,
@@ -49,42 +79,46 @@ class AppwriteRealtimeSync {
     AppwriteConfig.salaryWithdrawalsCollectionId,
     AppwriteConfig.shiftNotesCollectionId,
     AppwriteConfig.guestInfosCollectionId,
-    // ❌ hotel_day_ledger - محلي فقط
     AppwriteConfig.priceAdjustmentsCollectionId,
     AppwriteConfig.bookingPriceAdjustmentsCollectionId,
     AppwriteConfig.auditLogsCollectionId,
     AppwriteConfig.paymentVoidsCollectionId,
   ];
 
-  Future<void> initialize({required String deviceId}) async {
+  Future<void> initialize({
+    required String deviceId,
+    DeltaPullCallback? deltaPull,
+  }) async {
     _currentDeviceId = deviceId;
-    _realtime = Realtime(AppwriteService().client);
-    dlog('📡 AppwriteRealtimeSync initialized');
+    _deltaPull = deltaPull;
+    _intentionallyStopped = false;
+    // ✅ لا يُبنى Client هنا — البناء الكسول في [start] فقط؛ تبقى هذه
+    // التهيئة معقّمة للاختبارات (بلا نظام ملفات/شبكة) وتكفي لدخول الطابور
+    // عبر enqueueForTesting مع deltaPull محقون.
+    dlog('[Realtime] initialized');
   }
 
   Future<void> start() async {
-    if (_isListening || _realtime == null) {
-      return;
-    }
-
+    if (_isListening) return;
     final prefs = await SharedPreferences.getInstance();
-    if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) {
-      return;
-    }
+    if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) return;
 
-    // ✅ إذا كان WebSocket معطّلاً (لا يدعمه السيرفر/الشبكة)،
-    // نعتمد على FCM + auto-sync بدلاً من WebSocket Realtime.
-    // هذا يمنع إهدار البطارية في 6 محاولات إعادة اتصال فاشلة.
+    _intentionallyStopped = false;
     final realtimeEnabled =
         prefs.getBool('appwrite_realtime_ws_enabled') ?? false;
     if (!realtimeEnabled) {
-      dlog('📡 Realtime: WebSocket disabled — relying on FCM + auto-sync');
+      dlog(
+        '[Realtime] WebSocket disabled; polling fallback remains non-invasive',
+      );
       _startPollingFallback();
       return;
     }
 
-    // ✅ إعادة تعيين علامة التوقف الإرادي — start() تعني أن المستخدم يريد الاستماع
-    _intentionallyStopped = false;
+    // ✅ بناء كسول للـ Realtime (وليس في initialize) — يضمن جاهزية
+    // AppwriteService (idempotent) في كل مسارات البدء دون أن يجعل
+    // initialize() يلمس نظام الملفات/الشبكة في بيئة الاختبار.
+    await AppwriteService().initialize();
+    _realtime ??= Realtime(AppwriteService().client);
 
     final channels = _collections
         .map(
@@ -92,17 +126,21 @@ class AppwriteRealtimeSync {
               'databases.${AppwriteConfig.databaseId}.collections.$c.documents',
         )
         .toList();
-
     try {
       _subscription = _realtime!.subscribe(channels);
       _isListening = true;
-
-      dlog('📡 Realtime: listening via WebSocket...');
-
+      dlog('[Realtime] connected');
+      dlog('[Realtime] subscribed: ${_collections.length} collections');
+      final wasReconnect = _hasConnectedBefore;
+      _hasConnectedBefore = true;
+      if (wasReconnect) {
+        dlog('[Realtime] reconnected');
+        _scheduleDeltaPull(recovery: true);
+      }
       _subscription!.stream.listen(
         _onEvent,
         onError: (Object e) {
-          dlog(() => '❌ Realtime WebSocket error: $e');
+          dlog(() => '[Realtime] disconnected: $e');
           CrashlyticsService.instance.recordSyncError(
             operation: 'realtime_listen',
             error: e.toString(),
@@ -110,48 +148,26 @@ class AppwriteRealtimeSync {
             context: {'deviceId': _currentDeviceId ?? 'unknown'},
           );
           _isListening = false;
-          // ✅ إذا فشل WebSocket، ننتقل لـ polling fallback
-          _startPollingFallback();
+          _reconnect();
         },
         onDone: () {
           _isListening = false;
-          if (!_intentionallyStopped) {
-            _reconnect();
-          }
+          dlog('[Realtime] disconnected');
+          if (!_intentionallyStopped) _reconnect();
         },
       );
     } catch (e) {
-      dlog('❌ Realtime: WebSocket not available — falling back to polling');
-      dlog(() => '   Error: $e');
-      // ✅ WebSocket غير متاح — نعتمد على polling
+      dlog(() => '[Realtime] unavailable; continuing without WebSocket: $e');
+      _isListening = false;
       _startPollingFallback();
     }
   }
 
-  // ✅ Polling fallback: فحص دوري للتغييرات كل 30 ثانية
-  // يُستخدم عندما WebSocket غير متاح أو معطّل
-  Timer? _pollingTimer;
-  static const Duration _pollingInterval = Duration(seconds: 30);
-
   void _startPollingFallback() {
     if (_pollingTimer != null) return;
-
-    dlog(
-      () =>
-          '📡 Realtime: started polling fallback (every ${_pollingInterval.inSeconds}s)',
-    );
-
     _pollingTimer = Timer.periodic(_pollingInterval, (_) {
       if (_intentionallyStopped) return;
-
-      // إشعار الـ UI بوجود تغييرات محتملة (سيتم التحقق عبر auto-sync)
-      // auto-sync يعمل كل 2 دقيقة ويسحب التغييرات فعلياً
-      // الـ polling هنا مجرد علامة للـ UI — لا يقوم بـ pull ثقيل
-      if (!_hasPendingChanges) {
-        hasRemoteChanges.value = true;
-        _hasPendingChanges = true;
-        dlog('📡 Realtime: polling check — UI flag set (auto-sync will pull)');
-      }
+      _markPending('polling', '*', 'change');
     });
   }
 
@@ -163,156 +179,145 @@ class AppwriteRealtimeSync {
   void _onEvent(RealtimeMessage message) {
     final payload = message.payload;
     final sourceDevice = payload['device_id'] ?? payload['lastModifiedBy'];
-
-    // ✅ إصلاح P2-13: تصفير عداد إعادة الاتصال عند استلام حدث صحي — يعني
-    // الاتصال سليم، لذا أي انقطاع مستقبلي يبدأ من backoff قصير.
-    _reconnectAttempts = 0;
-
-    // تجاهل التغييرات من نفس الجهاز (لأنها محلية بالفعل)
-    if (sourceDevice == _currentDeviceId) {
-      return;
-    }
-
-    // ✅ تحسين: تصفية أنواع الأحداث (create/update/delete فقط)
-    // لا نهتم بـ permissions.update أو أحداث النظام
-    final eventTypes = message.events;
-    final isDataChange = eventTypes.any(
+    if (sourceDevice == _currentDeviceId) return;
+    final isDataChange = message.events.any(
       (e) =>
           e.endsWith('.create') ||
           e.endsWith('.update') ||
           e.endsWith('.delete'),
     );
+    if (!isDataChange) return;
 
-    if (!isDataChange) {
-      dlog(() => '📡 Realtime: ignoring non-data event: $eventTypes');
-      return;
-    }
+    final collection = _collectionFromEvents(message.events);
+    final event = message.events.firstWhere(
+      (e) =>
+          e.endsWith('.create') ||
+          e.endsWith('.update') ||
+          e.endsWith('.delete'),
+      orElse: () => 'change',
+    );
+    final documentId = payload[r'$id']?.toString();
+    _markPending(collection, documentId, event);
 
-    // ✅ تحسين: تتبع آخر وقت تحديث (Delta Sync Safety)
     final updatedAt = payload[r'$updatedAt'] ?? payload[r'$createdAt'];
-    if (updatedAt != null) {
-      try {
-        final serverTime = DateTime.parse(updatedAt as String);
-        if (_lastServerUpdate == null ||
-            serverTime.isAfter(_lastServerUpdate!)) {
-          _lastServerUpdate = serverTime;
-        }
-      } catch (e) {
-        dlog('⚠️ Realtime: could not parse update timestamp');
+    if (updatedAt is String) {
+      final parsed = DateTime.tryParse(updatedAt);
+      if (parsed != null &&
+          (_lastServerUpdate == null || parsed.isAfter(_lastServerUpdate!))) {
+        _lastServerUpdate = parsed;
       }
     }
-
-    _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
-      // ✅ تحسين: حماية من الفيضان (Flood Protection)
-      // إذا كانت هناك تغييرات معلقة بالفعل، نزيد العداد فقط
-      if (!_hasPendingChanges) {
-        hasRemoteChanges.value = true;
-        _hasPendingChanges = true;
-        dlog('📡 Realtime: detected remote changes - UI activated');
-      }
-
-      // ✅ تحسين: زيادة عداد التغييرات
-      pendingRemoteChangesCount.value++;
-      dlog(
-        () =>
-            '📡 Realtime: pending changes count = ${pendingRemoteChangesCount.value}',
-      );
-    });
   }
 
-  /// ✅ تحسين: الحصول على آخر وقت تحديث معروف من السيرفر
+  String _collectionFromEvents(List<String> events) {
+    for (final event in events) {
+      for (final collection in _collections) {
+        if (event.contains(collection)) return collection;
+      }
+    }
+    return 'unknown';
+  }
+
+  void _markPending(String collection, String? documentId, String event) {
+    remoteChangeQueue.add(
+      collection: collection,
+      documentId: documentId,
+      event: event,
+    );
+    hasRemoteChanges.value = true;
+    _hasPendingChanges = true;
+    pendingRemoteChangesCount.value = remoteChangeQueue.length;
+    dlog('[Realtime] queued: $collection/$documentId');
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(_debounceWindow, () => _scheduleDeltaPull());
+  }
+
+  void _scheduleDeltaPull({bool recovery = false}) {
+    if (_pullInFlight || _deltaPull == null || _intentionallyStopped) return;
+    if (recovery) dlog('[DeltaSync] recovery pull started');
+    dlog('[Realtime] triggering delta pull');
+    _pullInFlight = true;
+    final queuedChanges = remoteChangeQueue.drain();
+    unawaited(_runDeltaPull(recovery, queuedChanges));
+  }
+
+  Future<void> _runDeltaPull(bool recovery, Set<String> queuedChanges) async {
+    try {
+      final changed = await _deltaPull!();
+      dlog(() => '[DeltaSync] pull completed (changed=$changed)');
+      resetRemoteChangesFlag();
+    } catch (e, st) {
+      remoteChangeQueue.restore(queuedChanges);
+      dlog(() => '[DeltaSync] pull failed: $e');
+      await CrashlyticsService.instance.recordSyncError(
+        operation: recovery ? 'realtime_recovery_pull' : 'realtime_delta_pull',
+        error: e.toString(),
+        severity: CrashlyticsSeverity.warning,
+        context: {'deviceId': _currentDeviceId ?? 'unknown'},
+      );
+    } finally {
+      _pullInFlight = false;
+      if (!remoteChangeQueue.isEmpty) {
+        // إعادة جدولة بديبونس بدل الاستدعاء الفوري: يمنع الحلقة الساخنة
+        // عند فشل متكرر (drain→فشل→استعادة→فوراً) ويجعل حالة الطابور
+        // مستقرة بين المحاولات — نفس نافذة تجميع الأحداث.
+        _debounceTimer?.cancel();
+        _debounceTimer = Timer(_debounceWindow, () => _scheduleDeltaPull());
+      }
+    }
+  }
+
+  @visibleForTesting
+  void enqueueForTesting({
+    required String collection,
+    String? documentId,
+    String event = 'update',
+  }) {
+    _markPending(collection, documentId, event);
+  }
+
   DateTime? get lastKnownServerUpdate => _lastServerUpdate;
 
-  /// ✅ تحسين: تعيين آخر وقت تحديث يدوياً (مفيد للـ Delta Sync)
   void updateLastServerTimestamp(DateTime timestamp) {
     if (_lastServerUpdate == null || timestamp.isAfter(_lastServerUpdate!)) {
       _lastServerUpdate = timestamp;
-      dlog(() => '📡 Realtime: updated last server timestamp to $timestamp');
     }
   }
 
-  /// إعادة تعيين حالة "توجد تغييرات من السيرفر"
-  /// يُستدعى بعد انتهاء عملية السحب اليدوي بنجاح
   void resetRemoteChangesFlag() {
     hasRemoteChanges.value = false;
     _hasPendingChanges = false;
     pendingRemoteChangesCount.value = 0;
-    dlog('📡 Realtime: remote changes flag reset - count cleared');
   }
 
   int _reconnectAttempts = 0;
   static const int _maxReconnectAttempts = 6;
 
   void _reconnect() {
-    // ✅ إصلاح P2-13: عدم إعادة الاتصال بعد stop() الإرادي
-    if (_intentionallyStopped) {
-      return;
-    }
-
+    if (_intentionallyStopped) return;
     _reconnectAttempts++;
-
-    // ✅ إصلاح P2-13: حد أقصى لمحاولات إعادة الاتصال لتجنب إهدار البطارية
-    // بعد 6 محاولات (5s → 10s → 20s → 40s → 60s → 60s = ~3.5 min total)
-    if (_reconnectAttempts > _maxReconnectAttempts) {
-      dlog(
-        () =>
-            '📡 Realtime: max reconnect attempts ($_maxReconnectAttempts) reached — giving up',
-      );
-      CrashlyticsService.instance.recordSyncError(
-        operation: 'realtime_reconnect_giveup',
-        error:
-            'Max reconnect attempts reached after $_maxReconnectAttempts tries',
-        severity: CrashlyticsSeverity.warning,
-        context: {'deviceId': _currentDeviceId ?? 'unknown'},
-      );
-      return;
-    }
-
-    // ✅ P1-14 fix: backoff أسّي محدود (5s → 10s → 20s → 40s → 60s capped)
-    final delaySeconds = (_reconnectAttempts == 1)
-        ? 5
-        : (5 * (1 << (_reconnectAttempts - 1))).clamp(5, 60);
-
-    CrashlyticsService.instance.recordSyncError(
-      operation: 'realtime_reconnect',
-      error:
-          'Connection lost — reconnecting in ${delaySeconds}s (attempt $_reconnectAttempts/$_maxReconnectAttempts)',
-      severity: CrashlyticsSeverity.info,
-      context: {
-        'deviceId': _currentDeviceId ?? 'unknown',
-        'attempt': _reconnectAttempts,
-      },
-    );
-
-    // ✅ P1-14 fix: إغلاق الاشتراك القديم قبل إعادة الاشتراك
-    _subscription?.close().catchError((_) {});
+    if (_reconnectAttempts > _maxReconnectAttempts) return;
+    final delaySeconds = (5 * (1 << (_reconnectAttempts - 1))).clamp(5, 60);
+    dlog('[Realtime] reconnecting in ${delaySeconds}s');
+    unawaited(_subscription?.close());
     _subscription = null;
-    _isListening = false;
-
     Future<void>.delayed(Duration(seconds: delaySeconds), () {
-      // ✅ تحقق مزدوج: عدم إعادة الاتصال إذا تم استدعاء stop() أثناء الانتظار
-      if (!_isListening && !_intentionallyStopped) {
-        start();
-      }
+      if (!_isListening && !_intentionallyStopped) unawaited(start());
     });
   }
 
   Future<void> stop() async {
-    // ✅ إصلاح P2-13: تعليم التوقف كإرادي لمنع _reconnect من إعادة الاتصال
     _intentionallyStopped = true;
-    unawaited(_subscription?.close());
+    await _subscription?.close();
     _subscription = null;
     _isListening = false;
     _debounceTimer?.cancel();
-    _stopPollingFallback(); // ✅ تنظيف polling fallback
-    // عند التوقف، نعيد تعيين الحالة
-    hasRemoteChanges.value = false;
-    _hasPendingChanges = false;
-    pendingRemoteChangesCount.value = 0;
+    _stopPollingFallback();
+    remoteChangeQueue.clear();
+    resetRemoteChangesFlag();
   }
 
-  void dispose() => stop();
-
+  void dispose() => unawaited(stop());
   bool get isListening => _isListening;
+  bool get isPullInFlight => _pullInFlight;
 }

@@ -934,7 +934,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   /// استعادة من نسخة احتياطية محلية
   Future<void> restoreFromLocalBackup(
     String filePath, {
-    bool syncToCloud = true,
+    bool syncToCloud = false,
   }) async {
     try {
       state = state.copyWith(
@@ -964,8 +964,9 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
         );
       }
 
-      // مزامنة البيانات إلى السحابة إذا طُلب ذلك
-      // ✅ فصل هندسي: بعد الاستعادة، ندفع مباشرة إلى Appwrite وGoogle Drive
+      // مزامنة البيانات إلى السحابة إذا طُلب ذلك صراحةً فقط.
+      // الاستعادة المحلية لا تكتب إلى Cloud افتراضياً لحماية بيانات Cloud الحالية.
+      // ✅ فصل هندسي: عند طلبها صراحةً، ندفع مباشرة إلى Appwrite وGoogle Drive
       // دون إضافة بيانات إلى outbox — هذا يفصل عملية الاستعادة عن تتبع التغييرات المحلية
       if (syncToCloud) {
         state = state.copyWith(
@@ -1149,7 +1150,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
   }
 
   /// استيراد نسخة احتياطية ثم استعادتها مباشرة
-  Future<void> importAndRestoreBackup({bool syncToCloud = true}) async {
+  Future<void> importAndRestoreBackup({bool syncToCloud = false}) async {
     try {
       state = state.copyWith(
         status: BackupStatus.importingFile,
