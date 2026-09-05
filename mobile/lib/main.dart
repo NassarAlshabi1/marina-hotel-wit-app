@@ -16,6 +16,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart' as sqflite_ffi;
 import 'package:workmanager/workmanager.dart';
 
 import 'components/admin_layout.dart';
+import 'providers/appwrite_providers.dart' as appwrite;
 import 'providers/auth_provider.dart';
 import 'providers/cloudflare_providers.dart' as cloudflare;
 import 'providers/repository_providers.dart';
@@ -43,6 +44,7 @@ import 'services/auto_backup_manager.dart';
 import 'services/background_sync_service.dart';
 import 'services/blacklist_alert_service.dart';
 import 'services/battery_optimizer.dart';
+import 'services/bootstrap_full_pull.dart';
 import 'services/central_sync_coordinator.dart';
 import 'services/cloudflare_config.dart';
 import 'services/cloudflare_migration_service.dart';
@@ -1076,6 +1078,33 @@ class HomeShell extends ConsumerStatefulWidget {
 
 class _HomeShellState extends ConsumerState<HomeShell> {
   String _currentRoute = '/dashboard';
+
+  @override
+  void initState() {
+    super.initState();
+    // ✅ (2026-09-06) طلب المستخدم: «عند تثبيت التطبيق والضغط على زر
+    // المتابعة بدون مزامنة يتم سحب full sync» — إعادة محاولة تلقائية
+    // للسحب الكامل عند كل إطلاق إذا اختار المستخدم التخطي ولم يكتمل
+    // السحب بعد. ثغرة ما قبل الإصلاح: محاولة التخطي الوحيدة كانت
+    // fire-and-forget لحظة التخطي، وفشلها (لا شبكة / worker غير متاح)
+    // كان يترك قاعدة البيانات فارغة إلى ما لا نهاية لأن شاشة الدخول
+    // لا تظهر مجدداً بعد التخطي (requiresDriveLogin=false) والمسارات
+    // الخلفية deltaOnly ترفض بدء full sync على جهاز bootstrap.
+    // BootstrapFullPull idempotent: لا تنفّذ إذا سبق إنجاز السحب
+    // بأي مسار، والاستدعاء المتداخل مع نداء التخطي الفوري محمي
+    // بـ in-flight guard.
+    unawaited(_bootstrapFullPullAfterSkip());
+  }
+
+  Future<void> _bootstrapFullPullAfterSkip() async {
+    try {
+      await BootstrapFullPull.ensureFullPullAfterSkip(
+        manager: ref.read(appwrite.appwriteSyncManagerProvider),
+      );
+    } catch (e) {
+      dlog(() => '⚠️ Bootstrap full pull (HomeShell) error: $e');
+    }
+  }
 
   /// قائمة بالمسارات الصالحة (للتحقق من الصلاحيات)
   static const _validRoutes = [
