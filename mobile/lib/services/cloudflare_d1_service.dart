@@ -32,6 +32,13 @@ class CloudflareD1Service {
   /// لكل نداء (3-5 صفوف فقط للجداول المتزامنة → آلاف النداءات).
   static const int _statementBatch = 200;
 
+  /// سقف حجم الدفعة الحرفية بالأحرف (UTF-16؛ عدد الأحرف ≥ بايتات UTF-8
+  /// للنصوص العربية — تقدير متحفظ بالاتجاه الآمن). المثبت تجريبياً على
+  /// هذا الحساب: 187KB نجحت في نداء واحد؛ السقف 128KB يبقي هامشاً
+  /// مؤكداً للصفوف العريضة (JSON payloads) بدل الاعتماد على عدد
+  /// العبارات وحده — الدفعة تُقسم عند تجاوز العدد أو الحجم أيهما أسبق.
+  static const int _maxBatchChars = 128 * 1024;
+
   /// إعدادات الاتصال (الحساب/القاعدة/التوكن).
   CloudflareD1Config config;
 
@@ -276,16 +283,18 @@ class CloudflareD1Service {
         if (rewritten != null) ddl.add(rewritten);
       }
     }
-    for (var i = 0; i < ddl.length; i += 40) {
+    var di = 0;
+    while (di < ddl.length) {
       if (_cancelled) break;
-      final chunk = ddl.sublist(i, (i + 40).clamp(0, ddl.length));
+      final end = _batchEnd(ddl, di);
       try {
-        await executeStatements(chunk);
+        await executeStatements(ddl.sublist(di, end));
         callCount++;
       } on CloudflareD1Exception catch (e) {
         warnings.add('تخطي نقل المخطط (DDL): ${e.message}');
         break; // DDL محجوب — لا داعي لمحاولة الدفعات الباقية
       }
+      di = end;
     }
 
     // 2) بيانات الجداول.
@@ -341,12 +350,13 @@ class CloudflareD1Service {
               '(${columns.map(_quoteIdent).join(',')}) VALUES ($values)',
             );
           }
-          for (var i = 0; i < statements.length; i += _statementBatch) {
+          var bi = 0;
+          while (bi < statements.length) {
             if (_cancelled) break;
-            final end = (i + _statementBatch).clamp(0, statements.length);
-            await executeStatements(statements.sublist(i, end));
+            final end = _batchEnd(statements, bi);
+            await executeStatements(statements.sublist(bi, end));
             callCount++;
-            rowsForTable += end - i;
+            rowsForTable += end - bi;
             onProgress?.call(
               CloudflareD1Progress(
                 stage: 'رفع البيانات',
@@ -357,6 +367,7 @@ class CloudflareD1Service {
                 rowsTotal: t.rowCount,
               ),
             );
+            bi = end;
           }
           offset += chunk.length;
         }
@@ -404,6 +415,20 @@ class CloudflareD1Service {
       warnings: warnings,
       elapsed: sw.elapsed,
     );
+  }
+
+  /// نهاية الدفعة بدءاً من [start]: حد العدد (_statementBatch) أو حد
+  /// الحجم (_maxBatchChars) — أيهما أسبق. يضمن دفعة واحدة على الأقل
+  /// للعبارة الأعرض من السقف (لا يمكن تقسيم عبارة واحدة).
+  static int _batchEnd(List<String> statements, int start) {
+    var chars = 0;
+    var end = start;
+    while (end < statements.length && end - start < _statementBatch) {
+      chars += statements[end].length + 2; // + الفاصل ";\n"
+      if (chars > _maxBatchChars && end > start) break;
+      end++;
+    }
+    return end;
   }
 
   static const int _chunkSize = 1000;
@@ -457,10 +482,11 @@ class CloudflareD1Service {
         alters.add('ALTER TABLE "${_quoteIdent(t.name)}" ADD COLUMN "$c" $add');
       }
       if (alters.isEmpty) return;
-      for (var i = 0; i < alters.length; i += 40) {
-        await executeStatements(
-          alters.sublist(i, (i + 40).clamp(0, alters.length)),
-        );
+      var ai = 0;
+      while (ai < alters.length) {
+        final end = _batchEnd(alters, ai);
+        await executeStatements(alters.sublist(ai, end));
+        ai = end;
       }
       warnings.add(
         'مصالحة مخطط: أُضيف ${alters.length} عموداً غائباً في ${t.name}',

@@ -379,6 +379,14 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         _uploading = false;
         _stage = 'فشل الرفع: ${e.message}';
       });
+    } catch (e) {
+      // أي استثناء غير متوقع (قراءة محلية/ذاكرة/غيره) يجب ألا يترك الحالة
+      // عالقة على "جاري الرفع" — كل الأزرار معطلة أثناء _uploading.
+      if (!mounted) return;
+      setState(() {
+        _uploading = false;
+        _stage = 'فشل الرفع بخطأ غير متوقع: $e';
+      });
     } finally {
       _activeService = null;
     }
