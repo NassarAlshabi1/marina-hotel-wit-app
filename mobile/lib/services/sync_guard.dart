@@ -1,5 +1,8 @@
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
+import 'sync_constants.dart';
+import 'sync_priority.dart';
+
 /// ✅ Wave 5 (2026-08-12): SyncGuard — ownership-aware lock mechanism.
 ///
 /// حارس مشترك لمنع تداخل عمليات المزامنة عبر الخدمات المختلفة.
@@ -34,7 +37,8 @@ class SyncGuard {
   SyncGuard._();
 
   /// الإعدادات الحالية (الافتراضية)
-  static const _defaultStaleLockTimeout = Duration(minutes: 10);
+  static const _defaultStaleLockTimeout =
+      SyncConstants.syncGuardMaxHoldDuration;
 
   static Duration _staleLockTimeout = _defaultStaleLockTimeout;
 
@@ -103,7 +107,10 @@ class SyncGuard {
   ///
   /// **ownership safety**: فقط `release(token)` بنفس الـ token يفك القفل.
   /// هذا يمنع stale release و cross-release (انظر [release]).
-  static SyncLockToken? tryAcquire({required String label}) {
+  static SyncLockToken? tryAcquire({
+    required String label,
+    SyncPriority? priority,
+  }) {
     if (!canStart(label: label)) {
       dlog(
         () =>

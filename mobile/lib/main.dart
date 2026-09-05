@@ -52,6 +52,7 @@ import 'services/battery_optimizer.dart';
 import 'services/central_sync_coordinator.dart';
 import 'services/connectivity_service.dart';
 import 'services/crashlytics_service.dart';
+import 'services/database_startup_guard.dart';
 import 'services/database_sync_coordinator.dart';
 import 'services/diagnostics/diagnostics_logger.dart';
 import 'services/fcm_service.dart';
@@ -72,6 +73,7 @@ import 'services/secondary_appwrite_config.dart';
 // SecondarySyncManager.instance الذي يُرجع no-op.
 import 'services/smart_sync_manager.dart';
 import 'services/sync_conflict_event_bus.dart';
+import 'services/sync_circuit_breaker.dart';
 import 'services/sync_constants.dart';
 import 'services/sync_continuation_service.dart';
 import 'services/sync_guardian.dart';
@@ -93,10 +95,29 @@ import 'utils/weak_device_optimizer.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // ✅ DatabaseStartupGuard: فحص تلف قاعدة البيانات (SqliteException 11)
+  // قبل أي مستهلك لها — الـ health checker الحالي (SELECT 1) لا يكشف
+  // تلف الصفحات. عند التلف: نسخة forensics + حذف + إعادة إنشاء،
+  // ودورة المزامنة الأولى تعيد سحب كل شيء من Appwrite. لا يعيق الإقلاع أبداً.
+  try {
+    final dbGuard = await DatabaseStartupGuard.verifyAndRecover();
+    if (dbGuard.recovered) {
+      dwarn(
+        () =>
+            '🛠️ تم استرداد قاعدة بيانات تالفة عند الإقلاع — '
+            'نسخة العزل: ${dbGuard.quarantinePath}',
+      );
+    }
+  } catch (e) {
+    dwarn(() => '⚠️ DB startup guard failed (continuing): $e');
+  }
+
   // ✅ WeakDeviceOptimizer: يكتشف قوة الجهاز ويضبط مستوى التحسين
   // يجب استدعاؤه قبل أي خدمة ثقيلة لضمان تكييف الأداء.
   // ✅ Performance Fix (2026-08-10): أصبح async لقراءة RAM الفعلي.
   await WeakDeviceOptimizer.instance.initialize();
+  // ✅ Restore circuit breaker state from previous session.
+  await SyncCircuitBreaker.instance.restore();
 
   // ─── Performance: تحسينات الأداء للأجهزة الضعيفة ───
   configurePerformance();
@@ -214,6 +235,21 @@ Future<void> main() async {
     }
     final result = await syncManager.sync(pull: false);
     return result.recordsPushed;
+  };
+
+  // ✅ Batch push: uses smaller batches to prevent huge API calls.
+  AutoOutboxSyncWatcher.pushFunctionBatched = () async {
+    final syncManager = AppwriteSyncManager.instance;
+    if (syncManager == null) return 0;
+    int totalPushed = 0;
+    // Push in batches of outboxBatchSize to avoid overwhelming the API.
+    for (var i = 0; i < 10; i++) {
+      // max 10 batches = 500 entries
+      final result = await syncManager.sync(pull: false);
+      if (!result.isSuccess || result.recordsPushed == 0) break;
+      totalPushed += result.recordsPushed;
+    }
+    return totalPushed;
   };
   // ✅ Code Review Fix (2026-08-06): start() أصبحت async (تُنتظر connectivity
   // check قبل تسجيل الـ listeners). نستخدم unawaited() لجعل النية واضحة:
@@ -765,6 +801,10 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         syncManager.startAutoSync(interval: Duration(minutes: clampedMinutes));
         dlog('⏰ Auto-sync started: every $clampedMinutes minutes');
 
+        // صمام ركود السحب القديم (startPullStalenessGuard) أُزيل مع دمج
+        // refactor/performance-fixes-v2 — محرك السحب الموحد (checkpoints
+        // لكل مجموعة) هو المسؤول عن انتظام السحب الآن.
+
         // سحب البيانات عند فتح التطبيق — مع فحص ذكي (مرة كل ساعة)
         try {
           final prefs = await SharedPreferences.getInstance();
@@ -1148,6 +1188,10 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // UnifiedSyncOrchestrator.onAppForeground + SyncGuardian.onAppForeground)
       // الآن: _syncOnResume كعملية أساسية + إشعار UnifiedSyncOrchestrator بدون مزامنة مستقلة
       unawaited(_syncOnResume());
+      // ✅ (2026-08-31) Realtime كامل: أعد محاولة الاشتراك إذا كان WebSocket
+      // قد استسل أثناء الغياب (استنفد max reconnect attempts) — fallback
+      // polling كان يغطي الفجوة، وعند العودة نستعيد التحديث الفوري.
+      unawaited(AppwriteRealtimeSync().ensureStarted());
       // إشعار خدمات المزامنة بالعودة — بدون بدء مزامنة مستقلة (ستكتفي بالتحقق)
       UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
         (Object e, StackTrace s) =>

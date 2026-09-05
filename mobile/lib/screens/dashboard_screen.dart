@@ -68,16 +68,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         screenClass: 'DashboardScreen',
       ),
     );
-    // سحب البيانات من Appwrite تلقائياً عند فتح التطبيق
+    // ✅ (2026-09-01) سحب ذكي عند فتح الشاشة — بنفس طريقة الفرع
+    // refactor/performance-fixes-v2: فحص ساعة + SyncGate + إشعار تحميل.
+    // التكييف مع معمارية هذا الفرع: deltaOnly:true — فتح الشاشة لا يبدأ
+    // Full Sync أبداً (Bootstrap الصريح فقط)؛ الدلتا تكفي لتحديث قسم
+    // "استلامات المستخدمين" وأقسام اليوم الفندقي بأحدث بيانات الخادم.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _autoPullFromAppwrite();
     });
   }
 
+  /// ✅ (2026-09-01) سحب ذكي عند فتح الشاشة — بنفس طريقة الفرع
+  /// refactor/performance-fixes-v2 (SyncGate + فحص ساعة + إشعار تحميل)
+  /// مع تكييف المعمارية: deltaOnly فقط — لا Full Sync من الشاشة أبداً.
   Future<void> _autoPullFromAppwrite() async {
-    // ✅ P3-5 (Global SyncGate): السحب التلقائي عند الفتح يمرّ عبر البوّابة
-    // العامة. إذا كان المستخدم قد ضغط زر مزامنة يدوياً، أو كان المؤقّت
-    // يعمل، فإن السحب التلقائي يُلغى بصمت دون منافسة على الموارد.
+    // ✅ SyncGate: إذا كانت مزامنة يدوية/مؤقت/realtime يعمل — يُلغى بصمت
+    // دون منافسة على الموارد (نفس نمط DashboardSyncButton).
     final executed = await SyncGate.instance.runGuardedVoid(
       operation: 'auto_pull',
       source: 'auto_open',
@@ -102,7 +108,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         return;
       }
 
-      // ─── فحص ذكي: هل مرت ساعة منذ آخر سحب تلقائي؟ ───
+      // ─── فحص ذكي: هل مرت ساعة منذ آخر سحب عند الفتح؟ ───
+      // نفس مفتاح فحص إقلاع التطبيق (lastAppOpenPullKey) — مصدر واحد للحقيقة.
       final lastPullEpochMs = prefs.getInt(SyncConstants.lastAppOpenPullKey);
       if (lastPullEpochMs != null) {
         final lastPull = DateTime.fromMillisecondsSinceEpoch(lastPullEpochMs);
@@ -129,7 +136,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
 
       final syncManager = ref.read(appwriteSyncManagerProvider);
-      final result = await syncManager.sync(push: false);
+      // ✅ deltaOnly: true — في حالة التهيئة يُتخطى السحب (Bootstrap الصريح
+      // مسؤول عنه)؛ وفي الحالة المستقرة دلتا خفيفة metadata-first تكفي.
+      final result = await syncManager.sync(
+        push: false,
+        pull: true,
+        deltaOnly: true,
+      );
       final pulledCount = result.recordsPulled;
 
       // ✅ إغلاق إشعار التحميل فور انتهاء السحب
@@ -166,7 +179,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
           ),
         );
-      } else if (mounted) {
+      } else {
         // إشعار صامت بأن البيانات محدثة
         dlog('✅ البيانات محدثة — لا توجد سجلات جديدة');
       }
@@ -971,7 +984,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const Expanded(
                 child: Text(
                   'استلامات المستخدمين الآخرين في النوبات',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                 ),
               ),
               const Text(
@@ -991,7 +1004,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           else if (summaries.isEmpty)
             const Text(
               'لا توجد استلامات منسوبة إلى نوبات مسجلة بعد',
-              style: TextStyle(fontSize: 10, color: Colors.grey),
+              style: TextStyle(fontSize: 11, color: Colors.grey),
             )
           else
             ...summaries

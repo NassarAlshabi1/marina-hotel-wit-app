@@ -4,6 +4,7 @@ import 'package:appwrite/appwrite.dart';
 
 import 'appwrite_config.dart';
 import 'appwrite_logger.dart';
+import 'sync_constants.dart';
 
 /// نوع الحدث في Realtime
 enum RealtimeEventType { create, update, delete, unknown }
@@ -302,7 +303,9 @@ class AppwriteRealtimeService {
       AppwriteConfig.guestInfosCollectionId,
       AppwriteConfig.priceAdjustmentsCollectionId,
       AppwriteConfig.bookingPriceAdjustmentsCollectionId,
-      AppwriteConfig.auditLogsCollectionId,
+      // ✅ (2026-08-30) audit_logs مستبعد من اشتراكات Realtime
+      if (SyncConstants.auditLogsSyncEnabled)
+        AppwriteConfig.auditLogsCollectionId,
       AppwriteConfig.paymentVoidsCollectionId,
     ];
 

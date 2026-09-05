@@ -45,7 +45,19 @@ class SalaryWithdrawalsAdapter
     Map<String, dynamic> json, {
     required Source src,
   }) async {
-    // ✅ حل FK الموظف بالترتيب: UUID -> id -> serverId -> employeeId
+    // ✅ حل FK الموظف عبر IdResolver: UUID → serverId → (id المحلي للمصدر
+    // المحلي فقط).
+    //
+    // ✅ إصلاح (2026-09-02):
+    // 1) كان يُمرَّر serverId الخاص بالسحوبة نفسها كأنه serverId الموظف —
+    //    خلط فضاءتي معرفتين (serverId السحوبة رقم تسلسلي للسحوبات) قد يربط
+    //    السحوبة بموظف عشوائي عند التصادم الرقمي. الآن للمصادر البعيدة
+    //    نُمرّر employeeId من الـ payload بوصفه "id جهاز المصدر" — وهو
+    //    يساوي employees.serverId بعد سحبه (انظر _syncEmployees).
+    // 2) كان يُمرَّر employeeId البعيد كـ localId/employeeId (مطابقة مع
+    //    e.id المحلي) — Employee.id autoIncrement يختلف بين الأجهزة،
+    //    فالربط الخاطئ صامت محتمل. نفس قرار resolveBooking و
+    //    expenses_adapter: يُسمح بمطابقة id المحلي للمصدر المحلي فقط.
     final remoteEmployeeUuid =
         _asString(json, 'employeeUuid', src) ??
         _asString(json, 'employee_uuid', src) ??
@@ -53,14 +65,13 @@ class SalaryWithdrawalsAdapter
         _asString(json, 'employee_local_uuid', src);
     final remoteEmployeeId =
         _asInt(json, 'employeeId', src) ?? _asInt(json, 'employee_id', src);
-    final remoteServerId =
-        _asInt(json, 'serverId', src) ?? _asInt(json, 'server_id', src);
 
+    final fromRemote = src == Source.appwrite || src == Source.drive;
     final resolvedEmployeeId = await resolver.resolveEmployee(
       uuid: remoteEmployeeUuid,
-      localId: remoteEmployeeId,
-      serverId: remoteServerId,
-      employeeId: remoteEmployeeId,
+      serverId: fromRemote ? remoteEmployeeId : null,
+      localId: fromRemote ? null : remoteEmployeeId,
+      fromRemote: fromRemote,
     );
 
     final createdAt = _epoch(json, 'createdAt', src);
@@ -73,8 +84,9 @@ class SalaryWithdrawalsAdapter
         (src == Source.appwrite || src == Source.drive);
     final skipReason = shouldSkip
         ? 'salary_withdrawal: لا يمكن العثور على الموظف المرتبط '
-              '(uuid=$remoteEmployeeUuid, serverId=$remoteServerId, localId=$remoteEmployeeId) '
-              '— تم التخطي لتجنب InvalidDataException'
+              '(uuid=$remoteEmployeeUuid, originEmployeeId=$remoteEmployeeId, '
+              'src=$src) — تم التخطي لتجنب InvalidDataException وربط خاطئ '
+              'عبر الأجهزة'
         : null;
 
     return ResolveResult(
@@ -129,7 +141,7 @@ class SalaryWithdrawalsAdapter
       // ملاحظة: employeeId هو NOT NULL، لذا إدراج بـ absent سيفشل بـ NOT NULL constraint
       // بدلاً من FK constraint — وهذا أفضل لأنه يُمكّن المتصل من التقاط الخطأ
       // وتخطي السجل بدلاً من إدراج بيانات فاسدة.
-      // المتصل (_syncSalaryWithdrawals / AppwriteFullPull) يفحص قبل الإدراج.
+      // المتصل (_syncSalaryWithdrawals) يفحص قبل الإدراج.
       employeeId: refs.employeeLocalId != null
           ? d.Value(refs.employeeLocalId!)
           : (src == Source.appwrite || src == Source.drive)

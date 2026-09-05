@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:appwrite/appwrite.dart';
 import 'package:appwrite/models.dart' as models;
 
@@ -52,6 +54,17 @@ class AppwriteService {
   // ignore: unused_field
   final _errorHandler = AppwriteErrorHandler();
   final _cache = AppwriteCacheManager();
+
+  /// ✅ (2026-08-31) تقليل السحب على مستوى السجل — مراقب نجاح الرفع.
+  ///
+  /// يُستدعى بعد نجاح أي upsert على الكولكشن الأساسي (كل مسارات الرفع
+  /// تمر عبر [_upsertDocumentInternal]). الاستخدام: تسجيل `$updatedAt`
+  /// المعاد من الخادم في sync_remote_meta (تحصين ضد echo السحب — السجل
+  /// الذي دفعناه للتو يصبح "مُحكَماً عليه" محلياً فلا يُنزَّل في الدورة
+  /// التالية). يجب ألا يرمي المراقب أبداً — خدمة الشبكة تلتقط أي استثناء
+  /// منه ولن تؤثر على دلالات الرفع.
+  void Function(String collectionId, models.Document document)?
+  onDocumentUpserted;
   final _networkHelper = AppwriteNetworkHelper();
 
   /// ✅ جديد: getter لكشف حالة الـ circuit breaker من خارج الخدمة.
@@ -100,6 +113,25 @@ class AppwriteService {
   // Generic Helpers
   // ---------------------------------------------------------------------------
 
+  /// ✅ (2026-08-31) كشف أسلوب استعلام Appwrite بصيغتيه:
+  /// - SDK الحديث (≥21) يُسلسل الاستعلام JSON:
+  ///   `{"method":"greaterThan","attribute":"$updatedAt",...}`
+  /// - الصيغة القديمة: `greaterThan("attr", ...)`.
+  ///
+  /// أي فحص نصي بصيغة واحدة فقط كان يفشل صامتاً على الصيغة الأخرى —
+  /// (لاحقة تشخيص "Fetched total" كانت تُبلغ false/false/false دائماً).
+  static bool queryHasMethod(String query, String method) {
+    if (query.startsWith('{')) {
+      try {
+        final decoded = jsonDecode(query);
+        return decoded is Map && decoded['method'] == method;
+      } catch (_) {
+        return false;
+      }
+    }
+    return query.startsWith('$method(');
+  }
+
   /// دالة مساعدة عامة لإضافة Query للصفحات
   List<String> _applyPagingQueries(
     List<String> baseQueries, {
@@ -109,8 +141,10 @@ class AppwriteService {
     final effectiveQueries = List<String>.from(baseQueries);
 
     // التحقق من وجود Limit/Offset مسبقاً لتجنب التكرار
-    final hasLimit = effectiveQueries.any((q) => q.startsWith('limit('));
-    final hasOffset = effectiveQueries.any((q) => q.startsWith('offset('));
+    // ✅ (2026-08-31) عبر queryHasMethod — الصيغة JSON للـ SDK الحديث لم تكن
+    // تُكتشف بـ startsWith فكان يُضاف limit() مكرر لمن مرّر حداً مسبقاً.
+    final hasLimit = effectiveQueries.any((q) => queryHasMethod(q, 'limit'));
+    final hasOffset = effectiveQueries.any((q) => queryHasMethod(q, 'offset'));
 
     if (!hasLimit) {
       effectiveQueries.add(Query.limit(limit));
@@ -249,8 +283,25 @@ class AppwriteService {
       _cache.set(cacheKey, allDocuments, ttl: AppwriteConfig.cacheExpiry);
     }
 
+    // ✅ (2026-08-31) سجل مُعرِّف ذاتياً — يفرّق بين ثلاثة أنماط قراءة كي
+    // لا يُفهم "Fetched total N documents" على أنه سحب كامل خطأً:
+    //  metadataOnly=true  → $id+$updatedAt فقط (~100 بايت/صف، مسار metadata-first)
+    //  byIds=true         → جلب بالمعرّفات (المتغيّر فعلاً بعد المقارنة)
+    //  deltaWindow=true   → فلتر $updatedAt > مؤشر (دلتا حقيقية)
+    //  كلهما false        → قراءة كاملة بلا فلتر (تهيئة/استعادة فقط)
+    // ✅ (2026-08-31) الكشف عبر queryHasMethod — SDK 21 يُسلسل الاستعلامات
+    // JSON فكانت startsWith('greaterThan(') لا تطابق أبداً وكل الأنماط
+    // تُبلغ false.
+    final isMetadataOnly = queries.any((q) => queryHasMethod(q, 'select'));
+    final isByIds =
+        !isMetadataOnly &&
+        queries.any((q) => queryHasMethod(q, 'equal') && q.contains(r'$id'));
+    final isDeltaWindow = queries.any(
+      (q) => queryHasMethod(q, 'greaterThan') && q.contains(r'$updatedAt'),
+    );
     _logger.info(
-      'Fetched total ${allDocuments.length} documents from $collectionId',
+      'Fetched total ${allDocuments.length} documents from $collectionId '
+      '(metadataOnly=$isMetadataOnly, byIds=$isByIds, deltaWindow=$isDeltaWindow)',
       tag: 'CRUD',
     );
     return allDocuments;
@@ -506,11 +557,21 @@ class AppwriteService {
     final maxRetries = workingData.length + 1;
     for (var attempt = 0; ; attempt++) {
       try {
-        return await _upsertDocumentOnce(
+        final doc = await _upsertDocumentOnce(
           collectionId: collectionId,
           documentId: canonicalId,
           data: workingData,
         );
+        // ✅ (2026-08-31) إشعار مراقب نجاح الرفع (echo immunization).
+        // الالتقاط هنا عمداً: فشل المراقب (تشخيص/تحسين) لا يُفسد أبداً
+        // دلالات رفع نجح فعلاً على الخادم.
+        final observer = onDocumentUpserted;
+        if (observer != null) {
+          try {
+            observer(collectionId, doc);
+          } catch (_) {}
+        }
+        return doc;
       } on AppwriteException catch (e) {
         final unknownAttr = _extractUnknownAttribute(e);
         if (unknownAttr != null &&
@@ -1256,6 +1317,61 @@ class AppwriteService {
       queries: queries ?? [],
       useCache: useCache,
     );
+  }
+
+  /// ✅ (2026-08-30) الفجوتان 3+4 — سحب metadata فقط ($id + $updatedAt)
+  /// لكل مستندات الكولكشن بترقيم مؤشري.
+  ///
+  /// تُستخدم في السحب الكامل (metadata-first): الحمولة لكل صف ~100 بايت
+  /// بدل المستند الكامل (كيلوبايتات)، فيتكلف فحص "ماذا تغيّر؟" كسوراً
+  /// ضئيلة من تكلفة السحب الكامل التقليدي.
+  /// بلا كاش عمداً — يجب أن تعكس صورة الخادم اللحظية.
+  /// ✅ (2026-08-31) تقليل السحب على مستوى السجل — دعم extraQueries:
+  /// تُبنى queries بـ (select [$id, $updatedAt, deletedAt]) + استعلامات
+  /// إضافية تُمرَّر كما هي (مثل فلتر delta `greaterThan($updatedAt, cutoff)`)
+  /// — كي تخدم مرحلة metadata الأولى في delta أيضاً لا في السحب الكامل فقط.
+  ///
+  /// ✅ (2026-08-31) `deletedAt` أُضيفت للحمولة الخفيفة: تُمكّن استبعاد
+  /// tombstones من التنزيل في مرحلة المقارنة (سجل محذوف على الخادم وغير
+  /// معروف محلياً = صفر تنزيل) بدل تنزيل محتواه كاملاً. السمة موجودة في
+  /// `_syncFields` لكل كولكشنات المزامنة (وهي نفسها التي يفلتر عليها
+  /// `buildFullSyncQueries` أصلاً) فلا خطر رفض استعلام.
+  Future<List<models.Document>> listDocumentsMetadata(
+    String collectionId, {
+    List<String> extraQueries = const [],
+  }) async {
+    await _ensureInitialized();
+    return _listAllDocumentsInternal(
+      collectionId: collectionId,
+      queries: [
+        Query.select([r'$id', r'$updatedAt', 'deletedAt']),
+        ...extraQueries,
+      ],
+      useCache: false,
+    );
+  }
+
+  /// ✅ (2026-08-30) جلب مستندات كاملة بمعرّفاتها على دفعات
+  /// (Query.equal على $id، 100 معرّفاً للدفعة) — مرافق metadata-first:
+  /// بعد حصر المتغيّر من مقارنة الـ metadata لا نُنزّل إلا هو.
+  Future<List<models.Document>> listDocumentsByIds(
+    String collectionId,
+    List<String> ids,
+  ) async {
+    await _ensureInitialized();
+    final out = <models.Document>[];
+    const chunkSize = 100;
+    for (var i = 0; i < ids.length; i += chunkSize) {
+      final end = (i + chunkSize < ids.length) ? i + chunkSize : ids.length;
+      final chunk = ids.sublist(i, end);
+      final page = await _listAllDocumentsInternal(
+        collectionId: collectionId,
+        queries: [Query.equal(r'$id', chunk)],
+        useCache: false,
+      );
+      out.addAll(page);
+    }
+    return out;
   }
 
   Future<void> deleteRow({

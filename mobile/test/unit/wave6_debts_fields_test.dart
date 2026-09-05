@@ -298,10 +298,11 @@ void main() {
       expect(columnNames, contains('date'));
     });
 
-    test('3e. أحدث schemaVersion = 64', () {
-      // ✅ Migration 64: إضافة payments.receivedByCloudId (هوية Appwrite
-      // Cloud الثابتة لاستلام الدفعة) — انظر local_db.dart onUpgrade.
-      expect(db.schemaVersion, 64);
+    test('3e. أحدث schemaVersion = 65', () {
+      // ✅ (2026-08-30) محاذاة بعد bump إلى 65 (جدول sync_remote_meta —
+      // الفجوتان 3+4 metadata-first). القيمة مقصودة صريحة: كل bump جديد
+      // يجب أن يحدّث هذا التأكيد عمداً لا أن يمرّ بصمت.
+      expect(db.schemaVersion, 65);
     });
   });
 
@@ -469,6 +470,7 @@ class _StubResolver implements IdResolver {
     String? uuid,
     int? serverId,
     int? employeeId,
+    bool fromRemote = false,
   }) async => localId;
 
   @override
@@ -476,6 +478,7 @@ class _StubResolver implements IdResolver {
     int? localId,
     int? serverId,
     String? uuid,
+    bool fromRemote = false,
   }) async => localId;
 
   @override
