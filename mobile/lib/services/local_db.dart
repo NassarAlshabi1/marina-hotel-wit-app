@@ -1108,6 +1108,58 @@ class AppUsers extends Table with SyncFields {
   ];
 }
 
+/// ✅ (2026-09-05) جدول devices — سجل الأجهزة ككيان متزامن (تعليمات
+/// المستخدم: «… و devices — أيضاً pull/push و outbox و delta sync»).
+///
+/// سابقاً كان تسجيل الجهاز مساراً REST فقط (/api/devices/register يكتب
+/// جدول FCM الضيق بلا local_uuid/SyncFields) بينما سجل Appwrite
+/// (DeviceRegistrar → مجموعة devices) سقط من طبقة Cloudflare. الآن:
+/// 1. Landing zone للسحب — سجل كل جهاز يُسحب محلياً (شاشات الأجهزة
+///    تقرأ من هنا — getRegisteredDevices).
+/// 2. مصدر رفع D1 (تبويب النسخ + الترحيل).
+/// 3. هدف كتابة تسجيل الجهاز (registerDevice/setFcmToken) مع outbox.
+///
+/// الأعمدة مرآة مجموعة devices الحية في Appwrite
+/// (appwrite_sync_utils.dart whitelist) بصيغة snake_case.
+/// ملاحظة معمارية: SyncFields.deviceId (جهاز الكاتب) يُعاد تعريفه هنا
+/// ليهو هوية الجهاز نفسها الفريدة — لصف الجهاز، الكاتب هو الجهاز.
+@DataClassName('DeviceRow')
+class Devices extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+
+  /// ✅ إعادة تعريف عمود SyncFields.device_id: هوية الجهاز الفريدة
+  /// (cf_dev_*) — نفس القيمة المرسلة في /api/devices/register وفي
+  /// عمليات outbox، فتتقارب مسارات REST والمزامنة على صف واحد.
+  @override
+  TextColumn get deviceId => text().unique()();
+  TextColumn get deviceName => text().withDefault(const Constant(''))();
+  TextColumn get deviceModel => text().nullable()();
+  TextColumn get deviceType => text().nullable()();
+  TextColumn get osVersion => text().nullable()();
+  TextColumn get platform => text().nullable()();
+  TextColumn get appVersion => text().nullable()();
+  TextColumn get fcmToken => text().nullable()();
+  TextColumn get status => text().withDefault(const Constant('active'))();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  TextColumn get lastSeen => text().nullable()();
+  IntColumn get lastActive => integer().nullable()();
+
+  List<Index> get indexes => [
+    Index(
+      'idx_devices_updated',
+      'CREATE INDEX idx_devices_updated ON devices (updated_at)',
+    ),
+    Index(
+      'idx_devices_deleted',
+      'CREATE INDEX idx_devices_deleted ON devices (deleted_at)',
+    ),
+    Index(
+      'idx_devices_status',
+      'CREATE INDEX idx_devices_status ON devices (status)',
+    ),
+  ];
+}
+
 /// ✅ جدول AncestorCache — يخزّن آخر نسخة معروفة مشتركة (common ancestor)
 /// لكل سجل، ويُستخدم في الدمج ثلاثي الأطراف (3-way merge) لحل التعارضات.
 ///
@@ -1181,6 +1233,7 @@ class SyncRemoteMeta extends Table {
     InventoryItems,
     InventoryTransactions,
     AppUsers,
+    Devices,
     AncestorCache,
     SyncRemoteMeta,
   ],
@@ -1192,7 +1245,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 66;
+  int get schemaVersion => 67;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1221,6 +1274,13 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('PRAGMA wal_autocheckpoint = 1000');
     },
     onUpgrade: (m, from, to) async {
+      // ✅ (2026-09-05) الإصدار 67: جدول devices ككيان متزامن كامل
+      // (تعليمات المستخدم: النطاق الافتراضي يشمل devices مع pull/push
+      // وoutbox وdelta sync). يُنشأ لكل الترقيات (من أي إصدار) — فارغ
+      // مبدئياً؛ تمتلئ صفوفه من تسجيل الجهاز (registerDevice) والسحب.
+      if (from < 67) {
+        await m.createTable(devices);
+      }
       // ✅ (2026-09-05) الإصدار 66: جدول app_users ككيان متزامن كامل
       // (تعليمات المستخدم: النطاق الافتراضي للمزامنة يشمل حسابات
       // المستخدمين مع pull/push وoutbox delta sync). يُنشأ لكل الترقيات

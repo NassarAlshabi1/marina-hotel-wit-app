@@ -44,18 +44,47 @@ CREATE TABLE IF NOT EXISTS rate_limits (
   PRIMARY KEY (client_id, window_start)
 );
 
--- ─── Devices (FCM push targets) ───────────────────────────────
+-- ─── Devices (device registry + FCM targets — sync entity) ───
+-- User directive 2026-09-05: devices joins the default sync scope with
+-- pull/push + outbox delta sync. Columns mirror the local Drift table
+-- Devices (local_db.dart, schemaVersion 67) which mirrors the live
+-- Appwrite devices collection in snake_case. device_id is BOTH the
+-- device identity and the SyncFields writer column (unified — for a
+-- device row, the writer IS the device).
 CREATE TABLE IF NOT EXISTS devices (
-  id TEXT PRIMARY KEY,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  local_uuid TEXT NOT NULL UNIQUE,
   device_id TEXT NOT NULL UNIQUE,
+  device_name TEXT NOT NULL DEFAULT '',
+  device_model TEXT,
+  device_type TEXT,
+  os_version TEXT,
+  platform TEXT,
+  app_version TEXT,
   fcm_token TEXT,
   status TEXT NOT NULL DEFAULT 'active',
-  device_name TEXT,
-  platform TEXT,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  last_seen TEXT,
+  last_active INTEGER,
+  -- SyncFields (Drift mixin mirror)
+  server_id INTEGER,
   created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER,
+  last_modified INTEGER NOT NULL DEFAULT 0,
+  created_at_iso TEXT,
+  updated_at_iso TEXT,
+  deleted_at_iso TEXT,
+  created_at_epoch INTEGER NOT NULL DEFAULT 0,
+  last_modified_epoch INTEGER NOT NULL DEFAULT 0,
+  version INTEGER NOT NULL DEFAULT 1,
+  origin TEXT NOT NULL DEFAULT 'local',
+  vector_clock TEXT NOT NULL DEFAULT '{}',
+  idempotency_key TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_devices_status ON devices(status);
+CREATE INDEX IF NOT EXISTS idx_devices_updated ON devices(updated_at);
+CREATE INDEX IF NOT EXISTS idx_devices_deleted ON devices(deleted_at);
 
 -- ─── Sync Log (audit trail) ───────────────────────────────────
 CREATE TABLE IF NOT EXISTS sync_log (

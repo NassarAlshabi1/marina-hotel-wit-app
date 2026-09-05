@@ -52,6 +52,7 @@ class CloudflareConfig {
     'inventory_items': 'inventory_items',
     'inventory_transactions': 'inventory_transactions',
     'app_users': 'app_users',
+    'devices': 'devices',
     'blacklist': 'blacklist',
   };
 
@@ -75,7 +76,9 @@ class CloudflareConfig {
   ///      inventory_items via item_local_uuid/item_id)
   ///  15. app_users (no FK deps — local Drift table AppUsers,
   ///      schemaVersion 66)
-  ///  16. blacklist (cloud-only, no deps)
+  ///  16. devices (no FK deps — local Drift table Devices,
+  ///      schemaVersion 67; يستبدل مجموعة devices في Appwrite)
+  ///  17. blacklist (cloud-only, no deps)
   static const List<String> migrationOrder = [
     'rooms',
     'employees',
@@ -99,13 +102,14 @@ class CloudflareConfig {
     'inventory_items',
     'inventory_transactions',
     'app_users',
+    'devices',
     'blacklist',
   ];
 
   static String? tableNameFor(String entity) => entityToTable[entity];
 
   /// نطاق النسخ الاحتياطي إلى Cloudflare D1 (تبويب رفع D1) = كيانات
-  /// النطاق الافتراضي للمزامنة ([migrationOrder] — 23 كياناً).
+  /// النطاق الافتراضي للمزامنة ([migrationOrder] — 24 كياناً).
   ///
   /// - النطاق الافتراضي المزامنة بتأكيد المستخدم (2026-09-05): rooms،
   ///   bookings، booking_nights، booking_notes، payments، payment_voids،

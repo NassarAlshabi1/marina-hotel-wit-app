@@ -116,6 +116,9 @@ class AppwriteConfig {
     'app_users': appUsersCollectionId,
     'inventory_items': inventoryItemsCollectionId,
     'inventory_transactions': inventoryTransactionsCollectionId,
+    // ✅ (2026-09-05) devices — تغذية المقارنة الظلية (المجموعة الحية
+    // موجودة في Appwrite؛ بعد إضافة devices للنطاق الافتراضي للمزامنة).
+    'devices': devicesCollectionId,
   };
 
   /// يحوّل اسم الكيان إلى collection ID في Appwrite.

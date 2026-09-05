@@ -285,12 +285,36 @@ class CloudflareSyncManager {
           body: jsonEncode({
             'deviceId': _deviceId,
             'platform': 'android',
+            // ✅ (2026-09-05) هوية الصف المتزامن — تتقارب مسارات REST
+            // وoutbox على صف واحد في D1 (نفس local_uuid).
+            'localUuid': _deviceId,
           }),
         )
         .timeout(const Duration(seconds: 10));
 
     if (response.statusCode == 200) {
       debugPrint('✅ Device registered: $_deviceId');
+      // ✅ (2026-09-05) devices كيان متزامن في النطاق الافتراضي
+      // (تعليمات المستخدم): كتابة محلية + outbox — السجل يُرفع عبر
+      // push ويُسحب عبر delta لكل الأجهزة.
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final payload = _deviceSyncPayload(platform: 'android', now: now);
+      await _writeLocalDeviceRow(payload);
+      final deviceRowUuid = payload['local_uuid'] as String?;
+      if (deviceRowUuid != null && deviceRowUuid.isNotEmpty) {
+        try {
+          await outboxDao.merge(
+            entity: 'devices',
+            op: 'create',
+            localUuid: deviceRowUuid,
+            payload: payload,
+            clientTs: now,
+            source: 'local',
+          );
+        } catch (e) {
+          debugPrint('⚠️ devices outbox enqueue failed: $e');
+        }
+      }
       return _deviceId!;
     }
     // ✅ سجل في شاشة تتبع الأخطاء
@@ -323,8 +347,113 @@ class CloudflareSyncManager {
           )
           .timeout(const Duration(seconds: 10));
       debugPrint('✅ FCM token set for device: $_deviceId');
+      // ✅ (2026-09-05) devices كيان متزامن: كتابة محلية + outbox update.
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final payload = _deviceSyncPayload(
+        fcmToken: token,
+        platform: 'android',
+        now: now,
+      );
+      await _writeLocalDeviceRow(payload);
+      final deviceRowUuid = payload['local_uuid'] as String?;
+      if (deviceRowUuid != null && deviceRowUuid.isNotEmpty) {
+        try {
+          await outboxDao.merge(
+            entity: 'devices',
+            op: 'update',
+            localUuid: deviceRowUuid,
+            payload: payload,
+            clientTs: now,
+            source: 'local',
+          );
+        } catch (e) {
+          debugPrint('⚠️ devices outbox enqueue failed: $e');
+        }
+      }
     } catch (e) {
       debugPrint('⚠️ Set FCM token error: $e');
+    }
+  }
+
+  // ─── Device sync row (local landing zone + outbox) ────────
+  // ✅ (2026-09-05) حمولة مزامنة devices بصيغة snake_case مطابقة لأعمدة
+  // جدول D1 (schema.sql + migrations/0004). الهوية: local_uuid =
+  // deviceId (مستقر وفريد لكل تثبيت) — عمود device_id الموحّد هو
+  // هوية الجهاز وعمود SyncFields.device_id (جهاز الكاتب) معاً.
+  Map<String, dynamic> _deviceSyncPayload({
+    String? fcmToken,
+    String? platform,
+    String? deviceName,
+    required int now,
+  }) {
+    final deviceId = _deviceId ?? '';
+    return <String, dynamic>{
+      'local_uuid': deviceId,
+      'device_id': deviceId,
+      if (deviceName != null) 'device_name': deviceName,
+      if (platform != null) 'platform': platform,
+      if (fcmToken != null) 'fcm_token': fcmToken,
+      'status': 'active',
+      'is_active': 1,
+      'last_active': now,
+      'updated_at': now,
+      'last_modified': now,
+      'last_modified_epoch': now,
+      'version': 1,
+      'origin': 'local',
+      'vector_clock': jsonEncode(<String, int>{
+        if (deviceId.isNotEmpty) deviceId: 1,
+      }),
+    };
+  }
+
+  /// كتابة/تحديث صف الجهاز محلياً (landing zone السحب ومصدر رفع D1).
+  /// فشل الكتابة المحلية مساعد فقط — لا يُفشل التسجيل.
+  Future<void> _writeLocalDeviceRow(Map<String, dynamic> syncPayload) async {
+    try {
+      final db = _db;
+      if (db == null) return;
+      final localUuid = syncPayload['local_uuid'] as String?;
+      if (localUuid == null || localUuid.isEmpty) return;
+
+      final existingRows = await db
+          .customSelect(
+            'SELECT id, version FROM devices WHERE local_uuid = ? LIMIT 1',
+            variables: [Variable.withString(localUuid)],
+          )
+          .get();
+      if (existingRows.isNotEmpty) {
+        final existingVersion =
+            (existingRows.first.data['version'] as int?) ?? 0;
+        final fields = Map<String, dynamic>.from(syncPayload)
+          ..remove('local_uuid')
+          ..remove('created_at')
+          ..['version'] = existingVersion + 1;
+        final setClauses = fields.keys.map((c) => '$c = ?').join(', ');
+        await db.customStatement(
+          'UPDATE devices SET $setClauses WHERE local_uuid = ?',
+          [...fields.values, localUuid],
+        );
+      } else {
+        final row = <String, dynamic>{
+          ...syncPayload,
+          'device_name': syncPayload['device_name'] ?? '',
+          'status': syncPayload['status'] ?? 'active',
+          'is_active': syncPayload['is_active'] ?? 1,
+          'created_at':
+              (syncPayload['created_at'] ?? syncPayload['updated_at']) as int,
+          'created_at_epoch': 0,
+        }..remove('id');
+        final columns = row.keys.join(', ');
+        final placeholders = row.keys.map((_) => '?').join(', ');
+        await db.customStatement(
+          'INSERT OR REPLACE INTO devices ($columns) '
+          'VALUES ($placeholders)',
+          row.values.toList(),
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ devices local row write failed: $e');
     }
   }
 
@@ -1218,11 +1347,52 @@ class CloudflareSyncManager {
     _autoSyncTimer = null;
   }
 
-  /// ✅ توافق Drop-in: قائمة الأجهزة المسجلة كانت من Appwrite Messaging.
-  /// على مسار Cloudflare لا يوجد endpoint يسرد كل الأجهزة (فقط
-  /// /api/devices/tokens) — تعيد قائمة فارغة حتى تُبنى الشاشة على D1.
+  /// ✅ (2026-09-05) الأجهزة المسجلة — تُقرأ الآن من جدول devices المحلي
+  /// (landing zone السحب — تُغذّى من D1 عبر pull) بدل القائمة الفارغة؛
+  /// الشاشة مبنية على D1 عبر المزامنة كما تنص الخطة المعلقة سابقاً.
   Future<List<AppwriteDevice>> getRegisteredDevices() async {
-    return const <AppwriteDevice>[];
+    final db = _db;
+    if (db == null) return const <AppwriteDevice>[];
+    try {
+      final rows = await db
+          .customSelect(
+            'SELECT * FROM devices WHERE deleted_at IS NULL '
+            'ORDER BY COALESCE(last_active, updated_at) DESC',
+          )
+          .get();
+      DateTime? epochToDateTime(dynamic v) {
+        if (v is int && v > 0) {
+          return DateTime.fromMillisecondsSinceEpoch(v * 1000);
+        }
+        return null;
+      }
+
+      DateTime? isoToDateTime(dynamic v) {
+        if (v is String && v.isNotEmpty) return DateTime.tryParse(v);
+        return null;
+      }
+
+      return rows.map((r) {
+        final d = r.data;
+        return AppwriteDevice(
+          id: (d['device_id'] as String?) ?? '',
+          deviceName: (d['device_name'] as String?) ?? '',
+          deviceModel: (d['device_model'] as String?) ?? '',
+          osVersion: (d['os_version'] as String?) ?? '',
+          lastSeen: isoToDateTime(d['last_seen']) ?? DateTime.now(),
+          lastActive: epochToDateTime(d['last_active']),
+          status: (d['status'] as String?) ?? 'active',
+          createdAt: epochToDateTime(d['created_at']) ?? DateTime.now(),
+          updatedAt: epochToDateTime(d['updated_at']) ?? DateTime.now(),
+          version: (d['version'] as int?) ?? 1,
+          origin: d['origin'] as String?,
+          localUuid: d['local_uuid'] as String?,
+        );
+      }).toList();
+    } catch (e) {
+      debugPrint('⚠️ getRegisteredDevices failed: $e');
+      return const <AppwriteDevice>[];
+    }
   }
 
   // ─── Device ID generation ───────────────────────────────────

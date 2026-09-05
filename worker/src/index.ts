@@ -352,8 +352,17 @@ async function handleRequest(request: Request, env: Env): Promise<Response> {
       if (path === '/api/devices/register' && method === 'POST') {
         const db = new Database(env.DB);
         try {
-          const body = await request.json() as { deviceId: string; fcmToken?: string; deviceName?: string; platform?: string };
-          await db.registerDevice(body.deviceId, body.fcmToken || null, body.deviceName, body.platform);
+          const body = await request.json() as { deviceId: string; fcmToken?: string; deviceName?: string; platform?: string; localUuid?: string };
+          // ✅ Production guard: deviceId anchors BOTH the sync identity
+          // (local_uuid) and the device row — a missing value would fail
+          // deep in D1 with NOT NULL violation (raw 500); reject clearly.
+          if (!body.deviceId || typeof body.deviceId !== 'string' || body.deviceId.trim().length === 0) {
+            logRequest(method, path, 400, Date.now() - startTime, clientIp);
+            return json({ error: 'deviceId is required' }, 400, env);
+          }
+          // localUuid anchors the sync identity — REST registration and
+          // outbox pushes (devices is a synced entity) converge on one row.
+          await db.registerDevice(body.deviceId, body.fcmToken || null, body.deviceName, body.platform, body.localUuid);
           logRequest(method, path, 200, Date.now() - startTime, clientIp);
           return json({ registered: true, deviceId: body.deviceId }, 200, env);
         } catch (err) {

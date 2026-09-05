@@ -92,6 +92,13 @@ const ENTITY_TABLES: Record<string, string> = {
   // table AppUsers is the pull landing zone / push source)
   app_users: 'app_users',
 
+  // Devices (device registry + FCM targets — user directive 2026-09-05:
+  // devices joins the default sync scope with pull/push + outbox delta
+  // sync; local Drift table Devices schemaVersion 67 replaces the
+  // Appwrite devices collection; REST /api/devices/register upserts the
+  // same row via local_uuid so both paths converge)
+  devices: 'devices',
+
   // Blacklist (cloud-only entity, no Drift table client-side)
   blacklist: 'blacklist',
 };
@@ -114,7 +121,6 @@ export function getTableName(entity: string): string {
 export const ALL_TABLE_NAMES: string[] = [
   ...Object.keys(ENTITY_TABLES),
   'users',
-  'devices',
   'rate_limits',
 ];
 
@@ -746,39 +752,77 @@ export class Database {
     deviceId: string,
     fcmToken: string | null,
     deviceName?: string,
-    platform?: string
+    platform?: string,
+    localUuid?: string
   ): Promise<void> {
-    const now = Math.floor(Date.now() / 1000);
-    // Ensure devices table exists
+    // ✅ Globally-unique monotonic updated_at (sync_clock) — devices is
+    // a synced entity now; raw Date.now() would break the pull cursor's
+    // losslessness guarantee.
+    const now = await this.allocateUpdatedAt();
+    // Ensure devices table exists (shape matches schema.sql / 0004 —
+    // sync-entity shape with SyncFields mirror; device_id is BOTH the
+    // device identity and the SyncFields writer column, unified).
     await this.db.prepare(
       `CREATE TABLE IF NOT EXISTS devices (
-        id TEXT PRIMARY KEY,
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        local_uuid TEXT NOT NULL UNIQUE,
         device_id TEXT NOT NULL UNIQUE,
-        fcm_token TEXT,
-        status TEXT DEFAULT 'active',
-        device_name TEXT,
+        device_name TEXT NOT NULL DEFAULT '',
+        device_model TEXT,
+        device_type TEXT,
+        os_version TEXT,
         platform TEXT,
+        app_version TEXT,
+        fcm_token TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        is_active INTEGER NOT NULL DEFAULT 1,
+        last_seen TEXT,
+        last_active INTEGER,
+        server_id INTEGER,
         created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
+        updated_at INTEGER NOT NULL,
+        deleted_at INTEGER,
+        last_modified INTEGER NOT NULL DEFAULT 0,
+        created_at_iso TEXT,
+        updated_at_iso TEXT,
+        deleted_at_iso TEXT,
+        created_at_epoch INTEGER NOT NULL DEFAULT 0,
+        last_modified_epoch INTEGER NOT NULL DEFAULT 0,
+        version INTEGER NOT NULL DEFAULT 1,
+        origin TEXT NOT NULL DEFAULT 'local',
+        vector_clock TEXT NOT NULL DEFAULT '{}',
+        idempotency_key TEXT
       )`
     ).run();
 
-    // Upsert device
+    // Upsert by device_id; local_uuid anchors the sync protocol so REST
+    // registration and outbox pushes converge on a single row.
     await this.db.prepare(
-      `INSERT INTO devices (id, device_id, fcm_token, status, device_name, platform, created_at, updated_at)
-       VALUES (?, ?, ?, 'active', ?, ?, ?, ?)
+      `INSERT INTO devices (local_uuid, device_id, fcm_token, status,
+         device_name, platform, last_active, created_at, updated_at,
+         last_modified, last_modified_epoch, origin)
+       VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, 'local')
        ON CONFLICT(device_id) DO UPDATE SET
-         fcm_token = excluded.fcm_token,
+         fcm_token = COALESCE(excluded.fcm_token, devices.fcm_token),
          status = 'active',
-         device_name = excluded.device_name,
-         platform = excluded.platform,
-         updated_at = excluded.updated_at`
+         device_name = COALESCE(excluded.device_name, devices.device_name),
+         platform = COALESCE(excluded.platform, devices.platform),
+         last_active = excluded.last_active,
+         updated_at = excluded.updated_at,
+         last_modified = excluded.last_modified,
+         last_modified_epoch = excluded.last_modified_epoch`
     ).bind(
-      crypto.randomUUID(),
+      localUuid || deviceId,
       deviceId,
       fcmToken,
-      deviceName || null,
+      // ⚠️ device_name is NOT NULL DEFAULT '' — an explicit NULL bind
+      // bypasses the column DEFAULT (SQLite semantics) and fails the
+      // constraint (caught by auth.test.ts device-B with no name).
+      deviceName || '',
       platform || null,
+      now,
+      now,
+      now,
       now,
       now
     ).run();
@@ -799,9 +843,10 @@ export class Database {
   }
 
   async setDeviceFcmToken(deviceId: string, fcmToken: string): Promise<void> {
-    const now = Math.floor(Date.now() / 1000);
+    // ✅ sync_clock allocation — monotonic pull cursor (see registerDevice)
+    const now = await this.allocateUpdatedAt();
     await this.db.prepare(
-      `UPDATE devices SET fcm_token = ?, updated_at = ? WHERE device_id = ?`
-    ).bind(fcmToken, now, deviceId).run();
+      `UPDATE devices SET fcm_token = ?, updated_at = ?, last_modified = ?, last_modified_epoch = ? WHERE device_id = ?`
+    ).bind(fcmToken, now, now, now, deviceId).run();
   }
 }

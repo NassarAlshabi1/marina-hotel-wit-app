@@ -5,7 +5,7 @@ import 'package:marina_hotel_mobile/services/cloudflare_config.dart';
 
 /// ✅ النطاق الافتراضي للمزامنة (تعليمات المستخدم 2026-09-05):
 /// rooms, bookings, booking_nights, booking_notes, payments,
-/// payment_voids, user_app (app_users), price_adjustments,
+/// payment_voids, user_app (app_users) + devices, price_adjustments,
 /// booking_price_adjustments, expenses, debts, employees, guest_infos,
 /// cash_transactions, shift_notes, salary_cycles, salary_payments,
 /// salary_withdrawals, salary_carry_over_logs, audit_logs,
@@ -18,6 +18,9 @@ import 'package:marina_hotel_mobile/services/cloudflare_config.dart';
 ///   ENTITY_TABLES. كان يُزامَن عبر Appwrite فقط (appwrite_config.dart:116
 ///   وoutbox_dao.dart _entityTableMap وauth_local_store) وسقط كلياً من
 ///   طبقة Cloudflare.
+/// - devices أُضيف لاحقاً بنفس التعليمات («و devices») — جدول Drift
+///   محلي (Devices، schemaVersion 67) + جدول D1 (migrations/0004) +
+///   ENTITY_TABLES؛ يستبدل مجموعة devices في Appwrite.
 /// - hotel_day_ledger مستبعد عمداً بتأكيد المستخدم (2026-09-05:
 ///   «جدول محلي لا أريد أن يتم مزامنته») — محلي-فقط بالتصميم (D8).
 /// - blacklist تُخزَّن في shift_notes بوسم created_by='blacklist'
@@ -48,9 +51,9 @@ void main() {
   ];
 
   group('النطاق الافتراضي للمزامنة (تعليمات المستخدم 2026-09-05)', () {
-    test('d1BackupTables = migrationOrder حرفياً — 23 كياناً', () {
+    test('d1BackupTables = migrationOrder حرفياً — 24 كياناً', () {
       expect(CloudflareConfig.d1BackupTables, CloudflareConfig.migrationOrder);
-      expect(CloudflareConfig.d1BackupTables.length, 23);
+      expect(CloudflareConfig.d1BackupTables.length, 24);
       // لا تكرار
       expect(
         CloudflareConfig.d1BackupTables.toSet().length,
@@ -82,6 +85,7 @@ void main() {
         'audit_logs',
         'inventory_items',
         'inventory_transactions',
+        'devices', // «و devices» — نفس التعليمات
       ];
       for (final entity in userScope) {
         final mapped = entity == 'user_app' ? 'app_users' : entity;
@@ -122,8 +126,8 @@ void main() {
   group('CloudflareD1Tab.scopeSyncTables', () {
     test('يحصر النطاق على الكيانات الفيزيائية — بنفس الترتيب', () {
       final scoped = CloudflareD1Tab.scopeSyncTables(allLocalTables);
-      // 23 كيان − blacklist (بلا جدول فيزيائي) = 22 جدولاً فيزيائياً
-      expect(scoped.length, 22);
+      // 24 كيان − blacklist (بلا جدول فيزيائي) = 23 جدولاً فيزيائياً
+      expect(scoped.length, 23);
       expect(
         scoped,
         CloudflareConfig.migrationOrder.where((t) => t != 'blacklist').toList(),

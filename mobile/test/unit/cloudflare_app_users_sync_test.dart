@@ -54,8 +54,11 @@ void main() {
     await db.close();
   });
 
-  test('schemaVersion = 66 (ترحيل إنشاء app_users)', () {
-    expect(db.schemaVersion, 66);
+  test('schemaVersion >= 66 (ترحيل إنشاء app_users — 67 يضيف devices)', () {
+    // ✅ 66 أنشأ app_users؛ 67 أضاف devices — كلاهما يتضمن ترحيل
+    // app_users. التأكيد أدنى-أو-يساوي مقصود: ترقيات لاحقة لا تُبطل
+    // ضمان إنشاء app_users (كل bump يُحدَّث عمداً في wave6 test 3e).
+    expect(db.schemaVersion, greaterThanOrEqualTo(66));
   });
 
   test('جدول app_users موجود في قاعدة جديدة', () async {

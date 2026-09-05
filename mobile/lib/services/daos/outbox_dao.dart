@@ -1332,4 +1332,10 @@ const _entityTableMap = <String, String>{
   'salary_carry_over_logs': 'salary_carry_over_logs',
   // ✅ app_users — للمزامنة وحل التعارضات عبر vector clock
   'app_users': 'app_users',
+  // ✅ (2026-09-05) إغلاق فجوة رفع vector clock: هذه الكيانات كانت
+  // غائبة فكانت الكتابات المحلية للمخزون/الأجهزة لا ترفع ساعتها
+  // المتجهة → كشف التعارضات المتزامنة متدهور لها (LWW زمني فقط).
+  'inventory_items': 'inventory_items',
+  'inventory_transactions': 'inventory_transactions',
+  'devices': 'devices',
 };

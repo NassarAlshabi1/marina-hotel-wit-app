@@ -13,8 +13,8 @@ import '../../../../services/daos/outbox_dao.dart';
 /// المسار للقراءة فقط من القاعدة المحلية (SELECT) ثم INSERT OR REPLACE
 /// إلى D1 — لا يمس حلقة مزامنة Appwrite ولا يحذف أي سجل بعيد.
 /// النطاق: [CloudflareConfig.d1BackupTables] = كيانات النطاق الافتراضي
-/// للمزامنة حصراً (migrationOrder — 23 كياناً بتأكيد المستخدم
-/// 2026-09-05 الذي أضاف user_app/app_users)، ومعها يُجسَّد كيان
+/// للمزامنة حصراً (migrationOrder — 24 كياناً بتأكيد المستخدم
+/// 2026-09-05 الذي أضاف user_app/app_users ثم devices)، ومعها يُجسَّد كيان
 /// blacklist افتراضياً من shift_notes الموسومة created_by='blacklist'
 /// عبر CloudflareD1Service.blacklistRowFromShiftNote (لا جدول Drift
 /// محلي له). app_users له جدول Drift محلي (schemaVersion 66) فيمرّ
@@ -187,7 +187,7 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
     try {
       final db = ref.read(databaseProvider);
       // ✅ نطاق الرفع: CloudflareConfig.d1BackupTables = كيانات النطاق
-      // الافتراضي للمزامنة (migrationOrder — 23 كياناً بتأكيد المستخدم
+      // الافتراضي للمزامنة (migrationOrder — 24 كياناً بتأكيد المستخدم
       // 2026-09-05). لا يُرفع قاعدة البيانات المحلية كاملة. الكيانات
       // بلا جدول Drift محلي (blacklist — سحابية فقط) تُتخطى بفحص
       // sqlite_master ثم تُجسَّد افتراضياً أدناه من shift_notes

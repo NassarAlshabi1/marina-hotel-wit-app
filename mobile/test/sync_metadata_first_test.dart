@@ -289,7 +289,7 @@ void main() {
         // أي عملية على الجدول تثبت وجوده وصحة أعمدته
         await db.upsertRemoteMeta('x', {'d': 1});
         expect(await db.getRemoteMetaMap('x'), {'d': 1});
-        expect(db.schemaVersion, 66);
+        expect(db.schemaVersion, 67);
       },
     );
   });

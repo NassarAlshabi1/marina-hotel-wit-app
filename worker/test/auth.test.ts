@@ -266,6 +266,11 @@ describe('auth: device registration endpoints', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: auth },
       body: JSON.stringify({ deviceId: 'device-B', fcmToken: 'tok-B' }),
+    }).then(async (r) => {
+      // Explicit: registration without deviceName must succeed —
+      // device_name is NOT NULL DEFAULT '' (regression guard: an
+      // explicit NULL bind bypasses the DEFAULT and 500s here).
+      expect(r.status).toBe(200);
     });
 
     const list = await SELF.fetch('https://example.com/api/devices/tokens?exclude=device-A', {
