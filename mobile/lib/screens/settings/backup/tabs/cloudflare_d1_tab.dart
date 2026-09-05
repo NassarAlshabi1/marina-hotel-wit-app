@@ -13,25 +13,26 @@ import '../../../../services/daos/outbox_dao.dart';
 /// المسار للقراءة فقط من القاعدة المحلية (SELECT) ثم INSERT OR REPLACE
 /// إلى D1 — لا يمس حلقة مزامنة Appwrite ولا يحذف أي سجل بعيد.
 /// النطاق: [CloudflareConfig.d1BackupTables] = كيانات عقد Appwrite
-/// (migrationOrder) + hotel_day_ledger المطلوب صراحةً، ومعه يُجسَّد
-/// كيان blacklist افتراضياً من shift_notes الموسومة
-/// created_by='blacklist' عبر CloudflareD1Service.blacklistRowFromShiftNote
-/// (لا جدول Drift محلي له). جداول البنية المحلية مستبعدة.
+/// حصراً (migrationOrder)، ومعها يُجسَّد كيان blacklist افتراضياً من
+/// shift_notes الموسومة created_by='blacklist' عبر
+/// CloudflareD1Service.blacklistRowFromShiftNote (لا جدول Drift محلي
+/// له). hotel_day_ledger جدول محلي-فقط (تأكيد المستخدم) وجداول
+/// البنية المحلية — كلها مستبعدة.
 /// القيود المطبقة (مثبتة تجريبياً): ≤ 96 معاملاً لكل استعلام،
 /// وعبارات متعددة بلا معاملات في النداء الواحد.
 class CloudflareD1Tab extends ConsumerStatefulWidget {
   const CloudflareD1Tab({super.key});
 
   /// ✅ حصر نطاق الرفع على [CloudflareConfig.d1BackupTables] = كيانات
-  /// عقد Appwrite (migrationOrder — خطة D7، نفس ENTITY_TABLES في
-  /// worker/src/database.ts) + hotel_day_ledger المطلوب صراحةً
-  /// (مخططه المحلي مطابق 1:1 لجدول D1).
+  /// عقد Appwrite حصراً (migrationOrder — خطة D7، نفس ENTITY_TABLES
+  /// في worker/src/database.ts).
   ///
-  /// أي جدول محلي بلا مقابل في القائمة (outbox، sync_remote_meta،
-  /// sync_state، sync_log، custom_list_items، جداول Room الداخلية…)
-  /// يُستبعد هنا، وكيان العقد بلا جدول محلي (blacklist) يُتخطى في
-  /// الفلترة الفيزيائية — ويُجسَّد افتراضياً من shift_notes الموسومة
-  /// في [_loadLocalTables] (طلب المستخدم 2026-09-05).
+  /// أي جدول محلي بلا مقابل في العقد (outbox، sync_remote_meta،
+  /// sync_state، sync_log، hotel_day_ledger المحلي-فقط بتأكيد
+  /// المستخدم 2026-09-05، custom_list_items، جداول Room
+  /// الداخلية…) يُستبعد هنا، وكيان العقد بلا جدول محلي (blacklist)
+  /// يُتخطى في الفلترة الفيزيائية — ويُجسَّد افتراضياً من
+  /// shift_notes الموسومة في [_loadLocalTables].
   @visibleForTesting
   static List<String> scopeSyncTables(Iterable<String> existingTables) {
     final existing = existingTables.toSet();
@@ -183,13 +184,14 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
     try {
       final db = ref.read(databaseProvider);
       // ✅ نطاق الرفع: CloudflareConfig.d1BackupTables = كيانات عقد
-      // Appwrite Cloud (migrationOrder) + hotel_day_ledger (طلب صريح —
-      // مطابق مخطط D1). لا يُرفع قاعدة البيانات المحلية كاملة.
-      // الكيانات بلا جدول Drift محلي (blacklist — سحابية فقط) تُتخطى
-      // بفحص sqlite_master ثم تُجسَّد افتراضياً أدناه من shift_notes
-      // الموسومة created_by='blacklist'، وجداول البنية المحلية
-      // (outbox, sync_remote_meta, sync_state, sync_log,
-      // custom_list_items، ...) مستبعدة عمداً — لا مقابل لها.
+      // Appwrite Cloud حصراً (migrationOrder). لا يُرفع قاعدة البيانات
+      // المحلية كاملة. الكيانات بلا جدول Drift محلي (blacklist —
+      // سحابية فقط) تُتخطى بفحص sqlite_master ثم تُجسَّد افتراضياً
+      // أدناه من shift_notes الموسومة created_by='blacklist'.
+      // hotel_day_ledger (محلي-فقط بتأكيد المستخدم 2026-09-05)
+      // وجداول البنية المحلية (outbox, sync_remote_meta, sync_state,
+      // sync_log, custom_list_items، ...) مستبعدة عمداً — لا مقابل
+      // لها في Appwrite Cloud.
       final wanted = CloudflareConfig.d1BackupTables;
       final existingRows = await db
           .customSelect(
@@ -450,14 +452,14 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         const SizedBox(height: 8),
         const Text(
           'ينقل هذا التبويب بيانات جداول المزامنة المطابقة لمجموعات '
-          'Appwrite Cloud (نفس كيانات مزامنة Cloudflare — خطة D7) '
-          'إضافةً إلى hotel_day_ledger المطلوب صراحةً (يُرفع خاماً '
-          'بمخططه المطابق لجدول D1) — إلى قاعدة Cloudflare D1 كنسخة '
-          'استشارية على السحابة. القراءة من القاعدة المحلية فقط، '
-          'والكتابة بأسلوب INSERT OR REPLACE الآمن. القائمة السوداء '
-          'blacklist كيان بلا جدول محلي فتُجسَّد من ملاحظات الورديات '
-          'الموسومة إلى جدولها في D1، وجداول البنية المحلية (outbox، '
-          'sync_remote_meta، sync_state، sync_log، …) تُستبعد.',
+          'Appwrite Cloud حصراً (نفس كيانات مزامنة Cloudflare — خطة '
+          'D7) إلى قاعدة Cloudflare D1 كنسخة استشارية على السحابة. '
+          'القراءة من القاعدة المحلية فقط، والكتابة بأسلوب INSERT OR '
+          'REPLACE الآمن. القائمة السوداء blacklist كيان بلا جدول '
+          'محلي فتُجسَّد من ملاحظات الورديات الموسومة إلى جدولها في '
+          'D1، أما hotel_day_ledger (محلي-فقط) وجداول البنية المحلية '
+          '(outbox، sync_remote_meta، sync_state، sync_log، …) '
+          'فتُستبعد كلياً.',
           textAlign: TextAlign.start,
         ),
         if (_outboxPending > 0) ...[

@@ -91,24 +91,17 @@ class CloudflareConfig {
 
   static String? tableNameFor(String entity) => entityToTable[entity];
 
-  /// نطاق النسخ الاحتياطي إلى Cloudflare D1 (تبويب رفع D1 — طلب المستخدم
-  /// 2026-09-05: «جدول hotel_day_ledger وemployees وbooking_nights …
-  /// blacklist»).
+  /// نطاق النسخ الاحتياطي إلى Cloudflare D1 (تبويب رفع D1) = كيانات عقد
+  /// Appwrite Cloud حصراً ([migrationOrder] — خطة D7، 22 كياناً).
   ///
-  /// = [migrationOrder] (22 كياناً مطابقاً لمجموعات Appwrite Cloud — خطة
-  /// D7) + `hotel_day_ledger` المطلوب صراحةً: جدوله المحلي
-  /// (local_db.dart HotelDayLedger) مطابق 1:1 لجدول D1 في
-  /// worker/schema.sql — يُرفع خاماً في مسار النسخ الاحتياطي فقط ويبقى
-  /// خارج عقد المزامنة (قرار D8: محلي-فقط).
-  ///
-  /// `blacklist` تبقى ضمن القائمة (كيان من عقد Appwrite) لكن بلا جدول
-  /// Drift محلي — صفوفها مخزنة في shift_notes الموسومة
-  /// created_by='blacklist' وتُجسَّد افتراضياً عند الرفع عبر
-  /// CloudflareD1Service.blacklistRowFromShiftNote.
-  static const List<String> d1BackupTables = <String>[
-    ...migrationOrder,
-    'hotel_day_ledger',
-  ];
+  /// - `blacklist` ضمن القائمة (كيان من عقد Appwrite) لكن بلا جدول
+  ///   Drift محلي — صفوفها مخزنة في shift_notes الموسومة
+  ///   created_by='blacklist' وتُجسَّد افتراضياً عند الرفع عبر
+  ///   CloudflareD1Service.blacklistRowFromShiftNote.
+  /// - `hotel_day_ledger` مستبعد عمداً (تأكيد المستخدم 2026-09-05:
+  ///   «جدول محلي لا أريد أن يتم مزامنته») — محلي-فقط بالتصميم (D8)
+  ///   ولا مقابل له في Appwrite Cloud، ويبقى محلياً كلياً.
+  static const List<String> d1BackupTables = migrationOrder;
 
   /// وسم تخزين القائمة السوداء داخل جدول shift_notes المحلي
   /// (مطابق لـ BlacklistRepository._createdByTag — منع تكرار السلسلة
