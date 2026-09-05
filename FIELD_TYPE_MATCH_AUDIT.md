@@ -10,9 +10,66 @@
 
 ---
 
-## الخلاصة التنفيذية
+## 🔴 تحديث (تدقيق عميق) — المشكلة الأخطر: عدم تطابق **حالة أحرف المفاتيح** (casing)، وليس الأنواع
 
-مطابقة الأنواع **ليست 100%**.
+التتبع الكامل لمسار الدفع (outbox → `cloudflare_sync_manager._pushBatch` → worker) كشف أن
+مشكلة **أنواع** الحقول ثانوية. المشكلة الجوهرية: **معظم الكيانات تُرسل حمولة بمفاتيح
+camelCase** (صيغة Appwrite القديمة) إلى worker لا يقبل إلا **snake_case** ويقرأ
+`data.local_uuid`. النتيجة: فقدان بيانات صامت وكسر الهوية عند الدفع لهذه الكيانات.
+
+### سلسلة الأدلة (كود مُتحقَّق منه)
+1. **worker يتوقع snake_case فقط**: `createRecord` يقرأ `data.local_uuid` وإلا يولّد
+   UUID عشوائياً (`database.ts:301`)، ويُرشّح المفاتيح مقابل أعمدة D1 الفعلية
+   (snake) عبر `getTableColumns` (PRAGMA table_info) — **لا يوجد أي تحويل
+   camelCase→snake** في الـ worker (`database.ts:342-349`). و`updateRecord` يستدعي
+   `requireEntityId(data)` = `data.local_uuid ?? data.id ?? data.server_id`
+   (`sync.ts:60-63`).
+2. **الدفع يُرسل الحمولة حرفياً**: `_pushBatch` يُرسل `data = jsonDecode(item.payload)`
+   دون أي تطبيع/تحويل (`cloudflare_sync_manager.dart:511-521`).
+3. **العقد الصحيح** (مسار `app_users` في الـ HEAD): `appUsersSyncPayload` يبني
+   snake_case + `local_uuid` + `vector_clock` + حقول المزامنة + bool→int
+   (`auth_local_store.dart`). هذا هو النموذج الصحيح. ✅
+4. **الكيانات المكسورة** تُبنى بـ camelCase عبر `adapter.toJson(row, src: Source.appwrite)`
+   (يُثبت الاختبار `adapters_round_trip_test.dart:104-110` أن ناتج `Source.appwrite`
+   هو `localUuid`/`roomNumber`/`guestName` = camelCase) أو عبر خرائط camelCase يدوية
+   في الخدمات/المستودعات.
+5. **لا اختبار يحرس هذا العقد**: `cloudflare_sync_manager_test.dart` يختبر الحالة/التهيئة
+   فقط، واختبارات الـ worker (87 ناجحة) تستخدم عيّنات snake_case مكتوبة يدوياً — فلا
+   تلتقط حمولة العميل الحقيقية.
+
+### مصفوفة حالة الأحرف لكل كيان (حمولة outbox الفعلية)
+
+| الحالة | الكيانات | المصدر |
+|---|---|---|
+| ✅ **snake_case (صحيح)** | `rooms`, `debts`, `cash_transactions`, `booking_notes`, `shift_notes`, `app_users` | `_payloadFrom` في الـ DAO / `appUsersSyncPayload` |
+| ❌ **camelCase (مكسور)** | `bookings`, `payments`, `expenses`, `employees` | DAO → `toJsonForSource(row, Source.appwrite)` |
+| ❌ **camelCase (مكسور)** | `guest_infos`, `inventory_items`, `inventory_transactions`, `salary_withdrawals`, `booking_price_adjustments`, `payment_voids`, `price_adjustments`, `blacklist` | خرائط camelCase يدوية في المستودعات/الخدمات |
+| ⚠️ **مسار الإدراج غير مؤكد** | `booking_nights`, `salary_cycles`, `salary_payments`, `salary_carry_over_logs`, `audit_logs` | ظهرت فقط في `delta_sync_service` (محرك Drive منفصل) — لم أؤكد كيف/هل تُدرَج في outbox الخاص بـ Cloudflare |
+
+### الأثر على الكيانات المكسورة
+- **create**: `data.local_uuid` غير موجود (المفتاح `localUuid`) → الـ worker يولّد UUID
+  عشوائياً، وكل أعمدة العمل camelCase تُسقَط بالمُرشِّح → صف بقيم افتراضية وهوية خاطئة.
+- **update**: `requireEntityId` يرجع إلى `data.id` (المعرّف المحلي الرقمي) →
+  `WHERE local_uuid = '<رقم>'` → لا تطابق → التحديث لا يُصيب أي صف.
+- **النتيجة**: مزامنة Cloudflare غير وظيفية عملياً لهذه الكيانات (فقدان بيانات صامت).
+
+### مستوى الثقة
+- **عالٍ على مستوى الكود** — الأدلة متسقة ومتقاطعة (كود worker + كود adapter +
+  اختبار round-trip يؤكد camelCase + غياب أي تطبيع + غياب اختبار حارس).
+- **لم يُتحقق وقت التشغيل**: Flutter غير مثبت في الـ sandbox، فلم أُنفّذ دفعاً حياً ضد
+  worker حقيقي. يُوصى بتشغيل دفعة `bookings` واحدة ومراقبة صف D1 لتأكيد نهائي.
+
+### الإصلاح المقترح (جذري)
+توحيد كل مسارات الدفع إلى Cloudflare على **snake_case + local_uuid + vector_clock**:
+إمّا تمرير `Source.drive` (الذي يُنتج snake_case) في مسار outbox الخاص بـ Cloudflare،
+أو إضافة `Source.cloudflare` مخصص، أو تطبيق `_toSnakeCase`/`PayloadMapper` داخل
+`_pushBatch` قبل الإرسال — مع إضافة اختبار end-to-end يحرس العقد لكل الكيانات الـ 23.
+
+---
+
+## الخلاصة التنفيذية (مطابقة الأنواع)
+
+مطابقة الأنواع **ليست 100%** (لكنها ثانوية مقارنةً بمشكلة الـ casing أعلاه).
 
 - ✅ `app_users` (كيان الـ HEAD الجديد): مطابقة كاملة عموداً بعمود.
 - ⚠️ تعارض نوع مؤكد واحد: `price_adjustments.previous_value` / `new_value` (Drift **REAL** مقابل D1 **INTEGER**).
@@ -76,6 +133,13 @@
 ---
 
 ## ⚠️ (ب) أعمدة موجودة في Drift ومفقودة من جدول D1
+
+> **تصحيح بعد التتبع العميق:** بُنّاة الحمولة تستخدم **قوائم بيضاء منتقاة** (مثل
+> `_payloadFrom` في `debts_dao` الذي يُرسل 14 عموداً فقط، جميعها موجودة في D1). لذا
+> معظم الأعمدة أدناه (مثل `debts.guest_phone/description/status/due_date/amount/date`)
+> **لا تُرسَل أصلاً** — فهي حقول Appwrite خاملة، وليست فقدان بيانات فعلياً عبر Cloudflare.
+> يبقى المهم منها ما يُرسَل فعلاً (انظر قسم الـ casing؛ وأي عمود ضمن حمولة snake_case
+> لكنه غير موجود في D1 سيُسقَط). القائمة أدناه للأرشفة/المطابقة الكاملة فقط.
 
 هذه لا تُسبّب خطأً (يُرشّحها الـ worker)، لكن **أي قيمة فيها تُرسَل لن تُحفَظ في D1**
 فتُفقَد عند السحب لجهاز آخر — بقدر وجودها ضمن حمولة الـ push الفعلية لمسار Cloudflare.
