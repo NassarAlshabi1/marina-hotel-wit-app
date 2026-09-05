@@ -8,10 +8,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// خدمة رفع البيانات المحلية إلى Cloudflare D1 (نسخ احتياطي للقراءة فقط من
 /// القاعدة المحلية — لا يمس حلقة مزامنة Appwrite إطلاقاً).
 ///
-/// القيود المُثبتة تجريبياً على الحساب (مسبارات 2026-09-04):
-/// - حد المعاملات: 100 لكل استعلام (99 ✓ 100 ✓ 101 ✗) — نستخدم ≤ 96 هامشاً.
+/// القيود المُثبتة تجريبياً على الحساب (مسبارات 2026-09-04/05):
 /// - نقطة /query تقبل عبارات متعددة في نداء واحد لكن **بدون** params
-///   (خطأ 7400: "params with multiple statements is not supported").
+///   (خطأ 7400: "params with multiple statements is not supported")؛
+///   والنمط الحرفي نجح بـ 800 عبارة (187KB) في النداء الواحد (635ms) —
+///   الرفع الموحد الآن عبارات حرفية بدفعة 200 (_statementBatch).
 /// - compound SELECT (UNION) يفشل عند 6 عناصر — نتجنبه كلياً.
 /// - الكتابة تتطلب توكناً بصلاحية كتابة وإلا رُفضت بـ SQLITE_AUTH؛
 ///   ومُثبت أن ALTER TABLE ADD COLUMN يُسمح به أحياناً بينما CREATE
@@ -21,9 +22,15 @@ class CloudflareD1Service {
     : _client = client ?? http.Client();
 
   static const String _baseUrl = 'https://api.cloudflare.com/client/v4';
-  static const int maxParamsPerQuery = 100; // مُثبت تجريبياً
-  static const int _paramSafetyMargin = 4;
-  static const int paramsBudget = maxParamsPerQuery - _paramSafetyMargin; // 96
+
+  /// ✅ تسريع الرفع (مُثبت تجريبياً على هذا الحساب 2026-09-05):
+  /// النمط الحرفي (عبارات INSERT بلا معاملات، منضمة بـ ";\n") نجح بـ 800
+  /// عبارة (187KB) في نداء واحد خلال 635ms — والزمن شبه ثابت من 50 حتى
+  /// 800 عبارة (يقوده RTT لا الحجم). لذلك توحيد كل الجداول على النمط
+  /// الحرفي بدفعة 200 عبارة (~46KB نموذجياً — هامش أمان كبير للصفوف
+  /// العريضة) بدل نمط المعاملات الذي كان يرسل 96÷عدد الأعمدة صفاً
+  /// لكل نداء (3-5 صفوف فقط للجداول المتزامنة → آلاف النداءات).
+  static const int _statementBatch = 200;
 
   /// إعدادات الاتصال (الحساب/القاعدة/التوكن).
   CloudflareD1Config config;
@@ -320,63 +327,29 @@ class CloudflareD1Service {
             await _reconcileSchema(t, columns, warnings);
           }
           final colCount = columns.length;
-          if (colCount <= paramsBudget) {
-            // نمط المعاملات الآمن: INSERT متعدد الصفوف ≤ 96 معاملاً.
-            final rowsPerCall = (paramsBudget ~/ colCount).clamp(1, _chunkSize);
-            for (var i = 0; i < chunk.length; i += rowsPerCall) {
-              if (_cancelled) break;
-              final part = chunk.sublist(
-                i,
-                (i + rowsPerCall).clamp(0, chunk.length),
-              );
-              final placeholders = List.generate(
-                part.length,
-                (_) => '(${List.filled(colCount, '?').join(',')})',
-              ).join(',');
-              final sql =
-                  'INSERT OR REPLACE INTO "${_quoteIdent(t.name)}" '
-                  '(${columns.map(_quoteIdent).join(',')}) VALUES $placeholders';
-              final params = <Object?>[];
-              for (final row in part) {
-                for (final c in columns) {
-                  params.add(row[c]);
-                }
-              }
-              await _query(sql, params: params);
-              callCount++;
-              rowsForTable += part.length;
-              onProgress?.call(
-                CloudflareD1Progress(
-                  stage: 'رفع البيانات',
-                  currentTable: t.name,
-                  tableIndex: ti,
-                  tableCount: totalTables,
-                  rowsDone: rowsForTable,
-                  rowsTotal: t.rowCount,
-                ),
-              );
-            }
-          } else {
-            // جداول عريضة (>96 عموداً): حرفية مُهربة بعناية، صف لكل عبارة.
-            final statements = <String>[];
-            for (final row in chunk) {
-              final values = columns.map((c) => _sqlLiteral(row[c])).join(',');
-              statements.add(
-                'INSERT OR REPLACE INTO "${_quoteIdent(t.name)}" '
-                '(${columns.map(_quoteIdent).join(',')}) VALUES ($values)',
-              );
-            }
-            for (var i = 0; i < statements.length; i += 40) {
-              if (_cancelled) break;
-              await executeStatements(
-                statements.sublist(i, (i + 40).clamp(0, statements.length)),
-              );
-              callCount++;
-            }
-            rowsForTable += chunk.length;
+          if (colCount <= 0) {
+            offset += chunk.length;
+            continue;
+          }
+          // نمط موحد لكل الجداول: عبارات INSERT OR REPLACE حرفية بلا
+          // معاملات — دفعات _statementBatch في النداء الواحد (مُثبت أعلاه).
+          final statements = <String>[];
+          for (final row in chunk) {
+            final values = columns.map((c) => _sqlLiteral(row[c])).join(',');
+            statements.add(
+              'INSERT OR REPLACE INTO "${_quoteIdent(t.name)}" '
+              '(${columns.map(_quoteIdent).join(',')}) VALUES ($values)',
+            );
+          }
+          for (var i = 0; i < statements.length; i += _statementBatch) {
+            if (_cancelled) break;
+            final end = (i + _statementBatch).clamp(0, statements.length);
+            await executeStatements(statements.sublist(i, end));
+            callCount++;
+            rowsForTable += end - i;
             onProgress?.call(
               CloudflareD1Progress(
-                stage: 'رفع البيانات (نمط حرفي)',
+                stage: 'رفع البيانات',
                 currentTable: t.name,
                 tableIndex: ti,
                 tableCount: totalTables,
@@ -433,7 +406,7 @@ class CloudflareD1Service {
     );
   }
 
-  static const int _chunkSize = 400;
+  static const int _chunkSize = 1000;
 
   // ════════════════════════════════════════════════════════════════
   //  مصالحة المخطط (Schema Reconciliation)

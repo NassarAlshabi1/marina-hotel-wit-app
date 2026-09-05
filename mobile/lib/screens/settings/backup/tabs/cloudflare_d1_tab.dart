@@ -38,8 +38,8 @@ const Set<String> kAppwriteSyncedTables = <String>{
 ///
 /// المسار للقراءة فقط من القاعدة المحلية (SELECT) ثم INSERT OR REPLACE
 /// إلى D1 — لا يمس حلقة مزامنة Appwrite ولا يحذف أي سجل بعيد.
-/// القيود المطبقة (مثبتة تجريبياً): ≤ 96 معاملاً لكل استعلام،
-/// وعبارات متعددة بلا معاملات في النداء الواحد.
+/// القيود المطبقة (مثبتة تجريبياً): عبارات حرفية متعددة بلا معاملات في
+/// النداء الواحد — دفعة 200 عبارة (مثبت: 800 عبارة/187KB نجحت بـ 635ms).
 class CloudflareD1Tab extends ConsumerStatefulWidget {
   const CloudflareD1Tab({super.key});
 
@@ -635,10 +635,13 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
                   )
                 else
                   ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 320),
+                    constraints: const BoxConstraints(maxHeight: 200),
                     child: ListView.builder(
                       shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
+                      // ✅ تمرير داخلي مقصود: البطاقة مصغّرة (200px) لكن كل
+                      // الجداول تظل قابلة للوصول — NeverScrollable كان يقتطع
+                      // القائمة (21 جدولاً ≈ 1500px) ويخفي الجداول السفلية.
+                      physics: const ClampingScrollPhysics(),
                       itemCount: _visibleTables.length,
                       itemBuilder: (context, i) {
                         final t = _visibleTables[i];
