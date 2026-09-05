@@ -21,7 +21,7 @@ class WeakDeviceOptimizer {
   static final WeakDeviceOptimizer instance = WeakDeviceOptimizer._();
 
   static const MethodChannel _memoryChannel = MethodChannel(
-    'com.aden.marina/device_memory',
+    'com.marina.marina/device_memory',
   );
   static const int _bytesPerMb = 1024 * 1024;
 

@@ -77,7 +77,7 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
             case 'getAll':
               return <String, dynamic>{
                 'appName': 'Marina Hotel Test',
-                'packageName': 'com.aden.marina.test',
+                'packageName': 'com.marina.marina.test',
                 'version': '1.0.0',
                 'buildNumber': '1',
                 'buildSignature': '',

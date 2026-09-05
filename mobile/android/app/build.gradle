@@ -33,7 +33,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.aden.marina"
+    namespace = "com.marina.marina"
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
@@ -48,7 +48,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.aden.marina"
+        applicationId = "com.marina.marina"
         minSdkVersion = flutter.minSdkVersion
         targetSdk = 36
         versionCode = flutterVersionCode.toInteger()

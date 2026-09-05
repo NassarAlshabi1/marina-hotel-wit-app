@@ -8,7 +8,7 @@
 //  المرجع: https://patrol.leancode.co/documentation#android-setup
 // ════════════════════════════════════════════════════════════════════════════
 
-package com.aden.marina;
+package com.marina.marina;
 
 import androidx.test.platform.app.InstrumentationRegistry;
 import org.junit.Test;
