@@ -115,8 +115,8 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
         await smartSyncManager.forceSyncNow();
       }
 
-      // ✅ (2026-08-31) تفاعل يدوي صريح — forcePull يتجاوز حارس الدقيقتين فقط
-      await appwriteSyncManager.sync(forcePull: true);
+      // تفاعل يدوي صريح — دفع وسحب عبر المحرك الموحد (دلتا checkpoints)
+      await appwriteSyncManager.sync();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -457,8 +457,8 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
 
       await smartSyncManager.pullRemoteChanges();
-      // ✅ (2026-08-31) تفاعل يدوي صريح — forcePull يتجاوز حارس الدقيقتين فقط
-      await appwriteSyncManager.sync(push: false, forcePull: true);
+      // تفاعل يدوي صريح — سحب عبر المحرك الموحد (دلتا checkpoints)
+      await appwriteSyncManager.sync(push: false);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

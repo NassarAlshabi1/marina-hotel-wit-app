@@ -136,13 +136,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       }
 
       final syncManager = ref.read(appwriteSyncManagerProvider);
-      // ✅ deltaOnly: true — في حالة التهيئة يُتخطى السحب (Bootstrap الصريح
-      // مسؤول عنه)؛ وفي الحالة المستقرة دلتا خفيفة metadata-first تكفي.
-      final result = await syncManager.sync(
-        push: false,
-        pull: true,
-        deltaOnly: true,
-      );
+      // المحرك الموحد: pull هنا دلتا عبر checkpoints لكل مجموعة —
+      // لا Full Sync ضمنياً (Bootstrap الصريح وحده مسؤول عنه).
+      final result = await syncManager.sync(push: false, pull: true);
       final pulledCount = result.recordsPulled;
 
       // ✅ إغلاق إشعار التحميل فور انتهاء السحب
