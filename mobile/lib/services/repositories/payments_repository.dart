@@ -97,10 +97,14 @@ class PaymentsRepository {
         .map((result) => (result.data['total'] as num).toDouble());
   }
 
-  /// إجمالي المدفوعات التي سجلها المستخدم في جلسة دخوله الحالية.
-  /// يعتمد على session UUID، لذلك لا يخلط دفعات المستخدم من جلسة سابقة
-  /// أو دفعات موظف آخر على الجهاز نفسه.
-  Stream<double> watchTotalByCurrentPaymentSession(String hotelDayKey) {
+  /// ✅ (2026-09-05) إجمالي ما استلمه المستخدم في نوبته الحالية —
+  /// يعتمد على session UUID حصراً بلا فلتر يوم فندقي: النوبة (جلسة
+  /// الدخول — الخيار A) قد تعبر حد 14:01 فتتوزع استلاماتها على مفتاحي
+  /// يوم فندقي، والإجمالي الهندسي الصحيح «أثناء النوبة» = كل ما
+  /// استُلم في هذه الجلسة منذ بدايتها. لا يخلط دفعات جلسة سابقة
+  /// ولا دفعات موظف آخر على الجهاز نفسه؛ السجلات القديمة بلا session
+  /// UUID لا تُنسب بأثر رجعي (NULL != القيمة دائماً).
+  Stream<double> watchTotalByCurrentPaymentSession() {
     final sessionUuid = PaymentSessionContext.sessionUuid;
     final userId = PaymentSessionContext.userId;
     if (sessionUuid == null || userId == null) {
@@ -112,13 +116,10 @@ class PaymentsRepository {
           'SELECT COALESCE(SUM(amount), 0.0) AS total FROM payments '
           'WHERE deleted_at IS NULL AND is_voided = 0 '
           'AND is_pending_balance = 0 '
-          'AND received_by_user_id = ? AND received_session_uuid = ? '
-          'AND (hotel_day_key = ? OR (hotel_day_key IS NULL AND payment_date LIKE ?))',
+          'AND received_by_user_id = ? AND received_session_uuid = ?',
           variables: [
             d.Variable.withInt(userId),
             d.Variable.withString(sessionUuid),
-            d.Variable.withString(hotelDayKey),
-            d.Variable.withString('$hotelDayKey%'),
           ],
           readsFrom: {db.payments},
         )
@@ -128,12 +129,21 @@ class PaymentsRepository {
 
   /// إجماليات استلامات المستخدمين الآخرين حسب جلسة تسجيل الدخول/النوبة.
   /// التجميع يتم في SQLite حتى لا تُحمّل جميع صفوف المدفوعات إلى Dart.
+  ///
+  /// ✅ (2026-09-05) نافذة «إجمالي النوبة الكاملة»: نوبة تعبر حد
+  /// 14:01 تتوزع استلاماتها بين مفتاحي اليوم الفندقي (اليومي والسابق)،
+  /// فلتر اليوم الواحد كان يقتطع جزء النوبة — الآن تغطي النافذة
+  /// اليومين (الحالي + السابق عبر [HotelTimeEngine.previousHotelDayKey])
+  /// فتظهر كل (مستخدم، جلسة) صفّاً واحداً بإجمالي نوبتها الكامل،
+  /// والجلسات الأقدم من ذلك تستبعد (لا تراكم تاريخي بلا حدود).
+  /// صفوف الإرث بلا hotel_day_key تُشمل بـ LIKE على مفتاحي النافذة.
   Stream<List<PaymentShiftSummary>> watchPaymentShiftSummaries(
     String hotelDayKey, {
     int? excludedUserId,
     String? excludedUserName,
     String? excludedUserCloudId,
   }) {
+    final previousKey = HotelTimeEngine.previousHotelDayKey(hotelDayKey);
     final excludedNameFilter = excludedUserName == null
         ? ''
         : "AND COALESCE(NULLIF(TRIM(received_by_name), ''), 'مستخدم غير معروف') != ? ";
@@ -156,7 +166,8 @@ class PaymentsRepository {
           '${excludedUserId == null ? '' : 'AND received_by_user_id != ? '} '
           '$excludedNameFilter'
           '$excludedCloudIdFilter'
-          'AND (hotel_day_key = ? OR (hotel_day_key IS NULL AND payment_date LIKE ?)) '
+          'AND (hotel_day_key IN (?, ?) '
+          'OR (hotel_day_key IS NULL AND (payment_date LIKE ? OR payment_date LIKE ?))) '
           'GROUP BY received_by_user_id, received_by_name, received_session_uuid '
           'ORDER BY total_amount DESC',
           variables: [
@@ -166,7 +177,9 @@ class PaymentsRepository {
             if (excludedUserCloudId != null)
               d.Variable.withString(excludedUserCloudId),
             d.Variable.withString(hotelDayKey),
+            d.Variable.withString(previousKey ?? hotelDayKey),
             d.Variable.withString('$hotelDayKey%'),
+            d.Variable.withString('${previousKey ?? hotelDayKey}%'),
           ],
           readsFrom: {db.payments},
         )

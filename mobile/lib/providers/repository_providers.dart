@@ -360,21 +360,19 @@ final todayPaymentsProvider = StreamProvider.autoDispose<double>((ref) {
   return paymentsRepo.watchTotalByHotelDayKey(hotelDay);
 });
 
-/// إجمالي ما استلمه المستخدم الحالي منذ بداية جلسة تسجيل الدخول
-/// ضمن اليوم الفندقي الحالي. السجلات القديمة التي لا تحمل session UUID
-/// لا تُنسب للمستخدم بأثر رجعي.
+/// ✅ (2026-09-05) إجمالي ما استلمه المستخدم الحالي في نوبته الحالية
+/// (جلسة الدخول — الخيار A) بلا فلتر يوم فندقي: النوبة قد تعبر حد
+/// 14:01 والإجمالي الصحيح = كل ما استُلم في الجلسة منذ بدايتها.
+/// السجلات القديمة التي لا تحمل session UUID لا تُنسب بأثر رجعي.
 final currentUserSessionPaymentsProvider = StreamProvider.autoDispose<double>((
   ref,
 ) {
   ref.watch(authProvider.select((state) => state.currentUser?.id));
-  // إعادة بناء الاستعلام عند انتقال الفندق إلى يوم جديد.
-  ref.watch(hotelDayTickerProvider);
   final paymentsRepo = ref.watch(paymentsRepoProvider);
-  final hotelDay = HotelTimeEngine.getHotelDayKey();
   if (!PaymentSessionContext.isActive) {
     return Stream<double>.value(0);
   }
-  return paymentsRepo.watchTotalByCurrentPaymentSession(hotelDay);
+  return paymentsRepo.watchTotalByCurrentPaymentSession();
 });
 
 final employeeShiftPaymentSummariesProvider =

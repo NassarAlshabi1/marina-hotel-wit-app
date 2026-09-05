@@ -130,6 +130,22 @@ class HotelTimeEngine {
     }
   }
 
+  /// مفتاح اليوم الفندقي السابق لمفتاح معطى (التسمية D تغطي
+  /// [D 14:01, D+1 14:00:59] — فالسابق لتسمية D هو D−1 حتماً).
+  /// ✅ (2026-09-05) يستخدمه نطاق «إجمالي النوبة» — نوبة تعبر حد
+  /// 14:01 يوزع استلاماتها على مفتاحين، والإجمالي الكامل للنوبة
+  /// يحتاج المفتاحين معاً.
+  static String? previousHotelDayKey(String? hotelDayKey) {
+    if (hotelDayKey == null || hotelDayKey.trim().isEmpty) return null;
+    try {
+      final dt = DateTime.parse(hotelDayKey.trim());
+      final prev = dt.subtract(const Duration(days: 1));
+      return Time.dateToString(prev);
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // حساب الليالي (المصدر الوحيد)
   // ═══════════════════════════════════════════════════════════════

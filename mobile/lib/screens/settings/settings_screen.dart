@@ -15,6 +15,8 @@ import '../inventory/inventory_screen.dart';
 import 'active_bookings_reminder_screen.dart';
 import 'appwrite_settings_screen.dart';
 import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
+import 'error_center_screen.dart';
+import 'error_tracker_screen.dart';
 import 'google_drive_backup_screen.dart';
 import 'late_payment_whatsapp_screen.dart';
 import 'remote_config_settings_screen.dart';
@@ -369,11 +371,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           _SettingsItem(
-            title: 'Crashlytics',
-            subtitle: 'مراقبة الأخطاء والأعطال',
+            // ✅ (2026-09-05) كانت تفتح حواراً مختصراً بينما شاشة تتبع
+            // الأخطاء الكاملة (ErrorTrackerScreen — فلترة/نسخ/سجل) كانت
+            // شاشة يتيمة غير قابلة للوصول. الآن الإدخال يفتح الشاشة
+            // الكاملة (تستخدم CrashlyticsService داخلياً) — تجهيزاً
+            // للإنتاج الحقيقي، مع إدخال ثانٍ لمركز أخطاء المزامنة.
+            title: 'تتبع الأخطاء والأعطال',
+            subtitle: 'سجل الأخطاء الكامل مع النسخ والفلترة',
             icon: Icons.bug_report,
             color: Colors.red.shade700,
-            onTap: () => _showCrashlyticsDialog(context),
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => const ErrorTrackerScreen(),
+              ),
+            ),
+          ),
+          _SettingsItem(
+            title: 'مركز أخطاء المزامنة',
+            subtitle: 'أخطاء السحابة والنسخ الاحتياطي وسجلات المزامنة',
+            icon: Icons.report,
+            color: Colors.deepOrange.shade700,
+            onTap: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (context) => const ErrorCenterScreen(),
+              ),
+            ),
           ),
           _SettingsItem(
             title: 'Remote Config',
@@ -731,218 +755,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ],
           );
         },
-      ),
-    );
-  }
-
-  void _showCrashlyticsDialog(BuildContext context) {
-    final crashlytics = ref.read(crashlyticsServiceProvider);
-    final isInitialized = crashlytics.isInitialized;
-    final isFirebaseConnected = crashlytics.isFirebaseConnected;
-    final errorCount = crashlytics.errorCount;
-    final history = crashlytics.getErrorHistory();
-
-    final String statusText;
-    final IconData statusIcon;
-    final Color statusColor;
-    final Color bgColor;
-
-    if (!isInitialized) {
-      statusText = 'الخدمة غير مهيأة';
-      statusIcon = Icons.error;
-      statusColor = Colors.red;
-      bgColor = Colors.red.shade50;
-    } else if (isFirebaseConnected) {
-      statusText = 'الخدمة مفعلة وتعمل';
-      statusIcon = Icons.check_circle;
-      statusColor = Colors.green;
-      bgColor = Colors.green.shade50;
-    } else {
-      statusText = 'الخدمة تعمل بالتسجيل المحلي';
-      statusIcon = Icons.cloud_queue;
-      statusColor = Colors.orange;
-      bgColor = Colors.orange.shade50;
-    }
-
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.bug_report, color: Colors.red),
-            SizedBox(width: 8),
-            Text('Firebase Crashlytics'),
-          ],
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: bgColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(statusIcon, color: statusColor),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          statusText,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: statusColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (isInitialized && !isFirebaseConnected) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    'الاتصال بـ Firebase غير متوفر. الأخطاء تُسجل محلياً فقط.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.orange.shade700,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                Text(
-                  'الأخطاء المسجلة: $errorCount',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (history.isEmpty)
-                  const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Text(
-                        'لا توجد أخطاء مسجلة',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ),
-                  )
-                else
-                  ...history.reversed.take(10).map((entry) {
-                    final severity = entry['severity'] as String;
-                    final color = severity == 'fatal'
-                        ? Colors.red
-                        : severity == 'error'
-                        ? Colors.orange
-                        : Colors.amber;
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 6),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: color.withValues(alpha: 0.3)),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: color.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  severity.toUpperCase(),
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: color,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  '${entry['source']} — ${entry['action']}',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${entry['error']}',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey.shade700,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            entry['timestamp']?.toString() ?? '',
-                            style: TextStyle(
-                              fontSize: 9,
-                              color: Colors.grey.shade500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              await crashlytics.sendUnsentReports();
-              if (context.mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('تم إرسال التقارير المعلقة'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
-            },
-            child: const Text('إرسال التقارير'),
-          ),
-          if (history.isNotEmpty)
-            TextButton(
-              onPressed: () {
-                crashlytics.clearErrorHistory();
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('تم مسح سجل الأخطاء')),
-                );
-              },
-              child: const Text(
-                'مسح السجل',
-                style: TextStyle(color: Colors.red),
-              ),
-            ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إغلاق'),
-          ),
-        ],
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../components/app_scaffold.dart';
+import '../../../providers/appwrite_providers.dart' as ap;
 import '../../../services/appwrite_realtime_sync.dart';
 import '../../../services/appwrite_sync_manager.dart';
 import '../../../core/core.dart';
@@ -37,9 +38,16 @@ class _UnifiedSyncSettingsScreenState
 
   static const _autoSyncKey = 'appwrite_auto_sync_enabled';
   static const _syncOnStartupKey = 'appwrite_sync_on_startup';
-  static const _batteryOptimizationKey = 'appwrite_battery_optimization';
-  static const _wifiOnlyKey = 'appwrite_wifi_only_sync';
-  static const _smartSyncKey = 'appwrite_smart_sync_enabled';
+  // ✅ (2026-09-05) تصحيح المفاتيح الميتة: كانت هذه المفاتيح تُكتب
+  // هنا ولا يقرؤها أحد (القارئات الحقيقية في sync_performance_optimizer
+  // وsmart_sync_manager تستخدم المفاتيح أدناه) — مفاتيح تبدو
+  // فعّالة للمستخدم وهي معطّلة. الآن نفس مفتاح القارئ الحقيقي.
+  // _batteryOptimizationKey → sync_performance_optimizer.dart:345,372
+  // _wifiOnlyKey → sync_performance_optimizer.dart:259,297
+  // _smartSyncKey → smart_sync_manager.dart:54 (_prefsEnabledKey)
+  static const _batteryOptimizationKey = 'battery_optimization_enabled';
+  static const _wifiOnlyKey = 'wifi_only_sync';
+  static const _smartSyncKey = 'smart_sync_enabled';
   static const _appwriteSyncKey = 'appwrite_sync_enabled';
   static const _realtimeSyncKey = 'appwrite_realtime_sync_enabled';
   static const _syncIntervalKey = 'appwrite_sync_interval_minutes';
@@ -169,6 +177,20 @@ class _UnifiedSyncSettingsScreenState
   }
 
   Widget _buildOverviewSection() {
+    // ✅ (2026-09-05) كانت القيم هنا ثابتة مُبرمجة ('2024-01-29'،
+    // 'متصل'، '0') تُعرض على المستخدم كحقيقة حية — تضليل إنتاجي.
+    // الآن بيانات حية: آخر مزامنة من عدادات المدير الحقيقية
+    // (syncStatsProvider → getSyncStatistics)، توفر الجلسة من المدير
+    // (isAvailable/lastError)، والمعلّق من عدّ Outbox الفعلي.
+    final statsAsync = ref.watch(ap.syncStatsProvider);
+    final outboxAsync = ref.watch(ap.outboxCountProvider);
+    final manager = ref.watch(ap.appwriteSyncManagerProvider);
+    final connected = manager.isAvailable && manager.lastError == null;
+    final lastSyncIso = statsAsync.valueOrNull?['lastSyncTime'] as String?;
+    final lastSyncLabel = (lastSyncIso == null || lastSyncIso.isEmpty)
+        ? 'لم تُنفَّذ مزامنة بعد'
+        : DateTimeFormatter.getRelativeTime(lastSyncIso);
+    final pending = outboxAsync.valueOrNull ?? 0;
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
@@ -196,20 +218,20 @@ class _UnifiedSyncSettingsScreenState
             const SizedBox(height: UIConstants.spacingMD),
             InfoRow(
               label: 'آخر مزامنة',
-              value: DateTimeFormatter.getRelativeTime('2024-01-29T18:00:00'),
+              value: lastSyncLabel,
               icon: Icons.schedule,
             ),
-            const InfoRow(
+            InfoRow(
               label: 'حالة الاتصال',
-              value: 'متصل',
+              value: connected ? 'متصل بالسحابة' : 'غير متصل',
               icon: Icons.wifi,
-              iconColor: Colors.green,
+              iconColor: connected ? Colors.green : Colors.red,
             ),
-            const InfoRow(
+            InfoRow(
               label: 'عناصر معلقة',
-              value: '0',
+              value: '$pending',
               icon: Icons.pending,
-              iconColor: Colors.orange,
+              iconColor: pending > 0 ? Colors.orange : Colors.green,
             ),
           ],
         ),

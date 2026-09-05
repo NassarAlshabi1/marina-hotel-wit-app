@@ -21,7 +21,10 @@ class SyncConstants {
     'employees',
     'cash_transactions',
     'shift_notes',
-    'hotel_day_ledger',
+    // ✅ (2026-09-05) حُذف 'hotel_day_ledger' من ترتيب الجداول المتزامنة —
+    // جدول محلي-فقط بقرار المستخدم الصريح وD8؛ إدراجه في قائمة
+    // «الجداول المتزامنة» يخالف توثيق النطاق حتى لو كان الاستخدام
+    // دفاعياً فقط.
     'price_adjustments',
     'audit_logs',
     'payment_voids',

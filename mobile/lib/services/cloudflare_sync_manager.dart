@@ -119,6 +119,18 @@ class CloudflareSyncManager {
   /// في نفس الوقت وكلها تعدّل على نفس outbox.
   bool _syncInProgress = false;
 
+  // ─── إحصائيات حقيقية لدورات المزامنة (2026-09-05) ──────────
+  // ✅ كانت getSyncStatistics() تُرجع {} فارغة فتعرض شاشات الإحصائيات
+  // أصفاراً دائمة (مضللة للإنتاج). الآن تُراكم المدير عدادات دورة
+  // sync الفعلية وتُخزن في SharedPreferences لتبقى بين الجلسات.
+  int _statTotalSyncs = 0;
+  int _statSuccessfulSyncs = 0;
+  int _statFailedSyncs = 0;
+  int _statTotalPushed = 0;
+  int _statTotalPulled = 0;
+  DateTime? _statLastSyncTime;
+  static const String _kSyncStatsKey = 'cf_sync_stats_v1';
+
   bool get isAvailable => _token != null;
   String? get token => _token;
   String? get initError => _initError;
@@ -166,6 +178,9 @@ class CloudflareSyncManager {
     // ✅ P0-B: استعادة علامة "full sync مكتملة" من الجلسة السابقة
     _fullSyncCompleted = prefs.getBool(_kFullSyncCompletedKey) ?? false;
     _lastPullCursor = prefs.getInt('cf_last_pull_cursor') ?? 0;
+
+    // ✅ (2026-09-05) استعادة عدادات الإحصائيات الحقيقية بين الجلسات.
+    await _loadSyncStats();
 
     // ✅ P0-H: استعادة أي سجلات عالقة في 'processing' من جلسة سابقة
     // (crash recovery). أي سجل 'processing' قبل restart هو بالتأكيد عالق
@@ -490,6 +505,25 @@ class CloudflareSyncManager {
         errorMessage: 'Cloudflare sync disabled remotely (kill switch)',
       );
     }
+    // ✅ (2026-09-05) مفتاح الإيقاف المحلي — «تفعيل مزامنة Appwrite»
+    // في شاشة إعدادات المزامنة (appwrite_sync_enabled، افتراضه مفعّل).
+    // سابقاً كان يوقف الحلقات الخلفية فقط بينما المزامنة اليدوية
+    // تتجاهله — سلوك إنتاج غير متوقع. OFF يعني OFF لكل المسارات.
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final locallyEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
+      if (!locallyEnabled) {
+        debugPrint('⏸️ Sync disabled locally (appwrite_sync_enabled=false)');
+        return SyncResult(
+          status: SyncStatus.idle,
+          timestamp: DateTime.now(),
+          duration: Duration.zero,
+          errorMessage: 'Sync disabled locally (appwrite_sync_enabled=false)',
+        );
+      }
+    } catch (_) {
+      // فشل قراءة التفضيل لا يجوز أن يمنع المزامنة (fail-open مثل المفتاح البعيد).
+    }
     if (deltaOnly) {
       final bool ok = await realtimeTriggeredPull();
       return SyncResult(
@@ -581,6 +615,16 @@ class CloudflareSyncManager {
     } finally {
       _syncInProgress = false;
     }
+
+    // ✅ (2026-09-05) تسجيل نتائج الدورة الفعلية في الإحصائيات —
+    // نقطة اكتمال وحيدة بعد try/catch؛ الحروب المبكرة (kill switch،
+    // deltaOnly، قفل re-entrancy) تعود قبلها فلا تُحتسب دورات.
+    await _recordSyncOutcome(
+      success: _currentStatus == SyncStatus.success,
+      pushed: recordsPushed,
+      pulled: recordsPulled,
+      startedAt: startTime,
+    );
 
     return SyncResult(
       status: _currentStatus,
@@ -1283,9 +1327,22 @@ class CloudflareSyncManager {
   }
 
   Future<void> resetSyncState() async {
+    // ✅ (2026-09-05) كانت تكتفي بضبط الحالة الظاهرة بينما الرسالة
+    // تعرض «تم إعادة تعيين مؤشر المزامنة المحلي فقط» — كذب. الآن
+    // تُصفّر cursor السحب وعلامة full-sync فعلياً (نفس clearHistory +
+    // مسح التخزين) فيبدأ السحب التالي من الصفر — «البدء من جديد».
     _currentStatus = SyncStatus.idle;
     _lastError = null;
     _statusController.add(SyncStatus.idle);
+    clearHistory();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('cf_last_pull_cursor');
+      await prefs.remove(_kFullSyncCompletedKey);
+      debugPrint('🔄 resetSyncState: cursor + fullSync flag cleared');
+    } catch (e) {
+      debugPrint('⚠️ resetSyncState prefs clear failed: $e');
+    }
   }
 
   /// إعادة تعيين cursor — يُجبر الـ pull التالي على جلب كل البيانات (full sync).
@@ -1432,9 +1489,111 @@ class CloudflareSyncManager {
 
   Future<int> pushLocalChanges() async =>
       sync(pull: false).then((r) => r.recordsPushed);
-  Future<int> pushAllLocalData() async => 0;
+
+  /// ✅ (2026-09-05) كانت تُرجع 0 دائماً (stub) بينما زر «بدء الرفع»
+  /// في الإعدادات يعرض «تم رفع البيانات بنجاح» دون رفع أي شيء —
+  /// تضليل إنتاجي. الآن تنفّذ الرفع الفعلي عبر outbox push (نفس
+  /// مسار pushLocalChanges) وتعيد عدد السجلات المرفوعة، وترمي
+  /// استثناء عند فشل الدورة ليُظهره try/catch الشاشة بدل نجاح زائف.
+  Future<int> pushAllLocalData() async {
+    final r = await sync(pull: false);
+    if (r.status == SyncStatus.failed) {
+      throw StateError(r.errorMessage ?? 'Push failed');
+    }
+    return r.recordsPushed;
+  }
+
   Future<void> pushAllEntities() async {}
-  Future<Map<String, dynamic>> getSyncStatistics() async => {};
+
+  /// ✅ (2026-09-05) إحصائيات حقيقية بدل {} — عدادات دورات المدير
+  /// (تعيش في SharedPreferences) + عدّ Outbox الفعلي (المعلّق
+  /// غير المسلَّم + الفاشل). المفاتيح هي نفسها التي تقرأها
+  /// شاشات الإحصائيات (appwrite_settings_screen، appwrite_sync_stats_screen).
+  Future<Map<String, dynamic>> getSyncStatistics() async {
+    final stats = <String, dynamic>{
+      'totalSyncs': _statTotalSyncs,
+      'successfulSyncs': _statSuccessfulSyncs,
+      'failedSyncs': _statFailedSyncs,
+      'totalRecordsPushed': _statTotalPushed,
+      'totalRecordsPulled': _statTotalPulled,
+      'totalConflicts': 0,
+      'successRate': _statTotalSyncs == 0
+          ? 0.0
+          : _statSuccessfulSyncs / _statTotalSyncs,
+      'lastSyncTime': _statLastSyncTime?.toIso8601String(),
+      'outboxCount': 0,
+      'fullSyncCompleted': _fullSyncCompleted,
+      'lastError': _lastError,
+    };
+    final db = _db;
+    if (db != null) {
+      try {
+        final pending = await OutboxDao(
+          db,
+        ).countUndeliveredToPrimary(sources: const ['local']);
+        stats['outboxCount'] = pending;
+      } catch (e) {
+        debugPrint('⚠️ getSyncStatistics outbox count failed: $e');
+      }
+    }
+    return stats;
+  }
+
+  /// تحميل عدادات الإحصائيات المحفوظة — يُستدعى من initialize().
+  Future<void> _loadSyncStats() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_kSyncStatsKey);
+      if (raw == null) return;
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      _statTotalSyncs = (map['totalSyncs'] as num?)?.toInt() ?? 0;
+      _statSuccessfulSyncs = (map['successfulSyncs'] as num?)?.toInt() ?? 0;
+      _statFailedSyncs = (map['failedSyncs'] as num?)?.toInt() ?? 0;
+      _statTotalPushed = (map['totalPushed'] as num?)?.toInt() ?? 0;
+      _statTotalPulled = (map['totalPulled'] as num?)?.toInt() ?? 0;
+      final lastMs = (map['lastSyncMs'] as num?)?.toInt();
+      _statLastSyncTime = lastMs == null
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(lastMs);
+    } catch (e) {
+      debugPrint('⚠️ _loadSyncStats failed: $e');
+    }
+  }
+
+  /// تسجيل نتيجة دورة مزامنة مكتملة وحفظها.
+  Future<void> _recordSyncOutcome({
+    required bool success,
+    required int pushed,
+    required int pulled,
+    required DateTime startedAt,
+  }) async {
+    _statTotalSyncs++;
+    if (success) {
+      _statSuccessfulSyncs++;
+    } else {
+      _statFailedSyncs++;
+    }
+    _statTotalPushed += pushed;
+    _statTotalPulled += pulled;
+    _statLastSyncTime = startedAt;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _kSyncStatsKey,
+        jsonEncode(<String, dynamic>{
+          'totalSyncs': _statTotalSyncs,
+          'successfulSyncs': _statSuccessfulSyncs,
+          'failedSyncs': _statFailedSyncs,
+          'totalPushed': _statTotalPushed,
+          'totalPulled': _statTotalPulled,
+          'lastSyncMs': startedAt.millisecondsSinceEpoch,
+        }),
+      );
+    } catch (e) {
+      debugPrint('⚠️ _recordSyncOutcome persist failed: $e');
+    }
+  }
+
   Future<void> reinitializeAfterConfigChange() async {
     await initialize(forceRetry: true);
   }

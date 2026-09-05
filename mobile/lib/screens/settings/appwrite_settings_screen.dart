@@ -871,12 +871,14 @@ class _AppwriteSettingsScreenState
             _buildDataActionCard(
               icon: Icons.cloud_upload,
               color: Colors.blue,
-              title: 'رفع البيانات إلى Appwrite',
-              subtitle: 'يرفع جميع البيانات المحلية إلى السحابة',
+              // ✅ (2026-09-05) التسمية الصادقة: الرفع ينفّذه محرك
+              // Cloudflare (outbox push) وليس Appwrite مباشرة.
+              title: 'رفع البيانات إلى السحابة',
+              subtitle: 'يرفع التغييرات المحلية المعلّقة عبر محرك المزامنة',
               details: const [
-                'الغرف والحجوزات والمدفوعات والديون',
-                'استخدام آخر نسخة محفوظة محلياً',
-                'قد يستغرق وقتاً حسب حجم البيانات',
+                'يرفع عناصر Outbox المعلّقة (تغييرات محلية)',
+                'الرفع الفعلي يتم عبر مسار Cloudflare (push)',
+                'يظهر عدد السجلات المرفوعة فعلياً',
               ],
               actionLabel: 'بدء الرفع',
               onPressed: _pushAllData,
@@ -885,7 +887,7 @@ class _AppwriteSettingsScreenState
             _buildDataActionCard(
               icon: Icons.cloud_download,
               color: Colors.green,
-              title: 'سحب البيانات من Appwrite',
+              title: 'سحب البيانات من السحابة',
               subtitle: 'يحمّل البيانات من السحابة إلى الجهاز',
               details: const [
                 'قد يستبدل بعض البيانات المحلية',
@@ -934,12 +936,9 @@ class _AppwriteSettingsScreenState
               onPressed: _testConnection,
             ),
             const SizedBox(height: 8),
-            _buildActionButton(
-              label: 'اختبار المزامنة',
-              icon: Icons.sync_problem,
-              onPressed: _testSync,
-            ),
-            const SizedBox(height: 8),
+            // ✅ (2026-09-05) حُذف زر «اختبار المزامنة» — كان ينفّذ
+            // دورة مزامنة حقيقية كاملة (نفس زر «مزامنة الآن») تحت اسم
+            // «اختبار» مضلل. المزامنة الفعلية من قسم المزامنة أعلاه.
             _buildActionButton(
               label: 'اختبار الذاكرة المؤقتة',
               icon: Icons.memory,
@@ -1473,11 +1472,17 @@ class _AppwriteSettingsScreenState
     setState(() => _isLoading = true);
     try {
       final manager = ref.read(ap.appwriteSyncManagerProvider);
-      await manager.pushAllLocalData();
+      final pushed = await manager.pushAllLocalData();
       if (mounted) {
+        // ✅ (2026-09-05) رسالة صادقة بالعدد الفعلي المرفوع — كانت
+        // تعرض «تم رفع البيانات بنجاح» دائماً حتى والرفع stub صفر.
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('تم رفع البيانات بنجاح'),
+          SnackBar(
+            content: Text(
+              pushed > 0
+                  ? 'تم رفع $pushed سجلاً إلى السحابة'
+                  : 'لا توجد تغييرات محلية معلّقة للرفع',
+            ),
             backgroundColor: Colors.green,
           ),
         );
@@ -1641,14 +1646,8 @@ class _AppwriteSettingsScreenState
     await _checkConnection();
   }
 
-  Future<void> _testSync() async {
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('اختبار المزامنة...')));
-    }
-    await _syncNow();
-  }
+  // ✅ (2026-09-05) حُذفت _testSync مع زرها — كانت مزامنة حقيقية
+  // بوصفة «اختبار» (تضليل). المزامنة الفعلية عبر _syncNow.
 
   Future<void> _testCache() async {
     final stats = ref.read(ap.cacheStatsProvider);

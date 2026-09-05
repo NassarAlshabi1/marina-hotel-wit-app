@@ -77,7 +77,7 @@ void main() {
       'بدء الرفع',
       'بدء السحب',
       'إعادة تعيين المزامنة',
-      'اختبار المزامنة',
+      // ✅ (2026-09-05) زر «اختبار المزامنة» حُذف — كان ينفّذ مزامنة حقيقية تحت اسم «اختبار» (تضليل). لا يُطلب وجوده.
       'اختبار الذاكرة المؤقتة',
     ]) {
       await tester.scrollUntilVisible(
@@ -94,7 +94,8 @@ void main() {
       find.text('إعادة تعيين المزامنة', skipOffstage: false),
       findsOneWidget,
     );
-    expect(find.text('اختبار المزامنة', skipOffstage: false), findsOneWidget);
+    // ✅ (2026-09-05) حذف الزر مقصود — يجب ألا يوجد.
+    expect(find.text('اختبار المزامنة', skipOffstage: false), findsNothing);
     expect(
       find.text('اختبار الذاكرة المؤقتة', skipOffstage: false),
       findsOneWidget,

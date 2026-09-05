@@ -12,6 +12,7 @@ import '../providers/repository_providers.dart';
 import '../providers/room_payment_status_provider.dart';
 import '../services/analytics_service.dart';
 import '../services/local_db.dart';
+import '../services/payment_session_context.dart';
 import '../services/repositories/payments_repository.dart';
 import '../services/sync/sync_gate.dart';
 import '../services/sync_constants.dart';
@@ -203,6 +204,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               _buildStatisticsCards(),
               const SizedBox(height: 20),
               _buildRoomsSection(),
+              const SizedBox(height: 12),
+              _buildMyShiftReceipts(),
               const SizedBox(height: 12),
               _buildEmployeeShiftPayments(),
             ],
@@ -925,6 +928,92 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
+  /// ✅ (2026-09-05) بطاقة «إجمالي استلاماتي خلال النوبة الحالية» —
+  /// تعليمات المستخدم: «المستخدم 1 استلم مبلغاً… أريد في شاشة الـ
+  /// dashboard أن أعرف إجمالي المبلغ الذي استلمه أثناء النوبة،
+  /// وكذلك المستخدم 2 بحسب المستخدم». النوبة = جلسة الدخول (الخيار A،
+  /// PaymentSessionContext) والإجمالي بلا فلتر يوم فندقي (قد تعبر
+  /// النوبة حد 14:01). تظهر لكل مستخدم مسجل — استلاماته الخاصة.
+  Widget _buildMyShiftReceipts() {
+    if (!PaymentSessionContext.isActive) return const SizedBox.shrink();
+    final currencyFmt = NumberFormat('#,##0', 'en_US');
+    final startedAt = PaymentSessionContext.startedAt;
+    final startedLabel = startedAt == null
+        ? ''
+        : 'النوبة بدأت ${DateFormat('HH:mm').format(startedAt)}';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.green.shade50, Colors.white],
+          begin: Alignment.centerRight,
+          end: Alignment.centerLeft,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.payments_outlined,
+            color: Colors.green.shade700,
+            size: 22,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'إجمالي استلاماتي خلال النوبة الحالية',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                if (startedLabel.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      startedLabel,
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          ref
+              .watch(currentUserSessionPaymentsProvider)
+              .when(
+                loading: () => const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                error: (_, _) => Text(
+                  '—',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey,
+                  ),
+                ),
+                data: (total) => Text(
+                  currencyFmt.format(total),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade700,
+                  ),
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildEmployeeShiftPayments() {
     final user = ref.watch(authProvider).currentUser;
     final canViewOtherEmployees =
@@ -988,7 +1077,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ),
               const Text(
-                'اليوم الفندقي الحالي',
+                'إجمالي النوبة كاملة (اليومان الفندقيان الأخيران)',
                 style: TextStyle(fontSize: 9, color: Colors.grey),
               ),
             ],

@@ -443,7 +443,10 @@ class UnifiedSyncOrchestrator {
       db.select(db.payments).get(),
       db.select(db.debts).get(),
       db.select(db.bookingNights).get(),
-      db.select(db.hotelDayLedger).get(),
+      // ✅ (2026-09-05) حُذف hotel_day_ledger من checksum المزامنة —
+      // جدول محلي-فقط بقرار المستخدم («جدول محلي لا أريد أن يتم
+      // مزامنته») وD8؛ إدراجه في checksum عبر الأجهزة يضمن عدم
+      // تطابق دائماً (بيانات محلية لكل جهاز) = ضجيج كشف غير مفيد.
       db.select(db.shiftNotes).get(),
     ]);
 
@@ -475,10 +478,7 @@ class UnifiedSyncOrchestrator {
       'booking_nights': (results[8] as List)
           .map((e) => e.toJson() as Map<String, dynamic>)
           .toList(),
-      'hotel_day_ledger': (results[9] as List)
-          .map((e) => e.toJson() as Map<String, dynamic>)
-          .toList(),
-      'shift_notes': (results[10] as List)
+      'shift_notes': (results[9] as List)
           .map((e) => e.toJson() as Map<String, dynamic>)
           .toList(),
     };
