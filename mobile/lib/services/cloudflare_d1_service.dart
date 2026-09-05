@@ -381,10 +381,13 @@ class CloudflareD1Service {
     }
 
     // 3) كتابة سجل metadata آخر عملية رفع.
+    // ملاحظة: البادئة _cf_ محمية على D1 (أي جدول _cf_* يُرفض بـ
+    // SQLITE_AUTH / HTTP 400 — مثبت تجريبياً 2026-09-05) لذا الاسم
+    // app_backup_meta بلا البادئة.
     if (!_cancelled && errors.isEmpty && doneTables.isNotEmpty) {
       try {
         await executeStatements(const [
-          'CREATE TABLE IF NOT EXISTS _cf_backup_meta ('
+          'CREATE TABLE IF NOT EXISTS app_backup_meta ('
               'id INTEGER PRIMARY KEY CHECK (id = 1), '
               'uploaded_at TEXT NOT NULL, '
               'tables_count INTEGER NOT NULL, '
@@ -394,13 +397,15 @@ class CloudflareD1Service {
         final nowIso = DateTime.now().toUtc().toIso8601String();
         final label = _sqlLiteral(deviceLabel ?? '');
         await executeStatements([
-          "INSERT OR REPLACE INTO _cf_backup_meta "
+          "INSERT OR REPLACE INTO app_backup_meta "
               "(id, uploaded_at, tables_count, rows_count, device_label) "
               "VALUES (1, '$nowIso', ${doneTables.length}, $rowsUploaded, $label)",
         ]);
         callCount++;
       } on CloudflareD1Exception catch (e) {
-        errors.add('_cf_backup_meta: ${e.message}');
+        errors.add(
+          'app_backup_meta: ${e.message}${e.details != null ? ' — ${e.details}' : ''}',
+        );
       }
     }
 
