@@ -801,12 +801,9 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         syncManager.startAutoSync(interval: Duration(minutes: clampedMinutes));
         dlog('⏰ Auto-sync started: every $clampedMinutes minutes');
 
-        // ✅ (2026-09-01) صمام أمان الركود: فحص تلقائي كل 10 دقائق — إذا
-        // مرت ساعة على آخر سحب مكتمل يبدأ سحب تلقائي (دلتا فقط، لا Full
-        // من الخلفية). يعمل حتى عند تعطيل المزامنة التلقائية — الغرض
-        // تغطية المستخدم الذي نسى المزامنة اليدوية.
-        // ✅ صمام أمان الركود مع حد أقصى للمحاولات (5 × 10 دقائق = 50 دقيقة).
-        syncManager.startPullStalenessGuard();
+        // صمام ركود السحب القديم (startPullStalenessGuard) أُزيل مع دمج
+        // refactor/performance-fixes-v2 — محرك السحب الموحد (checkpoints
+        // لكل مجموعة) هو المسؤول عن انتظام السحب الآن.
 
         // سحب البيانات عند فتح التطبيق — مع فحص ذكي (مرة كل ساعة)
         try {
@@ -859,26 +856,10 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           }
         }
 
-        await AppwriteRealtimeSync().initialize(deviceId: deviceId);
-        // ✅ (2026-09-01) المسار الوحيد المقبول لـ Remote → Local:
-        //   Realtime event → AppwriteRealtimeSync (طابور الأحداث: ديبونس +
-        //   cooldown + in-flight) → AppwriteSyncManager → SyncPullService
-        //   → Delta Pull → Field-Level merge → Drift → Riverpod → UI.
-        // - deltaOnly: true — السحب المُشغَّل من Realtime لا يبدأ Full Sync
-        //   أبداً (Bootstrap الصريح فقط)؛ في حالة التهيئة يُتخطى السحب.
-        // - pullSkipped يعني أن السحب تخطّى (outbox غير مفروغ مثلاً) فتُجدول
-        //   متابعة تلقائياً بدل الظن بأن التغييرات طُبّقت.
-        AppwriteRealtimeSync().setSyncTrigger(() async {
-          final realtimeManager = AppwriteSyncManager.instance;
-          if (realtimeManager == null) return false;
-          final result = await realtimeManager.sync(
-            push: true,
-            pull: true,
-            realtimePriority: true,
-            deltaOnly: true,
-          );
-          return result.isSuccess && !result.pullSkipped;
-        });
+        await AppwriteRealtimeSync().initialize(
+          deviceId: deviceId,
+          deltaPull: syncManager.pullRemoteChanges,
+        );
         await AppwriteRealtimeSync().start();
         dlog('📡 Realtime sync + auto sync started');
       } catch (e) {

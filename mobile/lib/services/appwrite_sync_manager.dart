@@ -40,18 +40,18 @@ import 'repositories/bookings_repository.dart';
 import 'repositories/rooms_repository.dart';
 import 'salary_fix_helper.dart';
 import 'secondary_appwrite_config.dart';
-import 'sync_circuit_breaker.dart';
 import 'sync_constants.dart';
-import 'sync_priority.dart';
 import 'sync_guard.dart';
 import 'sync_performance_optimizer.dart';
 import 'remote_change_notification_service.dart'; // ✅ Wave 7
 import 'sync/payload_mapper.dart';
 import 'sync/outbox_pull_policy.dart';
 import 'sync_core/smart_conflict_resolver.dart';
+import 'sync_core/sync_checkpoint_store.dart';
 import 'sync_core/sync_error_service.dart';
 import 'sync_core/sync_metrics.dart';
 import 'sync_core/sync_pull_service.dart';
+import 'sync_core/unified_pull_engine.dart';
 import 'sync_enums.dart';
 import 'sync_locks.dart';
 import 'telegram/whatsapp_notification_service.dart';
@@ -71,7 +71,6 @@ class SyncResult {
     this.recordsPulled = 0,
     this.conflicts = 0,
     this.errorMessage,
-    this.pullSkipped = false,
   });
   final SyncStatus status;
   final int recordsPushed;
@@ -80,12 +79,6 @@ class SyncResult {
   final String? errorMessage;
   final DateTime timestamp;
   final Duration duration;
-
-  /// ✅ (2026-08-31) true إذا كانت مرحلة السحب مطلوبة لكنها **تخطّت**
-  /// (Outbox غير مفروغ / حارس الفاصل الدنيا) واستُكمل الرفع فقط.
-  /// يستخدمها مدخل Realtime ليعرف أنه يجب جدولة متابعة، بدل أن يظن
-  /// أن التغييرات من السيرفر طُبّقت وهي لم تُطبّق بعد.
-  final bool pullSkipped;
 
   bool get isSuccess => status == SyncStatus.success;
   bool get hasConflicts => conflicts > 0;
@@ -183,12 +176,15 @@ class AppwriteSyncManager {
       _ancestorCacheDao,
       deviceId: _currentDeviceId,
     );
-    // ✅ (2026-08-31) تقليل السحب على مستوى السجل — echo immunization:
-    // كل رفع ناجح يُسجّل $updatedAt المعاد من الخادم في sync_remote_meta
-    // فوراً، فلا تُنزّل حمولة echo في دورة delta التالية (metadata match).
-    appwriteService.onDocumentUpserted = (collectionId, doc) {
-      unawaited(recordPushedDocumentMeta(collectionId, doc));
-    };
+    // ✅ Unified Pull (2026-08-31): تهيئة مخزن الـ checkpoints والمحرك الموحد.
+    // ملاحظة: أُزيل حقن setCheckpointStore في SyncPullService — الحقل
+    // هناك كان يُكتب ولا يُقرأ أبداً (unused_field)؛ المحرك الموحد
+    // يحتفظ بالمخزن مباشرة عبر المعامل `checkpoints`.
+    _checkpointStore = SyncCheckpointStore(database);
+    _unifiedPull = UnifiedPullEngine(
+      checkpoints: _checkpointStore,
+      pullService: _pullService!,
+    );
   }
   static AppwriteSyncManager? _instance;
 
@@ -200,7 +196,6 @@ class AppwriteSyncManager {
     try {
       // إعادة تحميل الإعدادات
       await _loadSettings();
-      await SyncCircuitBreaker.instance.restore();
       // إعادة تهيئة Secondary Appwrite
       await SecondaryAppwriteConfig.ensureInitialized();
       _logger.info('🔄 Reinitialized after config change', tag: 'SYNC');
@@ -226,15 +221,11 @@ class AppwriteSyncManager {
   final _err = SyncErrorService(tag: 'SYNC');
   SyncPullService? _pullService;
 
-  /// ✅ (2026-08-30) الفجوتان 3+4 (metadata-first): أقصى $updatedAt على
-  /// الخادم لكل كيان، محسوب من مرحلة الـ metadata في السحب الكامل.
-  /// يُسجَّل "معلقاً" بعد نجاح الجلب، ويستهلكه _checkpointEntity بعد نجاح
-  /// التطبيق فقط — فلا يتقدم المؤشر إذا فشل التطبيق (نفس ضمانة failedCollections).
-  final Map<String, int> _pendingMetaServerMaxTs = {};
-
-  // ✅ (2026-09-01) إزالة `_activeFastAppliedEntities` و `applyRemoteRecordFast`
-  // نهائياً — لا مسار مباشر من Realtime إلى Drift؛ الحدث يمر عبر الطابور إلى
-  // Delta Pull (نقطة الدخول الحالية) حيث Field-Level merge ومنطق tombstones.
+  /// ✅ Unified Pull (2026-08-31): مخزن checkpoints لكل مجموعة
+  /// (جدول SQLite مخصص `sync_checkpoints` عبر SQL خام) + المحرك الموحد
+  /// الذي يجعل `sync()` و`pullRemoteChanges()` على مسار سحب واحد.
+  late final SyncCheckpointStore _checkpointStore;
+  late final UnifiedPullEngine _unifiedPull;
 
   /// PayloadMapper — تم استخراجه من دوال _xxxToRemote لهذا الصنف
   final PayloadMapper _payloadMapper = const PayloadMapper();
@@ -244,9 +235,6 @@ class AppwriteSyncManager {
   Timer? _failedRetryTimer;
   Timer? _cleanupTimer;
   Timer? _stuckRecoveryTimer;
-
-  /// ✅ (2026-09-01) مؤقت حارس ركود السحب — راجع [startPullStalenessGuard].
-  Timer? _pullStalenessTimer;
   double get _initialBatchSize =>
       (SyncPerformanceOptimizer.instance
                   .getCurrentPerformanceSettings()['batchSize']
@@ -667,136 +655,11 @@ class AppwriteSyncManager {
     _logger.info('Auto sync stopped', tag: 'SYNC');
   }
 
-  /// ✅ (2026-09-01) دالة نقية: هل ركود السحب يستدعي سحباً تلقائياً (دلتا فقط)؟
-  ///
-  /// - الطابع null → false: جهاز لم يسحب قط. التهيئة الأولى مسؤولية فحص
-  ///   فتح التطبيق أو المزامنة اليدوية — ليس صمام الأمان (لا Full من الخلفية).
-  /// - الحد: [SyncConstants.pullStalenessThreshold] = ساعة منذ آخر سحب مكتمل.
-  @visibleForTesting
-  static bool isPullStaleForAutoDelta({
-    required int? lastPullWallClockMs,
-    required DateTime now,
-  }) {
-    if (lastPullWallClockMs == null) return false;
-    final last = DateTime.fromMillisecondsSinceEpoch(lastPullWallClockMs);
-    return now.difference(last) >= SyncConstants.pullStalenessThreshold;
-  }
-
-  /// ✅ (2026-09-01) صمام أمان الركود — سيناريو "المستخدم نسى المزامنة
-  /// اليدوية": فحص تلقائي كل [SyncConstants.pullStalenessCheckInterval]؛
-  /// إذا مرت ساعة على آخر **سحب** مكتمل يبدأ سحب تلقائي **دلتا فقط**.
-  ///
-  /// لماذا مستقل عن مؤقت المزامنة التلقائية (15 دقيقة)؟
-  /// - المؤقت التلقائي يتوقف نهائياً عند تعطيل appwrite_auto_sync_enabled
-  ///   (شاشة الإعدادات) — عندها لا يوجد أي سحب دوري إطلاقاً، والجهاز يبقى
-  ///   قديماً حتى يتذكر المستخدم الزر اليدوي. الحارس يعمل دائماً — هذا هو
-  ///   الغرض منه — لكنه يحترم المفتاح الرئيسي appwrite_sync_enabled.
-  /// - لماذا طابع مستقل عن _lastSyncTime؟ لأنه يتقدم مع أي دورة مزامنة
-  ///   (حتى رفع فقط). جهاز استقبال نشط يرفع طوال اليوم لكنه لا يسحب —
-  ///   قياس الركود منه كان سيؤجل السحب إلى ما لا نهاية. الطابع الجديد
-  ///   (lastPullWallClockKey) يتقدم عند نُفّذت مرحلة سحب فعلياً فقط.
-  ///
-  /// الحمايات عند التنفيذ (عبر sync(deltaOnly: true)):
-  /// - deltaOnly يمنع بدء Full Sync من الخلفية (الجهاز غير المُهيأ ينتظر
-  ///   المزامنة اليدوية/إقلاع التطبيق).
-  /// - OutboxPullPolicy و SyncLocks و فحص الاتصال و wifi-only ورفض
-  ///   التزامن — كلها سارية كما في أي مدخل.
-  /// - push=false: الحارس يسحب فقط؛ رفع التغييرات المحلية مسؤولية مراقب
-  ///   Outbox والمؤقت التلقائي.
-  void startPullStalenessGuard() {
-    _pullStalenessTimer?.cancel();
-    _pullStalenessTimer = Timer.periodic(
-      SyncConstants.pullStalenessCheckInterval,
-      (_) async {
-        final token = SyncGuard.tryAcquire(label: 'pull_staleness_guard');
-        if (token == null) {
-          _logger.debug(
-            'Pull staleness guard skipped — another sync active '
-            '(${SyncGuard.activeLabel})',
-            tag: 'SYNC',
-          );
-          return;
-        }
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) {
-            return;
-          }
-
-          // الطابع يُقرأ من prefs مباشرة (لا حقل في الذاكرة) — مقاوم
-          // لترتيب التهيئة ودقيق عبر الجلسات.
-          final stale = isPullStaleForAutoDelta(
-            lastPullWallClockMs: prefs.getInt(
-              SyncConstants.lastPullWallClockKey,
-            ),
-            now: DateTime.now(),
-          );
-          if (!stale) return;
-
-          if (!await _hasNetworkConnection()) {
-            _logger.debug(
-              'Pull staleness guard skipped — no network connection',
-              tag: 'SYNC',
-            );
-            return;
-          }
-
-          final wifiOnly = prefs.getBool('appwrite_wifi_only_sync') ?? false;
-          if (wifiOnly) {
-            final connectivity = await Connectivity().checkConnectivity();
-            if (!connectivity.contains(ConnectivityResult.wifi)) {
-              _logger.info(
-                'Pull staleness guard skipped — WiFi-only mode is active',
-                tag: 'SYNC',
-              );
-              return;
-            }
-          }
-
-          _logger.info(
-            '⏰ مرت ساعة على آخر سحب مكتمل — بدء سحب تلقائي (دلتا فقط)',
-            tag: 'SYNC',
-          );
-          final result = await sync(push: false, pull: true, deltaOnly: true);
-          if (result.isSuccess) {
-            SyncCircuitBreaker.instance.reset();
-          } else {
-            SyncCircuitBreaker.instance.recordFailure();
-          }
-        } catch (e, st) {
-          SyncCircuitBreaker.instance.recordFailure();
-          _logger.error(
-            '❌ Pull staleness guard: استثناء غير متوقع',
-            error: e,
-            stackTrace: st,
-            tag: 'SYNC',
-          );
-        } finally {
-          SyncGuard.release(token);
-        }
-      },
-    );
-    _logger.info(
-      'Pull staleness guard started (check every '
-      '${SyncConstants.pullStalenessCheckInterval.inMinutes}m, threshold '
-      '${SyncConstants.pullStalenessThreshold.inMinutes}m, delta-only)',
-      tag: 'SYNC',
-    );
-  }
-
-  /// إيقاف حارس ركود السحب (للاختبارات/التشخيص — التشغيل العادي يتركه دائماً).
-  void stopPullStalenessGuard() {
-    _pullStalenessTimer?.cancel();
-    _pullStalenessTimer = null;
-    _logger.info('Pull staleness guard stopped', tag: 'SYNC');
-  }
-
   /// مؤقت إعادة محاولة العناصر الفاشلة — كل 5 دقائق يفحص ويعيد المحاولة
   void _startFailedRetryTimer() {
     _failedRetryTimer?.cancel();
     _failedRetryTimer = Timer.periodic(const Duration(minutes: 5), (_) async {
       try {
-        if (!SyncCircuitBreaker.instance.shouldAttempt()) return;
         if (!await _hasNetworkConnection()) {
           _logger.debug(
             'Failed outbox retry skipped — no network connection',
@@ -822,7 +685,6 @@ class AppwriteSyncManager {
           dlog('✅ نجحت إعادة محاولة رفع العناصر الفاشلة');
         }
       } catch (e) {
-        SyncCircuitBreaker.instance.recordFailure();
         dwarn(() => 'فشلت إعادة محاولة العناصر الفاشلة: $e');
       }
     });
@@ -934,7 +796,6 @@ class AppwriteSyncManager {
     _stuckRecoveryTimer = null;
     _outboxSubscription?.cancel();
     _outboxSubscription = null;
-    SyncCircuitBreaker.instance.save();
     stopAutoSync();
     unawaited(_syncController.close());
   }
@@ -946,38 +807,8 @@ class AppwriteSyncManager {
   /// - Pull: تسحب collections (rooms → bookings → employees → expenses → payments → debts)
   /// - تحدّث sync_logs (completed/failed) وتخزّن آخر وقت مزامنة محلياً
   ///
-  /// ✅ (2026-08-31) [realtimePriority]: مدخل أحداث Realtime (تغيير فعلي
-  /// مؤكَّد من الخادم). يتجاوز حارس الدقيقتين [SyncConstants.minPullGap]
-  /// لأن الطبقة المُصدِرة (AppwriteRealtimeSync) مُسرَّعة ذاتياً: ديبونس
-  /// 500ms + تهيئة 15 ثانية + طابور متابعة + حارس in-flight. بقية
-  /// الحمايات (OutboxPullPolicy و SyncLocks و فحص الاتصال) تبقى سارية.
-  /// عند تخطّي السحب لأي سبب يُضبط [SyncResult.pullSkipped] = true كي
-  /// يُجدول المدخل متابعة بدل الظن بأن التغييرات طُبّقت.
-  ///
   /// الدالة لا ترمي عادةً استثناءات، وتعيد SyncResult مع status/errorMessage.
-  Future<SyncResult> sync({
-    bool push = true,
-    bool pull = true,
-    bool realtimePriority = false,
-
-    /// ✅ (2026-08-31) تقليل السحب — الخطوة 2: تجاوز حارس الدقيقتين للتفاعل
-    /// اليدوي الصريح (زر التحديث). المستخدم الذي يضغط الزر يطلب بيانات
-    /// محدّثة **الآن** — تأخيره 2 دقيقة إحباط بلا فائدة، خاصة أن الحارس
-    /// يمنع المداخل غير الواعية (شاشات/جلسة/مؤقتات) من التكرار أصلاً.
-    /// كل الحمايات الأخرى تبقى سارية: OutboxPullPolicy وSyncLocks و
-    /// فحص الاتصال ورفض التزامن (syncing بالفعل).
-    bool forcePull = false,
-
-    /// ✅ (2026-09-01) صمام أمان الركود — قاعدة "دلتا فقط للسحب التلقائي".
-    ///
-    /// عندما true (مدخل حارس الركود فقط): إذا تعذّرت الدلتا — الجهاز في
-    /// مرحلة التهيئة (full_sync_complete=false أو lastPullTs=0، راجع
-    /// SyncPullService.buildDeltaQueries) — يُتخطى السحب كلياً بدل تحويله
-    /// تلقائياً إلى Full Sync. السحب الكامل قرار مرئي: مزامنة يدوية أو
-    /// فحص فتح التطبيق؛ لا يبدأ من الخلفية دون علم المستخدم أبداً.
-    /// لا أثر له على بقية المداخل (القيمة الافتراضية false).
-    bool deltaOnly = false,
-  }) async {
+  Future<SyncResult> sync({bool push = true, bool pull = true}) async {
     final prefs = await SharedPreferences.getInstance();
     if (!(prefs.getBool('appwrite_sync_enabled') ?? true)) {
       _logger.info(
@@ -994,8 +825,6 @@ class AppwriteSyncManager {
     // سياسة Offline-first: لا نسمح بالسحب فوق تغييرات محلية لم تصل
     // بعد إلى Appwrite. عند sync كامل نتابع بالرفع فقط؛ وعند طلب pull
     // صريح نرفضه ونبقي Outbox هو مصدر الحقيقة إلى أن يفرغ.
-    // ✅ (2026-08-31) pullSkipped يُبلّغ مدخل Realtime ليُتابع لاحقاً.
-    var pullSkipped = false;
     if (pull) {
       final pendingLocalChanges = await outboxDao.countUndeliveredToPrimary();
       if (!OutboxPullPolicy.canPull(
@@ -1010,68 +839,10 @@ class AppwriteSyncManager {
         );
         if (push) {
           pull = false;
-          pullSkipped = true;
         } else {
           return SyncResult(
             status: SyncStatus.idle,
             errorMessage: message,
-            timestamp: DateTime.now(),
-            duration: Duration.zero,
-          );
-        }
-      }
-    }
-
-    // ✅ (2026-08-30) الحارس المركزي: فاصل أدنى بين دورتي سحب من أي مدخل.
-    // يُطبَّق بعد حارس Outbox وقبل القفل — أرخص قرار وأبكر خروج.
-    // ✅ (2026-08-31) realtimePriority يتجاوز هذا الحارس: حدث Realtime
-    // إثبات تغيير فعلي من الخادم، والطبقة المُصدِرة مُسرَّعة ذاتياً
-    // (ديبونس + تهيئة 15 ث + طابور متابعة). راجع sync() doc أعلاه.
-    // ✅ (2026-08-31) forcePull يتجاوزه كذلك: تفاعل يدوي صريح (زر التحديث)
-    // يطلب بيانات محدّثة الآن — بقية الحمايات تبقى سارية.
-    if (pull && !realtimePriority && !forcePull && !_canStartPull()) {
-      _logger.debug(
-        'Pull skipped: minimum pull gap (${SyncConstants.minPullGap.inMinutes}m) '
-        'not reached since last completed sync',
-        tag: 'SYNC',
-      );
-      if (push) {
-        pull = false;
-        pullSkipped = true;
-      } else {
-        return SyncResult(
-          status: SyncStatus.idle,
-          errorMessage: 'Pull skipped: minimum pull gap not reached',
-          timestamp: DateTime.now(),
-          duration: Duration.zero,
-        );
-      }
-    }
-
-    // ✅ (2026-09-01) صمام أمان الركود — قاعدة "دلتا فقط للسحب التلقائي":
-    // حارس الركود (deltaOnly=true) يجب ألا يبدأ Full Sync أبداً. إذا كان
-    // الجهاز في مرحلة التهيئة (full_sync_complete=false أو lastPullTs=0)
-    // يُتخطى السحب — السحب الكامل قرار مرئي (مزامنة يدوية/إقلاع التطبيق).
-    // القرار رخيص: قراءتا SQLite صغيرتان فقط عندما deltaOnly=true؛ بقية
-    // المداخل (false) لا تدخل هذا الفرع إطلاقاً.
-    if (pull && deltaOnly) {
-      final lastPullTs = await _getLastPullTs();
-      final List<String> deltaQ =
-          await (_pullService?.buildDeltaQueries(lastPullTs) ?? <String>[]);
-      if (deltaQ.isEmpty) {
-        _logger.info(
-          '⏭️ Delta-only pull skipped — device in bootstrap state '
-          '(full_sync_complete=false أو lastPullTs=0)؛ '
-          'السحب الكامل يحتاج مزامنة يدوية أو إعادة تشغيل التطبيق',
-          tag: 'SYNC',
-        );
-        if (push) {
-          pull = false;
-          pullSkipped = true;
-        } else {
-          return SyncResult(
-            status: SyncStatus.idle,
-            errorMessage: 'Delta-only pull skipped: bootstrap state',
             timestamp: DateTime.now(),
             duration: Duration.zero,
           );
@@ -1256,816 +1027,51 @@ class AppwriteSyncManager {
               _logger.info('📥 سحب التغييرات من Appwrite...', tag: 'SYNC');
               final failedCollections = <String>[];
 
-              // Delta Sync: قراءة آخر timestamp وإنشاء فلتر
-              final lastPullTs = await _getLastPullTs();
-              final List<String> deltaQ =
-                  await (_pullService?.buildDeltaQueries(lastPullTs) ??
-                      <String>[]);
-              final isDelta = deltaQ.isNotEmpty;
-              // السحب الكامل لا ينزّل سجلات tombstone إلى الهاتف. يظل السحب
-              // التزايدي دون هذا القيد لمعالجة حذف السجل الموجود محلياً.
-              final pullQueries = isDelta
-                  ? deltaQ
-                  : SyncPullService.buildFullSyncQueries();
-              if (isDelta) {
-                _logger.info(
-                  '🔄 Delta Sync: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(lastPullTs * 1000).toIso8601String()}',
-                  tag: 'SYNC',
-                );
-              } else {
-                _logger.info(
-                  '🔄 Full Sync: أول مزامنة أو إعادة كاملة',
-                  tag: 'SYNC',
-                );
-              }
+              // ✅ إصلاح جوهري: إعادة ضبط متتبّع أقصى $updatedAt في بداية دورة السحب.
+              _maxUpdatedAtInPull = null;
 
-              // مزامنة كل كولكشن بشكل مستقل — فشل واحد لا يوقف الباقي
-              // ✅ ترتيب السحب محسّن حسب علاقات FK:
-              // rooms ← bookings.roomNumber
-              // employees ← salary_cycles.employeeId, salary_withdrawals.employeeId
-              // bookings ← booking_nights.bookingLocalId, booking_notes.bookingId, payments.bookingLocalId, debts.bookingLocalId
-              // cash_transactions ← payments.cashTransactionLocalId
-              // salary_cycles ← salary_payments.cycleId
-
-              try {
-                recordsPulled += await _timePhase('syncRooms', () async {
-                  final rooms = await _pullDocsMetadataFirst(
-                    entity: 'rooms',
-                    isDelta: isDelta,
-                    fallback: pullQueries,
-                  );
-                  final roomsSynced = await _syncRooms(rooms);
-                  // ✅ (2026-08-30) مؤشر مستقل لكل كيان — يتقدم حتى لو فشلت كيانات أخرى
-                  await _checkpointEntity('rooms', rooms);
-                  _logger.debug('Synced $roomsSynced rooms', tag: 'SYNC');
-                  return roomsSynced;
-                }, phaseMs);
-              } catch (e, st) {
-                failedCollections.add('rooms');
-                _logger.error(
-                  '❌ فشل سحب rooms',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC',
-                );
-                await CrashlyticsService.instance.recordSyncError(
-                  operation: 'pull_rooms',
-                  error: e.toString(),
-                  stackTrace: st,
-                  context: {'phase': 'sync'},
-                );
-              }
-
-              try {
-                recordsPulled += await _timePhase('syncEmployees', () async {
-                  final employees = await _pullDocsMetadataFirst(
-                    entity: 'employees',
-                    isDelta: isDelta,
-                    fallback: pullQueries,
-                  );
-                  // ✅ التوصية 5: لف _syncEmployees بطبقة إعادة محاولة لتحصين
-                  // أسبقية الموظفين قبل المصروفات (يقلّل خطر #4).
-                  final employeesSynced = await _syncEmployeesWithRetry(
-                    employees,
-                  );
-                  // ✅ (2026-08-30) مؤشر مستقل لكل كيان
-                  await _checkpointEntity('employees', employees);
-                  _logger.debug(
-                    'Synced $employeesSynced employees',
-                    tag: 'SYNC',
-                  );
-                  return employeesSynced;
-                }, phaseMs);
-              } catch (e, st) {
-                failedCollections.add('employees');
-                _logger.error(
-                  '❌ فشل سحب employees',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC',
-                );
-                await CrashlyticsService.instance.recordSyncError(
-                  operation: 'pull_employees',
-                  error: e.toString(),
-                  stackTrace: st,
-                  context: {'phase': 'sync'},
-                );
-              }
-
-              try {
-                recordsPulled += await _timePhase(
-                  'syncInventoryItems',
-                  () async {
-                    final docs = await _pullDocsMetadataFirst(
-                      entity: 'inventory_items',
-                      isDelta: isDelta,
-                      fallback: pullQueries,
-                    );
-                    final synced = await _syncInventoryItems(docs);
-                    // ✅ (2026-08-30) مؤشر مستقل لكل كيان
-                    await _checkpointEntity('inventory_items', docs);
-                    _logger.debug(
-                      'Synced $synced inventory items',
-                      tag: 'SYNC',
-                    );
-                    return synced;
-                  },
-                  phaseMs,
-                );
-              } catch (e, st) {
-                failedCollections.add('inventory_items');
-                _logger.error(
-                  '❌ فشل سحب inventory_items',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC',
-                );
-              }
-
-              try {
-                recordsPulled += await _timePhase(
-                  'syncInventoryTransactions',
-                  () async {
-                    final docs = await _pullDocsMetadataFirst(
-                      entity: 'inventory_transactions',
-                      isDelta: isDelta,
-                      fallback: pullQueries,
-                    );
-                    final synced = await _syncInventoryTransactions(docs);
-                    // ✅ (2026-08-30) مؤشر مستقل لكل كيان
-                    await _checkpointEntity('inventory_transactions', docs);
-                    _logger.debug(
-                      'Synced $synced inventory transactions',
-                      tag: 'SYNC',
-                    );
-                    return synced;
-                  },
-                  phaseMs,
-                );
-              } catch (e, st) {
-                failedCollections.add('inventory_transactions');
-                _logger.error(
-                  '❌ فشل سحب inventory_transactions',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC',
-                );
-              }
-
-              // ✅ التوصية 3: إعادة ربط مؤجّلة لمصروفات الرواتب اليتيمة عبر
-              // employeeUuid بعد اكتمال سحب الموظفين. يعالج مصروفات وصلت قبل
-              // موظفيها في دورة سابقة (خطر #4).
-              try {
-                await _relinkOrphanSalaryExpenses();
-              } catch (e, st) {
-                _logger.warning(
-                  '⚠️ _relinkOrphanSalaryExpenses فشل بعد سحب الموظفين — '
-                  'سيُعاد المحاولة في الدورة التالية.',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC_RELINK',
-                );
-              }
-
-              try {
-                recordsPulled += await _timePhase('syncBookings', () async {
-                  // ✅ (2026-08-30) bookings كان يستعلم بالمؤشر العام فقط
-                  // (queries: pullQueries) دون استعلام/تقدم مستقل — أعلى كيان
-                  // حركة في النظام بقي معلقاً بالمؤشر الكلي-أو-لاشيء! الآن
-                  // يستعلم بمؤشره الخاص ويتقدم به مثل بقية الكيانات.
-                  final bookings = await _pullDocsMetadataFirst(
-                    entity: 'bookings',
-                    isDelta: isDelta,
-                    fallback: pullQueries,
-                  );
-                  final bookingsSynced = await _syncBookings(bookings);
-                  await _checkpointEntity('bookings', bookings);
-                  _logger.debug('Synced $bookingsSynced bookings', tag: 'SYNC');
-                  return bookingsSynced;
-                }, phaseMs);
-              } catch (e, st) {
-                failedCollections.add('bookings');
-                _logger.error(
-                  '❌ فشل سحب bookings',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC',
-                );
-                await CrashlyticsService.instance.recordSyncError(
-                  operation: 'pull_bookings',
-                  error: e.toString(),
-                  stackTrace: st,
-                  severity: CrashlyticsSeverity.fatal,
-                  context: {'phase': 'sync'},
-                );
-              }
-
-              try {
-                recordsPulled += await _timePhase(
-                  'syncCashTransactions',
-                  () async {
-                    final cashTransactions = await _pullDocsMetadataFirst(
-                      entity: 'cash_transactions',
-                      isDelta: isDelta,
-                      fallback: pullQueries,
-                    );
-                    final synced = await _syncCashTransactions(
-                      cashTransactions,
-                    );
-                    // ✅ (2026-08-30) مؤشر مستقل لكل كيان
-                    await _checkpointEntity(
-                      'cash_transactions',
-                      cashTransactions,
-                    );
-                    _logger.debug(
-                      'Synced $synced cash transactions',
-                      tag: 'SYNC',
-                    );
-                    return synced;
-                  },
-                  phaseMs,
-                );
-              } catch (e, st) {
-                failedCollections.add('cash_transactions');
-                _logger.error(
-                  '❌ فشل سحب cash_transactions',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC',
-                );
-              }
-
-              try {
-                recordsPulled += await _timePhase('syncExpenses', () async {
-                  final expenses = await _pullDocsMetadataFirst(
-                    entity: 'expenses',
-                    isDelta: isDelta,
-                    fallback: pullQueries,
-                  );
-                  final expensesSynced = await _syncExpenses(expenses);
-                  // ✅ (2026-08-30) مؤشر مستقل لكل كيان
-                  await _checkpointEntity('expenses', expenses);
-                  _logger.debug('Synced $expensesSynced expenses', tag: 'SYNC');
-                  return expensesSynced;
-                }, phaseMs);
-              } catch (e, st) {
-                failedCollections.add('expenses');
-                _logger.error(
-                  '❌ فشل سحب expenses',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC',
-                );
-              }
-
-              try {
-                recordsPulled += await _timePhase('syncBookingNights', () async {
-                  // ✅ (2026-09-03) Fix: booking_nights يمر عبر طبقة السحب
-                  // metadata-first نفسها المستخدمة لبقية الكيانات — سحب
-                  // ($id + $updatedAt) للنافذة الزمنية أولاً ثم تنزيل المتغيّر
-                  // فعلاً فقط عبر listDocumentsByIds. المسار القديم كان يسحب
-                  // حمولة كاملة لكل ليلة داخل النافذة في كل دورة.
-                  final nightsPullTs = await _getBookingNightsPullTs();
-                  final bool remoteEpochIsMillis =
-                      await (_pullService?.isRemoteEpochMillis() ?? false);
-                  final nightsDeltaQ = _bookingNightsDeltaQueries(
-                    nightsPullTs,
-                    remoteEpochIsMillis: remoteEpochIsMillis,
-                  );
-                  // السحب الكامل/الأولي يحافظ على سقفه السابق (1000 سجل)
-                  final bool isNightsFullPull = !isDelta;
-                  if (!isNightsFullPull && nightsDeltaQ.isNotEmpty) {
-                    _logger.info(
-                      '🔄 booking_nights Delta: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(nightsPullTs * 1000).toIso8601String()}',
-                      tag: 'SYNC',
-                    );
-                  }
-                  if (isNightsFullPull) {
-                    _logger.info(
-                      '📥 سحب كامل لـ booking_nights — تحديد ${SyncConstants.initialBookingNightsPullLimit} سجل كحد أقصى',
-                      tag: 'SYNC',
-                    );
-                  }
-                  List<models.Document> bookingNights;
-                  if (isNightsFullPull) {
-                    // السحب الكامل: قائمة كاملة بسقف 1000 (سلوك سابق محفوظ)
-                    bookingNights = await appwriteService.listBookingNights(
-                      queries: SyncPullService.buildFullSyncQueries(),
-                      useCache: false,
-                      maxRecords: SyncConstants.initialBookingNightsPullLimit,
-                    );
-                  } else {
-                    // ✅ (2026-09-03) delta metadata-first: نفس المسار الآمن
-                    // لـ bookings/payments — صفر تنزيل للمطابق محلياً.
-                    bookingNights = await _pullDocsDeltaMetadataFirst(
-                      'booking_nights',
-                      nightsDeltaQ,
-                    );
-                  }
-                  final synced = await _syncBookingNights(bookingNights);
-                  // ✅ (2026-09-03) تسجيل $updatedAt للمستندات المطبقة في
-                  // sync_remote_meta — كي تعرف دورة delta التالية أنها
-                  // مطابقة محلياً فتتخطاها (صفر تنزيل).
-                  try {
-                    final collectionId = AppwriteConfig.collectionIdFor(
-                      'booking_nights',
-                    );
-                    if (collectionId != null && bookingNights.isNotEmpty) {
-                      final meta = <String, int>{};
-                      for (final doc in bookingNights) {
-                        final ts = _extractUpdatedAtSec(doc);
-                        if (ts != null) meta[doc.$id] = ts;
-                      }
-                      await database.upsertRemoteMeta(collectionId, meta);
-                    }
-                  } catch (metaError) {
-                    _logger.warning(
-                      '⚠️ booking_nights meta write فشل (غير مؤثر): $metaError',
-                      tag: 'SYNC',
-                    );
-                  }
-                  // ✅ (2026-09-03) المؤشر يتقدّم إلى أقصى $updatedAt للخادم
-                  // في نافذة الـ metadata (سلطة الخادم) عبر نفس آلية
-                  // _pendingMetaServerMaxTs — يغلق النافذة ويمنع إعادة سحب
-                  // نفس الصفوف كل دورة (النافذة كانت عالقة منذ 2026-08-02).
-                  int? nightsMaxTs;
-                  for (final doc in bookingNights) {
-                    final ts = _extractUpdatedAtSec(doc);
-                    if (ts != null &&
-                        (nightsMaxTs == null || ts > nightsMaxTs)) {
-                      nightsMaxTs = ts;
-                    }
-                  }
-                  final pendingServerMax = _pendingMetaServerMaxTs.remove(
-                    'booking_nights',
-                  );
-                  if (pendingServerMax != null &&
-                      (nightsMaxTs == null || pendingServerMax > nightsMaxTs)) {
-                    nightsMaxTs = pendingServerMax;
-                  }
-                  if (nightsMaxTs != null) {
-                    await _updateBookingNightsPullTs(nightsMaxTs);
-                  }
-                  _logger.debug('Synced $synced booking nights', tag: 'SYNC');
-                  return synced;
-                }, phaseMs);
-              } catch (e, st) {
-                failedCollections.add('booking_nights');
-                _logger.error(
-                  '❌ فشل سحب booking_nights',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC',
-                );
-              }
-
-              try {
-                recordsPulled += await _timePhase('syncBookingNotes', () async {
-                  final bookingNotes = await _pullDocsMetadataFirst(
-                    entity: 'booking_notes',
-                    isDelta: isDelta,
-                    fallback: pullQueries,
-                  );
-                  final synced = await _syncBookingNotes(bookingNotes);
-                  // ✅ (2026-08-30) مؤشر مستقل لكل كيان
-                  await _checkpointEntity('booking_notes', bookingNotes);
-                  _logger.debug('Synced $synced booking notes', tag: 'SYNC');
-                  return synced;
-                }, phaseMs);
-              } catch (e, st) {
-                failedCollections.add('booking_notes');
-                _logger.error(
-                  '❌ فشل سحب booking_notes',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC',
-                );
-              }
-
-              try {
-                recordsPulled += await _timePhase('syncPayments', () async {
-                  final payments = await _pullDocsMetadataFirst(
-                    entity: 'payments',
-                    isDelta: isDelta,
-                    fallback: pullQueries,
-                  );
-                  final paymentsSynced = await _syncPayments(payments);
-                  // ✅ (2026-08-30) مؤشر مستقل لكل كيان
-                  await _checkpointEntity('payments', payments);
-                  _logger.debug('Synced $paymentsSynced payments', tag: 'SYNC');
-                  return paymentsSynced;
-                }, phaseMs);
-              } catch (e, st) {
-                failedCollections.add('payments');
-                _logger.error(
-                  '❌ فشل سحب payments',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC',
-                );
-              }
-
-              try {
-                recordsPulled += await _timePhase('syncDebts', () async {
-                  final debts = await _pullDocsMetadataFirst(
-                    entity: 'debts',
-                    isDelta: isDelta,
-                    fallback: pullQueries,
-                  );
-                  final debtsSynced = await _syncDebts(debts);
-                  // ✅ (2026-08-30) مؤشر مستقل لكل كيان
-                  await _checkpointEntity('debts', debts);
-                  _logger.debug('Synced $debtsSynced debts', tag: 'SYNC');
-                  return debtsSynced;
-                }, phaseMs);
-              } catch (e, st) {
-                failedCollections.add('debts');
-                _logger.error(
-                  '❌ فشل سحب debts',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC',
-                );
-              }
-
-              try {
-                recordsPulled += await _timePhase('syncSalaryCycles', () async {
-                  final salaryCycles = await _pullDocsMetadataFirst(
-                    entity: 'salary_cycles',
-                    isDelta: isDelta,
-                    fallback: pullQueries,
-                  );
-                  final synced = await _syncSalaryCycles(salaryCycles);
-                  // ✅ (2026-08-30) مؤشر مستقل لكل كيان
-                  await _checkpointEntity('salary_cycles', salaryCycles);
-                  _logger.debug('Synced $synced salary_cycles', tag: 'SYNC');
-                  return synced;
-                }, phaseMs);
-              } catch (e, st) {
-                failedCollections.add('salary_cycles');
-                _logger.error(
-                  '❌ فشل سحب salary_cycles',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC',
-                );
-              }
-
-              try {
-                recordsPulled += await _timePhase(
-                  'syncSalaryPayments',
-                  () async {
-                    final salaryPayments = await _pullDocsMetadataFirst(
-                      entity: 'salary_payments',
-                      isDelta: isDelta,
-                      fallback: pullQueries,
-                    );
-                    final synced = await _syncSalaryPayments(salaryPayments);
-                    // ✅ (2026-08-30) مؤشر مستقل لكل كيان
-                    await _checkpointEntity('salary_payments', salaryPayments);
-                    _logger.debug(
-                      'Synced $synced salary_payments',
-                      tag: 'SYNC',
-                    );
-                    return synced;
-                  },
-                  phaseMs,
-                );
-              } catch (e, st) {
-                failedCollections.add('salary_payments');
-                _logger.error(
-                  '❌ فشل سحب salary_payments',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC',
-                );
-              }
-
-              try {
-                recordsPulled += await _timePhase(
-                  'syncSalaryWithdrawals',
-                  () async {
-                    final salaryWithdrawals = await _pullDocsMetadataFirst(
-                      entity: 'salary_withdrawals',
-                      isDelta: isDelta,
-                      fallback: pullQueries,
-                    );
-                    final synced = await _syncSalaryWithdrawals(
-                      salaryWithdrawals,
-                    );
-                    // ✅ (2026-08-30) مؤشر مستقل لكل كيان
-                    await _checkpointEntity(
-                      'salary_withdrawals',
-                      salaryWithdrawals,
-                    );
-                    _logger.debug(
-                      'Synced $synced salary_withdrawals',
-                      tag: 'SYNC',
-                    );
-                    return synced;
-                  },
-                  phaseMs,
-                );
-              } catch (e, st) {
-                failedCollections.add('salary_withdrawals');
-                _logger.error(
-                  '❌ فشل سحب salary_withdrawals',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC',
-                );
-              }
-
-              try {
-                recordsPulled += await _timePhase('syncGuestInfos', () async {
-                  final guestInfos = await _pullDocsMetadataFirst(
-                    entity: 'guest_infos',
-                    isDelta: isDelta,
-                    fallback: pullQueries,
-                  );
-                  final synced = await _syncGuestInfos(guestInfos);
-                  // ✅ (2026-08-30) مؤشر مستقل لكل كيان
-                  await _checkpointEntity('guest_infos', guestInfos);
-                  _logger.debug('Synced $synced guest_infos', tag: 'SYNC');
-                  return synced;
-                }, phaseMs);
-              } catch (e, st) {
-                failedCollections.add('guest_infos');
-                _logger.error(
-                  '❌ فشل سحب guest_infos',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC',
-                );
-              }
-
-              try {
-                recordsPulled += await _timePhase(
-                  'syncBookingPriceAdjustments',
-                  () async {
-                    final adjustments = await _pullDocsMetadataFirst(
-                      entity: 'booking_price_adjustments',
-                      isDelta: isDelta,
-                      fallback: pullQueries,
-                    );
-                    final adjustmentsSynced =
-                        await _syncBookingPriceAdjustments(adjustments);
-                    // ✅ (2026-08-30) مؤشر مستقل لكل كيان
-                    await _checkpointEntity(
-                      'booking_price_adjustments',
-                      adjustments,
-                    );
-                    _logger.debug(
-                      'Synced $adjustmentsSynced booking price adjustments',
-                      tag: 'SYNC',
-                    );
-                    return adjustmentsSynced;
-                  },
-                  phaseMs,
-                );
-              } catch (e, st) {
-                failedCollections.add('booking_price_adjustments');
-                _logger.error(
-                  '❌ فشل سحب booking_price_adjustments',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC',
-                );
-              }
-
-              try {
-                recordsPulled += await _timePhase('syncShiftNotes', () async {
-                  final shiftNotes = await _pullDocsMetadataFirst(
-                    entity: 'shift_notes',
-                    isDelta: isDelta,
-                    fallback: pullQueries,
-                  );
-                  final synced = await _syncShiftNotes(shiftNotes);
-                  // ✅ (2026-08-30) مؤشر مستقل لكل كيان
-                  await _checkpointEntity('shift_notes', shiftNotes);
-                  _logger.debug('Synced $synced shift notes', tag: 'SYNC');
-                  return synced;
-                }, phaseMs);
-              } catch (e, st) {
-                failedCollections.add('shift_notes');
-                _logger.error(
-                  '❌ فشل سحب shift_notes',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC',
-                );
-              }
-
-              try {
-                recordsPulled += await _timePhase('syncBlacklist', () async {
-                  final blacklistDocs = await _pullDocsMetadataFirst(
-                    entity: 'blacklist',
-                    isDelta: isDelta,
-                    fallback: pullQueries,
-                  );
-                  final synced = await _syncBlacklist(blacklistDocs);
-                  // ✅ (2026-08-30) مؤشر مستقل لكل كيان
-                  await _checkpointEntity('blacklist', blacklistDocs);
-                  _logger.debug(
-                    'Synced $synced blacklist entries',
-                    tag: 'SYNC',
-                  );
-                  return synced;
-                }, phaseMs);
-              } catch (e, st) {
-                failedCollections.add('blacklist');
-                _logger.error(
-                  '❌ فشل سحب blacklist',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC',
-                );
-              }
-
-              try {
-                recordsPulled += await _timePhase(
-                  'syncPriceAdjustments',
-                  () async {
-                    final docs = await _pullDocsMetadataFirst(
-                      entity: 'price_adjustments',
-                      isDelta: isDelta,
-                      fallback: pullQueries,
-                    );
-                    final synced = await _syncPriceAdjustments(docs);
-                    // ✅ (2026-08-30) مؤشر مستقل لكل كيان
-                    await _checkpointEntity('price_adjustments', docs);
-                    _logger.debug(
-                      'Synced $synced price adjustments',
-                      tag: 'SYNC',
-                    );
-                    return synced;
-                  },
-                  phaseMs,
-                );
-              } catch (e, st) {
-                failedCollections.add('price_adjustments');
-                _logger.error(
-                  '❌ فشل سحب price_adjustments',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC',
-                );
-              }
-
-              // ✅ (2026-08-30) audit_logs مستبعد من مزامنة Appwrite — محلي فقط.
-              // يوفّر سحب سجلات عالية الحركة والحجم لا تحتاجها الأجهزة الأخرى.
-              if (SyncConstants.auditLogsSyncEnabled) {
-                try {
-                  recordsPulled += await _timePhase('syncAuditLogs', () async {
-                    final docs = await appwriteService.listDocuments(
-                      collectionId: AppwriteConfig.auditLogsCollectionId,
-                      queries: await _entityPullQueries(
-                        'audit_logs',
-                        isDelta: isDelta,
-                        fallback: pullQueries,
-                      ),
-                    );
-                    final synced = await _syncAuditLogs(docs);
-                    // ✅ (2026-08-30) مؤشر مستقل لكل كيان
-                    await _checkpointEntity('audit_logs', docs);
-                    _logger.debug('Synced $synced audit logs', tag: 'SYNC');
-                    return synced;
-                  }, phaseMs);
-                } catch (e, st) {
-                  failedCollections.add('audit_logs');
+              // ✅ Unified Pull Engine (2026-08-31): مسار سحب واحد — أول تثبيت =
+              // Full pull لكل مجموعة، وبعدها Delta فقط على مستوى كل مجموعة مستقلة
+              // (checkpoint خاص في جدول sync_checkpoints). لا نعطل PRAGMA
+              // foreign_keys — ترتيب السحب يضمن وجود الآباء قبل الأبناء.
+              final pullResult = await _unifiedPull.run(
+                _buildPullTasks(),
+                onTaskDone: (name, elapsedMs, success) {
+                  phaseMs[name] = elapsedMs;
+                },
+                onTaskError: (name, error, stackTrace) async {
                   _logger.error(
-                    '❌ فشل سحب audit_logs',
-                    error: e,
-                    stackTrace: st,
+                    '❌ فشل سحب $name',
+                    error: error,
+                    stackTrace: stackTrace,
                     tag: 'SYNC',
                   );
-                }
-              }
-
-              try {
-                recordsPulled += await _timePhase('syncPaymentVoids', () async {
-                  final docs = await _pullDocsMetadataFirst(
-                    entity: 'payment_voids',
-                    isDelta: isDelta,
-                    fallback: pullQueries,
-                  );
-                  final synced = await _syncPaymentVoids(docs);
-                  // ✅ (2026-08-30) مؤشر مستقل لكل كيان
-                  await _checkpointEntity('payment_voids', docs);
-                  _logger.debug('Synced $synced payment voids', tag: 'SYNC');
-                  return synced;
-                }, phaseMs);
-              } catch (e, st) {
-                failedCollections.add('payment_voids');
-                _logger.error(
-                  '❌ فشل سحب payment_voids',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC',
-                );
-              }
-
-              // ✅ Wave 6b (2026-08-12): إضافة salary_carry_over_logs لمسار السحب.
-              // سابقاً كان موجوداً في مسار الدفع فقط (_processSalaryCarryOverLogEntry)
-              // لكنه لم يكن يُسحب من Appwrite أبداً — فجوة معمارية مؤكدة.
-              // انظر: لا يوجد _syncSalaryCarryOverLogs ولا listSalaryCarryOverLogs.
-              try {
-                recordsPulled += await _timePhase(
-                  'syncSalaryCarryOverLogs',
-                  () async {
-                    final docs = await _pullDocsMetadataFirst(
-                      entity: 'salary_carry_over_logs',
-                      isDelta: isDelta,
-                      fallback: pullQueries,
+                  if (name == 'rooms' || name == 'employees') {
+                    await CrashlyticsService.instance.recordSyncError(
+                      operation: 'pull_$name',
+                      error: error.toString(),
+                      stackTrace: stackTrace,
+                      context: {'phase': 'sync'},
                     );
-                    final synced = await _syncSalaryCarryOverLogs(docs);
-                    // ✅ (2026-08-30) مؤشر مستقل لكل كيان
-                    await _checkpointEntity('salary_carry_over_logs', docs);
-                    _logger.debug(
-                      'Synced $synced salary carry over logs',
-                      tag: 'SYNC',
+                  } else if (name == 'bookings') {
+                    await CrashlyticsService.instance.recordSyncError(
+                      operation: 'pull_bookings',
+                      error: error.toString(),
+                      stackTrace: stackTrace,
+                      severity: CrashlyticsSeverity.fatal,
+                      context: {'phase': 'sync'},
                     );
-                    return synced;
-                  },
-                  phaseMs,
-                );
-              } catch (e, st) {
-                failedCollections.add('salary_carry_over_logs');
-                _logger.error(
-                  '❌ فشل سحب salary_carry_over_logs',
-                  error: e,
-                  stackTrace: st,
-                  tag: 'SYNC',
-                );
-              }
+                  }
+                },
+              );
+              recordsPulled += pullResult.recordsPulled;
+              failedCollections.addAll(pullResult.failedCollections);
 
-              // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
-
-              // إعدادات التطبيق محلية حالياً؛ لا تُضم إلى Delta Sync.
-              if (SyncConstants.appSettingsSyncEnabled) {
-                try {
-                  recordsPulled += await _timePhase(
-                    'syncAppSettings',
-                    () async {
-                      final docs = await appwriteService.listDocuments(
-                        collectionId: 'app_settings',
-                        queries: pullQueries,
-                      );
-                      final synced = await _syncAppSettings(docs);
-                      _logger.debug('Synced $synced app_settings', tag: 'SYNC');
-                      return synced;
-                    },
-                    phaseMs,
-                  );
-                } catch (e) {
-                  _logger.warning(
-                    '⚠️ فشل سحب app_settings (غير حرج — لن يؤثر على Delta Sync): $e',
-                    tag: 'SYNC',
-                  );
-                }
-              } else {
-                _logger.debug(
-                  'تخطي سحب app_settings — المزامنة معطلة',
-                  tag: 'SYNC',
-                );
-              }
-
-              // ✅ (2026-08-30) تصميم المؤشرات بعد إدخال المؤشرات المستقلة:
-              //
-              // 1) كل كيان سحبناه بنجاح فوق يتقدم بمؤشره الخاص
-              //    (_checkpointEntity ← sync_entity_pull_ts_map) فور نجاحه،
-              //    بمعزل تام عن فشل أي كيان آخر.
-              // 2) المؤشر العالمي (lastPullTs) هنا يبقى احتياطياً فقط:
-              //    بذرة الترحيل الكسول للكيانات الجديدة + مرجع للمسارات
-              //    الثانوية (pullRemoteChanges). تقدمه الكلي-أو-لاشيء لم يعد
-              //    يُسبب إعادة سحب deltas سليمة لأن delta الفعلي لكل كيان
-              //    يُبنى من مؤشره الخاص في _entityPullQueries.
+              // تحديث lastPullTs فقط إذا نجحت كل الكولكشنات (توافق خلفي —
+              // المؤشرات الفعلية أصبحت لكل مجموعة في sync_checkpoints).
               if (failedCollections.isEmpty) {
-                // ✅ إصلاح جوهري: اشتقاق المؤشر من أقصى $updatedAt (سلطة الخادم)
-                // بدل Time.nowEpoch() (وقت الجهاز الساحب الذي قد يكون منحرفاً).
-                // fallback إلى Time.nowEpoch() إذا لم يُعالَج أي مستند (دورة فارغة).
                 final newPullTs = _maxUpdatedAtInPull ?? Time.nowEpoch();
                 await _updateLastPullTs(newPullTs);
-                if (_maxUpdatedAtInPull != null) {
-                  _logger.debug(
-                    '📍 مؤشر السحب الجديد مشتق من max(\$updatedAt) = $_maxUpdatedAtInPull '
-                    '(سلطة الخادم)',
-                    tag: 'SYNC',
-                  );
-                }
-                // ✅ Sync Safety Wave 2 (2026-08-12): Full Sync Bootstrap Flag.
-                //
-                // عند نجاح دورة سحب كاملة (لا فشل في أي collection)، نضع
-                // علامة `full_sync_complete = 1`. هذا يسمح لـ `buildDeltaQueries`
-                // بإرجاع delta queries في الدورات التالية بدلاً من full fetch.
-                //
-                // **بدون هذا**: حتى لو نجحت أول دورة full sync، يبقى الجهاز
-                // في وضع full fetch إلى الأبد لأن `buildDeltaQueries` يتحقق
-                // من `full_sync_complete` أولاً.
-                //
-                // **ملاحظة**: حتى لو كانت هذه دورة delta sync (وليست أول
-                // full sync)، استدعاء `markFullSyncComplete()` آمن — الـ flag
-                // يُضبط على 1 فقط مرة واحدة، والاستدعاءات اللاحقة idempotent.
                 await _pullService?.markFullSyncComplete();
               } else {
                 _logger.warning(
@@ -2191,20 +1197,6 @@ class AppwriteSyncManager {
           }
 
           _lastSyncTime = endTime;
-
-          // ✅ (2026-09-01) طابع آخر سحب مكتمل (ساعة الحائط) — يختلف عن
-          // _lastSyncTime الذي يتقدم مع أي دورة (حتى رفع فقط). حارس الركود
-          // يقيس من هذا الطابع حصراً: جهاز يرفع تغييراته طوال اليوم لا يزال
-          // بحاجة إلى سحب بيانات الأجهزة الأخرى كل ساعة. يُكتب فقط عندما
-          // نُفّذت مرحلة سحب فعلياً في هذه الدورة (بعد كل منطق التخطي أعلاه)؛
-          // المحاولة الفاشلة تُحدّثه أيضاً — إيقاع إعادة المحاولة يبقى ساعة.
-          if (pull) {
-            await prefs.setInt(
-              SyncConstants.lastPullWallClockKey,
-              endTime.millisecondsSinceEpoch,
-            );
-          }
-
           await _saveSettings();
 
           // ✅ Wave 7 (2026-08-12): Flush pending remote change notifications.
@@ -2432,7 +1424,6 @@ class AppwriteSyncManager {
           errorMessage: errorMessage,
           timestamp: endTime,
           duration: duration,
-          pullSkipped: pullSkipped,
         );
       });
     } on TimeoutException {
@@ -2628,82 +1619,6 @@ class AppwriteSyncManager {
     } catch (_) {
       return null;
     }
-  }
-
-  /// ✅ (2026-08-31) قراءة `deletedAt` من metadata الوثيقة (السمة أُضيفت
-  /// إلى حمولة [AppwriteService.listDocumentsMetadata] لهذا الغرض) —
-  /// يعيد null إذا غابت، و0 تُعامل كـ"حيّ" (نفس دلالة buildFullSyncQueries).
-  int? _extractDeletedAtSec(models.Document doc) {
-    try {
-      final raw = doc.data['deletedAt'];
-      if (raw is int) return raw;
-      if (raw is num) return raw.toInt();
-      if (raw is String) return int.tryParse(raw);
-      return null;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// ✅ (2026-08-31) فصل tombstones في مرحلة metadata: يبني خريطة
-  /// `id → deletedAt` للمحذوف (>0) من صفوف metadata الخفيفة، ثم يستبعد
-  /// منها المحذوف **غير المعروف محلياً** من [changedIds] ويعلّمه في
-  /// sync_remote_meta (صفر تنزيل، لا يُعاد تعداده).
-  ///
-  /// المحذوف المعروف محلياً يبقى في changedIds عمداً — تنزيله هو آلية
-  /// توصيل الحذف لهذا الجهاز (فرع tombstone في المصالحة).
-  Future<void> _partitionTombstones({
-    required List<models.Document> metaDocs,
-    required Map<String, int> serverMeta,
-    required Map<String, int> localMeta,
-    required String collectionId,
-    required String entity,
-    required List<String> changedIds,
-  }) async {
-    // ✅ (2026-09-02) كيانات الآباء المرجعية (employees) تستثنى من تخطي
-    // tombstones: أبناؤها الماليون (salary_withdrawals/salary_cycles) يُحلّ
-    // FK ضد الموظف عبر serverId — بدون تنزيل الموظفين المحذوفين ناعماً
-    // يفشل الحل على جهاز جديد وتُتخطى سجلات مالية كاملة كـ"أيتام"
-    // (128 سحوبة / 654,500 في الإنتاج). انظر entityNeedsTombstoneParents.
-    if (SyncPullService.entityNeedsTombstoneParents(entity)) {
-      return;
-    }
-    final deletedTs = <String, int>{};
-    for (final d in metaDocs) {
-      final del = _extractDeletedAtSec(d);
-      if (del != null && del > 0) deletedTs[d.$id] = del;
-    }
-    if (deletedTs.isEmpty) return;
-
-    final skipIds = SyncPullService.tombstoneSkipIds(
-      deletedTs: deletedTs,
-      localMeta: localMeta,
-    );
-    if (skipIds.isEmpty) return;
-
-    changedIds.removeWhere(skipIds.contains);
-    final skipMeta = <String, int>{};
-    for (final id in skipIds) {
-      final ts = serverMeta[id];
-      if (ts != null) skipMeta[id] = ts;
-    }
-    // كتابة المعرفة فوراً: قرار التخطي نهائي (لا شيء يُطبَّق)، وأي تعديل
-    // لاحق للسجل يرفع $updatedAt فيعود في النافذة/المقارنة طبيعياً.
-    try {
-      if (skipMeta.isNotEmpty) {
-        await database.upsertRemoteMeta(collectionId, skipMeta);
-      }
-    } catch (e) {
-      _logger.warning(
-        '⚠️ tombstone meta($entity) فشل: $e — ستُعاد المقارنة الدورة القادمة',
-        tag: 'SYNC',
-      );
-    }
-    _logger.info(
-      '🪧 metadata-first($entity): تخطي ${skipIds.length} tombstone غير '
-      'معروف محلياً (من ${deletedTs.length} محذوفاً في النطاق) — صفر تنزيل',
-      tag: 'SYNC',
-    );
   }
 
   /// ✅ إصلاح جذري (2026-06-27): دمج Vector Clock في حل التعارضات
@@ -3190,12 +2105,6 @@ class AppwriteSyncManager {
     var processed = 0;
     final affectedRoomNumbers = <String>{};
 
-    // ✅ إصلاح N+1 (2026-08-30): جلب كل الحجوزات الموجودة للصفحة الواحدة في
-    // استعلام واحد (local_uuid IN ...) بدل SELECT لكل مستند. الخريطة تُحدَّث
-    // من إعادة الجلب بعد كل upsert، فتبقى صحيحة حتى لو تكرر localUuid داخل
-    // نفس الصفحة (نادر — قد يحدث مع بيانات نسخ احتياطي يدوي).
-    final existingBookingsByUuid = await _prefetchBookingsByUuid(documents);
-
     for (final doc in documents) {
       try {
         final data = Map<String, dynamic>.from(doc.data);
@@ -3203,11 +2112,9 @@ class AppwriteSyncManager {
 
         // ✅ حفظ حالة الحجز القديمة قبل التحديث لمقارنتها
         final localUuid = (data['localUuid'] as String?) ?? '';
-        final existingBooking =
-            existingBookingsByUuid[localUuid] ??
-            await (database.select(
-              database.bookings,
-            )..where((b) => b.localUuid.equals(localUuid))).getSingleOrNull();
+        final existingBooking = await (database.select(
+          database.bookings,
+        )..where((b) => b.localUuid.equals(localUuid))).getSingleOrNull();
         final oldStatus = existingBooking?.status;
         final oldRoomNumber = existingBooking?.roomNumber;
 
@@ -3249,10 +2156,6 @@ class AppwriteSyncManager {
         final booking = await (database.select(
           database.bookings,
         )..where((b) => b.localUuid.equals(localUuid))).getSingleOrNull();
-        // ✅ N+1: تحديث الخريطة بالحالة بعد الـ upsert لضمان صحة المرات اللاحقة
-        if (booking != null) {
-          existingBookingsByUuid[localUuid] = booking;
-        }
 
         if (booking != null) {
           // ✅ تسجيل تشخيصي بعد السحب: التحقق من حفظ الحقول الحرجة محلياً
@@ -3555,12 +2458,6 @@ class AppwriteSyncManager {
     var processed = 0;
     final deferred = <models.Document>[];
 
-    // ✅ إصلاح N+1 (2026-08-30): جلب كل المدفوعات الموجودة للصفحة في استعلام
-    // واحد بدل SELECT لكل مستند. uuid الذي سبق upsert له في هذه الدفعة يُقرأ
-    // من القاعدة مباشرة لضمان أحدث حالة (الخريطة تُبنى قبل الحلقة فقط).
-    final existingPaymentsByUuid = await _prefetchPaymentsByUuid(documents);
-    final upsertedPaymentUuids = <String>{};
-
     // المرحلة الأولى: معالجة الدفعات
     for (final doc in documents) {
       try {
@@ -3582,9 +2479,7 @@ class AppwriteSyncManager {
 
         // ✅ إصلاح: التحقق من الحذف الناعم + عدم تجاوز البيانات المحلية الأحدث
         final localUuid = (data['localUuid'] as String?) ?? '';
-        final existingPayment = upsertedPaymentUuids.contains(localUuid)
-            ? await _getPaymentByLocalUuid(localUuid)
-            : existingPaymentsByUuid[localUuid];
+        final existingPayment = await _getPaymentByLocalUuid(localUuid);
 
         // منع إعادة إحياء السجلات المحذوفة softly
         if (existingPayment != null && existingPayment.deletedAt != null) {
@@ -3627,7 +2522,6 @@ class AppwriteSyncManager {
           data,
           src: Source.appwrite,
         );
-        upsertedPaymentUuids.add(localUuid);
         // ✅ Wave 7: notify remote change from another device
         await RemoteChangeNotificationService.instance.onRemoteRecordApplied(
           entity: 'payments',
@@ -3696,11 +2590,6 @@ class AppwriteSyncManager {
     var processed = 0;
     final deferred = <models.Document>[];
 
-    // ✅ إصلاح N+1 (2026-08-30): جلب كل الديون الموجودة للصفحة في استعلام
-    // واحد بدل SELECT لكل مستند (نفس نمط _syncPayments).
-    final existingDebtsByUuid = await _prefetchDebtsByUuid(documents);
-    final upsertedDebtUuids = <String>{};
-
     // المرحلة الأولى: معالجة الديون
     for (final doc in documents) {
       try {
@@ -3709,9 +2598,7 @@ class AppwriteSyncManager {
 
         // ✅ إصلاح: التحقق من الحذف الناعم + عدم تجاوز البيانات المحلية الأحدث
         final localUuid = (data['localUuid'] as String?) ?? '';
-        final existingDebt = upsertedDebtUuids.contains(localUuid)
-            ? await _getDebtByLocalUuid(localUuid)
-            : existingDebtsByUuid[localUuid];
+        final existingDebt = await _getDebtByLocalUuid(localUuid);
 
         // منع إعادة إحياء السجلات المحذوفة softly
         if (existingDebt != null && existingDebt.deletedAt != null) {
@@ -3750,7 +2637,6 @@ class AppwriteSyncManager {
         }
 
         await _adapterRegistry.debts.upsertFromJson(data, src: Source.appwrite);
-        upsertedDebtUuids.add(localUuid);
         processed++;
       } catch (e) {
         // ✅ تأجيل الدين فقط إذا كان الخطأ FOREIGN KEY أو NOT NULL constraint
@@ -4102,16 +2988,6 @@ class AppwriteSyncManager {
         case 'payment_voids':
           return await _processPaymentVoidEntry(entry);
         case 'audit_logs':
-          // ✅ (2026-08-30) audit_logs مستبعد من رفع Appwrite — محلي فقط.
-          // نُعدّ المدخلة "مُسلَّمة" (return true) لتفادي تراكم مدخلات قديمة
-          // في الـ outbox بحالة failed/dead بعد تفعيل الاستبعاد.
-          if (!SyncConstants.auditLogsSyncEnabled) {
-            _logger.debug(
-              '⏭️ audit_logs مستبعد من الرفع — إسقاط مدخلة ${entry.localUuid}',
-              tag: 'SYNC',
-            );
-            return true;
-          }
           return await _processAuditLogEntry(entry);
         case 'app_users':
           return await _processAppUserEntry(entry);
@@ -4897,68 +3773,6 @@ class AppwriteSyncManager {
     )..where((t) => t.localUuid.equals(localUuid))).getSingleOrNull();
   }
 
-  // ✅ إصلاح N+1 (2026-08-30): دوال جلب مسبق للدفعة الواحدة من السحب.
-  // استعلام IN واحد لكل صفحة (≤100 مستنداً) بدل SELECT لكل مستند — يلغي
-  // استعلامات القراءة المتكررة في مسارات السحب الأكثر حركة. ملاحظة: uuid
-  // الفارغ غير مضمّن في الفلتر (يطابق سلوك الحلقة الأصلية حيث '' لا يجد شيئاً).
-
-  Future<Map<String, Booking>> _prefetchBookingsByUuid(
-    List<models.Document> documents,
-  ) async {
-    final uuids = <String>{};
-    for (final d in documents) {
-      final v = d.data['localUuid'];
-      if (v is String && v.isNotEmpty) uuids.add(v);
-    }
-    final byUuid = <String, Booking>{};
-    if (uuids.isEmpty) return byUuid;
-    final rows = await (database.select(
-      database.bookings,
-    )..where((t) => t.localUuid.isIn(uuids))).get();
-    for (final row in rows) {
-      byUuid[row.localUuid] = row;
-    }
-    return byUuid;
-  }
-
-  Future<Map<String, Payment>> _prefetchPaymentsByUuid(
-    List<models.Document> documents,
-  ) async {
-    final uuids = <String>{};
-    for (final d in documents) {
-      final v = d.data['localUuid'];
-      if (v is String && v.isNotEmpty) uuids.add(v);
-    }
-    final byUuid = <String, Payment>{};
-    if (uuids.isEmpty) return byUuid;
-    final rows = await (database.select(
-      database.payments,
-    )..where((t) => t.localUuid.isIn(uuids))).get();
-    for (final row in rows) {
-      byUuid[row.localUuid] = row;
-    }
-    return byUuid;
-  }
-
-  Future<Map<String, Debt>> _prefetchDebtsByUuid(
-    List<models.Document> documents,
-  ) async {
-    final uuids = <String>{};
-    for (final d in documents) {
-      final v = d.data['localUuid'];
-      if (v is String && v.isNotEmpty) uuids.add(v);
-    }
-    final byUuid = <String, Debt>{};
-    if (uuids.isEmpty) return byUuid;
-    final rows = await (database.select(
-      database.debts,
-    )..where((t) => t.localUuid.isIn(uuids))).get();
-    for (final row in rows) {
-      byUuid[row.localUuid] = row;
-    }
-    return byUuid;
-  }
-
   // ─── GuestInfos ──────────────────────────────────────────────────────────
 
   Future<int> _syncGuestInfos(List<models.Document> documents) async {
@@ -5077,13 +3891,6 @@ class AppwriteSyncManager {
     if (documents.isEmpty) return 0;
     var processed = 0;
     final deferred = <Map<String, dynamic>>[];
-    // ✅ (2026-09-02) عدّاد التخطي للملخص النهائي (رؤية بدل 60 سطراً متفرقاً)
-    var skippedOrphans = 0;
-    var skippedOrphansAmount = 0;
-    final skippedOrphanRefs = <int>{};
-    final skippedOrphanSampleIds = <String>[];
-    // ✅ (2026-09-02) محلّل واحد يعاد استخدامه لكل المستندات
-    final employeeFkResolver = IdResolver(database);
 
     for (final doc in documents) {
       try {
@@ -5111,14 +3918,7 @@ class AppwriteSyncManager {
           continue;
         }
 
-        // ✅ حل FK الموظف: UUID → serverId (id جهاز المصدر).
-        // ⚠️ (2026-09-02) أُزيلت "الطريقة 2" (مطابقة employeeId البعيد مع
-        // e.id المحلي): Employee.id autoIncrement يختلف بين الأجهزة
-        // (base_repository يزيل id للسجلات الجديدة)، والمطابقة تربط السحوبة
-        // بموظف خاطئ بصمت عند التصادم الرقمي — 378 سحوبة في بيانات الإنتاج
-        // معرّضة لهذا على جهاز جديد. نفس قرار resolveBooking (id_resolver)
-        // و expenses_adapter، ويتطابق مع توثيق _syncEmployees:
-        // serverId = id الموظف على جهاز المصدر.
+        // ✅ حل FK الموظف بثلاث مستويات: UUID → id → serverId
         final remoteEmployeeId =
             _asIntSafe(data, 'employeeId') ?? _asIntSafe(data, 'employee_id');
         final employeeUuid =
@@ -5127,32 +3927,36 @@ class AppwriteSyncManager {
             (data['employeeLocalUuid'] as String?) ??
             (data['employee_local_uuid'] as String?);
 
-        final resolvedEmployeeId =
-            employeeUuid != null || remoteEmployeeId != null
-            ? await employeeFkResolver.resolveEmployee(
-                uuid: employeeUuid,
-                serverId: remoteEmployeeId,
-                fromRemote: true,
-              )
-            : null;
-
-        // جلب صف الموظف المحلول لختم UUID القياسي أدناه
         Employee? employee;
-        if (resolvedEmployeeId != null) {
+
+        // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
+        if (employeeUuid != null && employeeUuid.isNotEmpty) {
           employee =
               await (database.select(database.employees)
-                    ..where((e) => e.id.equals(resolvedEmployeeId))
+                    ..where((e) => e.localUuid.equals(employeeUuid))
+                    ..limit(1))
+                  .getSingleOrNull();
+        }
+
+        // الطريقة 2: البحث بالـ id البعيد كـ id محلي (يعمل إذا تطابقت المعرفات)
+        if (employee == null && remoteEmployeeId != null) {
+          employee =
+              await (database.select(database.employees)
+                    ..where((e) => e.id.equals(remoteEmployeeId))
+                    ..limit(1))
+                  .getSingleOrNull();
+        }
+
+        // الطريقة 3: البحث بالـ serverId (id الأصلي من جهاز المصدر)
+        if (employee == null && remoteEmployeeId != null) {
+          employee =
+              await (database.select(database.employees)
+                    ..where((e) => e.serverId.equals(remoteEmployeeId))
                     ..limit(1))
                   .getSingleOrNull();
         }
 
         if (employee == null) {
-          skippedOrphans++;
-          skippedOrphansAmount += _asIntSafe(data, 'amount') ?? 0;
-          if (remoteEmployeeId != null) skippedOrphanRefs.add(remoteEmployeeId);
-          if (skippedOrphanSampleIds.length < 5) {
-            skippedOrphanSampleIds.add(doc.$id);
-          }
           _logger.warning(
             '⏭️ تخطي salary_withdrawal ${doc.$id}: الموظف $remoteEmployeeId (uuid=$employeeUuid) غير موجود محلياً (سجل يتيم)',
             tag: 'SYNC',
@@ -5163,10 +3967,6 @@ class AppwriteSyncManager {
         // ✅ استبدال employeeId البعيد بالمعرف المحلي للموظف
         // هذا يضمن أن FK يشير للمعرف المحلي الصحيح
         data['employeeId'] = employee.id;
-        // ✅ (2026-09-02) ختم employeeUuid القياسي: المحلّل داخل الـ adapter
-        // (أثناء upsertFromJson) يحل المرجع عبر الطريقة 1 (UUID) حتماً بدل
-        // الاعتماد على قيم خام قد تفشل عبر الأجهزة.
-        data['employeeUuid'] = employee.localUuid;
 
         final insertedId = await _adapterRegistry.salaryWithdrawals
             .upsertFromJson(data, src: Source.appwrite);
@@ -5256,22 +4056,6 @@ class AppwriteSyncManager {
           );
         }
       }
-    }
-
-    // ✅ (2026-09-02) ملخص واحد قابل للتصرف بدل تسطّح التحذيرات: عدد
-    // الأيتام + إجمالي المبالغ + مراجع الموظفين المفقودة. التخطي هنا
-    // نهائي بلا فائدة من إعادة المحاولة: الموظف غير موجود في السحابة
-    // نفسها (تحقق 2026-09-02: 96 سحوبة/484,500 بلا موظف) — التنظيف قرار
-    // مالك البيانات، والـ checkpoint يبقى كما هو لعدم إعادة سحب أبدية.
-    if (skippedOrphans > 0) {
-      _logger.warning(
-        '📋 ملخص salary_withdrawals: تخطي $skippedOrphans سجل يتيم '
-        '(إجمالي $skippedOrphansAmount) — مراجع موظفين مفقودة: '
-        '${skippedOrphanRefs.toList()..sort()} '
-        '${skippedOrphanSampleIds.isEmpty ? '' : 'نماذج: $skippedOrphanSampleIds'} '
-        '— لا يوجد موظف مطابق في السحابة/محلياً؛ مراجعة تنظيف السحابة مطلوبة',
-        tag: 'SYNC',
-      );
     }
 
     return processed;
@@ -5392,27 +4176,12 @@ class AppwriteSyncManager {
 
   // ─── Delta Sync ────────────────────────────────────────────────────────
 
-  /// قراءة آخر timestamp خاص بـ booking_nights من SharedPreferences
-  Future<int> _getBookingNightsPullTs() async {
-    return _pullService?.getBookingNightsPullTs() ?? 0;
-  }
-
-  /// تحديث آخر timestamp خاص بـ booking_nights
-  Future<void> _updateBookingNightsPullTs(int ts) async {
-    await _pullService?.updateBookingNightsPullTs(ts);
-  }
-
-  /// بناء delta queries خاصة بـ booking_nights
-  List<String> _bookingNightsDeltaQueries(
-    int lastPullTs, {
-    required bool remoteEpochIsMillis,
-  }) {
-    return _pullService?.bookingNightsDeltaQueries(
-          lastPullTs,
-          remoteEpochIsMillis: remoteEpochIsMillis,
-        ) ??
-        [];
-  }
+  // ملاحظة (2026-08-31): أُزيلت الأغلفة الخاصة غير المستخدمة
+  // (_getBookingNightsPullTs، _updateBookingNightsPullTs،
+  // _bookingNightsDeltaQueries) — كانت بقايا مسار Delta القديم
+  // قبل مسار السحب الموحد (UnifiedPullEngine) الذي يقرأ المؤشرات
+  // من SyncCheckpointStore مباشرة. الدوال العامة في SyncPullService
+  // بقيت لأن اختبارات الوحدات تستخدمها.
 
   /// تنظيف outbox بعد سحب البيانات من السحابة بنجاح.
   /// يحذف عناصر outbox التي تتطابق مع بيانات تم سحبها فعلياً (بنفس entity + localUuid).
@@ -6168,37 +4937,6 @@ class AppwriteSyncManager {
     return row?.lastModified;
   }
 
-  /// قراءة آخر timestamp لسحب البيانات من جدول SyncState
-  Future<int> _getLastPullTs() async {
-    return _pullService?.getLastPullTs() ?? 0;
-  }
-
-  /// ✅ (2026-08-30) حارس مركزي يمنع عواصف السحب من أي مدخل
-  /// (dashboard / session / أزرار يدوية / مؤقتات).
-  ///
-  /// ⚠️ الساعة المستخدمة هي **وقت الجهاز لآخر مزامنة مكتملة**
-  /// (`_lastSyncTime` المحفوظة في prefs باسم appwrite_last_sync_time) —
-  /// وليس `lastPullTs`؛ لأن `lastPullTs` يُشتق من أقصى `$updatedAt`
-  /// على الخادم (سلطة الخادم لفلتر delta) فليس زمنَ سحبٍ، وببيانات خادم
-  /// هادئة سيكون قديماً دائماً وبالتالي لا يمنع شيئاً، ومع انحراف ساعات
-  /// قد يحجب السحب ساعات. الفاصل الحالي: SyncConstants.minPullGap.
-  ///
-  /// ملاحظة: `_lastSyncTime` تُحدَّث عند اكتمال أي دورة مزامنة (حتى
-  /// push-only) — هذا مقصود: نشاط مزامنة حديث يعني أن السحب عبر مدخل آخر
-  /// كان قريباً أو على وشك الحدوث.
-  bool _canStartPull() {
-    final last = _lastSyncTime;
-    if (last == null) return true;
-    return DateTime.now().difference(last) >= SyncConstants.minPullGap;
-  }
-
-  /// ✅ (2026-08-30) إعادة ضبط حارس السحب للاختبارات (تسلسل دورات متقاربة
-  /// داخل الاختبار يجب ألا يُقيَّد بفاصل الدقيقتين).
-  @visibleForTesting
-  void resetPullThrottleForTesting() {
-    _lastSyncTime = null;
-  }
-
   /// تحديث آخر timestamp لسحب البيانات في جدول SyncState
   /// ✅ نستخدم insertOnConflictUpdate بدلاً من update فقط
   /// لأن صف SyncState (id=1) قد لا يكون موجوداً بعد، مما يجعل UPDATE
@@ -6206,402 +4944,6 @@ class AppwriteSyncManager {
   /// وكل مزامنة تسحب كل البيانات بدلاً من التغييرات فقط (delta).
   Future<void> _updateLastPullTs(int ts) async {
     await _pullService?.updateLastPullTs(ts);
-  }
-
-  /// ✅ (2026-08-30) استعلامات السحب الخاصة بكل كيان (Delta مستقل لكل كيان).
-  ///
-  /// - وضع السحب الكامل أو غياب خدمة السحب → يُعاد [fallback] كما هو.
-  /// - وضع delta: فلتر `$updatedAt > مؤشر_الكيان − نافذة_الأمان`.
-  ///
-  /// ✅ (2026-08-31) [isDelta] هنا قرار **الكيان** (يُحسب في
-  /// [_pullDocsMetadataFirst]: العام || مؤشر الكيان > 0) — لا القرار العام
-  /// للدورة.
-  ///
-  /// فشل كيان لم يعُد يمتد أثره إلى بقية الكيانات: كل كيان يحمل مؤشره
-  /// الخاص ويتقدم باستقلال — العلاج الجذري للمؤشر العالمي الواحد الذي
-  /// كان يجمد كل الكيانات عند فشل واحد ويعيد سحب deltas سليمة كل دورة.
-  Future<List<String>> _entityPullQueries(
-    String entity, {
-    required bool isDelta,
-    required List<String> fallback,
-  }) async {
-    if (!isDelta) return fallback;
-    final service = _pullService;
-    if (service == null) return fallback;
-    try {
-      return await service.entityDeltaQueries(entity);
-    } catch (e) {
-      _logger.warning(
-        '⚠️ entityDeltaQueries($entity) فشل — استخدام المؤشر العام: $e',
-        tag: 'SYNC',
-      );
-      return fallback;
-    }
-  }
-
-  /// ✅ (2026-08-31) تقليل السحب على مستوى السجل — echo immunization.
-  ///
-  /// يُستدعى بعد نجاح أي رفع (كل مسارات الرفع تمر عبر
-  /// AppwriteService._upsertDocumentInternal → onDocumentUpserted).
-  /// يُسجّل `$updatedAt` المعاد من الخادم في sync_remote_meta فوراً كي
-  /// تعتبره دورة delta التالية نسخة "مُحكَمة عليها" (metadata match) ولا
-  /// تُنزّل حمولته الكاملة — القرار السابق كان تنزيل echo كاملاً ثم رفضه
-  /// في المصالحة (هدر شبكي بحت لكل سجل نرفعه).
-  ///
-  /// دلالات الأمان: الخادم أعاد هذا الطابع لرفع **نجح بمحتوى هذا الجهاز** —
-  /// تسجيله يعني "الخادم يحمل هذا الإصدار ونحن مصدره"؛ إن عاد في delta
-  /// فتخطيه مطابق لتنزيله ورفضه. تعديل محلي لاحق يبقى في outbox وسيُرفع
-  /// ويعيد التسجيل بطابع أحدث — لا تعارض.
-  ///
-  /// public لكي تختبره الاختبارات مباشرة؛ لا يرمي أبداً (فشله غير مؤثر —
-  /// echo سُحب مرة واحدة إضافية في أسوأ الحالات).
-  Future<void> recordPushedDocumentMeta(
-    String collectionId,
-    models.Document doc,
-  ) async {
-    try {
-      // كيانات المزامنة فقط — كولكشنز النظام (auth/devices/…) لا تدخل
-      // في مقارنات metadata-first أصلاً فلا داعي لتلوث الخريطة.
-      if (AppwriteConfig.entityForCollectionId(collectionId) == null) return;
-      final ts = _extractUpdatedAtSec(doc);
-      if (ts == null) return;
-      await database.upsertRemoteMeta(collectionId, {doc.$id: ts});
-      _logger.debug(
-        '⚡ push-echo meta($collectionId/${doc.$id}): ts=$ts — '
-        'echo لن يُنزَّل في الدورة التالية',
-        tag: 'SYNC',
-      );
-    } catch (e) {
-      _logger.warning(
-        '⚠️ push-echo meta($collectionId) فشل (غير مؤثر): $e',
-        tag: 'SYNC',
-      );
-    }
-  }
-
-  /// ✅ (2026-08-30) الفجوتان 3+4 — طبقة السحب metadata-first.
-  ///
-  /// في السحب الكامل (أول مزامنة / فقد watermark / resetSyncState) بدل تنزيل
-  /// كل المستندات بكل أعمدتها:
-  /// 1) سحب ($id + $updatedAt) فقط لكل مستندات الكولكشن — ترقيم مؤشري،
-  ///    حمولة ~100 بايت للصف.
-  /// 2) مقارنة مع الخريطة المحلية sync_remote_meta → معرّفات المتغيّر فعلاً.
-  /// 3) لا تغييرات → إعادة قائمة فارغة + تسجيل أقصى $updatedAt للخادم
-  ///    "معلقاً" لكيان (يستهلكه checkpoint بعد نجاح الدورة) — صفر جلب كامل.
-  /// 4) هناك تغييرات → جلبها كاملة على دفعات Query.equal($id, chunk).
-  ///
-  /// ✅ (2026-08-31) تقليل السحب على مستوى السجل: وضع delta لم يعد يُنزّل
-  /// الحمولات الكاملة مباشرة — يمر عبر [_pullDocsDeltaMetadataFirst]
-  /// (metadata النافذة الزمنية أولاً ثم تنزيل المتغيّر فعلاً فقط).
-  ///
-  /// ✅ (2026-08-31) قرار delta/full صار على مستوى الكيان: [isDelta] هنا
-  /// قرار الكيان (`isDelta` العام || مؤشر الكيان > 0) — فشل كيان آخر لا
-  /// يُعيد سحب هذا الكيان كاملاً كل دورة.
-  ///
-  /// ملاحظة أمان: المستندات المحذوفة من الخادم تختفي من الـ metadata ولا
-  /// تُجلب — مطابق لسلوك السحب الكامل السابق (لا حذف انعكاسي في السحب).
-  Future<List<models.Document>> _pullDocsMetadataFirst({
-    required String entity,
-    required bool isDelta,
-    required List<String> fallback,
-  }) async {
-    // ✅ (2026-08-31) قرار delta/full على مستوى الكيان لا على مستوى الدورة:
-    // كيان مؤشره الخاص > 0 يمضي في delta حتى لو كانت الدورة عامةً full
-    // (fullSyncComplete=0 بسبب فشل كيان آخر مستمر) — الكيان السليم لا يُعاقَب
-    // بعقدة جاره، والكيان الفاشل وحده يبقى full له وحده.
-    //
-    // أمان القرار (ثلاث طبقات مثبتة في الكود):
-    //  1) مؤشر الكيان يتقدّم فقط بعد نجاح سحبه وتطبيقه (_checkpointEntity
-    //     تُستدعى بعد نجاح _sync*) وهو أحادي الاتجاه — لا يقفز فوق سجلات
-    //     لم تُطبَّق، والمسار السريع Realtime لا يقدّمه إطلاقاً.
-    //  2) إذا كانت خريطة sync_remote_meta فارغة محلياً (قاعدة بيانات مُعادة
-    //     التهيئة مع بقاء prefs) يهبط _pullDocsDeltaMetadataFirst تلقائياً
-    //     إلى full لهذا الكيان.
-    //  3) بعد resetSyncState تُمسح خريطة المؤشرات مع lastPullTs — تعود كل
-    //     الكيانات إلى full ويبقى هو شبكة أمان الكمال.
-    int entityTs = 0;
-    try {
-      entityTs = await _pullService?.getEntityPullTs(entity) ?? 0;
-    } catch (_) {
-      entityTs = 0;
-    }
-    final entityIsDelta = isDelta || entityTs > 0;
-    if (!isDelta && entityIsDelta) {
-      _logger.info(
-        '🪶 per-entity delta($entity): مؤشره الخاص ($entityTs) يتقدّم رغم '
-        'وضع الدورة العام full — فشل كيان آخر لا يعيد سحبه كاملاً',
-        tag: 'SYNC',
-      );
-    }
-
-    final queries = await _entityPullQueries(
-      entity,
-      isDelta: entityIsDelta,
-      fallback: fallback,
-    );
-    if (entityIsDelta) {
-      // ✅ (2026-08-31) تقليل السحب على مستوى السجل — delta صار metadata-first
-      // أيضاً (كان يُنزّل الحمولة الكاملة لكل مستند في النافذة الزمنية).
-      return _pullDocsDeltaMetadataFirst(entity, queries);
-    }
-
-    // ── السحب الكامل: metadata-first ──
-    final collectionId = AppwriteConfig.collectionIdFor(entity);
-    if (collectionId == null) {
-      // كيان بلا خريطة معرّفات — السلوك القديم احتياطاً
-      return appwriteService.listDocuments(
-        collectionId: entity,
-        queries: queries,
-        useCache: false,
-      );
-    }
-
-    final metaDocs = await appwriteService.listDocumentsMetadata(collectionId);
-    final serverMeta = <String, int>{};
-    final unknownTsIds = <String>[];
-    for (final d in metaDocs) {
-      final ts = _extractUpdatedAtSec(d);
-      if (ts == null) {
-        unknownTsIds.add(d.$id);
-      } else {
-        serverMeta[d.$id] = ts;
-      }
-    }
-    var serverMax = 0;
-    for (final ts in serverMeta.values) {
-      if (ts > serverMax) serverMax = ts;
-    }
-    final localMeta = await database.getRemoteMetaMap(collectionId);
-    final changedIds = SyncPullService.computeChangedIds(
-      serverMeta: serverMeta,
-      localMeta: localMeta,
-      unknownTsDocIds: unknownTsIds,
-    );
-
-    // ✅ (2026-08-31) استبعاد tombstones غير المطلوبة من التنزيل — السحب
-    // الكامل metadata-first لم يكن يحترم فلتر buildFullSyncQueries (كان
-    // يعدّد كل الكولكشن بمن فيهم المحذوف ثم يُنزّل المحذوف غير المعروف
-    // محلياً كاملاً ليدرجه صف tombstone غير مرئي).
-    await _partitionTombstones(
-      metaDocs: metaDocs,
-      serverMeta: serverMeta,
-      localMeta: localMeta,
-      collectionId: collectionId,
-      entity: entity,
-      changedIds: changedIds,
-    );
-
-    if (changedIds.isEmpty) {
-      _logger.info(
-        '🪶 metadata-first($entity): لا تغييرات بين الخادم والمحلي '
-        '(${serverMeta.length} مستنداً) — تخطي السحب الكامل',
-        tag: 'SYNC',
-      );
-      if (serverMax > 0) _pendingMetaServerMaxTs[entity] = serverMax;
-      return const [];
-    }
-
-    _logger.info(
-      '🪶 metadata-first($entity): ${changedIds.length} من '
-      '${serverMeta.length} مستنداً متغيراً — جلب كامل للمتغير فقط',
-      tag: 'SYNC',
-    );
-    final docs = await appwriteService.listDocumentsByIds(
-      collectionId,
-      changedIds,
-    );
-    if (serverMax > 0) _pendingMetaServerMaxTs[entity] = serverMax;
-    return docs;
-  }
-
-  /// ✅ (2026-08-31) تقليل السحب على مستوى السجل — metadata-first حتى في delta.
-  ///
-  /// قبل هذا: delta تُنزّل الحمولة الكاملة لكل مستند طابق الفلتر الزمني.
-  /// سيناريو الإهدار الأشهر: echo الرفع — سجل دفعناه للتو يعود في الدورة
-  /// التالية ويُنزَّل كاملاً رغم أن محتواه لدينا بالضبط. سيناريو آخر:
-  /// إعادة فحص سجلات داخل نافذة الأمان (15 ثانية) في كل دورة متقاربة.
-  ///
-  /// المراحل:
-  /// 1) metadata خفيفة ($id + $updatedAt) **مقيّدة بفلتر delta نفسه** —
-  ///    الخادم يُرجع فقط ما تغيّر في نافذة المؤشر (~100 بايت/صف).
-  /// 2) نافذة فارغة → صفر عمل إضافي (المؤشر لا يتقدم — لا شيء أحدث منه).
-  /// 3) مقارنة مع sync_remote_meta (تُكتب بعد نجاح التطبيق فقط):
-  ///    - مطابق → نملك هذا الإصدار حرفياً → يُتخطى (صفر تنزيل).
-  ///    - مختلف/غائب → يُجلب كاملاً عبر listDocumentsByIds (دفعات 100).
-  /// 4) meta محلية فارغة لهذا الكولكشن (bootstrap الكيان: لا معرفة لكل
-  ///    سجل) → سحب delta عادي بتمرير واحد — المرحلتان ستضاعفان الطلبات
-  ///    بلا أي تخطٍّ ممكن.
-  ///
-  /// ضمانات السلامة:
-  /// - sync_remote_meta تُكتب بعد نجاح التطبيق فقط (checkpoint/fast-apply/
-  ///   push-echo) → "مطابق" يعني "مُحكَماً عليه فعلاً" — التخطي مطابق
-  ///   دلالياً لتنزيل السجل ورفضه في المصالحة.
-  /// - مؤشر الكيان يتقدم إلى أقصى $updatedAt في **نافذة delta** (سلطة
-  ///   الخادم) عبر _pendingMetaServerMaxTs الذي يستهلكه _checkpointEntity
-  ///   بعد النجاح فقط — كل مستندات النافذة تصير محكومة (مُطبَّق أو مطابق
-  ///   محلياً) فالتقدم فوقها آمن ولا يُفقد سجلات.
-  /// - فشل أي مرحلة → استثناء → failedCollections → لا تقدم للمؤشر
-  ///   ولا كتابة meta (نفس عقد السحب الكامل).
-  /// - المستندات المحذوفة من الخادم تختفي من النافذة كالسابق (لا حذف
-  ///   انعكاسي)، وtombstones (deletedAt>0) تظهر كتغيير عادي إن لم تُطبَّق.
-  Future<List<models.Document>> _pullDocsDeltaMetadataFirst(
-    String entity,
-    List<String> deltaQueries,
-  ) async {
-    final collectionId = AppwriteConfig.collectionIdFor(entity);
-    if (collectionId == null) {
-      // كيان بلا خريطة معرّفات — السلوك القديم احتياطاً
-      return appwriteService.listDocuments(
-        collectionId: entity,
-        queries: deltaQueries,
-        useCache: false,
-      );
-    }
-
-    // المرحلة 1: metadata النافذة الزمنية فقط (فلتر delta مُمرَّر كما هو).
-    final metaDocs = await appwriteService.listDocumentsMetadata(
-      collectionId,
-      extraQueries: deltaQueries,
-    );
-    if (metaDocs.isEmpty) {
-      // نافذة فارغة: لا تغييرات على الخادم منذ مؤشر الكيان — لا جلب ولا
-      // تقدم للمؤشر (النافذة نفسها تُعاد بناؤها في الدورة التالية).
-      return const [];
-    }
-
-    final serverMeta = <String, int>{};
-    final unknownTsIds = <String>[];
-    for (final d in metaDocs) {
-      final ts = _extractUpdatedAtSec(d);
-      if (ts == null) {
-        unknownTsIds.add(d.$id);
-      } else {
-        serverMeta[d.$id] = ts;
-      }
-    }
-
-    final localMeta = await database.getRemoteMetaMap(collectionId);
-    if (localMeta.isEmpty) {
-      // bootstrap الكيان: لا معرفة لكل سجل → لا شيء يُتخطى — تمرير واحد
-      // (listDocuments) أرخص من مرحلتين (metadata ثم دفعات byIds).
-      //
-      // ✅ (2026-08-31) مع فلتر استبعاد tombstones: كان bootstrap يُنزّل
-      // محتوى كل السجلات المحذوفة تاريخياً كاملاً (بتكلفتها وخصوصيتها)
-      // ليدرجه صفوفاً tombstone غير مرئية. الآن التنزيل يستبعد المحذوف
-      // بنفس فلتر السحب الكامل (Query.or على deletedAt مدمجاً AND مع
-      // فلتر النافذة)، والمؤشر يتقدّم إلى أقصى النافذة (سلطة الخادم) —
-      // فلا تعود النافذة التالية لتشمل المحذوف أصلاً. جهاز جديد = صفر
-      // تنزيل لأي سجل محذوف إطلاقاً.
-      //
-      // ملاحظة: لا نكتب sync_remote_meta للمحذوف هنا — الاستبعاد يعتمد
-      // على فلتر الخادم لا على المعرفة، وفشل دورة bootstrap يعيد المحاولة
-      // بنفس الفلتر دون أي تنزيل محذوف (ولا pending يتجاوز سجلات غير
-      // مطبَّقة: يُستهلك فقط بعد نجاح تطبيق هذه النافذة نفسها).
-      var bootstrapServerMax = 0;
-      for (final ts in serverMeta.values) {
-        if (ts > bootstrapServerMax) bootstrapServerMax = ts;
-      }
-      if (bootstrapServerMax > 0) {
-        _pendingMetaServerMaxTs[entity] = bootstrapServerMax;
-      }
-      return appwriteService.listDocuments(
-        collectionId: collectionId,
-        queries: [
-          ...deltaQueries,
-          // ✅ (2026-09-02) كيانات الآباء (employees): دون فلتر tombstones
-          // لضمان حل FK الأبناء الماليين (انظر entityNeedsTombstoneParents).
-          ...SyncPullService.buildFullSyncQueries(
-            includeTombstones: SyncPullService.entityNeedsTombstoneParents(
-              entity,
-            ),
-          ),
-        ],
-        useCache: false,
-      );
-    }
-
-    final changedIds = SyncPullService.computeChangedIds(
-      serverMeta: serverMeta,
-      localMeta: localMeta,
-      unknownTsDocIds: unknownTsIds,
-    );
-
-    // ✅ (2026-08-31) استبعاد tombstones غير المطلوبة من تنزيل النافذة.
-    await _partitionTombstones(
-      metaDocs: metaDocs,
-      serverMeta: serverMeta,
-      localMeta: localMeta,
-      collectionId: collectionId,
-      entity: entity,
-      changedIds: changedIds,
-    );
-
-    // يُستهلك في _checkpointEntity بعد نجاح التطبيق فقط — التقدم إلى أقصى
-    // النافذة آمن لأن كل مستنداتها صارت محكومة (مُطبَّق أو مطابق محلياً).
-    var serverMax = 0;
-    for (final ts in serverMeta.values) {
-      if (ts > serverMax) serverMax = ts;
-    }
-    if (serverMax > 0) _pendingMetaServerMaxTs[entity] = serverMax;
-
-    if (changedIds.isEmpty) {
-      _logger.info(
-        '🪶 delta metadata-first($entity): كل مستندات النافذة '
-        '(${serverMeta.length}) مطابقة محلياً — صفر تنزيل',
-        tag: 'SYNC',
-      );
-      return const [];
-    }
-
-    _logger.info(
-      '🪶 delta metadata-first($entity): ${changedIds.length} من '
-      '${metaDocs.length} في النافذة متغير فعلاً — تنزيل المتغير فقط',
-      tag: 'SYNC',
-    );
-    return appwriteService.listDocumentsByIds(collectionId, changedIds);
-  }
-
-  /// ✅ (2026-08-30) تسجيل مؤشر السحب الخاص بالكيان بعد نجاح سحبه.
-  ///
-  /// يُشتق من أقصى `$updatedAt` في الصفحات المسحوبة (سلطة الخادم،
-  /// نفس فلسفة `buildDeltaQueries`). عند قائمة فارغة لا يتقدم المؤشر —
-  /// أأمن من القفز بوقت الجهاز الذي قد يتخطى سجلات كُتبت أثناء تأخر الشبكة.
-  Future<void> _checkpointEntity(
-    String entity,
-    List<models.Document> docs,
-  ) async {
-    int? maxTs;
-    for (final doc in docs) {
-      final ts = _extractUpdatedAtSec(doc);
-      if (ts != null && (maxTs == null || ts > maxTs)) maxTs = ts;
-    }
-    // ✅ (2026-08-30) metadata-first: أقصى $updatedAt على الخادم من مرحلة
-    // الـ metadata — يُستهلك هنا فقط (أي بعد نجاح التطبيق). المستندات غير
-    // المتغيرة لم تُجلب، لذا أقصى المستندات المجلوبة قد يكون أقل من الخادم.
-    final pendingServerMax = _pendingMetaServerMaxTs.remove(entity);
-    if (pendingServerMax != null &&
-        (maxTs == null || pendingServerMax > maxTs)) {
-      maxTs = pendingServerMax;
-    }
-    if (maxTs == null) return;
-    try {
-      await _pullService?.updateEntityPullTs(entity, maxTs);
-      // ✅ (2026-08-30) metadata-first: تحديث خريطة $updatedAt البعيدة
-      // للمستندات المطبقة بنجاح (delta أو full) — تُغذّي مقارنة السحب
-      // الكامل القادم. الكتابة هنا = بعد نجاح التطبيق، فلا "معلومة رؤية"
-      // بلا محتوى فعلي محلياً.
-      final collectionId = AppwriteConfig.collectionIdFor(entity);
-      if (collectionId != null && docs.isNotEmpty) {
-        final meta = <String, int>{};
-        for (final doc in docs) {
-          final ts = _extractUpdatedAtSec(doc);
-          if (ts != null) meta[doc.$id] = ts;
-        }
-        await database.upsertRemoteMeta(collectionId, meta);
-      }
-    } catch (e) {
-      _logger.warning('⚠️ checkpoint($entity) فشل: $e', tag: 'SYNC');
-    }
   }
 
   /// الحصول على قائمة الأجهزة المسجلة
@@ -6661,22 +5003,243 @@ class AppwriteSyncManager {
     }
   }
 
+  /// ✅ Unified Pull (2026-08-31): قائمة مهام السحب الموحدة — المسار الوحيد
+  /// الذي تستخدمه `sync()` و`pullRemoteChanges()` معاً (لا مسارين منفصلين).
+  ///
+  /// الترتيب محافظ على قيود FK:
+  /// rooms ← bookings.roomNumber
+  /// employees ← salary_cycles.employeeId, salary_withdrawals.employeeId
+  /// bookings ← booking_nights.bookingLocalId, booking_notes.bookingId,
+  ///            payments.bookingLocalId, debts.bookingLocalId
+  /// cash_transactions ← payments.cashTransactionLocalId
+  /// salary_cycles ← salary_payments.cycleId
+  List<CollectionPullTask> _buildPullTasks() {
+    final tasks = <CollectionPullTask>[
+      CollectionPullTask(
+        name: 'rooms',
+        fetch: (plan) =>
+            appwriteService.listRooms(queries: plan.queries, useCache: false),
+        apply: (docs) => _syncRooms(docs),
+      ),
+      CollectionPullTask(
+        name: 'employees',
+        fetch: (plan) => appwriteService.listEmployees(
+          queries: plan.queries,
+          useCache: false,
+        ),
+        apply: (docs) async {
+          // ✅ التوصية 5: تحصين أسبقية الموظفين عبر إعادة المحاولة.
+          final synced = await _syncEmployeesWithRetry(docs);
+          // ✅ التوصية 3: إعادة ربط مؤجّلة لمصروفات الرواتب اليتيمة بعد سحب
+          // الموظفين (يعالج خطر #4 — مصروفات وصلت قبل موظفيها).
+          try {
+            await _relinkOrphanSalaryExpenses();
+          } catch (e, st) {
+            _logger.warning(
+              '⚠️ _relinkOrphanSalaryExpenses فشل بعد سحب الموظفين — '
+              'سيُعاد المحاولة في الدورة التالية.',
+              error: e,
+              stackTrace: st,
+              tag: 'SYNC_RELINK',
+            );
+          }
+          return synced;
+        },
+      ),
+      CollectionPullTask(
+        name: 'inventory_items',
+        fetch: (plan) => appwriteService.listDocuments(
+          collectionId: AppwriteConfig.inventoryItemsCollectionId,
+          queries: plan.queries,
+          useCache: false,
+        ),
+        apply: (docs) => _syncInventoryItems(docs),
+      ),
+      CollectionPullTask(
+        name: 'inventory_transactions',
+        fetch: (plan) => appwriteService.listDocuments(
+          collectionId: AppwriteConfig.inventoryTransactionsCollectionId,
+          queries: plan.queries,
+          useCache: false,
+        ),
+        apply: (docs) => _syncInventoryTransactions(docs),
+      ),
+      CollectionPullTask(
+        name: 'bookings',
+        fetch: (plan) => appwriteService.listBookings(
+          queries: plan.queries,
+          useCache: false,
+        ),
+        apply: (docs) => _syncBookings(docs),
+      ),
+      CollectionPullTask(
+        name: 'cash_transactions',
+        fetch: (plan) => appwriteService.listCashTransactions(
+          queries: plan.queries,
+          useCache: false,
+        ),
+        apply: (docs) => _syncCashTransactions(docs),
+      ),
+      CollectionPullTask(
+        name: 'expenses',
+        fetch: (plan) => appwriteService.listExpenses(
+          queries: plan.queries,
+          useCache: false,
+        ),
+        apply: (docs) => _syncExpenses(docs),
+      ),
+      CollectionPullTask(
+        name: 'booking_nights',
+        fetch: (plan) {
+          // ✅ عند السحب الأولي: تحديد 1000 سجل كحد أقصى — booking_nights
+          // قد يحوي عشرات الآلاف من الليالي التاريخية (بطء التثبيت الأول).
+          // ✅ Unified Pull: المؤشر الآن مشتق من max($updatedAt) (سلطة
+          // الخادم) بدل Time.nowEpoch() — إصلاح الخلل التاريخي.
+          const int kInitialBookingNightsLimit = 1000;
+          return appwriteService.listBookingNights(
+            queries: plan.queries,
+            useCache: false,
+            maxRecords: plan.isFullSync ? kInitialBookingNightsLimit : null,
+          );
+        },
+        apply: (docs) => _syncBookingNights(docs),
+      ),
+      CollectionPullTask(
+        name: 'booking_notes',
+        fetch: (plan) => appwriteService.listBookingNotes(
+          queries: plan.queries,
+          useCache: false,
+        ),
+        apply: (docs) => _syncBookingNotes(docs),
+      ),
+      CollectionPullTask(
+        name: 'payments',
+        fetch: (plan) => appwriteService.listPayments(
+          queries: plan.queries,
+          useCache: false,
+        ),
+        apply: (docs) => _syncPayments(docs),
+      ),
+      CollectionPullTask(
+        name: 'debts',
+        fetch: (plan) =>
+            appwriteService.listDebts(queries: plan.queries, useCache: false),
+        apply: (docs) => _syncDebts(docs),
+      ),
+      CollectionPullTask(
+        name: 'salary_cycles',
+        fetch: (plan) => appwriteService.listSalaryCycles(
+          queries: plan.queries,
+          useCache: false,
+        ),
+        apply: (docs) => _syncSalaryCycles(docs),
+      ),
+      CollectionPullTask(
+        name: 'salary_payments',
+        fetch: (plan) => appwriteService.listSalaryPayments(
+          queries: plan.queries,
+          useCache: false,
+        ),
+        apply: (docs) => _syncSalaryPayments(docs),
+      ),
+      CollectionPullTask(
+        name: 'salary_withdrawals',
+        fetch: (plan) => appwriteService.listSalaryWithdrawals(
+          queries: plan.queries,
+          useCache: false,
+        ),
+        apply: (docs) => _syncSalaryWithdrawals(docs),
+      ),
+      CollectionPullTask(
+        name: 'guest_infos',
+        fetch: (plan) => appwriteService.listGuestInfos(
+          queries: plan.queries,
+          useCache: false,
+        ),
+        apply: (docs) => _syncGuestInfos(docs),
+      ),
+      CollectionPullTask(
+        name: 'booking_price_adjustments',
+        fetch: (plan) => appwriteService.listDocuments(
+          collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
+          queries: plan.queries,
+        ),
+        apply: (docs) => _syncBookingPriceAdjustments(docs),
+      ),
+      CollectionPullTask(
+        name: 'shift_notes',
+        fetch: (plan) => appwriteService.listShiftNotes(
+          queries: plan.queries,
+          useCache: false,
+        ),
+        apply: (docs) => _syncShiftNotes(docs),
+      ),
+      CollectionPullTask(
+        name: 'blacklist',
+        fetch: (plan) => appwriteService.listBlacklist(
+          queries: plan.queries,
+          useCache: false,
+        ),
+        apply: (docs) => _syncBlacklist(docs),
+      ),
+      CollectionPullTask(
+        name: 'price_adjustments',
+        fetch: (plan) => appwriteService.listDocuments(
+          collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
+          queries: plan.queries,
+        ),
+        apply: (docs) => _syncPriceAdjustments(docs),
+      ),
+      CollectionPullTask(
+        name: 'audit_logs',
+        fetch: (plan) => appwriteService.listDocuments(
+          collectionId: AppwriteConfig.auditLogsCollectionId,
+          queries: plan.queries,
+        ),
+        apply: (docs) => _syncAuditLogs(docs),
+      ),
+      CollectionPullTask(
+        name: 'payment_voids',
+        fetch: (plan) => appwriteService.listDocuments(
+          collectionId: AppwriteConfig.paymentVoidsCollectionId,
+          queries: plan.queries,
+        ),
+        apply: (docs) => _syncPaymentVoids(docs),
+      ),
+      CollectionPullTask(
+        name: 'salary_carry_over_logs',
+        fetch: (plan) => appwriteService.listDocuments(
+          collectionId: 'salary_carry_over_logs',
+          queries: plan.queries,
+        ),
+        apply: (docs) => _syncSalaryCarryOverLogs(docs),
+      ),
+    ];
+
+    // إعدادات التطبيق محلية حالياً؛ لا تُضم إلى Delta Sync إلا إذا مُكّنت،
+    // وفشلها غير حرج (لا يُسجَّل في failedCollections).
+    if (SyncConstants.appSettingsSyncEnabled) {
+      tasks.add(
+        CollectionPullTask(
+          name: 'app_settings',
+          critical: false,
+          fetch: (plan) => appwriteService.listDocuments(
+            collectionId: 'app_settings',
+            queries: plan.queries,
+          ),
+          apply: (docs) => _syncAppSettings(docs),
+        ),
+      );
+    }
+
+    return tasks;
+  }
+
   /// سحب التغييرات من Appwrite
   /// يُرجع true إذا كانت هناك تغييرات جديدة تم تطبيقها
   /// Guarded by [SyncLocks.appwriteSyncLock] to prevent concurrent pulls.
   /// All collection syncs are wrapped in a single database transaction for atomicity.
   Future<bool> pullRemoteChanges() async {
-    // ✅ (2026-08-30) الحارس المركزي — نفس سياسة sync(): فاصل أدنى بين
-    // دورتي سحب. العائد true (لا failure) حتى لا يعتبره المستدعي فشلاً.
-    if (!_canStartPull()) {
-      _logger.debug(
-        'Pull skipped: minimum pull gap '
-        '(${SyncConstants.minPullGap.inMinutes}m) not reached',
-        tag: 'SYNC',
-      );
-      return true;
-    }
-
     final pendingLocalChanges = await outboxDao.countUndeliveredToPrimary();
     if (!OutboxPullPolicy.canPull(
       undeliveredOutboxCount: pendingLocalChanges,
@@ -6698,581 +5261,49 @@ class AppwriteSyncManager {
         _logger.info('📥 سحب التغييرات من Appwrite...', tag: 'SYNC');
 
         int recordsPulled = 0;
-        // ✅ P1-5 fix: تتبّع Collections الفاشلة لمنع تقديم مؤشّر السحب
+        // ✅ P1-5 fix + Unified Pull: تتبّع Collections الفاشلة لمنع تقديم مؤشّر السحب
+        // (الخلل القديم: القائمة كانت تُعلن ولا تُملأ → المؤشر يتقدّم رغم الفشل)
         final failedCollections = <String>[];
 
         // ✅ إصلاح جوهري: إعادة ضبط متتبّع أقصى $updatedAt في بداية دورة السحب.
-        // سيُحدَّث في _extractUpdatedAtSec لكل مستند يُعالَج، ثم يُستخدم في
-        // _updateLastPullTs بدل Time.nowEpoch().
         _maxUpdatedAtInPull = null;
 
-        // Delta Sync: قراءة آخر timestamp وإنشاء فلتر
-        final lastPullTs = await _getLastPullTs();
-        final List<String> deltaQ =
-            await (_pullService?.buildDeltaQueries(lastPullTs) ?? <String>[]);
-        final isDelta = deltaQ.isNotEmpty;
-        // في السحب الكامل فقط نستبعد tombstones من الخادم قبل تنزيلها.
-        // السحب التزايدي يبقى دون هذا الفلتر لكي تتمكن الأجهزة الموجودة من
-        // معالجة حذف سجل محلي قائم عبر مسار tombstone المخصص.
-        final pullQueries = isDelta
-            ? deltaQ
-            : SyncPullService.buildFullSyncQueries();
-        // ✅ (2026-09-02) الموظفون آباء FK — سحبهم الكامل يشمل tombstones
-        // (انظر entityNeedsTombstoneParents). في delta تبقى deltaQ بلا فلتر
-        // أصلاً فتصل الـ tombstones كتغييرات عادية.
-        final employeePullQueries = isDelta
-            ? deltaQ
-            : SyncPullService.buildFullSyncQueries(includeTombstones: true);
-        if (isDelta) {
-          _logger.info(
-            '🔄 Delta Sync: جلب التغييرات منذ ${DateTime.fromMillisecondsSinceEpoch(lastPullTs * 1000).toIso8601String()}',
-            tag: 'SYNC',
-          );
-        } else {
-          _logger.info('🔄 Full Sync: أول مزامنة أو إعادة كاملة', tag: 'SYNC');
-        }
-
-        // Wrap all collection syncs in a single transaction for atomicity.
-        // Individual collection failures are caught internally so partial progress
-        // is preserved, but the entire batch either commits or rolls back together.
+        // ✅ Unified Pull Engine (2026-08-31): مسار سحب واحد — أول تثبيت =
+        // Full pull لكل مجموعة، وبعدها Delta فقط على مستوى كل مجموعة مستقلة
+        // (checkpoint خاص في جدول sync_checkpoints). المؤشر مشتق من
+        // max($updatedAt) — سلطة الخادم — لا Time.nowEpoch() زمن الجهاز.
         await database.transaction(() async {
-          // مزامنة كل كولكشن بشكل مستقل — فشل واحد لا يوقف الباقي
-          try {
-            final rooms = await appwriteService.listRooms(
-              queries: pullQueries,
-              useCache: false,
-            );
-            recordsPulled += await _syncRooms(rooms);
-          } catch (e, st) {
-            // ✅ (2026-08-30) إصلاح فعلي لباج P1-5: الفشل كان يُسجّل فقط
-            // والمؤشر يتقدّم → فقد صامت للسجلات. الآن يُمنع التقدّم عند أي فشل.
-            failedCollections.add('rooms');
-            _logger.error(
-              '❌ فشل سحب rooms (pullRemoteChanges)',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC',
-            );
-          }
-
-          try {
-            final bookings = await appwriteService.listBookings(
-              queries: pullQueries,
-              useCache: false,
-            );
-            recordsPulled += await _syncBookings(bookings);
-          } catch (e, st) {
-            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
-            failedCollections.add('bookings');
-            _logger.error(
-              '❌ فشل سحب bookings (pullRemoteChanges)',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC',
-            );
-          }
-
-          try {
-            final employees = await appwriteService.listEmployees(
-              queries: employeePullQueries,
-              useCache: false,
-            );
-            // ✅ التوصية 5: تحصين أسبقية الموظفين عبر إعادة المحاولة.
-            recordsPulled += await _syncEmployeesWithRetry(employees);
-          } catch (e, st) {
-            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
-            failedCollections.add('employees');
-            _logger.error(
-              '❌ فشل سحب employees (pullRemoteChanges)',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC',
-            );
-          }
-
-          // ✅ (2026-09-02) توحيد مسار الاسترداد مع الدورة الرئيسية:
-          // inventory_items + inventory_transactions كانا غائبين عن هذا
-          // المسار (موجودان في sync() فقط) — bootstrap عبر
-          // pullAllDataWithDisabledFK لم يكن ينزّلهما من أول مرة.
-          // الترتيب إلزامي: transactions.itemId → InventoryItems (FK).
-          try {
-            final inventoryItems = await appwriteService.listDocuments(
-              collectionId: AppwriteConfig.inventoryItemsCollectionId,
-              queries: pullQueries,
-            );
-            recordsPulled += await _syncInventoryItems(inventoryItems);
-          } catch (e, st) {
-            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
-            failedCollections.add('inventory_items');
-            _logger.error(
-              '❌ فشل سحب inventory_items (pullRemoteChanges)',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC',
-            );
-          }
-
-          try {
-            final inventoryTransactions = await appwriteService.listDocuments(
-              collectionId: AppwriteConfig.inventoryTransactionsCollectionId,
-              queries: pullQueries,
-            );
-            recordsPulled += await _syncInventoryTransactions(
-              inventoryTransactions,
-            );
-          } catch (e, st) {
-            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
-            failedCollections.add('inventory_transactions');
-            _logger.error(
-              '❌ فشل سحب inventory_transactions (pullRemoteChanges)',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC',
-            );
-          }
-
-          // ✅ التوصية 3: إعادة ربط مؤجّلة لمصروفات الرواتب اليتيمة بعد سحب
-          // الموظفين (يعالج خطر #4 — مصروفات وصلت قبل موظفيها).
-          try {
-            await _relinkOrphanSalaryExpenses();
-          } catch (e, st) {
-            _logger.warning(
-              '⚠️ _relinkOrphanSalaryExpenses فشل (pullRemoteChanges) — '
-              'سيُعاد المحاولة في الدورة التالية.',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC_RELINK',
-            );
-          }
-
-          try {
-            final expenses = await appwriteService.listExpenses(
-              queries: pullQueries,
-              useCache: false,
-            );
-            recordsPulled += await _syncExpenses(expenses);
-          } catch (e, st) {
-            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
-            failedCollections.add('expenses');
-            _logger.error(
-              '❌ فشل سحب expenses (pullRemoteChanges)',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC',
-            );
-          }
-
-          try {
-            final payments = await appwriteService.listPayments(
-              queries: pullQueries,
-              useCache: false,
-            );
-            recordsPulled += await _syncPayments(payments);
-          } catch (e, st) {
-            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
-            failedCollections.add('payments');
-            _logger.error(
-              '❌ فشل سحب payments (pullRemoteChanges)',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC',
-            );
-          }
-
-          try {
-            final debts = await appwriteService.listDebts(
-              queries: pullQueries,
-              useCache: false,
-            );
-            recordsPulled += await _syncDebts(debts);
-          } catch (e, st) {
-            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
-            failedCollections.add('debts');
-            _logger.error(
-              '❌ فشل سحب debts (pullRemoteChanges)',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC',
-            );
-          }
-
-          try {
-            final guestInfos = await appwriteService.listGuestInfos(
-              queries: pullQueries,
-              useCache: false,
-            );
-            recordsPulled += await _syncGuestInfos(guestInfos);
-          } catch (e, st) {
-            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
-            failedCollections.add('guest_infos');
-            _logger.error(
-              '❌ فشل سحب guest_infos (pullRemoteChanges)',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC',
-            );
-          }
-
-          try {
-            final salaryWithdrawals = await appwriteService
-                .listSalaryWithdrawals(queries: pullQueries, useCache: false);
-            recordsPulled += await _syncSalaryWithdrawals(salaryWithdrawals);
-          } catch (e, st) {
-            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
-            failedCollections.add('salary_withdrawals');
-            _logger.error(
-              '❌ فشل سحب salary_withdrawals (pullRemoteChanges)',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC',
-            );
-          }
-
-          try {
-            final bookingPriceAdjustments = await appwriteService.listDocuments(
-              collectionId: AppwriteConfig.bookingPriceAdjustmentsCollectionId,
-              queries: pullQueries,
-            );
-            recordsPulled += await _syncBookingPriceAdjustments(
-              bookingPriceAdjustments,
-            );
-          } catch (e, st) {
-            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
-            failedCollections.add('booking_price_adjustments');
-            _logger.error(
-              '❌ فشل سحب booking_price_adjustments (pullRemoteChanges)',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC',
-            );
-          }
-
-          try {
-            final shiftNotes = await appwriteService.listShiftNotes(
-              queries: pullQueries,
-              useCache: false,
-            );
-            recordsPulled += await _syncShiftNotes(shiftNotes);
-          } catch (e, st) {
-            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
-            failedCollections.add('shift_notes');
-            _logger.error(
-              '❌ فشل سحب shift_notes (pullRemoteChanges)',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC',
-            );
-          }
-
-          try {
-            final blacklistDocs = await appwriteService.listBlacklist(
-              queries: pullQueries,
-              useCache: false,
-            );
-            recordsPulled += await _syncBlacklist(blacklistDocs);
-          } catch (e, st) {
-            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
-            failedCollections.add('blacklist');
-            _logger.error(
-              '❌ فشل سحب blacklist (pullRemoteChanges)',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC',
-            );
-          }
-
-          try {
-            final bookingNotes = await appwriteService.listBookingNotes(
-              queries: pullQueries,
-              useCache: false,
-            );
-            recordsPulled += await _syncBookingNotes(bookingNotes);
-          } catch (e, st) {
-            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
-            failedCollections.add('booking_notes');
-            _logger.error(
-              '❌ فشل سحب booking_notes (pullRemoteChanges)',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC',
-            );
-          }
-
-          try {
-            // ✅ (2026-09-03) Fix: booking_nights يمر عبر طبقة السحب
-            // metadata-first نفسها المستخدمة لبقية الكيانات — سحب
-            // ($id + $updatedAt) للنافذة الزمنية أولاً ثم تنزيل المتغيّر
-            // فعلاً فقط. المسار القديم كان يسحب حمولة كاملة لكل ليلة داخل
-            // النافذة في كل دورة.
-            final nightsPullTs = await _getBookingNightsPullTs();
-            final bool remoteEpochIsMillis =
-                await (_pullService?.isRemoteEpochMillis() ?? false);
-            final nightsDeltaQ = _bookingNightsDeltaQueries(
-              nightsPullTs,
-              remoteEpochIsMillis: remoteEpochIsMillis,
-            );
-            // ✅ عند السحب الكامل/الأولي: تحديد السجلات بحد أقصى موحّد
-            // (SyncConstants.initialBookingNightsPullLimit = 1000).
-            // السحب التزايدي اللاحق يجلب التغييرات الجديدة فقط.
-            const int kInitialBookingNightsLimit =
-                SyncConstants.initialBookingNightsPullLimit;
-            final bool isInitialPull = nightsPullTs == 0;
-            final bool isNightsFullPull = !isDelta || isInitialPull;
-            if (isNightsFullPull) {
-              _logger.info(
-                '📥 السحب الكامل/الأولي لـ booking_nights — تحديد $kInitialBookingNightsLimit سجل كحد أقصى',
-                tag: 'SYNC',
-              );
-            }
-            List<models.Document> bookingNights;
-            if (isNightsFullPull) {
-              bookingNights = await appwriteService.listBookingNights(
-                queries: SyncPullService.buildFullSyncQueries(),
-                useCache: false,
-                maxRecords: kInitialBookingNightsLimit,
-              );
-              _logger.info(
-                '📊 تم جلب ${bookingNights.length} سجل booking_nights'
-                '${isInitialPull ? " (حد أولي: $kInitialBookingNightsLimit)" : ""}',
-                tag: 'SYNC',
-              );
-            } else {
-              // ✅ (2026-09-03) delta metadata-first (نفس مسار sync()):
-              // صفر تنزيل للمطابق محلياً في sync_remote_meta.
-              bookingNights = await _pullDocsDeltaMetadataFirst(
-                'booking_nights',
-                nightsDeltaQ,
-              );
-              _logger.info(
-                '📊 تم جلب ${bookingNights.length} سجل booking_nights '
-                '(delta metadata-first)',
-                tag: 'SYNC',
-              );
-            }
-            recordsPulled += await _syncBookingNights(bookingNights);
-            // ✅ (2026-09-03) تسجيل $updatedAt للمستندات المطبقة في
-            // sync_remote_meta — كي تعرف دورة delta التالية أنها مطابقة
-            // محلياً فتتخطاها (صفر تنزيل).
-            try {
-              final collectionId = AppwriteConfig.collectionIdFor(
-                'booking_nights',
-              );
-              if (collectionId != null && bookingNights.isNotEmpty) {
-                final meta = <String, int>{};
-                for (final doc in bookingNights) {
-                  final ts = _extractUpdatedAtSec(doc);
-                  if (ts != null) meta[doc.$id] = ts;
-                }
-                await database.upsertRemoteMeta(collectionId, meta);
-              }
-            } catch (metaError) {
-              _logger.warning(
-                '⚠️ booking_nights meta write فشل (غير مؤثر): $metaError',
-                tag: 'SYNC',
-              );
-            }
-            // ✅ (2026-08-31 + 2026-09-03) توحيد مع الدورة الرئيسية: مؤشر
-            // booking_nights يتقدّم إلى أقصى $updatedAt للخادم في النافذة
-            // (سلطة الخادم) — لا يقفز إلى Time.nowEpoch() غير المشروط ولا
-            // يبقى عالقاً في نافذة قديمة. الدورة الفارغة لا تحرك المؤشر.
-            int? nightsMaxTs;
-            for (final doc in bookingNights) {
-              final ts = _extractUpdatedAtSec(doc);
-              if (ts != null && (nightsMaxTs == null || ts > nightsMaxTs)) {
-                nightsMaxTs = ts;
-              }
-            }
-            final pendingServerMax = _pendingMetaServerMaxTs.remove(
-              'booking_nights',
-            );
-            if (pendingServerMax != null &&
-                (nightsMaxTs == null || pendingServerMax > nightsMaxTs)) {
-              nightsMaxTs = pendingServerMax;
-            }
-            if (nightsMaxTs != null) {
-              await _updateBookingNightsPullTs(nightsMaxTs);
-            }
-          } catch (e, st) {
-            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
-            failedCollections.add('booking_nights');
-            _logger.error(
-              '❌ فشل سحب booking_nights (pullRemoteChanges)',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC',
-            );
-          }
-
-          try {
-            final cashTransactions = await appwriteService.listCashTransactions(
-              queries: pullQueries,
-              useCache: false,
-            );
-            recordsPulled += await _syncCashTransactions(cashTransactions);
-          } catch (e, st) {
-            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
-            failedCollections.add('cash_transactions');
-            _logger.error(
-              '❌ فشل سحب cash_transactions (pullRemoteChanges)',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC',
-            );
-          }
-
-          try {
-            final salaryCycles = await appwriteService.listSalaryCycles(
-              queries: pullQueries,
-              useCache: false,
-            );
-            recordsPulled += await _syncSalaryCycles(salaryCycles);
-          } catch (e, st) {
-            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
-            failedCollections.add('salary_cycles');
-            _logger.error(
-              '❌ فشل سحب salary_cycles (pullRemoteChanges)',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC',
-            );
-          }
-
-          try {
-            final salaryPayments = await appwriteService.listSalaryPayments(
-              queries: pullQueries,
-              useCache: false,
-            );
-            recordsPulled += await _syncSalaryPayments(salaryPayments);
-          } catch (e, st) {
-            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
-            failedCollections.add('salary_payments');
-            _logger.error(
-              '❌ فشل سحب salary_payments (pullRemoteChanges)',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC',
-            );
-          }
-
-          try {
-            final priceAdjustments = await appwriteService.listDocuments(
-              collectionId: AppwriteConfig.priceAdjustmentsCollectionId,
-              queries: pullQueries,
-            );
-            recordsPulled += await _syncPriceAdjustments(priceAdjustments);
-          } catch (e, st) {
-            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
-            failedCollections.add('price_adjustments');
-            _logger.error(
-              '❌ فشل سحب price_adjustments (pullRemoteChanges)',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC',
-            );
-          }
-
-          // ✅ (2026-08-30) audit_logs مستبعد من مزامنة Appwrite — محلي فقط.
-          if (SyncConstants.auditLogsSyncEnabled) {
-            try {
-              final auditLogs = await appwriteService.listDocuments(
-                collectionId: AppwriteConfig.auditLogsCollectionId,
-                queries: pullQueries,
-              );
-              recordsPulled += await _syncAuditLogs(auditLogs);
-            } catch (e, st) {
-              // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
-              failedCollections.add('audit_logs');
+          final result = await _unifiedPull.run(
+            _buildPullTasks(),
+            onTaskError: (name, error, stackTrace) async {
               _logger.error(
-                '❌ فشل سحب audit_logs (pullRemoteChanges)',
-                error: e,
-                stackTrace: st,
+                '❌ فشل سحب $name (pullRemoteChanges)',
+                error: error,
+                stackTrace: stackTrace,
                 tag: 'SYNC',
               );
-            }
-          }
-
-          try {
-            final paymentVoids = await appwriteService.listDocuments(
-              collectionId: AppwriteConfig.paymentVoidsCollectionId,
-              queries: pullQueries,
-            );
-            recordsPulled += await _syncPaymentVoids(paymentVoids);
-          } catch (e, st) {
-            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
-            failedCollections.add('payment_voids');
-            _logger.error(
-              '❌ فشل سحب payment_voids (pullRemoteChanges)',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC',
-            );
-          }
-
-          // ✅ (2026-09-02) توحيد مسار الاسترداد مع الدورة الرئيسية:
-          // salary_carry_over_logs كان غائباً عن هذا المسار — bootstrap
-          // لم يكن ينزّله. موضعه بعد salary_cycles/salary_payments و
-          // employees (employeeId → Employees FK) المتاحة أعلاه، مطابقاً
-          // لموضعه نهاية الدورة الرئيسية (sync()).
-          try {
-            final carryOverLogs = await appwriteService.listDocuments(
-              collectionId: AppwriteConfig.salaryCarryOverLogsCollectionId,
-              queries: pullQueries,
-            );
-            recordsPulled += await _syncSalaryCarryOverLogs(carryOverLogs);
-          } catch (e, st) {
-            // ✅ (2026-08-30) إصلاح باج P1-5: تسجيل الفشل لمنع تقدّم المؤشر
-            failedCollections.add('salary_carry_over_logs');
-            _logger.error(
-              '❌ فشل سحب salary_carry_over_logs (pullRemoteChanges)',
-              error: e,
-              stackTrace: st,
-              tag: 'SYNC',
-            );
-          }
-
-          // ❌ hotel_day_ledger - محلي فقط، لا يتم مزامنته
-
-          // ✅ P1-5 fix: تحديث lastPullTs فقط إذا نجحت كل الكولكشنات
-          // ✅ (2026-08-30) الحارس صار فعّالاً الآن: كل كتل catch تملأ
-          // failedCollections — قبل ذلك كانت القائمة فارغة دائماً والمؤشر
-          // يتقدّم رغم الفشل (فقد صامت للسجلات التي لم تُسحب).
-          if (failedCollections.isEmpty) {
-            // ✅ إصلاح جوهري: اشتقاق المؤشر من أقصى $updatedAt (سلطة الخادم)
-            // بدل Time.nowEpoch() (وقت الجهاز الساحب الذي قد يكون منحرفاً).
-            // fallback إلى Time.nowEpoch() إذا لم يُعالَج أي مستند (دورة فارغة).
-            final newPullTs = _maxUpdatedAtInPull ?? Time.nowEpoch();
-            await _updateLastPullTs(newPullTs);
-            if (_maxUpdatedAtInPull != null) {
-              _logger.debug(
-                r'📍 pullRemoteChanges: مؤشر السحب مشتق من max($updatedAt) = '
-                '$_maxUpdatedAtInPull (سلطة الخادم)',
-                tag: 'SYNC',
-              );
-            }
-          } else {
-            _logger.warning(
-              '⚠️ P1-5: ${failedCollections.length} collections فشلت في pullRemoteChanges: '
-              '${failedCollections.join(", ")} — لن يتم تحديث lastPullTs',
-              tag: 'SYNC',
-            );
-          }
+            },
+          );
+          recordsPulled = result.recordsPulled;
+          failedCollections.addAll(result.failedCollections);
         });
 
-        _lastSyncTime = DateTime.now();
-        // ✅ (2026-09-01) pullRemoteChanges سحب فعلي دائماً — يحدّث طابع
-        // آخر سحب مكتمل (ساعة الحائط) الذي يقيس منه حارس الركود.
-        try {
-          final pullWallPrefs = await SharedPreferences.getInstance();
-          await pullWallPrefs.setInt(
-            SyncConstants.lastPullWallClockKey,
-            _lastSyncTime!.millisecondsSinceEpoch,
-          );
-        } catch (e) {
+        // ✅ P1-5 fix: تحديث المؤشر العام فقط إذا نجحت كل الكولكشنات
+        // (توافق خلفي مع قراءة SyncState في أماكن أخرى — المؤشرات الفعلية
+        // أصبحت لكل مجموعة في sync_checkpoints).
+        if (failedCollections.isEmpty) {
+          final newPullTs = _maxUpdatedAtInPull ?? Time.nowEpoch();
+          await _updateLastPullTs(newPullTs);
+          await _pullService?.markFullSyncComplete();
+        } else {
           _logger.warning(
-            '⚠️ تعذّرت كتابة lastPullWallClockKey: $e',
+            '⚠️ P1-5: ${failedCollections.length} collections فشلت في pullRemoteChanges: '
+            '${failedCollections.join(", ")} — لن يتم تحديث lastPullTs',
             tag: 'SYNC',
           );
         }
+
+        _lastSyncTime = DateTime.now();
         await _saveSettings();
 
         // ✅ إصلاح الحجوزات يتم فقط عبر Google Drive Backup — لا عبر Appwrite.
@@ -7313,15 +5344,10 @@ class AppwriteSyncManager {
   /// يُستخدم عند التثبيت الأول (المتابعة بدون مزامنة)
   /// ✅ إصلاح: لم نعد نعطل FK — ترتيب السحب يضمن وجود الآباء قبل الأبناء
   /// ونمط التأجيل/إعادة المحاولة يعالج الحالات الاستثنائية
-  /// ✅ (2026-09-01) تُرجع true فقط إذا اكتمل السحب الشامل فعلاً:
-  ///  - false إذا كانت دورة مزامنة جارية (لم يحدث سحب — لا يُضبط العلم).
-  ///  - false عند أي فشل (الاستثناء يُسجل هنا بدل إعادة الرمي) — كي يبقى
-  ///    `appwrite_pull_after_drive_skip_done` غير مضبوط وتُتاح إعادة
-  ///    المحاولة (Bootstrap الصريح: SUCCESS → flag=1؛ FAILURE → retry).
-  Future<bool> pullAllDataWithDisabledFK() async {
+  Future<void> pullAllDataWithDisabledFK() async {
     if (_currentStatus == SyncStatus.syncing) {
       _logger.warning('⏸️ تخطي السحب - المزامنة جارية', tag: 'SYNC');
-      return false;
+      return;
     }
 
     _logger.info(
@@ -7333,15 +5359,6 @@ class AppwriteSyncManager {
     try {
       await pullRemoteChanges();
       _logger.info('✅ تم السحب الشامل بنجاح', tag: 'SYNC');
-      return true;
-    } catch (e, st) {
-      _logger.error(
-        '❌ فشل السحب الشامل — لن يُضبط علم bootstrap ويمكن إعادة المحاولة',
-        error: e,
-        stackTrace: st,
-        tag: 'SYNC',
-      );
-      return false;
     } finally {
       // ✅ تحقق من سلامة المفاتيح الأجنبية بعد السحب
       try {
@@ -7715,20 +5732,10 @@ class AppwriteSyncManager {
       final salaryWithdrawals = await database
           .select(database.salaryWithdrawals)
           .get();
-      // ✅ (2026-09-02) ختم employeeUuid في مسار الرفع الكامل أيضاً — كان
-      // ناقصاً (مسار outbox فقط كان يختمه): بدون الحقل لا يمكن للأجهزة
-      // الأخرى حل FK عبر UUID (الطريقة الأكثر موثوقية عبر الأجهزة).
-      final employeeUuidById = {
-        for (final e in await database.select(database.employees).get())
-          e.id: e.localUuid,
-      };
       for (final withdrawal in salaryWithdrawals) {
         if (skipDeleted && withdrawal.deletedAt != null) continue;
         try {
-          final payload = _payloadMapper.salaryWithdrawalToRemote(
-            withdrawal,
-            employeeUuid: employeeUuidById[withdrawal.employeeId],
-          );
+          final payload = _payloadMapper.salaryWithdrawalToRemote(withdrawal);
           await appwriteService.upsertDocument(
             collectionId: AppwriteConfig.salaryWithdrawalsCollectionId,
             documentId: withdrawal.localUuid,
@@ -8816,23 +6823,6 @@ class AppwriteSyncManager {
   Future<void> resetSyncState() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('appwrite_last_sync_time');
-    // ✅ (2026-09-01) مسح طابع آخر سحب مكتمل — حارس الركود يعود لحالة
-    // "لم يسحب قط" (null → تخطي) حتى تكتمل التهيئة التالية.
-    await prefs.remove(SyncConstants.lastPullWallClockKey);
-    // ✅ (2026-08-30) مسح مؤشرات الكيانات الفردية — ستُهيّأ كسولاً من
-    // المؤشر العالمي في أول دورة تالية (لا سحب كامل إضافي).
-    try {
-      await _pullService?.clearEntityPullTsMap();
-    } catch (_) {}
-    // ✅ (2026-08-30) metadata-first: مسح خريطة $updatedAt البعيدة إلزامي
-    // عند التصفير — وإلا فالسحب الكامل التالي سيقارن بخريطة قديمة ويعتقد
-    // أن كل شيء محفوظ ويتخطى الجلب. القصد من التصفير هو سحب شامل.
-    try {
-      await database.clearRemoteMeta();
-    } catch (e) {
-      _logger.warning('⚠️ مسح sync_remote_meta فشل: $e', tag: 'SYNC');
-    }
-    _pendingMetaServerMaxTs.clear();
     _lastSyncTime = null;
     _logger.info('Sync state reset', tag: 'SYNC');
   }
@@ -9229,9 +7219,6 @@ class AppwriteSyncManager {
     if (documents.isEmpty) return 0;
     var processed = 0;
     final deferred = <Map<String, dynamic>>[];
-    var skippedOrphans = 0;
-    final skippedOrphanRefs = <int>{};
-    final employeeFkResolver = IdResolver(database);
 
     for (final doc in documents) {
       try {
@@ -9259,9 +7246,7 @@ class AppwriteSyncManager {
           continue;
         }
 
-        // ✅ حل FK الموظف: UUID → serverId (id جهاز المصدر).
-        // ⚠️ (2026-09-02) أُزيلت مطابقة employeeId البعيد مع e.id المحلي —
-        // نفس قرار salary_withdrawals أعلاه (ربط خاطئ صامت عبر الأجهزة).
+        // ✅ حل FK الموظف بثلاث مستويات: UUID → id → serverId
         final remoteEmployeeId =
             _asIntSafe(data, 'employeeId') ?? _asIntSafe(data, 'employee_id');
         final employeeUuid =
@@ -9270,27 +7255,36 @@ class AppwriteSyncManager {
             (data['employeeLocalUuid'] as String?) ??
             (data['employee_local_uuid'] as String?);
 
-        final resolvedEmployeeId =
-            employeeUuid != null || remoteEmployeeId != null
-            ? await employeeFkResolver.resolveEmployee(
-                uuid: employeeUuid,
-                serverId: remoteEmployeeId,
-                fromRemote: true,
-              )
-            : null;
-
         Employee? employee;
-        if (resolvedEmployeeId != null) {
+
+        // الطريقة 1: البحث بالـ UUID (الأكثر موثوقية عبر الأجهزة)
+        if (employeeUuid != null && employeeUuid.isNotEmpty) {
           employee =
               await (database.select(database.employees)
-                    ..where((e) => e.id.equals(resolvedEmployeeId))
+                    ..where((e) => e.localUuid.equals(employeeUuid))
+                    ..limit(1))
+                  .getSingleOrNull();
+        }
+
+        // الطريقة 2: البحث بالـ id البعيد كـ id محلي
+        if (employee == null && remoteEmployeeId != null) {
+          employee =
+              await (database.select(database.employees)
+                    ..where((e) => e.id.equals(remoteEmployeeId))
+                    ..limit(1))
+                  .getSingleOrNull();
+        }
+
+        // الطريقة 3: البحث بالـ serverId (id الأصلي من جهاز المصدر)
+        if (employee == null && remoteEmployeeId != null) {
+          employee =
+              await (database.select(database.employees)
+                    ..where((e) => e.serverId.equals(remoteEmployeeId))
                     ..limit(1))
                   .getSingleOrNull();
         }
 
         if (employee == null) {
-          skippedOrphans++;
-          if (remoteEmployeeId != null) skippedOrphanRefs.add(remoteEmployeeId);
           _logger.warning(
             '⏭️ تخطي salary_cycle ${doc.$id}: الموظف $remoteEmployeeId (uuid=$employeeUuid) غير موجود محلياً (سجل يتيم)',
             tag: 'SYNC',
@@ -9300,8 +7294,6 @@ class AppwriteSyncManager {
 
         // ✅ استبدال employeeId البعيد بالمعرف المحلي الصحيح
         data['employeeId'] = employee.id;
-        // ✅ (2026-09-02) ختم employeeUuid القياسي للمحلّل داخل الـ adapter
-        data['employeeUuid'] = employee.localUuid;
 
         await _adapterRegistry.salaryCycles.upsertFromJson(
           data,
@@ -9367,16 +7359,6 @@ class AppwriteSyncManager {
           );
         }
       }
-    }
-
-    // ✅ (2026-09-02) ملخص واحد قابل للتصرف (نفس salary_withdrawals)
-    if (skippedOrphans > 0) {
-      _logger.warning(
-        '📋 ملخص salary_cycles: تخطي $skippedOrphans سجل يتيم — مراجع '
-        'موظفين مفقودة: ${skippedOrphanRefs.toList()..sort()} '
-        '— لا يوجد موظف مطابق في السحابة/محلياً',
-        tag: 'SYNC',
-      );
     }
 
     return processed;

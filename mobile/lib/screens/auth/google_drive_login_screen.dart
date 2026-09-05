@@ -157,20 +157,11 @@ class _GoogleDriveLoginScreenState
       if (done) {
         return;
       }
-
       final manager = ref.read(appwrite.appwriteSyncManagerProvider);
       await manager.initialize();
-      // سحب جميع البيانات مع تعطيل Foreign Keys مؤقتاً لضمان عدم فشل السحب
-      //
-      // ✅ (2026-09-01) Bootstrap الصريح — مسار النجاح/الفشل الإلزامي:
-      //  - SUCCESS → pullAllDataWithDisabledFK تُرجع true → العلم يُضبط
-      //    **بعد** اكتمال السحب فقط (appwrite_pull_after_drive_skip_done=1).
-      //  - FAILURE → العلم يبقى فارغاً وتُتاح إعادة المحاولة (فتح الشاشة
-      //    القادم يعيد السحب الشامل). دلالات العلم نفسها — توقيت الضبط فقط.
-      final ok = await manager.pullAllDataWithDisabledFK();
-      if (ok) {
-        await prefs.setBool(key, true);
-      }
+      // هذا هو مسار Bootstrap الصريح الوحيد؛ لا تُحفظ العلامة إلا بعد النجاح.
+      await manager.pullAllDataWithDisabledFK();
+      await prefs.setBool(key, true);
     } catch (e) {
       dlog(() => '❌ Appwrite auto pull after skip error: $e');
     }

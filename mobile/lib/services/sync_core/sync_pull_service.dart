@@ -49,6 +49,11 @@ class SyncPullService {
   /// ✅ Audit Fix: deviceId الحالي (لـ LWW tie-break).
   String? _currentDeviceId;
 
+  /// ✅ Unified Pull: حقن مخزن الـ checkpoints من AppwriteSyncManager.
+  /// ملاحظة (2026-08-31): أُزيل حقل _checkpointStore وsetter الخاص به —
+  /// كانا يُكتبان ولا يُقرآن أبداً (unused_field). المحرك الموحد
+  /// (UnifiedPullEngine) يحتفظ بالمخزن مباشرة ولا يحتاج هذه الخدمة إليه.
+
   /// ✅ Audit Fix: حقن AncestorCacheDao من AppwriteSyncManager.
   /// هذا يسمح لـ SyncPullService بالوصول إلى الـ ancestor cache
   /// بدون إنشاء instance منفصل (يضمن استخدام نفس الـ DAO).
@@ -543,6 +548,23 @@ class SyncPullService {
       return [];
     }
 
+    if (lastPullTs <= 0) {
+      return [];
+    }
+    final cutoffSeconds = lastPullTs - _safetyWindowSeconds;
+    final cutoffIso = DateTime.fromMillisecondsSinceEpoch(
+      cutoffSeconds * 1000,
+      isUtc: true,
+    ).toIso8601String();
+    return [Query.greaterThan(r'$updatedAt', cutoffIso)];
+  }
+
+  /// ✅ Unified Pull (2026-08-31): بناء استعلامات Delta على مستوى مجموعة واحدة.
+  ///
+  /// يختلف عن [buildDeltaQueries] في أنه لا يفحص علامة `full_sync_complete`
+  /// العامة — فحص الاكتمال أصبح لكل مجموعة مستقلة عبر UnifiedPullEngine
+  /// وجدول `sync_checkpoints` (فشل مجموعة لا يُجبر البقية على Full pull).
+  List<String> buildDeltaQueriesForCollection(int lastPullTs) {
     if (lastPullTs <= 0) {
       return [];
     }

@@ -51,7 +51,7 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
               const SizedBox(height: 16),
               const Text(
                 'تم تغيير بيانات الدخول من جهاز آخر',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
@@ -89,7 +89,7 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
                         Text(
                           auth.currentUser?.name ?? 'غير معروف',
                           style: const TextStyle(
-                            fontSize: 18,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -128,7 +128,7 @@ class _SettingsUsersScreenState extends ConsumerState<SettingsUsersScreen> {
               children: [
                 const Text(
                   'صلاحيات المستخدمين',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                 ),
                 ElevatedButton.icon(
                   onPressed: _openAddUserDialog,
