@@ -92,6 +92,10 @@ class AppwriteRealtimeSync {
     _currentDeviceId = deviceId;
     _deltaPull = deltaPull;
     _intentionallyStopped = false;
+    // ✅ AppwriteService.initialize() idempotent — يضمن جاهزية client في كل
+    // مسارات الاستدعاء (اختبارات الوحدة / شاشة الإعدادات) حتى لو لم يمرّ
+    // مسار main.dart بعد. بدونها: LateInitializationError على _client.
+    await AppwriteService().initialize();
     _realtime ??= Realtime(AppwriteService().client);
     dlog('[Realtime] initialized');
   }
