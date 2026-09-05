@@ -39,15 +39,11 @@ import '../services/data_usage_manager.dart';
 import '../services/gemini_service.dart';
 import '../services/maintenance_service.dart';
 import '../services/night_audit_service.dart';
-import '../services/secondary_backup_service.dart';
 import '../services/sync_health_monitor.dart';
 import '../services/sync_orchestrator.dart';
 import '../services/sync_performance_optimizer.dart';
 import 'repository_providers.dart';
 
-// إعادة تصدير appwriteServiceProvider من appwrite_providers لتجنب التعارض
-// لأنه مُعرَّف هناك بالفعل مع مزودات أخرى تعتمد عليه.
-export 'appwrite_providers.dart' show appwriteServiceProvider;
 // إعادة تصدير googleDriveBackupServiceProvider من backup_provider
 // لأنه مُعرَّف هناك بالفعل مع ref.keepAlive() ويُستخدم في مزودات أخرى.
 export 'backup_provider.dart' show googleDriveBackupServiceProvider;
@@ -140,12 +136,6 @@ final syncHealthMonitorProvider = Provider<SyncHealthMonitor>((ref) {
 // ============================================================================
 // مزود خدمة النسخ الاحتياطي الثانوي
 // ============================================================================
-final secondaryBackupServiceProvider = Provider<SecondaryBackupService>((ref) {
-  final service = SecondaryBackupService.instance;
-  ref.onDispose(service.dispose);
-  return service;
-});
-
 // ============================================================================
 // مزود خدمة الصيانة
 // ============================================================================

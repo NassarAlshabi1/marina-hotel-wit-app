@@ -79,7 +79,11 @@ void main() {
         findsOneWidget,
         reason: 'size=$size',
       );
-      expect(find.text('Appwrite'), findsOneWidget, reason: 'size=$size');
+      expect(
+        find.text('المزامنة السحابية'),
+        findsOneWidget,
+        reason: 'size=$size',
+      );
       expect(tester.takeException(), isNull, reason: 'size=$size');
     }
   });

@@ -15,7 +15,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/settings/error_tracker_screen.dart'
     show logHttpError, logError, ErrorCategory;
 import '../utils/env.dart';
+import 'booking_derived_fields_service.dart';
 import 'cloudflare_config.dart';
+import 'cloudflare_d1_service.dart';
 import 'cloudflare_dual_run_service.dart';
 import 'cloudflare_realtime_sync.dart';
 import 'daos/outbox_dao.dart';
@@ -23,6 +25,7 @@ import 'appwrite_models.dart' show AppwriteDevice;
 import 'local_db.dart';
 import 'remote_change_notifier.dart';
 import 'resilient_http_client.dart';
+import 'sync/payload_normalizer.dart';
 import 'sync_core/smart_conflict_resolver.dart';
 import 'sync_enums.dart';
 import 'vector_clock_service.dart';
@@ -681,18 +684,21 @@ class CloudflareSyncManager {
 
     final outboxDao = OutboxDao(_db!);
 
-    final operations = pending.map((item) {
-      final data = jsonDecode(item.payload) as Map<String, dynamic>;
-      return {
-        'idempotencyKey': item.idempotencyKey,
-        'entity': item.entity,
-        'operation': item.op,
-        'data': data,
-        'vectorClock': data['vector_clock'] as String? ?? '{}',
-        'updatedAt': item.clientTs,
-        if (_deviceId != null) 'deviceId': _deviceId,
-      };
-    }).toList();
+    final operations = <Map<String, dynamic>>[];
+    for (final item in pending) {
+      // ✅ عقد الدفع (2026-09-05): snake_case + local_uuid + vector_clock —
+      // البناء الكامل في buildPushOperation (sync/payload_normalizer.dart)
+      // ليُحارس العقد باختبارات تشغّل المنتجين الحقيقيين للكيانات.
+      operations.add(
+        await buildPushOperation(
+          item,
+          resolveRowVectorClock: _rowVectorClock,
+        ),
+      );
+      if (_deviceId != null) {
+        operations.last['deviceId'] = _deviceId;
+      }
+    }
 
     // ─── gzip compress the push payload for faster upload ───
     final jsonPayload = jsonEncode({'operations': operations});
@@ -845,11 +851,39 @@ class CloudflareSyncManager {
     return successCount;
   }
 
+  /// يقرأ ساعة المتجه الحالية لصف الكيان المحلي — العقد المرجعي الذي
+  /// يفهمه الـ worker في OCC (database.ts detectConflict). تُعاد null
+  /// للكيانات بلا جدول محلي (blacklist) أو الصفوف المفقودة — عندها
+  /// يهيّئ الـ worker ساعة جديدة {deviceId: 1} (سلوك create الأصلي).
+  Future<String?> _rowVectorClock(String entity, String localUuid) async {
+    final table = CloudflareConfig.tableNameFor(entity);
+    if (table == null || _db == null) return null;
+    try {
+      final row = await _db!
+          .customSelect(
+            'SELECT vector_clock FROM $table WHERE local_uuid = ? LIMIT 1',
+            variables: [Variable<String>(localUuid)],
+          )
+          .getSingleOrNull();
+      final vc = row?.data['vector_clock'] as String?;
+      if (vc == null || vc.isEmpty || vc == '{}') return null;
+      return vc;
+    } catch (_) {
+      // جدول محلي غير موجود (blacklist) أو صف محذوف — {} يهيئها الـ worker
+      return null;
+    }
+  }
+
   // ─── Pull changes from D1 ───────────────────────────────────
   Future<int> _pullChanges() async {
     if (_db == null) return 0;
 
     int totalPulled = 0;
+    // كيانات مؤثرة على الحقول المشتقة للحجوزات — يُعاد بناء الليالي
+    // والإجماليات المخزنة بعد اكتمال السحب (refreshAllActiveBookings
+    // مع enqueueOutbox:false — البيانات المشتقة تُحسب محلياً ولا تُرفع،
+    // وإلا حلقة سحب/رفع لا نهائية بين الأجهزة).
+    final pulledDerivedEntities = <String>{};
     bool hasMore = true;
     // P0-C: save initial cursor to restore on failure
     final initialCursor = _lastPullCursor;
@@ -941,6 +975,7 @@ class CloudflareSyncManager {
         }
 
         // P0-C: apply changes; one bad record should not stop the batch
+        final touchedEntities = <String>{};
         for (final change in changes) {
           try {
             final record = Map<String, dynamic>.from(change as Map);
@@ -951,11 +986,15 @@ class CloudflareSyncManager {
             if (entity != null) {
               await _applyChange(entity, record);
               totalPulled++;
+              touchedEntities.add(entity);
             }
           } catch (e) {
             debugPrint('⚠️ Failed to apply change: $e');
           }
         }
+        pulledDerivedEntities.addAll(
+          touchedEntities.intersection(_derivedRefreshEntities),
+        );
 
         // P0-C: contradictory state - has_more=true but empty changes
         if (changes.isEmpty && hasMore) {
@@ -988,6 +1027,15 @@ class CloudflareSyncManager {
       debugPrint(
         '📥 Pulled $totalPulled changes (cursor: $initialCursor -> $_lastPullCursor)',
       );
+
+      // ✅ بناء مشتق بعد السحب (2026-09-05): الليالي (booking_nights)
+      // والإجماليات المخزنة صفوف مشتقة تُعاد الحسبة محلياً على كل جهاز
+      // (bookings_adapter.dart:183-186) — سحب تغييرات bookings/payments/
+      // adjustments دون إعادة بناء يترك الجهاز الآخر بأرقام قديمة.
+      // enqueueOutbox:false — مشتق لا يُرفع، وإلا حلقة لا نهائية.
+      if (pulledDerivedEntities.isNotEmpty && totalPulled > 0) {
+        await _refreshDerivedAfterPull();
+      }
     } else {
       // P0-C: on failure, do NOT advance cursor in prefs
       _lastPullCursor = initialCursor;
@@ -1012,6 +1060,20 @@ class CloudflareSyncManager {
     if (_db == null) return;
 
     if (record.isEmpty) return;
+
+    // ✅ عقد القائمة السوداء (2026-09-05): صفوف blacklist بلا جدول Drift
+    // محلي — تخزينها في shift_notes الموسومة created_by='blacklist'
+    // (blacklist_repository.dart:92). قبل هذا التحويل كان سحب صفوف
+    // blacklist من D1 يفشل صمتاً (no such table: blacklist) ولا تصل
+    // القائمة السوداء للأجهزة الأخرى أبداً.
+    if (entity == 'blacklist') {
+      final converted = CloudflareD1Service.blacklistShiftNoteRowFromD1(
+        record,
+      );
+      if (converted == null) return;
+      entity = 'shift_notes';
+      record = converted;
+    }
 
     final tableName = CloudflareConfig.tableNameFor(entity);
     if (tableName == null) return;
@@ -1184,6 +1246,40 @@ class CloudflareSyncManager {
           ),
         );
       }
+    }
+  }
+
+  // ─── Detect entity from record fields ───────────────────────
+
+  /// الكيانات التي تؤثر صفوفها المسحوبة على الحقول المشتقة للحجوزات
+  /// (الليالي + الإجماليات المخزنة) — تستدعي إعادة بناء بعد السحب.
+  static const Set<String> _derivedRefreshEntities = {
+    'bookings',
+    'booking_nights',
+    'payments',
+    'price_adjustments',
+    'booking_price_adjustments',
+    'payment_voids',
+  };
+
+  bool _derivedRefreshRunning = false;
+
+  /// إعادة بناء الحقول المشتقة للحجوزات النشطة بعد سحب تغييرات مؤثرة.
+  /// enqueueOutbox:false إجبارياً — البيانات المشتقة تُحسب محلياً على كل
+  /// جهاز ولا تُرفع للخادم، وإلا سجّرت الأجهزة في حلقة سحب/رفع لا نهائية.
+  Future<void> _refreshDerivedAfterPull() async {
+    if (_db == null || _derivedRefreshRunning) return;
+    _derivedRefreshRunning = true;
+    try {
+      final service = BookingDerivedFieldsService(_db!);
+      final refreshed = await service.refreshAllActiveBookings(
+        enqueueOutbox: false,
+      );
+      debugPrint('🔄 Derived refresh after pull: $refreshed bookings rebuilt');
+    } catch (e) {
+      debugPrint('⚠️ Derived refresh after pull failed: $e');
+    } finally {
+      _derivedRefreshRunning = false;
     }
   }
 

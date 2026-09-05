@@ -15,6 +15,9 @@ class AppwriteLogger {
   static final AppwriteLogger _instance = AppwriteLogger._internal();
 
   final List<LogEntry> _logs = [];
+
+  /// قراءة للسجلات الحالية (للعرض في شاشات التشخيص)
+  List<LogEntry> get entries => List.unmodifiable(_logs);
   static const int _maxLogEntries = 100;
   LogLevel _minLevel = LogLevel.info;
   bool _enableConsole = true;

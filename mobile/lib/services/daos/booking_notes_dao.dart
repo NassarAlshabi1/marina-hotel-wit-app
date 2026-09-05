@@ -174,12 +174,19 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
       if (rows > 0 && !originIsServer) {
         // ✅ نستخدم 'update' بدلاً من 'delete' لأن softDelete يحدّث deletedAt
         // ولا يحذف المستند من Appwrite — الجهاز الآخر يحتاج رؤية deletedAt
+        // ✅ عقد الدفع (2026-09-05): {id} الرقمي كان يُرمى في requireEntityId
+        // (data.local_uuid مفقود وid ليس نصاً → validation_error)؛ والقبرة
+        // (deleted_at) لم تكن تُرسل أصلاً فلا يرى الجهاز الآخر الحذف.
         await outboxDao.merge(
           entity: 'booking_notes',
           op: 'update',
           localUuid: existing.localUuid,
           serverId: existing.serverId,
-          payload: {'id': id},
+          payload: {
+            'deleted_at': now,
+            'updated_at': now,
+            'last_modified': now,
+          },
           clientTs: now,
         );
       }

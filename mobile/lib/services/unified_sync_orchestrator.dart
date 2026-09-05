@@ -7,7 +7,6 @@ import '../data/sync_models.dart' as models;
 import '../utils/debug_log.dart';
 import '../utils/weak_device_optimizer.dart';
 import 'analytics_service.dart';
-import 'appwrite_service.dart';
 import 'appwrite_sync_manager.dart' show AppwriteSyncManager, SyncStatus;
 import 'google_drive_backup_service.dart';
 import 'google_drive_logger.dart';
@@ -528,8 +527,8 @@ class UnifiedSyncOrchestrator {
     }
     final db = _database ?? DatabaseManager.instance;
     _database ??= db;
-    final service = AppwriteService();
-    final manager = AppwriteSyncManager(appwriteService: service, database: db);
+    // ✅ (2026-09-05) Cloudflare-only: بلا خدمة Appwrite
+    final manager = AppwriteSyncManager(database: db);
     await manager.initialize();
     _appwrite = manager;
     return manager;

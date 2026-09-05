@@ -160,7 +160,10 @@ class BookingDerivedFieldsService {
     }
   }
 
-  Future<int> refreshAllActiveBookings({DateTime? now}) async {
+  Future<int> refreshAllActiveBookings({
+    DateTime? now,
+    bool enqueueOutbox = true,
+  }) async {
     final moment = now ?? DateTime.now();
     final activeBookings =
         await (db.select(db.bookings)
@@ -189,6 +192,7 @@ class BookingDerivedFieldsService {
             booking,
             now: moment,
             forceRebuild: true,
+            enqueueOutbox: enqueueOutbox,
           );
           refreshed++;
         } catch (e) {

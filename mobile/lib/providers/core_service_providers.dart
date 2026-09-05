@@ -16,15 +16,11 @@ import '../services/price_adjustment_service.dart';
 import '../services/repositories/payments_repository.dart';
 import '../services/salary_entitlement_service.dart';
 import '../services/screen_sync_controller.dart';
-import '../services/secondary_appwrite_config.dart';
-import '../services/secondary_appwrite_service.dart';
-import '../services/secondary_backup_service.dart';
 // ✅ Wave 5 (2026-08-12): secondary_sync_manager.dart أُزيل بالكامل.
 import '../services/stay_balance_calculator.dart';
 import '../services/sync_guardian.dart';
 import '../services/sync_performance_settings.dart';
 import '../services/whatsapp_service.dart';
-import '../services/whatsapp_settings_sync.dart';
 import 'appwrite_providers.dart';
 import 'repository_providers.dart';
 
@@ -93,34 +89,12 @@ final paymentsRepositoryProvider = Provider<PaymentsRepository>((ref) {
   return PaymentsRepository(db);
 });
 
-final secondaryAppwriteConfigProvider = Provider<SecondaryAppwriteConfig>((
-  ref,
-) {
-  return SecondaryAppwriteConfig();
-});
-
-// ✅ Wave 5 (2026-08-12): secondarySyncManagerProvider أُزيل بالكامل.
-// SecondarySyncManager لم يعد موجوداً — Appwrite primary هو authority الوحيد.
-// secondaryAppwriteService و secondaryBackupService ما زالا موجودتين لأن
-// AppwriteHealthChecker يستخدمهما لفحص الـ failover (مسار قراءة فقط).
-
-final secondaryAppwriteServiceProvider = Provider<SecondaryAppwriteService>((
-  ref,
-) {
-  return SecondaryAppwriteService.instance;
-});
-
-final secondaryBackupServiceProvider = Provider<SecondaryBackupService>((ref) {
-  return SecondaryBackupService.instance;
-});
+// ✅ (2026-09-05) Cloudflare-only: أُزيلت مزودات Secondary Appwrite
+// (config/service/backup) — لا مشروع ثانوي بعد إزالة Appwrite Cloud.
 
 final appwriteSyncManagerProvider2 = Provider<AppwriteSyncManager>((ref) {
-  final service = ref.read(appwriteServiceProvider);
   final database = ref.read(databaseProvider);
-  final manager = AppwriteSyncManager(
-    appwriteService: service,
-    database: database,
-  );
+  final manager = AppwriteSyncManager(database: database);
   ref.onDispose(manager.dispose);
   return manager;
 });
@@ -149,10 +123,8 @@ final whatsappServiceProvider = Provider<WhatsAppService>((ref) {
   return WhatsAppService(apiType: WhatsAppApiType.greenapi);
 });
 
-final whatsappSettingsSyncProvider = Provider<WhatsAppSettingsSync>((ref) {
-  final service = ref.read(appwriteServiceProvider);
-  return WhatsAppSettingsSync(service);
-});
+// ✅ (2026-09-05) Cloudflare-only: أُزيل مزود WhatsAppSettingsSync —
+// مزامنة إعدادات واتساب كانت تتم عبر مجموعة app_settings في Appwrite.
 
 final localBackupServiceProvider = Provider<LocalBackupService>((ref) {
   return LocalBackupService();

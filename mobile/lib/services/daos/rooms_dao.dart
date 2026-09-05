@@ -196,12 +196,20 @@ class RoomsDao extends DatabaseAccessor<AppDatabase>
       if (rows > 0 && !originIsServer) {
         // ✅ نستخدم 'update' بدلاً من 'delete' لأن softDelete يحدّث deletedAt
         // ولا يحذف المستند من Appwrite — الجهاز الآخر يحتاج رؤية deletedAt
+        // ✅ عقد الدفع (2026-09-05): الحمولة يجب أن تحمل أعمدة القبورة
+        // (deleted_at/updated_at/last_modified) — حمولة {room_number} فقط
+        // كانت تُطبَّق على الجهاز الآخر بلا deleted_at فلا يرى الحذف أبداً.
         await outboxDao.merge(
           entity: 'rooms',
           op: 'update',
           localUuid: existing.localUuid,
           serverId: existing.serverId,
-          payload: {'room_number': roomNumber},
+          payload: {
+            'room_number': roomNumber,
+            'deleted_at': now,
+            'updated_at': now,
+            'last_modified': now,
+          },
           clientTs: now,
         );
       }

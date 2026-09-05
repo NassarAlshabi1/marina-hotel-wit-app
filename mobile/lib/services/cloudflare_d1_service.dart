@@ -5,6 +5,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'cloudflare_config.dart';
+
 /// خدمة رفع البيانات المحلية إلى Cloudflare D1 (نسخ احتياطي للقراءة فقط من
 /// القاعدة المحلية — لا يمس حلقة مزامنة Appwrite إطلاقاً).
 ///
@@ -533,6 +535,59 @@ class CloudflareD1Service {
   /// outbox entity='blacklist' فقط).
   static const String shiftNotesSourceSql =
       "SELECT * FROM shift_notes WHERE created_by != 'blacklist'";
+
+  /// الاتجاه العكسي (سحب): تحويل صف blacklist من D1 إلى صف shift_notes
+  /// موسوم created_by='blacklist' — يُستخدم في _applyChange عند سحب
+  /// كيان 'blacklist' لأن القائمة السوداء بلا جدول Drift محلي.
+  ///
+  /// المرآة الكاملة لـ blacklistRowFromShiftNote: الاسم يرجع إلى `title`
+  /// وحقول JSON ترجع إلى `content`، وأعمدة SyncFields تُمرر كما هي
+  /// (local_uuid نفسه يربط الصفين عبر الاتجاهين). يعيد null إذا كان
+  /// الصف بلا local_uuid (لا يمكن تطبيقه محلياً).
+  static Map<String, Object?>? blacklistShiftNoteRowFromD1(
+    Map<String, Object?> record,
+  ) {
+    final localUuid = record['local_uuid'];
+    if (localUuid is! String || localUuid.isEmpty) return null;
+
+    final content = jsonEncode(<String, Object?>{
+      'nationality': record['nationality'],
+      'nationalId': record['national_id'],
+      'phone': record['phone'],
+      'reason': record['reason'],
+      'notes': record['notes'],
+      'reportedBy': record['reported_by'],
+      'active': record['active'] == null
+          ? true
+          : (record['active'] as num? ?? 1) != 0,
+    });
+
+    return <String, Object?>{
+      'local_uuid': localUuid,
+      'title': (record['name'] as String?) ?? '',
+      'content': content,
+      'priority': 'medium',
+      'shift_type': 'all',
+      'is_read': 0,
+      'expires_at': null,
+      'created_by': CloudflareConfig.blacklistStorageTag,
+      'server_id': record['server_id'],
+      'created_at': record['created_at'],
+      'updated_at': record['updated_at'],
+      'deleted_at': record['deleted_at'],
+      'last_modified': record['last_modified'],
+      'created_at_iso': record['created_at_iso'],
+      'updated_at_iso': record['updated_at_iso'],
+      'deleted_at_iso': record['deleted_at_iso'],
+      'created_at_epoch': record['created_at_epoch'],
+      'last_modified_epoch': record['last_modified_epoch'],
+      'version': record['version'],
+      'origin': record['origin'],
+      'vector_clock': record['vector_clock'],
+      'device_id': record['device_id'],
+      'idempotency_key': record['idempotency_key'],
+    };
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════

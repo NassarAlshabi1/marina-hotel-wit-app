@@ -217,11 +217,12 @@ class PriceAdjustmentService {
   }) async {
     final now = DateTime.now();
     final epoch = Time.nowEpoch();
+    final auditUuid = _uuid.v4();
     await db
         .into(db.auditLogs)
         .insert(
           AuditLogsCompanion(
-            localUuid: Value(_uuid.v4()),
+            localUuid: Value(auditUuid),
             operationType: Value(action),
             entityType: const Value('booking_nights'),
             entityUuid: const Value(''),
@@ -242,6 +243,34 @@ class PriceAdjustmentService {
             vectorClock: const Value('{}'),
           ),
         );
+    // ✅ عقد المزامنة (2026-09-05): audit_logs ضمن النطاق الافتراضي
+    // (pull/push + outbox delta sync) — الكاتب المحلي الوحيد لهذا الجدول
+    // كان يكتب محلياً فقط فلا تصل سجلات التدقيق للأجهزة الأخرى.
+    final outboxDao = OutboxDao(db);
+    await outboxDao.merge(
+      entity: 'audit_logs',
+      op: 'create',
+      localUuid: auditUuid,
+      payload: <String, dynamic>{
+        'local_uuid': auditUuid,
+        'operation_type': action,
+        'entity_type': 'booking_nights',
+        'entity_uuid': '',
+        'new_state': details,
+        'performed_by': performedBy,
+        'device_id': 'app',
+        'hotel_day_key': HotelTimeEngine.getHotelDayKey(dateTime: now),
+        'timestamp': epoch,
+        'timestamp_iso': now.toIso8601String(),
+        'is_financial': 1,
+        'created_at': epoch,
+        'updated_at': epoch,
+        'last_modified': epoch,
+        'origin': 'local',
+        'version': 1,
+      },
+      clientTs: epoch,
+    );
   }
 
   Future<List<PriceAdjustment>> getAdjustmentsForRoom(String roomUuid) async {

@@ -7,7 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
 import '../services/connectivity_service.dart';
-import '../services/sync_error_recovery.dart';
+import '../screens/settings/error_tracker_screen.dart'
+    show logError, ErrorCategory;
 import '../services/sync_orchestrator.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
@@ -100,12 +101,6 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     unawaited(_animationController.repeat());
 
     try {
-      await SyncErrorRecovery.instance.createRollbackPoint(
-        id: 'manual_sync_${DateTime.now().millisecondsSinceEpoch}',
-        description: 'قبل المزامنة اليدوية',
-        database: ref.read(databaseProvider),
-      );
-
       final smartSyncManager = ref.read(smartSyncManagerProvider);
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
 
@@ -134,12 +129,12 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
         );
       }
     } catch (e) {
-      final error = SyncErrorRecovery.instance.createError(
-        operation: 'manual_sync',
-        table: 'all',
-        exception: e,
+      logError(
+        title: 'فشل المزامنة اليدوية',
+        message: e.toString(),
+        category: ErrorCategory.sync,
+        source: 'sync:manual',
       );
-      SyncErrorRecovery.instance.logError(error);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -156,7 +151,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
             action: SnackBarAction(
               label: 'تفاصيل',
               textColor: Colors.white,
-              onPressed: () => _showErrorDetails(error),
+              onPressed: () => _showErrorDetails(e.toString()),
             ),
           ),
         );
@@ -170,7 +165,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     }
   }
 
-  void _showErrorDetails(SyncError error) {
+  void _showErrorDetails(String message) {
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -186,10 +181,10 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildDetailRow('العملية', error.operation),
-              _buildDetailRow('الجدول', error.table),
-              _buildDetailRow('الخطورة', error.severity.name),
-              _buildDetailRow('قابل للإعادة', error.isRetriable ? 'نعم' : 'لا'),
+              _buildDetailRow('العملية', 'manual_sync'),
+              _buildDetailRow('الجدول', 'all'),
+              _buildDetailRow('الخطورة', 'خطأ'),
+
               const SizedBox(height: 8),
               const Text(
                 'الرسالة:',
@@ -202,7 +197,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  error.message,
+                  message,
                   style: const TextStyle(fontSize: 12),
                 ),
               ),
@@ -210,14 +205,6 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
           ),
         ),
         actions: [
-          if (error.isRetriable)
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _triggerSync();
-              },
-              child: const Text('إعادة المحاولة'),
-            ),
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('إغلاق'),
@@ -304,18 +291,6 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
                   await _verifyIntegrity();
                 },
               ),
-              if (SyncErrorRecovery.instance.recentErrors.isNotEmpty)
-                ListTile(
-                  leading: const Icon(Icons.history, color: Colors.red),
-                  title: const Text('سجل الأخطاء'),
-                  subtitle: Text(
-                    '${SyncErrorRecovery.instance.recentErrors.length} خطأ',
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showErrorLog();
-                  },
-                ),
             ],
           ),
         ),
@@ -573,72 +548,6 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     }
   }
 
-  void _showErrorLog() {
-    final errors = SyncErrorRecovery.instance.recentErrors;
-
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.error_outline, color: Colors.red),
-            SizedBox(width: 8),
-            Text('سجل الأخطاء'),
-          ],
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 300,
-          child: ListView.builder(
-            itemCount: errors.length,
-            itemBuilder: (context, index) {
-              final error = errors[index];
-              return ListTile(
-                leading: Icon(
-                  error.severity == ErrorSeverity.critical
-                      ? Icons.error
-                      : error.severity == ErrorSeverity.high
-                      ? Icons.warning
-                      : Icons.info,
-                  color: error.severity == ErrorSeverity.critical
-                      ? Colors.red
-                      : error.severity == ErrorSeverity.high
-                      ? Colors.orange
-                      : Colors.blue,
-                ),
-                title: Text(error.operation),
-                subtitle: Text(
-                  error.message.length > 50
-                      ? '${error.message.substring(0, 50)}...'
-                      : error.message,
-                  style: const TextStyle(fontSize: 11),
-                ),
-                trailing: Text(
-                  '${error.timestamp.hour}:${error.timestamp.minute.toString().padLeft(2, '0')}',
-                  style: const TextStyle(fontSize: 10),
-                ),
-              );
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              SyncErrorRecovery.instance.clearErrors();
-              Navigator.pop(context);
-            },
-            child: const Text('مسح السجل'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إغلاق'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
     final health = _health;
     final isHealthy = health?.isHealthy ?? true;

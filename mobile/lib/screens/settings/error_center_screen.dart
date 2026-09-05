@@ -7,6 +7,7 @@ import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart';
 import '../../providers/backup_provider.dart';
 import '../../services/appwrite_logger.dart';
+import '../../providers/appwrite_providers.dart' show appwriteLogsProvider;
 import '../../services/logging/log_models.dart';
 import '../../utils/debug_logs.dart';
 
@@ -15,7 +16,7 @@ class ErrorCenterScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final appwriteLogs = ref.watch(logsProvider);
+    final appwriteLogs = ref.watch(appwriteLogsProvider);
     final driveLogs = ref.watch(googleDriveLogsProvider);
 
     final appwriteErrors = _onlyErrors(appwriteLogs);

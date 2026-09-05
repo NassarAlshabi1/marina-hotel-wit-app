@@ -1,10 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:http/http.dart' as http;
+
 import '../services/appwrite_cache_manager.dart';
-import '../services/appwrite_error_handler.dart';
 import '../services/appwrite_logger.dart';
-import '../services/appwrite_service.dart';
 import '../services/appwrite_sync_manager.dart';
+import '../services/cloudflare_config.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/providers.dart';
 import '../services/smart_sync_manager.dart';
@@ -12,20 +13,12 @@ import '../services/unified_sync_orchestrator.dart';
 
 // ============ Service Providers ============
 
-/// مزود خدمة Appwrite
-final appwriteServiceProvider = Provider<AppwriteService>((ref) {
-  return AppwriteService();
-});
-
 /// مزود مدير المزامنة
+/// ✅ (2026-09-05) Cloudflare-only: AppwriteSyncManager هو
+/// CloudflareSyncManager (typedef) — لا خدمة Appwrite بعد الآن.
 final appwriteSyncManagerProvider = Provider<AppwriteSyncManager>((ref) {
-  // ✅ إصلاح Gemini: استخدام ref.watch بدلاً من ref.read داخل provider
-  final service = ref.watch(appwriteServiceProvider);
   final database = ref.watch(databaseProvider);
-  final manager = AppwriteSyncManager(
-    appwriteService: service,
-    database: database,
-  );
+  final manager = AppwriteSyncManager(database: database);
 
   ref.onDispose(manager.dispose);
 
@@ -60,11 +53,6 @@ final appwriteLoggerProvider = Provider<AppwriteLogger>((ref) {
   return AppwriteLogger();
 });
 
-/// مزود معالج الأخطاء
-final appwriteErrorHandlerProvider = Provider<AppwriteErrorHandler>((ref) {
-  return AppwriteErrorHandler();
-});
-
 // ============ State Providers ============
 
 /// مزود حالة الاتصال
@@ -96,26 +84,45 @@ class ConnectionState {
   }
 }
 
+// ============ Data Providers ============
+
+/// سجلات AppwriteLogger (اسم تاريخي — مسجل عام للتطبيق)
+final appwriteLogsProvider = Provider<List<LogEntry>>((ref) {
+  return AppwriteLogger().entries;
+});
+
+/// مزود إحصائيات المزامنة
+final syncStatsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((
+  ref,
+) async {
+  final syncManager = ref.watch(appwriteSyncManagerProvider);
+  return syncManager.getSyncStatistics();
+});
+
+final outboxCountProvider = StreamProvider.autoDispose<int>((ref) {
+  final db = ref.watch(databaseProvider);
+  final dao = OutboxDao(db);
+  // ✅ فصل هندسي: نراقب فقط عناصر source='local' (تغييرات محلية)
+  return dao.watchCount(sources: const ['local']);
+});
+
 class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
   ConnectionStatusNotifier(this.ref)
     : super(ConnectionState(isConnected: false));
   final Ref ref;
 
+  /// ✅ (2026-09-05) Cloudflare-only: فحص الاتصال يصيب /health على
+  /// Cloudflare Worker — كان يفحص Appwrite Cloud (primary+secondary).
   Future<void> checkConnection() async {
     state = state.copyWith(isChecking: true);
-
     try {
-      final service = ref.read(appwriteServiceProvider);
-      await service.initialize();
-      final connectionResult = await service.testConnection();
-      final isConnected = connectionResult['overall_success'] == true;
-      final failureMessage = isConnected
-          ? null
-          : (connectionResult['error'] as String?) ?? 'فشل الاتصال بـ Appwrite';
-
+      final res = await http
+          .get(Uri.parse('${CloudflareConfig.workerUrl}/health'))
+          .timeout(const Duration(seconds: 8));
+      final isConnected = res.statusCode == 200;
       state = ConnectionState(
         isConnected: isConnected,
-        errorMessage: failureMessage,
+        errorMessage: isConnected ? null : 'فشل الاتصال بـ Cloudflare Worker',
       );
     } catch (e) {
       state = ConnectionState(
@@ -125,57 +132,3 @@ class ConnectionStatusNotifier extends StateNotifier<ConnectionState> {
     }
   }
 }
-
-// ============ Data Providers ============
-
-/// مزود إحصائيات المزامنة
-final syncStatsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((
-  ref,
-) async {
-  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
-  final syncManager = ref.watch(appwriteSyncManagerProvider);
-  return syncManager.getSyncStatistics();
-});
-
-final outboxCountProvider = StreamProvider.autoDispose<int>((ref) {
-  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
-  final db = ref.watch(databaseProvider);
-  final dao = OutboxDao(db);
-  // ✅ فصل هندسي: نراقب فقط عناصر source='local' (تغييرات محلية)
-  return dao.watchCount(sources: const ['local']);
-});
-
-/// مزود إحصائيات الذاكرة المؤقتة
-final cacheStatsProvider = Provider<CacheStatistics>((ref) {
-  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
-  final cacheManager = ref.watch(appwriteCacheManagerProvider);
-  return cacheManager.getStatistics();
-});
-
-/// مزود إحصائيات السجلات
-final logStatsProvider = Provider<Map<String, int>>((ref) {
-  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
-  final logger = ref.watch(appwriteLoggerProvider);
-  return logger.getStatistics();
-});
-
-/// مزود معلومات المشروع
-final projectInfoProvider = Provider<Map<String, String>>((ref) {
-  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
-  final service = ref.watch(appwriteServiceProvider);
-  return service.getProjectInfo();
-});
-
-/// مزود قائمة الأجهزة المسجلة (أحدث جهازين فقط)
-final devicesListProvider = FutureProvider.autoDispose((ref) async {
-  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
-  final syncManager = ref.watch(appwriteSyncManagerProvider);
-  return syncManager.getRegisteredDevices();
-});
-
-/// مزود السجلات
-final logsProvider = Provider((ref) {
-  // ✅ إصلاح Gemini: ref.watch بدلاً من ref.read داخل provider
-  final logger = ref.watch(appwriteLoggerProvider);
-  return logger.getLogs();
-});

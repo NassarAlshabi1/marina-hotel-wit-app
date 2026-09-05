@@ -10,7 +10,7 @@ import '../../providers/smart_sync_provider.dart';
 import '../../services/alarm_backup.dart';
 import '../../services/smart_sync_manager.dart';
 import '../../utils/performance_monitor.dart';
-import 'appwrite_settings_screen.dart';
+import 'sync/unified_sync_settings_screen.dart';
 import '../../utils/english_digits_input_formatter.dart';
 
 class DataProtectionScreen extends ConsumerStatefulWidget {
@@ -900,12 +900,12 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
               Navigator.push<void>(
                 context,
                 MaterialPageRoute<void>(
-                  builder: (context) => const AppwriteSettingsScreen(),
+                  builder: (context) => const UnifiedSyncSettingsScreen(),
                 ),
               );
             },
             icon: const Icon(Icons.settings),
-            label: const Text('إعدادات Appwrite المتقدمة'),
+            label: const Text('إعدادات المزامنة المتقدمة'),
           ),
         ),
       ],

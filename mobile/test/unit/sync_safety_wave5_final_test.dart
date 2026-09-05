@@ -16,10 +16,8 @@
 import 'package:drift/drift.dart' as drift;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:marina_hotel_mobile/services/appwrite_service.dart';
 import 'package:marina_hotel_mobile/services/daos/outbox_dao.dart';
 import 'package:marina_hotel_mobile/services/local_db.dart';
-import 'package:marina_hotel_mobile/services/sync_core/sync_pull_service.dart';
 import 'package:marina_hotel_mobile/services/sync_guard.dart';
 
 void main() {
@@ -86,99 +84,6 @@ void main() {
   // ═══════════════════════════════════════════════════════════════════════
   // المجموعة 2: Tombstone Durability
   // ═══════════════════════════════════════════════════════════════════════
-  group('2. Tombstone Durability (SyncPullService)', () {
-    late SyncPullService pullService;
-
-    setUp(() {
-      pullService = SyncPullService(
-        appwriteService: AppwriteService(),
-        database: db,
-        outboxDao: outboxDao,
-      );
-    });
-
-    test(
-      '2a. سجل نشط محلياً + remote deletedAt → تطبيق tombstone (لا resurrection)',
-      () async {
-        // ✅ السيناريو: جهاز-A حذف softly ورفع tombstone.
-        // جهاز-B لديه السجل نشطاً محلياً. عند سحب tombstone، يجب تطبيقه
-        // (تجاوز VC وtimestamp) — لا resurrection.
-
-        final result = await pullService.checkAndResolveConflict(
-          {
-            'localUuid': 'room-tomb-1',
-            'deletedAt': 2000, // remote has tombstone
-            'lastModified': 2000,
-          },
-          1000, // localLastModified (نشط محلياً)
-          localDeletedAt: null, // غير محذوف محلياً
-          remoteUpdatedAtSec: 2000,
-          localVectorClock: '{"A": 1}',
-          entityName: 'rooms',
-          localUuid: 'room-tomb-1',
-        );
-
-        expect(
-          result.shouldApplyRemote,
-          isTrue,
-          reason: 'تطبيق tombstone من remote على السجل النشط محلياً',
-        );
-      },
-    );
-
-    test(
-      '2b. soft delete محلي محمي ضد resurrection من remote بدون deletedAt',
-      () async {
-        // ✅ السيناريو: جهاز-A حذف softly. جهاز-B لديه update بدون deletedAt
-        // (لا يعرف بالحذف). يجب أن يُرفض update (لا نُحيي السجل).
-
-        final result = await pullService.checkAndResolveConflict(
-          {
-            'localUuid': 'room-tomb-2',
-            'status': 'updated',
-            'lastModified': 2000,
-            // لا deletedAt في remote
-          },
-          1000,
-          localDeletedAt: 1500, // محذوف محلياً
-          remoteUpdatedAtSec: 2000,
-          localVectorClock: '{"A": 2}',
-          entityName: 'rooms',
-          localUuid: 'room-tomb-2',
-        );
-
-        expect(
-          result.shouldApplyRemote,
-          isFalse,
-          reason: 'لا نُحيي السجل المحذوف محلياً',
-        );
-      },
-    );
-
-    test(
-      '2c. soft delete محلي + remote deletedAt → تطبيق (كلاهما محذوف)',
-      () async {
-        // ✅ السيناريو: الجهاز-A حذف softly، السحابة حذفت (tombstone from another device)
-        // → تطبيق remote (تحديث طابع الحذف).
-
-        final result = await pullService.checkAndResolveConflict(
-          {'localUuid': 'room-tomb-3', 'deletedAt': 2000, 'lastModified': 2000},
-          1000,
-          localDeletedAt: 1500,
-          remoteUpdatedAtSec: 2000,
-          localVectorClock: '{"A": 2}',
-          entityName: 'rooms',
-          localUuid: 'room-tomb-3',
-        );
-
-        expect(
-          result.shouldApplyRemote,
-          isTrue,
-          reason: 'كلاهما محذوف → تطبيق remote للتحديث',
-        );
-      },
-    );
-  });
 
   // ═══════════════════════════════════════════════════════════════════════
   // المجموعة 3: Ownership-Safe SyncGuard

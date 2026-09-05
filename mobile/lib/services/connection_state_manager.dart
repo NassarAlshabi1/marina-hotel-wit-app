@@ -4,7 +4,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 
 import 'appwrite_logger.dart';
-import 'appwrite_service.dart';
+import 'cloudflare_config.dart';
+import 'package:http/http.dart' as http;
 
 /// حالة الاتصال
 enum ConnectionStatus { online, offline, checking, unknown }
@@ -31,7 +32,15 @@ class ConnectionStateManager extends ChangeNotifier {
   static final ConnectionStateManager _instance =
       ConnectionStateManager._internal(
         connectivity: Connectivity(),
-        appwriteProbe: () => AppwriteService().quickConnectionTest(),
+        // ✅ (2026-09-05) Cloudflare-only: الفحص يصيب /health على الـ worker
+        appwriteProbe: () async {
+          final res = await http
+              .get(Uri.parse('${CloudflareConfig.workerUrl}/health'))
+              .timeout(const Duration(seconds: 8));
+          if (res.statusCode != 200) {
+            throw Exception('Worker health ${res.statusCode}');
+          }
+        },
       );
 
   final _logger = AppwriteLogger();

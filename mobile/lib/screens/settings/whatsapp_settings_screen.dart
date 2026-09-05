@@ -10,7 +10,6 @@ import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/appwrite_config.dart';
 import '../../services/whatsapp_service.dart';
-import '../../services/whatsapp_settings_sync.dart';
 import '../../utils/message_templates.dart';
 import '../../utils/snackbar_helper.dart';
 
@@ -313,120 +312,42 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
 
   /// رفع الإعدادات إلى Appwrite Console
   Future<void> _uploadToCloud() async {
-    setState(() => _isSyncing = true);
-    try {
-      final appwrite = ref.read(appwriteServiceProvider);
-      final sync = WhatsAppSettingsSync(appwrite);
-      final result = await sync.uploadToCloud();
-      if (!mounted) {
-        return;
-      }
-      setState(() => _isSyncing = false);
-      if (result.success) {
-        _showSyncResult(
-          success: true,
-          title: 'تم رفع الإعدادات إلى السحابة بنجاح',
-          subtitle: 'يمكنك تنزيلها على أي جهاز آخر من هنا',
-        );
-      } else {
-        _showSyncResult(
-          success: false,
-          title: 'فشل رفع الإعدادات',
-          subtitle: result.error ?? 'حدث خطأ غير معروف',
-        );
-      }
-    } catch (e) {
-      if (!mounted) {
-        return;
-      }
-      setState(() => _isSyncing = false);
-      _showSyncResult(
-        success: false,
-        title: 'خطأ غير متوقع',
-        subtitle: e.toString(),
-      );
+    // ✅ (2026-09-05) Cloudflare-only: كانت ترفع الإعدادات إلى مجموعة
+    // app_settings في Appwrite Cloud — أُزيلت مع إزالة Appwrite.
+    if (!mounted) {
+      return;
     }
+    _showSyncResult(
+      success: false,
+      title: 'المزامنة السحابية غير متاحة',
+      subtitle: 'الإعدادات تُحفظ محلياً بعد إزالة Appwrite Cloud',
+    );
   }
 
   /// تأكيد تنزيل الإعدادات من السحابة
   Future<void> _confirmDownloadFromCloud() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.cloud_download, color: Colors.indigo, size: 28),
-            SizedBox(width: 10),
-            Text('تنزيل الإعدادات من السحابة'),
-          ],
-        ),
-        content: const Text(
-          'سيتم استبدال إعدادات الواتساب الحالية على هذا الجهاز بالإعدادات المحفوظة في السحابة.\n\nهل تريد المتابعة؟',
-          textAlign: TextAlign.right,
-          style: TextStyle(height: 1.6),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.pop(ctx, true),
-            icon: const Icon(Icons.download, size: 18),
-            label: const Text('تنزيل'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.indigo,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed ?? false) {
-      await _downloadFromCloud();
+    // ✅ (2026-09-05) Cloudflare-only — أُزيلت مع إزالة Appwrite Cloud.
+    if (!mounted) {
+      return;
     }
+    _showSyncResult(
+      success: false,
+      title: 'المزامنة السحابية غير متاحة',
+      subtitle: 'الإعدادات تُحفظ محلياً بعد إزالة Appwrite Cloud',
+    );
   }
 
   /// تنزيل الإعدادات من Appwrite Console
   Future<void> _downloadFromCloud() async {
-    setState(() => _isSyncing = true);
-    try {
-      final appwrite = ref.read(appwriteServiceProvider);
-      final sync = WhatsAppSettingsSync(appwrite);
-      final result = await sync.downloadFromCloud();
-      if (!mounted) {
-        return;
-      }
-      setState(() => _isSyncing = false);
-      if (result.success) {
-        // إعادة تحميل الإعدادات من SharedPreferences
-        await _loadSettings();
-        ref.invalidate(whatsappSettingsProvider);
-        _showSyncResult(
-          success: true,
-          title: 'تم تنزيل الإعدادات من السحابة بنجاح',
-          subtitle: 'تم تحديث الإعدادات المحلية',
-        );
-      } else {
-        _showSyncResult(
-          success: false,
-          title: 'فشل تنزيل الإعدادات',
-          subtitle: result.error ?? 'حدث خطأ غير معروف',
-        );
-      }
-    } catch (e) {
-      if (!mounted) {
-        return;
-      }
-      setState(() => _isSyncing = false);
-      _showSyncResult(
-        success: false,
-        title: 'خطأ غير متوقع',
-        subtitle: e.toString(),
-      );
+    // ✅ (2026-09-05) Cloudflare-only — أُزيلت مع إزالة Appwrite Cloud.
+    if (!mounted) {
+      return;
     }
+    _showSyncResult(
+      success: false,
+      title: 'المزامنة السحابية غير متاحة',
+      subtitle: 'الإعدادات تُحفظ محلياً بعد إزالة Appwrite Cloud',
+    );
   }
 
   Future<void> _openUrl(String url) async {

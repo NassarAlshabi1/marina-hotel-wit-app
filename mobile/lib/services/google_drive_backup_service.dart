@@ -22,7 +22,6 @@ import '../utils/system_settings_keys.dart';
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
 import 'alarm_backup.dart'; // Added for rescheduling upon setting sync
-import 'appwrite_service.dart';
 import 'appwrite_sync_manager.dart';
 import 'auto_backup_task.dart';
 import 'backup_serializers.dart';
@@ -1862,50 +1861,36 @@ class GoogleDriveBackupService {
         return;
       }
       try {
-        _log('🔄 بدء مزامنة البيانات مع Appwrite...');
+        _log('🔄 بدء رفع البيانات المستعادة إلى Cloudflare D1...');
         final prefs = await SharedPreferences.getInstance();
         final syncEnabled = prefs.getBool('appwrite_sync_enabled') ?? true;
 
         if (syncEnabled) {
-          final appwriteService = AppwriteService();
-          await appwriteService.initialize();
+          final syncManager = AppwriteSyncManager(database: db);
 
-          if (appwriteService.isInitialized) {
-            final syncManager = AppwriteSyncManager(
-              appwriteService: appwriteService,
-              database: db,
-            );
+          final stats = await syncManager.pushAllLocalDataToAppwrite(
+            skipDeleted: true,
+          );
 
-            final stats = await syncManager.pushAllLocalDataToAppwrite(
-              skipDeleted: true,
-            );
+          final totalSynced = stats.entries
+              .where((e) => e.key != 'errors' && e.value > 0)
+              .fold(0, (sum, e) => sum + e.value);
 
-            final totalSynced = stats.entries
-                .where((e) => e.key != 'errors' && e.value > 0)
-                .fold(0, (sum, e) => sum + e.value);
+          final tablesSummary = stats.entries
+              .where((e) => e.key != 'errors' && e.value > 0)
+              .map((e) => '${e.key}: ${e.value}')
+              .join(', ');
 
-            final tablesSummary = stats.entries
-                .where((e) => e.key != 'errors' && e.value > 0)
-                .map((e) => '${e.key}: ${e.value}')
-                .join(', ');
-
-            _log('✅ تم رفع $totalSynced سجل إلى Appwrite ($tablesSummary)');
-            if (stats['errors']! > 0) {
-              _log('⚠️ ${stats['errors']} خطأ أثناء المزامنة');
-            }
-            _logger.info(
-              'تمت مزامنة البيانات مع Appwrite: $totalSynced سجل (${stats['errors']} خطأ)',
-              tag: 'RESTORE',
-            );
-          } else {
-            _log('⚠️ Appwrite غير متاح، تم تخطي المزامنة');
-            _logger.warning(
-              'تم تخطي مزامنة Appwrite (غير متصل)',
-              tag: 'RESTORE',
-            );
+          _log('✅ تم رفع $totalSynced سجل إلى Appwrite ($tablesSummary)');
+          if (stats['errors']! > 0) {
+            _log('⚠️ ${stats['errors']} خطأ أثناء المزامنة');
           }
+          _logger.info(
+            'تم رفع البيانات المستعادة إلى Cloudflare D1',
+            tag: 'RESTORE',
+          );
         } else {
-          _log('ℹ️ مزامنة Appwrite معطلة');
+          _log('ℹ️ مزامنة السحابة معطلة');
         }
       } catch (e, st) {
         _log('⚠️ خطأ في مزامنة Appwrite: $e');

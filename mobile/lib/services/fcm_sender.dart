@@ -23,15 +23,13 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:appwrite/appwrite.dart' show Query;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/env.dart';
-import 'appwrite_config.dart';
-import 'appwrite_service.dart';
 import 'crashlytics_service.dart';
+import 'local_db.dart';
 import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// نوع الحدث المهم لإرسال إشعار FCM
@@ -223,30 +221,29 @@ class FcmSender {
     }
   }
 
-  /// قراءة جميع fcmToken من Appwrite.devices collection
-  /// (يستثني جهاز المُرسِل تلقائياً عبر senderDeviceId field)
-  ///
-  /// ✅ إصلاح PR review: نستخدم AppwriteService.listAllDocuments() بدلاً من
-  /// Databases.listDocuments() مباشرة. هذا يوفّر:
-  /// 1. Automatic failover إلى secondary Appwrite instance عند فشل primary
-  /// 2. Cursor pagination صحيح (يجلب كل الصفحات، ليس فقط أول 25)
-  /// 3. Caching مدمج لتقليل الـ round-trips
+  /// قراءة جميع fcmToken — ✅ (2026-09-05) Cloudflare-only: المصدر جدول
+  /// devices المحلي (Drift) المتزامن عبر D1 — الرموز تصل لكل الأجهزة عبر
+  /// مسار devices المتزامن (pull/push + outbox delta sync). كان يقرأ
+  /// مجموعة devices من Appwrite Cloud.
+  /// (يستثني جهاز المُرسِل تلقائياً عبر device_id)
   Future<List<String>> _getAllDeviceTokens() async {
     try {
       final myDeviceId = await _getMyDeviceId();
+      if (!DatabaseManager.isInitialized) return [];
+      final db = DatabaseManager.instance;
 
-      final documents = await AppwriteService().listAllDocuments(
-        collectionId: AppwriteConfig.devicesCollectionId,
-        queries: [
-          // فقط الأجهزة النشطة
-          Query.equal('status', 'active'),
-        ],
-      );
+      final rows = await db
+          .customSelect(
+            "SELECT fcm_token, device_id FROM devices "
+            "WHERE status = 'active' AND deleted_at IS NULL "
+            "AND fcm_token IS NOT NULL AND fcm_token != ''",
+          )
+          .get();
 
       final tokens = <String>[];
-      for (final doc in documents) {
-        final token = doc.data['fcmToken'] as String?;
-        final deviceId = doc.data['localUuid'] as String? ?? doc.$id;
+      for (final row in rows) {
+        final token = row.data['fcm_token']?.toString();
+        final deviceId = row.data['device_id']?.toString();
 
         // استثني جهاز المُرسِل
         if (myDeviceId != null && deviceId == myDeviceId) continue;

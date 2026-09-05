@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../components/app_scaffold.dart';
 import '../../../core/core.dart';
-import 'tabs/appwrite_backup_tab.dart';
 import 'tabs/cloudflare_d1_tab.dart';
 import 'tabs/local_backups_tab.dart';
 
@@ -38,7 +37,7 @@ class _ComprehensiveBackupScreenState
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -69,7 +68,6 @@ class _ComprehensiveBackupScreenState
               unselectedLabelColor: Colors.grey,
               indicatorColor: UIConstants.backupColor,
               tabs: const [
-                Tab(icon: Icon(Icons.cloud_upload), text: 'Appwrite'),
                 Tab(icon: Icon(Icons.dns), text: 'Cloudflare D1'),
                 Tab(icon: Icon(Icons.phone_android), text: 'النسخ المحلية'),
               ],
@@ -81,7 +79,6 @@ class _ComprehensiveBackupScreenState
             child: TabBarView(
               controller: _tabController,
               children: const [
-                AppwriteBackupTab(),
                 CloudflareD1Tab(),
                 LocalBackupsTab(),
               ],

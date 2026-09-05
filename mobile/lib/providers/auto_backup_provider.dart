@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/auto_backup_manager.dart' show AutoBackupManager;
-import 'appwrite_providers.dart'; // AppwriteService + connectionStatus
+import 'appwrite_providers.dart' show connectionStatusProvider;
 import 'repository_providers.dart'; // databaseProvider
 
 /// Provider لمدير النسخ التلقائي
@@ -20,12 +20,7 @@ final autoBackupStatusProvider =
 final autoBackupInitProvider = FutureProvider<void>((ref) async {
   final manager = ref.read(autoBackupManagerProvider);
   final backupService = ref.read(googleDriveBackupServiceProvider);
-  final appwriteService = ref.read(appwriteServiceProvider);
   final database = ref.read(databaseProvider);
 
-  await manager.initialize(
-    backupService,
-    appwriteService: appwriteService,
-    database: database,
-  );
+  await manager.initialize(backupService, database: database);
 });

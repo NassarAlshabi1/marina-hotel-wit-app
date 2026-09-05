@@ -13,7 +13,7 @@ import '../ai/ai_chat_screen.dart';
 import '../security/blacklist_screen.dart';
 import '../inventory/inventory_screen.dart';
 import 'active_bookings_reminder_screen.dart';
-import 'appwrite_settings_screen.dart';
+import 'sync/unified_sync_settings_screen.dart';
 import 'backup/comprehensive_backup_screen_v2.dart' as backup_v2;
 import 'error_center_screen.dart';
 import 'error_tracker_screen.dart';
@@ -217,7 +217,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         return [
           _SettingsItem(
             title: 'المزامنة بين الأجهزة',
-            subtitle: 'التحكم في مزامنة Appwrite والأداء والشبكة',
+            subtitle: 'التحكم في مزامنة Cloudflare والأداء والشبكة',
             icon: Icons.sync,
             color: Colors.blue,
             onTap: () => Navigator.push<void>(
@@ -229,7 +229,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           _SettingsItem(
             title: 'النسخ الاحتياطي والاستعادة',
-            subtitle: 'نسخ محلية آمنة ومزامنة Appwrite',
+            subtitle: 'نسخ محلية آمنة ومزامنة Cloudflare D1',
             icon: Icons.backup,
             color: Colors.deepOrange,
             onTap: () => Navigator.push<void>(
@@ -241,14 +241,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
           ),
           _SettingsItem(
-            title: 'Appwrite',
-            subtitle: 'الاتصال السحابي والأجهزة والسجلات والتخزين المؤقت',
+            title: 'المزامنة السحابية',
+            subtitle: 'رفع وسحب البيانات عبر Cloudflare D1 وحالة الأجهزة',
             icon: Icons.cloud_sync,
             color: Colors.pink,
             onTap: () => Navigator.push<void>(
               context,
               MaterialPageRoute<void>(
-                builder: (context) => const AppwriteSettingsScreen(),
+                builder: (context) => const UnifiedSyncSettingsScreen(),
               ),
             ),
           ),
