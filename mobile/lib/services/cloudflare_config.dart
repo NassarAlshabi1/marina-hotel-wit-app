@@ -91,6 +91,30 @@ class CloudflareConfig {
 
   static String? tableNameFor(String entity) => entityToTable[entity];
 
+  /// نطاق النسخ الاحتياطي إلى Cloudflare D1 (تبويب رفع D1 — طلب المستخدم
+  /// 2026-09-05: «جدول hotel_day_ledger وemployees وbooking_nights …
+  /// blacklist»).
+  ///
+  /// = [migrationOrder] (22 كياناً مطابقاً لمجموعات Appwrite Cloud — خطة
+  /// D7) + `hotel_day_ledger` المطلوب صراحةً: جدوله المحلي
+  /// (local_db.dart HotelDayLedger) مطابق 1:1 لجدول D1 في
+  /// worker/schema.sql — يُرفع خاماً في مسار النسخ الاحتياطي فقط ويبقى
+  /// خارج عقد المزامنة (قرار D8: محلي-فقط).
+  ///
+  /// `blacklist` تبقى ضمن القائمة (كيان من عقد Appwrite) لكن بلا جدول
+  /// Drift محلي — صفوفها مخزنة في shift_notes الموسومة
+  /// created_by='blacklist' وتُجسَّد افتراضياً عند الرفع عبر
+  /// CloudflareD1Service.blacklistRowFromShiftNote.
+  static const List<String> d1BackupTables = <String>[
+    ...migrationOrder,
+    'hotel_day_ledger',
+  ];
+
+  /// وسم تخزين القائمة السوداء داخل جدول shift_notes المحلي
+  /// (مطابق لـ BlacklistRepository._createdByTag — منع تكرار السلسلة
+  /// النصية في استعلامات النطاق).
+  static const String blacklistStorageTag = 'blacklist';
+
   /// Sync settings
   static const Duration syncInterval = Duration(minutes: 15);
   static const int batchSize = 25;

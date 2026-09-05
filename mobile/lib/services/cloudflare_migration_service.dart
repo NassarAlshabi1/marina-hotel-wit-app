@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/settings/error_tracker_screen.dart'
     show logHttpError, logError, ErrorCategory;
 import 'cloudflare_config.dart';
+import 'cloudflare_d1_service.dart';
 import 'local_db.dart';
 import 'resilient_http_client.dart';
 
@@ -151,12 +152,21 @@ class CloudflareMigrationService {
           continue;
         }
 
-        // Read all records from local Drift DB
-        final records = await db
-            .customSelect(
-              'SELECT * FROM $tableName',
-            )
-            .get();
+        // Read all records from local Drift DB.
+        // ✅ blacklist بلا جدول Drift محلي — صفوفه مخزنة في shift_notes
+        //    الموسومة created_by='blacklist' وتُحوَّل إلى أعمدة جدول D1
+        //    (كان SELECT * FROM blacklist يفشل صمتاً في كل تشغيلة —
+        //    no such table: blacklist — فلا تُرحَّل بيانات القائمة
+        //    السوداء أبداً).
+        // ✅ shift_notes يستبعد الصفوف الموسومة (تُرحَّل ككيان blacklist
+        //    مستقل — مطابقة مجموعات Appwrite Cloud، نفس سلوك حلقة
+        //    المزامنة التي ترسلها entity='blacklist' فقط).
+        final sourceSql = entity == 'blacklist'
+            ? CloudflareD1Service.blacklistSourceSql
+            : entity == 'shift_notes'
+            ? CloudflareD1Service.shiftNotesSourceSql
+            : 'SELECT * FROM $tableName';
+        final records = await db.customSelect(sourceSql).get();
 
         final count = records.length;
         debugPrint('  📦 $entity: $count records found');
@@ -182,7 +192,13 @@ class CloudflareMigrationService {
         // This gives ~8x size reduction + D1 native batch insert speed.
         final allRecords = <Map<String, dynamic>>[];
         for (final row in records) {
-          final record = Map<String, dynamic>.from(row.data);
+          // blacklist: تحويل صف shift_notes الموسوم إلى أعمدة جدول D1
+          // (المخرجات بلا مفتاح id أصلاً — الإزالة أدناه no-op آمنة).
+          final record = entity == 'blacklist'
+              ? Map<String, dynamic>.from(
+                  CloudflareD1Service.blacklistRowFromShiftNote(row.data),
+                )
+              : Map<String, dynamic>.from(row.data);
           record.remove('id'); // Remove local autoIncrement id
           // ✅ Stamp a UNIQUE, strictly-increasing updated_at for the server
           // (kept in sync with last_modified — both are sync-order fields).

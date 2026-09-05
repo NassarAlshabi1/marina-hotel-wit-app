@@ -465,6 +465,74 @@ class CloudflareD1Service {
     if (m.group(2) != null) return ddl.trim();
     return 'CREATE ${m.group(1)!} IF NOT EXISTS ${ddl.substring(m.end)}'.trim();
   }
+
+  // ════════════════════════════════════════════════════════════════
+  //  تجسيد blacklist (كيان عقد Appwrite بلا جدول Drift محلي)
+  // ════════════════════════════════════════════════════════════════
+
+  /// تحويل صف shift_notes موسوم created_by='blacklist' إلى صف بأعمدة
+  /// جدول blacklist في D1 (worker/schema.sql — نفس اتجاه مسار المزامنة:
+  /// outbox entity='blacklist' → جدول blacklist).
+  ///
+  /// تخزين القائمة السوداء المحلي (repositories/blacklist_repository.dart):
+  /// الاسم في `title` وبقية الحقول JSON في `content`. القيم الافتراضية
+  /// مطابقة لسلوك المستودع (reportedBy='police'، active=true). الأعمدة
+  /// السحابية القديمة (guest_name/guest_phone/guest_id_number/is_active/
+  /// added_date/added_by) تُترك لقيم D1 الافتراضية كما يفعل payload
+  /// المزامنة الذي لا يحملها.
+  static Map<String, Object?> blacklistRowFromShiftNote(
+    Map<String, Object?> row,
+  ) {
+    Map<String, dynamic> payload = const <String, dynamic>{};
+    final raw = row['content'];
+    if (raw is String && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) payload = decoded;
+      } catch (_) {
+        // محتوى غير صالح — تُعتمد القيم الافتراضية (نفس سلوك المستودع).
+      }
+    }
+    final active = payload['active'] is bool ? payload['active'] as bool : true;
+    return <String, Object?>{
+      'local_uuid': row['local_uuid'],
+      'name': row['title'],
+      'nationality': payload['nationality'] as String? ?? '',
+      'national_id': payload['nationalId'] as String?,
+      'phone': payload['phone'] as String?,
+      'reason': payload['reason'] as String?,
+      'notes': payload['notes'] as String?,
+      'reported_by': payload['reportedBy'] as String? ?? 'police',
+      'active': active ? 1 : 0,
+      'server_id': row['server_id'],
+      'created_at': row['created_at'],
+      'updated_at': row['updated_at'],
+      'deleted_at': row['deleted_at'],
+      'last_modified': row['last_modified'],
+      'created_at_iso': row['created_at_iso'],
+      'updated_at_iso': row['updated_at_iso'],
+      'deleted_at_iso': row['deleted_at_iso'],
+      'created_at_epoch': row['created_at_epoch'],
+      'last_modified_epoch': row['last_modified_epoch'],
+      'version': row['version'],
+      'origin': row['origin'],
+      'vector_clock': row['vector_clock'],
+      'device_id': row['device_id'],
+      'idempotency_key': row['idempotency_key'],
+    };
+  }
+
+  /// استعلام مصدر صفوف القائمة السوداء من التخزين المحلي (shift_notes
+  /// الموسومة) — يُستخدم في تبويب الرفع ومسار الترحيل الشامل.
+  static const String blacklistSourceSql =
+      "SELECT * FROM shift_notes WHERE created_by = 'blacklist'";
+
+  /// استعلام مصدر صفوف shift_notes الحقيقية (مطابقة مجموعة shift_notes
+  /// في Appwrite Cloud) — يستبعد صفوف القائمة السوداء لأن المزامنة
+  /// ترسلها ككيان blacklist منفصل (blacklist_repository.dart يُنشئ
+  /// outbox entity='blacklist' فقط).
+  static const String shiftNotesSourceSql =
+      "SELECT * FROM shift_notes WHERE created_by != 'blacklist'";
 }
 
 // ══════════════════════════════════════════════════════════════════
