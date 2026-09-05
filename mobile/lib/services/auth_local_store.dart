@@ -3,12 +3,14 @@ import 'dart:convert';
 
 import 'package:appwrite/appwrite.dart';
 import 'package:crypto/crypto.dart';
+import 'package:drift/drift.dart' show Variable;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/app_logger.dart';
 import '../utils/id.dart';
 import 'appwrite_service.dart';
 import 'appwrite_sync_manager.dart';
+import 'local_db.dart';
 import 'password_hasher.dart';
 
 enum AuthType { local }
@@ -23,6 +25,60 @@ class AuthLocalStore {
 
     final digest = sha256.convert(utf8.encode(username)).toString();
     return 'user_${digest.substring(0, 31)}';
+  }
+
+  /// ✅ (2026-09-05) حمولة مزامنة app_users بصيغة snake_case مطابقة
+  /// لأعمدة جدول app_users في D1 (worker/schema.sql و
+  /// migrations/0003_app_users.sql — مرآة جدول Drift المحلي AppUsers).
+  ///
+  /// لماذا snake_case؟ طبقة Cloudflare تُرشّح مفاتيح الحمولة مقابل
+  /// أعمدة الجدول فعلياً (worker database.ts getTableColumns في
+  /// createRecord/updateRecord) — المفاتيح camelCase القديمة
+  /// (updatedAt/lastModified/…) كانت تُسقط صمتاً، و requireEntityId
+  /// (worker sync.ts:60) يطلب local_uuid صراحة وإلا فشلت العملية
+  /// ورست في dead-letter. هذا يوحّد app_users مع بقية الكيانات التي
+  /// تبني حمولاتها من صفوف Drift (أعمدة snake_case).
+  ///
+  /// الهوية: local_uuid = معرف المستند السحابي الحتمي [_cloudDocumentId]
+  /// — نفسها التي تستخدمها عمليات Outbox القائمة.
+  static Map<String, dynamic> appUsersSyncPayload({
+    required String localUuid,
+    String? username,
+    String? password,
+    String? fullName,
+    String? userType,
+    String? permissionsJson,
+    bool? active,
+    int? lastLogin,
+    int? credentialsVersion,
+    String? role,
+    required int now,
+    int version = 1,
+    String? deviceId,
+    bool tombstone = false,
+  }) {
+    return <String, dynamic>{
+      'local_uuid': localUuid,
+      'updated_at': now,
+      'last_modified': now,
+      'last_modified_epoch': now,
+      'version': version,
+      'vector_clock': jsonEncode(<String, int>{
+        if (deviceId != null && deviceId.isNotEmpty) deviceId: 1,
+      }),
+      if (deviceId != null && deviceId.isNotEmpty) 'device_id': deviceId,
+      'origin': 'local',
+      if (tombstone) 'deleted_at': now,
+      if (username != null) 'username': username,
+      if (password != null) 'password': password,
+      if (fullName != null) 'full_name': fullName,
+      if (userType != null) 'user_type': userType,
+      if (role != null) 'role': role,
+      if (permissionsJson != null) 'permissions': permissionsJson,
+      if (active != null) 'active': active ? 1 : 0,
+      if (lastLogin != null) 'last_login': lastLogin,
+      if (credentialsVersion != null) 'credentials_version': credentialsVersion,
+    };
   }
 
   static const _kCurrentUser = 'current_user';
@@ -420,6 +476,33 @@ class AuthLocalStore {
           ? '{}'
           : jsonEncode(<String, int>{deviceId: 1});
 
+      // ✅ (2026-09-05) الكتابة المحلية + Outbox أولاً — جدول app_users
+      // المحلي مصدر رفع D1 وlanding zone للسحب؛ Appwrite يبقى مساراً
+      // موازياً أثناء التشغيل المزدوج. الهوية = docId الحتمي (نفسها
+      // في عمليات Outbox اللاحقة) وليس localUuid العشوائي المخصص
+      // لحقل Appwrite القديم.
+      final syncPayload = AuthLocalStore.appUsersSyncPayload(
+        localUuid: docId,
+        username: username,
+        password: hashedPassword,
+        fullName: fullName,
+        userType: userType,
+        permissionsJson: jsonEncode(permissions),
+        active: true,
+        lastLogin: 0,
+        credentialsVersion: 1,
+        role: userType,
+        now: now,
+        version: 1,
+        deviceId: deviceId,
+      );
+      await _writeLocalAppUsersRow(syncPayload);
+      await _enqueueAppUsersOp(
+        op: 'create',
+        docId: docId,
+        payload: syncPayload,
+      );
+
       await appwrite.upsertDocument(
         collectionId: 'app_users',
         documentId: docId,
@@ -488,6 +571,20 @@ class AuthLocalStore {
             collectionId: 'app_users',
             documentId: docId,
             data: {'password': hashedPassword},
+          );
+          // ✅ (2026-09-05) الكتابة المحلية + Outbox — كيان متزامن كامل.
+          final syncPayload = AuthLocalStore.appUsersSyncPayload(
+            localUuid: docId,
+            username: username,
+            password: hashedPassword,
+            now: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+            deviceId: await _getDeviceId(),
+          );
+          await _writeLocalAppUsersRow(syncPayload);
+          await _enqueueAppUsersOp(
+            op: 'update',
+            docId: docId,
+            payload: syncPayload,
           );
           AppLogger.debug('Cloud password migrated for $username', tag: 'AUTH');
         }
@@ -613,6 +710,32 @@ class AuthLocalStore {
       data['version'] = (data['version'] as int) + 1;
       pendingData = Map<String, dynamic>.from(data);
 
+      // ✅ (2026-09-05) الكتابة المحلية + Outbox — app_users كيان
+      // متزامن كامل في النطاق الافتراضي (pull/push + outbox delta
+      // sync) بتعليمات المستخدم.
+      final syncPayload = AuthLocalStore.appUsersSyncPayload(
+        localUuid: docId,
+        username: username,
+        password: data['password'] as String?,
+        fullName: newFullName,
+        userType: newUserType,
+        permissionsJson: newPermissions != null
+            ? jsonEncode(newPermissions)
+            : null,
+        active: active,
+        credentialsVersion: nextVersion,
+        role: newUserType,
+        now: now,
+        version: nextVersion,
+        deviceId: await _getDeviceId(),
+      );
+      await _writeLocalAppUsersRow(syncPayload);
+      await _enqueueAppUsersOp(
+        op: 'update',
+        docId: docId,
+        payload: syncPayload,
+      );
+
       await appwrite.updateDocument(
         collectionId: 'app_users',
         documentId: docId,
@@ -627,30 +750,33 @@ class AuthLocalStore {
       return true;
     } catch (e) {
       if (_isRetryablePermissionSyncError(e)) {
-        final queuedData =
-            pendingData ??
-            <String, dynamic>{
-              'username': username,
-              'updatedAt': DateTime.now().millisecondsSinceEpoch ~/ 1000,
-              'lastModified': DateTime.now().millisecondsSinceEpoch ~/ 1000,
-              'lastModifiedEpoch':
-                  DateTime.now().millisecondsSinceEpoch ~/ 1000,
-              'syncTimestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
-              'version': 0,
-            };
-        if (newPassword != null && newPassword.isNotEmpty) {
-          queuedData['password'] = PasswordHasher.hash(newPassword);
-        }
-        if (newFullName != null) queuedData['full_name'] = newFullName;
-        if (newUserType != null) {
-          queuedData['user_type'] = newUserType;
-          queuedData['role'] = newUserType;
-        }
-        if (newPermissions != null) {
-          queuedData['permissions'] = jsonEncode(newPermissions);
-        }
-        if (active != null) queuedData['active'] = active;
-        if (await _enqueuePermissionSync(docId, queuedData)) {
+        // ✅ (2026-09-05) حمولة snake_case — المفاتيح camelCase القديمة
+        // كانت تُرشَّح في worker (getTableColumns) ويطلب requireEntityId
+        // local_uuid صراحة.
+        final queuedPayload = AuthLocalStore.appUsersSyncPayload(
+          localUuid: docId,
+          username: username,
+          password: (newPassword != null && newPassword.isNotEmpty)
+              ? PasswordHasher.hash(newPassword)
+              : null,
+          fullName: newFullName,
+          userType: newUserType,
+          permissionsJson: newPermissions != null
+              ? jsonEncode(newPermissions)
+              : null,
+          active: active,
+          credentialsVersion: pendingData?['credentials_version'] as int?,
+          role: newUserType,
+          now: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          version: (pendingData?['version'] as int?) ?? 1,
+          deviceId: await _getDeviceId(),
+        );
+        await _writeLocalAppUsersRow(queuedPayload);
+        if (await _enqueueAppUsersOp(
+          op: 'update',
+          docId: docId,
+          payload: queuedPayload,
+        )) {
           AppLogger.info(
             'تم حفظ تحديث المستخدم $username في Outbox للمزامنة اللاحقة',
             tag: 'AUTH',
@@ -677,6 +803,21 @@ class AuthLocalStore {
         documentId: docId,
       );
       AppLogger.info('Cloud user deleted (doc: $docId)', tag: 'AUTH');
+
+      // ✅ (2026-09-05) tombstone محلي + outbox delete — حتى يصل الحذف
+      // إلى D1 عبر المسار المتزامن ولا يعود الصف مع السحب اللاحق.
+      final syncPayload = AuthLocalStore.appUsersSyncPayload(
+        localUuid: docId,
+        now: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        deviceId: await _getDeviceId(),
+        tombstone: true,
+      );
+      await _writeLocalAppUsersRow(syncPayload);
+      await _enqueueAppUsersOp(
+        op: 'delete',
+        docId: docId,
+        payload: syncPayload,
+      );
 
       return true;
     } catch (e) {
@@ -1050,6 +1191,24 @@ class AuthLocalStore {
         'syncTimestamp': now,
         'version': version + 1,
       };
+      // ✅ (2026-09-05) الكتابة المحلية + Outbox — app_users كيان
+      // متزامن كامل في النطاق الافتراضي (pull/push + outbox delta sync).
+      final syncPayload = AuthLocalStore.appUsersSyncPayload(
+        localUuid: docId,
+        username: username,
+        permissionsJson: jsonEncode(permissions),
+        credentialsVersion: credentialsVersion + 1,
+        now: now,
+        version: version + 1,
+        deviceId: await _getDeviceId(),
+      );
+      await _writeLocalAppUsersRow(syncPayload);
+      await _enqueueAppUsersOp(
+        op: 'update',
+        docId: docId,
+        payload: syncPayload,
+      );
+
       await appwrite.updateDocument(
         collectionId: 'app_users',
         documentId: docId,
@@ -1072,15 +1231,30 @@ class AuthLocalStore {
           'syncTimestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
           'version': 0,
         };
-      }
-      if (_isRetryablePermissionSyncError(e) &&
-          pendingPayload != null &&
-          await _enqueuePermissionSync(docId, pendingPayload)) {
-        AppLogger.info(
-          'تم حفظ صلاحيات $username في Outbox للمزامنة اللاحقة',
-          tag: 'AUTH',
+        // ✅ (2026-09-05) حمولة snake_case — المفاتيح camelCase القديمة
+        // كانت تُرشَّح في worker (getTableColumns) ويطلب requireEntityId
+        // local_uuid صراحة.
+        final queuedPayload = AuthLocalStore.appUsersSyncPayload(
+          localUuid: docId,
+          username: username,
+          permissionsJson: jsonEncode(permissions),
+          credentialsVersion: pendingPayload['credentials_version'] as int?,
+          now: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          version: (pendingPayload['version'] as int?) ?? 1,
+          deviceId: await _getDeviceId(),
         );
-        return true;
+        await _writeLocalAppUsersRow(queuedPayload);
+        if (await _enqueueAppUsersOp(
+          op: 'update',
+          docId: docId,
+          payload: queuedPayload,
+        )) {
+          AppLogger.info(
+            'تم حفظ صلاحيات $username في Outbox للمزامنة اللاحقة',
+            tag: 'AUTH',
+          );
+          return true;
+        }
       }
       AppLogger.warning(
         'Failed to update cloud permissions for $username',
@@ -1106,16 +1280,88 @@ class AuthLocalStore {
         message.contains('timed out');
   }
 
-  Future<bool> _enqueuePermissionSync(
-    String docId,
-    Map<String, dynamic> payload,
+  /// ✅ (2026-09-05) كتابة/تحديث الصف المحلي في جدول app_users المتزامن
+  /// (Drift) — يجعل الجدول المحلي مصدر رفع D1 وlanding zone مكتملة
+  /// للسحب، أثناء بقاء Appwrite مساراً مباشراً موازياً (تشغيل مزدوج).
+  ///
+  /// - الصف موجود: UPDATE بالحقول المرسلة + version = الموجود + 1
+  ///   (رقم أحادي التزايد يغذي فصل التعارضات LWW في worker).
+  /// - الصف جديد: INSERT كامل مع ملء الأعمدة NOT NULL بلا default
+  ///   بما يطابق سلوك worker (database.ts createRecord).
+  ///
+  /// فشل الكتابة المحلية مساعِد فقط — لا يُفشل العملية الأصلية.
+  Future<void> _writeLocalAppUsersRow(
+    Map<String, dynamic> syncPayload,
   ) async {
+    try {
+      if (!DatabaseManager.isInitialized) return;
+      final db = DatabaseManager.instance;
+      final localUuid = syncPayload['local_uuid'] as String?;
+      if (localUuid == null || localUuid.isEmpty) return;
+
+      final existingRows = await db
+          .customSelect(
+            'SELECT id, version FROM app_users WHERE local_uuid = ? LIMIT 1',
+            variables: [Variable.withString(localUuid)],
+          )
+          .get();
+      if (existingRows.isNotEmpty) {
+        final existingVersion =
+            (existingRows.first.data['version'] as int?) ?? 0;
+        final fields = Map<String, dynamic>.from(syncPayload)
+          ..remove('local_uuid')
+          ..remove('created_at')
+          ..['version'] = existingVersion + 1;
+        if (fields.isEmpty) return;
+        final setClauses = fields.keys.map((c) => '$c = ?').join(', ');
+        await db.customStatement(
+          'UPDATE app_users SET $setClauses WHERE local_uuid = ?',
+          [...fields.values, localUuid],
+        );
+      } else {
+        final row = <String, dynamic>{
+          ...syncPayload,
+          'username': syncPayload['username'] ?? '',
+          'full_name': syncPayload['full_name'] ?? '',
+          'user_type': syncPayload['user_type'] ?? '',
+          'active': syncPayload['active'] ?? 1,
+          'credentials_version': syncPayload['credentials_version'] ?? 0,
+          'created_at':
+              (syncPayload['created_at'] ?? syncPayload['updated_at']) as int,
+          'created_at_epoch': 0,
+          'sync_timestamp': 0,
+        }..remove('id');
+        final columns = row.keys.join(', ');
+        final placeholders = row.keys.map((_) => '?').join(', ');
+        await db.customStatement(
+          'INSERT OR REPLACE INTO app_users ($columns) '
+          'VALUES ($placeholders)',
+          row.values.toList(),
+        );
+      }
+    } catch (e, st) {
+      AppLogger.warning(
+        'تعذر تحديث صف app_users المحلي',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  /// ✅ (2026-09-05) حجز عملية app_users في Outbox (create/update/delete)
+  /// بحمولة snake_case — انظر [appUsersSyncPayload].
+  Future<bool> _enqueueAppUsersOp({
+    required String op,
+    required String docId,
+    required Map<String, dynamic> payload,
+  }) async {
     final manager = AppwriteSyncManager.instance;
     if (manager == null) return false;
     try {
       await manager.outboxDao.merge(
         entity: 'app_users',
-        op: 'update',
+        op: op,
         localUuid: docId,
         payload: payload,
         clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
@@ -1124,7 +1370,7 @@ class AuthLocalStore {
       return true;
     } catch (e, st) {
       AppLogger.warning(
-        'تعذر إضافة تحديث صلاحيات المستخدم إلى Outbox',
+        'تعذر إضافة عملية app_users إلى Outbox',
         tag: 'AUTH',
         error: e,
         stackTrace: st,

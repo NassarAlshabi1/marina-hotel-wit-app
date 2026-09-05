@@ -42814,6 +42814,1459 @@ class InventoryTransactionsCompanion
   }
 }
 
+class $AppUsersTable extends AppUsers with TableInfo<$AppUsersTable, AppUser> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AppUsersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _localUuidMeta = const VerificationMeta(
+    'localUuid',
+  );
+  @override
+  late final GeneratedColumn<String> localUuid = GeneratedColumn<String>(
+    'local_uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<int> serverId = GeneratedColumn<int>(
+    'server_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<int> createdAt = GeneratedColumn<int>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAt = GeneratedColumn<int>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<int> deletedAt = GeneratedColumn<int>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastModifiedMeta = const VerificationMeta(
+    'lastModified',
+  );
+  @override
+  late final GeneratedColumn<int> lastModified = GeneratedColumn<int>(
+    'last_modified',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtIsoMeta = const VerificationMeta(
+    'createdAtIso',
+  );
+  @override
+  late final GeneratedColumn<String> createdAtIso = GeneratedColumn<String>(
+    'created_at_iso',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtIsoMeta = const VerificationMeta(
+    'updatedAtIso',
+  );
+  @override
+  late final GeneratedColumn<String> updatedAtIso = GeneratedColumn<String>(
+    'updated_at_iso',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deletedAtIsoMeta = const VerificationMeta(
+    'deletedAtIso',
+  );
+  @override
+  late final GeneratedColumn<String> deletedAtIso = GeneratedColumn<String>(
+    'deleted_at_iso',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtEpochMeta = const VerificationMeta(
+    'createdAtEpoch',
+  );
+  @override
+  late final GeneratedColumn<int> createdAtEpoch = GeneratedColumn<int>(
+    'created_at_epoch',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _lastModifiedEpochMeta = const VerificationMeta(
+    'lastModifiedEpoch',
+  );
+  @override
+  late final GeneratedColumn<int> lastModifiedEpoch = GeneratedColumn<int>(
+    'last_modified_epoch',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _versionMeta = const VerificationMeta(
+    'version',
+  );
+  @override
+  late final GeneratedColumn<int> version = GeneratedColumn<int>(
+    'version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _originMeta = const VerificationMeta('origin');
+  @override
+  late final GeneratedColumn<String> origin = GeneratedColumn<String>(
+    'origin',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('local'),
+  );
+  static const VerificationMeta _vectorClockMeta = const VerificationMeta(
+    'vectorClock',
+  );
+  @override
+  late final GeneratedColumn<String> vectorClock = GeneratedColumn<String>(
+    'vector_clock',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('{}'),
+  );
+  static const VerificationMeta _deviceIdMeta = const VerificationMeta(
+    'deviceId',
+  );
+  @override
+  late final GeneratedColumn<String> deviceId = GeneratedColumn<String>(
+    'device_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _syncTimestampMeta = const VerificationMeta(
+    'syncTimestamp',
+  );
+  @override
+  late final GeneratedColumn<int> syncTimestamp = GeneratedColumn<int>(
+    'sync_timestamp',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _idempotencyKeyMeta = const VerificationMeta(
+    'idempotencyKey',
+  );
+  @override
+  late final GeneratedColumn<String> idempotencyKey = GeneratedColumn<String>(
+    'idempotency_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _usernameMeta = const VerificationMeta(
+    'username',
+  );
+  @override
+  late final GeneratedColumn<String> username = GeneratedColumn<String>(
+    'username',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _passwordMeta = const VerificationMeta(
+    'password',
+  );
+  @override
+  late final GeneratedColumn<String> password = GeneratedColumn<String>(
+    'password',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _fullNameMeta = const VerificationMeta(
+    'fullName',
+  );
+  @override
+  late final GeneratedColumn<String> fullName = GeneratedColumn<String>(
+    'full_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _userTypeMeta = const VerificationMeta(
+    'userType',
+  );
+  @override
+  late final GeneratedColumn<String> userType = GeneratedColumn<String>(
+    'user_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _permissionsMeta = const VerificationMeta(
+    'permissions',
+  );
+  @override
+  late final GeneratedColumn<String> permissions = GeneratedColumn<String>(
+    'permissions',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _activeMeta = const VerificationMeta('active');
+  @override
+  late final GeneratedColumn<bool> active = GeneratedColumn<bool>(
+    'active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _lastLoginMeta = const VerificationMeta(
+    'lastLogin',
+  );
+  @override
+  late final GeneratedColumn<int> lastLogin = GeneratedColumn<int>(
+    'last_login',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _credentialsVersionMeta =
+      const VerificationMeta('credentialsVersion');
+  @override
+  late final GeneratedColumn<int> credentialsVersion = GeneratedColumn<int>(
+    'credentials_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _roleMeta = const VerificationMeta('role');
+  @override
+  late final GeneratedColumn<String> role = GeneratedColumn<String>(
+    'role',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    vectorClock,
+    deviceId,
+    syncTimestamp,
+    idempotencyKey,
+    id,
+    username,
+    password,
+    fullName,
+    userType,
+    permissions,
+    active,
+    lastLogin,
+    credentialsVersion,
+    role,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'app_users';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AppUser> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('local_uuid')) {
+      context.handle(
+        _localUuidMeta,
+        localUuid.isAcceptableOrUnknown(data['local_uuid']!, _localUuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_localUuidMeta);
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    if (data.containsKey('last_modified')) {
+      context.handle(
+        _lastModifiedMeta,
+        lastModified.isAcceptableOrUnknown(
+          data['last_modified']!,
+          _lastModifiedMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_lastModifiedMeta);
+    }
+    if (data.containsKey('created_at_iso')) {
+      context.handle(
+        _createdAtIsoMeta,
+        createdAtIso.isAcceptableOrUnknown(
+          data['created_at_iso']!,
+          _createdAtIsoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('updated_at_iso')) {
+      context.handle(
+        _updatedAtIsoMeta,
+        updatedAtIso.isAcceptableOrUnknown(
+          data['updated_at_iso']!,
+          _updatedAtIsoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('deleted_at_iso')) {
+      context.handle(
+        _deletedAtIsoMeta,
+        deletedAtIso.isAcceptableOrUnknown(
+          data['deleted_at_iso']!,
+          _deletedAtIsoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at_epoch')) {
+      context.handle(
+        _createdAtEpochMeta,
+        createdAtEpoch.isAcceptableOrUnknown(
+          data['created_at_epoch']!,
+          _createdAtEpochMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_modified_epoch')) {
+      context.handle(
+        _lastModifiedEpochMeta,
+        lastModifiedEpoch.isAcceptableOrUnknown(
+          data['last_modified_epoch']!,
+          _lastModifiedEpochMeta,
+        ),
+      );
+    }
+    if (data.containsKey('version')) {
+      context.handle(
+        _versionMeta,
+        version.isAcceptableOrUnknown(data['version']!, _versionMeta),
+      );
+    }
+    if (data.containsKey('origin')) {
+      context.handle(
+        _originMeta,
+        origin.isAcceptableOrUnknown(data['origin']!, _originMeta),
+      );
+    }
+    if (data.containsKey('vector_clock')) {
+      context.handle(
+        _vectorClockMeta,
+        vectorClock.isAcceptableOrUnknown(
+          data['vector_clock']!,
+          _vectorClockMeta,
+        ),
+      );
+    }
+    if (data.containsKey('device_id')) {
+      context.handle(
+        _deviceIdMeta,
+        deviceId.isAcceptableOrUnknown(data['device_id']!, _deviceIdMeta),
+      );
+    }
+    if (data.containsKey('sync_timestamp')) {
+      context.handle(
+        _syncTimestampMeta,
+        syncTimestamp.isAcceptableOrUnknown(
+          data['sync_timestamp']!,
+          _syncTimestampMeta,
+        ),
+      );
+    }
+    if (data.containsKey('idempotency_key')) {
+      context.handle(
+        _idempotencyKeyMeta,
+        idempotencyKey.isAcceptableOrUnknown(
+          data['idempotency_key']!,
+          _idempotencyKeyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('username')) {
+      context.handle(
+        _usernameMeta,
+        username.isAcceptableOrUnknown(data['username']!, _usernameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_usernameMeta);
+    }
+    if (data.containsKey('password')) {
+      context.handle(
+        _passwordMeta,
+        password.isAcceptableOrUnknown(data['password']!, _passwordMeta),
+      );
+    }
+    if (data.containsKey('full_name')) {
+      context.handle(
+        _fullNameMeta,
+        fullName.isAcceptableOrUnknown(data['full_name']!, _fullNameMeta),
+      );
+    }
+    if (data.containsKey('user_type')) {
+      context.handle(
+        _userTypeMeta,
+        userType.isAcceptableOrUnknown(data['user_type']!, _userTypeMeta),
+      );
+    }
+    if (data.containsKey('permissions')) {
+      context.handle(
+        _permissionsMeta,
+        permissions.isAcceptableOrUnknown(
+          data['permissions']!,
+          _permissionsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('active')) {
+      context.handle(
+        _activeMeta,
+        active.isAcceptableOrUnknown(data['active']!, _activeMeta),
+      );
+    }
+    if (data.containsKey('last_login')) {
+      context.handle(
+        _lastLoginMeta,
+        lastLogin.isAcceptableOrUnknown(data['last_login']!, _lastLoginMeta),
+      );
+    }
+    if (data.containsKey('credentials_version')) {
+      context.handle(
+        _credentialsVersionMeta,
+        credentialsVersion.isAcceptableOrUnknown(
+          data['credentials_version']!,
+          _credentialsVersionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('role')) {
+      context.handle(
+        _roleMeta,
+        role.isAcceptableOrUnknown(data['role']!, _roleMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AppUser map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AppUser(
+      localUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_uuid'],
+      )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_id'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}deleted_at'],
+      ),
+      lastModified: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_modified'],
+      )!,
+      createdAtIso: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}created_at_iso'],
+      ),
+      updatedAtIso: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}updated_at_iso'],
+      ),
+      deletedAtIso: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}deleted_at_iso'],
+      ),
+      createdAtEpoch: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_at_epoch'],
+      )!,
+      lastModifiedEpoch: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_modified_epoch'],
+      )!,
+      version: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}version'],
+      )!,
+      origin: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}origin'],
+      )!,
+      vectorClock: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}vector_clock'],
+      )!,
+      deviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_id'],
+      )!,
+      syncTimestamp: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sync_timestamp'],
+      )!,
+      idempotencyKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}idempotency_key'],
+      ),
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      username: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}username'],
+      )!,
+      password: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}password'],
+      ),
+      fullName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}full_name'],
+      )!,
+      userType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_type'],
+      )!,
+      permissions: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}permissions'],
+      ),
+      active: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}active'],
+      )!,
+      lastLogin: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}last_login'],
+      ),
+      credentialsVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}credentials_version'],
+      )!,
+      role: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}role'],
+      ),
+    );
+  }
+
+  @override
+  $AppUsersTable createAlias(String alias) {
+    return $AppUsersTable(attachedDatabase, alias);
+  }
+}
+
+class AppUser extends DataClass implements Insertable<AppUser> {
+  final String localUuid;
+  final int? serverId;
+  final int createdAt;
+  final int updatedAt;
+  final int? deletedAt;
+  final int lastModified;
+  final String? createdAtIso;
+  final String? updatedAtIso;
+  final String? deletedAtIso;
+  final int createdAtEpoch;
+  final int lastModifiedEpoch;
+  final int version;
+  final String origin;
+  final String vectorClock;
+  final String deviceId;
+  final int syncTimestamp;
+  final String? idempotencyKey;
+  final int id;
+  final String username;
+  final String? password;
+  final String fullName;
+  final String userType;
+  final String? permissions;
+  final bool active;
+  final int? lastLogin;
+  final int credentialsVersion;
+  final String? role;
+  const AppUser({
+    required this.localUuid,
+    this.serverId,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+    required this.lastModified,
+    this.createdAtIso,
+    this.updatedAtIso,
+    this.deletedAtIso,
+    required this.createdAtEpoch,
+    required this.lastModifiedEpoch,
+    required this.version,
+    required this.origin,
+    required this.vectorClock,
+    required this.deviceId,
+    required this.syncTimestamp,
+    this.idempotencyKey,
+    required this.id,
+    required this.username,
+    this.password,
+    required this.fullName,
+    required this.userType,
+    this.permissions,
+    required this.active,
+    this.lastLogin,
+    required this.credentialsVersion,
+    this.role,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['local_uuid'] = Variable<String>(localUuid);
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<int>(serverId);
+    }
+    map['created_at'] = Variable<int>(createdAt);
+    map['updated_at'] = Variable<int>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<int>(deletedAt);
+    }
+    map['last_modified'] = Variable<int>(lastModified);
+    if (!nullToAbsent || createdAtIso != null) {
+      map['created_at_iso'] = Variable<String>(createdAtIso);
+    }
+    if (!nullToAbsent || updatedAtIso != null) {
+      map['updated_at_iso'] = Variable<String>(updatedAtIso);
+    }
+    if (!nullToAbsent || deletedAtIso != null) {
+      map['deleted_at_iso'] = Variable<String>(deletedAtIso);
+    }
+    map['created_at_epoch'] = Variable<int>(createdAtEpoch);
+    map['last_modified_epoch'] = Variable<int>(lastModifiedEpoch);
+    map['version'] = Variable<int>(version);
+    map['origin'] = Variable<String>(origin);
+    map['vector_clock'] = Variable<String>(vectorClock);
+    map['device_id'] = Variable<String>(deviceId);
+    map['sync_timestamp'] = Variable<int>(syncTimestamp);
+    if (!nullToAbsent || idempotencyKey != null) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey);
+    }
+    map['id'] = Variable<int>(id);
+    map['username'] = Variable<String>(username);
+    if (!nullToAbsent || password != null) {
+      map['password'] = Variable<String>(password);
+    }
+    map['full_name'] = Variable<String>(fullName);
+    map['user_type'] = Variable<String>(userType);
+    if (!nullToAbsent || permissions != null) {
+      map['permissions'] = Variable<String>(permissions);
+    }
+    map['active'] = Variable<bool>(active);
+    if (!nullToAbsent || lastLogin != null) {
+      map['last_login'] = Variable<int>(lastLogin);
+    }
+    map['credentials_version'] = Variable<int>(credentialsVersion);
+    if (!nullToAbsent || role != null) {
+      map['role'] = Variable<String>(role);
+    }
+    return map;
+  }
+
+  AppUsersCompanion toCompanion(bool nullToAbsent) {
+    return AppUsersCompanion(
+      localUuid: Value(localUuid),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+      lastModified: Value(lastModified),
+      createdAtIso: createdAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAtIso),
+      updatedAtIso: updatedAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAtIso),
+      deletedAtIso: deletedAtIso == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAtIso),
+      createdAtEpoch: Value(createdAtEpoch),
+      lastModifiedEpoch: Value(lastModifiedEpoch),
+      version: Value(version),
+      origin: Value(origin),
+      vectorClock: Value(vectorClock),
+      deviceId: Value(deviceId),
+      syncTimestamp: Value(syncTimestamp),
+      idempotencyKey: idempotencyKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(idempotencyKey),
+      id: Value(id),
+      username: Value(username),
+      password: password == null && nullToAbsent
+          ? const Value.absent()
+          : Value(password),
+      fullName: Value(fullName),
+      userType: Value(userType),
+      permissions: permissions == null && nullToAbsent
+          ? const Value.absent()
+          : Value(permissions),
+      active: Value(active),
+      lastLogin: lastLogin == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastLogin),
+      credentialsVersion: Value(credentialsVersion),
+      role: role == null && nullToAbsent ? const Value.absent() : Value(role),
+    );
+  }
+
+  factory AppUser.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AppUser(
+      localUuid: serializer.fromJson<String>(json['localUuid']),
+      serverId: serializer.fromJson<int?>(json['serverId']),
+      createdAt: serializer.fromJson<int>(json['createdAt']),
+      updatedAt: serializer.fromJson<int>(json['updatedAt']),
+      deletedAt: serializer.fromJson<int?>(json['deletedAt']),
+      lastModified: serializer.fromJson<int>(json['lastModified']),
+      createdAtIso: serializer.fromJson<String?>(json['createdAtIso']),
+      updatedAtIso: serializer.fromJson<String?>(json['updatedAtIso']),
+      deletedAtIso: serializer.fromJson<String?>(json['deletedAtIso']),
+      createdAtEpoch: serializer.fromJson<int>(json['createdAtEpoch']),
+      lastModifiedEpoch: serializer.fromJson<int>(json['lastModifiedEpoch']),
+      version: serializer.fromJson<int>(json['version']),
+      origin: serializer.fromJson<String>(json['origin']),
+      vectorClock: serializer.fromJson<String>(json['vectorClock']),
+      deviceId: serializer.fromJson<String>(json['deviceId']),
+      syncTimestamp: serializer.fromJson<int>(json['syncTimestamp']),
+      idempotencyKey: serializer.fromJson<String?>(json['idempotencyKey']),
+      id: serializer.fromJson<int>(json['id']),
+      username: serializer.fromJson<String>(json['username']),
+      password: serializer.fromJson<String?>(json['password']),
+      fullName: serializer.fromJson<String>(json['fullName']),
+      userType: serializer.fromJson<String>(json['userType']),
+      permissions: serializer.fromJson<String?>(json['permissions']),
+      active: serializer.fromJson<bool>(json['active']),
+      lastLogin: serializer.fromJson<int?>(json['lastLogin']),
+      credentialsVersion: serializer.fromJson<int>(json['credentialsVersion']),
+      role: serializer.fromJson<String?>(json['role']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'localUuid': serializer.toJson<String>(localUuid),
+      'serverId': serializer.toJson<int?>(serverId),
+      'createdAt': serializer.toJson<int>(createdAt),
+      'updatedAt': serializer.toJson<int>(updatedAt),
+      'deletedAt': serializer.toJson<int?>(deletedAt),
+      'lastModified': serializer.toJson<int>(lastModified),
+      'createdAtIso': serializer.toJson<String?>(createdAtIso),
+      'updatedAtIso': serializer.toJson<String?>(updatedAtIso),
+      'deletedAtIso': serializer.toJson<String?>(deletedAtIso),
+      'createdAtEpoch': serializer.toJson<int>(createdAtEpoch),
+      'lastModifiedEpoch': serializer.toJson<int>(lastModifiedEpoch),
+      'version': serializer.toJson<int>(version),
+      'origin': serializer.toJson<String>(origin),
+      'vectorClock': serializer.toJson<String>(vectorClock),
+      'deviceId': serializer.toJson<String>(deviceId),
+      'syncTimestamp': serializer.toJson<int>(syncTimestamp),
+      'idempotencyKey': serializer.toJson<String?>(idempotencyKey),
+      'id': serializer.toJson<int>(id),
+      'username': serializer.toJson<String>(username),
+      'password': serializer.toJson<String?>(password),
+      'fullName': serializer.toJson<String>(fullName),
+      'userType': serializer.toJson<String>(userType),
+      'permissions': serializer.toJson<String?>(permissions),
+      'active': serializer.toJson<bool>(active),
+      'lastLogin': serializer.toJson<int?>(lastLogin),
+      'credentialsVersion': serializer.toJson<int>(credentialsVersion),
+      'role': serializer.toJson<String?>(role),
+    };
+  }
+
+  AppUser copyWith({
+    String? localUuid,
+    Value<int?> serverId = const Value.absent(),
+    int? createdAt,
+    int? updatedAt,
+    Value<int?> deletedAt = const Value.absent(),
+    int? lastModified,
+    Value<String?> createdAtIso = const Value.absent(),
+    Value<String?> updatedAtIso = const Value.absent(),
+    Value<String?> deletedAtIso = const Value.absent(),
+    int? createdAtEpoch,
+    int? lastModifiedEpoch,
+    int? version,
+    String? origin,
+    String? vectorClock,
+    String? deviceId,
+    int? syncTimestamp,
+    Value<String?> idempotencyKey = const Value.absent(),
+    int? id,
+    String? username,
+    Value<String?> password = const Value.absent(),
+    String? fullName,
+    String? userType,
+    Value<String?> permissions = const Value.absent(),
+    bool? active,
+    Value<int?> lastLogin = const Value.absent(),
+    int? credentialsVersion,
+    Value<String?> role = const Value.absent(),
+  }) => AppUser(
+    localUuid: localUuid ?? this.localUuid,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    lastModified: lastModified ?? this.lastModified,
+    createdAtIso: createdAtIso.present ? createdAtIso.value : this.createdAtIso,
+    updatedAtIso: updatedAtIso.present ? updatedAtIso.value : this.updatedAtIso,
+    deletedAtIso: deletedAtIso.present ? deletedAtIso.value : this.deletedAtIso,
+    createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+    lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+    version: version ?? this.version,
+    origin: origin ?? this.origin,
+    vectorClock: vectorClock ?? this.vectorClock,
+    deviceId: deviceId ?? this.deviceId,
+    syncTimestamp: syncTimestamp ?? this.syncTimestamp,
+    idempotencyKey: idempotencyKey.present
+        ? idempotencyKey.value
+        : this.idempotencyKey,
+    id: id ?? this.id,
+    username: username ?? this.username,
+    password: password.present ? password.value : this.password,
+    fullName: fullName ?? this.fullName,
+    userType: userType ?? this.userType,
+    permissions: permissions.present ? permissions.value : this.permissions,
+    active: active ?? this.active,
+    lastLogin: lastLogin.present ? lastLogin.value : this.lastLogin,
+    credentialsVersion: credentialsVersion ?? this.credentialsVersion,
+    role: role.present ? role.value : this.role,
+  );
+  AppUser copyWithCompanion(AppUsersCompanion data) {
+    return AppUser(
+      localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      lastModified: data.lastModified.present
+          ? data.lastModified.value
+          : this.lastModified,
+      createdAtIso: data.createdAtIso.present
+          ? data.createdAtIso.value
+          : this.createdAtIso,
+      updatedAtIso: data.updatedAtIso.present
+          ? data.updatedAtIso.value
+          : this.updatedAtIso,
+      deletedAtIso: data.deletedAtIso.present
+          ? data.deletedAtIso.value
+          : this.deletedAtIso,
+      createdAtEpoch: data.createdAtEpoch.present
+          ? data.createdAtEpoch.value
+          : this.createdAtEpoch,
+      lastModifiedEpoch: data.lastModifiedEpoch.present
+          ? data.lastModifiedEpoch.value
+          : this.lastModifiedEpoch,
+      version: data.version.present ? data.version.value : this.version,
+      origin: data.origin.present ? data.origin.value : this.origin,
+      vectorClock: data.vectorClock.present
+          ? data.vectorClock.value
+          : this.vectorClock,
+      deviceId: data.deviceId.present ? data.deviceId.value : this.deviceId,
+      syncTimestamp: data.syncTimestamp.present
+          ? data.syncTimestamp.value
+          : this.syncTimestamp,
+      idempotencyKey: data.idempotencyKey.present
+          ? data.idempotencyKey.value
+          : this.idempotencyKey,
+      id: data.id.present ? data.id.value : this.id,
+      username: data.username.present ? data.username.value : this.username,
+      password: data.password.present ? data.password.value : this.password,
+      fullName: data.fullName.present ? data.fullName.value : this.fullName,
+      userType: data.userType.present ? data.userType.value : this.userType,
+      permissions: data.permissions.present
+          ? data.permissions.value
+          : this.permissions,
+      active: data.active.present ? data.active.value : this.active,
+      lastLogin: data.lastLogin.present ? data.lastLogin.value : this.lastLogin,
+      credentialsVersion: data.credentialsVersion.present
+          ? data.credentialsVersion.value
+          : this.credentialsVersion,
+      role: data.role.present ? data.role.value : this.role,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppUser(')
+          ..write('localUuid: $localUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('createdAtIso: $createdAtIso, ')
+          ..write('updatedAtIso: $updatedAtIso, ')
+          ..write('deletedAtIso: $deletedAtIso, ')
+          ..write('createdAtEpoch: $createdAtEpoch, ')
+          ..write('lastModifiedEpoch: $lastModifiedEpoch, ')
+          ..write('version: $version, ')
+          ..write('origin: $origin, ')
+          ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
+          ..write('id: $id, ')
+          ..write('username: $username, ')
+          ..write('password: $password, ')
+          ..write('fullName: $fullName, ')
+          ..write('userType: $userType, ')
+          ..write('permissions: $permissions, ')
+          ..write('active: $active, ')
+          ..write('lastLogin: $lastLogin, ')
+          ..write('credentialsVersion: $credentialsVersion, ')
+          ..write('role: $role')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hashAll([
+    localUuid,
+    serverId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+    lastModified,
+    createdAtIso,
+    updatedAtIso,
+    deletedAtIso,
+    createdAtEpoch,
+    lastModifiedEpoch,
+    version,
+    origin,
+    vectorClock,
+    deviceId,
+    syncTimestamp,
+    idempotencyKey,
+    id,
+    username,
+    password,
+    fullName,
+    userType,
+    permissions,
+    active,
+    lastLogin,
+    credentialsVersion,
+    role,
+  ]);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AppUser &&
+          other.localUuid == this.localUuid &&
+          other.serverId == this.serverId &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt &&
+          other.lastModified == this.lastModified &&
+          other.createdAtIso == this.createdAtIso &&
+          other.updatedAtIso == this.updatedAtIso &&
+          other.deletedAtIso == this.deletedAtIso &&
+          other.createdAtEpoch == this.createdAtEpoch &&
+          other.lastModifiedEpoch == this.lastModifiedEpoch &&
+          other.version == this.version &&
+          other.origin == this.origin &&
+          other.vectorClock == this.vectorClock &&
+          other.deviceId == this.deviceId &&
+          other.syncTimestamp == this.syncTimestamp &&
+          other.idempotencyKey == this.idempotencyKey &&
+          other.id == this.id &&
+          other.username == this.username &&
+          other.password == this.password &&
+          other.fullName == this.fullName &&
+          other.userType == this.userType &&
+          other.permissions == this.permissions &&
+          other.active == this.active &&
+          other.lastLogin == this.lastLogin &&
+          other.credentialsVersion == this.credentialsVersion &&
+          other.role == this.role);
+}
+
+class AppUsersCompanion extends UpdateCompanion<AppUser> {
+  final Value<String> localUuid;
+  final Value<int?> serverId;
+  final Value<int> createdAt;
+  final Value<int> updatedAt;
+  final Value<int?> deletedAt;
+  final Value<int> lastModified;
+  final Value<String?> createdAtIso;
+  final Value<String?> updatedAtIso;
+  final Value<String?> deletedAtIso;
+  final Value<int> createdAtEpoch;
+  final Value<int> lastModifiedEpoch;
+  final Value<int> version;
+  final Value<String> origin;
+  final Value<String> vectorClock;
+  final Value<String> deviceId;
+  final Value<int> syncTimestamp;
+  final Value<String?> idempotencyKey;
+  final Value<int> id;
+  final Value<String> username;
+  final Value<String?> password;
+  final Value<String> fullName;
+  final Value<String> userType;
+  final Value<String?> permissions;
+  final Value<bool> active;
+  final Value<int?> lastLogin;
+  final Value<int> credentialsVersion;
+  final Value<String?> role;
+  const AppUsersCompanion({
+    this.localUuid = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+    this.lastModified = const Value.absent(),
+    this.createdAtIso = const Value.absent(),
+    this.updatedAtIso = const Value.absent(),
+    this.deletedAtIso = const Value.absent(),
+    this.createdAtEpoch = const Value.absent(),
+    this.lastModifiedEpoch = const Value.absent(),
+    this.version = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
+    this.id = const Value.absent(),
+    this.username = const Value.absent(),
+    this.password = const Value.absent(),
+    this.fullName = const Value.absent(),
+    this.userType = const Value.absent(),
+    this.permissions = const Value.absent(),
+    this.active = const Value.absent(),
+    this.lastLogin = const Value.absent(),
+    this.credentialsVersion = const Value.absent(),
+    this.role = const Value.absent(),
+  });
+  AppUsersCompanion.insert({
+    required String localUuid,
+    this.serverId = const Value.absent(),
+    required int createdAt,
+    required int updatedAt,
+    this.deletedAt = const Value.absent(),
+    required int lastModified,
+    this.createdAtIso = const Value.absent(),
+    this.updatedAtIso = const Value.absent(),
+    this.deletedAtIso = const Value.absent(),
+    this.createdAtEpoch = const Value.absent(),
+    this.lastModifiedEpoch = const Value.absent(),
+    this.version = const Value.absent(),
+    this.origin = const Value.absent(),
+    this.vectorClock = const Value.absent(),
+    this.deviceId = const Value.absent(),
+    this.syncTimestamp = const Value.absent(),
+    this.idempotencyKey = const Value.absent(),
+    this.id = const Value.absent(),
+    required String username,
+    this.password = const Value.absent(),
+    this.fullName = const Value.absent(),
+    this.userType = const Value.absent(),
+    this.permissions = const Value.absent(),
+    this.active = const Value.absent(),
+    this.lastLogin = const Value.absent(),
+    this.credentialsVersion = const Value.absent(),
+    this.role = const Value.absent(),
+  }) : localUuid = Value(localUuid),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt),
+       lastModified = Value(lastModified),
+       username = Value(username);
+  static Insertable<AppUser> custom({
+    Expression<String>? localUuid,
+    Expression<int>? serverId,
+    Expression<int>? createdAt,
+    Expression<int>? updatedAt,
+    Expression<int>? deletedAt,
+    Expression<int>? lastModified,
+    Expression<String>? createdAtIso,
+    Expression<String>? updatedAtIso,
+    Expression<String>? deletedAtIso,
+    Expression<int>? createdAtEpoch,
+    Expression<int>? lastModifiedEpoch,
+    Expression<int>? version,
+    Expression<String>? origin,
+    Expression<String>? vectorClock,
+    Expression<String>? deviceId,
+    Expression<int>? syncTimestamp,
+    Expression<String>? idempotencyKey,
+    Expression<int>? id,
+    Expression<String>? username,
+    Expression<String>? password,
+    Expression<String>? fullName,
+    Expression<String>? userType,
+    Expression<String>? permissions,
+    Expression<bool>? active,
+    Expression<int>? lastLogin,
+    Expression<int>? credentialsVersion,
+    Expression<String>? role,
+  }) {
+    return RawValuesInsertable({
+      if (localUuid != null) 'local_uuid': localUuid,
+      if (serverId != null) 'server_id': serverId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+      if (lastModified != null) 'last_modified': lastModified,
+      if (createdAtIso != null) 'created_at_iso': createdAtIso,
+      if (updatedAtIso != null) 'updated_at_iso': updatedAtIso,
+      if (deletedAtIso != null) 'deleted_at_iso': deletedAtIso,
+      if (createdAtEpoch != null) 'created_at_epoch': createdAtEpoch,
+      if (lastModifiedEpoch != null) 'last_modified_epoch': lastModifiedEpoch,
+      if (version != null) 'version': version,
+      if (origin != null) 'origin': origin,
+      if (vectorClock != null) 'vector_clock': vectorClock,
+      if (deviceId != null) 'device_id': deviceId,
+      if (syncTimestamp != null) 'sync_timestamp': syncTimestamp,
+      if (idempotencyKey != null) 'idempotency_key': idempotencyKey,
+      if (id != null) 'id': id,
+      if (username != null) 'username': username,
+      if (password != null) 'password': password,
+      if (fullName != null) 'full_name': fullName,
+      if (userType != null) 'user_type': userType,
+      if (permissions != null) 'permissions': permissions,
+      if (active != null) 'active': active,
+      if (lastLogin != null) 'last_login': lastLogin,
+      if (credentialsVersion != null) 'credentials_version': credentialsVersion,
+      if (role != null) 'role': role,
+    });
+  }
+
+  AppUsersCompanion copyWith({
+    Value<String>? localUuid,
+    Value<int?>? serverId,
+    Value<int>? createdAt,
+    Value<int>? updatedAt,
+    Value<int?>? deletedAt,
+    Value<int>? lastModified,
+    Value<String?>? createdAtIso,
+    Value<String?>? updatedAtIso,
+    Value<String?>? deletedAtIso,
+    Value<int>? createdAtEpoch,
+    Value<int>? lastModifiedEpoch,
+    Value<int>? version,
+    Value<String>? origin,
+    Value<String>? vectorClock,
+    Value<String>? deviceId,
+    Value<int>? syncTimestamp,
+    Value<String?>? idempotencyKey,
+    Value<int>? id,
+    Value<String>? username,
+    Value<String?>? password,
+    Value<String>? fullName,
+    Value<String>? userType,
+    Value<String?>? permissions,
+    Value<bool>? active,
+    Value<int?>? lastLogin,
+    Value<int>? credentialsVersion,
+    Value<String?>? role,
+  }) {
+    return AppUsersCompanion(
+      localUuid: localUuid ?? this.localUuid,
+      serverId: serverId ?? this.serverId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+      lastModified: lastModified ?? this.lastModified,
+      createdAtIso: createdAtIso ?? this.createdAtIso,
+      updatedAtIso: updatedAtIso ?? this.updatedAtIso,
+      deletedAtIso: deletedAtIso ?? this.deletedAtIso,
+      createdAtEpoch: createdAtEpoch ?? this.createdAtEpoch,
+      lastModifiedEpoch: lastModifiedEpoch ?? this.lastModifiedEpoch,
+      version: version ?? this.version,
+      origin: origin ?? this.origin,
+      vectorClock: vectorClock ?? this.vectorClock,
+      deviceId: deviceId ?? this.deviceId,
+      syncTimestamp: syncTimestamp ?? this.syncTimestamp,
+      idempotencyKey: idempotencyKey ?? this.idempotencyKey,
+      id: id ?? this.id,
+      username: username ?? this.username,
+      password: password ?? this.password,
+      fullName: fullName ?? this.fullName,
+      userType: userType ?? this.userType,
+      permissions: permissions ?? this.permissions,
+      active: active ?? this.active,
+      lastLogin: lastLogin ?? this.lastLogin,
+      credentialsVersion: credentialsVersion ?? this.credentialsVersion,
+      role: role ?? this.role,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (localUuid.present) {
+      map['local_uuid'] = Variable<String>(localUuid.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<int>(serverId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<int>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<int>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<int>(deletedAt.value);
+    }
+    if (lastModified.present) {
+      map['last_modified'] = Variable<int>(lastModified.value);
+    }
+    if (createdAtIso.present) {
+      map['created_at_iso'] = Variable<String>(createdAtIso.value);
+    }
+    if (updatedAtIso.present) {
+      map['updated_at_iso'] = Variable<String>(updatedAtIso.value);
+    }
+    if (deletedAtIso.present) {
+      map['deleted_at_iso'] = Variable<String>(deletedAtIso.value);
+    }
+    if (createdAtEpoch.present) {
+      map['created_at_epoch'] = Variable<int>(createdAtEpoch.value);
+    }
+    if (lastModifiedEpoch.present) {
+      map['last_modified_epoch'] = Variable<int>(lastModifiedEpoch.value);
+    }
+    if (version.present) {
+      map['version'] = Variable<int>(version.value);
+    }
+    if (origin.present) {
+      map['origin'] = Variable<String>(origin.value);
+    }
+    if (vectorClock.present) {
+      map['vector_clock'] = Variable<String>(vectorClock.value);
+    }
+    if (deviceId.present) {
+      map['device_id'] = Variable<String>(deviceId.value);
+    }
+    if (syncTimestamp.present) {
+      map['sync_timestamp'] = Variable<int>(syncTimestamp.value);
+    }
+    if (idempotencyKey.present) {
+      map['idempotency_key'] = Variable<String>(idempotencyKey.value);
+    }
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (username.present) {
+      map['username'] = Variable<String>(username.value);
+    }
+    if (password.present) {
+      map['password'] = Variable<String>(password.value);
+    }
+    if (fullName.present) {
+      map['full_name'] = Variable<String>(fullName.value);
+    }
+    if (userType.present) {
+      map['user_type'] = Variable<String>(userType.value);
+    }
+    if (permissions.present) {
+      map['permissions'] = Variable<String>(permissions.value);
+    }
+    if (active.present) {
+      map['active'] = Variable<bool>(active.value);
+    }
+    if (lastLogin.present) {
+      map['last_login'] = Variable<int>(lastLogin.value);
+    }
+    if (credentialsVersion.present) {
+      map['credentials_version'] = Variable<int>(credentialsVersion.value);
+    }
+    if (role.present) {
+      map['role'] = Variable<String>(role.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AppUsersCompanion(')
+          ..write('localUuid: $localUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('createdAtIso: $createdAtIso, ')
+          ..write('updatedAtIso: $updatedAtIso, ')
+          ..write('deletedAtIso: $deletedAtIso, ')
+          ..write('createdAtEpoch: $createdAtEpoch, ')
+          ..write('lastModifiedEpoch: $lastModifiedEpoch, ')
+          ..write('version: $version, ')
+          ..write('origin: $origin, ')
+          ..write('vectorClock: $vectorClock, ')
+          ..write('deviceId: $deviceId, ')
+          ..write('syncTimestamp: $syncTimestamp, ')
+          ..write('idempotencyKey: $idempotencyKey, ')
+          ..write('id: $id, ')
+          ..write('username: $username, ')
+          ..write('password: $password, ')
+          ..write('fullName: $fullName, ')
+          ..write('userType: $userType, ')
+          ..write('permissions: $permissions, ')
+          ..write('active: $active, ')
+          ..write('lastLogin: $lastLogin, ')
+          ..write('credentialsVersion: $credentialsVersion, ')
+          ..write('role: $role')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $AncestorCacheTable extends AncestorCache
     with TableInfo<$AncestorCacheTable, AncestorCacheData> {
   @override
@@ -43494,6 +44947,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $InventoryItemsTable inventoryItems = $InventoryItemsTable(this);
   late final $InventoryTransactionsTable inventoryTransactions =
       $InventoryTransactionsTable(this);
+  late final $AppUsersTable appUsers = $AppUsersTable(this);
   late final $AncestorCacheTable ancestorCache = $AncestorCacheTable(this);
   late final $SyncRemoteMetaTable syncRemoteMeta = $SyncRemoteMetaTable(this);
   @override
@@ -43532,6 +44986,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     salaryCarryOverLogs,
     inventoryItems,
     inventoryTransactions,
+    appUsers,
     ancestorCache,
     syncRemoteMeta,
   ];
@@ -65424,6 +66879,634 @@ typedef $$InventoryTransactionsTableProcessedTableManager =
       InventoryTransaction,
       PrefetchHooks Function({bool itemId})
     >;
+typedef $$AppUsersTableCreateCompanionBuilder =
+    AppUsersCompanion Function({
+      required String localUuid,
+      Value<int?> serverId,
+      required int createdAt,
+      required int updatedAt,
+      Value<int?> deletedAt,
+      required int lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<int> syncTimestamp,
+      Value<String?> idempotencyKey,
+      Value<int> id,
+      required String username,
+      Value<String?> password,
+      Value<String> fullName,
+      Value<String> userType,
+      Value<String?> permissions,
+      Value<bool> active,
+      Value<int?> lastLogin,
+      Value<int> credentialsVersion,
+      Value<String?> role,
+    });
+typedef $$AppUsersTableUpdateCompanionBuilder =
+    AppUsersCompanion Function({
+      Value<String> localUuid,
+      Value<int?> serverId,
+      Value<int> createdAt,
+      Value<int> updatedAt,
+      Value<int?> deletedAt,
+      Value<int> lastModified,
+      Value<String?> createdAtIso,
+      Value<String?> updatedAtIso,
+      Value<String?> deletedAtIso,
+      Value<int> createdAtEpoch,
+      Value<int> lastModifiedEpoch,
+      Value<int> version,
+      Value<String> origin,
+      Value<String> vectorClock,
+      Value<String> deviceId,
+      Value<int> syncTimestamp,
+      Value<String?> idempotencyKey,
+      Value<int> id,
+      Value<String> username,
+      Value<String?> password,
+      Value<String> fullName,
+      Value<String> userType,
+      Value<String?> permissions,
+      Value<bool> active,
+      Value<int?> lastLogin,
+      Value<int> credentialsVersion,
+      Value<String?> role,
+    });
+
+class $$AppUsersTableFilterComposer
+    extends Composer<_$AppDatabase, $AppUsersTable> {
+  $$AppUsersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get localUuid => $composableBuilder(
+    column: $table.localUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get createdAtIso => $composableBuilder(
+    column: $table.createdAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get updatedAtIso => $composableBuilder(
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deletedAtIso => $composableBuilder(
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdAtEpoch => $composableBuilder(
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastModifiedEpoch => $composableBuilder(
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get origin => $composableBuilder(
+    column: $table.origin,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get vectorClock => $composableBuilder(
+    column: $table.vectorClock,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get username => $composableBuilder(
+    column: $table.username,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get password => $composableBuilder(
+    column: $table.password,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fullName => $composableBuilder(
+    column: $table.fullName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userType => $composableBuilder(
+    column: $table.userType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get permissions => $composableBuilder(
+    column: $table.permissions,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get lastLogin => $composableBuilder(
+    column: $table.lastLogin,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get credentialsVersion => $composableBuilder(
+    column: $table.credentialsVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$AppUsersTableOrderingComposer
+    extends Composer<_$AppDatabase, $AppUsersTable> {
+  $$AppUsersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get localUuid => $composableBuilder(
+    column: $table.localUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get createdAtIso => $composableBuilder(
+    column: $table.createdAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get updatedAtIso => $composableBuilder(
+    column: $table.updatedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deletedAtIso => $composableBuilder(
+    column: $table.deletedAtIso,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdAtEpoch => $composableBuilder(
+    column: $table.createdAtEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastModifiedEpoch => $composableBuilder(
+    column: $table.lastModifiedEpoch,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get version => $composableBuilder(
+    column: $table.version,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get origin => $composableBuilder(
+    column: $table.origin,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get vectorClock => $composableBuilder(
+    column: $table.vectorClock,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceId => $composableBuilder(
+    column: $table.deviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get username => $composableBuilder(
+    column: $table.username,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get password => $composableBuilder(
+    column: $table.password,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fullName => $composableBuilder(
+    column: $table.fullName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userType => $composableBuilder(
+    column: $table.userType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get permissions => $composableBuilder(
+    column: $table.permissions,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get active => $composableBuilder(
+    column: $table.active,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get lastLogin => $composableBuilder(
+    column: $table.lastLogin,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get credentialsVersion => $composableBuilder(
+    column: $table.credentialsVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AppUsersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AppUsersTable> {
+  $$AppUsersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get localUuid =>
+      $composableBuilder(column: $table.localUuid, builder: (column) => column);
+
+  GeneratedColumn<int> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<int> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get lastModified => $composableBuilder(
+    column: $table.lastModified,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get createdAtIso => $composableBuilder(
+    column: $table.createdAtIso,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get updatedAtIso => $composableBuilder(
+    column: $table.updatedAtIso,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deletedAtIso => $composableBuilder(
+    column: $table.deletedAtIso,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get createdAtEpoch => $composableBuilder(
+    column: $table.createdAtEpoch,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get lastModifiedEpoch => $composableBuilder(
+    column: $table.lastModifiedEpoch,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get version =>
+      $composableBuilder(column: $table.version, builder: (column) => column);
+
+  GeneratedColumn<String> get origin =>
+      $composableBuilder(column: $table.origin, builder: (column) => column);
+
+  GeneratedColumn<String> get vectorClock => $composableBuilder(
+    column: $table.vectorClock,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deviceId =>
+      $composableBuilder(column: $table.deviceId, builder: (column) => column);
+
+  GeneratedColumn<int> get syncTimestamp => $composableBuilder(
+    column: $table.syncTimestamp,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get idempotencyKey => $composableBuilder(
+    column: $table.idempotencyKey,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get username =>
+      $composableBuilder(column: $table.username, builder: (column) => column);
+
+  GeneratedColumn<String> get password =>
+      $composableBuilder(column: $table.password, builder: (column) => column);
+
+  GeneratedColumn<String> get fullName =>
+      $composableBuilder(column: $table.fullName, builder: (column) => column);
+
+  GeneratedColumn<String> get userType =>
+      $composableBuilder(column: $table.userType, builder: (column) => column);
+
+  GeneratedColumn<String> get permissions => $composableBuilder(
+    column: $table.permissions,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get active =>
+      $composableBuilder(column: $table.active, builder: (column) => column);
+
+  GeneratedColumn<int> get lastLogin =>
+      $composableBuilder(column: $table.lastLogin, builder: (column) => column);
+
+  GeneratedColumn<int> get credentialsVersion => $composableBuilder(
+    column: $table.credentialsVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get role =>
+      $composableBuilder(column: $table.role, builder: (column) => column);
+}
+
+class $$AppUsersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AppUsersTable,
+          AppUser,
+          $$AppUsersTableFilterComposer,
+          $$AppUsersTableOrderingComposer,
+          $$AppUsersTableAnnotationComposer,
+          $$AppUsersTableCreateCompanionBuilder,
+          $$AppUsersTableUpdateCompanionBuilder,
+          (AppUser, BaseReferences<_$AppDatabase, $AppUsersTable, AppUser>),
+          AppUser,
+          PrefetchHooks Function()
+        > {
+  $$AppUsersTableTableManager(_$AppDatabase db, $AppUsersTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AppUsersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AppUsersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AppUsersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> localUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                Value<int> createdAt = const Value.absent(),
+                Value<int> updatedAt = const Value.absent(),
+                Value<int?> deletedAt = const Value.absent(),
+                Value<int> lastModified = const Value.absent(),
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                Value<String> username = const Value.absent(),
+                Value<String?> password = const Value.absent(),
+                Value<String> fullName = const Value.absent(),
+                Value<String> userType = const Value.absent(),
+                Value<String?> permissions = const Value.absent(),
+                Value<bool> active = const Value.absent(),
+                Value<int?> lastLogin = const Value.absent(),
+                Value<int> credentialsVersion = const Value.absent(),
+                Value<String?> role = const Value.absent(),
+              }) => AppUsersCompanion(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                vectorClock: vectorClock,
+                deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
+                idempotencyKey: idempotencyKey,
+                id: id,
+                username: username,
+                password: password,
+                fullName: fullName,
+                userType: userType,
+                permissions: permissions,
+                active: active,
+                lastLogin: lastLogin,
+                credentialsVersion: credentialsVersion,
+                role: role,
+              ),
+          createCompanionCallback:
+              ({
+                required String localUuid,
+                Value<int?> serverId = const Value.absent(),
+                required int createdAt,
+                required int updatedAt,
+                Value<int?> deletedAt = const Value.absent(),
+                required int lastModified,
+                Value<String?> createdAtIso = const Value.absent(),
+                Value<String?> updatedAtIso = const Value.absent(),
+                Value<String?> deletedAtIso = const Value.absent(),
+                Value<int> createdAtEpoch = const Value.absent(),
+                Value<int> lastModifiedEpoch = const Value.absent(),
+                Value<int> version = const Value.absent(),
+                Value<String> origin = const Value.absent(),
+                Value<String> vectorClock = const Value.absent(),
+                Value<String> deviceId = const Value.absent(),
+                Value<int> syncTimestamp = const Value.absent(),
+                Value<String?> idempotencyKey = const Value.absent(),
+                Value<int> id = const Value.absent(),
+                required String username,
+                Value<String?> password = const Value.absent(),
+                Value<String> fullName = const Value.absent(),
+                Value<String> userType = const Value.absent(),
+                Value<String?> permissions = const Value.absent(),
+                Value<bool> active = const Value.absent(),
+                Value<int?> lastLogin = const Value.absent(),
+                Value<int> credentialsVersion = const Value.absent(),
+                Value<String?> role = const Value.absent(),
+              }) => AppUsersCompanion.insert(
+                localUuid: localUuid,
+                serverId: serverId,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+                lastModified: lastModified,
+                createdAtIso: createdAtIso,
+                updatedAtIso: updatedAtIso,
+                deletedAtIso: deletedAtIso,
+                createdAtEpoch: createdAtEpoch,
+                lastModifiedEpoch: lastModifiedEpoch,
+                version: version,
+                origin: origin,
+                vectorClock: vectorClock,
+                deviceId: deviceId,
+                syncTimestamp: syncTimestamp,
+                idempotencyKey: idempotencyKey,
+                id: id,
+                username: username,
+                password: password,
+                fullName: fullName,
+                userType: userType,
+                permissions: permissions,
+                active: active,
+                lastLogin: lastLogin,
+                credentialsVersion: credentialsVersion,
+                role: role,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$AppUsersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AppUsersTable,
+      AppUser,
+      $$AppUsersTableFilterComposer,
+      $$AppUsersTableOrderingComposer,
+      $$AppUsersTableAnnotationComposer,
+      $$AppUsersTableCreateCompanionBuilder,
+      $$AppUsersTableUpdateCompanionBuilder,
+      (AppUser, BaseReferences<_$AppDatabase, $AppUsersTable, AppUser>),
+      AppUser,
+      PrefetchHooks Function()
+    >;
 typedef $$AncestorCacheTableCreateCompanionBuilder =
     AncestorCacheCompanion Function({
       Value<int> id,
@@ -65865,6 +67948,8 @@ class $AppDatabaseManager {
       $$InventoryItemsTableTableManager(_db, _db.inventoryItems);
   $$InventoryTransactionsTableTableManager get inventoryTransactions =>
       $$InventoryTransactionsTableTableManager(_db, _db.inventoryTransactions);
+  $$AppUsersTableTableManager get appUsers =>
+      $$AppUsersTableTableManager(_db, _db.appUsers);
   $$AncestorCacheTableTableManager get ancestorCache =>
       $$AncestorCacheTableTableManager(_db, _db.ancestorCache);
   $$SyncRemoteMetaTableTableManager get syncRemoteMeta =>

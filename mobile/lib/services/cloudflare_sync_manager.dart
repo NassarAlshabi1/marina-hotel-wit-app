@@ -1095,6 +1095,14 @@ class CloudflareSyncManager {
       return 'payment_voids';
     }
 
+    // app_users — حسابات مستخدمي التطبيق (كيان النطاق الافتراضي
+    // 2026-09-05). الثنائي username + credentials_version فريد؛ لا
+    // جدول آخر متزامن يملك عمود username.
+    if (record.containsKey('username') &&
+        record.containsKey('credentials_version')) {
+      return 'app_users';
+    }
+
     // hotel_day_ledger is local-only — should not be pulled
     // (but if it arrives, we skip it)
 

@@ -40,10 +40,16 @@ export interface PushOperation {
 
 // ─── Entity table mapping ─────────────────────────────────────
 // 1:1 mapping — entity name = D1 table name (matches Drift SQLite schema)
-// 22 synced entities (plan D7/D8):
+// 23 synced entities (plan D7/D8 + user directive 2026-09-05):
 //   * inventory_items / inventory_transactions / blacklist added — the
 //     Appwrite contract (27 collections) includes them and omitting them
 //     meant inventory & blacklist writes were silently lost.
+//   * app_users added (user directive 2026-09-05: default sync scope
+//     includes user_app with pull/push + outbox delta sync) — the entity
+//     was synced via Appwrite Cloud (appwrite_config.dart:116,
+//     outbox_dao.dart _entityTableMap, auth_local_store outbox ops) but
+//     the Cloudflare layer dropped it entirely; local Drift table
+//     AppUsers added (schemaVersion 66) as the pull landing zone.
 //   * hotel_day_ledger REMOVED (plan D8): it is local-only by design
 //     (Appwrite sync manager never synced it either) — keeping it in the
 //     mapping invited stuck pushes for a table clients never upload.
@@ -81,6 +87,10 @@ const ENTITY_TABLES: Record<string, string> = {
   // Inventory (gap closure — was silently missing)
   inventory_items: 'inventory_items',
   inventory_transactions: 'inventory_transactions',
+
+  // App users (auth accounts — user directive 2026-09-05; local Drift
+  // table AppUsers is the pull landing zone / push source)
+  app_users: 'app_users',
 
   // Blacklist (cloud-only entity, no Drift table client-side)
   blacklist: 'blacklist',

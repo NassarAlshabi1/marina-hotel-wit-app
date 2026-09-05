@@ -948,3 +948,44 @@ CREATE INDEX IF NOT EXISTS idx_blacklist_updated ON blacklist(updated_at);
 CREATE INDEX IF NOT EXISTS idx_blacklist_deleted ON blacklist(deleted_at);
 CREATE INDEX IF NOT EXISTS idx_blacklist_national_id ON blacklist(national_id);
 CREATE INDEX IF NOT EXISTS idx_blacklist_guest_id_number ON blacklist(guest_id_number);
+
+-- ─── app_users ──────────────────────────────────────────────
+-- App users (auth accounts) — user directive 2026-09-05: default sync
+-- scope includes user_app with pull/push + outbox delta sync. Columns
+-- mirror the local Drift table AppUsers (local_db.dart, schemaVersion 66)
+-- which mirrors the live Appwrite app_users collection
+-- (schema_extract.json validFieldsPerCollection) in snake_case; the
+-- collection's duplicate userType/user_type pair maps to one user_type
+-- column (the creating code always writes identical values).
+CREATE TABLE IF NOT EXISTS app_users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  local_uuid TEXT NOT NULL UNIQUE,
+  username TEXT NOT NULL,
+  password TEXT,
+  full_name TEXT NOT NULL DEFAULT '',
+  user_type TEXT NOT NULL DEFAULT '',
+  permissions TEXT,
+  active INTEGER NOT NULL DEFAULT 1,
+  last_login INTEGER,
+  credentials_version INTEGER NOT NULL DEFAULT 0,
+  role TEXT,
+  -- SyncFields (Drift mixin mirror)
+  server_id INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  deleted_at INTEGER,
+  last_modified INTEGER NOT NULL DEFAULT 0,
+  created_at_iso TEXT,
+  updated_at_iso TEXT,
+  deleted_at_iso TEXT,
+  created_at_epoch INTEGER NOT NULL DEFAULT 0,
+  last_modified_epoch INTEGER NOT NULL DEFAULT 0,
+  version INTEGER NOT NULL DEFAULT 1,
+  origin TEXT NOT NULL DEFAULT 'local',
+  vector_clock TEXT NOT NULL DEFAULT '{}',
+  device_id TEXT NOT NULL DEFAULT '',
+  idempotency_key TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_app_users_updated ON app_users(updated_at);
+CREATE INDEX IF NOT EXISTS idx_app_users_deleted ON app_users(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_app_users_username ON app_users(username);

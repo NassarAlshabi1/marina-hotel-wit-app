@@ -298,11 +298,11 @@ void main() {
       expect(columnNames, contains('date'));
     });
 
-    test('3e. أحدث schemaVersion = 65', () {
+    test('3e. أحدث schemaVersion = 66', () {
       // ✅ (2026-08-30) محاذاة بعد bump إلى 65 (جدول sync_remote_meta —
       // الفجوتان 3+4 metadata-first). القيمة مقصودة صريحة: كل bump جديد
       // يجب أن يحدّث هذا التأكيد عمداً لا أن يمرّ بصمت.
-      expect(db.schemaVersion, 65);
+      expect(db.schemaVersion, 66);
     });
   });
 

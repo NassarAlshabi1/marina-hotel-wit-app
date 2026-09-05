@@ -1057,6 +1057,57 @@ class InventoryTransactions extends Table with SyncFields {
   ];
 }
 
+/// ✅ (2026-09-05) جدول app_users — حسابات مستخدمي التطبيق ككيان متزامن.
+///
+/// تعليمات المستخدم («النطاق الافتراضي المزامنة … user_app … أيضاً
+/// pull/push و outbox delta sync»): كيان app_users كان يُزامَن عبر
+/// Appwrite Cloud (appwrite_config.dart:116، outbox_dao.dart
+/// _entityTableMap، auth_local_store._enqueuePermissionSync) لكن طبقة
+/// Cloudflare أسقطته كلياً — لا جدول Drift ولا جدول D1 ولا إدخال في
+/// ENTITY_TABLES، فأي تغيير حسابات لا يصل D1 وأي سحب له يتقدم cursor
+/// فوق صفوف مفقودة.
+///
+/// يخدم ثلاث أدوار:
+/// 1. Landing zone للسحب (delta pull) — بدونه _applyChange يَطيّر
+///    الكيان بلا جدول محلي ويُفقَد صمتاً.
+/// 2. مصدر رفع D1 (تبويب النسخ الاحتياطي + مسار الترحيل).
+/// 3. هدف الكتابة المحلية لتغيّرات الحسابات (auth_local_store) التي
+///    تُغذّي outbox بحمولات snake_case مطابقة لأعمدة D1.
+///
+/// الأعمدة مرآة مجموعة app_users الحية في Appwrite
+/// (schema_extract.json validFieldsPerCollection['app_users'])
+/// بصيغة snake_case؛ الحقلان المكرران userType/user_type في المجموعة
+/// الحية يُمثَّلان بعمود user_type واحد (الكود المُنشئ يكتبهما
+/// بنفس القيمة دائماً — auth_local_store).
+class AppUsers extends Table with SyncFields {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get username => text()();
+  TextColumn get password => text().nullable()();
+  TextColumn get fullName => text().withDefault(const Constant(''))();
+  TextColumn get userType => text().withDefault(const Constant(''))();
+  TextColumn get permissions => text().nullable()();
+  BoolColumn get active => boolean().withDefault(const Constant(true))();
+  IntColumn get lastLogin => integer().nullable()();
+  IntColumn get credentialsVersion =>
+      integer().withDefault(const Constant(0))();
+  TextColumn get role => text().nullable()();
+
+  List<Index> get indexes => [
+    Index(
+      'idx_app_users_updated',
+      'CREATE INDEX idx_app_users_updated ON app_users (updated_at)',
+    ),
+    Index(
+      'idx_app_users_deleted',
+      'CREATE INDEX idx_app_users_deleted ON app_users (deleted_at)',
+    ),
+    Index(
+      'idx_app_users_username',
+      'CREATE INDEX idx_app_users_username ON app_users (username)',
+    ),
+  ];
+}
+
 /// ✅ جدول AncestorCache — يخزّن آخر نسخة معروفة مشتركة (common ancestor)
 /// لكل سجل، ويُستخدم في الدمج ثلاثي الأطراف (3-way merge) لحل التعارضات.
 ///
@@ -1129,6 +1180,7 @@ class SyncRemoteMeta extends Table {
     SalaryCarryOverLogs,
     InventoryItems,
     InventoryTransactions,
+    AppUsers,
     AncestorCache,
     SyncRemoteMeta,
   ],
@@ -1140,7 +1192,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor executor) : this._internal(executor);
 
   @override
-  int get schemaVersion => 65;
+  int get schemaVersion => 66;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1169,6 +1221,14 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('PRAGMA wal_autocheckpoint = 1000');
     },
     onUpgrade: (m, from, to) async {
+      // ✅ (2026-09-05) الإصدار 66: جدول app_users ككيان متزامن كامل
+      // (تعليمات المستخدم: النطاق الافتراضي للمزامنة يشمل حسابات
+      // المستخدمين مع pull/push وoutbox delta sync). يُنشأ لكل الترقيات
+      // (من أي إصدار) — فارغ مبدئياً؛ تمتلئ صفوفه من كتابة
+      // auth_local_store المحلية ومن السحب من D1.
+      if (from < 66) {
+        await m.createTable(appUsers);
+      }
       // ✅ (2026-08-30) الإصدار 65: جدول sync_remote_meta للسحب metadata-first.
       // يُنشأ لكل الترقيات (من أي إصدار) — فارغ مبدئياً فأول سحب كامل بعد
       // الترقية يبنيه تدريجياً من دفعات checkpoint الناجحة.

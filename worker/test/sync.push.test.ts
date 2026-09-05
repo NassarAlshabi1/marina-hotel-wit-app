@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
-//  sync.push.test.ts — plan task 1.3 (+ D7 gap closure)
+//  sync.push.test.ts — plan task 1.3 (+ D7 gap closure + app_users)
 //  Idempotency, per-field validation, batch limits, per-op error
-//  isolation, create/update/delete flows for ALL 22 entities.
+//  isolation, create/update/delete flows for ALL 23 entities.
 // ═══════════════════════════════════════════════════════════════
 
 import { env } from 'cloudflare:test';
@@ -275,22 +275,97 @@ describe('push: D7 gap closure — inventory & blacklist entities', () => {
       version: 1,
       vector_clock: '{}',
     };
+    // app_users — user directive 2026-09-05 (default sync scope includes
+    // user_app with pull/push + outbox delta sync). Payload shape mirrors
+    // AuthLocalStore.appUsersSyncPayload (snake_case D1 columns).
+    const au = {
+      local_uuid: uniqueUuid('au'),
+      username: 'sync_test_admin',
+      password: 'pbkdf2$hash',
+      full_name: 'Sync Test Admin',
+      user_type: 'admin',
+      permissions: '["dashboard"]',
+      active: 1,
+      last_login: 0,
+      credentials_version: 1,
+      role: 'admin',
+      created_at: 1700000000,
+      updated_at: 1700000000,
+      device_id: 'device-A',
+      version: 1,
+      vector_clock: '{}',
+    };
 
     const res = await pushOperations(auth, [
       pushOp('inventory_items', 'create', item),
       pushOp('inventory_transactions', 'create', tx),
       pushOp('blacklist', 'create', bl),
+      pushOp('app_users', 'create', au),
     ]);
     const body = (await res.json()) as PushResponseBody;
     expect(body.summary.failed).toBe(0);
-    expect(body.summary.success).toBe(3);
+    expect(body.summary.success).toBe(4);
 
-    // All three pull back with _entity tags
+    // All four pull back with _entity tags
     const pulled = await pull(auth);
     const entities = new Set(pulled.changes.map((c) => c._entity));
     expect(entities.has('inventory_items')).toBe(true);
     expect(entities.has('inventory_transactions')).toBe(true);
     expect(entities.has('blacklist')).toBe(true);
+    expect(entities.has('app_users')).toBe(true);
+  });
+
+  it('app_users delta: update via outbox-style snake payload + per-entity pull', async () => {
+    const auth = await adminAuthHeader();
+    const docId = 'user_sync_test';
+    await pushOperations(auth, [
+      pushOp('app_users', 'create', {
+        local_uuid: docId,
+        username: 'delta_admin',
+        full_name: 'Delta Admin',
+        user_type: 'admin',
+        active: 1,
+        credentials_version: 1,
+        created_at: 1700000000,
+        updated_at: 1700000000,
+        device_id: 'device-A',
+        version: 1,
+        vector_clock: '{}',
+      }),
+    ]);
+    // permission-style update — exactly what auth_local_store enqueues.
+    // The vector clock BUILDS ON the create's clock (device-A seeded by
+    // the server) so the incoming op strictly dominates — LWW then applies
+    // it regardless of the server's monotonic clock being ahead of the
+    // test's fixed op timestamps.
+    const res = await pushOperations(auth, [
+      pushOp(
+        'app_users',
+        'update',
+        {
+          local_uuid: docId,
+          permissions: '["dashboard","rooms"]',
+          credentials_version: 2,
+          updated_at: 1700000100,
+          last_modified: 1700000100,
+          last_modified_epoch: 1700000100,
+          version: 2,
+          vector_clock: '{"device-A":1,"device-B":1}',
+          device_id: 'device-B',
+        },
+        { updatedAt: 1700000200 }
+      ),
+    ]);
+    const body = (await res.json()) as PushResponseBody;
+    expect(body.summary.failed).toBe(0);
+    expect(body.summary.success).toBe(1);
+
+    const onlyAppUsers = await pull(auth, { entity: 'app_users' });
+    expect(onlyAppUsers.changes.length).toBe(1);
+    expect(onlyAppUsers.changes[0]._entity).toBe('app_users');
+    expect(onlyAppUsers.changes[0].username).toBe('delta_admin');
+    expect(onlyAppUsers.changes[0].credentials_version).toBe(2);
+    expect(onlyAppUsers.changes[0].permissions).toBe('["dashboard","rooms"]');
   });
 
   it('per-entity pull works for the new entities', async () => {

@@ -12,27 +12,30 @@ import '../../../../services/daos/outbox_dao.dart';
 ///
 /// المسار للقراءة فقط من القاعدة المحلية (SELECT) ثم INSERT OR REPLACE
 /// إلى D1 — لا يمس حلقة مزامنة Appwrite ولا يحذف أي سجل بعيد.
-/// النطاق: [CloudflareConfig.d1BackupTables] = كيانات عقد Appwrite
-/// حصراً (migrationOrder)، ومعها يُجسَّد كيان blacklist افتراضياً من
-/// shift_notes الموسومة created_by='blacklist' عبر
-/// CloudflareD1Service.blacklistRowFromShiftNote (لا جدول Drift محلي
-/// له). hotel_day_ledger جدول محلي-فقط (تأكيد المستخدم) وجداول
-/// البنية المحلية — كلها مستبعدة.
+/// النطاق: [CloudflareConfig.d1BackupTables] = كيانات النطاق الافتراضي
+/// للمزامنة حصراً (migrationOrder — 23 كياناً بتأكيد المستخدم
+/// 2026-09-05 الذي أضاف user_app/app_users)، ومعها يُجسَّد كيان
+/// blacklist افتراضياً من shift_notes الموسومة created_by='blacklist'
+/// عبر CloudflareD1Service.blacklistRowFromShiftNote (لا جدول Drift
+/// محلي له). app_users له جدول Drift محلي (schemaVersion 66) فيمرّ
+/// كأي جدول فيزيائي. hotel_day_ledger جدول محلي-فقط (تأكيد المستخدم)
+/// وجداول البنية المحلية — كلها مستبعدة.
 /// القيود المطبقة (مثبتة تجريبياً): ≤ 96 معاملاً لكل استعلام،
 /// وعبارات متعددة بلا معاملات في النداء الواحد.
 class CloudflareD1Tab extends ConsumerStatefulWidget {
   const CloudflareD1Tab({super.key});
 
   /// ✅ حصر نطاق الرفع على [CloudflareConfig.d1BackupTables] = كيانات
-  /// عقد Appwrite حصراً (migrationOrder — خطة D7، نفس ENTITY_TABLES
-  /// في worker/src/database.ts).
+  /// النطاق الافتراضي للمزامنة حصراً (migrationOrder — نفس
+  /// ENTITY_TABLES في worker/src/database.ts).
   ///
-  /// أي جدول محلي بلا مقابل في العقد (outbox، sync_remote_meta،
+  /// أي جدول محلي بلا مقابل في النطاق (outbox، sync_remote_meta،
   /// sync_state، sync_log، hotel_day_ledger المحلي-فقط بتأكيد
   /// المستخدم 2026-09-05، custom_list_items، جداول Room
-  /// الداخلية…) يُستبعد هنا، وكيان العقد بلا جدول محلي (blacklist)
+  /// الداخلية…) يُستبعد هنا، وكيان blacklist (بلا جدول محلي)
   /// يُتخطى في الفلترة الفيزيائية — ويُجسَّد افتراضياً من
-  /// shift_notes الموسومة في [_loadLocalTables].
+  /// shift_notes الموسومة في [_loadLocalTables]. app_users له جدول
+  /// محلي (AppUsers، schemaVersion 66) فيمرّ في الفلترة الفيزيائية.
   @visibleForTesting
   static List<String> scopeSyncTables(Iterable<String> existingTables) {
     final existing = existingTables.toSet();
@@ -183,15 +186,17 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
     setState(() => _loadingTables = true);
     try {
       final db = ref.read(databaseProvider);
-      // ✅ نطاق الرفع: CloudflareConfig.d1BackupTables = كيانات عقد
-      // Appwrite Cloud حصراً (migrationOrder). لا يُرفع قاعدة البيانات
-      // المحلية كاملة. الكيانات بلا جدول Drift محلي (blacklist —
-      // سحابية فقط) تُتخطى بفحص sqlite_master ثم تُجسَّد افتراضياً
-      // أدناه من shift_notes الموسومة created_by='blacklist'.
+      // ✅ نطاق الرفع: CloudflareConfig.d1BackupTables = كيانات النطاق
+      // الافتراضي للمزامنة (migrationOrder — 23 كياناً بتأكيد المستخدم
+      // 2026-09-05). لا يُرفع قاعدة البيانات المحلية كاملة. الكيانات
+      // بلا جدول Drift محلي (blacklist — سحابية فقط) تُتخطى بفحص
+      // sqlite_master ثم تُجسَّد افتراضياً أدناه من shift_notes
+      // الموسومة created_by='blacklist'. app_users له جدول محلي
+      // (AppUsers، schemaVersion 66) فيُكتشف فيزيائياً كأي جدول.
       // hotel_day_ledger (محلي-فقط بتأكيد المستخدم 2026-09-05)
       // وجداول البنية المحلية (outbox, sync_remote_meta, sync_state,
       // sync_log, custom_list_items، ...) مستبعدة عمداً — لا مقابل
-      // لها في Appwrite Cloud.
+      // لها في النطاق الافتراضي.
       final wanted = CloudflareConfig.d1BackupTables;
       final existingRows = await db
           .customSelect(
