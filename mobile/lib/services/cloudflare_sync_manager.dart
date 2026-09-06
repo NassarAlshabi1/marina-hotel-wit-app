@@ -1432,6 +1432,11 @@ class CloudflareSyncManager {
     _autoSyncTimer = null;
   }
 
+  /// ✅ (2026-09-06) هل مؤقّت المزامنة التلقائية نشط الآن؟
+  /// يُستخدم في بطاقة «بيانات الاتصال التلقائي مع Cloudflare» لعرض
+  /// حالة المحرك الفعلية (لا نية الإعداد المخزّنة فقط).
+  bool get isAutoSyncRunning => _autoSyncTimer != null;
+
   // ─── Reset / Clear ──────────────────────────────────────────
   void reset() {
     _token = null;

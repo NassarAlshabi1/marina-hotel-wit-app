@@ -6,6 +6,7 @@ import '../../../../providers/repository_providers.dart';
 import '../../../../services/cloudflare_config.dart';
 import '../../../../services/cloudflare_d1_service.dart';
 import '../../../../services/daos/outbox_dao.dart';
+import '../../../../widgets/cloudflare_auto_connection_card.dart';
 
 /// تبويب رفع بيانات جداول المزامنة (المطابقة لمجموعات Appwrite Cloud)
 /// إلى Cloudflare D1.
@@ -433,6 +434,8 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        const CloudflareAutoConnectionCard(),
+        const SizedBox(height: 8),
         Card(
           color: colorScheme.primaryContainer,
           child: Padding(
