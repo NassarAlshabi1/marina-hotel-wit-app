@@ -19,10 +19,6 @@ class MaintenanceService {
   }) async {
     try {
       final appwriteManager = AppwriteSyncManager.instance;
-      if (appwriteManager == null) {
-        dlog('⚠️ MaintenanceService: AppwriteSyncManager not initialized');
-        return;
-      }
 
       await appwriteManager.resetSyncState();
 

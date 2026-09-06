@@ -61,11 +61,6 @@ mixin SyncTriggerMixin {
       if (!AutoOutboxSyncWatcher.instance.isRunning) {
         // Fallback: watcher لم يبدأ بعد — استخدم المسار المباشر
         final manager = AppwriteSyncManager.instance;
-        if (manager == null) {
-          dlog('⚠️ triggerSync: sync manager not initialized');
-          SyncGuard.release(token);
-          return;
-        }
         unawaited(
           manager.pushLocalChanges().catchError((Object e) {
             dlog(() => '⚠️ Auto-sync push failed (direct): $e');

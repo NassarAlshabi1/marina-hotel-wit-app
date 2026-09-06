@@ -1,4 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -33,6 +32,7 @@ class _SmartSyncSettingsScreenState
     try {
       final manager = ref.read(smartSyncManagerProvider);
       await manager.setEnabled(enabled);
+      if (!mounted) return;
 
       ref.invalidate(smartSyncStatusProvider);
 
@@ -47,6 +47,7 @@ class _SmartSyncSettingsScreenState
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تغيير حالة المزامنة: $e'),
@@ -55,6 +56,7 @@ class _SmartSyncSettingsScreenState
       );
     }
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
   }
 
@@ -64,6 +66,7 @@ class _SmartSyncSettingsScreenState
     try {
       final manager = ref.read(smartSyncManagerProvider);
       await manager.setSyncInterval(minutes);
+      if (!mounted) return;
 
       ref.invalidate(smartSyncStatusProvider);
 
@@ -74,6 +77,7 @@ class _SmartSyncSettingsScreenState
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تغيير فترة المزامنة: $e'),
@@ -82,6 +86,7 @@ class _SmartSyncSettingsScreenState
       );
     }
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
   }
 
@@ -91,6 +96,7 @@ class _SmartSyncSettingsScreenState
     try {
       final manager = ref.read(smartSyncManagerProvider);
       await manager.setConflictResolution(resolution);
+      if (!mounted) return;
 
       ref.invalidate(smartSyncStatusProvider);
 
@@ -101,6 +107,7 @@ class _SmartSyncSettingsScreenState
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تغيير استراتيجية التضارب: $e'),
@@ -109,6 +116,7 @@ class _SmartSyncSettingsScreenState
       );
     }
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
   }
 
@@ -118,6 +126,7 @@ class _SmartSyncSettingsScreenState
     try {
       final manager = ref.read(smartSyncManagerProvider);
       await manager.forceSyncNow();
+      if (!mounted) return;
 
       ref.invalidate(smartSyncStatusProvider);
 
@@ -128,6 +137,7 @@ class _SmartSyncSettingsScreenState
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ فشلت المزامنة اليدوية: $e'),
@@ -136,6 +146,7 @@ class _SmartSyncSettingsScreenState
       );
     }
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
   }
 
@@ -144,6 +155,7 @@ class _SmartSyncSettingsScreenState
     try {
       final guardian = ref.read(syncGuardianProvider);
       await guardian.forceSync();
+      if (!mounted) return;
       ref.invalidate(syncHealthProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -152,6 +164,7 @@ class _SmartSyncSettingsScreenState
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ تعذر تشغيل مزامنة WorkManager: $e'),
@@ -159,6 +172,7 @@ class _SmartSyncSettingsScreenState
         ),
       );
     }
+    if (!mounted) return;
     setState(() => _isLoading = false);
   }
 
@@ -167,6 +181,7 @@ class _SmartSyncSettingsScreenState
     try {
       final guardian = ref.read(syncGuardianProvider);
       await guardian.setDevicePriority(enabled ? 200 : 100);
+      if (!mounted) return;
       ref.invalidate(syncHealthProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -179,6 +194,7 @@ class _SmartSyncSettingsScreenState
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ تعذر تغيير أولوية الجهاز: $e'),
@@ -186,6 +202,7 @@ class _SmartSyncSettingsScreenState
         ),
       );
     }
+    if (!mounted) return;
     setState(() => _isLoading = false);
   }
 

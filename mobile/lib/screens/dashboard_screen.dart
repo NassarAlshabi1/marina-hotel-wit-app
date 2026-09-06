@@ -992,7 +992,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
-                error: (_, _) => Text(
+                error: (_, _) => const Text(
                   '—',
                   style: TextStyle(
                     fontSize: 14,

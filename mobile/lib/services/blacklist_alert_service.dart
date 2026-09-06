@@ -128,7 +128,7 @@ class BlacklistAlertService {
           .customSelect(
             'SELECT id, guest_name, room_number FROM bookings '
             'WHERE status = ? AND deleted_at IS NULL AND actual_checkout IS NULL',
-            variables: [Variable<String>('checked_in')],
+            variables: [const Variable<String>('checked_in')],
           )
           .get();
 
@@ -205,7 +205,7 @@ class BlacklistAlertService {
               'SELECT id FROM bookings WHERE id = ? AND status = ? AND deleted_at IS NULL',
               variables: [
                 Variable<int>(bookingId),
-                Variable<String>('checked_in'),
+                const Variable<String>('checked_in'),
               ],
             )
             .getSingleOrNull();

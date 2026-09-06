@@ -197,7 +197,7 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
       // وجداول البنية المحلية (outbox, sync_remote_meta, sync_state,
       // sync_log, custom_list_items، ...) مستبعدة عمداً — لا مقابل
       // لها في النطاق الافتراضي.
-      final wanted = CloudflareConfig.d1BackupTables;
+      const wanted = CloudflareConfig.d1BackupTables;
       final existingRows = await db
           .customSelect(
             "SELECT name FROM sqlite_master WHERE type='table' AND name IN "

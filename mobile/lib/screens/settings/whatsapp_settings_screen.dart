@@ -333,19 +333,6 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
     );
   }
 
-  /// تنزيل الإعدادات من Appwrite Console
-  Future<void> _downloadFromCloud() async {
-    // ✅ (2026-09-05) Cloudflare-only — أُزيلت مع إزالة Appwrite Cloud.
-    if (!mounted) {
-      return;
-    }
-    _showSyncResult(
-      success: false,
-      title: 'المزامنة السحابية غير متاحة',
-      subtitle: 'الإعدادات تُحفظ محلياً على هذا الجهاز',
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return AppScaffold(

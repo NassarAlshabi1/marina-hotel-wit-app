@@ -36,6 +36,7 @@ class _TelegramSettingsScreenState
   Future<void> _loadSettings() async {
     // انتظار حتى ينهي Provider التهيئة
     await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
     final state = ref.read(telegramProvider);
     _botTokenController.text = state.botToken;
     _chatIdController.text = state.chatId;
@@ -781,11 +782,10 @@ class _TelegramSettingsScreenState
       await notifier.setBotToken(_botTokenController.text.trim());
       await notifier.setChatId(_chatIdController.text.trim());
 
-      setState(() => _isSaving = false);
-
       if (!mounted) {
         return;
       }
+      setState(() => _isSaving = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -801,11 +801,10 @@ class _TelegramSettingsScreenState
         ),
       );
     } catch (e) {
-      setState(() => _isSaving = false);
-
       if (!mounted) {
         return;
       }
+      setState(() => _isSaving = false);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

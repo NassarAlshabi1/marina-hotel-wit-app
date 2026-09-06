@@ -25,7 +25,6 @@ import 'settings_employees.dart';
 import 'settings_guests.dart';
 import 'settings_maintenance.dart';
 import 'settings_users.dart';
-import 'sync/unified_sync_settings_screen.dart';
 import 'sync_health/sync_health_screen.dart';
 import 'telegram_settings_screen.dart';
 import 'whatsapp_daily_report_screen.dart';

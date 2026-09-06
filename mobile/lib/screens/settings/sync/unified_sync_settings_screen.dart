@@ -105,7 +105,6 @@ class _UnifiedSyncSettingsScreenState
 
   Future<void> _applyAutoSync(bool enabled, {int? intervalMinutes}) async {
     final manager = AppwriteSyncManager.instance;
-    if (manager == null) return;
 
     if (enabled) {
       manager.startAutoSync(

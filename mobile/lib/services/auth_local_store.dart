@@ -1171,7 +1171,6 @@ class AuthLocalStore {
     required Map<String, dynamic> payload,
   }) async {
     final manager = AppwriteSyncManager.instance;
-    if (manager == null) return false;
     try {
       await manager.outboxDao.merge(
         entity: 'app_users',

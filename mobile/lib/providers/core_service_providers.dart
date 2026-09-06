@@ -21,7 +21,6 @@ import '../services/stay_balance_calculator.dart';
 import '../services/sync_guardian.dart';
 import '../services/sync_performance_settings.dart';
 import '../services/whatsapp_service.dart';
-import 'appwrite_providers.dart';
 import 'repository_providers.dart';
 
 final bookingDerivedFieldsServiceProvider =

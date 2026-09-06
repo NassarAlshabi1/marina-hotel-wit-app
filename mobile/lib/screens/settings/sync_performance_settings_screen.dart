@@ -1,4 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,6 +26,7 @@ class _SyncPerformanceSettingsScreenState
 
   Future<void> _loadCurrentProfile() async {
     final profile = await SyncPerformanceSettings.getCurrentProfile();
+    if (!mounted) return;
     setState(() => _currentProfile = profile);
   }
 
@@ -35,6 +35,7 @@ class _SyncPerformanceSettingsScreenState
 
     try {
       await SyncPerformanceSettings.applyProfile(profileKey);
+      if (!mounted) return;
       setState(() => _currentProfile = profileKey);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -46,6 +47,7 @@ class _SyncPerformanceSettingsScreenState
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('❌ خطأ في تطبيق ملف التعريف: $e'),
@@ -54,6 +56,7 @@ class _SyncPerformanceSettingsScreenState
       );
     }
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
   }
 
@@ -269,6 +272,7 @@ class _SyncPerformanceSettingsScreenState
                           await ref
                               .read(syncPerformanceOptimizerProvider)
                               .setAdaptiveInterval(value);
+                          if (!mounted) return;
                           setState(() {});
                         },
                 ),
@@ -282,6 +286,7 @@ class _SyncPerformanceSettingsScreenState
                           await ref
                               .read(syncPerformanceOptimizerProvider)
                               .setBatteryOptimization(value);
+                          if (!mounted) return;
                           setState(() {});
                         },
                 ),
@@ -295,6 +300,7 @@ class _SyncPerformanceSettingsScreenState
                           await ref
                               .read(syncPerformanceOptimizerProvider)
                               .setWifiOnlySync(value);
+                          if (!mounted) return;
                           setState(() {});
                         },
                 ),

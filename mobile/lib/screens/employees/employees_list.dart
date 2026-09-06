@@ -515,6 +515,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
     );
 
     if (confirm != true) return;
+    if (!mounted) return;
 
     setState(() => _isLoading = true);
     try {

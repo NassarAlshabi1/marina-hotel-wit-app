@@ -363,9 +363,7 @@ class BookingPriceAdjustmentService {
 
     // إذا لم يتبقَّ أي ليلة مخفّضة → نعطّل التخفيض بالكامل
     final bool fullyCancelled =
-        effectiveEnd == null ||
-        // ignore: dead_null_aware_expression
-        effectiveEnd.compareTo(effectiveStart ?? '') < 0;
+        effectiveEnd == null || effectiveEnd.compareTo(effectiveStart) < 0;
 
     final update = BookingPriceAdjustmentsCompanion(
       isActive: Value(!fullyCancelled),

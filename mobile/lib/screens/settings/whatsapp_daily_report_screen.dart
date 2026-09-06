@@ -29,6 +29,7 @@ class _WhatsAppDailyReportScreenState
 
   Future<void> _loadSettings() async {
     await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
     final state = ref.read(whatsappDailyReportProvider);
     _reportTimeController.text = state.dailyReportTime;
     setState(() => _isLoading = false);

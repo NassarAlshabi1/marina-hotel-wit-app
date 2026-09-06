@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/auto_backup_manager.dart' show AutoBackupManager;
-import 'appwrite_providers.dart' show connectionStatusProvider;
 import 'repository_providers.dart'; // databaseProvider
 
 /// Provider لمدير النسخ التلقائي

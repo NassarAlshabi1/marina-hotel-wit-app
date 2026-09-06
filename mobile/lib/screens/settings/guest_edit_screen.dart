@@ -1,4 +1,3 @@
-// ignore_for_file: use_build_context_synchronously
 import 'dart:async';
 
 import 'package:drift/drift.dart' hide Column;
@@ -424,6 +423,8 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
         }
       }
     }
+
+    if (!mounted) return null;
 
     return showDialog<bool>(
       context: context,
@@ -997,6 +998,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
                         if (controller != null) {
                           await _pickDate(controller);
                         }
+                        if (!mounted) return;
                         setState(() {});
                       },
                     ),
