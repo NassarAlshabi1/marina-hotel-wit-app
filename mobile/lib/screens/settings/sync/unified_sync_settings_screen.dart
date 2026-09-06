@@ -1,12 +1,17 @@
+// ignore_for_file: use_build_context_synchronously
+
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../components/app_scaffold.dart';
-import '../../../providers/appwrite_providers.dart' as ap;
-import '../../../services/appwrite_realtime_sync.dart';
-import '../../../services/appwrite_sync_manager.dart';
 import '../../../core/core.dart';
+import '../../../providers/appwrite_providers.dart' as ap;
+import '../../../providers/repository_providers.dart' show databaseProvider;
+import '../../../services/appwrite_sync_manager.dart';
+import '../../../services/daos/outbox_dao.dart';
+import '../../../services/sync/sync_gate.dart';
 
 /// Unified Sync Settings Screen
 ///
@@ -36,6 +41,10 @@ class _UnifiedSyncSettingsScreenState
   int _syncIntervalMinutes = 15;
   bool _isSaving = false;
 
+  /// ✅ (2026-09-07) مؤشر تنفيذ مزامنة يدوية (سحب/كامل) من هذه الشاشة —
+  /// يعطّل صفوف الأدوات ويُظهر مؤشر تحميل في trailing.
+  bool _isManualSyncing = false;
+
   static const _autoSyncKey = 'appwrite_auto_sync_enabled';
   static const _syncOnStartupKey = 'appwrite_sync_on_startup';
   // ✅ (2026-09-05) تصحيح المفاتيح الميتة: كانت هذه المفاتيح تُكتب
@@ -55,7 +64,7 @@ class _UnifiedSyncSettingsScreenState
   @override
   void initState() {
     super.initState();
-    _loadSettings();
+    unawaited(_loadSettings());
   }
 
   Future<void> _loadSettings() async {
@@ -170,6 +179,12 @@ class _UnifiedSyncSettingsScreenState
 
           // Appwrite Sync
           _buildAppwriteSyncSection(),
+
+          const SizedBox(height: UIConstants.spacingLG),
+
+          // ✅ (2026-09-07) أدوات السحب اليدوي — طلب المستخدم:
+          // «شاشة الاعدادات لا يوجد زر سحب full sync»
+          _buildManualActionsSection(),
         ],
       ),
     );
@@ -474,6 +489,314 @@ class _UnifiedSyncSettingsScreenState
     );
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // ✅ (2026-09-07) أدوات المزامنة اليدوية — طلب المستخدم الصريح:
+  // «شاشة الاعدادات لا يوجد زر سحب full sync».
+  //
+  // قبل هذا القسم كانت الشاشة مفاتيح (Switch) فقط: لا سحب يدوي ولا
+  // full sync، رغم أن المدير يوفر fullSync() (يصفّر مؤشر السحب ثم
+  // sync(push+pull)) ولا شيء يعرضه في الإعدادات.
+  //
+  // قرارات التصميم (متسقة مع سياسة لوحة التحكم):
+  // - كل عملية تمرّ عبر SyncGate (نفس البوّابة العامة) فلا تتصادم
+  //   مع السحب التلقائي أو زر dashboard.
+  // - النتيجة تُعرض كما هي: نجاح حقيقي بعدد السجلات، أو فشل مع
+  //   السبب المُفسَّر بالعربية — لا رسائل نجاح كاذبة.
+  // - «سحب التغييرات الآن» يحترم سياسة Offline-first نفسها
+  //   (لا سحب ما دام outbox فيه سجلات غير مُسلّمة) لكنه يوجّه
+  //   المستخدم إلى «المزامنة الكاملة» التي ترفع ثم تسحب.
+  // ═══════════════════════════════════════════════════════════════
+
+  Widget _buildManualActionsSection() {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(UIConstants.radiusLG),
+      ),
+      child: Column(
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(UIConstants.spacingMD),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.touch_app,
+                  color: UIConstants.syncColor,
+                  size: UIConstants.iconSizeMD,
+                ),
+                SizedBox(width: UIConstants.spacingSM),
+                Text(
+                  'أدوات المزامنة اليدوية',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.cloud_download, color: Colors.blue),
+            title: const Text('سحب التغييرات الآن'),
+            subtitle: const Text(
+              'يجلب التغييرات الجديدة من السيرفر فقط (بدون رفع)',
+            ),
+            trailing: _isManualSyncing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: _isManualSyncing ? null : _runPullNow,
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.restore, color: Colors.deepPurple),
+            title: const Text('مزامنة كاملة (Full Sync)'),
+            subtitle: const Text(
+              'يرفع التغييرات المحلية المعلّقة ثم يسحب كل البيانات '
+              'من السيرفر من الصفر (يُعيد ضبط مؤشر السحب)',
+            ),
+            trailing: _isManualSyncing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.arrow_forward_ios, size: 16),
+            onTap: _isManualSyncing ? null : _confirmFullSync,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// ترجمة أخطاء sync()/fullSync() الداخلية إلى رسائل عربية مفهومة.
+  String _friendlySyncError(String? raw) {
+    if (raw == null || raw.isEmpty) {
+      return 'سبب غير معروف — جرّب مجدداً';
+    }
+    if (raw.contains('Not initialized')) {
+      return 'لم يتم تسجيل الدخول إلى سيرفر المزامنة. أعد تشغيل التطبيق '
+          'وتحقق من بطاقة الاتصال في الإعدادات';
+    }
+    if (raw.contains('disabled remotely')) {
+      return 'مزامنة Cloudflare معطّلة مؤقتاً من الإعدادات البعيدة';
+    }
+    if (raw.contains('disabled locally')) {
+      return 'مزامنة Cloudflare معطّلة — فعّلها من قسم Cloudflare Sync أعلاه';
+    }
+    if (raw.contains('already in progress')) {
+      return 'توجد مزامنة جارية حالياً — انتظر انتهاءها ثم أعد المحاولة';
+    }
+    if (raw.contains('Partial sync failure')) {
+      return raw.replaceFirst(
+        'Partial sync failure — failed collections: ',
+        'فشل جزئي أثناء المزامنة في: ',
+      );
+    }
+    return raw;
+  }
+
+  void _showSyncResultSnack({
+    required bool success,
+    required String message,
+  }) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: success ? Colors.green : Colors.red,
+        duration: Duration(seconds: success ? 3 : 5),
+      ),
+    );
+  }
+
+  /// فحص اتصال حقيقي بالـ Worker قبل أي عملية مزامنة يدوية.
+  /// يُرجع true إذا كان متصلاً، وإلا يعرض خطأً ويُرجع false.
+  Future<bool> _ensureCloudflareConnected() async {
+    await ref.read(ap.connectionStatusProvider.notifier).checkConnection();
+    final connected = ref.read(ap.connectionStatusProvider).isConnected;
+    if (!connected) {
+      _showSyncResultSnack(
+        success: false,
+        message: '❌ لا يوجد اتصال بـ Cloudflare Worker — تحقق من الإنترنت',
+      );
+    }
+    return connected;
+  }
+
+  /// «سحب التغييرات الآن» — سحب دلتا (push:false).
+  /// نفس سياسة لوحة التحكم: يُحجب إذا وُجدت سجلات محلية غير مُسلّمة
+  /// في outbox (يجب رفعها أولاً — استخدم المزامنة الكاملة).
+  Future<void> _runPullNow() async {
+    if (_isManualSyncing) return;
+    setState(() => _isManualSyncing = true);
+    try {
+      // 1) فحص outbox المحلي (عدّ حقيقي من قاعدة البيانات)
+      final db = ref.read(databaseProvider);
+      final pending = await OutboxDao(db).countUndeliveredToPrimary(
+        sources: const ['local'],
+      );
+      if (pending > 0) {
+        _showSyncResultSnack(
+          success: false,
+          message: '⬆️ يوجد $pending تغييراً محلياً غير مرفوع — '
+              'استخدم «مزامنة كاملة» أدناه لرفعه ثم السحب',
+        );
+        return;
+      }
+
+      // 2) فحص الاتصال بالـ Worker
+      if (!await _ensureCloudflareConnected()) return;
+
+      // 3) السحب عبر البوّابة العامة (منع التصادم مع أي مزامنة أخرى)
+      final manager = ref.read(ap.appwriteSyncManagerProvider);
+      final result = await SyncGate.instance.runGuarded<SyncResult>(
+        operation: 'pull',
+        source: 'settings',
+        task: () => manager.sync(push: false),
+      );
+
+      if (result == null) {
+        _showSyncResultSnack(
+          success: false,
+          message: '⏳ المزامنة مشغولة بعملية أخرى — أعد المحاولة بعد قليل',
+        );
+        return;
+      }
+
+      if (result.isSuccess) {
+        _showSyncResultSnack(
+          success: true,
+          message: result.recordsPulled == 0
+              ? '✅ اكتمل السحب — لا توجد تغييرات جديدة على السيرفر'
+              : '✅ اكتمل السحب — استُلم ${result.recordsPulled} سجل',
+        );
+      } else {
+        _showSyncResultSnack(
+          success: false,
+          message:
+              '❌ تعذر السحب: ${_friendlySyncError(result.errorMessage)}',
+        );
+      }
+    } catch (e) {
+      _showSyncResultSnack(
+        success: false,
+        message: '❌ خطأ غير متوقع أثناء السحب: $e',
+      );
+    } finally {
+      if (mounted) setState(() => _isManualSyncing = false);
+    }
+  }
+
+  /// تأكيد قبل full sync — لأنه يصفّر مؤشر السحب ويعيد جلب كل شيء.
+  Future<void> _confirmFullSync() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('مزامنة كاملة (Full Sync)؟'),
+        content: const Text(
+          'سيقوم التطبيق بـ:\n'
+          '1. رفع كل التغييرات المحلية المعلّقة إلى السيرفر\n'
+          '2. إعادة ضبط مؤشر السحب وجلب جميع البيانات من السيرفر '
+          'من الصفر\n\n'
+          'قد يستغرق وقتاً أطول من المعتاد حسب حجم البيانات. متابعة؟',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('متابعة'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await _runFullSync();
+    }
+  }
+
+  /// «مزامنة كاملة» — fullSync(): تصفير مؤشر السحب + sync(push+pull).
+  /// ترفع المحلي المعلّق أولاً فتُحترم سياسة Offline-first بالكامل،
+  /// ثم تسحب كل البيانات — الحل الأكيد عندما يريد المستخدم «تحديث كل شيء».
+  Future<void> _runFullSync() async {
+    if (_isManualSyncing) return;
+    setState(() => _isManualSyncing = true);
+
+    // حوار تقدّم غير قابل للإغلاق — full sync قد يسحب عدة صفحات.
+    // ✅ نلتقط NavigatorState متزامناً (قبل أي await) كي نستطيع إغلاق
+    // الحوار في finally حتى لو غادر المستخدم الشاشة أثناء المزامنة —
+    // استخدام context بعد dispose كان سيترك الحوار محجوزاً للأبد.
+    var progressDialogOpen = false;
+    unawaited(showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        title: Text('جاري المزامنة الكاملة…'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            LinearProgressIndicator(),
+            SizedBox(height: 12),
+            Text(
+              'رفع التغييرات المحلية ثم سحب كل البيانات من السيرفر',
+              style: TextStyle(fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    ));
+    progressDialogOpen = true;
+    final navigator = Navigator.of(context);
+
+    try {
+      if (!await _ensureCloudflareConnected()) return;
+
+      final manager = ref.read(ap.appwriteSyncManagerProvider);
+      final result = await SyncGate.instance.runGuarded<SyncResult>(
+        operation: 'full_sync',
+        source: 'settings',
+        task: manager.fullSync,
+      );
+
+      if (result == null) {
+        _showSyncResultSnack(
+          success: false,
+          message: '⏳ المزامنة مشغولة بعملية أخرى — أعد المحاولة بعد قليل',
+        );
+        return;
+      }
+
+      if (result.isSuccess) {
+        _showSyncResultSnack(
+          success: true,
+          message: '✅ اكتملت المزامنة الكاملة — '
+              'رُفع ${result.recordsPushed} وسُحب ${result.recordsPulled} سجل',
+        );
+      } else {
+        _showSyncResultSnack(
+          success: false,
+          message: '❌ فشلت المزامنة الكاملة: '
+              '${_friendlySyncError(result.errorMessage)}',
+        );
+      }
+    } catch (e) {
+      _showSyncResultSnack(
+        success: false,
+        message: '❌ خطأ غير متوقع أثناء المزامنة الكاملة: $e',
+      );
+    } finally {
+      if (progressDialogOpen) {
+        // NavigatorState ملتقط مسبقاً — آمن حتى بعد dispose الشاشة
+        navigator.pop(); // إغلاق حوار التقدّم
+      }
+      if (mounted) setState(() => _isManualSyncing = false);
+    }
+  }
+
   Future<void> _selectSyncInterval(int minutes) async {
     if (_isSaving) return;
     setState(() => _isSaving = true);
@@ -504,14 +827,14 @@ class _UnifiedSyncSettingsScreenState
   }
 
   void _showSyncIntervalDialog() {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('فترة المزامنة'),
         content: RadioGroup<int>(
           groupValue: _syncIntervalMinutes,
           onChanged: (value) {
-            if (value != null) _selectSyncInterval(value);
+            if (value != null) unawaited(_selectSyncInterval(value));
           },
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -546,6 +869,6 @@ class _UnifiedSyncSettingsScreenState
           ),
         ],
       ),
-    );
+    ));
   }
 }

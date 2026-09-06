@@ -12,8 +12,8 @@ import '../services/daos/sync_log_dao.dart';
 // ✅ Wave 5 (2026-08-12): secondary_sync_provider.dart و secondary_sync_manager.dart
 // أُزيلا بالكامل — Appwrite primary هو authority الوحيد.
 import '../services/sync/sync_gate.dart';
+import '../utils/debug_log.dart';
 import '../utils/loading_snackbar.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class DashboardSyncButton extends ConsumerStatefulWidget {
   const DashboardSyncButton({super.key});
@@ -46,16 +46,16 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       duration: const Duration(milliseconds: 1200),
     );
 
-    _loadPendingChangesCount();
-    _loadAppwriteEnabled();
+    unawaited(_loadPendingChangesCount());
+    unawaited(_loadAppwriteEnabled());
 
     // ✅ خفض تردد التحديث من 5 ثوان إلى 15 ثانية
     // 5 ثوان = 12 استعلام DB في الدقيقة = ضغط على الأجهزة الضعيفة
     // 15 ثانية = 4 استعلام DB في الدقيقة = كافي لمؤشر pending changes
     _pendingChangesTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       if (mounted && !_isPulling && !_isPushing) {
-        _loadPendingChangesCount();
-        _loadAppwriteEnabled();
+        unawaited(_loadPendingChangesCount());
+        unawaited(_loadAppwriteEnabled());
       }
     });
   }
@@ -164,6 +164,12 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
       return;
     }
 
+    // ✅ إصلاح (2026-09-07): قراءة العدّاد مباشرة من قاعدة البيانات قبل
+    // القرار — كانت الحالة المحلية تُحدّث كل 15 ثانية فقط (مؤقّت initState)
+    // فيُحتمل حجب سحبة مطلوبة بسبب عدّاد قديم، أو العكس: عدّاد صفر بينما
+    // توجد سجلات جديدة لم تُسلّم بعد.
+    await _loadPendingChangesCount();
+
     // سياسة Offline-first: السحب اليدوي غير متاح ما دامت تغييرات محلية
     // غير مُسلّمة موجودة في Outbox. يُرفع المستخدم التغييرات أولاً ثم يعيد
     // طلب السحب بعد تأكيد تفريغ الصف؛ لا يوجد خيار «سحب فقط» لتجنب دهسها.
@@ -261,52 +267,100 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       // ✅ إغلاق إشعار التحميل فور انتهاء المزامنة
       loading?.close();
-
-      // ✅ تسجيل نجاح العملية
       stopwatch.stop();
-      await syncLogDao.logSync(
-        syncId: syncId,
-        direction: 'pull',
-        deviceId: deviceId,
-        target: 'Appwrite',
-        status: 'success',
-        recordsPulled: pulledCount,
-        durationMs: stopwatch.elapsedMilliseconds,
-      );
 
-      if (mounted) {
-        setState(() {
-          _lastSyncTime = DateTime.now();
-        });
-        // ✅ إغلاق إشعار "جاري" فوراً قبل إظهار النتيجة
-        loading?.close();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.cloud_done, color: Colors.white),
-                    SizedBox(width: 8),
-                    Text(
-                      '✅ تم سحب التغييرات بنجاح!',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '⬇️ استُلِم: $pulledCount سجل',
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
+      // ✅✅ إصلاح جوهري (2026-09-07): sync() لا يرمي استثناءات لمسارات
+      // الخروج المبكر (kill switch / معطّلة محلياً / Not initialized /
+      // مزامنة قائمة / فشل جزئي) — بل تُعيد SyncResult بحالة failed/idle.
+      // الكود القديم كان يقرأ recordsPulled فقط فيعرض «✅ تم بنجاح!»
+      // حتى عند فشل السحب كلياً بصفر سجلات — كذب واجهة يقود المستخدم
+      // للاعتقاد أن الزر «لا يسحب بيانات» دون سبب ظاهر.
+      // الآن: نُصدّق الحالة الفعلية ونُظهر الخطأ الحقيقي.
+      if (pullResult.isSuccess) {
+        // ✅ تسجيل نجاح العملية
+        await syncLogDao.logSync(
+          syncId: syncId,
+          direction: 'pull',
+          deviceId: deviceId,
+          target: 'Appwrite',
+          status: 'success',
+          recordsPulled: pulledCount,
+          durationMs: stopwatch.elapsedMilliseconds,
         );
+
+        if (mounted) {
+          setState(() {
+            _lastSyncTime = DateTime.now();
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.cloud_done, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text(
+                        '✅ تم سحب التغييرات بنجاح!',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    pulledCount == 0
+                        ? 'لا توجد تغييرات جديدة على السيرفر'
+                        : '⬇️ استُلِم: $pulledCount سجل',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        // ❌ فشل حقيقي (أو تخطّي) — نُسجل ونُظهر السبب الفعلي
+        try {
+          await syncLogDao.logSync(
+            syncId: syncId,
+            direction: 'pull',
+            deviceId: deviceId,
+            target: 'Appwrite',
+            status: 'failed',
+            errorMessage: pullResult.errorMessage,
+            durationMs: stopwatch.elapsedMilliseconds,
+          );
+        } catch (_) {}
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'تعذر سحب التغييرات: '
+                      '${_friendlyPullError(pullResult.errorMessage)}',
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'إعادة',
+                textColor: Colors.white,
+                onPressed: () => _pullChanges(context),
+              ),
+            ),
+          );
+        }
       }
     } catch (e) {
       dlog(() => '❌ خطأ في سحب التغييرات: $e');
@@ -354,6 +408,35 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         setState(() => _isPulling = false);
       }
     }
+  }
+
+  /// ✅ إصلاح (2026-09-07): ترجمة أخطاء sync() الداخلية إلى رسائل مفهومة.
+  /// sync() يُعيد رسائل إنجليزية تقنية في errorMessage — كانت ستُعرض
+  /// للمستخدم كما هي (أو لا تُعرض إطلاقاً قبل الإصلاح).
+  String _friendlyPullError(String? raw) {
+    if (raw == null || raw.isEmpty) {
+      return 'سبب غير معروف — جرّب مجدداً';
+    }
+    if (raw.contains('Not initialized')) {
+      return 'لم يتم تسجيل الدخول إلى سيرفر المزامنة. أعد فتح التطبيق '
+          'وتحقق من بطاقة الاتصال في الإعدادات';
+    }
+    if (raw.contains('disabled remotely')) {
+      return 'مزامنة Cloudflare معطّلة مؤقتاً من الإعدادات البعيدة';
+    }
+    if (raw.contains('disabled locally')) {
+      return 'مزامنة Cloudflare معطّلة — فعّلها من إعدادات المزامنة';
+    }
+    if (raw.contains('already in progress')) {
+      return 'توجد مزامنة جارية حالياً — انتظر انتهاءها ثم أعد المحاولة';
+    }
+    if (raw.contains('Partial sync failure')) {
+      return raw.replaceFirst(
+        'Partial sync failure — failed collections: ',
+        'فشل جزئي أثناء السحب في: ',
+      );
+    }
+    return raw;
   }
 
   /// ✅ إيقاف وإعادة ضبط AnimationController بشكل آمن ضد Dispose.
@@ -809,14 +892,14 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     int pendingCount,
     bool gateBusy,
   ) {
-    // سياسة Offline-first: لا نسمح بالسحب اليدوي قبل تسليم كل تغييرات
-    // Outbox المحلية إلى Appwrite. يبقى زر الرفع متاحاً لتفريغ الصف أولاً.
+    // ✅ إصلاح (2026-09-07): pendingCount (عدّاد outbox المحلي) يُستخدم
+    // للتلميح فقط — كان يدخل في شرط التعطيل pullEnabled بينما النداء
+    // الفعلي يمرّر 0 دائماً (pendingRemoteCount ثابت)، فكان التلميح
+    // «السحب معطّل» يظهر والزر فعلياً مفعّلاً أو العكس.
+    // السياسة الفعلية تُفرض داخل _pullChangesInner (رسالة «رفع أولاً»
+    // مع زر إجراء) — نُبقي الزر قابلاً للضغط ليصل المستخدم إلى الرسالة.
     final bool pullEnabled =
-        _appwriteEnabled &&
-        pendingCount == 0 &&
-        !_isPulling &&
-        !_isPushing &&
-        !gateBusy;
+        _appwriteEnabled && !_isPulling && !_isPushing && !gateBusy;
 
     Color buttonColor;
     IconData buttonIcon;
@@ -1077,7 +1160,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     // Realtime إطلاقاً — السحب يتم فقط عبر زر المستخدم أو السحب التلقائي
     // عند فتح التطبيق.
     const hasRemoteChanges = false;
-    const pendingRemoteCount = 0;
+    // ✅ (2026-09-07) أُزيل pendingRemoteCount الثابت = 0 — كان يُمرَّر
+    // لزر السحب كعدّاد «معطّل السحب» بينما العدّاد الحقيقي هو
+    // _pendingChangesCount المُحدَّث من outbox (يُمرَّر الآن مباشرة).
 
     // ✅ P3-5 (Global SyncGate): مراقبة البوّابة العامة. إذا كانت مشغولة
     // بعملية من أي مصدر (زر آخر، سحب تلقائي، مؤقّت)، تُعطَّل الأزرار تلقائياً.
@@ -1101,10 +1186,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
               mainAxisSize: MainAxisSize.min,
               children: [
                 // زر السحب من السيرفر - ✅ تحديث: تمرير عداد التغييرات + حالة البوّابة
+                // ✅ إصلاح (2026-09-07): مرّرنا _pendingChangesCount (العدّاد
+                // المحلي الحقيقي) بدل pendingRemoteCount الثابت = 0 حتى
+                // يكون التلميح صادقاً مع وجود تغييرات معلّقة.
                 _buildPullButton(
                   hasRemoteChanges,
                   isGoogleDriveSignedIn,
-                  pendingRemoteCount,
+                  _pendingChangesCount,
                   gateBusy,
                 ),
                 const SizedBox(width: 8),
