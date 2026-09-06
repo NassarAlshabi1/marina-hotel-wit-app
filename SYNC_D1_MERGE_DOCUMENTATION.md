@@ -116,7 +116,31 @@
 | عتبة البوابة الافتراضية | `mobile-quality-gate.yml`: `MIN_COVERAGE = inputs.min_coverage || 10` | قراءة الملف |
 | قياس ci.yml | `flutter test --coverage --concurrency=2 --timeout=180s --exclude-tags integration,performance,slow` ثم استخراج `COVERAGE_PCT` | قراءة الملف + السجل |
 
-> **الفجوة للحصول على 60%**: ~21,900 سطر إضافي مغطى (بنفس منهجية ci.yml غير المستثنية). انتبه: قياس ci.yml يشمل ما قد تستثنيه عتبة quality.yml (ملفات .g.dart المولدة) — لذا القرار المستهدف يجب أن يُقاس بطريقة العتبة المستهدفة نفسها.
+### 6.3 القياس المحلي الكامل (2026-09-07، Flutter 3.44.9/Dart 3.12.2 — نفس أعلام CI)
+تشغيل محلي فعلي لكل الاختبارات (118 ملفاً، +1081 نجاح/-1 flake نجح منفرداً) ثم تحليل `coverage/lcov.info`:
+| المنهجية | المغطى/الكل | النسبة |
+|---|---|---|
+| ci.yml (يشمل المولّد `.g.dart`) | 16,638 / 77,575 | **21.45%** (يطابق 21.5% من CI — فرق 7 أسطر = الاختبار المتذبذب) |
+| **quality.yml (استثناء المولّد) — منهجية العتبة المستهدفة** | 8,826 / 47,409 | **18.62%** |
+| المولّد وحده | 7,812 / 30,166 | 25.90% |
+
+**الفجوة إلى 60% بمنهجية البوابة**: يلزم ~19,620 سطراً إضافياً مغطى من الكود غير المولّد.
+
+أعلى الفجوات القابلة للاختبار الوحدوي (من تحليل lcov):
+| الملف | مفقود | التغطية الحالية |
+|---|---|---|
+| `services/appwrite_sync_manager.dart` | 3,497 | 0.1% |
+| `services/gemini_service.dart` | 1,757 | 0.1% (غلاف API خارجي) |
+| `services/local_db.dart` | 1,347 | 3.8% |
+| `services/google_drive_backup_service.dart` | 1,007 | 3.4% |
+| `services/local_backup_service.dart` | 595 | 1.5% |
+| `services/sync_service.dart` | 591 | 3.0% |
+| `models/payment_models.dart` | 572 | 0.9% |
+| `services/sync/payload_mapper.dart` | 459 | 29.9% |
+| `services/auth_local_store.dart` | 408 | 12.8% |
+| `services/smart_sync_manager.dart` | 407 | 0.0% |
+
+> **الخلاصة**: الوصول إلى 60% حملة تدريجية بدفعات اختبارات (وحدوي للخدمات/النماذج + widget tests للشاشات)، وليست كوميتاً واحداً. الشاشات وحدها تمثل آلاف الأسطر وتتطلب اختبارات widget.
 
 ---
 
