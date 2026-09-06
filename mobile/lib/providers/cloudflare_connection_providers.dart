@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/cloudflare_d1_service.dart';
+import '../services/cloudflare_direct_api_service.dart';
 import '../services/cloudflare_sync_manager.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/local_db.dart';
@@ -106,3 +107,77 @@ final cloudflareBindingProvider =
 /// إظهار التوكن كاملاً بدل الصيغة المموّهة (الافتراضي: مموّه).
 /// حالة عرض محلية بحتة — StateProvider يغني عن أي setState.
 final bindingTokenVisibleProvider = StateProvider<bool>((ref) => false);
+
+// ═════════════════════════════════════════════════════════════════
+//  تسجيل الارتباط عبر API المباشر (api.cloudflare.com)
+// ═════════════════════════════════════════════════════════════════
+
+/// حالة تسجيل الارتباط المباشر: idle → running → نتيجة (نجاح/فشل).
+class CloudflareDirectCheckState {
+  const CloudflareDirectCheckState({
+    this.running = false,
+    this.result,
+    this.errorMessage,
+    this.lastRunAt,
+  });
+
+  /// هل الفحص المباشر جارٍ الآن؟
+  final bool running;
+
+  /// نتيجة آخر فحص ناجح (أو فاشل بتفاصيله داخل [result]).
+  final CloudflareDirectCheckResult? result;
+
+  /// خطأ قبل بدء الفحص أصلاً (مثل غياب التوكن) — نص جاهز للعرض.
+  final String? errorMessage;
+
+  /// وقت آخر فحص (للعرض).
+  final DateTime? lastRunAt;
+}
+
+/// مشغّل «تسجيل الارتباط عبر API المباشر».
+///
+/// يقرأ بيانات الربط المحفوظة (التوكن/الحساب/القاعدة) ثم يفحصها مباشرةً
+/// ضد api.cloudflare.com — نفس أسلوب curl المرجعي `/user/tokens/verify` —
+/// ويعيد النتيجة المنظمة للعرض في بطاقة الاتصال. القراءة فقط تماماً:
+/// لا كتابة على D1 ولا تعديل إعدادات محفوظة.
+class CloudflareDirectCheckNotifier
+    extends StateNotifier<CloudflareDirectCheckState> {
+  CloudflareDirectCheckNotifier() : super(const CloudflareDirectCheckState());
+
+  bool _busy = false;
+
+  Future<void> run() async {
+    if (_busy) return; // منع النقر المزدوج
+    _busy = true;
+    state = CloudflareDirectCheckState(
+      running: true,
+      lastRunAt: state.lastRunAt,
+    );
+
+    try {
+      final config = await CloudflareD1Settings.load();
+      final service = CloudflareDirectApiService(config);
+      final result = await service.registerConnection();
+      state = CloudflareDirectCheckState(
+        result: result,
+        lastRunAt: DateTime.now(),
+      );
+    } catch (e) {
+      // حزام أمان: registerConnection لا يرمي نظرياً، لكن أي عطل غير
+      // متوقع (مثل فشل قراءة التخزين الآمن) يُعرض بوضوح بدل انفجار.
+      state = CloudflareDirectCheckState(
+        errorMessage: 'تعذر تنفيذ الفحص المباشر: $e',
+        lastRunAt: DateTime.now(),
+      );
+    } finally {
+      _busy = false;
+    }
+  }
+}
+
+/// مزود تسجيل الارتباط المباشر — يُستخدم من بطاقة الاتصال.
+final cloudflareDirectCheckProvider =
+    StateNotifierProvider.autoDispose<CloudflareDirectCheckNotifier,
+        CloudflareDirectCheckState>((ref) {
+      return CloudflareDirectCheckNotifier();
+    });

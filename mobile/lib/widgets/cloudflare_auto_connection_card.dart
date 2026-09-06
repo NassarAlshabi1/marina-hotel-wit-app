@@ -82,6 +82,8 @@ class CloudflareAutoConnectionCard extends ConsumerWidget {
             const Divider(height: 20),
             ..._bindingSection(context, ref, binding, tokenVisible),
             const SizedBox(height: 10),
+            _directApiSection(context, ref),
+            const SizedBox(height: 10),
             _endpointRow(context, colorScheme),
           ],
         ),
@@ -334,6 +336,58 @@ class CloudflareAutoConnectionCard extends ConsumerWidget {
     return '••••••••${token.substring(token.length - 4)}';
   }
 
+  // ─── تسجيل الارتباط عبر API المباشر ─────────────────────────
+
+  /// زر + نتيجة الفحص المباشر ضد api.cloudflare.com
+  /// (نفس أسلوب curl: GET /user/tokens/verify).
+  Widget _directApiSection(BuildContext context, WidgetRef ref) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final check = ref.watch(cloudflareDirectCheckProvider);
+    final notifier = ref.read(cloudflareDirectCheckProvider.notifier);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.api_outlined,
+              size: 18,
+              color: colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'تسجيل الارتباط عبر API المباشر',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        _DirectApiResultView(check: check),
+        const SizedBox(height: 10),
+        FilledButton.icon(
+          onPressed: check.running ? null : notifier.run,
+          icon: check.running
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.verified_outlined, size: 18),
+          label: Text(
+            check.running
+                ? 'جارٍ الفحص المباشر…'
+                : 'تسجيل الارتباط (تحقق API مباشر)',
+          ),
+        ),
+      ],
+    );
+  }
+
   // ─── أدوات ───────────────────────────────────────────────────
 
   /// تسمية الفترة بالعربية الصحيحة (جمع/مثنى/مفرد).
@@ -445,6 +499,105 @@ class _RowError extends StatelessWidget {
         Icon(Icons.error_outline, size: 18, color: colorScheme.error),
         const SizedBox(width: 10),
         Expanded(child: Text(message)),
+      ],
+    );
+  }
+}
+
+/// عرض نتيجة «تسجيل الارتباط عبر API المباشر»:
+/// قبل أول فحص: تلميح هادئ، أثناء الفحص: هيكل تحميل، وبعد الفحص
+/// قائمة أسطر ملونة (أخضر للنجاح / أحمر للفشل) من ملخص النتيجة.
+class _DirectApiResultView extends StatelessWidget {
+  const _DirectApiResultView({required this.check});
+
+  final CloudflareDirectCheckState check;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    if (check.running) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 6),
+        child: SizedBox(
+          height: 14,
+          width: 200,
+          child: LinearProgressIndicator(minHeight: 14),
+        ),
+      );
+    }
+
+    final errorMessage = check.errorMessage;
+    if (errorMessage != null) {
+      return _DirectApiLine(
+        icon: Icons.error_outline,
+        color: colorScheme.error,
+        text: errorMessage,
+      );
+    }
+
+    final result = check.result;
+    if (result == null) {
+      return Text(
+        'لم يُنفَّذ فحص مباشر بعد — الزر أدناه يفحص التوكن والحساب والقاعدة '
+        'على api.cloudflare.com مباشرةً (قراءة فقط).',
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: colorScheme.onSurfaceVariant,
+        ),
+      );
+    }
+
+    final color = result.ok ? Colors.green : colorScheme.error;
+    final icon = result.ok ? Icons.check_circle_outline : Icons.error_outline;
+    final lines = <String>[...result.summary];
+    final when = check.lastRunAt;
+    if (when != null) {
+      lines.add('آخر فحص: ${TimeOfDay.fromDateTime(when).format(context)}');
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < lines.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: _DirectApiLine(
+              icon: i == 0 ? icon : Icons.subdirectory_arrow_right,
+              color: i == 0 ? color : colorScheme.onSurfaceVariant,
+              text: lines[i],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// سطر نتيجة واحد (أيقونة + نص) — نفس أسلوب _DataRow لكن بألوان حالة.
+class _DirectApiLine extends StatelessWidget {
+  const _DirectApiLine({
+    required this.icon,
+    required this.color,
+    required this.text,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: Theme.of(context).textTheme.bodySmall,
+            textAlign: TextAlign.start,
+          ),
+        ),
       ],
     );
   }
