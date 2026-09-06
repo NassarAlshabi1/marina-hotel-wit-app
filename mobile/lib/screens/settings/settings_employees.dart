@@ -692,9 +692,19 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                       status: status,
                     );
                   }
-                  // ✅ رفع فوري لموظف جديد/محدَّث إلى Appwrite Cloud.
+                  // ✅ (2026-09-06) pushLocalChanges ترمي عند الفشل (عقد
+                  // صادق) — onError يمنع خطأ async غير معالج؛ السجلات تبقى
+                  // في outbox ويغطيها الرفع التلقائي/اليدوي اللاحق.
                   unawaited(
-                    ref.read(appwriteSyncManagerProvider).pushLocalChanges(),
+                    ref
+                        .read(appwriteSyncManagerProvider)
+                        .pushLocalChanges()
+                        .then(
+                          (_) {},
+                          onError: (Object e) {
+                            debugPrint('⚠️ فشل الرفع الفوري (موظف): $e');
+                          },
+                        ),
                   );
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -1476,8 +1486,18 @@ class SettingsEmployeesScreen extends ConsumerWidget {
                   if (ctx.mounted) {
                     Navigator.pop(ctx);
                   }
+                  // ✅ (2026-09-06) حماية onError — pushLocalChanges ترمي
+                  // عند الفشل (عقد صادق)؛ لا يجوز ترك خطأ async غير معالج.
                   unawaited(
-                    ref.read(appwriteSyncManagerProvider).pushLocalChanges(),
+                    ref
+                        .read(appwriteSyncManagerProvider)
+                        .pushLocalChanges()
+                        .then(
+                          (_) {},
+                          onError: (Object e) {
+                            debugPrint('⚠️ فشل الرفع الفوري (سحب): $e');
+                          },
+                        ),
                   );
 
                   if (context.mounted) {

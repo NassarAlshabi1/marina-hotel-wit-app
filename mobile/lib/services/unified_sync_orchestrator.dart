@@ -499,8 +499,12 @@ class UnifiedSyncOrchestrator {
 
     var success = true;
     if (push) {
-      final pushed = await manager.pushLocalChanges();
-      success = (pushed >= 0) && success;
+      // ✅ (2026-09-06) سابقاً: `manager.pushLocalChanges()` مع
+      // `pushed >= 0` — شرط صادق دائماً (recordsPushed ليس سالباً أبداً)
+      // فأي دورة فاشلة كانت تُحسب نجاحاً. الآن sync() مباشرة مع فحص
+      // الحالة — نفس نمط فرع push&&pull أعلاه.
+      final result = await manager.sync(push: true, pull: false);
+      success = result.isSuccess && success;
     }
     if (pull) {
       // ✅ V-2 (تدقيق معماري — perf 014cc156): تفويض السحب للحلقة الرئيسية

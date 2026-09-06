@@ -63,11 +63,14 @@ void main() {
       expect(result.errorMessage, contains('Not initialized'));
     });
 
-    test('pushLocalChanges returns 0 when not initialized', () async {
+    // ✅ (2026-09-06) عقد صادق: pushLocalChanges ترمي StateError عند أي
+    // حالة غير success. السابق («يعيد 0») كان يسمح لزر «رفع التغييرات» في
+    // dashboard بعرض «تم الرفع بنجاح!» مع 0 سجل عند فشل الدورة — لأن
+    // المستدعي كان يقارن `pushedCount >= 0` وهو صادق دائماً.
+    test('pushLocalChanges throws StateError when not initialized', () async {
       final manager = CloudflareSyncManager();
       manager.reset();
-      final result = await manager.pushLocalChanges();
-      expect(result, equals(0));
+      await expectLater(manager.pushLocalChanges(), throwsStateError);
     });
 
     test('pullRemoteChanges returns false when not initialized', () async {

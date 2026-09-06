@@ -645,11 +645,27 @@ class CloudflareSyncManager {
 
     int totalPushed = 0;
 
+    final outboxDao = OutboxDao(_db!);
+
+    // ✅ (2026-09-06) استرجاع السجلات العالقة قبل التفريغ — reclaimForPush
+    // وُجدت لهذا الغرض تحديداً (وثيقتها في outbox_dao.dart: «يُستدعى في
+    // بداية طور الرفع») لكن الاستدعاء ضاع عند إعادة كتابة المدير السحابي.
+    // بدونه: سجلات 'processing' عالقة (جلسة رفع انقطعت) تُحصى في عدّاد زر
+    // الرفع (countUndeliveredToPrimary تشمل processing) بينما حلقة الرفع
+    // أدناه تختار pending/failed فقط → زر «رفع التغييرات» يبقى مفعّلاً
+    // للأبد ولا يفرّغ العداد. failed ≤ 5 محاولات تُعاد أيضاً إلى pending
+    // — الضغط على الزر طلب صريح من المستخدم بإعادة المحاولة.
+    try {
+      await outboxDao.reclaimForPush();
+    } catch (e) {
+      // فشل الاسترجاع لا يجوز أن يمنع رفع السجلات السليمة
+      debugPrint('⚠️ reclaimForPush failed (push continues): $e');
+    }
+
     // ✅ حلقة الرفع: تكرر حتى يفرغ outbox من كل السجلات العالقة
     // هذا يضمن أن زر "رفع التغييرات" يرفع كل التغييرات دفعة واحدة
     // وليس فقط أول 25 سجل.
     while (true) {
-      final outboxDao = OutboxDao(_db!);
       final pending =
           await (outboxDao.select(outboxDao.outbox)
                 ..where((t) => t.processingStatus.isIn(['pending', 'failed']))
@@ -1583,8 +1599,27 @@ class CloudflareSyncManager {
 
   // ─── Stubs for methods called by existing screens ──────────
 
-  Future<int> pushLocalChanges() async =>
-      sync(pull: false).then((r) => r.recordsPushed);
+  /// ✅ (2026-09-06) عقد صادق لزر «رفع التغييرات» في dashboard.
+  ///
+  /// سابقاً: `sync(pull: false).then((r) => r.recordsPushed)` — كانت تُسقط
+  /// `SyncResult.status` بالكامل، فأي فشل (شبكة :723-751، non-200 :753-779،
+  /// kill switch :502-510، تعطيل محلي :515-526، غير مهيأ :541-548، دورة
+  /// جارية :551-559) كان يُترجم عند المستدعي إلى نجاح مع 0 سجل، لأن
+  /// `pushedCount >= 0` صادق دائماً (dashboard_sync_button.dart:536).
+  /// النتيجة الإنتاجية: snackbar أخضر «✅ تم رفع التغييرات بنجاح!» بينما
+  /// الـ outbox ما زال ممتلئاً — تضليل بنفس نمط pushAllLocalData المُصلح
+  /// أعلاه (2026-09-05).
+  ///
+  /// الآن: ترمي [StateError] عند أي حالة غير `success`، وتُرجع العدد
+  /// عند نجاح فعلي فقط. المستدعي dashboard_sync_button يلتقط الاستثناء
+  /// في try/catch لكل هدف (:539-546) فيُظهر snackbar أحمر مع «إعادة».
+  Future<int> pushLocalChanges() async {
+    final r = await sync(pull: false);
+    if (r.status != SyncStatus.success) {
+      throw StateError(r.errorMessage ?? 'Push failed (${r.status.name})');
+    }
+    return r.recordsPushed;
+  }
 
   /// ✅ (2026-09-05) كانت تُرجع 0 دائماً (stub) بينما زر «بدء الرفع»
   /// في الإعدادات يعرض «تم رفع البيانات بنجاح» دون رفع أي شيء —
