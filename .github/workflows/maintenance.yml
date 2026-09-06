@@ -31,10 +31,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: 🧹 Delete artifacts older than 30 days
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const { execSync } = require('child_process');
@@ -72,10 +72,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: 🧹 Delete failed runs (keep last 100)
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const { execSync } = require('child_process');
@@ -111,10 +111,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: 🧹 Delete old cache entries
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const { execSync } = require('child_process');
