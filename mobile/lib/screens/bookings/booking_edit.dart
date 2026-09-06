@@ -14,10 +14,10 @@ import '../../providers/room_payment_status_provider.dart';
 import '../../providers/service_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/screen_sync_controller.dart';
+import '../../utils/debug_log.dart';
+import '../../utils/english_digits_input_formatter.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
-import '../../utils/english_digits_input_formatter.dart';
 
 class BookingEditScreen extends ConsumerStatefulWidget {
   const BookingEditScreen({super.key, this.existing, this.initialRoomNumber});
@@ -1157,7 +1157,7 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
 
   // ignore: unused_element
   void _showDiscardDialog(BuildContext context) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
@@ -1182,6 +1182,6 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
           ],
         ),
       ),
-    );
+    ));
   }
 }

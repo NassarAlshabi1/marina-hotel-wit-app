@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/core.dart';
@@ -19,10 +20,10 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
   void initState() {
     super.initState();
     // التحقق من الأذونات عند فتح التبويب
-    Future.microtask(() {
+    unawaited(Future.microtask(() {
       final notifier = ref.read(backupStatusProvider.notifier);
-      notifier.checkStoragePermissions();
-    });
+      unawaited(notifier.checkStoragePermissions());
+    }));
   }
 
   @override
@@ -492,7 +493,7 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
   }
 
   void _confirmRestore(LocalBackupFile backup) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تأكيد الاستعادة'),
@@ -510,7 +511,7 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              _restoreBackup(backup);
+              unawaited(_restoreBackup(backup));
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
@@ -520,7 +521,7 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
           ),
         ],
       ),
-    );
+    ));
   }
 
   Future<void> _restoreBackup(LocalBackupFile backup) async {
@@ -549,7 +550,7 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
   }
 
   void _confirmDelete(LocalBackupFile backup) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('حذف نسخة احتياطية'),
@@ -565,14 +566,14 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              _deleteBackup(backup);
+              unawaited(_deleteBackup(backup));
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('حذف', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
-    );
+    ));
   }
 
   Future<void> _deleteBackup(LocalBackupFile backup) async {
@@ -591,6 +592,6 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
   }
 
   void _refreshLocalBackups() {
-    ref.read(backupStatusProvider.notifier).checkStoragePermissions();
+    unawaited(ref.read(backupStatusProvider.notifier).checkStoragePermissions());
   }
 }

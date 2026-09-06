@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../../utils/debug_log.dart';
 
 /// حالة بوّابة المزامنة العامة — تعكس ما إذا كانت أي عملية مزامنة
 /// جارية في التطبيق كله، بصرف النظر عن المصدر (زر يدوي، سحب تلقائي
@@ -197,7 +197,7 @@ final syncGateStateProvider = StreamProvider<SyncGateState>((ref) {
   SyncGate.instance.notifier.addListener(listener);
   ref.onDispose(() {
     SyncGate.instance.notifier.removeListener(listener);
-    controller.close();
+    unawaited(controller.close());
   });
   // البث الأول للحالة الحالية
   controller.add(SyncGate.instance.notifier.value);

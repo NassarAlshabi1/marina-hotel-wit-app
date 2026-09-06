@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/database_fixer.dart';
 import '../../services/local_db.dart';
@@ -22,7 +23,7 @@ class _DatabaseFixerScreenState extends State<DatabaseFixerScreen> {
   void initState() {
     super.initState();
     _fixer = DatabaseFixer(DatabaseManager.instance);
-    _runValidation();
+    unawaited(_runValidation());
   }
 
   Future<void> _runValidation() async {

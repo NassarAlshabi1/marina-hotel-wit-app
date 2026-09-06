@@ -26,6 +26,19 @@ class BlacklistAlert {
     required this.detectedAt,
   });
 
+  factory BlacklistAlert.fromJson(
+    Map<String, dynamic> json,
+    BlacklistEntry entry,
+  ) {
+    return BlacklistAlert(
+      guestName: json['guestName'] as String,
+      roomNumber: json['roomNumber'] as String,
+      bookingId: json['bookingId'] as int,
+      blacklistEntry: entry,
+      detectedAt: DateTime.parse(json['detectedAt'] as String),
+    );
+  }
+
   final String guestName;
   final String roomNumber;
   final int bookingId;
@@ -45,18 +58,6 @@ class BlacklistAlert {
     'detectedAt': detectedAt.toIso8601String(),
   };
 
-  static BlacklistAlert fromJson(
-    Map<String, dynamic> json,
-    BlacklistEntry entry,
-  ) {
-    return BlacklistAlert(
-      guestName: json['guestName'] as String,
-      roomNumber: json['roomNumber'] as String,
-      bookingId: json['bookingId'] as int,
-      blacklistEntry: entry,
-      detectedAt: DateTime.parse(json['detectedAt'] as String),
-    );
-  }
 }
 
 /// خدمة تنبيهات القائمة السوداء — Singleton

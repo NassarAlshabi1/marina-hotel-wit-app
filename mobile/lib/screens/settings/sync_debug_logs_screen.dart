@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -66,14 +67,14 @@ class _SyncDebugLogsScreenState extends ConsumerState<SyncDebugLogsScreen> {
     if (text.isEmpty) {
       return;
     }
-    Clipboard.setData(ClipboardData(text: text));
+    unawaited(Clipboard.setData(ClipboardData(text: text)));
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('تم نسخ جميع السجلات.')));
   }
 
   void _copyEntry(String entry) {
-    Clipboard.setData(ClipboardData(text: entry));
+    unawaited(Clipboard.setData(ClipboardData(text: entry)));
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('تم نسخ السطر.')));

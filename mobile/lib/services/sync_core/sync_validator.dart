@@ -1,4 +1,4 @@
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../../utils/debug_log.dart';
 
 class ValidationResult {
   ValidationResult({required this.isValid, this.error, List<String>? warnings})

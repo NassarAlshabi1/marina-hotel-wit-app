@@ -1,8 +1,10 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../utils/debug_log.dart';
 import '../utils/env.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class ApiConfig {
   const ApiConfig({

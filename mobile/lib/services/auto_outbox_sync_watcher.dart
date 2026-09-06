@@ -15,8 +15,8 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:drift/drift.dart';
 
+import '../utils/debug_log.dart';
 import 'local_db.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 import 'sync_constants.dart';
 import 'sync_guard.dart';
 
@@ -176,8 +176,8 @@ class AutoOutboxSyncWatcher {
   bool get isPushing => _pushing;
 
   void stop() {
-    _subscription?.cancel();
-    _connectivitySub?.cancel();
+    unawaited(_subscription?.cancel());
+    unawaited(_connectivitySub?.cancel());
     _debounceTimer?.cancel();
     _started = false;
   }

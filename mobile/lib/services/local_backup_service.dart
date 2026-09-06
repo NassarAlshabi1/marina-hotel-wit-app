@@ -15,9 +15,9 @@ import '../providers/repository_providers.dart';
 import '../utils/app_logger.dart';
 import '../utils/debug_log.dart';
 import '../utils/json_isolate.dart';
-import 'backup_serializers.dart';
 import 'adapters/adapter_registry.dart';
 import 'adapters/source.dart';
+import 'backup_serializers.dart';
 import 'google_drive_backup_service.dart';
 import 'local_db.dart';
 import 'sqlite_backup_restore.dart';
@@ -380,7 +380,7 @@ class LocalBackupService {
     // (33 جدولاً في schemaVersion 65) بما يتوافق مع طبيعة نسخة .db الكاملة.
     final tables = await db
         .customSelect(
-          "SELECT name FROM sqlite_master "
+          'SELECT name FROM sqlite_master '
           "WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
           'ORDER BY name',
         )
@@ -400,13 +400,13 @@ class LocalBackupService {
   Future<Map<String, int>> _collectRecordCountsFromRawDb(Database db) async {
     // ✅ عدّ كامل من sqlite_master (متوافق مع _collectRecordCounts)
     final tables = await db.rawQuery(
-      "SELECT name FROM sqlite_master "
+      'SELECT name FROM sqlite_master '
       "WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
       'ORDER BY name',
     );
     final counts = <String, int>{};
     for (final row in tables) {
-      final name = row['name'] as String;
+      final name = row['name']! as String;
       final result = await db.rawQuery('SELECT COUNT(*) AS count FROM "$name"');
       if (result.isEmpty) {
         counts[name] = 0;
@@ -570,14 +570,13 @@ class LocalBackupService {
       // ✅ توافق مع النسخ القديمة (قبل إضافة حقل metadata):
       // تحتوي على بيانات الجداول فقط بدون بيانات وصفية — نكمل بقيم
       // افتراضية بدلاً من رفض الاستعادة.
-      final fileStat = await file.stat();
+      final fileStat = file.statSync();
       metadata = BackupMetadata(
         appVersion: '',
         databaseVersion: AppDatabase().schemaVersion,
         backupTimestamp: fileStat.modified,
         totalRecords: 0,
         deviceInfo: 'legacy-backup',
-        format: BackupFormat.json,
       );
       dlog(
         '⚠️ النسخة الاحتياطية لا تحتوي على بيانات وصفية — '

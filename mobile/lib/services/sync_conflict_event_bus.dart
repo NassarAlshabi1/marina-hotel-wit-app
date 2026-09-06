@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../utils/debug_log.dart';
 
 /// حدث تضارب في المزامنة
 class SyncConflictEvent {
@@ -95,6 +95,6 @@ class SyncConflictEventBus {
 
   /// تنظيف الموارد
   void dispose() {
-    _controller.close();
+    unawaited(_controller.close());
   }
 }

@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../utils/debug_log.dart';
 
 /// إعدادات Appwrite المركزية
 class AppwriteConfig {

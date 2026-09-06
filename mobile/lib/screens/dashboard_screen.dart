@@ -16,6 +16,7 @@ import '../services/payment_session_context.dart';
 import '../services/repositories/payments_repository.dart';
 import '../services/sync/sync_gate.dart';
 import '../services/sync_constants.dart';
+import '../utils/debug_log.dart';
 import '../utils/loading_snackbar.dart';
 import '../utils/performance_config.dart';
 import '../utils/performance_monitor.dart';
@@ -23,10 +24,9 @@ import '../utils/status_utils.dart';
 import '../widgets/dashboard_conflicts_badge.dart';
 import '../widgets/dashboard_sync_button.dart';
 import 'bookings/booking_edit.dart';
+import 'finance/finance_screen.dart';
 import 'payments/booking_payment_screen.dart';
 import 'reports/expenses_report_screen.dart';
-import 'finance/finance_screen.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 const List<String> _dashboardRoomNumbers = [
   '101',
@@ -75,7 +75,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     // Full Sync أبداً (Bootstrap الصريح فقط)؛ الدلتا تكفي لتحديث قسم
     // "استلامات المستخدمين" وأقسام اليوم الفندقي بأحدث بيانات الخادم.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _autoPullFromAppwrite();
+      unawaited(_autoPullFromAppwrite());
     });
   }
 
@@ -141,7 +141,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       // مسؤول عنه)؛ وفي الحالة المستقرة دلتا خفيفة metadata-first تكفي.
       final result = await syncManager.sync(
         push: false,
-        pull: true,
         deltaOnly: true,
       );
       final pulledCount = result.recordsPulled;
@@ -747,7 +746,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _showRoomOptionsDialog(BuildContext context, Room room) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -788,7 +787,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         ],
       ),
-    );
+    ));
   }
 
   Future<void> _updateRoomStatus(Room room, String newStatus) async {
@@ -847,11 +846,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _navigateToNewBooking(BuildContext context, String roomNumber) {
-    Navigator.of(context).push<void>(
+    unawaited(Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
       ),
-    );
+    ));
   }
 
   Future<void> _navigateToPaymentForRoom(
@@ -896,7 +895,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _showRoomDetailsDialog(BuildContext context, Room room) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -925,7 +924,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
         ],
       ),
-    );
+    ));
   }
 
   /// ✅ (2026-09-05) بطاقة «إجمالي استلاماتي خلال النوبة الحالية» —

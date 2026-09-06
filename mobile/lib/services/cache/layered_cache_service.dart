@@ -8,6 +8,8 @@
 /// ============================================================
 library;
 
+import 'dart:async';
+
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -94,7 +96,7 @@ class LayeredCacheService {
   /// Invalidate single key
   static void invalidate(String key) {
     _memoryCache.remove(key);
-    _removeFromDisk(key);
+    unawaited(_removeFromDisk(key));
   }
 
   /// Clear all cache

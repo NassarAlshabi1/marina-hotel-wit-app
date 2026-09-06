@@ -5,9 +5,9 @@ import 'dart:isolate';
 import 'package:crypto/crypto.dart';
 
 import '../data/sync_models.dart';
+import '../utils/debug_log.dart';
 import '../utils/time.dart';
 import 'local_db.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class DeltaSyncChange {
   DeltaSyncChange({

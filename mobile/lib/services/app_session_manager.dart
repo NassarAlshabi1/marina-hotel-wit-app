@@ -6,10 +6,10 @@ import 'package:drift/drift.dart' show Value;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
+import '../utils/debug_log.dart';
 import '../utils/id.dart';
 import 'appwrite_sync_manager.dart';
 import 'local_db.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// يتتبع جلسات التطبيق ويسجّلها في قاعدة البيانات،
 /// ويقوم بجدولة النسخ الاحتياطي بعد 15 دقيقة من الاستخدام التراكمي.

@@ -221,7 +221,7 @@ class CloudflareRealtimeSync {
   /// عزل حالة الـ singleton بين الاختبارات (لا يُستدعى في الإنتاج).
   @visibleForTesting
   void resetForTest() {
-    stop();
+    unawaited(stop());
     _reconnectAttempt = 0;
     _recoveryPullPending = false;
     _triggerInFlight = false;

@@ -7,7 +7,7 @@ import 'sync_constants.dart';
 
 /// ✅ Circuit Breaker for sync operations.
 ///
-/// After [failureThreshold] consecutive failures, stops attempting
+/// After `failureThreshold` consecutive failures, stops attempting
 /// sync for an exponentially increasing cooldown period.
 /// Resets on any successful sync.
 ///
@@ -64,7 +64,7 @@ class SyncCircuitBreaker {
       dlog(
         () =>
             '🟢 Circuit breaker CLOSED after successful sync '
-            '(${_consecutiveFailures} failures resolved)',
+            '($_consecutiveFailures failures resolved)',
       );
     }
     _consecutiveFailures = 0;

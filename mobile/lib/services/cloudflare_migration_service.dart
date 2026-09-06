@@ -133,8 +133,7 @@ class CloudflareMigrationService {
     int tsCursor = tsPrefs.getInt(_migrationTsCursorKey) ?? 0;
     int nextUniqueTimestamp() {
       final nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      tsCursor = tsCursor + 1 > nowSec ? tsCursor + 1 : nowSec;
-      return tsCursor;
+      return tsCursor = tsCursor + 1 > nowSec ? tsCursor + 1 : nowSec;
     }
 
     debugPrint('🔄 Starting Cloudflare migration...');

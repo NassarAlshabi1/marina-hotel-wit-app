@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' as d;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/repository_providers.dart';
+import '../utils/debug_log.dart';
 import '../utils/time.dart';
 import 'api_service.dart';
 import 'daos/booking_notes_dao.dart';
@@ -20,7 +21,6 @@ import 'repositories/rooms_repository.dart';
 import 'sync_config.dart';
 import 'sync_mutex.dart';
 import 'sync_performance_optimizer.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 enum SyncStatus { idle, pushing, pulling, error }
 
@@ -70,7 +70,7 @@ class SyncService {
   /// تنظيف الموارد
   void dispose() {
     _performanceOptimizer.dispose();
-    _status.close();
+    unawaited(_status.close());
   }
 
   /// تشغيل المزامنة مع تحسين الأداء وحماية من التشغيل المتزامن
@@ -120,7 +120,7 @@ class SyncService {
       }
 
       final results = List<Map<String, dynamic>>.from(
-        response['data']['results'] as List,
+        (response['data'] as Map)['results'] as List,
       );
       await db.transaction(() async {
         var allSucceeded = true;
@@ -208,7 +208,9 @@ class SyncService {
     if (res['success'] != true) {
       return;
     }
-    final data = List<Map<String, dynamic>>.from(res['data']['data'] as List);
+    final data = List<Map<String, dynamic>>.from(
+      (res['data'] as Map)['data'] as List,
+    );
 
     const Map<String, int> entityPriority = {
       'rooms': 0,

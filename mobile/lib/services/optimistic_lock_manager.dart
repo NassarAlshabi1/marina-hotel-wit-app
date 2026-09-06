@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart' as d;
 
+import '../utils/debug_log.dart';
 import 'local_db.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class OptimisticLockException implements Exception {
   OptimisticLockException(

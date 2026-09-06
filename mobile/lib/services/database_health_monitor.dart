@@ -1,8 +1,8 @@
 import 'package:drift/drift.dart';
 
+import '../utils/debug_log.dart';
 import 'database_fixer.dart';
 import 'local_db.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// نظام مراقبة صحة قاعدة البيانات المستمر
 class DatabaseHealthMonitor {

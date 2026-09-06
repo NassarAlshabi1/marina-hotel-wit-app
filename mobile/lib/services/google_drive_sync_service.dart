@@ -12,9 +12,9 @@ import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
 
 import '../data/sync_models.dart';
+import '../utils/debug_log.dart';
 import 'google_drive_sign_in_manager.dart';
 import 'sync_constants.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 const _kPrimarySnapshotName = 'sync_data.json.gz';
 const _kIndexFileName = 'sync_index.json';
@@ -656,12 +656,13 @@ class GoogleDriveSyncService {
       q: 'name contains "sync_data" and trashed=false',
       $fields: 'files(id)',
     );
-    for (final file in result.files ?? []) {
+    final files = result.files ?? const <drive.File>[];
+    for (final file in files) {
       if (file.id == null) {
         continue;
       }
       if (!keepShardIds.contains(file.id)) {
-        await api.files.delete(file.id as String);
+        await api.files.delete(file.id!);
       }
     }
   }

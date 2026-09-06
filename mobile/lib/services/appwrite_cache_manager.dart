@@ -3,8 +3,8 @@ import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 
+import '../utils/debug_log.dart';
 import 'appwrite_config.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// نموذج عنصر الذاكرة المؤقتة.
 class CacheEntry<T> {
@@ -144,7 +144,7 @@ class AppwriteCacheManager {
         .whenComplete(() {
           // لا نعيد Future المحذوف من callback؛ إعادته ستنشئ دورة انتظار
           // مع الطلب ذاته وتمنع اكتماله.
-          _inFlightRequests.remove(key);
+          unawaited(_inFlightRequests.remove(key));
         });
     _inFlightRequests[key] = request;
     return request;
@@ -233,9 +233,7 @@ class AppwriteCacheManager {
       }
     }
 
-    for (final key in expiredKeys) {
-      _removeEntry(key);
-    }
+    expiredKeys.forEach(_removeEntry);
     return expiredKeys.length;
   }
 
@@ -243,9 +241,7 @@ class AppwriteCacheManager {
   int clearByPattern(String pattern) {
     final regex = RegExp(pattern);
     final keysToRemove = _cache.keys.where(regex.hasMatch).toList();
-    for (final key in keysToRemove) {
-      _removeEntry(key);
-    }
+    keysToRemove.forEach(_removeEntry);
     return keysToRemove.length;
   }
 

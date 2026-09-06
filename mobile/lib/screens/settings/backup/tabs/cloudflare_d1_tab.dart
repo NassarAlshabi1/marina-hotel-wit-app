@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,7 +36,7 @@ class CloudflareD1Tab extends ConsumerStatefulWidget {
   /// المستخدم 2026-09-05، custom_list_items، جداول Room
   /// الداخلية…) يُستبعد هنا، وكيان blacklist (بلا جدول محلي)
   /// يُتخطى في الفلترة الفيزيائية — ويُجسَّد افتراضياً من
-  /// shift_notes الموسومة في [_loadLocalTables]. app_users له جدول
+  /// shift_notes الموسومة في `_loadLocalTables`. app_users له جدول
   /// محلي (AppUsers، schemaVersion 66) فيمرّ في الفلترة الفيزيائية.
   @visibleForTesting
   static List<String> scopeSyncTables(Iterable<String> existingTables) {
@@ -86,9 +87,9 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
   @override
   void initState() {
     super.initState();
-    _restoreSettings();
-    _loadLocalTables();
-    _loadOutboxInfo();
+    unawaited(_restoreSettings());
+    unawaited(_loadLocalTables());
+    unawaited(_loadOutboxInfo());
   }
 
   @override
@@ -213,7 +214,7 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
       // جلب DDL (جداول + فهارس) مرتبة: الجداول أولاً ثم فهارسها.
       final ddlRows = await db
           .customSelect(
-            "SELECT type, tbl_name, sql FROM sqlite_master WHERE sql IS NOT NULL "
+            'SELECT type, tbl_name, sql FROM sqlite_master WHERE sql IS NOT NULL '
             "AND name NOT LIKE 'sqlite_%' AND type IN ('table','index') "
             "ORDER BY CASE type WHEN 'table' THEN 0 ELSE 1 END",
           )
@@ -231,7 +232,7 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         // shift_notes: العدّ يستبعد صفوف القائمة السوداء الموسومة
         // (تُرفع ككيان blacklist مستقل — مطابقة المجموعات).
         final countSql = n == 'shift_notes'
-            ? "SELECT COUNT(*) AS n FROM shift_notes WHERE created_by != "
+            ? 'SELECT COUNT(*) AS n FROM shift_notes WHERE created_by != '
                   "'${CloudflareConfig.blacklistStorageTag}'"
             : 'SELECT COUNT(*) AS n FROM "${n.replaceAll('"', '""')}"';
         final countRows = await db.customSelect(countSql).get();
@@ -253,7 +254,7 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
       // مسبقاً من worker/schema.sql فلا DDL مطلوب.
       final blCountRows = await db
           .customSelect(
-            "SELECT COUNT(*) AS n FROM shift_notes WHERE created_by = "
+            'SELECT COUNT(*) AS n FROM shift_notes WHERE created_by = '
             "'${CloudflareConfig.blacklistStorageTag}'",
           )
           .get();
@@ -640,7 +641,7 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
                     TextButton(
                       onPressed: _localTables.isEmpty
                           ? null
-                          : () => setState(() => _selected.clear()),
+                          : () => setState(_selected.clear),
                       child: const Text('لا شيء'),
                     ),
                   ],

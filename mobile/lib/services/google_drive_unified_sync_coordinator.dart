@@ -302,7 +302,7 @@ class GoogleDriveUnifiedSyncCoordinator {
     _periodicSyncTimer = null;
     _pullCheckTimer?.cancel();
     _pullCheckTimer = null;
-    _outboxSubscription?.cancel();
+    unawaited(_outboxSubscription?.cancel());
     _outboxSubscription = null;
     dlog(() => '[UnifiedSyncCoordinator] ⏹️ Stopped all monitoring');
   }
@@ -373,7 +373,7 @@ class GoogleDriveUnifiedSyncCoordinator {
       return;
     }
 
-    SyncLocks.mainSyncLock.synchronized(() {
+    unawaited(SyncLocks.mainSyncLock.synchronized(() {
       final now = DateTime.now();
 
       if (!_hasPendingChanges) {
@@ -386,7 +386,7 @@ class GoogleDriveUnifiedSyncCoordinator {
 
       _hasPendingChanges = true;
       _pendingChangesCount += count;
-    });
+    }));
 
     _debounceTimer?.cancel();
 

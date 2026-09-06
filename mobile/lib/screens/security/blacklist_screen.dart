@@ -454,7 +454,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
 
   void _showSearchDialog(BuildContext context) {
     final controller = TextEditingController(text: _filterText);
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('بحث في القائمة السوداء'),
@@ -494,7 +494,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
       ),
     ).then((_) {
       controller.dispose();
-    });
+    }));
   }
 
   Future<bool?> _showDeleteConfirmDialog(BuildContext context, String name) {
@@ -543,7 +543,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
     );
     final formKey = GlobalKey<FormState>();
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(
@@ -688,7 +688,7 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
       phoneCtrl.dispose();
       reasonCtrl.dispose();
       notesCtrl.dispose();
-    });
+    }));
   }
 }
 

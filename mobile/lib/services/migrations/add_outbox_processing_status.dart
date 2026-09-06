@@ -1,5 +1,5 @@
 import 'package:drift/drift.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../../utils/debug_log.dart';
 
 class AddOutboxProcessingStatusMigration {
   static Future<void> migrate(DatabaseConnectionUser db) async {

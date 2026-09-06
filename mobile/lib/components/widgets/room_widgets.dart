@@ -1,4 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../providers/room_payment_status_provider.dart'
+    show RoomWithPaymentStatus;
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/status_utils.dart';
@@ -302,12 +305,12 @@ class RoomsGrid extends StatelessWidget {
         bool isPaymentOverdue = false;
 
         // التحقق مما إذا كانت البيانات مدمجة مع حالة الدفع
-        try {
-          // محاولة التعامل معها كـ RoomWithPaymentStatus
-          room = roomData.room as Room;
-          customColor = roomData.roomColor as Color?;
-          isPaymentOverdue = roomData.isPaymentOverdue as bool;
-        } catch (_) {
+        if (roomData is RoomWithPaymentStatus) {
+          // البيانات مدمجة: RoomWithPaymentStatus
+          room = roomData.room;
+          customColor = roomData.roomColor;
+          isPaymentOverdue = roomData.isPaymentOverdue;
+        } else {
           room = roomData as Room;
         }
 
@@ -363,7 +366,7 @@ class _FloorSectionState extends State<FloorSection>
     );
 
     if (_isExpanded) {
-      _animationController.forward();
+      unawaited(_animationController.forward());
     }
   }
 
@@ -377,9 +380,9 @@ class _FloorSectionState extends State<FloorSection>
     setState(() {
       _isExpanded = !_isExpanded;
       if (_isExpanded) {
-        _animationController.forward();
+        unawaited(_animationController.forward());
       } else {
-        _animationController.reverse();
+        unawaited(_animationController.reverse());
       }
     });
   }
@@ -392,12 +395,9 @@ class _FloorSectionState extends State<FloorSection>
     int available = 0;
 
     for (final roomData in widget.rooms) {
-      Room room;
-      try {
-        room = roomData.room as Room;
-      } catch (_) {
-        room = roomData as Room;
-      }
+      final Room room = roomData is RoomWithPaymentStatus
+          ? roomData.room
+          : roomData as Room;
       if (StatusUtils.isRoomAvailable(room.status)) {
         available++;
       } else {

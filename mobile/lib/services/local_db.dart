@@ -3047,10 +3047,10 @@ class AppDatabase extends _$AppDatabase {
         // bookings: financialFrozenAt, financialHash
         try {
           await m.database.customStatement(
-            "ALTER TABLE bookings ADD COLUMN financial_frozen_at INTEGER DEFAULT NULL",
+            'ALTER TABLE bookings ADD COLUMN financial_frozen_at INTEGER DEFAULT NULL',
           );
           await m.database.customStatement(
-            "ALTER TABLE bookings ADD COLUMN financial_hash TEXT DEFAULT NULL",
+            'ALTER TABLE bookings ADD COLUMN financial_hash TEXT DEFAULT NULL',
           );
           developer.log(
             'Migration 53: added financial_frozen_at, financial_hash to bookings',
@@ -3066,10 +3066,10 @@ class AppDatabase extends _$AppDatabase {
         // payments: voidReason, isImmutable
         try {
           await m.database.customStatement(
-            "ALTER TABLE payments ADD COLUMN void_reason TEXT DEFAULT NULL",
+            'ALTER TABLE payments ADD COLUMN void_reason TEXT DEFAULT NULL',
           );
           await m.database.customStatement(
-            "ALTER TABLE payments ADD COLUMN is_immutable INTEGER DEFAULT 0",
+            'ALTER TABLE payments ADD COLUMN is_immutable INTEGER DEFAULT 0',
           );
           developer.log(
             'Migration 53: added void_reason, is_immutable to payments',
@@ -3085,16 +3085,16 @@ class AppDatabase extends _$AppDatabase {
         // debts: guestPhone, description, status, dueDate
         try {
           await m.database.customStatement(
-            "ALTER TABLE debts ADD COLUMN guest_phone TEXT DEFAULT NULL",
+            'ALTER TABLE debts ADD COLUMN guest_phone TEXT DEFAULT NULL',
           );
           await m.database.customStatement(
-            "ALTER TABLE debts ADD COLUMN description TEXT DEFAULT NULL",
+            'ALTER TABLE debts ADD COLUMN description TEXT DEFAULT NULL',
           );
           await m.database.customStatement(
-            "ALTER TABLE debts ADD COLUMN status TEXT DEFAULT NULL",
+            'ALTER TABLE debts ADD COLUMN status TEXT DEFAULT NULL',
           );
           await m.database.customStatement(
-            "ALTER TABLE debts ADD COLUMN due_date TEXT DEFAULT NULL",
+            'ALTER TABLE debts ADD COLUMN due_date TEXT DEFAULT NULL',
           );
           developer.log(
             'Migration 53: added guest_phone, description, status, due_date to debts',
@@ -3113,10 +3113,10 @@ class AppDatabase extends _$AppDatabase {
             "ALTER TABLE price_adjustments ADD COLUMN adjustment_mode TEXT DEFAULT 'per_night'",
           );
           await m.database.customStatement(
-            "ALTER TABLE price_adjustments ADD COLUMN booking_uuid TEXT DEFAULT NULL",
+            'ALTER TABLE price_adjustments ADD COLUMN booking_uuid TEXT DEFAULT NULL',
           );
           await m.database.customStatement(
-            "ALTER TABLE price_adjustments ADD COLUMN applied_at INTEGER DEFAULT NULL",
+            'ALTER TABLE price_adjustments ADD COLUMN applied_at INTEGER DEFAULT NULL',
           );
           developer.log(
             'Migration 53: added adjustment_mode, booking_uuid, applied_at to price_adjustments',
@@ -3148,10 +3148,10 @@ class AppDatabase extends _$AppDatabase {
         // booking_nights: bookingUuidCache, serverBookingId
         try {
           await m.database.customStatement(
-            "ALTER TABLE booking_nights ADD COLUMN booking_uuid_cache TEXT DEFAULT NULL",
+            'ALTER TABLE booking_nights ADD COLUMN booking_uuid_cache TEXT DEFAULT NULL',
           );
           await m.database.customStatement(
-            "ALTER TABLE booking_nights ADD COLUMN server_booking_id INTEGER DEFAULT NULL",
+            'ALTER TABLE booking_nights ADD COLUMN server_booking_id INTEGER DEFAULT NULL',
           );
           developer.log(
             'Migration 53: added booking_uuid_cache, server_booking_id to booking_nights',
@@ -3167,10 +3167,10 @@ class AppDatabase extends _$AppDatabase {
         // booking_price_adjustments: adjustmentType, appliedAt
         try {
           await m.database.customStatement(
-            "ALTER TABLE booking_price_adjustments ADD COLUMN adjustment_type INTEGER DEFAULT NULL",
+            'ALTER TABLE booking_price_adjustments ADD COLUMN adjustment_type INTEGER DEFAULT NULL',
           );
           await m.database.customStatement(
-            "ALTER TABLE booking_price_adjustments ADD COLUMN applied_at INTEGER DEFAULT NULL",
+            'ALTER TABLE booking_price_adjustments ADD COLUMN applied_at INTEGER DEFAULT NULL',
           );
           developer.log(
             'Migration 53: added adjustment_type, applied_at to booking_price_adjustments',
@@ -3186,19 +3186,19 @@ class AppDatabase extends _$AppDatabase {
         // salary_carry_over_logs: fromCycleId, toCycleId, carryDate, performedBy, hotelDayKey
         try {
           await m.database.customStatement(
-            "ALTER TABLE salary_carry_over_logs ADD COLUMN from_cycle_id TEXT DEFAULT NULL",
+            'ALTER TABLE salary_carry_over_logs ADD COLUMN from_cycle_id TEXT DEFAULT NULL',
           );
           await m.database.customStatement(
-            "ALTER TABLE salary_carry_over_logs ADD COLUMN to_cycle_id TEXT DEFAULT NULL",
+            'ALTER TABLE salary_carry_over_logs ADD COLUMN to_cycle_id TEXT DEFAULT NULL',
           );
           await m.database.customStatement(
-            "ALTER TABLE salary_carry_over_logs ADD COLUMN carry_date TEXT DEFAULT NULL",
+            'ALTER TABLE salary_carry_over_logs ADD COLUMN carry_date TEXT DEFAULT NULL',
           );
           await m.database.customStatement(
-            "ALTER TABLE salary_carry_over_logs ADD COLUMN performed_by TEXT DEFAULT NULL",
+            'ALTER TABLE salary_carry_over_logs ADD COLUMN performed_by TEXT DEFAULT NULL',
           );
           await m.database.customStatement(
-            "ALTER TABLE salary_carry_over_logs ADD COLUMN hotel_day_key TEXT DEFAULT NULL",
+            'ALTER TABLE salary_carry_over_logs ADD COLUMN hotel_day_key TEXT DEFAULT NULL',
           );
           developer.log(
             'Migration 53: added from_cycle_id, to_cycle_id, carry_date, performed_by, hotel_day_key to salary_carry_over_logs',
@@ -3297,10 +3297,10 @@ class AppDatabase extends _$AppDatabase {
         // Backfill: نسخ الحالة المشتركة الحالية إلى primary columns
         try {
           await m.database.customStatement(
-            "UPDATE outbox SET primary_processing_status = processing_status, "
-            "primary_attempts = attempts, primary_last_error = last_error, "
-            "secondary_processing_status = processing_status, "
-            "secondary_attempts = attempts, secondary_last_error = last_error",
+            'UPDATE outbox SET primary_processing_status = processing_status, '
+            'primary_attempts = attempts, primary_last_error = last_error, '
+            'secondary_processing_status = processing_status, '
+            'secondary_attempts = attempts, secondary_last_error = last_error',
           );
           developer.log(
             'Migration 55: backfilled primary/secondary state from shared columns',
@@ -3467,18 +3467,10 @@ class AppDatabase extends _$AppDatabase {
       // after 58 because the historical migration order is not chronological.
       if (from < 60) {
         const indexes = [
-          'CREATE INDEX IF NOT EXISTS idx_bookings_active_checkin '
-              'ON bookings (checkin_date DESC) WHERE deleted_at IS NULL',
-          'CREATE INDEX IF NOT EXISTS idx_payments_active_report_date '
-              'ON payments (payment_date DESC) '
-              'WHERE deleted_at IS NULL AND is_voided = 0 '
-              'AND is_pending_balance = 0',
-          'CREATE INDEX IF NOT EXISTS idx_expenses_active_date '
-              'ON expenses (date DESC) WHERE deleted_at IS NULL',
-          "CREATE INDEX IF NOT EXISTS idx_outbox_pending_primary_source_ts "
-              "ON outbox (source, client_ts) "
-              "WHERE processing_status = 'pending' "
-              'AND delivered_to_primary = 0',
+          'CREATE INDEX IF NOT EXISTS idx_bookings_active_checkin ON bookings (checkin_date DESC) WHERE deleted_at IS NULL',
+          'CREATE INDEX IF NOT EXISTS idx_payments_active_report_date ON payments (payment_date DESC) WHERE deleted_at IS NULL AND is_voided = 0 AND is_pending_balance = 0',
+          'CREATE INDEX IF NOT EXISTS idx_expenses_active_date ON expenses (date DESC) WHERE deleted_at IS NULL',
+          "CREATE INDEX IF NOT EXISTS idx_outbox_pending_primary_source_ts ON outbox (source, client_ts) WHERE processing_status = 'pending' AND delivered_to_primary = 0",
         ];
         for (final sql in indexes) {
           await m.database.customStatement(sql);

@@ -5,12 +5,12 @@ import 'dart:isolate';
 import 'package:crypto/crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/debug_log.dart';
 import 'connectivity_service.dart';
 import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'sync_core/circuit_breaker.dart';
 import 'sync_mutex.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 enum SyncPriority { critical, high, normal, low, background }
 
@@ -290,7 +290,7 @@ class SyncOrchestrator {
         .listen((status) {
           if (status.isOnline && _state == OrchestratorState.paused) {
             _setState(OrchestratorState.idle);
-            _processTasks();
+            unawaited(_processTasks());
           } else if (!status.isOnline && _state == OrchestratorState.syncing) {
             _setState(OrchestratorState.paused);
           }
@@ -594,7 +594,7 @@ class SyncOrchestrator {
   void resume() {
     if (_state == OrchestratorState.paused) {
       _setState(OrchestratorState.idle);
-      _processTasks();
+      unawaited(_processTasks());
     }
   }
 
@@ -610,10 +610,10 @@ class SyncOrchestrator {
     _setState(OrchestratorState.disposed);
     _healthCheckTimer?.cancel();
     _taskProcessorTimer?.cancel();
-    _connectivitySubscription?.cancel();
-    _stateController.close();
-    _healthController.close();
-    _metricsController.close();
+    unawaited(_connectivitySubscription?.cancel());
+    unawaited(_stateController.close());
+    unawaited(_healthController.close());
+    unawaited(_metricsController.close());
     for (final cb in _circuitBreakers.values) {
       cb.dispose();
     }

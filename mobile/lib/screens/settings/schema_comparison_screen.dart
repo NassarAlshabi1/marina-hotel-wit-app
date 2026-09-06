@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../utils/performance_monitor.dart';
 
@@ -652,7 +653,7 @@ class SchemaComparisonScreen extends StatelessWidget {
   }
 
   void _showInfoDialog(BuildContext context) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('معلومات المقارنة'),
@@ -680,7 +681,7 @@ class SchemaComparisonScreen extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 }
 

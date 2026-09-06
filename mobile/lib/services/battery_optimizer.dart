@@ -186,8 +186,8 @@ class BatteryOptimizer extends ChangeNotifier {
   /// إيقاف المراقبة وإلغاء جميع الاشتراكات والمؤقتات
   void stopMonitoring() {
     _isMonitoring = false;
-    _batterySubscription?.cancel();
-    _connectivitySubscription?.cancel();
+    unawaited(_batterySubscription?.cancel());
+    unawaited(_connectivitySubscription?.cancel());
     _batteryLevelTimer?.cancel(); // إلغاء مؤقت فحص البطارية
     _batterySubscription = null;
     _connectivitySubscription = null;

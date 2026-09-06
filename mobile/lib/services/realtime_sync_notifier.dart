@@ -1,7 +1,9 @@
 import 'dart:async';
+
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../utils/debug_log.dart';
 import 'smart_sync_manager.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// مُعلِم المزامنة الفورية - يتلقى إشعارات من الأجهزة الأخرى
 class RealtimeSyncNotifier {
@@ -115,7 +117,7 @@ class RealtimeSyncNotifier {
 
   void dispose() {
     stopListening();
-    _syncTriggerController.close();
+    unawaited(_syncTriggerController.close());
   }
 }
 

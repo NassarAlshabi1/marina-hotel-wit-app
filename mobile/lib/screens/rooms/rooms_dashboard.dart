@@ -9,10 +9,10 @@ import '../../providers/repository_providers.dart';
 import '../../providers/room_payment_status_provider.dart'; // استيراد البروفايدر الجديد
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/status_utils.dart';
 import '../bookings/booking_edit.dart';
 import '../payments/booking_payment_screen.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class RoomsDashboard extends ConsumerStatefulWidget {
   const RoomsDashboard({super.key});
@@ -165,10 +165,10 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
       _navigateToBooking(context, room.roomNumber);
     } else if (isOccupied) {
       // الانتقال مباشرة إلى شاشة الدفع/عرض الحجز عند النقر على غرفة محجوزة
-      _showRoomBookings(context, ref, room.roomNumber);
+      unawaited(_showRoomBookings(context, ref, room.roomNumber));
     } else {
       // للحالات الأخرى مثل الصيانة، نعرض التفاصيل
-      showDialog<void>(
+      unawaited(showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           shape: RoundedRectangleBorder(
@@ -195,7 +195,7 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
             ),
           ],
         ),
-      );
+      ));
     }
   }
 
@@ -212,11 +212,11 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
   }
 
   void _navigateToBooking(BuildContext context, String roomNumber) {
-    Navigator.of(context).push<void>(
+    unawaited(Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
       ),
-    );
+    ));
   }
 
   Future<void> _showRoomBookings(

@@ -1,8 +1,8 @@
 import 'dart:async';
 
+import '../utils/debug_log.dart';
 import 'database_health_checker.dart';
 import 'local_db.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class SafeDatabaseOperations {
   static final _healthChecker = DatabaseHealthChecker.instance;
@@ -146,7 +146,7 @@ class SafeDatabaseOperations {
               controller.addError(
                 StateError('Failed to initialize database for $opName: $e'),
               );
-              controller.close();
+              unawaited(controller.close());
               return;
             }
           }
@@ -171,7 +171,7 @@ class SafeDatabaseOperations {
                       '⚠️ Database stream error: $error. Attempting to recover...',
                 );
 
-                subscription?.cancel();
+                unawaited(subscription?.cancel());
 
                 // التحقق من حالة الاستعادة قبل المحاولة
                 if (DatabaseManager.isRestoring) {
@@ -209,14 +209,14 @@ class SafeDatabaseOperations {
             },
             onDone: () {
               if (!isClosed) {
-                controller.close();
+                unawaited(controller.close());
               }
             },
           );
         } catch (e, stack) {
           if (!isClosed) {
             controller.addError(e, stack);
-            controller.close();
+            unawaited(controller.close());
           }
         }
       }
@@ -225,7 +225,7 @@ class SafeDatabaseOperations {
 
       controller.onCancel = () {
         isClosed = true;
-        subscription?.cancel();
+        unawaited(subscription?.cancel());
       };
     });
   }

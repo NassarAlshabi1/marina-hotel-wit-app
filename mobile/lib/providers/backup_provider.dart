@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,9 +20,9 @@ import '../services/logging/log_models.dart';
 import '../services/restore_fix_service.dart';
 import '../services/smart_sync_manager.dart';
 import '../services/sqlite_backup_restore.dart';
+import '../utils/debug_log.dart';
 import 'appwrite_providers.dart';
 import 'smart_sync_provider.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 const _driveLoginSkippedKey = 'drive_login_skipped';
 
@@ -187,7 +188,7 @@ class BackupStatusNotifier extends StateNotifier<BackupState> {
     this._appwriteSyncManager,
     this._smartSyncManager,
   ) : super(BackupState()) {
-    _initialize();
+    unawaited(_initialize());
   }
 
   final GoogleDriveBackupService _backupService;

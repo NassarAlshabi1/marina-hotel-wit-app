@@ -1,10 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../components/app_scaffold.dart';
-import '../../../services/appwrite_logger.dart';
 import '../../../core/core.dart';
+import '../../../services/appwrite_logger.dart';
 
 /// Unified Logs Screen - شاشة موحدة لجميع السجلات
 ///
@@ -35,7 +36,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
-    _loadLogSettings();
+    unawaited(_loadLogSettings());
   }
 
   Future<void> _loadLogSettings() async {
@@ -473,7 +474,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
   }
 
   void _showFilterDialog() {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تصفية السجلات'),
@@ -554,11 +555,11 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
           ),
         ],
       ),
-    );
+    ));
   }
 
   void _showLogDetails(Map<String, String> log) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تفاصيل السجل'),
@@ -584,7 +585,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
           ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _buildDetailRow(String label, String value) {
@@ -631,7 +632,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
   }
 
   void _clearLogs() {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تحذير'),
@@ -655,18 +656,18 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
           ),
         ],
       ),
-    );
+    ));
   }
 
   void _showRetentionDialog() {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('الاحتفاظ بالسجلات'),
         content: RadioGroup<int>(
           groupValue: _logRetentionDays,
           onChanged: (value) {
-            if (value != null) _setLogRetention(value, dialogContext);
+            if (value != null) unawaited(_setLogRetention(value, dialogContext));
           },
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -676,11 +677,11 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
           ),
         ),
       ),
-    );
+    ));
   }
 
   void _showSettingsDialog() {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('إعدادات السجلات'),
@@ -708,6 +709,6 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
           ),
         ],
       ),
-    );
+    ));
   }
 }

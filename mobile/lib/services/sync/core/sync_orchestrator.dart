@@ -191,7 +191,7 @@ class SyncOrchestrator {
   }
 
   void dispose() {
-    _stateController.close();
+    unawaited(_stateController.close());
     for (final adapter in _adapters) {
       adapter.dispose();
     }

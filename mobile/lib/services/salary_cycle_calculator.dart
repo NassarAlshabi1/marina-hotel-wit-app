@@ -74,7 +74,7 @@ class SalaryCycleCalculator {
 
     final advanceBalance = (advances - installmentsPaid)
         .clamp(0, advances)
-        .toInt();
+        ;
 
     return SalaryCycleResult(
       basicSalary: basicSalary,
@@ -92,5 +92,5 @@ class SalaryCycleCalculator {
 
   /// يحوّل قيمة قديمة من SQLite/Drift إلى مبلغ صحيح.
   /// يتم التقريب مرة واحدة عند حدود النظام، وليس أثناء الجمع المتكرر.
-  static int _money(num value) => value.round().clamp(0, 0x7fffffff).toInt();
+  static int _money(num value) => value.round().clamp(0, 0x7fffffff);
 }

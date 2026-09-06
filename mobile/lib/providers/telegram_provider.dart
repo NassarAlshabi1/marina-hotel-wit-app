@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -6,8 +7,8 @@ import '../services/telegram/telegram_config.dart';
 import '../services/telegram/telegram_notification_service.dart';
 import '../services/telegram/telegram_report_service.dart';
 import '../services/telegram/telegram_service.dart';
+import '../utils/debug_log.dart';
 import '../utils/env.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// حالة إعداد Telegram
 enum TelegramSetupStatus { idle, testing, success, error, sendingReport }
@@ -68,7 +69,7 @@ class TelegramState {
 /// Notifier للتحكم في حالة Telegram
 class TelegramNotifier extends StateNotifier<TelegramState> {
   TelegramNotifier() : super(const TelegramState()) {
-    _initialize();
+    unawaited(_initialize());
   }
 
   final TelegramApiClient _api = TelegramApiClient.instance;

@@ -523,7 +523,7 @@ class _CreateDebtFromBookingScreenState
       _notesController.text.isNotEmpty;
 
   void _showDiscardDialog(BuildContext context) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: ui.TextDirection.rtl,
@@ -545,7 +545,7 @@ class _CreateDebtFromBookingScreenState
           ],
         ),
       ),
-    );
+    ));
   }
 }
 

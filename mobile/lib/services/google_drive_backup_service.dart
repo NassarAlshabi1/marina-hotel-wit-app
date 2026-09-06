@@ -12,11 +12,10 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-import '../utils/debug_log.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:workmanager/workmanager.dart';
 
+import '../utils/debug_log.dart';
 import '../utils/debug_logs.dart';
 import '../utils/system_settings_keys.dart';
 import 'adapters/adapter_registry.dart';
@@ -380,50 +379,50 @@ class GoogleDriveBackupService {
       final db = DatabaseManager.instance;
 
       // تحميل البيانات على دفعات لتجنب استهلاك الذاكرة في قواعد البيانات الكبيرة
-      final roomsData = await _loadTableBatched<dynamic>(db.rooms);
-      final bookingsData = await _loadTableBatched<dynamic>(db.bookings);
-      final bookingNotesData = await _loadTableBatched<dynamic>(
+      final roomsData = await _loadTableBatched<Room>(db.rooms);
+      final bookingsData = await _loadTableBatched<Booking>(db.bookings);
+      final bookingNotesData = await _loadTableBatched<BookingNote>(
         db.bookingNotes,
       );
-      final bookingNightsData = await _loadTableBatched<dynamic>(
+      final bookingNightsData = await _loadTableBatched<BookingNight>(
         db.bookingNights,
       );
-      final ledgerData = await _loadTableBatched<dynamic>(db.hotelDayLedger);
-      final shiftNotesData = await _loadTableBatched<dynamic>(db.shiftNotes);
-      final employeesData = await _loadTableBatched<dynamic>(db.employees);
-      final expensesData = await _loadTableBatched<dynamic>(db.expenses);
-      final cashTransactionsData = await _loadTableBatched<dynamic>(
+      final ledgerData = await _loadTableBatched<HotelDayLedgerEntry>(db.hotelDayLedger);
+      final shiftNotesData = await _loadTableBatched<ShiftNote>(db.shiftNotes);
+      final employeesData = await _loadTableBatched<Employee>(db.employees);
+      final expensesData = await _loadTableBatched<Expense>(db.expenses);
+      final cashTransactionsData = await _loadTableBatched<CashTransaction>(
         db.cashTransactions,
       );
-      final paymentsData = await _loadTableBatched<dynamic>(db.payments);
-      final debtsData = await _loadTableBatched<dynamic>(db.debts);
-      final salaryCyclesData = await _loadTableBatched<dynamic>(
+      final paymentsData = await _loadTableBatched<Payment>(db.payments);
+      final debtsData = await _loadTableBatched<Debt>(db.debts);
+      final salaryCyclesData = await _loadTableBatched<SalaryCycle>(
         db.salaryCycles,
       );
-      final salaryPaymentsData = await _loadTableBatched<dynamic>(
+      final salaryPaymentsData = await _loadTableBatched<SalaryPayment>(
         db.salaryPayments,
       );
-      final priceAdjustmentsData = await _loadTableBatched<dynamic>(
+      final priceAdjustmentsData = await _loadTableBatched<PriceAdjustment>(
         db.priceAdjustments,
       );
-      final bookingPriceAdjData = await _loadTableBatched<dynamic>(
+      final bookingPriceAdjData = await _loadTableBatched<BookingPriceAdjustment>(
         db.bookingPriceAdjustments,
       );
-      final auditLogsData = await _loadTableBatched<dynamic>(db.auditLogs);
-      final paymentVoidsData = await _loadTableBatched<dynamic>(
+      final auditLogsData = await _loadTableBatched<AuditLog>(db.auditLogs);
+      final paymentVoidsData = await _loadTableBatched<PaymentVoid>(
         db.paymentVoids,
       );
-      final guestInfosData = await _loadTableBatched<dynamic>(db.guestInfos);
-      final salaryWithdrawalsData = await _loadTableBatched<dynamic>(
+      final guestInfosData = await _loadTableBatched<GuestInfo>(db.guestInfos);
+      final salaryWithdrawalsData = await _loadTableBatched<SalaryWithdrawal>(
         db.salaryWithdrawals,
       );
-      final salaryCarryOverLogsData = await _loadTableBatched<dynamic>(
+      final salaryCarryOverLogsData = await _loadTableBatched<SalaryCarryOverLog>(
         db.salaryCarryOverLogs,
       );
-      final inventoryItemsData = await _loadTableBatched<dynamic>(
+      final inventoryItemsData = await _loadTableBatched<InventoryItem>(
         db.inventoryItems,
       );
-      final inventoryTransactionsData = await _loadTableBatched<dynamic>(
+      final inventoryTransactionsData = await _loadTableBatched<InventoryTransaction>(
         db.inventoryTransactions,
       );
 
@@ -555,7 +554,8 @@ class GoogleDriveBackupService {
         return data;
       });
 
-      final dataHash = backupData['metadata']?['data_hash'] as String?;
+      final dataHash = (backupData['metadata'] as Map<String, dynamic>?)
+          ?['data_hash'] as String?;
       _log('🔐 تجزئة النسخة الاحتياطية: $dataHash');
 
       if (whatsappSettings.isNotEmpty) {
@@ -1205,8 +1205,7 @@ class GoogleDriveBackupService {
 
   Future<void> _restoreFromBackupInternal(
     Map<String, dynamic> backupData, {
-    void Function(int current, int total, String tableName)? onProgress,
-    required bool syncToCloud,
+    required bool syncToCloud, void Function(int current, int total, String tableName)? onProgress,
   }) async {
     try {
       final db = DatabaseManager.instance;

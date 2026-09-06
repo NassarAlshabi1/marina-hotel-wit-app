@@ -3,8 +3,8 @@ import 'dart:async';
 
 import 'package:drift/drift.dart' show Variable;
 
+import '../utils/debug_log.dart';
 import 'local_db.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// خدمة مراقبة صحة نظام المزامنة.
 ///

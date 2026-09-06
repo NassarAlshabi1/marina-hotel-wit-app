@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/repository_providers.dart';
+import '../../services/local_db.dart' show Payment;
 import '../../utils/currency_formatter.dart';
 import '../../utils/performance_config.dart';
 import '../../utils/stream_helpers.dart';
@@ -113,7 +115,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
             _buildFilterChips(),
             // ─── قائمة المدفوعات ───
             Expanded(
-              child: StreamBuilder(
+              child: StreamBuilder<List<Payment>>(
                 stream: debounceStream(
                   repo.watchAll(),
                   const Duration(milliseconds: 150),
@@ -351,30 +353,24 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
   //  شريط الإحصائيات
   // ═══════════════════════════════════════════
 
-  Widget _buildStatsBar(List<dynamic> payments) {
-    final total = payments.fold<double>(
-      0,
-      (s, p) => s + (p.amount as num).toDouble(),
-    );
+  Widget _buildStatsBar(List<Payment> payments) {
+    final total = payments.fold<double>(0, (s, p) => s + p.amount);
     final now = DateTime.now();
     final today = payments.where((p) {
       try {
-        final d = DateTime.parse(p.paymentDate as String);
+        final d = DateTime.parse(p.paymentDate);
         return d.year == now.year && d.month == now.month && d.day == now.day;
       } catch (_) {
         return false;
       }
     });
-    final todayTotal = today.fold<double>(
-      0,
-      (s, p) => s + (p.amount as num).toDouble(),
-    );
+    final todayTotal = today.fold<double>(0, (s, p) => s + p.amount);
     final cashTotal = payments
         .where((p) => p.paymentMethod == 'نقدي')
-        .fold<double>(0, (s, p) => s + (p.amount as num).toDouble());
+        .fold<double>(0, (s, p) => s + p.amount);
     final transferTotal = payments
         .where((p) => p.paymentMethod == 'تحويل')
-        .fold<double>(0, (s, p) => s + (p.amount as num).toDouble());
+        .fold<double>(0, (s, p) => s + p.amount);
 
     return Container(
       margin: const EdgeInsets.all(12),
@@ -436,7 +432,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
   //  عداد النتائج
   // ═══════════════════════════════════════════
 
-  Widget _buildResultsCount(List<dynamic> payments) {
+  Widget _buildResultsCount(List<Payment> payments) {
     final hasFilters =
         _filterMethod != null || _filterType != null || _searchQuery.isNotEmpty;
     return Padding(
@@ -470,12 +466,12 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
   //  بطاقة الدفعة
   // ═══════════════════════════════════════════
 
-  Widget _buildPaymentCard(dynamic payment) {
-    final methodColor = _getMethodColor(payment.paymentMethod as String);
-    final methodIcon = _getMethodIcon(payment.paymentMethod as String);
-    final revenueLabel = _getRevenueLabel(payment.revenueType as String);
-    final formattedDate = _formatDate(payment.paymentDate as String);
-    final isToday = _isToday(payment.paymentDate as String);
+  Widget _buildPaymentCard(Payment payment) {
+    final methodColor = _getMethodColor(payment.paymentMethod);
+    final methodIcon = _getMethodIcon(payment.paymentMethod);
+    final revenueLabel = _getRevenueLabel(payment.revenueType);
+    final formattedDate = _formatDate(payment.paymentDate);
+    final isToday = _isToday(payment.paymentDate);
 
     return Card(
       margin: EdgeInsets.zero,
@@ -511,9 +507,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                     Row(
                       children: [
                         Text(
-                          CurrencyFormatter.formatAmount(
-                            (payment.amount as num).toDouble(),
-                          ),
+                          CurrencyFormatter.formatAmount(payment.amount),
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
@@ -574,7 +568,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                         ),
                         const SizedBox(width: 3),
                         Text(
-                          payment.paymentMethod as String,
+                          payment.paymentMethod,
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.grey.shade600,
@@ -603,7 +597,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                     ),
                     // الصف الثالث: ملاحظات
                     if (payment.notes != null &&
-                        (payment.notes as String).trim().isNotEmpty) ...[
+                        payment.notes!.trim().isNotEmpty) ...[
                       const SizedBox(height: 3),
                       Row(
                         children: [
@@ -615,7 +609,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                           const SizedBox(width: 3),
                           Expanded(
                             child: Text(
-                              payment.notes as String,
+                              payment.notes!,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -634,7 +628,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
               const SizedBox(width: 8),
               // رقم الغرفة
               if (payment.roomNumber != null &&
-                  (payment.roomNumber as String).trim().isNotEmpty)
+                  payment.roomNumber!.trim().isNotEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -651,7 +645,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                       Icon(Icons.hotel, size: 12, color: Colors.blue.shade400),
                       const SizedBox(height: 1),
                       Text(
-                        payment.roomNumber as String,
+                        payment.roomNumber!,
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -663,7 +657,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                 ),
               // سهم التنقل
               if (payment.roomNumber == null ||
-                  (payment.roomNumber as String).trim().isEmpty)
+                  payment.roomNumber!.trim().isEmpty)
                 Icon(Icons.chevron_left, color: Colors.grey.shade400, size: 20),
             ],
           ),
@@ -676,13 +670,13 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
   //  حوار تفاصيل الدفعة
   // ═══════════════════════════════════════════
 
-  void _showPaymentDetails(dynamic payment) {
-    final methodColor = _getMethodColor(payment.paymentMethod as String);
-    final revenueLabel = _getRevenueLabel(payment.revenueType as String);
-    final formattedDate = _formatDate(payment.paymentDate as String);
-    final isToday = _isToday(payment.paymentDate as String);
+  void _showPaymentDetails(Payment payment) {
+    final methodColor = _getMethodColor(payment.paymentMethod);
+    final revenueLabel = _getRevenueLabel(payment.revenueType);
+    final formattedDate = _formatDate(payment.paymentDate);
+    final isToday = _isToday(payment.paymentDate);
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: ui.TextDirection.rtl,
@@ -700,7 +694,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
-                  _getMethodIcon(payment.paymentMethod as String),
+                  _getMethodIcon(payment.paymentMethod),
                   color: methodColor,
                   size: 18,
                 ),
@@ -715,16 +709,14 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
             children: [
               _detailDivider(
                 'المبلغ',
-                CurrencyFormatter.formatAmount(
-                  (payment.amount as num).toDouble(),
-                ),
+                CurrencyFormatter.formatAmount(payment.amount),
                 icon: Icons.payments_outlined,
                 color: Colors.green,
               ),
               _detailDivider(
                 'طريقة الدفع',
-                payment.paymentMethod as String,
-                icon: _getMethodIcon(payment.paymentMethod as String),
+                payment.paymentMethod,
+                icon: _getMethodIcon(payment.paymentMethod),
                 color: methodColor,
               ),
               _detailDivider(
@@ -740,26 +732,26 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
                 color: isToday ? Colors.green : Colors.blue,
               ),
               if (payment.roomNumber != null &&
-                  (payment.roomNumber as String).trim().isNotEmpty)
+                  payment.roomNumber!.trim().isNotEmpty)
                 _detailDivider(
                   'رقم الغرفة',
-                  payment.roomNumber as String,
+                  payment.roomNumber!,
                   icon: Icons.hotel,
                   color: Colors.indigo,
                 ),
               if (payment.referenceNumber != null &&
-                  (payment.referenceNumber as String).trim().isNotEmpty)
+                  payment.referenceNumber!.trim().isNotEmpty)
                 _detailDivider(
                   'رقم المرجع',
-                  payment.referenceNumber as String,
+                  payment.referenceNumber!,
                   icon: Icons.numbers,
                   color: Colors.purple,
                 ),
               if (payment.notes != null &&
-                  (payment.notes as String).trim().isNotEmpty)
+                  payment.notes!.trim().isNotEmpty)
                 _detailDivider(
                   'ملاحظات',
-                  payment.notes as String,
+                  payment.notes!,
                   icon: Icons.notes,
                   color: Colors.grey,
                 ),
@@ -773,7 +765,7 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _detailDivider(
@@ -851,34 +843,27 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
   //  فلاتر وترتيب
   // ═══════════════════════════════════════════
 
-  List<dynamic> _applyFilters(List<dynamic> payments) {
+  List<Payment> _applyFilters(List<Payment> payments) {
     final result = payments.where((p) {
       // فلتر البحث
       if (_searchQuery.isNotEmpty) {
         final q = _searchQuery.toLowerCase();
         final amountMatch = CurrencyFormatter.formatAmount(
-          (p.amount as num).toDouble(),
+          p.amount,
         ).contains(q);
-        final methodMatch = (p.paymentMethod as String).toLowerCase().contains(
-          q,
-        );
-        final roomMatch = ((p.roomNumber as String?) ?? '')
-            .toLowerCase()
-            .contains(q);
-        final notesMatch = ((p.notes as String?) ?? '').toLowerCase().contains(
-          q,
-        );
+        final methodMatch = p.paymentMethod.toLowerCase().contains(q);
+        final roomMatch = (p.roomNumber ?? '').toLowerCase().contains(q);
+        final notesMatch = (p.notes ?? '').toLowerCase().contains(q);
         if (!amountMatch && !methodMatch && !roomMatch && !notesMatch) {
           return false;
         }
       }
       // فلتر طريقة الدفع
-      if (_filterMethod != null &&
-          (p.paymentMethod as String) != _filterMethod) {
+      if (_filterMethod != null && p.paymentMethod != _filterMethod) {
         return false;
       }
       // فلتر نوع الإيراد
-      if (_filterType != null && (p.revenueType as String) != _filterType) {
+      if (_filterType != null && p.revenueType != _filterType) {
         return false;
       }
       return true;
@@ -887,8 +872,8 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
     // ترتيب حسب التاريخ
     result.sort((a, b) {
       try {
-        final dateA = DateTime.parse(a.paymentDate as String);
-        final dateB = DateTime.parse(b.paymentDate as String);
+        final dateA = DateTime.parse(a.paymentDate);
+        final dateB = DateTime.parse(b.paymentDate);
         return _sortOrder == 'desc'
             ? dateB.compareTo(dateA)
             : dateA.compareTo(dateB);

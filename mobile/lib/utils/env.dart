@@ -196,12 +196,10 @@ class Env {
 
   static const String cloudflareUsername = String.fromEnvironment(
     'CLOUDFLARE_USERNAME',
-    defaultValue: '',
   );
 
   static const String cloudflarePassword = String.fromEnvironment(
     'CLOUDFLARE_PASSWORD',
-    defaultValue: '',
   );
 
   /// Auth token (set at runtime after login)

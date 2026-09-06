@@ -25,11 +25,11 @@ class GoogleDriveBackupScreen extends ConsumerWidget {
       actions: [
         IconButton(
           onPressed: () {
-            Navigator.of(context).push<void>(
+            unawaited(Navigator.of(context).push<void>(
               MaterialPageRoute<void>(
                 builder: (_) => const GoogleDriveLogsScreen(),
               ),
-            );
+            ));
           },
           icon: const Icon(Icons.article_outlined),
           tooltip: 'سجلات Google Drive',
@@ -61,7 +61,7 @@ class _GoogleDriveBackupContentState
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(backupStatusProvider.notifier).updateDatabaseSize();
+      unawaited(ref.read(backupStatusProvider.notifier).updateDatabaseSize());
     });
   }
 
@@ -554,7 +554,7 @@ class _GoogleDriveBackupContentState
         ? 'SQLite (.db)'
         : 'JSON';
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تأكيد الاستعادة'),
@@ -612,11 +612,11 @@ class _GoogleDriveBackupContentState
               Navigator.of(context).pop();
               // التحقق من نوع النسخة
               if (backup.format == BackupFormat.sqlite) {
-                _restoreDbBackup(backup.fileId);
+                unawaited(_restoreDbBackup(backup.fileId));
               } else {
-                ref
+                unawaited(ref
                     .read(backupStatusProvider.notifier)
-                    .restoreFromBackup(backup.fileId);
+                    .restoreFromBackup(backup.fileId));
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
@@ -624,7 +624,7 @@ class _GoogleDriveBackupContentState
           ),
         ],
       ),
-    );
+    ));
   }
 
   Future<void> _restoreDbBackup(String fileId) async {
@@ -857,13 +857,13 @@ class _GoogleDriveBackupContentState
 
   void _updateAutoBackupEnabled(bool enabled) {
     final currentSettings = ref.read(backupStatusProvider).autoSettings;
-    ref
+    unawaited(ref
         .read(backupStatusProvider.notifier)
-        .updateAutoBackupSettings(currentSettings.copyWith(isEnabled: enabled));
+        .updateAutoBackupSettings(currentSettings.copyWith(isEnabled: enabled)));
   }
 
   void _showFrequencySelection(AutoBackupSettings currentSettings) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تحديد التكرار'),
@@ -882,7 +882,7 @@ class _GoogleDriveBackupContentState
           ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _buildFrequencyOption(
@@ -899,11 +899,11 @@ class _GoogleDriveBackupContentState
       onChanged: (selectedValue) {
         if (selectedValue != null) {
           Navigator.of(context).pop();
-          ref
+          unawaited(ref
               .read(backupStatusProvider.notifier)
               .updateAutoBackupSettings(
                 currentSettings.copyWith(frequency: selectedValue),
-              );
+              ));
         }
       },
     );
@@ -916,7 +916,7 @@ class _GoogleDriveBackupContentState
       minute: int.tryParse(timeParts[1]) ?? 0,
     );
 
-    showTimePicker(
+    unawaited(showTimePicker(
       context: context,
       initialTime: currentTime,
       builder: (context, child) {
@@ -929,12 +929,12 @@ class _GoogleDriveBackupContentState
       if (selectedTime != null) {
         final timeString =
             '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
-        ref
+        unawaited(ref
             .read(backupStatusProvider.notifier)
             .updateAutoBackupSettings(
               currentSettings.copyWith(time: timeString),
-            );
+            ));
       }
-    });
+    }));
   }
 }

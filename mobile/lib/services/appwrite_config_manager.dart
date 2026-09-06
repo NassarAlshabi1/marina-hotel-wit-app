@@ -1,7 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../utils/debug_log.dart';
 import 'appwrite_config.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class AppwriteConfigManager {
   static const String _endpointKey = 'appwrite_endpoint';

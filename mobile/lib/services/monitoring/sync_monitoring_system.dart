@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../../utils/debug_log.dart';
 
 /// نوع الحدث
 enum SyncEventType {
@@ -292,7 +292,7 @@ class SyncMonitoringSystem {
       _events.removeRange(0, _events.length - _maxEventsInMemory);
     }
 
-    _persistEvent(event);
+    unawaited(_persistEvent(event));
   }
 
   /// حساب مدة المزامنة الحالية
@@ -562,7 +562,7 @@ ${stats.recentErrors.isEmpty ? '  لا توجد أخطاء' : stats.recentErrors
   /// إيقاف النظام
   void dispose() {
     _healthCheckTimer?.cancel();
-    _statsController.close();
-    _alertController.close();
+    unawaited(_statsController.close());
+    unawaited(_alertController.close());
   }
 }

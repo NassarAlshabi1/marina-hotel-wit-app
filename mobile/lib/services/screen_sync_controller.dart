@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 
+import '../utils/debug_log.dart';
 // ✅ Sync Simplification (2026-08-10): secondary_sync_manager.dart معطّل
 // بالكامل. لا حاجة لاستيراده هنا.
 import 'smart_sync_manager.dart';
@@ -10,7 +11,6 @@ import 'sync_core/retry_strategy.dart';
 import 'sync_core/sync_error_handler.dart';
 import 'sync_core/sync_validator.dart';
 import 'sync_locks.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class ScreenSyncController {
   ScreenSyncController({
@@ -54,7 +54,7 @@ class ScreenSyncController {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(debounceDelay, () {
       dlog(() => '⏰ [$screenId] انتهى المؤقت - بدء المزامنة التلقائية');
-      syncNow();
+      unawaited(syncNow());
     });
   }
 
@@ -222,7 +222,7 @@ class ScreenSyncController {
     // إغلاق الموارد فوراً
     // المزامنة عند الخروج تتم عبر PopScope في SyncOnExitMixin
     if (!_syncStatusController.isClosed) {
-      _syncStatusController.close();
+      unawaited(_syncStatusController.close());
     }
     _circuitBreaker.dispose();
   }

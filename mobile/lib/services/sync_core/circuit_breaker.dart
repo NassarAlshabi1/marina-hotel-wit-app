@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../../utils/debug_log.dart';
 
 enum CircuitState { closed, open, halfOpen }
 
@@ -192,7 +192,7 @@ class CircuitBreaker {
 
   void dispose() {
     _cancelReset();
-    _stateController.close();
+    unawaited(_stateController.close());
   }
 }
 

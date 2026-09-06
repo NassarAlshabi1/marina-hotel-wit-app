@@ -6,11 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/appwrite_providers.dart';
 import '../providers/repository_providers.dart';
-import '../services/connectivity_service.dart';
 import '../screens/settings/error_tracker_screen.dart'
     show logError, ErrorCategory;
+import '../services/connectivity_service.dart';
 import '../services/sync_orchestrator.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../utils/debug_log.dart';
 
 class EnhancedSyncButton extends ConsumerStatefulWidget {
   const EnhancedSyncButton({
@@ -57,7 +57,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
         });
 
         if (_isSyncing) {
-          _animationController.repeat();
+          unawaited(_animationController.repeat());
         } else {
           _animationController.stop();
           _animationController.reset();
@@ -86,9 +86,9 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
   @override
   void dispose() {
     _animationController.dispose();
-    _stateSubscription?.cancel();
-    _healthSubscription?.cancel();
-    _connectivitySubscription?.cancel();
+    unawaited(_stateSubscription?.cancel());
+    unawaited(_healthSubscription?.cancel());
+    unawaited(_connectivitySubscription?.cancel());
     super.dispose();
   }
 
@@ -166,7 +166,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
   }
 
   void _showErrorDetails(String message) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Row(
@@ -211,7 +211,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
           ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _buildDetailRow(String label, String value) {
@@ -227,7 +227,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
   }
 
   void _showSyncOptions() {
-    showModalBottomSheet<void>(
+    unawaited(showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -295,7 +295,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
           ),
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildHealthStatus() {
@@ -548,6 +548,7 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     }
   }
 
+  @override
   Widget build(BuildContext context) {
     final health = _health;
     final isHealthy = health?.isHealthy ?? true;

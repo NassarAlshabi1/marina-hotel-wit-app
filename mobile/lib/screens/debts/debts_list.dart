@@ -13,9 +13,9 @@ import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/english_digits_input_formatter.dart';
 import '../../utils/time.dart';
 import 'create_debt_from_booking.dart';
-import '../../utils/english_digits_input_formatter.dart';
 
 class DebtsListScreen extends ConsumerStatefulWidget {
   const DebtsListScreen({super.key});
@@ -734,7 +734,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
   }
 
   void _showQuickAddMenu(BuildContext context) {
-    showModalBottomSheet<void>(
+    unawaited(showModalBottomSheet<void>(
       context: context,
       builder: (context) => Container(
         padding: const EdgeInsets.all(20),
@@ -754,7 +754,7 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
               ),
               onTap: () {
                 Navigator.pop(context);
-                _createDebtFromBooking();
+                unawaited(_createDebtFromBooking());
               },
             ),
             ListTile(
@@ -766,13 +766,13 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
               subtitle: const Text('أدخل تفاصيل الدين يدوياً'),
               onTap: () {
                 Navigator.pop(context);
-                _openDebtForm(context);
+                unawaited(_openDebtForm(context));
               },
             ),
           ],
         ),
       ),
-    );
+    ));
   }
 
   Future<void> _createDebtFromBooking() async {

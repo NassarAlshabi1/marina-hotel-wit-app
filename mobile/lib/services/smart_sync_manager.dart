@@ -419,8 +419,8 @@ class SmartSyncManager {
       // البحث عن التضارب
       for (final uuid in localMap.keys) {
         if (remoteMap.containsKey(uuid)) {
-          final localRecord = localMap[uuid];
-          final remoteRecord = remoteMap[uuid];
+          final localRecord = localMap[uuid] as Map<String, dynamic>;
+          final remoteRecord = remoteMap[uuid] as Map<String, dynamic>;
 
           // مقارنة timestamps
           final localTimestamp = localRecord['last_modified'] as int?;
@@ -440,8 +440,8 @@ class SmartSyncManager {
                 DataConflict(
                   tableName: tableName,
                   recordId: uuid,
-                  localRecord: localRecord as Map<String, dynamic>,
-                  remoteRecord: remoteRecord as Map<String, dynamic>,
+                  localRecord: localRecord,
+                  remoteRecord: remoteRecord,
                   localTimestamp: localTime,
                   remoteTimestamp: remoteTime,
                 ),

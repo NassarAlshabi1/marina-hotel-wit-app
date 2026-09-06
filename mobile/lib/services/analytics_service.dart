@@ -2,6 +2,7 @@
 // خدمة التحليلات والمراقبة
 // analytics_service.dart - خدمة التحليلات والمراقبة
 
+import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/foundation.dart';
@@ -120,7 +121,7 @@ class AnalyticsService {
   /// تمكين/تعطيل التحليلات
   void setEnabled(bool enabled) {
     _isEnabled = enabled;
-    _analytics?.setAnalyticsCollectionEnabled(enabled);
+    unawaited(_analytics?.setAnalyticsCollectionEnabled(enabled));
   }
 
   /// تسجيل حدث مزامنة

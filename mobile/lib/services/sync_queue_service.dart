@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../utils/debug_log.dart';
 
 /// [Deprecated] This service is being replaced by Unified Outbox Architecture.
 /// All methods are now No-ops.
@@ -39,7 +39,7 @@ class SyncQueueService {
       const QueueStats(totalItems: 0, pendingItems: 0, processingItems: 0);
 
   void dispose() {
-    _queueController.close();
+    unawaited(_queueController.close());
   }
 }
 

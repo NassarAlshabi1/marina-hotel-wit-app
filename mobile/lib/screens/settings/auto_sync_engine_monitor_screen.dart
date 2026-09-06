@@ -724,7 +724,7 @@ class _AutoSyncEngineMonitorScreenState
 
     statusAsync.when(
       data: (status) {
-        showDialog<void>(
+        unawaited(showDialog<void>(
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('الحالة الكاملة (JSON)'),
@@ -741,7 +741,7 @@ class _AutoSyncEngineMonitorScreenState
               ),
             ],
           ),
-        );
+        ));
       },
       loading: () {
         ScaffoldMessenger.of(
@@ -776,7 +776,7 @@ class _AutoSyncEngineMonitorScreenState
           return;
         }
 
-        showModalBottomSheet<void>(
+        unawaited(showModalBottomSheet<void>(
           context: context,
           isScrollControlled: true,
           builder: (context) => DraggableScrollableSheet(
@@ -844,10 +844,10 @@ class _AutoSyncEngineMonitorScreenState
               ],
             ),
           ),
-        );
+        ));
       },
       loading: () {
-        showDialog<void>(
+        unawaited(showDialog<void>(
           context: context,
           builder: (context) => const AlertDialog(
             content: Row(
@@ -858,7 +858,7 @@ class _AutoSyncEngineMonitorScreenState
               ],
             ),
           ),
-        );
+        ));
       },
       error: (error, _) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -878,8 +878,8 @@ class _AutoSyncEngineMonitorScreenState
 
   Future<void> _showDebounceSettings(BuildContext context) async {
     final current = await ref.read(autoSyncEngineProvider).getEngineStatus();
-    final currentDebounce =
-        (current['coordinator']?['debounce_seconds'] as int?) ?? 5;
+    final coordinator = current['coordinator'] as Map<String, dynamic>?;
+    final currentDebounce = (coordinator?['debounce_seconds'] as int?) ?? 5;
 
     if (mounted) {
       unawaited(
@@ -931,8 +931,9 @@ class _AutoSyncEngineMonitorScreenState
 
   Future<void> _showPullIntervalSettings(BuildContext context) async {
     final current = await ref.read(autoSyncEngineProvider).getEngineStatus();
+    final coordinator = current['coordinator'] as Map<String, dynamic>?;
     final currentInterval =
-        (current['coordinator']?['pull_interval_minutes'] as int?) ?? 2;
+        (coordinator?['pull_interval_minutes'] as int?) ?? 2;
 
     if (mounted) {
       unawaited(

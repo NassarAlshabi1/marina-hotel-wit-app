@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../utils/debug_log.dart';
 import 'telegram_config.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// عميل API للتواصل مع Telegram Bot API
 class TelegramApiClient {

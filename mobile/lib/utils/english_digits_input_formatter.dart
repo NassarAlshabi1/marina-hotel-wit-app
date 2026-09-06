@@ -46,7 +46,7 @@ class EnglishDigitsInputFormatter extends TextInputFormatter {
     TextEditingValue newValue,
   ) {
     final normalized = normalize(newValue.text);
-    final allowed = allowDecimal ? RegExp(r'[^0-9.]') : RegExp(r'[^0-9]');
+    final allowed = allowDecimal ? RegExp('[^0-9.]') : RegExp('[^0-9]');
     var filtered = normalized.replaceAll(allowed, '');
 
     if (allowDecimal) {
@@ -60,11 +60,10 @@ class EnglishDigitsInputFormatter extends TextInputFormatter {
 
     final selectionOffset = newValue.selection.baseOffset
         .clamp(0, filtered.length)
-        .toInt();
+        ;
     return TextEditingValue(
       text: filtered,
       selection: TextSelection.collapsed(offset: selectionOffset),
-      composing: TextRange.empty,
     );
   }
 }

@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../../utils/debug_log.dart';
 
 enum SyncErrorType {
   network,
@@ -225,6 +225,6 @@ class SyncErrorHandler {
   }
 
   void dispose() {
-    _errorController.close();
+    unawaited(_errorController.close());
   }
 }

@@ -12,12 +12,12 @@ import '../../providers/repository_providers.dart';
 import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/local_db.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
 import 'report_page_scaffold.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// أيقونات وألوان لأنواع المصروفات
 const _typeConfig = <String, _ExpenseTypeConfig>{
@@ -127,7 +127,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
     super.didChangeDependencies();
     if (!_initialized) {
       _initialized = true;
-      _initializeDefaults();
+      unawaited(_initializeDefaults());
     }
   }
 
@@ -747,7 +747,7 @@ class _ExpensesReportScreenState extends ConsumerState<ExpensesReportScreen> {
           _fromDate = range.from;
           _toDate = range.to;
         });
-        _fetchReport();
+        unawaited(_fetchReport());
       },
       onExportPdf: _exportPdf,
       onSearch: _fetchReport,

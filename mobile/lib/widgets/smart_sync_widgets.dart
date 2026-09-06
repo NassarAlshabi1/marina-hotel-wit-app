@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -222,7 +223,7 @@ class _SmartSyncDashboardCardState
     super.initState();
     // التحقق من حالة تسجيل الدخول الفعلية مرة واحدة عند إنشاء الويدجت
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(backupStatusProvider.notifier).refreshSignInStatus();
+      unawaited(ref.read(backupStatusProvider.notifier).refreshSignInStatus());
     });
   }
 
@@ -247,11 +248,11 @@ class _SmartSyncDashboardCardState
           margin: EdgeInsets.zero,
           child: InkWell(
             onTap: () {
-              Navigator.of(context).push<void>(
+              unawaited(Navigator.of(context).push<void>(
                 MaterialPageRoute<void>(
                   builder: (_) => const UnifiedSyncSettingsScreen(),
                 ),
-              );
+              ));
             },
             borderRadius: BorderRadius.circular(8),
             child: Padding(

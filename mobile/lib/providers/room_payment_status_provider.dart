@@ -195,10 +195,10 @@ final roomsWithPaymentStatusProvider =
       });
 
       ref.onDispose(() {
-        roomsSub.cancel();
-        bookingsSub.cancel();
+        unawaited(roomsSub.cancel());
+        unawaited(bookingsSub.cancel());
         timer.cancel();
-        controller.close();
+        unawaited(controller.close());
       });
 
       return controller.stream;

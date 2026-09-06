@@ -15,10 +15,10 @@
 
 import 'dart:async';
 
+import '../../utils/debug_log.dart';
 import '../appwrite_sync_manager.dart';
 import '../auto_outbox_sync_watcher.dart';
 import '../sync_guard.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 mixin SyncTriggerMixin {
   Timer? _syncDebounceTimer;

@@ -7,9 +7,9 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart' as sqflite;
 
+import '../utils/debug_log.dart';
 import 'local_db.dart';
 import 'sync_constants.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class SyncSafetySnapshot {
   SyncSafetySnapshot({

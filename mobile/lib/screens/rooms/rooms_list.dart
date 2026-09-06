@@ -13,10 +13,10 @@ import '../../providers/room_payment_status_provider.dart'; // استيراد ا
 import '../../services/local_db.dart';
 import '../../services/price_adjustment_service.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/english_digits_input_formatter.dart';
 import '../../utils/performance_config.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/theme.dart';
-import '../../utils/english_digits_input_formatter.dart';
 
 class RoomsListScreen extends ConsumerStatefulWidget {
   const RoomsListScreen({super.key});
@@ -268,7 +268,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
   ) {
     final isAvailable = StatusUtils.isRoomAvailable(room.status);
 
-    showModalBottomSheet<void>(
+    unawaited(showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Directionality(
@@ -309,7 +309,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
                   subtitle: const Text('تغيير السعر والنوع والحالة'),
                   onTap: () {
                     Navigator.pop(ctx);
-                    _editRoom(context, ref, existing: room);
+                    unawaited(_editRoom(context, ref, existing: room));
                   },
                 ),
                 ListTile(
@@ -367,7 +367,7 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
           ),
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildRoomHeader(Room room, bool isAvailable) {

@@ -1,9 +1,9 @@
 import 'dart:async';
 
+import '../../utils/debug_log.dart';
 import '../appwrite_logger.dart';
 import '../daos/outbox_dao.dart';
 import '../sync_constants.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// SyncTimers — يدير كل المؤقتات الدورية للمزامنة
 ///

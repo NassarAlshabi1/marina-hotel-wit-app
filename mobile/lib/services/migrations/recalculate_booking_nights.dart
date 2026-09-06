@@ -1,6 +1,6 @@
+import '../../utils/debug_log.dart';
 import '../booking_derived_fields_service.dart';
 import '../local_db.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// Migration لإعادة حساب عدد الليالي والحقول المشتقة لجميع الحجوزات
 /// بناءً على التواريخ الفعلية بدلاً من الاعتماد على القيم المحفوظة

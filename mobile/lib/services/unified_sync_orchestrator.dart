@@ -205,7 +205,7 @@ class UnifiedSyncOrchestrator {
 
   /// تنظيف الموارد الثابتة للـ singleton (يُستدعى عند إغلاق التطبيق)
   static void disposeInstance() {
-    instance.dispose();
+    unawaited(instance.dispose());
   }
 
   Future<void> notifyLocalChange({String? table, String? operation}) async {
@@ -450,35 +450,35 @@ class UnifiedSyncOrchestrator {
     ]);
 
     final tablesPayload = <String, List<Map<String, dynamic>>>{
-      'rooms': (results[0] as List)
-          .map((e) => e.toJson() as Map<String, dynamic>)
+      'rooms': (results[0] as List<Room>)
+          .map((e) => e.toJson())
           .toList(),
-      'bookings': (results[1] as List)
-          .map((e) => e.toJson() as Map<String, dynamic>)
+      'bookings': (results[1] as List<Booking>)
+          .map((e) => e.toJson())
           .toList(),
-      'booking_notes': (results[2] as List)
-          .map((e) => e.toJson() as Map<String, dynamic>)
+      'booking_notes': (results[2] as List<BookingNote>)
+          .map((e) => e.toJson())
           .toList(),
-      'employees': (results[3] as List)
-          .map((e) => e.toJson() as Map<String, dynamic>)
+      'employees': (results[3] as List<Employee>)
+          .map((e) => e.toJson())
           .toList(),
-      'expenses': (results[4] as List)
-          .map((e) => e.toJson() as Map<String, dynamic>)
+      'expenses': (results[4] as List<Expense>)
+          .map((e) => e.toJson())
           .toList(),
-      'cash_transactions': (results[5] as List)
-          .map((e) => e.toJson() as Map<String, dynamic>)
+      'cash_transactions': (results[5] as List<CashTransaction>)
+          .map((e) => e.toJson())
           .toList(),
-      'payments': (results[6] as List)
-          .map((e) => e.toJson() as Map<String, dynamic>)
+      'payments': (results[6] as List<Payment>)
+          .map((e) => e.toJson())
           .toList(),
-      'debts': (results[7] as List)
-          .map((e) => e.toJson() as Map<String, dynamic>)
+      'debts': (results[7] as List<Debt>)
+          .map((e) => e.toJson())
           .toList(),
-      'booking_nights': (results[8] as List)
-          .map((e) => e.toJson() as Map<String, dynamic>)
+      'booking_nights': (results[8] as List<BookingNight>)
+          .map((e) => e.toJson())
           .toList(),
-      'shift_notes': (results[9] as List)
-          .map((e) => e.toJson() as Map<String, dynamic>)
+      'shift_notes': (results[9] as List<ShiftNote>)
+          .map((e) => e.toJson())
           .toList(),
     };
     return Isolate.run(
@@ -503,7 +503,7 @@ class UnifiedSyncOrchestrator {
       // `pushed >= 0` — شرط صادق دائماً (recordsPushed ليس سالباً أبداً)
       // فأي دورة فاشلة كانت تُحسب نجاحاً. الآن sync() مباشرة مع فحص
       // الحالة — نفس نمط فرع push&&pull أعلاه.
-      final result = await manager.sync(push: true, pull: false);
+      final result = await manager.sync(pull: false);
       success = result.isSuccess && success;
     }
     if (pull) {
@@ -516,7 +516,6 @@ class UnifiedSyncOrchestrator {
       // push&&pull أعلاه حيث يبقى السحب الكامل قراراً مرئياً.
       final result = await manager.sync(
         push: false,
-        pull: true,
         deltaOnly: true,
       );
       success = result.isSuccess && success;

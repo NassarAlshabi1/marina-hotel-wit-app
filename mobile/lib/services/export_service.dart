@@ -513,7 +513,7 @@ class ExportService {
       if (dir == null) return null;
 
       final downloadsDir = Directory('${dir.path}/Download');
-      if (!await downloadsDir.exists()) {
+      if (!downloadsDir.existsSync()) {
         await downloadsDir.create(recursive: true);
       }
 

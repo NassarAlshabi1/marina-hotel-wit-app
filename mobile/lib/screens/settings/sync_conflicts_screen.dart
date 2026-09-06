@@ -1,11 +1,12 @@
 // ignore_for_file: use_build_context_synchronously
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/repository_providers.dart';
 import '../../services/conflict_manager.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/performance_monitor.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// شاشة مراقبة التعارضات — تعرض التعارضات المعلقة وتسمح بحلها
 class SyncConflictsScreen extends ConsumerStatefulWidget {
@@ -23,7 +24,7 @@ class _SyncConflictsScreenState extends ConsumerState<SyncConflictsScreen> {
   void initState() {
     super.initState();
     _conflictManager = ConflictManager(ref.read(databaseProvider));
-    _conflictManager.loadPendingConflicts();
+    unawaited(_conflictManager.loadPendingConflicts());
   }
 
   @override

@@ -11,11 +11,11 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/booking_price_adjustment_service.dart';
 import '../../services/local_db.dart' hide GuestInfo;
 import '../../services/repositories/payments_repository.dart';
+import '../../utils/english_digits_input_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/id.dart';
 import '../../utils/status_utils.dart';
 import 'guest_info.dart';
-import '../../utils/english_digits_input_formatter.dart';
 
 class GuestEditScreen extends ConsumerStatefulWidget {
   const GuestEditScreen({required this.guest, super.key});
@@ -782,7 +782,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
   }
 
   void _showDiscardDialog(BuildContext context) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
@@ -804,7 +804,7 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildSectionTitle(String text) {

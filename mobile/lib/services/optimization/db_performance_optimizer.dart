@@ -8,8 +8,8 @@ library;
 
 import 'package:flutter/foundation.dart';
 
+import '../../utils/debug_log.dart';
 import '../local_db.dart' as local_db;
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class DatabaseOptimizer {
   DatabaseOptimizer(this.db);

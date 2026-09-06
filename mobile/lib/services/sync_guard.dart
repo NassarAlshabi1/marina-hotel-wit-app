@@ -1,4 +1,4 @@
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../utils/debug_log.dart';
 
 import 'sync_constants.dart';
 import 'sync_priority.dart';
@@ -261,10 +261,10 @@ class SyncGuard {
 /// - `_value`: معرّف فريد متزايد
 /// - `_label`: اسم الخدمة التي اكتسبت القفل (للتشخيص)
 class SyncLockToken {
-  final int _value;
-  final String _label;
 
   SyncLockToken._(this._value, this._label);
+  final int _value;
+  final String _label;
 
   @override
   String toString() => 'SyncLockToken(#$_value, $_label)';

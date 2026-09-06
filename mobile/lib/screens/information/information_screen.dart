@@ -16,8 +16,8 @@ import '../../mixins/sync_on_exit_mixin.dart';
 import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/pdf_utils.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class InformationScreen extends ConsumerStatefulWidget {
   const InformationScreen({super.key});
@@ -100,7 +100,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   }
 
   void _showDiscardDialog(BuildContext context) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('تغييرات غير محفوظة'),
@@ -119,7 +119,7 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
           ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _buildContent(List<GuestInfo> entries) {
@@ -245,9 +245,9 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
                     icon: const Icon(Icons.more_vert, size: 20),
                     onSelected: (value) {
                       if (value == 'edit') {
-                        _openEditor(context, existing: info);
+                        unawaited(_openEditor(context, existing: info));
                       } else if (value == 'delete') {
-                        _confirmDelete(info);
+                        unawaited(_confirmDelete(info));
                       }
                     },
                     itemBuilder: (context) => [

@@ -11,10 +11,10 @@ import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/english_digits_input_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
 import '../employees/salary_entitlements_screen.dart';
-import '../../utils/english_digits_input_formatter.dart';
 
 class SettingsEmployeesScreen extends ConsumerWidget {
   const SettingsEmployeesScreen({super.key});
@@ -552,7 +552,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     );
     String status = employee?.status ?? 'نشط';
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
@@ -734,7 +734,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
       salaryController.dispose();
       phoneController.dispose();
       hireDateController.dispose();
-    });
+    }));
   }
 
   /// حوار إنهاء خدمة موظف
@@ -748,7 +748,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     DateTime? terminationDate = HotelTimeEngine.getHotelDay(DateTime.now());
     final reasonController = TextEditingController();
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
@@ -1002,7 +1002,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     ).then((_) {
       // ✅ إصلاح تسرب ذاكرة: dispose المتحكم بعد إغلاق الحوار
       reasonController.dispose();
-    });
+    }));
   }
 
   /// إعادة تفعيل موظف مفصول
@@ -1231,7 +1231,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     // إذا كانت الساعة 2 صباحاً من 4 يونيو → اليوم الفندقي = 3 يونيو
     DateTime selectedDate = HotelTimeEngine.getHotelDay(DateTime.now());
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
@@ -1532,7 +1532,7 @@ class SettingsEmployeesScreen extends ConsumerWidget {
       // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات بعد إغلاق الحوار
       amountController.dispose();
       noteController.dispose();
-    });
+    }));
   }
 
   Future<void> _deleteEmployee(

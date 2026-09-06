@@ -1,10 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../utils/debug_log.dart';
 import 'logging/log_models.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 export 'logging/log_models.dart';
 
@@ -73,7 +74,7 @@ class AppwriteLogger {
     try {
       final directory = await getApplicationDocumentsDirectory();
       final logsDir = Directory('${directory.path}/appwrite_logs');
-      if (!await logsDir.exists()) return;
+      if (!logsDir.existsSync()) return;
 
       final cutoff = DateTime.now().subtract(Duration(days: retentionDays));
       final namePattern = RegExp(r'^appwrite_(\d{4}-\d{2}-\d{2})\.log$');
@@ -124,7 +125,7 @@ class AppwriteLogger {
     }
 
     if (_enableFile && _logFile != null) {
-      _writeToFile(entry);
+      unawaited(_writeToFile(entry));
     }
   }
 

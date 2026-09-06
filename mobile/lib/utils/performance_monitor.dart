@@ -26,11 +26,10 @@ import 'dart:io' show File, Platform, ProcessInfo;
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show FrameTiming, SchedulerBinding;
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import 'debug_log.dart';
 
 const bool profileInstrumentationEnabled = bool.fromEnvironment(
   'MARINA_ENABLE_PERF_PROFILE',
-  defaultValue: false,
 );
 
 /// نوع التحذير الأدائي

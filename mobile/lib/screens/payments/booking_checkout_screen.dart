@@ -10,10 +10,10 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/date_parser.dart';
+import '../../utils/english_digits_input_formatter.dart';
 import '../../utils/hotel_date_helper.dart';
 import '../../utils/hotel_day_ticker.dart';
 import '../../utils/time.dart';
-import '../../utils/english_digits_input_formatter.dart';
 
 class BookingCheckoutScreen extends ConsumerStatefulWidget {
   const BookingCheckoutScreen({required this.booking, super.key});
@@ -41,7 +41,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
   @override
   void initState() {
     super.initState();
-    _refreshBookingNights();
+    unawaited(_refreshBookingNights());
     _startHotelDayAutoRefresh();
   }
 
@@ -50,7 +50,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
     _hotelDayTickerSub = HotelDayTicker.instance.stream.listen((_) {
       if (mounted) {
         setState(() {});
-        _refreshBookingNights();
+        unawaited(_refreshBookingNights());
       }
     });
   }
@@ -65,7 +65,7 @@ class _BookingCheckoutScreenState extends ConsumerState<BookingCheckoutScreen>
 
   @override
   void dispose() {
-    _hotelDayTickerSub?.cancel();
+    unawaited(_hotelDayTickerSub?.cancel());
     _isProcessingNotifier.dispose(); // ✅ تنظيف ValueNotifier لمنع memory leak
     super.dispose();
   }

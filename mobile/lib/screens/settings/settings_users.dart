@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_scaffold.dart';
@@ -472,7 +473,7 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
   @override
   void initState() {
     super.initState();
-    _load();
+    unawaited(_load());
   }
 
   Future<void> _load() async {
@@ -1024,7 +1025,7 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                             } else {
                               next.remove(k);
                             }
-                            _savePermissions(next);
+                            unawaited(_savePermissions(next));
                           },
                   );
                 }).toList(),

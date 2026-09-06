@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -38,7 +39,7 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> {
     super.didChangeDependencies();
     if (_initialized) return;
     _initialized = true;
-    _initialize();
+    unawaited(_initialize());
   }
 
   Future<void> _initialize() async {
@@ -231,7 +232,7 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> {
           _fromDate = range.from;
           _toDate = range.to;
         });
-        _fetchReport();
+        unawaited(_fetchReport());
       },
       onExportPdf: _exportPdf,
       onSearch: _fetchReport,
@@ -241,7 +242,7 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> {
         SizedBox(
           width: 170,
           child: DropdownButtonFormField<String?>(
-            value: _selectedCategory,
+            initialValue: _selectedCategory,
             isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'التصنيف',
@@ -250,7 +251,6 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> {
             ),
             items: [
               const DropdownMenuItem<String?>(
-                value: null,
                 child: Text('كل التصنيفات'),
               ),
               ..._categories.map(

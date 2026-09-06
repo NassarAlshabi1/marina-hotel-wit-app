@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -9,9 +10,9 @@ import '../../providers/backup_provider.dart';
 import '../../providers/smart_sync_provider.dart';
 import '../../services/alarm_backup.dart';
 import '../../services/smart_sync_manager.dart';
+import '../../utils/english_digits_input_formatter.dart';
 import '../../utils/performance_monitor.dart';
 import 'sync/unified_sync_settings_screen.dart';
-import '../../utils/english_digits_input_formatter.dart';
 
 class DataProtectionScreen extends ConsumerStatefulWidget {
   const DataProtectionScreen({super.key});
@@ -44,7 +45,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     super.initState();
     _maxBackupsController = TextEditingController();
     _retentionDaysController = TextEditingController();
-    _loadBackupForm();
+    unawaited(_loadBackupForm());
   }
 
   @override
@@ -900,12 +901,12 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           alignment: Alignment.centerRight,
           child: TextButton.icon(
             onPressed: () {
-              Navigator.push<void>(
+              unawaited(Navigator.push<void>(
                 context,
                 MaterialPageRoute<void>(
                   builder: (context) => const UnifiedSyncSettingsScreen(),
                 ),
-              );
+              ));
             },
             icon: const Icon(Icons.settings),
             label: const Text('إعدادات المزامنة المتقدمة'),
@@ -1068,7 +1069,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
                   ? null
                   : (value) {
                       if (value != null) {
-                        _changeSyncInterval(value);
+                        unawaited(_changeSyncInterval(value));
                       }
                     },
             ),
@@ -1095,7 +1096,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
                       ? null
                       : (value) {
                           if (value != null) {
-                            _changeConflictResolution(value);
+                            unawaited(_changeConflictResolution(value));
                           }
                         },
                 ),

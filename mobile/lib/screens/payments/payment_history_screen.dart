@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -8,9 +9,9 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/performance_config.dart';
 import '../../utils/time.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class PaymentHistoryScreen extends ConsumerStatefulWidget {
   const PaymentHistoryScreen({super.key, this.bookingId});
@@ -115,7 +116,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
                   // ✅ إعادة المحاولة تُشغّل مزامنة فعلية من المصدر بدل مجرد
                   // setState الذي قد لا يُغيّر شيئاً لو كان الخطأ ثابتاً.
                   onPressed: () {
-                    ref.read(syncServiceProvider).runSync();
+                    unawaited(ref.read(syncServiceProvider).runSync());
                     setState(() {});
                   },
                   child: const Text('إعادة المحاولة'),
@@ -416,7 +417,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
   }
 
   void _showFilterDialog() {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: ui.TextDirection.rtl,
@@ -565,7 +566,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 
   void _clearFilters() {
@@ -578,7 +579,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
   }
 
   void _showPaymentDetails(Payment payment) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: ui.TextDirection.rtl,
@@ -612,7 +613,7 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildDetailRow(String label, String value) {

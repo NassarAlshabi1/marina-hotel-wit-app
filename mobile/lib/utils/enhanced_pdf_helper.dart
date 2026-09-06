@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -484,7 +485,7 @@ class PdfPreviewHelper {
     required Booking booking,
     required String receivedBy,
   }) {
-    Navigator.push<void>(
+    unawaited(Navigator.push<void>(
       context,
       MaterialPageRoute<void>(
         builder: (context) => EnhancedPdfPreviewScreen(
@@ -507,6 +508,6 @@ class PdfPreviewHelper {
           },
         ),
       ),
-    );
+    ));
   }
 }

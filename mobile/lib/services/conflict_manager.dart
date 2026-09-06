@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:drift/drift.dart';
+
+import '../utils/debug_log.dart';
 import 'local_db.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class PendingConflict {
   const PendingConflict({
@@ -278,7 +280,7 @@ class ConflictManager {
 
   void dispose() {
     if (!_conflictsController.isClosed) {
-      _conflictsController.close();
+      unawaited(_conflictsController.close());
     }
   }
 }

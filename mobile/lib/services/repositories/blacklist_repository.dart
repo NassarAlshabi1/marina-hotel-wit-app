@@ -2,11 +2,11 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart' as d;
 
+import '../../utils/debug_log.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 String _normalizeArabic(String input) {
   var s = input.trim();

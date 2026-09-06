@@ -15,13 +15,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../screens/settings/error_tracker_screen.dart'
     show logHttpError, logError, ErrorCategory;
 import '../utils/env.dart';
+import 'appwrite_models.dart' show AppwriteDevice;
 import 'booking_derived_fields_service.dart';
 import 'cloudflare_config.dart';
 import 'cloudflare_d1_service.dart';
 import 'cloudflare_dual_run_service.dart';
 import 'cloudflare_realtime_sync.dart';
 import 'daos/outbox_dao.dart';
-import 'appwrite_models.dart' show AppwriteDevice;
 import 'local_db.dart';
 import 'remote_change_notifier.dart';
 import 'resilient_http_client.dart';
@@ -71,13 +71,16 @@ class CloudflareSyncManager {
     // ✅ توافق Drop-in مع مواقع استدعاء AppwriteSyncManager القديمة
     // (perf providers/backup services تمرّرها) — تُتجاهل: خدمة Appwrite
     // ليست جزءاً من مسار Cloudflare، والقاعدة تُحَدَّد في initialize().
+    // (تعطيل القاعدة هنا متعمّد: المعاملات وهمية للحفاظ على توافق الاستدعاء)
+    // ignore: avoid_unused_constructor_parameters
     dynamic appwriteService,
+    // ignore: avoid_unused_constructor_parameters
     dynamic database,
   }) => _instance;
+  CloudflareSyncManager._internal();
 
   /// ✅ توافق: كود perf يستدعي `AppwriteSyncManager.instance`.
   static CloudflareSyncManager get instance => _instance;
-  CloudflareSyncManager._internal();
   static final CloudflareSyncManager _instance =
       CloudflareSyncManager._internal();
 
@@ -327,7 +330,6 @@ class CloudflareSyncManager {
             localUuid: deviceRowUuid,
             payload: payload,
             clientTs: now,
-            source: 'local',
           );
         } catch (e) {
           debugPrint('⚠️ devices outbox enqueue failed: $e');
@@ -382,7 +384,6 @@ class CloudflareSyncManager {
             localUuid: deviceRowUuid,
             payload: payload,
             clientTs: now,
-            source: 'local',
           );
         } catch (e) {
           debugPrint('⚠️ devices outbox enqueue failed: $e');
@@ -399,10 +400,9 @@ class CloudflareSyncManager {
   // deviceId (مستقر وفريد لكل تثبيت) — عمود device_id الموحّد هو
   // هوية الجهاز وعمود SyncFields.device_id (جهاز الكاتب) معاً.
   Map<String, dynamic> _deviceSyncPayload({
-    String? fcmToken,
+    required int now, String? fcmToken,
     String? platform,
     String? deviceName,
-    required int now,
   }) {
     final deviceId = _deviceId ?? '';
     return <String, dynamic>{
@@ -1190,7 +1190,6 @@ class CloudflareSyncManager {
               localUuid: localUuid,
               payload: mergedData,
               clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-              source: 'local',
             );
             debugPrint(
               '  🤝 $entity/$localUuid: conflict resolved + queued for re-upload',
@@ -1487,7 +1486,7 @@ class CloudflareSyncManager {
     await prefs.remove('cf_last_pull_cursor');
     await prefs.remove(_kFullSyncCompletedKey);
     debugPrint('🔄 Full sync: cursor reset + fullSyncCompleted flag cleared');
-    return sync(push: true, pull: true);
+    return sync();
   }
 
   // ─── Push all local data ────────────────────────────────────
@@ -1509,7 +1508,7 @@ class CloudflareSyncManager {
   /// يستدعيها ويتوقع Future<bool>): سحب كامل — نفس sync(pull: true)
   /// بلا رفع؛ نجاحها = لا فشل جزئي.
   Future<bool> pullAllDataWithDisabledFK() async {
-    final result = await sync(push: false, pull: true);
+    final result = await sync(push: false);
     return result.isSuccess;
   }
 

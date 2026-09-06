@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../../utils/debug_log.dart';
 
 enum RetryBackoffType { linear, exponential, fibonacci }
 

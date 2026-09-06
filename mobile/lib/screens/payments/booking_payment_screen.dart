@@ -24,6 +24,8 @@ import '../../services/local_db.dart' as db;
 import '../../services/stay_balance_calculator.dart';
 import '../../utils/currency_formatter.dart';
 import '../../utils/date_parser.dart';
+import '../../utils/debug_log.dart';
+import '../../utils/english_digits_input_formatter.dart';
 import '../../utils/hotel_date_helper.dart';
 import '../../utils/hotel_day_ticker.dart';
 import '../../utils/hotel_time_engine.dart';
@@ -32,8 +34,6 @@ import '../../utils/time.dart';
 import 'payment_history_screen.dart';
 import 'widgets/actions_tab.dart';
 import 'widgets/payment_summary_card.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
-import '../../utils/english_digits_input_formatter.dart';
 
 class BookingPaymentScreen extends ConsumerStatefulWidget {
   const BookingPaymentScreen({
@@ -168,7 +168,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     _tabController = TabController(length: 2, vsync: this);
     _phoneController = TextEditingController(text: widget.booking.guestPhone);
     _currentGuestPhone = widget.booking.guestPhone;
-    _checkForDebts();
+    unawaited(_checkForDebts());
     if (widget.refreshDerivedFieldsOnInit) {
       unawaited(_refreshBookingNights());
     }
@@ -182,7 +182,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     _hotelDayTickerSub = HotelDayTicker.instance.stream.listen((_) {
       if (mounted) {
         setState(() {});
-        _refreshBookingNights();
+        unawaited(_refreshBookingNights());
       }
     });
   }
@@ -246,7 +246,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
   @override
   void dispose() {
-    _hotelDayTickerSub?.cancel();
+    unawaited(_hotelDayTickerSub?.cancel());
     _tabController.dispose();
     _phoneController.dispose();
     _isSavingPaymentNotifier.dispose();
@@ -432,7 +432,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       canPop: !_isSavingPayment,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        showDialog<void>(
+        unawaited(showDialog<void>(
           context: context,
           barrierDismissible: false,
           builder: (ctx) => const PopScope(
@@ -452,7 +452,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               content: Text('يرجى الانتظار حتى يتم حفظ الدفعة...'),
             ),
           ),
-        );
+        ));
       },
       child: AppScaffold(
         title: 'معالجة المدفوعات',
@@ -945,7 +945,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final bankController = TextEditingController();
 
     // ✅ إصلاح تسرب ذاكرة: استخدام then للتأكد من dispose بعد إغلاق الحوار
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => Directionality(
         textDirection: ui.TextDirection.rtl,
@@ -1060,7 +1060,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       referenceController.dispose();
       cardDigitsController.dispose();
       bankController.dispose();
-    });
+    }));
   }
 
   Future<void> _sendPaymentConfirmation(
@@ -1254,7 +1254,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     );
     final perNight = nights > 0 ? (amount / nights).round() : 0;
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Row(
@@ -1307,7 +1307,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     ).then((_) {
       // ✅ إصلاح تسرب ذاكرة: dispose المتحكم بعد إغلاق الحوار
       notesController.dispose();
-    });
+    }));
   }
 
   /// معالجة دفع الليالي الإضافية
@@ -1767,7 +1767,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }
 
   void _showReceiptDialog(Payment payment) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('تم تسجيل الدفعة بنجاح'),
@@ -1789,13 +1789,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              _generateReceipt(payment);
+              unawaited(_generateReceipt(payment));
             },
             child: const Text('طباعة إيصال'),
           ),
         ],
       ),
-    );
+    ));
   }
 
   Future<void> _generateReceipt(Payment payment) async {
@@ -1959,7 +1959,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
-                _processCheckout();
+                unawaited(_processCheckout());
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: hasRemaining ? Colors.red : Colors.green,
@@ -2138,11 +2138,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
-                  _processEarlyCheckout(
+                  unawaited(_processEarlyCheckout(
                     refundAmount.round(),
                     unusedNights,
                     actualNights,
-                  );
+                  ));
                 },
                 icon: const Icon(Icons.check_circle, size: 18),
                 label: const Text('تأكيد المغادرة والمردود'),
@@ -2152,7 +2152,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
-                  _processCheckout();
+                  unawaited(_processCheckout());
                 },
                 icon: const Icon(Icons.check_circle, size: 18),
                 label: const Text('تأكيد المغادرة فقط'),
@@ -2426,7 +2426,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
             textColor: Colors.white,
             onPressed: () {
               // التنقل لشاشة الديون
-              Navigator.pushNamed(context, '/debts');
+              unawaited(Navigator.pushNamed(context, '/debts'));
             },
           ),
         ),
@@ -2735,7 +2735,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final hotelDay = HotelTimeEngine.getHotelDayKey();
 
     // عرض نافذة التأكيد مع تفاصيل الدفعات
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => FutureBuilder<List<db.Payment>>(
         future: paymentsRepo.paymentsByBooking(widget.booking.id).first,
@@ -2877,7 +2877,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
-                  _processCancelTodayPayments(todayPayments);
+                  unawaited(_processCancelTodayPayments(todayPayments));
                 },
                 icon: const Icon(Icons.check_circle, size: 18),
                 label: const Text('تأكيد إلغاء الدفعات'),
@@ -2887,7 +2887,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           );
         },
       ),
-    );
+    ));
   }
 
   /// معالجة إلغاء دفعات اليوم الفندقي فقط (بدون تسجيل خروج أو تحرير غرفة)
@@ -2945,7 +2945,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     final messagePreview = _buildAccountStatementMessage(summary);
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
@@ -3115,7 +3115,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 FilledButton.tonalIcon(
                   onPressed: () {
                     Navigator.pop(context);
-                    _sendStatementViaWhatsAppText(summary);
+                    unawaited(_sendStatementViaWhatsAppText(summary));
                   },
                   icon: const Icon(Icons.chat, size: 18),
                   label: const Text('إرسال كنص'),
@@ -3127,7 +3127,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
                 FilledButton.icon(
                   onPressed: () {
                     Navigator.pop(context);
-                    _sendStatementViaPdf(summary);
+                    unawaited(_sendStatementViaPdf(summary));
                   },
                   icon: const Icon(Icons.share, size: 18),
                   label: const Text('مشاركة PDF'),
@@ -3138,7 +3138,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ],
         ),
       ),
-    );
+    ));
   }
 
   /// ════════════════════════════════════════════════════════════════════
@@ -3834,7 +3834,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         .valueOrNull;
     final double roomRate = room?.price ?? 0;
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Row(
@@ -3902,11 +3902,11 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              _processExtendStay(
+              unawaited(_processExtendStay(
                 int.tryParse(nightsController.text) ?? 1,
                 roomRate,
                 notesController.text,
-              );
+              ));
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
             child: const Text('تمديد وتسجيل دفعة'),
@@ -3917,7 +3917,7 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات بعد إغلاق الحوار
       nightsController.dispose();
       notesController.dispose();
-    });
+    }));
   }
 
   /// معالجة تمديد الإقامة

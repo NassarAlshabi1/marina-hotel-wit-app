@@ -141,12 +141,15 @@ class CloudflareD1Service {
         'GET',
         '/accounts/${config.accountId}/tokens/verify',
       );
-      tokenValid = (verify['result']?['status'] == 'active');
+      tokenValid =
+          ((verify['result'] as Map<String, dynamic>?)?['status'] == 'active');
     } on CloudflareD1Exception catch (e) {
       // توكنات المستخدم (cfut_) تُفحص عبر نقطة /user/tokens/verify
       try {
         final verify = await _call('GET', '/user/tokens/verify');
-        tokenValid = (verify['result']?['status'] == 'active');
+        tokenValid =
+            ((verify['result'] as Map<String, dynamic>?)?['status'] ==
+                'active');
       } catch (e2) {
         fatalError = 'التوكن غير صالح: ${e.message} / $e2';
         return CloudflareD1ProbeResult(
@@ -397,19 +400,12 @@ class CloudflareD1Service {
     if (!_cancelled && errors.isEmpty && doneTables.isNotEmpty) {
       try {
         await executeStatements(const [
-          'CREATE TABLE IF NOT EXISTS _cf_backup_meta ('
-              'id INTEGER PRIMARY KEY CHECK (id = 1), '
-              'uploaded_at TEXT NOT NULL, '
-              'tables_count INTEGER NOT NULL, '
-              'rows_count INTEGER NOT NULL, '
-              'device_label TEXT)',
+          'CREATE TABLE IF NOT EXISTS _cf_backup_meta (id INTEGER PRIMARY KEY CHECK (id = 1), uploaded_at TEXT NOT NULL, tables_count INTEGER NOT NULL, rows_count INTEGER NOT NULL, device_label TEXT)',
         ]);
         final nowIso = DateTime.now().toUtc().toIso8601String();
         final label = _sqlLiteral(deviceLabel ?? '');
         await executeStatements([
-          "INSERT OR REPLACE INTO _cf_backup_meta "
-              "(id, uploaded_at, tables_count, rows_count, device_label) "
-              "VALUES (1, '$nowIso', ${doneTables.length}, $rowsUploaded, $label)",
+          'INSERT OR REPLACE INTO _cf_backup_meta (id, uploaded_at, tables_count, rows_count, device_label) VALUES (1, $nowIso, ${doneTables.length}, $rowsUploaded, $label)',
         ]);
         callCount++;
       } on CloudflareD1Exception catch (e) {
@@ -712,8 +708,7 @@ class CloudflareD1SourceTable {
   const CloudflareD1SourceTable({
     required this.name,
     required this.rowCount,
-    this.createSqlList = const [],
-    required this.readChunk,
+    required this.readChunk, this.createSqlList = const [],
   });
 
   final String name;

@@ -1,11 +1,11 @@
 import 'package:drift/drift.dart' as d;
 
+import '../../utils/currency_formatter.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../local_db.dart';
 import 'telegram_config.dart';
 import 'telegram_service.dart';
-import 'package:marina_hotel_mobile/utils/currency_formatter.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// بيانات التقرير اليومي المرسلة إلى Telegram.
 class TelegramDailyReportData {
@@ -48,12 +48,13 @@ class TelegramDailyReportData {
 
 /// التقرير اليومي عبر Telegram.
 ///
-/// جميع الملخصات المالية تُفلتر بـ [hotelDayKey] المخزن، وهو مصدر الحقيقة
+/// جميع الملخصات المالية تُفلتر بـ [h`hotelDayKey` المخزن، وهو مصدر الحقيقة
 /// المحاسبي. لا يستخدم التاريخ التقويمي أو تحميل جداول كاملة إلى الذاكرة.
 class TelegramReportService {
   TelegramReportService._();
 
   static TelegramReportService? _instance;
+  // ignore: prefer_constructors_over_static_methods
   static TelegramReportService get instance =>
       _instance ??= TelegramReportService._();
 
@@ -191,8 +192,7 @@ SELECT
 
       final alerts = <String>[
         for (final booking in overdueBookings)
-          '⏰ تأخير مغادرة — غرفة ${_escapeHtml(booking.roomNumber)} '
-              '(${_escapeHtml(booking.guestName)})',
+          '⏰ تأخير مغادرة — غرفة ${_escapeHtml(booking.roomNumber)} (${_escapeHtml(booking.guestName)})',
         if (count('unsettled_debts') > 0)
           '💳 لديك ${count('unsettled_debts')} ديون غير مسددة',
         if (maintenanceRooms > 0) '🔧 $maintenanceRooms غرف تحت الصيانة',

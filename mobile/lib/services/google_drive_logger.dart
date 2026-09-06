@@ -1,11 +1,12 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../utils/debug_log.dart';
 import 'logging/log_models.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class GoogleDriveLogger extends ChangeNotifier {
   factory GoogleDriveLogger() => _instance;
@@ -82,7 +83,7 @@ class GoogleDriveLogger extends ChangeNotifier {
       _printToConsole(entry);
     }
     if (_enableFile && _logFile != null) {
-      _writeToFile(entry);
+      unawaited(_writeToFile(entry));
     }
     notifyListeners();
   }

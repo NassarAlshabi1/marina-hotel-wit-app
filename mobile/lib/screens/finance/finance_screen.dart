@@ -11,14 +11,14 @@ import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart' as db;
 import '../../utils/currency_formatter.dart';
+import '../../utils/debug_log.dart';
+import '../../utils/english_digits_input_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/performance_config.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/stream_helpers.dart';
 import '../../utils/time.dart';
 import '../payments/booking_checkout_screen.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
-import '../../utils/english_digits_input_formatter.dart';
 
 class FinanceScreen extends ConsumerStatefulWidget {
   const FinanceScreen({super.key});
@@ -825,12 +825,12 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
             height: 26,
             child: ElevatedButton.icon(
               onPressed: () {
-                Navigator.push<void>(
+                unawaited(Navigator.push<void>(
                   context,
                   MaterialPageRoute<void>(
                     builder: (_) => BookingCheckoutScreen(booking: booking),
                   ),
-                );
+                ));
               },
               icon: const Icon(Icons.payment, size: 12),
               label: const Text('دفع', style: TextStyle(fontSize: 10)),
@@ -854,7 +854,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     final referenceController = TextEditingController();
     PaymentMethod selectedMethod = PaymentMethod.cash;
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => Directionality(
@@ -986,7 +986,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
       amountController.dispose();
       notesController.dispose();
       referenceController.dispose();
-    });
+    }));
   }
 
   Future<void> _saveStandalonePayment(

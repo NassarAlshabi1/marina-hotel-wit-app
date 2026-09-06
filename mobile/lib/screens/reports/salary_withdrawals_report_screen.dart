@@ -10,11 +10,11 @@ import '../../components/app_scaffold.dart';
 import '../../components/widgets/empty_state.dart';
 import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// بيانات معاملة واحدة من جدول salary_withdrawals
 class _SalaryTxRow {
@@ -78,7 +78,7 @@ class _SalaryWithdrawalsReportScreenState
     super.didChangeDependencies();
     if (!_initialized) {
       _initialized = true;
-      _initializeDefaults();
+      unawaited(_initializeDefaults());
     }
   }
 
@@ -422,7 +422,7 @@ class _SalaryWithdrawalsReportScreenState
                   _fromDate = range.from;
                   _toDate = range.to;
                 });
-                _fetchReport();
+                unawaited(_fetchReport());
               },
             ),
             const SizedBox(height: 8),

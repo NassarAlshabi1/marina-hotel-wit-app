@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,7 +8,6 @@ import '../../components/app_scaffold.dart';
 import '../../providers/appwrite_providers.dart';
 import '../../providers/backup_provider.dart';
 import '../../services/appwrite_logger.dart';
-import '../../providers/appwrite_providers.dart' show appwriteLogsProvider;
 import '../../services/logging/log_models.dart';
 import '../../utils/debug_logs.dart';
 
@@ -113,7 +113,7 @@ class ErrorCenterScreen extends ConsumerWidget {
     for (final e in debug) {
       buffer.writeln('[DEBUG] $e');
     }
-    Clipboard.setData(ClipboardData(text: buffer.toString()));
+    unawaited(Clipboard.setData(ClipboardData(text: buffer.toString())));
   }
 }
 

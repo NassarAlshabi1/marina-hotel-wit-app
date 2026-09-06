@@ -27,10 +27,10 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/debug_log.dart';
 import '../utils/env.dart';
 import 'crashlytics_service.dart';
 import 'local_db.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// نوع الحدث المهم لإرسال إشعار FCM
 enum FcmEventType {
@@ -234,7 +234,7 @@ class FcmSender {
 
       final rows = await db
           .customSelect(
-            "SELECT fcm_token, device_id FROM devices "
+            'SELECT fcm_token, device_id FROM devices '
             "WHERE status = 'active' AND deleted_at IS NULL "
             "AND fcm_token IS NOT NULL AND fcm_token != ''",
           )

@@ -6,8 +6,8 @@ import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/debug_log.dart';
-import '../utils/weak_device_optimizer.dart';
 import '../utils/debug_logs.dart';
+import '../utils/weak_device_optimizer.dart';
 import 'google_drive_backup_service.dart';
 import 'google_drive_conflict_resolver.dart';
 import 'google_drive_logger.dart';
@@ -268,7 +268,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   void stop() {
-    SyncLocks.autoEngineLock.synchronized(() {
+    unawaited(SyncLocks.autoEngineLock.synchronized(() {
       if (!_isRunning) {
         return;
       }
@@ -277,13 +277,13 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
       _isRunning = false;
 
-      _connectivitySubscription?.cancel();
+      unawaited(_connectivitySubscription?.cancel());
       _connectivitySubscription = null;
 
-      _syncResultSubscription?.cancel();
+      unawaited(_syncResultSubscription?.cancel());
       _syncResultSubscription = null;
 
-      _dataStreamSubscription?.cancel();
+      unawaited(_dataStreamSubscription?.cancel());
       _dataStreamSubscription = null;
 
       _retryTimer?.cancel();
@@ -296,7 +296,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
 
       _emitState();
       _log('✅ Auto Sync Engine stopped');
-    });
+    }));
   }
 
   Future<void> restart() async {
@@ -333,11 +333,11 @@ class AutoSyncEngine with WidgetsBindingObserver {
       },
     );
 
-    Connectivity().checkConnectivity().then((results) {
+    unawaited(Connectivity().checkConnectivity().then((results) {
       _hasNetworkConnection = results.any((r) => r != ConnectivityResult.none);
       _log('📡 Initial network status: $_hasNetworkConnection');
       _emitState();
-    });
+    }));
   }
 
   void _setupSyncResultListener() {
@@ -375,7 +375,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
           );
 
           final prefs = SharedPreferences.getInstance();
-          prefs.then((p) async {
+          unawaited(prefs.then((p) async {
             final retryEnabled = p.getBool(_prefsRetryEnabledKey) ?? true;
             if (retryEnabled && _failedAttempts < _retryConfig.maxRetries) {
               await _scheduleRetry();
@@ -385,7 +385,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
                 level: LogLevel.warning,
               );
             }
-          });
+          }));
         }
 
         _emitState();
@@ -399,7 +399,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
   void _setupDataStreamListener() {
     _log('💾 Setting up data stream listener...');
 
-    _dataStreamSubscription?.cancel();
+    unawaited(_dataStreamSubscription?.cancel());
     _dataStreamSubscription = _coordinator!.syncResults.listen((result) {
       if (result.success &&
           result.pushedChanges != null &&
@@ -510,7 +510,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
     _log('🔄 App lifecycle changed: ${state.name}');
 
     if (state == AppLifecycleState.resumed) {
-      _onAppResumed();
+      unawaited(_onAppResumed());
     } else if (state == AppLifecycleState.paused) {
       _onAppPaused();
     } else if (state == AppLifecycleState.inactive) {
@@ -587,7 +587,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
         _isSignedIn) {
       _log('💾 App paused with pending changes - quick sync before background');
 
-      _guardedSyncNow(pull: false, reason: 'app_paused')
+      unawaited(_guardedSyncNow(pull: false, reason: 'app_paused')
           .then((result) {
             if (result) {
               _log('✅ Quick sync before background completed');
@@ -595,7 +595,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
           })
           .catchError((Object error) {
             _log('⚠️ Quick sync before background failed: $error');
-          });
+          }));
     }
   }
 
@@ -613,9 +613,9 @@ class AutoSyncEngine with WidgetsBindingObserver {
       return;
     }
 
-    SyncLocks.autoEngineLock.synchronized(() {
+    unawaited(SyncLocks.autoEngineLock.synchronized(() {
       _pendingChangesCount += count;
-    });
+    }));
 
     _emitState();
 
@@ -623,7 +623,7 @@ class AutoSyncEngine with WidgetsBindingObserver {
       '💾 Data change detected: $table/$operation (count=$count, total pending=$_pendingChangesCount)',
     );
 
-    _orchestrator.notifyLocalChange(table: table, operation: operation);
+    unawaited(_orchestrator.notifyLocalChange(table: table, operation: operation));
   }
 
   Future<void> _scheduleRetry() async {

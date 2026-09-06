@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,7 +7,7 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/salary_entitlement_service.dart';
 import '../../utils/currency_formatter.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../../utils/debug_log.dart';
 
 class SalaryEntitlementsScreen extends ConsumerStatefulWidget {
   const SalaryEntitlementsScreen({super.key});
@@ -29,7 +30,7 @@ class _SalaryEntitlementsScreenState
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _service = SalaryEntitlementService(ref.read(databaseProvider));
-    _loadData();
+    unawaited(_loadData());
   }
 
   @override
@@ -42,7 +43,7 @@ class _SalaryEntitlementsScreenState
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // ✅ تحديث تلقائي عند العودة للتطبيق
     if (state == AppLifecycleState.resumed) {
-      _loadData();
+      unawaited(_loadData());
     }
   }
 

@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/debug_log.dart';
 import 'appwrite_config.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// مُحسِّن أداء المزامنة
 /// يراقب حالة الاتصال ويحسن أداء المزامنة بناءً على نوع الشبكة
@@ -430,7 +431,7 @@ class SyncPerformanceOptimizer {
 
   /// تنظيف الموارد
   void dispose() {
-    _connectivitySubscription?.cancel();
+    unawaited(_connectivitySubscription?.cancel());
     _connectivitySubscription = null;
     _cachedHttpClient?.close(force: true);
     _cachedHttpClient = null;

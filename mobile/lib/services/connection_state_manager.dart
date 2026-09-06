@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 
 import 'appwrite_logger.dart';
 import 'cloudflare_config.dart';
-import 'package:http/http.dart' as http;
 
 /// حالة الاتصال
 enum ConnectionStatus { online, offline, checking, unknown }
@@ -238,9 +238,9 @@ class ConnectionStateManager extends ChangeNotifier {
   @override
   void dispose() {
     _logger.info('Disposing ConnectionStateManager', tag: 'CONNECTION');
-    _connectivitySubscription?.cancel();
+    unawaited(_connectivitySubscription?.cancel());
     _periodicCheckTimer?.cancel();
-    _statusController.close();
+    unawaited(_statusController.close());
     super.dispose();
   }
 }

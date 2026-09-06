@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -90,7 +91,7 @@ class _ComprehensiveBackupScreenState
   }
 
   void _showHelpDialog() {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('مساعدة'),
@@ -119,6 +120,6 @@ class _ComprehensiveBackupScreenState
           ),
         ],
       ),
-    );
+    ));
   }
 }

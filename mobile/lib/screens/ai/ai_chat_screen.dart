@@ -1,9 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
 import '../../services/gemini_service.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/performance_monitor.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// مزود AI النشط
 enum AiProvider {
@@ -90,7 +91,7 @@ class _AiChatScreenState extends State<AiChatScreen>
   @override
   void initState() {
     super.initState();
-    _initializeProviders();
+    unawaited(_initializeProviders());
     _addWelcomeMessage();
   }
 
@@ -133,11 +134,11 @@ class _AiChatScreenState extends State<AiChatScreen>
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.animateTo(
+        unawaited(_scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
-        );
+        ));
       }
     });
   }
@@ -277,7 +278,7 @@ class _AiChatScreenState extends State<AiChatScreen>
 
   void _showAuditLog() {
     final log = GeminiService.instance.auditLog;
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
@@ -423,7 +424,7 @@ class _AiChatScreenState extends State<AiChatScreen>
           ],
         ),
       ),
-    );
+    ));
   }
 
   void _clearChat() {
@@ -842,7 +843,7 @@ class _AiChatScreenState extends State<AiChatScreen>
             label: Text(s.$2, style: const TextStyle(fontSize: 11)),
             onPressed: () {
               _controller.text = s.$3;
-              _sendMessage();
+              unawaited(_sendMessage());
             },
           );
         }).toList(),

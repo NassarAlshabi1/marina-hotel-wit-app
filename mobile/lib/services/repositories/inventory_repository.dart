@@ -1,10 +1,10 @@
 import 'package:drift/drift.dart' as d;
 
-import '../appwrite_sync_manager.dart';
+import '../../utils/id.dart';
 import '../adapters/adapter_registry.dart';
+import '../appwrite_sync_manager.dart';
 import '../daos/outbox_dao.dart';
 import '../local_db.dart';
-import '../../utils/id.dart';
 
 class InventoryRepository {
   InventoryRepository(this.db, [AdapterRegistry? registry])
@@ -30,9 +30,7 @@ class InventoryRepository {
   Future<int> createItem({
     required String name,
     required String unit,
-    String? category,
-    required int initialQuantity,
-    required int minimumQuantity,
+    required int initialQuantity, required int minimumQuantity, String? category,
   }) async {
     if (name.trim().isEmpty) throw ArgumentError('اسم الصنف مطلوب');
     if (initialQuantity < 0 || minimumQuantity < 0) {

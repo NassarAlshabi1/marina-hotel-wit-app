@@ -7,8 +7,8 @@ import '../../components/app_scaffold.dart';
 import '../../mixins/sync_on_exit_mixin.dart';
 import '../../models/shift_note_adapter.dart';
 import '../../providers/repository_providers.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/performance_config.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// شاشة الملاحظات البسيطة
 class NotesScreen extends ConsumerStatefulWidget {
@@ -293,7 +293,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     var priority = note?.priority.name ?? 'medium';
     final shiftType = note?.shiftType.name ?? 'all';
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
@@ -343,13 +343,13 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
               onPressed: () {
                 if (titleController.text.trim().isNotEmpty &&
                     contentController.text.trim().isNotEmpty) {
-                  _saveNote(
+                  unawaited(_saveNote(
                     note,
                     titleController.text.trim(),
                     contentController.text.trim(),
                     priority,
                     shiftType,
-                  );
+                  ));
                   Navigator.pop(context);
                 }
               },
@@ -361,7 +361,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     ).then((_) {
       titleController.dispose();
       contentController.dispose();
-    });
+    }));
   }
 
   Future<void> _saveNote(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/repository_providers.dart';
@@ -284,7 +285,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
   }
 
   void _showLogDetails(SyncLogEntry log) {
-    showModalBottomSheet<void>(
+    unawaited(showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -410,7 +411,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
           ),
         );
       },
-    );
+    ));
   }
 
   Widget _buildDetailRow(String label, String value) {
@@ -462,7 +463,7 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
   }
 
   void _showFilterDialog() {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -510,6 +511,6 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
           ],
         );
       },
-    );
+    ));
   }
 }

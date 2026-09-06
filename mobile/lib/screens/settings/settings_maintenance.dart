@@ -18,8 +18,9 @@ import '../../providers/service_providers.dart';
 import '../../services/booking_derived_fields_service.dart';
 import '../../services/local_db.dart' show DatabaseManager;
 import '../../services/sqlite_backup_restore.dart';
+import '../../services/sync_orchestrator.dart' show DataIntegrityCheck;
+import '../../utils/debug_log.dart';
 import '../../utils/env.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 // ═══════════════════════════════════════════════════════════════
 //  نموذج البيانات الحقيقية
@@ -73,7 +74,7 @@ class _SettingsMaintenanceScreenState
   @override
   void initState() {
     super.initState();
-    _loadSystemInfo();
+    unawaited(_loadSystemInfo());
   }
 
   // ─── تحميل البيانات الحقيقية ───────────────────────────
@@ -501,7 +502,7 @@ class _SettingsMaintenanceScreenState
 
   void _showLoading(String message) {
     setState(() => _isWorking = true);
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
@@ -515,7 +516,7 @@ class _SettingsMaintenanceScreenState
           ],
         ),
       ),
-    );
+    ));
   }
 
   void _hideLoading() {
@@ -543,7 +544,7 @@ class _SettingsMaintenanceScreenState
   // ─── تنظيف البيانات المؤقتة ───────────────────────────
 
   void _showCleanupDialog(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('تنظيف البيانات المؤقتة'),
@@ -581,13 +582,13 @@ class _SettingsMaintenanceScreenState
           ),
         ],
       ),
-    );
+    ));
   }
 
   // ─── فحص قاعدة البيانات ──────────────────────────────
 
   void _showDatabaseCheckDialog(BuildContext context) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('فحص قاعدة البيانات'),
@@ -618,11 +619,11 @@ class _SettingsMaintenanceScreenState
           ),
         ],
       ),
-    );
+    ));
   }
 
-  void _showIntegrityResults(List<dynamic> checks) {
-    showDialog<void>(
+  void _showIntegrityResults(List<DataIntegrityCheck> checks) {
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Row(
@@ -651,13 +652,13 @@ class _SettingsMaintenanceScreenState
                     return ListTile(
                       dense: true,
                       leading: const Icon(Icons.table_chart, size: 18),
-                      title: Text(check.tableName as String),
+                      title: Text(check.tableName),
                       subtitle: Text('${check.recordCount} سجل'),
                       trailing: Text(
                         // ✅ P1 fix: حماية من RangeError إذا كان checksum أقصر من 8 أحرف
-                        (check.checksum as String).length >= 8
-                            ? (check.checksum as String).substring(0, 8)
-                            : (check.checksum as String),
+                        check.checksum.length >= 8
+                            ? check.checksum.substring(0, 8)
+                            : check.checksum,
                         style: const TextStyle(
                           fontFamily: 'monospace',
                           fontSize: 10,
@@ -677,13 +678,13 @@ class _SettingsMaintenanceScreenState
           ),
         ],
       ),
-    );
+    ));
   }
 
   // ─── VACUUM ─────────────────────────────────────────────
 
   void _showVacuumDialog(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('ضغط قاعدة البيانات'),
@@ -744,7 +745,7 @@ class _SettingsMaintenanceScreenState
           ),
         ],
       ),
-    );
+    ));
   }
 
   Future<int> _getTotalDbSizeBytes() async {
@@ -762,7 +763,7 @@ class _SettingsMaintenanceScreenState
   // ─── إعادة تعيين المزامنة ─────────────────────────────
 
   void _showResetSyncDialog(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('إعادة تعيين المزامنة'),
@@ -808,13 +809,13 @@ class _SettingsMaintenanceScreenState
           ),
         ],
       ),
-    );
+    ));
   }
 
   // ─── معالجة الرصيد التراكمي ──────────────────────────
 
   void _showProcessPendingBalanceDialog(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Row(
@@ -858,7 +859,7 @@ class _SettingsMaintenanceScreenState
           ),
         ],
       ),
-    );
+    ));
   }
 
   Future<List<Map<String, dynamic>>> _processPendingBalances(
@@ -918,7 +919,7 @@ class _SettingsMaintenanceScreenState
       (s, r) => s + (r['amount'] as double),
     );
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
@@ -1008,13 +1009,13 @@ class _SettingsMaintenanceScreenState
           ],
         ),
       ),
-    );
+    ));
   }
 
   // ─── مسح Outbox ───────────────────────────────────────
 
   void _showOutboxResetDialog(BuildContext context, WidgetRef ref) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('إعادة محاولة Outbox الفاشل'),
@@ -1051,13 +1052,13 @@ class _SettingsMaintenanceScreenState
           ),
         ],
       ),
-    );
+    ));
   }
 
   // ─── إعادة تشغيل الخدمات ──────────────────────────────
 
   void _showRestartDialog(BuildContext context) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('إعادة تشغيل الخدمات'),
@@ -1090,13 +1091,13 @@ class _SettingsMaintenanceScreenState
           ),
         ],
       ),
-    );
+    ));
   }
 
   // ─── إعادة تعيين التطبيق ─────────────────────────────
 
   void _showResetAppDialog(BuildContext context) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Row(
@@ -1125,7 +1126,7 @@ class _SettingsMaintenanceScreenState
           ),
         ],
       ),
-    );
+    ));
   }
 
   void _showConfirmResetDialog(BuildContext context) {

@@ -1,11 +1,10 @@
 import 'dart:async';
 
-import 'package:sqflite/sqflite.dart' as sqflite;
 import 'package:path/path.dart' as p;
+import 'package:sqflite/sqflite.dart' as sqflite;
 
+import '../utils/debug_log.dart';
 import 'local_db.dart';
-
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class DatabaseHealthChecker {
   DatabaseHealthChecker._();
@@ -100,7 +99,7 @@ class DatabaseHealthChecker {
         final result = await db.rawQuery('PRAGMA integrity_check');
         final integrity = result.isEmpty
             ? null
-            : result.first.values.first as String;
+            : result.first.values.first! as String;
         if (integrity != 'ok') {
           dlog(() => '❌ SQLite integrity_check FAILED: $integrity');
           return integrity;
@@ -118,7 +117,7 @@ class DatabaseHealthChecker {
 
   void dispose() {
     stopMonitoring();
-    _healthStreamController.close();
+    unawaited(_healthStreamController.close());
   }
 }
 

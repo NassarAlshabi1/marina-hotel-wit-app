@@ -1,11 +1,12 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/alarm_backup.dart';
 import '../services/telegram/telegram_config.dart';
 import '../services/telegram/telegram_report_service.dart';
+import '../utils/debug_log.dart';
 import '../utils/env.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// حالة إعداد التقرير اليومي عبر واتساب
 enum WhatsAppReportStatus { idle, testing, success, error, sendingReport }
@@ -63,7 +64,7 @@ class WhatsAppDailyReportState {
 class WhatsAppDailyReportNotifier
     extends StateNotifier<WhatsAppDailyReportState> {
   WhatsAppDailyReportNotifier() : super(const WhatsAppDailyReportState()) {
-    _initialize();
+    unawaited(_initialize());
   }
 
   final TelegramReportService _reports = TelegramReportService.instance;

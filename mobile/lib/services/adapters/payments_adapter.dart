@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' as d;
 
+import '../../utils/debug_log.dart';
 import '../../utils/id.dart';
 import '../../utils/time.dart';
 import '../local_db.dart';
@@ -7,7 +8,6 @@ import 'entity_adapter.dart';
 import 'id_resolver.dart';
 import 'resolve_result.dart';
 import 'source.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class PaymentsAdapter extends EntityAdapter<Payment, PaymentsCompanion> {
   PaymentsAdapter(this.resolver);

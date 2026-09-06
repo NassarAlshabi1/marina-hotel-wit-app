@@ -24,7 +24,7 @@ class _WhatsAppDailyReportScreenState
   @override
   void initState() {
     super.initState();
-    _loadSettings();
+    unawaited(_loadSettings());
   }
 
   Future<void> _loadSettings() async {
@@ -840,7 +840,7 @@ class _WhatsAppDailyReportScreenState
   }
 
   void _showSetupGuide(BuildContext context) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -893,7 +893,7 @@ class _WhatsAppDailyReportScreenState
           ),
         ],
       ),
-    );
+    ));
   }
 
   Widget _buildSectionTitle(String title, IconData icon, Color color) {

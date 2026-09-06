@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:characters/characters.dart';
 import 'package:http/http.dart' as http;
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../utils/debug_log.dart';
 
 /// أنواع واتساب API المدعومة
 enum WhatsAppApiType { greenapi, custom }
@@ -80,8 +80,10 @@ class WhatsAppService {
         try {
           final json = jsonDecode(response.body) as Map<String, dynamic>;
           final desc =
-              json['invokeStatus']?['description'] as String? ??
-              json['correspondentsStatus']?['description'] as String? ??
+              (json['invokeStatus'] as Map<String, dynamic>?)?['description']
+                  as String? ??
+              (json['correspondentsStatus'] as Map<String, dynamic>?)?['description']
+                  as String? ??
               'تجاوز الحصة الشهرية';
           return (success: false, quotaMessage: desc);
         } catch (_) {

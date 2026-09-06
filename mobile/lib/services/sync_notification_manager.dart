@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -196,7 +197,7 @@ class SyncNotificationManager {
     });
 
     // اهتزاز خفيف للإشعار
-    HapticFeedback.lightImpact();
+    unawaited(HapticFeedback.lightImpact());
   }
 
   /// إشعار فشل المزامنة
@@ -324,7 +325,7 @@ class SyncNotificationManager {
     });
 
     // اهتزاز للتنبيه
-    HapticFeedback.heavyImpact();
+    unawaited(HapticFeedback.heavyImpact());
   }
 
   /// إشعار بدء المزامنة
@@ -497,7 +498,7 @@ class SyncNotificationManager {
     });
 
     // اهتزاز للإشعار
-    HapticFeedback.selectionClick();
+    unawaited(HapticFeedback.selectionClick());
   }
 
   /// إشعار بوجود تضارب في البيانات تم حله تلقائياً
@@ -556,7 +557,7 @@ class SyncNotificationManager {
                 label: 'تفاصيل',
                 textColor: Colors.white,
                 onPressed: () {
-                  showDialog<void>(
+                  unawaited(showDialog<void>(
                     context: context,
                     builder: (ctx) => AlertDialog(
                       title: const Text('تفاصيل التضارب'),
@@ -568,13 +569,13 @@ class SyncNotificationManager {
                         ),
                       ],
                     ),
-                  );
+                  ));
                 },
               )
             : null,
       ),
     );
 
-    HapticFeedback.mediumImpact();
+    unawaited(HapticFeedback.mediumImpact());
   }
 }

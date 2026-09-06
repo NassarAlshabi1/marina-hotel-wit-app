@@ -21,12 +21,12 @@ import '../../services/daos/employees_dao.dart';
 import '../../services/daos/expenses_dao.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/daos/payments_dao.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/performance_config.dart';
 import '../../utils/status_utils.dart';
 import '../../widgets/report_date_filter.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class IncomeExpenseReportScreen extends ConsumerStatefulWidget {
   const IncomeExpenseReportScreen({super.key});
@@ -77,7 +77,7 @@ class _IncomeExpenseReportScreenState
     final range = DateFilterController.getDefaultHotelDayRange();
     _fromDate = range.from;
     _toDate = range.to;
-    _fetchReport();
+    unawaited(_fetchReport());
   }
 
   Future<void> _fetchReport() async {
@@ -2143,7 +2143,7 @@ class _IncomeExpenseReportScreenState
 
   // ===== نافذة خيارات التصدير =====
   void _showExportOptions() {
-    showModalBottomSheet<void>(
+    unawaited(showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -2226,7 +2226,7 @@ class _IncomeExpenseReportScreenState
                       subtitle: 'تجميع حسب كل يوم (مع اسم اليوم بالعربي)',
                       onTap: () {
                         Navigator.pop(context);
-                        _exportDetailedGroupedPdf('daily');
+                        unawaited(_exportDetailedGroupedPdf('daily'));
                       },
                     ),
                     _buildExportOption(
@@ -2237,7 +2237,7 @@ class _IncomeExpenseReportScreenState
                       subtitle: 'تجميع حسب كل شهر (بالأسماء العربية)',
                       onTap: () {
                         Navigator.pop(context);
-                        _exportDetailedGroupedPdf('monthly');
+                        unawaited(_exportDetailedGroupedPdf('monthly'));
                       },
                     ),
                     _buildExportOption(
@@ -2248,7 +2248,7 @@ class _IncomeExpenseReportScreenState
                       subtitle: 'تجميع حسب كل سنة',
                       onTap: () {
                         Navigator.pop(context);
-                        _exportDetailedGroupedPdf('yearly');
+                        unawaited(_exportDetailedGroupedPdf('yearly'));
                       },
                     ),
                   ],
@@ -2266,7 +2266,7 @@ class _IncomeExpenseReportScreenState
                 subtitle: 'إرسال التقرير العام عبر التطبيقات',
                 onTap: () {
                   Navigator.pop(context);
-                  _exportPdf();
+                  unawaited(_exportPdf());
                 },
               ),
               _buildExportOption(
@@ -2277,7 +2277,7 @@ class _IncomeExpenseReportScreenState
                 subtitle: 'طباعة التقرير مباشرة',
                 onTap: () {
                   Navigator.pop(context);
-                  _printPdf();
+                  unawaited(_printPdf());
                 },
               ),
               _buildExportOption(
@@ -2288,7 +2288,7 @@ class _IncomeExpenseReportScreenState
                 subtitle: 'حفظ كملف PDF',
                 onTap: () {
                   Navigator.pop(context);
-                  _savePdf();
+                  unawaited(_savePdf());
                 },
               ),
               _buildExportOption(
@@ -2299,7 +2299,7 @@ class _IncomeExpenseReportScreenState
                 subtitle: 'ملف جدول بيانات لفتحه في Excel',
                 onTap: () {
                   Navigator.pop(context);
-                  _exportCsv();
+                  unawaited(_exportCsv());
                 },
               ),
 
@@ -2308,7 +2308,7 @@ class _IncomeExpenseReportScreenState
           ),
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildExportOption({
@@ -2392,7 +2392,7 @@ class _IncomeExpenseReportScreenState
                         _fromDate = range.from;
                         _toDate = range.to;
                       });
-                      _fetchReport();
+                      unawaited(_fetchReport());
                     },
                     dateButtonsFirst: true,
                     dateButtonsBuilder: (context, onPickFrom, onPickTo) => [

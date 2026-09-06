@@ -131,7 +131,7 @@ class SmartGoogleDriveSync {
     _debounceTimer = Timer(_debounceDuration, () {
       if (_hasPendingChanges) {
         _log('📤 رفع $_pendingChangesCount تغيير بعد debounce...');
-        pushLocalChanges();
+        unawaited(pushLocalChanges());
       }
     });
   }

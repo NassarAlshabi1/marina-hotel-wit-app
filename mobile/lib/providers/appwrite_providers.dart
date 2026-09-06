@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:http/http.dart' as http;
@@ -33,7 +34,7 @@ final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((
   final db = ref.watch(databaseProvider);
   final smart = SmartSyncManager.instance;
   final orch = UnifiedSyncOrchestrator.instance;
-  orch.initialize(appwrite: appwriteSync, smart: smart, database: db);
+  unawaited(orch.initialize(appwrite: appwriteSync, smart: smart, database: db));
   return orch;
 });
 

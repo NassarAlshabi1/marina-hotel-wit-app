@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:drift/drift.dart';
 
+import '../utils/debug_log.dart';
 import 'auto_backup_manager.dart';
 import 'local_db.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// مدد لتتبع التغييرات في قاعدة البيانات للنسخ التلقائي
 typedef TablePredicate<TTable extends Table> =

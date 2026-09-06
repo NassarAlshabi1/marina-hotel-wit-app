@@ -576,7 +576,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   void _showGuestHistory(BuildContext context, GuestInfo guest) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
@@ -619,7 +619,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                           TextButton.icon(
                             onPressed: () {
                               Navigator.pop(context);
-                              _editBooking(context, booking);
+                              unawaited(_editBooking(context, booking));
                             },
                             icon: const Icon(Icons.edit, size: 16),
                             label: const Text('تعديل الحجز'),
@@ -630,7 +630,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
                           TextButton.icon(
                             onPressed: () {
                               Navigator.pop(context);
-                              _deleteBooking(context, booking, guest);
+                              unawaited(_deleteBooking(context, booking, guest));
                             },
                             icon: const Icon(Icons.delete_outline, size: 16),
                             label: const Text('حذف الحجز'),
@@ -654,7 +654,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   /// ✅ تعديل حجز فردي — يفتح BookingEditScreen مع `existing: booking`
@@ -773,7 +773,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   void _showGuestDetails(BuildContext context, GuestInfo guest) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (context) => Directionality(
         textDirection: TextDirection.rtl,
@@ -820,7 +820,7 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Future<void> _editCheckinDate(BuildContext context, GuestInfo guest) async {

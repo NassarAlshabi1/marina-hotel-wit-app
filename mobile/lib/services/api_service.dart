@@ -87,10 +87,11 @@ class ApiService {
       '/auth/login.php',
       data: jsonEncode({'username': username, 'password': password}),
     );
+    final data = res.data;
     if (res.statusCode == 200 &&
-        res.data is Map &&
-        res.data['success'] == true) {
-      final rawData = res.data['data'];
+        data is Map &&
+        data['success'] == true) {
+      final rawData = data['data'];
       if (rawData is Map) {
         final data = Map<String, dynamic>.from(rawData);
         final token = data['token'] as String?;
@@ -110,7 +111,8 @@ class ApiService {
   Future<bool> ping() async {
     try {
       final res = await _dio.get<dynamic>('/auth/ping.php');
-      return res.statusCode == 200 && res.data['success'] == true;
+      final data = res.data;
+      return res.statusCode == 200 && data is Map && data['success'] == true;
     } catch (_) {
       return false;
     }
@@ -194,8 +196,9 @@ class ApiService {
       'image': await MultipartFile.fromFile(filePath),
     });
     final res = await _dio.post<dynamic>('/uploads/rooms.php', data: form);
-    if (res.statusCode == 200 && res.data['success'] == true) {
-      return res.data['data']['url'] as String;
+    final data = res.data;
+    if (res.statusCode == 200 && data is Map && data['success'] == true) {
+      return (data['data'] as Map)['url'] as String;
     }
     return null;
   }

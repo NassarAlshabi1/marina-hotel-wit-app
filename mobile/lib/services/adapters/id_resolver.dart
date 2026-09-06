@@ -185,7 +185,6 @@ class IdResolver {
                 ..orderBy([
                   (e) => d.OrderingTerm(
                     expression: e.deletedAt,
-                    mode: d.OrderingMode.asc,
                   ),
                   (e) => d.OrderingTerm(expression: e.id),
                 ]))
@@ -290,7 +289,6 @@ class IdResolver {
                 ..orderBy([
                   (c) => d.OrderingTerm(
                     expression: c.deletedAt,
-                    mode: d.OrderingMode.asc,
                   ),
                   (c) => d.OrderingTerm(expression: c.id),
                 ]))

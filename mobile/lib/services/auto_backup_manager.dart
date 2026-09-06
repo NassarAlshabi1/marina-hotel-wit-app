@@ -256,10 +256,10 @@ class AutoBackupManager {
         !WeakDeviceOptimizer.instance.isWeakDevice) {
       _debounceTimer?.cancel();
       _debounceTimer = Timer(const Duration(seconds: _debounceSeconds), () {
-        _performAutoBackup(
+        unawaited(_performAutoBackup(
           reason: 'تغييرات تلقائية ($tableName: $operation)',
           changesCount: _pendingChanges,
-        );
+        ));
         _pendingChanges = 0;
       });
     }
@@ -412,7 +412,7 @@ class AutoBackupManager {
 
     // تنظيف دوري كل 6 ساعات
     _cleanupTimer = Timer.periodic(const Duration(hours: 6), (timer) {
-      _cleanupOldBackups();
+      unawaited(_cleanupOldBackups());
     });
 
     dlog('⏰ تم جدولة التنظيف الدوري كل 6 ساعات');

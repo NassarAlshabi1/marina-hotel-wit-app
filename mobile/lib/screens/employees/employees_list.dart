@@ -12,10 +12,10 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/sync_service.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/english_digits_input_formatter.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/stream_helpers.dart';
 import '../../utils/theme.dart';
-import '../../utils/english_digits_input_formatter.dart';
 
 class EmployeesListScreen extends ConsumerStatefulWidget {
   const EmployeesListScreen({super.key});
@@ -92,7 +92,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
                         // ✅ زر إعادة محاولة يُشغّل مزامنة فعلية ويُعيد بناء الـ stream
                         ElevatedButton.icon(
                           onPressed: () {
-                            ref.read(syncServiceProvider).runSync();
+                            unawaited(ref.read(syncServiceProvider).runSync());
                             setState(() => _refreshCounter++);
                           },
                           icon: const Icon(Icons.refresh),
@@ -215,7 +215,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
     DateTime? terminationDate = DateTime.now();
     final reasonController = TextEditingController();
 
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => Directionality(
         textDirection: TextDirection.rtl,
@@ -464,7 +464,7 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
       ),
     ).then((_) {
       reasonController.dispose();
-    });
+    }));
   }
 
   /// إعادة تفعيل موظف مفصول

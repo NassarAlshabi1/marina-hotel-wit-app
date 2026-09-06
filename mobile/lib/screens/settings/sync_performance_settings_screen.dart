@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -21,7 +22,7 @@ class _SyncPerformanceSettingsScreenState
   @override
   void initState() {
     super.initState();
-    _loadCurrentProfile();
+    unawaited(_loadCurrentProfile());
   }
 
   Future<void> _loadCurrentProfile() async {

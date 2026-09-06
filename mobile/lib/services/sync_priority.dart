@@ -15,9 +15,10 @@ enum SyncPriority {
   autoSync(20, 'auto_sync_timer'),
   background(10, 'workmanager');
 
+  const SyncPriority(this.value, this.label);
+
   final int value;
   final String label;
-  const SyncPriority(this.value, this.label);
 }
 
 /// Tracks the currently running sync priority.

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,7 +28,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
   bool _isLoading = true;
   bool _isTesting = false;
   bool _isSaving = false;
-  bool _isSyncing = false;
+  final bool _isSyncing = false;
   late TabController _tabController;
   bool _obscureToken = true;
 
@@ -42,7 +43,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadSettings();
+    unawaited(_loadSettings());
   }
 
   @override
@@ -243,7 +244,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
   }
 
   void _showTestResult(bool success, String title, String detail) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -303,7 +304,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
           ),
         ],
       ),
-    );
+    ));
   }
 
   /// رفع الإعدادات إلى Appwrite Console
@@ -749,7 +750,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
     required String title,
     required String subtitle,
   }) {
-    showDialog<void>(
+    unawaited(showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -785,7 +786,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
           ),
         ],
       ),
-    );
+    ));
   }
 
   // ─── قسم مزامنة السحابة ───

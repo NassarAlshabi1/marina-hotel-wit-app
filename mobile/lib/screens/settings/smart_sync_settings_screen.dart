@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -572,7 +573,7 @@ class _SmartSyncSettingsScreenState
                   ? null
                   : (value) {
                       if (value != null) {
-                        _changeSyncInterval(value);
+                        unawaited(_changeSyncInterval(value));
                       }
                     },
             ),
@@ -622,7 +623,7 @@ class _SmartSyncSettingsScreenState
                   ? null
                   : (value) {
                       if (value != null) {
-                        _changeConflictResolution(value);
+                        unawaited(_changeConflictResolution(value));
                       }
                     },
             ),

@@ -40,7 +40,7 @@ class AuthLocalStore {
   /// — نفسها التي تستخدمها عمليات Outbox القائمة.
   static Map<String, dynamic> appUsersSyncPayload({
     required String localUuid,
-    String? username,
+    required int now, String? username,
     String? password,
     String? fullName,
     String? userType,
@@ -49,7 +49,6 @@ class AuthLocalStore {
     int? lastLogin,
     int? credentialsVersion,
     String? role,
-    required int now,
     int version = 1,
     String? deviceId,
     bool tombstone = false,
@@ -486,7 +485,6 @@ class AuthLocalStore {
         credentialsVersion: 1,
         role: userType,
         now: now,
-        version: 1,
         deviceId: deviceId,
       );
       await _writeLocalAppUsersRow(syncPayload);
@@ -1178,7 +1176,6 @@ class AuthLocalStore {
         localUuid: docId,
         payload: payload,
         clientTs: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        source: 'local',
       );
       return true;
     } catch (e, st) {

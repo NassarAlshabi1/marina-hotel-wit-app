@@ -1,7 +1,7 @@
+import '../../utils/currency_formatter.dart';
+import '../../utils/debug_log.dart';
 import 'telegram_config.dart';
 import 'telegram_service.dart';
-import 'package:marina_hotel_mobile/utils/currency_formatter.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// أنواع أحداث الفندق
 enum TelegramEventType {

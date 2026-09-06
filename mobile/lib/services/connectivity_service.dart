@@ -152,9 +152,9 @@ class ConnectivityService {
   }
 
   void dispose() {
-    _subscription?.cancel();
+    unawaited(_subscription?.cancel());
     _subscription = null;
-    _statusController.close();
+    unawaited(_statusController.close());
     _initialized = false;
     _instance = null;
   }

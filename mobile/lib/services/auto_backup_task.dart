@@ -2,9 +2,9 @@ import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
+import '../utils/debug_log.dart';
 import 'google_drive_backup_service.dart';
 import 'local_backup_service.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class AutoBackupTask {
   static const String taskName = 'autoBackupTask';

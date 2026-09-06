@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -50,7 +51,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeDefaults();
+    unawaited(_initializeDefaults());
   }
 
   Future<void> _initializeDefaults() async {
@@ -478,7 +479,7 @@ class _DebtsReportScreenState extends ConsumerState<DebtsReportScreen> {
                   _fromDate = range.from;
                   _toDate = range.to;
                 });
-                _fetchReport();
+                unawaited(_fetchReport());
               },
             ),
             Wrap(

@@ -147,7 +147,7 @@ class HotelDayTicker {
     _timer?.cancel();
     _timer = null;
     if (_controller != null && !_controller!.isClosed) {
-      _controller!.close();
+      unawaited(_controller!.close());
     }
     _controller = null;
   }

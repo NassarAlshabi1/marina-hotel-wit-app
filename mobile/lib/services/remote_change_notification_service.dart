@@ -37,7 +37,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../utils/debug_log.dart';
 import 'sync_notification_manager.dart';
 
 /// ✅ Wave 7: Service for showing local notifications when remote changes

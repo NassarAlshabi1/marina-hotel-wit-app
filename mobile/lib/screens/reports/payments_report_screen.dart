@@ -12,12 +12,12 @@ import '../../services/booking_derived_fields_service.dart';
 import '../../services/daos/outbox_dao.dart';
 import '../../services/daos/payments_dao.dart';
 import '../../services/local_db.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/enhanced_pdf_utils.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../widgets/report_date_filter.dart';
 import 'report_page_scaffold.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class PaymentsReportScreen extends ConsumerStatefulWidget {
   const PaymentsReportScreen({super.key});
@@ -54,7 +54,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
     super.didChangeDependencies();
     if (!_roomsLoaded) {
       _roomsLoaded = true;
-      _initializeDefaults();
+      unawaited(_initializeDefaults());
     }
   }
 
@@ -408,7 +408,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
           _fromDate = range.from;
           _toDate = range.to;
         });
-        _fetchReport();
+        unawaited(_fetchReport());
       },
       onExportPdf: _exportPdf,
       onSearch: _fetchReport,
@@ -458,7 +458,7 @@ class _PaymentsReportScreenState extends ConsumerState<PaymentsReportScreen> {
               setState(() {
                 _selectedRoom = value;
               });
-              _fetchReport();
+              unawaited(_fetchReport());
             },
           ),
         ),

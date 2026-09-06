@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../utils/currency_formatter.dart';
+import '../../utils/debug_log.dart';
 import '../remote_config_service.dart';
-import 'package:marina_hotel_mobile/utils/currency_formatter.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// أنواع أحداث الفندق
 enum WhatsAppEventType {

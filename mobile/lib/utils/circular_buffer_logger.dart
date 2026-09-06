@@ -61,7 +61,7 @@ class CircularBufferLogger {
   }
 
   Future<void> _loadExistingLogs() async {
-    if (_logFile == null || !await _logFile!.exists()) return;
+    if (_logFile == null || !_logFile!.existsSync()) return;
     try {
       final lines = await _logFile!.readAsLines();
       final recent = lines.length > _maxEntries

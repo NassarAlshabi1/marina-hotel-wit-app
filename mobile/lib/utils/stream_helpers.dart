@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:signals_flutter/signals_flutter.dart'
     as signals
     show Signal, signal;
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import 'debug_log.dart';
 
 /// ✅ تأخير إصدار بيانات الـ Stream حتى تهدأ التغييرات.
 Stream<T> debounceStream<T>(Stream<T> source, Duration duration) {
@@ -65,7 +65,7 @@ class StreamToValueNotifier<T> extends ValueNotifier<T> {
 
   @override
   void dispose() {
-    _subscription?.cancel();
+    unawaited(_subscription?.cancel());
     super.dispose();
   }
 }
@@ -119,7 +119,7 @@ class StreamToSignal<T> {
 
   /// تنظيف الموارد
   void dispose() {
-    _subscription?.cancel();
+    unawaited(_subscription?.cancel());
     _signal.dispose();
   }
 }

@@ -7,9 +7,9 @@ import '../../providers/appwrite_providers.dart' as appwrite;
 import '../../providers/auto_backup_provider.dart';
 import '../../providers/backup_provider.dart';
 import '../../services/bootstrap_full_pull.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/performance_monitor.dart';
 import '../../utils/theme.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class GoogleDriveLoginScreen extends ConsumerStatefulWidget {
   const GoogleDriveLoginScreen({super.key});
@@ -28,7 +28,7 @@ class _GoogleDriveLoginScreenState
   @override
   void initState() {
     super.initState();
-    _trySilentSignIn();
+    unawaited(_trySilentSignIn());
   }
 
   /// محاولة تسجيل الدخول الصامت تلقائياً — إذا سبق تسجيل الدخول

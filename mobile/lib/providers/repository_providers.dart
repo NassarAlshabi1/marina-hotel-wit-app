@@ -1,22 +1,19 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/adapters/adapter_registry.dart';
 import '../services/auth_local_store.dart';
-import 'auth_provider.dart';
 import '../services/daos/bookings_dao.dart';
 import '../services/daos/debts_dao.dart';
 import '../services/daos/employees_dao.dart';
 import '../services/daos/expenses_dao.dart';
 import '../services/daos/outbox_dao.dart';
-// ✅ P2 Performance Fix (2026-08-10): استيراد WeakDeviceOptimizer
-// لاستخدام maxListItemsBeforePagination في تقييد القوائم على الأجهزة الضعيفة.
-import '../utils/weak_device_optimizer.dart';
 import '../services/daos/payments_dao.dart';
 import '../services/diagnostics/diagnostics_logger.dart';
 import '../services/local_db.dart';
+import '../services/payment_session_context.dart';
 import '../services/repositories/blacklist_repository.dart';
 import '../services/repositories/bookings_repository.dart';
 import '../services/repositories/cash_repository.dart';
@@ -27,7 +24,6 @@ import '../services/repositories/guest_infos_repository.dart';
 import '../services/repositories/inventory_repository.dart';
 import '../services/repositories/notes_repository.dart';
 import '../services/repositories/payments_repository.dart';
-import '../services/payment_session_context.dart';
 import '../services/repositories/rooms_repository.dart';
 import '../services/repositories/salary_withdrawals_repository.dart';
 import '../services/repositories/shift_notes_repository.dart';
@@ -39,6 +35,10 @@ import '../utils/env.dart';
 import '../utils/hotel_time_engine.dart';
 import '../utils/status_utils.dart';
 import '../utils/stream_helpers.dart';
+// ✅ P2 Performance Fix (2026-08-10): استيراد WeakDeviceOptimizer
+// لاستخدام maxListItemsBeforePagination في تقييد القوائم على الأجهزة الضعيفة.
+import '../utils/weak_device_optimizer.dart';
+import 'auth_provider.dart';
 
 // إضافة Auto Backup Providers
 export '../providers/auto_backup_provider.dart';
@@ -345,7 +345,7 @@ final hotelDayTickerProvider = StreamProvider<String>((ref) {
 
   ref.onDispose(() {
     timer.cancel();
-    controller.close();
+    unawaited(controller.close());
   });
 
   return controller.stream;

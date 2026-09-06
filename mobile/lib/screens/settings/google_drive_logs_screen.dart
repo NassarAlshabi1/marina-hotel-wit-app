@@ -346,7 +346,7 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
   }
 
   void _showLogDetails(LogEntry log) {
-    showModalBottomSheet<void>(
+    unawaited(showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -427,11 +427,11 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
           ),
         );
       },
-    );
+    ));
   }
 
   void _copyLog(LogEntry log) {
-    Clipboard.setData(ClipboardData(text: log.toFormattedString()));
+    unawaited(Clipboard.setData(ClipboardData(text: log.toFormattedString())));
     if (mounted) {
       ScaffoldMessenger.of(
         context,

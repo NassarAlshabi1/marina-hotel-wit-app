@@ -1,8 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/debug_log.dart';
 import 'database_fixer.dart';
 import 'database_health_monitor.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 /// نظام التشغيل التلقائي لفحص صحة قاعدة البيانات
 class DatabaseHealthTriggers {

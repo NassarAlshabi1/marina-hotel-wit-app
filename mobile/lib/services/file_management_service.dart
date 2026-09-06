@@ -5,9 +5,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../utils/debug_log.dart';
 import 'google_drive_backup_service.dart';
 import 'local_backup_service.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class FileManagementService {
   static const String _exportFolderName = 'MarinaHotelExports';
@@ -59,14 +59,15 @@ class FileManagementService {
       // إنشاء البيانات الخلاصة
       final backupService = GoogleDriveBackupService();
       final backupData = await backupService.exportDatabaseToJson();
+      final backupMetadata = backupData['metadata'] as Map<String, dynamic>;
 
       // إنشاء تقرير قابل للقراءة
       final report = {
         'تقرير_مارينا_هوتيل': {
           'معلومات_عامة': {
             'تاريخ_التقرير': timestamp.toIso8601String(),
-            'إصدار_التطبيق': backupData['metadata']['app_version'],
-            'إجمالي_السجلات': backupData['metadata']['total_records'],
+            'إصدار_التطبيق': backupMetadata['app_version'],
+            'إجمالي_السجلات': backupMetadata['total_records'],
           },
           'ملخص_البيانات': {
             'عدد_الغرف': (backupData['rooms'] as List).length,
@@ -176,7 +177,7 @@ class FileManagementService {
           continue;
         }
 
-        final stat = await file.stat();
+        final stat = file.statSync();
         final dateKey =
             '${stat.modified.year}-${stat.modified.month.toString().padLeft(2, '0')}-${stat.modified.day.toString().padLeft(2, '0')}';
 
@@ -515,7 +516,7 @@ class FileManagementService {
       readableContent.writeln('=== تقرير مارينا هوتيل ===\n');
 
       if (backupData.containsKey('metadata')) {
-        final metadata = backupData['metadata'];
+        final metadata = backupData['metadata'] as Map<String, dynamic>;
         readableContent.writeln('📋 معلومات النسخة الاحتياطية:');
         readableContent.writeln('   إصدار التطبيق: ${metadata['app_version']}');
         readableContent.writeln(
@@ -636,7 +637,7 @@ class FileManagementService {
     final entities = dir.listSync();
     for (final entity in entities) {
       try {
-        final stat = await entity.stat();
+        final stat = entity.statSync();
         if (stat.modified.isBefore(cutoffTime)) {
           if (entity is File) {
             await entity.delete();

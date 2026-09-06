@@ -9,7 +9,7 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import 'debug_log.dart';
 
 /// تكوين أداء الجهاز الضعيف.
 ///

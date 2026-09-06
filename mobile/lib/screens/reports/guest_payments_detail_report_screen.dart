@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -9,12 +10,12 @@ import '../../providers/repository_providers.dart';
 import '../../services/local_db.dart';
 import '../../services/stay_balance_calculator.dart';
 import '../../utils/currency_formatter.dart';
+import '../../utils/debug_log.dart';
 import '../../utils/enhanced_pdf_utils.dart' as epdf;
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/report_pdf_builder.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 // ─────────────────────────────────────────────────────────────────
 // يستخدم StayBalanceCalculator المحرك الموحد لحساب الرصيد والتواريخ
@@ -192,7 +193,7 @@ class _GuestPaymentsDetailReportScreenState
   @override
   void initState() {
     super.initState();
-    _refreshData();
+    unawaited(_refreshData());
   }
 
   Future<void> _refreshData() async {

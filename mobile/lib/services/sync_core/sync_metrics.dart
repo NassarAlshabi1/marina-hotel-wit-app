@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
+import '../../utils/debug_log.dart';
 
 /// معلومات دورة مزامنة واحدة
 class SyncSession {
@@ -175,7 +175,7 @@ class SyncMetrics {
       _history.removeAt(0);
     }
 
-    _saveHistory();
+    unawaited(_saveHistory());
   }
 
   /// تحديث الإحصائيات
@@ -266,6 +266,6 @@ class SyncMetrics {
 
   /// تنظيف الموارد
   void dispose() {
-    _statsController.close();
+    unawaited(_statsController.close());
   }
 }

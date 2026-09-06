@@ -5,6 +5,7 @@ import 'package:drift/drift.dart' as d;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../utils/debug_log.dart';
 import '../utils/id.dart';
 import '../utils/time.dart';
 import 'adapters/adapter_registry.dart';
@@ -15,7 +16,6 @@ import 'local_db.dart';
 import 'repositories/rooms_repository.dart';
 import 'sync_constants.dart';
 import 'sync_locks.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 enum SyncFileType { fullBackup, deltaSync }
 

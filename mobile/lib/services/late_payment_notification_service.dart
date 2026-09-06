@@ -19,8 +19,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show Color;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import '../utils/debug_log.dart';
 import 'local_db.dart';
-import 'package:marina_hotel_mobile/utils/debug_log.dart';
 
 class LatePaymentNotificationService {
   LatePaymentNotificationService._();
@@ -55,7 +55,7 @@ class LatePaymentNotificationService {
     _isRunning = true;
     _timer = Timer.periodic(const Duration(minutes: 1), (_) => _tick());
     // فحص فوري عند البدء (يفيد إذا فُتح التطبيق بعد 22:00).
-    _tick();
+    unawaited(_tick());
     dlog('🔔 LatePaymentNotificationService started');
   }
 

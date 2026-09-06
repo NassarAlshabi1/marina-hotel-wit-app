@@ -13,12 +13,12 @@ import '../../services/analytics_service.dart';
 import '../../services/crashlytics_service.dart';
 import '../../services/local_db.dart' as db;
 import '../../utils/currency_formatter.dart';
+import '../../utils/english_digits_input_formatter.dart';
 import '../../utils/hotel_time_engine.dart';
 import '../../utils/status_utils.dart';
 import '../../utils/time.dart';
 import 'booking_checkout_screen.dart';
 import 'payment_history_screen.dart';
-import '../../utils/english_digits_input_formatter.dart';
 
 class PaymentsMainScreen extends ConsumerStatefulWidget {
   const PaymentsMainScreen({super.key});
@@ -40,7 +40,7 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    CrashlyticsService.instance.setCurrentScreen('PaymentsMainScreen');
+    unawaited(CrashlyticsService.instance.setCurrentScreen('PaymentsMainScreen'));
     // ✅ Analytics: تتبّع مشاهدة شاشة المدفوعات
     unawaited(
       AnalyticsService().logScreenView(
@@ -603,13 +603,13 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                   ),
                   trailing: ElevatedButton.icon(
                     onPressed: () {
-                      Navigator.push<void>(
+                      unawaited(Navigator.push<void>(
                         context,
                         MaterialPageRoute<void>(
                           builder: (context) =>
                               BookingCheckoutScreen(booking: booking),
                         ),
-                      );
+                      ));
                     },
                     icon: const Icon(Icons.payment, size: 14),
                     label: Text(

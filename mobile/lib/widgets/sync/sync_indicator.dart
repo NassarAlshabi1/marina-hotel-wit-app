@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -96,7 +97,7 @@ class EnhancedSyncButton extends ConsumerWidget {
   }
 
   void _showSyncOptions(BuildContext context, SyncOrchestrator orchestrator) {
-    showModalBottomSheet<void>(
+    unawaited(showModalBottomSheet<void>(
       context: context,
       builder: (context) => SafeArea(
         child: Column(
@@ -108,7 +109,7 @@ class EnhancedSyncButton extends ConsumerWidget {
               subtitle: const Text('دفع + سحب'),
               onTap: () {
                 Navigator.pop(context);
-                orchestrator.syncNow();
+                unawaited(orchestrator.syncNow());
               },
             ),
             ListTile(
@@ -117,7 +118,7 @@ class EnhancedSyncButton extends ConsumerWidget {
               subtitle: const Text('Push Only'),
               onTap: () {
                 Navigator.pop(context);
-                orchestrator.pushOnly();
+                unawaited(orchestrator.pushOnly());
               },
             ),
             ListTile(
@@ -126,13 +127,13 @@ class EnhancedSyncButton extends ConsumerWidget {
               subtitle: const Text('Pull Only'),
               onTap: () {
                 Navigator.pop(context);
-                orchestrator.pullOnly();
+                unawaited(orchestrator.pullOnly());
               },
             ),
           ],
         ),
       ),
-    );
+    ));
   }
 }
 
