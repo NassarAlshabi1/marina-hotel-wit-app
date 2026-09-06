@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/cloudflare_d1_service.dart';
 import '../services/cloudflare_sync_manager.dart';
 import '../services/daos/outbox_dao.dart';
 import '../services/local_db.dart';
@@ -91,3 +92,17 @@ final connectionAutoRefreshProvider = Provider.autoDispose<void>((ref) {
   final timer = Timer.periodic(const Duration(seconds: 30), (_) => check());
   ref.onDispose(timer.cancel);
 });
+
+/// بيانات الربط مع Cloudflare (معرّف الحساب / معرّف قاعدة D1 / التوكن).
+/// نفس مصدر الحقيقة الذي يكتبه تبويب Cloudflare D1: المعرّفات في
+/// SharedPreferences (cf_d1_account_id / cf_d1_database_id) والتوكن في
+/// FlutterSecureStorage (cf_d1_api_token) — مع قيم الحساب المعروفة
+/// كافتراضيات للمعرّفات.
+final cloudflareBindingProvider =
+    FutureProvider.autoDispose<CloudflareD1Config>((ref) async {
+      return CloudflareD1Settings.load();
+    });
+
+/// إظهار التوكن كاملاً بدل الصيغة المموّهة (الافتراضي: مموّه).
+/// حالة عرض محلية بحتة — StateProvider يغني عن أي setState.
+final bindingTokenVisibleProvider = StateProvider<bool>((ref) => false);

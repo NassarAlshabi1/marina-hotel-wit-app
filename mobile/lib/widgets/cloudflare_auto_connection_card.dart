@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/appwrite_providers.dart';
 import '../providers/cloudflare_connection_providers.dart';
 import '../services/cloudflare_config.dart';
+import '../services/cloudflare_d1_service.dart';
 import '../services/local_db.dart';
 
 /// بطاقة «بيانات الاتصال التلقائي مع Cloudflare».
@@ -30,6 +31,8 @@ class CloudflareAutoConnectionCard extends ConsumerWidget {
     final autoSync = ref.watch(autoSyncSnapshotProvider);
     final lastSync = ref.watch(lastSuccessfulSyncProvider);
     final pending = ref.watch(pendingUploadCountProvider);
+    final binding = ref.watch(cloudflareBindingProvider);
+    final tokenVisible = ref.watch(bindingTokenVisibleProvider);
     final colorScheme = Theme.of(context).colorScheme;
 
     return Card(
@@ -57,6 +60,7 @@ class CloudflareAutoConnectionCard extends ConsumerWidget {
                     ref.invalidate(autoSyncSnapshotProvider);
                     ref.invalidate(lastSuccessfulSyncProvider);
                     ref.invalidate(pendingUploadCountProvider);
+                    ref.invalidate(cloudflareBindingProvider);
                     unawaited(
                       ref
                           .read(connectionStatusProvider.notifier)
@@ -75,6 +79,8 @@ class CloudflareAutoConnectionCard extends ConsumerWidget {
             _lastSyncRow(context, lastSync),
             const SizedBox(height: 10),
             _pendingRow(context, pending),
+            const Divider(height: 20),
+            ..._bindingSection(context, ref, binding, tokenVisible),
             const SizedBox(height: 10),
             _endpointRow(context, colorScheme),
           ],
@@ -199,6 +205,133 @@ class CloudflareAutoConnectionCard extends ConsumerWidget {
       label: 'نقطة الاتصال',
       value: host,
     );
+  }
+
+  // ─── بيانات الربط (التوكن والمعرّفات) ────────────────────────
+
+  List<Widget> _bindingSection(
+    BuildContext context,
+    WidgetRef ref,
+    AsyncValue<CloudflareD1Config> binding,
+    bool tokenVisible,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final header = Row(
+      children: [
+        Icon(Icons.key_outlined, size: 18, color: colorScheme.onSurfaceVariant),
+        const SizedBox(width: 10),
+        Text(
+          'بيانات الربط (التوكن والمعرّفات)',
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+        ),
+      ],
+    );
+
+    return binding.when(
+      loading: () => [header, const SizedBox(height: 8), const _RowSkeleton()],
+      error: (_, _) => [
+        header,
+        const SizedBox(height: 8),
+        const _RowError('تعذّر قراءة بيانات الربط'),
+      ],
+      data: (config) {
+        final token = config.apiToken.trim();
+        final status = config.isComplete
+            ? 'مكتمل'
+            : 'ناقص — أكمل من تبويب Cloudflare D1';
+        return [
+          header,
+          const SizedBox(height: 8),
+          _DataRow(
+            icon: Icons.badge_outlined,
+            label: 'معرّف الحساب',
+            value: config.accountId.trim(),
+          ),
+          const SizedBox(height: 8),
+          _DataRow(
+            icon: Icons.storage_outlined,
+            label: 'معرّف قاعدة D1',
+            value: config.databaseId.trim(),
+          ),
+          const SizedBox(height: 8),
+          _tokenRow(context, ref, token, tokenVisible),
+          const SizedBox(height: 8),
+          _DataRow(
+            icon: Icons.verified_outlined,
+            label: 'حالة الربط',
+            value: status,
+          ),
+        ];
+      },
+    );
+  }
+
+  Widget _tokenRow(
+    BuildContext context,
+    WidgetRef ref,
+    String token,
+    bool tokenVisible,
+  ) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final value = token.isEmpty
+        ? 'غير محفوظ'
+        : tokenVisible
+        ? token
+        : _maskToken(token);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.vpn_key_outlined,
+          size: 18,
+          color: colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 10),
+        Text('التوكن: ', style: Theme.of(context).textTheme.bodyMedium),
+        Expanded(
+          child: Text(
+            value,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              fontFeatures: tokenVisible || token.isEmpty
+                  ? null
+                  : const [FontFeature.tabularFigures()],
+              color: token.isEmpty ? colorScheme.error : null,
+            ),
+            textAlign: TextAlign.start,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (token.isNotEmpty)
+          SizedBox(
+            width: 32,
+            height: 32,
+            child: IconButton(
+              padding: EdgeInsets.zero,
+              tooltip: tokenVisible ? 'إخفاء التوكن' : 'إظهار التوكن',
+              onPressed: () {
+                ref.read(bindingTokenVisibleProvider.notifier).state =
+                    !tokenVisible;
+              },
+              icon: Icon(
+                tokenVisible ? Icons.visibility_off : Icons.visibility,
+                size: 18,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// صيغة التمويه: النقاط + آخر 4 محارف فقط (توكن أقصر من 8 يُموَّه كلياً).
+  String _maskToken(String token) {
+    if (token.length < 8) {
+      return '••••••••';
+    }
+    return '••••••••${token.substring(token.length - 4)}';
   }
 
   // ─── أدوات ───────────────────────────────────────────────────
