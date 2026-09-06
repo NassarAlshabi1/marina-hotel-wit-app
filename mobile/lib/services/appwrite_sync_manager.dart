@@ -1092,6 +1092,14 @@ class AppwriteSyncManager {
               // ✅ إصلاح جوهري: إعادة ضبط متتبّع أقصى $updatedAt في بداية دورة السحب.
               _maxUpdatedAtInPull = null;
 
+              // ✅ إصلاح (2026-09-07): إصلاح أحادي للأجهزة التي أكملت سحبها
+              // قبل توصيل آلية الآباء المرجعية — راجع _ensureTombstoneParentsRepair.
+              // يُستثنى من مسار deltaOnly التزاماً بسياسة "لا Full Sync من
+              // الخلفية" (الإصلاح سيعمل عند أول مزامنة عادية: فتح التطبيق/يدوي).
+              if (!deltaOnly) {
+                await _ensureTombstoneParentsRepair();
+              }
+
               // ✅ Unified Pull Engine (2026-08-31): مسار سحب واحد — أول تثبيت =
               // Full pull لكل مجموعة، وبعدها Delta فقط على مستوى كل مجموعة مستقلة
               // (checkpoint خاص في جدول sync_checkpoints). لا نعطل PRAGMA
@@ -5063,6 +5071,59 @@ class AppwriteSyncManager {
         stackTrace: stackTrace,
       );
       return 0;
+    }
+  }
+
+  /// ✅ إصلاح (2026-09-07) — سحب الآباء المرجعية المحذوفة وإصلاح الأجهزة
+  /// التي سبق لها السحب قبل توصيل الآلية (مرة واحدة لكل جهاز).
+  ///
+  /// الخلفية المثبتة (أدلة 2026-09-02 في
+  /// [SyncPullService.entityNeedsTombstoneParents]): سحابة الإنتاج تضم
+  /// موظفين محذوفين (tombstones) بمعرفات serverId=11 و serverId=12 مرتبط
+  /// بهما 128 سحوبة راتب (382,000 + 272,500). Full pull كان يستبعد
+  /// tombstones الموظفين، فتفشل معالجة FK ثلاثية المستويات (UUID → id →
+  /// serverId) لسحوباتهم في _syncSalaryWithdrawals وتُقفز كأيتام، ويتقدّم
+  /// checkpoint المجموعة فوقها فلا تعود أبداً في وضع Delta.
+  ///
+  /// ما يفعله هذا الإصلاح: إعادة ضبط checkpoints المجموعات المتأثرة فقط —
+  /// فيُعاد Full pull لها في الدورة نفسها (المحرك الآن يسحب tombstones
+  /// employees — راجع UnifiedPullEngine.plan) فيوجد الأب المحذوف محلياً
+  /// ويُطبَّق الأبناء عبر serverId.
+  ///
+  /// ملاحظات:
+  /// - الأجهزة الجديدة (checkpoints=0) لا تتأثر إطلاقاً (reset عملية لا
+  ///   طائل لها عليها) — والعلم يُثبت مرة واحدة.
+  /// - عند فشل الإصلاح لا يُثبت العلم → إعادة محاولة تلقائية لاحقاً.
+  /// - إعادة سحب salary_withdrawals/salary_cycles محدودة الحجم (سجلات
+  ///   مالية بمئات قليلة) وتحدث مرة واحدة.
+  Future<void> _ensureTombstoneParentsRepair() async {
+    const flagKey = 'repair_tombstone_parents_v1';
+    const affectedCollections = <String>[
+      'employees',
+      'salary_withdrawals',
+      'salary_cycles',
+    ];
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool(flagKey) ?? false) return;
+      for (final collection in affectedCollections) {
+        await _checkpointStore.reset(collection);
+      }
+      await prefs.setBool(flagKey, true);
+      _logger.info(
+        '🛠️ repair_tombstone_parents_v1: أُعيد ضبط checkpoints '
+        '(${affectedCollections.join(', ')}) لإعادة سحب الموظفين المحذوفين '
+        '(tombstones) وأبنائهم الماليين الذين قُفزوا كأيتام سابقاً',
+        tag: 'SYNC',
+      );
+    } catch (e, st) {
+      // فشل غير قاتل: العلم لم يُثبت → إعادة محاولة تلقائية في الدورة التالية.
+      _logger.warning(
+        '🛠️ repair_tombstone_parents_v1 فشل — سيُعاد المحاولة في الدورة التالية',
+        error: e,
+        stackTrace: st,
+        tag: 'SYNC',
+      );
     }
   }
 

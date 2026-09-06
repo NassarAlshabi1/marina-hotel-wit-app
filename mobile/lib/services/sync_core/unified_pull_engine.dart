@@ -88,8 +88,16 @@ class UnifiedPullEngine {
   final SyncPullService pullService;
 
   /// يبني خطة السحب لمجموعة واحدة:
-  ///   - checkpoint غير مكتمل أو صفر → Full pull (استبعاد tombstones).
-  ///   - غير ذلك → Delta فقط منذ مؤشر المجموعة الخاص.
+  ///   - checkpoint غير مكتمل أو صفر → Full pull.
+  ///     ✅ إصلاح (2026-09-07): الآباء المرجعية (employees) تُسحب في وضع
+  ///     Full **شاملة tombstones** — فلتر `[deletedAt isNull OR =0]` كان
+  ///     يستبعد الموظفين المحذوفين فتبقى سحوبات/دورات رواتبهم يتيمة على
+  ///     الأجهزة الجديدة (سحابة الإنتاج: الموظفان serverId=11/12 مرتبط
+  ///     بهما 128 سحوبة راتب). الآلية `entityNeedsTombstoneParents` كانت
+  ///     معرّفة ومختبرة وغير مربوطة بمسار السحب أبداً (كود ميت) — هذا
+  ///     الاستدعاء يوصّلها فعلياً. راجع SyncPullService.entityNeedsTombstoneParents.
+  ///   - غير ذلك → Delta فقط منذ مؤشر المجموعة الخاص
+  ///     (استعلامات Delta لا تفلتر tombstones أصلاً — الحذف اللاحق يصل طبيعياً).
   Future<CollectionPullPlan> plan(String collectionName) async {
     final fullDone = await checkpoints.isFullSyncComplete(collectionName);
     final sinceTs = await checkpoints.getLastPullTs(collectionName);
@@ -97,7 +105,9 @@ class UnifiedPullEngine {
       return CollectionPullPlan(
         collectionName: collectionName,
         isFullSync: true,
-        queries: SyncPullService.buildFullSyncQueries(),
+        queries: SyncPullService.entityNeedsTombstoneParents(collectionName)
+            ? SyncPullService.buildFullSyncQueries(includeTombstones: true)
+            : SyncPullService.buildFullSyncQueries(),
         sinceTs: 0,
       );
     }
