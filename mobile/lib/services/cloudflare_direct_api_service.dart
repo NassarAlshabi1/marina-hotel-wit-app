@@ -19,7 +19,9 @@ import 'cloudflare_d1_service.dart';
 /// المسار الكامل للتسجيل (كله قراءة فقط — لا كتابة إطلاقاً):
 ///  1. `GET /user/tokens/verify` — التحقق من التوكن (توكنات المستخدم).
 ///  2. عند الفشل: `GET /accounts/{accountId}/tokens/verify` — توكنات
-///     الحساب (Account Owned Tokens) تُفحص عبر هذه النقطة فقط.
+///     الحساب (Account Owned Tokens، بادئة `cfat_`) تُفحص عبر هذه النقطة
+///     **فقط**؛ ومعرّف الحساب يُكتشف تلقائياً عبر `GET /accounts` إن لم
+///     يكن محفوظاً (مؤكد تجريبياً أن توكنات cfat_ تستطيع سرد الحسابات).
 ///  3. `GET /accounts/{accountId}/d1/database` — إثبات وصول الحساب
 ///     والتأكد أن قاعدة D1 المحفوظة معرّفها موجود فعلاً (وإظهار اسمها).
 ///
@@ -29,6 +31,10 @@ import 'cloudflare_d1_service.dart';
 /// - السلسلة السداسية الطويلة (32 hex) هي **معرّف الحساب** وليست توكن؛
 ///   تمريرها كـ Bearer يُرجّع خطأ 6003/6111 «Invalid format for
 ///   Authorization header» — الخدمة تترجم هذا الخطأ إلى رسالة عربية واضحة.
+/// - توكن `cfat_` **صالح ونشط** يفشل حتماً في `/user/tokens/verify`
+///   برمز 1000 «Invalid API Token» رغم صحته — نقطة الحساب هي التي
+///   تُرجّع 200 مع `status: active`. لذلك لا يجوز عرض خطأ `/user`
+///   وحده على المستخدم عند فشل المسارين: نقطة الحساب هي مصدر الحقيقة.
 class CloudflareDirectApiService {
   CloudflareDirectApiService(this._config, {http.Client? client})
     : _client = client ?? http.Client();
@@ -37,6 +43,18 @@ class CloudflareDirectApiService {
 
   final CloudflareD1Config _config;
   final http.Client _client;
+
+  // ذاكرة اكتشاف معرّف الحساب داخل نسخة الخدمة — يكفي نداء
+  // GET /accounts واحد لكل عملية تسجيل كاملة (توكن ← حساب ← قاعدة).
+  String? _discoveredAccountId;
+  String? _discoveredAccountName;
+
+  /// معرّف الحساب المكتشف تلقائياً خلال آخر فحص (null إن لم يحدث اكتشاف
+  /// — أي أن المعرّف كان محفوظاً مسبقاً أو فشل الاكتشاف).
+  String? get discoveredAccountId => _discoveredAccountId;
+
+  /// اسم الحساب المكتشف تلقائياً (للعرض فقط).
+  String? get discoveredAccountName => _discoveredAccountName;
 
   // ─── نقاط النهاية المباشرة ────────────────────────────────────
 
@@ -73,9 +91,11 @@ class CloudflareDirectApiService {
     }
 
     // 2) توكنات الحساب (Account Owned Tokens) لا تُفحص عبر /user —
-    //    نقطة الحساب هي البديل الصحيح.
-    final accountId = _config.accountId.trim();
-    if (accountId.isNotEmpty) {
+    //    نقطة الحساب هي البديل الصحيح، ومعرّف الحساب يُكتشف تلقائياً
+    //    عبر GET /accounts إن لم يكن محفوظاً.
+    final resolution = await _resolveAccountId();
+    if (resolution.accountId != null) {
+      final accountId = resolution.accountId!;
       final accountAttempt = await _callApi(
         'GET',
         '/accounts/$accountId/tokens/verify',
@@ -88,28 +108,59 @@ class CloudflareDirectApiService {
           status: accountResult?['status']?.toString(),
           expiresOn: accountResult?['expires_on']?.toString(),
           tokenId: accountResult?['id']?.toString(),
+          discoveredAccountId: resolution.discovered
+              ? resolution.accountId
+              : null,
+          discoveredAccountName: resolution.discovered
+              ? resolution.accountName
+              : null,
         );
       }
+
+      // فشل نقطة الحساب — هذا هو الخطأ الحقيقي لتوكنات الحساب (فشل
+      // /user برمز 1000 متوقع وليس هو السبب).
+      return CloudflareTokenVerifyResult(
+        ok: false,
+        endpoint: '/accounts/$accountId/tokens/verify',
+        status: null,
+        errors: _translateErrors(
+          accountAttempt.errors,
+          accountAttempt.statusCode,
+        ),
+      );
     }
 
+    // 3) تعذّر فحص نقطة الحساب (لم يُحفظ المعرّف ولم يُكتشف) — نعرض
+    //    أخطاء الاكتشاف وأخطاء /user معاً لتشخيص صادق لا مضلل.
     return CloudflareTokenVerifyResult(
       ok: false,
       endpoint: null,
       status: null,
-      errors: _translateErrors(userAttempt.errors, userAttempt.statusCode),
+      errors: [
+        ...resolution.errors,
+        ..._translateErrors(userAttempt.errors, userAttempt.statusCode),
+        if (token.startsWith('cfat_'))
+          'التوكن من نوع توكنات الحساب (cfat_) ويُفحص عبر نقطة الحساب — أدخل معرّف الحساب من تبويب Cloudflare D1 أو امنح التوكن صلاحية قراءة الحساب',
+      ],
     );
   }
 
   /// إثبات وصول الحساب: عرض قواعد D1 التابعة للحساب (قراءة فقط).
   ///
   /// يُرجّع قائمة القواعد واسم القاعدة المطابقة للمعرّف المحفوظ إن وُجدت.
+  /// يعيد استخدام معرّف الحساب المكتشف تلقائياً في [verifyToken] إن حصل.
   Future<CloudflareAccountD1Result> listAccountD1Databases() async {
-    final accountId = _config.accountId.trim();
-    if (accountId.isEmpty) {
-      return const CloudflareAccountD1Result(
+    final resolution = await _resolveAccountId();
+    final accountId = resolution.accountId;
+    if (accountId == null) {
+      return CloudflareAccountD1Result(
         ok: false,
-        databases: [],
-        errors: ['معرّف الحساب غير محفوظ'],
+        databases: const [],
+        errors: [
+          ...resolution.errors,
+          if (resolution.errors.isEmpty)
+            'معرّف الحساب غير محفوظ ولم يتمكّن التوكن من اكتشافه',
+        ],
       );
     }
 
@@ -203,6 +254,8 @@ class CloudflareDirectApiService {
 
     final summary = <String>[
       'التوكن نشط عبر ${verify.endpoint} ${verify.expiresOn == null ? '' : '(ينتهي: ${verify.expiresOn})'}',
+      if (discoveredAccountId != null)
+        'تم اكتشاف معرّف الحساب تلقائياً: $discoveredAccountId${discoveredAccountName == null ? '' : ' — $discoveredAccountName'}',
       'الحساب متاح — ${account.databases.length} قاعدة D1',
       if (account.matchedDatabaseFound)
         'قاعدة D1 المحفوظة موجودة: ${account.matchedDatabaseName}'
@@ -222,6 +275,53 @@ class CloudflareDirectApiService {
   }
 
   // ─── طبقة HTTP المباشرة ───────────────────────────────────────
+
+  /// تحديد معرّف الحساب المستخدم للفحص: المحفوظ أولاً، وعند غيابه
+  /// اكتشاف تلقائي عبر `GET /accounts` (مؤكد تجريبياً أنه يعمل حتى مع
+  /// توكنات الحساب cfat_). النتيجة تُحفظ في ذاكرة النسحة لتفادي تكرار
+  /// النداء بين [verifyToken] و[listAccountD1Databases].
+  Future<_AccountResolution> _resolveAccountId() async {
+    final saved = _config.accountId.trim();
+    if (saved.isNotEmpty) {
+      return _AccountResolution(accountId: saved);
+    }
+    if (_discoveredAccountId != null) {
+      return _AccountResolution(
+        accountId: _discoveredAccountId,
+        accountName: _discoveredAccountName,
+        discovered: true,
+      );
+    }
+
+    final attempt = await _callApi('GET', '/accounts?per_page=5');
+    if (!attempt.ok) {
+      return _AccountResolution(
+        errors: _translateErrors(attempt.errors, attempt.statusCode),
+      );
+    }
+
+    // مغلف Cloudflare القياسي يضع القائمة مباشرة في result.
+    final rows = attempt.result is List
+        ? attempt.result! as List
+        : const <dynamic>[];
+    for (final row in rows) {
+      if (row is Map) {
+        final id = row['id']?.toString() ?? '';
+        if (id.isNotEmpty) {
+          _discoveredAccountId = id;
+          _discoveredAccountName = row['name']?.toString();
+          return _AccountResolution(
+            accountId: id,
+            accountName: _discoveredAccountName,
+            discovered: true,
+          );
+        }
+      }
+    }
+    return const _AccountResolution(
+      errors: ['التوكن لا يملك أي حساب قابل للاكتشاف عبر GET /accounts'],
+    );
+  }
 
   Future<_CloudflareApiAttempt> _callApi(String method, String path) async {
     final uri = Uri.parse('$_baseUrl$path');
@@ -322,6 +422,25 @@ class CloudflareDirectApiService {
 //  النماذج
 // ══════════════════════════════════════════════════════════════════
 
+/// نتيجة تحديد معرّف الحساب للفحص (محفوظ أو مكتشف تلقائياً أو فاشل).
+class _AccountResolution {
+  const _AccountResolution({
+    this.accountId,
+    this.accountName,
+    this.errors = const [],
+    this.discovered = false,
+  });
+
+  /// معرّف الحساب الجاهز للفحص — null إن فشل الحفظ والاكتشاف معاً.
+  final String? accountId;
+  final String? accountName;
+  final List<String> errors;
+
+  /// true إذا جاء المعرّف من اكتشاف تلقائي (وليس من الإعدادات المحفوظة)
+  /// — يُستخدم لإظهار سطر «تم الاكتشاف تلقائياً» في الملخص.
+  final bool discovered;
+}
+
 /// نتيجة نداء خام واحد ضد api.cloudflare.com.
 class _CloudflareApiAttempt {
   const _CloudflareApiAttempt({
@@ -345,6 +464,8 @@ class CloudflareTokenVerifyResult {
     required this.status,
     this.expiresOn,
     this.tokenId,
+    this.discoveredAccountId,
+    this.discoveredAccountName,
     this.errors = const [],
   });
 
@@ -355,6 +476,12 @@ class CloudflareTokenVerifyResult {
   final String? status;
   final String? expiresOn;
   final String? tokenId;
+
+  /// معرّف الحساب المكتشف تلقائياً أثناء هذا الفحص (null إن كان محفوظاً).
+  final String? discoveredAccountId;
+
+  /// اسم الحساب المكتشف تلقائياً (للعرض).
+  final String? discoveredAccountName;
   final List<String> errors;
 }
 
