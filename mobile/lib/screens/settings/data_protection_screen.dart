@@ -520,8 +520,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       final pushed = result.recordsPushed;
       final pulled = result.recordsPulled;
       final label = triggeredByBackup
-          ? 'تمت مزامنة Appwrite بعد النسخة الاحتياطية'
-          : 'تمت مزامنة Appwrite بنجاح';
+          ? 'تمت مزامنة Cloudflare بعد النسخة الاحتياطية'
+          : 'تمت مزامنة Cloudflare بنجاح';
       messenger.showSnackBar(
         SnackBar(content: Text('$label (رفع $pushed / استقبل $pulled)')),
       );
@@ -532,7 +532,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
       }
       messenger.showSnackBar(
         SnackBar(
-          content: Text('فشلت مزامنة Appwrite: $e'),
+          content: Text('فشلت مزامنة Cloudflare: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -571,7 +571,10 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
                 appwriteStats,
               ),
               const SizedBox(height: 24),
-              _buildSectionTitle('مزامنة Appwrite السحابية', Icons.cloud_sync),
+              _buildSectionTitle(
+                'مزامنة Cloudflare السحابية',
+                Icons.cloud_sync,
+              ),
               const SizedBox(height: 12),
               _buildAppwriteSection(appwriteConnection, appwriteStats),
               const SizedBox(height: 32),
@@ -706,8 +709,8 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
     AsyncValue<Map<String, dynamic>> statsAsync,
   ) {
     return statsAsync.when(
-      loading: () => _buildSummarySkeleton('Appwrite'),
-      error: (error, stack) => _buildSummaryError('Appwrite'),
+      loading: () => _buildSummarySkeleton('Cloudflare'),
+      error: (error, stack) => _buildSummaryError('Cloudflare'),
       data: (stats) {
         final subtitle = _formatOptionalDate(stats['lastSyncTime'] as String?);
         final successRate = stats['successRate'];
@@ -722,7 +725,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Appwrite',
+                  'Cloudflare',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.blueGrey,
@@ -819,7 +822,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
               statsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (error, stack) => const Text(
-                  'تعذر تحميل إحصائيات Appwrite',
+                  'تعذر تحميل إحصائيات Cloudflare',
                   style: TextStyle(color: Colors.red),
                 ),
                 data: (stats) {
@@ -867,7 +870,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
                       )
                     : const Icon(Icons.cloud_sync),
                 label: Text(
-                  _appwriteBusy ? 'جارٍ المزامنة...' : 'مزامنة Appwrite الآن',
+                  _appwriteBusy ? 'جارٍ المزامنة...' : 'مزامنة Cloudflare الآن',
                 ),
               ),
             ),
@@ -1332,7 +1335,7 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
             label: Text(
               _backupBusy
                   ? 'جارٍ تجهيز النسخة...'
-                  : 'نسخة شاملة + مزامنة Appwrite',
+                  : 'نسخة شاملة + مزامنة Cloudflare',
             ),
           ),
         ),

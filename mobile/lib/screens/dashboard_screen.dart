@@ -167,7 +167,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    '✅ تم سحب $pulledCount سجل جديد من Appwrite تلقائياً',
+                    '✅ تم سحب $pulledCount سجل جديد من Cloudflare تلقائياً',
                     style: const TextStyle(fontFamily: 'Tajawal'),
                   ),
                 ),

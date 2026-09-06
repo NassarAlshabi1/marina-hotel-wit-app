@@ -425,7 +425,7 @@ class _UnifiedSyncSettingsScreenState
                 ),
                 SizedBox(width: UIConstants.spacingSM),
                 Text(
-                  'Appwrite Sync',
+                  'Cloudflare Sync',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ],
@@ -433,8 +433,8 @@ class _UnifiedSyncSettingsScreenState
           ),
           const Divider(height: 1),
           SwitchListTile(
-            title: const Text('تفعيل مزامنة Appwrite'),
-            subtitle: const Text('مزامنة البيانات مع سحابة Appwrite'),
+            title: const Text('تفعيل مزامنة Cloudflare'),
+            subtitle: const Text('مزامنة البيانات مع سحابة Cloudflare'),
             value: _appwriteSyncEnabled,
             onChanged: _isSaving
                 ? null
@@ -443,8 +443,8 @@ class _UnifiedSyncSettingsScreenState
                     value: value,
                     apply: () => _appwriteSyncEnabled = value,
                     successMessage: value
-                        ? 'تم تفعيل مزامنة Appwrite'
-                        : 'تم إيقاف مزامنة Appwrite',
+                        ? 'تم تفعيل مزامنة Cloudflare'
+                        : 'تم إيقاف مزامنة Cloudflare',
                     applyToService: _applyAppwriteSync,
                   ),
             secondary: const Icon(Icons.cloud),

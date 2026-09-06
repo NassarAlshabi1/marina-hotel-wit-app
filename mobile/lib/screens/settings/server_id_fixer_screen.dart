@@ -196,7 +196,7 @@ class _ServerIdFixerScreenState extends ConsumerState<ServerIdFixerScreen> {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'هذه الأداة تقوم بتحديث serverId لجميع الغرف في قاعدة البيانات المحلية لربطها مع Appwrite.',
+                        'هذه الأداة تقوم بتحديث serverId لجميع الغرف في قاعدة البيانات المحلية لربطها مع السحابة (Cloudflare).',
                         style: TextStyle(fontSize: 14),
                       ),
                       const SizedBox(height: 8),

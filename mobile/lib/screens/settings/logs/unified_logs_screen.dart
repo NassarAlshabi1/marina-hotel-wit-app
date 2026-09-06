@@ -173,7 +173,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
               isScrollable: true,
               tabs: const [
                 Tab(text: 'الكل'),
-                Tab(text: 'Appwrite'),
+                Tab(text: 'Cloudflare'),
                 Tab(text: 'Google Drive'),
                 Tab(text: 'المزامنة'),
               ],
@@ -226,7 +226,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
     return _buildLogsList([
       _createLogEntry(
         'info',
-        'Appwrite',
+        'Cloudflare',
         'Connection established successfully',
         '2024-01-29T18:00:00',
       ),
@@ -244,7 +244,7 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
       ),
       _createLogEntry(
         'error',
-        'Appwrite',
+        'Cloudflare',
         'Failed to sync table: guests',
         '2024-01-29T17:45:00',
       ),
@@ -267,25 +267,25 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
     return _buildLogsList([
       _createLogEntry(
         'info',
-        'Appwrite',
+        'Cloudflare',
         'Connection established successfully',
         '2024-01-29T18:00:00',
       ),
       _createLogEntry(
         'error',
-        'Appwrite',
+        'Cloudflare',
         'Failed to sync table: guests',
         '2024-01-29T17:45:00',
       ),
       _createLogEntry(
         'info',
-        'Appwrite',
-        'API call: GET /databases',
+        'Cloudflare',
+        'Worker API call: GET /health',
         '2024-01-29T17:30:00',
       ),
       _createLogEntry(
         'warning',
-        'Appwrite',
+        'Cloudflare',
         'Slow response: 2.5s',
         '2024-01-29T17:25:00',
       ),

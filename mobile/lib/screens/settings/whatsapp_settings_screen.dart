@@ -1,14 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../components/app_scaffold.dart';
-import '../../providers/appwrite_providers.dart';
 import '../../providers/repository_providers.dart';
-import '../../services/appwrite_config.dart';
 import '../../services/whatsapp_service.dart';
 import '../../utils/message_templates.dart';
 import '../../utils/snackbar_helper.dart';
@@ -320,20 +316,20 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
     _showSyncResult(
       success: false,
       title: 'المزامنة السحابية غير متاحة',
-      subtitle: 'الإعدادات تُحفظ محلياً بعد إزالة Appwrite Cloud',
+      subtitle: 'الإعدادات تُحفظ محلياً على هذا الجهاز',
     );
   }
 
   /// تأكيد تنزيل الإعدادات من السحابة
   Future<void> _confirmDownloadFromCloud() async {
-    // ✅ (2026-09-05) Cloudflare-only — أُزيلت مع إزالة Appwrite Cloud.
+    // ✅ (2026-09-05) Cloudflare-only — أُزيلت مع إزالة خدمة الإعدادات السحابية.
     if (!mounted) {
       return;
     }
     _showSyncResult(
       success: false,
       title: 'المزامنة السحابية غير متاحة',
-      subtitle: 'الإعدادات تُحفظ محلياً بعد إزالة Appwrite Cloud',
+      subtitle: 'الإعدادات تُحفظ محلياً على هذا الجهاز',
     );
   }
 
@@ -346,14 +342,8 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
     _showSyncResult(
       success: false,
       title: 'المزامنة السحابية غير متاحة',
-      subtitle: 'الإعدادات تُحفظ محلياً بعد إزالة Appwrite Cloud',
+      subtitle: 'الإعدادات تُحفظ محلياً على هذا الجهاز',
     );
-  }
-
-  Future<void> _openUrl(String url) async {
-    try {
-      await Process.run('xdg-open', [url]);
-    } catch (_) {}
   }
 
   @override
@@ -829,7 +819,7 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
                 Icon(Icons.cloud_sync, color: Colors.blue, size: 20),
                 SizedBox(width: 8),
                 Text(
-                  'مزامنة مع Appwrite Console',
+                  'إعدادات الواتساب — حفظ محلي',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
@@ -840,21 +830,8 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
             ),
             const SizedBox(height: 4),
             Text(
-              'احفظ إعدادات الواتساب في السحابة واسترجعها على أي جهاز',
+              'الإعدادات تُحفظ محلياً على هذا الجهاز',
               style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(Icons.info_outline, size: 14, color: Colors.grey.shade400),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    'يتم إنشاء المجموعة تلقائياً عند أول رفع',
-                    style: TextStyle(fontSize: 10, color: Colors.grey.shade400),
-                  ),
-                ),
-              ],
             ),
             const SizedBox(height: 12),
             Row(
@@ -920,31 +897,6 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
               ],
             ),
             const SizedBox(height: 10),
-            InkWell(
-              onTap: () => _openUrl(
-                'https://fra.cloud.appwrite.io/project/${AppwriteConfig.projectId}/database/${AppwriteConfig.databaseId}/collection/app_settings',
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.open_in_new,
-                    size: 14,
-                    color: Colors.blue.shade400,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'فتح في Appwrite Console',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.blue.shade400,
-                      fontWeight: FontWeight.bold,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),

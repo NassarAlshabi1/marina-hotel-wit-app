@@ -97,12 +97,12 @@ class _ComprehensiveBackupScreenState
         content: const SingleChildScrollView(
           child: Text(
             'نظام النسخ الاحتياطي:\n\n'
-            '• Appwrite: رفع نسخة إدارية يدوياً\n'
+            '• Cloudflare D1 (رفع إداري): رفع نسخة إدارية يدوياً\n'
             '  - ينشئ ملف JSON من البيانات المحلية\n'
-            '  - يرفعه إلى Appwrite بعد تأكيد صريح\n'
+            '  - يرفعه إلى Cloudflare بعد تأكيد صريح\n'
             '  - لا يُسمح به ما دام Outbox يحتوي تغييرات غير مُسلّمة\n\n'
-            '• Cloudflare D1: رفع بيانات جداول المزامنة المطابقة لمجموعات '
-            'Appwrite Cloud فقط\n'
+            '• Cloudflare D1: رفع بيانات جداول المزامنة المطابقة '
+            'لعقد المزامنة السحابي فقط\n'
             '  - كتابة آمنة بأسلوب INSERT OR REPLACE\n'
             '  - اختيار الجداول وعرض التقدم والإيقاف\n\n'
             '• النسخ المحلية: نسخ على ذاكرة الجهاز\n'

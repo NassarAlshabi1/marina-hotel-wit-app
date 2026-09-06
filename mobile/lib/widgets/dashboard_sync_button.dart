@@ -203,7 +203,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                'مزامنة Appwrite معطلة - يرجى تفعيلها من الإعدادات',
+                'مزامنة Cloudflare معطلة - يرجى تفعيلها من الإعدادات',
               ),
               backgroundColor: Colors.orange,
             ),
@@ -220,7 +220,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('لا يوجد اتصال بـ Appwrite'),
+              content: Text('لا يوجد اتصال بـ Cloudflare'),
               backgroundColor: Colors.red,
             ),
           );
@@ -500,7 +500,7 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         targets.add('Google Drive');
       }
       if (appwriteEnabled && appwriteConnected) {
-        targets.add('Appwrite');
+        targets.add('Cloudflare');
       }
 
       if (targets.isEmpty) {
@@ -532,12 +532,12 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
         try {
           // ✅ P1-3 fix: pushLocalChanges تُعيد عدد السجلات الفعلي
           final pushedCount = await appwriteSyncManager.pushLocalChanges();
-          results['Appwrite'] = {
+          results['Cloudflare'] = {
             'success': pushedCount >= 0,
             'pushed': pushedCount,
           };
         } catch (e) {
-          results['Appwrite'] = {
+          results['Cloudflare'] = {
             'success': false,
             'pushed': 0,
             'error': e.toString(),

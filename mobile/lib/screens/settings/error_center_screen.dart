@@ -54,7 +54,7 @@ class ErrorCenterScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           _ErrorSection(
-            title: 'أخطاء Appwrite',
+            title: 'أخطاء Cloudflare',
             color: Colors.redAccent,
             entries: appwriteErrors.map(_toViewEntry).toList(),
           ),
@@ -105,7 +105,7 @@ class ErrorCenterScreen extends ConsumerWidget {
   ) {
     final buffer = StringBuffer();
     for (final e in appwrite) {
-      buffer.writeln('[APPWRITE] ${e.toFormattedString()}');
+      buffer.writeln('[CLOUDFLARE] ${e.toFormattedString()}');
     }
     for (final e in drive) {
       buffer.writeln('[DRIVE] ${e.toFormattedString()}');
@@ -151,7 +151,7 @@ class _SummaryCard extends StatelessWidget {
               spacing: 12,
               runSpacing: 8,
               children: [
-                _chip('Appwrite', appwriteCount, Colors.redAccent),
+                _chip('Cloudflare', appwriteCount, Colors.redAccent),
                 _chip('Google Drive', driveCount, Colors.deepOrange),
                 _chip('Sync/Debug', debugCount, Colors.blueGrey),
                 _chip('الإجمالي', total, Colors.black87),

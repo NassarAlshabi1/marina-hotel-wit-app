@@ -456,9 +456,9 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'ينقل هذا التبويب بيانات جداول المزامنة المطابقة لمجموعات '
-          'Appwrite Cloud حصراً (نفس كيانات مزامنة Cloudflare — خطة '
-          'D7) إلى قاعدة Cloudflare D1 كنسخة استشارية على السحابة. '
+          'ينقل هذا التبويب بيانات جداول المزامنة (كيانات مزامنة '
+          'Cloudflare حصراً) إلى قاعدة Cloudflare D1 كنسخة استشارية على '
+          'السحابة. '
           'القراءة من القاعدة المحلية فقط، والكتابة بأسلوب INSERT OR '
           'REPLACE الآمن. القائمة السوداء blacklist كيان بلا جدول '
           'محلي فتُجسَّد من ملاحظات الورديات الموسومة إلى جدولها في '
@@ -618,7 +618,7 @@ class _CloudflareD1TabState extends ConsumerState<CloudflareD1Tab> {
                   children: [
                     Expanded(
                       child: Text(
-                        'جداول المزامنة المطابقة لـ Appwrite Cloud '
+                        'جداول المزامنة السحابية '
                         '($_selected/${_localTables.length} محددة — '
                         '$selectedRows صف)',
                         style: Theme.of(context).textTheme.titleSmall,

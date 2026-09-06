@@ -713,7 +713,7 @@ class _SettingsMaintenanceScreenState
                     .countUndeliveredToPrimary();
                 if (pending > 0) {
                   _showSnack(
-                    'لا يمكن ضغط قاعدة البيانات: توجد $pending تغييرات لم تُرفع إلى Appwrite.',
+                    'لا يمكن ضغط قاعدة البيانات: توجد $pending تغييرات لم تُرفع إلى Cloudflare.',
                     color: Colors.orange,
                   );
                   return;
@@ -1142,7 +1142,7 @@ class _SettingsMaintenanceScreenState
               children: [
                 const Text(
                   'سيُحذف مخزن البيانات المحلي فقط. يجب رفع جميع التغييرات '
-                  'إلى Appwrite أو إنشاء نسخة احتياطية قبل المتابعة.',
+                  'إلى Cloudflare أو إنشاء نسخة احتياطية قبل المتابعة.',
                 ),
                 const SizedBox(height: 16),
                 const Text('اكتب «حذف» لتفعيل زر الحذف.'),
@@ -1174,7 +1174,7 @@ class _SettingsMaintenanceScreenState
                             Navigator.pop(ctx);
                             _showSnack(
                               'تم إلغاء الحذف: توجد $pending تغييرات لم تُرفع. '
-                              'ارفعها إلى Appwrite أولاً.',
+                              'ارفعها إلى Cloudflare أولاً.',
                               color: Colors.orange,
                             );
                             return;
@@ -1216,7 +1216,7 @@ class _SettingsMaintenanceScreenState
 
                             _hideLoading();
                             _showSnack(
-                              'تمت إعادة التعيين. افتح المزامنة لاستعادة البيانات من Appwrite.',
+                              'تمت إعادة التعيين. افتح المزامنة لاستعادة البيانات من Cloudflare.',
                               color: Colors.green,
                             );
                             unawaited(_loadSystemInfo());
