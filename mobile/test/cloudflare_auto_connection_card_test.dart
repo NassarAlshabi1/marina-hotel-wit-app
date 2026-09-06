@@ -23,6 +23,16 @@ void main() {
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
+    // ✅ عزل حتمي: CI يخلط ترتيب الاختبارات (--test-randomize-ordering-seed
+    // random). بلا mock هنا، قراءة FlutterSecureStorage في
+    // CloudflareD1Settings.load (عبر cloudflareBindingProvider) تذهب
+    // لقناة غير mocked في بيئة الاختبار فلا تكتمل أبداً — يبقى المزود
+    // في loading ويُعلّق pumpAndSettle (فشل فعلي في CI عندما رُكّض
+    // اختبار «المتوقفة واللا سجلات» أولاً معتمداً على تسرب static
+    // من اختبار سابق — تسرب لا يُضمن مع الخلط).
+    FlutterSecureStorage.setMockInitialValues({
+      'cf_d1_api_token': 'cfut_1234567890abcd',
+    });
   });
 
   tearDown(() async {
@@ -55,9 +65,6 @@ void main() {
         kCloudflareAutoSyncIntervalKey: 10,
         'cf_d1_account_id': 'acc-test-123',
         'cf_d1_database_id': 'db-test-456',
-      });
-      FlutterSecureStorage.setMockInitialValues({
-        'cf_d1_api_token': 'cfut_1234567890abcd',
       });
 
       final now = DateTime.now();
