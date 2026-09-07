@@ -7,6 +7,9 @@
     "deploy": "wrangler deploy",
     "db:init": "wrangler d1 execute marina-hotel-db --file=./schema.sql",
     "db:migrate": "wrangler d1 execute marina-hotel-db --file=./migrations/0002_inventory_blacklist.sql",
+    "db:migrate:app-users": "wrangler d1 execute marina-hotel-db --file=./migrations/0003_app_users.sql",
+    "db:migrate:devices": "wrangler d1 execute marina-hotel-db --file=./migrations/0004_devices_sync.sql",
+    "db:migrate:parity": "wrangler d1 execute marina-hotel-db --file=./migrations/0005_schema_parity.sql",
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit"
   },

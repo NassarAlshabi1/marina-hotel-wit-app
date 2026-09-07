@@ -189,6 +189,27 @@ describe('pull: sync_log + stats + conflicts endpoints', () => {
   });
 });
 
+describe('pull: per-table isolation (missed D1 migration)', () => {
+  it('one broken table degrades to partial 200 with errors, healthy tables still sync', async () => {
+    const auth = await adminAuthHeader();
+    await seedRooms(3);
+    // Simulate a migration applied to code but not to live D1.
+    await env.DB.prepare('DROP TABLE devices').run();
+    const res = await fetchWithAuth('/api/sync/pull?cursor=0&limit=25', auth);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      changes: Array<Record<string, unknown>>;
+      cursor: string;
+      has_more: boolean;
+      errors: Array<{ entity: string; error: string }>;
+    };
+    expect(body.errors.some((e) => e.entity === 'devices')).toBe(true);
+    // Healthy tables still flow through the same response.
+    const roomRows = body.changes.filter((c) => c._entity === 'rooms');
+    expect(roomRows).toHaveLength(3);
+  });
+});
+
 async function fetchWithAuth(path: string, auth: string): Promise<Response> {
   const { SELF } = await import('cloudflare:test');
   return SELF.fetch(`https://example.com${path}`, { headers: { Authorization: auth } });

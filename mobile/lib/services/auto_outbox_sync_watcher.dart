@@ -153,20 +153,12 @@ class AutoOutboxSyncWatcher {
   }
 
   /// Manually triggers a push (e.g., from a sync button).
+  ///
+  /// لا يكتسب القفل هنا — [_doPush] يكتسبه داخلياً. الاكتساب المزدوج
+  /// السابق كان يُفشل دائماً (القفل محجوز ذاتياً) فيتحول pushNow لـ no-op.
   Future<void> pushNow() async {
     _debounceTimer?.cancel();
-    // ✅ Wave 5: ownership-safe tryAcquire (with token).
-    final token = SyncGuard.tryAcquire(label: 'auto_outbox_push');
-    if (token == null) {
-      dlog('⏸️ Push skipped — another sync active (${SyncGuard.activeLabel})');
-      return;
-    }
-
-    try {
-      await _doPush();
-    } finally {
-      SyncGuard.release(token);
-    }
+    await _doPush();
   }
 
   /// Whether the device is currently online.

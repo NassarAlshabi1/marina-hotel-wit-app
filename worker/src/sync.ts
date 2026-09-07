@@ -198,6 +198,7 @@ export async function handlePull(
       changes: result.changes,
       cursor: result.cursor.toString(),
       has_more: result.has_more,
+      errors: result.errors,
       server_time: Math.floor(Date.now() / 1000),
     });
   } catch (err) {

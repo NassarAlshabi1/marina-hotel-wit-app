@@ -505,6 +505,9 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
     }
 
     // ✅ P1-1 fix: كل الفحوص قبل كتابة سجل in_progress
+    // ✅ قراءة العدّاد مباشرة قبل القرار — الحالة المحلية تُحدّث كل
+    // 15 ثانية فقط (مؤقّت initState) فيُحتمل حجب رفع مطلوب بعدّاد قديم.
+    await _loadPendingChangesCount();
     if (_pendingChangesCount == 0) {
       _isPushing = false;
       if (mounted) {
@@ -610,15 +613,13 @@ class _DashboardSyncButtonState extends ConsumerState<DashboardSyncButton>
 
       final results = <String, Map<String, dynamic>>{};
 
-      // رفع إلى Appwrite أولاً
+      // رفع إلى Cloudflare
       if (appwriteEnabled && appwriteConnected) {
         try {
-          // ✅ P1-3 fix: pushLocalChanges تُعيد عدد السجلات الفعلي
+          // ✅ pushLocalChanges ترمي عند أي فشل — الوصول هنا يعني نجاحاً
+          // فعلياً (الشرط السابق pushedCount >= 0 كان صادقاً دائماً).
           final pushedCount = await appwriteSyncManager.pushLocalChanges();
-          results['Cloudflare'] = {
-            'success': pushedCount >= 0,
-            'pushed': pushedCount,
-          };
+          results['Cloudflare'] = {'success': true, 'pushed': pushedCount};
         } catch (e) {
           results['Cloudflare'] = {
             'success': false,

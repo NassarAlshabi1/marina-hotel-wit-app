@@ -26,6 +26,13 @@ export interface PullResult {
   changes: SyncRecord[];
   cursor: number;
   has_more: boolean;
+  /**
+   * Tables that failed this round (typically schema drift: a migration
+   * applied to code but not to live D1). Their rows are skipped for now —
+   * the pull still succeeds for every healthy table. Fix D1, then run one
+   * Full Sync (cursor reset) to backfill the skipped rows.
+   */
+  errors: Array<{ entity: string; error: string }>;
 }
 
 export interface PushOperation {
@@ -219,28 +226,39 @@ export class Database {
     // rows (device_id '') are never excluded.
     const excludeDevice =
       excludeDeviceId && excludeDeviceId.length > 0 ? excludeDeviceId : null;
+    const errors: Array<{ entity: string; error: string }> = [];
 
     for (const ent of entities) {
       const table = ENTITY_TABLES[ent];
-      const rows = excludeDevice
-        ? await this.db
-            .prepare(
-              `SELECT * FROM ${table} WHERE updated_at > ? AND (device_id IS NULL OR device_id != ?) ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
-            )
-            .bind(cursor, excludeDevice, fetchLimit)
-            .all()
-        : await this.db
-            .prepare(
-              `SELECT * FROM ${table} WHERE updated_at > ? ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
-            )
-            .bind(cursor, fetchLimit)
-            .all();
-      for (const row of rows.results) {
-        const record = row as unknown as SyncRecord;
-        // ✅ أضف _entity لكل سجل ليتمكن Flutter من معرفة الجدول
-        // بدون الحاجة لتخمين نوعه من الحقول
-        (record as Record<string, unknown>)._entity = ent;
-        allChanges.push(record);
+      try {
+        const rows = excludeDevice
+          ? await this.db
+              .prepare(
+                `SELECT * FROM ${table} WHERE updated_at > ? AND (device_id IS NULL OR device_id != ?) ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
+              )
+              .bind(cursor, excludeDevice, fetchLimit)
+              .all()
+          : await this.db
+              .prepare(
+                `SELECT * FROM ${table} WHERE updated_at > ? ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
+              )
+              .bind(cursor, fetchLimit)
+              .all();
+        for (const row of rows.results) {
+          const record = row as unknown as SyncRecord;
+          // ✅ أضف _entity لكل سجل ليتمكن Flutter من معرفة الجدول
+          // بدون الحاجة لتخمين نوعه من الحقول
+          (record as Record<string, unknown>)._entity = ent;
+          allChanges.push(record);
+        }
+      } catch (err) {
+        // Per-table isolation: one broken table (missed D1 migration —
+        // missing table or column) must not fail the entire pull for all
+        // devices. Skip it this round and name it in `errors` so clients
+        // and server logs point at the exact table to fix.
+        const msg = String(err).slice(0, 300);
+        console.error(`[SYNC/PULL] table ${table} failed, skipping:`, msg);
+        errors.push({ entity: ent, error: msg });
       }
     }
 
@@ -266,6 +284,7 @@ export class Database {
       changes: page,
       cursor: nextCursor,
       has_more: hasMore,
+      errors,
     };
   }
 

@@ -891,6 +891,22 @@ class CloudflareSyncManager {
   }
 
   // ─── Pull changes from D1 ───────────────────────────────────
+  /// يُظهر سبب الخادم الفعلي (حقل detail/detail error في جسم 500 —
+  /// عادة اسم الجدول/العمود الناقص في D1) بدل رمز الحالة وحده، حتى
+  /// تُشخَّص أعطال السحب من رسالة الزر نفسها.
+  String _pullHttpError(int statusCode, String body) {
+    try {
+      final map = jsonDecode(body) as Map<String, dynamic>;
+      final detail = (map['detail'] ?? map['error'])?.toString() ?? '';
+      final short = detail.length > 220
+          ? '${detail.substring(0, 220)}…'
+          : detail;
+      return 'Pull HTTP $statusCode${short.isEmpty ? '' : ' — $short'}';
+    } catch (_) {
+      return 'Pull HTTP $statusCode';
+    }
+  }
+
   Future<int> _pullChanges() async {
     if (_db == null) return 0;
 
@@ -954,7 +970,7 @@ class CloudflareSyncManager {
 
         if (response.statusCode != 200) {
           hadError = true;
-          errorMessage = 'Pull HTTP ${response.statusCode}';
+          errorMessage = _pullHttpError(response.statusCode, response.body);
           logHttpError(
             title: 'Pull failed',
             statusCode: response.statusCode,
@@ -980,6 +996,12 @@ class CloudflareSyncManager {
         }
 
         final changes = data['changes'] as List? ?? [];
+        // Per-table degradation (worker names broken tables instead of
+        // failing the whole pull): log loudly, keep the healthy changes.
+        final tableErrors = data['errors'] as List? ?? [];
+        for (final e in tableErrors) {
+          debugPrint('⚠️ Pull: server skipped table: $e');
+        }
         // P0-C: server-derived cursor is authoritative, not device time
         final serverCursor = int.tryParse(
           data['cursor']?.toString() ?? '0',
@@ -1003,6 +1025,11 @@ class CloudflareSyncManager {
               await _applyChange(entity, record);
               totalPulled++;
               touchedEntities.add(entity);
+            } else {
+              debugPrint(
+                '⚠️ Pull: skipped record with unknown entity '
+                '(keys: ${record.keys.join(',')})',
+              );
             }
           } catch (e) {
             debugPrint('⚠️ Failed to apply change: $e');
@@ -1092,7 +1119,10 @@ class CloudflareSyncManager {
     }
 
     final tableName = CloudflareConfig.tableNameFor(entity);
-    if (tableName == null) return;
+    if (tableName == null) {
+      debugPrint('⚠️ Pull: no local table for entity "$entity" — skipped');
+      return;
+    }
 
     final localUuid = record['local_uuid'] as String?;
     if (localUuid == null) return;
@@ -1377,6 +1407,32 @@ class CloudflareSyncManager {
     }
     if (record.containsKey('void_reason') && record.containsKey('voided_by')) {
       return 'payment_voids';
+    }
+
+    // inventory_items — minimum_quantity لا يوجد في أي جدول متزامن آخر
+    // (local_db.dart:1032 — InventoryItems فقط).
+    if (record.containsKey('minimum_quantity')) {
+      return 'inventory_items';
+    }
+
+    // inventory_transactions — movement_type + balance_after فريدان معاً
+    // (local_db.dart:1046-1048 — لا يملكهما payments ولا salary_withdrawals
+    // اللذان يستخدمان amount/withdrawal_type).
+    if (record.containsKey('movement_type') &&
+        record.containsKey('balance_after')) {
+      return 'inventory_transactions';
+    }
+
+    // devices — device_name لا يوجد إلا في جدول devices
+    // (local_db.dart:1135 — الكيانات الأخرى تستخدم name/guest_name/username).
+    if (record.containsKey('device_name')) {
+      return 'devices';
+    }
+
+    // blacklist — reported_by لا يوجد إلا في صفوف القائمة السوداء
+    // (جدول blacklist في D1 — يُحوَّل لـ shift_notes في _applyChange).
+    if (record.containsKey('reported_by')) {
+      return 'blacklist';
     }
 
     // app_users — حسابات مستخدمي التطبيق (كيان النطاق الافتراضي
