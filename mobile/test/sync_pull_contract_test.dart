@@ -6,10 +6,9 @@
 //  1) فصل دورة الدفع عن السحب — فشل الرفع (شبكة) لا يمنع السحب،
 //     والتقرير يجمع فشلَي الدورتين بدل قطع الثانية بأولى.
 //  2) منع السحب من إعلان النجاح مع جداول ناقصة — أخطاء الجداول
-//     الخادمية (errors[]) تمنع تقدّم checkpoint وضبط علامة
-//     full sync، مع التراجع إلى ما قبل أول صفحة معطوبة (الصفوف
-//     التابعة للجدول المتخطى بين الحدين لم تُرسل أصلاً — علامة
-//     مائية صارمة `>` ستفقدها للأبد).
+//     الخادمية (errors[]) توقف السحب فوراً وتمنع أي تقدّم للـ
+//     checkpoint أو ضبط علامة full sync (السياسة الصارمة من فرع
+//     refactor/cloudflare-sync-pipeline: لا نجاح مع بيانات ناقصة).
 //  3) ع freshness العقد: فشل دورة سابقة لا يلوّث دورة نظيفة لاحقة.
 // ═══════════════════════════════════════════════════════════════
 
@@ -202,9 +201,9 @@ void main() {
 
         expect(result.status, SyncStatus.failed);
         expect(result.errorMessage, contains('devices'));
-        // ⚠️ العقد الحرج: المؤشر تراجع إلى ما قبل الصفحة المعطوبة (0)
-        // رغم أن الخادم أرسل cursor=1700000100.
-        expect(await pref('cf_last_pull_cursor'), 0);
+        // ⚠️ العقد الحرج: المؤشر لا يُكتب إطلاقاً عند الفشل رغم أن
+        // الخادم أرسل cursor=1700000100 — نقطة البداية تبقى هي المرجع.
+        expect(await pref('cf_last_pull_cursor'), isNull);
         expect(await pref('cf_full_sync_completed'), isNull);
         expect(manager.failedCollectionsInLastSync, contains('devices'));
         // الصف السليم طُبق فعلاً (idempotent عند إعادة السحب لاحقاً).
@@ -213,10 +212,12 @@ void main() {
     );
 
     test(
-      'خطأ خادمي في صفحة وسطى: يُحفظ تقدم الصفحات النظيفة فقط',
+      'خطأ خادمي في صفحة وسطى: الدورة كلها تُصفَّر (لا pagination ولا checkpoint)',
       () async {
         // صفحة 1 نظيفة (cursor 100) ← صفحة 2 معطوبة (cursor 200).
-        // الحد الآمن = 100: صفوف devices بين 100 و200 لم تُرسل.
+        // السياسة الصارمة (refactor/cloudflare-sync-pipeline): أول صفحة
+        // معطوبة توقف السحب فوراً — checkpoint لا يتحرك إطلاقاً (يبقى 0)
+        // والدورة التالية تعيد السحب idempotent حتى الشفاء.
         final manager = await makeManager(
           _PullQueueClient([
             {
@@ -243,11 +244,12 @@ void main() {
         final result = await manager.sync();
 
         expect(result.status, SyncStatus.failed);
-        expect(await pref('cf_last_pull_cursor'), 1700000100);
+        // ⚠️ العقد الصارم: لا تقدّم جزئي — المؤشر لم يُكتب حتى للصفحة
+        // النظيفة الأولى (الكتابة عند النجاح الكامل فقط).
+        expect(await pref('cf_last_pull_cursor'), isNull);
         expect(await pref('cf_full_sync_completed'), isNull);
         expect(manager.failedCollectionsInLastSync, contains('devices'));
-        // الصفان السليمان طُبقا (الصفحة النظيفة + صفوف الصفحة المعطوبة
-        // السليمة) — إعادة السحب من 100 لاحقاً idempotent.
+        // الصفان السليمان (صفحتا الدورة) طُبّقا قبل التوقف.
         expect(await roomsCount(), 2);
       },
     );

@@ -194,7 +194,7 @@ describe('push: update flow', () => {
 });
 
 describe('push: delete flow (tombstones)', () => {
-  it('soft-deletes: sets deleted_at, bumps version, stays pullable exactly once', async () => {
+  it('soft-deletes: sets deleted_at and bumps version without pulling the row', async () => {
     const auth = await adminAuthHeader();
     const payload = roomPayload();
     await pushOperations(auth, [pushOp('rooms', 'create', payload)]);
@@ -206,15 +206,11 @@ describe('push: delete flow (tombstones)', () => {
     expect(row?.['deleted_at']).not.toBeNull();
     expect(row?.['version']).toBe(2);
 
-    // Tombstone pulls (server-stamped updated_at > cursor 0)
+    // Deleted rows remain as local tombstones for conflict/audit purposes,
+    // but the pull contract never returns deleted data.
     const first = await pull(auth);
     const tombstones = first.changes.filter((c) => c.local_uuid === payload.local_uuid);
-    expect(tombstones).toHaveLength(1);
-    expect(tombstones[0].deleted_at).not.toBeNull();
-
-    // Cursor advanced past it → not pulled again
-    const second = await pull(auth, { cursor: first.cursor });
-    expect(second.changes.some((c) => c.local_uuid === payload.local_uuid)).toBe(false);
+    expect(tombstones).toHaveLength(0);
   });
 
   it('delete of a non-existent record reports deleted:false without error', async () => {

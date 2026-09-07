@@ -28,9 +28,9 @@ export interface PullResult {
   has_more: boolean;
   /**
    * Tables that failed this round (typically schema drift: a migration
-   * applied to code but not to live D1). Their rows are skipped for now —
-   * the pull still succeeds for every healthy table. Fix D1, then run one
-   * Full Sync (cursor reset) to backfill the skipped rows.
+   * applied to code but not to live D1). Their rows are skipped for now.
+   * The mobile client treats a non-empty list as a failed sync and does not
+   * advance its checkpoint, so fixing D1 and retrying backfills the rows.
    */
   errors: Array<{ entity: string; error: string }>;
 }
@@ -236,7 +236,13 @@ export class Database {
     for (const ent of entities) {
       const table = ENTITY_TABLES[ent];
       try {
-        // ── Group-complete fetch window ──
+        // ── Group-complete fetch window (live rows only) ──
+        // deleted_at IS NULL: the pull contract returns LIVE records only —
+        // tombstones stay server-side for audit (policy: refactor/cloudflare-
+        // sync-pipeline). NOTE: cross-device deletion propagation therefore
+        // relies on nothing else today (realtime only triggers pulls) — see
+        // the deletion-propagation gap documented in the merge commit.
+        //
         // The SQL window is limit+1: the extra probe row tells us whether
         // more rows exist. Because equal-updated_at rows are CONTIGUOUS in
         // the (updated_at, local_uuid) ordering, the group at the window
@@ -255,13 +261,13 @@ export class Database {
           rows = excludeDevice
             ? await this.db
                 .prepare(
-                  `SELECT * FROM ${table} WHERE updated_at > ? AND (device_id IS NULL OR device_id != ?) ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
+                  `SELECT * FROM ${table} WHERE deleted_at IS NULL AND updated_at > ? AND (device_id IS NULL OR device_id != ?) ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
                 )
                 .bind(cursor, excludeDevice, window)
                 .all<Record<string, unknown>>()
             : await this.db
                 .prepare(
-                  `SELECT * FROM ${table} WHERE updated_at > ? ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
+                  `SELECT * FROM ${table} WHERE deleted_at IS NULL AND updated_at > ? ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
                 )
                 .bind(cursor, window)
                 .all<Record<string, unknown>>();

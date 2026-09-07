@@ -627,6 +627,8 @@ class CloudflareSyncManager {
     final startTime = DateTime.now();
     _currentStatus = SyncStatus.syncing;
     _statusController.add(SyncStatus.syncing);
+    // كل دورة لها نتيجة مستقلة؛ لا تورّث فشل دورة سابقة إلى الدورات التالية.
+    _failedCollectionsInLastSync.clear();
     int recordsPushed = 0;
     int recordsPulled = 0;
     String? errorMessage;
@@ -1020,12 +1022,6 @@ class CloudflareSyncManager {
     int pendingCursor = _lastPullCursor;
     bool hadError = false;
     String? errorMessage;
-    // ✅ (2026-09-08) عقد «الجداول الناقصة لا تُضيّع بياناتها»:
-    // أول مؤشر قبل أول صفحة حملت أخطاء جداول خادمية (errors[]).
-    // صفوف الجدول المتخطى بين هذا الحد ومؤشر نهاية الدورة لم تُرسَل
-    // أصلاً — حفظ المؤشر المتقدم سيفقدها إلى الأبد (علامة مائية صارمة
-    // `>`). عند التدهور يُعاد المؤشر إلى هذا الحد.
-    int? cursorAtFirstError;
 
     // P0-B: if full sync not yet completed, run to exhaustion
     final wasFullSync = !_fullSyncCompleted;
@@ -1113,12 +1109,11 @@ class CloudflareSyncManager {
         }
 
         final changes = data['changes'] as List? ?? [];
-        // Per-table degradation (worker names broken tables instead of
-        // failing the whole pull): log loudly, keep the healthy changes.
-        // ✅ (2026-09-08) لم يعد الصمت مقبولاً: الجداول التي تخطاها
-        // الخادم تُسجَّل كفشل جزئي (_failedCollectionsInLastSync) حتى
-        // لا تُعتبر المزامدة ناجحة ولا تُضبط علامة full sync — وإلا
-        // بقي الجهاز ناقص البيانات إلى الأبد دون أي إشارة.
+        // ✅ (2026-09-08) محور 2 — منع إعلان النجاح مع جداول ناقصة:
+        // أخطاء الجداول الخادمية (errors[]) = دورة فاشلة: لا pagination
+        // إضافي، لا تحرك checkpoint، لا علامة full sync. الصفوف السليمة
+        // في هذه الصفحة تُطبق، والدورة التالية تعيد المحاولة من المؤشر
+        // نفسه (idempotent عبر local_uuid) حتى يُشفي الخادم.
         final tableErrors = data['errors'] as List? ?? [];
         for (final e in tableErrors) {
           debugPrint('⚠️ Pull: server skipped table: $e');
@@ -1132,15 +1127,29 @@ class CloudflareSyncManager {
             _failedCollectionsInLastSync.add('unknown-table-error');
           }
         }
-        // ✅ (2026-09-08) محور 2: صفحة بها أخطاء جداول = دورة متدهورة.
-        // نثبّت مؤشر ما قبل هذه الصفحة (قبل تطبيق serverCursor أدناه)
-        // — أول صفحة معطوبة تحدد الحد الآمن للتراجع.
-        if (tableErrors.isNotEmpty && cursorAtFirstError == null) {
-          cursorAtFirstError = pendingCursor;
+        if (tableErrors.isNotEmpty) {
+          // ✅ (2026-09-08) سياسة refactor/cloudflare-sync-pipeline:
+          // صفحة بها جداول مُتخطّاة توقف السحب فوراً — البيانات ناقصة
+          // والاستمرار على السليم يوهم بالاكتمال. لا يتحرك المؤشر إطلاقاً
+          // (التراجع لما قبل الدورة) وترمى الدورة كفاشلة.
+          hadError = true;
+          errorMessage =
+              'Pull skipped ${tableErrors.length} remote table(s): '
+              '${tableErrors.join('; ')}';
+          _failedCollectionsInLastSync.addAll(
+            tableErrors.map((e) {
+              if (e is Map && e['entity'] != null) {
+                return e['entity'].toString();
+              }
+              return 'pull';
+            }),
+          );
         }
         // P0-C: server-derived cursor is authoritative, not device time
         final serverCursor = int.tryParse(data['cursor']?.toString() ?? '0');
         hasMore = data['has_more'] as bool? ?? false;
+        // البيانات ناقصة؛ لا نتابع pagination ولا نحرّك checkpoint.
+        if (hadError) hasMore = false;
 
         if (serverCursor != null && serverCursor > pendingCursor) {
           pendingCursor = serverCursor;
@@ -1174,7 +1183,7 @@ class CloudflareSyncManager {
         );
 
         // P0-C: contradictory state - has_more=true but empty changes
-        if (changes.isEmpty && hasMore) {
+        if (!hadError && changes.isEmpty && hasMore) {
           debugPrint(
             '⚠️ Pull returned has_more=true but empty changes - stopping',
           );
@@ -1195,7 +1204,7 @@ class CloudflareSyncManager {
 
     // P0-C: only advance checkpoint in prefs on full success
     final prefs = await SharedPreferences.getInstance();
-    if (!hadError && cursorAtFirstError == null) {
+    if (!hadError) {
       _lastPullCursor = pendingCursor;
       await prefs.setInt('cf_last_pull_cursor', _lastPullCursor);
 
@@ -1209,25 +1218,12 @@ class CloudflareSyncManager {
       debugPrint(
         '📥 Pulled $totalPulled changes (cursor: $initialCursor -> $_lastPullCursor)',
       );
-    } else if (!hadError) {
-      // ✅ (2026-09-08) عقد «منع إعلان النجاح مع جداول ناقصة» — محور 2:
-      // الخادم تخطى جدولاً (errors[] غير فارغة) في صفحة/صفحات من هذه
-      // الدورة. الصفوف التابعة له بين cursorAtFirstError و pendingCursor
-      // لم تُرسَل أصلاً — حفظ pendingCursor كان سيدفع المؤشر خلفها
-      // إلى الأبد حتى بعد إصلاح الخادم (علامة مائية صارمة). نُرجع
-      // المؤشر إلى ما قبل أول صفحة معطوبة: الصفوف السليمة تُعاد
-      // لاحقاً (idempotent عبر local_uuid) ولا شيء يُفقد، والدورة
-      // التالية تُكمل من الحد الآمن.
-      _lastPullCursor = cursorAtFirstError!;
-      await prefs.setInt('cf_last_pull_cursor', _lastPullCursor);
-      debugPrint(
-        '⚠️ Pull degraded — server skipped tables '
-        '(${_failedCollectionsInLastSync.join(', ')}); checkpoint rolled '
-        'back to $_lastPullCursor (server reached $pendingCursor). '
-        'Full-sync flag NOT set.',
-      );
     } else {
-      // P0-C: on failure, do NOT advance cursor in prefs
+      // ✅ (2026-09-08) محور 2 — سياسة «لا نجاح مع جداول ناقصة»:
+      // لا يتحرك checkpoint إطلاقاً عند أي خطأ (شبكة/HTTP/JSON أو
+      // جداول خادمية متخطّاة): صفوف الجدول المتخطى بين المؤشرين لم
+      // تُرسَل أصلاً، والتراجع الكامل يضمن أن الدورة التالية تعيد سحب
+      // كل ما بين الحدين (idempotent عبر local_uuid) ولا شيء يُفقد.
       _lastPullCursor = initialCursor;
       _failedCollectionsInLastSync.add('pull');
       debugPrint(
@@ -1261,6 +1257,13 @@ class CloudflareSyncManager {
     if (_db == null) return;
 
     if (record.isEmpty) return;
+
+    // سياسة البيانات: السحب يجلب السجلات الحية فقط. هذا الحارس يبقى
+    // دفاعياً حتى لا تُطبّق tombstone قديمة إذا أعادها Worker قديم أو cache.
+    if (record['deleted_at'] != null) {
+      debugPrint('⏭️ Pull: skipped deleted $entity/${record['local_uuid']}');
+      return;
+    }
 
     // ✅ عقد القائمة السوداء (2026-09-05): صفوف blacklist بلا جدول Drift
     // محلي — تخزينها في shift_notes الموسومة created_by='blacklist'
@@ -1685,20 +1688,20 @@ class CloudflareSyncManager {
     debugPrint('🔄 Sync cursor reset — next pull will be full sync');
   }
 
-  /// مزامنة كاملة (full sync) — يعيد تعيين cursor ثم ينفذ sync.
+  /// مزامنة كاملة (full sync) — يعيد تعيين cursor ثم ينفذ pull حتى exhaustion.
   /// يستخدم عند: تبديل الجهاز، استعادة backup، مشاكل في البيانات.
   ///
   /// ✅ P0-B: بعد اكتمال full sync بنجاح، تُضبط علامة _fullSyncCompleted=true
   /// تلقائياً داخل _pullChanges() عند الوصول لـ exhaustion بدون أخطاء.
   /// إذا فشلت full sync جزئياً، تبقى العلامة false ويُعاد المحاولة في
   /// الـ sync التالي تلقائياً (لأن _pullChanges سيرى wasFullSync=true).
-  Future<SyncResult> fullSync() async {
+  Future<SyncResult> fullSync({bool push = false}) async {
     clearHistory();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('cf_last_pull_cursor');
     await prefs.remove(_kFullSyncCompletedKey);
     debugPrint('🔄 Full sync: cursor reset + fullSyncCompleted flag cleared');
-    return sync();
+    return sync(push: push);
   }
 
   // ─── Push all local data ────────────────────────────────────
@@ -1720,7 +1723,7 @@ class CloudflareSyncManager {
   /// يستدعيها ويتوقع Future<bool>): سحب كامل — نفس sync(pull: true)
   /// بلا رفع؛ نجاحها = لا فشل جزئي.
   Future<bool> pullAllDataWithDisabledFK() async {
-    final result = await sync(push: false);
+    final result = await fullSync();
     return result.isSuccess;
   }
 
@@ -1954,7 +1957,7 @@ class CloudflareSyncManager {
   // ─── Pull ALL remote data — used by appwrite_settings_screen ──
   // ✅ توافق Drop-in: perf screen يتوقع Future<bool>.
   Future<bool> pullAllRemoteData() async {
-    final result = await sync(push: false);
+    final result = await fullSync();
     return result.isSuccess;
   }
 
