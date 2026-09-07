@@ -40,7 +40,9 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    unawaited(CrashlyticsService.instance.setCurrentScreen('PaymentsMainScreen'));
+    unawaited(
+      CrashlyticsService.instance.setCurrentScreen('PaymentsMainScreen'),
+    );
     // ✅ Analytics: تتبّع مشاهدة شاشة المدفوعات
     unawaited(
       AnalyticsService().logScreenView(
@@ -603,13 +605,15 @@ class _PaymentsMainScreenState extends ConsumerState<PaymentsMainScreen>
                   ),
                   trailing: ElevatedButton.icon(
                     onPressed: () {
-                      unawaited(Navigator.push<void>(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (context) =>
-                              BookingCheckoutScreen(booking: booking),
+                      unawaited(
+                        Navigator.push<void>(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (context) =>
+                                BookingCheckoutScreen(booking: booking),
+                          ),
                         ),
-                      ));
+                      );
                     },
                     icon: const Icon(Icons.payment, size: 14),
                     label: Text(

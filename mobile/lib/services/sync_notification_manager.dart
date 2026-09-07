@@ -557,19 +557,24 @@ class SyncNotificationManager {
                 label: 'تفاصيل',
                 textColor: Colors.white,
                 onPressed: () {
-                  unawaited(showDialog<void>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text('تفاصيل التضارب'),
-                      content: Text(details, textDirection: TextDirection.rtl),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('فهمت'),
+                  unawaited(
+                    showDialog<void>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('تفاصيل التضارب'),
+                        content: Text(
+                          details,
+                          textDirection: TextDirection.rtl,
                         ),
-                      ],
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('فهمت'),
+                          ),
+                        ],
+                      ),
                     ),
-                  ));
+                  );
                 },
               )
             : null,

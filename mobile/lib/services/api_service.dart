@@ -88,9 +88,7 @@ class ApiService {
       data: jsonEncode({'username': username, 'password': password}),
     );
     final data = res.data;
-    if (res.statusCode == 200 &&
-        data is Map &&
-        data['success'] == true) {
+    if (res.statusCode == 200 && data is Map && data['success'] == true) {
       final rawData = data['data'];
       if (rawData is Map) {
         final data = Map<String, dynamic>.from(rawData);

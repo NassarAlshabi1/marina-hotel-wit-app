@@ -824,27 +824,24 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   /// الـ worker الذي حجزه مات مع إنهاء التطبيق — تُستعاد فوراً بلا
   /// انتظار timeout.
   Future<int> reclaimAllStuckProcessingOnStartup() async {
-    final stuck =
-        await (select(outbox)..where(
-              (t) => t.processingStatus.equals('processing'),
-            ))
-            .get();
+    final stuck = await (select(
+      outbox,
+    )..where((t) => t.processingStatus.equals('processing'))).get();
 
     if (stuck.isEmpty) return 0;
 
     final count = stuck.length;
     dlog('🔧 [P0-H] Reclaiming $count stuck processing entries on startup');
 
-    await (update(outbox)..where(
-          (t) => t.processingStatus.equals('processing'),
-        ))
-        .write(
-          const OutboxCompanion(
-            processingStatus: Value('pending'),
-            processingStartedAt: Value(null),
-            processingWorker: Value(null),
-          ),
-        );
+    await (update(
+      outbox,
+    )..where((t) => t.processingStatus.equals('processing'))).write(
+      const OutboxCompanion(
+        processingStatus: Value('pending'),
+        processingStartedAt: Value(null),
+        processingWorker: Value(null),
+      ),
+    );
     return count;
   }
 

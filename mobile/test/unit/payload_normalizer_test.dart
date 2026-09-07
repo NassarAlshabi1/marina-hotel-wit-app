@@ -148,10 +148,7 @@ void main() {
       () async {
         final op = await buildPushOperation(
           _outboxItem(
-            payload: {
-              'vector_clock': '{"dev-x":9}',
-              'username': 'ahmed',
-            },
+            payload: {'vector_clock': '{"dev-x":9}', 'username': 'ahmed'},
             localUuid: 'user-1',
           ),
           resolveRowVectorClock: (_, __) async => '{"should-not-win":1}',

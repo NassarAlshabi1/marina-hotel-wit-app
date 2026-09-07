@@ -121,14 +121,8 @@ class PerformanceMonitor {
 
       await stopTrace(
         trace,
-        attributes: {
-          ...?attributes,
-          'success': 'true',
-        },
-        metrics: {
-          ...?metrics,
-          'duration_ms': stopwatch.elapsedMilliseconds,
-        },
+        attributes: {...?attributes, 'success': 'true'},
+        metrics: {...?metrics, 'duration_ms': stopwatch.elapsedMilliseconds},
       );
 
       return result;
@@ -142,10 +136,7 @@ class PerformanceMonitor {
           'success': 'false',
           'error': e.runtimeType.toString(),
         },
-        metrics: {
-          ...?metrics,
-          'duration_ms': stopwatch.elapsedMilliseconds,
-        },
+        metrics: {...?metrics, 'duration_ms': stopwatch.elapsedMilliseconds},
       );
 
       rethrow;
@@ -194,9 +185,7 @@ class PerformanceMonitor {
     return traceOperation(
       'booking_create',
       operation: operation,
-      attributes: {
-        if (roomNumber != null) 'room_number': roomNumber,
-      },
+      attributes: {if (roomNumber != null) 'room_number': roomNumber},
     );
   }
 
@@ -224,9 +213,7 @@ class PerformanceMonitor {
     return traceOperation(
       'pdf_generation',
       operation: operation,
-      attributes: {
-        if (type != null) 'type': type,
-      },
+      attributes: {if (type != null) 'type': type},
     );
   }
 
@@ -238,9 +225,7 @@ class PerformanceMonitor {
     return traceOperation(
       'backup',
       operation: operation,
-      attributes: {
-        if (destination != null) 'destination': destination,
-      },
+      attributes: {if (destination != null) 'destination': destination},
     );
   }
 }

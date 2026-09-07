@@ -597,10 +597,7 @@ class _UnifiedSyncSettingsScreenState
     return raw;
   }
 
-  void _showSyncResultSnack({
-    required bool success,
-    required String message,
-  }) {
+  void _showSyncResultSnack({required bool success, required String message}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -634,13 +631,14 @@ class _UnifiedSyncSettingsScreenState
     try {
       // 1) فحص outbox المحلي (عدّ حقيقي من قاعدة البيانات)
       final db = ref.read(databaseProvider);
-      final pending = await OutboxDao(db).countUndeliveredToPrimary(
-        sources: const ['local'],
-      );
+      final pending = await OutboxDao(
+        db,
+      ).countUndeliveredToPrimary(sources: const ['local']);
       if (pending > 0) {
         _showSyncResultSnack(
           success: false,
-          message: '⬆️ يوجد $pending تغييراً محلياً غير مرفوع — '
+          message:
+              '⬆️ يوجد $pending تغييراً محلياً غير مرفوع — '
               'استخدم «مزامنة كاملة» أدناه لرفعه ثم السحب',
         );
         return;
@@ -675,8 +673,7 @@ class _UnifiedSyncSettingsScreenState
       } else {
         _showSyncResultSnack(
           success: false,
-          message:
-              '❌ تعذر السحب: ${_friendlySyncError(result.errorMessage)}',
+          message: '❌ تعذر السحب: ${_friendlySyncError(result.errorMessage)}',
         );
       }
     } catch (e) {
@@ -731,24 +728,26 @@ class _UnifiedSyncSettingsScreenState
     // الحوار في finally حتى لو غادر المستخدم الشاشة أثناء المزامنة —
     // استخدام context بعد dispose كان سيترك الحوار محجوزاً للأبد.
     var progressDialogOpen = false;
-    unawaited(showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const AlertDialog(
-        title: Text('جاري المزامنة الكاملة…'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            LinearProgressIndicator(),
-            SizedBox(height: 12),
-            Text(
-              'رفع التغييرات المحلية ثم سحب كل البيانات من السيرفر',
-              style: TextStyle(fontSize: 12),
-            ),
-          ],
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const AlertDialog(
+          title: Text('جاري المزامنة الكاملة…'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              LinearProgressIndicator(),
+              SizedBox(height: 12),
+              Text(
+                'رفع التغييرات المحلية ثم سحب كل البيانات من السيرفر',
+                style: TextStyle(fontSize: 12),
+              ),
+            ],
+          ),
         ),
       ),
-    ));
+    );
     progressDialogOpen = true;
     final navigator = Navigator.of(context);
 
@@ -773,13 +772,15 @@ class _UnifiedSyncSettingsScreenState
       if (result.isSuccess) {
         _showSyncResultSnack(
           success: true,
-          message: '✅ اكتملت المزامنة الكاملة — '
+          message:
+              '✅ اكتملت المزامنة الكاملة — '
               'رُفع ${result.recordsPushed} وسُحب ${result.recordsPulled} سجل',
         );
       } else {
         _showSyncResultSnack(
           success: false,
-          message: '❌ فشلت المزامنة الكاملة: '
+          message:
+              '❌ فشلت المزامنة الكاملة: '
               '${_friendlySyncError(result.errorMessage)}',
         );
       }
@@ -827,48 +828,50 @@ class _UnifiedSyncSettingsScreenState
   }
 
   void _showSyncIntervalDialog() {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('فترة المزامنة'),
-        content: RadioGroup<int>(
-          groupValue: _syncIntervalMinutes,
-          onChanged: (value) {
-            if (value != null) unawaited(_selectSyncInterval(value));
-          },
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: const Text('5 دقائق'),
-                leading: const Radio<int>(value: 5),
-                onTap: () => _selectSyncInterval(5),
-              ),
-              ListTile(
-                title: const Text('15 دقيقة'),
-                leading: const Radio<int>(value: 15),
-                onTap: () => _selectSyncInterval(15),
-              ),
-              ListTile(
-                title: const Text('30 دقيقة'),
-                leading: const Radio<int>(value: 30),
-                onTap: () => _selectSyncInterval(30),
-              ),
-              ListTile(
-                title: const Text('ساعة واحدة'),
-                leading: const Radio<int>(value: 60),
-                onTap: () => _selectSyncInterval(60),
-              ),
-            ],
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('فترة المزامنة'),
+          content: RadioGroup<int>(
+            groupValue: _syncIntervalMinutes,
+            onChanged: (value) {
+              if (value != null) unawaited(_selectSyncInterval(value));
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  title: const Text('5 دقائق'),
+                  leading: const Radio<int>(value: 5),
+                  onTap: () => _selectSyncInterval(5),
+                ),
+                ListTile(
+                  title: const Text('15 دقيقة'),
+                  leading: const Radio<int>(value: 15),
+                  onTap: () => _selectSyncInterval(15),
+                ),
+                ListTile(
+                  title: const Text('30 دقيقة'),
+                  leading: const Radio<int>(value: 30),
+                  onTap: () => _selectSyncInterval(30),
+                ),
+                ListTile(
+                  title: const Text('ساعة واحدة'),
+                  leading: const Radio<int>(value: 60),
+                  onTap: () => _selectSyncInterval(60),
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
-          ),
-        ],
       ),
-    ));
+    );
   }
 }

@@ -474,118 +474,122 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
   }
 
   void _showFilterDialog() {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('تصفية السجلات'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: const Text('الكل'),
-              leading: Radio<String>(
-                value: 'all',
-                // ignore: deprecated_member_use
-                groupValue: _selectedLevel,
-                // ignore: deprecated_member_use
-                onChanged: (value) {
-                  setState(() => _selectedLevel = value!);
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-            ListTile(
-              title: const Text('معلومات'),
-              leading: Radio<String>(
-                value: 'info',
-                // ignore: deprecated_member_use
-                groupValue: _selectedLevel,
-                // ignore: deprecated_member_use
-                onChanged: (value) {
-                  setState(() => _selectedLevel = value!);
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-            ListTile(
-              title: const Text('نجاح'),
-              leading: Radio<String>(
-                value: 'success',
-                // ignore: deprecated_member_use
-                groupValue: _selectedLevel,
-                // ignore: deprecated_member_use
-                onChanged: (value) {
-                  setState(() => _selectedLevel = value!);
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-            ListTile(
-              title: const Text('تحذيرات'),
-              leading: Radio<String>(
-                value: 'warning',
-                // ignore: deprecated_member_use
-                groupValue: _selectedLevel,
-                // ignore: deprecated_member_use
-                onChanged: (value) {
-                  setState(() => _selectedLevel = value!);
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-            ListTile(
-              title: const Text('أخطاء'),
-              leading: Radio<String>(
-                value: 'error',
-                // ignore: deprecated_member_use
-                groupValue: _selectedLevel,
-                // ignore: deprecated_member_use
-                onChanged: (value) {
-                  setState(() => _selectedLevel = value!);
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
-          ),
-        ],
-      ),
-    ));
-  }
-
-  void _showLogDetails(Map<String, String> log) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('تفاصيل السجل'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('تصفية السجلات'),
+          content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildDetailRow('المستوى', log['level']!),
-              _buildDetailRow('المصدر', log['source']!),
-              _buildDetailRow('الرسالة', log['message']!),
-              _buildDetailRow(
-                'الوقت',
-                DateTimeFormatter.formatDateTime(log['timestamp']),
+              ListTile(
+                title: const Text('الكل'),
+                leading: Radio<String>(
+                  value: 'all',
+                  // ignore: deprecated_member_use
+                  groupValue: _selectedLevel,
+                  // ignore: deprecated_member_use
+                  onChanged: (value) {
+                    setState(() => _selectedLevel = value!);
+                    Navigator.pop(context);
+                  },
+                ),
+              ),
+              ListTile(
+                title: const Text('معلومات'),
+                leading: Radio<String>(
+                  value: 'info',
+                  // ignore: deprecated_member_use
+                  groupValue: _selectedLevel,
+                  // ignore: deprecated_member_use
+                  onChanged: (value) {
+                    setState(() => _selectedLevel = value!);
+                    Navigator.pop(context);
+                  },
+                ),
+              ),
+              ListTile(
+                title: const Text('نجاح'),
+                leading: Radio<String>(
+                  value: 'success',
+                  // ignore: deprecated_member_use
+                  groupValue: _selectedLevel,
+                  // ignore: deprecated_member_use
+                  onChanged: (value) {
+                    setState(() => _selectedLevel = value!);
+                    Navigator.pop(context);
+                  },
+                ),
+              ),
+              ListTile(
+                title: const Text('تحذيرات'),
+                leading: Radio<String>(
+                  value: 'warning',
+                  // ignore: deprecated_member_use
+                  groupValue: _selectedLevel,
+                  // ignore: deprecated_member_use
+                  onChanged: (value) {
+                    setState(() => _selectedLevel = value!);
+                    Navigator.pop(context);
+                  },
+                ),
+              ),
+              ListTile(
+                title: const Text('أخطاء'),
+                leading: Radio<String>(
+                  value: 'error',
+                  // ignore: deprecated_member_use
+                  groupValue: _selectedLevel,
+                  // ignore: deprecated_member_use
+                  onChanged: (value) {
+                    setState(() => _selectedLevel = value!);
+                    Navigator.pop(context);
+                  },
+                ),
               ),
             ],
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إغلاق'),
-          ),
-        ],
       ),
-    ));
+    );
+  }
+
+  void _showLogDetails(Map<String, String> log) {
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('تفاصيل السجل'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildDetailRow('المستوى', log['level']!),
+                _buildDetailRow('المصدر', log['source']!),
+                _buildDetailRow('الرسالة', log['message']!),
+                _buildDetailRow(
+                  'الوقت',
+                  DateTimeFormatter.formatDateTime(log['timestamp']),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إغلاق'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildDetailRow(String label, String value) {
@@ -632,83 +636,94 @@ class _UnifiedLogsScreenState extends ConsumerState<UnifiedLogsScreen>
   }
 
   void _clearLogs() {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('تحذير'),
-        content: const Text(
-          'هل تريد حذف جميع السجلات؟ لا يمكن التراجع عن هذا الإجراء.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('تحذير'),
+          content: const Text(
+            'هل تريد حذف جميع السجلات؟ لا يمكن التراجع عن هذا الإجراء.',
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('تم مسح جميع السجلات')),
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('حذف', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    ));
-  }
-
-  void _showRetentionDialog() {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('الاحتفاظ بالسجلات'),
-        content: RadioGroup<int>(
-          groupValue: _logRetentionDays,
-          onChanged: (value) {
-            if (value != null) unawaited(_setLogRetention(value, dialogContext));
-          },
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [7, 14, 30].map((days) {
-              return RadioListTile<int>(title: Text('$days أيام'), value: days);
-            }).toList(),
-          ),
-        ),
-      ),
-    ));
-  }
-
-  void _showSettingsDialog() {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('إعدادات السجلات'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SwitchListTile(
-              title: const Text('حفظ السجلات'),
-              subtitle: const Text('تخزين السجلات على الجهاز'),
-              value: _saveLogsEnabled,
-              onChanged: _isSavingLogSettings ? null : _setFileLogging,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء'),
             ),
-            ListTile(
-              title: const Text('الاحتفاظ بالسجلات'),
-              subtitle: Text('$_logRetentionDays أيام'),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: _isSavingLogSettings ? null : _showRetentionDialog,
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('تم مسح جميع السجلات')),
+                );
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('حذف', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إغلاق'),
-          ),
-        ],
       ),
-    ));
+    );
+  }
+
+  void _showRetentionDialog() {
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('الاحتفاظ بالسجلات'),
+          content: RadioGroup<int>(
+            groupValue: _logRetentionDays,
+            onChanged: (value) {
+              if (value != null) {
+                unawaited(_setLogRetention(value, dialogContext));
+              }
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [7, 14, 30].map((days) {
+                return RadioListTile<int>(
+                  title: Text('$days أيام'),
+                  value: days,
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSettingsDialog() {
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('إعدادات السجلات'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SwitchListTile(
+                title: const Text('حفظ السجلات'),
+                subtitle: const Text('تخزين السجلات على الجهاز'),
+                value: _saveLogsEnabled,
+                onChanged: _isSavingLogSettings ? null : _setFileLogging,
+              ),
+              ListTile(
+                title: const Text('الاحتفاظ بالسجلات'),
+                subtitle: Text('$_logRetentionDays أيام'),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                onTap: _isSavingLogSettings ? null : _showRetentionDialog,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إغلاق'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

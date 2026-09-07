@@ -93,15 +93,17 @@ void main() {
       final ops = await outboxRows();
       expect(ops.length, 1);
       expect(ops.first['op'], 'create');
-      final payload = jsonDecode(ops.first['payload'] as String)
-          as Map<String, dynamic>;
+      final payload =
+          jsonDecode(ops.first['payload'] as String) as Map<String, dynamic>;
       expect(payload['username'], 'saleh');
       expect(
         PasswordHasher.verify('1234', payload['password'] as String),
         isTrue,
       );
-      expect(jsonDecode(payload['permissions'] as String),
-          contains('bookings.create'));
+      expect(
+        jsonDecode(payload['permissions'] as String),
+        contains('bookings.create'),
+      );
     },
   );
 
@@ -201,13 +203,12 @@ void main() {
 
     final ops = await outboxRows();
     final deleteOps = ops
-        .where(
-          (o) => o['op'] == 'delete' && o['local_uuid'] == docId,
-        )
+        .where((o) => o['op'] == 'delete' && o['local_uuid'] == docId)
         .toList();
     expect(deleteOps, isNotEmpty);
-    final payload = jsonDecode(deleteOps.first['payload'] as String)
-        as Map<String, dynamic>;
+    final payload =
+        jsonDecode(deleteOps.first['payload'] as String)
+            as Map<String, dynamic>;
     expect(payload['deleted_at'], isNotNull);
   });
 
@@ -242,9 +243,7 @@ void main() {
       expect(after.first['deleted_at'], isNotNull);
       final ops = await outboxRows();
       final deleteOps = ops
-          .where(
-            (o) => o['op'] == 'delete' && o['local_uuid'] == docId,
-          )
+          .where((o) => o['op'] == 'delete' && o['local_uuid'] == docId)
           .toList();
       expect(deleteOps, isNotEmpty);
     },

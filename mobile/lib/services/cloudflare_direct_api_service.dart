@@ -345,14 +345,14 @@ class CloudflareDirectApiService {
       Map<String, dynamic>? decoded;
       try {
         final dynamic raw = jsonDecode(utf8.decode(resp.bodyBytes));
-        decoded = raw is Map<String, dynamic>
-            ? raw
-            : <String, dynamic>{};
+        decoded = raw is Map<String, dynamic> ? raw : <String, dynamic>{};
       } catch (_) {
         return _CloudflareApiAttempt(
           ok: false,
           statusCode: resp.statusCode,
-          errors: ['استجابة غير متوقعة من Cloudflare (HTTP ${resp.statusCode})'],
+          errors: [
+            'استجابة غير متوقعة من Cloudflare (HTTP ${resp.statusCode})',
+          ],
         );
       }
 

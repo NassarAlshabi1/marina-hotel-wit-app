@@ -1157,31 +1157,33 @@ class _BookingEditScreenState extends ConsumerState<BookingEditScreen>
 
   // ignore: unused_element
   void _showDiscardDialog(BuildContext context) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          title: const Text('تأكيد'),
-          content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('لا'),
-            ),
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(ctx);
-                await syncNow();
-                if (mounted) {
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('نعم'),
-            ),
-          ],
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: const Text('تأكيد'),
+            content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('لا'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await syncNow();
+                  if (mounted) {
+                    Navigator.pop(context);
+                  }
+                },
+                child: const Text('نعم'),
+              ),
+            ],
+          ),
         ),
       ),
-    ));
+    );
   }
 }

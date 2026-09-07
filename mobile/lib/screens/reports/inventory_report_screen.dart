@@ -250,9 +250,7 @@ class _InventoryReportScreenState extends ConsumerState<InventoryReportScreen> {
               border: OutlineInputBorder(),
             ),
             items: [
-              const DropdownMenuItem<String?>(
-                child: Text('كل التصنيفات'),
-              ),
+              const DropdownMenuItem<String?>(child: Text('كل التصنيفات')),
               ..._categories.map(
                 (category) => DropdownMenuItem<String?>(
                   value: category,

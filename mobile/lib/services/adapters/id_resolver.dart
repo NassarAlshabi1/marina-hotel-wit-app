@@ -183,9 +183,7 @@ class IdResolver {
           await (db.select(db.employees)
                 ..where((e) => e.serverId.equals(serverId))
                 ..orderBy([
-                  (e) => d.OrderingTerm(
-                    expression: e.deletedAt,
-                  ),
+                  (e) => d.OrderingTerm(expression: e.deletedAt),
                   (e) => d.OrderingTerm(expression: e.id),
                 ]))
               .get();
@@ -287,9 +285,7 @@ class IdResolver {
           await (db.select(db.salaryCycles)
                 ..where((c) => c.serverId.equals(serverId))
                 ..orderBy([
-                  (c) => d.OrderingTerm(
-                    expression: c.deletedAt,
-                  ),
+                  (c) => d.OrderingTerm(expression: c.deletedAt),
                   (c) => d.OrderingTerm(expression: c.id),
                 ]))
               .get();

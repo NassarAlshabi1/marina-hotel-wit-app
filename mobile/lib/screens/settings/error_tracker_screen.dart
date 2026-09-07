@@ -282,9 +282,9 @@ class _ErrorTrackerScreenState extends State<ErrorTrackerScreen> {
   Future<void> _copyAllErrors() async {
     final errors = _getFilteredErrors();
     if (errors.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لا توجد أخطاء لنسخها')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('لا توجد أخطاء لنسخها')));
       return;
     }
     final buffer = StringBuffer();
@@ -306,9 +306,9 @@ class _ErrorTrackerScreenState extends State<ErrorTrackerScreen> {
 
   Future<void> _shareErrors(List<TrackedError> errors) async {
     if (errors.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لا توجد أخطاء للمشاركة')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('لا توجد أخطاء للمشاركة')));
       return;
     }
     final buffer = StringBuffer();
@@ -324,9 +324,9 @@ class _ErrorTrackerScreenState extends State<ErrorTrackerScreen> {
   Future<void> _exportErrors() async {
     final errors = _getFilteredErrors();
     if (errors.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لا توجد أخطاء للتصدير')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('لا توجد أخطاء للتصدير')));
       return;
     }
     final jsonList = errors
@@ -381,9 +381,9 @@ class _ErrorTrackerScreenState extends State<ErrorTrackerScreen> {
       _store.clear();
       setState(() {});
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ تم مسح جميع الأخطاء')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('✅ تم مسح جميع الأخطاء')));
     }
   }
 
@@ -854,10 +854,7 @@ class _ErrorCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       error.message,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[700],
-                      ),
+                      style: TextStyle(fontSize: 11, color: Colors.grey[700]),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -954,10 +951,7 @@ class _DetailRow extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: SelectableText(
-              value,
-              style: const TextStyle(fontSize: 12),
-            ),
+            child: SelectableText(value, style: const TextStyle(fontSize: 12)),
           ),
         ],
       ),

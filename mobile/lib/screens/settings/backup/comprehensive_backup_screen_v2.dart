@@ -79,10 +79,7 @@ class _ComprehensiveBackupScreenState
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: const [
-                CloudflareD1Tab(),
-                LocalBackupsTab(),
-              ],
+              children: const [CloudflareD1Tab(), LocalBackupsTab()],
             ),
           ),
         ],
@@ -91,35 +88,37 @@ class _ComprehensiveBackupScreenState
   }
 
   void _showHelpDialog() {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('مساعدة'),
-        content: const SingleChildScrollView(
-          child: Text(
-            'نظام النسخ الاحتياطي:\n\n'
-            '• Cloudflare D1 (رفع إداري): رفع نسخة إدارية يدوياً\n'
-            '  - ينشئ ملف JSON من البيانات المحلية\n'
-            '  - يرفعه إلى Cloudflare بعد تأكيد صريح\n'
-            '  - لا يُسمح به ما دام Outbox يحتوي تغييرات غير مُسلّمة\n\n'
-            '• Cloudflare D1: رفع بيانات جداول المزامنة المطابقة '
-            'لعقد المزامنة السحابي فقط\n'
-            '  - كتابة آمنة بأسلوب INSERT OR REPLACE\n'
-            '  - اختيار الجداول وعرض التقدم والإيقاف\n\n'
-            '• النسخ المحلية: نسخ على ذاكرة الجهاز\n'
-            '  - إنشاء نسخة احتياطية محلية\n'
-            '  - استعادة من نسخة محلية\n'
-            '  - مشاركة أو حذف النسخ القديمة\n'
-            '  - استيراد نسخة من ملف خارجي',
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('مساعدة'),
+          content: const SingleChildScrollView(
+            child: Text(
+              'نظام النسخ الاحتياطي:\n\n'
+              '• Cloudflare D1 (رفع إداري): رفع نسخة إدارية يدوياً\n'
+              '  - ينشئ ملف JSON من البيانات المحلية\n'
+              '  - يرفعه إلى Cloudflare بعد تأكيد صريح\n'
+              '  - لا يُسمح به ما دام Outbox يحتوي تغييرات غير مُسلّمة\n\n'
+              '• Cloudflare D1: رفع بيانات جداول المزامنة المطابقة '
+              'لعقد المزامنة السحابي فقط\n'
+              '  - كتابة آمنة بأسلوب INSERT OR REPLACE\n'
+              '  - اختيار الجداول وعرض التقدم والإيقاف\n\n'
+              '• النسخ المحلية: نسخ على ذاكرة الجهاز\n'
+              '  - إنشاء نسخة احتياطية محلية\n'
+              '  - استعادة من نسخة محلية\n'
+              '  - مشاركة أو حذف النسخ القديمة\n'
+              '  - استيراد نسخة من ملف خارجي',
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('حسناً'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('حسناً'),
-          ),
-        ],
       ),
-    ));
+    );
   }
 }

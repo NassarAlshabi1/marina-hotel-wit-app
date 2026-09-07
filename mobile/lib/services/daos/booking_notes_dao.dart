@@ -182,11 +182,7 @@ class BookingNotesDao extends DatabaseAccessor<AppDatabase>
           op: 'update',
           localUuid: existing.localUuid,
           serverId: existing.serverId,
-          payload: {
-            'deleted_at': now,
-            'updated_at': now,
-            'last_modified': now,
-          },
+          payload: {'deleted_at': now, 'updated_at': now, 'last_modified': now},
           clientTs: now,
         );
       }

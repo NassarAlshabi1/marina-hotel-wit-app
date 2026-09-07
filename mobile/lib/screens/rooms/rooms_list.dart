@@ -268,106 +268,108 @@ class _RoomsListScreenState extends ConsumerState<RoomsListScreen>
   ) {
     final isAvailable = StatusUtils.isRoomAvailable(room.status);
 
-    unawaited(showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: DecoratedBox(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: DecoratedBox(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
-              ),
-              _buildRoomHeader(room, isAvailable),
-              const Divider(),
-              if (canEdit) ...[
+                _buildRoomHeader(room, isAvailable),
+                const Divider(),
+                if (canEdit) ...[
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.edit,
+                        color: AppColors.primaryColor,
+                      ),
+                    ),
+                    title: const Text('تعديل الغرفة'),
+                    subtitle: const Text('تغيير السعر والنوع والحالة'),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      unawaited(_editRoom(context, ref, existing: room));
+                    },
+                  ),
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color:
+                            (isAvailable
+                                    ? AppColors.dangerColor
+                                    : AppColors.successColor)
+                                .withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        isAvailable ? Icons.block : Icons.check_circle,
+                        color: isAvailable
+                            ? AppColors.dangerColor
+                            : AppColors.successColor,
+                      ),
+                    ),
+                    title: Text(
+                      isAvailable ? 'تحويل إلى محجوزة' : 'تحويل إلى شاغرة',
+                    ),
+                    subtitle: const Text('تغيير حالة الغرفة بسرعة'),
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      await _quickStatusChange(
+                        room,
+                        isAvailable ? 'محجوزة' : 'شاغرة',
+                      );
+                    },
+                  ),
+                ],
                 ListTile(
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppColors.primaryColor.withValues(alpha: 0.1),
+                      color: AppColors.infoColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(
-                      Icons.edit,
-                      color: AppColors.primaryColor,
+                      Icons.info_outline,
+                      color: AppColors.infoColor,
                     ),
                   ),
-                  title: const Text('تعديل الغرفة'),
-                  subtitle: const Text('تغيير السعر والنوع والحالة'),
+                  title: const Text('تفاصيل الغرفة'),
+                  subtitle: const Text('عرض المعلومات الكاملة'),
                   onTap: () {
                     Navigator.pop(ctx);
-                    unawaited(_editRoom(context, ref, existing: room));
+                    // هنا يمكن فتح شاشة التفاصيل
                   },
                 ),
-                ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color:
-                          (isAvailable
-                                  ? AppColors.dangerColor
-                                  : AppColors.successColor)
-                              .withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      isAvailable ? Icons.block : Icons.check_circle,
-                      color: isAvailable
-                          ? AppColors.dangerColor
-                          : AppColors.successColor,
-                    ),
-                  ),
-                  title: Text(
-                    isAvailable ? 'تحويل إلى محجوزة' : 'تحويل إلى شاغرة',
-                  ),
-                  subtitle: const Text('تغيير حالة الغرفة بسرعة'),
-                  onTap: () async {
-                    Navigator.pop(ctx);
-                    await _quickStatusChange(
-                      room,
-                      isAvailable ? 'محجوزة' : 'شاغرة',
-                    );
-                  },
-                ),
+                const SizedBox(height: 16),
               ],
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.infoColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.info_outline,
-                    color: AppColors.infoColor,
-                  ),
-                ),
-                title: const Text('تفاصيل الغرفة'),
-                subtitle: const Text('عرض المعلومات الكاملة'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  // هنا يمكن فتح شاشة التفاصيل
-                },
-              ),
-              const SizedBox(height: 16),
-            ],
+            ),
           ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildRoomHeader(Room room, bool isAvailable) {

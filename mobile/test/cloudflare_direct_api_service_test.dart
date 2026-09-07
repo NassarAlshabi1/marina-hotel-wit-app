@@ -37,10 +37,10 @@ class _FakeCloudflareHttpClient extends http.BaseClient {
 }
 
 http.Response _json(Object body, [int status = 200]) => http.Response(
-      jsonEncode(body),
-      status,
-      headers: {'content-type': 'application/json'},
-    );
+  jsonEncode(body),
+  status,
+  headers: {'content-type': 'application/json'},
+);
 
 /// موجّه مسارات عام لكل الاختبارات — يستقبل خريطة استجابات بالمسار.
 _FakeCloudflareHttpClient _clientFor(Map<String, Object Function()> routes) {
@@ -77,10 +77,7 @@ void main() {
             _json(<String, Object>{
               'success': false,
               'errors': <Object>[
-                <String, Object>{
-                  'code': 1000,
-                  'message': 'Invalid API Token',
-                },
+                <String, Object>{'code': 1000, 'message': 'Invalid API Token'},
               ],
             }, 401),
           );
@@ -102,10 +99,7 @@ void main() {
           return Future.value(
             _json(<String, Object>{
               'success': true,
-              'result': <String, Object>{
-                'id': 'tok456',
-                'status': 'active',
-              },
+              'result': <String, Object>{'id': 'tok456', 'status': 'active'},
               'messages': <Object>[
                 <String, Object>{
                   'code': 10000,
@@ -163,7 +157,9 @@ void main() {
       // ذاكرة النسخة: نداء GET /accounts حصل مرة واحدة فقط رغم أن
       // verifyToken وlistAccountD1Databases كلاهما طلب المعرّف.
       final accountsCalls = client.requested
-          .where((u) => u.path.endsWith('/accounts') && u.query != 'per_page=50')
+          .where(
+            (u) => u.path.endsWith('/accounts') && u.query != 'per_page=50',
+          )
           .length;
       expect(accountsCalls, 1, reason: 'اكتشاف المعرّف يُنفَّذ مرة واحدة');
     },
@@ -174,20 +170,20 @@ void main() {
     () async {
       final client = _clientFor(<String, Object Function()>{
         '/user/tokens/verify': () => <String, Object>{
-              'success': false,
-              'errors': <Object>[
-                <String, Object>{'code': 1000, 'message': 'Invalid API Token'},
-              ],
-            },
+          'success': false,
+          'errors': <Object>[
+            <String, Object>{'code': 1000, 'message': 'Invalid API Token'},
+          ],
+        },
         '/accounts/acct123/tokens/verify': () => <String, Object>{
-              'success': false,
-              'errors': <Object>[
-                <String, Object>{
-                  'code': 9109,
-                  'message': 'Unauthorized to use this token',
-                },
-              ],
+          'success': false,
+          'errors': <Object>[
+            <String, Object>{
+              'code': 9109,
+              'message': 'Unauthorized to use this token',
             },
+          ],
+        },
       });
 
       final service = CloudflareDirectApiService(
@@ -216,69 +212,66 @@ void main() {
     },
   );
 
-  test(
-    'تعذّر اكتشاف المعرّف: أخطاء مدمجة صادقة + تلميح cfat_',
-    () async {
-      final client = _clientFor(<String, Object Function()>{
-        '/user/tokens/verify': () => <String, Object>{
-              'success': false,
-              'errors': <Object>[
-                <String, Object>{'code': 1000, 'message': 'Invalid API Token'},
-              ],
-            },
-        '/accounts': () => <String, Object>{
-              'success': false,
-              'errors': <Object>[
-                <String, Object>{'code': 9109, 'message': 'Unauthorized'},
-              ],
-            },
-      });
+  test('تعذّر اكتشاف المعرّف: أخطاء مدمجة صادقة + تلميح cfat_', () async {
+    final client = _clientFor(<String, Object Function()>{
+      '/user/tokens/verify': () => <String, Object>{
+        'success': false,
+        'errors': <Object>[
+          <String, Object>{'code': 1000, 'message': 'Invalid API Token'},
+        ],
+      },
+      '/accounts': () => <String, Object>{
+        'success': false,
+        'errors': <Object>[
+          <String, Object>{'code': 9109, 'message': 'Unauthorized'},
+        ],
+      },
+    });
 
-      final service = CloudflareDirectApiService(
-        const CloudflareD1Config(
-          accountId: '',
-          databaseId: '',
-          apiToken: 'cfat_testtoken',
-        ),
-        client: client,
-      );
+    final service = CloudflareDirectApiService(
+      const CloudflareD1Config(
+        accountId: '',
+        databaseId: '',
+        apiToken: 'cfat_testtoken',
+      ),
+      client: client,
+    );
 
-      final verify = await service.verifyToken();
+    final verify = await service.verifyToken();
 
-      expect(verify.ok, isFalse);
-      expect(
-        verify.errors.any((e) => e.contains('cfat_')),
-        isTrue,
-        reason: 'تلميح نوع التوكن يظهر عند تعذّر الاكتشاف',
-      );
-      expect(
-        verify.errors.any((e) => e.contains('لا يملك صلاحية الوصول')),
-        isTrue,
-        reason: 'خطأ الاكتشاف الحقيقي يظهر',
-      );
-    },
-  );
+    expect(verify.ok, isFalse);
+    expect(
+      verify.errors.any((e) => e.contains('cfat_')),
+      isTrue,
+      reason: 'تلميح نوع التوكن يظهر عند تعذّر الاكتشاف',
+    );
+    expect(
+      verify.errors.any((e) => e.contains('لا يملك صلاحية الوصول')),
+      isTrue,
+      reason: 'خطأ الاكتشاف الحقيقي يظهر',
+    );
+  });
 
   test('توكن مستخدم عادي: النجاح عبر /user/tokens/verify حرفياً', () async {
     final client = _clientFor(<String, Object Function()>{
       '/user/tokens/verify': () => <String, Object>{
-            'success': true,
-            'result': <String, Object>{
-              'id': 'tok1',
-              'status': 'active',
-              'expires_on': '2027-01-01T00:00:00Z',
-            },
-          },
+        'success': true,
+        'result': <String, Object>{
+          'id': 'tok1',
+          'status': 'active',
+          'expires_on': '2027-01-01T00:00:00Z',
+        },
+      },
       '/accounts/acctSaved/d1/database': () => <String, Object>{
-            'success': true,
-            'result': <Object>[
-              <String, Object>{
-                'uuid': 'dbSaved',
-                'name': 'hotel-db',
-                'file_size': 10,
-              },
-            ],
+        'success': true,
+        'result': <Object>[
+          <String, Object>{
+            'uuid': 'dbSaved',
+            'name': 'hotel-db',
+            'file_size': 10,
           },
+        ],
+      },
     });
 
     final service = CloudflareDirectApiService(
@@ -295,8 +288,11 @@ void main() {
     expect(result.ok, isTrue);
     expect(result.verify?.endpoint, '/user/tokens/verify');
     expect(result.verify?.discoveredAccountId, isNull);
-    expect(service.discoveredAccountId, isNull,
-        reason: 'لا اكتشاف عندما يكون المعرّف محفوظاً');
+    expect(
+      service.discoveredAccountId,
+      isNull,
+      reason: 'لا اكتشاف عندما يكون المعرّف محفوظاً',
+    );
     expect(result.account?.matchedDatabaseName, 'hotel-db');
     // لا نداء GET /accounts إطلاقاً في هذا المسار.
     expect(

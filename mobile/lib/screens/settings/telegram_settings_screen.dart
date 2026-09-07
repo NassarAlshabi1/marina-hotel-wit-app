@@ -850,53 +850,57 @@ class _TelegramSettingsScreenState
   }
 
   void _showSetupGuide(BuildContext context) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('كيف تحصل على Bot Token و Chat ID؟'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '🔐 الحصول على Bot Token:',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            ),
-            SizedBox(height: 4),
-            Text('1. افتح Telegram وابحث عن @BotFather'),
-            Text('2. أرسل /newbot'),
-            Text('3. اختر اسم البوت (مثلاً: Marina Hotel)'),
-            Text('4. اختر username (مثلاً: marina_hotel_bot)'),
-            Text('5. انسخ Token من الرد'),
-            SizedBox(height: 12),
-            Text(
-              '👤 الحصول على Chat ID:',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            ),
-            SizedBox(height: 4),
-            Text('1. افتح Telegram وابحث عن @userinfobot'),
-            Text('2. اضغط Start'),
-            Text('3. انسخ رقم ID'),
-            SizedBox(height: 12),
-            Text(
-              '✅ اختبار:',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            ),
-            SizedBox(height: 4),
-            Text(
-              'بعد الحفظ اضغط "اختبار الاتصال" وتحقق من وصول رسالة في Telegram',
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text('كيف تحصل على Bot Token و Chat ID؟'),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '🔐 الحصول على Bot Token:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              SizedBox(height: 4),
+              Text('1. افتح Telegram وابحث عن @BotFather'),
+              Text('2. أرسل /newbot'),
+              Text('3. اختر اسم البوت (مثلاً: Marina Hotel)'),
+              Text('4. اختر username (مثلاً: marina_hotel_bot)'),
+              Text('5. انسخ Token من الرد'),
+              SizedBox(height: 12),
+              Text(
+                '👤 الحصول على Chat ID:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              SizedBox(height: 4),
+              Text('1. افتح Telegram وابحث عن @userinfobot'),
+              Text('2. اضغط Start'),
+              Text('3. انسخ رقم ID'),
+              SizedBox(height: 12),
+              Text(
+                '✅ اختبار:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'بعد الحفظ اضغط "اختبار الاتصال" وتحقق من وصول رسالة في Telegram',
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('فهمت'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('فهمت'),
-          ),
-        ],
       ),
-    ));
+    );
   }
 
   Widget _buildSectionTitle(String title, IconData icon, ThemeData theme) {

@@ -97,9 +97,7 @@ void main() {
       });
 
       final resilient = ResilientHttpClient(innerClient: mockClient);
-      final response = await resilient.get(
-        Uri.parse('http://example.com/api'),
-      );
+      final response = await resilient.get(Uri.parse('http://example.com/api'));
 
       expect(response.statusCode, equals(200));
       resilient.close();

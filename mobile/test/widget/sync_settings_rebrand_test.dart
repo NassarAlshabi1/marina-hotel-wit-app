@@ -18,13 +18,9 @@ void main() {
       ProviderScope(
         overrides: [
           // المدير الحقيقي singleton — بلا initialize (لا HTTP في البناء).
-          appwriteSyncManagerProvider.overrideWithValue(
-            AppwriteSyncManager(),
-          ),
+          appwriteSyncManagerProvider.overrideWithValue(AppwriteSyncManager()),
           syncStatsProvider.overrideWith((ref) async => <String, dynamic>{}),
-          outboxCountProvider.overrideWith(
-            (ref) => const Stream<int>.empty(),
-          ),
+          outboxCountProvider.overrideWith((ref) => const Stream<int>.empty()),
         ],
         child: const MaterialApp(home: UnifiedSyncSettingsScreen()),
       ),

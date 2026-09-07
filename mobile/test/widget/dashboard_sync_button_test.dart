@@ -85,27 +85,26 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets(
-    'dashboard يعرض زر «سحب التغييرات» وحالة الرفع الخاملة «محدّث»',
-    (tester) async {
-      await pumpButton(tester);
+  testWidgets('dashboard يعرض زر «سحب التغييرات» وحالة الرفع الخاملة «محدّث»', (
+    tester,
+  ) async {
+    await pumpButton(tester);
 
-      expect(
-        find.text('سحب التغييرات'),
-        findsOneWidget,
-        reason: 'زر السحب المطلوب من المستخدم موجود في ترويسة الـ dashboard',
-      );
-      // زر الرفع في حالة لا تغييرات محلية يعرض «محدّث» (رمادي)،
-      // ويعرض «رفع التغييرات» فقط عند وجود outbox معلق (dashboard_sync_button.dart
-      // _buildPushButton: hasChanges ? 'رفع التغييرات' : 'محدّث') — قاعدة
-      // اختبار فارغة ⇒ محادثتان «محدّث»: زر الرفع + شريط الحالة.
-      expect(
-        find.text('محدّث'),
-        findsNWidgets(2),
-        reason: 'زر الرفع الخامل + شريط الحالة كلاهما «محدّث» بلا تغييرات',
-      );
-    },
-  );
+    expect(
+      find.text('سحب التغييرات'),
+      findsOneWidget,
+      reason: 'زر السحب المطلوب من المستخدم موجود في ترويسة الـ dashboard',
+    );
+    // زر الرفع في حالة لا تغييرات محلية يعرض «محدّث» (رمادي)،
+    // ويعرض «رفع التغييرات» فقط عند وجود outbox معلق (dashboard_sync_button.dart
+    // _buildPushButton: hasChanges ? 'رفع التغييرات' : 'محدّث') — قاعدة
+    // اختبار فارغة ⇒ محادثتان «محدّث»: زر الرفع + شريط الحالة.
+    expect(
+      find.text('محدّث'),
+      findsNWidgets(2),
+      reason: 'زر الرفع الخامل + شريط الحالة كلاهما «محدّث» بلا تغييرات',
+    );
+  });
 
   testWidgets('تسمية زر الرفع تتحول إلى «رفع التغييرات» مع تغييرات معلقة', (
     tester,

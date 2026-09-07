@@ -261,9 +261,7 @@ class _AlertCard extends StatelessWidget {
                     'إغلاق التنبيه',
                     style: TextStyle(fontSize: 12),
                   ),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.white70,
-                  ),
+                  style: TextButton.styleFrom(foregroundColor: Colors.white70),
                 ),
               ],
             ),

@@ -2143,172 +2143,174 @@ class _IncomeExpenseReportScreenState
 
   // ===== نافذة خيارات التصدير =====
   void _showExportOptions() {
-    unawaited(showModalBottomSheet<void>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      isScrollControlled: true,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.75,
-        minChildSize: 0.5,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) => Padding(
-          padding: const EdgeInsets.all(16),
-          child: ListView(
-            controller: scrollController,
-            children: [
-              // مقبض السحب
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        isScrollControlled: true,
+        builder: (context) => DraggableScrollableSheet(
+          initialChildSize: 0.75,
+          minChildSize: 0.5,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (context, scrollController) => Padding(
+            padding: const EdgeInsets.all(16),
+            child: ListView(
+              controller: scrollController,
+              children: [
+                // مقبض السحب
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-              ),
-              const Text(
-                'تصدير التقرير',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
+                const Text(
+                  'تصدير التقرير',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
 
-              // ===== قسم التقرير التفصيلي =====
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.primary.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
+                // ===== قسم التقرير التفصيلي =====
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
                     color: Theme.of(
                       context,
-                    ).colorScheme.primary.withValues(alpha: 0.2),
+                    ).colorScheme.primary.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.summarize_rounded,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'تقرير تفصيلي',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'تقرير PDF مفصل مع تجميع حسب الفترة وملخص نهائي شامل',
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 10),
+                      _buildExportOption(
+                        icon: Icons.calendar_today_rounded,
+                        iconColor: Colors.blue,
+                        iconBg: const Color(0x1A2196F3),
+                        title: 'تقرير يومي',
+                        subtitle: 'تجميع حسب كل يوم (مع اسم اليوم بالعربي)',
+                        onTap: () {
+                          Navigator.pop(context);
+                          unawaited(_exportDetailedGroupedPdf('daily'));
+                        },
+                      ),
+                      _buildExportOption(
+                        icon: Icons.calendar_month_rounded,
+                        iconColor: Colors.teal,
+                        iconBg: const Color(0x1A009688),
+                        title: 'تقرير شهري',
+                        subtitle: 'تجميع حسب كل شهر (بالأسماء العربية)',
+                        onTap: () {
+                          Navigator.pop(context);
+                          unawaited(_exportDetailedGroupedPdf('monthly'));
+                        },
+                      ),
+                      _buildExportOption(
+                        icon: Icons.date_range_rounded,
+                        iconColor: Colors.purple,
+                        iconBg: const Color(0x1A9C27B0),
+                        title: 'تقرير سنوي',
+                        subtitle: 'تجميع حسب كل سنة',
+                        onTap: () {
+                          Navigator.pop(context);
+                          unawaited(_exportDetailedGroupedPdf('yearly'));
+                        },
+                      ),
+                    ],
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.summarize_rounded,
-                          color: Theme.of(context).colorScheme.primary,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'تقرير تفصيلي',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'تقرير PDF مفصل مع تجميع حسب الفترة وملخص نهائي شامل',
-                      style: TextStyle(fontSize: 11, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 10),
-                    _buildExportOption(
-                      icon: Icons.calendar_today_rounded,
-                      iconColor: Colors.blue,
-                      iconBg: const Color(0x1A2196F3),
-                      title: 'تقرير يومي',
-                      subtitle: 'تجميع حسب كل يوم (مع اسم اليوم بالعربي)',
-                      onTap: () {
-                        Navigator.pop(context);
-                        unawaited(_exportDetailedGroupedPdf('daily'));
-                      },
-                    ),
-                    _buildExportOption(
-                      icon: Icons.calendar_month_rounded,
-                      iconColor: Colors.teal,
-                      iconBg: const Color(0x1A009688),
-                      title: 'تقرير شهري',
-                      subtitle: 'تجميع حسب كل شهر (بالأسماء العربية)',
-                      onTap: () {
-                        Navigator.pop(context);
-                        unawaited(_exportDetailedGroupedPdf('monthly'));
-                      },
-                    ),
-                    _buildExportOption(
-                      icon: Icons.date_range_rounded,
-                      iconColor: Colors.purple,
-                      iconBg: const Color(0x1A9C27B0),
-                      title: 'تقرير سنوي',
-                      subtitle: 'تجميع حسب كل سنة',
-                      onTap: () {
-                        Navigator.pop(context);
-                        unawaited(_exportDetailedGroupedPdf('yearly'));
-                      },
-                    ),
-                  ],
+
+                const SizedBox(height: 12),
+
+                // ===== قسم التصدير العام =====
+                _buildExportOption(
+                  icon: Icons.share,
+                  iconColor: Colors.blue,
+                  iconBg: const Color(0x1A2196F3),
+                  title: 'مشاركة PDF',
+                  subtitle: 'إرسال التقرير العام عبر التطبيقات',
+                  onTap: () {
+                    Navigator.pop(context);
+                    unawaited(_exportPdf());
+                  },
                 ),
-              ),
+                _buildExportOption(
+                  icon: Icons.print,
+                  iconColor: Colors.green,
+                  iconBg: const Color(0x1A4CAF50),
+                  title: 'طباعة',
+                  subtitle: 'طباعة التقرير مباشرة',
+                  onTap: () {
+                    Navigator.pop(context);
+                    unawaited(_printPdf());
+                  },
+                ),
+                _buildExportOption(
+                  icon: Icons.save_alt,
+                  iconColor: Colors.orange,
+                  iconBg: const Color(0x1AFF9800),
+                  title: 'حفظ في الجهاز',
+                  subtitle: 'حفظ كملف PDF',
+                  onTap: () {
+                    Navigator.pop(context);
+                    unawaited(_savePdf());
+                  },
+                ),
+                _buildExportOption(
+                  icon: Icons.table_chart,
+                  iconColor: Colors.indigo,
+                  iconBg: const Color(0x1A3F51B5),
+                  title: 'تصدير CSV',
+                  subtitle: 'ملف جدول بيانات لفتحه في Excel',
+                  onTap: () {
+                    Navigator.pop(context);
+                    unawaited(_exportCsv());
+                  },
+                ),
 
-              const SizedBox(height: 12),
-
-              // ===== قسم التصدير العام =====
-              _buildExportOption(
-                icon: Icons.share,
-                iconColor: Colors.blue,
-                iconBg: const Color(0x1A2196F3),
-                title: 'مشاركة PDF',
-                subtitle: 'إرسال التقرير العام عبر التطبيقات',
-                onTap: () {
-                  Navigator.pop(context);
-                  unawaited(_exportPdf());
-                },
-              ),
-              _buildExportOption(
-                icon: Icons.print,
-                iconColor: Colors.green,
-                iconBg: const Color(0x1A4CAF50),
-                title: 'طباعة',
-                subtitle: 'طباعة التقرير مباشرة',
-                onTap: () {
-                  Navigator.pop(context);
-                  unawaited(_printPdf());
-                },
-              ),
-              _buildExportOption(
-                icon: Icons.save_alt,
-                iconColor: Colors.orange,
-                iconBg: const Color(0x1AFF9800),
-                title: 'حفظ في الجهاز',
-                subtitle: 'حفظ كملف PDF',
-                onTap: () {
-                  Navigator.pop(context);
-                  unawaited(_savePdf());
-                },
-              ),
-              _buildExportOption(
-                icon: Icons.table_chart,
-                iconColor: Colors.indigo,
-                iconBg: const Color(0x1A3F51B5),
-                title: 'تصدير CSV',
-                subtitle: 'ملف جدول بيانات لفتحه في Excel',
-                onTap: () {
-                  Navigator.pop(context);
-                  unawaited(_exportCsv());
-                },
-              ),
-
-              const SizedBox(height: 16),
-            ],
+                const SizedBox(height: 16),
+              ],
+            ),
           ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildExportOption({

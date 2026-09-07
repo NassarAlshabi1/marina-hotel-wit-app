@@ -268,35 +268,37 @@ class AutoSyncEngine with WidgetsBindingObserver {
   }
 
   void stop() {
-    unawaited(SyncLocks.autoEngineLock.synchronized(() {
-      if (!_isRunning) {
-        return;
-      }
+    unawaited(
+      SyncLocks.autoEngineLock.synchronized(() {
+        if (!_isRunning) {
+          return;
+        }
 
-      _log('🛑 Stopping Auto Sync Engine...');
+        _log('🛑 Stopping Auto Sync Engine...');
 
-      _isRunning = false;
+        _isRunning = false;
 
-      unawaited(_connectivitySubscription?.cancel());
-      _connectivitySubscription = null;
+        unawaited(_connectivitySubscription?.cancel());
+        _connectivitySubscription = null;
 
-      unawaited(_syncResultSubscription?.cancel());
-      _syncResultSubscription = null;
+        unawaited(_syncResultSubscription?.cancel());
+        _syncResultSubscription = null;
 
-      unawaited(_dataStreamSubscription?.cancel());
-      _dataStreamSubscription = null;
+        unawaited(_dataStreamSubscription?.cancel());
+        _dataStreamSubscription = null;
 
-      _retryTimer?.cancel();
-      _retryTimer = null;
+        _retryTimer?.cancel();
+        _retryTimer = null;
 
-      _healthCheckTimer?.cancel();
-      _healthCheckTimer = null;
+        _healthCheckTimer?.cancel();
+        _healthCheckTimer = null;
 
-      WidgetsBinding.instance.removeObserver(this);
+        WidgetsBinding.instance.removeObserver(this);
 
-      _emitState();
-      _log('✅ Auto Sync Engine stopped');
-    }));
+        _emitState();
+        _log('✅ Auto Sync Engine stopped');
+      }),
+    );
   }
 
   Future<void> restart() async {
@@ -333,11 +335,15 @@ class AutoSyncEngine with WidgetsBindingObserver {
       },
     );
 
-    unawaited(Connectivity().checkConnectivity().then((results) {
-      _hasNetworkConnection = results.any((r) => r != ConnectivityResult.none);
-      _log('📡 Initial network status: $_hasNetworkConnection');
-      _emitState();
-    }));
+    unawaited(
+      Connectivity().checkConnectivity().then((results) {
+        _hasNetworkConnection = results.any(
+          (r) => r != ConnectivityResult.none,
+        );
+        _log('📡 Initial network status: $_hasNetworkConnection');
+        _emitState();
+      }),
+    );
   }
 
   void _setupSyncResultListener() {
@@ -375,17 +381,19 @@ class AutoSyncEngine with WidgetsBindingObserver {
           );
 
           final prefs = SharedPreferences.getInstance();
-          unawaited(prefs.then((p) async {
-            final retryEnabled = p.getBool(_prefsRetryEnabledKey) ?? true;
-            if (retryEnabled && _failedAttempts < _retryConfig.maxRetries) {
-              await _scheduleRetry();
-            } else if (_failedAttempts >= _retryConfig.maxRetries) {
-              _log(
-                '🚫 Max retries reached - stopping automatic retries',
-                level: LogLevel.warning,
-              );
-            }
-          }));
+          unawaited(
+            prefs.then((p) async {
+              final retryEnabled = p.getBool(_prefsRetryEnabledKey) ?? true;
+              if (retryEnabled && _failedAttempts < _retryConfig.maxRetries) {
+                await _scheduleRetry();
+              } else if (_failedAttempts >= _retryConfig.maxRetries) {
+                _log(
+                  '🚫 Max retries reached - stopping automatic retries',
+                  level: LogLevel.warning,
+                );
+              }
+            }),
+          );
         }
 
         _emitState();
@@ -587,15 +595,17 @@ class AutoSyncEngine with WidgetsBindingObserver {
         _isSignedIn) {
       _log('💾 App paused with pending changes - quick sync before background');
 
-      unawaited(_guardedSyncNow(pull: false, reason: 'app_paused')
-          .then((result) {
-            if (result) {
-              _log('✅ Quick sync before background completed');
-            }
-          })
-          .catchError((Object error) {
-            _log('⚠️ Quick sync before background failed: $error');
-          }));
+      unawaited(
+        _guardedSyncNow(pull: false, reason: 'app_paused')
+            .then((result) {
+              if (result) {
+                _log('✅ Quick sync before background completed');
+              }
+            })
+            .catchError((Object error) {
+              _log('⚠️ Quick sync before background failed: $error');
+            }),
+      );
     }
   }
 
@@ -613,9 +623,11 @@ class AutoSyncEngine with WidgetsBindingObserver {
       return;
     }
 
-    unawaited(SyncLocks.autoEngineLock.synchronized(() {
-      _pendingChangesCount += count;
-    }));
+    unawaited(
+      SyncLocks.autoEngineLock.synchronized(() {
+        _pendingChangesCount += count;
+      }),
+    );
 
     _emitState();
 
@@ -623,7 +635,9 @@ class AutoSyncEngine with WidgetsBindingObserver {
       '💾 Data change detected: $table/$operation (count=$count, total pending=$_pendingChangesCount)',
     );
 
-    unawaited(_orchestrator.notifyLocalChange(table: table, operation: operation));
+    unawaited(
+      _orchestrator.notifyLocalChange(table: table, operation: operation),
+    );
   }
 
   Future<void> _scheduleRetry() async {

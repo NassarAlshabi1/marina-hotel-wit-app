@@ -55,9 +55,7 @@ class CloudflareMigrationService {
     try {
       final stopwatch = Stopwatch()..start();
       final response = await _httpClient
-          .get(
-            Uri.parse('${CloudflareConfig.workerUrl}/api/ping'),
-          )
+          .get(Uri.parse('${CloudflareConfig.workerUrl}/api/ping'))
           .timeout(const Duration(seconds: 10));
       stopwatch.stop();
 
@@ -346,9 +344,7 @@ class CloudflareMigrationService {
 
     // ─── Read column metadata from local Drift DB (same schema as D1) ───
     final columnInfo = await db
-        .customSelect(
-          'PRAGMA table_info($tableName)',
-        )
+        .customSelect('PRAGMA table_info($tableName)')
         .get();
 
     // Build map: column name → default value (for NOT NULL without default)

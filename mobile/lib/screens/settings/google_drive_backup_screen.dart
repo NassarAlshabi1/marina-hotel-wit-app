@@ -25,11 +25,13 @@ class GoogleDriveBackupScreen extends ConsumerWidget {
       actions: [
         IconButton(
           onPressed: () {
-            unawaited(Navigator.of(context).push<void>(
-              MaterialPageRoute<void>(
-                builder: (_) => const GoogleDriveLogsScreen(),
+            unawaited(
+              Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (_) => const GoogleDriveLogsScreen(),
+                ),
               ),
-            ));
+            );
           },
           icon: const Icon(Icons.article_outlined),
           tooltip: 'سجلات Google Drive',
@@ -554,77 +556,84 @@ class _GoogleDriveBackupContentState
         ? 'SQLite (.db)'
         : 'JSON';
 
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('تأكيد الاستعادة'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '⚠️ سيتم استبدال جميع البيانات الحالية بالنسخة المختارة:',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.orange,
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('تأكيد الاستعادة'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '⚠️ سيتم استبدال جميع البيانات الحالية بالنسخة المختارة:',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Text('التاريخ: ${dateFormatter.format(backup.createdTime)}'),
-            Text('السجلات: $recordsLabel'),
-            Text('التنسيق: $formatLabel'),
-            if (backup.format == BackupFormat.sqlite) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.purple.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.purple, size: 20),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'نسخة .db: استعادة سريعة - قاعدة البيانات ستُغلق مؤقتاً',
-                        style: TextStyle(fontSize: 12, color: Colors.purple),
+              const SizedBox(height: 12),
+              Text('التاريخ: ${dateFormatter.format(backup.createdTime)}'),
+              Text('السجلات: $recordsLabel'),
+              Text('التنسيق: $formatLabel'),
+              if (backup.format == BackupFormat.sqlite) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.purple, size: 20),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'نسخة .db: استعادة سريعة - قاعدة البيانات ستُغلق مؤقتاً',
+                          style: TextStyle(fontSize: 12, color: Colors.purple),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+              ],
+              const SizedBox(height: 12),
+              const Text(
+                'هل أنت متأكد من المتابعة؟',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ],
-            const SizedBox(height: 12),
-            const Text(
-              'هل أنت متأكد من المتابعة؟',
-              style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // التحقق من نوع النسخة
+                if (backup.format == BackupFormat.sqlite) {
+                  unawaited(_restoreDbBackup(backup.fileId));
+                } else {
+                  unawaited(
+                    ref
+                        .read(backupStatusProvider.notifier)
+                        .restoreFromBackup(backup.fileId),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              child: const Text(
+                'استعادة',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // التحقق من نوع النسخة
-              if (backup.format == BackupFormat.sqlite) {
-                unawaited(_restoreDbBackup(backup.fileId));
-              } else {
-                unawaited(ref
-                    .read(backupStatusProvider.notifier)
-                    .restoreFromBackup(backup.fileId));
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            child: const Text('استعادة', style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
-    ));
+    );
   }
 
   Future<void> _restoreDbBackup(String fileId) async {
@@ -857,32 +866,38 @@ class _GoogleDriveBackupContentState
 
   void _updateAutoBackupEnabled(bool enabled) {
     final currentSettings = ref.read(backupStatusProvider).autoSettings;
-    unawaited(ref
-        .read(backupStatusProvider.notifier)
-        .updateAutoBackupSettings(currentSettings.copyWith(isEnabled: enabled)));
+    unawaited(
+      ref
+          .read(backupStatusProvider.notifier)
+          .updateAutoBackupSettings(
+            currentSettings.copyWith(isEnabled: enabled),
+          ),
+    );
   }
 
   void _showFrequencySelection(AutoBackupSettings currentSettings) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('تحديد التكرار'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildFrequencyOption('daily', 'يومياً', currentSettings),
-            _buildFrequencyOption('weekly', 'أسبوعياً', currentSettings),
-            _buildFrequencyOption('monthly', 'شهرياً', currentSettings),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('تحديد التكرار'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildFrequencyOption('daily', 'يومياً', currentSettings),
+              _buildFrequencyOption('weekly', 'أسبوعياً', currentSettings),
+              _buildFrequencyOption('monthly', 'شهرياً', currentSettings),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('إلغاء'),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('إلغاء'),
-          ),
-        ],
       ),
-    ));
+    );
   }
 
   Widget _buildFrequencyOption(
@@ -899,11 +914,13 @@ class _GoogleDriveBackupContentState
       onChanged: (selectedValue) {
         if (selectedValue != null) {
           Navigator.of(context).pop();
-          unawaited(ref
-              .read(backupStatusProvider.notifier)
-              .updateAutoBackupSettings(
-                currentSettings.copyWith(frequency: selectedValue),
-              ));
+          unawaited(
+            ref
+                .read(backupStatusProvider.notifier)
+                .updateAutoBackupSettings(
+                  currentSettings.copyWith(frequency: selectedValue),
+                ),
+          );
         }
       },
     );
@@ -916,25 +933,29 @@ class _GoogleDriveBackupContentState
       minute: int.tryParse(timeParts[1]) ?? 0,
     );
 
-    unawaited(showTimePicker(
-      context: context,
-      initialTime: currentTime,
-      builder: (context, child) {
-        return Directionality(
-          textDirection: ui.TextDirection.rtl,
-          child: child!,
-        );
-      },
-    ).then((selectedTime) {
-      if (selectedTime != null) {
-        final timeString =
-            '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
-        unawaited(ref
-            .read(backupStatusProvider.notifier)
-            .updateAutoBackupSettings(
-              currentSettings.copyWith(time: timeString),
-            ));
-      }
-    }));
+    unawaited(
+      showTimePicker(
+        context: context,
+        initialTime: currentTime,
+        builder: (context, child) {
+          return Directionality(
+            textDirection: ui.TextDirection.rtl,
+            child: child!,
+          );
+        },
+      ).then((selectedTime) {
+        if (selectedTime != null) {
+          final timeString =
+              '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}';
+          unawaited(
+            ref
+                .read(backupStatusProvider.notifier)
+                .updateAutoBackupSettings(
+                  currentSettings.copyWith(time: timeString),
+                ),
+          );
+        }
+      }),
+    );
   }
 }

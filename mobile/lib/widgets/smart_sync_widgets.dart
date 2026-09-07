@@ -248,11 +248,13 @@ class _SmartSyncDashboardCardState
           margin: EdgeInsets.zero,
           child: InkWell(
             onTap: () {
-              unawaited(Navigator.of(context).push<void>(
-                MaterialPageRoute<void>(
-                  builder: (_) => const UnifiedSyncSettingsScreen(),
+              unawaited(
+                Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const UnifiedSyncSettingsScreen(),
+                  ),
                 ),
-              ));
+              );
             },
             borderRadius: BorderRadius.circular(8),
             child: Padding(

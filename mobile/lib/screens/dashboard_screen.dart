@@ -139,10 +139,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       final syncManager = ref.read(appwriteSyncManagerProvider);
       // ✅ deltaOnly: true — في حالة التهيئة يُتخطى السحب (Bootstrap الصريح
       // مسؤول عنه)؛ وفي الحالة المستقرة دلتا خفيفة metadata-first تكفي.
-      final result = await syncManager.sync(
-        push: false,
-        deltaOnly: true,
-      );
+      final result = await syncManager.sync(push: false, deltaOnly: true);
       final pulledCount = result.recordsPulled;
 
       // ✅ إغلاق إشعار التحميل فور انتهاء السحب
@@ -746,48 +743,52 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _showRoomOptionsDialog(BuildContext context, Room room) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.settings, color: Colors.blue.shade600),
-            const SizedBox(width: 8),
-            Text('غرفة ${room.roomNumber}'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('الحالة الحالية: ${room.status}'),
-            const SizedBox(height: 16),
-            if (room.status != 'صيانة')
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    Navigator.pop(context);
-                    await _updateRoomStatus(room, 'صيانة');
-                  },
-                  icon: const Icon(Icons.build, color: Colors.white),
-                  label: const Text('تحويل إلى صيانة'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange.shade600,
-                    foregroundColor: Colors.white,
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.settings, color: Colors.blue.shade600),
+              const SizedBox(width: 8),
+              Text('غرفة ${room.roomNumber}'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('الحالة الحالية: ${room.status}'),
+              const SizedBox(height: 16),
+              if (room.status != 'صيانة')
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      await _updateRoomStatus(room, 'صيانة');
+                    },
+                    icon: const Icon(Icons.build, color: Colors.white),
+                    label: const Text('تحويل إلى صيانة'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange.shade600,
+                      foregroundColor: Colors.white,
+                    ),
                   ),
                 ),
-              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء'),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
-          ),
-        ],
       ),
-    ));
+    );
   }
 
   Future<void> _updateRoomStatus(Room room, String newStatus) async {
@@ -846,11 +847,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _navigateToNewBooking(BuildContext context, String roomNumber) {
-    unawaited(Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
+    unawaited(
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (context) =>
+              BookingEditScreen(initialRoomNumber: roomNumber),
+        ),
       ),
-    ));
+    );
   }
 
   Future<void> _navigateToPaymentForRoom(
@@ -895,36 +899,40 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   void _showRoomDetailsDialog(BuildContext context, Room room) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('غرفة ${room.roomNumber}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildDetailRow('الحالة', room.status),
-            _buildDetailRow('النوع', room.type),
-            _buildDetailRow('السعر', '${room.price.toStringAsFixed(0)} ريال'),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text('غرفة ${room.roomNumber}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildDetailRow('الحالة', room.status),
+              _buildDetailRow('النوع', room.type),
+              _buildDetailRow('السعر', '${room.price.toStringAsFixed(0)} ريال'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إغلاق'),
+            ),
+            if (!StatusUtils.isRoomOccupied(room.status))
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _navigateToNewBooking(context, room.roomNumber);
+                },
+                child: const Text('حجز جديد'),
+              ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إغلاق'),
-          ),
-          if (!StatusUtils.isRoomOccupied(room.status))
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _navigateToNewBooking(context, room.roomNumber);
-              },
-              child: const Text('حجز جديد'),
-            ),
-        ],
       ),
-    ));
+    );
   }
 
   /// ✅ (2026-09-05) بطاقة «إجمالي استلاماتي خلال النوبة الحالية» —
@@ -954,11 +962,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.payments_outlined,
-            color: Colors.green.shade700,
-            size: 22,
-          ),
+          Icon(Icons.payments_outlined, color: Colors.green.shade700, size: 22),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -973,10 +977,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
                       startedLabel,
-                      style: const TextStyle(
-                        fontSize: 9,
-                        color: Colors.grey,
-                      ),
+                      style: const TextStyle(fontSize: 9, color: Colors.grey),
                     ),
                   ),
               ],

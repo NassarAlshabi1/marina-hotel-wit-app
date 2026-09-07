@@ -387,7 +387,9 @@ class GoogleDriveBackupService {
       final bookingNightsData = await _loadTableBatched<BookingNight>(
         db.bookingNights,
       );
-      final ledgerData = await _loadTableBatched<HotelDayLedgerEntry>(db.hotelDayLedger);
+      final ledgerData = await _loadTableBatched<HotelDayLedgerEntry>(
+        db.hotelDayLedger,
+      );
       final shiftNotesData = await _loadTableBatched<ShiftNote>(db.shiftNotes);
       final employeesData = await _loadTableBatched<Employee>(db.employees);
       final expensesData = await _loadTableBatched<Expense>(db.expenses);
@@ -405,9 +407,10 @@ class GoogleDriveBackupService {
       final priceAdjustmentsData = await _loadTableBatched<PriceAdjustment>(
         db.priceAdjustments,
       );
-      final bookingPriceAdjData = await _loadTableBatched<BookingPriceAdjustment>(
-        db.bookingPriceAdjustments,
-      );
+      final bookingPriceAdjData =
+          await _loadTableBatched<BookingPriceAdjustment>(
+            db.bookingPriceAdjustments,
+          );
       final auditLogsData = await _loadTableBatched<AuditLog>(db.auditLogs);
       final paymentVoidsData = await _loadTableBatched<PaymentVoid>(
         db.paymentVoids,
@@ -416,15 +419,15 @@ class GoogleDriveBackupService {
       final salaryWithdrawalsData = await _loadTableBatched<SalaryWithdrawal>(
         db.salaryWithdrawals,
       );
-      final salaryCarryOverLogsData = await _loadTableBatched<SalaryCarryOverLog>(
-        db.salaryCarryOverLogs,
-      );
+      final salaryCarryOverLogsData =
+          await _loadTableBatched<SalaryCarryOverLog>(db.salaryCarryOverLogs);
       final inventoryItemsData = await _loadTableBatched<InventoryItem>(
         db.inventoryItems,
       );
-      final inventoryTransactionsData = await _loadTableBatched<InventoryTransaction>(
-        db.inventoryTransactions,
-      );
+      final inventoryTransactionsData =
+          await _loadTableBatched<InventoryTransaction>(
+            db.inventoryTransactions,
+          );
 
       // استخراج عناصر القائمة السوداء بشكل منفصل (createdBy = 'blacklist')
       final blacklistQuery = db.select(db.shiftNotes)
@@ -554,8 +557,9 @@ class GoogleDriveBackupService {
         return data;
       });
 
-      final dataHash = (backupData['metadata'] as Map<String, dynamic>?)
-          ?['data_hash'] as String?;
+      final dataHash =
+          (backupData['metadata'] as Map<String, dynamic>?)?['data_hash']
+              as String?;
       _log('🔐 تجزئة النسخة الاحتياطية: $dataHash');
 
       if (whatsappSettings.isNotEmpty) {
@@ -1205,7 +1209,8 @@ class GoogleDriveBackupService {
 
   Future<void> _restoreFromBackupInternal(
     Map<String, dynamic> backupData, {
-    required bool syncToCloud, void Function(int current, int total, String tableName)? onProgress,
+    required bool syncToCloud,
+    void Function(int current, int total, String tableName)? onProgress,
   }) async {
     try {
       final db = DatabaseManager.instance;

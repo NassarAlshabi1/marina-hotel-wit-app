@@ -34,7 +34,9 @@ final unifiedSyncOrchestratorProvider = Provider<UnifiedSyncOrchestrator>((
   final db = ref.watch(databaseProvider);
   final smart = SmartSyncManager.instance;
   final orch = UnifiedSyncOrchestrator.instance;
-  unawaited(orch.initialize(appwrite: appwriteSync, smart: smart, database: db));
+  unawaited(
+    orch.initialize(appwrite: appwriteSync, smart: smart, database: db),
+  );
   return orch;
 });
 

@@ -134,11 +134,13 @@ class _AiChatScreenState extends State<AiChatScreen>
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        unawaited(_scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        ));
+        unawaited(
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          ),
+        );
       }
     });
   }
@@ -278,153 +280,161 @@ class _AiChatScreenState extends State<AiChatScreen>
 
   void _showAuditLog() {
     final log = GeminiService.instance.auditLog;
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: const Row(
-            children: [
-              Icon(Icons.history, color: Colors.amber),
-              SizedBox(width: 8),
-              Text('سجل عمليات AI'),
-            ],
-          ),
-          content: SizedBox(
-            width: double.maxFinite,
-            height: MediaQuery.of(context).size.height * 0.6,
-            child: log.isEmpty
-                ? const Center(
-                    child: Text(
-                      'لا توجد عمليات مسجلة بعد',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: log.length,
-                    itemBuilder: (context, index) {
-                      final entry = log[log.length - 1 - index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: entry.wasConfirmed
-                                          ? Colors.green.withValues(alpha: 0.15)
-                                          : Colors.orange.withValues(
-                                              alpha: 0.15,
-                                            ),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      entry.wasConfirmed ? 'تم' : 'ألغي',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: entry.wasConfirmed
-                                            ? Colors.green
-                                            : Colors.orange,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  if (entry.commandType != null)
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Row(
+              children: [
+                Icon(Icons.history, color: Colors.amber),
+                SizedBox(width: 8),
+                Text('سجل عمليات AI'),
+              ],
+            ),
+            content: SizedBox(
+              width: double.maxFinite,
+              height: MediaQuery.of(context).size.height * 0.6,
+              child: log.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'لا توجد عمليات مسجلة بعد',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    )
+                  : ListView.builder(
+                      itemCount: log.length,
+                      itemBuilder: (context, index) {
+                        final entry = log[log.length - 1 - index];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          child: Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 6,
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.blue.withValues(
-                                          alpha: 0.1,
-                                        ),
+                                        color: entry.wasConfirmed
+                                            ? Colors.green.withValues(
+                                                alpha: 0.15,
+                                              )
+                                            : Colors.orange.withValues(
+                                                alpha: 0.15,
+                                              ),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
-                                        entry.commandType!
-                                            .replaceAll('Ai', '')
-                                            .replaceAll('Command', ''),
-                                        style: const TextStyle(
+                                        entry.wasConfirmed ? 'تم' : 'ألغي',
+                                        style: TextStyle(
                                           fontSize: 10,
-                                          color: Colors.blue,
+                                          color: entry.wasConfirmed
+                                              ? Colors.green
+                                              : Colors.orange,
+                                          fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                     ),
-                                  const Spacer(),
-                                  Text(
-                                    DateFormat('HH:mm').format(entry.timestamp),
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.grey,
+                                    const SizedBox(width: 8),
+                                    if (entry.commandType != null)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue.withValues(
+                                            alpha: 0.1,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          entry.commandType!
+                                              .replaceAll('Ai', '')
+                                              .replaceAll('Command', ''),
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.blue,
+                                          ),
+                                        ),
+                                      ),
+                                    const Spacer(),
+                                    Text(
+                                      DateFormat(
+                                        'HH:mm',
+                                      ).format(entry.timestamp),
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.grey,
+                                      ),
                                     ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  entry.userMessage,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                entry.userMessage,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                entry.executionResult,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: entry.executionResult.startsWith('✅')
-                                      ? Colors.green
-                                      : Colors.red,
+                                const SizedBox(height: 2),
+                                Text(
+                                  entry.executionResult,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: entry.executionResult.startsWith('✅')
+                                        ? Colors.green
+                                        : Colors.red,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-          actions: [
-            if (log.isNotEmpty)
-              TextButton(
-                onPressed: () {
-                  GeminiService.instance.clearAuditLog();
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text('تم مسح السجل')));
-                },
-                child: const Text(
-                  'مسح السجل',
-                  style: TextStyle(color: Colors.red),
-                ),
-              ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('إغلاق'),
+                        );
+                      },
+                    ),
             ),
-          ],
+            actions: [
+              if (log.isNotEmpty)
+                TextButton(
+                  onPressed: () {
+                    GeminiService.instance.clearAuditLog();
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('تم مسح السجل')),
+                    );
+                  },
+                  child: const Text(
+                    'مسح السجل',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('إغلاق'),
+              ),
+            ],
+          ),
         ),
       ),
-    ));
+    );
   }
 
   void _clearChat() {

@@ -215,256 +215,264 @@ class _EmployeesListScreenState extends ConsumerState<EmployeesListScreen>
     DateTime? terminationDate = DateTime.now();
     final reasonController = TextEditingController();
 
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.person_off, color: Colors.red),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text('إنهاء خدمة موظف', overflow: TextOverflow.ellipsis),
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Row(
               children: [
-                Text(
-                  'الموظف: ${employee.name}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // نوع الإنهاء
-                const Text(
-                  'نوع الإنهاء *',
-                  style: TextStyle(fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 8),
-                StatefulBuilder(
-                  builder: (context, setDialogState) {
-                    return Column(
-                      children: [
-                        RadioListTile<String>(
-                          title: const Row(
-                            children: [
-                              Icon(Icons.cancel, color: Colors.red, size: 20),
-                              SizedBox(width: 8),
-                              Text('فصل'),
-                            ],
-                          ),
-                          value: 'مفصول',
-                          // ignore: deprecated_member_use
-                          groupValue: terminationType,
-                          // ignore: deprecated_member_use
-                          onChanged: (v) =>
-                              setDialogState(() => terminationType = v!),
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        RadioListTile<String>(
-                          title: const Row(
-                            children: [
-                              Icon(
-                                Icons.logout,
-                                color: Colors.orange,
-                                size: 20,
-                              ),
-                              SizedBox(width: 8),
-                              Text('استقالة'),
-                            ],
-                          ),
-                          value: 'استقالة',
-                          // ignore: deprecated_member_use
-                          groupValue: terminationType,
-                          // ignore: deprecated_member_use
-                          onChanged: (v) =>
-                              setDialogState(() => terminationType = v!),
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        RadioListTile<String>(
-                          title: const Row(
-                            children: [
-                              Icon(
-                                Icons.business_center,
-                                color: Colors.grey,
-                                size: 20,
-                              ),
-                              SizedBox(width: 8),
-                              Text('استغناء'),
-                            ],
-                          ),
-                          value: 'استغناء',
-                          // ignore: deprecated_member_use
-                          groupValue: terminationType,
-                          // ignore: deprecated_member_use
-                          onChanged: (v) =>
-                              setDialogState(() => terminationType = v!),
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ],
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 16),
-
-                // تاريخ الإنهاء
-                StatefulBuilder(
-                  builder: (context, setDialogState) {
-                    return InkWell(
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: terminationDate ?? DateTime.now(),
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime.now().add(
-                            const Duration(days: 365),
-                          ),
-                        );
-                        if (picked != null) {
-                          setDialogState(() => terminationDate = picked);
-                        }
-                      },
-                      child: InputDecorator(
-                        decoration: InputDecoration(
-                          labelText: 'تاريخ الإنهاء',
-                          prefixIcon: const Icon(Icons.calendar_today),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text(
-                          terminationDate != null
-                              ? '${terminationDate!.year}/${terminationDate!.month.toString().padLeft(2, '0')}/${terminationDate!.day.toString().padLeft(2, '0')}'
-                              : 'اختر التاريخ',
-                          style: TextStyle(
-                            color: terminationDate != null
-                                ? Colors.black
-                                : Colors.grey,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 16),
-
-                // سبب الإنهاء
-                TextField(
-                  controller: reasonController,
-                  decoration: InputDecoration(
-                    labelText: 'سبب الإنهاء (اختياري)',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    prefixIcon: const Icon(Icons.info_outline),
-                  ),
-                  maxLines: 2,
-                ),
-
-                const SizedBox(height: 16),
-
-                // تحذير
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
+                    color: Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.orange.shade200),
                   ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.warning, color: Colors.orange, size: 20),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'سيتم إيقاف صرف السلف والرواتب تلقائياً لهذا الموظف',
-                          style: TextStyle(fontSize: 12, color: Colors.orange),
-                        ),
-                      ),
-                    ],
+                  child: const Icon(Icons.person_off, color: Colors.red),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'إنهاء خدمة موظف',
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('إلغاء'),
-            ),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () async {
-                final dateStr = terminationDate != null
-                    ? '${terminationDate!.year}-${terminationDate!.month.toString().padLeft(2, '0')}-${terminationDate!.day.toString().padLeft(2, '0')}'
-                    : DateTime.now().toString().split(' ')[0];
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'الموظف: ${employee.name}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
 
-                try {
-                  final repo = ref.read(employeesRepoProvider);
-                  await repo.terminate(
-                    id: employee.id,
-                    terminationType: terminationType,
-                    terminationDate: dateStr,
-                    terminationReason: reasonController.text.trim(),
-                  );
+                  // نوع الإنهاء
+                  const Text(
+                    'نوع الإنهاء *',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 8),
+                  StatefulBuilder(
+                    builder: (context, setDialogState) {
+                      return Column(
+                        children: [
+                          RadioListTile<String>(
+                            title: const Row(
+                              children: [
+                                Icon(Icons.cancel, color: Colors.red, size: 20),
+                                SizedBox(width: 8),
+                                Text('فصل'),
+                              ],
+                            ),
+                            value: 'مفصول',
+                            // ignore: deprecated_member_use
+                            groupValue: terminationType,
+                            // ignore: deprecated_member_use
+                            onChanged: (v) =>
+                                setDialogState(() => terminationType = v!),
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          RadioListTile<String>(
+                            title: const Row(
+                              children: [
+                                Icon(
+                                  Icons.logout,
+                                  color: Colors.orange,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 8),
+                                Text('استقالة'),
+                              ],
+                            ),
+                            value: 'استقالة',
+                            // ignore: deprecated_member_use
+                            groupValue: terminationType,
+                            // ignore: deprecated_member_use
+                            onChanged: (v) =>
+                                setDialogState(() => terminationType = v!),
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          RadioListTile<String>(
+                            title: const Row(
+                              children: [
+                                Icon(
+                                  Icons.business_center,
+                                  color: Colors.grey,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 8),
+                                Text('استغناء'),
+                              ],
+                            ),
+                            value: 'استغناء',
+                            // ignore: deprecated_member_use
+                            groupValue: terminationType,
+                            // ignore: deprecated_member_use
+                            onChanged: (v) =>
+                                setDialogState(() => terminationType = v!),
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
 
-                  if (ctx.mounted) {
-                    Navigator.pop(ctx);
-                  }
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'تم إنهاء خدمة ${employee.name} ($terminationType)',
+                  const SizedBox(height: 16),
+
+                  // تاريخ الإنهاء
+                  StatefulBuilder(
+                    builder: (context, setDialogState) {
+                      return InkWell(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: terminationDate ?? DateTime.now(),
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 365),
+                            ),
+                          );
+                          if (picked != null) {
+                            setDialogState(() => terminationDate = picked);
+                          }
+                        },
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            labelText: 'تاريخ الإنهاء',
+                            prefixIcon: const Icon(Icons.calendar_today),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            terminationDate != null
+                                ? '${terminationDate!.year}/${terminationDate!.month.toString().padLeft(2, '0')}/${terminationDate!.day.toString().padLeft(2, '0')}'
+                                : 'اختر التاريخ',
+                            style: TextStyle(
+                              color: terminationDate != null
+                                  ? Colors.black
+                                  : Colors.grey,
+                            ),
+                          ),
                         ),
-                        backgroundColor: Colors.orange,
-                        behavior: SnackBarBehavior.floating,
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // سبب الإنهاء
+                  TextField(
+                    controller: reasonController,
+                    decoration: InputDecoration(
+                      labelText: 'سبب الإنهاء (اختياري)',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('فشل إنهاء الخدمة: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              icon: const Icon(Icons.person_off, size: 18),
-              label: const Text('إنهاء الخدمة'),
+                      prefixIcon: const Icon(Icons.info_outline),
+                    ),
+                    maxLines: 2,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // تحذير
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.warning, color: Colors.orange, size: 20),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'سيتم إيقاف صرف السلف والرواتب تلقائياً لهذا الموظف',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.orange,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('إلغاء'),
+              ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: () async {
+                  final dateStr = terminationDate != null
+                      ? '${terminationDate!.year}-${terminationDate!.month.toString().padLeft(2, '0')}-${terminationDate!.day.toString().padLeft(2, '0')}'
+                      : DateTime.now().toString().split(' ')[0];
+
+                  try {
+                    final repo = ref.read(employeesRepoProvider);
+                    await repo.terminate(
+                      id: employee.id,
+                      terminationType: terminationType,
+                      terminationDate: dateStr,
+                      terminationReason: reasonController.text.trim(),
+                    );
+
+                    if (ctx.mounted) {
+                      Navigator.pop(ctx);
+                    }
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'تم إنهاء خدمة ${employee.name} ($terminationType)',
+                          ),
+                          backgroundColor: Colors.orange,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('فشل إنهاء الخدمة: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.person_off, size: 18),
+                label: const Text('إنهاء الخدمة'),
+              ),
+            ],
+          ),
         ),
-      ),
-    ).then((_) {
-      reasonController.dispose();
-    }));
+      ).then((_) {
+        reasonController.dispose();
+      }),
+    );
   }
 
   /// إعادة تفعيل موظف مفصول

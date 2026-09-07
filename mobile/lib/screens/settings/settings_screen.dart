@@ -727,36 +727,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _showAppSettingsDialog(BuildContext context) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => Consumer(
-        builder: (context, ref, _) {
-          final isDark = ref.watch(themeSettingsProvider);
-          return AlertDialog(
-            title: const Text('إعدادات التطبيق'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SwitchListTile(
-                  secondary: const Icon(Icons.dark_mode),
-                  title: const Text('المظهر الداكن'),
-                  value: isDark,
-                  onChanged: (v) =>
-                      ref.read(themeSettingsProvider.notifier).setDarkMode(v),
-                ),
-                // ✅ تم إزالة عنصر "اللغة" الجامد — لم يكن функциaly
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('إغلاق'),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => Consumer(
+          builder: (context, ref, _) {
+            final isDark = ref.watch(themeSettingsProvider);
+            return AlertDialog(
+              title: const Text('إعدادات التطبيق'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SwitchListTile(
+                    secondary: const Icon(Icons.dark_mode),
+                    title: const Text('المظهر الداكن'),
+                    value: isDark,
+                    onChanged: (v) =>
+                        ref.read(themeSettingsProvider.notifier).setDarkMode(v),
+                  ),
+                  // ✅ تم إزالة عنصر "اللغة" الجامد — لم يكن функциaly
+                ],
               ),
-            ],
-          );
-        },
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('إغلاق'),
+                ),
+              ],
+            );
+          },
+        ),
       ),
-    ));
+    );
   }
 
   /// ✅ قراءة الإصدار ديناميكياً

@@ -133,9 +133,7 @@ class FcmJwtHelper {
     // تحقق من الـ cache — نُجدّد قبل 5 دقائق من الانتهاء لتجنّب الـ edge cases
     if (_cachedToken != null &&
         _cachedToken!.expiresAt.isAfter(
-          DateTime.now().add(
-            const Duration(minutes: 5),
-          ),
+          DateTime.now().add(const Duration(minutes: 5)),
         )) {
       return _cachedToken!.accessToken;
     }
@@ -248,9 +246,7 @@ class FcmJwtHelper {
     // 1. تنظيف PEM من headers و newlines الزائدة
     final keyLines = privateKeyPem
         .split('\n')
-        .where(
-          (l) => !l.startsWith('-----') && l.trim().isNotEmpty,
-        )
+        .where((l) => !l.startsWith('-----') && l.trim().isNotEmpty)
         .join('');
     final keyBytes = base64.decode(keyLines);
 

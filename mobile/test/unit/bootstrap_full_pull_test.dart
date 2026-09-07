@@ -88,31 +88,28 @@ void main() {
       expect(writtenValues, [true], reason: 'العلم يُضبط بعد النجاح فقط');
     });
 
-    test(
-      '5. تخطٍ + علم فارغ + فشل السحب: failed والعلم يبقى فارغاً',
-      () async {
-        var pullCalled = false;
-        var flagWrites = 0;
-        final outcome = await BootstrapFullPull.evaluate(
-          driveLoginSkipped: true,
-          pullDoneFlag: false,
-          isFullSyncCompleted: false,
-          initializeAndFullPull: () async {
-            pullCalled = true;
-            return false;
-          },
-          setPullDoneFlag: (_) async => flagWrites++,
-        );
+    test('5. تخطٍ + علم فارغ + فشل السحب: failed والعلم يبقى فارغاً', () async {
+      var pullCalled = false;
+      var flagWrites = 0;
+      final outcome = await BootstrapFullPull.evaluate(
+        driveLoginSkipped: true,
+        pullDoneFlag: false,
+        isFullSyncCompleted: false,
+        initializeAndFullPull: () async {
+          pullCalled = true;
+          return false;
+        },
+        setPullDoneFlag: (_) async => flagWrites++,
+      );
 
-        expect(outcome, BootstrapFullPullOutcome.failed);
-        expect(pullCalled, isTrue);
-        expect(
-          flagWrites,
-          0,
-          reason: 'فشل السحب لا يضبط العلم — إعادة المحاولة قادمة',
-        );
-      },
-    );
+      expect(outcome, BootstrapFullPullOutcome.failed);
+      expect(pullCalled, isTrue);
+      expect(
+        flagWrites,
+        0,
+        reason: 'فشل السحب لا يضبط العلم — إعادة المحاولة قادمة',
+      );
+    });
 
     test(
       '6. أولوية العلم على isFullSyncCompleted=false: flag=true يفوز',

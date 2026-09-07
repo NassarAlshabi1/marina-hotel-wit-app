@@ -177,7 +177,9 @@ class CloudflareDirectCheckNotifier
 
 /// مزود تسجيل الارتباط المباشر — يُستخدم من بطاقة الاتصال.
 final cloudflareDirectCheckProvider =
-    StateNotifierProvider.autoDispose<CloudflareDirectCheckNotifier,
-        CloudflareDirectCheckState>((ref) {
+    StateNotifierProvider.autoDispose<
+      CloudflareDirectCheckNotifier,
+      CloudflareDirectCheckState
+    >((ref) {
       return CloudflareDirectCheckNotifier();
     });

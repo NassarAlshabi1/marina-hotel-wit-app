@@ -197,10 +197,7 @@ class CloudflareDualRunService {
     // 2) تثبيت آخر نتيجة للفحص من الإعدادات/التشخيص
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        _kLastComparisonKey,
-        jsonEncode(result.toJson()),
-      );
+      await prefs.setString(_kLastComparisonKey, jsonEncode(result.toJson()));
     } catch (_) {}
 
     debugPrint(
@@ -222,10 +219,7 @@ class CloudflareDualRunService {
     }
   }
 
-  int? _countFromStats(
-    Map<String, dynamic>? stats,
-    String entity,
-  ) {
+  int? _countFromStats(Map<String, dynamic>? stats, String entity) {
     if (stats == null) return -1;
     // شكل استجابة /api/stats الموثق (index.ts:331):
     // { tables: {entity: count, ...}, rate_limit_entries, server_time }
@@ -247,9 +241,7 @@ class CloudflareDualRunService {
     if (token == null || token.isEmpty) {
       throw StateError('no cloudflare token for /api/stats');
     }
-    final uri = Uri.parse(
-      '${CloudflareConfig.workerUrl}/api/stats',
-    );
+    final uri = Uri.parse('${CloudflareConfig.workerUrl}/api/stats');
     final response = await http
         .get(uri, headers: {'Authorization': 'Bearer $token'})
         .timeout(const Duration(seconds: 30));

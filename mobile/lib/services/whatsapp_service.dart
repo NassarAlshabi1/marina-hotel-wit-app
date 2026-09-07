@@ -82,7 +82,8 @@ class WhatsAppService {
           final desc =
               (json['invokeStatus'] as Map<String, dynamic>?)?['description']
                   as String? ??
-              (json['correspondentsStatus'] as Map<String, dynamic>?)?['description']
+              (json['correspondentsStatus']
+                      as Map<String, dynamic>?)?['description']
                   as String? ??
               'تجاوز الحصة الشهرية';
           return (success: false, quotaMessage: desc);

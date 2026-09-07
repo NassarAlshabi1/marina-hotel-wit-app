@@ -400,7 +400,8 @@ class CloudflareSyncManager {
   // deviceId (مستقر وفريد لكل تثبيت) — عمود device_id الموحّد هو
   // هوية الجهاز وعمود SyncFields.device_id (جهاز الكاتب) معاً.
   Map<String, dynamic> _deviceSyncPayload({
-    required int now, String? fcmToken,
+    required int now,
+    String? fcmToken,
     String? platform,
     String? deviceName,
   }) {
@@ -706,10 +707,7 @@ class CloudflareSyncManager {
       // البناء الكامل في buildPushOperation (sync/payload_normalizer.dart)
       // ليُحارس العقد باختبارات تشغّل المنتجين الحقيقيين للكيانات.
       operations.add(
-        await buildPushOperation(
-          item,
-          resolveRowVectorClock: _rowVectorClock,
-        ),
+        await buildPushOperation(item, resolveRowVectorClock: _rowVectorClock),
       );
       if (_deviceId != null) {
         operations.last['deviceId'] = _deviceId;
@@ -965,9 +963,7 @@ class CloudflareSyncManager {
                       'exclude_device': ownDevice,
                   },
                 ),
-                headers: {
-                  'Authorization': 'Bearer $_token',
-                },
+                headers: {'Authorization': 'Bearer $_token'},
               )
               .timeout(const Duration(seconds: 30));
         } catch (e) {
@@ -1018,9 +1014,7 @@ class CloudflareSyncManager {
           debugPrint('⚠️ Pull: server skipped table: $e');
         }
         // P0-C: server-derived cursor is authoritative, not device time
-        final serverCursor = int.tryParse(
-          data['cursor']?.toString() ?? '0',
-        );
+        final serverCursor = int.tryParse(data['cursor']?.toString() ?? '0');
         hasMore = data['has_more'] as bool? ?? false;
 
         if (serverCursor != null && serverCursor > pendingCursor) {
@@ -1130,9 +1124,7 @@ class CloudflareSyncManager {
     // blacklist من D1 يفشل صمتاً (no such table: blacklist) ولا تصل
     // القائمة السوداء للأجهزة الأخرى أبداً.
     if (entity == 'blacklist') {
-      final converted = CloudflareD1Service.blacklistShiftNoteRowFromD1(
-        record,
-      );
+      final converted = CloudflareD1Service.blacklistShiftNoteRowFromD1(record);
       if (converted == null) return;
       entity = 'shift_notes';
       record = converted;

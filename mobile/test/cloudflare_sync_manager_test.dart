@@ -104,24 +104,21 @@ void main() {
       },
     );
 
-    test(
-      'getSyncStatistics returns real keys (never an empty fake)',
-      () async {
-        final manager = CloudflareSyncManager();
-        final stats = await manager.getSyncStatistics();
-        // ✅ (2026-09-05) كانت تُرجع {} فتعرض الشاشات أصفاراً دائمة —
-        // الآن مفاتيح حقيقية تقرؤها شاشات الإحصائيات مباشرة.
-        expect(stats, isNotEmpty);
-        expect(stats, containsPair('totalSyncs', 0));
-        expect(stats, containsPair('successfulSyncs', 0));
-        expect(stats, containsPair('failedSyncs', 0));
-        expect(stats['totalRecordsPushed'], isA<int>());
-        expect(stats['totalRecordsPulled'], isA<int>());
-        expect(stats['successRate'], isA<double>());
-        expect(stats['outboxCount'], isA<int>());
-        expect(stats['fullSyncCompleted'], isA<bool>());
-      },
-    );
+    test('getSyncStatistics returns real keys (never an empty fake)', () async {
+      final manager = CloudflareSyncManager();
+      final stats = await manager.getSyncStatistics();
+      // ✅ (2026-09-05) كانت تُرجع {} فتعرض الشاشات أصفاراً دائمة —
+      // الآن مفاتيح حقيقية تقرؤها شاشات الإحصائيات مباشرة.
+      expect(stats, isNotEmpty);
+      expect(stats, containsPair('totalSyncs', 0));
+      expect(stats, containsPair('successfulSyncs', 0));
+      expect(stats, containsPair('failedSyncs', 0));
+      expect(stats['totalRecordsPushed'], isA<int>());
+      expect(stats['totalRecordsPulled'], isA<int>());
+      expect(stats['successRate'], isA<double>());
+      expect(stats['outboxCount'], isA<int>());
+      expect(stats['fullSyncCompleted'], isA<bool>());
+    });
 
     test(
       'resetSyncState clears the persisted pull cursor and full-sync flag',

@@ -261,7 +261,6 @@ class SyncGuard {
 /// - `_value`: معرّف فريد متزايد
 /// - `_label`: اسم الخدمة التي اكتسبت القفل (للتشخيص)
 class SyncLockToken {
-
   SyncLockToken._(this._value, this._label);
   final int _value;
   final String _label;

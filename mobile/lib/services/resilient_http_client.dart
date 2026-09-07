@@ -181,9 +181,7 @@ class ResilientHttpClient extends http.BaseClient {
             return ips;
           }
         } catch (e) {
-          debugPrint(
-            '⚠️ DoH ${endpoint.hostname}@$dohIp failed: $e',
-          );
+          debugPrint('⚠️ DoH ${endpoint.hostname}@$dohIp failed: $e');
           continue;
         }
       }
@@ -260,11 +258,7 @@ class _DnsCacheEntry {
 }
 
 class _DohEndpoint {
-  _DohEndpoint({
-    required this.hostname,
-    required this.path,
-    required this.ips,
-  });
+  _DohEndpoint({required this.hostname, required this.path, required this.ips});
 
   final String hostname;
   final String path;

@@ -293,75 +293,79 @@ class _NotesScreenState extends ConsumerState<NotesScreen>
     var priority = note?.priority.name ?? 'medium';
     final shiftType = note?.shiftType.name ?? 'all';
 
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          title: Text(note == null ? 'إضافة ملاحظة' : 'تعديل الملاحظة'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(
-                  labelText: 'العنوان',
-                  border: OutlineInputBorder(),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: Text(note == null ? 'إضافة ملاحظة' : 'تعديل الملاحظة'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'العنوان',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: contentController,
+                  decoration: const InputDecoration(
+                    labelText: 'المحتوى',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: priority,
+                  decoration: const InputDecoration(
+                    labelText: 'الأولوية',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'low', child: Text('منخفضة')),
+                    DropdownMenuItem(value: 'medium', child: Text('متوسطة')),
+                    DropdownMenuItem(value: 'high', child: Text('عالية')),
+                  ],
+                  onChanged: (value) => priority = value ?? priority,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('إلغاء'),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: contentController,
-                decoration: const InputDecoration(
-                  labelText: 'المحتوى',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: priority,
-                decoration: const InputDecoration(
-                  labelText: 'الأولوية',
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'low', child: Text('منخفضة')),
-                  DropdownMenuItem(value: 'medium', child: Text('متوسطة')),
-                  DropdownMenuItem(value: 'high', child: Text('عالية')),
-                ],
-                onChanged: (value) => priority = value ?? priority,
+              ElevatedButton(
+                onPressed: () {
+                  if (titleController.text.trim().isNotEmpty &&
+                      contentController.text.trim().isNotEmpty) {
+                    unawaited(
+                      _saveNote(
+                        note,
+                        titleController.text.trim(),
+                        contentController.text.trim(),
+                        priority,
+                        shiftType,
+                      ),
+                    );
+                    Navigator.pop(context);
+                  }
+                },
+                child: Text(note == null ? 'إضافة' : 'تحديث'),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('إلغاء'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (titleController.text.trim().isNotEmpty &&
-                    contentController.text.trim().isNotEmpty) {
-                  unawaited(_saveNote(
-                    note,
-                    titleController.text.trim(),
-                    contentController.text.trim(),
-                    priority,
-                    shiftType,
-                  ));
-                  Navigator.pop(context);
-                }
-              },
-              child: Text(note == null ? 'إضافة' : 'تحديث'),
-            ),
-          ],
         ),
-      ),
-    ).then((_) {
-      titleController.dispose();
-      contentController.dispose();
-    }));
+      ).then((_) {
+        titleController.dispose();
+        contentController.dispose();
+      }),
+    );
   }
 
   Future<void> _saveNote(

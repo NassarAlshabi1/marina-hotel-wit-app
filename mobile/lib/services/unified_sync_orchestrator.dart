@@ -457,30 +457,20 @@ class UnifiedSyncOrchestrator {
     ]);
 
     final tablesPayload = <String, List<Map<String, dynamic>>>{
-      'rooms': (results[0] as List<Room>)
-          .map((e) => e.toJson())
-          .toList(),
-      'bookings': (results[1] as List<Booking>)
-          .map((e) => e.toJson())
-          .toList(),
+      'rooms': (results[0] as List<Room>).map((e) => e.toJson()).toList(),
+      'bookings': (results[1] as List<Booking>).map((e) => e.toJson()).toList(),
       'booking_notes': (results[2] as List<BookingNote>)
           .map((e) => e.toJson())
           .toList(),
       'employees': (results[3] as List<Employee>)
           .map((e) => e.toJson())
           .toList(),
-      'expenses': (results[4] as List<Expense>)
-          .map((e) => e.toJson())
-          .toList(),
+      'expenses': (results[4] as List<Expense>).map((e) => e.toJson()).toList(),
       'cash_transactions': (results[5] as List<CashTransaction>)
           .map((e) => e.toJson())
           .toList(),
-      'payments': (results[6] as List<Payment>)
-          .map((e) => e.toJson())
-          .toList(),
-      'debts': (results[7] as List<Debt>)
-          .map((e) => e.toJson())
-          .toList(),
+      'payments': (results[6] as List<Payment>).map((e) => e.toJson()).toList(),
+      'debts': (results[7] as List<Debt>).map((e) => e.toJson()).toList(),
       'booking_nights': (results[8] as List<BookingNight>)
           .map((e) => e.toJson())
           .toList(),
@@ -521,10 +511,7 @@ class UnifiedSyncOrchestrator {
       // على جهاز في مرحلة bootstrap (نمط حارس الركود — ASM:760).
       // كل مستدعي pull-only هم مهام خلفية/تلقائية؛ اليدوي يمر عبر فرع
       // push&&pull أعلاه حيث يبقى السحب الكامل قراراً مرئياً.
-      final result = await manager.sync(
-        push: false,
-        deltaOnly: true,
-      );
+      final result = await manager.sync(push: false, deltaOnly: true);
       success = result.isSuccess && success;
     }
 

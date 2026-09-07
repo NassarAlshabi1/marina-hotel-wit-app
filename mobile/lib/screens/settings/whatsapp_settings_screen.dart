@@ -244,67 +244,71 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
   }
 
   void _showTestResult(bool success, String title, String detail) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(
-              success ? Icons.check_circle : Icons.error,
-              color: success ? Colors.green : Colors.red,
-              size: 28,
-            ),
-            const SizedBox(width: 10),
-            Flexible(
-              child: Text(
-                title,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
             children: [
-              Container(
-                width: double.maxFinite,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: (success ? Colors.green : Colors.red).withValues(
-                    alpha: 0.08,
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: (success ? Colors.green : Colors.red).withValues(
-                      alpha: 0.3,
-                    ),
-                  ),
-                ),
-                child: SelectableText(
-                  detail,
-                  style: TextStyle(
-                    fontSize: 13,
-                    height: 1.6,
-                    color: Colors.grey.shade800,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.right,
+              Icon(
+                success ? Icons.check_circle : Icons.error,
+                color: success ? Colors.green : Colors.red,
+                size: 28,
+              ),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إغلاق'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: double.maxFinite,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: (success ? Colors.green : Colors.red).withValues(
+                      alpha: 0.08,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: (success ? Colors.green : Colors.red).withValues(
+                        alpha: 0.3,
+                      ),
+                    ),
+                  ),
+                  child: SelectableText(
+                    detail,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.6,
+                      color: Colors.grey.shade800,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إغلاق'),
+            ),
+          ],
+        ),
       ),
-    ));
+    );
   }
 
   /// رفع الإعدادات إلى Appwrite Console
@@ -750,43 +754,47 @@ class _WhatsAppSettingsScreenState extends ConsumerState<WhatsAppSettingsScreen>
     required String title,
     required String subtitle,
   }) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(
-              success ? Icons.check_circle : Icons.error,
-              color: success ? Colors.green : Colors.red,
-              size: 28,
-            ),
-            const SizedBox(width: 10),
-            Flexible(
-              child: Text(
-                title,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                success ? Icons.check_circle : Icons.error,
+                color: success ? Colors.green : Colors.red,
+                size: 28,
               ),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.6,
+              color: Colors.grey.shade700,
+            ),
+            textAlign: TextAlign.right,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('حسناً'),
             ),
           ],
         ),
-        content: Text(
-          subtitle,
-          style: TextStyle(
-            fontSize: 13,
-            height: 1.6,
-            color: Colors.grey.shade700,
-          ),
-          textAlign: TextAlign.right,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('حسناً'),
-          ),
-        ],
       ),
-    ));
+    );
   }
 
   // ─── قسم مزامنة السحابة ───

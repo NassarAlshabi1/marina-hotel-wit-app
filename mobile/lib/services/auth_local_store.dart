@@ -40,7 +40,8 @@ class AuthLocalStore {
   /// — نفسها التي تستخدمها عمليات Outbox القائمة.
   static Map<String, dynamic> appUsersSyncPayload({
     required String localUuid,
-    required int now, String? username,
+    required int now,
+    String? username,
     String? password,
     String? fullName,
     String? userType,
@@ -267,9 +268,7 @@ class AuthLocalStore {
       if (!DatabaseManager.isInitialized) return {};
       final db = DatabaseManager.instance;
       final rows = await db
-          .customSelect(
-            'SELECT * FROM app_users WHERE deleted_at IS NULL',
-          )
+          .customSelect('SELECT * FROM app_users WHERE deleted_at IS NULL')
           .get();
       final cloudAccounts = <String, Map<String, dynamic>>{};
       for (final row in rows) {
@@ -708,16 +707,13 @@ class AuthLocalStore {
       // فقط عند تغيير كلمة المرور (نفس وعد الواجهة: «سيتم قطع الجلسة على
       // الأجهزة الأخرى عند حفظ كلمة المرور»). رفعه على كل تعديل (اسم/نوع)
       // كان يقطع جلسات كل الأجهزة الأخرى بلا سبب.
-      final hasPasswordChange =
-          newPassword != null && newPassword.isNotEmpty;
+      final hasPasswordChange = newPassword != null && newPassword.isNotEmpty;
 
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       final syncPayload = AuthLocalStore.appUsersSyncPayload(
         localUuid: docId,
         username: username,
-        password: hasPasswordChange
-            ? PasswordHasher.hash(newPassword)
-            : null,
+        password: hasPasswordChange ? PasswordHasher.hash(newPassword) : null,
         fullName: newFullName,
         userType: newUserType,
         permissionsJson: newPermissions != null
@@ -1195,9 +1191,7 @@ class AuthLocalStore {
   ///   بما يطابق سلوك worker (database.ts createRecord).
   ///
   /// فشل الكتابة المحلية مساعِد فقط — لا يُفشل العملية الأصلية.
-  Future<void> _writeLocalAppUsersRow(
-    Map<String, dynamic> syncPayload,
-  ) async {
+  Future<void> _writeLocalAppUsersRow(Map<String, dynamic> syncPayload) async {
     try {
       if (!DatabaseManager.isInitialized) return;
       final db = DatabaseManager.instance;

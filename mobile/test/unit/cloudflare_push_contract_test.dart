@@ -87,9 +87,13 @@ Map<String, Set<String>> _loadSchemaColumns() {
     final col = RegExp(r'^"?\w+"? \w').firstMatch(line);
     if (col == null) continue; // UNIQUE(...), FOREIGN KEY, PRIMARY KEY…
     final name = line.split(' ').first.replaceAll('"', '');
-    if (['UNIQUE', 'PRIMARY', 'FOREIGN', 'CHECK', 'CONSTRAINT'].contains(
-      name,
-    )) {
+    if ([
+      'UNIQUE',
+      'PRIMARY',
+      'FOREIGN',
+      'CHECK',
+      'CONSTRAINT',
+    ].contains(name)) {
       continue;
     }
     tables[current]!.add(name);
@@ -235,10 +239,7 @@ void main() {
       final createOps = await pushedOperations();
       expect(createOps.length, 1);
       expect(createOps.single['operation'], 'create');
-      expect(
-        (createOps.single['data'] as Map)['room_number'],
-        '201',
-      );
+      expect((createOps.single['data'] as Map)['room_number'], '201');
       // 2) قبورة صافية — softDelete يحمل deleted_at وإلا لن يرى الجهاز
       //    الآخر الحذف أبداً (كانت الحمولة {room_number} فقط)
       await clearOutbox();
@@ -390,10 +391,7 @@ void main() {
     });
 
     test('shift_notes — DAO snake', () async {
-      await shiftNotesDao.addNote(
-        title: 'ملاحظة وردية',
-        content: 'تفاصيل',
-      );
+      await shiftNotesDao.addNote(title: 'ملاحظة وردية', content: 'تفاصيل');
       final ops = await pushedOperations();
       final data =
           ops.where((o) => o['entity'] == 'shift_notes').single['data']
@@ -467,11 +465,9 @@ void main() {
     });
 
     test('blacklist — تجسيد افتراضي من shift_notes الموسومة', () async {
-      await BlacklistRepository(db).addEntry(
-        name: 'محظور العقد',
-        nationality: 'يمني',
-        reason: 'تجربة',
-      );
+      await BlacklistRepository(
+        db,
+      ).addEntry(name: 'محظور العقد', nationality: 'يمني', reason: 'تجربة');
       final ops = await pushedOperations();
       final data =
           ops.where((o) => o['entity'] == 'blacklist').single['data']

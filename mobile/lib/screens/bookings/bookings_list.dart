@@ -69,12 +69,14 @@ class _BookingsListScreenState extends ConsumerState<BookingsListScreen>
         actions: [
           IconButton(
             onPressed: () {
-              unawaited(Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (_) => const PaymentsMainScreen(),
+              unawaited(
+                Navigator.push<void>(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => const PaymentsMainScreen(),
+                  ),
                 ),
-              ));
+              );
             },
             icon: const Icon(Icons.payments),
             tooltip: 'إدارة المدفوعات',

@@ -168,34 +168,36 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
       unawaited(_showRoomBookings(context, ref, room.roomNumber));
     } else {
       // للحالات الأخرى مثل الصيانة، نعرض التفاصيل
-      unawaited(showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text('غرفة ${room.roomNumber}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildDetailRow('الحالة', room.status),
-              if (room.type.isNotEmpty) _buildDetailRow('النوع', room.type),
-              if (room.price > 0)
-                _buildDetailRow(
-                  'السعر',
-                  '${room.price.toStringAsFixed(0)} ريال',
-                ),
+      unawaited(
+        showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Text('غرفة ${room.roomNumber}'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildDetailRow('الحالة', room.status),
+                if (room.type.isNotEmpty) _buildDetailRow('النوع', room.type),
+                if (room.price > 0)
+                  _buildDetailRow(
+                    'السعر',
+                    '${room.price.toStringAsFixed(0)} ريال',
+                  ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('إغلاق'),
+              ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('إغلاق'),
-            ),
-          ],
         ),
-      ));
+      );
     }
   }
 
@@ -212,11 +214,14 @@ class _RoomsDashboardState extends ConsumerState<RoomsDashboard> {
   }
 
   void _navigateToBooking(BuildContext context, String roomNumber) {
-    unawaited(Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (context) => BookingEditScreen(initialRoomNumber: roomNumber),
+    unawaited(
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (context) =>
+              BookingEditScreen(initialRoomNumber: roomNumber),
+        ),
       ),
-    ));
+    );
   }
 
   Future<void> _showRoomBookings(

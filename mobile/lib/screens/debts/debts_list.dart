@@ -734,45 +734,47 @@ class _DebtsListScreenState extends ConsumerState<DebtsListScreen>
   }
 
   void _showQuickAddMenu(BuildContext context) {
-    unawaited(showModalBottomSheet<void>(
-      context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'إضافة دين جديد',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.hotel_outlined, color: Colors.blue),
-              title: const Text('دين من حجز موجود'),
-              subtitle: const Text(
-                'اختر حجز وأنشئ دين بناء على الأيام المتبقية',
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        builder: (context) => Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'إضافة دين جديد',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              onTap: () {
-                Navigator.pop(context);
-                unawaited(_createDebtFromBooking());
-              },
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.add_circle_outline,
-                color: Colors.green,
+              const SizedBox(height: 16),
+              ListTile(
+                leading: const Icon(Icons.hotel_outlined, color: Colors.blue),
+                title: const Text('دين من حجز موجود'),
+                subtitle: const Text(
+                  'اختر حجز وأنشئ دين بناء على الأيام المتبقية',
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  unawaited(_createDebtFromBooking());
+                },
               ),
-              title: const Text('دين يدوي'),
-              subtitle: const Text('أدخل تفاصيل الدين يدوياً'),
-              onTap: () {
-                Navigator.pop(context);
-                unawaited(_openDebtForm(context));
-              },
-            ),
-          ],
+              ListTile(
+                leading: const Icon(
+                  Icons.add_circle_outline,
+                  color: Colors.green,
+                ),
+                title: const Text('دين يدوي'),
+                subtitle: const Text('أدخل تفاصيل الدين يدوياً'),
+                onTap: () {
+                  Navigator.pop(context);
+                  unawaited(_openDebtForm(context));
+                },
+              ),
+            ],
+          ),
         ),
       ),
-    ));
+    );
   }
 
   Future<void> _createDebtFromBooking() async {

@@ -58,9 +58,10 @@ class EnglishDigitsInputFormatter extends TextInputFormatter {
       }
     }
 
-    final selectionOffset = newValue.selection.baseOffset
-        .clamp(0, filtered.length)
-        ;
+    final selectionOffset = newValue.selection.baseOffset.clamp(
+      0,
+      filtered.length,
+    );
     return TextEditingValue(
       text: filtered,
       selection: TextSelection.collapsed(offset: selectionOffset),

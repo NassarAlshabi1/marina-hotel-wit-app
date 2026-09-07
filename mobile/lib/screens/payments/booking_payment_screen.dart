@@ -432,27 +432,29 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
       canPop: !_isSavingPayment,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        unawaited(showDialog<void>(
-          context: context,
-          barrierDismissible: false,
-          builder: (ctx) => const PopScope(
-            canPop: false,
-            child: AlertDialog(
-              title: Row(
-                children: [
-                  SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  SizedBox(width: 12),
-                  Text('جاري الحفظ'),
-                ],
+        unawaited(
+          showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder: (ctx) => const PopScope(
+              canPop: false,
+              child: AlertDialog(
+                title: Row(
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 12),
+                    Text('جاري الحفظ'),
+                  ],
+                ),
+                content: Text('يرجى الانتظار حتى يتم حفظ الدفعة...'),
               ),
-              content: Text('يرجى الانتظار حتى يتم حفظ الدفعة...'),
             ),
           ),
-        ));
+        );
       },
       child: AppScaffold(
         title: 'معالجة المدفوعات',
@@ -945,122 +947,124 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final bankController = TextEditingController();
 
     // ✅ إصلاح تسرب ذاكرة: استخدام then للتأكد من dispose بعد إغلاق الحوار
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => Directionality(
-        textDirection: ui.TextDirection.rtl,
-        child: AlertDialog(
-          title: Row(
-            children: [
-              Icon(method.icon, color: method.color),
-              const SizedBox(width: 8),
-              Text('دفع ${method.displayName}'),
-            ],
-          ),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: amountController,
-                    decoration: const InputDecoration(
-                      labelText: 'المبلغ*',
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.number,
-                    inputFormatters: const [englishIntegerInputFormatter],
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // حقول إضافية حسب طريقة الدفع
-                  if (method == PaymentMethod.card) ...[
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => Directionality(
+          textDirection: ui.TextDirection.rtl,
+          child: AlertDialog(
+            title: Row(
+              children: [
+                Icon(method.icon, color: method.color),
+                const SizedBox(width: 8),
+                Text('دفع ${method.displayName}'),
+              ],
+            ),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     TextField(
-                      controller: cardDigitsController,
+                      controller: amountController,
                       decoration: const InputDecoration(
-                        labelText: 'آخر 4 أرقام من البطاقة',
+                        labelText: 'المبلغ*',
                         border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
-                      maxLength: 4,
                       inputFormatters: const [englishIntegerInputFormatter],
                     ),
-                    const SizedBox(height: 12),
-                  ],
 
-                  if (method == PaymentMethod.transfer) ...[
+                    const SizedBox(height: 12),
+
+                    // حقول إضافية حسب طريقة الدفع
+                    if (method == PaymentMethod.card) ...[
+                      TextField(
+                        controller: cardDigitsController,
+                        decoration: const InputDecoration(
+                          labelText: 'آخر 4 أرقام من البطاقة',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                        maxLength: 4,
+                        inputFormatters: const [englishIntegerInputFormatter],
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    if (method == PaymentMethod.transfer) ...[
+                      TextField(
+                        controller: bankController,
+                        decoration: const InputDecoration(
+                          labelText: 'اسم البنك',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    if (method == PaymentMethod.transfer ||
+                        method == PaymentMethod.check) ...[
+                      TextField(
+                        controller: referenceController,
+                        decoration: const InputDecoration(
+                          labelText: 'رقم المرجع/الشيك',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
                     TextField(
-                      controller: bankController,
+                      controller: notesController,
                       decoration: const InputDecoration(
-                        labelText: 'اسم البنك',
+                        labelText: 'ملاحظات (اختياري)',
                         border: OutlineInputBorder(),
                       ),
+                      maxLines: 2,
                     ),
-                    const SizedBox(height: 12),
                   ],
-
-                  if (method == PaymentMethod.transfer ||
-                      method == PaymentMethod.check) ...[
-                    TextField(
-                      controller: referenceController,
-                      decoration: const InputDecoration(
-                        labelText: 'رقم المرجع/الشيك',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-
-                  TextField(
-                    controller: notesController,
-                    decoration: const InputDecoration(
-                      labelText: 'ملاحظات (اختياري)',
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 2,
-                  ),
-                ],
+                ),
               ),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton(
+                onPressed: _isSavingPayment
+                    ? null
+                    : () => _processPayment(
+                        method,
+                        amountController.text,
+                        notesController.text,
+                        referenceController.text,
+                        cardDigitsController.text,
+                        bankController.text,
+                        isPendingBalance: isPendingBalance,
+                      ),
+                child: _isSavingPayment
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('تسجيل الدفعة'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('إلغاء'),
-            ),
-            ElevatedButton(
-              onPressed: _isSavingPayment
-                  ? null
-                  : () => _processPayment(
-                      method,
-                      amountController.text,
-                      notesController.text,
-                      referenceController.text,
-                      cardDigitsController.text,
-                      bankController.text,
-                      isPendingBalance: isPendingBalance,
-                    ),
-              child: _isSavingPayment
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('تسجيل الدفعة'),
-            ),
-          ],
         ),
-      ),
-    ).then((_) {
-      // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات بعد إغلاق الحوار
-      amountController.dispose();
-      notesController.dispose();
-      referenceController.dispose();
-      cardDigitsController.dispose();
-      bankController.dispose();
-    }));
+      ).then((_) {
+        // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات بعد إغلاق الحوار
+        amountController.dispose();
+        notesController.dispose();
+        referenceController.dispose();
+        cardDigitsController.dispose();
+        bankController.dispose();
+      }),
+    );
   }
 
   Future<void> _sendPaymentConfirmation(
@@ -1254,60 +1258,62 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     );
     final perNight = nights > 0 ? (amount / nights).round() : 0;
 
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.hotel, color: Colors.orange),
-            const SizedBox(width: 8),
-            Text('دفع $nights ${nights == 1 ? 'ليلة' : 'ليالي'} إضافية'),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.hotel, color: Colors.orange),
+              const SizedBox(width: 8),
+              Text('دفع $nights ${nights == 1 ? 'ليلة' : 'ليالي'} إضافية'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: [
+                    Text('المبلغ: ${_currencyFmt.format(amount)}'),
+                    Text('عدد الليالي: $nights'),
+                    Text('سعر الليلة: ${_currencyFmt.format(perNight)}'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: notesController,
+                decoration: const InputDecoration(
+                  labelText: 'ملاحظات',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () =>
+                  _processDailyPayment(amount, notesController.text, nights),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              child: const Text('تسجيل الدفعة'),
+            ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                children: [
-                  Text('المبلغ: ${_currencyFmt.format(amount)}'),
-                  Text('عدد الليالي: $nights'),
-                  Text('سعر الليلة: ${_currencyFmt.format(perNight)}'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: notesController,
-              decoration: const InputDecoration(
-                labelText: 'ملاحظات',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () =>
-                _processDailyPayment(amount, notesController.text, nights),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            child: const Text('تسجيل الدفعة'),
-          ),
-        ],
-      ),
-    ).then((_) {
-      // ✅ إصلاح تسرب ذاكرة: dispose المتحكم بعد إغلاق الحوار
-      notesController.dispose();
-    }));
+      ).then((_) {
+        // ✅ إصلاح تسرب ذاكرة: dispose المتحكم بعد إغلاق الحوار
+        notesController.dispose();
+      }),
+    );
   }
 
   /// معالجة دفع الليالي الإضافية
@@ -1767,35 +1773,37 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
   }
 
   void _showReceiptDialog(Payment payment) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('تم تسجيل الدفعة بنجاح'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.check_circle, color: Colors.green, size: 64),
-            const SizedBox(height: 16),
-            Text('المبلغ: ${_currencyFmt.format(payment.amount)}'),
-            Text('طريقة الدفع: ${payment.method.displayName}'),
-            Text('المتبقي: ${_currencyFmt.format(_remainingAmount)}'),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('تم تسجيل الدفعة بنجاح'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.check_circle, color: Colors.green, size: 64),
+              const SizedBox(height: 16),
+              Text('المبلغ: ${_currencyFmt.format(payment.amount)}'),
+              Text('طريقة الدفع: ${payment.method.displayName}'),
+              Text('المتبقي: ${_currencyFmt.format(_remainingAmount)}'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إغلاق'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                unawaited(_generateReceipt(payment));
+              },
+              child: const Text('طباعة إيصال'),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إغلاق'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              unawaited(_generateReceipt(payment));
-            },
-            child: const Text('طباعة إيصال'),
-          ),
-        ],
       ),
-    ));
+    );
   }
 
   Future<void> _generateReceipt(Payment payment) async {
@@ -2138,11 +2146,13 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
               ElevatedButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
-                  unawaited(_processEarlyCheckout(
-                    refundAmount.round(),
-                    unusedNights,
-                    actualNights,
-                  ));
+                  unawaited(
+                    _processEarlyCheckout(
+                      refundAmount.round(),
+                      unusedNights,
+                      actualNights,
+                    ),
+                  );
                 },
                 icon: const Icon(Icons.check_circle, size: 18),
                 label: const Text('تأكيد المغادرة والمردود'),
@@ -2735,159 +2745,164 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
     final hotelDay = HotelTimeEngine.getHotelDayKey();
 
     // عرض نافذة التأكيد مع تفاصيل الدفعات
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => FutureBuilder<List<db.Payment>>(
-        future: paymentsRepo.paymentsByBooking(widget.booking.id).first,
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const AlertDialog(
-              content: Center(child: CircularProgressIndicator()),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => FutureBuilder<List<db.Payment>>(
+          future: paymentsRepo.paymentsByBooking(widget.booking.id).first,
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const AlertDialog(
+                content: Center(child: CircularProgressIndicator()),
+              );
+            }
+
+            final allPayments = snapshot.data ?? [];
+            final todayPayments = allPayments
+                .where(
+                  (p) =>
+                      !p.isVoided &&
+                      (p.hotelDayKey == hotelDay ||
+                          (p.hotelDayKey == null &&
+                              p.paymentDate.startsWith(hotelDay))),
+                )
+                .toList();
+
+            if (todayPayments.isEmpty) {
+              return AlertDialog(
+                title: const Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.blue),
+                    SizedBox(width: 8),
+                    Text('لا توجد دفعات اليوم'),
+                  ],
+                ),
+                content: const Text(
+                  'لا توجد مدفوعات مسجلة في اليوم الفندقي الحالي لإلغائها.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('إغلاق'),
+                  ),
+                ],
+              );
+            }
+
+            final todayTotal = todayPayments.fold<double>(
+              0,
+              (s, p) => s + p.amount,
             );
-          }
 
-          final allPayments = snapshot.data ?? [];
-          final todayPayments = allPayments
-              .where(
-                (p) =>
-                    !p.isVoided &&
-                    (p.hotelDayKey == hotelDay ||
-                        (p.hotelDayKey == null &&
-                            p.paymentDate.startsWith(hotelDay))),
-              )
-              .toList();
-
-          if (todayPayments.isEmpty) {
             return AlertDialog(
               title: const Row(
                 children: [
-                  Icon(Icons.info_outline, color: Colors.blue),
+                  Icon(Icons.remove_circle_outline, color: Colors.red),
                   SizedBox(width: 8),
-                  Text('لا توجد دفعات اليوم'),
+                  Text('إلغاء دفعة اليوم الفندقي'),
                 ],
               ),
-              content: const Text(
-                'لا توجد مدفوعات مسجلة في اليوم الفندقي الحالي لإلغائها.',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('إغلاق'),
-                ),
-              ],
-            );
-          }
-
-          final todayTotal = todayPayments.fold<double>(
-            0,
-            (s, p) => s + p.amount,
-          );
-
-          return AlertDialog(
-            title: const Row(
-              children: [
-                Icon(Icons.remove_circle_outline, color: Colors.red),
-                SizedBox(width: 8),
-                Text('إلغاء دفعة اليوم الفندقي'),
-              ],
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.red.shade200),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'اليوم الفندقي: $hotelDay',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'عدد المدفوعات المراد إلغاؤها: ${todayPayments.length}',
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'إجمالي المبلغ المراد إلغاؤه: ${_currencyFmt.format(todayTotal)}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: Colors.red,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    '⚠️ سيتم حذف دفعات اليوم الفندقي فقط. سجل خروج النزيل منفصل عبر زر "تسجيل المغادرة".',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'تفاصيل المدفوعات المراد إلغاؤها:',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                  ),
-                  const SizedBox(height: 8),
-                  ...todayPayments.map(
-                    (p) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Text(
-                              p.notes ?? p.paymentMethod,
-                              style: const TextStyle(fontSize: 11),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
                           Text(
-                            _currencyFmt.format(p.amount),
+                            'اليوم الفندقي: $hotelDay',
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 11,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'عدد المدفوعات المراد إلغاؤها: ${todayPayments.length}',
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'إجمالي المبلغ المراد إلغاؤه: ${_currencyFmt.format(todayTotal)}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
                               color: Colors.red,
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    const Text(
+                      '⚠️ سيتم حذف دفعات اليوم الفندقي فقط. سجل خروج النزيل منفصل عبر زر "تسجيل المغادرة".',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'تفاصيل المدفوعات المراد إلغاؤها:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ...todayPayments.map(
+                      (p) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 2),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                p.notes ?? p.paymentMethod,
+                                style: const TextStyle(fontSize: 11),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Text(
+                              _currencyFmt.format(p.amount),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11,
+                                color: Colors.red,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('إلغاء'),
-              ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  unawaited(_processCancelTodayPayments(todayPayments));
-                },
-                icon: const Icon(Icons.check_circle, size: 18),
-                label: const Text('تأكيد إلغاء الدفعات'),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              ),
-            ],
-          );
-        },
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('إلغاء'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    unawaited(_processCancelTodayPayments(todayPayments));
+                  },
+                  icon: const Icon(Icons.check_circle, size: 18),
+                  label: const Text('تأكيد إلغاء الدفعات'),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                ),
+              ],
+            );
+          },
+        ),
       ),
-    ));
+    );
   }
 
   /// معالجة إلغاء دفعات اليوم الفندقي فقط (بدون تسجيل خروج أو تحرير غرفة)
@@ -2945,200 +2960,210 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
 
     final messagePreview = _buildAccountStatementMessage(summary);
 
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.receipt_long, color: Colors.orange),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text('إرسال كشف حساب', overflow: TextOverflow.ellipsis),
-              ),
-            ],
-          ),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ═════════════════════════════════════════════════════════
-                  //  1) بطاقة معلومات العميل والإقامة
-                  // ═════════════════════════════════════════════════════════
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.orange.shade200),
-                    ),
-                    child: Column(
-                      children: [
-                        _buildStatementPreviewRow(
-                          'العميل',
-                          widget.booking.guestName,
-                        ),
-                        _buildStatementPreviewRow(
-                          'الغرفة',
-                          widget.booking.roomNumber,
-                        ),
-                        _buildStatementPreviewRow('الهاتف', _currentGuestPhone),
-                        _buildStatementPreviewRow(
-                          'الإجمالي',
-                          '${CurrencyFormatter.formatAmount(summary.totalAmount)} ريال',
-                        ),
-                        _buildStatementPreviewRow(
-                          'المدفوع',
-                          '${CurrencyFormatter.formatAmount(summary.paidAmount)} ريال',
-                          valueColor: Colors.green,
-                        ),
-                        _buildStatementPreviewRow(
-                          'المتبقي',
-                          '${CurrencyFormatter.formatAmount(summary.remainingAmount)} ريال',
-                          valueColor: summary.remainingAmount > 0
-                              ? Colors.red
-                              : Colors.green,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // ═════════════════════════════════════════════════════════
-                  //  2) جدول المدفوعات المفصّل (تواريخ + مبالغ) — مرئي افتراضياً
-                  // ═════════════════════════════════════════════════════════
-                  _buildDialogPaymentsTable(summary),
-
-                  const SizedBox(height: 12),
-
-                  // ═════════════════════════════════════════════════════════
-                  //  3) زر معاينة رسالة WhatsApp
-                  // ═════════════════════════════════════════════════════════
-                  OutlinedButton.icon(
-                    onPressed: () {
-                      setDialogState(() {
-                        _showFullPreview = !_showFullPreview;
-                      });
-                    },
-                    icon: Icon(
-                      _showFullPreview
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                      size: 16,
-                    ),
-                    label: Text(
-                      _showFullPreview
-                          ? 'إخفاء المعاينة'
-                          : 'معاينة رسالة WhatsApp',
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.teal,
-                      side: const BorderSide(color: Colors.teal),
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                    ),
-                  ),
-
-                  // معاينة الرسالة الكاملة
-                  if (_showFullPreview) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      constraints: const BoxConstraints(maxHeight: 260),
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE8F5E9),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.green.shade300),
-                      ),
-                      child: SingleChildScrollView(
-                        child: SelectableText(
-                          messagePreview,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            height: 1.6,
-                            fontFamily: 'Courier',
-                          ),
-                          textAlign: TextAlign.right,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '${messagePreview.length}/1000 حرف',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: messagePreview.length > 1000
-                                  ? Colors.red
-                                  : messagePreview.length > 900
-                                  ? Colors.orange
-                                  : Colors.grey.shade600,
-                            ),
-                          ),
-                          if (messagePreview.length > 1000)
-                            const Padding(
-                              padding: EdgeInsets.only(right: 6),
-                              child: Icon(
-                                Icons.warning,
-                                size: 12,
-                                color: Colors.red,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          // Wrap prevents the three actions from overflowing on narrow phones.
-          actions: [
-            Wrap(
-              alignment: WrapAlignment.end,
-              spacing: 8,
-              runSpacing: 4,
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: const Row(
               children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('إلغاء'),
-                ),
-                // ✅ مشاركة كنص WhatsApp
-                FilledButton.tonalIcon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    unawaited(_sendStatementViaWhatsAppText(summary));
-                  },
-                  icon: const Icon(Icons.chat, size: 18),
-                  label: const Text('إرسال كنص'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.green.shade100,
+                Icon(Icons.receipt_long, color: Colors.orange),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'إرسال كشف حساب',
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                // ✅ مشاركة PDF عبر Share sheet
-                FilledButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    unawaited(_sendStatementViaPdf(summary));
-                  },
-                  icon: const Icon(Icons.share, size: 18),
-                  label: const Text('مشاركة PDF'),
-                  style: FilledButton.styleFrom(backgroundColor: Colors.orange),
                 ),
               ],
             ),
-          ],
+            content: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ═════════════════════════════════════════════════════════
+                    //  1) بطاقة معلومات العميل والإقامة
+                    // ═════════════════════════════════════════════════════════
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Column(
+                        children: [
+                          _buildStatementPreviewRow(
+                            'العميل',
+                            widget.booking.guestName,
+                          ),
+                          _buildStatementPreviewRow(
+                            'الغرفة',
+                            widget.booking.roomNumber,
+                          ),
+                          _buildStatementPreviewRow(
+                            'الهاتف',
+                            _currentGuestPhone,
+                          ),
+                          _buildStatementPreviewRow(
+                            'الإجمالي',
+                            '${CurrencyFormatter.formatAmount(summary.totalAmount)} ريال',
+                          ),
+                          _buildStatementPreviewRow(
+                            'المدفوع',
+                            '${CurrencyFormatter.formatAmount(summary.paidAmount)} ريال',
+                            valueColor: Colors.green,
+                          ),
+                          _buildStatementPreviewRow(
+                            'المتبقي',
+                            '${CurrencyFormatter.formatAmount(summary.remainingAmount)} ريال',
+                            valueColor: summary.remainingAmount > 0
+                                ? Colors.red
+                                : Colors.green,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // ═════════════════════════════════════════════════════════
+                    //  2) جدول المدفوعات المفصّل (تواريخ + مبالغ) — مرئي افتراضياً
+                    // ═════════════════════════════════════════════════════════
+                    _buildDialogPaymentsTable(summary),
+
+                    const SizedBox(height: 12),
+
+                    // ═════════════════════════════════════════════════════════
+                    //  3) زر معاينة رسالة WhatsApp
+                    // ═════════════════════════════════════════════════════════
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        setDialogState(() {
+                          _showFullPreview = !_showFullPreview;
+                        });
+                      },
+                      icon: Icon(
+                        _showFullPreview
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        size: 16,
+                      ),
+                      label: Text(
+                        _showFullPreview
+                            ? 'إخفاء المعاينة'
+                            : 'معاينة رسالة WhatsApp',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.teal,
+                        side: const BorderSide(color: Colors.teal),
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                      ),
+                    ),
+
+                    // معاينة الرسالة الكاملة
+                    if (_showFullPreview) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        constraints: const BoxConstraints(maxHeight: 260),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F5E9),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.green.shade300),
+                        ),
+                        child: SingleChildScrollView(
+                          child: SelectableText(
+                            messagePreview,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              height: 1.6,
+                              fontFamily: 'Courier',
+                            ),
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${messagePreview.length}/1000 حرف',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: messagePreview.length > 1000
+                                    ? Colors.red
+                                    : messagePreview.length > 900
+                                    ? Colors.orange
+                                    : Colors.grey.shade600,
+                              ),
+                            ),
+                            if (messagePreview.length > 1000)
+                              const Padding(
+                                padding: EdgeInsets.only(right: 6),
+                                child: Icon(
+                                  Icons.warning,
+                                  size: 12,
+                                  color: Colors.red,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            // Wrap prevents the three actions from overflowing on narrow phones.
+            actions: [
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('إلغاء'),
+                  ),
+                  // ✅ مشاركة كنص WhatsApp
+                  FilledButton.tonalIcon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      unawaited(_sendStatementViaWhatsAppText(summary));
+                    },
+                    icon: const Icon(Icons.chat, size: 18),
+                    label: const Text('إرسال كنص'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.green.shade100,
+                    ),
+                  ),
+                  // ✅ مشاركة PDF عبر Share sheet
+                  FilledButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      unawaited(_sendStatementViaPdf(summary));
+                    },
+                    icon: const Icon(Icons.share, size: 18),
+                    label: const Text('مشاركة PDF'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
-    ));
+    );
   }
 
   /// ════════════════════════════════════════════════════════════════════
@@ -3834,90 +3859,94 @@ class _BookingPaymentScreenState extends ConsumerState<BookingPaymentScreen>
         .valueOrNull;
     final double roomRate = room?.price ?? 0;
 
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.add_circle_outline, color: Colors.blue),
-            SizedBox(width: 8),
-            Text('تمديد الإقامة'),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.add_circle_outline, color: Colors.blue),
+              SizedBox(width: 8),
+              Text('تمديد الإقامة'),
+            ],
+          ),
+          content: StatefulBuilder(
+            builder: (context, setState) {
+              final nights = int.tryParse(nightsController.text) ?? 1;
+              final totalCost = nights * roomRate;
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        Text('سعر الليلة: ${_currencyFmt.format(roomRate)}'),
+                        Text('عدد الليالي: $nights'),
+                        Text(
+                          'التكلفة الإجمالية: ${_currencyFmt.format(totalCost)}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: nightsController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: const [englishIntegerInputFormatter],
+                    decoration: const InputDecoration(
+                      labelText: 'عدد الليالي الإضافية',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) {
+                      setState(() {}); // لتحديث التكلفة
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: notesController,
+                    decoration: const InputDecoration(
+                      labelText: 'ملاحظات',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                unawaited(
+                  _processExtendStay(
+                    int.tryParse(nightsController.text) ?? 1,
+                    roomRate,
+                    notesController.text,
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+              child: const Text('تمديد وتسجيل دفعة'),
+            ),
           ],
         ),
-        content: StatefulBuilder(
-          builder: (context, setState) {
-            final nights = int.tryParse(nightsController.text) ?? 1;
-            final totalCost = nights * roomRate;
-
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    children: [
-                      Text('سعر الليلة: ${_currencyFmt.format(roomRate)}'),
-                      Text('عدد الليالي: $nights'),
-                      Text(
-                        'التكلفة الإجمالية: ${_currencyFmt.format(totalCost)}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: nightsController,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: const [englishIntegerInputFormatter],
-                  decoration: const InputDecoration(
-                    labelText: 'عدد الليالي الإضافية',
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (value) {
-                    setState(() {}); // لتحديث التكلفة
-                  },
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: notesController,
-                  decoration: const InputDecoration(
-                    labelText: 'ملاحظات',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              unawaited(_processExtendStay(
-                int.tryParse(nightsController.text) ?? 1,
-                roomRate,
-                notesController.text,
-              ));
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-            child: const Text('تمديد وتسجيل دفعة'),
-          ),
-        ],
-      ),
-    ).then((_) {
-      // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات بعد إغلاق الحوار
-      nightsController.dispose();
-      notesController.dispose();
-    }));
+      ).then((_) {
+        // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات بعد إغلاق الحوار
+        nightsController.dispose();
+        notesController.dispose();
+      }),
+    );
   }
 
   /// معالجة تمديد الإقامة

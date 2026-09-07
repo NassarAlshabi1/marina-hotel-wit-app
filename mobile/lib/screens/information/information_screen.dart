@@ -100,26 +100,28 @@ class _InformationScreenState extends ConsumerState<InformationScreen>
   }
 
   void _showDiscardDialog(BuildContext context) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('تغييرات غير محفوظة'),
-        content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.of(context).pop();
-            },
-            child: const Text('مغادرة'),
-          ),
-        ],
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('تغييرات غير محفوظة'),
+          content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('إلغاء'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).pop();
+              },
+              child: const Text('مغادرة'),
+            ),
+          ],
+        ),
       ),
-    ));
+    );
   }
 
   Widget _buildContent(List<GuestInfo> entries) {

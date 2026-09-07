@@ -97,43 +97,45 @@ class EnhancedSyncButton extends ConsumerWidget {
   }
 
   void _showSyncOptions(BuildContext context, SyncOrchestrator orchestrator) {
-    unawaited(showModalBottomSheet<void>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.sync),
-              title: const Text('مزامنة كاملة'),
-              subtitle: const Text('دفع + سحب'),
-              onTap: () {
-                Navigator.pop(context);
-                unawaited(orchestrator.syncNow());
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.upload),
-              title: const Text('رفع التغييرات فقط'),
-              subtitle: const Text('Push Only'),
-              onTap: () {
-                Navigator.pop(context);
-                unawaited(orchestrator.pushOnly());
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.download),
-              title: const Text('سحب التغييرات فقط'),
-              subtitle: const Text('Pull Only'),
-              onTap: () {
-                Navigator.pop(context);
-                unawaited(orchestrator.pullOnly());
-              },
-            ),
-          ],
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        builder: (context) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.sync),
+                title: const Text('مزامنة كاملة'),
+                subtitle: const Text('دفع + سحب'),
+                onTap: () {
+                  Navigator.pop(context);
+                  unawaited(orchestrator.syncNow());
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.upload),
+                title: const Text('رفع التغييرات فقط'),
+                subtitle: const Text('Push Only'),
+                onTap: () {
+                  Navigator.pop(context);
+                  unawaited(orchestrator.pushOnly());
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.download),
+                title: const Text('سحب التغييرات فقط'),
+                subtitle: const Text('Pull Only'),
+                onTap: () {
+                  Navigator.pop(context);
+                  unawaited(orchestrator.pullOnly());
+                },
+              ),
+            ],
+          ),
         ),
       ),
-    ));
+    );
   }
 }
 

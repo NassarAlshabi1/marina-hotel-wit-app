@@ -523,29 +523,31 @@ class _CreateDebtFromBookingScreenState
       _notesController.text.isNotEmpty;
 
   void _showDiscardDialog(BuildContext context) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: ui.TextDirection.rtl,
-        child: AlertDialog(
-          title: const Text('تأكيد'),
-          content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('لا'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                Navigator.of(context).pop();
-              },
-              child: const Text('نعم'),
-            ),
-          ],
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => Directionality(
+          textDirection: ui.TextDirection.rtl,
+          child: AlertDialog(
+            title: const Text('تأكيد'),
+            content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('لا'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.of(context).pop();
+                },
+                child: const Text('نعم'),
+              ),
+            ],
+          ),
         ),
       ),
-    ));
+    );
   }
 }
 

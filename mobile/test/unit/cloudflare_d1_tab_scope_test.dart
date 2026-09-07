@@ -99,20 +99,17 @@ void main() {
       expect(CloudflareConfig.d1BackupTables, contains('blacklist'));
     });
 
-    test(
-      'app_users كيان متزامن كامل — mapping وترتيب ترحيل بلا FK',
-      () {
-        expect(CloudflareConfig.entityToTable['app_users'], 'app_users');
-        expect(CloudflareConfig.migrationOrder, contains('app_users'));
-        // يستقبل بين inventory_transactions وblacklist (بلا تبعيات FK)
-        final idx = CloudflareConfig.migrationOrder.indexOf('app_users');
-        expect(
-          CloudflareConfig.migrationOrder[idx - 1],
-          'inventory_transactions',
-        );
-        expect(CloudflareConfig.migrationOrder.last, 'blacklist');
-      },
-    );
+    test('app_users كيان متزامن كامل — mapping وترتيب ترحيل بلا FK', () {
+      expect(CloudflareConfig.entityToTable['app_users'], 'app_users');
+      expect(CloudflareConfig.migrationOrder, contains('app_users'));
+      // يستقبل بين inventory_transactions وblacklist (بلا تبعيات FK)
+      final idx = CloudflareConfig.migrationOrder.indexOf('app_users');
+      expect(
+        CloudflareConfig.migrationOrder[idx - 1],
+        'inventory_transactions',
+      );
+      expect(CloudflareConfig.migrationOrder.last, 'blacklist');
+    });
 
     test('hotel_day_ledger يبقى مستبعداً نهائياً', () {
       expect(

@@ -576,85 +576,89 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   void _showGuestHistory(BuildContext context, GuestInfo guest) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          title: Text('تاريخ حجوزات ${guest.name}'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: guest.bookings.length,
-              itemBuilder: (context, index) {
-                final booking = guest.bookings[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: Column(
-                    children: [
-                      ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor:
-                              StatusUtils.isActiveBooking(booking.status)
-                              ? Colors.green
-                              : Colors.blue,
-                          child: Text((index + 1).toString()),
-                        ),
-                        title: Text('غرفة ${booking.roomNumber}'),
-                        subtitle: Text(
-                          'من ${_formatDate(booking.checkinDate)}\n'
-                          'الحالة: ${booking.status}',
-                        ),
-                        trailing: Text(
-                          '${booking.calculatedNights} ليلة',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        isThreeLine: true,
-                      ),
-                      // ✅ أزرار تعديل وحذف لكل حجز فردي
-                      OverflowBar(
-                        alignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          TextButton.icon(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              unawaited(_editBooking(context, booking));
-                            },
-                            icon: const Icon(Icons.edit, size: 16),
-                            label: const Text('تعديل الحجز'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.blue,
-                            ),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: Text('تاريخ حجوزات ${guest.name}'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: guest.bookings.length,
+                itemBuilder: (context, index) {
+                  final booking = guest.bookings[index];
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: Column(
+                      children: [
+                        ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor:
+                                StatusUtils.isActiveBooking(booking.status)
+                                ? Colors.green
+                                : Colors.blue,
+                            child: Text((index + 1).toString()),
                           ),
-                          TextButton.icon(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              unawaited(_deleteBooking(context, booking, guest));
-                            },
-                            icon: const Icon(Icons.delete_outline, size: 16),
-                            label: const Text('حذف الحجز'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.red,
-                            ),
+                          title: Text('غرفة ${booking.roomNumber}'),
+                          subtitle: Text(
+                            'من ${_formatDate(booking.checkinDate)}\n'
+                            'الحالة: ${booking.status}',
                           ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              },
+                          trailing: Text(
+                            '${booking.calculatedNights} ليلة',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          isThreeLine: true,
+                        ),
+                        // ✅ أزرار تعديل وحذف لكل حجز فردي
+                        OverflowBar(
+                          alignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            TextButton.icon(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                unawaited(_editBooking(context, booking));
+                              },
+                              icon: const Icon(Icons.edit, size: 16),
+                              label: const Text('تعديل الحجز'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.blue,
+                              ),
+                            ),
+                            TextButton.icon(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                unawaited(
+                                  _deleteBooking(context, booking, guest),
+                                );
+                              },
+                              icon: const Icon(Icons.delete_outline, size: 16),
+                              label: const Text('حذف الحجز'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.red,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('إغلاق'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('إغلاق'),
-            ),
-          ],
         ),
       ),
-    ));
+    );
   }
 
   /// ✅ تعديل حجز فردي — يفتح BookingEditScreen مع `existing: booking`
@@ -773,54 +777,57 @@ class _SettingsGuestsScreenState extends ConsumerState<SettingsGuestsScreen> {
   }
 
   void _showGuestDetails(BuildContext context, GuestInfo guest) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          title: Text('تفاصيل الضيف - ${guest.name}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildInfoRow('الاسم:', guest.name),
-              _buildInfoRow('الهاتف:', guest.phone),
-              if (guest.email.isNotEmpty) _buildInfoRow('البريد:', guest.email),
-              _buildInfoRow('الجنسية:', guest.nationality),
-              const Divider(),
-              _buildInfoRow(
-                'إجمالي الحجوزات:',
-                guest.bookings.length.toString(),
-              ),
-              _buildInfoRow(
-                'الحجوزات النشطة:',
-                guest.bookings
-                    .where((b) => StatusUtils.isActiveBooking(b.status))
-                    .length
-                    .toString(),
-              ),
-              _buildInfoRow(
-                'آخر زيارة:',
-                guest.bookings.isNotEmpty
-                    ? _formatDate(guest.bookings.first.checkinDate)
-                    : '-',
-              ),
-              if (guest.bookings.length > 1)
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: Text('تفاصيل الضيف - ${guest.name}'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildInfoRow('الاسم:', guest.name),
+                _buildInfoRow('الهاتف:', guest.phone),
+                if (guest.email.isNotEmpty)
+                  _buildInfoRow('البريد:', guest.email),
+                _buildInfoRow('الجنسية:', guest.nationality),
+                const Divider(),
                 _buildInfoRow(
-                  'أول زيارة:',
-                  _formatDate(guest.bookings.last.checkinDate),
+                  'إجمالي الحجوزات:',
+                  guest.bookings.length.toString(),
                 ),
+                _buildInfoRow(
+                  'الحجوزات النشطة:',
+                  guest.bookings
+                      .where((b) => StatusUtils.isActiveBooking(b.status))
+                      .length
+                      .toString(),
+                ),
+                _buildInfoRow(
+                  'آخر زيارة:',
+                  guest.bookings.isNotEmpty
+                      ? _formatDate(guest.bookings.first.checkinDate)
+                      : '-',
+                ),
+                if (guest.bookings.length > 1)
+                  _buildInfoRow(
+                    'أول زيارة:',
+                    _formatDate(guest.bookings.last.checkinDate),
+                  ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('إغلاق'),
+              ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('إغلاق'),
-            ),
-          ],
         ),
       ),
-    ));
+    );
   }
 
   Future<void> _editCheckinDate(BuildContext context, GuestInfo guest) async {

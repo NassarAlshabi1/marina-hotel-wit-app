@@ -20,10 +20,12 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
   void initState() {
     super.initState();
     // التحقق من الأذونات عند فتح التبويب
-    unawaited(Future.microtask(() {
-      final notifier = ref.read(backupStatusProvider.notifier);
-      unawaited(notifier.checkStoragePermissions());
-    }));
+    unawaited(
+      Future.microtask(() {
+        final notifier = ref.read(backupStatusProvider.notifier);
+        unawaited(notifier.checkStoragePermissions());
+      }),
+    );
   }
 
   @override
@@ -493,35 +495,37 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
   }
 
   void _confirmRestore(LocalBackupFile backup) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('تأكيد الاستعادة'),
-        content: Text(
-          'سيتم استبدال جميع البيانات الحالية ببيانات النسخة الاحتياطية.\n\n'
-          'الملف: ${backup.fileName}\n'
-          'التاريخ: ${DateTimeFormatter.formatDateTime(backup.createdTime.toIso8601String())}\n'
-          'الحجم: ${FileSizeFormatter.formatBytes(backup.sizeBytes)}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('تأكيد الاستعادة'),
+          content: Text(
+            'سيتم استبدال جميع البيانات الحالية ببيانات النسخة الاحتياطية.\n\n'
+            'الملف: ${backup.fileName}\n'
+            'التاريخ: ${DateTimeFormatter.formatDateTime(backup.createdTime.toIso8601String())}\n'
+            'الحجم: ${FileSizeFormatter.formatBytes(backup.sizeBytes)}',
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              unawaited(_restoreBackup(backup));
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء'),
             ),
-            child: const Text('استعادة'),
-          ),
-        ],
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                unawaited(_restoreBackup(backup));
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('استعادة'),
+            ),
+          ],
+        ),
       ),
-    ));
+    );
   }
 
   Future<void> _restoreBackup(LocalBackupFile backup) async {
@@ -550,30 +554,32 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
   }
 
   void _confirmDelete(LocalBackupFile backup) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('حذف نسخة احتياطية'),
-        content: Text(
-          'هل أنت متأكد من حذف:\n${backup.fileName}؟\n\n'
-          'لا يمكن التراجع عن هذا الإجراء.',
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('حذف نسخة احتياطية'),
+          content: Text(
+            'هل أنت متأكد من حذف:\n${backup.fileName}؟\n\n'
+            'لا يمكن التراجع عن هذا الإجراء.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                unawaited(_deleteBackup(backup));
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('حذف', style: TextStyle(color: Colors.white)),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              unawaited(_deleteBackup(backup));
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('حذف', style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
-    ));
+    );
   }
 
   Future<void> _deleteBackup(LocalBackupFile backup) async {
@@ -592,6 +598,8 @@ class _LocalBackupsTabState extends ConsumerState<LocalBackupsTab> {
   }
 
   void _refreshLocalBackups() {
-    unawaited(ref.read(backupStatusProvider.notifier).checkStoragePermissions());
+    unawaited(
+      ref.read(backupStatusProvider.notifier).checkStoragePermissions(),
+    );
   }
 }

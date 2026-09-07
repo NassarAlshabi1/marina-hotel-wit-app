@@ -676,96 +676,97 @@ class _PaymentsListScreenState extends ConsumerState<PaymentsListScreen>
     final formattedDate = _formatDate(payment.paymentDate);
     final isToday = _isToday(payment.paymentDate);
 
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: ui.TextDirection.rtl,
-        child: AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: methodColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  _getMethodIcon(payment.paymentMethod),
-                  color: methodColor,
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Text('تفاصيل الدفعة'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _detailDivider(
-                'المبلغ',
-                CurrencyFormatter.formatAmount(payment.amount),
-                icon: Icons.payments_outlined,
-                color: Colors.green,
-              ),
-              _detailDivider(
-                'طريقة الدفع',
-                payment.paymentMethod,
-                icon: _getMethodIcon(payment.paymentMethod),
-                color: methodColor,
-              ),
-              _detailDivider(
-                'نوع الإيراد',
-                revenueLabel,
-                icon: Icons.category,
-                color: Colors.amber.shade700,
-              ),
-              _detailDivider(
-                'التاريخ',
-                isToday ? '$formattedDate (اليوم)' : formattedDate,
-                icon: Icons.event,
-                color: isToday ? Colors.green : Colors.blue,
-              ),
-              if (payment.roomNumber != null &&
-                  payment.roomNumber!.trim().isNotEmpty)
-                _detailDivider(
-                  'رقم الغرفة',
-                  payment.roomNumber!,
-                  icon: Icons.hotel,
-                  color: Colors.indigo,
-                ),
-              if (payment.referenceNumber != null &&
-                  payment.referenceNumber!.trim().isNotEmpty)
-                _detailDivider(
-                  'رقم المرجع',
-                  payment.referenceNumber!,
-                  icon: Icons.numbers,
-                  color: Colors.purple,
-                ),
-              if (payment.notes != null &&
-                  payment.notes!.trim().isNotEmpty)
-                _detailDivider(
-                  'ملاحظات',
-                  payment.notes!,
-                  icon: Icons.notes,
-                  color: Colors.grey,
-                ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('إغلاق'),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => Directionality(
+          textDirection: ui.TextDirection.rtl,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
-          ],
+            title: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: methodColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    _getMethodIcon(payment.paymentMethod),
+                    color: methodColor,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Text('تفاصيل الدفعة'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _detailDivider(
+                  'المبلغ',
+                  CurrencyFormatter.formatAmount(payment.amount),
+                  icon: Icons.payments_outlined,
+                  color: Colors.green,
+                ),
+                _detailDivider(
+                  'طريقة الدفع',
+                  payment.paymentMethod,
+                  icon: _getMethodIcon(payment.paymentMethod),
+                  color: methodColor,
+                ),
+                _detailDivider(
+                  'نوع الإيراد',
+                  revenueLabel,
+                  icon: Icons.category,
+                  color: Colors.amber.shade700,
+                ),
+                _detailDivider(
+                  'التاريخ',
+                  isToday ? '$formattedDate (اليوم)' : formattedDate,
+                  icon: Icons.event,
+                  color: isToday ? Colors.green : Colors.blue,
+                ),
+                if (payment.roomNumber != null &&
+                    payment.roomNumber!.trim().isNotEmpty)
+                  _detailDivider(
+                    'رقم الغرفة',
+                    payment.roomNumber!,
+                    icon: Icons.hotel,
+                    color: Colors.indigo,
+                  ),
+                if (payment.referenceNumber != null &&
+                    payment.referenceNumber!.trim().isNotEmpty)
+                  _detailDivider(
+                    'رقم المرجع',
+                    payment.referenceNumber!,
+                    icon: Icons.numbers,
+                    color: Colors.purple,
+                  ),
+                if (payment.notes != null && payment.notes!.trim().isNotEmpty)
+                  _detailDivider(
+                    'ملاحظات',
+                    payment.notes!,
+                    icon: Icons.notes,
+                    color: Colors.grey,
+                  ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('إغلاق'),
+              ),
+            ],
+          ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _detailDivider(

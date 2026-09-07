@@ -473,7 +473,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   /// التنقل بأسلوب lazy — الـ WidgetBuilder لا يُنفذ إلا عند التنقل الفعلي
   void _navigate(WidgetBuilder builder) {
-    unawaited(Navigator.push<void>(context, MaterialPageRoute(builder: builder)));
+    unawaited(
+      Navigator.push<void>(context, MaterialPageRoute(builder: builder)),
+    );
   }
 }
 

@@ -93,10 +93,7 @@ class CloudflareAutoConnectionCard extends ConsumerWidget {
 
   // ─── الصفوف ──────────────────────────────────────────────────
 
-  Widget _connectionRow(
-    BuildContext context,
-    ConnectionState connection,
-  ) {
+  Widget _connectionRow(BuildContext context, ConnectionState connection) {
     final colorScheme = Theme.of(context).colorScheme;
     final Color dotColor;
     final String label;
@@ -153,10 +150,7 @@ class CloudflareAutoConnectionCard extends ConsumerWidget {
     );
   }
 
-  Widget _lastSyncRow(
-    BuildContext context,
-    AsyncValue<SyncLogData?> lastSync,
-  ) {
+  Widget _lastSyncRow(BuildContext context, AsyncValue<SyncLogData?> lastSync) {
     return lastSync.when(
       loading: () => const _RowSkeleton(),
       error: (_, _) => const _RowError('تعذّر قراءة سجل المزامنة'),
@@ -459,9 +453,9 @@ class _DataRow extends StatelessWidget {
         Expanded(
           child: Text(
             value,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
             textAlign: TextAlign.start,
           ),
         ),
@@ -541,9 +535,9 @@ class _DirectApiResultView extends StatelessWidget {
       return Text(
         'لم يُنفَّذ فحص مباشر بعد — الزر أدناه يفحص التوكن والحساب والقاعدة '
         'على api.cloudflare.com مباشرةً (قراءة فقط).',
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: colorScheme.onSurfaceVariant,
-        ),
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
       );
     }
 

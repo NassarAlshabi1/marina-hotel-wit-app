@@ -30,7 +30,9 @@ class InventoryRepository {
   Future<int> createItem({
     required String name,
     required String unit,
-    required int initialQuantity, required int minimumQuantity, String? category,
+    required int initialQuantity,
+    required int minimumQuantity,
+    String? category,
   }) async {
     if (name.trim().isEmpty) throw ArgumentError('اسم الصنف مطلوب');
     if (initialQuantity < 0 || minimumQuantity < 0) {

@@ -122,17 +122,12 @@ void main() {
       expect(result.error, isNotNull);
       expect(result.error, contains('stats fetch failed'));
       // كل الكيانات بقيمة cloudflare=-1 (قياس غائب)
-      expect(
-        result.comparisons.every((c) => c.cloudflareCount == -1),
-        isTrue,
-      );
+      expect(result.comparisons.every((c) => c.cloudflareCount == -1), isTrue);
     });
 
     test('unknown entity in stats does not crash (count = -1)', () async {
       final service = CloudflareDualRunService();
-      service.statsFetcherForTest = () async => {
-        'tables': <String, dynamic>{},
-      };
+      service.statsFetcherForTest = () async => {'tables': <String, dynamic>{}};
       service.configure(
         tokenProvider: () async => 'token',
         appwriteCounter: (entity) async => 0,

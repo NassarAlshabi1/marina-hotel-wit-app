@@ -782,29 +782,31 @@ class _GuestEditScreenState extends ConsumerState<GuestEditScreen> {
   }
 
   void _showDiscardDialog(BuildContext context) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          title: const Text('تغييرات غير محفوظة'),
-          content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('إلغاء'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                Navigator.of(context).pop();
-              },
-              child: const Text('مغادرة'),
-            ),
-          ],
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: const Text('تغييرات غير محفوظة'),
+            content: const Text('هل تريد المغادرة بدون حفظ التغييرات؟'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('إلغاء'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Navigator.of(context).pop();
+                },
+                child: const Text('مغادرة'),
+              ),
+            ],
+          ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildSectionTitle(String text) {

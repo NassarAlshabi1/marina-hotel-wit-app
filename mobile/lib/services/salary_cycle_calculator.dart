@@ -72,9 +72,7 @@ class SalaryCycleCalculator {
     final remainingBalance = signedRemaining > 0 ? signedRemaining : 0;
     final carryOverToNext = signedRemaining < 0 ? -signedRemaining : 0;
 
-    final advanceBalance = (advances - installmentsPaid)
-        .clamp(0, advances)
-        ;
+    final advanceBalance = (advances - installmentsPaid).clamp(0, advances);
 
     return SalaryCycleResult(
       basicSalary: basicSalary,

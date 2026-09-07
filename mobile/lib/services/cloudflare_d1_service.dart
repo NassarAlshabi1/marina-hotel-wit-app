@@ -149,7 +149,7 @@ class CloudflareD1Service {
         final verify = await _call('GET', '/user/tokens/verify');
         tokenValid =
             ((verify['result'] as Map<String, dynamic>?)?['status'] ==
-                'active');
+            'active');
       } catch (e2) {
         fatalError = 'التوكن غير صالح: ${e.message} / $e2';
         return CloudflareD1ProbeResult(
@@ -708,7 +708,8 @@ class CloudflareD1SourceTable {
   const CloudflareD1SourceTable({
     required this.name,
     required this.rowCount,
-    required this.readChunk, this.createSqlList = const [],
+    required this.readChunk,
+    this.createSqlList = const [],
   });
 
   final String name;

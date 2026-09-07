@@ -57,7 +57,6 @@ class BlacklistAlert {
     'reason': blacklistEntry.reason,
     'detectedAt': detectedAt.toIso8601String(),
   };
-
 }
 
 /// خدمة تنبيهات القائمة السوداء — Singleton

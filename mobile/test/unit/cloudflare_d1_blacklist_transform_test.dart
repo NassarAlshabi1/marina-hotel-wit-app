@@ -127,9 +127,7 @@ void main() {
     });
 
     test('مجموعة مفاتيح المخرجات ثابتة (استقرار بناء INSERT)', () {
-      final out = CloudflareD1Service.blacklistRowFromShiftNote(
-        shiftNoteRow(),
-      );
+      final out = CloudflareD1Service.blacklistRowFromShiftNote(shiftNoteRow());
       expect(out.keys.toSet(), <String>{
         'local_uuid',
         'name',

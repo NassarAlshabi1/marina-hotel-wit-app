@@ -124,9 +124,7 @@ class Env {
     'FCM_SERVICE_ACCOUNT_JSON',
   );
 
-  static const String fcmProjectId = String.fromEnvironment(
-    'FCM_PROJECT_ID',
-  );
+  static const String fcmProjectId = String.fromEnvironment('FCM_PROJECT_ID');
 
   // ═══════════════════════════════════════════════════════════════
   //  PostHog Analytics (Session Replay + Feature Flags + Product Analytics)
@@ -138,9 +136,7 @@ class Env {
   //   --dart-define=POSTHOG_HOST=https://app.posthog.com  (اختياري، افتراضي Cloud)
 
   /// PostHog API Key — يجب تمريره عبر --dart-define
-  static const String posthogApiKey = String.fromEnvironment(
-    'POSTHOG_API_KEY',
-  );
+  static const String posthogApiKey = String.fromEnvironment('POSTHOG_API_KEY');
 
   /// PostHog Host — افتراضي: Cloud (https://app.posthog.com)
   /// للـ self-hosted: مرّر عنوان خادمك (مثل: https://posthog.yourdomain.com)

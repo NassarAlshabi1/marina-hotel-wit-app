@@ -346,88 +346,90 @@ class _GoogleDriveLogsScreenState extends ConsumerState<GoogleDriveLogsScreen> {
   }
 
   void _showLogDetails(LogEntry log) {
-    unawaited(showModalBottomSheet<void>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        final formatter = DateFormat('yyyy/MM/dd HH:mm:ss');
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    log.level.name.toUpperCase(),
-                    style: TextStyle(
-                      color: _getColorForLevel(log.level),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (context) {
+          final formatter = DateFormat('yyyy/MM/dd HH:mm:ss');
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      log.level.name.toUpperCase(),
+                      style: TextStyle(
+                        color: _getColorForLevel(log.level),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.copy),
-                    onPressed: () {
-                      _copyLog(log);
-                      Navigator.pop(context);
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                formatter.format(log.timestamp),
-                style: const TextStyle(color: Colors.grey, fontSize: 12),
-              ),
-              const SizedBox(height: 12),
-              Text(log.message, style: const TextStyle(fontSize: 16)),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  const Icon(Icons.label, size: 16, color: Colors.grey),
-                  const SizedBox(width: 6),
-                  Text(log.tag, style: const TextStyle(color: Colors.grey)),
-                ],
-              ),
-              if (log.error != null) ...[
-                const SizedBox(height: 12),
-                const Text(
-                  'الخطأ:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.copy),
+                      onPressed: () {
+                        _copyLog(log);
+                        Navigator.pop(context);
+                      },
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Text(
-                  log.error.toString(),
-                  style: const TextStyle(color: Colors.red),
+                  formatter.format(log.timestamp),
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
                 ),
-              ],
-              if (log.stackTrace != null) ...[
                 const SizedBox(height: 12),
-                const Text(
-                  'Stack Trace:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                Text(log.message, style: const TextStyle(fontSize: 16)),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Icon(Icons.label, size: 16, color: Colors.grey),
+                    const SizedBox(width: 6),
+                    Text(log.tag, style: const TextStyle(color: Colors.grey)),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                SizedBox(
-                  height: 120,
-                  child: SingleChildScrollView(
-                    child: Text(
-                      log.stackTrace.toString(),
-                      style: const TextStyle(fontSize: 12),
+                if (log.error != null) ...[
+                  const SizedBox(height: 12),
+                  const Text(
+                    'الخطأ:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    log.error.toString(),
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ],
+                if (log.stackTrace != null) ...[
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Stack Trace:',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  SizedBox(
+                    height: 120,
+                    child: SingleChildScrollView(
+                      child: Text(
+                        log.stackTrace.toString(),
+                        style: const TextStyle(fontSize: 12),
+                      ),
                     ),
                   ),
-                ),
+                ],
               ],
-            ],
-          ),
-        );
-      },
-    ));
+            ),
+          );
+        },
+      ),
+    );
   }
 
   void _copyLog(LogEntry log) {

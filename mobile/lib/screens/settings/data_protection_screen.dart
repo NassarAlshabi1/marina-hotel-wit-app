@@ -901,12 +901,14 @@ class _DataProtectionScreenState extends ConsumerState<DataProtectionScreen> {
           alignment: Alignment.centerRight,
           child: TextButton.icon(
             onPressed: () {
-              unawaited(Navigator.push<void>(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (context) => const UnifiedSyncSettingsScreen(),
+              unawaited(
+                Navigator.push<void>(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (context) => const UnifiedSyncSettingsScreen(),
+                  ),
                 ),
-              ));
+              );
             },
             icon: const Icon(Icons.settings),
             label: const Text('إعدادات المزامنة المتقدمة'),

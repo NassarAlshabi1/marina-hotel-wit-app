@@ -552,189 +552,204 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     );
     String status = employee?.status ?? 'نشط';
 
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          title: Text(
-            employee == null ? 'إضافة موظف جديد' : 'تعديل بيانات الموظف',
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'اسم الموظف*',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: positionController,
-                  decoration: const InputDecoration(
-                    labelText: 'المنصب*',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: salaryController,
-                  decoration: const InputDecoration(
-                    labelText: 'الراتب*',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.number,
-                  inputFormatters: const [englishIntegerInputFormatter],
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: phoneController,
-                  decoration: const InputDecoration(
-                    labelText: 'رقم الهاتف',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.phone,
-                  inputFormatters: const [englishIntegerInputFormatter],
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: hireDateController,
-                  decoration: const InputDecoration(
-                    labelText: 'تاريخ التوظيف',
-                    border: OutlineInputBorder(),
-                  ),
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      // ✅ استخدام اليوم الفندقي كتاريخ مبدئي
-                      initialDate: HotelTimeEngine.getHotelDay(DateTime.now()),
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2030),
-                    );
-                    if (date != null) {
-                      hireDateController.text = date.toString().split(' ')[0];
-                    }
-                  },
-                  readOnly: true,
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: status,
-                  decoration: const InputDecoration(
-                    labelText: 'الحالة',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'نشط', child: Text('نشط')),
-                    DropdownMenuItem(value: 'غير نشط', child: Text('غير نشط')),
-                    DropdownMenuItem(value: 'مجمد', child: Text('مجمد')),
-                    DropdownMenuItem(value: 'مفصول', child: Text('مفصول')),
-                    DropdownMenuItem(value: 'استقالة', child: Text('استقالة')),
-                    DropdownMenuItem(value: 'استغناء', child: Text('استغناء')),
-                  ],
-                  onChanged: (value) => status = value ?? status,
-                ),
-              ],
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: Text(
+              employee == null ? 'إضافة موظف جديد' : 'تعديل بيانات الموظف',
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('إلغاء'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (nameController.text.trim().isEmpty ||
-                    positionController.text.trim().isEmpty ||
-                    salaryController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('يرجى تعبئة الحقول المطلوبة')),
-                  );
-                  return;
-                }
-
-                // ✅ P0 fix: التحقق من صحة الراتب قبل الحفظ
-                final salary = double.tryParse(salaryController.text);
-                if (salary == null || salary < 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'قيمة الراتب غير صحيحة — يرجى إدخال رقم موجب',
-                      ),
-                      backgroundColor: Colors.red,
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'اسم الموظف*',
+                      border: OutlineInputBorder(),
                     ),
-                  );
-                  return;
-                }
-
-                final repo = ref.read(employeesRepoProvider);
-                try {
-                  if (employee == null) {
-                    await repo.create(
-                      name: nameController.text.trim(),
-                      position: positionController.text.trim(),
-                      salary: salary,
-                      phone: phoneController.text.trim(),
-                      hireDate: hireDateController.text,
-                      status: status,
-                    );
-                  } else {
-                    await repo.updateByLocalUuid(
-                      employee.localUuid,
-                      name: nameController.text.trim(),
-                      position: positionController.text.trim(),
-                      salary: salary,
-                      phone: phoneController.text.trim(),
-                      hireDate: hireDateController.text,
-                      status: status,
-                    );
-                  }
-                  // ✅ (2026-09-06) pushLocalChanges ترمي عند الفشل (عقد
-                  // صادق) — onError يمنع خطأ async غير معالج؛ السجلات تبقى
-                  // في outbox ويغطيها الرفع التلقائي/اليدوي اللاحق.
-                  unawaited(
-                    ref
-                        .read(appwriteSyncManagerProvider)
-                        .pushLocalChanges()
-                        .then(
-                          (_) {},
-                          onError: (Object e) {
-                            debugPrint('⚠️ فشل الرفع الفوري (موظف): $e');
-                          },
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: positionController,
+                    decoration: const InputDecoration(
+                      labelText: 'المنصب*',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: salaryController,
+                    decoration: const InputDecoration(
+                      labelText: 'الراتب*',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: const [englishIntegerInputFormatter],
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: phoneController,
+                    decoration: const InputDecoration(
+                      labelText: 'رقم الهاتف',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.phone,
+                    inputFormatters: const [englishIntegerInputFormatter],
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: hireDateController,
+                    decoration: const InputDecoration(
+                      labelText: 'تاريخ التوظيف',
+                      border: OutlineInputBorder(),
+                    ),
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        // ✅ استخدام اليوم الفندقي كتاريخ مبدئي
+                        initialDate: HotelTimeEngine.getHotelDay(
+                          DateTime.now(),
                         ),
-                  );
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        employee == null
-                            ? 'تم إضافة الموظف بنجاح'
-                            : 'تم تحديث بيانات الموظف',
-                      ),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2030),
+                      );
+                      if (date != null) {
+                        hireDateController.text = date.toString().split(' ')[0];
+                      }
+                    },
+                    readOnly: true,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: status,
+                    decoration: const InputDecoration(
+                      labelText: 'الحالة',
+                      border: OutlineInputBorder(),
                     ),
-                  );
-                } catch (e) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('خطأ: $e')));
-                }
-              },
-              child: Text(employee == null ? 'إضافة' : 'تحديث'),
+                    items: const [
+                      DropdownMenuItem(value: 'نشط', child: Text('نشط')),
+                      DropdownMenuItem(
+                        value: 'غير نشط',
+                        child: Text('غير نشط'),
+                      ),
+                      DropdownMenuItem(value: 'مجمد', child: Text('مجمد')),
+                      DropdownMenuItem(value: 'مفصول', child: Text('مفصول')),
+                      DropdownMenuItem(
+                        value: 'استقالة',
+                        child: Text('استقالة'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'استغناء',
+                        child: Text('استغناء'),
+                      ),
+                    ],
+                    onChanged: (value) => status = value ?? status,
+                  ),
+                ],
+              ),
             ),
-          ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (nameController.text.trim().isEmpty ||
+                      positionController.text.trim().isEmpty ||
+                      salaryController.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('يرجى تعبئة الحقول المطلوبة'),
+                      ),
+                    );
+                    return;
+                  }
+
+                  // ✅ P0 fix: التحقق من صحة الراتب قبل الحفظ
+                  final salary = double.tryParse(salaryController.text);
+                  if (salary == null || salary < 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'قيمة الراتب غير صحيحة — يرجى إدخال رقم موجب',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  final repo = ref.read(employeesRepoProvider);
+                  try {
+                    if (employee == null) {
+                      await repo.create(
+                        name: nameController.text.trim(),
+                        position: positionController.text.trim(),
+                        salary: salary,
+                        phone: phoneController.text.trim(),
+                        hireDate: hireDateController.text,
+                        status: status,
+                      );
+                    } else {
+                      await repo.updateByLocalUuid(
+                        employee.localUuid,
+                        name: nameController.text.trim(),
+                        position: positionController.text.trim(),
+                        salary: salary,
+                        phone: phoneController.text.trim(),
+                        hireDate: hireDateController.text,
+                        status: status,
+                      );
+                    }
+                    // ✅ (2026-09-06) pushLocalChanges ترمي عند الفشل (عقد
+                    // صادق) — onError يمنع خطأ async غير معالج؛ السجلات تبقى
+                    // في outbox ويغطيها الرفع التلقائي/اليدوي اللاحق.
+                    unawaited(
+                      ref
+                          .read(appwriteSyncManagerProvider)
+                          .pushLocalChanges()
+                          .then(
+                            (_) {},
+                            onError: (Object e) {
+                              debugPrint('⚠️ فشل الرفع الفوري (موظف): $e');
+                            },
+                          ),
+                    );
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          employee == null
+                              ? 'تم إضافة الموظف بنجاح'
+                              : 'تم تحديث بيانات الموظف',
+                        ),
+                      ),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text('خطأ: $e')));
+                  }
+                },
+                child: Text(employee == null ? 'إضافة' : 'تحديث'),
+              ),
+            ],
+          ),
         ),
-      ),
-    ).then((_) {
-      // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات بعد إغلاق الحوار
-      nameController.dispose();
-      positionController.dispose();
-      salaryController.dispose();
-      phoneController.dispose();
-      hireDateController.dispose();
-    }));
+      ).then((_) {
+        // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات بعد إغلاق الحوار
+        nameController.dispose();
+        positionController.dispose();
+        salaryController.dispose();
+        phoneController.dispose();
+        hireDateController.dispose();
+      }),
+    );
   }
 
   /// حوار إنهاء خدمة موظف
@@ -748,261 +763,269 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     DateTime? terminationDate = HotelTimeEngine.getHotelDay(DateTime.now());
     final reasonController = TextEditingController();
 
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.person_off, color: Colors.red),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text('إنهاء خدمة موظف', overflow: TextOverflow.ellipsis),
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Row(
               children: [
-                Text(
-                  'الموظف: ${employee.name}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // نوع الإنهاء
-                const Text(
-                  'نوع الإنهاء *',
-                  style: TextStyle(fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 8),
-                StatefulBuilder(
-                  builder: (context, setDialogState) {
-                    return Column(
-                      children: [
-                        RadioListTile<String>(
-                          title: const Row(
-                            children: [
-                              Icon(Icons.cancel, color: Colors.red, size: 20),
-                              SizedBox(width: 8),
-                              Text('فصل'),
-                            ],
-                          ),
-                          value: 'مفصول',
-                          // ignore: deprecated_member_use
-                          groupValue: terminationType,
-                          // ignore: deprecated_member_use
-                          onChanged: (v) =>
-                              setDialogState(() => terminationType = v!),
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        RadioListTile<String>(
-                          title: const Row(
-                            children: [
-                              Icon(
-                                Icons.logout,
-                                color: Colors.orange,
-                                size: 20,
-                              ),
-                              SizedBox(width: 8),
-                              Text('استقالة'),
-                            ],
-                          ),
-                          value: 'استقالة',
-                          // ignore: deprecated_member_use
-                          groupValue: terminationType,
-                          // ignore: deprecated_member_use
-                          onChanged: (v) =>
-                              setDialogState(() => terminationType = v!),
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        RadioListTile<String>(
-                          title: const Row(
-                            children: [
-                              Icon(
-                                Icons.business_center,
-                                color: Colors.grey,
-                                size: 20,
-                              ),
-                              SizedBox(width: 8),
-                              Text('استغناء'),
-                            ],
-                          ),
-                          value: 'استغناء',
-                          // ignore: deprecated_member_use
-                          groupValue: terminationType,
-                          // ignore: deprecated_member_use
-                          onChanged: (v) =>
-                              setDialogState(() => terminationType = v!),
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ],
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 16),
-
-                // تاريخ الإنهاء
-                StatefulBuilder(
-                  builder: (context, setDialogState) {
-                    return InkWell(
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          // ✅ استخدام اليوم الفندقي كتاريخ مبدئي
-                          initialDate:
-                              terminationDate ??
-                              HotelTimeEngine.getHotelDay(DateTime.now()),
-                          firstDate: DateTime(2000),
-                          lastDate: HotelTimeEngine.getHotelDay(
-                            DateTime.now(),
-                          ).add(const Duration(days: 365)),
-                        );
-                        if (picked != null) {
-                          setDialogState(() => terminationDate = picked);
-                        }
-                      },
-                      child: InputDecorator(
-                        decoration: InputDecoration(
-                          labelText: 'تاريخ الإنهاء',
-                          prefixIcon: const Icon(Icons.calendar_today),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Text(
-                          terminationDate != null
-                              ? '${terminationDate!.year}/${terminationDate!.month.toString().padLeft(2, '0')}/${terminationDate!.day.toString().padLeft(2, '0')}'
-                              : 'اختر التاريخ',
-                          style: TextStyle(
-                            color: terminationDate != null
-                                ? Colors.black
-                                : Colors.grey,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 16),
-
-                // سبب الإنهاء
-                TextField(
-                  controller: reasonController,
-                  decoration: InputDecoration(
-                    labelText: 'سبب الإنهاء (اختياري)',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    prefixIcon: const Icon(Icons.info_outline),
-                  ),
-                  maxLines: 2,
-                ),
-
-                const SizedBox(height: 16),
-
-                // تحذير
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
+                    color: Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.orange.shade200),
                   ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.warning, color: Colors.orange, size: 20),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'سيتم إيقاف صرف السلف والرواتب تلقائياً لهذا الموظف',
-                          style: TextStyle(fontSize: 12, color: Colors.orange),
-                        ),
-                      ),
-                    ],
+                  child: const Icon(Icons.person_off, color: Colors.red),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'إنهاء خدمة موظف',
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('إلغاء'),
-            ),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () async {
-                // ✅ استخدام اليوم الفندقي في تاريخ الإنهاء
-                final dateStr = terminationDate != null
-                    ? '${terminationDate!.year}-${terminationDate!.month.toString().padLeft(2, '0')}-${terminationDate!.day.toString().padLeft(2, '0')}'
-                    : HotelTimeEngine.getHotelDayKey();
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'الموظف: ${employee.name}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
 
-                try {
-                  final repo = ref.read(employeesRepoProvider);
-                  await repo.terminate(
-                    id: employee.id,
-                    terminationType: terminationType,
-                    terminationDate: dateStr,
-                    terminationReason: reasonController.text.trim(),
-                  );
+                  // نوع الإنهاء
+                  const Text(
+                    'نوع الإنهاء *',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 8),
+                  StatefulBuilder(
+                    builder: (context, setDialogState) {
+                      return Column(
+                        children: [
+                          RadioListTile<String>(
+                            title: const Row(
+                              children: [
+                                Icon(Icons.cancel, color: Colors.red, size: 20),
+                                SizedBox(width: 8),
+                                Text('فصل'),
+                              ],
+                            ),
+                            value: 'مفصول',
+                            // ignore: deprecated_member_use
+                            groupValue: terminationType,
+                            // ignore: deprecated_member_use
+                            onChanged: (v) =>
+                                setDialogState(() => terminationType = v!),
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          RadioListTile<String>(
+                            title: const Row(
+                              children: [
+                                Icon(
+                                  Icons.logout,
+                                  color: Colors.orange,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 8),
+                                Text('استقالة'),
+                              ],
+                            ),
+                            value: 'استقالة',
+                            // ignore: deprecated_member_use
+                            groupValue: terminationType,
+                            // ignore: deprecated_member_use
+                            onChanged: (v) =>
+                                setDialogState(() => terminationType = v!),
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          RadioListTile<String>(
+                            title: const Row(
+                              children: [
+                                Icon(
+                                  Icons.business_center,
+                                  color: Colors.grey,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 8),
+                                Text('استغناء'),
+                              ],
+                            ),
+                            value: 'استغناء',
+                            // ignore: deprecated_member_use
+                            groupValue: terminationType,
+                            // ignore: deprecated_member_use
+                            onChanged: (v) =>
+                                setDialogState(() => terminationType = v!),
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
 
-                  if (ctx.mounted) {
-                    Navigator.pop(ctx);
-                  }
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'تم إنهاء خدمة ${employee.name} ($terminationType)',
+                  const SizedBox(height: 16),
+
+                  // تاريخ الإنهاء
+                  StatefulBuilder(
+                    builder: (context, setDialogState) {
+                      return InkWell(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            // ✅ استخدام اليوم الفندقي كتاريخ مبدئي
+                            initialDate:
+                                terminationDate ??
+                                HotelTimeEngine.getHotelDay(DateTime.now()),
+                            firstDate: DateTime(2000),
+                            lastDate: HotelTimeEngine.getHotelDay(
+                              DateTime.now(),
+                            ).add(const Duration(days: 365)),
+                          );
+                          if (picked != null) {
+                            setDialogState(() => terminationDate = picked);
+                          }
+                        },
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            labelText: 'تاريخ الإنهاء',
+                            prefixIcon: const Icon(Icons.calendar_today),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            terminationDate != null
+                                ? '${terminationDate!.year}/${terminationDate!.month.toString().padLeft(2, '0')}/${terminationDate!.day.toString().padLeft(2, '0')}'
+                                : 'اختر التاريخ',
+                            style: TextStyle(
+                              color: terminationDate != null
+                                  ? Colors.black
+                                  : Colors.grey,
+                            ),
+                          ),
                         ),
-                        backgroundColor: Colors.orange,
-                        behavior: SnackBarBehavior.floating,
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // سبب الإنهاء
+                  TextField(
+                    controller: reasonController,
+                    decoration: InputDecoration(
+                      labelText: 'سبب الإنهاء (اختياري)',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    );
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('فشل إنهاء الخدمة: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                }
-              },
-              icon: const Icon(Icons.person_off, size: 18),
-              label: const Text('إنهاء الخدمة'),
+                      prefixIcon: const Icon(Icons.info_outline),
+                    ),
+                    maxLines: 2,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // تحذير
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.warning, color: Colors.orange, size: 20),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'سيتم إيقاف صرف السلف والرواتب تلقائياً لهذا الموظف',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.orange,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('إلغاء'),
+              ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: () async {
+                  // ✅ استخدام اليوم الفندقي في تاريخ الإنهاء
+                  final dateStr = terminationDate != null
+                      ? '${terminationDate!.year}-${terminationDate!.month.toString().padLeft(2, '0')}-${terminationDate!.day.toString().padLeft(2, '0')}'
+                      : HotelTimeEngine.getHotelDayKey();
+
+                  try {
+                    final repo = ref.read(employeesRepoProvider);
+                    await repo.terminate(
+                      id: employee.id,
+                      terminationType: terminationType,
+                      terminationDate: dateStr,
+                      terminationReason: reasonController.text.trim(),
+                    );
+
+                    if (ctx.mounted) {
+                      Navigator.pop(ctx);
+                    }
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'تم إنهاء خدمة ${employee.name} ($terminationType)',
+                          ),
+                          backgroundColor: Colors.orange,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('فشل إنهاء الخدمة: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.person_off, size: 18),
+                label: const Text('إنهاء الخدمة'),
+              ),
+            ],
+          ),
         ),
-      ),
-    ).then((_) {
-      // ✅ إصلاح تسرب ذاكرة: dispose المتحكم بعد إغلاق الحوار
-      reasonController.dispose();
-    }));
+      ).then((_) {
+        // ✅ إصلاح تسرب ذاكرة: dispose المتحكم بعد إغلاق الحوار
+        reasonController.dispose();
+      }),
+    );
   }
 
   /// إعادة تفعيل موظف مفصول
@@ -1231,308 +1254,310 @@ class SettingsEmployeesScreen extends ConsumerWidget {
     // إذا كانت الساعة 2 صباحاً من 4 يونيو → اليوم الفندقي = 3 يونيو
     DateTime selectedDate = HotelTimeEngine.getHotelDay(DateTime.now());
 
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.money_off, color: Colors.orange),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'سحب راتب - ${employee.name}',
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(10),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: Colors.orange.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.shade200),
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.attach_money,
-                        color: Colors.blue,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'الراتب الأساسي: ${CurrencyFormatter.formatAmount(employee.salary)}',
-                        style: const TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                    ],
+                  child: const Icon(Icons.money_off, color: Colors.orange),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'سحب راتب - ${employee.name}',
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                const SizedBox(height: 16),
-
-                // نوع السحب
-                const Text(
-                  'نوع السحب *',
-                  style: TextStyle(fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 8),
-                StatefulBuilder(
-                  builder: (context, setDialogState) {
-                    return Column(
-                      children: [
-                        RadioListTile<String>(
-                          title: const Row(
-                            children: [
-                              Icon(
-                                Icons.trending_up,
-                                color: Colors.orange,
-                                size: 20,
-                              ),
-                              SizedBox(width: 8),
-                              Text('سلفة'),
-                            ],
-                          ),
-                          value: 'سلفة',
-                          // ignore: deprecated_member_use
-                          groupValue: withdrawalType,
-                          // ignore: deprecated_member_use
-                          onChanged: (v) =>
-                              setDialogState(() => withdrawalType = v!),
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        RadioListTile<String>(
-                          title: const Row(
-                            children: [
-                              Icon(
-                                Icons.account_balance_wallet,
-                                color: Colors.purple,
-                                size: 20,
-                              ),
-                              SizedBox(width: 8),
-                              Text('سحب راتب'),
-                            ],
-                          ),
-                          value: 'سحب راتب',
-                          // ignore: deprecated_member_use
-                          groupValue: withdrawalType,
-                          // ignore: deprecated_member_use
-                          onChanged: (v) =>
-                              setDialogState(() => withdrawalType = v!),
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                        RadioListTile<String>(
-                          title: const Row(
-                            children: [
-                              Icon(Icons.build, color: Colors.grey, size: 20),
-                              SizedBox(width: 8),
-                              Text('أخرى'),
-                            ],
-                          ),
-                          value: 'أخرى',
-                          // ignore: deprecated_member_use
-                          groupValue: withdrawalType,
-                          // ignore: deprecated_member_use
-                          onChanged: (v) =>
-                              setDialogState(() => withdrawalType = v!),
-                          dense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ],
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 12),
-
-                TextField(
-                  controller: amountController,
-                  decoration: InputDecoration(
-                    labelText: 'المبلغ المسحوب *',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    prefixIcon: const Icon(Icons.attach_money),
-                  ),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  inputFormatters: const [englishIntegerInputFormatter],
-                ),
-                const SizedBox(height: 12),
-
-                // ✅ إصلاح: إضافة منتقي تاريخ مع اليوم الفندقي كافتراضي
-                StatefulBuilder(
-                  builder: (context, setDialogState) {
-                    return GestureDetector(
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: selectedDate,
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime(2100),
-                        );
-                        if (picked != null) {
-                          setDialogState(() => selectedDate = picked);
-                        }
-                      },
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'التاريخ',
-                          suffixIcon: Icon(Icons.calendar_today),
-                        ),
-                        child: Text(
-                          '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 12),
-                TextField(
-                  controller: noteController,
-                  decoration: InputDecoration(
-                    labelText: 'ملاحظات (اختياري)',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    prefixIcon: const Icon(Icons.note),
-                  ),
-                  maxLines: 2,
                 ),
               ],
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('إلغاء'),
-            ),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: Colors.orange),
-              onPressed: () async {
-                final amountText = amountController.text.trim();
-                if (amountText.isEmpty) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(
-                      content: Text('يرجى إدخال المبلغ'),
-                      backgroundColor: Colors.red,
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
                     ),
-                  );
-                  return;
-                }
-
-                final amount = double.tryParse(amountText);
-                if (amount == null || amount <= 0) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    const SnackBar(
-                      content: Text('يرجى إدخال مبلغ صحيح أكبر من صفر'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-
-                try {
-                  final repo = ref.read(salaryWithdrawalsRepoProvider);
-                  // ✅ إصلاح: استخدام selectedDate (اليوم الفندقي) بدلاً من DateTime.now()
-                  final dateStr =
-                      '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
-                  // حساب hotelDayKey من التاريخ المختار باستخدام 14:01
-                  // لضمان أن التاريخ التقويمي يُطابق نفس اليوم الفندقي
-                  final hotelDayKey = HotelTimeEngine.getHotelDayKey(
-                    dateTime: DateTime(
-                      selectedDate.year,
-                      selectedDate.month,
-                      selectedDate.day,
-                      14,
-                      1,
-                    ),
-                  );
-
-                  await repo.createFromExpense(
-                    expenseId: 0, // لا يوجد مصروف مرتبط — سحب مباشر
-                    employeeId: employee.id,
-                    reason: 'direct_withdrawal_${employee.localUuid}',
-                    amount: amount,
-                    date: dateStr,
-                    hotelDayKey: hotelDayKey,
-                    withdrawalType: withdrawalType,
-                    description: noteController.text.trim().isNotEmpty
-                        ? noteController.text.trim()
-                        : null,
-                  );
-
-                  if (ctx.mounted) {
-                    Navigator.pop(ctx);
-                  }
-                  // ✅ (2026-09-06) حماية onError — pushLocalChanges ترمي
-                  // عند الفشل (عقد صادق)؛ لا يجوز ترك خطأ async غير معالج.
-                  unawaited(
-                    ref
-                        .read(appwriteSyncManagerProvider)
-                        .pushLocalChanges()
-                        .then(
-                          (_) {},
-                          onError: (Object e) {
-                            debugPrint('⚠️ فشل الرفع الفوري (سحب): $e');
-                          },
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.attach_money,
+                          color: Colors.blue,
+                          size: 20,
                         ),
-                  );
-
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'تم تسجيل سحب ${CurrencyFormatter.formatAmount(amount)} $withdrawalType بنجاح',
+                        const SizedBox(width: 8),
+                        Text(
+                          'الراتب الأساسي: ${CurrencyFormatter.formatAmount(employee.salary)}',
+                          style: const TextStyle(fontWeight: FontWeight.w500),
                         ),
-                        backgroundColor: Colors.green,
-                        behavior: SnackBarBehavior.floating,
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // نوع السحب
+                  const Text(
+                    'نوع السحب *',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 8),
+                  StatefulBuilder(
+                    builder: (context, setDialogState) {
+                      return Column(
+                        children: [
+                          RadioListTile<String>(
+                            title: const Row(
+                              children: [
+                                Icon(
+                                  Icons.trending_up,
+                                  color: Colors.orange,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 8),
+                                Text('سلفة'),
+                              ],
+                            ),
+                            value: 'سلفة',
+                            // ignore: deprecated_member_use
+                            groupValue: withdrawalType,
+                            // ignore: deprecated_member_use
+                            onChanged: (v) =>
+                                setDialogState(() => withdrawalType = v!),
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          RadioListTile<String>(
+                            title: const Row(
+                              children: [
+                                Icon(
+                                  Icons.account_balance_wallet,
+                                  color: Colors.purple,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 8),
+                                Text('سحب راتب'),
+                              ],
+                            ),
+                            value: 'سحب راتب',
+                            // ignore: deprecated_member_use
+                            groupValue: withdrawalType,
+                            // ignore: deprecated_member_use
+                            onChanged: (v) =>
+                                setDialogState(() => withdrawalType = v!),
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          RadioListTile<String>(
+                            title: const Row(
+                              children: [
+                                Icon(Icons.build, color: Colors.grey, size: 20),
+                                SizedBox(width: 8),
+                                Text('أخرى'),
+                              ],
+                            ),
+                            value: 'أخرى',
+                            // ignore: deprecated_member_use
+                            groupValue: withdrawalType,
+                            // ignore: deprecated_member_use
+                            onChanged: (v) =>
+                                setDialogState(() => withdrawalType = v!),
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  TextField(
+                    controller: amountController,
+                    decoration: InputDecoration(
+                      labelText: 'المبلغ المسحوب *',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    );
-                  }
-                } catch (e) {
-                  if (ctx.mounted) {
+                      prefixIcon: const Icon(Icons.attach_money),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: const [englishIntegerInputFormatter],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // ✅ إصلاح: إضافة منتقي تاريخ مع اليوم الفندقي كافتراضي
+                  StatefulBuilder(
+                    builder: (context, setDialogState) {
+                      return GestureDetector(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: selectedDate,
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime(2100),
+                          );
+                          if (picked != null) {
+                            setDialogState(() => selectedDate = picked);
+                          }
+                        },
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'التاريخ',
+                            suffixIcon: Icon(Icons.calendar_today),
+                          ),
+                          child: Text(
+                            '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: noteController,
+                    decoration: InputDecoration(
+                      labelText: 'ملاحظات (اختياري)',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      prefixIcon: const Icon(Icons.note),
+                    ),
+                    maxLines: 2,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('إلغاء'),
+              ),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: Colors.orange),
+                onPressed: () async {
+                  final amountText = amountController.text.trim();
+                  if (amountText.isEmpty) {
                     ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(
-                        content: Text('فشل تسجيل السحب: $e'),
+                      const SnackBar(
+                        content: Text('يرجى إدخال المبلغ'),
                         backgroundColor: Colors.red,
                       ),
                     );
+                    return;
                   }
-                }
-              },
-              icon: const Icon(Icons.check, size: 18),
-              label: const Text('تسجيل السحب'),
-            ),
-          ],
+
+                  final amount = double.tryParse(amountText);
+                  if (amount == null || amount <= 0) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      const SnackBar(
+                        content: Text('يرجى إدخال مبلغ صحيح أكبر من صفر'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  try {
+                    final repo = ref.read(salaryWithdrawalsRepoProvider);
+                    // ✅ إصلاح: استخدام selectedDate (اليوم الفندقي) بدلاً من DateTime.now()
+                    final dateStr =
+                        '${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}';
+                    // حساب hotelDayKey من التاريخ المختار باستخدام 14:01
+                    // لضمان أن التاريخ التقويمي يُطابق نفس اليوم الفندقي
+                    final hotelDayKey = HotelTimeEngine.getHotelDayKey(
+                      dateTime: DateTime(
+                        selectedDate.year,
+                        selectedDate.month,
+                        selectedDate.day,
+                        14,
+                        1,
+                      ),
+                    );
+
+                    await repo.createFromExpense(
+                      expenseId: 0, // لا يوجد مصروف مرتبط — سحب مباشر
+                      employeeId: employee.id,
+                      reason: 'direct_withdrawal_${employee.localUuid}',
+                      amount: amount,
+                      date: dateStr,
+                      hotelDayKey: hotelDayKey,
+                      withdrawalType: withdrawalType,
+                      description: noteController.text.trim().isNotEmpty
+                          ? noteController.text.trim()
+                          : null,
+                    );
+
+                    if (ctx.mounted) {
+                      Navigator.pop(ctx);
+                    }
+                    // ✅ (2026-09-06) حماية onError — pushLocalChanges ترمي
+                    // عند الفشل (عقد صادق)؛ لا يجوز ترك خطأ async غير معالج.
+                    unawaited(
+                      ref
+                          .read(appwriteSyncManagerProvider)
+                          .pushLocalChanges()
+                          .then(
+                            (_) {},
+                            onError: (Object e) {
+                              debugPrint('⚠️ فشل الرفع الفوري (سحب): $e');
+                            },
+                          ),
+                    );
+
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'تم تسجيل سحب ${CurrencyFormatter.formatAmount(amount)} $withdrawalType بنجاح',
+                          ),
+                          backgroundColor: Colors.green,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (ctx.mounted) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        SnackBar(
+                          content: Text('فشل تسجيل السحب: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.check, size: 18),
+                label: const Text('تسجيل السحب'),
+              ),
+            ],
+          ),
         ),
-      ),
-    ).then((_) {
-      // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات بعد إغلاق الحوار
-      amountController.dispose();
-      noteController.dispose();
-    }));
+      ).then((_) {
+        // ✅ إصلاح تسرب ذاكرة: dispose المتحكمات بعد إغلاق الحوار
+        amountController.dispose();
+        noteController.dispose();
+      }),
+    );
   }
 
   Future<void> _deleteEmployee(

@@ -285,133 +285,143 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
   }
 
   void _showLogDetails(SyncLogEntry log) {
-    unawaited(showModalBottomSheet<void>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: log.direction == 'pull'
-                          ? Colors.blue.shade50
-                          : Colors.purple.shade50,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Icon(
-                        log.direction == 'pull' ? Icons.download : Icons.upload,
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (context) {
+          return Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
                         color: log.direction == 'pull'
-                            ? Colors.blue
-                            : Colors.purple,
-                        size: 24,
+                            ? Colors.blue.shade50
+                            : Colors.purple.shade50,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Icon(
+                          log.direction == 'pull'
+                              ? Icons.download
+                              : Icons.upload,
+                          color: log.direction == 'pull'
+                              ? Colors.blue
+                              : Colors.purple,
+                          size: 24,
+                        ),
                       ),
                     ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            log.direction == 'pull'
+                                ? 'سحب من السيرفر'
+                                : 'رفع إلى السيرفر',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            log.syncId,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const Divider(height: 32),
+                _buildDetailRow(
+                  'الحالة',
+                  log.status == 'success'
+                      ? 'نجح'
+                      : log.status == 'partial'
+                      ? 'نجح جزئياً'
+                      : 'فشل',
+                ),
+                _buildDetailRow('الجهاز', log.deviceId),
+                _buildDetailRow('الوجهة', log.target ?? 'غير معروف'),
+                _buildDetailRow(
+                  'وقت البدء',
+                  _formatFullDateTime(log.createdAt),
+                ),
+                if (log.completedAt != null)
+                  _buildDetailRow(
+                    'وقت الانتهاء',
+                    _formatFullDateTime(log.completedAt!),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
+                if (log.durationMs != null)
+                  _buildDetailRow('المدة', '${log.durationMs} مللي ثانية'),
+                if (log.recordsCount != null)
+                  _buildDetailRow('عدد السجول', '${log.recordsCount}'),
+                if (log.errorMessage != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          log.direction == 'pull'
-                              ? 'سحب من السيرفر'
-                              : 'رفع إلى السيرفر',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.error_outline,
+                              color: Colors.red.shade700,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'رسالة الخطأ',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red.shade700,
+                              ),
+                            ),
+                          ],
                         ),
+                        const SizedBox(height: 8),
                         Text(
-                          log.syncId,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
+                          log.errorMessage!,
+                          style: TextStyle(color: Colors.red.shade700),
                         ),
                       ],
                     ),
                   ),
                 ],
-              ),
-              const Divider(height: 32),
-              _buildDetailRow(
-                'الحالة',
-                log.status == 'success'
-                    ? 'نجح'
-                    : log.status == 'partial'
-                    ? 'نجح جزئياً'
-                    : 'فشل',
-              ),
-              _buildDetailRow('الجهاز', log.deviceId),
-              _buildDetailRow('الوجهة', log.target ?? 'غير معروف'),
-              _buildDetailRow('وقت البدء', _formatFullDateTime(log.createdAt)),
-              if (log.completedAt != null)
-                _buildDetailRow(
-                  'وقت الانتهاء',
-                  _formatFullDateTime(log.completedAt!),
-                ),
-              if (log.durationMs != null)
-                _buildDetailRow('المدة', '${log.durationMs} مللي ثانية'),
-              if (log.recordsCount != null)
-                _buildDetailRow('عدد السجول', '${log.recordsCount}'),
-              if (log.errorMessage != null) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.shade200),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.error_outline, color: Colors.red.shade700),
-                          const SizedBox(width: 8),
-                          Text(
-                            'رسالة الخطأ',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.red.shade700,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        log.errorMessage!,
-                        style: TextStyle(color: Colors.red.shade700),
-                      ),
-                    ],
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('إغلاق'),
                   ),
                 ),
               ],
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('إغلاق'),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    ));
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Widget _buildDetailRow(String label, String value) {
@@ -463,54 +473,59 @@ class _SyncHistoryScreenState extends ConsumerState<SyncHistoryScreen> {
   }
 
   void _showFilterDialog() {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('تصفية السجل'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              DropdownButtonFormField<String?>(
-                initialValue: _selectedDirection,
-                decoration: const InputDecoration(labelText: 'النوع'),
-                items: const [
-                  DropdownMenuItem(child: Text('الكل')),
-                  DropdownMenuItem(value: 'pull', child: Text('سحب')),
-                  DropdownMenuItem(value: 'push', child: Text('رفع')),
-                ],
-                onChanged: (value) =>
-                    setState(() => _selectedDirection = value),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('تصفية السجل'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String?>(
+                  initialValue: _selectedDirection,
+                  decoration: const InputDecoration(labelText: 'النوع'),
+                  items: const [
+                    DropdownMenuItem(child: Text('الكل')),
+                    DropdownMenuItem(value: 'pull', child: Text('سحب')),
+                    DropdownMenuItem(value: 'push', child: Text('رفع')),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => _selectedDirection = value),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String?>(
+                  initialValue: _selectedStatus,
+                  decoration: const InputDecoration(labelText: 'الحالة'),
+                  items: const [
+                    DropdownMenuItem(child: Text('الكل')),
+                    DropdownMenuItem(value: 'success', child: Text('نجح')),
+                    DropdownMenuItem(
+                      value: 'partial',
+                      child: Text('نجح جزئياً'),
+                    ),
+                    DropdownMenuItem(value: 'failed', child: Text('فشل')),
+                  ],
+                  onChanged: (value) => setState(() => _selectedStatus = value),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('إلغاء'),
               ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String?>(
-                initialValue: _selectedStatus,
-                decoration: const InputDecoration(labelText: 'الحالة'),
-                items: const [
-                  DropdownMenuItem(child: Text('الكل')),
-                  DropdownMenuItem(value: 'success', child: Text('نجح')),
-                  DropdownMenuItem(value: 'partial', child: Text('نجح جزئياً')),
-                  DropdownMenuItem(value: 'failed', child: Text('فشل')),
-                ],
-                onChanged: (value) => setState(() => _selectedStatus = value),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {});
+                  Navigator.pop(context);
+                },
+                child: const Text('تطبيق'),
               ),
             ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('إلغاء'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {});
-                Navigator.pop(context);
-              },
-              child: const Text('تطبيق'),
-            ),
-          ],
-        );
-      },
-    ));
+          );
+        },
+      ),
+    );
   }
 }

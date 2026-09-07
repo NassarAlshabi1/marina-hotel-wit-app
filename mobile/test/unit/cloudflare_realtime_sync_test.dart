@@ -65,10 +65,7 @@ void main() {
       expect(CloudflareRealtimeMessage.tryParse(null), isNull);
       expect(CloudflareRealtimeMessage.tryParse([1, 2]), isNull);
       expect(CloudflareRealtimeMessage.tryParse('{"entity":"rooms"}'), isNull);
-      expect(
-        CloudflareRealtimeMessage.tryParse('{"type":"change"}'),
-        isNull,
-      );
+      expect(CloudflareRealtimeMessage.tryParse('{"type":"change"}'), isNull);
     });
   });
 

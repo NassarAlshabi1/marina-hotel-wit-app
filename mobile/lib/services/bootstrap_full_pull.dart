@@ -83,6 +83,7 @@ class BootstrapFullPull {
     required bool isFullSyncCompleted,
     required Future<bool> Function() initializeAndFullPull,
     required Future<void> Function(bool value) setPullDoneFlag,
+
     /// ✅ (2026-09-07) false = تشغيل بلا شرط التخطي (مسار الإطلاق
     /// ensureFullPullOnLaunch): السحب الكامل قرار بنية تحتية يعمل عبر
     /// التوكن الافتراضي ويجري حتى والمستخدم على شاشة تسجيل الدخول —

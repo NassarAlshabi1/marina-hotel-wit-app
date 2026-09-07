@@ -161,52 +161,51 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
   }
 
   void _showErrorDetails(String message) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.error, color: Colors.red),
-            SizedBox(width: 8),
-            Text('تفاصيل الخطأ'),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Row(
             children: [
-              _buildDetailRow('العملية', 'manual_sync'),
-              _buildDetailRow('الجدول', 'all'),
-              _buildDetailRow('الخطورة', 'خطأ'),
-
-              const SizedBox(height: 8),
-              const Text(
-                'الرسالة:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  message,
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ),
+              Icon(Icons.error, color: Colors.red),
+              SizedBox(width: 8),
+              Text('تفاصيل الخطأ'),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إغلاق'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildDetailRow('العملية', 'manual_sync'),
+                _buildDetailRow('الجدول', 'all'),
+                _buildDetailRow('الخطورة', 'خطأ'),
+
+                const SizedBox(height: 8),
+                const Text(
+                  'الرسالة:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(message, style: const TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إغلاق'),
+            ),
+          ],
+        ),
       ),
-    ));
+    );
   }
 
   Widget _buildDetailRow(String label, String value) {
@@ -222,75 +221,83 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
   }
 
   void _showSyncOptions() {
-    unawaited(showModalBottomSheet<void>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.sync, color: Theme.of(context).primaryColor),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'خيارات المزامنة',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              const Divider(),
-              _buildHealthStatus(),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.cloud_upload, color: Colors.blue),
-                title: const Text('رفع التغييرات'),
-                subtitle: const Text('رفع التغييرات المحلية إلى السحابة'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _pushOnly();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.cloud_download, color: Colors.green),
-                title: const Text('سحب التحديثات'),
-                subtitle: const Text('تحميل آخر التحديثات من السحابة'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _pullOnly();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.sync, color: Colors.orange),
-                title: const Text('مزامنة كاملة'),
-                subtitle: const Text('رفع وسحب جميع البيانات'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _triggerSync();
-                },
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.health_and_safety,
-                  color: Colors.purple,
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (context) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.sync, color: Theme.of(context).primaryColor),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'خيارات المزامنة',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
-                title: const Text('فحص سلامة البيانات'),
-                subtitle: const Text('التحقق من تكامل قاعدة البيانات'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _verifyIntegrity();
-                },
-              ),
-            ],
+                const Divider(),
+                _buildHealthStatus(),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.cloud_upload, color: Colors.blue),
+                  title: const Text('رفع التغييرات'),
+                  subtitle: const Text('رفع التغييرات المحلية إلى السحابة'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _pushOnly();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.cloud_download,
+                    color: Colors.green,
+                  ),
+                  title: const Text('سحب التحديثات'),
+                  subtitle: const Text('تحميل آخر التحديثات من السحابة'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _pullOnly();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.sync, color: Colors.orange),
+                  title: const Text('مزامنة كاملة'),
+                  subtitle: const Text('رفع وسحب جميع البيانات'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _triggerSync();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.health_and_safety,
+                    color: Colors.purple,
+                  ),
+                  title: const Text('فحص سلامة البيانات'),
+                  subtitle: const Text('التحقق من تكامل قاعدة البيانات'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _verifyIntegrity();
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildHealthStatus() {

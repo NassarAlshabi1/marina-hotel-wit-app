@@ -373,20 +373,22 @@ class GoogleDriveUnifiedSyncCoordinator {
       return;
     }
 
-    unawaited(SyncLocks.mainSyncLock.synchronized(() {
-      final now = DateTime.now();
+    unawaited(
+      SyncLocks.mainSyncLock.synchronized(() {
+        final now = DateTime.now();
 
-      if (!_hasPendingChanges) {
-        _firstChangeTime = now;
-        _log(
-          '💾 Save action detected: ${table ?? "unknown"} ($operation)',
-          level: LogLevel.debug,
-        );
-      }
+        if (!_hasPendingChanges) {
+          _firstChangeTime = now;
+          _log(
+            '💾 Save action detected: ${table ?? "unknown"} ($operation)',
+            level: LogLevel.debug,
+          );
+        }
 
-      _hasPendingChanges = true;
-      _pendingChangesCount += count;
-    }));
+        _hasPendingChanges = true;
+        _pendingChangesCount += count;
+      }),
+    );
 
     _debounceTimer?.cancel();
 

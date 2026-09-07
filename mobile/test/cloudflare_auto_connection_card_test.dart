@@ -49,9 +49,7 @@ void main() {
       ],
       child: MaterialApp(
         home: Scaffold(
-          body: ListView(
-            children: const [CloudflareAutoConnectionCard()],
-          ),
+          body: ListView(children: const [CloudflareAutoConnectionCard()]),
         ),
       ),
     );

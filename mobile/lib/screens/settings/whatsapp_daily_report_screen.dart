@@ -840,60 +840,64 @@ class _WhatsAppDailyReportScreenState
   }
 
   void _showSetupGuide(BuildContext context) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('كيف تعمل خدمة CallMeBot؟'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '📲 خدمة CallMeBot WhatsApp:',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            ),
-            SizedBox(height: 4),
-            Text(
-              'تتيح لك خدمة CallMeBot إرسال رسائل واتساب تلقائية عبر API مجاني.',
-            ),
-            SizedBox(height: 8),
-            Text(
-              '⚙️ الإعدادات مُعدّة مسبقاً:',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            ),
-            SizedBox(height: 4),
-            Text('• رقم الهاتف +967773749389'),
-            Text('• API Key مُعدّ وجاهز'),
-            SizedBox(height: 8),
-            Text(
-              '✅ خطوات التفعيل:',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            ),
-            SizedBox(height: 4),
-            Text('1. فعّل مفتاح التقرير اليومي'),
-            Text('2. اختر وقت الإرسال المناسب'),
-            Text('3. اضغط "اختبار الاتصال" للتحقق'),
-            Text('4. سيتم إرسال التقرير تلقائياً كل يوم'),
-            SizedBox(height: 8),
-            Text(
-              '📋 محتوى التقرير:',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            ),
-            SizedBox(height: 4),
-            Text(
-              'حالة الغرف — حجوزات اليوم — الملخص المالي — الديون — التنبيهات',
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text('كيف تعمل خدمة CallMeBot؟'),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '📲 خدمة CallMeBot WhatsApp:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'تتيح لك خدمة CallMeBot إرسال رسائل واتساب تلقائية عبر API مجاني.',
+              ),
+              SizedBox(height: 8),
+              Text(
+                '⚙️ الإعدادات مُعدّة مسبقاً:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              SizedBox(height: 4),
+              Text('• رقم الهاتف +967773749389'),
+              Text('• API Key مُعدّ وجاهز'),
+              SizedBox(height: 8),
+              Text(
+                '✅ خطوات التفعيل:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              SizedBox(height: 4),
+              Text('1. فعّل مفتاح التقرير اليومي'),
+              Text('2. اختر وقت الإرسال المناسب'),
+              Text('3. اضغط "اختبار الاتصال" للتحقق'),
+              Text('4. سيتم إرسال التقرير تلقائياً كل يوم'),
+              SizedBox(height: 8),
+              Text(
+                '📋 محتوى التقرير:',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'حالة الغرف — حجوزات اليوم — الملخص المالي — الديون — التنبيهات',
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('فهمت'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('فهمت'),
-          ),
-        ],
       ),
-    ));
+    );
   }
 
   Widget _buildSectionTitle(String title, IconData icon, Color color) {

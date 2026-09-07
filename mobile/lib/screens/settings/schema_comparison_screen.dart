@@ -653,35 +653,37 @@ class SchemaComparisonScreen extends StatelessWidget {
   }
 
   void _showInfoDialog(BuildContext context) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('معلومات المقارنة'),
-        content: const SingleChildScrollView(
-          child: Text(
-            'هذه الشاشة توضح المقارنة بين:\n\n'
-            '• Local DB (SQLite) - قاعدة البيانات المحلية\n'
-            '• Appwrite Cloud - السحابة\n\n'
-            'الاختلافات الرئيسية:\n'
-            '- تسمية الأعمدة (snake_case vs camelCase)\n'
-            '- طبيعة القاعدة (SQL vs NoSQL)\n'
-            '- معالجة البيانات (Adapters)\n\n'
-            'تم إصلاح جميع الأخطاء المتعلقة بـ:\n'
-            '✓ تحويل UUID إلى integer\n'
-            '✓ orphan data\n'
-            '✓ SQL column names\n'
-            '✓ Error handling',
-            style: TextStyle(fontSize: 14),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('معلومات المقارنة'),
+          content: const SingleChildScrollView(
+            child: Text(
+              'هذه الشاشة توضح المقارنة بين:\n\n'
+              '• Local DB (SQLite) - قاعدة البيانات المحلية\n'
+              '• Appwrite Cloud - السحابة\n\n'
+              'الاختلافات الرئيسية:\n'
+              '- تسمية الأعمدة (snake_case vs camelCase)\n'
+              '- طبيعة القاعدة (SQL vs NoSQL)\n'
+              '- معالجة البيانات (Adapters)\n\n'
+              'تم إصلاح جميع الأخطاء المتعلقة بـ:\n'
+              '✓ تحويل UUID إلى integer\n'
+              '✓ orphan data\n'
+              '✓ SQL column names\n'
+              '✓ Error handling',
+              style: TextStyle(fontSize: 14),
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('حسناً'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('حسناً'),
-          ),
-        ],
       ),
-    ));
+    );
   }
 }
 

@@ -454,47 +454,49 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
 
   void _showSearchDialog(BuildContext context) {
     final controller = TextEditingController(text: _filterText);
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('بحث في القائمة السوداء'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'اسم، هوية، هاتف، أو جنسية',
-            prefixIcon: Icon(Icons.search),
-          ),
-          onSubmitted: (value) {
-            setState(() => _filterText = value);
-            Navigator.pop(ctx);
-          },
-        ),
-        actions: [
-          if (_filterText.isNotEmpty)
-            TextButton(
-              onPressed: () {
-                setState(() => _filterText = '');
-                Navigator.pop(ctx);
-              },
-              child: const Text('مسح البحث'),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('بحث في القائمة السوداء'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'اسم، هوية، هاتف، أو جنسية',
+              prefixIcon: Icon(Icons.search),
             ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() => _filterText = controller.text);
+            onSubmitted: (value) {
+              setState(() => _filterText = value);
               Navigator.pop(ctx);
             },
-            child: const Text('بحث'),
           ),
-        ],
-      ),
-    ).then((_) {
-      controller.dispose();
-    }));
+          actions: [
+            if (_filterText.isNotEmpty)
+              TextButton(
+                onPressed: () {
+                  setState(() => _filterText = '');
+                  Navigator.pop(ctx);
+                },
+                child: const Text('مسح البحث'),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() => _filterText = controller.text);
+                Navigator.pop(ctx);
+              },
+              child: const Text('بحث'),
+            ),
+          ],
+        ),
+      ).then((_) {
+        controller.dispose();
+      }),
+    );
   }
 
   Future<bool?> _showDeleteConfirmDialog(BuildContext context, String name) {
@@ -543,152 +545,154 @@ class _BlacklistScreenState extends ConsumerState<BlacklistScreen> {
     );
     final formKey = GlobalKey<FormState>();
 
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          isEdit ? 'تعديل بيانات الشخص' : 'إضافة إلى القائمة السوداء',
-        ),
-        content: Form(
-          key: formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'الاسم الكامل *',
-                    prefixIcon: Icon(Icons.person),
-                    border: OutlineInputBorder(),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(
+            isEdit ? 'تعديل بيانات الشخص' : 'إضافة إلى القائمة السوداء',
+          ),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: nameCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'الاسم الكامل *',
+                      prefixIcon: Icon(Icons.person),
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? 'مطلوب' : null,
                   ),
-                  validator: (v) =>
-                      v == null || v.trim().isEmpty ? 'مطلوب' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: nationalityCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'الجنسية',
-                    prefixIcon: Icon(Icons.flag),
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: nationalityCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'الجنسية',
+                      prefixIcon: Icon(Icons.flag),
+                      border: OutlineInputBorder(),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: nationalIdCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'رقم الهوية',
-                    prefixIcon: Icon(Icons.badge),
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: nationalIdCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'رقم الهوية',
+                      prefixIcon: Icon(Icons.badge),
+                      border: OutlineInputBorder(),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: phoneCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'رقم الهاتف',
-                    prefixIcon: Icon(Icons.phone),
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: phoneCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'رقم الهاتف',
+                      prefixIcon: Icon(Icons.phone),
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.phone,
+                    inputFormatters: const [englishIntegerInputFormatter],
                   ),
-                  keyboardType: TextInputType.phone,
-                  inputFormatters: const [englishIntegerInputFormatter],
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: reasonCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'السبب',
-                    prefixIcon: Icon(Icons.warning),
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: reasonCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'السبب',
+                      prefixIcon: Icon(Icons.warning),
+                      border: OutlineInputBorder(),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: notesCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'ملاحظات',
-                    prefixIcon: Icon(Icons.notes),
-                    border: OutlineInputBorder(),
-                    alignLabelWithHint: true,
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: notesCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'ملاحظات',
+                      prefixIcon: Icon(Icons.notes),
+                      border: OutlineInputBorder(),
+                      alignLabelWithHint: true,
+                    ),
+                    maxLines: 2,
                   ),
-                  maxLines: 2,
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton.icon(
-            onPressed: () async {
-              if (!formKey.currentState!.validate()) {
-                return;
-              }
-              final navigator = Navigator.of(ctx);
-              try {
-                if (isEdit) {
-                  await repo.updateEntry(
-                    id: entry.id,
-                    name: nameCtrl.text,
-                    nationality: nationalityCtrl.text,
-                    nationalId: nationalIdCtrl.text,
-                    phone: phoneCtrl.text,
-                    reason: reasonCtrl.text,
-                    notes: notesCtrl.text,
-                  );
-                } else {
-                  await repo.addEntry(
-                    name: nameCtrl.text,
-                    nationality: nationalityCtrl.text,
-                    nationalId: nationalIdCtrl.text,
-                    phone: phoneCtrl.text,
-                    reason: reasonCtrl.text,
-                    notes: notesCtrl.text,
-                  );
-                }
-                navigator.pop();
-                if (!mounted) {
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            FilledButton.icon(
+              onPressed: () async {
+                if (!formKey.currentState!.validate()) {
                   return;
                 }
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      isEdit
-                          ? 'تم تعديل: ${nameCtrl.text}'
-                          : 'تمت الإضافة: ${nameCtrl.text}',
+                final navigator = Navigator.of(ctx);
+                try {
+                  if (isEdit) {
+                    await repo.updateEntry(
+                      id: entry.id,
+                      name: nameCtrl.text,
+                      nationality: nationalityCtrl.text,
+                      nationalId: nationalIdCtrl.text,
+                      phone: phoneCtrl.text,
+                      reason: reasonCtrl.text,
+                      notes: notesCtrl.text,
+                    );
+                  } else {
+                    await repo.addEntry(
+                      name: nameCtrl.text,
+                      nationality: nationalityCtrl.text,
+                      nationalId: nationalIdCtrl.text,
+                      phone: phoneCtrl.text,
+                      reason: reasonCtrl.text,
+                      notes: notesCtrl.text,
+                    );
+                  }
+                  navigator.pop();
+                  if (!mounted) {
+                    return;
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        isEdit
+                            ? 'تم تعديل: ${nameCtrl.text}'
+                            : 'تمت الإضافة: ${nameCtrl.text}',
+                      ),
+                      backgroundColor: isEdit ? Colors.blue : Colors.green,
                     ),
-                    backgroundColor: isEdit ? Colors.blue : Colors.green,
-                  ),
-                );
-              } catch (e) {
-                if (!mounted) {
-                  return;
+                  );
+                } catch (e) {
+                  if (!mounted) {
+                    return;
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('خطأ: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
                 }
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('خطأ: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-            icon: Icon(isEdit ? Icons.save : Icons.person_add),
-            label: Text(isEdit ? 'حفظ التعديلات' : 'إضافة'),
-          ),
-        ],
-      ),
-    ).then((_) {
-      nameCtrl.dispose();
-      nationalityCtrl.dispose();
-      nationalIdCtrl.dispose();
-      phoneCtrl.dispose();
-      reasonCtrl.dispose();
-      notesCtrl.dispose();
-    }));
+              },
+              icon: Icon(isEdit ? Icons.save : Icons.person_add),
+              label: Text(isEdit ? 'حفظ التعديلات' : 'إضافة'),
+            ),
+          ],
+        ),
+      ).then((_) {
+        nameCtrl.dispose();
+        nationalityCtrl.dispose();
+        nationalIdCtrl.dispose();
+        phoneCtrl.dispose();
+        reasonCtrl.dispose();
+        notesCtrl.dispose();
+      }),
+    );
   }
 }
 

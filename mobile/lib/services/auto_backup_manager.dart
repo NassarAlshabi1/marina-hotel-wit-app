@@ -256,10 +256,12 @@ class AutoBackupManager {
         !WeakDeviceOptimizer.instance.isWeakDevice) {
       _debounceTimer?.cancel();
       _debounceTimer = Timer(const Duration(seconds: _debounceSeconds), () {
-        unawaited(_performAutoBackup(
-          reason: 'تغييرات تلقائية ($tableName: $operation)',
-          changesCount: _pendingChanges,
-        ));
+        unawaited(
+          _performAutoBackup(
+            reason: 'تغييرات تلقائية ($tableName: $operation)',
+            changesCount: _pendingChanges,
+          ),
+        );
         _pendingChanges = 0;
       });
     }

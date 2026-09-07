@@ -724,24 +724,26 @@ class _AutoSyncEngineMonitorScreenState
 
     statusAsync.when(
       data: (status) {
-        unawaited(showDialog<void>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('الحالة الكاملة (JSON)'),
-            content: SingleChildScrollView(
-              child: SelectableText(
-                const JsonEncoder.withIndent('  ').convert(status),
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+        unawaited(
+          showDialog<void>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('الحالة الكاملة (JSON)'),
+              content: SingleChildScrollView(
+                child: SelectableText(
+                  const JsonEncoder.withIndent('  ').convert(status),
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                ),
               ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('إغلاق'),
+                ),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('إغلاق'),
-              ),
-            ],
           ),
-        ));
+        );
       },
       loading: () {
         ScaffoldMessenger.of(
@@ -776,89 +778,93 @@ class _AutoSyncEngineMonitorScreenState
           return;
         }
 
-        unawaited(showModalBottomSheet<void>(
-          context: context,
-          isScrollControlled: true,
-          builder: (context) => DraggableScrollableSheet(
-            initialChildSize: 0.7,
-            minChildSize: 0.5,
-            maxChildSize: 0.95,
-            expand: false,
-            builder: (context, scrollController) => Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.purple.shade700,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
+        unawaited(
+          showModalBottomSheet<void>(
+            context: context,
+            isScrollControlled: true,
+            builder: (context) => DraggableScrollableSheet(
+              initialChildSize: 0.7,
+              minChildSize: 0.5,
+              maxChildSize: 0.95,
+              expand: false,
+              builder: (context, scrollController) => Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.shade700,
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16),
+                      ),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.history, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text(
+                          'سجل التضاربات',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.history, color: Colors.white),
-                      SizedBox(width: 8),
-                      Text(
-                        'سجل التضاربات',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
+                  Expanded(
+                    child: ListView.builder(
+                      controller: scrollController,
+                      itemCount: history.length,
+                      itemBuilder: (context, index) {
+                        final entry = history[index];
+                        return ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: Colors.purple.shade100,
+                            child: Text('${index + 1}'),
+                          ),
+                          title: Text(
+                            '${entry['table'] as String} / ${entry['uuid'] as String}',
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(entry['resolution'] as String? ?? ''),
+                              Text(
+                                'الفرق الزمني: ${entry['time_diff_seconds'] as String? ?? ''} ثانية',
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                            ],
+                          ),
+                          trailing: Text(
+                            _formatTimestamp(entry['timestamp'] as String?),
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    controller: scrollController,
-                    itemCount: history.length,
-                    itemBuilder: (context, index) {
-                      final entry = history[index];
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.purple.shade100,
-                          child: Text('${index + 1}'),
-                        ),
-                        title: Text(
-                          '${entry['table'] as String} / ${entry['uuid'] as String}',
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(entry['resolution'] as String? ?? ''),
-                            Text(
-                              'الفرق الزمني: ${entry['time_diff_seconds'] as String? ?? ''} ثانية',
-                              style: const TextStyle(fontSize: 11),
-                            ),
-                          ],
-                        ),
-                        trailing: Text(
-                          _formatTimestamp(entry['timestamp'] as String?),
-                          style: const TextStyle(fontSize: 11),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ));
+        );
       },
       loading: () {
-        unawaited(showDialog<void>(
-          context: context,
-          builder: (context) => const AlertDialog(
-            content: Row(
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(width: 16),
-                Text('جارٍ التحميل...'),
-              ],
+        unawaited(
+          showDialog<void>(
+            context: context,
+            builder: (context) => const AlertDialog(
+              content: Row(
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(width: 16),
+                  Text('جارٍ التحميل...'),
+                ],
+              ),
             ),
           ),
-        ));
+        );
       },
       error: (error, _) {
         ScaffoldMessenger.of(context).showSnackBar(

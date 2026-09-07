@@ -485,29 +485,31 @@ class PdfPreviewHelper {
     required Booking booking,
     required String receivedBy,
   }) {
-    unawaited(Navigator.push<void>(
-      context,
-      MaterialPageRoute<void>(
-        builder: (context) => EnhancedPdfPreviewScreen(
-          title: 'إيصال دفع محسّن',
-          pdfGenerator: () async {
-            final receipt = EnhancedPaymentReceipt(
-              receiptNumber: 'REC-${DateTime.now().millisecondsSinceEpoch}',
-              guestName: booking.guestName,
-              guestPhone: booking.guestPhone,
-              roomNumber: booking.roomNumber,
-              payment: payment,
-              hotelName: 'فندق مارينا بلازا',
-              hotelAddress: 'القاهرة - شارع احمد قاسم',
-              receivedBy: receivedBy,
-              issuedAt: DateTime.now(),
-              notes: payment.notes,
-            );
+    unawaited(
+      Navigator.push<void>(
+        context,
+        MaterialPageRoute<void>(
+          builder: (context) => EnhancedPdfPreviewScreen(
+            title: 'إيصال دفع محسّن',
+            pdfGenerator: () async {
+              final receipt = EnhancedPaymentReceipt(
+                receiptNumber: 'REC-${DateTime.now().millisecondsSinceEpoch}',
+                guestName: booking.guestName,
+                guestPhone: booking.guestPhone,
+                roomNumber: booking.roomNumber,
+                payment: payment,
+                hotelName: 'فندق مارينا بلازا',
+                hotelAddress: 'القاهرة - شارع احمد قاسم',
+                receivedBy: receivedBy,
+                issuedAt: DateTime.now(),
+                notes: payment.notes,
+              );
 
-            return receipt.generatePdfBytes();
-          },
+              return receipt.generatePdfBytes();
+            },
+          ),
         ),
       ),
-    ));
+    );
   }
 }

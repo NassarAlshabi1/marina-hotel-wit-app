@@ -34,11 +34,7 @@ void main() {
 
     LocalNotificationService.instance.setTestingCapture((title, body, payload) {
       capturedNotifications.add(
-        _CapturedNotification(
-          title: title,
-          body: body,
-          payload: payload,
-        ),
+        _CapturedNotification(title: title, body: body, payload: payload),
       );
     });
 

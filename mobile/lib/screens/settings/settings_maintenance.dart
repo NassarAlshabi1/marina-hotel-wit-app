@@ -502,21 +502,23 @@ class _SettingsMaintenanceScreenState
 
   void _showLoading(String message) {
     setState(() => _isWorking = true);
-    unawaited(showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        content: Row(
-          children: [
-            const CircularProgressIndicator(strokeWidth: 2),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(message, style: const TextStyle(fontSize: 14)),
-            ),
-          ],
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          content: Row(
+            children: [
+              const CircularProgressIndicator(strokeWidth: 2),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(message, style: const TextStyle(fontSize: 14)),
+              ),
+            ],
+          ),
         ),
       ),
-    ));
+    );
   }
 
   void _hideLoading() {
@@ -544,208 +546,216 @@ class _SettingsMaintenanceScreenState
   // ─── تنظيف البيانات المؤقتة ───────────────────────────
 
   void _showCleanupDialog(BuildContext context, WidgetRef ref) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('تنظيف البيانات المؤقتة'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.cleaning_services, size: 40, color: Colors.blue),
-            SizedBox(height: 12),
-            Text('سيتم حذف الملفات المؤقتة والبيانات غير الضرورية.'),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('تنظيف البيانات المؤقتة'),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.cleaning_services, size: 40, color: Colors.blue),
+              SizedBox(height: 12),
+              Text('سيتم حذف الملفات المؤقتة والبيانات غير الضرورية.'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                _showLoading('جاري التنظيف...');
+                try {
+                  await ref
+                      .read(backupStatusProvider.notifier)
+                      .cleanupTempFiles();
+                  ref.read(diagnosticsLoggerProvider).clear();
+                  _hideLoading();
+                  _showSnack('تم التنظيف بنجاح', color: Colors.green);
+                  unawaited(_loadSystemInfo());
+                } catch (e) {
+                  _hideLoading();
+                  _showSnack('خطأ: $e', color: Colors.red);
+                }
+              },
+              child: const Text('تنظيف'),
+            ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              _showLoading('جاري التنظيف...');
-              try {
-                await ref
-                    .read(backupStatusProvider.notifier)
-                    .cleanupTempFiles();
-                ref.read(diagnosticsLoggerProvider).clear();
-                _hideLoading();
-                _showSnack('تم التنظيف بنجاح', color: Colors.green);
-                unawaited(_loadSystemInfo());
-              } catch (e) {
-                _hideLoading();
-                _showSnack('خطأ: $e', color: Colors.red);
-              }
-            },
-            child: const Text('تنظيف'),
-          ),
-        ],
       ),
-    ));
+    );
   }
 
   // ─── فحص قاعدة البيانات ──────────────────────────────
 
   void _showDatabaseCheckDialog(BuildContext context) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('فحص قاعدة البيانات'),
-        content: const Text('سيتم التحقق من سلامة الجداول وبياناتها.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              _showLoading('جاري فحص قاعدة البيانات...');
-              try {
-                final checks = await ref
-                    .read(syncOrchestratorProvider)
-                    .verifyDataIntegrity();
-                _hideLoading();
-                if (mounted) {
-                  _showIntegrityResults(checks);
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('فحص قاعدة البيانات'),
+          content: const Text('سيتم التحقق من سلامة الجداول وبياناتها.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                _showLoading('جاري فحص قاعدة البيانات...');
+                try {
+                  final checks = await ref
+                      .read(syncOrchestratorProvider)
+                      .verifyDataIntegrity();
+                  _hideLoading();
+                  if (mounted) {
+                    _showIntegrityResults(checks);
+                  }
+                } catch (e) {
+                  _hideLoading();
+                  _showSnack('خطأ في الفحص: $e', color: Colors.red);
                 }
-              } catch (e) {
-                _hideLoading();
-                _showSnack('خطأ في الفحص: $e', color: Colors.red);
-              }
-            },
-            child: const Text('بدء الفحص'),
-          ),
-        ],
+              },
+              child: const Text('بدء الفحص'),
+            ),
+          ],
+        ),
       ),
-    ));
+    );
   }
 
   void _showIntegrityResults(List<DataIntegrityCheck> checks) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.verified, color: Colors.green),
-            SizedBox(width: 8),
-            Text('نتائج الفحص'),
-          ],
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Row(
             children: [
-              Text(
-                '${checks.length} جدول تم فحصها',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              const SizedBox(height: 12),
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: checks.length,
-                  itemBuilder: (_, i) {
-                    final check = checks[i];
-                    return ListTile(
-                      dense: true,
-                      leading: const Icon(Icons.table_chart, size: 18),
-                      title: Text(check.tableName),
-                      subtitle: Text('${check.recordCount} سجل'),
-                      trailing: Text(
-                        // ✅ P1 fix: حماية من RangeError إذا كان checksum أقصر من 8 أحرف
-                        check.checksum.length >= 8
-                            ? check.checksum.substring(0, 8)
-                            : check.checksum,
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 10,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
+              Icon(Icons.verified, color: Colors.green),
+              SizedBox(width: 8),
+              Text('نتائج الفحص'),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إغلاق'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${checks.length} جدول تم فحصها',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: checks.length,
+                    itemBuilder: (_, i) {
+                      final check = checks[i];
+                      return ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.table_chart, size: 18),
+                        title: Text(check.tableName),
+                        subtitle: Text('${check.recordCount} سجل'),
+                        trailing: Text(
+                          // ✅ P1 fix: حماية من RangeError إذا كان checksum أقصر من 8 أحرف
+                          check.checksum.length >= 8
+                              ? check.checksum.substring(0, 8)
+                              : check.checksum,
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 10,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إغلاق'),
+            ),
+          ],
+        ),
       ),
-    ));
+    );
   }
 
   // ─── VACUUM ─────────────────────────────────────────────
 
   void _showVacuumDialog(BuildContext context, WidgetRef ref) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('ضغط قاعدة البيانات'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.compress, size: 40, color: Colors.amber),
-            SizedBox(height: 12),
-            Text(
-              'سيتم تنفيذ VACUUM لتحرير المساحة غير المستخدمة.\n'
-              'يتطلب مساحة مؤقتة، ولا يمكن تشغيله عند وجود تغييرات لم تُرفع.',
-              textAlign: TextAlign.center,
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('ضغط قاعدة البيانات'),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.compress, size: 40, color: Colors.amber),
+              SizedBox(height: 12),
+              Text(
+                'سيتم تنفيذ VACUUM لتحرير المساحة غير المستخدمة.\n'
+                'يتطلب مساحة مؤقتة، ولا يمكن تشغيله عند وجود تغييرات لم تُرفع.',
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                try {
+                  final pending = await ref
+                      .read(outboxDaoProvider)
+                      .countUndeliveredToPrimary();
+                  if (pending > 0) {
+                    _showSnack(
+                      'لا يمكن ضغط قاعدة البيانات: توجد $pending تغييرات لم تُرفع إلى Cloudflare.',
+                      color: Colors.orange,
+                    );
+                    return;
+                  }
+
+                  _showLoading('جاري ضغط قاعدة البيانات (VACUUM)...');
+                  try {
+                    final db = ref.read(databaseProvider);
+                    final sizeBefore = await _getTotalDbSizeBytes();
+                    await db.customStatement('VACUUM');
+                    final sizeAfter = await _getTotalDbSizeBytes();
+                    final saved = sizeBefore - sizeAfter;
+                    _hideLoading();
+                    _showSnack(
+                      'تم الضغط بنجاح — تم تحرير ${(saved / 1024).toStringAsFixed(0)} KB',
+                      color: Colors.green,
+                    );
+                    unawaited(_loadSystemInfo());
+                  } catch (e) {
+                    _hideLoading();
+                    _showSnack('خطأ في الضغط: $e', color: Colors.red);
+                  }
+                } catch (e) {
+                  _showSnack('تعذر التحقق من Outbox: $e', color: Colors.red);
+                }
+              },
+              child: const Text('ضغط'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              try {
-                final pending = await ref
-                    .read(outboxDaoProvider)
-                    .countUndeliveredToPrimary();
-                if (pending > 0) {
-                  _showSnack(
-                    'لا يمكن ضغط قاعدة البيانات: توجد $pending تغييرات لم تُرفع إلى Cloudflare.',
-                    color: Colors.orange,
-                  );
-                  return;
-                }
-
-                _showLoading('جاري ضغط قاعدة البيانات (VACUUM)...');
-                try {
-                  final db = ref.read(databaseProvider);
-                  final sizeBefore = await _getTotalDbSizeBytes();
-                  await db.customStatement('VACUUM');
-                  final sizeAfter = await _getTotalDbSizeBytes();
-                  final saved = sizeBefore - sizeAfter;
-                  _hideLoading();
-                  _showSnack(
-                    'تم الضغط بنجاح — تم تحرير ${(saved / 1024).toStringAsFixed(0)} KB',
-                    color: Colors.green,
-                  );
-                  unawaited(_loadSystemInfo());
-                } catch (e) {
-                  _hideLoading();
-                  _showSnack('خطأ في الضغط: $e', color: Colors.red);
-                }
-              } catch (e) {
-                _showSnack('تعذر التحقق من Outbox: $e', color: Colors.red);
-              }
-            },
-            child: const Text('ضغط'),
-          ),
-        ],
       ),
-    ));
+    );
   }
 
   Future<int> _getTotalDbSizeBytes() async {
@@ -763,103 +773,107 @@ class _SettingsMaintenanceScreenState
   // ─── إعادة تعيين المزامنة ─────────────────────────────
 
   void _showResetSyncDialog(BuildContext context, WidgetRef ref) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('إعادة تعيين المزامنة'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.sync_problem, size: 40, color: Colors.orange),
-            SizedBox(height: 12),
-            Text(
-              'سيتم إيقاف المزامنة الحالية ومسح ذاكرة التخزين المؤقت '
-              'ثم بدء مزامنة جديدة.',
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('إعادة تعيين المزامنة'),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.sync_problem, size: 40, color: Colors.orange),
+              SizedBox(height: 12),
+              Text(
+                'سيتم إيقاف المزامنة الحالية ومسح ذاكرة التخزين المؤقت '
+                'ثم بدء مزامنة جديدة.',
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                _showLoading('جاري إعادة تعيين المزامنة...');
+                try {
+                  await ref
+                      .read(maintenanceServiceProvider)
+                      .resetSyncAndResync(
+                        resetOutboxErrors: () =>
+                            ref.read(outboxDaoProvider).resetErrors(),
+                      );
+                  _hideLoading();
+                  _showSnack(
+                    'تم إعادة تعيين المزامنة بنجاح',
+                    color: Colors.green,
+                  );
+                  unawaited(_loadSystemInfo());
+                } catch (e) {
+                  _hideLoading();
+                  _showSnack('خطأ في إعادة التعيين: $e', color: Colors.red);
+                }
+              },
+              child: const Text('إعادة التعيين'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              _showLoading('جاري إعادة تعيين المزامنة...');
-              try {
-                await ref
-                    .read(maintenanceServiceProvider)
-                    .resetSyncAndResync(
-                      resetOutboxErrors: () =>
-                          ref.read(outboxDaoProvider).resetErrors(),
-                    );
-                _hideLoading();
-                _showSnack(
-                  'تم إعادة تعيين المزامنة بنجاح',
-                  color: Colors.green,
-                );
-                unawaited(_loadSystemInfo());
-              } catch (e) {
-                _hideLoading();
-                _showSnack('خطأ في إعادة التعيين: $e', color: Colors.red);
-              }
-            },
-            child: const Text('إعادة التعيين'),
-          ),
-        ],
       ),
-    ));
+    );
   }
 
   // ─── معالجة الرصيد التراكمي ──────────────────────────
 
   void _showProcessPendingBalanceDialog(BuildContext context, WidgetRef ref) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.account_balance_wallet, color: Colors.teal),
-            SizedBox(width: 8),
-            Text('معالجة الرصيد التراكمي'),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.account_balance_wallet, color: Colors.teal),
+              SizedBox(width: 8),
+              Text('معالجة الرصيد التراكمي'),
+            ],
+          ),
+          content: const Text(
+            'سيتم البحث عن المدفوعات التراكمية المعلقة وتحويلها '
+            'إلى مدفوعات فعلية مع إعادة حساب الأرصدة.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                _showLoading('جاري معالجة الرصيد التراكمي...');
+                try {
+                  final result = await _processPendingBalances(ref);
+                  _hideLoading();
+                  if (result.isEmpty) {
+                    _showSnack(
+                      'لا توجد مدفوعات تراكمية معلقة',
+                      color: Colors.blue,
+                    );
+                  } else if (mounted) {
+                    _showProcessingResultDialog(context, result);
+                  }
+                } catch (e) {
+                  _hideLoading();
+                  _showSnack('خطأ: $e', color: Colors.red);
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
+              child: const Text('معالجة'),
+            ),
           ],
         ),
-        content: const Text(
-          'سيتم البحث عن المدفوعات التراكمية المعلقة وتحويلها '
-          'إلى مدفوعات فعلية مع إعادة حساب الأرصدة.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              _showLoading('جاري معالجة الرصيد التراكمي...');
-              try {
-                final result = await _processPendingBalances(ref);
-                _hideLoading();
-                if (result.isEmpty) {
-                  _showSnack(
-                    'لا توجد مدفوعات تراكمية معلقة',
-                    color: Colors.blue,
-                  );
-                } else if (mounted) {
-                  _showProcessingResultDialog(context, result);
-                }
-              } catch (e) {
-                _hideLoading();
-                _showSnack('خطأ: $e', color: Colors.red);
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal),
-            child: const Text('معالجة'),
-          ),
-        ],
       ),
-    ));
+    );
   }
 
   Future<List<Map<String, dynamic>>> _processPendingBalances(
@@ -919,214 +933,227 @@ class _SettingsMaintenanceScreenState
       (s, r) => s + (r['amount'] as double),
     );
 
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: AlertDialog(
-          title: const Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.teal),
-              SizedBox(width: 8),
-              Text('تمت المعالجة بنجاح'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.teal.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.payments, color: Colors.teal, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${results.length} دفعة',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.teal,
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.teal),
+                SizedBox(width: 8),
+                Text('تمت المعالجة بنجاح'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.teal.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.payments, color: Colors.teal, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${results.length} دفعة',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.teal,
+                        ),
                       ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      '${totalAmount.toStringAsFixed(0)} ر.ي',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.teal,
+                      const Spacer(),
+                      Text(
+                        '${totalAmount.toStringAsFixed(0)} ر.ي',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.teal,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 250),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: results.length,
-                  itemBuilder: (_, i) {
-                    final r = results[i];
-                    return ListTile(
-                      dense: true,
-                      leading: CircleAvatar(
-                        radius: 14,
-                        backgroundColor: Colors.teal.withValues(alpha: 0.1),
-                        child: Text(
-                          r['roomNumber'] as String,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.teal,
+                const SizedBox(height: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 250),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: results.length,
+                    itemBuilder: (_, i) {
+                      final r = results[i];
+                      return ListTile(
+                        dense: true,
+                        leading: CircleAvatar(
+                          radius: 14,
+                          backgroundColor: Colors.teal.withValues(alpha: 0.1),
+                          child: Text(
+                            r['roomNumber'] as String,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.teal,
+                            ),
                           ),
                         ),
-                      ),
-                      title: Text(
-                        '${(r['amount'] as double).toStringAsFixed(0)} ر.ي — ${r['paymentMethod']}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      subtitle: Text(
-                        r['paymentDate'] as String,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey,
+                        title: Text(
+                          '${(r['amount'] as double).toStringAsFixed(0)} ر.ي — ${r['paymentMethod']}',
+                          style: const TextStyle(fontSize: 12),
                         ),
-                      ),
-                    );
-                  },
+                        subtitle: Text(
+                          r['paymentDate'] as String,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('إغلاق'),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('إغلاق'),
-            ),
-          ],
         ),
       ),
-    ));
+    );
   }
 
   // ─── مسح Outbox ───────────────────────────────────────
 
   void _showOutboxResetDialog(BuildContext context, WidgetRef ref) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('إعادة محاولة Outbox الفاشل'),
-        content: const Text(
-          'ستُعاد العمليات الفاشلة فقط إلى حالة "معلقة" للمحاولة مرة أخرى.\n'
-          'لن تُحذف أي عملية أو بيانات محلية.',
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('إعادة محاولة Outbox الفاشل'),
+          content: const Text(
+            'ستُعاد العمليات الفاشلة فقط إلى حالة "معلقة" للمحاولة مرة أخرى.\n'
+            'لن تُحذف أي عملية أو بيانات محلية.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                _showLoading('جاري إعادة تعيين Outbox...');
+                try {
+                  final outboxDao = ref.read(outboxDaoProvider);
+                  await outboxDao.resetErrors();
+                  final stuckCount = await outboxDao.cleanupStuckEntries();
+                  _hideLoading();
+                  _showSnack(
+                    'تم إعادة تعيين Outbox ($stuckCount عملية عالقة)',
+                    color: Colors.green,
+                  );
+                  unawaited(_loadSystemInfo());
+                } catch (e) {
+                  _hideLoading();
+                  _showSnack('خطأ: $e', color: Colors.red);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+              ),
+              child: const Text('إعادة المحاولة'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              _showLoading('جاري إعادة تعيين Outbox...');
-              try {
-                final outboxDao = ref.read(outboxDaoProvider);
-                await outboxDao.resetErrors();
-                final stuckCount = await outboxDao.cleanupStuckEntries();
-                _hideLoading();
-                _showSnack(
-                  'تم إعادة تعيين Outbox ($stuckCount عملية عالقة)',
-                  color: Colors.green,
-                );
-                unawaited(_loadSystemInfo());
-              } catch (e) {
-                _hideLoading();
-                _showSnack('خطأ: $e', color: Colors.red);
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
-            child: const Text('إعادة المحاولة'),
-          ),
-        ],
       ),
-    ));
+    );
   }
 
   // ─── إعادة تشغيل الخدمات ──────────────────────────────
 
   void _showRestartDialog(BuildContext context) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('إعادة تشغيل الخدمات'),
-        content: const Text(
-          'سيتم إعادة تشغيل جميع خدمات التطبيق. '
-          'قد يستغرق ذلك بضع ثوانٍ.',
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('إعادة تشغيل الخدمات'),
+          content: const Text(
+            'سيتم إعادة تشغيل جميع خدمات التطبيق. '
+            'قد يستغرق ذلك بضع ثوانٍ.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                _showLoading('جاري إعادة تشغيل الخدمات...');
+                try {
+                  await ref.read(syncGuardianProvider).restart();
+                  await ref.read(autoSyncEngineProvider).restart();
+                  _hideLoading();
+                  _showSnack(
+                    'تم إعادة تشغيل الخدمات بنجاح',
+                    color: Colors.green,
+                  );
+                  unawaited(_loadSystemInfo());
+                } catch (e) {
+                  _hideLoading();
+                  _showSnack('خطأ: $e', color: Colors.red);
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('إعادة التشغيل'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              _showLoading('جاري إعادة تشغيل الخدمات...');
-              try {
-                await ref.read(syncGuardianProvider).restart();
-                await ref.read(autoSyncEngineProvider).restart();
-                _hideLoading();
-                _showSnack('تم إعادة تشغيل الخدمات بنجاح', color: Colors.green);
-                unawaited(_loadSystemInfo());
-              } catch (e) {
-                _hideLoading();
-                _showSnack('خطأ: $e', color: Colors.red);
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('إعادة التشغيل'),
-          ),
-        ],
       ),
-    ));
+    );
   }
 
   // ─── إعادة تعيين التطبيق ─────────────────────────────
 
   void _showResetAppDialog(BuildContext context) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.delete_forever, color: Colors.red),
-            SizedBox(width: 8),
-            Text('إعادة تعيين التطبيق', style: TextStyle(color: Colors.red)),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.delete_forever, color: Colors.red),
+              SizedBox(width: 8),
+              Text('إعادة تعيين التطبيق', style: TextStyle(color: Colors.red)),
+            ],
+          ),
+          content: const Text(
+            'تحذير: هذا الإجراء لا يمكن التراجع عنه!\n\n'
+            'سيتم حذف جميع البيانات المحلية نهائياً وإعادة التهيئة.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _showConfirmResetDialog(context);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('إعادة التعيين'),
+            ),
           ],
         ),
-        content: const Text(
-          'تحذير: هذا الإجراء لا يمكن التراجع عنه!\n\n'
-          'سيتم حذف جميع البيانات المحلية نهائياً وإعادة التهيئة.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _showConfirmResetDialog(context);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('إعادة التعيين'),
-          ),
-        ],
       ),
-    ));
+    );
   }
 
   void _showConfirmResetDialog(BuildContext context) {

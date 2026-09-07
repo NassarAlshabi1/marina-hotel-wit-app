@@ -825,12 +825,14 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
             height: 26,
             child: ElevatedButton.icon(
               onPressed: () {
-                unawaited(Navigator.push<void>(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (_) => BookingCheckoutScreen(booking: booking),
+                unawaited(
+                  Navigator.push<void>(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => BookingCheckoutScreen(booking: booking),
+                    ),
                   ),
-                ));
+                );
               },
               icon: const Icon(Icons.payment, size: 12),
               label: const Text('دفع', style: TextStyle(fontSize: 10)),
@@ -854,139 +856,143 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen>
     final referenceController = TextEditingController();
     PaymentMethod selectedMethod = PaymentMethod.cash;
 
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => Directionality(
-          textDirection: TextDirection.rtl,
-          child: AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: const Row(
-              children: [
-                Icon(Icons.add_card, color: Colors.green),
-                SizedBox(width: 8),
-                Text('دفعة جديدة تراكمية'),
-              ],
-            ),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'طريقة الدفع',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => StatefulBuilder(
+          builder: (context, setDialogState) => Directionality(
+            textDirection: TextDirection.rtl,
+            child: AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Row(
+                children: [
+                  Icon(Icons.add_card, color: Colors.green),
+                  SizedBox(width: 8),
+                  Text('دفعة جديدة تراكمية'),
+                ],
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'طريقة الدفع',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: PaymentMethod.values.map((method) {
-                        final isSelected = selectedMethod == method;
-                        return ChoiceChip(
-                          avatar: Icon(
-                            method.icon,
-                            size: 16,
-                            color: isSelected ? Colors.white : method.color,
-                          ),
-                          label: Text(
-                            method.displayName,
-                            style: TextStyle(
-                              fontSize: 12,
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: PaymentMethod.values.map((method) {
+                          final isSelected = selectedMethod == method;
+                          return ChoiceChip(
+                            avatar: Icon(
+                              method.icon,
+                              size: 16,
                               color: isSelected ? Colors.white : method.color,
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
                             ),
-                          ),
-                          selected: isSelected,
-                          selectedColor: method.color,
-                          onSelected: (_) {
-                            setDialogState(() {
-                              selectedMethod = method;
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: amountController,
-                      decoration: const InputDecoration(
-                        labelText: 'المبلغ *',
-                        prefixText: 'ر.ي ',
-                        border: OutlineInputBorder(),
+                            label: Text(
+                              method.displayName,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isSelected ? Colors.white : method.color,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                            selected: isSelected,
+                            selectedColor: method.color,
+                            onSelected: (_) {
+                              setDialogState(() {
+                                selectedMethod = method;
+                              });
+                            },
+                          );
+                        }).toList(),
                       ),
-                      keyboardType: TextInputType.number,
-                      inputFormatters: const [englishIntegerInputFormatter],
-                    ),
-                    const SizedBox(height: 12),
-                    if (selectedMethod == PaymentMethod.transfer ||
-                        selectedMethod == PaymentMethod.check) ...[
+                      const SizedBox(height: 16),
                       TextField(
-                        controller: referenceController,
+                        controller: amountController,
                         decoration: const InputDecoration(
-                          labelText: 'رقم المرجع / الشيك',
+                          labelText: 'المبلغ *',
+                          prefixText: 'ر.ي ',
                           border: OutlineInputBorder(),
                         ),
+                        keyboardType: TextInputType.number,
+                        inputFormatters: const [englishIntegerInputFormatter],
                       ),
                       const SizedBox(height: 12),
-                    ],
-                    TextField(
-                      controller: notesController,
-                      decoration: const InputDecoration(
-                        labelText: 'ملاحظات (اختياري)',
-                        border: OutlineInputBorder(),
+                      if (selectedMethod == PaymentMethod.transfer ||
+                          selectedMethod == PaymentMethod.check) ...[
+                        TextField(
+                          controller: referenceController,
+                          decoration: const InputDecoration(
+                            labelText: 'رقم المرجع / الشيك',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      TextField(
+                        controller: notesController,
+                        decoration: const InputDecoration(
+                          labelText: 'ملاحظات (اختياري)',
+                          border: OutlineInputBorder(),
+                        ),
+                        maxLines: 2,
                       ),
-                      maxLines: 2,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('إلغاء'),
-              ),
-              ElevatedButton(
-                onPressed: _isSavingPayment
-                    ? null
-                    : () => _saveStandalonePayment(
-                        ctx,
-                        amountController.text,
-                        notesController.text,
-                        referenceController.text,
-                        selectedMethod,
-                      ),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                child: _isSavingPayment
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('إلغاء'),
+                ),
+                ElevatedButton(
+                  onPressed: _isSavingPayment
+                      ? null
+                      : () => _saveStandalonePayment(
+                          ctx,
+                          amountController.text,
+                          notesController.text,
+                          referenceController.text,
+                          selectedMethod,
                         ),
-                      )
-                    : const Text('تسجيل الدفعة'),
-              ),
-            ],
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                  ),
+                  child: _isSavingPayment
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('تسجيل الدفعة'),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
-    ).then((_) {
-      amountController.dispose();
-      notesController.dispose();
-      referenceController.dispose();
-    }));
+      ).then((_) {
+        amountController.dispose();
+        notesController.dispose();
+        referenceController.dispose();
+      }),
+    );
   }
 
   Future<void> _saveStandalonePayment(

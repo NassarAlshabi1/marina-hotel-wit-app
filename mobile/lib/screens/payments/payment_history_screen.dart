@@ -417,156 +417,162 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
   }
 
   void _showFilterDialog() {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: ui.TextDirection.rtl,
-        child: StatefulBuilder(
-          builder: (context, setDialogState) => AlertDialog(
-            title: const Text('فلترة المدفوعات'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DropdownButtonFormField<String>(
-                    initialValue: _revenueTypes.contains(_selectedRevenueType)
-                        ? _selectedRevenueType
-                        : null,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(ctx).textTheme.bodyMedium?.color,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'نوع الإيراد',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: [
-                      DropdownMenuItem(
-                        child: Text(
-                          'جميع الأنواع',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(ctx).textTheme.bodyMedium?.color,
-                          ),
-                        ),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => Directionality(
+          textDirection: ui.TextDirection.rtl,
+          child: StatefulBuilder(
+            builder: (context, setDialogState) => AlertDialog(
+              title: const Text('فلترة المدفوعات'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownButtonFormField<String>(
+                      initialValue: _revenueTypes.contains(_selectedRevenueType)
+                          ? _selectedRevenueType
+                          : null,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(ctx).textTheme.bodyMedium?.color,
                       ),
-                      ..._revenueTypes.map(
-                        (type) => DropdownMenuItem(
-                          value: type,
+                      decoration: const InputDecoration(
+                        labelText: 'نوع الإيراد',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: [
+                        DropdownMenuItem(
                           child: Text(
-                            _getRevenueTypeLabel(type),
+                            'جميع الأنواع',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Theme.of(ctx).textTheme.bodyMedium?.color,
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                    onChanged: (value) =>
-                        setDialogState(() => _selectedRevenueType = value),
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    initialValue:
-                        _paymentMethods.contains(_selectedPaymentMethod)
-                        ? _selectedPaymentMethod
-                        : null,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(ctx).textTheme.bodyMedium?.color,
-                    ),
-                    decoration: const InputDecoration(
-                      labelText: 'طريقة الدفع',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: [
-                      DropdownMenuItem(
-                        child: Text(
-                          'جميع الطرق',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(ctx).textTheme.bodyMedium?.color,
+                        ..._revenueTypes.map(
+                          (type) => DropdownMenuItem(
+                            value: type,
+                            child: Text(
+                              _getRevenueTypeLabel(type),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(
+                                  ctx,
+                                ).textTheme.bodyMedium?.color,
+                              ),
+                            ),
                           ),
                         ),
+                      ],
+                      onChanged: (value) =>
+                          setDialogState(() => _selectedRevenueType = value),
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      initialValue:
+                          _paymentMethods.contains(_selectedPaymentMethod)
+                          ? _selectedPaymentMethod
+                          : null,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(ctx).textTheme.bodyMedium?.color,
                       ),
-                      ..._paymentMethods.map(
-                        (method) => DropdownMenuItem(
-                          value: method,
+                      decoration: const InputDecoration(
+                        labelText: 'طريقة الدفع',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: [
+                        DropdownMenuItem(
                           child: Text(
-                            method,
+                            'جميع الطرق',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: Theme.of(ctx).textTheme.bodyMedium?.color,
                             ),
                           ),
                         ),
+                        ..._paymentMethods.map(
+                          (method) => DropdownMenuItem(
+                            value: method,
+                            child: Text(
+                              method,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(
+                                  ctx,
+                                ).textTheme.bodyMedium?.color,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) =>
+                          setDialogState(() => _selectedPaymentMethod = value),
+                    ),
+                    const SizedBox(height: 16),
+                    ListTile(
+                      title: const Text('من تاريخ'),
+                      subtitle: Text(
+                        _fromDate != null
+                            ? Time.dateToString(_fromDate!)
+                            : 'غير محدد',
                       ),
-                    ],
-                    onChanged: (value) =>
-                        setDialogState(() => _selectedPaymentMethod = value),
-                  ),
-                  const SizedBox(height: 16),
-                  ListTile(
-                    title: const Text('من تاريخ'),
-                    subtitle: Text(
-                      _fromDate != null
-                          ? Time.dateToString(_fromDate!)
-                          : 'غير محدد',
+                      trailing: const Icon(Icons.calendar_today),
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: ctx,
+                          initialDate: _fromDate ?? DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now(),
+                        );
+                        if (date != null) {
+                          setDialogState(() => _fromDate = date);
+                        }
+                      },
                     ),
-                    trailing: const Icon(Icons.calendar_today),
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: ctx,
-                        initialDate: _fromDate ?? DateTime.now(),
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime.now(),
-                      );
-                      if (date != null) {
-                        setDialogState(() => _fromDate = date);
-                      }
-                    },
-                  ),
-                  ListTile(
-                    title: const Text('إلى تاريخ'),
-                    subtitle: Text(
-                      _toDate != null
-                          ? Time.dateToString(_toDate!)
-                          : 'غير محدد',
+                    ListTile(
+                      title: const Text('إلى تاريخ'),
+                      subtitle: Text(
+                        _toDate != null
+                            ? Time.dateToString(_toDate!)
+                            : 'غير محدد',
+                      ),
+                      trailing: const Icon(Icons.calendar_today),
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: ctx,
+                          initialDate: _toDate ?? DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now(),
+                        );
+                        if (date != null) {
+                          setDialogState(() => _toDate = date);
+                        }
+                      },
                     ),
-                    trailing: const Icon(Icons.calendar_today),
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: ctx,
-                        initialDate: _toDate ?? DateTime.now(),
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime.now(),
-                      );
-                      if (date != null) {
-                        setDialogState(() => _toDate = date);
-                      }
-                    },
-                  ),
-                ],
+                  ],
+                ),
               ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('إلغاء'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {});
+                    Navigator.of(ctx).pop();
+                  },
+                  child: const Text('تطبيق الفلاتر'),
+                ),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('إلغاء'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {});
-                  Navigator.of(ctx).pop();
-                },
-                child: const Text('تطبيق الفلاتر'),
-              ),
-            ],
           ),
         ),
       ),
-    ));
+    );
   }
 
   void _clearFilters() {
@@ -579,41 +585,43 @@ class _PaymentHistoryScreenState extends ConsumerState<PaymentHistoryScreen> {
   }
 
   void _showPaymentDetails(Payment payment) {
-    unawaited(showDialog<void>(
-      context: context,
-      builder: (ctx) => Directionality(
-        textDirection: ui.TextDirection.rtl,
-        child: AlertDialog(
-          title: const Text('تفاصيل الدفعة'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildDetailRow(
-                'المبلغ',
-                CurrencyFormatter.formatAmount(payment.amount),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => Directionality(
+          textDirection: ui.TextDirection.rtl,
+          child: AlertDialog(
+            title: const Text('تفاصيل الدفعة'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildDetailRow(
+                  'المبلغ',
+                  CurrencyFormatter.formatAmount(payment.amount),
+                ),
+                _buildDetailRow('طريقة الدفع', payment.paymentMethod),
+                _buildDetailRow(
+                  'نوع الإيراد',
+                  _getRevenueTypeLabel(payment.revenueType),
+                ),
+                _buildDetailRow('التاريخ', payment.paymentDate),
+                if (payment.roomNumber != null)
+                  _buildDetailRow('رقم الغرفة', payment.roomNumber!),
+                if (payment.notes != null && payment.notes!.isNotEmpty)
+                  _buildDetailRow('ملاحظات', payment.notes!),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('إغلاق'),
               ),
-              _buildDetailRow('طريقة الدفع', payment.paymentMethod),
-              _buildDetailRow(
-                'نوع الإيراد',
-                _getRevenueTypeLabel(payment.revenueType),
-              ),
-              _buildDetailRow('التاريخ', payment.paymentDate),
-              if (payment.roomNumber != null)
-                _buildDetailRow('رقم الغرفة', payment.roomNumber!),
-              if (payment.notes != null && payment.notes!.isNotEmpty)
-                _buildDetailRow('ملاحظات', payment.notes!),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('إغلاق'),
-            ),
-          ],
         ),
       ),
-    ));
+    );
   }
 
   Widget _buildDetailRow(String label, String value) {

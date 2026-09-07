@@ -41,10 +41,7 @@ class SecureStorage {
       final encrypted = encrypter.encrypt(plain, iv: iv);
 
       // دمج IV + ciphertext + authTag في bytes واحدة
-      final combined = Uint8List.fromList([
-        ...iv.bytes,
-        ...encrypted.bytes,
-      ]);
+      final combined = Uint8List.fromList([...iv.bytes, ...encrypted.bytes]);
 
       return '$_prefix${base64.encode(combined)}';
     } catch (e) {
