@@ -6,7 +6,7 @@ import 'package:drift/drift.dart' show Variable;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/app_logger.dart';
-import 'appwrite_sync_manager.dart';
+import 'daos/outbox_dao.dart';
 import 'local_db.dart';
 import 'password_hasher.dart';
 
@@ -434,6 +434,14 @@ class AuthLocalStore {
     if (accounts.containsKey(normalized)) {
       throw Exception('اسم المستخدم موجود مسبقاً');
     }
+    // ✅ (2026-09-07) منع شرخ الهوية: مستخدم مُزامن من أجهزة أخرى موجود في
+    // مرآة app_users المحلية لكن ليس في custom_accounts — إن سمحنا بإضافته
+    // مجدداً فستكتب نسخة دخول محلية بكلمة مرور جديدة بينما تحتفظ D1 بالصف
+    // القديم (نفس local_uuid) فتختلف كلمات المرور بين الأجهزة.
+    final syncedUsers = await loadCloudAccounts();
+    if (syncedUsers.containsKey(normalized)) {
+      throw Exception('اسم المستخدم موجود مسبقاً');
+    }
     final id = _nextUserId(accounts);
     // ✅ تشفير كلمة المرور قبل التخزين المحلي
     final hashedPassword = PasswordHasher.hash(password);
@@ -611,11 +619,62 @@ class AuthLocalStore {
         );
       }
     }
+
+    // ✅ (2026-09-07) منع «المستخدم الزومبي»: إن كان هذا الحساب المخصص قد
+    // رُفع سابقاً إلى app_users/D1 (صف حي محلياً — أُنشئ بمسار addUser الذي
+    // يرفع كل حساب مخصص)، الحذف من custom_accounts وحده يترك صف D1 حياً
+    // فيعود المستخدم مع السحب التالي على هذا الجهاز وبقية الأجهزة. نكتب
+    // tombstone محلياً ونحجز عملية delete في Outbox لإزالته نهائياً.
+    try {
+      if (DatabaseManager.isInitialized) {
+        final db = DatabaseManager.instance;
+        final rows = await db
+            .customSelect(
+              'SELECT local_uuid FROM app_users '
+              'WHERE username = ? AND deleted_at IS NULL LIMIT 1',
+              variables: [Variable.withString(username)],
+            )
+            .get();
+        if (rows.isNotEmpty) {
+          final docId = (rows.first.data['local_uuid'] ?? '').toString();
+          if (docId.isNotEmpty) {
+            final tombstone = AuthLocalStore.appUsersSyncPayload(
+              localUuid: docId,
+              username: username,
+              now: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              deviceId: await _getDeviceId(),
+              tombstone: true,
+            );
+            await _writeLocalAppUsersRow(tombstone);
+            await _enqueueAppUsersOp(
+              op: 'delete',
+              docId: docId,
+              payload: tombstone,
+            );
+            AppLogger.info(
+              'Local user $username had a synced app_users row — '
+              'tombstone queued (doc: $docId)',
+              tag: 'AUTH',
+            );
+          }
+        }
+      }
+    } catch (e, st) {
+      AppLogger.warning(
+        'تعذر تحزين حذف صف app_users للمستخدم المحلي $username',
+        tag: 'AUTH',
+        error: e,
+        stackTrace: st,
+      );
+    }
     return true;
   }
 
-  /// تحديث بيانات مستخدم سحابي (اسم، كلمة مرور، صلاحيات) + زيادة credentials_version
-  /// يعيد true إذا نجح → يجب قطع الجلسة على الأجهزة الأخرى
+  /// تحديث بيانات مستخدم سحابي (اسم، كلمة مرور، صلاحيات).
+  /// credentials_version (عدّاد إبطال الجلسات على الأجهزة الأخرى) يُرفع
+  /// فقط عند تغيير كلمة المرور — ✅ (2026-09-07).
+  /// يعيد true إذا نجح → عند تغيير كلمة المرور يجب قطع الجلسة على
+  /// الأجهزة الأخرى.
   Future<bool> updateCloudUser({
     required String username,
     required String docId,
@@ -645,11 +704,18 @@ class AuthLocalStore {
       }
       final nextVersion = currentVersion + 1;
 
+      // ✅ (2026-09-07) credentials_version هو عدّاد إبطال الجلسات — يُرفع
+      // فقط عند تغيير كلمة المرور (نفس وعد الواجهة: «سيتم قطع الجلسة على
+      // الأجهزة الأخرى عند حفظ كلمة المرور»). رفعه على كل تعديل (اسم/نوع)
+      // كان يقطع جلسات كل الأجهزة الأخرى بلا سبب.
+      final hasPasswordChange =
+          newPassword != null && newPassword.isNotEmpty;
+
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       final syncPayload = AuthLocalStore.appUsersSyncPayload(
         localUuid: docId,
         username: username,
-        password: (newPassword != null && newPassword.isNotEmpty)
+        password: hasPasswordChange
             ? PasswordHasher.hash(newPassword)
             : null,
         fullName: newFullName,
@@ -658,7 +724,7 @@ class AuthLocalStore {
             ? jsonEncode(newPermissions)
             : null,
         active: active,
-        credentialsVersion: nextVersion,
+        credentialsVersion: hasPasswordChange ? nextVersion : null,
         role: newUserType,
         now: now,
         version: nextVersion,
@@ -671,9 +737,37 @@ class AuthLocalStore {
         payload: syncPayload,
       );
 
+      // ✅ (2026-09-07) اتساق بيانات الدخول محلياً: إن وُجد الحساب في
+      // custom_accounts (أُنشئ على هذا الجهاز) يجب تحديث نسخة الدخول
+      // المحلية أيضاً — validateCredentials يفحص الحسابات المخصصة أولاً،
+      // وترك الهاش القديم كان يجعل كلمة المرور الجديدة مرفوضة والقديمة
+      // مقبولة على جهاز الإنشاء رغم نجاح التعديل سحابياً.
+      try {
+        final accounts = await _loadCustomAccounts();
+        final raw = accounts[username];
+        if (raw is Map) {
+          final custom = Map<String, dynamic>.from(raw);
+          if (hasPasswordChange) {
+            custom['password'] = PasswordHasher.hash(newPassword);
+          }
+          if (newFullName != null) custom['full_name'] = newFullName;
+          if (newUserType != null) custom['user_type'] = newUserType;
+          accounts[username] = custom;
+          await _saveCustomAccounts(accounts);
+        }
+      } catch (e, st) {
+        AppLogger.warning(
+          'تعذر تحديث نسخة الحساب المخصص المحلي للمستخدم $username',
+          tag: 'AUTH',
+          error: e,
+          stackTrace: st,
+        );
+      }
+
       AppLogger.info(
         'Cloud user $username updated locally, outbox=$queued '
-        '(version $currentVersion → $nextVersion)',
+        '(version $currentVersion → $nextVersion, '
+        'credentialsBumped=$hasPasswordChange)',
         tag: 'AUTH',
       );
       return true;
@@ -1045,28 +1139,27 @@ class AuthLocalStore {
       final docId = _cloudDocumentId(username);
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       // الإصدار الحالي من الصف المحلي (مرآة D1) إن وجد
-      int credentialsVersion = 0;
       int version = 0;
       if (DatabaseManager.isInitialized) {
         final db = DatabaseManager.instance;
         final rows = await db
             .customSelect(
-              'SELECT credentials_version, version FROM app_users '
+              'SELECT version FROM app_users '
               'WHERE local_uuid = ? LIMIT 1',
               variables: [Variable.withString(docId)],
             )
             .get();
         if (rows.isNotEmpty) {
-          credentialsVersion =
-              (rows.first.data['credentials_version'] as num?)?.toInt() ?? 0;
           version = (rows.first.data['version'] as num?)?.toInt() ?? 0;
         }
       }
+      // ✅ (2026-09-07) لا نرفع credentials_version هنا — هو عدّاد إبطال
+      // الجلسات (كلمة المرور فقط). رفعه عند كل نقرة صلاحية كان يقطع جلسة
+      // كل الأجهزة الأخرى فيُلزم بإعادة الدخول رغم عدم تغيير بيانات الدخول.
       final syncPayload = AuthLocalStore.appUsersSyncPayload(
         localUuid: docId,
         username: username,
         permissionsJson: jsonEncode(permissions),
-        credentialsVersion: credentialsVersion + 1,
         now: now,
         version: version + 1,
         deviceId: await _getDeviceId(),
@@ -1168,9 +1261,15 @@ class AuthLocalStore {
     required String docId,
     required Map<String, dynamic> payload,
   }) async {
-    final manager = AppwriteSyncManager.instance;
+    // ✅ (2026-09-07) الحجز عبر قاعدة DatabaseManager مباشرة بدل
+    // AppwriteSyncManager.instance.outboxDao — نفس القاعدة في الإنتاج
+    // (المدير يهيّئ نفسه عليها)، لكن: (1) لا يُسقط العملية صمتاً عندما
+    // لم يُهيأ المدير بعد (أوفلاين/إقلاع بطيء) — العملية تبقى في Outbox
+    // وتُرفع فور التهيئة، (2) قابل للاختبار بقاعدة في الذاكرة.
     try {
-      await manager.outboxDao.merge(
+      if (!DatabaseManager.isInitialized) return false;
+      final outboxDao = OutboxDao(DatabaseManager.instance);
+      await outboxDao.merge(
         entity: 'app_users',
         op: op,
         localUuid: docId,

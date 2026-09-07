@@ -3767,6 +3767,18 @@ class DatabaseManager {
   static bool get isInitialized => _instance != null;
   static bool get isRestoring => _isRestoring;
 
+  /// ✅ (2026-09-07) حقن قاعدة في الذاكرة للاختبارات — الخدمات التي تقرأ
+  /// [DatabaseManager.instance] مباشرة (AuthLocalStore وغيرها) تحتاج نسخة
+  /// مهيأة بدون فتح ملف فعلي على القرص. للاستخدام في dart test فقط.
+  static void attachForTesting(AppDatabase db) {
+    _instance = db;
+  }
+
+  /// فك الحقن بعد الاختبار حتى لا يتسرب الاتصال بين الاختبارات.
+  static void detachForTesting() {
+    _instance = null;
+  }
+
   static Future<T> runWithRestoreGuard<T>(Future<T> Function() action) async {
     _isRestoring = true;
     try {

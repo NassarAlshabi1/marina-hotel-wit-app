@@ -782,6 +782,18 @@ class _UserPermissionsCardState extends ConsumerState<UserPermissionsCard> {
                             context,
                             'تم حذف المستخدم ${widget.username}',
                           );
+                        } else if (mounted && context.mounted) {
+                          // ✅ (2026-09-07) failure path صريح — سابقاً كانت
+                          // success=false (docId مفقود أو فشل كتابة محلي
+                          // يُبتلع داخل deleteCloudUser) تُبقي saving=true
+                          // والأزرار معطلة بلا أي رسالة = حوار متجمد.
+                          setDialog(() {
+                            saving = false;
+                            deleteRequested = false;
+                            localError =
+                                'فشل حذف المستخدم — تحقق من الاتصال '
+                                'وأعد المحاولة';
+                          });
                         }
                       } catch (e) {
                         setDialog(() {
