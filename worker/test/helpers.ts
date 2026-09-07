@@ -166,19 +166,27 @@ export interface PushResponseBody {
   server_time: number;
 }
 
+export interface PullResponseBody {
+  changes: Array<Record<string, unknown>>;
+  cursor: string;
+  has_more: boolean;
+  errors: Array<{ entity: string; error: string }>;
+  normalization: {
+    normalized: number;
+    remaining: number;
+    perTable: Record<string, number>;
+  } | null;
+  server_time: number;
+}
+
 export async function pull(
   authHeader: string,
   params: Record<string, string> = {}
-): Promise<{ changes: Array<Record<string, unknown>>; cursor: string; has_more: boolean; server_time: number }> {
+): Promise<PullResponseBody> {
   const qs = new URLSearchParams(params).toString();
   const res = await SELF.fetch(`https://example.com/api/sync/pull${qs ? `?${qs}` : ''}`, {
     headers: { Authorization: authHeader },
   });
   expect(res.status).toBe(200);
-  return (await res.json()) as {
-    changes: Array<Record<string, unknown>>;
-    cursor: string;
-    has_more: boolean;
-    server_time: number;
-  };
+  return (await res.json()) as PullResponseBody;
 }

@@ -192,6 +192,18 @@ export async function handlePull(
     // Echo filter (plan 2.5): skip rows this device already has locally.
     const excludeDevice = url.searchParams.get('exclude_device') || undefined;
 
+    // ✅ Self-healing data repair: progressively re-stamp legacy millisecond
+    // timestamps (mixed units permanently poison the integer pull cursor —
+    // see Database.normalizeTimestamps). Bounded per request so latency and
+    // CPU stay acceptable; repeated pulls drain the backlog to zero, after
+    // which this is a handful of indexed COUNT queries.
+    let normalization: Awaited<ReturnType<Database['normalizeTimestamps']>> | null = null;
+    try {
+      normalization = await db.normalizeTimestamps(500);
+    } catch (err) {
+      console.error('[SYNC/PULL] normalization failed (pull continues):', err);
+    }
+
     const result = await db.pullChanges(entity, cursor, limit, excludeDevice);
 
     return jsonResponse({
@@ -199,6 +211,7 @@ export async function handlePull(
       cursor: result.cursor.toString(),
       has_more: result.has_more,
       errors: result.errors,
+      normalization,
       server_time: Math.floor(Date.now() / 1000),
     });
   } catch (err) {

@@ -138,5 +138,14 @@ class CloudflareConfig {
 
   /// Sync settings
   static const Duration syncInterval = Duration(minutes: 15);
-  static const int batchSize = 25;
+
+  /// عدد الصفوف المطلوبة في كل صفحة pull من D1.
+  /// ✅ (2026-09-08) رُفع من 25 إلى 100: الـ worker يضيف حدود الطلب إلى
+  /// استعلام SQL مباشرة (بلا سقف خادمي) وأداء D1 على صفحات 100 ممتاز؛
+  /// هذا يقلّص full sync (~7,300 صف) من ~292 طلباً إلى ~73 طلباً —
+  /// أسرع بـ 4 مرات وبتكلفة requests أقل على الخطة المجانية.
+  /// ملاحظة: worker يطبّق boundary-extension فيمكن أن تعيد الصفحة أكثر
+  /// من [batchSize] صفاً عند تساوي updated_at على الحد — مقصود ولحماية
+  /// الصفوف مكررة الطابع من الفقد.
+  static const int batchSize = 100;
 }

@@ -107,6 +107,12 @@ class CloudflareSyncManager {
   bool _fullSyncCompleted = false;
   static const String _kFullSyncCompletedKey = 'cf_full_sync_completed';
 
+  /// ✅ (2026-09-08) السقف المعقول لمؤشر السحب: عتبة فصل وحدات الطوابع
+  /// الزمنية (ثوانٍ مقابل ميلي ثانية). ثواني الـ epoch تبقى تحت 1e11 حتى
+  /// سنة ~5138 — أي مؤشر أعلى من ذلك خُلِّف من طوابع ميلي قديمة (migration
+  /// قديمة أو worker قديم يرجّع global-max) ويجب ألا يُخزَّن أبداً.
+  static const int maxSanePullCursor = 100000000000; // 1e11
+
   /// ✅ P0-B: عدد صفحات full sync المتبقية (للتشخيص فقط).
   /// تُستخدم لعرض "full sync in progress (page 3/?)"
   int get fullSyncRemainingPages => _fullSyncRemainingPages;
@@ -156,9 +162,45 @@ class CloudflareSyncManager {
   // resolvers fail to resolve *.workers.dev. Falls back to Cloudflare DoH
   // (https://cloudflare-dns.com/dns-query) then Google DoH.
   // Uses 30s timeout (default) — generous enough for slow networks.
-  final http.Client _httpClient = createResilientHttpClient(
+  // غير نهائي: الاختبارات العقدية لمسار السحب/الدفع تحقن MockClient
+  // عبر configureForTesting (بلا شبكة حقيقية).
+  http.Client _httpClient = createResilientHttpClient(
     timeout: const Duration(seconds: 30),
   );
+
+  /// ✅ (2026-09-08) حقن اختباري مباشر: قاعدة بيانات + عميل HTTP وهمي
+  /// + توكن — بلا login شبكي. يُتيح اختبارات عقدية لحلقة السحب كاملة
+  /// (ترحيل المؤشر، أعطال الجداول الخادمية، فصل الدفع عن السحب).
+  /// يعيد ضبط كل الحالة الداخلية أيضاً — المدير singleton وبدون هذا
+  /// كانت حالة اختبار سابق (_fullSyncCompleted/_lastPullCursor) تتسرب
+  /// للاختبار التالي وتفصل الاختبارات عن بعضها زوراً.
+  @visibleForTesting
+  void configureForTesting({
+    required AppDatabase database,
+    required http.Client httpClient,
+    required String token,
+    String? deviceId,
+  }) {
+    _db = database;
+    _httpClient = httpClient;
+    _token = token;
+    _deviceId = deviceId ?? 'test-device';
+    setStaticDeviceId(_deviceId!);
+    _fullSyncCompleted = false;
+    _lastPullCursor = 0;
+    _isFullSyncInProgress = false;
+    _fullSyncRemainingPages = 0;
+    _failedCollectionsInLastSync.clear();
+    _lastError = null;
+    _currentStatus = SyncStatus.idle;
+  }
+
+  /// ✅ (2026-09-08) عقد القراءة: الجداول التي تخطاها الخادم في آخر
+  /// دورة مزامنة. فارغة = الدورة سليمة؛ غير فارغة = فشل جزئي ويجب
+  /// ألا يُعتبر full sync مكتملاً ولا المؤشر متقدماً بأمان.
+  @visibleForTesting
+  Set<String> get failedCollectionsInLastSync =>
+      Set<String>.unmodifiable(_failedCollectionsInLastSync);
 
   // ─── Initialize ─────────────────────────────────────────────
   Future<void> initialize({
@@ -184,6 +226,28 @@ class CloudflareSyncManager {
     // ✅ P0-B: استعادة علامة "full sync مكتملة" من الجلسة السابقة
     _fullSyncCompleted = prefs.getBool(_kFullSyncCompletedKey) ?? false;
     _lastPullCursor = prefs.getInt('cf_last_pull_cursor') ?? 0;
+
+    // ✅ (2026-09-08) صيانة ذاتية للمؤشر المسموم بوحدات مختلطة:
+    // نسخ migration قديمة خلّفت طوابع updated_at بالميلي ثانية (‎>1e11)
+    // في D1 بينما كاتب الخادم الحالي يختم بالثواني. مؤشر يقف في نطاق
+    // الميلي يجعل كل الصفوف الثواني-الجديدة غير مرئية إلى الأبد
+    // (‎WHERE updated_at > cursor). الطوابع الثواني تبقى تحت 1e11 حتى
+    // سنة ~5138 — أي مؤشر محفوظ أكبر من ذلك = تسمم مؤكد → تصفير كامل
+    // (cursor + علامة full sync + علم bootstrap) ليعيد الجهاز سحباً
+    // كاملاً نظيفاً بعد نشر worker الإصلاح.
+    if (_lastPullCursor > maxSanePullCursor) {
+      debugPrint(
+        '🚨 ms-poisoned pull cursor detected ($_lastPullCursor) — '
+        'resetting to 0 and forcing a fresh full sync',
+      );
+      _lastPullCursor = 0;
+      _fullSyncCompleted = false;
+      await prefs.setInt('cf_last_pull_cursor', 0);
+      await prefs.remove(_kFullSyncCompletedKey);
+      // علم «تم السحب الكامل بعد التخطي» — نفس مفتاح BootstrapFullPull
+      // (تفادي استيراد دائري؛ المفتاح موثق في الطرفين).
+      await prefs.remove('appwrite_pull_after_drive_skip_done');
+    }
 
     // ✅ (2026-09-05) استعادة عدادات الإحصائيات الحقيقية بين الجلسات.
     await _loadSyncStats();
@@ -567,28 +631,65 @@ class CloudflareSyncManager {
     int recordsPulled = 0;
     String? errorMessage;
 
+    // ✅ (2026-09-08) عقد «فشل الدورة السابقة لا يلوّث هذه الدورة»:
+    // تُفرَّغ المجموعة عند بداية كل دورة، فتصف «فشل آخر مزامنة» حرفياً.
+    // قبل هذا: خطأ جدول عابر واحد كان يجعل كل الدورات اللاحقة
+    // «فاشلة جزئياً» إلى الأبد حتى بعد شفاء الجدول.
+    _failedCollectionsInLastSync.clear();
+
+    // ✅ (2026-09-08) فصل دورة الدفع عن السحب — محاور إعادة الهيكلة:
+    // كان الدفع والسحب في try واحدة: أي استثناء من _pushOutbox (مثل
+    // «Push network error») يقطع السحب كلياً — جهاز عاجز عن الرفع
+    // (شبكة صاعدة فقط، DNS، timeout) كان يفقد السحب أيضاً وتبقى
+    // بياناته الخلفية قديمة إلى الأبد. الآن لكل دورة try/catch مستقل
+    // والتقارير مستقلة، والفشل المجمّع يُبنى من كلا الطرفين.
+    String? pushError;
+    String? pullError;
     try {
       if (push) {
-        recordsPushed = await _pushOutbox();
+        try {
+          recordsPushed = await _pushOutbox();
+        } catch (e) {
+          pushError = e.toString();
+          logError(
+            title: 'فشل دورة الدفع (السحب مستمر)',
+            message: pushError,
+            category: ErrorCategory.sync,
+            source: 'sync:push',
+          );
+        }
       }
       if (pull) {
-        recordsPulled = await _pullChanges();
+        try {
+          recordsPulled = await _pullChanges();
+        } catch (e) {
+          pullError = e.toString();
+          // _pullChanges يسجّل أخطاءه بنفسه (شبكة/HTTP/JSON) —
+          // هنا نلتقط فقط لفصل الدورات ومنع القفز للـ catch الخارجي.
+        }
       }
 
-      // ✅ P0-B/P0-C: لا نعتبر المزامنة "نجحت" إلا إذا لم تكن هناك collections فاشلة.
-      // وإلا نحتفظ بالحالة الحالية ونسمح بإعادة المحاولة لاحقاً.
-      if (_failedCollectionsInLastSync.isEmpty) {
+      // ✅ P0-B/P0-C: لا نعتبر المزامنة "نجحت" إلا إذا لم تكن هناك
+      // collections فاشلة ولا خطأ دفع ولا خطأ سحب في هذه الدورة.
+      if (pushError == null &&
+          pullError == null &&
+          _failedCollectionsInLastSync.isEmpty) {
         _currentStatus = SyncStatus.success;
         _statusController.add(SyncStatus.success);
         _lastError = null;
       } else {
-        // ✅ P0-C: فشل جزئي — لا نُحرّك checkpoint (تم داخل _pullChanges)
-        // لكن نضع الحالة كـ failed لإعلام المستخدم وإعادة المحاولة.
+        // ✅ P0-C: فشل جزئي أو كلي — الـ checkpoint عولج داخل _pullChanges
+        // (تراجع إلى ما قبل أول صفحة معطوبة)، والحالة failed لإعلام
+        // المستخدم وإعادة المحاولة.
         _currentStatus = SyncStatus.failed;
         _statusController.add(SyncStatus.failed);
-        errorMessage =
-            'Partial sync failure — failed collections: '
-            '${_failedCollectionsInLastSync.join(', ')}';
+        final parts = <String>[
+          if (pushError != null) 'push: $pushError',
+          if (pullError != null) 'pull: $pullError',
+          if (_failedCollectionsInLastSync.isNotEmpty)
+            'failed collections: ${_failedCollectionsInLastSync.join(', ')}',
+        ];
+        errorMessage = 'Partial sync failure — ${parts.join(' | ')}';
         _lastError = errorMessage;
         logError(
           title: 'فشل مزامنة جزئي',
@@ -603,8 +704,7 @@ class CloudflareSyncManager {
       errorMessage = e.toString();
       _lastError = errorMessage;
       // ✅ سجل في شاشة تتبع الأخطاء (إذا لم يكن مسجلاً بالفعل)
-      // نتجنب التكرار: login/push/pull يسجلون بمفردهم،
-      // هذا للالتقاط أي استثناء آخر
+      // الدفع/السحب يسجلون بمفردهم — هذا لالتقاط أي استثناء آخر
       if (!errorMessage.contains('Push failed') &&
           !errorMessage.contains('Pull failed') &&
           !errorMessage.contains('Login failed') &&
@@ -920,6 +1020,12 @@ class CloudflareSyncManager {
     int pendingCursor = _lastPullCursor;
     bool hadError = false;
     String? errorMessage;
+    // ✅ (2026-09-08) عقد «الجداول الناقصة لا تُضيّع بياناتها»:
+    // أول مؤشر قبل أول صفحة حملت أخطاء جداول خادمية (errors[]).
+    // صفوف الجدول المتخطى بين هذا الحد ومؤشر نهاية الدورة لم تُرسَل
+    // أصلاً — حفظ المؤشر المتقدم سيفقدها إلى الأبد (علامة مائية صارمة
+    // `>`). عند التدهور يُعاد المؤشر إلى هذا الحد.
+    int? cursorAtFirstError;
 
     // P0-B: if full sync not yet completed, run to exhaustion
     final wasFullSync = !_fullSyncCompleted;
@@ -1009,9 +1115,28 @@ class CloudflareSyncManager {
         final changes = data['changes'] as List? ?? [];
         // Per-table degradation (worker names broken tables instead of
         // failing the whole pull): log loudly, keep the healthy changes.
+        // ✅ (2026-09-08) لم يعد الصمت مقبولاً: الجداول التي تخطاها
+        // الخادم تُسجَّل كفشل جزئي (_failedCollectionsInLastSync) حتى
+        // لا تُعتبر المزامدة ناجحة ولا تُضبط علامة full sync — وإلا
+        // بقي الجهاز ناقص البيانات إلى الأبد دون أي إشارة.
         final tableErrors = data['errors'] as List? ?? [];
         for (final e in tableErrors) {
           debugPrint('⚠️ Pull: server skipped table: $e');
+          try {
+            final map = Map<String, dynamic>.from(e as Map);
+            final ent = map['entity']?.toString();
+            if (ent != null && ent.isNotEmpty) {
+              _failedCollectionsInLastSync.add(ent);
+            }
+          } catch (_) {
+            _failedCollectionsInLastSync.add('unknown-table-error');
+          }
+        }
+        // ✅ (2026-09-08) محور 2: صفحة بها أخطاء جداول = دورة متدهورة.
+        // نثبّت مؤشر ما قبل هذه الصفحة (قبل تطبيق serverCursor أدناه)
+        // — أول صفحة معطوبة تحدد الحد الآمن للتراجع.
+        if (tableErrors.isNotEmpty && cursorAtFirstError == null) {
+          cursorAtFirstError = pendingCursor;
         }
         // P0-C: server-derived cursor is authoritative, not device time
         final serverCursor = int.tryParse(data['cursor']?.toString() ?? '0');
@@ -1069,9 +1194,9 @@ class CloudflareSyncManager {
     }
 
     // P0-C: only advance checkpoint in prefs on full success
-    if (!hadError) {
+    final prefs = await SharedPreferences.getInstance();
+    if (!hadError && cursorAtFirstError == null) {
       _lastPullCursor = pendingCursor;
-      final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('cf_last_pull_cursor', _lastPullCursor);
 
       // P0-B: mark full sync as completed only on full success
@@ -1084,15 +1209,23 @@ class CloudflareSyncManager {
       debugPrint(
         '📥 Pulled $totalPulled changes (cursor: $initialCursor -> $_lastPullCursor)',
       );
-
-      // ✅ بناء مشتق بعد السحب (2026-09-05): الليالي (booking_nights)
-      // والإجماليات المخزنة صفوف مشتقة تُعاد الحسبة محلياً على كل جهاز
-      // (bookings_adapter.dart:183-186) — سحب تغييرات bookings/payments/
-      // adjustments دون إعادة بناء يترك الجهاز الآخر بأرقام قديمة.
-      // enqueueOutbox:false — مشتق لا يُرفع، وإلا حلقة لا نهائية.
-      if (pulledDerivedEntities.isNotEmpty && totalPulled > 0) {
-        await _refreshDerivedAfterPull();
-      }
+    } else if (!hadError) {
+      // ✅ (2026-09-08) عقد «منع إعلان النجاح مع جداول ناقصة» — محور 2:
+      // الخادم تخطى جدولاً (errors[] غير فارغة) في صفحة/صفحات من هذه
+      // الدورة. الصفوف التابعة له بين cursorAtFirstError و pendingCursor
+      // لم تُرسَل أصلاً — حفظ pendingCursor كان سيدفع المؤشر خلفها
+      // إلى الأبد حتى بعد إصلاح الخادم (علامة مائية صارمة). نُرجع
+      // المؤشر إلى ما قبل أول صفحة معطوبة: الصفوف السليمة تُعاد
+      // لاحقاً (idempotent عبر local_uuid) ولا شيء يُفقد، والدورة
+      // التالية تُكمل من الحد الآمن.
+      _lastPullCursor = cursorAtFirstError!;
+      await prefs.setInt('cf_last_pull_cursor', _lastPullCursor);
+      debugPrint(
+        '⚠️ Pull degraded — server skipped tables '
+        '(${_failedCollectionsInLastSync.join(', ')}); checkpoint rolled '
+        'back to $_lastPullCursor (server reached $pendingCursor). '
+        'Full-sync flag NOT set.',
+      );
     } else {
       // P0-C: on failure, do NOT advance cursor in prefs
       _lastPullCursor = initialCursor;
@@ -1101,6 +1234,17 @@ class CloudflareSyncManager {
         '⚠️ Pull failed - checkpoint NOT advanced (stayed at $initialCursor). Error: $errorMessage',
       );
       throw Exception('Pull failed: $errorMessage');
+    }
+
+    // ✅ بناء مشتق بعد السحب (2026-09-05): الليالي (booking_nights)
+    // والإجماليات المخزنة صفوف مشتقة تُعاد الحسبة محلياً على كل جهاز
+    // (bookings_adapter.dart:183-186) — سحب تغييرات bookings/payments/
+    // adjustments دون إعادة بناء يترك الجهاز الآخر بأرقام قديمة.
+    // enqueueOutbox:false — مشتق لا يُرفع، وإلا حلقة لا نهائية.
+    // ✅ (2026-09-08) يُنفّذ الآن في الدورة السليمة والمتدهورة معاً —
+    // الصفوف السليمة المطبقة في دورة متدهورة تحتاج إعادة بناء أيضاً.
+    if (pulledDerivedEntities.isNotEmpty && totalPulled > 0) {
+      await _refreshDerivedAfterPull();
     }
 
     return totalPulled;

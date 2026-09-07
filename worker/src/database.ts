@@ -217,7 +217,7 @@ export class Database {
     excludeDeviceId?: string
   ): Promise<PullResult> {
     const entities = entity ? [entity] : Object.keys(ENTITY_TABLES);
-    const fetchLimit = Math.max(1, limit) + 1; // +1 → detect overflow cheaply
+    const baseLimit = Math.max(1, limit);
     const allChanges: SyncRecord[] = [];
 
     // Echo filter (plan 2.5): a device that already applied its own push
@@ -228,22 +228,57 @@ export class Database {
       excludeDeviceId && excludeDeviceId.length > 0 ? excludeDeviceId : null;
     const errors: Array<{ entity: string; error: string }> = [];
 
+    // Safety cap for the group-completion loop below. A legacy dataset
+    // whose rows share one updated_at can force large windows; past this
+    // point we accept the (logged) truncation rather than grow forever.
+    const MAX_PULL_WINDOW = 20_000;
+
     for (const ent of entities) {
       const table = ENTITY_TABLES[ent];
       try {
-        const rows = excludeDevice
-          ? await this.db
-              .prepare(
-                `SELECT * FROM ${table} WHERE updated_at > ? AND (device_id IS NULL OR device_id != ?) ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
-              )
-              .bind(cursor, excludeDevice, fetchLimit)
-              .all()
-          : await this.db
-              .prepare(
-                `SELECT * FROM ${table} WHERE updated_at > ? ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
-              )
-              .bind(cursor, fetchLimit)
-              .all();
+        // ── Group-complete fetch window ──
+        // The SQL window is limit+1: the extra probe row tells us whether
+        // more rows exist. Because equal-updated_at rows are CONTIGUOUS in
+        // the (updated_at, local_uuid) ordering, the group at the window
+        // edge is provably complete when either (a) the window exhausted
+        // the table, or (b) the probe row's timestamp differs from the
+        // last used row's timestamp. If probe.ts == last.ts the group
+        // continues beyond the window — we double the window and refetch
+        // until the edge group is fully visible. Skipping this loop let a
+        // group larger than the window be cut by the SQL LIMIT itself:
+        // has_more went false while same-ts rows were still unfetched,
+        // and the strict `>` cursor skipped them forever (the exact
+        // data-loss this page guard exists to prevent).
+        let window = baseLimit + 1;
+        let rows: { results: Record<string, unknown>[] };
+        for (;;) {
+          rows = excludeDevice
+            ? await this.db
+                .prepare(
+                  `SELECT * FROM ${table} WHERE updated_at > ? AND (device_id IS NULL OR device_id != ?) ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
+                )
+                .bind(cursor, excludeDevice, window)
+                .all<Record<string, unknown>>()
+            : await this.db
+                .prepare(
+                  `SELECT * FROM ${table} WHERE updated_at > ? ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
+                )
+                .bind(cursor, window)
+                .all<Record<string, unknown>>();
+          if (rows.results.length < window) break; // table exhausted
+          const n = rows.results.length;
+          const lastTs = Number(rows.results[n - 1].updated_at);
+          const prevTs = Number(rows.results[n - 2].updated_at);
+          if (lastTs !== prevTs) break; // edge group fully contained
+          window = window * 2;
+          if (window > MAX_PULL_WINDOW) {
+            console.error(
+              `[SYNC/PULL] table ${table}: duplicate-ts group exceeds ` +
+                `${MAX_PULL_WINDOW} rows — page may truncate mid-group`
+            );
+            break;
+          }
+        }
         for (const row of rows.results) {
           const record = row as unknown as SyncRecord;
           // ✅ أضف _entity لكل سجل ليتمكن Flutter من معرفة الجدول
@@ -270,9 +305,27 @@ export class Database {
       return String(a.local_uuid).localeCompare(String(b.local_uuid));
     });
 
-    // Paginate
-    const page = allChanges.slice(0, limit);
-    const hasMore = allChanges.length > limit;
+    // ─── Page cut with boundary-extension (duplicate-ts loss guard) ───
+    // The integer watermark cursor (WHERE updated_at > cursor) can only be
+    // lossless if a page NEVER cuts inside a group of rows sharing the same
+    // updated_at: rows beyond the cut but equal to the boundary timestamp
+    // would be skipped forever by the next page's strict `>` comparison.
+    // Server-written rows have allocator-unique timestamps, but legacy
+    // migration data can contain duplicates — so we extend the page to
+    // carry the whole boundary group together. With unique timestamps this
+    // is a no-op (group size 1).
+    let cut = Math.min(baseLimit, allChanges.length);
+    if (cut > 0) {
+      const boundaryTs = allChanges[cut - 1].updated_at;
+      while (
+        cut < allChanges.length &&
+        allChanges[cut].updated_at === boundaryTs
+      ) {
+        cut++;
+      }
+    }
+    const page = allChanges.slice(0, cut);
+    const hasMore = allChanges.length > cut;
 
     // ✅ CRITICAL FIX: cursor must be the updated_at of the LAST record
     // actually returned in this page — never the max across all fetched
@@ -286,6 +339,137 @@ export class Database {
       has_more: hasMore,
       errors,
     };
+  }
+
+  // ─── Legacy timestamp normalization (ms → seconds) ───────────
+
+  /**
+   * Threshold separating SECONDS-epoch timestamps from MILLISECOND-epoch
+   * ones. Current seconds epoch (~1.79e9) stays below 1e11 until year ~5138;
+   * any value above 1e11 is a millisecond stamp leaked by a legacy migration
+   * client. Mixed units poison the integer pull cursor permanently: once a
+   * cursor lands on a ms value, every later seconds-based row is invisible
+   * to `WHERE updated_at > cursor` — new pushes would never sync to anyone.
+   */
+  static readonly MS_TIMESTAMP_THRESHOLD = 100_000_000_000; // 1e11
+
+  /**
+   * Progressively repair legacy millisecond timestamps in entity tables.
+   *
+   * Re-stamps up to `maxRows` ms-scale rows per call with fresh, strictly
+   * increasing SECOND-based values allocated past the sync clock (order
+   * preserving), so repeated calls eventually drain all bad rows. Idempotent
+   * and safe under concurrency: the final clock advance uses MAX(), matching
+   * the allocator's monotonic guarantee.
+   *
+   * Why re-stamp instead of dividing by 1000? Dividing would collide
+   * thousands of rows onto the same second (recreating the page-boundary
+   * loss the pull guard defends against) and shrink values below existing
+   * cursors. Fresh allocator values keep every row globally unique, make the
+   * repaired rows the newest (so all devices re-pull them as a delta), and
+   * return the cursor domain to pure seconds — delta sync works forever.
+   *
+   * Called lazily from the pull handler so a deploy self-heals the data
+   * over a few requests without a manual maintenance step.
+   */
+  async normalizeTimestamps(
+    maxRows: number = 500
+  ): Promise<{
+    normalized: number;
+    remaining: number;
+    perTable: Record<string, number>;
+  }> {
+    const perTable: Record<string, number> = {};
+    let normalized = 0;
+    let remainingTotal = 0;
+
+    for (const table of Object.values(ENTITY_TABLES)) {
+      try {
+        // Indexed by idx_<table>_updated → cheap COUNT on every pull.
+        const countRow = await this.db
+          .prepare(
+            `SELECT COUNT(*) AS c FROM ${table} WHERE updated_at > ?`
+          )
+          .bind(Database.MS_TIMESTAMP_THRESHOLD)
+          .first<{ c: number }>();
+        const bad = countRow?.c ?? 0;
+        if (bad > 0) {
+          remainingTotal += bad;
+        }
+        if (bad === 0 || normalized >= maxRows) continue;
+
+        const take = Math.min(maxRows - normalized, bad, 1000);
+        const rows = await this.db
+          .prepare(
+            `SELECT local_uuid, updated_at, last_modified FROM ${table}
+             WHERE updated_at > ?
+             ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
+          )
+          .bind(Database.MS_TIMESTAMP_THRESHOLD, take)
+          .all<{ local_uuid: string; updated_at: number; last_modified: number | null }>();
+
+        if (rows.results.length === 0) continue;
+
+        // Allocate a contiguous, strictly-increasing second-based range past
+        // the current clock. The range must be reserved ATOMICALLY (single
+        // UPDATE … RETURNING): two concurrent pull requests could otherwise
+        // read the same clock base and assign overlapping timestamps — the
+        // exact duplicate-timestamp disease this routine cures.
+        const alloc = await this.db
+          .prepare(
+            'UPDATE sync_clock SET last_ts = MAX(last_ts, ?) + ? WHERE id = 1 RETURNING last_ts'
+          )
+          .bind(Math.floor(Date.now() / 1000), rows.results.length)
+          .first<{ last_ts: number }>();
+        if (!alloc || typeof alloc.last_ts !== 'number') {
+          throw new Error('normalize: sync_clock allocation failed');
+        }
+        const rangeEnd = alloc.last_ts;
+        const rangeStart = rangeEnd - rows.results.length + 1;
+
+        const statements: D1PreparedStatement[] = [];
+        rows.results.forEach((row, i) => {
+          const newTs = rangeStart + i;
+          // Re-stamp last_modified only when it carries the same legacy ms
+          // scale — seconds-scale values (server allocator output) stay.
+          statements.push(
+            this.db
+              .prepare(
+                `UPDATE ${table}
+                 SET updated_at = ?,
+                     last_modified = CASE WHEN last_modified > ? THEN ? ELSE last_modified END
+                 WHERE local_uuid = ?`
+              )
+              .bind(
+                newTs,
+                Database.MS_TIMESTAMP_THRESHOLD,
+                newTs,
+                row.local_uuid
+              )
+          );
+        });
+
+        // D1 batch is atomic per call — 50 statements per batch mirrors the
+        // migrate handler's chunking. Re-stamping is idempotent per batch:
+        // a retried batch re-stamps already-repaired rows only if they still
+        // match the ms filter, which they no longer do.
+        for (let start = 0; start < statements.length; start += 50) {
+          await this.db.batch(statements.slice(start, start + 50));
+        }
+
+        // The clock was already advanced atomically by the RETURNING
+        // statement above — no separate advance needed.
+
+        normalized += rows.results.length;
+        perTable[table] = rows.results.length;
+        remainingTotal = Math.max(0, remainingTotal - rows.results.length);
+      } catch (err) {
+        // Normalization is best-effort repair — never block the pull.
+        console.error(`[SYNC/PULL] normalize ${table} failed:`, String(err).slice(0, 200));
+      }
+    }
+
+    return { normalized, remaining: remainingTotal, perTable };
   }
 
   // ─── Push: Create ──────────────────────────────────────────
