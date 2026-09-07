@@ -652,7 +652,7 @@ class CloudflareSyncManager {
     var pulled = 0;
     if (push) pushed = await _pushOutbox();
     if (pull) pulled = await _pullChanges();
-    return (pushed: pushed, pulled: pulled);
+    return (pushed, pulled);
   }
 
   // ─── Push outbox to D1 ──────────────────────────────────────
