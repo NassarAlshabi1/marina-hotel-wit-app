@@ -194,12 +194,26 @@ class Env {
     defaultValue: 'https://marina-hotel-api.adenmarina2.workers.dev',
   );
 
+  /// اسم مستخدم مزامنة الخدمة الافتراضي لدى الـ Worker.
+  ///
+  /// ✅ (2026-09-07) إحياء المزامنة الافتراضية: كان الحقل فارغاً بدون
+  /// --dart-define فكان دخول المزامنة يفشل دائماً (401) و_token تبقى
+  /// null وكل مسارات push/pull تموت بـ «Not initialized». الآن حساب
+  /// خدمة مخصص (sync_service — دور admin، ليس لحساب مستخدم بشري)
+  /// يُستخدم افتراضياً ويمكن تجاوزه عبر --dart-define.
   static const String cloudflareUsername = String.fromEnvironment(
     'CLOUDFLARE_USERNAME',
+    defaultValue: 'sync_service',
   );
 
+  /// كلمة مرور حساب مزامنة الخدمة الافتراضي (sync_service).
+  ///
+  /// الهاش المخزن في D1 بصيغة legacy (saltHex:hashHex، 10000 تكرار)
+  /// لتوافق الـ Worker المنشور حالياً — يمكن تجاوز القيمة عبر
+  /// --dart-define=CLOUDFLARE_PASSWORD=... لنشر بإعتمادات مختلفة.
   static const String cloudflarePassword = String.fromEnvironment(
     'CLOUDFLARE_PASSWORD',
+    defaultValue: 'UcKiDuy1m6UXuHBohxlxppY6ZmtLc6Id!Aa1',
   );
 
   /// Auth token (set at runtime after login)

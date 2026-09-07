@@ -41,6 +41,7 @@ import 'services/alarm_backup.dart';
 import 'services/api_config_service.dart';
 import 'services/app_session_manager.dart';
 import 'services/auto_backup_manager.dart';
+import 'services/auto_outbox_sync_watcher.dart';
 import 'services/background_sync_service.dart';
 import 'services/battery_optimizer.dart';
 import 'services/blacklist_alert_service.dart';
@@ -73,7 +74,6 @@ import 'services/sync_continuation_service.dart';
 import 'services/sync_guardian.dart';
 import 'services/sync_performance_optimizer.dart';
 import 'services/sync_queue_service.dart';
-import 'services/sync_service.dart';
 // AutoSync Engine imports
 import 'services/unified_sync_orchestrator.dart';
 import 'utils/auto_sync_preferences.dart';
@@ -533,6 +533,23 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         final syncManager = ref.read(cloudflare.cloudflareSyncManagerProvider);
         await syncManager.initialize(database: DatabaseManager.instance);
 
+        // ✅ (2026-09-07) إحياء الرفع الفوري — القرار المُصدر من مراجعة
+        // معمارية المزامنة: AutoOutboxSyncWatcher.start() لم يكن مستدعى
+        // وpushFunction لم تكن مضبوطة، فكان الرفع بعد الكتابة ميتاً
+        // (لا يحدث إلا عبر مؤقت 15 دقيقة / فتح التطبيق / الأزرار اليدوية).
+        // الآن: أي إدخال جديد في outbox يُرفع تلقائياً بعد debounce
+        // 3 ثوانٍ — مع ضمان التهيئة (إعادة محاولة الدخول عند فشلها
+        // السابق) قبل كل محاولة رفع، فلا يضيع أي رفع بعد تهيئة فاشلة.
+        AutoOutboxSyncWatcher.pushFunction = () async {
+          if (syncManager.token == null) {
+            await syncManager.initialize(database: DatabaseManager.instance);
+          }
+          return syncManager.pushLocalChanges();
+        };
+        unawaited(
+          AutoOutboxSyncWatcher.instance.start(DatabaseManager.instance),
+        );
+
         // ✅ Cloudflare migration: push local data to D1 on first run
         if (!await CloudflareMigrationService.instance.isMigrationComplete()) {
           debugPrint('🔄 Starting Cloudflare migration...');
@@ -742,7 +759,17 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     }
     _localAutoSyncRunning = true;
     try {
-      await ref.read(syncServiceProvider).runSync();
+      // ✅ (2026-09-07) Cloudflare-only: فصل محرك PHP القديم عن مسار
+      // المزامنة التلقائي (القرار المُصدر من المراجعة المعمارية —
+      // محركان متوازيان كانا يتنافسان على نفس البيانات). زناد
+      // ما-بعد-الكتابة يشغّل الآن المدير الموحد (رفع + سحب دلتا) —
+      // sync() محمي داخلياً (kill switch / appwrite_sync_enabled /
+      // _syncInProgress) والرفع الفوري مغطى بواسطة AutoOutboxSyncWatcher.
+      final manager = ref.read(cloudflare.cloudflareSyncManagerProvider);
+      if (manager.token == null) {
+        await manager.initialize(database: DatabaseManager.instance);
+      }
+      await manager.sync();
     } catch (e) {
       derr(() => 'Local auto sync error: $e');
     } finally {
