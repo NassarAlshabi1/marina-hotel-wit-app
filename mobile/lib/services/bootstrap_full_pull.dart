@@ -9,6 +9,10 @@ import 'appwrite_sync_manager.dart';
 enum BootstrapFullPullOutcome {
   /// المستخدم لم يتخطَّ شاشة تسجيل الدخول (سجّل دخوله أو دخل بحساب محفوظ)
   /// — لا مجال لأي سحب بعد التخطي.
+  /// ✅ (2026-09-07) لا يعود يُعاد إلا عندما requireSkipFlag=true
+  /// (مسار ensureFullPullAfterSkip القديم) — مسار الإطلاق الجديد
+  /// (ensureFullPullOnLaunch) لا يشترط التخطي أصلاً: المزامنة تعمل
+  /// بدون تسجيل دخول عبر التوكن الافتراضي (طلب المستخدم الحرفي).
   notApplicable,
 
   /// سبق إتمام سحب كامل: إمّا العلامة مضبوطة من إطلاق سابق، أو
@@ -79,8 +83,14 @@ class BootstrapFullPull {
     required bool isFullSyncCompleted,
     required Future<bool> Function() initializeAndFullPull,
     required Future<void> Function(bool value) setPullDoneFlag,
+    /// ✅ (2026-09-07) false = تشغيل بلا شرط التخطي (مسار الإطلاق
+    /// ensureFullPullOnLaunch): السحب الكامل قرار بنية تحتية يعمل عبر
+    /// التوكن الافتراضي ويجري حتى والمستخدم على شاشة تسجيل الدخول —
+    /// هذا يكسر حلقة الدجاجة-والبيضة (تثبيت أول: app_users فارغة محلياً
+    /// والمستخدمون السحابيون لا يصلون إلا عبر السحب الذي كان ينتظر الدخول).
+    bool requireSkipFlag = true,
   }) async {
-    if (!driveLoginSkipped) {
+    if (requireSkipFlag && !driveLoginSkipped) {
       return BootstrapFullPullOutcome.notApplicable;
     }
     if (pullDoneFlag || isFullSyncCompleted) {
@@ -111,6 +121,34 @@ class BootstrapFullPull {
     required AppwriteSyncManager manager,
     SharedPreferences? prefs,
   }) async {
+    return _runCore(manager: manager, prefs: prefs, requireSkipFlag: true);
+  }
+
+  /// ✅ (2026-09-07) نقطة إدخال الإطلاق — «المزامنة بدون الحاجة إلى
+  /// تسجيل الدخول» (طلب المستخدم الحرفي).
+  ///
+  /// تُستدعى من تهيئة قاعدة البيانات في main.dart (قبل أي تسجيل دخول):
+  /// السحب الكامل من Cloudflare D1 يعمل عبر التوكن الافتراضي
+  /// (sync_service — حساب خدمة داخل الـ worker، لا علاقة له بحساب
+  /// مستخدم التطبيق) فيصل بيانات app_users والفنادق إلى الجهاز حتى
+  /// والمستخدم ما زال على شاشة الدخول.
+  /// idempotent تماماً مثل ensureFullPullAfterSkip:
+  /// - in-flight guard يمنع التداخل مع نداء التخطي/الـ shell.
+  /// - pullDoneFlag / isFullSyncCompleted يقرّبان أي مسار سبق.
+  /// - الفشل لا يضبط العلامة — إعادة المحاولة عند الإطلاق القادم.
+  static Future<bool> ensureFullPullOnLaunch({
+    required AppwriteSyncManager manager,
+    SharedPreferences? prefs,
+  }) async {
+    return _runCore(manager: manager, prefs: prefs, requireSkipFlag: false);
+  }
+
+  /// النواة المشتركة للمدخلين — فرق وحيد: requireSkipFlag.
+  static Future<bool> _runCore({
+    required AppwriteSyncManager manager,
+    required bool requireSkipFlag,
+    SharedPreferences? prefs,
+  }) async {
     if (_inFlight) {
       return false;
     }
@@ -128,8 +166,9 @@ class BootstrapFullPull {
         setPullDoneFlag: (value) async {
           await sp.setBool(pullDoneFlagKey, value);
         },
+        requireSkipFlag: requireSkipFlag,
       );
-      dlog(() => '⬇️ BootstrapFullPull: $outcome');
+      dlog(() => '⬇️ BootstrapFullPull($requireSkipFlag): $outcome');
       return outcome == BootstrapFullPullOutcome.succeeded ||
           outcome == BootstrapFullPullOutcome.alreadyDone;
     } catch (e) {

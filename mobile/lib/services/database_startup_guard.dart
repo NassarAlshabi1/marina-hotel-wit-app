@@ -190,7 +190,11 @@ class DatabaseStartupGuard {
       );
     } finally {
       try {
-        db?.close();
+        // ✅ (2026-09-07) sqlite3 ≥ 2.9: أُعيدت تسمية close() إلى
+        // dispose() — الكود القديم كان يستدعي close() فكان الفحص
+        // يترك مقبض الملف مفتوحاً (لم يكن يعمل أصلاً — خطأ تحليل
+        // undefined_method كان يعطّل التجميع الكامل).
+        db?.dispose();
       } catch (_) {}
     }
   }

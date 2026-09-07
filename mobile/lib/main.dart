@@ -22,7 +22,6 @@ import 'providers/cloudflare_providers.dart' as cloudflare;
 import 'providers/repository_providers.dart';
 import 'providers/theme_provider.dart';
 import 'screens/ai/ai_chat_screen.dart';
-import 'screens/auth/google_drive_login_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/bookings/bookings_list.dart';
 import 'screens/dashboard_screen.dart';
@@ -550,6 +549,26 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
           AutoOutboxSyncWatcher.instance.start(DatabaseManager.instance),
         );
 
+        // ✅ (2026-09-07) «المزامنة بدون الحاجة إلى تسجيل الدخول» (طلب
+        // المستخدم الحرفي): السحب الكامل من D1 كان محبوساً خلف شرطين
+        // تسجيليين (أدلة: bootstrap_full_pull.dart — شرط drive_login_skipped
+        // في evaluate() + نداء اللا مشغّل الوحيد في HomeShell بعد الدخول).
+        // النتيجة: تثبيت أول يبقى فارغاً حتى يسجّل المستخدم دخولاً،
+        // والمستخدمون السحابيون (app_users) لا يصلون إلا عبر نفس السحب
+        // — حلقة دجاجة-والبيضة. الآن: السحب يعمل هنا عند تهيئة القاعدة
+        // (قبل شاشة الدخول) عبر التوكن الافتراضي (sync_service في
+        // الـ worker)، ويُعاد تلقائياً كل إطلاق حتى ينجح (idempotent —
+        // in-flight guard + pullDoneFlag يمنعان الازدواج مع نداء
+        // HomeShell/شاشة التخطي).
+        unawaited(
+          BootstrapFullPull.ensureFullPullOnLaunch(
+            manager: ref.read(appwrite.appwriteSyncManagerProvider),
+          ).catchError((Object e, StackTrace s) {
+            debugPrint('⚠️ Bootstrap full pull (pre-login) error: $e\n$s');
+            return false;
+          }),
+        );
+
         // ✅ Cloudflare migration: push local data to D1 on first run
         if (!await CloudflareMigrationService.instance.isMigrationComplete()) {
           debugPrint('🔄 Starting Cloudflare migration...');
@@ -810,34 +829,13 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     debugPrint('✅ FCM ready — cross-device notifications enabled');
   }
 
-  /// رفع التغييرات المعلقة عند العودة للتطبيق.
-  ///
-  /// ✅ Forensic audit fix (2026-07-22):
-  /// كان الكود السابق ينفذ sync(push: true, pull: true) — أي push + pull
-  /// كامل (20 listDocuments API calls). لكن UnifiedSyncOrchestrator.onAppForeground()
-  /// (main.dart:861) ينفذ بالفعل syncNow(push: false, pull: true) — أي pull كامل.
-  /// النتيجة: pull مزدوج عند كل عودة من الخلفية (40 listDocuments بدل 20).
-  ///
-  /// الإصلاح: تحويل _syncOnResume ليعمل push فقط (sync(push: true, pull: false)).
-  /// هذا يحافظ على الوظيفة الحرجة (رفع التغييرات المعلقة في outbox عند العودة)
-  /// ويزيل pull المكرر الذي يغطيه UnifiedSyncOrchestrator.onAppForeground.
-  ///
-  /// للتراجع: أعد pull: true (الافتراضي) في السطر التالي.
-  /// للقياس: شغّل التطبيق على جهازين، أنشئ حجزاً على أحدهما، أخرج للخلفية،
-  /// عُد للتطبيق، وتحقق من وصول التغيير للجهاز الثاني + راقب Cloudflare Dashboard
-  /// → Usage → Database Reads قبل وبعد هذا التغيير.
-  Future<void> _syncOnResume() async {
-    try {
-      final syncManager = ref.read(cloudflare.cloudflareSyncManagerProvider);
-      // push فقط — pull يُغطَّى بواسطة UnifiedSyncOrchestrator.onAppForeground()
-      await syncManager.sync(pull: false);
-      debugPrint(
-        '✅ Push on resume completed (pull handled by UnifiedSyncOrchestrator)',
-      );
-    } catch (e) {
-      debugPrint('Sync on resume error: $e');
-    }
-  }
+  /// ✅ P0-2 (تدقيق معماري 2026-09-07 — قرار المُصدر): حُذفت _syncOnResume()
+  /// — كانت تعمل بالتوازي مع UnifiedSyncOrchestrator.onAppForeground()
+  /// (push منفصل + pull منفصل) فيتنافسان على موتكس sync() نفسه
+  /// (_syncInProgress) ويُتخطى أحدهما عشوائياً برسالة
+  /// «Sync already in progress» — أحياناً يضيع الرفع وأحياناً السحب.
+  /// الآن: مشغّل واحد (onAppForeground) ينفّذ دورة واحدة متسلسلة
+  /// (رفع ثم سحب) تحت الموتكس مرة واحدة.
 
   /// رفع التغييرات المعلقة عند خروج التطبيق للخلفية
   /// البيانات محفوظة في SQLite (outbox) حتى لو قُتل التطبيق قبل الاكتمال
@@ -1000,12 +998,10 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
             (Object e, StackTrace s) =>
                 derr(() => 'Error in refreshSignInStatus: $e\n$s'),
           );
-      // ✅ تحسين أداء: تقليل تكرار المزامنة عند العودة — مزامنة واحدة فقط
-      // سابقاً: 4 عمليات مزامنة متوازية (consumePendingAndSync + _syncOnResume +
-      // UnifiedSyncOrchestrator.onAppForeground + SyncGuardian.onAppForeground)
-      // الآن: _syncOnResume كعملية أساسية + إشعار UnifiedSyncOrchestrator بدون مزامنة مستقلة
-      unawaited(_syncOnResume());
-      // إشعار خدمات المزامنة بالعودة — بدون بدء مزامنة مستقلة (ستكتفي بالتحقق)
+      // ✅ P0-2 (تدقيق معماري 2026-09-07): مشغّل وحيد للعودة من الخلفية —
+      // دورة واحدة متسلسلة (رفع ثم سحب) تحت الموتكس مرة واحدة.
+      // كانت هنا _syncOnResume() (push) + onAppForeground() (pull)
+      // متوازيين — أحدهما يُتخطى عشوائياً (Sync already in progress).
       UnifiedSyncOrchestrator.instance.onAppForeground().catchError(
         (Object e, StackTrace s) =>
             derr(() => 'Error in UnifiedSync onAppForeground: $e\n$s'),
@@ -1080,15 +1076,19 @@ class RootRouter extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
-    final backup = ref.watch(backupStatusProvider);
+    // ✅ (2026-09-07) أُزيلت بوابة GoogleDriveLoginScreen من مسار التوجيه
+    // (طلب المستخدم: «المزامنة بدون الحاجة إلى تسجيل الدخول»):
+    // كانت تُفرض على التثبيت الجديد حائط دخول Google Drive *قبل* شاشة
+    // دخول التطبيق نفسها (requiresDriveLogin = !isSignedIn &&
+    // !driveLoginSkipped) — مزامنة Cloudflare (المسار الوحيد المعمول
+    // به الآن) لا تحتاج أي دخول Google، والسحب الكامل عبر التوكن
+    // الافتراضي يعمل في الخلفية بغضّ النظر عن هذا الجزء من الواجهة.
+    // دخول Drive يبقى متاحاً من الإعدادات (النسخ الاحتياطي).
     if (auth.isRestoring) {
       return const Directionality(
         textDirection: TextDirection.rtl,
         child: Scaffold(body: Center(child: CircularProgressIndicator())),
       );
-    }
-    if (!auth.isAuthenticated && backup.requiresDriveLogin) {
-      return const GoogleDriveLoginScreen();
     }
     if (auth.isAuthenticated) {
       return const HomeShell();

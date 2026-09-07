@@ -370,45 +370,52 @@ class BookingsRepository {
 
     if (orphans.isEmpty) return;
 
-    await (db.update(db.bookingPriceAdjustments)
-          ..where((a) => a.bookingLocalId.equals(bookingId))
-          ..where((a) => a.isActive.equals(true))
-          ..where((a) => a.deletedAt.isNull())
-          ..where((a) => a.reason.equals('legacy_discount')))
-        .write(
-          BookingPriceAdjustmentsCompanion(
-            isActive: const d.Value(false),
-            cancelledAt: d.Value(nowIso),
-            cancelledBy: const d.Value('auto_cleanup'),
-            updatedAt: d.Value(now),
-            lastModified: d.Value(now),
-            updatedAtIso: d.Value(nowIso),
-            lastModifiedEpoch: d.Value(now),
-          ),
-        );
+    // ✅ P0-3 (تدقيق معماري 2026-09-07): التحديث المحلي وإدراج outbox
+    // في معاملة ذرية واحدة — سابقاً كان بينهما فجوة: تعطل التطبيق بعد
+    // الكتابة وقبل enqueue يترك التعديل المحلي بلا رفع أبدياً (سجل
+    // يُعدّل محلياً ولا يصل للسحابة) — والعكس كان غير ممكن (outbox بلا
+    // كتابة = رفع بيانات قديمة)، والمعاملة تمنع الحالتين معاً.
+    await db.transaction(() async {
+      await (db.update(db.bookingPriceAdjustments)
+            ..where((a) => a.bookingLocalId.equals(bookingId))
+            ..where((a) => a.isActive.equals(true))
+            ..where((a) => a.deletedAt.isNull())
+            ..where((a) => a.reason.equals('legacy_discount')))
+          .write(
+            BookingPriceAdjustmentsCompanion(
+              isActive: const d.Value(false),
+              cancelledAt: d.Value(nowIso),
+              cancelledBy: const d.Value('auto_cleanup'),
+              updatedAt: d.Value(now),
+              lastModified: d.Value(now),
+              updatedAtIso: d.Value(nowIso),
+              lastModifiedEpoch: d.Value(now),
+            ),
+          );
 
-    // لا تُرحّل صيانة السجلات المسحوبة من Appwrite إلى Outbox. أمّا صيانة
-    // التعديل المحلي فتحتفظ بالسلوك الحالي وتُرفع تلقائياً.
-    if (enqueueOutbox) {
-      final outboxDao = OutboxDao(db);
-      await outboxDao.mergeBatch(
-        orphans
-            .map(
-              (orphan) => <String, dynamic>{
-                'entity': 'booking_price_adjustments',
-                'op': 'update',
-                'localUuid': orphan.localUuid,
-                'payload': <String, dynamic>{
-                  'isActive': false,
-                  'cancelledAt': nowIso,
-                  'cancelledBy': 'auto_cleanup',
+      // لا تُرحّل صيانة السجلات المسحوبة من Appwrite إلى Outbox. أمّا صيانة
+      // التعديل المحلي فتحتفظ بالسلوك الحالي وتُرفع تلقائياً.
+      if (enqueueOutbox) {
+        final outboxDao = OutboxDao(db);
+        await outboxDao.mergeBatch(
+          orphans
+              .map(
+                (orphan) => <String, dynamic>{
+                  'entity': 'booking_price_adjustments',
+                  'op': 'update',
+                  'localUuid': orphan.localUuid,
+                  'payload': <String, dynamic>{
+                    'isActive': false,
+                    'cancelledAt': nowIso,
+                    'cancelledBy': 'auto_cleanup',
+                  },
+                  'clientTs': now,
                 },
-                'clientTs': now,
-              },
-            )
-            .toList(),
-      );
-    }
+              )
+              .toList(),
+        );
+      }
+    });
   }
 
   /// الحصول على أي حجز نشط للغرفة (التحقق من جميع حالات الحجز النشط)

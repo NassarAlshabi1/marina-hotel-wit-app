@@ -359,8 +359,15 @@ class UnifiedSyncOrchestrator {
     }
   }
 
+  /// ✅ P0-2 (تدقيق معماري 2026-09-07): المشغّل الوحيد للعودة من الخلفية —
+  /// دورة واحدة متسلسلة (رفع ثم سحب) تحت موتكس المدير مرة واحدة.
+  /// كانت main.dart تستدعي _syncOnResume() (push) هنا بالتوازي مع
+  /// هذا النداء (pull) — فيتنافسان على sync() نفسه ويُتخطى أحدهما
+  /// عشوائياً بـ «Sync already in progress». الدمج هنا يلغي السباق
+  /// ويحفظ كلا السلوكين (رفع outbox المعلق + سحب دلتا).
   Future<void> onAppForeground() async {
-    await syncNow(push: false, reason: 'app_foreground');
+    // push+pull هما الافتراضي في syncNow — دورة واحدة متسلسلة.
+    await syncNow(reason: 'app_foreground');
   }
 
   Future<void> onDriveSignInChanged(bool isSignedIn) async {

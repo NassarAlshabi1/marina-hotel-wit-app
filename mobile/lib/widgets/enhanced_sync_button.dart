@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/appwrite_providers.dart';
-import '../providers/repository_providers.dart';
 import '../screens/settings/error_tracker_screen.dart'
     show logError, ErrorCategory;
 import '../services/connectivity_service.dart';
@@ -101,16 +100,12 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     unawaited(_animationController.repeat());
 
     try {
-      final smartSyncManager = ref.read(smartSyncManagerProvider);
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
 
-      final smartEnabled = await smartSyncManager.isEnabled();
-
-      if (smartEnabled) {
-        await smartSyncManager.forceSyncNow();
-      }
-
-      // ✅ (2026-08-31) تفاعل يدوي صريح — forcePull يتجاوز حارس الدقيقتين فقط
+      // ✅ P0-1 (تدقيق معماري 2026-09-07): أُزيل SmartSyncManager (Google
+      // Drive) من الزر — كان يُطلق رفعة Drive كاملة قبل مزامنة Cloudflare
+      // (المسار الوحيد المعمول به) فكان مساراً مزدوجاً يتنافس على نفس
+      // البيانات ويبطئ الزر. مزامنة يدوية = مسار Cloudflare وحيد.
       await appwriteSyncManager.sync(forcePull: true);
 
       if (mounted) {
@@ -383,10 +378,10 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     unawaited(_animationController.repeat());
 
     try {
-      final smartSyncManager = ref.read(smartSyncManagerProvider);
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
 
-      await smartSyncManager.pushLocalChanges();
+      // ✅ P0-1 (تدقيق معماري 2026-09-07): رفع = Cloudflare فقط
+      // (أُزيل smartSyncManager.pushLocalChanges — مسار Drive ميت).
       await appwriteSyncManager.pushLocalChanges();
 
       if (mounted) {
@@ -428,10 +423,10 @@ class _EnhancedSyncButtonState extends ConsumerState<EnhancedSyncButton>
     unawaited(_animationController.repeat());
 
     try {
-      final smartSyncManager = ref.read(smartSyncManagerProvider);
       final appwriteSyncManager = ref.read(appwriteSyncManagerProvider);
 
-      await smartSyncManager.pullRemoteChanges();
+      // ✅ P0-1 (تدقيق معماري 2026-09-07): سحب = Cloudflare فقط
+      // (أُزيل smartSyncManager.pullRemoteChanges — مسار Drive ميت).
       // ✅ (2026-08-31) تفاعل يدوي صريح — forcePull يتجاوز حارس الدقيقتين فقط
       await appwriteSyncManager.sync(push: false, forcePull: true);
 

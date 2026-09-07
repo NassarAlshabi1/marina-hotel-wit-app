@@ -49,7 +49,7 @@ void main() {
     final db = sqlite3.open(dbPath());
     db.execute('CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)');
     db.execute("INSERT INTO t (name) VALUES ('ناصر'), ('السقاف')");
-    db.close();
+    db.dispose();
 
     final sizeBefore = File(dbPath()).lengthSync();
 
@@ -144,7 +144,7 @@ void main() {
       db.execute("INSERT INTO smoke (v) VALUES ('ok')");
       final rows = db.select('SELECT count(*) AS c FROM smoke');
       expect(rows.first['c'], 1);
-      db.close();
+      db.dispose();
 
       // الفحص على القاعدة الجديدة سليم
       final result = await DatabaseStartupGuard.verifyAndRecoverIn(tempDir);
