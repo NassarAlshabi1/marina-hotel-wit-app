@@ -154,6 +154,25 @@ describe('pull: echo filter (plan 2.5 — exclude_device)', () => {
   });
 });
 
+describe('pull: deleted records are excluded', () => {
+  it('does not return soft-deleted rows, even when their updated_at is newer', async () => {
+    const auth = await adminAuthHeader();
+    const payload = roomPayload({ device_id: 'device-A' });
+    const pushed = await pushOperations(auth, [pushOp('rooms', 'create', payload)]);
+    const pushedBody = (await pushed.json()) as PushResponseBody;
+    expect(pushedBody.summary.failed).toBe(0);
+
+    await env.DB.prepare(
+      'UPDATE rooms SET deleted_at = ?, updated_at = ? WHERE local_uuid = ?',
+    )
+      .bind(1700000100, 1700000100, payload.local_uuid)
+      .run();
+
+    const data = await pull(auth, { cursor: '0' });
+    expect(data.changes.some((row) => row.local_uuid === payload.local_uuid)).toBe(false);
+  });
+});
+
 describe('pull: sync_log + stats + conflicts endpoints', () => {
   it('/api/sync/log returns recorded operations with pagination', async () => {
     const auth = await adminAuthHeader();

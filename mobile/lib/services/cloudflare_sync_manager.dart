@@ -563,17 +563,16 @@ class CloudflareSyncManager {
     final startTime = DateTime.now();
     _currentStatus = SyncStatus.syncing;
     _statusController.add(SyncStatus.syncing);
+    // كل دورة لها نتيجة مستقلة؛ لا تورّث فشل دورة سابقة إلى الدورات التالية.
+    _failedCollectionsInLastSync.clear();
     int recordsPushed = 0;
     int recordsPulled = 0;
     String? errorMessage;
 
     try {
-      if (push) {
-        recordsPushed = await _pushOutbox();
-      }
-      if (pull) {
-        recordsPulled = await _pullChanges();
-      }
+      final stages = await _executeSyncPipeline(push: push, pull: pull);
+      recordsPushed = stages.$1;
+      recordsPulled = stages.$2;
 
       // ✅ P0-B/P0-C: لا نعتبر المزامنة "نجحت" إلا إذا لم تكن هناك collections فاشلة.
       // وإلا نحتفظ بالحالة الحالية ونسمح بإعادة المحاولة لاحقاً.
@@ -638,6 +637,22 @@ class CloudflareSyncManager {
       recordsPulled: recordsPulled,
       errorMessage: errorMessage,
     );
+  }
+
+  /// خط تنفيذ موحّد للدورة: الدفع أولاً ثم السحب.
+  ///
+  /// إبقاء الترتيب في نقطة واحدة يمنع اختلاف السلوك بين المزامنة اليدوية
+  /// والتلقائية والسحب الكامل، كما يجعل اختبارات العقد أسهل: كل دورة تعيد
+  /// عدد ما دُفع وما سُحب دون خلط أخطاء المرحلتين.
+  Future<(int pushed, int pulled)> _executeSyncPipeline({
+    required bool push,
+    required bool pull,
+  }) async {
+    var pushed = 0;
+    var pulled = 0;
+    if (push) pushed = await _pushOutbox();
+    if (pull) pulled = await _pullChanges();
+    return (pushed: pushed, pulled: pulled);
   }
 
   // ─── Push outbox to D1 ──────────────────────────────────────
@@ -1007,15 +1022,30 @@ class CloudflareSyncManager {
         }
 
         final changes = data['changes'] as List? ?? [];
-        // Per-table degradation (worker names broken tables instead of
-        // failing the whole pull): log loudly, keep the healthy changes.
+        // Per-table degradation: لا نعلن نجاح full sync مع جداول مفقودة.
         final tableErrors = data['errors'] as List? ?? [];
         for (final e in tableErrors) {
           debugPrint('⚠️ Pull: server skipped table: $e');
         }
+        if (tableErrors.isNotEmpty) {
+          hadError = true;
+          errorMessage =
+              'Pull skipped ${tableErrors.length} remote table(s): '
+              '${tableErrors.join('; ')}';
+          _failedCollectionsInLastSync.addAll(
+            tableErrors.map((e) {
+              if (e is Map && e['entity'] != null) {
+                return e['entity'].toString();
+              }
+              return 'pull';
+            }),
+          );
+        }
         // P0-C: server-derived cursor is authoritative, not device time
         final serverCursor = int.tryParse(data['cursor']?.toString() ?? '0');
         hasMore = data['has_more'] as bool? ?? false;
+        // البيانات ناقصة؛ لا نتابع pagination ولا نحرّك checkpoint.
+        if (hadError) hasMore = false;
 
         if (serverCursor != null && serverCursor > pendingCursor) {
           pendingCursor = serverCursor;
@@ -1049,7 +1079,7 @@ class CloudflareSyncManager {
         );
 
         // P0-C: contradictory state - has_more=true but empty changes
-        if (changes.isEmpty && hasMore) {
+        if (!hadError && changes.isEmpty && hasMore) {
           debugPrint(
             '⚠️ Pull returned has_more=true but empty changes - stopping',
           );
@@ -1117,6 +1147,13 @@ class CloudflareSyncManager {
     if (_db == null) return;
 
     if (record.isEmpty) return;
+
+    // سياسة البيانات: السحب يجلب السجلات الحية فقط. هذا الحارس يبقى
+    // دفاعياً حتى لا تُطبّق tombstone قديمة إذا أعادها Worker قديم أو cache.
+    if (record['deleted_at'] != null) {
+      debugPrint('⏭️ Pull: skipped deleted $entity/${record['local_uuid']}');
+      return;
+    }
 
     // ✅ عقد القائمة السوداء (2026-09-05): صفوف blacklist بلا جدول Drift
     // محلي — تخزينها في shift_notes الموسومة created_by='blacklist'
@@ -1541,20 +1578,20 @@ class CloudflareSyncManager {
     debugPrint('🔄 Sync cursor reset — next pull will be full sync');
   }
 
-  /// مزامنة كاملة (full sync) — يعيد تعيين cursor ثم ينفذ sync.
+  /// مزامنة كاملة (full sync) — يعيد تعيين cursor ثم ينفذ pull حتى exhaustion.
   /// يستخدم عند: تبديل الجهاز، استعادة backup، مشاكل في البيانات.
   ///
   /// ✅ P0-B: بعد اكتمال full sync بنجاح، تُضبط علامة _fullSyncCompleted=true
   /// تلقائياً داخل _pullChanges() عند الوصول لـ exhaustion بدون أخطاء.
   /// إذا فشلت full sync جزئياً، تبقى العلامة false ويُعاد المحاولة في
   /// الـ sync التالي تلقائياً (لأن _pullChanges سيرى wasFullSync=true).
-  Future<SyncResult> fullSync() async {
+  Future<SyncResult> fullSync({bool push = false}) async {
     clearHistory();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('cf_last_pull_cursor');
     await prefs.remove(_kFullSyncCompletedKey);
     debugPrint('🔄 Full sync: cursor reset + fullSyncCompleted flag cleared');
-    return sync();
+    return sync(push: push);
   }
 
   // ─── Push all local data ────────────────────────────────────
@@ -1576,7 +1613,7 @@ class CloudflareSyncManager {
   /// يستدعيها ويتوقع Future<bool>): سحب كامل — نفس sync(pull: true)
   /// بلا رفع؛ نجاحها = لا فشل جزئي.
   Future<bool> pullAllDataWithDisabledFK() async {
-    final result = await sync(push: false);
+    final result = await fullSync();
     return result.isSuccess;
   }
 
@@ -1810,7 +1847,7 @@ class CloudflareSyncManager {
   // ─── Pull ALL remote data — used by appwrite_settings_screen ──
   // ✅ توافق Drop-in: perf screen يتوقع Future<bool>.
   Future<bool> pullAllRemoteData() async {
-    final result = await sync(push: false);
+    final result = await fullSync();
     return result.isSuccess;
   }
 

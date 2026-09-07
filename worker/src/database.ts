@@ -28,9 +28,9 @@ export interface PullResult {
   has_more: boolean;
   /**
    * Tables that failed this round (typically schema drift: a migration
-   * applied to code but not to live D1). Their rows are skipped for now —
-   * the pull still succeeds for every healthy table. Fix D1, then run one
-   * Full Sync (cursor reset) to backfill the skipped rows.
+   * applied to code but not to live D1). Their rows are skipped for now.
+   * The mobile client treats a non-empty list as a failed sync and does not
+   * advance its checkpoint, so fixing D1 and retrying backfills the rows.
    */
   errors: Array<{ entity: string; error: string }>;
 }
@@ -234,13 +234,13 @@ export class Database {
         const rows = excludeDevice
           ? await this.db
               .prepare(
-                `SELECT * FROM ${table} WHERE updated_at > ? AND (device_id IS NULL OR device_id != ?) ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
+                `SELECT * FROM ${table} WHERE deleted_at IS NULL AND updated_at > ? AND (device_id IS NULL OR device_id != ?) ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
               )
               .bind(cursor, excludeDevice, fetchLimit)
               .all()
           : await this.db
               .prepare(
-                `SELECT * FROM ${table} WHERE updated_at > ? ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
+                `SELECT * FROM ${table} WHERE deleted_at IS NULL AND updated_at > ? ORDER BY updated_at ASC, local_uuid ASC LIMIT ?`
               )
               .bind(cursor, fetchLimit)
               .all();
